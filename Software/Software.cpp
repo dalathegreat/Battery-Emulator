@@ -146,6 +146,61 @@ void logging_loop(void*) {
   vTaskDelete(NULL);
 }
 
+/* Low pass filter for the battery power limits sent to the inverter (only when increasing,
+   10% new / 90% old per 1s cycle, ~10s time constant). Decreases take effect immediately.
+   Runs AFTER update_machineryprotection() so its input includes safety-layer zeroing
+   (pause, fault, battery full, voltage/cell limits) - otherwise a safety block release
+   would expose a filter state that never saw the zero, skipping the ramp entirely.
+   Filter state is kept locally, since battery drivers and the safety layer rewrite the
+   datalayer values every cycle. */
+static void filter_inverter_limits(void) {
+  if (!inverter_low_pass_filter) {
+    return;  // Datalayer values pass through untouched - identical to legacy behavior
+  }
+  static uint32_t charge_power_W_filtered = 0;
+  static uint32_t discharge_power_W_filtered = 0;
+  static bool power_filter_initialized = false;
+
+  if (!power_filter_initialized) {
+    charge_power_W_filtered = datalayer.battery.status.max_charge_power_W;
+    discharge_power_W_filtered = datalayer.battery.status.max_discharge_power_W;
+    power_filter_initialized = true;
+  } else {
+    if (datalayer.battery.status.max_charge_power_W > charge_power_W_filtered) {
+      charge_power_W_filtered = (datalayer.battery.status.max_charge_power_W * 10 + charge_power_W_filtered * 90) / 100;
+    } else {
+      charge_power_W_filtered = datalayer.battery.status.max_charge_power_W;
+    }
+
+    if (datalayer.battery.status.max_discharge_power_W > discharge_power_W_filtered) {
+      discharge_power_W_filtered =
+          (datalayer.battery.status.max_discharge_power_W * 10 + discharge_power_W_filtered * 90) / 100;
+    } else {
+      discharge_power_W_filtered = datalayer.battery.status.max_discharge_power_W;
+    }
+  }
+  datalayer.battery.status.max_charge_power_W = charge_power_W_filtered;
+  datalayer.battery.status.max_discharge_power_W = discharge_power_W_filtered;
+
+  /* Cap the derived currents with values from the filtered power. min() logic is used so the
+     user/remote/safety clamps already applied to the _dA fields are never raised - both
+     are upper bounds. Same voltage fallback logic as in update_calculated_values(). */
+  uint16_t conversion_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (conversion_voltage_dV <= 10) {
+    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (conversion_voltage_dV > 10) {
+    uint32_t charge_dA_from_power = (charge_power_W_filtered * 100) / conversion_voltage_dV;
+    uint32_t discharge_dA_from_power = (discharge_power_W_filtered * 100) / conversion_voltage_dV;
+    if (charge_dA_from_power < datalayer.battery.status.max_charge_current_dA) {
+      datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_dA_from_power;
+    }
+    if (discharge_dA_from_power < datalayer.battery.status.max_discharge_current_dA) {
+      datalayer.battery.status.max_discharge_current_dA = (uint16_t)discharge_dA_from_power;
+    }
+  }
+}
+
 void update_calculated_values(unsigned long currentMillis) {
   /* Update CPU temperature*/
   union {
@@ -168,36 +223,20 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery.settings.max_remote_set_discharge_dA = 0;
   }
 
-  /* Calculate allowed charge/discharge currents*/
-  if (datalayer.battery.status.voltage_dV > 10) {
-    // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
-    int32_t target_charge = ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
-    int32_t target_discharge =
-        ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
-
-    // Low pass filter only when increasing values (10% new, 90% old)
-    if (inverter_low_pass_filter) {
-      if (datalayer.battery.status.max_charge_current_dA == 0) {
-        datalayer.battery.status.max_charge_current_dA = target_charge;  // Initialize immediately if 0
-      } else if (target_charge > datalayer.battery.status.max_charge_current_dA) {
-        datalayer.battery.status.max_charge_current_dA =
-            (target_charge * 10 + datalayer.battery.status.max_charge_current_dA * 90) / 100;
-      } else {
-        datalayer.battery.status.max_charge_current_dA = target_charge;
-      }
-
-      if (datalayer.battery.status.max_discharge_current_dA == 0) {
-        datalayer.battery.status.max_discharge_current_dA = target_discharge;  // Initialize immediately if 0
-      } else if (target_discharge > datalayer.battery.status.max_discharge_current_dA) {
-        datalayer.battery.status.max_discharge_current_dA =
-            (target_discharge * 10 + datalayer.battery.status.max_discharge_current_dA * 90) / 100;
-      } else {
-        datalayer.battery.status.max_discharge_current_dA = target_discharge;
-      }
-    } else {
-      datalayer.battery.status.max_charge_current_dA = target_charge;
-      datalayer.battery.status.max_discharge_current_dA = target_discharge;
-    }
+  /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
+     If unavailable (some drivers report 0 before battery comms are up), fall back to the design
+     max voltage - conservative, since it under-estimates current for a given power. If that is
+     also 0 (generic BMS drivers with no user-configured pack voltage, or BMS-reported cutoff
+     values before first frame), keep the previous values to avoid div0. */
+  uint16_t conversion_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (conversion_voltage_dV <= 10) {
+    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (conversion_voltage_dV > 10) {
+    datalayer.battery.status.max_charge_current_dA =
+        ((datalayer.battery.status.max_charge_power_W * 100) / conversion_voltage_dV);
+    datalayer.battery.status.max_discharge_current_dA =
+        ((datalayer.battery.status.max_discharge_power_W * 100) / conversion_voltage_dV);
   }
 
   /* Apply remote restrictions if set*/
@@ -507,6 +546,7 @@ void core_loop(void*) {
       }
       update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
+      filter_inverter_limits();      // Smooth limits towards inverter (runs after safeties on purpose)
 
       // Update values heading towards inverter
       if (inverter) {
