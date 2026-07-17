@@ -172,8 +172,7 @@ static void filter_inverter_limits(void) {
     cap_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   }
   if (cap_voltage_dV > 10) {
-    uint32_t user_charge_cap_W =
-        ((uint32_t)datalayer.battery.settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
+    uint32_t user_charge_cap_W = ((uint32_t)datalayer.battery.settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
     uint32_t user_discharge_cap_W =
         ((uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * cap_voltage_dV) / 100;
     if (charge_in > user_charge_cap_W) {
