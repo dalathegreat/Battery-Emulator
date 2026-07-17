@@ -469,10 +469,9 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
     static char usb_line[288];  // header + up to 64 CAN-FD data bytes at 3 chars each
     static uint32_t usb_frames_dropped = 0;
     unsigned long currentTime = millis();
-    size_t size =
-        snprintf(usb_line, sizeof(usb_line), "(%lu.%02lu) %s%d %lX [%u] ", currentTime / 1000,
-                 (currentTime % 1000) / 10, (msgDir == MSG_RX) ? "RX" : "TX",
-                 (msgDir == MSG_RX) ? (int)(interface * 2) : (int)(interface * 2) + 1, frame.ID, frame.DLC);
+    size_t size = snprintf(usb_line, sizeof(usb_line), "(%lu.%02lu) %s%d %lX [%u] ", currentTime / 1000,
+                           (currentTime % 1000) / 10, (msgDir == MSG_RX) ? "RX" : "TX",
+                           (msgDir == MSG_RX) ? (int)(interface * 2) : (int)(interface * 2) + 1, frame.ID, frame.DLC);
     for (uint8_t i = 0; i < frame.DLC; i++) {
       size += snprintf(usb_line + size, sizeof(usb_line) - size, (i < frame.DLC - 1) ? "%02X " : "%02X\r\n",
                        frame.data.u8[i]);
