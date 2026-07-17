@@ -67,6 +67,9 @@ void register_transmitter(Transmitter* transmitter) {
 // Initialization functions
 void init_serial() {
   // Init Serial monitor
+  // Buffered TX so CAN-log bursts are absorbed instead of dropped; also makes
+  // availableForWrite() report ring-buffer space rather than raw FIFO space.
+  Serial.setTxBufferSize(1024);
   Serial.begin(115200);
 #if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
