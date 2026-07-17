@@ -54,7 +54,8 @@ bool user_selected_primo_gen24 =
 bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
 
 bool charge_taper_soc = false;  //Should the charge power limit be tapered based on scaled SOC near full?
-uint16_t charge_taper_band_pptt = 500;  //Taper band in pptt. 500 = taper starts at 95.00% scaled SOC, reaching 0W at 100.00%
+uint16_t charge_taper_band_pptt =
+    500;  //Taper band in pptt. 500 = taper starts at 95.00% scaled SOC, reaching 0W at 100.00%
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
