@@ -1,0 +1,72 @@
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    flex: 1 1 0;
+    gap: 2.5rem;
+    row-gap: 1.25rem;
+}
+
+.stat {
+    font-size: 1.8rem;
+    line-height: 0.7em;
+    font-weight: 400;
+}
+
+.stat__double {
+    font-size: 1.1rem;
+    line-height: 0.9em;
+}
+
+.stat__small {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.stat span {
+    display: block;
+    font-weight: 400;
+    font-size: 0.9rem;
+    line-height: 1;
+    margin: 0 0 0.5rem;
+    color: #888;
+}
+
+.stat em, .stat u, .stat-circle em {
+    display: inline;
+    font-style: normal;
+    text-decoration: none;
+    font-size: 0.6em;
+    opacity: 0.6;
+    padding-left: 0.1rem;
+}
+.stat em {
+    padding-left: 0.25em;
+}
+
+.stat-circle svg {
+    width: 150px;
+    height: 150px;
+    transform: rotate(-90deg);
+}
+
+.stat-circle svg circle {
+    fill: none;
+    stroke: #1DB706;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.stat-circle svg circle.base { stroke: #ffffff11; }
+.stat-circle svg circle.delta { 
+    stroke: #138cd2cc;
+    /* animation: pulse 2s ease-in-out infinite; */
+}
+
+.stat-circle div {
+    margin: -100px 0 0;
+    width: 150px;
+    text-align: center;
+    font-size: 2.5rem;
+    line-height: 0.65;
+    position: absolute;
+}

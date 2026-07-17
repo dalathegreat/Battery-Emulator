@@ -4,6 +4,10 @@
 #include "../../datalayer/datalayer.h"
 
 String cellmonitor_processor(const String& var) {
+  return String();
+}
+
+String notcellmonitor_processor(const String& var) {
   if (var == "X") {
     String content = "";
     // Page formatH

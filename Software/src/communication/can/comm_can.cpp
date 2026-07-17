@@ -47,11 +47,11 @@ static CAN_Speed native_can_speed;
 
 static uint32_t quartz_frequency;
 
-static MCP2515_Lite* can2515;
+MCP2515_Lite* can2515;
 static SPIClass* SPI2515;
 
 static SPIClass* SPI2517;
-static ACAN2517FD* canfd;
+ACAN2517FD* canfd;
 static ACAN2517FDSettings* settings2517;
 static SPIClass* SPI2517_2;
 static ACAN2517FD* canfd_2;
@@ -458,6 +458,8 @@ static void receive_frame_canfd_addon_2() {
   _receive_frame_canfd(canfd_2, false);
 }
 
+extern void dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+
 // Support functions
 static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
@@ -490,6 +492,12 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
     if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
       dump_can_frame(frame, interface, msgDir);
     }
+  }
+  if (datalayer.system.info.can_logging_active2) {  // If user clicked on CAN Dumping page in webserver, start recording
+    //uint32_t t = esp_timer_get_time();
+    dump_can_frame2(frame, interface, msgDir);
+    //uint32_t elapsed = esp_timer_get_time() - t;
+    //logging.printf("Took: %uus\n", elapsed);
   }
 }
 

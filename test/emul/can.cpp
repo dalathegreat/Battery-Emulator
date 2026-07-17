@@ -1,7 +1,7 @@
 #include "../../Software/src/communication/Transmitter.h"
 #include "../../Software/src/communication/can/comm_can.h"
 
-void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {}
+void __attribute__((weak)) transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {}
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {}
 
@@ -13,9 +13,9 @@ void stop_can() {}
 
 void restart_can() {}
 
-char const* getCANInterfaceName(CAN_Interface) {
-  return "Foobar";
-}
+// char const* getCANInterfaceName(CAN_Interface) {
+//   return "Foobar";
+// }
 
 void register_transmitter(Transmitter* transmitter) {}
 

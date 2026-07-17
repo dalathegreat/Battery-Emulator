@@ -1,0 +1,219 @@
+#include "TinyWebServer.h"
+#include "CanSender.h"
+
+//#include "../../communication/can/comm_can.h"
+#include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+#include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
+#include "../../lib/mcp2515_lite/mcp2515_lite.h"
+//#include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
+
+// void CanSender::handleHeader(TwsRequest &request, const char *line, int len) {
+//     auto &state = get_state(request);
+
+//     if(strncasecmp(line, "Content-Length:", 15) == 0) {
+//         char *endptr;
+//         int content_length = strtol(line + 15, &endptr, 10);
+//         if (endptr != line + 15 && content_length > 0) {
+//             state.content_length = content_length;
+//         }
+//     }
+//     TwsMiddleware::handleHeader(request, line, len);
+// }
+
+struct __attribute__((packed)) CanFrame {
+    uint32_t timestamp;
+    uint32_t id;
+    uint8_t len;
+    uint8_t bus;
+    uint8_t data[64];
+};
+
+extern MCP2515_Lite* can2515;
+extern ACAN2517FD* canfd;
+
+bool can_buffer_full(CAN_Interface interface) {
+#ifndef UNIT_TEST
+    if(interface == CAN_NATIVE) {
+        return ACAN_ESP32::can.driverTransmitBufferCount() >= ACAN_ESP32::can.driverTransmitBufferSize();
+    } else if(interface == CAN_ADDON_MCP2515) {
+        return false;
+    } else if(interface == CANFD_ADDON_MCP2518) {
+        return canfd && canfd->driverTransmitBufferCount() >= canfd->driverTransmitBufferSize();
+    }
+#endif
+    return false;
+}
+
+extern void dump_can_frame2(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+
+bool send_can_frame(CAN_Interface interface, const CAN_frame &frame, bool log) {
+    // This can be slow as the first call will (for the SPI ones) perform a
+    // sequence of blocking SPI transactions. Subsequent calls will be faster as
+    // the frames will be buffered instead.
+    //
+    // (it is not ideal having this called directly from the webserver thread,
+    // but the alternative involves queues and locking)
+
+#ifndef UNIT_TEST
+    bool success = false;
+    if(interface == CAN_NATIVE || interface == CANFD_ADDON_MCP2518) {
+        CANMessage send_frame;
+        send_frame.id = frame.ID;
+        send_frame.ext = frame.ext_ID;
+        send_frame.len = frame.DLC;
+        memcpy(send_frame.data, frame.data.u8, frame.DLC);
+        if(interface == CAN_NATIVE) {
+            success = ACAN_ESP32::can.tryToSend(send_frame);
+        } else {
+            success = canfd && canfd->tryToSend(send_frame);
+        }
+    } else if(interface == CAN_ADDON_MCP2515) {
+        if(can2515) {
+            // MCP2515_Lite_Frame has the same layout as the first 13 bytes of CAN_frame
+            MCP2515_Lite_Frame *lite_frame = (MCP2515_Lite_Frame*)&frame; 
+            success = can2515->sendFrame(*lite_frame);
+        }
+    }
+
+    if(log && success) {
+        dump_can_frame2(frame, interface, frameDirection(MSG_TX));
+    }
+    return success;
+#endif
+    return false;
+}
+
+void CanSender::handleQueryParam(TwsRequest &request, std::string_view param, bool final) {
+    auto &state = get_state(request);
+    // if param starts with if=
+    if(param.size() >= 3 && param.substr(0, 3) == "if=") {
+        state.can_interface = atoi(param.data() + 3);
+    // } else if(param.size() >= 4 && param.substr(0, 4) == "log=") {
+    //     state.log = param[4] == '1';
+    }
+    if(nextQueryParam) {
+        nextQueryParam->handleQueryParam(request, param, final);
+    }
+}
+
+//uint32_t tx_full_count = 0;
+
+int CanSender::handlePostBody(TwsRequest &request, size_t index, uint8_t *data, size_t len) {
+    if(!request.is_post()) {
+        // Not a POST request
+        return -1;
+    }
+
+    const size_t header_len = 10; // timestamp (4) + id (4) + len (1) + bus (1)
+    if(len < header_len) {
+        // Not enough data yet
+        return 0;
+    }
+
+    auto &state = get_state(request);
+
+    if(index==0) {
+        state.start_millis = millis();
+    }
+
+    uint8_t *ptr = data;
+    size_t remaining = len;
+    do {
+        // Copy from ptr into an aligned struct on the stack.
+        CanFrame frame;
+        memcpy(&frame, ptr, header_len); // Copy packed header
+        
+        int frame_length = header_len + frame.len;
+        if(remaining < frame_length) {
+            // Not enough data yet
+            break;
+        }
+
+        if(frame.len > 64) {
+            // Invalid length
+            DEBUG_PRINTF("Invalid CAN frame length: %d\n", frame.len);
+            request.write_or_abort("HTTP/1.1 400 b\r\n"
+                        "Connection: close\r\n"
+                        "Content-Type: text/plain\r\n"
+                        "\r\nInvalid CAN frame length.\n");
+            request.finish();
+            return -1; // finished
+        }
+
+        CAN_Interface iface = state.can_interface == 15
+            ? (CAN_Interface)(frame.bus / 2) // both RX6 and TX7 -> bus 3
+            : (CAN_Interface)state.can_interface;
+
+        // Copy actual CAN data
+        memcpy(frame.data, ptr + header_len, frame.len);
+
+        if((millis() - state.start_millis) < frame.timestamp) {
+            // Need to wait
+            //DEBUG_PRINTF("Waiting for %u ms\n", frame.timestamp - (millis() - state.start_millis));
+            break;
+        }
+        // if(can_buffer_full(iface)) {
+        //     DEBUG_PRINTF("  full!\n");
+        //     // Buffer is full, wait before sending more
+        //     break;
+        // }
+
+        // DEBUG_PRINTF("CAN frame: timestamp %u id 0x%X len %d data:", frame.timestamp, frame.id, frame.len);
+        // for(int i=0; i<frame.len; i++) {
+        //     DEBUG_PRINTF(" %02X", frame.data[i]);
+        // }
+        // DEBUG_PRINTF("\n");
+
+        CAN_frame send_frame = {
+            .FD = false, // TODO: make this configurable?
+            .ext_ID = frame.id > 0x7FF,
+            .DLC = frame.len,
+            .ID = frame.id,
+            .data = {}
+        };
+        memcpy(send_frame.data.u8, frame.data, frame.len);
+
+        // TODO - we probably just want to consider this the same as "buffer full" and wait
+        if(!send_can_frame(iface, send_frame, true /*state.log*/)) {
+            // Buffer probably full?
+            //tx_full_count++;
+            //DEBUG_PRINTF("notx\n");
+            break;
+            // Failed to send
+            // request.write_or_abort("HTTP/1.1 500 e\r\n"
+            //             "Connection: close\r\n"
+            //             "Content-Type: text/plain\r\n"
+            //             "\r\nFailed to send CAN frame.\n");
+            // request.finish();
+            // TwsMiddleware::handlePostBody(request, index, data, len);
+            // return -1; // finished
+        }
+        // if(tx_full_count > 0) {
+        //     DEBUG_PRINTF("txfull: %u\n", tx_full_count);
+        //     tx_full_count = 0;
+        // }
+
+        ptr += frame_length;
+        remaining -= frame_length;
+    } while(remaining >= header_len);
+
+    uint32_t content_length = request.get_content_length();
+    if(remaining == 0 && index + len >= content_length) {
+        DEBUG_PRINTF("End of upload (content length %d reached at %d)\n", (int)content_length, (int)(index + len));
+
+        // Finished uploading
+        request.write_or_abort("HTTP/1.1 200 OK\r\n"
+                    "Connection: close\r\n"
+                    "Content-Type: text/plain\r\n"
+                    "\r\nOK\n");
+        request.finish();
+        TwsMiddleware::handlePostBody(request, index, data, len);
+        return -1; // finished
+    }
+
+    int ret = TwsMiddleware::handlePostBody(request, index, data, len);
+    if (ret != -1) return ret;
+
+    // Only consume the data we processed
+    return len - remaining;
+}

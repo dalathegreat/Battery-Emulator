@@ -1,0 +1,14 @@
+.badge {
+    background: #3a516f; 
+    color: #ffffff; 
+    padding: 0.25rem 0.6rem 0.3rem; 
+    border-radius: 6px; 
+    font-size: 0.9rem; 
+    font-weight: 600;
+    align-self: center; /* when shown in topbar */
+}
+.badge[data-status="ok"] { background: #1db706; }
+.badge[data-status="info"] { background: #eeeeee; color: #000000; }
+.badge[data-status="warn"] { background: #bf7c13; }
+.badge[data-status="error"] { background: #b50909; }
+
