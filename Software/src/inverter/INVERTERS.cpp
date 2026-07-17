@@ -1,5 +1,29 @@
 #include "INVERTERS.h"
 
+#include "AFORE-CAN.h"
+#include "BYD-CAN.h"
+#include "BYD-MODBUS.h"
+#include "FERROAMP-CAN.h"
+#include "FOXESS-CAN.h"
+#include "GROWATT-HV-CAN.h"
+#include "GROWATT-LV-CAN.h"
+#include "GROWATT-WIT-CAN.h"
+#include "KOSTAL-RS485.h"
+#include "PYLON-CAN.h"
+#include "PYLON-LV-CAN.h"
+#include "PYLON-LV-RS485.h"
+#include "SCHNEIDER-CAN.h"
+#include "SMA-BYD-H-CAN.h"
+#include "SMA-BYD-HVS-CAN.h"
+#include "SMA-LV-CAN.h"
+#include "SMA-SBS-BYD-CAN.h"
+#include "SOFAR-CAN.h"
+#include "SOL-ARK-LV-CAN.h"
+#include "SOLAX-CAN.h"
+#include "SOLXPOW-CAN.h"
+#include "SUNGROW-CAN.h"
+#include "VCU-CAN.h"
+
 InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
@@ -15,6 +39,9 @@ uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
 uint16_t user_selected_inverter_sungrow_type = 0;
+uint16_t user_selected_inverter_foxess_type = 0;
+uint16_t user_selected_inverter_foxess_subtype = 0;
+uint16_t user_selected_inverter_foxess_modules = 0;
 uint16_t user_selected_inverter_pylon_type = 0;
 inverter_contactor_mode_enum user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
 bool user_selected_inverter_long_CAN_timeout = false;

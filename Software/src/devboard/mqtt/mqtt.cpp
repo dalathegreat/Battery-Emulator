@@ -112,24 +112,26 @@ static std::function<bool(Battery*)> supports_byd_autocal_metrics = [](Battery* 
 SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "", "%", "battery", always},
     {"SOC_real", "SOC (real)", "", "%", "battery", always},
-    {"state_of_health", "State Of Health", "", "%", "battery", always},
+    {"state_of_health", "State of Health", "", "%", "battery", always},
     {"temperature_min", "Temperature Min", "", "°C", "temperature", always},
     {"temperature_max", "Temperature Max", "", "°C", "temperature", always},
-    {"stat_batt_power", "Stat Batt Power", "", "W", "power", always},
+    {"stat_batt_power", "Battery Power", "", "W", "power", always},
     {"battery_current", "Battery Current", "", "A", "current", always},
     {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage", always},
     {"cell_min_voltage", "Cell Min Voltage", "", "V", "voltage", always},
     {"cell_voltage_delta", "Cell Voltage Delta", "", "mV", "voltage", always},
     {"battery_voltage", "Battery Voltage", "", "V", "voltage", always},
-    {"total_capacity", "Battery Total Capacity", "", "Wh", "energy", always},
-    {"remaining_capacity", "Battery Remaining Capacity (scaled)", "", "Wh", "energy", always},
-    {"remaining_capacity_real", "Battery Remaining Capacity (real)", "", "Wh", "energy", always},
-    {"max_discharge_power", "Battery Max Discharge Power", "", "W", "power", always},
-    {"max_charge_power", "Battery Max Charge Power", "", "W", "power", always},
+    {"total_capacity", "Total Capacity", "", "Wh", "energy", always},
+    {"remaining_capacity", "Remaining Capacity (scaled)", "", "Wh", "energy", always},
+    {"remaining_capacity_real", "Remaining Capacity (real)", "", "Wh", "energy", always},
+    {"max_discharge_power", "Max Discharge Power", "", "W", "power", always},
+    {"max_charge_power", "Max Charge Power", "", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
     {"balancing_status", "Balancing Status", "", "", "", always},
+    {"charging_state", "Charging State", "", "", "", always},
+    {"limiting_factor", "Limiting Factor", "", "", "", always},
     {"dc_dc_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
     {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics},
     {"autocal_taper", "BYD Auto-cal: In Taper", "", "", "", supports_byd_autocal_metrics},
@@ -148,20 +150,36 @@ static std::list<SensorConfig> sensorConfigs;
 
 void create_battery_sensor_configs() {
   for (auto& config : batterySensorConfigTemplate) {
-    config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + " }}").c_str());
+    // Capture the pristine (battery #1) values before any mutation, so that generating
+    // suffixed copies for battery #2 and #3 doesn't compound suffixes onto each other or
+    // capture the wrong (already-suffixed) condition.
+    const std::string base_default_entity_id = config.default_entity_id;
+    const std::string base_name = config.name;
+    auto original_condition = config.condition;
 
+    config.value_template = strdup(("{{ value_json." + base_default_entity_id + " }}").c_str());
     sensorConfigs.push_back(config);
 
     if (battery2) {
-      auto original_condition = config.condition;
-      config.value_template = strdup(("{{ value_json." + std::string(config.default_entity_id) + "_2 }}").c_str());
-      config.name = strdup(String(config.name + String(" 2")).c_str());
-      config.default_entity_id = strdup(String(config.default_entity_id + String("_2")).c_str());
-      config.condition = [original_condition](Battery*) {
+      SensorConfig config2 = config;
+      config2.value_template = strdup(("{{ value_json." + base_default_entity_id + "_2 }}").c_str());
+      config2.name = strdup((base_name + " 2").c_str());
+      config2.default_entity_id = strdup((base_default_entity_id + "_2").c_str());
+      config2.condition = [original_condition](Battery*) {
         return battery2 && original_condition(battery2);
       };
+      sensorConfigs.push_back(config2);
+    }
 
-      sensorConfigs.push_back(config);
+    if (battery3) {
+      SensorConfig config3 = config;
+      config3.value_template = strdup(("{{ value_json." + base_default_entity_id + "_3 }}").c_str());
+      config3.name = strdup((base_name + " 3").c_str());
+      config3.default_entity_id = strdup((base_default_entity_id + "_3").c_str());
+      config3.condition = [original_condition](Battery*) {
+        return battery3 && original_condition(battery3);
+      };
+      sensorConfigs.push_back(config3);
     }
   }
 }
@@ -202,7 +220,7 @@ static String generateSensorDefaultEntityId(const String& object_id) {
 void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["identifiers"][0] = device_id;
   doc["device"]["manufacturer"] = "DalaTech";
-  doc["device"]["model"] = "BatteryEmulator";
+  doc["device"]["model"] = "Battery Emulator";
   doc["device"]["name"] = device_name;
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
@@ -287,6 +305,11 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
+  ChargingState charging_state = get_charging_state(battery.status.current_dA);
+  doc["charging_state" + suffix] = charging_state_to_text(charging_state);
+  doc["limiting_factor" + suffix] = limiting_factor_to_text(get_limiting_factor(
+      charging_state, battery.settings.inverter_limits_charge, battery.settings.inverter_limits_discharge,
+      battery.settings.user_settings_limit_charge, battery.settings.user_settings_limit_discharge));
   if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
@@ -313,6 +336,12 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
     if (strncmp(entity_id, "bms_status", strlen("bms_status")) == 0) {
       return "mdi:information-box-outline";
+    }
+    if (strncmp(entity_id, "charging_state", strlen("charging_state")) == 0) {
+      return "mdi:home-battery";
+    }
+    if (strncmp(entity_id, "limiting_factor", strlen("limiting_factor")) == 0) {
+      return "mdi:home-battery-outline";
     }
     if (strncmp(entity_id, "emulator_status", strlen("emulator_status")) == 0 ||
         strncmp(entity_id, "event_level", strlen("event_level")) == 0) {
@@ -377,12 +406,30 @@ static bool publish_common_info(void) {
       if (strncmp(config.default_entity_id, "balancing_active_cells", strlen("balancing_active_cells")) == 0) {
         doc["state_class"] = "measurement";
       }
+      // "energy" device_class is only valid with state_class total / total_increasing, never
+      // "measurement" — HA rejects the combination. The capacity sensors represent a current
+      // stored amount, so use "energy_storage" (compatible with "measurement") instead. The
+      // charged/discharged sensors are genuine lifetime totals, so keep "energy" but use
+      // "total_increasing". (strncmp also covers the "_2" double-battery variants.)
+      if (strncmp(config.default_entity_id, "total_capacity", strlen("total_capacity")) == 0 ||
+          strncmp(config.default_entity_id, "remaining_capacity", strlen("remaining_capacity")) == 0) {
+        doc["device_class"] = "energy_storage";
+      } else if (strncmp(config.default_entity_id, "charged_energy", strlen("charged_energy")) == 0 ||
+                 strncmp(config.default_entity_id, "discharged_energy", strlen("discharged_energy")) == 0) {
+        doc["state_class"] = "total_increasing";
+      }
       // Cell min/max voltages: show 3 decimals in HA so they don't round to the same integer
       // on display. Precision is intentionally not applied to battery_voltage. (Icons are
       // handled centrally below.)
       if (strncmp(config.default_entity_id, "cell_max_voltage", strlen("cell_max_voltage")) == 0 ||
           strncmp(config.default_entity_id, "cell_min_voltage", strlen("cell_min_voltage")) == 0) {
         doc["suggested_display_precision"] = 3;
+      }
+      // Battery current and both SOC sensors: show 1 decimal in HA. (strncmp also covers the
+      // "_2" double-battery variants.)
+      if (strncmp(config.default_entity_id, "battery_current", strlen("battery_current")) == 0 ||
+          strncmp(config.default_entity_id, "SOC", strlen("SOC")) == 0) {
+        doc["suggested_display_precision"] = 1;
       }
       // Entity icons (centralized): status sensors by entity id, all voltage/current sensors
       // by device_class. This also covers the balancing and cell min/max entities above.
@@ -406,15 +453,22 @@ static bool publish_common_info(void) {
     doc["bms_status"] = getBMSStatus(datalayer.system.status.system_status);
     doc["pause_status"] = get_emulator_pause_status();
 
-    //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
+    //only publish these values if BMS is active and we are comunication with the battery (can send CAN messages to the battery)
     if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
       set_battery_attributes(doc, datalayer.battery, "", battery->supports_charged_energy());
     }
 
     if (battery2) {
-      //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
+      //only publish these values if BMS is active and we are comunication with the battery (can send CAN messages to the battery)
       if (datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
         set_battery_attributes(doc, datalayer.battery2, "_2", battery2->supports_charged_energy());
+      }
+    }
+
+    if (battery3) {
+      //only publish these values if BMS is active and we are comunication with the battery (can send CAN messages to the battery)
+      if (datalayer.battery3.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
+        set_battery_attributes(doc, datalayer.battery3, "_3", battery3->supports_charged_energy());
       }
     }
 
@@ -437,6 +491,7 @@ static bool publish_cell_voltages(void) {
   static JsonDocument doc;
   static String state_topic = topic_name + "/spec_data";
   static String state_topic_2 = topic_name + "/spec_data_2";
+  static String state_topic_3 = topic_name + "/spec_data_3";
 
   if (ha_autodiscovery_enabled) {
     bool successfully_published = false;
@@ -472,6 +527,26 @@ static bool publish_cell_voltages(void) {
 
             serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
             if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
+              return false;
+            }
+          }
+          successfully_published = true;
+          doc.clear();  // clear after sending autoconfig
+        }
+      }
+
+      if (battery3) {
+        successfully_published = false;
+        // If the cell voltage number isn't initialized...
+        if (datalayer.battery3.info.number_of_cells != 0u) {
+
+          for (int i = 0; i < datalayer.battery3.info.number_of_cells; i++) {
+            int cellNumber = i + 1;
+            set_battery_voltage_attributes(doc, i, cellNumber, state_topic_3, default_entity_id_prefix + "3_", " 3");
+            set_common_discovery_attributes(doc);
+
+            serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+            if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_3_").c_str(), mqtt_msg, true) == false) {
               return false;
             }
           }
@@ -522,6 +597,26 @@ static bool publish_cell_voltages(void) {
       doc.clear();
     }
   }
+
+  if (battery3) {
+    // If cell voltages have been populated...
+    if (datalayer.battery3.info.number_of_cells != 0u &&
+        datalayer.battery3.status.cell_voltages_mV[datalayer.battery3.info.number_of_cells - 1] != 0u) {
+
+      JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
+      for (size_t i = 0; i < datalayer.battery3.info.number_of_cells; ++i) {
+        cell_voltages.add(((float)datalayer.battery3.status.cell_voltages_mV[i]) / 1000.0f);
+      }
+
+      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+
+      if (!mqtt_publish(state_topic_3.c_str(), mqtt_msg, false)) {
+        logging.println("Cell voltage MQTT msg could not be sent");
+        return false;
+      }
+      doc.clear();
+    }
+  }
   return true;
 }
 
@@ -529,6 +624,7 @@ static bool publish_cell_balancing(void) {
   static JsonDocument doc;
   static String state_topic = topic_name + "/balancing_data";
   static String state_topic_2 = topic_name + "/balancing_data_2";
+  static String state_topic_3 = topic_name + "/balancing_data_3";
 
   // If cell balancing data is available...
   if (datalayer.battery.info.number_of_cells != 0u) {
@@ -559,6 +655,25 @@ static bool publish_cell_balancing(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
       if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
+        logging.println("Cell balancing MQTT msg could not be sent");
+        return false;
+      }
+      doc.clear();
+    }
+  }
+
+  // Handle third battery if available
+  if (battery3) {
+    if (datalayer.battery3.info.number_of_cells != 0u) {
+
+      JsonArray cell_balancing = doc["cell_balancing"].to<JsonArray>();
+      for (size_t i = 0; i < datalayer.battery3.info.number_of_cells; ++i) {
+        cell_balancing.add(datalayer.battery3.status.cell_balancing_status[i]);
+      }
+
+      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+
+      if (!mqtt_publish(state_topic_3.c_str(), mqtt_msg, false)) {
         logging.println("Cell balancing MQTT msg could not be sent");
         return false;
       }
@@ -691,6 +806,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   if (strcmp(topic, generateButtonTopic("RESTART").c_str()) == 0) {
+    hold_pins_across_reset();
     graceful_restart();
   }
 

@@ -175,6 +175,10 @@ class Esp32Hal {
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
+  // Output pins to latch at their driven level across a firmware-initiated reset/OTA
+  // reboot, so they don't float during the boot window. RTC-capable pins only.
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {}; }
+
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t I2C_G05_SDA_PIN() { return GPIO_NUM_NC; }

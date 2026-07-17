@@ -413,7 +413,8 @@ void init_webserver() {
     // Reset all settings to factory defaults
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
-
+    erase_phy_cal_data();
+    logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
   });
 
@@ -430,20 +431,20 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME", "MAXPREFREQ",  "WIFICHANNEL", "DCHGPOWER", "CHGPOWER",   "LOCALIP1",
-      "LOCALIP2",   "LOCALIP3",    "LOCALIP4",   "GATEWAY1",    "GATEWAY2",    "GATEWAY3",  "GATEWAY4",   "SUBNET1",
-      "SUBNET2",    "SUBNET3",     "SUBNET4",    "MQTTPORT",    "MQTTTIMEOUT", "SOFAR_ID",  "PYLONSEND",  "INVCELLS",
-      "INVMODULES", "INVCELLSPER", "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",  "PWMFREQ",    "PWMHOLD",
-      "GTWCOUNTRY", "GTWMAPREG",   "GTWCHASSIS", "GTWPACK",     "LEDMODE",     "GPIOOPT1",  "GPIOOPT2",   "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",     "CTANOM",      "CTATTEN",     "PYLONBAUD", "PYLONBRAND", "DALYPWRPCT",
-      "DALYPWRDV",  "DALYDVSTART", "DALYPWRDEG", "DALYPWR0C",   "RAMPDOWNSOC", "GPIOOPT5",  "GPIOOPT6",   "INVICNT",
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",   "CHGPOWER",
+      "MQTTPORT",   "MQTTTIMEOUT", "SOFAR_ID",    "PYLONSEND",     "INVCELLS",      "INVMODULES",  "INVCELLSPER",
+      "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",      "PWMFREQ",       "PWMHOLD",     "GTWCOUNTRY",
+      "GTWMAPREG",  "GTWCHASSIS",  "GTWPACK",     "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",    "GPIOOPT3",
+      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",        "CTATTEN",       "PYLONBAUD",   "PYLONBRAND",
+      "DALYPWRPCT", "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",    "DALYPWR0C",     "RAMPDOWNSOC", "GPIOOPT5",
+      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE", "FOXESSMODULES",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGPORT", "SYSLOGFAC",
 #endif
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD",   "HOSTNAME", "MQTTSERVER", "MQTTUSER",
-                                      "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
+  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "HTTPUSER",
+                                      "HTTPPASS",   "LOCALIP",  "GATEWAY",    "SUBNET",   "DNS",
 #ifndef SMALL_FLASH_DEVICE
                                       "SYSLOGIP"
 #endif
@@ -858,6 +859,7 @@ void init_webserver() {
   // Route to handle reboot command
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
+    hold_pins_across_reset();
     graceful_restart();
   });
 
@@ -1227,32 +1229,13 @@ String processor(const String& var) {
         content += "</h4>";
       }
 
-      if (datalayer.battery.status.current_dA == 0) {
-        content += "<h4>Battery idle</h4>";
-      } else if (datalayer.battery.status.current_dA < 0) {
-        content += "<h4>Battery discharging!";
-        if (datalayer.battery.settings.inverter_limits_discharge) {
-          content += " (Inverter limiting)</h4>";
-        } else {
-          if (datalayer.battery.settings.user_settings_limit_discharge) {
-            content += " (Settings limiting)</h4>";
-          } else {
-            content += " (Battery limiting)</h4>";
-          }
-        }
-        content += "</h4>";
-      } else {  // > 0 , positive current
-        content += "<h4>Battery charging!";
-        if (datalayer.battery.settings.inverter_limits_charge) {
-          content += " (Inverter limiting)</h4>";
-        } else {
-          if (datalayer.battery.settings.user_settings_limit_charge) {
-            content += " (Settings limiting)</h4>";
-          } else {
-            content += " (Battery limiting)</h4>";
-          }
-        }
-      }
+      content += "<h4>" +
+                 String(get_charging_status_text(datalayer.battery.status.current_dA,
+                                                 datalayer.battery.settings.inverter_limits_charge,
+                                                 datalayer.battery.settings.inverter_limits_discharge,
+                                                 datalayer.battery.settings.user_settings_limit_charge,
+                                                 datalayer.battery.settings.user_settings_limit_discharge)) +
+                 "</h4>";
 
       content += "<h4>System status: ";
       switch (datalayer.system.status.system_status) {
@@ -1745,6 +1728,7 @@ void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
     logging.println("OTA update finished successfully!");
+    hold_pins_across_reset();
     graceful_restart();
   } else {
     logging.println("There was an error during OTA update!");

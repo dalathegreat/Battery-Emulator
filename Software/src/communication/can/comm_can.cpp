@@ -462,28 +462,38 @@ static void receive_frame_canfd_addon_2() {
 static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
   if (datalayer.system.info.CAN_usb_logging_active) {
-    uint8_t i = 0;
-    Serial.print("(");
-    Serial.print(millis() / 1000.0);
-    if (msgDir == MSG_RX) {
-      Serial.print(") RX");
-      Serial.print((int)(interface * 2));
+    // Build the whole line first, then write it in one go - and only if the TX
+    // buffer has room. This path runs in the core task: a blocked/slow USB host
+    // must never stall it (EVENT_TASK_OVERRUN). Frames that don't fit are
+    // counted and reported as a gap marker once the port drains.
+    static char usb_line[288];  // header + up to 64 CAN-FD data bytes at 3 chars each
+    static uint32_t usb_frames_dropped = 0;
+    unsigned long currentTime = millis();
+    size_t size = snprintf(usb_line, sizeof(usb_line), "(%lu.%02lu) %s%d %lX [%u] ", currentTime / 1000,
+                           (currentTime % 1000) / 10, (msgDir == MSG_RX) ? "RX" : "TX",
+                           (msgDir == MSG_RX) ? (int)(interface * 2) : (int)(interface * 2) + 1, frame.ID, frame.DLC);
+    for (uint8_t i = 0; i < frame.DLC; i++) {
+      size += snprintf(usb_line + size, sizeof(usb_line) - size, (i < frame.DLC - 1) ? "%02X " : "%02X\r\n",
+                       frame.data.u8[i]);
+    }
+    if (frame.DLC == 0) {
+      size += snprintf(usb_line + size, sizeof(usb_line) - size, "\r\n");
+    }
+
+    if ((size_t)Serial.availableForWrite() >= size) {
+      if (usb_frames_dropped > 0) {
+        char marker[48];
+        int marker_len =
+            snprintf(marker, sizeof(marker), "[%lu CAN frames not printed]\r\n", (unsigned long)usb_frames_dropped);
+        if ((size_t)Serial.availableForWrite() >= size + (size_t)marker_len) {
+          Serial.write((const uint8_t*)marker, marker_len);
+          usb_frames_dropped = 0;
+        }
+      }
+      Serial.write((const uint8_t*)usb_line, size);
     } else {
-      Serial.print(") TX");
-      Serial.print((int)(interface * 2) + 1);
+      usb_frames_dropped++;
     }
-    Serial.print(" ");
-    Serial.print(frame.ID, HEX);
-    Serial.print(" [");
-    Serial.print(frame.DLC);
-    Serial.print("] ");
-    for (i = 0; i < frame.DLC; i++) {
-      Serial.print(frame.data.u8[i] < 16 ? "0" : "");
-      Serial.print(frame.data.u8[i], HEX);
-      if (i < frame.DLC - 1)
-        Serial.print(" ");
-    }
-    Serial.println("");
   }
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording

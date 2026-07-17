@@ -1,4 +1,5 @@
 #include "BYD-CAN.h"
+#include <string.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "INVERTERS.h"

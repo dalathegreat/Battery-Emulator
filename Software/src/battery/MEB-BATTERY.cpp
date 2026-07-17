@@ -223,13 +223,17 @@ void MebBattery::
     // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
     // total_capacity_Wh calculated above.
 
-    int Wh_max = 61832 * 0.935f;  // 108 cells
-    if (datalayer_battery->info.number_of_cells <= 84)
-      Wh_max = 48091 * 0.9025f;
-    else if (datalayer_battery->info.number_of_cells <= 96)
-      Wh_max = 82442 * 0.9025f;
-    if (BMS_capacity_ah > 0)
-      datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564f);
+    if (battery_soh_polled > 0) {
+      datalayer_battery->status.soh_pptt = battery_soh_polled;
+    } else {
+      int Wh_max = 61832 * 0.935f;  // 108 cells
+      if (datalayer_battery->info.number_of_cells <= 84)
+        Wh_max = 48091 * 0.9025f;
+      else if (datalayer_battery->info.number_of_cells <= 96)
+        Wh_max = 82442 * 0.9025f;
+      if (BMS_capacity_ah > 0)
+        datalayer_battery->status.soh_pptt = 10000 * datalayer_battery->info.total_capacity_Wh / (Wh_max * 1.02564f);
+    }
   }
 
   datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
@@ -797,7 +801,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     uds_request_timestamp = currentMillis;
     datalayer_extended.meb.UserRequestDTCreadout = false;  // consume the request
     datalayer_extended.meb.dtc_read_in_progress = true;
-    datalayer_extended.meb.dtc_read_failed = false;
+    datalayer_battery->dtc.dtc_read_failed = false;
   }
 
   // DTC clear requested via WebUI: OBD service 0x04 (ClearDiagnosticInformation) sent to the
@@ -808,7 +812,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     uds_request_timestamp = currentMillis;
     datalayer_extended.meb.UserRequestDTCreset = false;  // consume the request
     datalayer_extended.meb.dtc_read_in_progress = true;
-    datalayer_extended.meb.dtc_read_failed = false;
+    datalayer_battery->dtc.dtc_read_failed = false;
   }
 
   if (currentMillis - last_can_msg_timestamp > 500) {
@@ -839,6 +843,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
     transmit_can_frame(&ESC_51_Auth_frame);  // Required for contactor closing
+    transmit_can_frame(&HVLM_13_frame);      // Some newer packs throw "00A767" DTC incase this message is missing
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
@@ -989,6 +994,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&Klemmen_Status_01_frame);
     transmit_can_frame(&Motor_14_frame);
     transmit_can_frame(&Motor_54_frame);
+    transmit_can_frame(&Klima_EV_07_frame);  //PTC / EKK voltage free or not
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
@@ -1058,6 +1064,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         poll_pid = PID_ALLOWED_DISCHARGE_POWER;
         break;
       case PID_ALLOWED_DISCHARGE_POWER:
+        poll_pid = PID_SOH;
+        break;
+      case PID_SOH:
         poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
         break;
       // Cell Voltage Cases.
@@ -1225,6 +1234,11 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
             break;
           battery_soc_polled = data[3] * 4;  // 135*4 = 54.0%
           break;
+        case PID_SOH:
+          if (len < 5)
+            break;
+          battery_soh_polled = ((data[3] << 8) | data[4]);
+          break;
         case PID_VOLTAGE:
           if (len < 5)
             break;
@@ -1338,17 +1352,17 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
       break;
     case (0x04 + kPositiveResponseOffset):  // clear DTCs (OBD service 0x04) positive response
       uds_request_pending = false;
-      datalayer_extended.meb.dtc_read_failed = false;
-      datalayer_extended.meb.dtc_count = 0;  // Clear any existing DTCs after a successful erase
-      datalayer_extended.meb.dtc_last_read_millis = 0;
+      datalayer_battery->dtc.dtc_read_failed = false;
+      datalayer_battery->dtc.dtc_count = 0;  // Clear any existing DTCs after a successful erase
+      datalayer_battery->dtc.dtc_last_read_millis = 0;
       datalayer_extended.meb.dtc_read_in_progress = false;
       break;
     case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):  // DTC read positive response (0x59)
       if (data[1] != 0x02) {
         // Unexpected report type — treat as a failed readout.
-        datalayer_extended.meb.dtc_read_failed = true;
+        datalayer_battery->dtc.dtc_read_failed = true;
       } else {
-        datalayer_extended.meb.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_read_failed = false;
         int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
         int availableBytes = len - dtcStartIndex;
         int maxDtcCount = availableBytes / 4;
@@ -1369,14 +1383,14 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
           uint32_t dtcCode =
               ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
           uint8_t dtcStatus = data[offset + 3];
-          datalayer_extended.meb.dtc_codes[i] = dtcCode;
-          datalayer_extended.meb.dtc_status[i] = dtcStatus;
+          datalayer_battery->dtc.dtc_codes[i] = dtcCode;
+          datalayer_battery->dtc.dtc_status[i] = dtcStatus;
         }
-        datalayer_extended.meb.dtc_count = maxDtcCount;
+        datalayer_battery->dtc.dtc_count = maxDtcCount;
       }
       uds_request_pending = false;
+      datalayer_battery->dtc.dtc_last_read_millis = millis();
       datalayer_extended.meb.dtc_read_in_progress = false;
-      datalayer_extended.meb.dtc_last_read_millis = millis();
       break;
     case (ServiceNotSupportedInActiveSession):  // Negative response (0x7F)
       // data[1] = original request service id, data[2] = NRC
@@ -1388,7 +1402,7 @@ void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype 
         // DTC read was rejected — the transaction is complete, allow the next request.
         uds_request_pending = false;
         datalayer_extended.meb.dtc_read_in_progress = false;
-        datalayer_extended.meb.dtc_read_failed = true;
+        datalayer_battery->dtc.dtc_read_failed = true;
       } else {
         // Any other NRC: the transaction is complete (rejected), allow the next request.
         uds_request_pending = false;

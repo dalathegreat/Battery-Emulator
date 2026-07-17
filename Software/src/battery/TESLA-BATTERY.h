@@ -155,6 +155,13 @@ class TeslaBattery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x118,
                          .data = {0xAB, 0x60, 0x2A, 0x00, 0x00, 0x08, 0x00, 0x00}};
+  CAN_frame TESLA_118_digital_hvil = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x118,
+                                      .data = {0x61, 0x80, 0x30, 0x10, 0x00, 0x08, 0x00, 0x80}};
+  uint16_t content_118_digital_hvil[16] = {0x6180, 0x6281, 0x6382, 0x6483, 0x6584, 0x6685, 0x6786, 0x6887,
+                                           0x6988, 0x6A89, 0x6B8A, 0x6C8B, 0x6D8C, 0x6E8D, 0x6F8E, 0x708F};
 
   //0x2A8 CMPD_state: "cycle_time" 100ms, different depending on firmware, semi-manual increment for now
   CAN_frame TESLA_2A8 = {.FD = false,
@@ -487,6 +494,13 @@ class TeslaBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x610,
       .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
+  //1CF needed for Digital HVIL option
+  CAN_frame TESLA_1CF_digital_hvil = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x1CF,
+                                      .data = {0x01, 0x00, 0x00, 0x1A, 0x1C, 0x02, 0x60, 0x69}};
+  uint16_t content_1CF_digital_hvil[8] = {0x6069, 0x8089, 0xA0A9, 0xC0C9, 0xE0E9, 0x0009, 0x2029, 0x4049};
   uint8_t index_1CF = 0;
   uint8_t index_118 = 0;
   uint8_t contactor_counter = 0;
