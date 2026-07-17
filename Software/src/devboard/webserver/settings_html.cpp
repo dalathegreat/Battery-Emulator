@@ -483,6 +483,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LOWPASSFILTER") ? "checked" : "";
   }
 
+  if (var == "CHGTAPERSOC") {
+    return settings.getBool("CHGTAPERSOC") ? "checked" : "";
+  }
+
+  if (var == "CHGTAPERBAND") {
+    return String(settings.getUInt("CHGTAPERBAND", 5));
+  }
+
   if (var == "SLOWCANINV") {
     return settings.getBool("SLOWCANINV") ? "checked" : "";
   }
@@ -1436,6 +1444,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-chgtapersoc { display: none; }
+    form[data-chgtapersoc="true"] .if-chgtapersoc {
+      display: contents;
+    }
+
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
       display: contents;
@@ -1740,6 +1753,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Ramp up charge limits gradually:</label>
         <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
         title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC%
+        title="Linearly reduces the allowed charge power over the top of the SOC window, from full power at (100pct - band) down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff." />
+
+        <div class='if-chgtapersoc'>
+        <label>Charge taper band, percent: </label>
+        <input type='number' name='CHGTAPERBAND' value="%CHGTAPERBAND%"
+        min="1" max="50" step="1"
+        title="Width of the taper band in percent of scaled SOC. 5 = tapering starts at 95pct and reaches 0W at 100pct" />
+        </div>
 
         <label>Allow longer CAN timeout: </label>
         <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
