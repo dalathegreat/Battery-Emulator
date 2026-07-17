@@ -164,6 +164,9 @@ static void filter_charge_taper_soc(void) {
     return;  // Datalayer values pass through untouched
   }
   uint16_t soc = datalayer.battery.status.reported_soc;  // Computed earlier this cycle in update_calculated_values()
+  if (soc > 10000) {
+    soc = 10000;  // Defensive: keep (10000 - soc) non-negative if a driver misreports with SOC scaling disabled
+  }
   uint16_t band = charge_taper_band_pptt;
   if (band > 10000) {
     band = 10000;
