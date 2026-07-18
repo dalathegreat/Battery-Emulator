@@ -36,6 +36,8 @@ static void receive_frame_canfd_addon_2();
 static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
 static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
+static bool begin_canfd();
+static bool begin_canfd_2();
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {
   can_receivers.insert({interface, {receiver, speed}});
@@ -47,14 +49,14 @@ static CAN_Speed native_can_speed;
 
 static uint32_t quartz_frequency;
 
-static MCP2515_Lite* can2515;
+static MCP2515_Lite* can2515 = nullptr;
 static SPIClass* SPI2515;
 
 static SPIClass* SPI2517;
-static ACAN2517FD* canfd;
+static ACAN2517FD* canfd = nullptr;
 static ACAN2517FDSettings* settings2517;
 static SPIClass* SPI2517_2;
-static ACAN2517FD* canfd_2;
+static ACAN2517FD* canfd_2 = nullptr;
 static ACAN2517FDSettings* settings2517_2;
 bool use_canfd_as_can = false;
 bool use_canfd2_as_can = false;
@@ -154,6 +156,8 @@ bool init_CAN() {
     } else {
       logging.println("MCP2515 CAN init failed");
       set_event(EVENT_CANMCP2515_INIT_FAILURE, 1);
+      // This will leak, but we have failed and won't try to reinit.
+      can2515 = nullptr;
       return false;
     }
   }
@@ -218,12 +222,7 @@ bool init_CAN() {
     // ListenOnly / Normal20B / NormalFDs
     settings2517->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
 
-    const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
-    canfd->poll();
-    if (errorCode2517 != 0) {
-      logging.print("CAN-FD Configuration error 0x");
-      logging.println(errorCode2517, HEX);
-      set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517);
+    if (!begin_canfd()) {
       return false;
     }
   }
@@ -271,16 +270,39 @@ bool init_CAN() {
 
     settings2517_2->mRequestedMode = use_canfd2_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
 
-    const uint32_t errorCode2517_2 = canfd_2->begin(*settings2517_2, [] { canfd_2->isr(); });
-    canfd_2->poll();
-    if (errorCode2517_2 != 0) {
-      logging.print("CAN-FD 2 Configuration error 0x");
-      logging.println(errorCode2517_2, HEX);
-      set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517_2);
+    if (!begin_canfd_2()) {
       return false;
     }
   }
 
+  return true;
+}
+
+static bool begin_canfd() {
+  const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
+  canfd->poll();
+  if (errorCode2517 != 0) {
+    logging.print("CAN-FD Configuration error 0x");
+    logging.println(errorCode2517, HEX);
+    set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517);
+    // This will leak, but we have failed and won't try to reinit.
+    canfd = nullptr;
+    return false;
+  }
+  return true;
+}
+
+static bool begin_canfd_2() {
+  const uint32_t errorCode2517_2 = canfd_2->begin(*settings2517_2, [] { canfd_2->isr(); });
+  canfd_2->poll();
+  if (errorCode2517_2 != 0) {
+    logging.print("CAN-FD 2 Configuration error 0x");
+    logging.println(errorCode2517_2, HEX);
+    set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517_2);
+    // This will leak, but we have failed and won't try to reinit.
+    canfd_2 = nullptr;
+    return false;
+  }
   return true;
 }
 
@@ -312,7 +334,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2515_Lite_Frame mcp2515_frame;
       copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
 
-      if (!can2515->sendFrame(mcp2515_frame)) {
+      if (can2515 == nullptr || !can2515->sendFrame(mcp2515_frame)) {
         datalayer.system.info.can_2515_send_fail = true;
       }
     } break;
@@ -329,7 +351,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2518Frame.len = tx_frame->DLC;
       memcpy(MCP2518Frame.data, tx_frame->data.u8, std::min(tx_frame->DLC, (uint8_t)sizeof(MCP2518Frame.data)));
 
-      if (!canfd->tryToSend(MCP2518Frame)) {
+      if (canfd == nullptr || !canfd->tryToSend(MCP2518Frame)) {
         datalayer.system.info.can_2518_send_fail = true;
       }
     } break;
@@ -345,7 +367,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2518Frame.len = tx_frame->DLC;
       memcpy(MCP2518Frame.data, tx_frame->data.u8, std::min(tx_frame->DLC, (uint8_t)sizeof(MCP2518Frame.data)));
 
-      if (!canfd_2->tryToSend(MCP2518Frame)) {
+      if (canfd_2 == nullptr || !canfd_2->tryToSend(MCP2518Frame)) {
         datalayer.system.info.can_2518_2_send_fail = true;
       }
     } break;
@@ -574,6 +596,10 @@ void stop_can() {
   if (canfd) {
     canfd->end();
   }
+
+  if (canfd_2) {
+    canfd_2->end();
+  }
 }
 
 void restart_can() {
@@ -586,8 +612,11 @@ void restart_can() {
   }
 
   if (canfd) {
-    canfd->begin(*settings2517, [] { canfd->isr(); });
-    canfd->poll();
+    begin_canfd();
+  }
+
+  if (canfd_2) {
+    begin_canfd_2();
   }
 }
 
