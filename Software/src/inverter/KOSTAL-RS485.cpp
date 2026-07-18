@@ -231,6 +231,10 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
           dbg_frame(RS485_RXFRAME, 10, "RX");
           if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
+            if (!inverter_detected) {
+              inverter_detected = true;
+              set_event(EVENT_MODBUS_INVERTER_DETECTED, 1);
+            }
 
             if (RS485_RXFRAME[1] == 'c' && info_sent) {
               if (RS485_RXFRAME[6] == 0x47) {

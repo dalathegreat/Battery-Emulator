@@ -82,14 +82,10 @@ void init_stored_settings() {
   if (temp2 <= 500 && temp2 >= -100) {
     datalayer.battery.settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
   }
-  temp = settings.getUInt("MAXCHARGEAMP", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_user_set_charge_dA = temp;
-  }
-  temp = settings.getUInt("MAXDISCHARGEAMP", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_user_set_discharge_dA = temp;
-  }
+  datalayer.battery.settings.max_user_set_charge_dA =
+      settings.getUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  datalayer.battery.settings.max_user_set_discharge_dA =
+      settings.getUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
   datalayer.battery.settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
   temp = settings.getUInt("TARGETCHVOLT", false);
   if (temp != 0) {
@@ -187,6 +183,10 @@ void init_stored_settings() {
   user_selected_triple_battery = settings.getBool("TRIBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   inverter_low_pass_filter = settings.getBool("LOWPASSFILTER", false);
+  charge_taper_soc = settings.getBool("CHGTAPERSOC", false);
+  charge_taper_band_pptt = 10000 - (settings.getUInt("CHGTAPERSTART", 95) *
+                                    100);  // Stored as start SOC in whole percent, used as band in pptt
+  charge_taper_floor_W = settings.getUInt("CHGTAPERFLOOR", 0);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
@@ -243,6 +243,7 @@ void init_stored_settings() {
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
+  ha_autodiscovery_topic = settings.getString("HADISCTOPIC", "homeassistant").c_str();
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
