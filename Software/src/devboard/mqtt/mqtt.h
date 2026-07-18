@@ -47,6 +47,7 @@ extern bool mqtt_transmit_all_cellvoltages;
 extern uint16_t mqtt_timeout_ms;
 extern uint16_t mqtt_publish_interval_ms;
 extern bool ha_autodiscovery_enabled;
+extern std::string ha_autodiscovery_topic;
 extern std::string mqtt_server;
 extern std::string mqtt_user;
 extern std::string mqtt_password;
