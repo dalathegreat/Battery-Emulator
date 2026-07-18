@@ -222,13 +222,13 @@ void NissanLeafBattery::
     reported_battery_Type = LEAF_battery_Type;
     switch (LEAF_battery_Type) {
       case AZE0_BATTERY:
-        logging.printf("Nissan LEAF battery generation identified: AZE0 (2013-2017)\n");
+        logging.printf("Battery generation: AZE0\n");
         break;
       case ZE1_BATTERY:
-        logging.printf("Nissan LEAF battery generation identified: ZE1 (2018-2023)\n");
+        logging.printf("Battery generation: ZE1\n");
         break;
       default:
-        logging.printf("Nissan LEAF battery generation identified: ZE0 (2011-2013)\n");
+        logging.printf("Nissan LEAF battery detected.\n");
         break;
     }
   }
