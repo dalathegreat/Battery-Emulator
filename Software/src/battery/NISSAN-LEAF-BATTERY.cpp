@@ -216,6 +216,23 @@ void NissanLeafBattery::
     datalayer_battery->status.balancing_status = new_status;
   }
 
+  // Log the identified battery generation. ZE0 is the default until AZE0/ZE1
+  // specific CAN frames are seen, so an upgraded detection is logged again
+  if (battery_can_alive && (reported_battery_Type != LEAF_battery_Type)) {
+    reported_battery_Type = LEAF_battery_Type;
+    switch (LEAF_battery_Type) {
+      case AZE0_BATTERY:
+        logging.printf("Nissan LEAF battery generation identified: AZE0 (2013-2017)\n");
+        break;
+      case ZE1_BATTERY:
+        logging.printf("Nissan LEAF battery generation identified: ZE1 (2018-2023)\n");
+        break;
+      default:
+        logging.printf("Nissan LEAF battery generation identified: ZE0 (2011-2013)\n");
+        break;
+    }
+  }
+
   // Update webserver datalayer
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));

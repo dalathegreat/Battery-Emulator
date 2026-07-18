@@ -151,6 +151,7 @@ class NissanLeafBattery : public CanBattery {
   //Nissan LEAF battery parameters from constantly sent CAN
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
+  uint8_t reported_battery_Type = 255;         //255 = generation not yet logged
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
   uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
   uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
