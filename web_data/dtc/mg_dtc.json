@@ -1,0 +1,598 @@
+[
+  {
+    "dtc": "P0A0C00",
+    "l_dsc": "Main HVIL Duty Low"
+  },
+  {
+    "dtc": "P0A0D00",
+    "l_dsc": "Main HVIL Duty High"
+  },
+  {
+    "dtc": "P0A7D00",
+    "l_dsc": "Hybrid Battery Pack State of Charge Low"
+  },
+  {
+    "dtc": "P0A9500",
+    "l_dsc": "Pack Main Fuse is Broken"
+  },
+  {
+    "dtc": "P0AA700",
+    "l_dsc": "Battery High Voltage Isolation Sensor Circuit Failed"
+  },
+  {
+    "dtc": "P0AFA00",
+    "l_dsc": "Hybrid Battery System Voltage Low"
+  },
+  {
+    "dtc": "P0AFB00",
+    "l_dsc": "Hybrid Battery System Voltage High"
+  },
+  {
+    "dtc": "P0B1900",
+    "l_dsc": "Pack Voltage is Error Value"
+  },
+  {
+    "dtc": "P0C4400",
+    "l_dsc": "Coolant Temperature Drive out of Range High"
+  },
+  {
+    "dtc": "P0C4500",
+    "l_dsc": "Coolant Temperature Drive out of Range Low"
+  },
+  {
+    "dtc": "P0C7800",
+    "l_dsc": "Precharge Time Out"
+  },
+  {
+    "dtc": "P1E0001",
+    "l_dsc": "Shunt EEPROM Data Missing"
+  },
+  {
+    "dtc": "P1E0004",
+    "l_dsc": "Shunt Report SM Check Fail or Over Temperature"
+  },
+  {
+    "dtc": "P1E0087",
+    "l_dsc": "Shunt Current Data Missing"
+  },
+  {
+    "dtc": "P1E0400",
+    "l_dsc": "Leakage Diagnostic Outside"
+  },
+  {
+    "dtc": "P1E0500",
+    "l_dsc": "Leakage Diagnostic Inside"
+  },
+  {
+    "dtc": "P1E0600",
+    "l_dsc": "Pack Insulation Calculation Error"
+  },
+  {
+    "dtc": "P1E0700",
+    "l_dsc": "SBC Report Fault"
+  },
+  {
+    "dtc": "P1E0D00",
+    "l_dsc": "Precharge Resistor Over Heat"
+  },
+  {
+    "dtc": "P1E0E00",
+    "l_dsc": "Cell Dynamic Voltage Difference"
+  },
+  {
+    "dtc": "P1E0F00",
+    "l_dsc": "Temperature Difference Severe"
+  },
+  {
+    "dtc": "P1E1100",
+    "l_dsc": "Real Time Clock Error"
+  },
+  {
+    "dtc": "P1E1B00",
+    "l_dsc": "High Voltage Management Unit (HVM) Calibration Out of Range"
+  },
+  {
+    "dtc": "P1E1C00",
+    "l_dsc": "Discharge Over Current Severe"
+  },
+  {
+    "dtc": "P1E1D00",
+    "l_dsc": "Charge Over Current Severe"
+  },
+  {
+    "dtc": "P1E1E00",
+    "l_dsc": "Discharge Over Current"
+  },
+  {
+    "dtc": "P1E1F00",
+    "l_dsc": "Charge Over Current"
+  },
+  {
+    "dtc": "P1E2200",
+    "l_dsc": "BMS Open Relay with Current"
+  },
+  {
+    "dtc": "P1E2300",
+    "l_dsc": "IMCU Sends Close Main Relay Request before BMS is Ready"
+  },
+  {
+    "dtc": "P1E2400",
+    "l_dsc": "Pack Critical High Voltage Signals is Error Value While Closing Relay"
+  },
+  {
+    "dtc": "P1E2600",
+    "l_dsc": "Crash Happened"
+  },
+  {
+    "dtc": "P1E2B00",
+    "l_dsc": "High Voltage Interlock (HVIL) Source Duty High"
+  },
+  {
+    "dtc": "P1E2C00",
+    "l_dsc": "High Voltage Interlock (HVIL) Source Duty Low"
+  },
+  {
+    "dtc": "P1E3000",
+    "l_dsc": "12V Switch Supply Circuit Failed High"
+  },
+  {
+    "dtc": "P1E3100",
+    "l_dsc": "12V Switch Supply Circuit Failed Low"
+  },
+  {
+    "dtc": "P1E3200",
+    "l_dsc": "BMU Report Fault"
+  },
+  {
+    "dtc": "P1E3301",
+    "l_dsc": "OffCharge Relay Report Fail"
+  },
+  {
+    "dtc": "P1E3302",
+    "l_dsc": "OffCharge Relay Report Unknow"
+  },
+  {
+    "dtc": "P1E3400",
+    "l_dsc": "5V Sensor Supply Circuit Failed High"
+  },
+  {
+    "dtc": "P1E3500",
+    "l_dsc": "5V Sensor Supply Circuit Failed Low"
+  },
+  {
+    "dtc": "P1E3701",
+    "l_dsc": "High Voltage Sampling Chip 795X Report Fail"
+  },
+  {
+    "dtc": "P1E3787",
+    "l_dsc": "High Voltage Sampling Chip 795X Report Missing"
+  },
+  {
+    "dtc": "P1E3800",
+    "l_dsc": "Module SOC Difference High"
+  },
+  {
+    "dtc": "P1E3900",
+    "l_dsc": "On-board Charge Over Current"
+  },
+  {
+    "dtc": "P1E3A01",
+    "l_dsc": "MCU Data Error"
+  },
+  {
+    "dtc": "P1E3A02",
+    "l_dsc": "MCU Run Invalid"
+  },
+  {
+    "dtc": "P1E3B00",
+    "l_dsc": "AFE Communication Direction Is Abnormal"
+  },
+  {
+    "dtc": "P1E3C00",
+    "l_dsc": "Pressure Sensor Report Fail"
+  },
+  {
+    "dtc": "P1E3D00",
+    "l_dsc": "Cell Power Up When Voltage is Low"
+  },
+  {
+    "dtc": "P1E3F00",
+    "l_dsc": "PTC High Voltage Interlock Status"
+  },
+  {
+    "dtc": "P1E4000",
+    "l_dsc": "Off-board Charge Over Curent"
+  },
+  {
+    "dtc": "P1E4100",
+    "l_dsc": "On-board Charge Under Current"
+  },
+  {
+    "dtc": "P1E4800",
+    "l_dsc": "12V Supply Circuit Failed Low"
+  },
+  {
+    "dtc": "P1E4900",
+    "l_dsc": "12V Supply Circuit Failed High"
+  },
+  {
+    "dtc": "P1E4C00",
+    "l_dsc": "Main Positive Relay Failed Weld Check at Sequence Up"
+  },
+  {
+    "dtc": "P1E4D00",
+    "l_dsc": "Main Negative Relay Failed Weld Check at Sequence Up"
+  },
+  {
+    "dtc": "P1E5100",
+    "l_dsc": "Off-board Charge Relay Failed Weld Check at Sequence Up"
+  },
+  {
+    "dtc": "P1E5200",
+    "l_dsc": "Main Positive Relay Failed Weld Check at Sequence Down"
+  },
+  {
+    "dtc": "P1E5300",
+    "l_dsc": "Main Negative Relay Failed Weld Check at Sequence Down"
+  },
+  {
+    "dtc": "P1E5700",
+    "l_dsc": "Off-board Charge Relay Failed Weld Check at Sequence Down"
+  },
+  {
+    "dtc": "P1E5800",
+    "l_dsc": "Main Positive Relay Closure Failure"
+  },
+  {
+    "dtc": "P1E5900",
+    "l_dsc": "Main Negative Relay Closure Failure"
+  },
+  {
+    "dtc": "P1E5A00",
+    "l_dsc": "Precharge Relay Closure Failure"
+  },
+  {
+    "dtc": "P1E5E00",
+    "l_dsc": "Off-board Charge Relay Closure Failure"
+  },
+  {
+    "dtc": "P1E5F00",
+    "l_dsc": "Main Positive Relay Unexpected Open"
+  },
+  {
+    "dtc": "P1E6000",
+    "l_dsc": "Main Negative Relay Unexpected Open"
+  },
+  {
+    "dtc": "P1E6400",
+    "l_dsc": "Off-board Charge Relay Unexpected Open"
+  },
+  {
+    "dtc": "P1E6D00",
+    "l_dsc": "Sum of Cell Voltage is Different with Module Voltage"
+  },
+  {
+    "dtc": "P1E7000",
+    "l_dsc": "Cell Over Voltage"
+  },
+  {
+    "dtc": "P1E7100",
+    "l_dsc": "Cell Over Voltage Severe"
+  },
+  {
+    "dtc": "P1E7200",
+    "l_dsc": "Cell Under Voltage"
+  },
+  {
+    "dtc": "P1E7300",
+    "l_dsc": "Cell Under Voltage Severe"
+  },
+  {
+    "dtc": "P1E7500",
+    "l_dsc": "Cell Over Temperature"
+  },
+  {
+    "dtc": "P1E7600",
+    "l_dsc": "Cell Over Temperature Severe"
+  },
+  {
+    "dtc": "P1E7700",
+    "l_dsc": "Cell Under Temperature"
+  },
+  {
+    "dtc": "P1E8200",
+    "l_dsc": "On-board Charger Report EPO"
+  },
+  {
+    "dtc": "P1E8300",
+    "l_dsc": "Off-board Charger Report Emergency Power Off(EPO)"
+  },
+  {
+    "dtc": "P1E8700",
+    "l_dsc": "Read DATA from EEPROM Fail"
+  },
+  {
+    "dtc": "P1E9400",
+    "l_dsc": "Sum of Cell Voltage is Different with Pack Voltage"
+  },
+  {
+    "dtc": "P1E9C00",
+    "l_dsc": "Air Compressor Fuse Broken"
+  },
+  {
+    "dtc": "P1E9D00",
+    "l_dsc": "Closed Main Relay Instruction Error"
+  },
+  {
+    "dtc": "P1EAA00",
+    "l_dsc": "Pack LV5V Failed High"
+  },
+  {
+    "dtc": "P1EAB00",
+    "l_dsc": "Pack LV5V Failed Low"
+  },
+  {
+    "dtc": "P1EAE00",
+    "l_dsc": "On-board Charge Current Mismatch"
+  },
+  {
+    "dtc": "P1EAF00",
+    "l_dsc": "On-board Charge Voltage Mismatch"
+  },
+  {
+    "dtc": "P1EB100",
+    "l_dsc": "On-board Charger Status Abnormal"
+  },
+  {
+    "dtc": "P1EB200",
+    "l_dsc": "Isolation Value Is Too Low During Charging"
+  },
+  {
+    "dtc": "P1EB488",
+    "l_dsc": "Internal CAN Bus Off"
+  },
+  {
+    "dtc": "P1EC100",
+    "l_dsc": "Aux Battery is Too Low before Closing Relays"
+  },
+  {
+    "dtc": "P1EC200",
+    "l_dsc": "On-board Charge Charger Fuse Fault"
+  },
+  {
+    "dtc": "P1EFF87",
+    "l_dsc": "BMS Reports Lost Communication With AFE Summary"
+  },
+  {
+    "dtc": "P1F1087",
+    "l_dsc": "Lost Communication with off-board Charger Module"
+  },
+  {
+    "dtc": "P1F1698",
+    "l_dsc": "Off-board Charger Socket Over Temperature"
+  },
+  {
+    "dtc": "P1F1707",
+    "l_dsc": "Ess Cooling System Abnormal"
+  },
+  {
+    "dtc": "P1F2C01",
+    "l_dsc": "Cell Voltage Changed Abnormal"
+  },
+  {
+    "dtc": "P1F2D09",
+    "l_dsc": "Temperature Signal Drift"
+  },
+  {
+    "dtc": "P1F3187",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 01"
+  },
+  {
+    "dtc": "P1F3287",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 02"
+  },
+  {
+    "dtc": "P1F3387",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 03"
+  },
+  {
+    "dtc": "P1F3487",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 04"
+  },
+  {
+    "dtc": "P1F3587",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 05"
+  },
+  {
+    "dtc": "P1F3687",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 06"
+  },
+  {
+    "dtc": "P1F3787",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 07"
+  },
+  {
+    "dtc": "P1F3887",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 08"
+  },
+  {
+    "dtc": "P1F3987",
+    "l_dsc": "CMU Reports Lost Communication with Analog Front End Circuit 09"
+  },
+  {
+    "dtc": "P1F6300",
+    "l_dsc": "Manual Service Disconnect (MSD) is not Plugged"
+  },
+  {
+    "dtc": "P1F6400",
+    "l_dsc": "On-board Charge Socket Over Temperature"
+  },
+  {
+    "dtc": "P1F6500",
+    "l_dsc": "On-board Charge Socket Failure Hardware"
+  },
+  {
+    "dtc": "P1F6600",
+    "l_dsc": "Off-board Charge Socket Failure Hardware"
+  },
+  {
+    "dtc": "P1F6B00",
+    "l_dsc": "Cell Temperature Sensor Line is Open Wire"
+  },
+  {
+    "dtc": "P1F6C00",
+    "l_dsc": "Cell Voltage Sensor Line is Open Wire"
+  },
+  {
+    "dtc": "P1F7000",
+    "l_dsc": "Analog Front End Circuit Fault Summary"
+  },
+  {
+    "dtc": "P1F7100",
+    "l_dsc": "Analog Front End Circuit Fault Which Need to Forbid Charging"
+  },
+  {
+    "dtc": "P1F7200",
+    "l_dsc": "Analog Front End Circuit Fault Which Need to Forbid Balancing"
+  },
+  {
+    "dtc": "P1F7300",
+    "l_dsc": "Analog Front End Circuit Sampling Voltage Redundancy Check Failed"
+  },
+  {
+    "dtc": "P1F7400",
+    "l_dsc": "Analog Front End Circuit Sampling Temperature Redundancy Check Failed"
+  },
+  {
+    "dtc": "P1F7500",
+    "l_dsc": "Analog Front End Circuit Fault Which Need Light On"
+  },
+  {
+    "dtc": "P1F7C00",
+    "l_dsc": "Analog Front End Circuit Cell Voltage is InValid"
+  },
+  {
+    "dtc": "P1F7D00",
+    "l_dsc": "Analog Front End Circuit Cell Temperature is InValid"
+  },
+  {
+    "dtc": "P1F7E00",
+    "l_dsc": "Invalid Data Received From CCU"
+  },
+  {
+    "dtc": "P1F7F00",
+    "l_dsc": "High Voltage between OffChg Negative Relay Over Limit Before Closing"
+  },
+  {
+    "dtc": "P1F8000",
+    "l_dsc": "Cell Voltage Difference While in Still State"
+  },
+  {
+    "dtc": "P1F8100",
+    "l_dsc": "ISC Report HV Inhibit"
+  },
+  {
+    "dtc": "P1F8200",
+    "l_dsc": "Invalid Data Received From Sensing Diagnostic Module(SDM)"
+  },
+  {
+    "dtc": "P1F8300",
+    "l_dsc": "Invalid Data Received From ISC"
+  },
+  {
+    "dtc": "P1F8487",
+    "l_dsc": "Lost Communication With IMCU From Extend CAN Or Cal CAN"
+  },
+  {
+    "dtc": "P1F8500",
+    "l_dsc": "ISC HVIL Fault"
+  },
+  {
+    "dtc": "P1F8600",
+    "l_dsc": "ACP HVIL Fault"
+  },
+  {
+    "dtc": "P1F8700",
+    "l_dsc": "DCDC HVIL Fault"
+  },
+  {
+    "dtc": "P1F8A00",
+    "l_dsc": "Pack Thermal Runaway Happened"
+  },
+  {
+    "dtc": "P1F8B98",
+    "l_dsc": "Off-board Charger Socket Over Temperature"
+  },
+  {
+    "dtc": "P1F8C98",
+    "l_dsc": "On-board Charge Socket Over Temperature"
+  },
+  {
+    "dtc": "P1F8D12",
+    "l_dsc": "BMS Battery Pressure Switch Signal is High as same as VCU Signal"
+  },
+  {
+    "dtc": "P1F8D15",
+    "l_dsc": "BMS Battery Pressure Switch Signal is Different as VCU Signal"
+  },
+  {
+    "dtc": "P1F8D16",
+    "l_dsc": "Battery Pressure Switch Signal is Oscilation"
+  },
+  {
+    "dtc": "P1F8D17",
+    "l_dsc": "VCU Pressure Switch Signal is Oscilation"
+  },
+  {
+    "dtc": "P1F9600",
+    "l_dsc": "IMCU 0x8A Message Data Invalid"
+  },
+  {
+    "dtc": "U007388",
+    "l_dsc": "Control Module Communication Bus Off on Powertrain High Speed CAN"
+  },
+  {
+    "dtc": "U007488",
+    "l_dsc": "Control Module Communication Bus Off on PT EXT CAN"
+  },
+  {
+    "dtc": "U014687",
+    "l_dsc": "Lost Communication with ICC/CCP/GW"
+  },
+  {
+    "dtc": "U019887",
+    "l_dsc": "Lost Communication with TBOX/IAM"
+  },
+  {
+    "dtc": "U029287",
+    "l_dsc": "Lost Communication with Secondary Axle Motor Controller (SAC)"
+  },
+  {
+    "dtc": "U029387",
+    "l_dsc": "Lost Communication With IMCU"
+  },
+  {
+    "dtc": "U041487",
+    "l_dsc": "Lost Communication with Integrated Brake System(IBS)"
+  },
+  {
+    "dtc": "U111287",
+    "l_dsc": "Lost Communication With OBC/CCU"
+  },
+  {
+    "dtc": "U111387",
+    "l_dsc": "Lost Communication with Secondary Axle Motor Controller (SAC)"
+  },
+  {
+    "dtc": "U156217",
+    "l_dsc": "Battery Voltage High"
+  },
+  {
+    "dtc": "U156316",
+    "l_dsc": "Battery Voltage Low"
+  },
+  {
+    "dtc": "U200404",
+    "l_dsc": "Inactive Software is Invalid"
+  }
+]
