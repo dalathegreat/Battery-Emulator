@@ -136,6 +136,7 @@ class Battery {
   virtual void initiate_balancing() {}
   virtual void end_balancing() {}
   virtual void handle_precharge() {}
+  virtual void enter_extended_diag() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

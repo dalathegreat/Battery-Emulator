@@ -551,3 +551,9 @@ void UdsCanBattery::reset_BMS() {
   // We send a long cooldown, to give the BMS time to reset.
   perform_uds_action(UdsAction::RESET_BMS, 2, 20);
 }
+
+void UdsCanBattery::enter_extended_diag() {
+  // Enter extended diagnostic session
+  static constexpr uint8_t data[1] = {Session::ExtendedSession};
+  uds_send(SID::DiagnosticSessionControl, data, sizeof(data), UDS_TIMEOUT_SESSION_CONTROL);
+}

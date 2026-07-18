@@ -65,6 +65,7 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   virtual void read_DTC();
   virtual void reset_DTC();
   virtual void reset_BMS();
+  virtual void enter_extended_diag();
 
   // The range of response IDs (addresses) we'll accept UDS responses from if auto-detecting.
   static const uint16_t MIN_UDS_RESPONSE_ID = 0x780;
