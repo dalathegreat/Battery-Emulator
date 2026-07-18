@@ -528,7 +528,7 @@ void core_loop(void*) {
         monitor_equipment_stop_button();
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
-        if (precharge_control_enabled) {
+        if (is_precharge_control_enabled()) {
           handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
         }
         if (battery) {
@@ -539,7 +539,7 @@ void core_loop(void*) {
         monitor_equipment_stop_button();
         led_exe();
         handle_contactors();  // Take care of startup precharge/contactor closing
-        if (precharge_control_enabled) {
+        if (is_precharge_control_enabled()) {
           handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
         }
         if (battery) {

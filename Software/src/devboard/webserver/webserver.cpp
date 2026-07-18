@@ -419,12 +419,12 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",     "HADISC",      "MQTTCELLV",    "GTWRHD",
-      "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
-      "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
-      "WEBAUTH",     "SLOWCANINV",
+      "DBLBTR",        "CNTCTRL",     "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",   "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANFDASCAN",  "CANFD2ASCAN",  "CANLOGSD",
+      "WIFIAPENABLED", "MQTTENABLED", "NOINVDISC",    "HADISC",        "MQTTTOPICS",  "MQTTCELLV",    "GTWRHD",
+      "DIGITALHVIL",   "PERFPROFILE", "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
+      "NCCONTACTOR",   "TRIBTR",      "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
+      "WEBAUTH",       "SLOWCANINV",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGEN",
 #endif
@@ -480,6 +480,13 @@ void init_webserver() {
                 request->send(400, "text/plain",
                               "Set a username and password before enabling web interface password protection.");
                 return;
+              }
+
+              if (request->hasParam("EXTPREMODE", true)) {
+                auto modeParam = request->getParam("EXTPREMODE", true);
+                int mode = atoi(modeParam->value().c_str());
+
+                settings.saveUInt("EXTPREMODE", mode);
               }
 
               int numParams = request->params();
