@@ -1772,7 +1772,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="50" max="99" step="1"
         title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct" />
 
-        <label>Charge taper floor, W: </label>
+        <label>Float charge power, W: </label>
         <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
         min="0" max="2000" step="10"
         title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
