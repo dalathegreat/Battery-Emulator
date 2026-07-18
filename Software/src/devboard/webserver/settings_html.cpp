@@ -487,8 +487,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CHGTAPERSOC") ? "checked" : "";
   }
 
-  if (var == "CHGTAPERBAND") {
-    return String(settings.getUInt("CHGTAPERBAND", 5));
+  if (var == "CHGTAPERSTART") {
+    return String(settings.getUInt("CHGTAPERSTART", 95));
   }
 
   if (var == "CHGTAPERFLOOR") {
@@ -1764,13 +1764,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Charge power tapering based on SOC:</label>
         <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC%
-        title="Linearly reduces the allowed charge power over the top of the SOC window, from full power at (100pct - band) down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff." />
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff." />
 
         <div class='if-chgtapersoc'>
-        <label>Charge taper band, percent: </label>
-        <input type='number' name='CHGTAPERBAND' value="%CHGTAPERBAND%"
-        min="1" max="50" step="1"
-        title="Width of the taper band in percent of scaled SOC. 5 = tapering starts at 95pct and reaches 0W at 100pct" />
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="99" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct" />
 
         <label>Charge taper floor, W: </label>
         <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
