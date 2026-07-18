@@ -491,6 +491,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("CHGTAPERBAND", 5));
   }
 
+  if (var == "CHGTAPERFLOOR") {
+    return String(settings.getUInt("CHGTAPERFLOOR", 0));
+  }
+
   if (var == "SLOWCANINV") {
     return settings.getBool("SLOWCANINV") ? "checked" : "";
   }
@@ -1763,6 +1767,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='CHGTAPERBAND' value="%CHGTAPERBAND%"
         min="1" max="50" step="1"
         title="Width of the taper band in percent of scaled SOC. 5 = tapering starts at 95pct and reaches 0W at 100pct" />
+
+        <label>Charge taper floor, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Set above your inverter's minimum stable charging power to avoid standby cycling near full, and below your max charge power cap. 0 disables the floor, tapering goes linearly to 0W." />
         </div>
 
         <label>Allow longer CAN timeout: </label>

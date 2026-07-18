@@ -37,4 +37,5 @@ extern bool user_selected_primo_gen24;
 extern bool inverter_low_pass_filter;
 extern bool charge_taper_soc;
 extern uint16_t charge_taper_band_pptt;
+extern uint16_t charge_taper_floor_W;
 #endif

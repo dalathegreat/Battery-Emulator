@@ -56,6 +56,8 @@ bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be 
 bool charge_taper_soc = false;  //Should the charge power limit be tapered based on scaled SOC near full?
 uint16_t charge_taper_band_pptt =
     500;  //Taper band in pptt. 500 = taper starts at 95.00% scaled SOC, reaching 0W at 100.00%
+uint16_t charge_taper_floor_W =
+    0;  //Minimum charge power in W held during tapering until 100.00% scaled SOC. 0 = disabled, taper goes linearly to 0W
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
