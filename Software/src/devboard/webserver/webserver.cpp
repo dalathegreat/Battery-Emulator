@@ -424,27 +424,27 @@ void init_webserver() {
       "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",     "HADISC",      "MQTTCELLV",    "GTWRHD",
       "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
-      "WEBAUTH",     "SLOWCANINV",
+      "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGEN",
 #endif
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",   "CHGPOWER",
-      "MQTTPORT",   "MQTTTIMEOUT", "SOFAR_ID",    "PYLONSEND",     "INVCELLS",      "INVMODULES",  "INVCELLSPER",
-      "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",      "PWMFREQ",       "PWMHOLD",     "GTWCOUNTRY",
-      "GTWMAPREG",  "GTWCHASSIS",  "GTWPACK",     "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",    "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",        "CTATTEN",       "PYLONBAUD",   "PYLONBRAND",
-      "DALYPWRPCT", "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",    "DALYPWR0C",     "RAMPDOWNSOC", "GPIOOPT5",
-      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE", "FOXESSMODULES",
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",     "CHGPOWER",
+      "MQTTPORT",   "MQTTTIMEOUT", "SOFAR_ID",    "PYLONSEND",     "INVCELLS",      "INVMODULES",    "INVCELLSPER",
+      "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",      "PWMFREQ",       "PWMHOLD",       "GTWCOUNTRY",
+      "GTWMAPREG",  "GTWCHASSIS",  "GTWPACK",     "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",      "GPIOOPT3",
+      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
+      "DALYPWRPCT", "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",    "DALYPWR0C",     "RAMPDOWNSOC",   "GPIOOPT5",
+      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGPORT", "SYSLOGFAC",
 #endif
   };
 
   const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "HTTPUSER",
-                                      "HTTPPASS",   "LOCALIP",  "GATEWAY",    "SUBNET",   "DNS",
+                                      "HTTPPASS",   "LOCALIP",  "GATEWAY",    "SUBNET",   "DNS",          "HADISCTOPIC",
 #ifndef SMALL_FLASH_DEVICE
                                       "SYSLOGIP"
 #endif
@@ -1222,32 +1222,13 @@ String processor(const String& var) {
         content += "</h4>";
       }
 
-      if (datalayer.battery.status.current_dA == 0) {
-        content += "<h4>Battery idle</h4>";
-      } else if (datalayer.battery.status.current_dA < 0) {
-        content += "<h4>Battery discharging!";
-        if (datalayer.battery.settings.inverter_limits_discharge) {
-          content += " (Inverter limiting)</h4>";
-        } else {
-          if (datalayer.battery.settings.user_settings_limit_discharge) {
-            content += " (Settings limiting)</h4>";
-          } else {
-            content += " (Battery limiting)</h4>";
-          }
-        }
-        content += "</h4>";
-      } else {  // > 0 , positive current
-        content += "<h4>Battery charging!";
-        if (datalayer.battery.settings.inverter_limits_charge) {
-          content += " (Inverter limiting)</h4>";
-        } else {
-          if (datalayer.battery.settings.user_settings_limit_charge) {
-            content += " (Settings limiting)</h4>";
-          } else {
-            content += " (Battery limiting)</h4>";
-          }
-        }
-      }
+      content += "<h4>" +
+                 String(get_charging_status_text(datalayer.battery.status.current_dA,
+                                                 datalayer.battery.settings.inverter_limits_charge,
+                                                 datalayer.battery.settings.inverter_limits_discharge,
+                                                 datalayer.battery.settings.user_settings_limit_charge,
+                                                 datalayer.battery.settings.user_settings_limit_discharge)) +
+                 "</h4>";
 
       content += "<h4>System status: ";
       switch (datalayer.system.status.system_status) {

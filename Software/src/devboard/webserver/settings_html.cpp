@@ -483,6 +483,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LOWPASSFILTER") ? "checked" : "";
   }
 
+  if (var == "CHGTAPERSOC") {
+    return settings.getBool("CHGTAPERSOC") ? "checked" : "";
+  }
+
+  if (var == "CHGTAPERSTART") {
+    return String(settings.getUInt("CHGTAPERSTART", 95));
+  }
+
+  if (var == "CHGTAPERFLOOR") {
+    return String(settings.getUInt("CHGTAPERFLOOR", 0));
+  }
+
   if (var == "SLOWCANINV") {
     return settings.getBool("SLOWCANINV") ? "checked" : "";
   }
@@ -679,6 +691,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "HADISC") {
     return settings.getBool("HADISC") ? "checked" : "";
+  }
+
+  if (var == "HADISCTOPIC") {
+    return settings.getString("HADISCTOPIC", "homeassistant");
   }
 
   if (var == "MANUAL_BAL_CLASS") {
@@ -1436,6 +1452,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-chgtapersoc { display: none; }
+    form[data-chgtapersoc="true"] .if-chgtapersoc {
+      display: contents;
+    }
+
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
       display: contents;
@@ -1737,9 +1758,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %INVCOMM%     
         </select>
 
-        <label>Inverter limits low pass filter: </label>
+        <label>Ramp up charge limits gradually:</label>
         <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Applies a low pass filter to charge/discharge rates to prevent oscillation." />
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff." />
+
+        <div class='if-chgtapersoc'>
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="99" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct" />
+
+        <label>Float charge power, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        </div>
 
         <label>Allow longer CAN timeout: </label>
         <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
@@ -2003,6 +2040,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
+        <label>Home Assistant auto discovery topic: </label>
+        <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
+        pattern="[A-Za-z0-9_\-]+"
+        title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
 
         </div>
 

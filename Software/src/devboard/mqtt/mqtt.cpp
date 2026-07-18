@@ -22,6 +22,7 @@ std::string mqtt_password;
 
 bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
+std::string ha_autodiscovery_topic = "homeassistant";
 bool mqtt_transmit_all_cellvoltages = false;
 uint16_t mqtt_timeout_ms = 2000;
 uint16_t mqtt_publish_interval_ms = 5000;
@@ -130,6 +131,8 @@ SensorConfig batterySensorConfigTemplate[] = {
     {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
     {"balancing_active_cells", "Balancing Active Cells", "", "", "", always},
     {"balancing_status", "Balancing Status", "", "", "", always},
+    {"charging_state", "Charging State", "", "", "", always},
+    {"limiting_factor", "Limiting Factor", "", "", "", always},
     {"dc_dc_current", "DC-DC Current", "", "A", "current", supports_tesla_dcdc_metrics},
     {"dc_dc_voltage", "DC-DC Voltage", "", "V", "voltage", supports_tesla_dcdc_metrics},
     {"autocal_taper", "BYD Auto-cal: In Taper", "", "", "", supports_byd_autocal_metrics},
@@ -196,19 +199,20 @@ SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, null
                                 {"STOP", "Open Contactors", nullptr, nullptr, nullptr, nullptr}};
 
 static String generateCommonInfoAutoConfigTopic(const char* default_entity_id) {
-  return "homeassistant/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number, String battery_suffix) {
-  return "homeassistant/sensor/" + topic_name + "/cell_voltage" + battery_suffix + String(cell_number) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/cell_voltage" + battery_suffix +
+         String(cell_number) + "/config";
 }
 
 static String generateEventsAutoConfigTopic(const char* default_entity_id) {
-  return "homeassistant/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/" + String(default_entity_id) + "/config";
 }
 
 static String generateButtonAutoConfigTopic(const char* subtype) {
-  return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/button/" + topic_name + "/" + String(subtype) + "/config";
 }
 
 static String generateSensorDefaultEntityId(const String& object_id) {
@@ -303,6 +307,11 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells" + suffix] = active_cells;
   doc["balancing_status" + suffix] = get_balancing_status_text(battery.status.balancing_status);
+  ChargingState charging_state = get_charging_state(battery.status.current_dA);
+  doc["charging_state" + suffix] = charging_state_to_text(charging_state);
+  doc["limiting_factor" + suffix] = limiting_factor_to_text(get_limiting_factor(
+      charging_state, battery.settings.inverter_limits_charge, battery.settings.inverter_limits_discharge,
+      battery.settings.user_settings_limit_charge, battery.settings.user_settings_limit_discharge));
   if (suffix.length() == 0u && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage" + suffix] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
@@ -329,6 +338,12 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
     if (strncmp(entity_id, "bms_status", strlen("bms_status")) == 0) {
       return "mdi:information-box-outline";
+    }
+    if (strncmp(entity_id, "charging_state", strlen("charging_state")) == 0) {
+      return "mdi:home-battery";
+    }
+    if (strncmp(entity_id, "limiting_factor", strlen("limiting_factor")) == 0) {
+      return "mdi:home-battery-outline";
     }
     if (strncmp(entity_id, "emulator_status", strlen("emulator_status")) == 0 ||
         strncmp(entity_id, "event_level", strlen("event_level")) == 0) {
