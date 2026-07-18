@@ -24,6 +24,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   uint16_t nominal_voltage_dV = 0;
   int16_t average_temperature_dC = 0;
   uint8_t incoming_message_counter = RS485_HEALTHY;
+  bool inverter_detected = false;
   int8_t f2_startup_count = 0;
 
   bool info_sent = false;

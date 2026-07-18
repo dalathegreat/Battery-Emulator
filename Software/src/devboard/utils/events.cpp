@@ -117,6 +117,7 @@ void init_events(void) {
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_MODBUS_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_NO_ENABLE_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CELL_CRITICAL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
@@ -354,6 +355,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
              "Check other active ERROR code for reason. Reboot emulator after problem is solved!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
+    case EVENT_MODBUS_INVERTER_DETECTED:
+      return "Successfully communicating with inverter over Modbus/RS485. Inverter detected!";
     case EVENT_NO_ENABLE_DETECTED:
       return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
