@@ -17,10 +17,6 @@ changing.
 
 OPTIONAL SETTINGS
 
-// This will scale the SoC so the batteries top out at 4.2V/cell instead of
-4.1V/cell. The car only seems to use up to 4.1V/cell in service. 
-#define MG_HS_PHEV_USE_FULL_CAPACITY true
-
 // If you have bypassed the contactors, you can avoid them being activated //
 (which also disables isolation resistance measuring). 
 #define MG_HS_PHEV_DISABLE_CONTACTORS true
@@ -46,6 +42,18 @@ NOTES
 
 */
 
+static int32_t linear_taper(int32_t input, int32_t input_min, int32_t input_max, int32_t output_min,
+                            int32_t output_max) {
+  if (input <= input_min) {
+    return output_min;
+  } else if (input >= input_max) {
+    return output_max;
+  } else {
+    // Linear interpolation
+    return output_min + ((output_max - output_min) * (input - input_min)) / (input_max - input_min);
+  }
+}
+
 void MgHsPHEVBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -59,53 +67,136 @@ void MgHsPHEVBattery::
     datalayer_battery->status.remaining_capacity_Wh = 0;
   }
 
-  datalayer_battery->status.max_charge_power_W = taper_charge_power_linear(
-      datalayer_battery->status.real_soc, maxChargePowerW, CHARGE_TRICKLE_POWER_W, DERATE_CHARGE_ABOVE_SOC);
+  // Initial limits are max
 
-  datalayer_battery->status.max_discharge_power_W = taper_discharge_power_linear(
-      datalayer_battery->status.real_soc, maxDischargePowerW, DISCHARGE_MIN_SOC, DERATE_DISCHARGE_BELOW_SOC);
+  int32_t max_charge_power_W = maxChargePowerW;
+  int32_t max_discharge_power_W = maxDischargePowerW;
+
+  // Cellvoltage-based power derating
+
+  const int32_t CELL_VOLTAGE_WORKING_MAX_MV = datalayer_battery->info.chemistry == LFP ? 3500 : 4100;
+  const int32_t CELL_VOLTAGE_WORKING_MIN_MV = datalayer_battery->info.chemistry == LFP ? 3100 : 3300;
+
+  int32_t cell_max_charge_power_W =
+      linear_taper(datalayer_battery->status.cell_max_voltage_mV, CELL_VOLTAGE_WORKING_MAX_MV - 50,
+                   CELL_VOLTAGE_WORKING_MAX_MV, maxChargePowerW, 0);
+
+  int32_t cell_max_discharge_power_W =
+      linear_taper(datalayer_battery->status.cell_min_voltage_mV, CELL_VOLTAGE_WORKING_MIN_MV,
+                   CELL_VOLTAGE_WORKING_MIN_MV + 50, 0, maxDischargePowerW);
+
+  // Hysteresis on cell min voltage: trip at threshold, recover at +25 mV.
+  if (voltageAtCellMin && datalayer_battery->status.cell_min_voltage_mV >= CELL_VOLTAGE_WORKING_MIN_MV + 25) {
+    voltageAtCellMin = false;
+  } else if (!voltageAtCellMin && datalayer_battery->status.cell_min_voltage_mV <= CELL_VOLTAGE_WORKING_MIN_MV) {
+    voltageAtCellMin = true;
+    cell_max_discharge_power_W = 0;
+  }
+
+  // Hysteresis on cell max voltage: trip at threshold, recover at -10 mV.
+  if (voltageAtCellMax && datalayer_battery->status.cell_max_voltage_mV <= CELL_VOLTAGE_WORKING_MAX_MV - 10) {
+    voltageAtCellMax = false;
+  } else if (!voltageAtCellMax && datalayer_battery->status.cell_max_voltage_mV >= CELL_VOLTAGE_WORKING_MAX_MV) {
+    voltageAtCellMax = true;
+    cell_max_charge_power_W = 0;
+  }
+
+  if (cell_max_charge_power_W < max_charge_power_W) {
+    max_charge_power_W = cell_max_charge_power_W;
+  }
+  if (cell_max_discharge_power_W < max_discharge_power_W) {
+    max_discharge_power_W = cell_max_discharge_power_W;
+  }
+
+  // Temperature-based power derating:
+
+  const int32_t MIN_TEMP_DC = datalayer_battery->info.chemistry == LFP ? 0 : -100;
+  const int32_t MIN_WATTS_PER_DC = 280;  // gradient is 14kW per 5dC
+  const int32_t MAX_TEMP_DC = 500;
+  const int32_t MAX_WATTS_PER_DC = 140;  // gradient is 14kW per 10dC
+
+  int32_t temp_low_max_power_W = (datalayer_battery->status.temperature_min_dC - MIN_TEMP_DC) * MIN_WATTS_PER_DC;
+  int32_t temp_high_max_power_W = (MAX_TEMP_DC - datalayer_battery->status.temperature_max_dC) * MAX_WATTS_PER_DC;
+
+  // Limit both charge and discharge power at temp extremes
+  if (temp_low_max_power_W < max_discharge_power_W) {
+    max_discharge_power_W = temp_low_max_power_W;
+  }
+  if (temp_low_max_power_W < max_charge_power_W) {
+    max_charge_power_W = temp_low_max_power_W;
+  }
+  if (temp_high_max_power_W < max_discharge_power_W) {
+    max_discharge_power_W = temp_high_max_power_W;
+  }
+  if (temp_high_max_power_W < max_charge_power_W) {
+    max_charge_power_W = temp_high_max_power_W;
+  }
+
+  // SoC-based power derating
+
+  int32_t soc_max_charge_power_W =
+      linear_taper(datalayer_battery->status.real_soc, DERATE_CHARGE_ABOVE_SOC, 10000, maxChargePowerW, 0);
+
+  int32_t soc_max_discharge_power_W = linear_taper(datalayer_battery->status.real_soc, DISCHARGE_MIN_SOC,
+                                                   DERATE_DISCHARGE_BELOW_SOC, 0, maxDischargePowerW);
+
+  // SoC updating with optional pinning
+
+  if (false) {
+    // Pin SoC at 1%/98% if cells aren't empty/full yet.
+    // We ignore the SoC based limiting.
+    if (voltageAtCellMin) {
+      max_discharge_power_W = 0;  // Extra check for safety
+      datalayer_battery->status.real_soc = 0;
+    } else if (voltageAtCellMax) {
+      max_charge_power_W = 0;  // Extra check for safety
+      datalayer_battery->status.real_soc = 10000;
+    } else if (soc > 9800) {
+      // Cap at 98% to allow full rate charging
+      datalayer_battery->status.real_soc = 9800;
+    } else if (soc == 0) {
+      // Cap at minimum to allow full rate discharging
+      datalayer_battery->status.real_soc = 100;
+    } else {
+      datalayer_battery->status.real_soc = soc;
+    }
+  } else {
+    // Apply SoC limiting
+    if (soc_max_charge_power_W < max_charge_power_W) {
+      max_charge_power_W = soc_max_charge_power_W;
+    }
+    if (soc_max_discharge_power_W < max_discharge_power_W) {
+      max_discharge_power_W = soc_max_discharge_power_W;
+    }
+
+    if (voltageAtCellMin) {
+      max_discharge_power_W = 0;  // Extra check for safety
+    }
+    if (voltageAtCellMax) {
+      max_charge_power_W = 0;  // Extra check for safety
+    }
+    datalayer_battery->status.real_soc = soc;
+  }
+
+  datalayer_battery->status.max_charge_power_W = max_charge_power_W > 0 ? max_charge_power_W : 0;
+  datalayer_battery->status.max_discharge_power_W = max_discharge_power_W > 0 ? max_discharge_power_W : 0;
+
+  // logging.printf("[MG] CHARGE: SoC: %d, Cell: %d, TempH: %d, TempL: %d, Final: %d\n", soc_max_charge_power_W, cell_max_charge_power_W, temp_high_max_power_W, temp_low_max_power_W,
+  //                max_charge_power_W);
+  // logging.printf("[MG] DISCHARGE: SoC: %d, Cell: %d, TempH: %d, TempL: %d, Final: %d\n", soc_max_discharge_power_W, cell_max_discharge_power_W, temp_high_max_power_W, temp_low_max_power_W,
+  //                max_discharge_power_W);
 
   // Should be called every second
   if (cellVoltageValidTime > 0) {
     cellVoltageValidTime--;
+  } else {
+    // Pause the battery if we haven't received a cell voltage update in a while
+    datalayer_battery->status.max_charge_power_W = 0;
+    datalayer_battery->status.max_discharge_power_W = 0;
   }
   if (voltageValidTime > 0) {
     voltageValidTime--;
   }
-}
-
-void MgHsPHEVBattery::update_soc(uint16_t soc_times_ten) {
-#if MG_HS_PHEV_USE_FULL_CAPACITY
-  // The SoC hits 100% at 4.1V/cell. To get the full 4.2V/cell we need to use
-  // voltage instead for the last bit.
-
-  if (cellVoltageValidTime == 0) {
-    // We don't have a recent cell max voltage reading, so can't do
-    // voltage-based SoC.
-  } else if (soc_times_ten > 900 && datalayer_battery->status.cell_max_voltage_mV < 4000) {
-    // Something is wrong with our max cell voltage reading (it is too low), so
-    // don't trust it - we'll just let the SoC hit 100%.
-  } else if (soc_times_ten == 1000 && datalayer_battery->status.cell_max_voltage_mV >= 4100) {
-    // We've hit 100%, so use voltage-based-SoC calculation for the last bit.
-
-    // We usually hit 92% at ~369V, and the pack max is 378V.
-
-    // Scale so that 100% becomes 92%
-    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
-
-    // Add on the last 100mV as the last 8% of SoC.
-    soc_times_ten += (uint16_t)((((uint32_t)datalayer_battery->status.cell_max_voltage_mV - 4100) * 800) / 1000);
-    if (soc_times_ten > 1000) {
-      soc_times_ten = 1000;  // Don't let it go above 100%
-    }
-  } else {
-    // Scale so that 100% becomes 92%
-    soc_times_ten = (uint16_t)(((uint32_t)soc_times_ten * 9200) / 10000);
-  }
-#endif
-
-  // Set the state of charge in the datalayer
-  datalayer_battery->status.real_soc = soc_times_ten * 10;
 }
 
 void MgHsPHEVBattery::announce_contactor_state(bool state) {
@@ -241,7 +332,8 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       // soc2 is present in both CAN1 and CAN2 messages
       if (soc2 < 1022) {
-        update_soc(soc2);
+        //update_soc(soc2);
+        soc = soc2 * 10;
       }
 
       // Battery voltage

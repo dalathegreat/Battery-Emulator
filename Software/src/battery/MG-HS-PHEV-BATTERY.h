@@ -52,7 +52,6 @@ class MgHsPHEVBattery : public UdsCanBattery {
   uint8_t pid_f1a2[8] = {0};
   uint8_t pid_f1aa[5] = {0};
 
-  void update_soc(uint16_t soc_times_ten);
   void announce_contactor_state(bool state);
 
   static const uint16_t TOTAL_CAPACITY_WH = 16600;
@@ -102,12 +101,17 @@ class MgHsPHEVBattery : public UdsCanBattery {
   bool announcedContactorsClosed = false;
 
   uint16_t maxChargePowerW = 11000;
-  static const uint16_t CHARGE_TRICKLE_POWER_W = 0;
+  static const uint16_t CHARGE_TRICKLE_POWER_W = 200;
   static const uint16_t DERATE_CHARGE_ABOVE_SOC = 9500;  // in 0.01% units
 
   uint16_t maxDischargePowerW = 11000;
-  static const uint16_t DERATE_DISCHARGE_BELOW_SOC = 1000;  // in 0.01% units
-  static const uint16_t DISCHARGE_MIN_SOC = 500;
+  static const uint16_t DERATE_DISCHARGE_BELOW_SOC = 500;  // in 0.01% units
+  static const uint16_t DISCHARGE_MIN_SOC = 0;
+
+  bool voltageAtCellMin = false;
+  bool voltageAtCellMax = false;
+
+  uint16_t soc = 5000;
 
   // Positive if the max/min cell voltages were recently updated. If they become stale
   // we set max power to zero.
