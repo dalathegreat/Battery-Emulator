@@ -1775,7 +1775,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Charge taper floor, W: </label>
         <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
         min="0" max="2000" step="10"
-        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Set above your inverter's minimum stable charging power to avoid standby cycling near full, and below your max charge power cap. 0 disables the floor, tapering goes linearly to 0W." />
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
         </div>
 
         <label>Allow longer CAN timeout: </label>
