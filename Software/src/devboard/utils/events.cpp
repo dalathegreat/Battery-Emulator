@@ -193,6 +193,21 @@ void clear_event(EVENTS_ENUM_TYPE event) {
   }
 }
 
+void remove_event(EVENTS_ENUM_TYPE event) {
+  // Fully delete a single event. Unlike clear_event() (which only flips the state to
+  // INACTIVE), this also zeroes occurences so the event disappears from the event log
+  if (event >= EVENT_NOF_EVENTS) {
+    return;
+  }
+  events.entries[event].state = EVENT_STATE_INACTIVE;
+  events.entries[event].occurences = 0;
+  events.entries[event].data = 0;
+  events.entries[event].timestamp = 0;
+  events.entries[event].MQTTpublished = false;
+  update_event_level();
+  update_bms_status();
+}
+
 void reset_all_events() {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;

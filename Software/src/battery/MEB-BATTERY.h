@@ -28,6 +28,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void reset_DTC() { datalayer_extended.meb.UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
   void read_DTC() { datalayer_extended.meb.UserRequestDTCreadout = true; }
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
   static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -39,6 +41,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void uds_read_data_by_id(uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
   void uds_response_handler(uint8_t* data, int len, enum isotp_tatype type);
+  /* drive the BMS reset state machine — called every transmit_can() tick */
+  void handle_bms_reset(unsigned long currentMillis);
   /* IsoTp override: send a raw CAN frame */
   void on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
@@ -287,10 +291,6 @@ class MebBattery : public CanBattery, public IsoTp {
   uint8_t BMS_11_counter = 0;
   uint8_t BMS_11_CRC = 0;
 
-  uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
-  bool nof_cells_determined = false;
-  uint32_t pid_reply = 0;
-
   // ISO-TP / UDS request serialization. Only one UDS transaction (PID poll, DTC read) is
   // outstanding at a time; the next request waits until a response arrives or the timeout expires.
   static const int MAX_DTC_COUNT = 32;  // matches dtc_codes[] size in DATALAYER_INFO_MEB
@@ -298,6 +298,25 @@ class MebBattery : public CanBattery, public IsoTp {
   bool uds_request_pending = false;
   unsigned long uds_request_timestamp = 0;
 
+  // BMS reset state machine. Pause the battery and wait for the current to drop,
+  // request HV_OFF + KL15 off, go silent until the BMS sleeps, wait, then restart.
+  enum class BmsResetState : uint8_t { IDLE, WAIT_FOR_PAUSE, REQUEST_HV_OFF, SILENCE, SLEEP_WAIT, CLEAR_EVENTS };
+  BmsResetState bms_reset_state = BmsResetState::IDLE;
+  unsigned long bms_reset_ms = 0;        // phase start timestamp
+  bool bms_reset_active = false;         // forces KL15 OFF + HV_OFF in periodic TX
+  bool bms_reset_tx_suppressed = false;  // when true, skip all periodic CAN transmits
+  bool startup_bms_checked = false;      // true once we've inspected the first BMS_20 after boot
+
+  static constexpr unsigned long BMS_RESET_PAUSE_TIMEOUT_MS = 10000;    // max wait for current to drop
+  static constexpr unsigned long BMS_RESET_HV_OFF_TIMEOUT_MS = 3000;    // max wait for HV_OFF ack
+  static constexpr unsigned long BMS_RESET_SILENCE_TIMEOUT_MS = 15000;  // max wait for BMS to sleep
+  static constexpr unsigned long BMS_RESET_BMS_SILENT_MS = 1000;        // RX gap that means "asleep"
+  static constexpr unsigned long BMS_RESET_SLEEP_MS = 5000;             // bus-quiet wait before restart
+  static constexpr unsigned long BMS_RESET_CLEAR_EVENTS_MS = 1500;      // clearing events which are set on bus wakeup
+
+  uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
+  bool nof_cells_determined = false;
+  uint32_t pid_reply = 0;
   uint16_t battery_soc_polled = 0;
   uint16_t battery_soh_polled = 0;
   uint16_t battery_voltage_polled = 1480;
@@ -564,11 +583,11 @@ class MebBattery : public CanBattery, public IsoTp {
                                                 .DLC = 8,
                                                 .ID = NMH_Klima,  // Klima
                                                 .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame NMH_Gateway_frame = {.FD = false,  // Not FD
-                                                  .ext_ID = true,
-                                                  .DLC = 8,
-                                                  .ID = NMH_Gateway,  // Gateway
-                                                  .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
+  CAN_frame NMH_Gateway_frame = {.FD = false,  // Not FD
+                                 .ext_ID = true,
+                                 .DLC = 8,
+                                 .ID = NMH_Gateway,  // Gateway
+                                 .data = {0x00, 0x50, 0x04, 0x51, 0x19, 0xF7, 0xB0, 0x00}};
   static constexpr CAN_frame NMH_DCDC_NV_frame = {.FD = false,  // Not FD
                                                   .ext_ID = true,
                                                   .DLC = 8,

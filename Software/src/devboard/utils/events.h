@@ -195,6 +195,7 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+void remove_event(EVENTS_ENUM_TYPE event);
 void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
