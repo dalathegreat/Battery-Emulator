@@ -384,7 +384,8 @@ void setup_battery() {
                                            can_config.battery_double);
         break;
       case BatteryType::MgHsPhev:
-        battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
+        battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
         break;
       case BatteryType::Pylon:
         battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
