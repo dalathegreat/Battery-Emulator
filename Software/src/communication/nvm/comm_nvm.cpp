@@ -198,6 +198,8 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
   use_canfd2_as_can = settings.getBool("CANFD2ASCAN", false);
+  datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
+  datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
