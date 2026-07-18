@@ -181,10 +181,14 @@ void MgHsPHEVBattery::
   datalayer_battery->status.max_charge_power_W = max_charge_power_W > 0 ? max_charge_power_W : 0;
   datalayer_battery->status.max_discharge_power_W = max_discharge_power_W > 0 ? max_discharge_power_W : 0;
 
-  // logging.printf("[MG] CHARGE: SoC: %d, Cell: %d, TempH: %d, TempL: %d, Final: %d\n", soc_max_charge_power_W, cell_max_charge_power_W, temp_high_max_power_W, temp_low_max_power_W,
-  //                max_charge_power_W);
-  // logging.printf("[MG] DISCHARGE: SoC: %d, Cell: %d, TempH: %d, TempL: %d, Final: %d\n", soc_max_discharge_power_W, cell_max_discharge_power_W, temp_high_max_power_W, temp_low_max_power_W,
-  //                max_discharge_power_W);
+  static int counter = 0;
+  if (++counter > 300) {
+    logging.printf("[MG] CHARGE: SoC: %d, Cell: %d, TempH: %d, TempL: %d, Final: %d\n", soc_max_charge_power_W,
+                   cell_max_charge_power_W, temp_high_max_power_W, temp_low_max_power_W, max_charge_power_W);
+    logging.printf("[MG] DISCHARGE: SoC: %d, Cell: %d, TempH: %d, TempL: %d, Final: %d\n", soc_max_discharge_power_W,
+                   cell_max_discharge_power_W, temp_high_max_power_W, temp_low_max_power_W, max_discharge_power_W);
+    counter = 0;
+  }
 
   // Should be called every second
   if (cellVoltageValidTime > 0) {
