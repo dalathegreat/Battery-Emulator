@@ -186,7 +186,7 @@ void init_stored_settings() {
   charge_taper_soc = settings.getBool("CHGTAPERSOC", false);
   charge_taper_band_pptt = 10000 - (settings.getUInt("CHGTAPERSTART", 95) *
                                     100);  // Stored as start SOC in whole percent, used as band in pptt
-  charge_taper_floor_W = settings.getUInt("CHGTAPERFLOOR", 0);
+  charge_taper_floor_W = settings.getUInt("CHGTAPERFLOOR", 400);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
