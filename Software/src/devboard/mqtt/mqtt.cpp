@@ -959,6 +959,9 @@ bool init_mqtt(void) {
   mqtt_cfg.session.last_will.retain = true;
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
+  // Broker declares the session dead at ~1.5x keepalive, so this sets how fast the
+  // retained "offline" last will reaches subscribers after an unexpected disconnect.
+  mqtt_cfg.session.keepalive = 30;
   mqtt_cfg.network.timeout_ms = mqtt_timeout_ms;
   // Bound heap growth of the esp-mqtt outbox when the broker is unreachable.
   // Task stack size is deliberately left at the esp-mqtt default; shrink only after
