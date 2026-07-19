@@ -2,18 +2,43 @@
 #include "../../datalayer/datalayer.h"
 #include "../sdcard/sdcard.h"
 
-#ifndef SMALL_FLASH_DEVICE
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include "../wifi/wifi.h"  // custom_hostname, default_hostname()
-#endif
 
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14
 
 bool previous_message_was_newline = true;
 
-#ifndef SMALL_FLASH_DEVICE
+// ---- USB debug-log sink ----
+// Writes only when the TX ring buffer has room. This path runs in the core task
+// (and others): it must never block on a host that stops draining the port
+// (EVENT_TASK_OVERRUN). Lost output is reported with a marker once the port
+// recovers, and the marker is always flushed before output resumes so the gap
+// is visible at the right place. CAN frame logging has its own equivalent
+// implementation of this pattern in comm_can.cpp.
+// The drop counter is not atomic; concurrent writers can at worst miscount
+// drops slightly, which only affects the marker, never the data path.
+static uint32_t usb_log_chunks_dropped = 0;
+
+static void usb_log_write(const uint8_t* buffer, size_t size) {
+  static const char marker[] = "\n[USB log output dropped, host not draining port]\n";
+  size_t needed = size;
+  if (usb_log_chunks_dropped > 0) {
+    needed += sizeof(marker) - 1;
+  }
+  if ((size_t)Serial.availableForWrite() < needed) {
+    usb_log_chunks_dropped++;
+    return;
+  }
+  if (usb_log_chunks_dropped > 0) {
+    Serial.write((const uint8_t*)marker, sizeof(marker) - 1);
+    usb_log_chunks_dropped = 0;
+  }
+  Serial.write(buffer, size);
+}
+
 // ---- Remote syslog sink ----
 std::string syslog_ip;
 uint16_t syslog_port = 514;
@@ -237,7 +262,6 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
     }
   }
 }
-#endif
 
 void Logging::add_timestamp(size_t size) {
 
@@ -275,7 +299,7 @@ void Logging::add_timestamp(size_t size) {
   }
 
   if (datalayer.system.info.usb_logging_active) {
-    Serial.write(timestr);
+    usb_log_write((const uint8_t*)timestr, strlen(timestr));
   }
 }
 
@@ -300,12 +324,10 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   }
 
   if (datalayer.system.info.usb_logging_active) {
-    Serial.write(buffer, size);
+    usb_log_write(buffer, size);
   }
 
-#ifndef SMALL_FLASH_DEVICE
   syslog_emit(buffer, size);
-#endif
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     char* message_string = datalayer.system.info.logged_can_messages;
@@ -368,12 +390,10 @@ void Logging::printf(const char* fmt, ...) {
   }
 
   if (datalayer.system.info.usb_logging_active) {
-    Serial.write(message_buffer, size);
+    usb_log_write((const uint8_t*)message_buffer, size);
   }
 
-#ifndef SMALL_FLASH_DEVICE
   syslog_emit((const uint8_t*)message_buffer, size);
-#endif
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     // Data was already added to buffer, just move offset

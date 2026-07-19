@@ -512,7 +512,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGTAPERFLOOR") {
-    return String(settings.getUInt("CHGTAPERFLOOR", 0));
+    return String(settings.getUInt("CHGTAPERFLOOR", 400));
   }
 
   if (var == "SLOWCANINV") {
@@ -545,6 +545,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "EXTPRECHARGE") {
     return settings.getBool("EXTPRECHARGE") ? "checked" : "";
+  }
+
+  if (var == "MEASURECPUTEMP") {
+    return settings.getBool("MEASURECPUTEMP") ? "checked" : "";
+  }
+
+  if (var == "CPUTEMPOFFSET") {
+    return String(settings.getInt("CPUTEMPOFFSET", 0));
   }
 
   if (var == "MAXPRETIME") {
@@ -659,7 +667,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
-#ifndef SMALL_FLASH_DEVICE
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
@@ -672,7 +679,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SYSLOGFAC") {
     return String(settings.getUInt("SYSLOGFAC", 1));
   }
-#endif
   if (var == "ESPNOWENABLED") {
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
@@ -1126,7 +1132,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define CANFD2ASCAN_SETTING ""
 #endif
 
-#ifndef SMALL_FLASH_DEVICE
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1146,9 +1151,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
         </div>
   )rawliteral"
-#else
-#define SYSLOG_SETTING_HTML ""
-#endif
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
@@ -1401,6 +1403,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-measurecputemp { display: none; }
+    form[data-measurecputemp="true"] .if-measurecputemp {
       display: contents;
     }
 
@@ -2006,6 +2013,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
+        </div>
+
+        <label>Measure CPU temperature: </label>
+        <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
+
+         <div class="if-measurecputemp">
+            <label>CPU temperature calibration offset (°C): </label>
+            <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
         </div>
 
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>

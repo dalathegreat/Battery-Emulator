@@ -56,7 +56,6 @@ jobs:
           const { data: runs } = await github.rest.actions.listWorkflowRuns({
             owner, repo,
             workflow_id: 'compile-common-image.yml',
-            event: 'push',
             head_sha: '${{ inputs.base_sha }}',
             per_page: 20,
           });

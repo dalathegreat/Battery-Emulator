@@ -186,7 +186,7 @@ void init_stored_settings() {
   charge_taper_soc = settings.getBool("CHGTAPERSOC", false);
   charge_taper_band_pptt = 10000 - (settings.getUInt("CHGTAPERSTART", 95) *
                                     100);  // Stored as start SOC in whole percent, used as band in pptt
-  charge_taper_floor_W = settings.getUInt("CHGTAPERFLOOR", 0);
+  charge_taper_floor_W = settings.getUInt("CHGTAPERFLOOR", 400);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
@@ -198,6 +198,8 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   use_canfd_as_can = settings.getBool("CANFDASCAN", false);
   use_canfd2_as_can = settings.getBool("CANFD2ASCAN", false);
+  datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
+  datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
@@ -222,12 +224,10 @@ void init_stored_settings() {
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
-#ifndef SMALL_FLASH_DEVICE
   datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
   syslog_ip = settings.getString("SYSLOGIP").c_str();
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
   syslog_facility = settings.getUInt("SYSLOGFAC", 1);
-#endif
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
   //Some early integrations need manually set allowed charge/discharge power

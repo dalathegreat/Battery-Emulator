@@ -20,7 +20,6 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
 
-#ifndef SMALL_FLASH_DEVICE
 // Map a Battery-Emulator event level to an RFC 5424 syslog severity.
 static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
   switch (lvl) {
@@ -38,7 +37,6 @@ static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
       return 6;
   }
 }
-#endif
 
 /* Initialization function */
 void init_events(void) {
