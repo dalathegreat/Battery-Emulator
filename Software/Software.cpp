@@ -309,9 +309,9 @@ void update_calculated_values(unsigned long currentMillis) {
     float temp;
     uint32_t hex;
   } temp = {.temp = temperatureRead()};
-  if (temp.hex != 0x42555555) {
-    // Ignoring erroneous temperature value that ESP32 sometimes returns
-    datalayer.system.info.CPU_temperature = temp.temp;
+  if (temp.hex != 0x42555555) {  // Ignoring erroneous temperature value that ESP32 sometimes returns
+    //Apply calibration offset to the CPU temperature reading, if set. Some ESP32 chips report wildly inaccurate temperatures.
+    datalayer.system.info.CPU_temperature = temp.temp + (float)datalayer.system.info.CPU_temperature_calibration_offset;
   }
 
   /*Update free heap*/

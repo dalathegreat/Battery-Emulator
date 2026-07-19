@@ -527,6 +527,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("EXTPRECHARGE") ? "checked" : "";
   }
 
+  if (var == "MEASURECPUTEMP") {
+    return settings.getBool("MEASURECPUTEMP") ? "checked" : "";
+  }
+
+  if (var == "CPUTEMPOFFSET") {
+    return String(settings.getInt("CPUTEMPOFFSET", 0));
+  }
+
   if (var == "MAXPRETIME") {
     return String(settings.getUInt("MAXPRETIME", 15000));
   }
@@ -1384,6 +1392,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-measurecputemp { display: none; }
+    form[data-measurecputemp="true"] .if-measurecputemp {
+      display: contents;
+    }
+
     form .if-extprecharge { display: none; }
     form[data-extprecharge="true"] .if-extprecharge {
       display: contents;
@@ -1986,6 +1999,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
+        </div>
+
+        <label>Measure CPU temperature: </label>
+        <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
+
+         <div class="if-measurecputemp">
+            <label>CPU temperature calibration offset (°C): </label>
+            <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
         </div>
 
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
