@@ -61,6 +61,8 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetEnergySavingMode", "Reset Energy Saving Mode", "reset energy saving mode to normal?",
      [](Battery* b) { return b && b->supports_energy_saving_mode_reset(); },
      [](Battery* b) { b->reset_energy_saving_mode(); }},
+    {"extendedDiag", "Extended diag session", "Enter extended diag session?", [](Battery* b) { return true; },
+     [](Battery* b) { b->enter_extended_diag(); }},
 };
 
 String advanced_battery_processor(const String& var) {

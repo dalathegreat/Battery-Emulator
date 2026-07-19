@@ -56,7 +56,7 @@ class Mg5Battery : public CanBattery {
   uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
   uint8_t eightAcycle = 0;
-  uint8_t warmupCounter = 0;
+  uint16_t warmupCounter = 0;
 
   const int MaxChargePower = 11000;  // Maximum allowable charge power for the battery cells, excluding the taper,
   const int StartChargeTaper = 90;   // Battery percentage above which the charge power will taper to zero
@@ -261,7 +261,7 @@ class Mg5Battery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x1F1,
-                       .data = {0x0E, 0x00, 0x00, 0x00, 0x08, 0x72, 0x00, 0x00}};
+                       .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   //Setup Fast UDS values to poll for
   //CAN_frame* UDS_REQUESTS_FAST[0] = {};

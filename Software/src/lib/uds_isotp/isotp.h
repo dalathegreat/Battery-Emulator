@@ -46,10 +46,10 @@ class IsoTp {
                   uint8_t rx_addr = 0x00);
 
   /** Enqueue a message for transmission (up to CONFIG_ISOTP_MAX_MSG_LENGTH bytes). */
-  void isotp_send(uint8_t* data, int len);
+  void isotp_send(const uint8_t* data, int len);
 
   /** Feed a raw received CAN frame into the state machine. */
-  void isotp_receive(uint8_t* can_data, uint8_t can_dlc, isotp_tatype tatype);
+  void isotp_receive(const uint8_t* can_data, uint8_t can_dlc, isotp_tatype tatype);
 
   /** Must be called every 1 ms to drive timers and retransmissions. */
   void isotp_poll();
@@ -59,10 +59,10 @@ class IsoTp {
 
  protected:
   /** Called by the protocol layer when it needs to emit a raw CAN frame. */
-  virtual void on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) = 0;
+  virtual void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) = 0;
 
   /** Called when a complete ISO-TP message has been assembled. */
-  virtual void on_isotp_rx_complete(uint8_t* data, int len, isotp_tatype tatype) = 0;
+  virtual void on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype tatype) = 0;
 
  private:
   struct TpCon {
@@ -93,10 +93,10 @@ class IsoTp {
   uint8_t addr_off() const { return (_addrmode == ISOTP_ADDRMODE_EXTENDED) ? 1 : 0; }
 
   void send_fc(uint8_t flowstatus);
-  void rcv_fc(uint8_t* can_data, uint8_t can_dlc);
-  void rcv_sf(uint8_t* can_data, uint8_t can_dlc);
-  void rcv_ff(uint8_t* can_data, uint8_t can_dlc);
-  void rcv_cf(uint8_t* can_data, uint8_t can_dlc);
+  void rcv_fc(const uint8_t* can_data, uint8_t can_dlc);
+  void rcv_sf(const uint8_t* can_data, uint8_t can_dlc);
+  void rcv_ff(const uint8_t* can_data, uint8_t can_dlc);
+  void rcv_cf(const uint8_t* can_data, uint8_t can_dlc);
   void do_send_sf();
   void do_send_ff();
   void do_send_cf();

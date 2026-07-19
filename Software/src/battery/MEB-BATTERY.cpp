@@ -1200,7 +1200,7 @@ void MebBattery::uds_read_data_by_id(uint16_t did, unsigned long currentMillis) 
   uds_request_timestamp = currentMillis;
 }
 
-void MebBattery::on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) {
+void MebBattery::on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) {
   // Called by the ISO-TP layer to emit a raw CAN-FD frame.
   CAN_frame frame;
   frame.FD = true;
@@ -1211,12 +1211,12 @@ void MebBattery::on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can
   transmit_can_frame(&frame);
 }
 
-void MebBattery::on_isotp_rx_complete(uint8_t* data, int len, isotp_tatype tatype) {
+void MebBattery::on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype tatype) {
   // A complete UDS message has been assembled by the ISO-TP layer.
   uds_response_handler(data, len, tatype);
 }
 
-void MebBattery::uds_response_handler(uint8_t* data, int len, enum isotp_tatype type) {
+void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_tatype type) {
   if (len < 1)
     return;
   uint8_t response_service_id = data[0];

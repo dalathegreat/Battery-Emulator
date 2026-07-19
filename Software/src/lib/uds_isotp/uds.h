@@ -70,7 +70,10 @@ enum SID : uint8_t {
   RequestDownload               = 0x34,  ///< Section 14.2 (p. 270) - Init download
   RequestUpload                 = 0x35,  ///< Section 14.3 (p. 275) - Init upload
   TransferData                  = 0x36,  ///< Section 14.4 (p. 280) - Data blocks
-  RequestTransferExit           = 0x37   ///< Section 14.5 (p. 285) - End transfer
+  RequestTransferExit           = 0x37,  ///< Section 14.5 (p. 285) - End transfer
+
+  // === Negative Response (Section 7.4) ===
+  NegativeResponse              = 0x7F   ///< Section 7.4 (p. 26) - Always starts with 0x7F
 };
 
 // ============================================================================
