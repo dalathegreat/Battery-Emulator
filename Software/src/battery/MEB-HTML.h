@@ -117,7 +117,7 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += "?";
     }
-    content += "</h4><h4>HV line status: ";
+    content += "</h4><h4>Heater HV line status: ";
     switch (datalayer_extended.meb.status_HV_PTC_line) {
       case 0:
         content += "Init";
