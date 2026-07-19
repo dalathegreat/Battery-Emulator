@@ -492,7 +492,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGTAPERFLOOR") {
-    return String(settings.getUInt("CHGTAPERFLOOR", 0));
+    return String(settings.getUInt("CHGTAPERFLOOR", 400));
   }
 
   if (var == "SLOWCANINV") {
