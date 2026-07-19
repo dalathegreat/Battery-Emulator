@@ -236,9 +236,9 @@ static String generateSensorDefaultEntityId(const String& object_id) {
 
 void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["identifiers"][0] = device_id;
-  doc["device"]["manufacturer"] = "DalaTech";
   doc["device"]["model"] = "Battery Emulator";
   doc["device"]["name"] = device_name;
+  doc["device"]["configuration_url"] = "http://" + WiFi.localIP().toString();
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
   doc["payload_not_available"] = "offline";
@@ -449,8 +449,9 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   if (strcmp(config.entity_id, "cell_max_voltage") == 0 || strcmp(config.entity_id, "cell_min_voltage") == 0) {
     doc["suggested_display_precision"] = 3;
   }
-  // Battery current and both SOC sensors: show 1 decimal in HA.
-  if (strcmp(config.entity_id, "battery_current") == 0 || strncmp(config.entity_id, "SOC", strlen("SOC")) == 0) {
+  // Battery current, CPU temp and both SOC sensors: show 1 decimal in HA.
+  if (strcmp(config.entity_id, "battery_current") == 0 || strcmp(config.entity_id, "cpu_temp") == 0 ||
+      strncmp(config.entity_id, "SOC", strlen("SOC")) == 0) {
     doc["suggested_display_precision"] = 1;
   }
   // Entity icons (centralized): status sensors by entity id, all voltage/current sensors
@@ -512,7 +513,7 @@ static bool publish_common_info(void) {
 
       doc["event_level"] = get_event_level_string(get_event_level());
       doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
-      doc["cpu_temp"] = (int)(datalayer.system.info.CPU_temperature + 0.5);
+      doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
       doc["emulator_uptime"] = millis64() / 1000;
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -888,7 +889,6 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 
       publish_buttons_discovery();
       subscribe();
-      logging.println("MQTT connected");
       break;
     case MQTT_EVENT_DISCONNECTED:
       set_event(EVENT_MQTT_DISCONNECT, 0);
@@ -986,7 +986,7 @@ void mqtt_client_loop(void) {
       publish_global_timer = MyTimer(mqtt_publish_interval_ms);
       esp_mqtt_client_start(client);
       client_started = true;
-      logging.println("MQTT initialized");
+      logging.println("MQTT client started, connecting to broker...");
       return;
     }
 
