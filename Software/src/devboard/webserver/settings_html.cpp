@@ -547,14 +547,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("NOINVDISC") ? "checked" : "";
   }
 
-  if (var == "CANFDASCAN") {
-    return settings.getBool("CANFDASCAN") ? "checked" : "";
-  }
-
-  if (var == "CANFD2ASCAN") {
-    return settings.getBool("CANFD2ASCAN") ? "checked" : "";
-  }
-
   if (var == "WIFIAPENABLED") {
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
@@ -1005,25 +997,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-      if (use_canfd_as_can) {
-        return "CAN-FD Native (Classic CAN)";
-      } else {
         return "CAN-FD Native";
-      }
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-      if (use_canfd_as_can) {
-        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
-      } else {
         return "Add-on CAN-FD via GPIO MCP2518";
-      }
     case CANFD_ADDON_MCP2518_2:
-      if (use_canfd2_as_can) {
-        return "Add-on CAN-FD #2 via GPIO MCP2518 (Classic CAN)";
-      } else {
         return "Add-on CAN-FD #2 via GPIO MCP2518";
-      }
     default:
       return "UNKNOWN";
   }
@@ -1099,17 +1079,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define GPIOOPT6_SETTING ""
-#endif
-
-#if defined(HW_LILYGO2CAN) || defined(HW_STARK)
-#define CANFD2ASCAN_SETTING \
-  R"rawliteral(
-    <label>Use CanFD2 as classic CAN: </label>
-    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
-    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-  )rawliteral"
-#else
-#define CANFD2ASCAN_SETTING ""
 #endif
 
 #define SYSLOG_SETTING_HTML \
@@ -1930,12 +1899,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="settings-card">
         <h3>Hardware config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
-        title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-
-        )rawliteral" CANFD2ASCAN_SETTING R"rawliteral(
 
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
