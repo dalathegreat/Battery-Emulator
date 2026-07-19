@@ -997,13 +997,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-        return "CAN-FD Native";
+      return "CAN-FD Native";
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-        return "Add-on CAN-FD via GPIO MCP2518";
+      return "Add-on CAN-FD via GPIO MCP2518";
     case CANFD_ADDON_MCP2518_2:
-        return "Add-on CAN-FD #2 via GPIO MCP2518";
+      return "Add-on CAN-FD #2 via GPIO MCP2518";
     default:
       return "UNKNOWN";
   }

@@ -219,7 +219,8 @@ bool init_CAN() {
     settings2517->mCLKOPin = static_cast<ACAN2517FDSettings::CLKOpin>(esp32hal->MCP2517_CLKODIV());
 
     // ListenOnly / Normal20B / NormalFDs
-    settings2517->mRequestedMode = ACAN2517FDSettings::NormalFD; //Startup in NormalFD mode, both for Classic CAN and CAN-FD messages
+    settings2517->mRequestedMode =
+        ACAN2517FDSettings::NormalFD;  //Startup in NormalFD mode, both for Classic CAN and CAN-FD messages
 
     if (!begin_canfd()) {
       return false;
@@ -267,7 +268,8 @@ bool init_CAN() {
     settings2517_2 = new ACAN2517FDSettings(osc_freq, bitRate, DataBitRateFactor::x4);
     // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
 
-    settings2517_2->mRequestedMode = ACAN2517FDSettings::NormalFD; //Startup in NormalFD mode, both for Classic CAN and CAN-FD messages
+    settings2517_2->mRequestedMode =
+        ACAN2517FDSettings::NormalFD;  //Startup in NormalFD mode, both for Classic CAN and CAN-FD messages
 
     if (!begin_canfd_2()) {
       return false;
