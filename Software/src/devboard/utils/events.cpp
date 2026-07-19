@@ -556,8 +556,7 @@ static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
   uint32_t now = millis();
   for (uint8_t i = 0; i < NO_CAN_INTERFACE; i++) {
     // Signed difference keeps the "in the future" test correct across millis() wraparound.
-    if ((int32_t)(can_errors_ignore_until_ms[i] - now) > 0 &&
-        is_can_error_of_interface(event, (CAN_Interface)i)) {
+    if ((int32_t)(can_errors_ignore_until_ms[i] - now) > 0 && is_can_error_of_interface(event, (CAN_Interface)i)) {
       return true;
     }
   }
