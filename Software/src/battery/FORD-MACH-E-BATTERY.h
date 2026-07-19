@@ -44,6 +44,8 @@ class FordMachEBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
+  static const int CELL_TEMPERATURE_OFFSET =
+      22;  // Calibrated against BECM PID min/max cell temperatures. Ford signal offset is -22
 
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 200;  // W, what power to allow for top balancing battery
   static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
