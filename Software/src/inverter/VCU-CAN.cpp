@@ -19,8 +19,8 @@ static uint8_t calculate_CRC_Nissan(CAN_frame* frame) {
 
 void VCUInverter::update_values() {  //Called every 1s
 
-  //Fake that we have inverter alive, to avoid fault event
-  datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  //Fake that we have inverter alive, to avoid fault event (-1 to not trigger detected successfully message)
+  datalayer.system.status.CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
 
   LEAF_1DC.data.u8[0] = ((datalayer.battery.status.max_discharge_power_W / 4) << 2);
   LEAF_1DC.data.u8[1] = ((datalayer.battery.status.max_discharge_power_W / 4) << 6);
@@ -45,12 +45,16 @@ void VCUInverter::update_values() {  //Called every 1s
 void VCUInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1F2:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x1D4:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x50B:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x50C:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
