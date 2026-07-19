@@ -647,7 +647,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
-#ifndef SMALL_FLASH_DEVICE
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
@@ -660,7 +659,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SYSLOGFAC") {
     return String(settings.getUInt("SYSLOGFAC", 1));
   }
-#endif
   if (var == "ESPNOWENABLED") {
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
@@ -1114,7 +1112,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define CANFD2ASCAN_SETTING ""
 #endif
 
-#ifndef SMALL_FLASH_DEVICE
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1134,9 +1131,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
         </div>
   )rawliteral"
-#else
-#define SYSLOG_SETTING_HTML ""
-#endif
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
