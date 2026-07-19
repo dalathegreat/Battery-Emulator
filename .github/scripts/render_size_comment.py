@@ -312,7 +312,11 @@ def main() -> int:
             "> No size reports found in either the PR build or the base build.\n"
         )
     else:
-        body = render(base, pr, args.base_branch, args.base_sha, args.head_sha, json.loads(args.artifact_urls))
+        try:
+            artifact_urls = json.loads(args.artifact_urls)
+        except json.JSONDecodeError:
+            artifact_urls = {}
+        body = render(base, pr, args.base_branch, args.base_sha, args.head_sha, artifact_urls)
 
     sys.stdout.buffer.write(body.encode("utf-8"))
     return 0
