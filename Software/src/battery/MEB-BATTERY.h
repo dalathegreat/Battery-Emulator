@@ -364,7 +364,7 @@ class MebBattery : public CanBattery, public IsoTp {
   uint16_t max_charge_current_amp = 0;
   uint16_t battery_SOC = 1;
   uint16_t usable_energy_amount_Wh = 0;
-  uint8_t status_HV_line = 0;  //0 init, 1 No open HV line, 2 open HV line detected, 3 fault
+  uint8_t status_HV_PTC_line = 0;  //0 init, 1 No open HV line, 2 open HV line detected, 3 fault (Heater HV connector)
   uint8_t warning_support = 0;
   bool battery_heating_active = false;
   uint16_t power_discharge_percentage = 0;
@@ -608,11 +608,13 @@ class MebBattery : public CanBattery, public IsoTp {
                               .DLC = 8,
                               .ID = Motor_14,  // CRC, otherwise content
                               .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
-  CAN_frame HVLM_13_frame = {.FD = true,  //HVLM_13
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = HVLM_13,  // content still TODO
-                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame HVLM_13_frame = {
+    .FD = true,  //HVLM_13
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = HVLM_13,
+    .data = {0x00, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0xFD, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF5, 0x00,
+             0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x07, 0x00}};
   CAN_frame HVLM_14_frame = {.FD = true,  //HVLM_14
                              .ext_ID = false,
                              .DLC = 8,

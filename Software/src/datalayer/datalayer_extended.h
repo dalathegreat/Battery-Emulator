@@ -851,8 +851,8 @@ struct DATALAYER_INFO_MEB {
   uint8_t BMS_mode;
   /** 1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault */
   uint8_t battery_diagnostic;
-  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault */
-  uint8_t status_HV_line;
+  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault (PTC Heater HV connector)*/
+  uint8_t status_HV_PTC_line;
   /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
   uint8_t warning_support;
   /** 0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error */

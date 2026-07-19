@@ -277,7 +277,7 @@ void MebBattery::
   datalayer_extended.meb.HVIL = BMS_HVIL_status;
   datalayer_extended.meb.BMS_mode = BMS_mode;
   datalayer_extended.meb.battery_diagnostic = battery_diagnostic;
-  datalayer_extended.meb.status_HV_line = status_HV_line;
+  datalayer_extended.meb.status_HV_PTC_line = status_HV_PTC_line;
   datalayer_extended.meb.BMS_fault_performance = BMS_fault_performance;
   datalayer_extended.meb.BMS_fault_emergency_shutdown_crash = BMS_fault_emergency_shutdown_crash;
   datalayer_extended.meb.BMS_error_shutdown_request = BMS_error_shutdown_request;
@@ -389,7 +389,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
         power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
       }
-      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 1) | rx_frame.data.u8[1] >> 7;
+      status_HV_PTC_line = ((rx_frame.data.u8[2] & 0x01) << 1) | rx_frame.data.u8[1] >> 7;
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case BMS_23:  // BMS 100ms
@@ -860,7 +860,6 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
     transmit_can_frame(&ESC_51_Auth_frame);  // Required for contactor closing
-    transmit_can_frame(&HVLM_13_frame);      // Some newer packs throw "00A767" DTC incase this message is missing
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
@@ -1010,6 +1009,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
     transmit_can_frame(&HVK_01_frame);
     transmit_can_frame(&HVLM_14_frame);
+    transmit_can_frame(&HVLM_13_frame);
     transmit_can_frame(&Klemmen_Status_01_frame);
     transmit_can_frame(&Motor_14_frame);
     transmit_can_frame(&Motor_54_frame);
