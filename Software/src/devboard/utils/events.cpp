@@ -15,8 +15,12 @@ static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)};
 
+// Timed "ignore CAN errors" window per interface. Uses the 64-bit clock so there is no wraparound.
+static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
+
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
+static bool can_error_ignored(EVENTS_ENUM_TYPE event);
 static void update_event_level(void);
 static void update_bms_status(void);
 
@@ -190,6 +194,14 @@ void clear_event(EVENTS_ENUM_TYPE event) {
     update_event_level();
     update_bms_status();
   }
+}
+
+void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
+  // Suppress the buffer-full / bus-error events of a single CAN interface for a while.
+  if ((uint8_t)interface >= NO_CAN_INTERFACE) {
+    return;
+  }
+  can_errors_ignore_until_ms[interface] = millis64() + duration_ms;
 }
 
 void reset_all_events() {
@@ -522,10 +534,44 @@ const char* get_emulator_status_string(EMULATOR_STATUS status) {
 
 /* Local functions */
 
+// True if 'event' is one of the two comm-error events belonging to 'interface'.
+static bool is_can_error_of_interface(EVENTS_ENUM_TYPE event, CAN_Interface interface) {
+  switch (interface) {
+    case CAN_NATIVE:
+      return event == EVENT_CAN_NATIVE_BUFFER_FULL || event == EVENT_CAN_NATIVE_BUS_ERROR;
+    case CANFD_NATIVE:  // routed through the MCP2518 path, shares the CANFD events
+    case CANFD_ADDON_MCP2518:
+      return event == EVENT_CANFD_BUFFER_FULL || event == EVENT_CANFD_BUS_ERROR;
+    case CAN_ADDON_MCP2515:
+      return event == EVENT_CANMCP2515_BUFFER_FULL || event == EVENT_CANMCP2515_BUS_ERROR;
+    case CANFD_ADDON_MCP2518_2:
+      return event == EVENT_CANFD_2_BUFFER_FULL || event == EVENT_CANFD_2_BUS_ERROR;
+    default:
+      return false;
+  }
+}
+
+// Returns true while any interface has an open ignore window that 'event' belongs to.
+// Checked per interface so several windows can be active at once.
+static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
+  uint64_t now = millis64();
+  for (uint8_t i = 0; i < NO_CAN_INTERFACE; i++) {
+    if (can_errors_ignore_until_ms[i] > now && is_can_error_of_interface(event, (CAN_Interface)i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // Just some defensive stuff if someone sets an unknown event
   if (event >= EVENT_NOF_EVENTS) {
     event = EVENT_UNKNOWN_EVENT_SET;
+  }
+
+  // Drop transient CAN comm errors on the specified interface
+  if (can_error_ignored(event)) {
+    return;
   }
 
   // If the event is already set, no reason to continue
