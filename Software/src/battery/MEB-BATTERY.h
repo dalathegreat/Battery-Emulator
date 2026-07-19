@@ -300,7 +300,7 @@ class MebBattery : public CanBattery, public IsoTp {
 
   // BMS reset state machine. Pause the battery and wait for the current to drop,
   // request HV_OFF + KL15 off, go silent until the BMS sleeps, wait, then restart.
-  enum class BmsResetState : uint8_t { IDLE, WAIT_FOR_PAUSE, REQUEST_HV_OFF, SILENCE, SLEEP_WAIT, CLEAR_EVENTS };
+  enum class BmsResetState : uint8_t { IDLE, WAIT_FOR_PAUSE, REQUEST_HV_OFF, SILENCE, SLEEP_WAIT };
   BmsResetState bms_reset_state = BmsResetState::IDLE;
   unsigned long bms_reset_ms = 0;        // phase start timestamp
   bool bms_reset_active = false;         // forces KL15 OFF + HV_OFF in periodic TX
@@ -312,7 +312,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static constexpr unsigned long BMS_RESET_SILENCE_TIMEOUT_MS = 15000;  // max wait for BMS to sleep
   static constexpr unsigned long BMS_RESET_BMS_SILENT_MS = 1000;        // RX gap that means "asleep"
   static constexpr unsigned long BMS_RESET_SLEEP_MS = 5000;             // bus-quiet wait before restart
-  static constexpr unsigned long BMS_RESET_CLEAR_EVENTS_MS = 1500;      // clearing events which are set on bus wakeup
+  static constexpr uint32_t BMS_CAN_ERR_IGNORE_MS = 2000;               // ignore CAN errors while BMS wakes after reset
 
   uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
   bool nof_cells_determined = false;

@@ -15,8 +15,14 @@ static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)};
 
+// Timed "ignore CAN errors" window (see ignore_can_errors_for()).
+static bool can_errors_ignore_active = false;
+static CAN_Interface can_errors_ignore_interface = CAN_NATIVE;
+static uint32_t can_errors_ignore_until_ms = 0;
+
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
+static bool can_error_ignored(EVENTS_ENUM_TYPE event);
 static void update_event_level(void);
 static void update_bms_status(void);
 
@@ -193,19 +199,11 @@ void clear_event(EVENTS_ENUM_TYPE event) {
   }
 }
 
-void remove_event(EVENTS_ENUM_TYPE event) {
-  // Fully delete a single event. Unlike clear_event() (which only flips the state to
-  // INACTIVE), this also zeroes occurences so the event disappears from the event log
-  if (event >= EVENT_NOF_EVENTS) {
-    return;
-  }
-  events.entries[event].state = EVENT_STATE_INACTIVE;
-  events.entries[event].occurences = 0;
-  events.entries[event].data = 0;
-  events.entries[event].timestamp = 0;
-  events.entries[event].MQTTpublished = false;
-  update_event_level();
-  update_bms_status();
+void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
+  // Suppress the buffer-full / bus-error events of a single CAN interface for a while.
+  can_errors_ignore_interface = interface;
+  can_errors_ignore_until_ms = millis() + duration_ms;
+  can_errors_ignore_active = true;
 }
 
 void reset_all_events() {
@@ -536,10 +534,41 @@ const char* get_emulator_status_string(EMULATOR_STATUS status) {
 
 /* Local functions */
 
+// Returns true while an ignore window is open and 'event' is one of the comm-error
+// events belonging to the interface that window targets. Also self-expires the window.
+static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
+  if (!can_errors_ignore_active) {
+    return false;
+  }
+  // Signed difference keeps this correct across millis() wraparound.
+  if ((int32_t)(can_errors_ignore_until_ms - millis()) <= 0) {
+    can_errors_ignore_active = false;
+    return false;
+  }
+  switch (can_errors_ignore_interface) {
+    case CAN_NATIVE:
+      return event == EVENT_CAN_NATIVE_BUFFER_FULL || event == EVENT_CAN_NATIVE_BUS_ERROR;
+    case CANFD_NATIVE:  // routed through the MCP2518 path, shares the CANFD events
+    case CANFD_ADDON_MCP2518:
+      return event == EVENT_CANFD_BUFFER_FULL || event == EVENT_CANFD_BUS_ERROR;
+    case CAN_ADDON_MCP2515:
+      return event == EVENT_CANMCP2515_BUFFER_FULL || event == EVENT_CANMCP2515_BUS_ERROR;
+    case CANFD_ADDON_MCP2518_2:
+      return event == EVENT_CANFD_2_BUFFER_FULL || event == EVENT_CANFD_2_BUS_ERROR;
+    default:
+      return false;
+  }
+}
+
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // Just some defensive stuff if someone sets an unknown event
   if (event >= EVENT_NOF_EVENTS) {
     event = EVENT_UNKNOWN_EVENT_SET;
+  }
+
+  // Drop transient CAN comm errors on the specified interface
+  if (can_error_ignored(event)) {
+    return;
   }
 
   // If the event is already set, no reason to continue

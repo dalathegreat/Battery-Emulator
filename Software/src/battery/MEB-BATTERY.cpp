@@ -1281,24 +1281,14 @@ void MebBattery::handle_bms_reset(unsigned long currentMillis) {
         datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
         // Step 6: resume charge/discharge.
         setBatteryPause(false, false, UNCHANGED, false);
-        bms_reset_state = BmsResetState::CLEAR_EVENTS;
-        bms_reset_ms = currentMillis;
+        // The BMS is still waking on the bus, so the first frames won't be ACKed. Ignore
+        // the battery interface's buffer-full / bus-error events for a while so those
+        // transient wakeup errors never reach the event log.
+        ignore_can_errors_for(can_interface, BMS_CAN_ERR_IGNORE_MS);
+        bms_reset_state = BmsResetState::IDLE;
         //logging.println("MEB: BMS reset: resuming CAN communication");
       }
       break;
-
-    case BmsResetState::CLEAR_EVENTS:
-      if (currentMillis - bms_reset_ms >= BMS_RESET_CLEAR_EVENTS_MS) {
-        // Step 7: remove the CAN events that were set because the BMS did not ACK during
-        // the bus-wakeup phase. remove_event() zeroes occurences so
-        // the events actually disappear from the log.
-        remove_event(EVENT_CANFD_BUFFER_FULL);
-        remove_event(EVENT_CANFD_2_BUFFER_FULL);
-        remove_event(EVENT_CANFD_BUS_ERROR);
-        remove_event(EVENT_CANFD_2_BUS_ERROR);
-        bms_reset_state = BmsResetState::IDLE;
-        //logging.println("MEB: BMS reset: clearing events");
-      }
   }
 }
 
@@ -1537,4 +1527,8 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   // ISO-TP transport for UDS diagnostics (PID polling, DTC read). Replies arrive on
   // ISO_Hybrid_01_Resp_FD and are fed to isotp_receive() in handle_incoming_can_frame().
   isotp_init(ISO_Hybrid_01_Req_FD);
+
+  // The BMS may still be asleep at power-on, so our first frames won't be ACKed. Ignore
+  // this interface's transient CAN errors for a while so they don't clutter the event log.
+  ignore_can_errors_for(can_interface, BMS_CAN_ERR_IGNORE_MS);
 }
