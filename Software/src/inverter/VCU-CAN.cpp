@@ -70,7 +70,8 @@ void VCUInverter::update_values() {  //Called every 1s
   // ---- 0x5BC: Remaining GIDs & SOH ----
   // Not currently consumed by leafbms.cpp (SOH/GIDs decoding is commented out there),
   // but fixed here for correctness / future compatibility.
-  remaining_gids = static_cast<uint16_t>((datalayer.battery.status.real_soc / 10000.0) * 281);  //0-281 for 24kWh
+  uint16_t remaining_gids =
+      static_cast<uint16_t>((datalayer.battery.status.real_soc / 10000.0) * 281);  //0-281 for 24kWh
   LEAF_5BC.data.u8[0] = (remaining_gids >> 2) & 0xFF;
   LEAF_5BC.data.u8[1] = static_cast<uint8_t>((remaining_gids & 0x03) << 6);
   LEAF_5BC.data.u8[4] = static_cast<uint8_t>((datalayer.battery.status.soh_pptt / 100) << 1);
