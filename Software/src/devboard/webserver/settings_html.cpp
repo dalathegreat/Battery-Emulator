@@ -1646,9 +1646,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input name='VSOCIR' pattern="[0-9]+" type='text' value='%VSOCIR%'
         title="Per-cell internal resistance used to compensate cell voltage for IR drop while current is flowing. In tenths of milliohm, e.g. 5 = 0.5 mOhm. Set higher if SOC estimate swings too much with load." />
 
-        <label>SOC guard: allowed deviation band (0.01% units): </label>
+        <label>SOC guard: allowed deviation band (hundredths of a percent): </label>
         <input name='VSOCBAND' pattern="[0-9]+" type='text' value='%VSOCBAND%'
-        title="How far the BMS SOC may deviate from the voltage-derived estimate before being clamped. In integer-percent x 100, e.g. 1000 = 10.00%. Smaller = stricter." />
+        title="How far the BMS SOC may deviate from the voltage-derived estimate before being clamped. In integer-percent x 100, e.g. 1000 = 10.00 percent. Smaller = stricter." />
         </div>
 
         <label>Double battery: </label>
