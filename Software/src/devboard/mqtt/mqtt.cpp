@@ -43,6 +43,15 @@ esp_mqtt_client_handle_t client;
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(0);  // Will be configured with mqtt_publish_interval_ms on first use
 MyTimer check_global_timer(800);  // check timmer - low-priority MQTT checks, where responsiveness is not critical.
+
+// Cell voltage and balancing payloads are large (~1-2 KB per battery) but slow-moving, so
+// they are published on a fixed 60 s cadence, independent of mqtt_publish_interval_ms.
+// cell_data_due starts true so the first payload goes out on the first publish cycle, and
+// is only cleared once a full voltage+balancing round was published successfully.
+#define MQTT_CELL_DATA_INTERVAL_MS 60000
+static MyTimer cell_data_timer(MQTT_CELL_DATA_INTERVAL_MS);
+static bool cell_data_due = true;
+
 bool client_started = false;
 static String lwt_topic = "";
 
@@ -59,9 +68,8 @@ static bool publish_events(void);
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
 
-  if (mqtt_publish((topic_name + "/status").c_str(), "online", false) == false) {
-    return;
-  }
+  // "/status online" is published retained on MQTT_EVENT_CONNECTED (standard LWT
+  // pattern), not re-published every cycle.
 
   if (publish_events() == false) {
     return;
@@ -72,12 +80,12 @@ static void publish_values(void) {
   }
 
   if (mqtt_transmit_all_cellvoltages) {
+    if (cell_data_timer.elapsed()) {
+      cell_data_due = true;
+    }
     if (publish_cell_voltages() == false) {
       return;
     }
-  }
-
-  if (mqtt_transmit_all_cellvoltages) {
     if (publish_cell_balancing() == false) {
       return;
     }
@@ -648,6 +656,12 @@ static bool publish_cell_voltages(void) {
     }
   }
 
+  // State payloads only on the 60 s cadence; discovery above retries on every cycle
+  // until complete, so HA entities still appear promptly after boot.
+  if (!cell_data_due) {
+    return true;
+  }
+
   if (!publish_cell_voltage_state(datalayer.battery, state_topic)) {
     return false;
   }
@@ -665,6 +679,10 @@ static bool publish_cell_balancing(void) {
   static String state_topic_2 = topic_name + "/balancing_data_2";
   static String state_topic_3 = topic_name + "/balancing_data_3";
 
+  if (!cell_data_due) {
+    return true;
+  }
+
   if (!publish_cell_balancing_state(datalayer.battery, state_topic)) {
     return false;
   }
@@ -674,6 +692,10 @@ static bool publish_cell_balancing(void) {
   if (battery3 && !publish_cell_balancing_state(datalayer.battery3, state_topic_3)) {
     return false;
   }
+  // Voltages (published just before this) and balancing all went out: done until the
+  // timer next elapses. On any failure above the flag stays set, so the whole round is
+  // retried on the next publish cycle instead of waiting a full minute.
+  cell_data_due = false;
   return true;
 }
 
@@ -858,6 +880,11 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
     case MQTT_EVENT_CONNECTED:
       clear_event(EVENT_MQTT_DISCONNECT);
       set_event(EVENT_MQTT_CONNECT, 0);
+
+      // Standard LWT pattern: announce availability once, retained, on connect. The
+      // broker serves it to late subscribers and replaces it with the retained
+      // "offline" last-will when the session drops — no per-cycle re-publish needed.
+      mqtt_publish(lwt_topic.c_str(), "online", true);
 
       publish_buttons_discovery();
       subscribe();
