@@ -15,8 +15,8 @@ static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)};
 
-// Timed "ignore CAN errors" window per interface
-static uint32_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
+// Timed "ignore CAN errors" window per interface. Uses the 64-bit clock so there is no wraparound.
+static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
 
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
@@ -202,7 +202,7 @@ void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
   if ((uint8_t)interface >= NO_CAN_INTERFACE) {
     return;
   }
-  can_errors_ignore_until_ms[interface] = millis() + duration_ms;
+  can_errors_ignore_until_ms[interface] = millis64() + duration_ms;
 }
 
 void reset_all_events() {
@@ -553,10 +553,9 @@ static bool is_can_error_of_interface(EVENTS_ENUM_TYPE event, CAN_Interface inte
 // Returns true while any interface has an open ignore window that 'event' belongs to.
 // Checked per interface so several windows can be active at once.
 static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
-  uint32_t now = millis();
+  uint64_t now = millis64();
   for (uint8_t i = 0; i < NO_CAN_INTERFACE; i++) {
-    // Signed difference keeps the "in the future" test correct across millis() wraparound.
-    if ((int32_t)(can_errors_ignore_until_ms[i] - now) > 0 && is_can_error_of_interface(event, (CAN_Interface)i)) {
+    if (can_errors_ignore_until_ms[i] > now && is_can_error_of_interface(event, (CAN_Interface)i)) {
       return true;
     }
   }
