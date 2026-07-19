@@ -16,9 +16,7 @@ bool wifiap_enabled = true;
 bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
-#ifndef SMALL_FLASH_DEVICE
 extern const char* version_number;
-#endif
 
 std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
@@ -364,9 +362,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
-#ifndef SMALL_FLASH_DEVICE
   syslog_start();
-#endif
 
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
@@ -374,7 +370,6 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   logging.print("IP address: ");
   logging.println(WiFi.localIP().toString());
 
-#ifndef SMALL_FLASH_DEVICE
   // One-shot boot notice — fires once per boot, not on every reconnect.
   static bool boot_logged = false;
   if (!boot_logged) {
@@ -382,7 +377,6 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
     LOG_SET_NEXT_SEVERITY(5);  // RFC 5424 severity 5 = Notice
     logging.printf("Bootup complete, running version %s\n", version_number);
   }
-#endif
 
   static bool mdns_started = false;
   if (mdns_enabled && !mdns_started) {
