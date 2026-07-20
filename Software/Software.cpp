@@ -193,14 +193,18 @@ static void filter_charge_taper_soc(void) {
       }
     }
 
+    uint32_t base_W = charge_W;  // Allowance entering the taper, after the user/remote cap
     charge_W = (charge_W * (uint32_t)(10000 - soc)) / band;
 
-    /* Optional floor: hold a minimum charge power through the tail of the
-       band, dropping to 0W only at 100.00% scaled SOC. Keeps inverters above
-       their minimum stable charging power (avoids standby cycling), provides
-       a steady balancing trickle, and guarantees the charge session
-       terminates instead of asymptotically stalling below full. */
-    if (charge_taper_floor_W > 0 && soc < 10000 && charge_W < charge_taper_floor_W) {
+    /* Optional float charge power: hold a minimum charge power through the
+       tail of the band, dropping to 0W only at 100.00% scaled SOC. Keeps
+       inverters above their minimum stable charging power (avoids standby
+       cycling), provides a steady balancing trickle, and guarantees the
+       charge session terminates instead of asymptotically stalling below
+       full. Only applied when the allowance entering the taper is non-zero,
+       so it never overrides a zero coming from the BMS itself or from the
+       safety layer (cell overvoltage, battery full, pause states). */
+    if (base_W > 0 && charge_taper_floor_W > 0 && soc < 10000 && charge_W < charge_taper_floor_W) {
       charge_W = charge_taper_floor_W;
     }
 
