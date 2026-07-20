@@ -88,7 +88,7 @@ CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 # Remove assertion checks outright (not just the message strings). Larger flash
 # win than SILENT. Trade-off: a bug that would have cleanly asserted becomes
 # undefined behaviour instead. Switch back to _SILENT if you want the aborts.
-# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
 # CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT is not set
 
 # -----------------------------------------------------------------------------
