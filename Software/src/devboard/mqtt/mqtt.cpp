@@ -237,6 +237,7 @@ static String generateSensorDefaultEntityId(const String& object_id) {
 void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["identifiers"][0] = device_id;
   doc["device"]["model"] = "Battery Emulator";
+  doc["device"]["manufacturer"] = "FOSS";
   doc["device"]["name"] = device_name;
   doc["device"]["configuration_url"] = "http://" + WiFi.localIP().toString();
   doc["availability"][0]["topic"] = lwt_topic;
