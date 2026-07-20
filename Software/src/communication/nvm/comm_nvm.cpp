@@ -196,8 +196,6 @@ void init_stored_settings() {
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
-  use_canfd_as_can = settings.getBool("CANFDASCAN", false);
-  use_canfd2_as_can = settings.getBool("CANFD2ASCAN", false);
   datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
   datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
 #ifdef HW_LILYGO2CAN

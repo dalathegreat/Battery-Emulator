@@ -42,7 +42,7 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         path: ./pr
-        pattern: "battery-emulator-*"
+        pattern: "*.size.json"
         merge-multiple: true
 
     - name: Resolve base compile run
@@ -86,7 +86,7 @@ jobs:
         path: ./base
         run-id: ${{ steps.ctx.outputs.run_id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        pattern: "battery-emulator-*"
+        pattern: "*.size.json"
         merge-multiple: true
 
     - name: Get Artifact URLs JSON Map
@@ -97,7 +97,7 @@ jobs:
       run: |
         # Creates a single JSON object mapping names to URLs
         JSON_MAP=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-          --jq '[.artifacts[] | select(.name | startswith("battery-emulator-")) | {key: .name, value: ("${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/" + (.id | tostring))}] | from_entries')
+          --jq '[.artifacts[] | select(.name | endswith(".ota.bin")) | {key: .name, value: ("${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/" + (.id | tostring))}] | from_entries')
         
         echo "JSON_MAP=$JSON_MAP" >> $GITHUB_OUTPUT
 
