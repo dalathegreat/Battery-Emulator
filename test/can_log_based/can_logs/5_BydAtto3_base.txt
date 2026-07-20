@@ -1,5 +1,9 @@
 # voltage
-(0.001) RX0 7ef [8] 00 00 00 08 81 34 ee ee
+(0.001) RX0 438 [8] 55 55 01 D6 47 68 10 BF
+# voltage fallback, current and SOH
+(0.001) RX0 444 [8] A4 01 88 13 63 63 00 F9
+# insulation resistance
+(0.001) RX0 43a [8] 7E 0A 90 1A 00 00 00 CD
 # lowest cell
 (0.002) RX0 7ef [8] 00 00 00 2f 30 ee ee ee
 # highest cell
