@@ -9,8 +9,6 @@ void FiskerOceanBattery::update_values() {
 
   datalayer.battery.status.soh_pptt;
 
-  datalayer.battery.status.voltage_dV;
-
   datalayer.battery.status.current_dA;
 
   datalayer.battery.status.max_charge_power_W;
@@ -23,18 +21,21 @@ void FiskerOceanBattery::update_values() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.cell_max_voltage_mV;
+  
   datalayer.battery.status.cell_min_voltage_mV;
-
-  datalayer.battery.status.temperature_min_dC;
-
-  datalayer.battery.status.temperature_max_dC;
 
   datalayer.battery.info.max_design_voltage_dV;
 
   datalayer.battery.info.min_design_voltage_dV;
-
-  datalayer.battery.info.number_of_cells;
   */
+
+  datalayer.battery.status.voltage_dV = pack_voltage / 10;
+
+  datalayer.battery.status.temperature_min_dC = cell_temperature_min_C * 10;
+
+  datalayer.battery.status.temperature_max_dC = cell_temperature_max_C * 10;
+
+  datalayer.battery.info.number_of_cells = NUM_CELLS;
 }
 
 void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -60,6 +61,208 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x310:  //BBus 30ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame6 has counter low nibble, 0-F incrementing every frame
+      break;
+    case 0x0E9:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pack_voltage = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      break;
+    case 0x0EB:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x0EC:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x0ED:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x0EE:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x0F2:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x215:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x24A:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x278:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x279:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2EC:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2ED:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2EE:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2EF:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F3:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F4:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F5:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F6:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F7:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F8:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2F9:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x330:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x360:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x370:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x372:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      cell_temperature_max_C =
+          rx_frame.data.u8[4] -
+          40;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the max temperature
+      cell_temperature_min_C =
+          rx_frame.data.u8[5] -
+          40;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the min temperature
+      break;
+    case 0x3A0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3A1:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3A2:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3A5:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3A6:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3A7:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x595:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5A7:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x63A:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x652:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6A0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6A1:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6A5:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6B0 ... 0x6CD: {
+      uint8_t frame_offset = rx_frame.ID - CELLVOLTAGE_FRAME_START;
+
+      for (uint8_t i = 0; i < 4; i++) {
+        uint16_t raw = (rx_frame.data.u8[i * 2] << 8) | rx_frame.data.u8[i * 2 + 1];
+
+        if (raw == 0xFFFF) {
+          // Padding, no cell present in this slot (covers 6C9's 2nd half
+          // and all of 6CA..6CD)
+          continue;
+        }
+
+        uint8_t cell_index = (frame_offset * 4) + i;
+
+        if (cell_index < NUM_CELLS) {
+          datalayer.battery.status.cell_voltages_mV[cell_index] = raw / 10;
+        }
+      }
+      break;
+    }
+    case 0x6D0:  //Temperatures (49 49 48 48 48 48 49 48 )
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //All individual temperature measurements
+      break;
+    case 0x6D1:  //Temperatures (48 49 48 49 49 48 48 FF )
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D2:  //Temperatures (All FF)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D3:  //Temperatures (All FF)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D4:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D5:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D6:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D7:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D8:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6D9:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6DB:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6DD:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6DE:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6DF:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6F0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6F1:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6F2:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6F3:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x6F4:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7E9:  //BMS reply
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -207,7 +410,7 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     default:
-      logging.printf("Received unexpected CAN frame with ID: 0x%03X\n", rx_frame.ID);
+      //logging.printf("Received unexpected CAN frame with ID: 0x%03X\n", rx_frame.ID);
       break;
   }
 }

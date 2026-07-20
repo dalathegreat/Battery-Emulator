@@ -19,6 +19,10 @@ class FiskerOceanBattery : public CanBattery {
   unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
+  const uint16_t CELLVOLTAGE_FRAME_START = 0x6B0;
+  const uint16_t CELLVOLTAGE_FRAME_END = 0x6C9;  // last frame, only 2 valid cells
+  const uint16_t NUM_CELLS = 102;
+
   //113 kWh
   static const int MAX_PACK_VOLTAGE_113S_DV = 5000;  //TODO
   static const int MIN_PACK_VOLTAGE_113S_DV = 2500;  //TODO
@@ -31,6 +35,10 @@ class FiskerOceanBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
+
+  int16_t cell_temperature_max_C = 0;
+  int16_t cell_temperature_min_C = 0;
+  uint16_t pack_voltage = 37000;
 
   static const uint16_t PID_BATTERY_SUM_VOLTAGE = 0x2003;
   static const uint16_t PID_BATTERY_CURRENT = 0x2004;
