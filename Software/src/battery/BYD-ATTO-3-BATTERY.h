@@ -66,8 +66,7 @@ class BydAttoBattery : public CanBattery {
 
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
-  static const int POLL_FOR_BATTERY_VOLTAGE = 0x0008;
-  static const int POLL_FOR_BATTERY_CURRENT = 0x0009;
+  // 0x0008 (voltage) and 0x0009 (current) are no longer polled; 0x438 and 0x444 carry them faster
   static const int POLL_MAX_CHARGE_POWER = 0x000A;
   static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
   static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
@@ -154,11 +153,12 @@ class BydAttoBattery : public CanBattery {
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_BATTERY_SOC;
   uint16_t pid_reply = 0;
-  uint16_t battery_voltage = 0;
+  uint16_t battery_voltage = 0;                  // Whole volts from 0x444, used for the 0x441 link voltage
+  uint16_t battery_voltage_dV = 0;               // Deci-volts from 0x438, primary pack voltage
+  uint16_t battery_insulation_ohm_per_volt = 0;  // 0x43A, multiply by pack voltage for Ohms
   uint16_t battery_highprecision_SOC = 0;
   uint16_t battery_estimated_SOC = 0;
   uint16_t BMS_SOC = 0;
-  uint16_t BMS_voltage = 0;
   uint16_t BMS_lowest_cell_voltage_mV = 3300;
   uint16_t BMS_highest_cell_voltage_mV = 3300;
   uint16_t BMS_allowed_charge_power = 0;
@@ -181,7 +181,7 @@ class BydAttoBattery : public CanBattery {
   int16_t battery_highest_temperature = 0;
   int16_t battery_calc_min_temperature = 0;
   int16_t battery_calc_max_temperature = 0;
-  int16_t BMS_current = 0;
+  int16_t battery_current_dA = 0;  // 0x444, deci-amps, negative while charging
   int16_t BMS_lowest_cell_temperature = 0;
   int16_t BMS_highest_cell_temperature = 0;
   int16_t BMS_average_cell_temperature = 0;
@@ -288,6 +288,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
+  bool battery_insulation_valid = false;  // Zero is a valid 0x43A fault reading, so track receipt separately
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};

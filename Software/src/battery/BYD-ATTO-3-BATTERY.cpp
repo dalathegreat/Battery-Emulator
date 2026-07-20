@@ -44,10 +44,10 @@ void BydAttoBattery::set_12D_payload(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t
 void BydAttoBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  if (battery_voltage > 0) {
-    datalayer_battery->status.voltage_dV = battery_voltage * 10;  //Value from periodic CAN data prioritized
-  } else if (BMS_voltage > 0) {
-    datalayer_battery->status.voltage_dV = BMS_voltage * 10;  //Polled value fallback
+  if (battery_voltage_dV > 0) {
+    datalayer_battery->status.voltage_dV = battery_voltage_dV;  //0x438, 0.1V resolution, prioritized
+  } else if (battery_voltage > 0) {
+    datalayer_battery->status.voltage_dV = battery_voltage * 10;  //0x444 whole-volt fallback
   }
 
   // We assume pack is not crashed, and use periodically transmitted SOC
@@ -55,7 +55,7 @@ void BydAttoBattery::
 
   datalayer_battery->status.soh_pptt = BMS_SOH * 100;
 
-  datalayer_battery->status.current_dA = -BMS_current;
+  datalayer_battery->status.current_dA = -battery_current_dA;
 
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
@@ -223,8 +223,9 @@ void BydAttoBattery::
   if (datalayer_bydatto) {
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
     datalayer_bydatto->SOC_polled = BMS_SOC;
-    datalayer_bydatto->voltage_periodic = battery_voltage;
-    datalayer_bydatto->voltage_polled = BMS_voltage;
+    datalayer_bydatto->pack_voltage_dV = battery_voltage_dV;
+    datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
+    datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->battery_temperatures[0] = battery_daughterboard_temperatures[0];
     datalayer_bydatto->battery_temperatures[1] = battery_daughterboard_temperatures[1];
     datalayer_bydatto->battery_temperatures[2] = battery_daughterboard_temperatures[2];
@@ -421,9 +422,16 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x438:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        battery_voltage_dV = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5];
+      }
       break;
     case 0x43A:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        battery_insulation_ohm_per_volt = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
+        battery_insulation_valid = true;
+      }
       break;
     case 0x43B:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -463,10 +471,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x444:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
-      BMS_SOH = rx_frame.data.u8[4];
-      //battery_temperature_something = rx_frame.data.u8[7] - 40; resides in frame 7
-      BMS_voltage_available = true;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
+        battery_current_dA = (int16_t)(((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 5000);
+        lastCurrentSampleMillis = millis();
+        BMS_SOH = rx_frame.data.u8[4];
+        BMS_voltage_available = true;
+      }
       break;
     case 0x445:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -530,13 +541,6 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (pid_reply) {
         case POLL_FOR_BATTERY_SOC:
           BMS_SOC = rx_frame.data.u8[4];
-          break;
-        case POLL_FOR_BATTERY_VOLTAGE:
-          BMS_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
-          break;
-        case POLL_FOR_BATTERY_CURRENT:
-          BMS_current = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) - 5000;
-          lastCurrentSampleMillis = millis();
           break;
         case POLL_FOR_LOWEST_TEMP_CELL:
           BMS_lowest_cell_temperature = (rx_frame.data.u8[4] - 40);
@@ -743,7 +747,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       // Only act on a current reading taken after the settle wait, so a stale low sample
       // from before the request can't authorise opening under load
       if ((int32_t)(lastCurrentSampleMillis - contactorStateEntryMillis) >= (int32_t)ZERO_CURRENT_MIN_WAIT_MS &&
-          BMS_current > -OPEN_MAX_CURRENT_dA && BMS_current < OPEN_MAX_CURRENT_dA) {
+          battery_current_dA > -OPEN_MAX_CURRENT_dA && battery_current_dA < OPEN_MAX_CURRENT_dA) {
         set_12D_payload(0xA0, 0x28, 0x02, 0x60, 0x04, 0x31);  // Shutdown pattern
         contactorState = CONTACTORS_OPENING;
         contactorStateEntryMillis = currentMillis;
@@ -975,16 +979,6 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case POLL_FOR_BATTERY_SOC:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_SOC & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_SOC & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_VOLTAGE;
-        break;
-      case POLL_FOR_BATTERY_VOLTAGE:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_VOLTAGE & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_VOLTAGE & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_CURRENT;
-        break;
-      case POLL_FOR_BATTERY_CURRENT:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CURRENT & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CURRENT & 0x00FF);
         poll_state = POLL_FOR_LOWEST_TEMP_CELL;
         break;
       case POLL_FOR_LOWEST_TEMP_CELL:
