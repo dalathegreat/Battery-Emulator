@@ -2,7 +2,25 @@
 #include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
+
+uint8_t expected_CRC(CAN_frame* frame, uint8_t xor_out) {
+  //CRC-8, Polynomial = 0x1D, Init = 0xFF, XorOut varies per message
+  //We check bytes 1-7, since byte 0 is the CRC itself
+
+  //We can get the table crc8_table_SAE_J1850_ZER0 already in the codebase
+  uint8_t crc = 0xFF;  //Init
+
+  for (uint8_t i = 1; i < 8; i++) {
+    crc = crc8_table_SAE_J1850_ZER0[crc ^ frame->data.u8[i]];
+  }
+
+  crc ^= xor_out;
+
+  return crc;  //Return the expected CRC value
+}
+
 void FiskerOceanBattery::update_values() {
   /*
   datalayer.battery.status.real_soc;
@@ -21,7 +39,7 @@ void FiskerOceanBattery::update_values() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.cell_max_voltage_mV;
-  
+
   datalayer.battery.status.cell_min_voltage_mV;
 
   datalayer.battery.info.max_design_voltage_dV;
@@ -64,7 +82,11 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x0E9:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      pack_voltage = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      if (rx_frame.data.u8[0] == expected_CRC(&rx_frame, 0x05)) {  //If CRC matches expected
+        pack_voltage = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      } else {  //If CRC does not match expected, increment error counter
+        datalayer.battery.status.CAN_error_counter++;
+      }
       break;
     case 0x0EB:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
