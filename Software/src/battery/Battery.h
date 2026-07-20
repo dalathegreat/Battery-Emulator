@@ -58,7 +58,8 @@ enum class BatteryType {
   ThunderstruckBMS = 51,
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
-  FiskerOcean = 54,
+  ChargebyteCCSBattery = 54,
+  FiskerOcean = 55,
   Highest
 };
 
@@ -135,6 +136,7 @@ class Battery {
   virtual void chademo_stop() {}
   virtual void initiate_balancing() {}
   virtual void end_balancing() {}
+  virtual void handle_precharge() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

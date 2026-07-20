@@ -56,6 +56,8 @@ class LilyGoHal : public Esp32Hal {
     }  //Else user_selected_gpioopt2 == GPIOOPT2::BMS_POWER_25
     return GPIO_NUM_25;
   }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
 
   // Automatic precharging
@@ -109,6 +111,10 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306) {
@@ -122,6 +128,7 @@ class LilyGoHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,

@@ -2,6 +2,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 
@@ -25,6 +26,7 @@ static bool battery_empty_event_fired = false;
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
 bool allowed_to_send_CAN = true;
+static uint32_t emulator_restart_request_millis = 0;
 
 //component detection
 bool battery_detected = false;
@@ -51,22 +53,52 @@ void update_machineryprotection() {
 
   // Check health status of CAN interfaces
   if (datalayer.system.info.can_native_send_fail) {
-    set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
+    set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
     datalayer.system.info.can_native_send_fail = false;
   } else {
-    clear_event(EVENT_CAN_NATIVE_TX_FAILURE);
+    clear_event(EVENT_CAN_NATIVE_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_native_bus_error) {
+    set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+    datalayer.system.info.can_native_bus_error = false;
+  } else {
+    clear_event(EVENT_CAN_NATIVE_BUS_ERROR);
   }
   if (datalayer.system.info.can_2515_send_fail) {
-    set_event(EVENT_CAN_BUFFER_FULL, 0);
+    set_event(EVENT_CANMCP2515_BUFFER_FULL, 0);
     datalayer.system.info.can_2515_send_fail = false;
   } else {
-    clear_event(EVENT_CAN_BUFFER_FULL);
+    clear_event(EVENT_CANMCP2515_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2515_bus_error) {
+    set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
+    datalayer.system.info.can_2515_bus_error = false;
+  } else {
+    clear_event(EVENT_CANMCP2515_BUS_ERROR);
   }
   if (datalayer.system.info.can_2518_send_fail) {
     set_event(EVENT_CANFD_BUFFER_FULL, 0);
     datalayer.system.info.can_2518_send_fail = false;
   } else {
     clear_event(EVENT_CANFD_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_bus_error) {
+    set_event(EVENT_CANFD_BUS_ERROR, 0);
+    datalayer.system.info.can_2518_bus_error = false;
+  } else {
+    clear_event(EVENT_CANFD_BUS_ERROR);
+  }
+  if (datalayer.system.info.can_2518_2_send_fail) {
+    set_event(EVENT_CANFD_2_BUFFER_FULL, 0);
+    datalayer.system.info.can_2518_2_send_fail = false;
+  } else {
+    clear_event(EVENT_CANFD_2_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_2_bus_error) {
+    set_event(EVENT_CANFD_2_BUS_ERROR, 0);
+    datalayer.system.info.can_2518_2_bus_error = false;
+  } else {
+    clear_event(EVENT_CANFD_2_BUS_ERROR);
   }
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
@@ -528,18 +560,18 @@ void update_machineryprotection() {
 }
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
   DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
-  if (equipment_stop && !datalayer.system.info.equipment_stop_active) {
+  if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
     datalayer.system.info.equipment_stop_active = true;
     if (store_settings) {
       store_settings_equipment_stop();
     }
 
     set_event(EVENT_EQUIPMENT_STOP, 1);
-  } else if (!equipment_stop && datalayer.system.info.equipment_stop_active) {
+  } else if (equipment_stop == RESUME && datalayer.system.info.equipment_stop_active) {
     datalayer.system.info.equipment_stop_active = false;
     if (store_settings) {
       store_settings_equipment_stop();
@@ -578,6 +610,32 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
   update_pause_state();
 }
 
+void graceful_restart() {
+  // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
+
+  set_event(EVENT_RESTARTING, 0);
+
+  // Stop charge/discharge so we don't damage the contactors
+  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
+
+  uint32_t now = millis();
+  emulator_restart_request_millis = now > 0 ? now : 1;
+}
+
+void update_restart_progress() {
+  // If is a restart has been requested, check the time and restart if the
+  // conditions are met.
+
+  if (emulator_restart_request_millis > 0) {
+    uint32_t now = millis();
+    uint32_t elapsed = now - emulator_restart_request_millis;
+    // Restart after 5s if the emulator has paused. Always restart after 10s.
+    if ((elapsed > INTERVAL_5_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_10_S) {
+      ESP.restart();
+    }
+  }
+}
+
 /// @brief handle emulator pause status and CAN sending allowed
 void update_pause_state() {
   bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
@@ -586,9 +644,14 @@ void update_pause_state() {
     allowed_to_send_CAN = true;
   }
 
+  int16_t battery_current_dA = datalayer.battery.status.current_dA;
+  int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+  int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
+  static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps
+
   // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
-  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
-      datalayer.battery.status.current_dA > -18) {
+  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && abs(battery_current_dA) < CURRENT_THRESHOLD_dA &&
+      abs(battery2_current_dA) < CURRENT_THRESHOLD_dA && abs(battery3_current_dA) < CURRENT_THRESHOLD_dA) {
     emulator_pause_status = PAUSED;
   }
 

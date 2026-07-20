@@ -175,6 +175,10 @@ class Esp32Hal {
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
+  // Output pins to latch at their driven level across a firmware-initiated reset/OTA
+  // reboot, so they don't float during the boot window. RTC-capable pins only.
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {}; }
+
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t INVERTER_DISCONNECT_CONTACTOR_PIN() { return GPIO_NUM_NC; }
@@ -194,9 +198,11 @@ class Esp32Hal {
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t DISPLAY_SCL_PIN() { return GPIO_NUM_NC; }
+#endif  // SMALL_FLASH_DEVICE
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_NC; }
@@ -204,6 +210,9 @@ class Esp32Hal {
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_NC; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_NC; }
+
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP. Usually the BOOT button on GPIO0.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_NC; }
 
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;

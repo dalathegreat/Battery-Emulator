@@ -83,6 +83,8 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_3;
   }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is either GPIO2, GPIO3
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_2, GPIO_NUM_3}; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_4; }
 
@@ -105,6 +107,7 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_40; }
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_5; }  // ADC1_CH4
 
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
@@ -118,6 +121,7 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() {
@@ -142,6 +146,9 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_14;
   }
+
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,

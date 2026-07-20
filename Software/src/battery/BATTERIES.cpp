@@ -5,6 +5,62 @@
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
+#include "BMW-I3-BATTERY.h"
+#include "BMW-IX-BATTERY.h"
+#include "BMW-PHEV-BATTERY.h"
+#include "BMW-SBOX.h"
+#include "BOLT-AMPERA-BATTERY.h"
+#include "BYD-ATTO-3-BATTERY.h"
+#include "CELLPOWER-BMS.h"
+#include "CHADEMO-BATTERY.h"
+#include "CHADEMO-CT.h"
+#include "CHADEMO-SHUNTS.h"
+#include "CHARGEBYTE-CCS.h"
+#include "CMFA-EV-BATTERY.h"
+#include "CMP-SMART-CAR-BATTERY.h"
+#include "DALY-BMS.h"
+#include "ECMP-BATTERY.h"
+#include "ENNOID-BMS.h"
+#include "FISKER-OCEAN-BATTERY.h"
+#include "FORD-MACH-E-BATTERY.h"
+#include "FOXESS-BATTERY.h"
+#include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
+#include "GROWATT-HV-ARK-BATTERY.h"
+#include "HYUNDAI-IONIQ-28-BATTERY.h"
+#include "IMIEV-CZERO-ION-BATTERY.h"
+#include "JAGUAR-IPACE-BATTERY.h"
+#include "KIA-64FD-BATTERY.h"
+#include "KIA-E-GMP-BATTERY.h"
+#include "KIA-HYUNDAI-64-BATTERY.h"
+#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#include "MEB-BATTERY.h"
+#include "MG-5-BATTERY.h"
+#include "MG-HS-PHEV-BATTERY.h"
+#include "NISSAN-LEAF-BATTERY.h"
+#include "ORION-BMS.h"
+#include "PYLON-BATTERY.h"
+#include "RANGE-ROVER-PHEV-BATTERY.h"
+#include "RELION-LV-BATTERY.h"
+#include "RENAULT-KANGOO-BATTERY.h"
+#include "RENAULT-TWIZY.h"
+#include "RENAULT-ZOE-GEN1-BATTERY.h"
+#include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "RIVIAN-BATTERY.h"
+#include "RJXZS-BMS.h"
+#include "SAMSUNG-SDI-LV-BATTERY.h"
+#include "SANTA-FE-PHEV-BATTERY.h"
+#include "SIMPBMS-BATTERY.h"
+#include "SONO-BATTERY.h"
+#include "STELLANTIS-SMALL-WIDE-4x4.h"
+#include "TESLA-BATTERY.h"
+#include "TESLA-LEGACY-BATTERY.h"
+#include "TEST-FAKE-BATTERY.h"
+#include "THINK-BATTERY.h"
+#include "THUNDERSTRUCK-BMS.h"
+#include "VOLVO-SPA-BATTERY.h"
+#include "VOLVO-SPA-HYBRID-BATTERY.h"
+
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
 Battery* battery3 = nullptr;
@@ -150,6 +206,10 @@ const char* name_for_battery_type(BatteryType type) {
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
       return VolvoSpaHybridBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::ChargebyteCCSBattery:
+      return ChargebyteCCSBattery::Name;
+#endif
     default:
       return nullptr;
   }
@@ -272,6 +332,10 @@ Battery* create_battery(BatteryType type) {
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
       return new VolvoSpaHybridBattery();
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::ChargebyteCCSBattery:
+      return new ChargebyteCCSBattery();
+#endif
     default:
       return nullptr;
   }
@@ -364,6 +428,9 @@ void setup_battery() {
     switch (user_selected_battery_type) {
       case BatteryType::NissanLeaf:
         battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+        break;
+      case BatteryType::CmfaEv:
+        battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
         break;
       case BatteryType::RelionBattery:
         battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,

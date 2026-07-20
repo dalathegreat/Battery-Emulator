@@ -51,11 +51,11 @@ class NissanLeafBattery : public CanBattery {
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestSOHreset = false;
-  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 2600;
+  static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4224;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2500;  //Battery is put into emergency stop if one cell goes below this value
 
   NissanLeafHtmlRenderer renderer;
 
@@ -186,6 +186,9 @@ class NissanLeafBattery : public CanBattery {
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
+  bool balancing_data_received = false;         //true once group 0x06 has answered at least once
+  bool balancing_data_fresh = false;            //set by group 0x06 handler, consumed by update_values()
+  uint8_t balancing_idle_polls = 0;             //consecutive group 0x06 polls with no shunt active
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance

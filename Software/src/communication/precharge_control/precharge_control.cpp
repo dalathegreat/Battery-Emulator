@@ -73,7 +73,7 @@ void handle_precharge_control(unsigned long currentMillis) {
 
   switch (datalayer.system.status.precharge_status) {
     case AUTO_PRECHARGE_IDLE:
-      if (datalayer.system.info.start_precharging) {
+      if (datalayer.system.info.start_precharging && datalayer.system.status.inverter_allows_contactor_closing) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_START;
       }
       break;
@@ -125,7 +125,8 @@ void handle_precharge_control(unsigned long currentMillis) {
         datalayer.system.info.start_precharging = false;
       } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
                   datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-                 datalayer.system.status.system_status != ACTIVE || datalayer.system.info.equipment_stop_active) {
+                 datalayer.system.status.system_status != ACTIVE || datalayer.system.info.equipment_stop_active ||
+                 !datalayer.system.status.inverter_allows_contactor_closing) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
@@ -145,24 +146,12 @@ void handle_precharge_control(unsigned long currentMillis) {
       // BMS has gone back to standby (eg, after a BMS reset), then we'll allow
       // the precharge to be restarted.
       if (datalayer.system.info.equipment_stop_active || datalayer.system.status.system_status != ACTIVE ||
-          datalayer.battery.status.real_bms_status == BMS_STANDBY) {
+          datalayer.battery.status.real_bms_status == BMS_STANDBY ||
+          !datalayer.system.status.inverter_allows_contactor_closing) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         logging.printf("Precharge: equipment stop activated -> IDLE\n");
       }
       break;
-
-    case AUTO_PRECHARGE_OFF:
-      // This is not used anymore?
-      if (!datalayer.system.status.battery_allows_contactor_closing ||
-          !datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active ||
-          datalayer.system.status.system_status != FAULT) {
-        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
-        pinMode(hia4v1_pin, OUTPUT);
-        digitalWrite(hia4v1_pin, LOW);
-        logging.printf("Precharge: equipment stop activated -> IDLE\n");
-      }
-      break;
-
     default:
       break;
   }

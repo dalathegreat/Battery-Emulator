@@ -117,22 +117,22 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += "?";
     }
-    content += "</h4><h4>HV line status: ";
-    switch (datalayer_extended.meb.status_HV_line) {
+    content += "</h4><h4>Heater HV line status: ";
+    switch (datalayer_extended.meb.status_HV_PTC_line) {
       case 0:
         content += "Init";
         break;
       case 1:
-        content += "No open HV line detected";
+        content += "Heater no open HV line";
         break;
       case 2:
-        content += "Open HV line";
+        content += "Heater open HV line";
         break;
       case 3:
         content += "Fault";
         break;
       default:
-        content += "? " + String(datalayer_extended.meb.status_HV_line);
+        content += "? " + String(datalayer_extended.meb.status_HV_PTC_line);
     }
     content += "</h4>";
     content += datalayer_extended.meb.BMS_fault_performance ? "<h4>BMS fault performance: Active!</h4>"
@@ -285,6 +285,8 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Total charged: " + String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh</h4>";
     content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
                " kWh</h4>";
+
+    content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, "vag_meb_dtc.json", false);
 
     return content;
   }

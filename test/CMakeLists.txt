@@ -75,7 +75,6 @@ add_executable(tests
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
-    ../Software/src/communication/can/obd.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
@@ -103,6 +102,7 @@ add_executable(tests
     ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
+    ../Software/src/battery/CHARGEBYTE-CCS.cpp
     ../Software/src/battery/CHADEMO-BATTERY.cpp
     ../Software/src/battery/CHADEMO-CT.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
@@ -186,6 +186,7 @@ add_executable(tests
     emul/serial.cpp
     emul/Arduino.cpp
     emul/freertos/FreeRTOS.cpp
+    emul/driver/i2c_master.cpp
     )
 
 target_link_libraries(tests
