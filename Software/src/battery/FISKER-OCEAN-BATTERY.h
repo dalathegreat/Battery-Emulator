@@ -15,7 +15,7 @@ class FiskerOceanBattery : public CanBattery {
   void reset_DTC() { UserRequestDTCreset = true; }
 
  private:
-  bool UserRequestDTCreset = false;
+  bool UserRequestDTCreset = true;       //Default on to always clear DTC once on startup
   unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 

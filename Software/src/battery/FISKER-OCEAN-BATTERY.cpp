@@ -300,7 +300,8 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       switch (incoming_poll) {
         case PID_BATTERY_SUM_VOLTAGE:
-          datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 10;
+          //datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 10;
+          // We use constantly broadcasted message instead
           break;
         case PID_BATTERY_CURRENT:
           datalayer.battery.status.current_dA = ((int16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5])) / 10;
@@ -354,8 +355,10 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_UNEXPECTED_POWER_DOWN_FAULT:
           break;
         case PID_MODULE_TEMP_DAISYCHAIN_UPDATED:
+          //Reply 06 62 20 54 00 26 00 AA
           break;
         case PID_CELL_VOLT_DAISYCHAIN_UPDATED:
+          //Reply 06 62 20 55 00 26 00 AA
           break;
         case PID_CMC_RESET_ERR_FLAG:
           break;
