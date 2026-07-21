@@ -228,6 +228,32 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
 
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
+// only for the battery integrations that actually implement parallel batteries.
+// Generated from battery_supports_double()/battery_supports_triple() so the UI
+// can never drift out of sync with what setup_battery() is able to instantiate.
+static String capability_css(const char* className, bool (*supported)(BatteryType)) {
+  String selectors;
+
+  for (auto& type : enum_values<BatteryType>()) {
+    if (!supported(type)) {
+      continue;
+    }
+    if (!selectors.isEmpty()) {
+      selectors += ",";
+    }
+    selectors += "form[data-battery=\"" + String(to_underlying(type)) + "\"] ." + className;
+  }
+
+  String css = "form ." + String(className) + " { display: none; }";
+
+  if (!selectors.isEmpty()) {
+    css += selectors + " { display: contents; }";
+  }
+
+  return css;
+}
+
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
@@ -241,6 +267,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "BATTCOMM") {
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
+  }
+  if (var == "BTRCAPCSS") {
+    return capability_css("if-dblcapable", battery_supports_double) +
+           capability_css("if-tricapable", battery_supports_triple);
   }
   if (var == "BATTCHEM") {
     return options_for_enum(
@@ -1355,6 +1385,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    /* Integrations that support running two/three batteries in parallel.
+       Rules are generated at runtime from the battery capability predicates. */
+    %BTRCAPCSS%
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -1715,6 +1749,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
+        <div class="if-dblcapable">
         <label>Double battery: </label>
         <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
         title="Enable this option if you intend to run two batteries in parallel" />
@@ -1725,6 +1760,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
                 %BATT2COMM%
             </select>
 
+        <div class="if-tricapable">
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
         title="Enable this option if you intend to run three batteries in parallel" />
@@ -1734,6 +1770,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
+        </div>
+
+        </div>
+
         </div>
 
         </div>
@@ -1927,8 +1967,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
-            <label>Triple-Battery Contactor control via GPIO: </label>
-            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            <div class="if-tribtr">
+                <label>Triple-Battery Contactor control via GPIO: </label>
+                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            </div>
         </div>
 
         <label>Contactor control via GPIO: </label>
