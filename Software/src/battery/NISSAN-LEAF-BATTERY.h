@@ -186,9 +186,21 @@ class NissanLeafBattery : public CanBattery {
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
-  bool balancing_data_received = false;         //true once group 0x06 has answered at least once
-  bool balancing_data_fresh = false;            //set by group 0x06 handler, consumed by update_values()
-  uint8_t balancing_idle_polls = 0;             //consecutive group 0x06 polls with no shunt active
+  //Balancing classification state, see update_values()
+  //Number of consecutive group 0x06 reads compared before classifying
+  static const uint8_t BALANCING_HISTORY_DEPTH = 4;
+  //How many of those reads must hold a distinct shunt bitmap for the pack to count as actively balancing
+  static const uint8_t BALANCING_DISTINCT_FOR_ACTIVE = 4;
+  //Ring buffer of the last BALANCING_HISTORY_DEPTH shunt bitmaps, 96 bits packed into 3 words each
+  uint32_t balancing_bitmap_history[BALANCING_HISTORY_DEPTH][3];
+  //Valid entries in the ring, saturates at BALANCING_HISTORY_DEPTH
+  uint8_t balancing_history_count = 0;
+  //Next write position in the ring
+  uint8_t balancing_history_index = 0;
+  //Set by the group 0x06 handler, consumed by update_values()
+  bool balancing_data_fresh = false;
+  //Applies a new balancing status, raising the start/end events on the ACTIVE edges
+  void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance

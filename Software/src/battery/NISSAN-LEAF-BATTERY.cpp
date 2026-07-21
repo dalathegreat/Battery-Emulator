@@ -23,6 +23,18 @@ bool NissanLeafBattery::supports_reset_SOH() {
   return LEAF_battery_Type != ZE1_BATTERY;
 }
 
+void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
+  if (new_status == datalayer_battery->status.balancing_status) {
+    return;
+  }
+  if (new_status == BALANCING_STATUS_ACTIVE) {
+    set_event_latched(EVENT_BALANCING_START, 0);
+  } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
+    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+  }
+  datalayer_battery->status.balancing_status = new_status;
+}
+
 void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
@@ -179,41 +191,62 @@ void NissanLeafBattery::
     }
   }
 
-  // Derive aggregate balancing status from the per-cell shunt bits polled from LBC group 0x06.
-  // The LBC duty-cycles its bleed resistors (and disables them while sampling cell voltages), and we
-  // only see one snapshot per ~70s poll rotation, so a single all-clear poll is not proof that the
-  // balancing phase has ended. Require BALANCING_IDLE_POLLS_TO_END consecutive idle polls before
-  // dropping back to READY. Evaluated only on fresh group 0x06 data, never on the 1s update tick.
-  static constexpr uint8_t BALANCING_IDLE_POLLS_TO_END = 3;  // ~3.5 minutes of quiet
+  // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on
+  // its own does not mean the pack is balancing: the LBC flags cells as eligible and then holds that
+  // set constant for hours, stepping only occasionally, while it waits for the pack to settle. Actual
+  // balancing shows up as the bitmap churning on every poll, because the shunts are duty-cycled and
+  // the LBC re-decides after each measurement. So compare the last BALANCING_HISTORY_DEPTH reads:
+  // every one distinct => ACTIVE, any repeat => flagged but not yet at rest => BLOCKED. Comparing
+  // four reads tolerates up to two steps of the flagged set within one window.
+  // Evaluated only on fresh group 0x06 data (~70s apart), never on the 1s update tick.
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    balancing_history_count = 0;  //LBC is being power cycled, the previous classification is void
+    balancing_history_index = 0;
+    set_balancing_status(BALANCING_STATUS_UNKNOWN);
+  }
 
-  if (balancing_data_received && balancing_data_fresh) {
+  if (balancing_data_fresh) {
     balancing_data_fresh = false;
 
-    bool any_shunt_active = false;
+    uint32_t balancing_bitmap[3] = {0, 0, 0};
+    uint8_t balancing_active_cells = 0;
     for (uint8_t i = 0; i < 96; i++) {
       if (battery_balancing_shunts[i]) {
-        any_shunt_active = true;
-        break;
+        balancing_bitmap[i / 32] |= (1UL << (i % 32));
+        balancing_active_cells++;
       }
     }
 
-    if (any_shunt_active) {
-      balancing_idle_polls = 0;
-    } else if (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) {
-      balancing_idle_polls++;
-    }
+    if (balancing_active_cells == 0) {
+      balancing_history_count = 0;  //Phase is over, start clean if balancing ever comes back
+      balancing_history_index = 0;
+      set_balancing_status(BALANCING_STATUS_READY);
+    } else {
+      memcpy(balancing_bitmap_history[balancing_history_index], balancing_bitmap, sizeof(balancing_bitmap));
+      balancing_history_index = (balancing_history_index + 1) % BALANCING_HISTORY_DEPTH;
+      if (balancing_history_count < BALANCING_HISTORY_DEPTH) {
+        balancing_history_count++;
+      }
 
-    balancing_status_enum new_status =
-        (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
-
-    if (new_status != datalayer_battery->status.balancing_status) {
-      if (new_status == BALANCING_STATUS_ACTIVE) {
-        set_event_latched(EVENT_BALANCING_START, 0);
-      } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-        set_event(EVENT_BALANCING_END, 0);  // only ACTIVE -> READY, not the initial UNKNOWN -> READY
+      //Leave the status untouched until the window is full, so it stays UNKNOWN after boot/BMS reset
+      if (balancing_history_count == BALANCING_HISTORY_DEPTH) {
+        uint8_t distinct_bitmaps = 0;
+        for (uint8_t a = 0; a < BALANCING_HISTORY_DEPTH; a++) {
+          bool seen_before = false;
+          for (uint8_t b = 0; b < a; b++) {
+            if (memcmp(balancing_bitmap_history[a], balancing_bitmap_history[b], sizeof(balancing_bitmap)) == 0) {
+              seen_before = true;
+              break;
+            }
+          }
+          if (!seen_before) {
+            distinct_bitmaps++;
+          }
+        }
+        set_balancing_status((distinct_bitmaps >= BALANCING_DISTINCT_FOR_ACTIVE) ? BALANCING_STATUS_ACTIVE
+                                                                                 : BALANCING_STATUS_BLOCKED);
       }
     }
-    datalayer_battery->status.balancing_status = new_status;
   }
 
   // Update webserver datalayer
@@ -541,7 +574,6 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
           memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
-          balancing_data_received = true;
           balancing_data_fresh = true;
         }
 
