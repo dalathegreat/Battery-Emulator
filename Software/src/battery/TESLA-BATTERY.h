@@ -15,6 +15,7 @@ extern uint16_t user_selected_tesla_GTW_packEnergy;
 
 class TeslaBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Use the default constructor to create the first or single battery.
   TeslaBattery() {
     datalayer_battery = &datalayer.battery;

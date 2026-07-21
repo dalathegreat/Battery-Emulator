@@ -431,6 +431,9 @@ void setup_battery() {
         battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
                                      &datalayer.system.status.battery3_allowed_contactor_closing);
         break;
+      case BatteryType::TestFake:
+        battery3 = new TestFakeBattery(&datalayer.battery3, can_config.battery_triple);
+        break;
       default:
         DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
         break;

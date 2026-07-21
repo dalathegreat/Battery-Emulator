@@ -193,14 +193,18 @@ static void filter_charge_taper_soc(void) {
       }
     }
 
+    uint32_t base_W = charge_W;  // Allowance entering the taper, after the user/remote cap
     charge_W = (charge_W * (uint32_t)(10000 - soc)) / band;
 
-    /* Optional floor: hold a minimum charge power through the tail of the
-       band, dropping to 0W only at 100.00% scaled SOC. Keeps inverters above
-       their minimum stable charging power (avoids standby cycling), provides
-       a steady balancing trickle, and guarantees the charge session
-       terminates instead of asymptotically stalling below full. */
-    if (charge_taper_floor_W > 0 && soc < 10000 && charge_W < charge_taper_floor_W) {
+    /* Optional float charge power: hold a minimum charge power through the
+       tail of the band, dropping to 0W only at 100.00% scaled SOC. Keeps
+       inverters above their minimum stable charging power (avoids standby
+       cycling), provides a steady balancing trickle, and guarantees the
+       charge session terminates instead of asymptotically stalling below
+       full. Only applied when the allowance entering the taper is non-zero,
+       so it never overrides a zero coming from the BMS itself or from the
+       safety layer (cell overvoltage, battery full, pause states). */
+    if (base_W > 0 && charge_taper_floor_W > 0 && soc < 10000 && charge_W < charge_taper_floor_W) {
       charge_W = charge_taper_floor_W;
     }
 
@@ -756,6 +760,24 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
+
+  /* Some battery types mandate the SOC-based charge power taper. Enforce at
+     runtime regardless of stored settings, and restrict the start SOC to
+     50-85% (band 1500-5000 pptt) for them. The settings UI reflects this by
+     rendering the checkbox checked and disabled. */
+  if (battery && battery->mandatory_charge_taper()) {
+    if (!charge_taper_soc) {
+      charge_taper_soc = true;
+      logging.println("Charge power tapering based on SOC is mandatory for this battery type, enabling");
+    }
+    if (charge_taper_band_pptt < 1500) {
+      charge_taper_band_pptt = 1500;  // Start SOC capped at 85% for mandatory-taper batteries
+      logging.println("Charge taper start SOC limited to 85% for this battery type");
+    } else if (charge_taper_band_pptt > 5000) {
+      charge_taper_band_pptt = 5000;  // Start SOC raised to 50% minimum
+    }
+  }
+
   setup_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.

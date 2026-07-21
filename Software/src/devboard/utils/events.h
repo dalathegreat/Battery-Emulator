@@ -196,6 +196,8 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+// Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
+void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
 void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 

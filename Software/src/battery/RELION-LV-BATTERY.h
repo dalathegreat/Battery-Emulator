@@ -8,6 +8,7 @@
 
 class RelionBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Use this constructor for the second battery.
   RelionBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* allows_contactor_closing_ptr)
       : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
