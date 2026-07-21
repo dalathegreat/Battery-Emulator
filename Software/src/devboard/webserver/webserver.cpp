@@ -573,6 +573,17 @@ void init_webserver() {
                 }
               }
 
+              // The double/triple battery checkboxes are hidden in the UI for integrations
+              // that don't implement parallel batteries. Make sure a previously stored
+              // value can't survive a switch to such an integration.
+              auto selectedBatteryType = static_cast<BatteryType>(settings.getUInt("BATTTYPE", (int)BatteryType::None));
+              if (!battery_supports_double(selectedBatteryType) && settings.getBool("DBLBTR", false)) {
+                settings.saveBool("DBLBTR", false);
+              }
+              if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
+                settings.saveBool("TRIBTR", false);
+              }
+
               settingsUpdated = settings.were_settings_updated();
               request->redirect("/settings");
             });
