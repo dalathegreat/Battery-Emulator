@@ -27,10 +27,31 @@ class StellantisProOneBattery : public CanBattery {
                                                      .DLC = 5,
                                                      .ID = 0x7E7,
                                                      .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
+  CAN_frame ONE_15A = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x15A, .data = {0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ONE_1D7 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1D7,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ONE_175 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x175,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ONE_108 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x108,
+                       .data = {0x00, 0x00, 0x00, 0x3D, 0x09, 0x00, 0x00, 0x00}};
 
-  unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
-  unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was send
+  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
+  unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
+  unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
+  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
   uint8_t expectedCRC = 0;
+  uint8_t counter_10ms = 0;        //Counter for the 10ms CAN message, goes from 0-0xF and starts over
+  uint8_t sent_10ms_messages = 0;  //Counter for the number of 10ms messages sent, goes from 0-0xFF and starts over
 };
 
 #endif

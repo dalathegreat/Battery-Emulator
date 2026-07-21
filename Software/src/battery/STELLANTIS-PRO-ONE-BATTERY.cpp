@@ -5,9 +5,10 @@
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 
-static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame) {
+static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame, uint8_t length) {
   uint8_t crc = 0xFF;  // initial value 0xFF
-  for (uint8_t j = 0; j < 7; j++) {
+  for (uint8_t j = 0; j < length;
+       j++) {  //Length is the number of bytes to calculate CRC for, not including the CRC byte itself!
     crc = crc8_table_SAE_J1850_ZER0[crc ^ rx_frame.data.u8[j]];
   }
   return crc ^ 0xFF;  // final XOR 0xFF
@@ -42,7 +43,7 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x150:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      expectedCRC = CalculateCRC8SAEJ1850(rx_frame);
+      expectedCRC = CalculateCRC8SAEJ1850(rx_frame, 7);
       if (expectedCRC == rx_frame.data.u8[7]) {
         //Message is valid, process it
       } else {
@@ -99,9 +100,74 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
 
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+    //Counter goes from 0-0xF and starts over
+    counter_10ms = (counter_10ms + 1) & 0x0F;
+    //Sentmessages counter
+    if (sent_10ms_messages < 254) {
+      sent_10ms_messages++;
+    }
+
+    if (sent_10ms_messages == 37) {
+      ONE_108.data.u8[0] = 0x33;
+      ONE_108.data.u8[1] = 0x1D;
+      ONE_108.data.u8[2] = 0xF0;
+    } else if (sent_10ms_messages == 42) {
+      ONE_108.data.u8[1] = 0x25;
+      ONE_108.data.u8[2] = 0xC0;
+    } else {
+    }
+
+    ONE_15A.data.u8[2] = counter_10ms;
+    ONE_15A.data.u8[3] = CalculateCRC8SAEJ1850(ONE_15A, 3);
+    ONE_1D7.data.u8[6] = (counter_10ms & 0x0F) << 4;
+    ONE_1D7.data.u8[7] = CalculateCRC8SAEJ1850(ONE_1D7, 7);
+    ONE_175.data.u8[6] = (counter_10ms & 0x0F) << 4;
+    ONE_175.data.u8[7] = CalculateCRC8SAEJ1850(ONE_175, 7);
+    ONE_108.data.u8[6] = (counter_10ms & 0x0F) << 4;
+    ONE_108.data.u8[7] = CalculateCRC8SAEJ1850(ONE_108, 7);
+
+    transmit_can_frame(&ONE_15A);
+    transmit_can_frame(&ONE_1D7);
+    transmit_can_frame(&ONE_175);
+    transmit_can_frame(&ONE_108);
+    //transmit_can_frame(&ONE_0F2);
+    //transmit_can_frame(&ONE_0F0);
+    //transmit_can_frame(&ONE_0B4);
+
+    ONE_175.data.u8[3] = 0x2E;
+  }
+
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
+    //transmit_can_frame(&ONE_212);
+    //transmit_can_frame(&ONE_1D8);
+    //transmit_can_frame(&ONE_160);
+  }
+
+  // Send 50ms CAN Message
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+    previousMillis50 = currentMillis;
+    //transmit_can_frame(&ONE_242);
+    //transmit_can_frame(&ONE_240);
+    //transmit_can_frame(&ONE_234);
+    //transmit_can_frame(&ONE_235);
+  }
+
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+    //transmit_can_frame(&ONE_3E0);
+    //transmit_can_frame(&ONE_3E7);
+    //transmit_can_frame(&ONE_3EB);
+    //transmit_can_frame(&ONE_3EE);
+    //transmit_can_frame(&ONE_320);
+    //transmit_can_frame(&ONE_321);
+    //transmit_can_frame(&ONE_322);
+    //transmit_can_frame(&ONE_323);
   }
 
   // Send 1000ms CAN Message
