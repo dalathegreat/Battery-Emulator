@@ -119,8 +119,22 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
     content += "<h4>SOC measured: " + String(soc_measured) + "&percnt;</h4>";
     content += "<h4>SOC OBD2: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";
-    content += "<h4>Voltage periodic: " + String(byd_datalayer->voltage_periodic) + " V</h4>";
-    content += "<h4>Voltage OBD2: " + String(byd_datalayer->voltage_polled) + " V</h4>";
+    content += "<h4>Pack voltage: ";
+    if (byd_datalayer->pack_voltage_dV > 0) {
+      content += String(byd_datalayer->pack_voltage_dV / 10.0f, 1) + " V</h4>";
+    } else {
+      content += "Not received</h4>";
+    }
+    // 0x43A reports Ohm/V, so scale by pack voltage to get absolute resistance
+    content += "<h4>Insulation resistance: ";
+    if (byd_datalayer->insulation_valid) {
+      float insulation_kohm =
+          static_cast<float>(byd_datalayer->insulation_ohm_per_volt) * (dl_bat.status.voltage_dV / 10.0f) / 1000.0f;
+      content += String(insulation_kohm, 1) + " k&Omega; (" + String(byd_datalayer->insulation_ohm_per_volt) +
+                 " &Omega;/V)</h4>";
+    } else {
+      content += "Not received</h4>";
+    }
     if (byd_datalayer->battery_temperatures[0] != 215) {
       content += "<h4>Temperature sensor 1: " + String(byd_datalayer->battery_temperatures[0]) + " &deg;C</h4>";
     }

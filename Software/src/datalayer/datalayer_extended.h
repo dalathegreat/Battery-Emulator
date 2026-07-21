@@ -126,10 +126,12 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t SOC_highprec;
   /** SOC% polled OBD2 value. Can be locked if pack is crashed */
   uint16_t SOC_polled;
-  /** Voltage raw battery value */
-  uint16_t voltage_periodic;
-  /** Voltage polled OBD2*/
-  uint16_t voltage_polled;
+  /** Pack voltage from 0x438, deci-volts. Zero until the frame is received */
+  uint16_t pack_voltage_dV;
+  /** Insulation resistance from 0x43A, Ohm per volt. Multiply by pack voltage for Ohms. Zero is a valid fault reading */
+  uint16_t insulation_ohm_per_volt;
+  /** True once a checksum-valid 0x43A has been seen */
+  bool insulation_valid;
   uint16_t chargePower;
   uint16_t charge_times;
   uint16_t dischargePower;
