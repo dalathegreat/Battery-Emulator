@@ -62,7 +62,6 @@ static String device_id = "";
 
 static bool publish_common_info(void);
 static bool publish_cell_voltages(void);
-static bool publish_cell_balancing(void);
 static bool publish_events(void);
 
 /** Publish global values and call callbacks for specific modules */
@@ -84,9 +83,6 @@ static void publish_values(void) {
       cell_data_due = true;
     }
     if (publish_cell_voltages() == false) {
-      return;
-    }
-    if (publish_cell_balancing() == false) {
       return;
     }
   }
@@ -553,50 +549,48 @@ static bool publish_common_info(void) {
 // biggest transient allocation of every publish cycle. Discovery (one-shot, deeply
 // structured) keeps using ArduinoJson.
 
-static bool publish_cell_voltage_state(const DATALAYER_BATTERY_TYPE& battery_data, const String& state_topic) {
-  // If cell voltages have not been populated yet, there is nothing to publish (not an error).
-  if (battery_data.info.number_of_cells == 0u ||
-      battery_data.status.cell_voltages_mV[battery_data.info.number_of_cells - 1] == 0u) {
-    return true;
+// Both arrays are the same length, sourced from the same snapshot and published on the
+// same cadence, so they go out as one message on the spec_data topic:
+//   {"cell_voltages":[...],"cell_balancing":[...]}
+// This halves the number of publishes for the largest recurring payload. Home Assistant
+// discovery is unaffected: the per-cell entities read value_json.cell_voltages[N] from
+// this same topic, and no discovery config ever referenced balancing_data.
+static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, const String& state_topic) {
+  if (battery_data.info.number_of_cells == 0u) {
+    return true;  // nothing populated yet, not an error
+  }
+  // Cell voltages are only included once the BMS has actually filled them in; the
+  // balancing flags are valid as soon as the cell count is known.
+  const bool voltages_valid = battery_data.status.cell_voltages_mV[battery_data.info.number_of_cells - 1] != 0u;
+
+  size_t len = snprintf(mqtt_msg, sizeof(mqtt_msg), "{");
+
+  if (voltages_valid) {
+    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "\"cell_voltages\":[");
+    for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
+      if (len >= sizeof(mqtt_msg) - 32) {  // headroom for this element plus the closing "]}"
+        logging.println("Cell data MQTT msg too large for buffer");
+        return true;  // skip this payload, don't abort the publish cycle
+      }
+      len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%.3f", (i != 0u) ? "," : "",
+                      ((float)battery_data.status.cell_voltages_mV[i]) / 1000.0f);
+    }
+    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "],");
   }
 
-  size_t len = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\"cell_voltages\":[");
+  len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "\"cell_balancing\":[");
   for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%.3f", (i != 0u) ? "," : "",
-                    ((float)battery_data.status.cell_voltages_mV[i]) / 1000.0f);
-    if (len >= sizeof(mqtt_msg) - 3) {  // leave room for "]}" + NUL
-      logging.println("Cell voltage MQTT msg too large for buffer");
+    if (len >= sizeof(mqtt_msg) - 32) {  // headroom for this element plus the closing "]}"
+      logging.println("Cell data MQTT msg too large for buffer");
       return true;  // skip this payload, don't abort the publish cycle
     }
-  }
-  len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "]}");
-
-  if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-    logging.println("Cell voltage MQTT msg could not be sent");
-    return false;
-  }
-  return true;
-}
-
-static bool publish_cell_balancing_state(const DATALAYER_BATTERY_TYPE& battery_data, const String& state_topic) {
-  // If cell balancing data is not available, there is nothing to publish (not an error).
-  if (battery_data.info.number_of_cells == 0u) {
-    return true;
-  }
-
-  size_t len = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\"cell_balancing\":[");
-  for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
     len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%s", (i != 0u) ? "," : "",
                     battery_data.status.cell_balancing_status[i] ? "true" : "false");
-    if (len >= sizeof(mqtt_msg) - 3) {  // leave room for "]}" + NUL
-      logging.println("Cell balancing MQTT msg too large for buffer");
-      return true;  // skip this payload, don't abort the publish cycle
-    }
   }
   len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "]}");
 
   if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-    logging.println("Cell balancing MQTT msg could not be sent");
+    logging.println("Cell data MQTT msg could not be sent");
     return false;
   }
   return true;
@@ -664,39 +658,18 @@ static bool publish_cell_voltages(void) {
     return true;
   }
 
-  if (!publish_cell_voltage_state(datalayer.battery, state_topic)) {
+  if (!publish_cell_data_state(datalayer.battery, state_topic)) {
     return false;
   }
-  if (battery2 && !publish_cell_voltage_state(datalayer.battery2, state_topic_2)) {
+  if (battery2 && !publish_cell_data_state(datalayer.battery2, state_topic_2)) {
     return false;
   }
-  if (battery3 && !publish_cell_voltage_state(datalayer.battery3, state_topic_3)) {
+  if (battery3 && !publish_cell_data_state(datalayer.battery3, state_topic_3)) {
     return false;
   }
-  return true;
-}
-
-static bool publish_cell_balancing(void) {
-  static String state_topic = topic_name + "/balancing_data";
-  static String state_topic_2 = topic_name + "/balancing_data_2";
-  static String state_topic_3 = topic_name + "/balancing_data_3";
-
-  if (!cell_data_due) {
-    return true;
-  }
-
-  if (!publish_cell_balancing_state(datalayer.battery, state_topic)) {
-    return false;
-  }
-  if (battery2 && !publish_cell_balancing_state(datalayer.battery2, state_topic_2)) {
-    return false;
-  }
-  if (battery3 && !publish_cell_balancing_state(datalayer.battery3, state_topic_3)) {
-    return false;
-  }
-  // Voltages (published just before this) and balancing all went out: done until the
-  // timer next elapses. On any failure above the flag stays set, so the whole round is
-  // retried on the next publish cycle instead of waiting a full minute.
+  // All batteries published: done until the timer next elapses. On any failure above the
+  // flag stays set, so the whole round is retried on the next publish cycle instead of
+  // waiting a full minute.
   cell_data_due = false;
   return true;
 }
