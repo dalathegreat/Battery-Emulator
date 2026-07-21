@@ -336,6 +336,47 @@ Battery* create_battery(BatteryType type) {
   }
 }
 
+// The integrations that can be instantiated a second time on a separate
+// interface. Must match the switch in setup_battery() below.
+bool battery_supports_double(BatteryType type) {
+  switch (type) {
+    case BatteryType::BoltAmpera:
+    case BatteryType::BydAtto3:
+    case BatteryType::NissanLeaf:
+    case BatteryType::BmwI3:
+    case BatteryType::CmfaEv:
+    case BatteryType::CmpSmartCar:
+    case BatteryType::StellantisEcmp:
+    case BatteryType::KiaHyundai64:
+    case BatteryType::MgHsPhev:
+    case BatteryType::Pylon:
+    case BatteryType::SantaFePhev:
+    case BatteryType::RelionBattery:
+    case BatteryType::RenaultZoe1:
+    case BatteryType::RenaultZoe2:
+    case BatteryType::TestFake:
+    case BatteryType::TeslaModel3Y:
+    case BatteryType::TeslaModelSX:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// The integrations that can be instantiated a third time on a separate
+// interface. Must match the switch in setup_battery() below.
+bool battery_supports_triple(BatteryType type) {
+  switch (type) {
+    case BatteryType::NissanLeaf:
+    case BatteryType::CmfaEv:
+    case BatteryType::RelionBattery:
+    case BatteryType::TestFake:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void setup_battery() {
   if (battery) {
     // Let's not create the battery again.
@@ -354,64 +395,67 @@ void setup_battery() {
   }
 
   if (user_selected_second_battery && !battery2) {
-    switch (user_selected_battery_type) {
-      case BatteryType::BoltAmpera:
-        battery2 =
-            new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
-        break;
-      case BatteryType::BydAtto3:
-        battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
-        break;
-      case BatteryType::NissanLeaf:
-        battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::BmwI3:
-        battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                    can_config.battery_double, esp32hal->WUP_PIN2());
-        break;
-      case BatteryType::CmfaEv:
-        battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::CmpSmartCar:
-        battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::StellantisEcmp:
-        battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::KiaHyundai64:
-        battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                           &datalayer.system.status.battery2_allowed_contactor_closing,
-                                           can_config.battery_double);
-        break;
-      case BatteryType::MgHsPhev:
-        battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::Pylon:
-        battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::SantaFePhev:
-        battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::RelionBattery:
-        battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
-                                     &datalayer.system.status.battery2_allowed_contactor_closing);
-        break;
-      case BatteryType::RenaultZoe1:
-        battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::RenaultZoe2:
-        battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::TestFake:
-        battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::TeslaModel3Y:
-      case BatteryType::TeslaModelSX:
-        battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      default:
-        DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
-        break;
+    if (!battery_supports_double(user_selected_battery_type)) {
+      DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
+    } else {
+      switch (user_selected_battery_type) {
+        case BatteryType::BoltAmpera:
+          battery2 =
+              new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+          break;
+        case BatteryType::BydAtto3:
+          battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
+          break;
+        case BatteryType::NissanLeaf:
+          battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::BmwI3:
+          battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                      can_config.battery_double, esp32hal->WUP_PIN2());
+          break;
+        case BatteryType::CmfaEv:
+          battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::CmpSmartCar:
+          battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::KiaHyundai64:
+          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
+                                             &datalayer.system.status.battery2_allowed_contactor_closing,
+                                             can_config.battery_double);
+          break;
+        case BatteryType::MgHsPhev:
+          battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::Pylon:
+          battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::SantaFePhev:
+          battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::RelionBattery:
+          battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+          break;
+        case BatteryType::RenaultZoe1:
+          battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::RenaultZoe2:
+          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::TestFake:
+          battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::TeslaModel3Y:
+        case BatteryType::TeslaModelSX:
+          battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        default:
+          break;
+      }
     }
 
     if (battery2) {
@@ -420,23 +464,26 @@ void setup_battery() {
   }
 
   if (user_selected_triple_battery && !battery3) {
-    switch (user_selected_battery_type) {
-      case BatteryType::NissanLeaf:
-        battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
-        break;
-      case BatteryType::CmfaEv:
-        battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
-        break;
-      case BatteryType::RelionBattery:
-        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
-                                     &datalayer.system.status.battery3_allowed_contactor_closing);
-        break;
-      case BatteryType::TestFake:
-        battery3 = new TestFakeBattery(&datalayer.battery3, can_config.battery_triple);
-        break;
-      default:
-        DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
-        break;
+    if (!battery_supports_triple(user_selected_battery_type)) {
+      DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
+    } else {
+      switch (user_selected_battery_type) {
+        case BatteryType::NissanLeaf:
+          battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+          break;
+        case BatteryType::CmfaEv:
+          battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+          break;
+        case BatteryType::RelionBattery:
+          battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
+                                       &datalayer.system.status.battery3_allowed_contactor_closing);
+          break;
+        case BatteryType::TestFake:
+          battery3 = new TestFakeBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        default:
+          break;
+      }
     }
 
     if (battery3) {
