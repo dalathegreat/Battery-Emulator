@@ -260,7 +260,7 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
     case BALANCING_STATUS_ACTIVE:
       return "Active";
     case BALANCING_STATUS_BLOCKED:
-      return "Blocked";
+      return "Pending";  //Cells are flagged for balancing but the BMS is not bleeding them yet
     default:
       return "Unknown";
   }
