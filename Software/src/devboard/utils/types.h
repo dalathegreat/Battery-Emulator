@@ -2,12 +2,13 @@
 #define _TYPES_H_
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 
 using milliseconds = std::chrono::milliseconds;
 using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
-enum system_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum system_status_enum { STANDBY = 0, INACTIVE = 1, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
 enum balancing_status_enum {
   BALANCING_STATUS_UNKNOWN = 0,
@@ -120,6 +121,19 @@ typedef struct {
 } CAN_log_frame;
 
 std::string getBMSStatus(system_status_enum status);
+
+enum class ChargingState { Idle, Charging, Discharging };
+enum class LimitingFactor { None, Inverter, UserSetting, Battery };
+
+ChargingState get_charging_state(int32_t current_dA);
+LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                   bool user_settings_limit_charge, bool user_settings_limit_discharge);
+const char* charging_state_to_text(ChargingState state);
+const char* limiting_factor_to_text(LimitingFactor factor);
+
+/** Human readable battery status, e.g. "Battery charging (Inverter limiting)". Used for the web UI. */
+const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                     bool user_settings_limit_charge, bool user_settings_limit_discharge);
 
 #ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */

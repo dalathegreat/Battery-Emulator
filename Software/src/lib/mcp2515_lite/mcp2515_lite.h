@@ -67,6 +67,8 @@ public:
     // Non-blocking: pauses all communication (and stops acknowledging messages)
     void pause(bool paused);
 
+    inline bool hasErrors() { auto ret = _errors; _errors = false; return ret; }
+
 private:
     SPIClass& _spi;
     uint8_t _cs;
@@ -80,6 +82,7 @@ private:
     volatile bool _pause_requested = false;
     volatile bool _paused = false;
     volatile bool _rx_overflow = false;
+    volatile bool _errors = false;
 
     // Background task for handling sequential blocking transfers
     TaskHandle_t _can_task_handle = nullptr;

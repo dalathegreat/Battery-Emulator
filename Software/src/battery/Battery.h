@@ -58,7 +58,8 @@ enum class BatteryType {
   ThunderstruckBMS = 51,
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
-  StellantisProOne = 54,
+  ChargebyteCCSBattery = 54,
+  StellantisProOne = 55,
   Highest
 };
 
@@ -85,6 +86,11 @@ class Battery {
 
   // These are commands from external I/O (UI, MQTT etc.)
   // Override in battery if it supports them. Otherwise they are NOP.
+
+  /* True for battery types where the SOC-based charge power taper is
+     mandatory: the taper cannot be disabled and the start SOC is restricted
+     to 50-85%. Enforced at boot and reflected in the settings UI. */
+  virtual bool mandatory_charge_taper() { return false; }
 
   virtual bool supports_clear_isolation() { return false; }
   virtual bool supports_reset_BMS() { return false; }
@@ -135,6 +141,7 @@ class Battery {
   virtual void chademo_stop() {}
   virtual void initiate_balancing() {}
   virtual void end_balancing() {}
+  virtual void handle_precharge() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();

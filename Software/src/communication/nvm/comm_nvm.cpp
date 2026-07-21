@@ -1,16 +1,48 @@
 #include "comm_nvm.h"
+#include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/Shunt.h"
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
+
+// Keys holding the static IP configuration, as dotted-quad strings.
+static const char* const STATIC_IP_KEYS[] = {"LOCALIP", "GATEWAY", "SUBNET", "DNS"};
+
+// Releases <= 10.x stored the static IP configuration as twelve separate octet keys. Fold them into the
+// dotted-quad string keys once, then drop the old keys.
+// Added in 2026.07. Can be removed couple of releases from now (suggested after 2027.01)
+static void migrate_static_ip_settings(BatteryEmulatorSettingsStore& settings) {
+  static const char* const legacy_keys[] = {"LOCALIP1", "LOCALIP2", "LOCALIP3", "LOCALIP4", "GATEWAY1", "GATEWAY2",
+                                            "GATEWAY3", "GATEWAY4", "SUBNET1",  "SUBNET2",  "SUBNET3",  "SUBNET4"};
+
+  if (settings.settingExists("LOCALIP1")) {
+    for (int i = 0; i < 3; i++) {  // LOCALIP, GATEWAY, SUBNET - DNS did not exist before, leave it empty
+      String value;
+      for (int octet = 0; octet < 4; octet++) {
+        value += settings.getUInt(legacy_keys[i * 4 + octet], 0);
+        if (octet < 3) {
+          value += '.';
+        }
+      }
+      settings.saveString(STATIC_IP_KEYS[i], value.c_str());
+    }
+    DEBUG_PRINTLN("Static IPv4 settings migrated successfully");
+  }
+
+  for (auto key : legacy_keys) {
+    settings.removeKey(key);
+  }
+}
 
 // Initialization functions
 
@@ -50,14 +82,10 @@ void init_stored_settings() {
   if (temp2 <= 500 && temp2 >= -100) {
     datalayer.battery.settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
   }
-  temp = settings.getUInt("MAXCHARGEAMP", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_user_set_charge_dA = temp;
-  }
-  temp = settings.getUInt("MAXDISCHARGEAMP", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_user_set_discharge_dA = temp;
-  }
+  datalayer.battery.settings.max_user_set_charge_dA =
+      settings.getUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  datalayer.battery.settings.max_user_set_discharge_dA =
+      settings.getUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
   datalayer.battery.settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
   temp = settings.getUInt("TARGETCHVOLT", false);
   if (temp != 0) {
@@ -99,6 +127,9 @@ void init_stored_settings() {
   user_selected_inverter_battery_type = settings.getUInt("INVBTYPE", 0);
   user_selected_inverter_sungrow_type = settings.getUInt("INVSUNTYPE", 0);
   user_selected_inverter_pylon_type = settings.getUInt("PYLONBRAND", 0);
+  user_selected_inverter_foxess_type = settings.getUInt("FOXESSTYPE", 0);
+  user_selected_inverter_foxess_subtype = settings.getUInt("FOXESSSUBTYPE", 0);
+  user_selected_inverter_foxess_modules = settings.getUInt("FOXESSMODULES", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
@@ -152,6 +183,10 @@ void init_stored_settings() {
   user_selected_triple_battery = settings.getBool("TRIBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   inverter_low_pass_filter = settings.getBool("LOWPASSFILTER", false);
+  charge_taper_soc = settings.getBool("CHGTAPERSOC", false);
+  charge_taper_band_pptt = 10000 - (settings.getUInt("CHGTAPERSTART", 95) *
+                                    100);  // Stored as start SOC in whole percent, used as band in pptt
+  charge_taper_floor_W = settings.getUInt("CHGTAPERFLOOR", 400);
   contactor_control_inverted_logic = settings.getBool("NCCONTACTOR", false);
   precharge_time_ms = settings.getUInt("PRECHGMS", 100);
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
@@ -161,8 +196,8 @@ void init_stored_settings() {
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
-  use_canfd_as_can = settings.getBool("CANFDASCAN", false);
-  use_canfd2_as_can = settings.getBool("CANFD2ASCAN", false);
+  datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
+  datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
@@ -187,6 +222,10 @@ void init_stored_settings() {
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+  datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
+  syslog_ip = settings.getString("SYSLOGIP").c_str();
+  syslog_port = settings.getUInt("SYSLOGPORT", 514);
+  syslog_facility = settings.getUInt("SYSLOGFAC", 1);
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
 
   //Some early integrations need manually set allowed charge/discharge power
@@ -196,29 +235,22 @@ void init_stored_settings() {
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
-  ssidAP = settings.getString("APNAME", "BatteryEmulator").c_str();
-  passwordAP = settings.getString("APPASSWORD", "123456789").c_str();
+  passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
+  ha_autodiscovery_topic = settings.getString("HADISCTOPIC", "homeassistant").c_str();
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
+  migrate_static_ip_settings(settings);
   static_IP_enabled = settings.getBool("STATICIP", false);
-  static_local_IP1 = settings.getUInt("LOCALIP1", 192);
-  static_local_IP2 = settings.getUInt("LOCALIP2", 168);
-  static_local_IP3 = settings.getUInt("LOCALIP3", 10);
-  static_local_IP4 = settings.getUInt("LOCALIP4", 150);
-  static_gateway1 = settings.getUInt("GATEWAY1", 192);
-  static_gateway2 = settings.getUInt("GATEWAY2", 168);
-  static_gateway3 = settings.getUInt("GATEWAY3", 10);
-  static_gateway4 = settings.getUInt("GATEWAY4", 1);
-  static_subnet1 = settings.getUInt("SUBNET1", 255);
-  static_subnet2 = settings.getUInt("SUBNET2", 255);
-  static_subnet3 = settings.getUInt("SUBNET3", 255);
-  static_subnet4 = settings.getUInt("SUBNET4", 0);
+  static_local_IP = settings.getString("LOCALIP").c_str();
+  static_gateway = settings.getString("GATEWAY").c_str();
+  static_subnet = settings.getString("SUBNET").c_str();
+  static_dns = settings.getString("DNS").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 0);
@@ -240,9 +272,36 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
 }
 
+void clear_wifi_sta_settings() {
+  BatteryEmulatorSettingsStore settings;
+  settings.saveString("SSID", "");
+  settings.saveString("PASSWORD", "");
+  settings.saveUInt("WIFICHANNEL", 0);
+  settings.saveBool("STATICIP", false);
+  // Force the AP on so the device is reachable after the STA settings are cleared,
+  // overriding a user preference that may have disabled it:
+  settings.saveBool("WIFIAPENABLED", true);
+  // Clear the static IP settings (STATICIP=false already disables their use):
+  for (auto key : STATIC_IP_KEYS) {
+    settings.saveString(key, "");
+  }
+}
+
 void store_settings_equipment_stop() {
   BatteryEmulatorSettingsStore settings(false);
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
+}
+
+// Erase RF PHY calibration data (the "phy" NVS namespace — untouched by
+// clearAll(), which only clears our own settings namespace). A full RF
+// calibration runs on the next boot (~100 ms extra WiFi/RF init).
+void erase_phy_cal_data() {
+  esp_err_t err = esp_phy_erase_cal_data_in_nvs();
+  if (err == ESP_OK) {
+    logging.println("RF PHY calibration data erased, full RF calibration will run on next boot.");
+  } else {
+    logging.printf("RF PHY calibration data erase failed (err %d)\n", err);
+  }
 }
 
 void store_settings() {

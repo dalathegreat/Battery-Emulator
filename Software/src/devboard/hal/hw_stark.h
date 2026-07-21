@@ -71,6 +71,9 @@ class StarkHal : public Esp32Hal {
     }
     return GPIO_NUM_25;
   }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
+
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_19; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
   virtual gpio_num_t BMS_POWER() {
@@ -97,6 +100,9 @@ class StarkHal : public Esp32Hal {
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
+
+  // the FLA momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP if not running
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,

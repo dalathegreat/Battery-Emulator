@@ -36,12 +36,18 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_6; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_8; }
 
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is GPIO6
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_6}; }
+
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_7; }
 
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_8; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_9; }  //Collides with SMA contactor input
+
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_5; }
@@ -50,6 +56,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   // SMA CAN contactor pins (collides with WUP2)
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_9; }
 
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
@@ -63,6 +70,7 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // CANFD add-on defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_10; }
