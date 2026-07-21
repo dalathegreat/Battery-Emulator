@@ -760,6 +760,24 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
+
+  /* Some battery types mandate the SOC-based charge power taper. Enforce at
+     runtime regardless of stored settings, and restrict the start SOC to
+     50-85% (band 1500-5000 pptt) for them. The settings UI reflects this by
+     rendering the checkbox checked and disabled. */
+  if (battery && battery->mandatory_charge_taper()) {
+    if (!charge_taper_soc) {
+      charge_taper_soc = true;
+      logging.println("Charge power tapering based on SOC is mandatory for this battery type, enabling");
+    }
+    if (charge_taper_band_pptt < 1500) {
+      charge_taper_band_pptt = 1500;  // Start SOC capped at 85% for mandatory-taper batteries
+      logging.println("Charge taper start SOC limited to 85% for this battery type");
+    } else if (charge_taper_band_pptt > 5000) {
+      charge_taper_band_pptt = 5000;  // Start SOC raised to 50% minimum
+    }
+  }
+
   setup_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.
