@@ -34,9 +34,19 @@ void TestFakeBattery::
 
   datalayer_battery->status.max_charge_power_W = 5000;  // 5kW
 
-  for (int i = 0; i < 97; ++i) {
+  uint32_t cell_voltage_sum_mV = 0;
+  for (int i = 0; i < 96; ++i) {
     datalayer_battery->status.cell_voltages_mV[i] = 3700 + random(-20, 21);
+    cell_voltage_sum_mV += datalayer_battery->status.cell_voltages_mV[i];
   }
+
+  // Fake balancing: every cell sitting above the pack average gets its resistor switched on
+  uint16_t cell_voltage_average_mV = cell_voltage_sum_mV / 96;
+  for (int i = 0; i < 96; ++i) {
+    datalayer_battery->status.cell_balancing_status[i] =
+        (datalayer_battery->status.cell_voltages_mV[i] > cell_voltage_average_mV);
+  }
+  datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
 
   //Fake that we get CAN messages
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
