@@ -424,6 +424,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         battery_voltage_dV = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5];
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
       }
       break;
     case 0x43A:
@@ -431,6 +433,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         battery_insulation_ohm_per_volt = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
         battery_insulation_valid = true;
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
       }
       break;
     case 0x43B:
@@ -477,6 +481,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         lastCurrentSampleMillis = millis();
         BMS_SOH = rx_frame.data.u8[4];
         BMS_voltage_available = true;
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
       }
       break;
     case 0x445:
