@@ -10,7 +10,11 @@ void TestFakeBattery::
 
   datalayer_battery->status.soh_pptt = 9900;  // 99.00%
 
-  //datalayer_battery->status.voltage_dV = 3700;  // 370.0V , value editable via webserver
+  // Battery 1's voltage is set by the user via the webserver (set_fake_voltage).
+  // Batteries 2 and 3 mirror it so all instances report the same pack voltage.
+  if (datalayer_battery != &datalayer.battery) {
+    datalayer_battery->status.voltage_dV = datalayer.battery.status.voltage_dV;
+  }
 
   datalayer_battery->status.current_dA = 0;  // 0 A
 
@@ -56,6 +60,12 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer_battery->info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
   datalayer_battery->info.number_of_cells = 96;
+
+  // Default fake pack voltage for the primary battery; editable via webserver.
+  // Batteries 2 and 3 pick this up through the mirror in update_values().
+  if (datalayer_battery == &datalayer.battery && datalayer_battery->status.voltage_dV == 0) {
+    datalayer_battery->status.voltage_dV = 3700;  // 370.0V
+  }
 
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
