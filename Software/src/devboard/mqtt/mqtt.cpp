@@ -154,7 +154,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"max_charge_power", "Max Charge Power", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", supports_charged},
-    {"balancing_active_cells", "Balancing Active Cells", "", "", always},
+    {"balancing_active_cells", "Balancing Cells", "", "", always},
     {"balancing_status", "Balancing Status", "", "", always},
     {"charging_state", "Charging State", "", "", always},
     {"limiting_factor", "Limiting Factor", "", "", always},
