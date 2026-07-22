@@ -772,8 +772,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Pack-internal contactors: BMS_mode 1/3/4/6 are the HV-active states (same set that
       // logs "Contactors closed" above). Guarded so the GPIO state machine wins when enabled.
       if (!contactor_control_enabled) {
-        datalayer.system.status.dc_bus_live =
-            (BMS_mode == 1) || (BMS_mode == 3) || (BMS_mode == 4) || (BMS_mode == 6);
+        datalayer.system.status.dc_bus_live = (BMS_mode == 1) || (BMS_mode == 3) || (BMS_mode == 4) || (BMS_mode == 6);
       }
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
