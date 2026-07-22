@@ -187,16 +187,16 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
   //Balancing classification state, see update_values()
-  //Number of consecutive group 0x06 reads compared before classifying
-  static const uint8_t BALANCING_HISTORY_DEPTH = 4;
-  //How many of those reads must hold a distinct shunt bitmap for the pack to count as actively balancing
-  static const uint8_t BALANCING_DISTINCT_FOR_ACTIVE = 4;
-  //Ring buffer of the last BALANCING_HISTORY_DEPTH shunt bitmaps, 96 bits packed into 3 words each
-  uint32_t balancing_bitmap_history[BALANCING_HISTORY_DEPTH][3];
-  //Valid entries in the ring, saturates at BALANCING_HISTORY_DEPTH
-  uint8_t balancing_history_count = 0;
-  //Next write position in the ring
-  uint8_t balancing_history_index = 0;
+  //Consecutive group 0x06 reads with an unchanged shunt bitmap before the pack is declared idle.
+  //The LBC bleeds a set of cells for a while before swapping to the next set, so the bitmap only
+  //changes every few polls even while actively balancing; this must span more than that gap.
+  static const uint8_t BALANCING_STATIC_POLLS_FOR_BLOCKED = 6;
+  //Previous group 0x06 shunt bitmap (96 bits packed into 3 words), for change detection
+  uint32_t balancing_bitmap_prev[3];
+  //true once balancing_bitmap_prev holds a real reading
+  bool balancing_bitmap_valid = false;
+  //Consecutive fresh reads whose bitmap matched the previous one, saturates at the threshold
+  uint8_t balancing_static_polls = 0;
   //Set by the group 0x06 handler, consumed by update_values()
   bool balancing_data_fresh = false;
   //Applies a new balancing status, raising the start/end events on the ACTIVE edges

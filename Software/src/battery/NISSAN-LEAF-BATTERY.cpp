@@ -193,15 +193,15 @@ void NissanLeafBattery::
 
   // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on
   // its own does not mean the pack is balancing: the LBC flags cells as eligible and then holds that
-  // set constant for hours, stepping only occasionally, while it waits for the pack to settle. Actual
-  // balancing shows up as the bitmap churning on every poll, because the shunts are duty-cycled and
-  // the LBC re-decides after each measurement. So compare the last BALANCING_HISTORY_DEPTH reads:
-  // every one distinct => ACTIVE, any repeat => flagged but not yet at rest => BLOCKED. Comparing
-  // four reads tolerates up to two steps of the flagged set within one window.
+  // set constant for hours while it waits for the pack to settle. During real balancing the shunts are
+  // duty-cycled - the LBC bleeds one set of cells for a while, then swaps to the next - so the bitmap
+  // does change, but only every few polls, not on every read. Detect that as an edge: any change means
+  // ACTIVE, and the pack is only declared BLOCKED after BALANCING_STATIC_POLLS_FOR_BLOCKED consecutive
+  // reads with no change at all, which must be longer than the gap between swaps.
   // Evaluated only on fresh group 0x06 data (~70s apart), never on the 1s update tick.
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
-    balancing_history_count = 0;  //LBC is being power cycled, the previous classification is void
-    balancing_history_index = 0;
+    balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
+    balancing_static_polls = 0;
     set_balancing_status(BALANCING_STATUS_UNKNOWN);
   }
 
@@ -218,34 +218,28 @@ void NissanLeafBattery::
     }
 
     if (balancing_active_cells == 0) {
-      balancing_history_count = 0;  //Phase is over, start clean if balancing ever comes back
-      balancing_history_index = 0;
+      balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
+      balancing_static_polls = 0;
       set_balancing_status(BALANCING_STATUS_READY);
     } else {
-      memcpy(balancing_bitmap_history[balancing_history_index], balancing_bitmap, sizeof(balancing_bitmap));
-      balancing_history_index = (balancing_history_index + 1) % BALANCING_HISTORY_DEPTH;
-      if (balancing_history_count < BALANCING_HISTORY_DEPTH) {
-        balancing_history_count++;
+      if (!balancing_bitmap_valid) {
+        //First read of a new balancing phase: cells are flagged but we have not yet seen a change,
+        //so treat it as pending until either a change confirms ACTIVE or the static count trips BLOCKED.
+        balancing_static_polls = 0;
+        set_balancing_status(BALANCING_STATUS_BLOCKED);
+      } else if (memcmp(balancing_bitmap, balancing_bitmap_prev, sizeof(balancing_bitmap)) != 0) {
+        balancing_static_polls = 0;  //Bitmap moved: the LBC is actively bleeding and swapping cells
+        set_balancing_status(BALANCING_STATUS_ACTIVE);
+      } else if (balancing_static_polls < BALANCING_STATIC_POLLS_FOR_BLOCKED) {
+        balancing_static_polls++;
+        if (balancing_static_polls >= BALANCING_STATIC_POLLS_FOR_BLOCKED) {
+          set_balancing_status(BALANCING_STATUS_BLOCKED);  //Held the same set too long: flagged, at rest
+        }
+        //else: unchanged but still within tolerance, leave the current status as-is (hysteresis)
       }
 
-      //Leave the status untouched until the window is full, so it stays UNKNOWN after boot/BMS reset
-      if (balancing_history_count == BALANCING_HISTORY_DEPTH) {
-        uint8_t distinct_bitmaps = 0;
-        for (uint8_t a = 0; a < BALANCING_HISTORY_DEPTH; a++) {
-          bool seen_before = false;
-          for (uint8_t b = 0; b < a; b++) {
-            if (memcmp(balancing_bitmap_history[a], balancing_bitmap_history[b], sizeof(balancing_bitmap)) == 0) {
-              seen_before = true;
-              break;
-            }
-          }
-          if (!seen_before) {
-            distinct_bitmaps++;
-          }
-        }
-        set_balancing_status((distinct_bitmaps >= BALANCING_DISTINCT_FOR_ACTIVE) ? BALANCING_STATUS_ACTIVE
-                                                                                 : BALANCING_STATUS_BLOCKED);
-      }
+      memcpy(balancing_bitmap_prev, balancing_bitmap, sizeof(balancing_bitmap));
+      balancing_bitmap_valid = true;
     }
   }
 
