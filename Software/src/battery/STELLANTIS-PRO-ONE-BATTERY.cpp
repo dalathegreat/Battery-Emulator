@@ -143,8 +143,29 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
+
+    //Counter goes from 0-0xF and starts over
+    counter_20ms = (counter_20ms + 1) & 0x0F;
+    //Sentmessages counter
+    if (sent_20ms_messages < 254) {
+      sent_20ms_messages++;
+    }
+
+    //Safety checks for Contactor closing
+    if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
+        (datalayer.system.status.system_status != FAULT) && (!datalayer.system.info.equipment_stop_active)) {
+      ONE_1D8.data.u8[4] = 0x21;
+      ONE_1D8.data.u8[5] = 0x4F;
+    } else {  //Closing not allowed
+      ONE_1D8.data.u8[4] = 0x00;
+      ONE_1D8.data.u8[5] = 0x00;
+    }
+
+    ONE_1D8.data.u8[6] = (counter_20ms & 0x0F) << 4;
+    ONE_1D8.data.u8[7] = CalculateCRC8SAEJ1850(ONE_1D8, 7);
+
+    transmit_can_frame(&ONE_1D8);  // Required for contactor closing
     //transmit_can_frame(&ONE_212);
-    //transmit_can_frame(&ONE_1D8);
     //transmit_can_frame(&ONE_160);
   }
 
