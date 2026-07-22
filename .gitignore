@@ -17,13 +17,17 @@ test/tests[1]_include.cmake
 *.exe
 **/.DS_Store
 
-#ignore platformio
+#ignore platformio & compilation files
 .pioenvs
 .piolibdeps
 .clang_complete
 .gcc-flags.json
 .pio
 logs
+.dummy/
+managed_components/
+sdkconfig.defaults
+sdkconfig.lilygo_330
 
 # Ignore upload command (removes the need to re-compile after Verify when running Download, in e.g. VS Code)
 upload.bat
@@ -31,9 +35,6 @@ compile.bat
 
 # Ignore binary files
 *.bin
-
-# Ignore secret file
-USER_SECRETS.h
 
 # Ignore generated ESP-IDF component manifest
 Software/idf_component.yml
