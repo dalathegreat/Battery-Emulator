@@ -384,7 +384,9 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
    *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
    *  Each contactor topology sets it authoritatively; defaults true so direct-wired setups that never
-   *  gate the DC bus keep today's behaviour. */
+   *  gate the DC bus keep today's behaviour. Battery-side setters must be guarded with
+   *  !contactor_control_enabled so the GPIO contactor state machine (which writes every 10 ms when
+   *  enabled) stays the single writer in GPIO setups. */
   bool dc_bus_live = true;
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
