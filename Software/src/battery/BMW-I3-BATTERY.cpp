@@ -55,6 +55,7 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     datalayer.system.status.system_status = STANDBY;
     // During balancing sleep, report contactors as open so an old engaged state is not latched.
     datalayer.system.status.contactors_engaged = 0;
+    datalayer.system.status.dc_bus_live = false;
   }
 
   // Map internal balancing state to datalayer balancing_status
@@ -141,6 +142,8 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
       datalayer.system.status.contactors_engaged = 0;
       break;
   }
+  // I3 drives its own DC switch, so DC is live once its contactors report engaged.
+  datalayer.system.status.dc_bus_live = (datalayer.system.status.contactors_engaged == 1);
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
