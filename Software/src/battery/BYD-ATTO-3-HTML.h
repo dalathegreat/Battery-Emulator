@@ -10,6 +10,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
  public:
   BydAtto3HtmlRenderer(DATALAYER_INFO_BYDATTO3* dl, const String& sfx = "") : byd_datalayer(dl), s(sfx) {}
 
+  bool renders_own_battery_data() { return true; }
+
   String get_status_html() {
     String content;
 

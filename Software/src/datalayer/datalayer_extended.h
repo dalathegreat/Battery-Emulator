@@ -1056,7 +1056,11 @@ class DataLayerExtended {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
-    DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+    struct {
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_3;
+    };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
     DATALAYER_INFO_ZOE zoe;

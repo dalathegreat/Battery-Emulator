@@ -407,7 +407,8 @@ void setup_battery() {
           battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
           break;
         case BatteryType::NissanLeaf:
-          battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 = new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2,
+                                           can_config.battery_double);
           break;
         case BatteryType::BmwI3:
           battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
@@ -469,7 +470,8 @@ void setup_battery() {
     } else {
       switch (user_selected_battery_type) {
         case BatteryType::NissanLeaf:
-          battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+          battery3 = new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3,
+                                           can_config.battery_triple);
           break;
         case BatteryType::CmfaEv:
           battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
