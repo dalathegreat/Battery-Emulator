@@ -16,7 +16,10 @@ bool pwm_contactor_control = false;             //Should the contactors be econo
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
 bool contactor_control_enabled_triple_battery = false;  //Should a contactor for the third battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
-bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
+bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed?
+uint16_t periodic_bms_reset_interval_h = 24;            //How often the periodic BMS reset runs, in hours (24 or 48)
+bool periodic_bms_reset_defer_low_soc = false;          //Defer the reset while SOC is below BMS_RESET_DEFER_SOC_PPTT
+bool periodic_bms_reset_skip_balancing = false;         //Skip one period if the pack is balancing
 
 // Parameters
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -43,9 +46,11 @@ unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
+bool periodicResetDeferred = false;   //True while a due periodic reset is waiting for SOC to recover
+bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
 unsigned long bmsPowerOnTime = 0;
-const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
 const unsigned long bmsWarmupDuration = 3000;
+#define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 
@@ -291,7 +296,8 @@ void handle_contactors_battery3() {
   }
 }
 
-/* PERIODIC_BMS_RESET - Once every 24 hours we remove power from the BMS_power pin for 30 seconds.
+/* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
+The user can optionally defer the reset while SOC is low, and skip a single period while balancing.
 REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
 
 This makes the BMS recalculate all SOC% and avoid memory leaks
@@ -304,6 +310,65 @@ void bms_power_off() {
 
 void bms_power_on() {
   digitalWrite(esp32hal->BMS_POWER(), HIGH);
+}
+
+// Configured period between two automatic resets. Guarded to 24h in case the stored
+// value is missing or nonsensical, see load_settings().
+static unsigned long bms_reset_interval_ms() {
+  uint32_t hours = periodic_bms_reset_interval_h;
+  if (hours == 0) {
+    hours = 24;
+  }
+  return (unsigned long)hours * 60UL * 60UL * 1000UL;
+}
+
+/* The two guards behave differently on purpose, so the decision is three-way rather than
+   a plain yes/no. Only the periodic reset is affected, a remote reset requested by the user
+   via MQTT is always carried out. */
+enum class PeriodicResetVerdict {
+  Run,        // Nothing in the way, reset now
+  Defer,      // Stay due and reset as soon as the condition clears
+  SkipPeriod  // Give up this occurrence, try again one full period later
+};
+
+/* Decides what should happen to a periodic reset whose interval has elapsed. On a non-Run
+   verdict the reason is written to the out parameter for logging, and always points at a
+   string literal. Note that an unknown SOC reads as 0 and therefore also defers the reset
+   while the low SOC guard is enabled, which is the safe direction. */
+static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
+  // Low SOC defers: there is little point recalibrating against a nearly empty pack, and we
+  // want the reset to happen as soon as it is worthwhile rather than a whole period later.
+  if (periodic_bms_reset_defer_low_soc) {
+    if (datalayer.battery.status.real_soc < BMS_RESET_DEFER_SOC_PPTT) {
+      *reason = "real SOC below 15 percent";
+      return PeriodicResetVerdict::Defer;
+    }
+    if (datalayer.battery.status.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
+      *reason = "scaled SOC below 15 percent";
+      return PeriodicResetVerdict::Defer;
+    }
+  }
+
+  /* Balancing costs the reset a single period. If balancing is still active when the next
+     period comes around the reset goes ahead anyway, so a pack that reports balancing more
+     or less permanently cannot suppress the reset indefinitely.
+     Batteries that are not present report BALANCING_STATUS_UNKNOWN, so they never skip. */
+  if (periodic_bms_reset_skip_balancing && !balancingPeriodSkipped) {
+    if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+    if (datalayer.battery2.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery 2";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+    if (datalayer.battery3.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery 3";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+  }
+
+  return PeriodicResetVerdict::Run;
 }
 
 void handle_BMSpower() {
@@ -319,8 +384,36 @@ void handle_BMSpower() {
       // Idle state, no reset ongoing
 
       // Check if it's time to perform a periodic BMS reset
-      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
-        start_bms_reset();
+      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= bms_reset_interval_ms()) {
+        const char* reason = nullptr;
+        switch (periodic_bms_reset_verdict(&reason)) {
+          case PeriodicResetVerdict::Defer:
+            /* Leave lastPowerRemovalTime alone so the reset stays due. start_bms_reset()
+               re-anchors it when the reset finally runs, which is what moves the following
+               24h/48h periods to start from the deferred point. Logged once per episode,
+               since this branch is evaluated on every loop while the reset is due. */
+            if (!periodicResetDeferred) {
+              periodicResetDeferred = true;
+              logging.printf("BMS reset: Periodic reset deferred, %s.\n", reason);
+            }
+            break;
+
+          case PeriodicResetVerdict::SkipPeriod:
+            // Restarting the interval here is what turns this into a one period skip.
+            lastPowerRemovalTime = currentTime;
+            balancingPeriodSkipped = true;
+            logging.printf("BMS reset: Periodic reset skipped for one period, %s.\n", reason);
+            break;
+
+          case PeriodicResetVerdict::Run:
+            if (periodicResetDeferred) {
+              periodicResetDeferred = false;
+              logging.printf("BMS reset: Running previously deferred periodic reset.\n");
+            }
+            balancingPeriodSkipped = false;  // Each reset restores the one period allowance
+            start_bms_reset();
+            break;
+        }
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_WAITING_FOR_PAUSE) {
       // We've already issued a pause, now we're waiting for that to take effect.

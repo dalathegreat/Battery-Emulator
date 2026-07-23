@@ -195,6 +195,15 @@ void init_stored_settings() {
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
+  // Firmware versions before the reset interval was configurable only stored the enable flag,
+  // so an upgraded installation has no PERBMSRESETH key at all. Fall back to the previous
+  // hardcoded 24h behaviour, and treat any value we don't offer in the UI the same way.
+  periodic_bms_reset_interval_h = settings.getUInt("PERBMSRESETH", 24);
+  if (periodic_bms_reset_interval_h != 24 && periodic_bms_reset_interval_h != 48) {
+    periodic_bms_reset_interval_h = 24;
+  }
+  periodic_bms_reset_defer_low_soc = settings.getBool("PERBMSDEFSOC", false);
+  periodic_bms_reset_skip_balancing = settings.getBool("PERBMSSKIPBAL", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
   datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
