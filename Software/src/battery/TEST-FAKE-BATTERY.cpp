@@ -79,7 +79,7 @@ void TestFakeBattery::
     uint16_t cell_voltage_average_mV = cell_voltage_sum_mV / NUMBER_OF_CELLS;
     for (int i = 0; i < NUMBER_OF_CELLS; ++i) {
       datalayer_battery->status.cell_balancing_status[i] =
-          (datalayer_battery->status.cell_voltages_mV[i] > cell_voltage_average_mV);
+          (datalayer_battery->status.cell_voltages_mV[i] > cell_voltage_average_mV + 7);
     }
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
   } else {
