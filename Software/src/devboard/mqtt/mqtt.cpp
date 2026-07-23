@@ -178,15 +178,16 @@ static const SensorConfig globalSensorConfigTemplate[] = {
 struct BatteryTarget {
   Battery** bat;                       // global battery instance pointer (may point to nullptr)
   const DATALAYER_BATTERY_TYPE* data;  // matching datalayer entry
+  const bool* detected;                // set once at least one CAN frame was ever received
   int index;                           // 1-based battery number
   const char* id_suffix;               // suffix for entity ids / unique ids ("", "_2", "_3")
   const char* name_suffix;             // suffix for display names ("", " 2", " 3")
 };
 
 static const BatteryTarget battery_targets[] = {
-    {&battery, &datalayer.battery, 1, "", ""},
-    {&battery2, &datalayer.battery2, 2, "_2", " 2"},
-    {&battery3, &datalayer.battery3, 3, "_3", " 3"},
+    {&battery, &datalayer.battery, &battery_detected, 1, "", ""},
+    {&battery2, &datalayer.battery2, &battery2_detected, 2, "_2", " 2"},
+    {&battery3, &datalayer.battery3, &battery3_detected, 3, "_3", " 3"},
 };
 
 // Per-battery state topics: "<name>/info", "<name>/info_2", "<name>/info_3".
@@ -299,7 +300,11 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["cell_voltage_delta"] =
         ((float)battery_data.status.cell_max_voltage_mV) - ((float)battery_data.status.cell_min_voltage_mV);
   }
-  doc["total_capacity"] = ((float)battery_data.info.total_capacity_Wh);
+  // Not every integration knows the pack capacity immediately (some derive it from
+  // received data); omit until nonzero so HA shows "unknown" instead of 0 Wh.
+  if (battery_data.info.total_capacity_Wh != 0u) {
+    doc["total_capacity"] = ((float)battery_data.info.total_capacity_Wh);
+  }
   doc["remaining_capacity_real"] = ((float)battery_data.status.remaining_capacity_Wh);
   doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
   doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
@@ -503,14 +508,21 @@ static bool publish_common_info(void) {
       doc["bms_status"] = getBMSStatus(datalayer.system.status.system_status);
       doc["pause_status"] = get_emulator_pause_status();
 
-      //only publish these values if BMS is active and we are comunication with the battery (can send CAN messages to the battery)
-      if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
+      //only publish these values once the battery was actually seen on CAN (battery_detected)
+      //and we are still communicating with it. CAN_battery_still_alive alone is not enough:
+      //it starts as a nonzero countdown at boot, so for up to ~60 s it is truthy before the
+      //first frame ever arrived - publishing datalayer defaults (SOC 0%, 370.0 V, SOH 99%)
+      //as if they were real. Gating on detection makes HA show "unknown" until data exists.
+      if (battery_detected && datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN &&
+          esp32hal->system_booted_up()) {
         set_battery_attributes(doc, datalayer.battery, 1, battery->supports_charged_energy());
       }
 
       doc["event_level"] = get_event_level_string(get_event_level());
       doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
-      doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
+      if (datalayer.system.info.CPU_measurement_enabled) {
+        doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
+      }
       doc["emulator_uptime"] = millis64() / 1000;
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -526,8 +538,10 @@ static bool publish_common_info(void) {
       if (target.index == 1 || bat == nullptr) {
         continue;
       }
-      //only publish these values if BMS is active and we are comunication with the battery (can send CAN messages to the battery)
-      if (target.data->status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
+      //only publish once this battery was actually seen on CAN and is still communicating
+      //(see the battery #1 comment above for why detection matters at boot)
+      if (*target.detected && target.data->status.CAN_battery_still_alive && allowed_to_send_CAN &&
+          esp32hal->system_booted_up()) {
         DocClearGuard guard(shared_doc);
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
         serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
