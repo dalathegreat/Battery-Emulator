@@ -3,6 +3,7 @@
 #include <algorithm>  // For std::min and std::max
 #include <cstring>    //For unit test
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/safety/safety.h"        //For emulator pause status and battery pause
@@ -767,6 +768,11 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (datalayer.battery.status.real_bms_status != BMS_FAULT)
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
+      }
+      // Pack-internal contactors: BMS_mode 1/3/4/6 are the HV-active states (same set that
+      // logs "Contactors closed" above). Guarded so the GPIO state machine wins when enabled.
+      if (!contactor_control_enabled) {
+        datalayer.system.status.dc_bus_live = (BMS_mode == 1) || (BMS_mode == 3) || (BMS_mode == 4) || (BMS_mode == 6);
       }
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
