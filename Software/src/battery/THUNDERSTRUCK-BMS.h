@@ -31,15 +31,17 @@ class ThunderstruckBMS : public CanBattery {
   int16_t pack_curent_dA = 0;
 
   uint8_t SOC = 50;
+  uint8_t PGNindex = 0;
+  uint8_t PGN[13] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x11, 0x12, 0x18, 0x19, 0x20, 0x1A};
 
   int8_t highest_cell_temperature = 0;
   int8_t lowest_cell_temperature = 0;
 
-  CAN_frame THUND_14efd0d8 = {.FD = false,
+  CAN_frame THUND_14ebd0d8 = {.FD = false,
                               .ext_ID = true,
                               .DLC = 8,
                               .ID = 0x14ebd0d8,
-                              .data = {0x20, 0xff, 0x0a, 0x08, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x20, 0xFF, 0x0a, 0x08, 0x00, 0x00, 0x00, 0x00}};
 };
 
 #endif
