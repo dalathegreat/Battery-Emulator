@@ -230,6 +230,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       l3_fault = rx_frame.data.u8[4] & 0x3F;
       master_warning = (rx_frame.data.u8[4] & 0xC0) >> 6;
       insulation_resistance_kOhm = ((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6]));
+      datalayer_battery->status.insulation_resistance_kOhm = insulation_resistance_kOhm;
+      datalayer_battery->status.insulation_resistance_available = true;
       //counter_325 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x334:  // Cellvoltages

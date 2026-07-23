@@ -227,6 +227,13 @@ void BydAttoBattery::
     datalayer_battery->status.temperature_max_dC = BMS_highest_cell_temperature * 10;
   }
 
+  if (battery_insulation_valid) {
+    // BMS reports insulation in Ohm per Volt of pack voltage. Convert to kOhm.
+    datalayer_battery->status.insulation_resistance_kOhm =
+        (uint16_t)(((uint32_t)battery_insulation_ohm_per_volt * datalayer_battery->status.voltage_dV) / 10000u);
+    datalayer_battery->status.insulation_resistance_available = true;
+  }
+
   // Update webserver datalayer
   if (datalayer_bydatto) {
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
