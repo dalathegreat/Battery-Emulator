@@ -293,142 +293,245 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       }
 
-      if (rx_frame.data.u8[0] == 0x10) {      //Multiframe response, send ACK
-        transmit_can_frame(&FISKER_PID_ACK);  //Not seen yet
+      if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
+        transmit_can_frame(&FISKER_PID_ACK);
         incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
 
       switch (incoming_poll) {
         case PID_BATTERY_SUM_VOLTAGE:
-          //datalayer.battery.status.voltage_dV = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 10;
-          // We use constantly broadcasted message instead
+          POLL_BATTERY_SUM_VOLTAGE = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_BATTERY_CURRENT:
-          datalayer.battery.status.current_dA = ((int16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5])) / 10;
+          POLL_BATTERY_CURRENT = (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                 (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]);
           break;
         case PID_BATTERY_CURRENT_VALID:
+          POLL_BATTERY_CURRENT_VALID = (bool)(rx_frame.data.u8[4] & 0x01);
           break;
         case PID_DISCHARGE_CURR_LIMIT:
+          POLL_DISCHARGE_CURR_LIMIT;
           break;
         case PID_CHARGE_CURR_LIMIT:
+        POLL_CHARGE_CURR_LIMIT:
           break;
         case PID_CHARGE_OVER_CURR_LIMIT:
+        POLL_CHARGE_OVER_CURR_LIMIT:
           break;
         case PID_HALL_SAMPLE_CURRENT:
+        POLL_HALL_SAMPLE_CURRENT:
           break;
         case PID_CSU_SAMPLE_CURRENT:
+        POLL_CSU_SAMPLE_CURRENT:
           break;
         case PID_CSU_CURRENT_STATE:
+        POLL_CSU_CURRENT_STATE:
           break;
         case PID_INLET_WATER_TEMP:
+        POLL_INLET_WATER_TEMP:
           break;
         case PID_OUTLET_WATER_TEMP:
+        POLL_OUTLET_WATER_TEMP:
           break;
         case PID_MAX_BALANCE_CIRCUIT_TEMP:
+          POLL_MAX_BALANCE_CIRCUIT_TEMP = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
-        case PID_SA_LVMD_BAL_TEMP_VALID:
+        case PID_SA_LVMD_BAL_TEMP_VALID:    //Multiframe
+          if (rx_frame.data.u8[0] == 10) {  //First frame
+            POLL_SA_LVMD_BAL_TEMP_VALID =
+                (rx_frame.data.u8[5] << 40) | (rx_frame.data.u8[6] << 32) | (rx_frame.data.u8[7] << 24);
+          } else if (rx_frame.data.u8[0] == 21) {  //Second frame
+            POLL_SA_LVMD_BAL_TEMP_VALID =
+                POLL_SA_LVMD_BAL_TEMP_VALID &
+                ((rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | (rx_frame.data.u8[3]));
+          }
           break;
         case PID_MAX_CHIP_TEMP:
+          POLL_MAX_CHIP_TEMP = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2) - 40;
           break;
         case PID_SA_LVMD_CHIP_INSIDE_TEMP_VALID:
+          if (rx_frame.data.u8[0] == 10) {  //First frame
+            POLL_SA_LVMD_CHIP_INSIDE_TEMP_VALID =
+                (rx_frame.data.u8[5] << 40) | (rx_frame.data.u8[6] << 32) | (rx_frame.data.u8[7] << 24);
+          } else if (rx_frame.data.u8[0] == 21) {  //Second frame
+            POLL_SA_LVMD_CHIP_INSIDE_TEMP_VALID =
+                POLL_SA_LVMD_CHIP_INSIDE_TEMP_VALID &
+                ((rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | (rx_frame.data.u8[3]));
+          }
           break;
         case PID_AVG_MODULE_TEMP:
+          POLL_AVG_MODULE_TEMP = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2) - 40;
           break;
         case PID_MAX_MODULE_TEMP:
+          POLL_MAX_MODULE_TEMP = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2) - 40;
           break;
         case PID_MIN_MODULE_TEMP:
+          POLL_MIN_MODULE_TEMP = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2) - 40;
           break;
         case PID_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN:
+          if (rx_frame.data.u8[0] == 10) {  //First frame
+            POLL_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN =
+                (rx_frame.data.u8[5] << 40) | (rx_frame.data.u8[6] << 32) | (rx_frame.data.u8[7] << 24);
+          } else if (rx_frame.data.u8[0] == 21) {  //Second frame
+            POLL_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN =
+                POLL_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN &
+                ((rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | (rx_frame.data.u8[3]));
+          }
           break;
         case PID_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN:
+          if (rx_frame.data.u8[0] == 10) {  //First frame
+            POLL_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN =
+                (rx_frame.data.u8[5] << 40) | (rx_frame.data.u8[6] << 32) | (rx_frame.data.u8[7] << 24);
+          } else if (rx_frame.data.u8[0] == 21) {  //Second frame
+            POLL_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN =
+                POLL_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN &
+                ((rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | (rx_frame.data.u8[3]));
+          }
           break;
         case PID_MODULE_TEMP_VALID:
+          //Very large bitfield, not needed for us to store this much information
+          //(2963.552) RX6 7E9 [8] 10 23 62 20 43 01 00 01
+          //(2963.554) RX6 7E9 [8] 21 00 03 00 00 00 00 00
+          //(2963.554) RX6 7E9 [8] 22 00 00 00 00 00 00 00
+          //(2963.554) RX6 7E9 [8] 23 00 00 00 00 00 00 00
+          //(2963.554) RX6 7E9 [8] 24 00 00 00 00 00 00 00
+          //(2963.554) RX6 7E9 [8] 25 00 AA AA AA AA AA AA
           break;
         case PID_MAX_VOLT_CELL_SOC_PERCENT:
+          if (rx_frame.data.u8[0] == 10) {  //First frame only, rest empty
+            POLL_MAX_VOLT_CELL_SOC_PERCENT = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          }
           break;
         case PID_MIN_VOLT_CELL_SOC_PERCENT:
+          if (rx_frame.data.u8[0] == 10) {  //First frame only, rest empty
+            POLL_MIN_VOLT_CELL_SOC_PERCENT = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          }
           break;
         case PID_AVG_VOLT_CELL_SOC_PERCENT:
+          if (rx_frame.data.u8[0] == 10) {  //First frame only, rest empty
+            POLL_AVG_VOLT_CELL_SOC_PERCENT = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          }
           break;
         case PID_PACK_DISPLAY_SOC_PERCENT:
+          if (rx_frame.data.u8[0] == 10) {  //First frame only, rest empty
+            POLL_PACK_DISPLAY_SOC_PERCENT = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          }
           break;
         case PID_UNEXPECTED_POWER_DOWN_FAULT:
+          POLL_UNEXPECTED_POWER_DOWN_FAULT = rx_frame.data.u8[4];
           break;
         case PID_MODULE_TEMP_DAISYCHAIN_UPDATED:
-          //Reply 06 62 20 54 00 26 00 AA
+        //Reply 06 62 20 54 00 26 00 AA
+        POLL_MODULE_TEMP_DAISYCHAIN_UPDATED:
           break;
         case PID_CELL_VOLT_DAISYCHAIN_UPDATED:
-          //Reply 06 62 20 55 00 26 00 AA
+        //Reply 06 62 20 55 00 26 00 AA
+        POLL_CELL_VOLT_DAISYCHAIN_UPDATED:
           break;
         case PID_CMC_RESET_ERR_FLAG:
+        POLL_CMC_RESET_ERR_FLAG:
           break;
         case PID_VCU_CRASH_MESSAGE_STATUS:
+        POLL_VCU_CRASH_MESSAGE_STATUS:
           break;
         case PID_HARDWARE_SIG_PWM_PERIOD:
+        POLL_HARDWARE_SIG_PWM_PERIOD:
           break;
         case PID_HARDWARE_PWM_DUTY_CYCLE:
+        POLL_HARDWARE_PWM_DUTY_CYCLE:
           break;
         case PID_FORCE_FORBIDDEN_ISO_DETECT_CMD:
+          POLL_FORCE_FORBIDDEN_ISO_DETECT_CMD = rx_frame.data.u8[4];
           break;
         case PID_ISOLATION_MEAS_STATUS:
+          POLL_ISOLATION_MEAS_STATUS = rx_frame.data.u8[4];
           break;
         case PID_ISOLATION_MEAS_STATE:
+          POLL_ISOLATION_MEAS_STATE = rx_frame.data.u8[4];
           break;
         case PID_POS_ISO_MEAS_VOLT_RAW:
+          POLL_POS_ISO_MEAS_VOLT_RAW = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_NEG_ISO_MEAS_VOLT_RAW:
+        POLL_NEG_ISO_MEAS_VOLT_RAW:
           break;
         case PID_ISO_MEAS_POS_RES_KOHM:
+        POLL_ISO_MEAS_POS_RES_KOHM:
           break;
         case PID_ISO_MEAS_NEG_RES_KOHM:
+        POLL_ISO_MEAS_NEG_RES_KOHM:
           break;
         case PID_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN:
+        POLL_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN:
           break;
         case PID_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN:
+        POLL_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN:
           break;
         case PID_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN:
+        POLL_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN:
           break;
         case PID_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN:
+        POLL_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN:
           break;
         case PID_VOLT_OR_CURR_CH0_HIGH_VOLT_MV:
+        POLL_VOLT_OR_CURR_CH0_HIGH_VOLT_MV:
           break;
         case PID_VOLT_OR_CURR_CH1_HIGH_VOLT_MV:
+        POLL_VOLT_OR_CURR_CH1_HIGH_VOLT_MV:
           break;
         case PID_BATTERY_TO_G0_VOLT:
+        POLL_BATTERY_TO_G0_VOLT:
           break;
         case PID_PV_POS_TO_G0_VOLT:
+        POLL_PV_POS_TO_G0_VOLT:
           break;
         case PID_MAIN_POS_TO_G0_VOLT:
+        POLL_MAIN_POS_TO_G0_VOLT:
           break;
         case PID_MAIN_POS_TO_G1_VOLT:
+        POLL_MAIN_POS_TO_G1_VOLT:
           break;
         case PID_KL30C_VOLTAGE:
+        POLL_KL30C_VOLTAGE:
           break;
         case PID_MAX_CELL_VOLT_CMC_AND_POINT_PSTN:
+        POLL_MAX_CELL_VOLT_CMC_AND_POINT_PSTN:
           break;
         case PID_MIN_CELL_VOLT_CMC_AND_POINT_PSTN:
+        POLL_MIN_CELL_VOLT_CMC_AND_POINT_PSTN:
           break;
         case PID_AVG_CELL_VOLTAGE:
+        POLL_AVG_CELL_VOLTAGE:
           break;
         case PID_MAX_CELL_VOLTAGE:
+        POLL_MAX_CELL_VOLTAGE:
           break;
         case PID_MIN_CELL_VOLTAGE:
+        POLL_MIN_CELL_VOLTAGE:
           break;
         case PID_CELL_VOLT_VALID:
+        POLL_CELL_VOLT_VALID:
           break;
         case PID_PV_POS_CONTACTOR_AGING:
+        POLL_PV_POS_CONTACTOR_AGING:
           break;
         case PID_PR_NEG_CONTACTOR_AGING:
+        POLL_PR_NEG_CONTACTOR_AGING:
           break;
         case PID_TIME_STAMP:
+        POLL_TIME_STAMP:
           break;
         case PID_VEHICLE_SPEED:
+        POLL_VEHICLE_SPEED:
           break;
         case PID_ST_MIN:
+        POLL_ST_MIN:
           break;
         case PID_APPLICATION_SOFTWARE_FINGERPRINT:
+        POLL_APPLICATION_SOFTWARE_FINGERPRINT:
           break;
         case PID_VEHICLE_IDENTIFICATION_NUMBER:
+        POLL_VEHICLE_IDENTIFICATION_NUMBER:
           break;
         default:
           break;
