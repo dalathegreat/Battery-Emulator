@@ -1,6 +1,7 @@
 #include "BMW-I3-BATTERY.h"
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
@@ -55,6 +56,9 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     datalayer.system.status.system_status = STANDBY;
     // During balancing sleep, report contactors as open so an old engaged state is not latched.
     datalayer.system.status.contactors_engaged = 0;
+    if (!contactor_control_enabled) {
+      datalayer.system.status.dc_bus_live = false;
+    }
   }
 
   // Map internal balancing state to datalayer balancing_status
@@ -140,6 +144,11 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     default:  // Invalid signal - treat as open
       datalayer.system.status.contactors_engaged = 0;
       break;
+  }
+  // I3 drives its own DC switch, so DC is live once its contactors report engaged.
+  // Guarded so the GPIO contactor state machine stays authoritative when enabled.
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = (datalayer.system.status.contactors_engaged == 1);
   }
 }
 
