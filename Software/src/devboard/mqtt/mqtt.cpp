@@ -763,8 +763,6 @@ bool publish_events() {
 static bool publish_buttons_discovery(void) {
   if (ha_autodiscovery_enabled) {
     if (ha_buttons_published == false) {
-      logging.println("Publishing buttons discovery");
-
       DocClearGuard guard(shared_doc);
       JsonDocument& doc = shared_doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
