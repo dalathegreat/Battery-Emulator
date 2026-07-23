@@ -187,17 +187,27 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
   //Balancing classification state, see update_values()
-  //Consecutive group 0x06 reads with an unchanged shunt bitmap before the pack is declared idle.
-  //The LBC bleeds a set of cells for a while before swapping to the next set, so the bitmap only
-  //changes every few polls even while actively balancing; this must span more than that gap.
-  static const uint8_t BALANCING_STATIC_POLLS_FOR_BLOCKED = 6;
+  //Sliding window of recent group 0x06 reads over which bitmap changes are counted (max 16)
+  static const uint8_t BALANCING_ACTIVITY_WINDOW_POLLS = 12;
+  //Changes required within that window to call the pack actively balancing. The change interval must
+  //be shorter than WINDOW/CHANGES polls for this to trip, so with 12/3 a swap every 4 polls qualifies.
+  static const uint8_t BALANCING_CHANGES_FOR_ACTIVE = 3;
+  //Cells that must differ between two reads to count as a swap rather than a single cell flickering
+  static const uint8_t BALANCING_SIGNIFICANT_CELL_CHANGES = 2;
+  //Below this many flagged cells the pack counts as not balancing at all. Outside its balancing
+  //phases the LBC keeps a low-level bleed flickering on 0-2 cells (occasionally up to ~12), while a
+  //real pending or active phase always flags 30+, so this cleanly separates the two and stops the
+  //status chattering between READY and BLOCKED whenever the count crosses zero.
+  static const uint8_t BALANCING_READY_BELOW_CELLS = 4;
   //Previous group 0x06 shunt bitmap (96 bits packed into 3 words), for change detection
   uint32_t balancing_bitmap_prev[3];
   //true once balancing_bitmap_prev holds a real reading
   bool balancing_bitmap_valid = false;
-  //Consecutive fresh reads whose bitmap matched the previous one, saturates at the threshold
-  uint8_t balancing_static_polls = 0;
-  //Set by the group 0x06 handler, consumed by update_values()
+  //One bit per recent read, set if that read differed significantly from the one before it
+  uint16_t balancing_activity_window = 0;
+  //Which group 0x06 frames of the current response have arrived, so partial responses are discarded
+  uint8_t balancing_frames_seen = 0;
+  //Set by the group 0x06 handler once a complete response has been assembled
   bool balancing_data_fresh = false;
   //Applies a new balancing status, raising the start/end events on the ACTIVE edges
   void set_balancing_status(balancing_status_enum new_status);
