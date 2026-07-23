@@ -33,13 +33,11 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         content += String("Unknown</h4>");
     }
     char readableSerialNumber[16];  // One extra space for null terminator
-    memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber,
-           sizeof(nissan_dl->BatterySerialNumber));
+    memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber, sizeof(nissan_dl->BatterySerialNumber));
     readableSerialNumber[15] = '\0';  // Null terminate the string
     content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
     char readablePartNumber[8];  // One extra space for null terminator
-    memcpy(readablePartNumber, nissan_dl->BatteryPartNumber,
-           sizeof(nissan_dl->BatteryPartNumber));
+    memcpy(readablePartNumber, nissan_dl->BatteryPartNumber, sizeof(nissan_dl->BatteryPartNumber));
     readablePartNumber[7] = '\0';  // Null terminate the string
     content += "<h4>Part number: " + String(readablePartNumber) + "</h4>";
     char readableBMSID[9];  // One extra space for null terminator
@@ -68,8 +66,8 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
     content += "<h4>CryptoChallenge: " + String(nissan_dl->CryptoChallenge) + "</h4>";
-    content += "<h4>SolvedChallenge: " + String(nissan_dl->SolvedChallengeMSB) +
-               String(nissan_dl->SolvedChallengeLSB) + "</h4>";
+    content += "<h4>SolvedChallenge: " + String(nissan_dl->SolvedChallengeMSB) + String(nissan_dl->SolvedChallengeLSB) +
+               "</h4>";
     content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
 
     return content;
