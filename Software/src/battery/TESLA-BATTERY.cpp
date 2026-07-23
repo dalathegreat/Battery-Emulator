@@ -2,6 +2,7 @@
 #include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
@@ -547,6 +548,12 @@ void TeslaBattery::
     set_event_latched(EVENT_CONTACTOR_WELDED, 0);
   } else if (BMS_contactorState != 5) {
     clear_event(EVENT_CONTACTOR_WELDED);
+  }
+
+  // Pack-internal contactors: DC bus is live only when the BMS confirms CLOSED (4).
+  // Guarded so the GPIO contactor state machine stays authoritative when enabled.
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = (battery_contactor == 4);
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
