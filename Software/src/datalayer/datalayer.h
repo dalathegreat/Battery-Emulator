@@ -380,6 +380,14 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
+   *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
+   *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
+   *  Each contactor topology sets it authoritatively; defaults true so direct-wired setups that never
+   *  gate the DC bus keep today's behaviour. Battery-side setters must be guarded with
+   *  !contactor_control_enabled so the GPIO contactor state machine (which writes every 10 ms when
+   *  enabled) stays the single writer in GPIO setups. */
+  bool dc_bus_live = true;
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
   /** True if the primary battery allows for the contactors to close */

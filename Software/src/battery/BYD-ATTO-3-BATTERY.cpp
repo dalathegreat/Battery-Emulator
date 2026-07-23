@@ -2,6 +2,7 @@
 #include <Arduino.h>  //For millis()
 #include <cstring>    //For unit test
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
@@ -178,6 +179,13 @@ void BydAttoBattery::
       (contactorState != CONTACTORS_CLOSING && contactorState != CONTACTORS_ACTIVE)) {
     datalayer_battery->status.max_charge_power_W = 0;
     datalayer_battery->status.max_discharge_power_W = 0;
+  }
+
+  // Pack-internal contactors: DC bus is live once the pack confirms the main contactor
+  // closed (same 0x344 bit7 feedback used to gate power above). Guarded so the GPIO
+  // contactor state machine stays authoritative when enabled.
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) != 0;
   }
 
   datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;

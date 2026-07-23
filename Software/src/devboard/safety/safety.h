@@ -18,6 +18,8 @@ extern bool allowed_to_send_CAN;
 //battery pause status end
 
 extern bool battery_detected;
+extern bool battery2_detected;
+extern bool battery3_detected;
 
 extern void store_settings_equipment_stop();
 
