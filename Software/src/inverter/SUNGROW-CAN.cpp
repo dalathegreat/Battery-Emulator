@@ -69,8 +69,32 @@ uint16_t modbus_crc(const uint8_t* data, uint8_t length) {
 }  // namespace
 
 bool SungrowInverter::setup() {
+  // Where to find a frame's bytes (convention):
+  //   - header .data{} initialiser -> bytes constant for every SBR (frame declaration + fixed payload)
+  //   - setup() (here)             -> bytes fixed for this run: battery_config-derived + version constants
+  //   - update_values()            -> per-cycle telemetry rebuilt from live datalayer values
+  //   - map_can_frame_to_variable() -> 0x1E0 Modbus reply, built on demand when the inverter polls
+
   // Stored value is model (0-6), get_config_for_model handles default
   battery_config = get_config_for_model(user_selected_inverter_sungrow_type);
+
+  // 0x707 - nameplate capacity + module count from battery_config (b4-6). Every other byte is constant
+  //         (firmware version in b0-3, b1-2 and b7 = 0) and set in the header .data{} initialiser.
+  // NOTE: must come after battery_config is assigned above, or it reads the default {9600, 3}.
+  SUNGROW_707.data.u8[4] = (battery_config.nameplate_wh & 0x00FF);  // Nameplate capacity (low)
+  SUNGROW_707.data.u8[5] = (battery_config.nameplate_wh >> 8);      // Nameplate capacity (high)
+  SUNGROW_707.data.u8[6] = battery_config.module_count;             // Num of modules
+
+  // 0x70F mux 0 b4-7 - max continuous power (W) = nominal voltage x 30 A. Per the SBR datasheet each
+  //                    module is 64 V nominal and the pack is 30 A continuous, so 1920 W per module
+  //                    (SBR096 = 5760, SBR160 = 9600, SBR224 = 13440). On a real battery this is a
+  //                    static rating - invariant across SoC and season - so it belongs here, not in
+  //                    update_values(). The live limits are reported separately in 0x701.
+  uint16_t max_power_w = 1920 * battery_config.module_count;
+  SUNGROW_70F_00.data.u8[4] = (max_power_w & 0x00FF);
+  SUNGROW_70F_00.data.u8[5] = (max_power_w >> 8);
+  SUNGROW_70F_00.data.u8[6] = (max_power_w & 0x00FF);
+  SUNGROW_70F_00.data.u8[7] = (max_power_w >> 8);
 
   // Cell type for each active module
   // 0x42 = IEC
@@ -131,21 +155,12 @@ bool SungrowInverter::setup() {
 }
 
 void SungrowInverter::update_values() {
+  // Per-cycle telemetry only. Static / config-only frames are built once in setup() (see the
+  // convention note there); some constant frames live entirely in the header .data{} initialiser.
   current_dA = datalayer.battery.status.reported_current_dA;
 
-  // Actual SoC
-  SUNGROW_400.data.u8[1] = (datalayer.battery.status.real_soc & 0x00FF);
-  SUNGROW_400.data.u8[2] = (datalayer.battery.status.real_soc >> 8);
-  // Magic number
-  SUNGROW_400.data.u8[3] = 0x01;
-
-  // BMS init message
-  SUNGROW_500.data.u8[0] = 0x01;                                           // Magic number
-  SUNGROW_500.data.u8[1] = 0x01;                                           // Magic number
-  SUNGROW_500.data.u8[2] = 0x03;                                           // Magic number
-  SUNGROW_500.data.u8[3] = 0xFF;                                           // Magic number
-  SUNGROW_500.data.u8[5] = 0x01;                                           // Magic number
-  SUNGROW_500.data.u8[7] = (datalayer.battery.status.reported_soc / 100);  // SoC as a int
+  // 0x500 - BMS init message: b0-6 are static unknown values -> header .data{}. Only b7 (live SoC) here.
+  SUNGROW_500.data.u8[7] = (datalayer.battery.status.reported_soc / 100);  // Battery SoC, integer %
 
   // Max voltage (eg 400.0V = 4000 , 16bits long)
   SUNGROW_701.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
@@ -190,7 +205,7 @@ void SungrowInverter::update_values() {
   SUNGROW_703.data.u8[6] = ((datalayer.battery.status.total_discharged_battery_Wh >> 16) & 0x00FF);
   SUNGROW_703.data.u8[7] = ((datalayer.battery.status.total_discharged_battery_Wh >> 24) & 0x00FF);
 
-  //Vbat (eg 400.0V = 4000 , 16bits long)
+  // Vbat (eg 400.0V = 4000 , 16bits long)
   SUNGROW_704.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_704.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
   // Current
@@ -203,18 +218,13 @@ void SungrowInverter::update_values() {
   SUNGROW_704.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
   SUNGROW_704.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
-  // Battery status: 0=Unplugged, 1=Standby, 2=Run
-  SUNGROW_705.data.u8[0] = 0x02;                                   // Always "Run"
-  SUNGROW_705.data.u8[1] = 0x00;                                   // Magic number
-  SUNGROW_705.data.u8[2] = 0x01;                                   // Magic number
+  // 0x705 - b0-2 and b7 (padding) are static -> header .data{}. Model id (b3-4) + voltage (b5-6) below.
   uint16_t battery_model_id = 8420 + battery_config.module_count;  // SBR064=8422, SBR096=8423, etc.
   SUNGROW_705.data.u8[3] = (battery_model_id & 0xFF);
   SUNGROW_705.data.u8[4] = (battery_model_id >> 8);
-  //Vbat, again (eg 400.0V = 4000 , 16bits long)
+  // Vbat, again (eg 400.0V = 4000 , 16bits long)
   SUNGROW_705.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SUNGROW_705.data.u8[6] = (datalayer.battery.status.voltage_dV >> 8);
-  // Padding?
-  SUNGROW_705.data.u8[7] = 0x00;  // Magic number
 
   // Temperature Max (signed int16_t in 0.1°C units)
   SUNGROW_706.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0xFF);
@@ -229,39 +239,6 @@ void SungrowInverter::update_values() {
   SUNGROW_706.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
   SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
-  // Battery Configuration
-  SUNGROW_707.data.u8[0] = 0x26;                                    // Magic number
-  SUNGROW_707.data.u8[1] = 0x00;                                    // Magic number
-  SUNGROW_707.data.u8[2] = 0x00;                                    // Magic number
-  SUNGROW_707.data.u8[3] = 0x01;                                    // Magic number. Num of stacks?
-  SUNGROW_707.data.u8[4] = (battery_config.nameplate_wh & 0x00FF);  // Nameplate capacity
-  SUNGROW_707.data.u8[5] = (battery_config.nameplate_wh >> 8);      // Nameplate capacity
-  SUNGROW_707.data.u8[6] = battery_config.module_count;             // Num of modules
-  SUNGROW_707.data.u8[7] = 0x00;                                    // Padding?
-
-  // ---- 0x70F: two muxes (b0 = 0x00..0x07, b1 = 0x00) ----
-  SUNGROW_70F_00.data.u8[2] = 0x88;  // Magic number
-  SUNGROW_70F_00.data.u8[3] = 0x13;  // Magic number
-  SUNGROW_70F_00.data.u8[4] = 0x80;  // Magic number
-  SUNGROW_70F_00.data.u8[5] = 0x16;  // Magic number
-  SUNGROW_70F_00.data.u8[6] = 0x80;  // Magic number
-  SUNGROW_70F_00.data.u8[7] = 0x16;  // Magic number
-  // Charge counter??
-  SUNGROW_70F_02.data.u8[2] = 0x70;  // Magic number
-  SUNGROW_70F_02.data.u8[3] = 0x20;  // Magic number
-  // Unknown
-  SUNGROW_70F_02.data.u8[6] = 0x92;  // Magic number
-  SUNGROW_70F_02.data.u8[7] = 0x09;  // Magic number
-  // Discharge counter??
-  SUNGROW_70F_03.data.u8[2] = 0xFD;
-  SUNGROW_70F_03.data.u8[3] = 0x1D;
-  // Unknown
-  SUNGROW_70F_03.data.u8[6] = 0xCE;
-  SUNGROW_70F_03.data.u8[7] = 0x26;
-  // Unknown
-  SUNGROW_70F_04.data.u8[2] = 0x0C;
-  SUNGROW_70F_04.data.u8[3] = 0x06;
-
   // Populate 0x70F_05/06/07 with module SOC based on module_count
   // 0x70F_05: modules 1-3, 0x70F_06: modules 4-6, 0x70F_07: modules 7-8
   {
@@ -274,31 +251,15 @@ void SungrowInverter::update_values() {
     }
   }
 
-  // 0x713 - Battery Cell Temperature Overview
-  // Cell position with minimum temperature (cell/module addressing)
-  SUNGROW_713.data.u8[0] = 0x02;  // Cell location with minimum temperature
-  SUNGROW_713.data.u8[1] = 0x01;  // Module location with minimum temperature
-  // Minimum cell temperature (signed int16_t in 0.1°C units)
+  // 0x713 - Cell/module locations are static (header). Min/max cell temperatures here (int16_t, 0.1C):
   SUNGROW_713.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
   SUNGROW_713.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
-  // Cell position with maximum temperature (cell/module addressing)
-  SUNGROW_713.data.u8[4] = 0x01;  // Cell location with maximum temperature
-  SUNGROW_713.data.u8[5] = 0x02;  // Module location with maximum temperature
-  // Maximum cell temperature (signed int16_t in 0.1°C units)
   SUNGROW_713.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
   SUNGROW_713.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
-  // 0x714 - Battery Cell Voltage Overview
-  // Cell position with maximum voltage (cell/module addressing)
-  SUNGROW_714.data.u8[0] = 0x05;  // Cell location with minimum voltage
-  SUNGROW_714.data.u8[1] = 0x01;  // Module location with minimum voltage
-  // Maximum cell voltage (0.1 mV units = cell_max_voltage_mV * 10)
+  // 0x714 - Cell/module locations are static (header, max-first). Max/min cell voltages here (0.1 mV = mV*10):
   SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
-  // Cell position with minimum voltage (cell/module addressing)
-  SUNGROW_714.data.u8[4] = 0x11;  // Cell location with maximum voltage
-  SUNGROW_714.data.u8[5] = 0x02;  // Module location with maximum voltage
-  // Minimum cell voltage (0.1 mV units = cell_min_voltage_mV * 10)
   SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
   SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
 
@@ -320,11 +281,9 @@ void SungrowInverter::update_values() {
     }
   }
 
-  // 0x719 - Status and Module Fault???
-  // Possibly relates to Modbus register 3_10789 and 3_10790
-  SUNGROW_719.data.u8[0] = 0x02;
+  // 0x719 is a static unknown value -> now in the header .data{}.
 
-  //Copy 7## content to 0## messages
+  // Copy 7## content to 0## messages
   // SUNGROW_000 all bytes 0x00
   memcpy(SUNGROW_001.data.u8, SUNGROW_701.data.u8, 8);
   memcpy(SUNGROW_002.data.u8, SUNGROW_702.data.u8, 8);
@@ -637,9 +596,9 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     if ((int32_t)(currentMillis - previousMillis1s) >= INTERVAL_1_S) {
       previousMillis1s = currentMillis;
 
-      // Head messages
+      // Head messages (.30): 0x402, 0x500, 0x401
+      transmit_can_frame(&SUNGROW_402);
       transmit_can_frame(&SUNGROW_500);
-      transmit_can_frame(&SUNGROW_400);
       transmit_can_frame(&SUNGROW_401);
 
       // Init specific messages
@@ -676,9 +635,9 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
 
     switch (batch_send_index) {
       case 0:
-        // Head messages
+        // Head messages (.30): 0x402, 0x500, 0x401
+        transmit_can_frame(&SUNGROW_402);
         transmit_can_frame(&SUNGROW_500);
-        transmit_can_frame(&SUNGROW_400);
         transmit_can_frame(&SUNGROW_401);
         break;
 
