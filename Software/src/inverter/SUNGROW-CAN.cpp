@@ -85,6 +85,17 @@ bool SungrowInverter::setup() {
   SUNGROW_707.data.u8[5] = (battery_config.nameplate_wh >> 8);      // Nameplate capacity (high)
   SUNGROW_707.data.u8[6] = battery_config.module_count;             // Num of modules
 
+  // 0x70F mux 0 b4-7 - max continuous power (W) = nominal voltage x 30 A. Per the SBR datasheet each
+  //                    module is 64 V nominal and the pack is 30 A continuous, so 1920 W per module
+  //                    (SBR096 = 5760, SBR160 = 9600, SBR224 = 13440). On a real battery this is a
+  //                    static rating - invariant across SoC and season - so it belongs here, not in
+  //                    update_values(). The live limits are reported separately in 0x701.
+  uint16_t max_power_w = 1920 * battery_config.module_count;
+  SUNGROW_70F_00.data.u8[4] = (max_power_w & 0x00FF);
+  SUNGROW_70F_00.data.u8[5] = (max_power_w >> 8);
+  SUNGROW_70F_00.data.u8[6] = (max_power_w & 0x00FF);
+  SUNGROW_70F_00.data.u8[7] = (max_power_w >> 8);
+
   // Cell type for each active module
   // 0x42 = IEC
   // 0x44 = Non-IEC

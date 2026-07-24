@@ -401,21 +401,27 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x70E,
                            .data = {0x07, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x70F (MUX). Muxes 00/02/03/04 = static unknown values (kept visible below); 05/06/07 = per-module
-  //             SoC, set in update_values(). Byte 0 = mux selector, byte 1 = 0.
+  // 0x70F (MUX). Byte 0 = mux selector, byte 1 = 0. Mux 00 b4-7 = max continuous power (static
+  //             rating), filled in setup() from battery_config; mux 05/06/07 = per-module SoC, set
+  //             in update_values(). The remaining unknown bytes below are frozen snapshots from a
+  //             real-battery capture - kept visible so they aren't mistaken for decoded or live
+  //             values. "Cold-drift cluster" = the 16-bit unknowns at b2-3 of muxes 02/03/04: on a
+  //             real pack all three drift slowly *together* and read higher in the cold. Ruled out
+  //             as power/current limits (those derate in cold), and as SoC and SoH.
   CAN_frame SUNGROW_70F_00 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
                               .data = {0x00,          // Mux selector
                                        0x00,          // Always 0
-                                       0x88, 0x13,    // Unknown (static)
-                                       0x80, 0x16,    // Unknown per-module value 1 (static)
-                                       0x80, 0x16}};  // Unknown per-module value 2 (static)
+                                       0x88, 0x13,    // Unknown, fixed 5000 (static)
+                                       0x00, 0x00,    // Max continuous power W, live - set in setup()
+                                       0x00, 0x00}};  // Max continuous power W, rating - set in setup()
   CAN_frame SUNGROW_70F_01 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
+                              // Mux selector + padding: whole payload is 0 on a real pack
                               .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_70F_02 = {.FD = false,
                               .ext_ID = false,
@@ -423,26 +429,27 @@ class SungrowInverter : public CanInverterProtocol {
                               .ID = 0x70F,
                               .data = {0x02,          // Mux selector
                                        0x00,          // Always 0
-                                       0x70, 0x20,    // Unknown (static)
-                                       0x00, 0x00,    // (zero)
-                                       0x92, 0x09}};  // Unknown (static)
+                                       0x70, 0x20,    // Unknown 16-bit (cold-drift cluster)
+                                       0x00, 0x00,    // Padding (always 0)
+                                       0x92, 0x09}};  // Unknown 16-bit, near-constant (~5760)
   CAN_frame SUNGROW_70F_03 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
                               .data = {0x03,          // Mux selector
                                        0x00,          // Always 0
-                                       0xFD, 0x1D,    // Unknown (static)
-                                       0x00, 0x00,    // (zero)
-                                       0xCE, 0x26}};  // Unknown (static, ~SoC/SoH %)
+                                       0xFD, 0x1D,    // Unknown 16-bit (cold-drift cluster)
+                                       0x00, 0x00,    // Padding (always 0)
+                                       0xCE, 0x26}};  // Unknown ~9980 (x0.01 = 99.8 %); not SoC, not SoH
   CAN_frame SUNGROW_70F_04 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
-                              .data = {0x04,                      // Mux selector
-                                       0x00,                      // Always 0
-                                       0x0C, 0x06,                // Unknown (static, charge value + padding)
-                                       0x00, 0x00, 0x00, 0x00}};  // (zero)
+                              .data = {0x04,              // Mux selector
+                                       0x00,              // Always 0
+                                       0x0C, 0x06,        // Unknown 16-bit (cold-drift cluster), not charge
+                                       0x00, 0x00, 0x00,  // Padding (always 0)
+                                       0x00}};            // Charge state: 0 = Normal, 2 = Stop Charge
   CAN_frame SUNGROW_70F_05 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
