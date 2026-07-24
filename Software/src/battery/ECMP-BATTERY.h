@@ -28,6 +28,7 @@ class EcmpBattery : public CanBattery {
   static constexpr const char* Name = "Stellantis ECMP battery";
 
   bool supports_clear_isolation() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void clear_isolation() { UserRequestIsolationReset = true; }
 
   bool supports_factory_mode_method() { return true; }

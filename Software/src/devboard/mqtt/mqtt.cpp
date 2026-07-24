@@ -134,6 +134,9 @@ static bool supports_tesla_dcdc_metrics(Battery* b) {
 static bool supports_byd_autocal_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::BydAtto3;
 }
+static bool supports_insulation(Battery* b) {
+  return b != nullptr && b->supports_insulation_resistance();
+}
 
 static const SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "%", "battery", always},
@@ -154,6 +157,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"max_charge_power", "Max Charge Power", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "Wh", "energy", supports_charged},
     {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", supports_charged},
+    {"insulation_resistance", "Insulation Resistance", "kΩ", "", supports_insulation},
     {"balancing_active_cells", "Balancing Cells", "", "", always},
     {"balancing_status", "Balancing Status", "", "", always},
     {"charging_state", "Charging State", "", "", always},
@@ -309,6 +313,11 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
   doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
   doc["max_charge_power"] = ((float)battery_data.status.max_charge_power_W);
+  // Omit until the integration has decoded a valid sample so HA shows "unknown"
+  // instead of a false 0 kOhm at boot.
+  if (battery_data.status.insulation_resistance_available) {
+    doc["insulation_resistance"] = battery_data.status.insulation_resistance_kOhm;
+  }
 
   if (battery_supports_charged) {
     // Note: reads the charged/discharged totals of THIS battery. The previous implementation
@@ -361,6 +370,9 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
     if (strcmp(entity_id, "bms_status") == 0) {
       return "mdi:information-box-outline";
+    }
+    if (strcmp(entity_id, "insulation_resistance") == 0) {
+      return "mdi:resistor";
     }
     if (strcmp(entity_id, "charging_state") == 0) {
       return "mdi:home-battery";
@@ -433,6 +445,13 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   // records long-term statistics for it.
   if (strcmp(config.entity_id, "balancing_active_cells") == 0) {
     doc["state_class"] = "measurement";
+  }
+  // "insulation_resistance" is a numeric value with no device_class, so it also misses the
+  // state_class assignment above. Mark it as a measurement and display it as a whole
+  // number of kOhm.
+  if (strcmp(config.entity_id, "insulation_resistance") == 0) {
+    doc["state_class"] = "measurement";
+    doc["suggested_display_precision"] = 0;
   }
   // "energy" device_class is only valid with state_class total / total_increasing, never
   // "measurement" — HA rejects the combination. The capacity sensors represent a current
