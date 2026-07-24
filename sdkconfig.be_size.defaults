@@ -36,6 +36,14 @@ CONFIG_LOG_DEFAULT_LEVEL_NONE=y
 # No WPA2/WPA3-Enterprise (you use plain PSK). Drops the enterprise supplicant.
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
 
+# Put the Arduino GPIO interrupt dispatcher in IRAM (installs the shared GPIO ISR
+# service with ESP_INTR_FLAG_IRAM and marks __onPinInterrupt IRAM_ATTR). This is a
+# CORRECTNESS fix, not a size cut: the CAN-FD add-on (ACAN2517FD via attachInterrupt)
+# must service its RX interrupt even while the flash cache is disabled, otherwise
+# edges are dropped and RX wedges. Only actionable because hybrid mode recompiles
+# the Arduino core from source. Requires all attachInterrupt handlers to be IRAM-safe
+CONFIG_ARDUINO_ISR_IRAM=y
+
 # Root-CA bundle: the FULL store is ~69 KB and this firmware does NO on-device
 # TLS verification (the GitHub release check runs in the browser). The feature
 # CANNOT be fully disabled: arduino-esp32's NetworkClientSecure library does an
@@ -88,7 +96,7 @@ CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 # Remove assertion checks outright (not just the message strings). Larger flash
 # win than SILENT. Trade-off: a bug that would have cleanly asserted becomes
 # undefined behaviour instead. Switch back to _SILENT if you want the aborts.
-# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
 # CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT is not set
 
 # -----------------------------------------------------------------------------

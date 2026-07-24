@@ -59,6 +59,18 @@ static SPIClass* SPI2517_2;
 static ACAN2517FD* canfd_2 = nullptr;
 static ACAN2517FDSettings* settings2517_2;
 
+// IRAM_ATTR interrupt trampolines for the CAN-FD add-on(s). The registered
+// handler runs from the Arduino GPIO ISR dispatcher and must stay resident when
+// the flash cache is disabled (NVS writes, OTA), so it (and everything it calls)
+// lives in IRAM. A raw lambda's operator() would not inherit IRAM_ATTR, hence
+// these named shims. See pierremolinaro/acan2517FD#66.
+static void IRAM_ATTR canfd_isr_trampoline() {
+  canfd->isr();
+}
+static void IRAM_ATTR canfd_2_isr_trampoline() {
+  canfd_2->isr();
+}
+
 static bool native_can_initialized = false;
 //CAN logging filter settings
 uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
@@ -280,7 +292,7 @@ bool init_CAN() {
 }
 
 static bool begin_canfd() {
-  const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
+  const uint32_t errorCode2517 = canfd->begin(*settings2517, canfd_isr_trampoline);
   canfd->poll();
   if (errorCode2517 != 0) {
     logging.print("CAN-FD Configuration error 0x");
@@ -294,7 +306,7 @@ static bool begin_canfd() {
 }
 
 static bool begin_canfd_2() {
-  const uint32_t errorCode2517_2 = canfd_2->begin(*settings2517_2, [] { canfd_2->isr(); });
+  const uint32_t errorCode2517_2 = canfd_2->begin(*settings2517_2, canfd_2_isr_trampoline);
   canfd_2->poll();
   if (errorCode2517_2 != 0) {
     logging.print("CAN-FD 2 Configuration error 0x");
