@@ -130,6 +130,12 @@ void FordMachEBattery::update_values() {
   datalayer_extended.fordMachE.pid_hvb_calendar_age_months = pid_hvb_calendar_age_months;
   datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
   datalayer_extended.fordMachE.pid_maintenance_rebalance_status = pid_maintenance_rebalance_status;
+  //Not confirmed working yet
+  datalayer_extended.fordMachE.pid_hvb_max_charge_current = pid_hvb_max_charge_current;
+  datalayer_extended.fordMachE.discharge_power_cand2 = discharge_power_cand2;
+  datalayer_extended.fordMachE.charge_power_cand2 = charge_power_cand2;
+  datalayer_extended.fordMachE.discharge_power_cand1 = discharge_power_cand1;
+  datalayer_extended.fordMachE.charge_power_cand1 = charge_power_cand1;
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -155,12 +161,19 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x24d:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      charge_power_cand2 = rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1];     //TODO, check if this is correct
+      discharge_power_cand2 = rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3];  //TODO, check if this is correct
       break;
     case 0x24e:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x24f:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x286:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      charge_power_cand1 = rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1];     //TODO, check if this is correct
+      discharge_power_cand1 = rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3];  //TODO, check if this is correct
       break;
     case 0x2e4:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -359,6 +372,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_HVB_SOC_D:
           break;
         case PID_HVB_MAX_CHARGE_CURRENT:
+          pid_hvb_max_charge_current = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case PID_HVB_CHARGE_CURRENT_REQUESTED:
           break;
