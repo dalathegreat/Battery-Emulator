@@ -1,4 +1,5 @@
 #include "comm_contactorcontrol.h"
+#include "../../battery/BATTERIES.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
@@ -302,6 +303,36 @@ This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
 Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
+// Maximum time we allow a battery specific BMS shut-down sequence to run before
+// giving up and cutting power anyway (must be longer than the longest sequence,
+// e.g. the Nissan LEAF sequence which includes a >1min wait before BAT OFF)
+const unsigned long bmsShutdownSequenceTimeout = 90000;
+static unsigned long shutdownSequenceStartTime = 0;
+
+// Ask all configured batteries that support it to start their BMS shut-down
+// sequence. Returns true if at least one battery started a sequence.
+static bool request_battery_shutdown_sequences() {
+  bool sequence_started = false;
+  Battery* batteries[] = {battery, battery2, battery3};
+  for (Battery* b : batteries) {
+    if (b != nullptr && b->supports_bms_shutdown_sequence()) {
+      b->request_bms_shutdown_sequence();
+      sequence_started = true;
+    }
+  }
+  return sequence_started;
+}
+
+static bool battery_shutdown_sequences_completed() {
+  Battery* batteries[] = {battery, battery2, battery3};
+  for (Battery* b : batteries) {
+    if (b != nullptr && b->supports_bms_shutdown_sequence() && !b->bms_shutdown_sequence_completed()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void bms_power_off() {
   digitalWrite(esp32hal->BMS_POWER(), LOW);
 }
@@ -340,9 +371,16 @@ void handle_BMSpower() {
           || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
-        bms_power_off();
-        lastPowerRemovalTime = currentTime;
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        if (request_battery_shutdown_sequences()) {
+          // At least one battery wants to perform a graceful CAN shut-down
+          // sequence towards its BMS before we cut the power (e.g. Nissan LEAF)
+          shutdownSequenceStartTime = currentTime;
+          datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+        } else {
+          bms_power_off();
+          lastPowerRemovalTime = currentTime;
+          datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        }
       } else if (currentTime - lastPowerRemovalTime >= 10000) {
         // There's still current, and we don't want to weld the contactors, so give up.
 
@@ -351,6 +389,15 @@ void handle_BMSpower() {
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
         set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
+      }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_SHUTDOWN_SEQUENCE) {
+      // A battery specific CAN shut-down sequence is running. Wait for it to
+      // complete (or time out) before removing power from the BMS.
+      if (battery_shutdown_sequences_completed() ||
+          currentTime - shutdownSequenceStartTime >= bmsShutdownSequenceTimeout) {
+        bms_power_off();
+        lastPowerRemovalTime = currentTime;
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
       // Check if the user configured duration has passed
@@ -388,11 +435,18 @@ void start_bms_reset() {
         // We power the contactors directly, so we can avoid closing/opening them
         // during reset.
 
-        // Thus we can cut the BMS power now
-        bms_power_off();
+        if (request_battery_shutdown_sequences()) {
+          // At least one battery wants to perform a graceful CAN shut-down
+          // sequence towards its BMS before we cut the power (e.g. Nissan LEAF)
+          shutdownSequenceStartTime = lastPowerRemovalTime;
+          datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+        } else {
+          // Thus we can cut the BMS power now
+          bms_power_off();
 
-        // and jump straight to powered off state, no need to wait.
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+          // and jump straight to powered off state, no need to wait.
+          datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        }
       } else {
         // The BMS powers the contactors, so we need to wait for the pause to
         // take effect before cutting power to it, or the contactors might drop
