@@ -151,6 +151,10 @@ class Battery {
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
 
+  // Battery reports insulation/isolation resistance via
+  // datalayer status insulation_resistance_kOhm
+  virtual bool supports_insulation_resistance() { return false; }
+
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 
  private:

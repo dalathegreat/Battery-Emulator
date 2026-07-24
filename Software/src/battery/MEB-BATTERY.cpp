@@ -411,6 +411,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       max_charge_percent = ((rx_frame.data.u8[7] << 3) | rx_frame.data.u8[6] >> 5);                  //*0.05
       min_charge_percent = ((rx_frame.data.u8[4] << 3) | rx_frame.data.u8[3] >> 5);                  //*0.05
       isolation_resistance_kOhm = (((rx_frame.data.u8[3] & 0x1F) << 7) | rx_frame.data.u8[2] >> 1);  //*5
+      datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance_kOhm * 5;
+      datalayer_battery->status.insulation_resistance_available = true;
       break;
     case BMS_25:  // BMS 500ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

@@ -42,6 +42,7 @@ class BydAttoBattery : public CanBattery {
   bool supports_read_DTC() { return true; }
   void read_DTC() { datalayer_bydatto->UserRequestDTCreadout = true; }
   bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void reset_DTC() { datalayer_bydatto->UserRequestDTCreset = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }

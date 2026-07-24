@@ -455,6 +455,8 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (pid_reply == POLL_GROUP_1) {
             inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];
             isolation_resistance_kOhm = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+            datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance_kOhm;
+            datalayer_battery->status.insulation_resistance_available = true;
           }
           break;
         default:
