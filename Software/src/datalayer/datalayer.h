@@ -101,6 +101,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
   uint16_t CAN_error_counter;
+  /** Insulation/isolation resistance between the HV pack and chassis, in kOhm.
+   * Not available for all battery types. Only valid once
+   * insulation_resistance_available has been set by the battery integration.
+   */
+  uint16_t insulation_resistance_kOhm = 0;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
@@ -126,6 +131,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
+
+  /** True once the battery integration has decoded a valid
+   * insulation_resistance_kOhm sample. Not available for all battery types.
+   */
+  bool insulation_resistance_available = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.

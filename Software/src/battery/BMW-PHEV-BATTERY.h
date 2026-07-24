@@ -14,6 +14,7 @@ class BmwPhevBattery : public CanBattery {
   static constexpr const char* Name = "BMW PHEV Battery";
 
   bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
 
   bool supports_reset_BMS() { return true; }

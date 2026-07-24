@@ -27,6 +27,7 @@ class CmpSmartCarBattery : public CanBattery {
   static constexpr const char* Name = "Stellantis CMP Smart Car Battery";
 
   bool supports_charged_energy() { return true; }
+  bool supports_insulation_resistance() { return true; }
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = true; }

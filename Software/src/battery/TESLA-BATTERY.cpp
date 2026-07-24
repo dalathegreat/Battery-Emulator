@@ -1307,6 +1307,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_isolationResistance =
           ((rx_frame.data.u8[3] & (0x1FU)) << 5) |
           ((rx_frame.data.u8[2] >> 3) & (0x1FU));  //19|10@1+ (10,0) [0|0] "kOhm"/to datalayer_extended
+      datalayer_battery->status.insulation_resistance_kOhm = BMS_isolationResistance * 10;
+      datalayer_battery->status.insulation_resistance_available = true;
       //BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
       BMS_chargeRequest = static_cast<bool>(extract_signal_value(rx_frame.data.u8, 29, 1));
       BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));

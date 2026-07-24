@@ -410,6 +410,10 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
           battery_insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          if (battery_insulation > 0) {
+            datalayer_battery->status.insulation_resistance_kOhm = battery_insulation;
+            datalayer_battery->status.insulation_resistance_available = true;
+          }
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
