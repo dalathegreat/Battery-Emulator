@@ -15,6 +15,14 @@ void setup_shunt();
 void setup_battery(void);
 Battery* create_battery(BatteryType type);
 
+// Returns true if the given battery integration can be instantiated a second
+// resp. third time to run batteries in parallel. These are the single source of
+// truth for double/triple battery support: setup_battery() gates object creation
+// on them, and the web UI uses them to decide whether to offer the checkboxes.
+// Keep them in sync with the switch statements in setup_battery().
+bool battery_supports_double(BatteryType type);
+bool battery_supports_triple(BatteryType type);
+
 extern uint16_t user_selected_max_pack_voltage_dV;
 extern uint16_t user_selected_min_pack_voltage_dV;
 extern uint16_t user_selected_max_cell_voltage_mV;

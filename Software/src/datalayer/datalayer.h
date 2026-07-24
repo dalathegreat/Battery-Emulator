@@ -101,6 +101,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
   uint16_t CAN_error_counter;
+  /** Insulation/isolation resistance between the HV pack and chassis, in kOhm.
+   * Not available for all battery types. Only valid once
+   * insulation_resistance_available has been set by the battery integration.
+   */
+  uint16_t insulation_resistance_kOhm = 0;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
@@ -126,6 +131,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
+
+  /** True once the battery integration has decoded a valid
+   * insulation_resistance_kOhm sample. Not available for all battery types.
+   */
+  bool insulation_resistance_available = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -287,8 +297,12 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   char inverter_brand[8] = {0};
 
   size_t logged_can_messages_offset = 0;
-  /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
+  /** ESP32 main CPU temperature, for displaying on webserver */
   float CPU_temperature = 0;
+  /** bool, determines if CPU temperature should be measured */
+  bool CPU_measurement_enabled = false;
+  /** int, determines the CPU temperature calibration offset. Some ESP32 chips report wildly inaccurate temperatures */
+  int CPU_temperature_calibration_offset = 0;
   /** ESP32 free heap amount, for displaying on webserver and for safeties */
   uint32_t CPU_free_heap = 0;
 
@@ -376,6 +390,14 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
+   *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
+   *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
+   *  Each contactor topology sets it authoritatively; defaults true so direct-wired setups that never
+   *  gate the DC bus keep today's behaviour. Battery-side setters must be guarded with
+   *  !contactor_control_enabled so the GPIO contactor state machine (which writes every 10 ms when
+   *  enabled) stays the single writer in GPIO setups. */
+  bool dc_bus_live = true;
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
   /** True if the primary battery allows for the contactors to close */

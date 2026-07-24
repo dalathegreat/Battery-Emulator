@@ -39,7 +39,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "11.1.dev";
+const char* version_number = "11.2.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -67,6 +67,9 @@ void register_transmitter(Transmitter* transmitter) {
 // Initialization functions
 void init_serial() {
   // Init Serial monitor
+  // Buffered TX so CAN-log bursts are absorbed instead of dropped; also makes
+  // availableForWrite() report ring-buffer space rather than raw FIFO space.
+  Serial.setTxBufferSize(1024);
   Serial.begin(115200);
 #if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
@@ -146,15 +149,173 @@ void logging_loop(void*) {
   vTaskDelete(NULL);
 }
 
+/* Linear charge power taper over the top of the SOC window: full power at
+   (100.00% - band), reaching 0W at 100.00% scaled SOC. Battery integration
+   independent - operates on the datalayer limits every battery driver rewrites
+   each cycle, so in-place scaling never compounds. Runs AFTER
+   update_machineryprotection() so its input includes safety-layer zeroing, and
+   BEFORE filter_inverter_limits() so the reduction passes through the low pass
+   filter instantly (decrease path) while recovery after SOC falls back below
+   the band gets the ramp. Independent from the low pass filter setting - the
+   user can enable none, either or both. */
+static void filter_charge_taper_soc(void) {
+  static bool taper_engaged_logged = false;
+  if (!charge_taper_soc || charge_taper_band_pptt == 0) {
+    return;  // Datalayer values pass through untouched
+  }
+  uint16_t soc = datalayer.battery.status.reported_soc;  // Computed earlier this cycle in update_calculated_values()
+  if (soc > 10000) {
+    soc = 10000;  // Defensive: keep (10000 - soc) non-negative if a driver misreports with SOC scaling disabled
+  }
+  uint16_t band = charge_taper_band_pptt;
+  if (band > 10000) {
+    band = 10000;
+  }
+  if (soc >= (10000 - band)) {
+    uint32_t charge_W = datalayer.battery.status.max_charge_power_W;
+
+    /* Apply the effective current cap (remote if active, otherwise user, same
+       precedence as update_calculated_values()) to the taper input, so the
+       band acts on the limit the inverter actually sees instead of on BMS
+       headroom above the cap. Idempotent with the min() applied again in
+       filter_inverter_limits() and driver-side by BYD-Modbus. */
+    uint16_t voltage_dV = datalayer.battery.status.voltage_dV;
+    if (voltage_dV <= 10) {
+      voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+    }
+    if (voltage_dV > 10) {
+      uint16_t cap_dA = datalayer.battery.settings.remote_settings_limit_charge
+                            ? datalayer.battery.settings.max_remote_set_charge_dA
+                            : datalayer.battery.settings.max_user_set_charge_dA;
+      uint32_t cap_W = ((uint32_t)cap_dA * voltage_dV) / 100;
+      if (charge_W > cap_W) {
+        charge_W = cap_W;
+      }
+    }
+
+    uint32_t base_W = charge_W;  // Allowance entering the taper, after the user/remote cap
+    charge_W = (charge_W * (uint32_t)(10000 - soc)) / band;
+
+    /* Optional float charge power: hold a minimum charge power through the
+       tail of the band, dropping to 0W only at 100.00% scaled SOC. Keeps
+       inverters above their minimum stable charging power (avoids standby
+       cycling), provides a steady balancing trickle, and guarantees the
+       charge session terminates instead of asymptotically stalling below
+       full. Only applied when the allowance entering the taper is non-zero,
+       so it never overrides a zero coming from the BMS itself or from the
+       safety layer (cell overvoltage, battery full, pause states). */
+    if (base_W > 0 && charge_taper_floor_W > 0 && soc < 10000 && charge_W < charge_taper_floor_W) {
+      charge_W = charge_taper_floor_W;
+    }
+
+    datalayer.battery.status.max_charge_power_W = charge_W;
+
+    /* Pull the derived current limit down too, so current-based inverters are
+       covered when the low pass filter is disabled. min() only - the
+       user/remote/safety clamps already applied to the _dA field are never
+       raised. */
+    if (voltage_dV > 10) {
+      uint32_t charge_dA_from_power = (charge_W * 100) / voltage_dV;
+      if (charge_dA_from_power < datalayer.battery.status.max_charge_current_dA) {
+        datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_dA_from_power;
+      }
+    }
+
+    if (!taper_engaged_logged) {
+      logging.printf("Charge power tapering based on SOC engaged at %.1f (real) %.1f (scaled)\n",
+                     datalayer.battery.status.real_soc / 100.0f, soc / 100.0f);
+      taper_engaged_logged = true;
+    }
+  } else if (soc < (10000 - band - 50)) {  // 0.5% hysteresis before re-arming the log entry
+    taper_engaged_logged = false;
+  }
+}
+
+/* Low pass filter for the battery power limits sent to the inverter (only when increasing,
+   10% new / 90% old per 1s cycle, ~10s time constant). Decreases take effect immediately.
+   Runs AFTER update_machineryprotection() so its input includes safety-layer zeroing
+   (pause, fault, battery full, voltage/cell limits) - otherwise a safety block release
+   would expose a filter state that never saw the zero, skipping the ramp entirely.
+   Filter state is kept locally, since battery drivers and the safety layer rewrite the
+   datalayer values every cycle. */
+static void filter_inverter_limits(void) {
+  if (!inverter_low_pass_filter) {
+    return;  // Datalayer values pass through untouched - identical to legacy behavior
+  }
+  static uint32_t charge_power_W_filtered = 0;
+  static uint32_t discharge_power_W_filtered = 0;
+  static bool power_filter_initialized = false;
+
+  /* Apply user current caps to the filter INPUT, so the ramp time constant acts on the
+     effective range instead of being accelerated by headroom above the cap. Also makes
+     runtime cap increases ramp instead of jump. BYD-Modbus applies the same min() again
+     driver-side, which is now idempotent. */
+  uint32_t charge_in = datalayer.battery.status.max_charge_power_W;
+  uint32_t discharge_in = datalayer.battery.status.max_discharge_power_W;
+  uint16_t cap_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (cap_voltage_dV <= 10) {
+    cap_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (cap_voltage_dV > 10) {
+    uint32_t user_charge_cap_W = ((uint32_t)datalayer.battery.settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
+    uint32_t user_discharge_cap_W =
+        ((uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * cap_voltage_dV) / 100;
+    if (charge_in > user_charge_cap_W) {
+      charge_in = user_charge_cap_W;
+    }
+    if (discharge_in > user_discharge_cap_W) {
+      discharge_in = user_discharge_cap_W;
+    }
+  }
+
+  if (!power_filter_initialized) {
+    charge_power_W_filtered = charge_in;
+    discharge_power_W_filtered = discharge_in;
+    power_filter_initialized = true;
+  } else {
+    if (charge_in > charge_power_W_filtered) {
+      charge_power_W_filtered = (charge_in * 10 + charge_power_W_filtered * 90) / 100;
+    } else {
+      charge_power_W_filtered = charge_in;
+    }
+
+    if (discharge_in > discharge_power_W_filtered) {
+      discharge_power_W_filtered = (discharge_in * 10 + discharge_power_W_filtered * 90) / 100;
+    } else {
+      discharge_power_W_filtered = discharge_in;
+    }
+  }
+  datalayer.battery.status.max_charge_power_W = charge_power_W_filtered;
+  datalayer.battery.status.max_discharge_power_W = discharge_power_W_filtered;
+
+  /* Cap the derived currents with values from the filtered power. min() logic is used so the
+     user/remote/safety clamps already applied to the _dA fields are never raised - both
+     are upper bounds. Same voltage fallback logic as in update_calculated_values(). */
+  uint16_t conversion_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (conversion_voltage_dV <= 10) {
+    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (conversion_voltage_dV > 10) {
+    uint32_t charge_dA_from_power = (charge_power_W_filtered * 100) / conversion_voltage_dV;
+    uint32_t discharge_dA_from_power = (discharge_power_W_filtered * 100) / conversion_voltage_dV;
+    if (charge_dA_from_power < datalayer.battery.status.max_charge_current_dA) {
+      datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_dA_from_power;
+    }
+    if (discharge_dA_from_power < datalayer.battery.status.max_discharge_current_dA) {
+      datalayer.battery.status.max_discharge_current_dA = (uint16_t)discharge_dA_from_power;
+    }
+  }
+}
+
 void update_calculated_values(unsigned long currentMillis) {
   /* Update CPU temperature*/
   union {
     float temp;
     uint32_t hex;
   } temp = {.temp = temperatureRead()};
-  if (temp.hex != 0x42555555) {
-    // Ignoring erroneous temperature value that ESP32 sometimes returns
-    datalayer.system.info.CPU_temperature = temp.temp;
+  if (temp.hex != 0x42555555) {  // Ignoring erroneous temperature value that ESP32 sometimes returns
+    //Apply calibration offset to the CPU temperature reading, if set. Some ESP32 chips report wildly inaccurate temperatures.
+    datalayer.system.info.CPU_temperature = temp.temp + (float)datalayer.system.info.CPU_temperature_calibration_offset;
   }
 
   /*Update free heap*/
@@ -168,36 +329,20 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery.settings.max_remote_set_discharge_dA = 0;
   }
 
-  /* Calculate allowed charge/discharge currents*/
-  if (datalayer.battery.status.voltage_dV > 10) {
-    // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
-    int32_t target_charge = ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
-    int32_t target_discharge =
-        ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
-
-    // Low pass filter only when increasing values (10% new, 90% old)
-    if (inverter_low_pass_filter) {
-      if (datalayer.battery.status.max_charge_current_dA == 0) {
-        datalayer.battery.status.max_charge_current_dA = target_charge;  // Initialize immediately if 0
-      } else if (target_charge > datalayer.battery.status.max_charge_current_dA) {
-        datalayer.battery.status.max_charge_current_dA =
-            (target_charge * 10 + datalayer.battery.status.max_charge_current_dA * 90) / 100;
-      } else {
-        datalayer.battery.status.max_charge_current_dA = target_charge;
-      }
-
-      if (datalayer.battery.status.max_discharge_current_dA == 0) {
-        datalayer.battery.status.max_discharge_current_dA = target_discharge;  // Initialize immediately if 0
-      } else if (target_discharge > datalayer.battery.status.max_discharge_current_dA) {
-        datalayer.battery.status.max_discharge_current_dA =
-            (target_discharge * 10 + datalayer.battery.status.max_discharge_current_dA * 90) / 100;
-      } else {
-        datalayer.battery.status.max_discharge_current_dA = target_discharge;
-      }
-    } else {
-      datalayer.battery.status.max_charge_current_dA = target_charge;
-      datalayer.battery.status.max_discharge_current_dA = target_discharge;
-    }
+  /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
+     If unavailable (some drivers report 0 before battery comms are up), fall back to the design
+     max voltage - conservative, since it under-estimates current for a given power. If that is
+     also 0 (generic BMS drivers with no user-configured pack voltage, or BMS-reported cutoff
+     values before first frame), keep the previous values to avoid div0. */
+  uint16_t conversion_voltage_dV = datalayer.battery.status.voltage_dV;
+  if (conversion_voltage_dV <= 10) {
+    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  if (conversion_voltage_dV > 10) {
+    datalayer.battery.status.max_charge_current_dA =
+        ((datalayer.battery.status.max_charge_power_W * 100) / conversion_voltage_dV);
+    datalayer.battery.status.max_discharge_current_dA =
+        ((datalayer.battery.status.max_discharge_power_W * 100) / conversion_voltage_dV);
   }
 
   /* Apply remote restrictions if set*/
@@ -507,6 +652,8 @@ void core_loop(void*) {
       }
       update_calculated_values(currentMillis);
       update_machineryprotection();  // Check safeties
+      filter_charge_taper_soc();     // Taper charge limit near full SOC (runs after safeties, before LPF)
+      filter_inverter_limits();      // Smooth limits towards inverter (runs after safeties on purpose)
 
       // Update values heading towards inverter
       if (inverter) {
@@ -613,6 +760,24 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
+
+  /* Some battery types mandate the SOC-based charge power taper. Enforce at
+     runtime regardless of stored settings, and restrict the start SOC to
+     50-85% (band 1500-5000 pptt) for them. The settings UI reflects this by
+     rendering the checkbox checked and disabled. */
+  if (battery && battery->mandatory_charge_taper()) {
+    if (!charge_taper_soc) {
+      charge_taper_soc = true;
+      logging.println("Charge power tapering based on SOC is mandatory for this battery type, enabling");
+    }
+    if (charge_taper_band_pptt < 1500) {
+      charge_taper_band_pptt = 1500;  // Start SOC capped at 85% for mandatory-taper batteries
+      logging.println("Charge taper start SOC limited to 85% for this battery type");
+    } else if (charge_taper_band_pptt > 5000) {
+      charge_taper_band_pptt = 5000;  // Start SOC raised to 50% minimum
+    }
+  }
+
   setup_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.

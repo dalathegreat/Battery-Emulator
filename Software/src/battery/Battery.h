@@ -86,6 +86,11 @@ class Battery {
   // These are commands from external I/O (UI, MQTT etc.)
   // Override in battery if it supports them. Otherwise they are NOP.
 
+  /* True for battery types where the SOC-based charge power taper is
+     mandatory: the taper cannot be disabled and the start SOC is restricted
+     to 50-85%. Enforced at boot and reflected in the settings UI. */
+  virtual bool mandatory_charge_taper() { return false; }
+
   virtual bool supports_clear_isolation() { return false; }
   virtual bool supports_reset_BMS() { return false; }
   virtual bool supports_reset_SOC() { return false; }
@@ -155,6 +160,10 @@ class Battery {
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
+
+  // Battery reports insulation/isolation resistance via
+  // datalayer status insulation_resistance_kOhm
+  virtual bool supports_insulation_resistance() { return false; }
 
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 

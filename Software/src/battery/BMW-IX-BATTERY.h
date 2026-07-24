@@ -18,6 +18,7 @@ struct UDS_CONTEXT {
 
 class BmwIXBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   BmwIXBattery() : renderer(*this) {}
 
   virtual void setup(void);

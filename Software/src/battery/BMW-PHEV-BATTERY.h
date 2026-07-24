@@ -5,6 +5,7 @@
 
 class BmwPhevBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -13,6 +14,7 @@ class BmwPhevBattery : public CanBattery {
   static constexpr const char* Name = "BMW PHEV Battery";
 
   bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
 
   bool supports_reset_BMS() { return true; }

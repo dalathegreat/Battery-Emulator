@@ -23,11 +23,14 @@ class MebBattery : public CanBattery, public IsoTp {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   bool supports_real_BMS_status() { return true; }
+  bool supports_insulation_resistance() { return true; }
   bool supports_charged_energy() { return true; }
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.meb.UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
   void read_DTC() { datalayer_extended.meb.UserRequestDTCreadout = true; }
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
   static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -39,6 +42,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void uds_read_data_by_id(uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
   void uds_response_handler(uint8_t* data, int len, enum isotp_tatype type);
+  /* drive the BMS reset state machine — called every transmit_can() tick */
+  void handle_bms_reset(unsigned long currentMillis);
   /* IsoTp override: send a raw CAN frame */
   void on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
@@ -242,6 +247,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int Standklima_01 = 0x16A954FB;
   static const int ORU_01 = 0x1A555548;
   static const int Klima_EV_06 = 0x1A55552B;
+  static const int Klima_EV_07 = 0x12DD5513;
   static const int HVEM_04 = 0x569;
   static const int eTM_01 = 0x16A954B4;
   static const int NMH_Gateway = 0x1B000010;
@@ -252,6 +258,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int Klima_Sensor_02 = 0x5E1;
   static const int Motor_14 = 0x3BE;
   static const int Motor_54 = 0x14C;
+  static const int HVLM_13 = 0x271;
   static const int HVLM_14 = 0x272;
   static const int HVK_01 = 0x503;
   static const int KN_Hybrid_01 = 0x17F0007B;
@@ -285,10 +292,6 @@ class MebBattery : public CanBattery, public IsoTp {
   uint8_t BMS_11_counter = 0;
   uint8_t BMS_11_CRC = 0;
 
-  uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
-  bool nof_cells_determined = false;
-  uint32_t pid_reply = 0;
-
   // ISO-TP / UDS request serialization. Only one UDS transaction (PID poll, DTC read) is
   // outstanding at a time; the next request waits until a response arrives or the timeout expires.
   static const int MAX_DTC_COUNT = 32;  // matches dtc_codes[] size in DATALAYER_INFO_MEB
@@ -296,6 +299,25 @@ class MebBattery : public CanBattery, public IsoTp {
   bool uds_request_pending = false;
   unsigned long uds_request_timestamp = 0;
 
+  // BMS reset state machine. Pause the battery and wait for the current to drop,
+  // request HV_OFF + KL15 off, go silent until the BMS sleeps, wait, then restart.
+  enum class BmsResetState : uint8_t { IDLE, WAIT_FOR_PAUSE, REQUEST_HV_OFF, SILENCE, SLEEP_WAIT };
+  BmsResetState bms_reset_state = BmsResetState::IDLE;
+  unsigned long bms_reset_ms = 0;        // phase start timestamp
+  bool bms_reset_active = false;         // forces KL15 OFF + HV_OFF in periodic TX
+  bool bms_reset_tx_suppressed = false;  // when true, skip all periodic CAN transmits
+  bool startup_bms_checked = false;      // true once we've inspected the first BMS_20 after boot
+
+  static constexpr unsigned long BMS_RESET_PAUSE_TIMEOUT_MS = 10000;    // max wait for current to drop
+  static constexpr unsigned long BMS_RESET_HV_OFF_TIMEOUT_MS = 3000;    // max wait for HV_OFF ack
+  static constexpr unsigned long BMS_RESET_SILENCE_TIMEOUT_MS = 15000;  // max wait for BMS to sleep
+  static constexpr unsigned long BMS_RESET_BMS_SILENT_MS = 1000;        // RX gap that means "asleep"
+  static constexpr unsigned long BMS_RESET_SLEEP_MS = 5000;             // bus-quiet wait before restart
+  static constexpr uint32_t BMS_CAN_ERR_IGNORE_MS = 2000;               // ignore CAN errors while BMS wakes after reset
+
+  uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
+  bool nof_cells_determined = false;
+  uint32_t pid_reply = 0;
   uint16_t battery_soc_polled = 0;
   uint16_t battery_soh_polled = 0;
   uint16_t battery_voltage_polled = 1480;
@@ -343,7 +365,7 @@ class MebBattery : public CanBattery, public IsoTp {
   uint16_t max_charge_current_amp = 0;
   uint16_t battery_SOC = 1;
   uint16_t usable_energy_amount_Wh = 0;
-  uint8_t status_HV_line = 0;  //0 init, 1 No open HV line, 2 open HV line detected, 3 fault
+  uint8_t status_HV_PTC_line = 0;  //0 init, 1 No open HV line, 2 open HV line detected, 3 fault (Heater HV connector)
   uint8_t warning_support = 0;
   bool battery_heating_active = false;
   uint16_t power_discharge_percentage = 0;
@@ -542,6 +564,11 @@ class MebBattery : public CanBattery, public IsoTp {
                                                   .DLC = 8,
                                                   .ID = Klima_EV_06,
                                                   .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
+  static constexpr CAN_frame Klima_EV_07_frame = {.FD = true,
+                                                  .ext_ID = true,
+                                                  .DLC = 8,
+                                                  .ID = Klima_EV_07,
+                                                  .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   static constexpr CAN_frame HVEM_04_frame = {.FD = true,
                                               .ext_ID = false,
                                               .DLC = 8,
@@ -557,11 +584,11 @@ class MebBattery : public CanBattery, public IsoTp {
                                                 .DLC = 8,
                                                 .ID = NMH_Klima,  // Klima
                                                 .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame NMH_Gateway_frame = {.FD = false,  // Not FD
-                                                  .ext_ID = true,
-                                                  .DLC = 8,
-                                                  .ID = NMH_Gateway,  // Gateway
-                                                  .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
+  CAN_frame NMH_Gateway_frame = {.FD = false,  // Not FD
+                                 .ext_ID = true,
+                                 .DLC = 8,
+                                 .ID = NMH_Gateway,  // Gateway
+                                 .data = {0x00, 0x50, 0x04, 0x51, 0x19, 0xF7, 0xB0, 0x00}};
   static constexpr CAN_frame NMH_DCDC_NV_frame = {.FD = false,  // Not FD
                                                   .ext_ID = true,
                                                   .DLC = 8,
@@ -582,6 +609,13 @@ class MebBattery : public CanBattery, public IsoTp {
                               .DLC = 8,
                               .ID = Motor_14,  // CRC, otherwise content
                               .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
+  static constexpr CAN_frame HVLM_13_frame = {
+      .FD = true,  //HVLM_13
+      .ext_ID = false,
+      .DLC = 32,
+      .ID = HVLM_13,
+      .data = {0x00, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0xFD, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF5, 0x00,
+               0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x07, 0x00}};
   CAN_frame HVLM_14_frame = {.FD = true,  //HVLM_14
                              .ext_ID = false,
                              .DLC = 8,

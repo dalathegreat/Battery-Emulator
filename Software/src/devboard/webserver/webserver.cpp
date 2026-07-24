@@ -419,36 +419,28 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",     "HADISC",      "MQTTCELLV",    "GTWRHD",
-      "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
-      "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
-      "WEBAUTH",     "SLOWCANINV",
-#ifndef SMALL_FLASH_DEVICE
-      "SYSLOGEN",
-#endif
+      "DBLBTR",       "CNTCTRL",        "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",  "EXTPRECHARGE",   "USBENABLED",  "CANLOGUSB",  "WEBENABLED",    "CANLOGSD",     "WIFIAPENABLED",
+      "MQTTENABLED",  "NOINVDISC",      "HADISC",      "MQTTCELLV",  "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE",
+      "INTERLOCKREQ", "SOCESTIMATED",   "PYLONOFFSET", "PYLONORDER", "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",
+      "CNTCTRLTRI",   "ESPNOWENABLED",  "PRIMOGEN24",  "CTINVERT",   "LOWPASSFILTER", "WEBAUTH",      "SLOWCANINV",
+      "CHGTAPERSOC",  "MEASURECPUTEMP", "SYSLOGEN",
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",   "CHGPOWER",
-      "MQTTPORT",   "MQTTTIMEOUT", "SOFAR_ID",    "PYLONSEND",     "INVCELLS",      "INVMODULES",  "INVCELLSPER",
-      "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",      "PWMFREQ",       "PWMHOLD",     "GTWCOUNTRY",
-      "GTWMAPREG",  "GTWCHASSIS",  "GTWPACK",     "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",    "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",        "CTATTEN",       "PYLONBAUD",   "PYLONBRAND",
-      "DALYPWRPCT", "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",    "DALYPWR0C",     "RAMPDOWNSOC", "GPIOOPT5",
-      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE", "FOXESSMODULES",
-#ifndef SMALL_FLASH_DEVICE
+      "BATTCVMAX",  "BATTCVMIN",   "MAXPRETIME",  "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",     "CHGPOWER",
+      "MQTTPORT",   "MQTTTIMEOUT", "SOFAR_ID",    "PYLONSEND",     "INVCELLS",      "INVMODULES",    "INVCELLSPER",
+      "INVVLEVEL",  "INVCAPACITY", "INVBTYPE",    "PRECHGMS",      "PWMFREQ",       "PWMHOLD",       "GTWCOUNTRY",
+      "GTWMAPREG",  "GTWCHASSIS",  "GTWPACK",     "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",      "GPIOOPT3",
+      "INVSUNTYPE", "GPIOOPT4",    "CTVNOM",      "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
+      "DALYPWRPCT", "DALYPWRDV",   "DALYDVSTART", "DALYPWRDEG",    "DALYPWR0C",     "RAMPDOWNSOC",   "GPIOOPT5",
+      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR",
       "SYSLOGPORT", "SYSLOGFAC",
-#endif
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "HTTPUSER",
-                                      "HTTPPASS",   "LOCALIP",  "GATEWAY",    "SUBNET",   "DNS",
-#ifndef SMALL_FLASH_DEVICE
-                                      "SYSLOGIP"
-#endif
-  };
+  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD",
+                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",  "SUBNET",
+                                      "DNS",        "HADISCTOPIC", "SYSLOGIP"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
@@ -533,6 +525,9 @@ void init_webserver() {
                 } else if (p->name() == "CTATTEN") {
                   auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
                   settings.saveUInt("CTATTEN", (int)type);
+                } else if (p->name() == "CPUTEMPOFFSET") {
+                  // allow negative offsets so save as number
+                  settings.saveInt("CPUTEMPOFFSET", atoi(p->value().c_str()));
                 } else if (p->name() == "SSID") {
                   settings.saveString("SSID", p->value().c_str());
                   ssid = settings.getString("SSID", "").c_str();
@@ -576,6 +571,17 @@ void init_webserver() {
                 if (settings.getBool(boolSetting, default_value) != value) {
                   settings.saveBool(boolSetting, value);
                 }
+              }
+
+              // The double/triple battery checkboxes are hidden in the UI for integrations
+              // that don't implement parallel batteries. Make sure a previously stored
+              // value can't survive a switch to such an integration.
+              auto selectedBatteryType = static_cast<BatteryType>(settings.getUInt("BATTTYPE", (int)BatteryType::None));
+              if (!battery_supports_double(selectedBatteryType) && settings.getBool("DBLBTR", false)) {
+                settings.saveBool("DBLBTR", false);
+              }
+              if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
+                settings.saveBool("TRIBTR", false);
               }
 
               settingsUpdated = settings.were_settings_updated();
@@ -994,7 +1000,11 @@ String processor(const String& var) {
 #ifdef HW_WAVESHARE
     content += " Hardware: Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
-    content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
+    if (datalayer.system.info.CPU_measurement_enabled) {
+      content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
+    } else {
+      content += "</h4>";
+    }
     content += "<h4>Uptime: " + get_uptime() + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
       content +=

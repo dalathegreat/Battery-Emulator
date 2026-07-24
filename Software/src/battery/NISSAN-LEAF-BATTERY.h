@@ -50,6 +50,7 @@ class NissanLeafBattery : public CanBattery {
   bool bms_shutdown_sequence_completed() { return shutdownState == SHUTDOWN_COMPLETED; }
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_insulation_resistance() { return true; }
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
@@ -65,11 +66,11 @@ class NissanLeafBattery : public CanBattery {
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestSOHreset = false;
-  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 2600;
+  static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4224;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2500;  //Battery is put into emergency stop if one cell goes below this value
 
   NissanLeafHtmlRenderer renderer;
 

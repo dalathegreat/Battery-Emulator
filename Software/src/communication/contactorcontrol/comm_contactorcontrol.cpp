@@ -171,6 +171,10 @@ void handle_contactors() {
   }
 
   if (contactor_control_enabled) {
+    // DC is only live to the inverter once precharge is fully complete (COMPLETED). Re-evaluated every
+    // call, so any transition (open, fault-latch, precharge) is reflected within one 10 ms tick.
+    datalayer.system.status.dc_bus_live = (contactorStatus == COMPLETED);
+
     // First check if we have any active errors, incase we do, turn off the battery
     if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;

@@ -83,6 +83,10 @@ void PylonLV485InverterProtocol::receive() {
       rx_buffer += byte;
       if (byte == '\r') {
         incoming_message_counter = RS485_HEALTHY;
+        if (!inverter_detected) {
+          inverter_detected = true;
+          set_event(EVENT_MODBUS_INVERTER_DETECTED, 1);
+        }
         // logging.printf("RX: Frame received (%u bytes): %s\n", rx_buffer.length(), rx_buffer.c_str());
         route_frame_request(rx_buffer);
         rx_buffer.clear();

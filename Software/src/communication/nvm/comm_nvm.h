@@ -62,8 +62,9 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveInt(const char* name, int32_t value) {
-    auto oldValue = getInt(name, std::numeric_limits<int32_t>::max());
-    if (value != oldValue) {
+    // isKey() check instead of a sentinel default: saving a value equal to the
+    // sentinel into a missing key must not be skipped.
+    if (!settings.isKey(name) || getInt(name, 0) != value) {
       settings.putInt(name, value);
       settingsUpdated = true;
     }
@@ -74,9 +75,12 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveUInt(const char* name, uint32_t value) {
-    auto oldValue = getUInt(name, std::numeric_limits<uint32_t>::max());
-    settings.putUInt(name, value);
-    settingsUpdated = settingsUpdated || value != oldValue;
+    // isKey() check instead of a sentinel default: saving a value equal to the
+    // sentinel into a missing key must not be skipped.
+    if (!settings.isKey(name) || getUInt(name, 0) != value) {
+      settings.putUInt(name, value);
+      settingsUpdated = true;
+    }
   }
 
   bool settingExists(const char* name) { return settings.isKey(name); }
@@ -93,9 +97,12 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveBool(const char* name, bool value) {
-    auto oldValue = getBool(name, false);
-    settings.putBool(name, value);
-    settingsUpdated = settingsUpdated || value != oldValue;
+    // isKey() check: a stored 'false' must not be mistaken for a missing key,
+    // or the first save of a false value would be skipped and never persisted.
+    if (!settings.isKey(name) || getBool(name, false) != value) {
+      settings.putBool(name, value);
+      settingsUpdated = true;
+    }
   }
 
   String getString(const char* name) { return getString(name, ""); }
@@ -105,9 +112,12 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveString(const char* name, const char* value) {
-    auto oldValue = getString(name, "");
-    settings.putString(name, value);
-    settingsUpdated = settingsUpdated || String(value) != oldValue;
+    // isKey() check: a stored empty string must not be mistaken for a missing
+    // key, or the first save of an empty value would be skipped.
+    if (!settings.isKey(name) || getString(name, "") != String(value)) {
+      settings.putString(name, value);
+      settingsUpdated = true;
+    }
   }
 
   bool were_settings_updated() const { return settingsUpdated; }
