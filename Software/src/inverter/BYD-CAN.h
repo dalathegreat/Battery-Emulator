@@ -4,6 +4,11 @@
 #include "../datalayer/datalayer.h"
 #include "CanInverterProtocol.h"
 
+typedef struct {
+  uint16_t min_voltage_dV;
+  uint16_t max_voltage_dV;
+} BydVoltageLimits;
+
 class BydCanInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }
@@ -12,6 +17,8 @@ class BydCanInverter : public CanInverterProtocol {
   void update_values();
   bool provides_shunt() { return true; }
   void enable_shunt();
+  BydVoltageLimits calculate_dynamic_voltage_limits();
+  BydVoltageLimits calculate_voltage_limits();
   static constexpr const char* Name = "BYD Battery-Box Premium HVS over CAN Bus";
 
  private:
