@@ -144,6 +144,7 @@ add_executable(tests
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
+    ../Software/src/battery/STELLANTIS-PRO-ONE-BATTERY.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
