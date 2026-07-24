@@ -286,6 +286,8 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x28:                         //Eighth datarow in PID group
           if (incoming_poll_group == 1) {  //28 7F FF 7F FF 03 E8 00
             isolation_resistance = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+            datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance;
+            datalayer_battery->status.insulation_resistance_available = true;
           }
           break;
       }

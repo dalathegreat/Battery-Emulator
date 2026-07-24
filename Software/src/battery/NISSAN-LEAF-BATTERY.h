@@ -36,6 +36,7 @@ class NissanLeafBattery : public CanBattery {
   void reset_SOH() { UserRequestSOHreset = true; }
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_insulation_resistance() { return true; }
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible

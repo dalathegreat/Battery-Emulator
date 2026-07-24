@@ -34,6 +34,7 @@ class TeslaBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
 
   bool supports_clear_isolation() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void clear_isolation() { datalayer_battery->settings.user_requests_tesla_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }

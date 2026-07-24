@@ -500,6 +500,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_insulationResistanceKOhm =
           (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //Byte 2, bit 7, length 16 (0-60000 kOhm)
+      datalayer_battery->status.insulation_resistance_kOhm = battery_insulationResistanceKOhm;
+      datalayer_battery->status.insulation_resistance_available = true;
       break;
     case 0x6D1:
       break;

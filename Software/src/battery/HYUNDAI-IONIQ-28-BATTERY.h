@@ -27,6 +27,7 @@ class HyundaiIoniq28Battery : public CanBattery {
   uint8_t get_battery_management_mode() const;
 
   bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
 
  private:
