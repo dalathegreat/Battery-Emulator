@@ -11,6 +11,12 @@ extern bool contactor_control_enabled_double_battery;
 extern bool contactor_control_enabled_triple_battery;
 extern bool pwm_contactor_control;
 extern bool periodic_bms_reset;
+// Interval between periodic BMS resets, in hours. Only 24 and 48 are offered in the UI.
+extern uint16_t periodic_bms_reset_interval_h;
+// Guards for the periodic reset. Low SOC defers the reset until SOC recovers, balancing
+// costs it a single period. Neither ever applies to a remote (MQTT) triggered reset.
+extern bool periodic_bms_reset_defer_low_soc;
+extern bool periodic_bms_reset_skip_balancing;
 extern bool remote_bms_reset;
 extern uint16_t precharge_time_ms;
 extern uint16_t pwm_frequency;

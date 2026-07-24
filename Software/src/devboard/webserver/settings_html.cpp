@@ -112,6 +112,9 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
+// Periodic BMS reset interval, stored in hours.
+static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
+
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
     {17483, "DK (Denmark)"}, {17477, "DE (Germany)"}, {16725, "AU (Australia)"}};
@@ -347,6 +350,15 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
 
+  if (var == "PERBMSRESETH") {
+    // Missing or unexpected values fall back to the historical 24h interval.
+    uint32_t interval = settings.getUInt("PERBMSRESETH", 24);
+    if (interval != 24 && interval != 48) {
+      interval = 24;
+    }
+    return options_from_map(interval, bms_reset_intervals);
+  }
+
   if (var == "SUNGROW_MODEL") {
     return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
   }
@@ -567,6 +579,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "PERBMSRESET") {
     return settings.getBool("PERBMSRESET") ? "checked" : "";
+  }
+
+  if (var == "PERBMSDEFSOC") {
+    return settings.getBool("PERBMSDEFSOC") ? "checked" : "";
+  }
+
+  if (var == "PERBMSSKIPBAL") {
+    return settings.getBool("PERBMSSKIPBAL") ? "checked" : "";
   }
 
   if (var == "REMBMSRESET") {
@@ -1409,6 +1429,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-perbmsreset { display: none; }
+    form[data-perbmsreset="true"] .if-perbmsreset {
+      display: contents;
+    }
+
     form .if-measurecputemp { display: none; }
     form[data-measurecputemp="true"] .if-measurecputemp {
       display: contents;
@@ -2003,8 +2028,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <label>Periodic BMS reset every 24h: </label>
+        <label>Periodic BMS reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
+
+        <div class="if-perbmsreset">
+            <label for='PERBMSRESETH'>Every: </label><select name='PERBMSRESETH' id='PERBMSRESETH'>
+            %PERBMSRESETH%
+            </select>
+
+            <label>Defer reset if SOC less than 15&#37;: </label>
+            <input type='checkbox' name='PERBMSDEFSOC' value='on' %PERBMSDEFSOC%
+            title="Holds the reset back while either the real or the scaled SOC is below 15 percent. It runs as soon as SOC recovers, and the interval restarts from that point" />
+
+            <label>Skip reset for one period if balancing: </label>
+            <input type='checkbox' name='PERBMSSKIPBAL' value='on' %PERBMSSKIPBAL%
+            title="Gives up one occurrence if the battery reports balancing as active. The next occurrence runs even if balancing is still active" />
+        </div>
 
         <label>External precharge via HIA4V1: </label>
         <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />
