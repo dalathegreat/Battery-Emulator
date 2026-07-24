@@ -419,12 +419,12 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",   "PWMCNTCTRL",     "PERBMSRESET", "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",   "CANLOGUSB",      "WEBENABLED",  "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",      "HADISC",      "MQTTCELLV",    "GTWRHD",
-      "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",   "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
-      "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",  "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
-      "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP", "SYSLOGEN",
+      "DBLBTR",       "CNTCTRL",        "CNTCTRLDBL",  "PWMCNTCTRL", "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
+      "REMBMSRESET",  "EXTPRECHARGE",   "USBENABLED",  "CANLOGUSB",  "WEBENABLED",    "CANLOGSD",     "WIFIAPENABLED",
+      "MQTTENABLED",  "NOINVDISC",      "HADISC",      "MQTTCELLV",  "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE",
+      "INTERLOCKREQ", "SOCESTIMATED",   "PYLONOFFSET", "PYLONORDER", "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",
+      "CNTCTRLTRI",   "ESPNOWENABLED",  "PRIMOGEN24",  "CTINVERT",   "LOWPASSFILTER", "WEBAUTH",      "SLOWCANINV",
+      "CHGTAPERSOC",  "MEASURECPUTEMP", "SYSLOGEN",
   };
 
   const char* uintSettingNames[] = {
@@ -571,6 +571,17 @@ void init_webserver() {
                 if (settings.getBool(boolSetting, default_value) != value) {
                   settings.saveBool(boolSetting, value);
                 }
+              }
+
+              // The double/triple battery checkboxes are hidden in the UI for integrations
+              // that don't implement parallel batteries. Make sure a previously stored
+              // value can't survive a switch to such an integration.
+              auto selectedBatteryType = static_cast<BatteryType>(settings.getUInt("BATTTYPE", (int)BatteryType::None));
+              if (!battery_supports_double(selectedBatteryType) && settings.getBool("DBLBTR", false)) {
+                settings.saveBool("DBLBTR", false);
+              }
+              if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
+                settings.saveBool("TRIBTR", false);
               }
 
               settingsUpdated = settings.were_settings_updated();

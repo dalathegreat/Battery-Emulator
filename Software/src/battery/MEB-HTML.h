@@ -117,22 +117,22 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += "?";
     }
-    content += "</h4><h4>HV line status: ";
-    switch (datalayer_extended.meb.status_HV_line) {
+    content += "</h4><h4>Heater HV line status: ";
+    switch (datalayer_extended.meb.status_HV_PTC_line) {
       case 0:
         content += "Init";
         break;
       case 1:
-        content += "No open HV line detected";
+        content += "Heater no open HV line";
         break;
       case 2:
-        content += "Open HV line";
+        content += "Heater open HV line";
         break;
       case 3:
         content += "Fault";
         break;
       default:
-        content += "? " + String(datalayer_extended.meb.status_HV_line);
+        content += "? " + String(datalayer_extended.meb.status_HV_PTC_line);
     }
     content += "</h4>";
     content += datalayer_extended.meb.BMS_fault_performance ? "<h4>BMS fault performance: Active!</h4>"

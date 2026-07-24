@@ -228,6 +228,32 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
 
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
+// only for the battery integrations that actually implement parallel batteries.
+// Generated from battery_supports_double()/battery_supports_triple() so the UI
+// can never drift out of sync with what setup_battery() is able to instantiate.
+static String capability_css(const char* className, bool (*supported)(BatteryType)) {
+  String selectors;
+
+  for (auto& type : enum_values<BatteryType>()) {
+    if (!supported(type)) {
+      continue;
+    }
+    if (!selectors.isEmpty()) {
+      selectors += ",";
+    }
+    selectors += "form[data-battery=\"" + String(to_underlying(type)) + "\"] ." + className;
+  }
+
+  String css = "form ." + String(className) + " { display: none; }";
+
+  if (!selectors.isEmpty()) {
+    css += selectors + " { display: contents; }";
+  }
+
+  return css;
+}
+
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
@@ -241,6 +267,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "BATTCOMM") {
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
+  }
+  if (var == "BTRCAPCSS") {
+    return capability_css("if-dblcapable", battery_supports_double) +
+           capability_css("if-tricapable", battery_supports_triple);
   }
   if (var == "BATTCHEM") {
     return options_for_enum(
@@ -484,11 +514,31 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGTAPERSOC") {
+    if (battery && battery->mandatory_charge_taper()) {
+      return "checked";
+    }
     return settings.getBool("CHGTAPERSOC") ? "checked" : "";
   }
 
+  if (var == "CHGTAPERMANDATORY") {
+    return (battery && battery->mandatory_charge_taper()) ? "disabled" : "";
+  }
+
+  if (var == "CHGTAPERMAX") {
+    return (battery && battery->mandatory_charge_taper()) ? "85" : "99";
+  }
+
   if (var == "CHGTAPERSTART") {
-    return String(settings.getUInt("CHGTAPERSTART", 95));
+    uint32_t start = settings.getUInt("CHGTAPERSTART", 95);
+    if (battery && battery->mandatory_charge_taper()) {
+      if (start > 85) {
+        start = 85;
+      }
+      if (start < 50) {
+        start = 50;
+      }
+    }
+    return String(start);
   }
 
   if (var == "CHGTAPERFLOOR") {
@@ -545,14 +595,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "NOINVDISC") {
     return settings.getBool("NOINVDISC") ? "checked" : "";
-  }
-
-  if (var == "CANFDASCAN") {
-    return settings.getBool("CANFDASCAN") ? "checked" : "";
-  }
-
-  if (var == "CANFD2ASCAN") {
-    return settings.getBool("CANFD2ASCAN") ? "checked" : "";
   }
 
   if (var == "WIFIAPENABLED") {
@@ -1005,25 +1047,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-      if (use_canfd_as_can) {
-        return "CAN-FD Native (Classic CAN)";
-      } else {
-        return "CAN-FD Native";
-      }
+      return "CAN-FD Native";
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-      if (use_canfd_as_can) {
-        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
-      } else {
-        return "Add-on CAN-FD via GPIO MCP2518";
-      }
+      return "Add-on CAN-FD via GPIO MCP2518";
     case CANFD_ADDON_MCP2518_2:
-      if (use_canfd2_as_can) {
-        return "Add-on CAN-FD #2 via GPIO MCP2518 (Classic CAN)";
-      } else {
-        return "Add-on CAN-FD #2 via GPIO MCP2518";
-      }
+      return "Add-on CAN-FD #2 via GPIO MCP2518";
     default:
       return "UNKNOWN";
   }
@@ -1099,17 +1129,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define GPIOOPT6_SETTING ""
-#endif
-
-#if defined(HW_LILYGO2CAN) || defined(HW_STARK)
-#define CANFD2ASCAN_SETTING \
-  R"rawliteral(
-    <label>Use CanFD2 as classic CAN: </label>
-    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
-    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-  )rawliteral"
-#else
-#define CANFD2ASCAN_SETTING ""
 #endif
 
 #define SYSLOG_SETTING_HTML \
@@ -1365,6 +1384,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="42"] .if-socestimated {
       display: contents;
     }
+
+    /* Integrations that support running two/three batteries in parallel.
+       Rules are generated at runtime from the battery capability predicates. */
+    %BTRCAPCSS%
 
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
@@ -1726,6 +1749,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
+        <div class="if-dblcapable">
         <label>Double battery: </label>
         <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
         title="Enable this option if you intend to run two batteries in parallel" />
@@ -1736,6 +1760,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
                 %BATT2COMM%
             </select>
 
+        <div class="if-tricapable">
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
         title="Enable this option if you intend to run three batteries in parallel" />
@@ -1745,6 +1770,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
+        </div>
+
+        </div>
+
         </div>
 
         </div>
@@ -1770,14 +1799,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
 
         <label>Charge power tapering based on SOC:</label>
-        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC%
-        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff." />
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
 
         <div class='if-chgtapersoc'>
         <label>Start tapering at SOC, percent: </label>
         <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
-        min="50" max="99" step="1"
-        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct" />
+        min="50" max="%CHGTAPERMAX%" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
 
         <label>Float charge power, W: </label>
         <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
@@ -1931,12 +1960,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Hardware config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
-        title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-
-        )rawliteral" CANFD2ASCAN_SETTING R"rawliteral(
-
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
         </select>
@@ -1944,8 +1967,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
-            <label>Triple-Battery Contactor control via GPIO: </label>
-            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            <div class="if-tribtr">
+                <label>Triple-Battery Contactor control via GPIO: </label>
+                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            </div>
         </div>
 
         <label>Contactor control via GPIO: </label>

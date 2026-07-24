@@ -126,10 +126,12 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t SOC_highprec;
   /** SOC% polled OBD2 value. Can be locked if pack is crashed */
   uint16_t SOC_polled;
-  /** Voltage raw battery value */
-  uint16_t voltage_periodic;
-  /** Voltage polled OBD2*/
-  uint16_t voltage_polled;
+  /** Pack voltage from 0x438, deci-volts. Zero until the frame is received */
+  uint16_t pack_voltage_dV;
+  /** Insulation resistance from 0x43A, Ohm per volt. Multiply by pack voltage for Ohms. Zero is a valid fault reading */
+  uint16_t insulation_ohm_per_volt;
+  /** True once a checksum-valid 0x43A has been seen */
+  bool insulation_valid;
   uint16_t chargePower;
   uint16_t charge_times;
   uint16_t dischargePower;
@@ -851,8 +853,8 @@ struct DATALAYER_INFO_MEB {
   uint8_t BMS_mode;
   /** 1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault */
   uint8_t battery_diagnostic;
-  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault */
-  uint8_t status_HV_line;
+  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault (PTC Heater HV connector)*/
+  uint8_t status_HV_PTC_line;
   /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
   uint8_t warning_support;
   /** 0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error */
@@ -891,6 +893,7 @@ struct DATALAYER_INFO_MEB {
   bool dtc_read_in_progress = false;   // Flag to prevent concurrent reads
   bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
   bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestBMSReset = false;    // User requesting BMS reset via WebUI
 };
 
 struct DATALAYER_INFO_VOLVO_POLESTAR {

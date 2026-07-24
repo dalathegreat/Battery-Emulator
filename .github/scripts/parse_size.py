@@ -23,7 +23,11 @@ FLASH_RE = re.compile(r"^Flash:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", r
 
 
 def _parse_usage(regex: re.Pattern[str], text: str) -> MemoryBytes | None:
-    m = regex.search(text)
+    # A `pio run -t checkprogsize` can print the size table more than  once
+    # Keep the LAST match — that is the final, complete size.
+    m = None
+    for m in regex.finditer(text):
+        pass
     if m is None:
         return None
     return MemoryBytes(used=int(m.group(1)), total=int(m.group(2)))
