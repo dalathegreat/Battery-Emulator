@@ -254,6 +254,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
+
   //Send 1000ms message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
@@ -360,9 +361,33 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
         stateMachineBMSReset = 11;
         break;
       case 11:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x06, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[11]: BMS_w161 stress reset");
+        stateMachineBMSReset = 12;
+        break;
+      case 12:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x05, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[12]: BMS_f153 reset");
+        stateMachineBMSReset = 13;
+        break;
+      case 13:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x02, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[13]: BMS_f163 reset");
+        stateMachineBMSReset = 14;
+        break;
+      case 14:
+        TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x07, 0x00, 0x00, 0x00};
+        transmit_can_frame(&TESLA_602);
+        logging.println("UDS[14]: BMS WOT reset");
+        stateMachineBMSReset = 15;
+        break;
+      case 15:
         TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0C, 0x00, 0x00, 0x00};
         transmit_can_frame(&TESLA_602);
-        logging.println("UDS[11]: BMS_u029 reset");
+        logging.println("UDS[15]: BMS_u029 reset");
         stateMachineBMSReset = 0xFF;
         logging.println("INFO: BMS reset sequence complete (Legacy)");
         break;

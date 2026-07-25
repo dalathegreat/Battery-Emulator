@@ -14,6 +14,8 @@ class BmwI3HtmlRenderer : public BatteryHtmlRenderer {
  public:
   BmwI3HtmlRenderer(BmwI3Battery& b) : batt(b) {}
 
+  bool renders_own_battery_data() { return true; }
+
   String get_status_html();
 };
 

@@ -431,7 +431,12 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
     BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll_7E7 & 0xFF00) >> 8);
     BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll_7E7 & 0x00FF);
 
-    transmit_can_frame(&BOLT_POLL_7E7);
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&BOLT_CLEAR_DTC);
+      UserRequestDTCreset = false;
+    } else {  //Normal poll
+      transmit_can_frame(&BOLT_POLL_7E7);
+    }
   }
 
   //Send 120ms message

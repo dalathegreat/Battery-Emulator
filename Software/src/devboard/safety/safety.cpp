@@ -2,6 +2,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 
@@ -12,44 +13,92 @@ static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
-#define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
+// Some inverters take a while to boot and start sending CAN. Suppress the
+// inverter-missing error during this startup window (measured from power-on).
+#define INVERTER_STARTUP_GRACE_MS 300000  // 300 s
+#define CELL_CRITICAL_MV 100              // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
 #define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
+#define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
 bool allowed_to_send_CAN = true;
+static uint32_t emulator_restart_request_millis = 0;
+
+//component detection
+bool battery_detected = false;
+bool battery2_detected = false;
+bool battery3_detected = false;
+bool charger_detected = false;
+bool inverter_detected = false;
 
 battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
+  //Check if we start to get low on memory
+  static uint8_t hysteresisHeapSeconds = 0;
   if (datalayer.system.info.CPU_free_heap < 62000) {
-    set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+    hysteresisHeapSeconds++;
+    if (hysteresisHeapSeconds > 5) {  //Trigger after X seconds of low heap, to prevent false positives during spikes
+      set_event(EVENT_LOW_HEAP_MEMORY, (datalayer.system.info.CPU_free_heap / 1000));
+    }
   } else {
     clear_event(EVENT_LOW_HEAP_MEMORY);
+    hysteresisHeapSeconds = 0;
   }
 
   // Check health status of CAN interfaces
   if (datalayer.system.info.can_native_send_fail) {
-    set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
+    set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
     datalayer.system.info.can_native_send_fail = false;
   } else {
-    clear_event(EVENT_CAN_NATIVE_TX_FAILURE);
+    clear_event(EVENT_CAN_NATIVE_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_native_bus_error) {
+    set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+    datalayer.system.info.can_native_bus_error = false;
+  } else {
+    clear_event(EVENT_CAN_NATIVE_BUS_ERROR);
   }
   if (datalayer.system.info.can_2515_send_fail) {
-    set_event(EVENT_CAN_BUFFER_FULL, 0);
+    set_event(EVENT_CANMCP2515_BUFFER_FULL, 0);
     datalayer.system.info.can_2515_send_fail = false;
   } else {
-    clear_event(EVENT_CAN_BUFFER_FULL);
+    clear_event(EVENT_CANMCP2515_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2515_bus_error) {
+    set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
+    datalayer.system.info.can_2515_bus_error = false;
+  } else {
+    clear_event(EVENT_CANMCP2515_BUS_ERROR);
   }
   if (datalayer.system.info.can_2518_send_fail) {
     set_event(EVENT_CANFD_BUFFER_FULL, 0);
     datalayer.system.info.can_2518_send_fail = false;
   } else {
     clear_event(EVENT_CANFD_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_bus_error) {
+    set_event(EVENT_CANFD_BUS_ERROR, 0);
+    datalayer.system.info.can_2518_bus_error = false;
+  } else {
+    clear_event(EVENT_CANFD_BUS_ERROR);
+  }
+  if (datalayer.system.info.can_2518_2_send_fail) {
+    set_event(EVENT_CANFD_2_BUFFER_FULL, 0);
+    datalayer.system.info.can_2518_2_send_fail = false;
+  } else {
+    clear_event(EVENT_CANFD_2_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_2_bus_error) {
+    set_event(EVENT_CANFD_2_BUS_ERROR, 0);
+    datalayer.system.info.can_2518_2_bus_error = false;
+  } else {
+    clear_event(EVENT_CANFD_2_BUS_ERROR);
   }
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
@@ -101,8 +150,15 @@ void update_machineryprotection() {
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
+    static bool cell_overvoltage_charge_blocked = false;
     if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      cell_overvoltage_charge_blocked = true;  // Latch at the ceiling
+    } else if (datalayer.battery.status.cell_max_voltage_mV <
+               (datalayer.battery.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
+      cell_overvoltage_charge_blocked = false;  // Release only once well below the ceiling
+    }
+    if (cell_overvoltage_charge_blocked) {
       datalayer.battery.status.max_charge_power_W = 0;
     }
     // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
@@ -228,6 +284,14 @@ void update_machineryprotection() {
       }
     }
 
+    //Check if we have ever seen the Battery
+    if (!battery_detected) {
+      if (datalayer.battery.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+        battery_detected = true;
+        set_event(EVENT_CAN_BATTERY_DETECTED, 1);
+      }
+    }
+
     // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
     if (!datalayer.battery.status.CAN_battery_still_alive) {
       set_event(EVENT_CAN_BATTERY_MISSING, can_config.battery);
@@ -245,16 +309,46 @@ void update_machineryprotection() {
   }
 
   if (inverter && inverter->interface_type() == InverterInterfaceType::Can) {
+
+    //Check if we have ever seen the inverter
+    if (!inverter_detected) {
+      if (datalayer.system.status.CAN_inverter_still_alive == CAN_STILL_ALIVE) {
+        inverter_detected = true;
+        set_event(EVENT_CAN_INVERTER_DETECTED, 1);
+      }
+    }
+
     // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.system.status.CAN_inverter_still_alive) {
-      set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
+      // Inverters that are slow to boot get a startup grace window before we fault.
+      if (!inverter->needs_can_startup_grace() || millis() > INVERTER_STARTUP_GRACE_MS) {
+        set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
+      }
     } else {
-      datalayer.system.status.CAN_inverter_still_alive--;
-      clear_event(EVENT_CAN_INVERTER_MISSING);
+      // If the inverter is a slow starter, only decrement the counter every 2 seconds to give it more time to start up before we report it as missing
+      if (user_selected_inverter_long_CAN_timeout) {
+        static uint8_t slow_start_counter = 0;
+        slow_start_counter++;
+        if (slow_start_counter > 2) {  // Only decrement every 2 seconds
+          datalayer.system.status.CAN_inverter_still_alive--;
+          slow_start_counter = 0;
+        }
+      } else {  //Normal 60s timeout for regular inverters
+        datalayer.system.status.CAN_inverter_still_alive--;
+        clear_event(EVENT_CAN_INVERTER_MISSING);
+      }
     }
   }
 
   if (charger) {
+    // Check if we have ever seen the charger
+    if (!charger_detected) {
+      if (datalayer.charger.CAN_charger_still_alive == CAN_STILL_ALIVE) {
+        charger_detected = true;
+        set_event(EVENT_CAN_CHARGER_DETECTED, 1);
+      }
+    }
+
     // Assuming chargers are all CAN here.
     // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.charger.CAN_charger_still_alive) {
@@ -273,6 +367,14 @@ void update_machineryprotection() {
     if (emulator_pause_request_ON) {
       datalayer.battery2.status.max_discharge_power_W = 0;
       datalayer.battery2.status.max_charge_power_W = 0;
+    }
+
+    // Check if we have ever seen the Battery 2
+    if (!battery2_detected) {
+      if (datalayer.battery2.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+        battery2_detected = true;
+        set_event(EVENT_CAN_BATTERY2_DETECTED, 1);
+      }
     }
 
     if (!datalayer.battery2.status.CAN_battery_still_alive) {
@@ -333,6 +435,14 @@ void update_machineryprotection() {
     if (emulator_pause_request_ON) {
       datalayer.battery3.status.max_discharge_power_W = 0;
       datalayer.battery3.status.max_charge_power_W = 0;
+    }
+
+    // Check if we have ever seen the Battery 3
+    if (!battery3_detected) {
+      if (datalayer.battery3.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+        battery3_detected = true;
+        set_event(EVENT_CAN_BATTERY3_DETECTED, 1);
+      }
     }
 
     if (!datalayer.battery3.status.CAN_battery_still_alive) {
@@ -450,18 +560,18 @@ void update_machineryprotection() {
 }
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
   DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
-  if (equipment_stop && !datalayer.system.info.equipment_stop_active) {
+  if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
     datalayer.system.info.equipment_stop_active = true;
     if (store_settings) {
       store_settings_equipment_stop();
     }
 
     set_event(EVENT_EQUIPMENT_STOP, 1);
-  } else if (!equipment_stop && datalayer.system.info.equipment_stop_active) {
+  } else if (equipment_stop == RESUME && datalayer.system.info.equipment_stop_active) {
     datalayer.system.info.equipment_stop_active = false;
     if (store_settings) {
       store_settings_equipment_stop();
@@ -500,6 +610,32 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
   update_pause_state();
 }
 
+void graceful_restart() {
+  // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
+
+  set_event(EVENT_RESTARTING, 0);
+
+  // Stop charge/discharge so we don't damage the contactors
+  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
+
+  uint32_t now = millis();
+  emulator_restart_request_millis = now > 0 ? now : 1;
+}
+
+void update_restart_progress() {
+  // If is a restart has been requested, check the time and restart if the
+  // conditions are met.
+
+  if (emulator_restart_request_millis > 0) {
+    uint32_t now = millis();
+    uint32_t elapsed = now - emulator_restart_request_millis;
+    // Restart after 5s if the emulator has paused. Always restart after 10s.
+    if ((elapsed > INTERVAL_5_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_10_S) {
+      ESP.restart();
+    }
+  }
+}
+
 /// @brief handle emulator pause status and CAN sending allowed
 void update_pause_state() {
   bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
@@ -508,9 +644,14 @@ void update_pause_state() {
     allowed_to_send_CAN = true;
   }
 
+  int16_t battery_current_dA = datalayer.battery.status.current_dA;
+  int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+  int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
+  static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps
+
   // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
-  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
-      datalayer.battery.status.current_dA > -18) {
+  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && abs(battery_current_dA) < CURRENT_THRESHOLD_dA &&
+      abs(battery2_current_dA) < CURRENT_THRESHOLD_dA && abs(battery3_current_dA) < CURRENT_THRESHOLD_dA) {
     emulator_pause_status = PAUSED;
   }
 

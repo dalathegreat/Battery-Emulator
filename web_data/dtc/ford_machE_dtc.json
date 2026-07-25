@@ -1,0 +1,128 @@
+[
+  {
+    "code": null,
+    "dtc": "B11D5",
+    "s_dsc": null,
+    "l_dsc": "Restraints Event - Vehicle Disabled"
+  },
+  {
+    "code": null,
+    "dtc": "U0100",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With ECM/PCM A"
+  },
+  {
+    "code": null,
+    "dtc": "U019B",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With Battery Charger Control Module 'A'"
+  },
+  {
+    "code": null,
+    "dtc": "U0140",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With Body Control Module"
+  },
+  {
+    "code": null,
+    "dtc": "U0146",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With Serial Data Gateway Module 'A'"
+  },
+  {
+    "code": null,
+    "dtc": "U0293",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With Hybrid/EV Powertrain Control Module 'A'"
+  },
+  {
+    "code": null,
+    "dtc": "U0298",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With DC/DC Converter Control Module 'A'"
+  },
+  {
+    "code": null,
+    "dtc": "U027C",
+    "s_dsc": null,
+    "l_dsc": "Lost Communication With Off-Board Charger Control Module"
+  },
+  {
+    "code": null,
+    "dtc": "U0594",
+    "s_dsc": null,
+    "l_dsc": "Invalid Data Received From Hybrid/EV Powertrain Control Module 'A'"
+  },
+  {
+    "code": null,
+    "dtc": "P0C44",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Temperature Sensor 'A' Circuit Low"
+  },
+  {
+    "code": null,
+    "dtc": "P0A06",
+    "s_dsc": null,
+    "l_dsc": "Motor Electronics Coolant Pump 'A' Control Circuit Low"
+  },
+  {
+    "code": null,
+    "dtc": "P0AA6",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Pack 'A' Voltage System Isolation Fault"
+  },
+  {
+    "code": null,
+    "dtc": "P0AA7",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Pack 'A' Voltage Isolation Sensor Circuit"
+  },
+  {
+    "code": null,
+    "dtc": "P1A42",
+    "s_dsc": null,
+    "l_dsc": "Propulsion System Status Signal Performance"
+  },
+  {
+    "code": null,
+    "dtc": "U3001",
+    "s_dsc": null,
+    "l_dsc": "Control Module Improper Shutdown Performance"
+  },
+  {
+    "code": null,
+    "dtc": "U3003",
+    "s_dsc": null,
+    "l_dsc": "Battery Voltage"
+  },
+  {
+    "code": null,
+    "dtc": "U351B",
+    "s_dsc": null,
+    "l_dsc": "High Voltage System Interlock Circuit 'D' Low"
+  },
+  {
+    "code": null,
+    "dtc": "P1A0F",
+    "s_dsc": null,
+    "l_dsc": "Hybrid Powertrain Control Module - Vehicle Disabled"
+  },
+  {
+    "code": null,
+    "dtc": "P1A43",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Contactor Request Signal Performance"
+  },
+  {
+    "code": null,
+    "dtc": "P0C48",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump 'A' Control Circuit Low"
+  },
+  {
+    "code": null,
+    "dtc": "P1627",
+    "s_dsc": null,
+    "l_dsc": "Module Supply Voltage Out Of Range"
+  }
+]

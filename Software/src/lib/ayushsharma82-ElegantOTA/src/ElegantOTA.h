@@ -38,16 +38,12 @@ class ElegantOTAClass{
 
     void begin(ELEGANTOTA_WEBSERVER *server);
 
-    void loop();
-
     void onStart(std::function<void()> callable);
     void onProgress(std::function<void(size_t current, size_t final)> callable);
     void onEnd(std::function<void(bool success)> callable);
     
   private:
     ELEGANTOTA_WEBSERVER *_server;
-    bool _reboot = false;
-    unsigned long _reboot_request_millis = 0;
 
     String _update_error_str = "";
     unsigned long _current_progress_size;

@@ -23,7 +23,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     static uint8_t secondsOutOfVoltageSyncBattery2 = 0;
 
     if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
-      clear_event(EVENT_VOLTAGE_DIFFERENCE);
+      clear_event(EVENT_VOLTAGE_DIFFERENCE_BAT2);
       secondsOutOfVoltageSyncBattery2 = 0;
       if (datalayer.system.status.system_status == FAULT) {
         // If main battery is in fault state, disengage the second battery
@@ -32,12 +32,14 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
         datalayer.system.status.battery2_allowed_contactor_closing = true;
       }
     } else {  //Voltage between the two packs is too large
-      set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery2_towards_main / 10));
-
       //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
+      //We alert user if we have been out of sync for more than 3 seconds, but we allow 10 seconds before we disengage the second battery
       if (secondsOutOfVoltageSyncBattery2 < 10) {
         secondsOutOfVoltageSyncBattery2++;
-      } else {
+        if (secondsOutOfVoltageSyncBattery2 > 3) {
+          set_event(EVENT_VOLTAGE_DIFFERENCE_BAT2, (uint8_t)(voltage_diff_battery2_towards_main / 10));
+        }
+      } else {  //10 seconds out of sync, disengage the second battery
         datalayer.system.status.battery2_allowed_contactor_closing = false;
       }
     }
@@ -55,7 +57,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     static uint8_t secondsOutOfVoltageSyncBattery3 = 0;
 
     if (voltage_diff_battery3_towards_main <= 15) {  // If we are within 1.5V between the batteries
-      clear_event(EVENT_VOLTAGE_DIFFERENCE);
+      clear_event(EVENT_VOLTAGE_DIFFERENCE_BAT3);
       secondsOutOfVoltageSyncBattery3 = 0;
       if (datalayer.system.status.system_status == FAULT) {
         // If main battery is in fault state, disengage the second battery
@@ -64,12 +66,14 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
         datalayer.system.status.battery3_allowed_contactor_closing = true;
       }
     } else {  //Voltage between the two packs is too large
-      set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff_battery3_towards_main / 10));
-
       //If we start to drift out of sync between the two packs for more than 10 seconds, open contactors
+      //We alert user if we have been out of sync for more than 3 seconds, but we allow 10 seconds before we disengage the second battery
       if (secondsOutOfVoltageSyncBattery3 < 10) {
         secondsOutOfVoltageSyncBattery3++;
-      } else {
+        if (secondsOutOfVoltageSyncBattery3 > 3) {
+          set_event(EVENT_VOLTAGE_DIFFERENCE_BAT3, (uint8_t)(voltage_diff_battery3_towards_main / 10));
+        }
+      } else {  //10 seconds out of sync, disengage the second battery
         datalayer.system.status.battery3_allowed_contactor_closing = false;
       }
     }

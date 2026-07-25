@@ -396,7 +396,12 @@ void Kia64FDBattery::transmit_can(unsigned long currentMillis) {
       KIA64FD_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can_frame(&KIA64FD_7E4);
+        if (UserRequestDTCreset) {
+          transmit_can_frame(&KIA64FD_CLEAR_DTC);
+          UserRequestDTCreset = false;
+        } else {  //Normal poll
+          transmit_can_frame(&KIA64FD_7E4);
+        }
       }
 
       KIA_7E4_COUNTER++;

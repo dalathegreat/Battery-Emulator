@@ -13,7 +13,11 @@ class RenaultKangooBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Renault Kangoo";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
+  bool UserRequestDTCreset = false;
   static const int MAX_PACK_VOLTAGE_DV = 4150;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2500;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -68,6 +72,11 @@ class RenaultKangooBattery : public CanBattery {
                                    .DLC = 8,
                                    .ID = 0x79B,
                                    .data = {0x30, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame KANGOO_CLEAR_DTC = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x79B,
+                                .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent

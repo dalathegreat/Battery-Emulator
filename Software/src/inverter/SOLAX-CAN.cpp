@@ -11,12 +11,16 @@
 #define Contactor_Open_Payload __builtin_bswap64(0x0200010000000000)
 #define Contactor_Close_Payload __builtin_bswap64(0x0200010001000000)
 
-void SolaxInverter::
-    update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
-  // If not receiveing any communication from the inverter, open contactors and return to battery announce state
-  if (millis() - LastFrameTime >= INTERVAL_2_S && !configured_ignore_contactors) {
+void SolaxInverter::update_values() {
+  // If not receiving any communication from the inverter, open contactors and
+  // return to battery announce state
+  if (millis() - LastFrameTime >= INTERVAL_2_S &&
+      configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
-    STATE = BATTERY_ANNOUNCE;
+    if (STATE != BATTERY_ANNOUNCE) {
+      logging.println("[Solax] Timeout, opening contactor");
+      STATE = BATTERY_ANNOUNCE;
+    }
   }
   //Calculate the required values
   temperature_average =
@@ -127,6 +131,21 @@ void SolaxInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
+// Write 7 uppercase hex ASCII chars (D2..D8) from eFuse MAC, slot index, and frame half (0=1881, 1=1882).
+void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half, uint8_t out[7]) {
+  static const char hex[] = "0123456789ABCDEF";
+  uint8_t mix[4] = {
+      (uint8_t)(mac[0] ^ slot ^ (half * 0x11u)),
+      (uint8_t)(mac[1] ^ slot ^ (half * 0x22u)),
+      (uint8_t)(mac[2] ^ slot ^ (half * 0x33u)),
+      (uint8_t)(mac[3] ^ slot ^ (half * 0x44u)),
+  };
+  for (int i = 0; i < 7; i++) {
+    uint8_t b = mix[i >> 1];
+    out[i] = hex[(b >> ((1 - (i & 1)) * 4)) & 0x0F];
+  }
+}
+
 void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
@@ -135,10 +154,8 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     if ((rx_frame.data.u8[0] == (0x01)) || (rx_frame.data.u8[0] == (0x02))) {
       LastFrameTime = millis();
 
-      if (configured_ignore_contactors) {
-        // Skip the state machine since we're not going to open/close contactors,
-        // and the Solax would otherwise wait forever for us to do so.
-
+      // AlwaysClosed mode: Bypass state machine, keep contactors always closed
+      if (configured_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed) {
         datalayer.system.status.inverter_allows_contactor_closing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
         transmit_can_frame(&SOLAX_187E);
@@ -154,9 +171,14 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         return;
       }
 
+      const bool print_state = (STATE != PREV_STATE);
+      PREV_STATE = STATE;
+
+      // Normal state machine (NoWorkaround and LockAfterFirstClose modes)
       switch (STATE) {
         case (BATTERY_ANNOUNCE):
-          logging.println("Solax Battery State: Announce");
+          if (print_state)
+            logging.println("[Solax]: Announce");
           datalayer.system.status.inverter_allows_contactor_closing = false;
           SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
           for (uint8_t i = 0; i < number_of_batteries; i++) {
@@ -178,6 +200,8 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           break;
 
         case (WAITING_FOR_CONTACTOR):
+          if (print_state)
+            logging.println("[Solax]: Waiting for contactor");
           SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
           transmit_can_frame(&SOLAX_187E);
           transmit_can_frame(&SOLAX_187A);
@@ -190,10 +214,11 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           transmit_can_frame(&SOLAX_1878);
           transmit_can_frame(&SOLAX_1801);  // Announce that the battery will be connected
           STATE = CONTACTOR_CLOSED;         // Jump to Contactor Closed State
-          logging.println("Solax Battery State: Contactor Closed");
           break;
 
         case (CONTACTOR_CLOSED):
+          if (print_state)
+            logging.println("[Solax]: Contactor closed");
           datalayer.system.status.inverter_allows_contactor_closing = true;
           SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
           transmit_can_frame(&SOLAX_187E);
@@ -207,7 +232,9 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           transmit_can_frame(&SOLAX_1878);
           // Message from the inverter to open contactor
           // Byte 4 changes from 1 to 0
-          if (rx_frame.data.u64 == Contactor_Open_Payload) {
+          // Only process open request in NoWorkaround mode; LockAfterFirstClose mode ignores it
+          if (rx_frame.data.u64 == Contactor_Open_Payload &&
+              configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
             set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
             STATE = BATTERY_ANNOUNCE;
           }
@@ -217,12 +244,29 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
-    transmit_can_frame(&SOLAX_1881);
-    transmit_can_frame(&SOLAX_1882);
-    logging.println("1871 05-frame received from inverter");
+    uint16_t modules = configured_number_of_modules;
+    if (modules > 254) {
+      modules = 254;
+    }
+    int slot_count = (int)modules + 1;
+
+    uint64_t mac64 = ESP.getEfuseMac();
+    uint8_t mac[6];
+    for (int i = 0; i < 6; i++) {
+      mac[i] = (uint8_t)(mac64 >> (i * 8));
+    }
+
+    for (int slot = 0; slot < slot_count; slot++) {
+      SOLAX_1881.data.u8[0] = (uint8_t)slot;
+      solax_pack_identity_ascii(mac, (uint8_t)slot, 0, &SOLAX_1881.data.u8[1]);
+      SOLAX_1882.data.u8[0] = (uint8_t)slot;
+      solax_pack_identity_ascii(mac, (uint8_t)slot, 1, &SOLAX_1882.data.u8[1]);
+      transmit_can_frame(&SOLAX_1881);
+      transmit_can_frame(&SOLAX_1882);
+    }
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-    logging.println("1871 03-frame received from inverter");
+    // Unused message
   }
 }
 
@@ -240,10 +284,9 @@ bool SolaxInverter::setup(void) {  // Performs one time setup at startup
     configured_battery_type = DEFAULT_BATTERY_TYPE;
   }
 
-  configured_ignore_contactors = user_selected_inverter_ignore_contactors;
+  configured_contactor_mode = user_selected_inverter_contactor_mode;
 
-  if (!configured_ignore_contactors) {
-    // Only prevent closing if we're not ignoring contactors
+  if (configured_contactor_mode != inverter_contactor_mode_enum::AlwaysClosed) {
     datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   }
 

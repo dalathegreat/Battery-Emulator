@@ -11,6 +11,9 @@ class SmaInverterBase : public CanInverterProtocol {
   SmaInverterBase() { contactorEnablePin = esp32hal->INVERTER_CONTACTOR_ENABLE_PIN(); }
   bool allows_contactor_closing() override { return digitalRead(contactorEnablePin) == 1; }
 
+  // SMA inverters can take a while to boot before they start sending CAN.
+  bool needs_can_startup_grace() override { return true; }
+
   virtual bool setup() override {
     datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
 

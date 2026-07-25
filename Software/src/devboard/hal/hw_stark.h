@@ -55,18 +55,12 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
+  virtual uint32_t MCP2517_FREQ() { return 40000000; }
 
-  // CAN_ADDON
-  // SCK input of MCP2515
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_14; }
-  // SDI input of MCP2515
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_12; }
-  // SDO output of MCP2515
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_34; }
-  // CS input of MCP2515
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_15; }
-  // INT output of MCP2515
-  virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_13; }
+  // MCP2518FD add-on via the GPIO pins
+  // SPI Bus is shared with the 1st interface, only INT and CS pins are needed
+  virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_12; }
+  virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_14; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
@@ -77,8 +71,11 @@ class StarkHal : public Esp32Hal {
     }
     return GPIO_NUM_25;
   }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
+
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_19; }
-  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
   virtual gpio_num_t BMS_POWER() {
     if (user_selected_gpioopt5 == GPIOOPT5::BMS_POWER_25) {
       return GPIO_NUM_25;
@@ -104,6 +101,9 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
+  // the FLA momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP if not running
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
             comm_interface::CanFdNative};
@@ -116,18 +116,20 @@ class StarkHal : public Esp32Hal {
       case comm_interface::CanFdNative:
         return "CAN FD 2 (Native)";
       case comm_interface::CanAddonMcp2515:
-        return "MCP2515 (GPIO add-on)";
+        return "";
       case comm_interface::CanFdAddonMcp2518:
         return "";
+      case comm_interface::CanFdAddonMcp2518_2:
+        return "MCP2518FD (GPIO add-on)";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:
         return "RS485";
       case comm_interface::Highest:
         return "";
-        break;
+      default:
+        return Esp32Hal::name_for_comm_interface(comm);
     }
-    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 

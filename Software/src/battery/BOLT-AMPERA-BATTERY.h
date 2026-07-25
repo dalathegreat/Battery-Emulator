@@ -7,6 +7,7 @@
 
 class BoltAmperaBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Default constructor - first or single battery
   BoltAmperaBattery() : renderer(&datalayer_extended.boltampera) {
     datalayer_battery = &datalayer.battery;
@@ -31,13 +32,17 @@ class BoltAmperaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
   BoltAmperaHtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_BOLTAMPERA* datalayer_boltampera;
   bool* allows_contactor_closing;
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
+  bool UserRequestDTCreset = false;
 
+  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2510;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -212,6 +217,11 @@ class BoltAmperaBattery : public CanBattery {
                             .DLC = 8,
                             .ID = 0x7E7,
                             .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame BOLT_CLEAR_DTC = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E7,
+                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
   // Other PID requests in the vehicle
   // All HV ECUs - 0x101

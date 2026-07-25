@@ -3,11 +3,15 @@
 
 #include <Preferences.h>
 #include <WiFi.h>
+#include <string>
 #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 
 extern const char* version_number;  // The current software version, shown on webserver
+extern std::string http_username;
+extern std::string http_password;
+extern bool webserver_auth;
 
 // Common charger parameters
 extern float charger_stat_HVcur;

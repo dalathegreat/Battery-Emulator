@@ -7,6 +7,7 @@ extern bool user_selected_use_estimated_SOC;
 
 class KiaEGmpBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   KiaEGmpBattery() : renderer(*this) {}
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -41,6 +42,7 @@ class KiaEGmpBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery is put into emergency stop if one cell goes below this value
+  static const int FLOAT_MAX_POWER_W = 500;     // W, what power to allow for top balancing battery
 
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance

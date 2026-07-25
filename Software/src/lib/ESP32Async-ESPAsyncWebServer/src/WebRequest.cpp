@@ -14,6 +14,28 @@ static void doNotDelete(AsyncWebServerRequest *) {}
 
 using namespace asyncsrv;
 
+static String base64Encode(const String &input) {
+  static const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  String output;
+  output.reserve(((input.length() + 2) / 3) * 4);
+
+  size_t i = 0;
+  while (i < input.length()) {
+    uint8_t a = static_cast<uint8_t>(input.charAt(i++));
+    bool hasB = i < input.length();
+    uint8_t b = hasB ? static_cast<uint8_t>(input.charAt(i++)) : 0;
+    bool hasC = i < input.length();
+    uint8_t c = hasC ? static_cast<uint8_t>(input.charAt(i++)) : 0;
+
+    output += alphabet[a >> 2];
+    output += alphabet[((a & 0x03) << 4) | (b >> 4)];
+    output += hasB ? alphabet[((b & 0x0F) << 2) | (c >> 6)] : '=';
+    output += hasC ? alphabet[c & 0x3F] : '=';
+  }
+
+  return output;
+}
+
 enum {
   PARSE_REQ_START = 0,
   PARSE_REQ_HEADERS = 1,
@@ -875,7 +897,22 @@ void AsyncWebServerRequest::redirect(const char *url, int code) {
 }
 
 bool AsyncWebServerRequest::authenticate(const char *username, const char *password, const char *realm, bool passwordIsHash) const {
-  return true;
+  (void)realm;
+
+  if (!_authorization.length() || username == NULL || password == NULL) {
+    return false;
+  }
+
+  if (_authMethod == AsyncAuthType::AUTH_BASIC) {
+    String expected = passwordIsHash ? String(password) : base64Encode(String(username) + ":" + String(password));
+    return _authorization.equals(expected);
+  }
+
+  if (passwordIsHash) {
+    return authenticate(password);
+  }
+
+  return false;
 }
 
 bool AsyncWebServerRequest::authenticate(const char *hash) const {
@@ -910,6 +947,9 @@ void AsyncWebServerRequest::requestAuthentication(AsyncAuthType method, const ch
   }
 
   AsyncWebServerResponse *r = _authFailMsg ? beginResponse(401, T_text_html, _authFailMsg) : beginResponse(401);
+  if (method == AsyncAuthType::AUTH_BASIC || method == AsyncAuthType::AUTH_DIGEST) {
+    r->addHeader(T_WWW_AUTH, String(T_BASIC_REALM) + realm + "\"");
+  }
 
   send(r);
 }

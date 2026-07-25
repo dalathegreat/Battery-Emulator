@@ -1,0 +1,125 @@
+name: ⚖️ Measure firmware size
+
+# Reusable workflow called by "🔋 Compile Common Images" on pull_request.
+# No PlatformIO, no rebuilds — just download, diff, and comment.
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: "Number of the PR being measured."
+        required: true
+        type: string
+      base_ref:
+        description: "Base branch the PR targets (e.g. main)."
+        required: true
+        type: string
+      base_sha:
+        description: "Base branch tip SHA, for the comment header."
+        required: true
+        type: string
+
+permissions:
+  actions: read       # list workflow runs; cross-run artifact download
+  contents: read
+
+jobs:
+  measure-firmware-size:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check PR context
+      if: inputs.pr_number == '' || inputs.base_ref == ''
+      run: |
+        echo "::error::measure was called without a PR number / base ref." >&2
+        exit 1
+
+    - name: Checkout scripts
+      uses: actions/checkout@v7
+      with:
+        sparse-checkout: .github/scripts
+
+    - name: Download PR-side size reports from this run
+      uses: actions/download-artifact@v8
+      with:
+        path: ./pr
+        pattern: "*.size.json"
+        merge-multiple: true
+
+    - name: Resolve base compile run
+      id: ctx
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+
+          // Find every compile run for the PRs EXACT base commit
+          const { data: runs } = await github.rest.actions.listWorkflowRuns({
+            owner, repo,
+            workflow_id: 'compile-common-image.yml',
+            head_sha: '${{ inputs.base_sha }}',
+            per_page: 20,
+          });
+
+          // Retrieve the number of usable (non-expired) artifacts
+          const scored = [];
+          for (const run of runs.workflow_runs) {
+            const { data: arts } =
+              await github.rest.actions.listWorkflowRunArtifacts({
+                owner, repo, run_id: run.id, per_page: 100,
+              });
+            const usable = arts.artifacts.filter(a => !a.expired).length;
+            if (usable > 0) {
+              scored.push({ id: run.id, usable, created: run.created_at });
+            }
+          }
+          // Find the run with the most artifacts, or the newest
+          scored.sort((a, b) =>
+            b.usable - a.usable || b.created.localeCompare(a.created)
+          );
+
+          core.setOutput('run_id', scored[0]?.id ?? '');
+
+    - name: Download base-branch artifacts
+      if: steps.ctx.outputs.run_id != ''
+      uses: actions/download-artifact@v8
+      with:
+        path: ./base
+        run-id: ${{ steps.ctx.outputs.run_id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        pattern: "*.size.json"
+        merge-multiple: true
+
+    - name: Get Artifact URLs JSON Map
+      if: steps.ctx.outputs.run_id != ''
+      id: artifact_json
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Creates a single JSON object mapping names to URLs
+        JSON_MAP=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+          --jq '[.artifacts[] | select(.name | endswith(".ota.bin")) | {key: .name, value: ("${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/" + (.id | tostring))}] | from_entries')
+        
+        echo "JSON_MAP=$JSON_MAP" >> $GITHUB_OUTPUT
+
+    - name: Render comment
+      env:
+        ARTIFACT_URLS_JSON: ${{ steps.artifact_json.outputs.JSON_MAP }}
+      run: |
+        python .github/scripts/render_size_comment.py \
+          --pr-dir ./pr \
+          --base-dir ./base \
+          --base-branch "${{ inputs.base_ref }}" \
+          --base-sha    "${{ inputs.base_sha }}" \
+          --head-sha    "${{ github.event.pull_request.head.sha }}" \
+          --artifact-urls "$ARTIFACT_URLS_JSON" \
+          > comment.md
+        echo "${{ inputs.pr_number }}" > pr_number.txt
+
+    - name: Upload firmware size report
+      uses: actions/upload-artifact@v7
+      with:
+        name: comment-for-pr
+        if-no-files-found: error
+        path: |
+          comment.md
+          pr_number.txt

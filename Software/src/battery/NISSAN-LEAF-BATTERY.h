@@ -11,7 +11,7 @@ extern bool user_selected_LEAF_interlock_mandatory;
 class NissanLeafBattery : public CanBattery {
  public:
   // Use the default constructor to create the first or single battery.battery_Total_Voltage2
-  NissanLeafBattery() {
+  NissanLeafBattery() : renderer(&datalayer_extended.nissanleaf) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     datalayer_nissan = &datalayer_extended.nissanleaf;
@@ -19,7 +19,7 @@ class NissanLeafBattery : public CanBattery {
   // Use this constructor for the second battery.
   NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended,
                     CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+      : CanBattery(targetCan), renderer(extended) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
@@ -33,7 +33,10 @@ class NissanLeafBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
 
   bool supports_reset_SOH();
-  void reset_SOH() { datalayer_extended.nissanleaf.UserRequestSOHreset = true; }
+  void reset_SOH() { UserRequestSOHreset = true; }
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_insulation_resistance() { return true; }
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
@@ -47,11 +50,13 @@ class NissanLeafBattery : public CanBattery {
   uint8_t calculate_crc(CAN_frame& frame);
 
  private:
-  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 2600;
+  bool UserRequestDTCreset = false;
+  bool UserRequestSOHreset = false;
+  static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4224;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2500;  //Battery is put into emergency stop if one cell goes below this value
 
   NissanLeafHtmlRenderer renderer;
 
@@ -131,6 +136,11 @@ class NissanLeafBattery : public CanBattery {
                                       .DLC = 8,
                                       .ID = 0x79B,
                                       .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+  CAN_frame LEAF_CLEAR_DTC = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x79B,
+                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
   // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
   // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
@@ -151,15 +161,15 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
   uint16_t battery_GIDS = 273;                 //Startup in 24kWh mode
   uint16_t battery_MAX = 0;
-  uint16_t battery_Max_GIDS = 273;               //Startup in 24kWh mode
-  uint16_t battery_StateOfHealth = 99;           //State of health %
-  uint16_t battery_Total_Voltage2 = 740;         //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
-  int16_t battery_Current2 = 0;                  //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
-  int16_t battery_HistData_Temperature_MAX = 6;  //-40 to 86*C
-  int16_t battery_HistData_Temperature_MIN = 5;  //-40 to 86*C
-  int16_t battery_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
-  uint8_t battery_Relay_Cut_Request = 0;         //battery_FAIL
-  uint8_t battery_Failsafe_Status = 0;           //battery_STATUS
+  uint16_t battery_Max_GIDS = 273;                //Startup in 24kWh mode
+  uint16_t battery_StateOfHealth = 99;            //State of health %
+  uint16_t battery_Total_Voltage2 = 740;          //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+  int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
+  int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C
+  int16_t battery_HistData_Temperature_MIN = 86;  //-40 to 86*C
+  int16_t battery_AverageTemperature = 6;         //Only available on ZE0, in celcius, -40 to +55
+  uint8_t battery_Relay_Cut_Request = 0;          //battery_FAIL
+  uint8_t battery_Failsafe_Status = 0;            //battery_STATUS
   bool battery_Interlock =
       true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged
@@ -177,6 +187,9 @@ class NissanLeafBattery : public CanBattery {
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
+  bool balancing_data_received = false;         //true once group 0x06 has answered at least once
+  bool balancing_data_fresh = false;            //set by group 0x06 handler, consumed by update_values()
+  uint8_t balancing_idle_polls = 0;             //consecutive group 0x06 polls with no shunt active
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance

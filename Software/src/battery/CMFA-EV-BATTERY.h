@@ -8,6 +8,7 @@
 
 class CmfaEvBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Use this constructor for the second battery.
   CmfaEvBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_CMFAEV* extended, CAN_Interface targetCan)
       : CanBattery(targetCan) {
@@ -237,7 +238,7 @@ class CmfaEvBattery : public CanBattery {
   uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
   uint32_t SOC_raw = 20000;
   uint16_t SOH = 99;
-  int16_t current = 0;
+  int16_t current_raw = 2000;
   uint16_t pack_voltage = 500;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;

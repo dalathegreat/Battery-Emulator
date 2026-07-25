@@ -10,7 +10,11 @@ class KiaHyundaiHybridBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia/Hyundai Hybrid";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
+  bool UserRequestDTCreset = false;
   static const int MAX_PACK_VOLTAGE_HEV_DV = 2550;
   static const int MIN_PACK_VOLTAGE_HEV_DV = 1700;
   static const int MAX_PACK_VOLTAGE_PHEV_DV = 4040;
@@ -49,6 +53,11 @@ class KiaHyundaiHybridBattery : public CanBattery {
                            .DLC = 8,
                            .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame KIA_CLEAR_DTC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E4,
+                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
   CAN_frame KIA_200 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
