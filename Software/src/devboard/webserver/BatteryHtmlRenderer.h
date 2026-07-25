@@ -13,6 +13,14 @@ class BatteryHtmlRenderer {
  public:
   virtual String get_status_html() = 0;
 
+  // Returns true when this renderer reads the data of its own battery instance
+  // (e.g. via a datalayer pointer supplied at construction), rather than the
+  // hardcoded main-battery globals. The advanced battery page only renders
+  // status HTML for battery 2/3 when this returns true; otherwise it shows a
+  // "limited to the Main Battery" notice. Override and return true after
+  // reworking a battery integration for double/triple support.
+  virtual bool renders_own_battery_data() { return false; }
+
   static String render_dtc_section_html(DATALAYER_BATTERY_DTC_TYPE& dtc, const char* json_filename,
                                         bool standard_code_string) {
     String content;
@@ -277,6 +285,8 @@ class BatteryHtmlRenderer {
 class BatteryDefaultRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() { return String("No extra information available for this battery type"); }
+  // Static text, valid for any battery instance.
+  bool renders_own_battery_data() { return true; }
 };
 
 #endif
