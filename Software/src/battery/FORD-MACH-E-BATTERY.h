@@ -68,11 +68,8 @@ class FordMachEBattery : public CanBattery {
   int16_t battery_current = 0;
   uint16_t maximum_cellvoltage_mV = 3700;
   uint16_t minimum_cellvoltage_mV = 3700;
-
-  uint16_t discharge_power_cand2 = 0;
-  uint16_t charge_power_cand2 = 0;
-  uint16_t discharge_power_cand1 = 0;
-  uint16_t charge_power_cand1 = 0;
+  uint16_t charge_current_allowed = 0;
+  uint16_t discharge_current_allowed = 0;
 
   uint8_t counter_30ms = 0;
   uint8_t counter_8_30ms = 0;

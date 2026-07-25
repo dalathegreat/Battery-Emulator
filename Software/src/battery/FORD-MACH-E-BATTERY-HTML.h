@@ -20,34 +20,6 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       content += " " + String(datalayer_extended.fordMachE.pid_hvb_max_charge_current) + " A</h4>";
     }
 
-    content += "<h4>Charge power candidate 1:";
-    if (datalayer_extended.fordMachE.charge_power_cand1 == 255) {
-      content += "N/A</h4>";
-    } else {
-      content += " " + String(datalayer_extended.fordMachE.charge_power_cand1) + " A</h4>";
-    }
-
-    content += "<h4>Discharge power candidate 1:";
-    if (datalayer_extended.fordMachE.discharge_power_cand1 == 255) {
-      content += "N/A</h4>";
-    } else {
-      content += " " + String(datalayer_extended.fordMachE.discharge_power_cand1) + " A</h4>";
-    }
-
-    content += "<h4>Charge power candidate 2:";
-    if (datalayer_extended.fordMachE.charge_power_cand2 == 255) {
-      content += "N/A</h4>";
-    } else {
-      content += " " + String(datalayer_extended.fordMachE.charge_power_cand2) + " A</h4>";
-    }
-
-    content += "<h4>Discharge power candidate 2:";
-    if (datalayer_extended.fordMachE.discharge_power_cand2 == 255) {
-      content += "N/A</h4>";
-    } else {
-      content += " " + String(datalayer_extended.fordMachE.discharge_power_cand2) + " A</h4>";
-    }
-
     content += "<h4>Average temperature:";
     if (datalayer_extended.fordMachE.pid_hvb_temp == 255) {
       content += "N/A</h4>";
