@@ -23,9 +23,9 @@ class VoltageSyncTest : public ::testing::Test {
 
 // Test: When battery is powered OFF (no CAN comm), the allowed closing should be false
 TEST_F(VoltageSyncTest, Battery2NotPoweredOn) {
-  battery2_detected = false; //Not detected via CAN
-  datalayer.battery.status.voltage_dV = 3700; //Default startup voltage
-  datalayer.battery2.status.voltage_dV = 3700; //Default startup voltage
+  battery2_detected = false;                    //Not detected via CAN
+  datalayer.battery.status.voltage_dV = 3700;   //Default startup voltage
+  datalayer.battery2.status.voltage_dV = 3700;  //Default startup voltage
 
   check_parallel_battery_safety(2);
 
