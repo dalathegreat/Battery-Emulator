@@ -111,6 +111,20 @@ String advanced_battery_processor(const String& var) {
       }
     };
 
+    // Renders battery specific status for battery 2/3. Only renderers that
+    // read per-instance data (renders_own_battery_data) are used; legacy
+    // renderers hardcode the main battery datalayer and would show battery 1
+    // values here, so a notice is shown instead until they are reworked.
+    auto render_secondary_battery_status = [&content](Battery* batt) {
+      BatteryHtmlRenderer& renderer = batt->get_status_renderer();
+      if (renderer.renders_own_battery_data()) {
+        content += renderer.get_status_html();
+      } else {
+        content +=
+            "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
+      }
+    };
+
     if (battery) {
       content += battery->get_status_renderer().get_status_html();
       render_command_buttons(battery, 0);
@@ -119,13 +133,14 @@ String advanced_battery_processor(const String& var) {
     if (battery2) {
       content += "<hr>";
       content += "<h4>Values from battery 2</h4>";
-      content += battery2->get_status_renderer().get_status_html();
+      render_secondary_battery_status(battery2);
       render_command_buttons(battery2, 1);
     }
 
     if (battery3) {
+      content += "<hr>";
       content += "<h4>Values from battery 3</h4>";
-      content += "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
+      render_secondary_battery_status(battery3);
       render_command_buttons(battery3, 2);
     }
 
