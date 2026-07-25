@@ -8,6 +8,8 @@ class BoltAmperaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   BoltAmperaHtmlRenderer(DATALAYER_INFO_BOLTAMPERA* dl) : boltampera_dl(dl) {}
 
+  bool renders_own_battery_data() { return true; }
+
   String get_status_html() {
     String content;
 
