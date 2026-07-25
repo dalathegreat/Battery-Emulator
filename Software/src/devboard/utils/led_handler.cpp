@@ -134,11 +134,14 @@ void LED::exe(void) {
       break;
   }
 
-  // Indicator LEDs 1-4 mirror the STATUS LED's color, at a fixed (non-animated) brightness
-  // (no-op past the end of the chain on boards without RGB indicator LEDs).
-  uint32_t indicator_color = scale_color(status_hue, max_brightness);
-  for (uint8_t i = 0; i < 4; i++) {
-    pixels.setPixelColor(i + 1, indicator_led_state[i] ? indicator_color : 0);
+  // Indicator LEDs 1-4 mirror the STATUS LED's color, at a fixed (non-animated) brightness.
+  // Skipped entirely on boards with no RGB indicator LEDs (num_leds == 1), rather than relying
+  // on Adafruit_NeoPixel::setPixelColor()'s bounds check to make it a no-op.
+  if (num_leds > 1) {
+    uint32_t indicator_color = scale_color(status_hue, max_brightness);
+    for (uint8_t i = 0; i < 4; i++) {
+      pixels.setPixelColor(i + 1, indicator_led_state[i] ? indicator_color : 0);
+    }
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.

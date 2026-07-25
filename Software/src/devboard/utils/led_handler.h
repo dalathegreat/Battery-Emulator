@@ -13,10 +13,14 @@ enum class IndicatorLed : uint8_t { PRECHARGE = 0, CONTACTOR_NEG = 1, CONTACTOR_
 class LED {
  public:
   LED(gpio_num_t pin, uint8_t maxBrightness, uint8_t numLeds = 1)
-      : pixels(pin, numLeds), max_brightness(maxBrightness), brightness(maxBrightness), mode(led_mode_enum::CLASSIC) {}
+      : pixels(pin, numLeds),
+        max_brightness(maxBrightness),
+        brightness(maxBrightness),
+        mode(led_mode_enum::CLASSIC),
+        num_leds(numLeds) {}
 
   LED(led_mode_enum mode, gpio_num_t pin, uint8_t maxBrightness, uint8_t numLeds = 1)
-      : pixels(pin, numLeds), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode) {}
+      : pixels(pin, numLeds), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode), num_leds(numLeds) {}
 
   void exe(void);
 
@@ -25,6 +29,7 @@ class LED {
   uint8_t max_brightness;
   uint8_t brightness;
   led_mode_enum mode;
+  uint8_t num_leds;  // 1 = STATUS only; >1 = STATUS + RGB indicator LEDs are present
 
   void classic_run(void);
   void flow_run(void);
