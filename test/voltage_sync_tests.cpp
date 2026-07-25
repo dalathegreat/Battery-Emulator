@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../Software/src/datalayer/datalayer.h"
+#include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/safety/parallel_safety.h"
 #include "../Software/src/devboard/utils/events.h"
 
@@ -15,8 +16,21 @@ class VoltageSyncTest : public ::testing::Test {
     datalayer.system.status.system_status = ACTIVE;
     datalayer.system.status.battery2_allowed_contactor_closing = true;
     datalayer.system.status.battery3_allowed_contactor_closing = true;
+    battery2_detected = true;
+    battery3_detected = true;
   }
 };
+
+// Test: When battery is powered OFF (no CAN comm), the allowed closing should be false
+TEST_F(VoltageSyncTest, Battery2NotPoweredOn) {
+  battery2_detected = false;
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery2.status.voltage_dV = 3700;
+
+  check_parallel_battery_safety(2);
+
+  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+}
 
 // Test: When voltages are in sync, battery2 is allowed to close contactors
 TEST_F(VoltageSyncTest, Battery2AllowedWhenVoltagesInSync) {
