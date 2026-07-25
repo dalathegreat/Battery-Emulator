@@ -4,14 +4,8 @@
 #include "../utils/events.h"
 
 void check_parallel_battery_safety(uint8_t batteryNumber) {
-
-  if (millis() < INTERVAL_10_S) {
-    // Skip running the state machine before system has started up.
-    // Gives the system some time to detect sane voltages from the batteries before we start checking for voltage differences and potentially just report a fault and open contactors because the batteries haven't had time to report values yet.
-    return;
-  }
-
-  if (batteryNumber == 2) {
+  /* Before the checks are started, we need to know the battery is alive via CAN, and that the voltages have ben read*/
+  if ((batteryNumber == 2) && battery2_detected) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
       return;  // Both voltage values need to be available to start check
     }
@@ -45,7 +39,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     }
   }
 
-  if (batteryNumber == 3) {
+  if ((batteryNumber == 3) && battery3_detected) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery3.status.voltage_dV == 0) {
       return;  // Both voltage values need to be available to start check
     }
