@@ -13,6 +13,8 @@
 #include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
 
+#include <map>
+
 extern bool settingsUpdated;
 
 template <typename E>
@@ -98,6 +100,11 @@ String options_from_map(int selected, const TMap& value_name_map) {
   }
   return options;
 }
+
+// Shared IPv4 validation regex for every IP input on the settings page. Injected via the %IPPATTERN%
+// placeholder rather than repeated in the HTML template, so it only occupies flash once.
+static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d))";
+
 #ifdef HW_LILYGO2CAN
 static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
                                                 {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
@@ -221,6 +228,32 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
 
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
+// only for the battery integrations that actually implement parallel batteries.
+// Generated from battery_supports_double()/battery_supports_triple() so the UI
+// can never drift out of sync with what setup_battery() is able to instantiate.
+static String capability_css(const char* className, bool (*supported)(BatteryType)) {
+  String selectors;
+
+  for (auto& type : enum_values<BatteryType>()) {
+    if (!supported(type)) {
+      continue;
+    }
+    if (!selectors.isEmpty()) {
+      selectors += ",";
+    }
+    selectors += "form[data-battery=\"" + String(to_underlying(type)) + "\"] ." + className;
+  }
+
+  String css = "form ." + String(className) + " { display: none; }";
+
+  if (!selectors.isEmpty()) {
+    css += selectors + " { display: contents; }";
+  }
+
+  return css;
+}
+
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
@@ -234,6 +267,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "BATTCOMM") {
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
+  }
+  if (var == "BTRCAPCSS") {
+    return capability_css("if-dblcapable", battery_supports_double) +
+           capability_css("if-tricapable", battery_supports_triple);
   }
   if (var == "BATTCHEM") {
     return options_for_enum(
@@ -476,6 +513,38 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LOWPASSFILTER") ? "checked" : "";
   }
 
+  if (var == "CHGTAPERSOC") {
+    if (battery && battery->mandatory_charge_taper()) {
+      return "checked";
+    }
+    return settings.getBool("CHGTAPERSOC") ? "checked" : "";
+  }
+
+  if (var == "CHGTAPERMANDATORY") {
+    return (battery && battery->mandatory_charge_taper()) ? "disabled" : "";
+  }
+
+  if (var == "CHGTAPERMAX") {
+    return (battery && battery->mandatory_charge_taper()) ? "85" : "99";
+  }
+
+  if (var == "CHGTAPERSTART") {
+    uint32_t start = settings.getUInt("CHGTAPERSTART", 95);
+    if (battery && battery->mandatory_charge_taper()) {
+      if (start > 85) {
+        start = 85;
+      }
+      if (start < 50) {
+        start = 50;
+      }
+    }
+    return String(start);
+  }
+
+  if (var == "CHGTAPERFLOOR") {
+    return String(settings.getUInt("CHGTAPERFLOOR", 400));
+  }
+
   if (var == "SLOWCANINV") {
     return settings.getBool("SLOWCANINV") ? "checked" : "";
   }
@@ -508,6 +577,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("EXTPRECHARGE") ? "checked" : "";
   }
 
+  if (var == "MEASURECPUTEMP") {
+    return settings.getBool("MEASURECPUTEMP") ? "checked" : "";
+  }
+
+  if (var == "CPUTEMPOFFSET") {
+    return String(settings.getInt("CPUTEMPOFFSET", 0));
+  }
+
   if (var == "MAXPRETIME") {
     return String(settings.getUInt("MAXPRETIME", 15000));
   }
@@ -518,14 +595,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "NOINVDISC") {
     return settings.getBool("NOINVDISC") ? "checked" : "";
-  }
-
-  if (var == "CANFDASCAN") {
-    return settings.getBool("CANFDASCAN") ? "checked" : "";
-  }
-
-  if (var == "CANFD2ASCAN") {
-    return settings.getBool("CANFD2ASCAN") ? "checked" : "";
   }
 
   if (var == "WIFIAPENABLED") {
@@ -556,52 +625,45 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("RAMPDOWNSOC", 9000));
   }
 
-  if (var == "LOCALIP1") {
-    return String(settings.getUInt("LOCALIP1", 0));
+  if (var == "LOCALIP") {
+    return settings.getString("LOCALIP");
   }
 
-  if (var == "LOCALIP2") {
-    return String(settings.getUInt("LOCALIP2", 0));
+  if (var == "GATEWAY") {
+    return settings.getString("GATEWAY");
   }
 
-  if (var == "LOCALIP3") {
-    return String(settings.getUInt("LOCALIP3", 0));
+  if (var == "SUBNET") {
+    return settings.getString("SUBNET");
   }
 
-  if (var == "LOCALIP4") {
-    return String(settings.getUInt("LOCALIP4", 0));
+  if (var == "DNS") {
+    return settings.getString("DNS");
   }
 
-  if (var == "GATEWAY1") {
-    return String(settings.getUInt("GATEWAY1", 0));
+  // Placeholders for the static IP fields: the addresses currently in use, so pinning an existing DHCP
+  // lease is a matter of ticking the checkbox. Empty when there is no station link (AP-only mode) - we
+  // have nothing meaningful to suggest and made-up examples would only invite copying them verbatim.
+  if (var == "LOCALIPPH") {
+    return WiFi.isConnected() ? WiFi.localIP().toString() : String();
   }
 
-  if (var == "GATEWAY2") {
-    return String(settings.getUInt("GATEWAY2", 0));
+  if (var == "GATEWAYPH") {
+    return WiFi.isConnected() ? WiFi.gatewayIP().toString() : String();
   }
 
-  if (var == "GATEWAY3") {
-    return String(settings.getUInt("GATEWAY3", 0));
+  if (var == "SUBNETPH") {
+    return WiFi.isConnected() ? WiFi.subnetMask().toString() : String();
   }
 
-  if (var == "GATEWAY4") {
-    return String(settings.getUInt("GATEWAY4", 0));
+  if (var == "DNSPH") {
+    IPAddress dns = WiFi.dnsIP();
+    return (WiFi.isConnected() && dns != IPAddress(0, 0, 0, 0)) ? dns.toString() : String();
   }
 
-  if (var == "SUBNET1") {
-    return String(settings.getUInt("SUBNET1", 0));
-  }
-
-  if (var == "SUBNET2") {
-    return String(settings.getUInt("SUBNET2", 0));
-  }
-
-  if (var == "SUBNET3") {
-    return String(settings.getUInt("SUBNET3", 0));
-  }
-
-  if (var == "SUBNET4") {
-    return String(settings.getUInt("SUBNET4", 0));
+  // Emitted once per use so the regex is stored in flash a single time, not once per input field.
+  if (var == "IPPATTERN") {
+    return IPV4_PATTERN;
   }
 
   if (var == "PERFPROFILE") {
@@ -627,7 +689,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
-#ifndef SMALL_FLASH_DEVICE
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
@@ -640,7 +701,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SYSLOGFAC") {
     return String(settings.getUInt("SYSLOGFAC", 1));
   }
-#endif
   if (var == "ESPNOWENABLED") {
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
@@ -679,6 +739,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "HADISC") {
     return settings.getBool("HADISC") ? "checked" : "";
+  }
+
+  if (var == "HADISCTOPIC") {
+    return settings.getString("HADISCTOPIC", "homeassistant");
   }
 
   if (var == "MANUAL_BAL_CLASS") {
@@ -983,25 +1047,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-      if (use_canfd_as_can) {
-        return "CAN-FD Native (Classic CAN)";
-      } else {
-        return "CAN-FD Native";
-      }
+      return "CAN-FD Native";
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-      if (use_canfd_as_can) {
-        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
-      } else {
-        return "Add-on CAN-FD via GPIO MCP2518";
-      }
+      return "Add-on CAN-FD via GPIO MCP2518";
     case CANFD_ADDON_MCP2518_2:
-      if (use_canfd2_as_can) {
-        return "Add-on CAN-FD #2 via GPIO MCP2518 (Classic CAN)";
-      } else {
-        return "Add-on CAN-FD #2 via GPIO MCP2518";
-      }
+      return "Add-on CAN-FD #2 via GPIO MCP2518";
     default:
       return "UNKNOWN";
   }
@@ -1079,18 +1131,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT6_SETTING ""
 #endif
 
-#if defined(HW_LILYGO2CAN) || defined(HW_STARK)
-#define CANFD2ASCAN_SETTING \
-  R"rawliteral(
-    <label>Use CanFD2 as classic CAN: </label>
-    <input type='checkbox' name='CANFD2ASCAN' value='on' %CANFD2ASCAN% 
-    title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-  )rawliteral"
-#else
-#define CANFD2ASCAN_SETTING ""
-#endif
-
-#ifndef SMALL_FLASH_DEVICE
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1099,9 +1139,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class='if-syslogen'>
         <label>Syslog server IP: </label>
-        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%"
-              pattern="((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)"
-              title="IPv4 address of the syslog server" />
+        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" title="IPv4 address of the syslog server" />
         <label>Syslog UDP port: </label>
         <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
               min="1" max="65535" step="1" title="UDP port (default 514)" />
@@ -1111,9 +1150,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
         </div>
   )rawliteral"
-#else
-#define SYSLOG_SETTING_HTML ""
-#endif
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
@@ -1349,6 +1385,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    /* Integrations that support running two/three batteries in parallel.
+       Rules are generated at runtime from the battery capability predicates. */
+    %BTRCAPCSS%
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
       display: contents;
@@ -1366,6 +1406,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-measurecputemp { display: none; }
+    form[data-measurecputemp="true"] .if-measurecputemp {
       display: contents;
     }
 
@@ -1437,6 +1482,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-chgtapersoc { display: none; }
+    form[data-chgtapersoc="true"] .if-chgtapersoc {
+      display: contents;
+    }
+
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
       display: contents;
@@ -1497,6 +1547,61 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
+
+        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9_\-]+"
+        placeholder="%DEFAULTHOSTNAME%"
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+
+        <label>Use static IP address: </label>
+        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
+
+        <div class='if-staticip'>
+        <label>Local IP: </label>
+        <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
+
+        <label>Gateway: </label>
+        <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
+
+        <label>Subnet mask: </label>
+        <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
+
+        <label>DNS server: </label>
+        <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%DNSPH%"
+              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
+        </div>
+
+        <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
+        document.querySelector('input[name="STATICIP"]').addEventListener('change', function() {
+          if (!this.checked) return;
+          ['LOCALIP', 'GATEWAY', 'SUBNET', 'DNS'].forEach(function(name) {
+            const field = document.querySelector('input[name="' + name + '"]');
+            if (field && !field.value && field.placeholder.includes('.')) {
+              field.value = field.placeholder;
+            }
+          });
+        });
+        </script>
+
+        <label>Broadcast Wi-Fi Access Point: </label>
+        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+
+        <label>Access Point password: </label>
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
+        pattern="([ -~]{8,63})?"
+        title="Password must be 8-63 characters long, printable ASCII only."
+        placeholder='Leave blank to keep unchanged' />
+
+        <label>Wifi channel 0-14: </label>
+        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
+        min="0" max="14" step="1"
+        title="Force specific channel. Set to 0 for autodetect" required />
+
         </div>
         </div>
 
@@ -1644,6 +1749,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
+        <div class="if-dblcapable">
         <label>Double battery: </label>
         <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
         title="Enable this option if you intend to run two batteries in parallel" />
@@ -1654,6 +1760,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
                 %BATT2COMM%
             </select>
 
+        <div class="if-tricapable">
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
         title="Enable this option if you intend to run three batteries in parallel" />
@@ -1663,6 +1770,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
+        </div>
+
+        </div>
+
         </div>
 
         </div>
@@ -1683,9 +1794,25 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %INVCOMM%     
         </select>
 
-        <label>Inverter limits low pass filter: </label>
+        <label>Ramp up charge limits gradually:</label>
         <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Applies a low pass filter to charge/discharge rates to prevent oscillation." />
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
+
+        <div class='if-chgtapersoc'>
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="%CHGTAPERMAX%" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
+
+        <label>Float charge power, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        </div>
 
         <label>Allow longer CAN timeout: </label>
         <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
@@ -1833,12 +1960,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Hardware config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
-        title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-
-        )rawliteral" CANFD2ASCAN_SETTING R"rawliteral(
-
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
         </select>
@@ -1846,8 +1967,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
-            <label>Triple-Battery Contactor control via GPIO: </label>
-            <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            <div class="if-tribtr">
+                <label>Triple-Battery Contactor control via GPIO: </label>
+                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            </div>
         </div>
 
         <label>Contactor control via GPIO: </label>
@@ -1897,6 +2020,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
         </div>
 
+        <label>Measure CPU temperature: </label>
+        <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
+
+         <div class="if-measurecputemp">
+            <label>CPU temperature calibration offset (°C): </label>
+            <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
+        </div>
+
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
         %LEDMODE%
         </select>
@@ -1912,58 +2043,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="settings-card">
-        <h3>Connectivity settings</h3>
+        <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9_\-]+"
-        placeholder="%DEFAULTHOSTNAME%"
-        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
-    
-        <label>Broadcast Wi-Fi Access Point: </label>
-        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
-
-        <label>Access Point password: </label>
-        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only."
-        placeholder='Leave blank to keep unchanged' />
-
-        <label>Wifi channel 0-14: </label>
-        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
-        min="0" max="14" step="1"
-        title="Force specific channel. Set to 0 for autodetect" required />
-
-        <label>Use static IP address: </label>
-        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
-
-        <div class='if-staticip'>
-        <div>
-          <div>Local IP:</div>
-          <input type="number" name="LOCALIP1" min="0" max="255" size="3" value="%LOCALIP1%">.
-          <input type="number" name="LOCALIP2" min="0" max="255" size="3" value="%LOCALIP2%">.
-          <input type="number" name="LOCALIP3" min="0" max="255" size="3" value="%LOCALIP3%">.
-          <input type="number" name="LOCALIP4" min="0" max="255" size="3" value="%LOCALIP4%">
-        </div>
-            
-        <div>
-            <div>Gateway:</div>
-            <input type="number" name="GATEWAY1" min="0" max="255" size="3" value="%GATEWAY1%">.
-            <input type="number" name="GATEWAY2" min="0" max="255" size="3" value="%GATEWAY2%">.
-            <input type="number" name="GATEWAY3" min="0" max="255" size="3" value="%GATEWAY3%">.
-            <input type="number" name="GATEWAY4" min="0" max="255" size="3" value="%GATEWAY4%">
-        </div>
-    
-        <div>
-          <div>Subnet:</div>
-          <input type="number" name="SUBNET1" min="0" max="255" size="3" value="%SUBNET1%">.
-          <input type="number" name="SUBNET2" min="0" max="255" size="3" value="%SUBNET2%">.
-          <input type="number" name="SUBNET3" min="0" max="255" size="3" value="%SUBNET3%">.
-          <input type="number" name="SUBNET4" min="0" max="255" size="3" value="%SUBNET4%">
-        </div>
-        <div></div>
-        </div>
 
         <label>Enable ESPNow: </label>
         <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
@@ -1999,6 +2080,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
+        <label>Home Assistant auto discovery topic: </label>
+        <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
+        pattern="[A-Za-z0-9_\-]+"
+        title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
 
         </div>
 

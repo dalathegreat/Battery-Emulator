@@ -79,12 +79,22 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
 
-  if (datalayer.system.status.system_status == ACTIVE) {
+  // Don't advertise ACTIVE to the inverter until the DC bus is actually live. During the boot-gate +
+  // precharge window the emulator drives contactors on its own schedule (BYD-Modbus has no inverter
+  // handshake), so a polling Fronius would otherwise see an ACTIVE battery against a dead DC input and
+  // complain. STANDBY is the protocol-native "present but not delivering" resting state to report here.
+  // Only the ACTIVE case is remapped; FAULT/UPDATING/STANDBY pass through unchanged.
+  system_status_enum reported_status = datalayer.system.status.system_status;
+  if (reported_status == ACTIVE && !datalayer.system.status.dc_bus_live) {
+    reported_status = STANDBY;
+  }
+
+  if (reported_status == ACTIVE) {
     mbPV[308] = datalayer.battery.status.voltage_dV;
   } else {
     mbPV[308] = 0;
   }
-  mbPV[300] = datalayer.system.status.system_status;
+  mbPV[300] = reported_status;
   mbPV[302] = 128 + bms_char_dis_status;
   if (datalayer.battery.status.reported_soc < 100) {
     mbPV[303] = 100;  //Force SOC to never go below 1% to avoid overdischarge

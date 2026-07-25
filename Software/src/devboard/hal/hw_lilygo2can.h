@@ -83,6 +83,8 @@ class LilyGo2CANHal : public Esp32Hal {
     }
     return GPIO_NUM_3;
   }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is either GPIO2, GPIO3
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_2, GPIO_NUM_3}; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_4; }
 

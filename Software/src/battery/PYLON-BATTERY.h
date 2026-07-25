@@ -35,7 +35,8 @@ class PylonBattery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
-  PylonHtmlRenderer renderer;
+  PylonExtendedData extended_data;
+  PylonHtmlRenderer renderer = PylonHtmlRenderer(&extended_data);
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELLS = 192;                                 // Maximum cells supported
   static const uint32_t EMUS_BASE_ID = 0x19B50000;                  // EMUS extended ID base for cell count

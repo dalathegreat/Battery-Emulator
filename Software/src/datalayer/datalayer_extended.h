@@ -126,10 +126,12 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t SOC_highprec;
   /** SOC% polled OBD2 value. Can be locked if pack is crashed */
   uint16_t SOC_polled;
-  /** Voltage raw battery value */
-  uint16_t voltage_periodic;
-  /** Voltage polled OBD2*/
-  uint16_t voltage_polled;
+  /** Pack voltage from 0x438, deci-volts. Zero until the frame is received */
+  uint16_t pack_voltage_dV;
+  /** Insulation resistance from 0x43A, Ohm per volt. Multiply by pack voltage for Ohms. Zero is a valid fault reading */
+  uint16_t insulation_ohm_per_volt;
+  /** True once a checksum-valid 0x43A has been seen */
+  bool insulation_valid;
   uint16_t chargePower;
   uint16_t charge_times;
   uint16_t dischargePower;
@@ -199,12 +201,7 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_contactors;
 
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
-  uint32_t dtc_codes[32];
-  uint8_t dtc_status[32];
-  uint8_t dtc_count;
-  unsigned long dtc_last_read_millis;
   bool dtc_read_in_progress;
-  bool dtc_read_failed;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI
   bool UserRequestDTCreset;    // User requesting DTC erase via WebUI
 };
@@ -861,8 +858,8 @@ struct DATALAYER_INFO_MEB {
   uint8_t BMS_mode;
   /** 1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault */
   uint8_t battery_diagnostic;
-  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault */
-  uint8_t status_HV_line;
+  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault (PTC Heater HV connector)*/
+  uint8_t status_HV_PTC_line;
   /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
   uint8_t warning_support;
   /** 0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error */
@@ -898,14 +895,10 @@ struct DATALAYER_INFO_MEB {
 
   // DTC readout (UDS 0x19 0x02) and clear (OBD service 0x04). Codes stored as raw 3 bytes
   // packed in a uint32, rendered to string in HTML.
-  uint32_t dtc_codes[32] = {0};
-  uint8_t dtc_status[32] = {0};
-  uint8_t dtc_count = 0;
-  unsigned long dtc_last_read_millis = 0;  // Timestamp of last successful read
-  bool dtc_read_in_progress = false;       // Flag to prevent concurrent reads
-  bool dtc_read_failed = false;            // Indicates last read attempt failed
-  bool UserRequestDTCreset = false;        // User requesting DTC erase via WebUI
-  bool UserRequestDTCreadout = false;      // User requesting DTC readout via WebUI
+  bool dtc_read_in_progress = false;   // Flag to prevent concurrent reads
+  bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
+  bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestBMSReset = false;    // User requesting BMS reset via WebUI
 };
 
 struct DATALAYER_INFO_VOLVO_POLESTAR {
@@ -1068,7 +1061,11 @@ class DataLayerExtended {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
-    DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+    struct {
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_3;
+    };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
     DATALAYER_INFO_ZOE zoe;

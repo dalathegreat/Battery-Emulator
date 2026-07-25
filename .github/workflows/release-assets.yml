@@ -9,8 +9,19 @@ on:
         description: 'Release tag (e.g. v1.0.0)'
         required: true
 
+permissions: {}
+
 jobs:
-  build-and-upload:
+  build:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/compile-common-image.yml
+    with:
+      release_version: ${{ github.event.release.tag_name || inputs.tag }}
+
+  publish:
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,78 +35,12 @@ jobs:
           echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Checkout code at tag
-      uses: actions/checkout@v7
+    - name: Download compiled artifacts
+      uses: actions/download-artifact@v8
       with:
-        ref: refs/tags/${{ steps.vars.outputs.tag }}
-
-    - name: Build artifacts
-      run: |
-        mkdir output
-        echo "Built for tag ${{ steps.vars.outputs.tag }}" > output/info.txt
-
-    - uses: actions/cache@v6
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.platformio/.cache
-        key: ${{ runner.os }}-pio
-
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.13'
-    - name: Install PlatformIO Core
-      run: pip install --upgrade platformio esptool
-
-    - name: 🛠 Build ota image for Lilygo T-CAN
-      run: |
-        pio run -e lilygo_330
-        cp .pio/build/lilygo_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-CAN485.ota.bin
-
-    - name: 🛠 Build factory image for Lilygo T-CAN
-      run: |
-        esptool --chip esp32 merge-bin -o .pio/build/lilygo_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 4MB 0x1000 .pio/build/lilygo_330/bootloader.bin 0x8000 .pio/build/lilygo_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/lilygo_330/firmware.bin
-        mv .pio/build/lilygo_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-CAN485.factory.bin
-
-    - name: 🛠 Build ota image for Lilygo 2-CAN
-      run: |
-        pio run -e lilygo_2CAN_330
-        cp .pio/build/lilygo_2CAN_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-2CAN.ota.bin
-
-    - name: 🛠 Build factory image for Lilygo 2-CAN
-      run: |
-        esptool --chip esp32s3 merge-bin -o .pio/build/lilygo_2CAN_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 16MB 0x0000 .pio/build/lilygo_2CAN_330/bootloader.bin 0x8000 .pio/build/lilygo_2CAN_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/lilygo_2CAN_330/firmware.bin
-        mv .pio/build/lilygo_2CAN_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_LilygoT-2CAN.factory.bin
-
-    - name: 🛠 Build ota image for Stark
-      run: |
-        pio run -e stark_330
-        cp .pio/build/stark_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_StarkCMR.ota.bin
-
-    - name: 🛠 Build factory image for Stark
-      run: |
-        esptool --chip esp32 merge-bin -o .pio/build/stark_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 8MB 0x1000 .pio/build/stark_330/bootloader.bin 0x8000 .pio/build/stark_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/stark_330/firmware.bin
-        mv .pio/build/stark_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_StarkCMR.factory.bin
-
-    - name: 🛠 Build ota image for Waveshare ESP32-S3-RS485-CAN
-      run: |
-        pio run -e waveshare_330
-        cp .pio/build/waveshare_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_WaveshareESP32S3RS485CAN.ota.bin
-
-    - name: 🛠 Build factory image for Waveshare ESP32-S3-RS485-CAN
-      run: |
-        esptool --chip esp32s3 merge-bin -o .pio/build/waveshare_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 16MB 0x0000 .pio/build/waveshare_330/bootloader.bin 0x8000 .pio/build/waveshare_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/waveshare_330/firmware.bin
-        mv .pio/build/waveshare_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_WaveshareESP32S3RS485CAN.factory.bin
-
-    - name: 🛠 Build ota image for BECom
-      run: |
-        pio run -e BECom_330
-        cp .pio/build/BECom_330/firmware.bin output/BE_${{ steps.vars.outputs.tag }}_BECom_ES32S3.ota.bin
-
-    - name: 🛠 Build factory image for BECom
-      run: |
-        esptool --chip esp32s3 merge-bin -o .pio/build/BECom_330/factory.bin --flash-mode dio --flash-freq 80m --flash-size 16MB 0x0000 .pio/build/BECom_330/bootloader.bin 0x8000 .pio/build/BECom_330/partitions.bin 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/BECom_330/firmware.bin
-        mv .pio/build/BECom_330/factory.bin output/BE_${{ steps.vars.outputs.tag }}_BECom_ES32S3.factory.bin
+        pattern: "*.bin"
+        path: ./output
+        merge-multiple: true
 
     - name: 🌐 Deploy to Web Installer repo
       env:

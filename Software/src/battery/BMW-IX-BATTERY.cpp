@@ -840,6 +840,10 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     if (!contactor_control_enabled) {
       HandleBmwIxCloseContactorsRequest(counter_10ms);
       HandleBmwIxOpenContactorsRequest(counter_10ms);
+      // CAN mode: ContactorState tracks completion of the close/open command sequences.
+      // Note this is command-completion, not pack feedback - if the pack ignored the sequence
+      // we report live anyway, which matches pre-dc_bus_live behaviour (never STANDBY-locks).
+      datalayer.system.status.dc_bus_live = (ContactorState.closed && !ContactorState.open);
     }
     counter_10ms++;
 

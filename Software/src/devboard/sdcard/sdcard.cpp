@@ -51,34 +51,46 @@ void pause_log_writing() {
   logging_paused = true;
 }
 
+// Number of frames lost because the ring buffer was full (SD writer stalled).
+// Reported as a gap marker in the log once the buffer has room again.
+static uint32_t can_frames_dropped = 0;
+
 void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
 
   if (!sd_card_active)
     return;
 
   unsigned long currentTime = millis();
-  static char messagestr_buffer[32];
+  // Sized for the worst case: gap marker + header + 64 data bytes (CAN-FD) at 3 chars each
+  static char messagestr_buffer[320];
   size_t size = 0;
-  size = snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
-                  currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
 
-  if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-    logging.println("Failed to send message to can ring buffer!");
+  if (can_frames_dropped > 0) {
+    // Frames were lost while the SD writer was stalled. Record the gap so the
+    // log stays honest, then continue with the current frame in the same send.
+    size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size,
+                     "[%lu CAN frames dropped, SD buffer full]\n", (unsigned long)can_frames_dropped);
+  }
+
+  size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
+                   currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
+
+  for (uint8_t i = 0; i < frame.DLC; i++) {
+    size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size,
+                     (i < frame.DLC - 1) ? "%02X " : "%02X\n", frame.data.u8[i]);
+  }
+  if (frame.DLC == 0) {  // Frames without payload still need to terminate the line
+    size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "\n");
+  }
+
+  // One send per frame, zero timeout: this runs in the core task and must never
+  // block. If the buffer is full the SD card is stalled anyway - waiting here
+  // would not save the frame, it would only delay the 10ms tasks (EVENT_TASK_OVERRUN).
+  if (xRingbufferSend(can_bufferHandle, messagestr_buffer, size, 0) != pdTRUE) {
+    can_frames_dropped++;
     return;
   }
-
-  uint8_t i = 0;
-  for (i = 0; i < frame.DLC; i++) {
-    if (i < frame.DLC - 1)
-      size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X ", frame.data.u8[i]);
-    else
-      size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X\n", frame.data.u8[i]);
-
-    if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-      logging.println("Failed to send message to can ring buffer!");
-      return;
-    }
-  }
+  can_frames_dropped = 0;
 }
 
 void write_can_frame_to_sdcard() {
@@ -122,10 +134,11 @@ void add_log_to_buffer(const uint8_t* buffer, size_t size) {
   if (!sd_card_active)
     return;
 
-  if (xRingbufferSend(log_bufferHandle, buffer, size, pdMS_TO_TICKS(1)) != pdTRUE) {
-    logging.println("Failed to send message to log ring buffer!");
-    return;
-  }
+  // Zero timeout: called from the logging path of any task, must never block.
+  // NOTE: do not log from the failure path here. logging.println() would call
+  // Logging::write() -> add_log_to_buffer() again while the buffer is still
+  // full, recursing until the stack overflows.
+  xRingbufferSend(log_bufferHandle, buffer, size, 0);
 }
 
 void write_log_to_sdcard() {

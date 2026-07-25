@@ -3,8 +3,6 @@
 
 #include "../../devboard/utils/types.h"
 
-extern bool use_canfd_as_can;
-extern bool use_canfd2_as_can;
 extern uint16_t user_selected_CAN_ID_cutoff_filter;
 
 void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);

@@ -77,6 +77,7 @@
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
   XX(EVENT_INTERFACE_MISSING)           \
   XX(EVENT_MODBUS_INVERTER_MISSING)     \
+  XX(EVENT_MODBUS_INVERTER_DETECTED)    \
   XX(EVENT_NO_ENABLE_DETECTED)          \
   XX(EVENT_ERROR_OPEN_CONTACTOR)        \
   XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE) \
@@ -124,6 +125,7 @@
   XX(EVENT_PID_FAILED)                  \
   XX(EVENT_WIFI_CONNECT)                \
   XX(EVENT_WIFI_DISCONNECT)             \
+  XX(EVENT_WIFI_AP_PASSWORD_DEFAULT)    \
   XX(EVENT_WIFI_AP_PROVISION_TIMEOUT)   \
   XX(EVENT_MQTT_CONNECT)                \
   XX(EVENT_MQTT_DISCONNECT)             \
@@ -194,6 +196,8 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+// Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
+void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
 void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 

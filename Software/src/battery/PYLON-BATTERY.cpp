@@ -52,9 +52,17 @@ void PylonBattery::update_values() {
 
   datalayer_battery->status.temperature_max_dC = celltemperature_max_dC;
 
-  datalayer_battery->info.max_design_voltage_dV = charge_cutoff_voltage;
+  // Expose the BMS-announced cutoffs on the battery info page
+  extended_data.charge_cutoff_dV = charge_cutoff_voltage;
+  extended_data.discharge_cutoff_dV = discharge_cutoff_voltage;
 
-  datalayer_battery->info.min_design_voltage_dV = discharge_cutoff_voltage;
+  // BMS cutoffs only define the design voltage when the user has not set explicit limits
+  if (user_selected_max_pack_voltage_dV == 0) {
+    datalayer_battery->info.max_design_voltage_dV = charge_cutoff_voltage;
+  }
+  if (user_selected_min_pack_voltage_dV == 0) {
+    datalayer_battery->info.min_design_voltage_dV = discharge_cutoff_voltage;
+  }
 }
 
 void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -122,17 +130,23 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       charge_cutoff_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       discharge_cutoff_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       max_charge_current_dA = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) - 30000;
-      max_discharge_current_dA = -(((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 30000);
+      // Some BMS (e.g. GCE) encode the discharge limit with a positive offset like the
+      // charge limit, instead of the standard negative offset. abs() handles both.
+      max_discharge_current_dA = abs((((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 30000));
       break;
     case 0x4230:
     case 0x4231:
       cellvoltage_max_mV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       cellvoltage_min_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      extended_data.cell_max_number = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      extended_data.cell_min_number = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       break;
     case 0x4240:
     case 0x4241:
       celltemperature_max_dC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) - 1000;
       celltemperature_min_dC = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 1000;
+      extended_data.temp_max_sensor = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      extended_data.temp_min_sensor = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       break;
     case 0x4250:
     case 0x4251:

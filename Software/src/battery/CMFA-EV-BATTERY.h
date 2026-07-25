@@ -8,6 +8,7 @@
 
 class CmfaEvBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Use this constructor for the second battery.
   CmfaEvBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_CMFAEV* extended, CAN_Interface targetCan)
       : CanBattery(targetCan) {

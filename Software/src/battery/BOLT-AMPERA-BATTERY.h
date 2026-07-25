@@ -7,6 +7,7 @@
 
 class BoltAmperaBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Default constructor - first or single battery
   BoltAmperaBattery() : renderer(&datalayer_extended.boltampera) {
     datalayer_battery = &datalayer.battery;

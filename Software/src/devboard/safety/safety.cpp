@@ -2,6 +2,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 
