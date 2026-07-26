@@ -188,21 +188,19 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Handle EMUS individual cell voltage
       uint8_t cell_start_voltage = rx_frame.data.u8[0] - 1;
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
-
+      //three cellls per message
       for (uint8_t i = 0; i < 3; i++) {
         uint8_t cell_index_voltage = cell_start_voltage + i;
         if (cell_index_voltage < MAX_CELLS && (actual_cell_count == 0 || cell_index_voltage < actual_cell_count)) {
-          // Cell voltage: 3100mV base + (byte value × 4mV)
-          // Calaculation looks a little bit off.
-          uint16_t cell_voltage = 3100 + (rx_frame.data.u8[(i * 2) + 1] * 4);
-          // Only update if voltage is in valid range (2500-4200mV)
-          if (cell_voltage >= 2500 && cell_voltage <= 4200) {
-            uint16_t current_voltage = datalayer_battery->status.cell_voltages_mV[cell_index_voltage];
-            // Reject sudden large changes (>1000mV)
-            if (current_voltage == 0 || abs((int)cell_voltage - (int)current_voltage) <= 1000) {
-              datalayer_battery->status.cell_voltages_mV[cell_index_voltage] = cell_voltage;
-            }
+          //start with the second byte and advance by 2 bytes for each cell (3 cells per message)
+          int16_t cell_voltage = (int8_t)rx_frame.data.u8[(i * 2) + 1];
+          if (cellvoltage_min_mV > 3200) {
+            //Most likely there is a more elegant way to do this, but this works for now and ensures we get accurate voltages
+            cell_voltage = (uint8_t)rx_frame.data.u8[(i * 2) + 1];
           }
+
+          // Cell voltage: 3200mV base + (byte value × 2.5mV)
+          datalayer_battery->status.cell_voltages_mV[cell_index_voltage] = 3200 + cell_voltage * 2.5;
         }
       }
     } break;
