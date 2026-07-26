@@ -476,26 +476,8 @@ void TeslaBattery::
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (battery_soc_ui > 990) {
-    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (battery_soc_ui > (user_set_rampdown_SOC /
-                               10)) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer_battery->status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED *
-        (1 - (battery_soc_ui - (user_set_rampdown_SOC / 10)) / (1000.0 - (user_set_rampdown_SOC / 10)));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
-      if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-      }
-    } else {  //NCM/A
-      if (battery_cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-      }
-    }
-  } else {  // No limits, max charging power allowed
-    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
-  }
+  //The inverter setting will ramp down this value based on SOC%
+  datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
 
   datalayer_battery->status.temperature_min_dC = battery_min_temp;
 
