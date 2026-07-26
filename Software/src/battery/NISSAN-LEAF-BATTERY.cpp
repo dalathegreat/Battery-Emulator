@@ -256,14 +256,17 @@ void NissanLeafBattery::
     }
 
 #endif
-    if (UserRequestDTCreset) {
+    if (UserRequestDTCreset && !dtc_clear_in_progress) {
       UserRequestDTCreset = false;
+      dtc_clear_in_progress = true;
+      dtc_clear_millis = millis();
       transmit_can_frame(&LEAF_CLEAR_DTC);
-      // The LBC does not send a reply we track for the erase, so drop the stored results
-      // optimistically rather than leaving a now-stale list on the page.
-      datalayer_battery->dtc.dtc_count = 0;
-      datalayer_battery->dtc.dtc_last_read_millis = 0;
-      datalayer_battery->dtc.dtc_read_failed = false;
+    }
+
+    // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
+    // untouched here: an unconfirmed erase is not evidence that the codes are gone.
+    if (dtc_clear_in_progress && (millis() - dtc_clear_millis > DTC_TIMEOUT_MS)) {
+      dtc_clear_in_progress = false;
     }
 
     if (UserRequestDTCreadout && !dtc_read_in_progress) {
@@ -278,7 +281,7 @@ void NissanLeafBattery::
     }
 
     // Give up if the LBC never completes the reply, so the page stops showing a pending read.
-    if (dtc_read_in_progress && (millis() - dtc_request_millis > DTC_READ_TIMEOUT_MS)) {
+    if (dtc_read_in_progress && (millis() - dtc_request_millis > DTC_TIMEOUT_MS)) {
       dtc_read_in_progress = false;
       dtc_rx_active = false;
       datalayer_battery->dtc.dtc_read_failed = true;
@@ -411,6 +414,17 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         break;
       }
 #endif
+
+      // ClearDiagnosticInformation is acknowledged with a single-frame 54. Only then are the stored
+      // codes known to be gone. The read timestamp is reset too, so the page goes back to
+      // "not read yet": an erase says nothing about what the LBC will report from here on.
+      if (dtc_clear_in_progress && rx_frame.data.u8[0] == 0x01 && rx_frame.data.u8[1] == 0x54) {
+        dtc_clear_in_progress = false;
+        datalayer_battery->dtc.dtc_count = 0;
+        datalayer_battery->dtc.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_last_read_millis = 0;
+        break;
+      }
 
       // A DTC readout answers on 0x7BB just like the group polling below, and its first frame would
       // otherwise be mistaken for group 0x02 (cell voltages). Intercept it while a read is in

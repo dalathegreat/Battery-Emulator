@@ -91,16 +91,63 @@ TEST(NissanLeafDtcTests, ShouldParseMultiFrameReply) {
   }
 }
 
-// A healthy pack answers with the 3-byte header and nothing else. That is a successful read of zero
-// codes, not a failed read.
+// A healthy pack answers with the 3-byte header and nothing else, padded with FF. That is a
+// successful read of zero codes, not a failed read.
 TEST(NissanLeafDtcTests, ShouldReportNoDtcsStored) {
   auto battery = battery_awaiting_dtc_reply();
 
-  battery->handle_incoming_can_frame(leaf_7bb_frame({0x03, 0x59, 0x02, 0x4E, 0x00, 0x00, 0x00, 0x00}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x03, 0x59, 0x02, 0x4E, 0xFF, 0xFF, 0xFF, 0xFF}));
 
   EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
   EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
   EXPECT_NE(datalayer.battery.dtc.dtc_last_read_millis, 0u);
+}
+
+// The LBC acknowledges ClearDiagnosticInformation with a single-frame 54. Until that arrives the
+// previously read list has to stay put, because an unconfirmed erase proves nothing.
+TEST(NissanLeafDtcTests, ShouldClearStoredDtcsOnlyOnAcknowledgement) {
+  reset_dtc_state();
+  set_millis64(50000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  datalayer.battery.dtc.dtc_count = 1;
+  datalayer.battery.dtc.dtc_codes[0] = 0x33D700;
+  datalayer.battery.dtc.dtc_last_read_millis = 50000;
+
+  battery->reset_DTC();
+  battery->update_values();  // Sends 14 FF FF FF, but must not wipe anything yet
+
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 1);
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x01, 0x54, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}));
+
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  // Back to "not read yet": the erase says nothing about what the LBC reports next.
+  EXPECT_EQ(datalayer.battery.dtc.dtc_last_read_millis, 0u);
+}
+
+// An erase the LBC never acknowledges must leave the stored list alone rather than falsely
+// reporting success.
+TEST(NissanLeafDtcTests, ShouldKeepStoredDtcsWhenEraseIsNotAcknowledged) {
+  reset_dtc_state();
+  set_millis64(50000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  datalayer.battery.dtc.dtc_count = 1;
+  datalayer.battery.dtc.dtc_codes[0] = 0x33D700;
+  datalayer.battery.dtc.dtc_last_read_millis = 50000;
+
+  battery->reset_DTC();
+  battery->update_values();
+
+  set_millis64(50000 + 2500);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_last_read_millis, 50000u);
 }
 
 // 7F 19 xx means the LBC refused the request outright.

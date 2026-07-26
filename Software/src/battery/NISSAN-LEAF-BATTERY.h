@@ -160,13 +160,15 @@ class NissanLeafBattery : public CanBattery {
   // DTC readout reassembly state. The reply shares the 0x7BB response ID with the periodic
   // group polling, so it is intercepted separately while a readout is in flight.
   static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
-  static const unsigned long DTC_READ_TIMEOUT_MS = 2000;
+  static const unsigned long DTC_TIMEOUT_MS = 2000;
   uint8_t dtc_buffer[DTC_BUFFER_SIZE];
   uint16_t dtc_rx_expected = 0;  // Total payload length announced by the ISO-TP first frame
   uint16_t dtc_rx_len = 0;       // Bytes reassembled so far
   bool dtc_rx_active = false;    // A multi-frame reply is currently being reassembled
   bool dtc_read_in_progress = false;
   unsigned long dtc_request_millis = 0;
+  bool dtc_clear_in_progress = false;
+  unsigned long dtc_clear_millis = 0;
 
   // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
   // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
