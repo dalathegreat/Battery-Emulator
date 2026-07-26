@@ -489,21 +489,11 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
   datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
   datalayer.battery.status.soh_pptt = min_soh_state;
+
   datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
-  //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
-
-  // Charge power is set in .h file
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
-    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        battery_BEV_available_power_longterm_charge *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-  }
+  datalayer.battery.status.max_charge_power_W =
+      battery_BEV_available_power_longterm_charge;  //Value is ramped down by Inverter function (TODO: needed?)
 
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal

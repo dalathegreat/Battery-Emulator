@@ -138,17 +138,8 @@ void KiaEGmpBattery::update_values() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We estimate this value for now
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (datalayer.battery.status.real_soc >
-             user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
-  }
+  //The allowed charge power is not available. We use user set value for now
+  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   //The allowed discharge power is not available. We use user set value for now
