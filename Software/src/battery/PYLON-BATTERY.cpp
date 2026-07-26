@@ -188,12 +188,14 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Handle EMUS individual cell voltage
       uint8_t cell_start_voltage = rx_frame.data.u8[0] - 1;
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Keep battery alive on cell data
-      //three cellls per message
+      //three cells per message
       for (uint8_t i = 0; i < 3; i++) {
         uint8_t cell_index_voltage = cell_start_voltage + i;
         if (cell_index_voltage < MAX_CELLS && (actual_cell_count == 0 || cell_index_voltage < actual_cell_count)) {
           //start with the second byte and advance by 2 bytes for each cell (3 cells per message)
           int16_t cell_voltage = (int8_t)rx_frame.data.u8[(i * 2) + 1];
+          // int8_t is correct between 2880mV and 3520mV, but above 3520mV the byte will overflow and will show the wrong value.
+          // To avoid the overflow at 3520mV, we look at the minimum cell voltage and if it is above 3200mV, we use the unsigned value instead of the signed value
           if (cellvoltage_min_mV > 3200) {
             //Most likely there is a more elegant way to do this, but this works for now and ensures we get accurate voltages
             cell_voltage = (uint8_t)rx_frame.data.u8[(i * 2) + 1];
