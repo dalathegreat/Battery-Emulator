@@ -382,8 +382,24 @@ void Logging::printf(const char* fmt, ...) {
 
   va_list args;
   va_start(args, fmt);
-  int size = min(MAX_LINE_LENGTH_PRINTF - 1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
+  int needed = vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args);
   va_end(args);
+
+  // Nothing usable was produced (encoding error, or an empty message)
+  if (needed <= 0) {
+    return;
+  }
+
+  int size = min(MAX_LINE_LENGTH_PRINTF - 1, needed);
+
+  /* vsnprintf returns the length the line WOULD have had, so a larger value means the output
+     was truncated and any trailing newline went with it. Terminate the line ourselves. Without
+     this previous_message_was_newline stays false, and the next message - which may be logged
+     hours later - is appended to this line instead of starting a new one with its own
+     timestamp. */
+  if (needed >= MAX_LINE_LENGTH_PRINTF) {
+    message_buffer[size - 1] = '\n';
+  }
 
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer((uint8_t*)message_buffer, size);
