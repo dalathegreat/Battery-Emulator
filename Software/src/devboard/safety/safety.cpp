@@ -286,7 +286,7 @@ void update_machineryprotection() {
 
     //Check if we have ever seen the Battery
     if (!battery_detected) {
-      if (datalayer.battery.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+      if (datalayer.battery.status.CAN_battery_still_alive >= CAN_STILL_ALIVE) {
         battery_detected = true;
         set_event(EVENT_CAN_BATTERY_DETECTED, 1);
       }
@@ -312,7 +312,9 @@ void update_machineryprotection() {
 
     //Check if we have ever seen the inverter
     if (!inverter_detected) {
-      if (datalayer.system.status.CAN_inverter_still_alive == CAN_STILL_ALIVE) {
+      // >= not ==: some drivers refresh the counter above CAN_STILL_ALIVE for a
+      // longer timeout (SMA x3, Sofar x2), which would never match equality
+      if (datalayer.system.status.CAN_inverter_still_alive >= CAN_STILL_ALIVE) {
         inverter_detected = true;
         set_event(EVENT_CAN_INVERTER_DETECTED, 1);
       }
@@ -325,6 +327,9 @@ void update_machineryprotection() {
         set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
       }
     } else {
+      // Inverter frames received recently - clear any previously raised missing-event
+      // regardless of which timeout mode is active
+      clear_event(EVENT_CAN_INVERTER_MISSING);
       // If the inverter is a slow starter, only decrement the counter every 2 seconds to give it more time to start up before we report it as missing
       if (user_selected_inverter_long_CAN_timeout) {
         static uint8_t slow_start_counter = 0;
@@ -335,7 +340,6 @@ void update_machineryprotection() {
         }
       } else {  //Normal 60s timeout for regular inverters
         datalayer.system.status.CAN_inverter_still_alive--;
-        clear_event(EVENT_CAN_INVERTER_MISSING);
       }
     }
   }
@@ -343,7 +347,7 @@ void update_machineryprotection() {
   if (charger) {
     // Check if we have ever seen the charger
     if (!charger_detected) {
-      if (datalayer.charger.CAN_charger_still_alive == CAN_STILL_ALIVE) {
+      if (datalayer.charger.CAN_charger_still_alive >= CAN_STILL_ALIVE) {
         charger_detected = true;
         set_event(EVENT_CAN_CHARGER_DETECTED, 1);
       }
@@ -371,7 +375,7 @@ void update_machineryprotection() {
 
     // Check if we have ever seen the Battery 2
     if (!battery2_detected) {
-      if (datalayer.battery2.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+      if (datalayer.battery2.status.CAN_battery_still_alive >= CAN_STILL_ALIVE) {
         battery2_detected = true;
         set_event(EVENT_CAN_BATTERY2_DETECTED, 1);
       }
@@ -439,7 +443,7 @@ void update_machineryprotection() {
 
     // Check if we have ever seen the Battery 3
     if (!battery3_detected) {
-      if (datalayer.battery3.status.CAN_battery_still_alive == CAN_STILL_ALIVE) {
+      if (datalayer.battery3.status.CAN_battery_still_alive >= CAN_STILL_ALIVE) {
         battery3_detected = true;
         set_event(EVENT_CAN_BATTERY3_DETECTED, 1);
       }
