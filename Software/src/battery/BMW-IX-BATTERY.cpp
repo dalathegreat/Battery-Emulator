@@ -447,22 +447,9 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
-  // Calculate charge power limit based on multiple factors, taking the lowest value
+  // Calculate charge power limit based User set value and temperature
 
-  // Factor 1: SOC-based limiting (linear ramp from user_set_rampdown_SOC (Defined in webserver) to 100%)
-  int max_charge_power_soc = datalayer.battery.status.override_charge_power_W;
-  if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
-    // When real SOC is above RAMPDOWN_SOC, ramp the value linearly down to 0W at 100%
-    max_charge_power_soc =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-    // Ensure we never go negative (in case SOC exceeds 100%)
-    if (max_charge_power_soc < 0) {
-      max_charge_power_soc = 0;
-    }
-  }
-
-  // Factor 2: Temperature-based limiting (ramp from 0W at -10°C to RAMPDOWN_TEMP_POWER_W at 5°C)
+  // Temperature-based limiting (ramp from 0W at -10°C to RAMPDOWN_TEMP_POWER_W at 5°C)
   int max_charge_power_temp = datalayer.battery.status.override_charge_power_W;
 
   if (datalayer.battery.status.temperature_min_dC <= RAMPDOWN_TEMP_MIN_dC) {
@@ -476,8 +463,8 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   }
   // Above 5°C: no temperature limitation
 
-  // Take the lowest of all limiting factors
-  datalayer.battery.status.max_charge_power_W = min(max_charge_power_soc, max_charge_power_temp);
+  //Write actual allowed power to datalayer
+  datalayer.battery.status.max_charge_power_W = max_charge_power_temp;
 
   //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
   bool isMinCellVoltageStale =

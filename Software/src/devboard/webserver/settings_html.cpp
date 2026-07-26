@@ -112,6 +112,9 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
+// Periodic BMS reset interval, stored in hours.
+static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
+
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
     {17483, "DK (Denmark)"}, {17477, "DE (Germany)"}, {16725, "AU (Australia)"}};
@@ -347,6 +350,15 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
 
+  if (var == "PERBMSRESETH") {
+    // Missing or unexpected values fall back to the historical 24h interval.
+    uint32_t interval = settings.getUInt("PERBMSRESETH", 24);
+    if (interval != 24 && interval != 48) {
+      interval = 24;
+    }
+    return options_from_map(interval, bms_reset_intervals);
+  }
+
   if (var == "SUNGROW_MODEL") {
     return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
   }
@@ -569,6 +581,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PERBMSRESET") ? "checked" : "";
   }
 
+  if (var == "PERBMSDEFSOC") {
+    return settings.getBool("PERBMSDEFSOC") ? "checked" : "";
+  }
+
+  if (var == "PERBMSSKIPBAL") {
+    return settings.getBool("PERBMSSKIPBAL") ? "checked" : "";
+  }
+
   if (var == "REMBMSRESET") {
     return settings.getBool("REMBMSRESET") ? "checked" : "";
   }
@@ -619,10 +639,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DCHGPOWER") {
     return String(settings.getUInt("DCHGPOWER", 0));
-  }
-
-  if (var == "RAMPDOWNSOC") {
-    return String(settings.getUInt("RAMPDOWNSOC", 9000));
   }
 
   if (var == "LOCALIP") {
@@ -1371,7 +1387,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
     form[data-battery="41"] .if-estimated,
-    form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
     form[data-battery="51"] .if-estimated {
       display: contents;
@@ -1406,6 +1421,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-perbmsreset { display: none; }
+    form[data-perbmsreset="true"] .if-perbmsreset {
       display: contents;
     }
 
@@ -1703,11 +1723,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
         min="0" max="65000" step="1"
         title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
-
-        <label>Rampdown SOC, pptt: </label>
-        <input type='number' name='RAMPDOWNSOC' value="%RAMPDOWNSOC%" 
-        min="7000" max="9000" step="1"
-        title="SOC percentage to start ramping down from max charge power towards 0W at 100.00pct" />
         </div>
 
         <div class="if-socestimated">
@@ -2003,8 +2018,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <label>Periodic BMS reset every 24h: </label>
+        <label>Periodic BMS reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
+
+        <div class="if-perbmsreset">
+            <label for='PERBMSRESETH'>Every: </label><select name='PERBMSRESETH' id='PERBMSRESETH'>
+            %PERBMSRESETH%
+            </select>
+
+            <label>Defer reset if SOC less than 15&#37;: </label>
+            <input type='checkbox' name='PERBMSDEFSOC' value='on' %PERBMSDEFSOC%
+            title="Holds the reset back while either the real or the scaled SOC is below 15 percent. It runs as soon as SOC recovers, and the interval restarts from that point" />
+
+            <label>Skip reset for one period if balancing: </label>
+            <input type='checkbox' name='PERBMSSKIPBAL' value='on' %PERBMSSKIPBAL%
+            title="Gives up one occurrence if the battery reports balancing as active. The next occurrence runs even if balancing is still active" />
+        </div>
 
         <label>External precharge via HIA4V1: </label>
         <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />

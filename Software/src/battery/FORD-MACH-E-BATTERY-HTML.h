@@ -13,6 +13,13 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h3>Ford Mach-E Extra Information</h2>";
     //If values are not sampled yet (255), show "N/A" instead of 255
 
+    content += "<h4>Polled allowed charge power:";
+    if (datalayer_extended.fordMachE.pid_hvb_max_charge_current == 255) {
+      content += "N/A</h4>";
+    } else {
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_max_charge_current) + " A</h4>";
+    }
+
     content += "<h4>Average temperature:";
     if (datalayer_extended.fordMachE.pid_hvb_temp == 255) {
       content += "N/A</h4>";
