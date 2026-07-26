@@ -6,7 +6,6 @@
 
 class FordMachEBattery : public CanBattery {
  public:
-  bool mandatory_charge_taper() { return true; }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -45,11 +44,7 @@ class FordMachEBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
-  static const int CELL_TEMPERATURE_OFFSET =
-      22;  // Calibrated against BECM PID min/max cell temperatures. Ford signal offset is -22
-
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 200;  // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
+  static const int CELL_TEMPERATURE_OFFSET = 22;  // Calibrated against BECM PID min/max cell temperatures
 
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
@@ -68,6 +63,8 @@ class FordMachEBattery : public CanBattery {
   int16_t battery_current = 0;
   uint16_t maximum_cellvoltage_mV = 3700;
   uint16_t minimum_cellvoltage_mV = 3700;
+  uint16_t charge_current_allowed = 0;
+  uint16_t discharge_current_allowed = 0;
 
   uint8_t counter_30ms = 0;
   uint8_t counter_8_30ms = 0;
@@ -211,9 +208,9 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
   uint16_t pid_charger_power_limit = NOT_SAMPLED_YET;
   uint8_t pid_hvb_soh = NOT_SAMPLED_YET;
   uint16_t pid_hvb_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_max_charge_current = NOT_SAMPLED_YET;
   uint16_t pid_hvb_charge_voltage_requested = NOT_SAMPLED_YET;
   uint16_t pid_hvb_soc_d = NOT_SAMPLED_YET;
-  uint16_t pid_hvb_max_charge_current = NOT_SAMPLED_YET;
   uint16_t pid_hvb_charge_current_requested = NOT_SAMPLED_YET;
   uint8_t pid_gear_commanded = NOT_SAMPLED_YET;
   uint8_t pid_key_state = NOT_SAMPLED_YET;

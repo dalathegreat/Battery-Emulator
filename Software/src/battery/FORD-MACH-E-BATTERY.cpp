@@ -23,20 +23,9 @@ void FordMachEBattery::update_values() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.max_discharge_power_W =
-      datalayer.battery.status.override_discharge_power_W;  //TODO, fix when v alue is found
+      (discharge_current_allowed * datalayer.battery.status.voltage_dV) / 100;
 
-  //We have not found allowed charge power yet. Estimate it for now absed on UI setting. TODO. remove this once found
-  // Charge power is manually set
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
-    // When real SOC is between user_set_rampdown_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
-  }
+  datalayer.battery.status.max_charge_power_W = (charge_current_allowed * datalayer.battery.status.voltage_dV) / 100;
 
   maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
   minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
@@ -130,6 +119,7 @@ void FordMachEBattery::update_values() {
   datalayer_extended.fordMachE.pid_hvb_calendar_age_months = pid_hvb_calendar_age_months;
   datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
   datalayer_extended.fordMachE.pid_maintenance_rebalance_status = pid_maintenance_rebalance_status;
+  datalayer_extended.fordMachE.pid_hvb_max_charge_current = pid_hvb_max_charge_current;
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -155,12 +145,19 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x24d:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //charge_power_cand2 = rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1];
+      //discharge_power_cand2 = rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3];
       break;
     case 0x24e:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x24f:  //1s
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x286:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      charge_current_allowed = rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1];
+      discharge_current_allowed = rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3];
       break;
     case 0x2e4:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -359,6 +356,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_HVB_SOC_D:
           break;
         case PID_HVB_MAX_CHARGE_CURRENT:
+          pid_hvb_max_charge_current = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case PID_HVB_CHARGE_CURRENT_REQUESTED:
           break;
