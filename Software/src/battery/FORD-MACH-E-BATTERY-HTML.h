@@ -152,9 +152,7 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months / 100.0, 0) + " Months </h4>";
     }
 
-    if (battery_dl) {
-      content += render_dtc_section(battery_dl->dtc);
-    }
+    content += render_dtc_section(datalayer.battery.dtc);
 
     return content;
   }
