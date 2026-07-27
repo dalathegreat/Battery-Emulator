@@ -20,6 +20,11 @@ constexpr int32_t SOC_WINDOW_MIN_FLOOR_PPTT = -1000;
 
 constexpr int32_t SOC_WINDOW_MAX_CEIL_PPTT = 10000;
 
+/* Lowest allowed maximum. Keeps max away from 0, which NVS storage uses as
+ * its "never stored" sentinel for MAXPERCENTAGE — a stored 0.00% maximum
+ * would otherwise be silently replaced by the compiled default at boot. */
+constexpr int32_t SOC_WINDOW_MAX_FLOOR_PPTT = 100;
+
 /* Minimum gap between min and max. Enforces min < max and keeps the SOC
  * scaling divisor (max - min) from getting pathologically small; the scaling
  * code itself only guards against a zero divisor. */
