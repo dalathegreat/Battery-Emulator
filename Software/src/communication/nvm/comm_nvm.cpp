@@ -8,6 +8,7 @@
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/utils/logging.h"
+#include "../../devboard/utils/settings_validation.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
@@ -74,13 +75,16 @@ void init_stored_settings() {
     datalayer.battery2.info.total_capacity_Wh = temp;
     datalayer.battery3.info.total_capacity_Wh = temp;
   }
+  // Stored as percent*10 for backwards compatibility. A stored 0 (or missing key) for
+  // MAXPERCENTAGE means "never stored": keep the compiled default. A missing MINPERCENTAGE
+  // reads as 0 and has always been applied as 0.0%, so that behavior is kept.
   temp = settings.getUInt("MAXPERCENTAGE", false);
-  if (temp != 0) {
-    datalayer.battery.settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
-  }
-  int32_t temp2 = settings.getInt("MINPERCENTAGE", false);
-  if (temp2 <= 500 && temp2 >= -100) {
-    datalayer.battery.settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
+  int32_t boot_max_pptt = (temp != 0) ? static_cast<int32_t>(temp) * 10 : datalayer.battery.settings.max_percentage;
+  int32_t boot_min_pptt = settings.getInt("MINPERCENTAGE", 0) * 10;
+  if (!set_soc_window(boot_min_pptt, boot_max_pptt)) {
+    // Never run with half of an invalid pair: keep the compiled defaults for both and
+    // make the fallback visible in the event log instead of silently reverting.
+    set_event(EVENT_SOC_WINDOW_INVALID, static_cast<uint8_t>(boot_min_pptt / 100));
   }
   datalayer.battery.settings.max_user_set_charge_dA =
       settings.getUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
