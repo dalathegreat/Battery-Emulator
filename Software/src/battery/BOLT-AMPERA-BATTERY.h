@@ -42,7 +42,6 @@ class BoltAmperaBattery : public CanBattery {
   bool* allows_contactor_closing;
   bool UserRequestDTCreset = false;
 
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2510;
   static const int MAX_CELL_DEVIATION_MV = 150;

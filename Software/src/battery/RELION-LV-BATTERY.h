@@ -42,9 +42,6 @@ class RelionBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 3750;
   static const int MIN_CELL_VOLTAGE_MV = 2800;
 
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 150;  // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
-
   unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was sent
 
   const uint16_t SOC[101] = {10000, 9900, 9800, 9700, 9600, 9500, 9400, 9300, 9200, 9100, 9000, 8900, 8800, 8700, 8600,
