@@ -59,6 +59,7 @@ enum class BatteryType {
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
   ChargebyteCCSBattery = 54,
+  FiskerOcean = 55,
   Highest
 };
 
