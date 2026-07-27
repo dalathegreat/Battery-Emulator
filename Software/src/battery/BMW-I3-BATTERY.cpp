@@ -374,6 +374,7 @@ void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
     cw_state = CW_MONITOR;
     cw_close_request_start = 0;
     cw_recovery_attempts = 0;
+    cw_gave_up_event_sent = false;
     contactor_recovery_force_open = false;
     contactor_recovery_force_wakeup_low = false;
     return;
@@ -393,6 +394,7 @@ void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
     cw_state = CW_MONITOR;
     cw_close_request_start = 0;
     cw_recovery_attempts = 0;
+    cw_gave_up_event_sent = false;
     contactor_recovery_force_open = false;
     contactor_recovery_force_wakeup_low = false;
     return;
@@ -406,6 +408,7 @@ void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
         // Inverter withdrew the close request - re-arm for next time.
         cw_close_request_start = 0;
         cw_recovery_attempts = 0;
+        cw_gave_up_event_sent = false;
         break;
       }
       if (!emitting_close) {
@@ -415,13 +418,18 @@ void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
         break;
       }
       if (cw_recovery_attempts >= MAX_CONTACTOR_RECOVERY_ATTEMPTS) {
+        if (!cw_gave_up_event_sent) {
+          // All recovery attempts exhausted and the battery still won't report engaged.
+          set_event(EVENT_CONTACTOR_WATCHDOG_FAILED, cw_recovery_attempts, battery_index);
+          cw_gave_up_event_sent = true;
+        }
         break;  // Gave up; wait for the inverter to withdraw the request (or engage) to re-arm.
       }
       if (cw_close_request_start == 0) {
         cw_close_request_start = currentMillis ? currentMillis : 1;
       } else if (currentMillis - cw_close_request_start >= CONTACTOR_ENGAGE_TIMEOUT_MS) {
         // Timed out waiting for engage - start the recovery pulse.
-        set_event(EVENT_PRECHARGE_FAILURE, cw_recovery_attempts);
+        set_event(EVENT_CONTACTOR_WATCHDOG_ACTIVE, cw_recovery_attempts, battery_index);
         cw_recovery_attempts++;
         cw_state = CW_RECOVERY_OPEN_LOW;
         cw_recovery_phase_start = currentMillis;

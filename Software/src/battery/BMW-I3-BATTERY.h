@@ -392,7 +392,8 @@ class BmwI3Battery : public CanBattery {
   unsigned long cw_close_request_start = 0;   // when the current un-engaged close began
   unsigned long cw_recovery_phase_start = 0;  // start of the wakeup-low pulse
   uint8_t cw_recovery_attempts = 0;
-  bool contactor_recovery_force_open = false;        // force BMW_10B open during recovery
+  bool cw_gave_up_event_sent = false;          // ensures EVENT_CONTACTOR_WATCHDOG_FAILED fires only once per arm cycle
+  bool contactor_recovery_force_open = false;  // force BMW_10B open during recovery
   bool contactor_recovery_force_wakeup_low = false;  // force wakeup pin low during recovery
   static const unsigned long CONTACTOR_ENGAGE_TIMEOUT_MS = 3000;
   static const unsigned long RECOVERY_WAKEUP_LOW_MS = 2000;
