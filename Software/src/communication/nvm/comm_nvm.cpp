@@ -81,11 +81,9 @@ void init_stored_settings() {
   temp = settings.getUInt("MAXPERCENTAGE", false);
   int32_t boot_max_pptt = (temp != 0) ? static_cast<int32_t>(temp) * 10 : datalayer.battery.settings.max_percentage;
   int32_t boot_min_pptt = settings.getInt("MINPERCENTAGE", 0) * 10;
-  if (!set_soc_window(boot_min_pptt, boot_max_pptt)) {
-    // Never run with half of an invalid pair: keep the compiled defaults for both and
-    // make the fallback visible in the event log instead of silently reverting.
-    set_event(EVENT_SOC_WINDOW_INVALID, static_cast<uint8_t>(boot_min_pptt / 100));
-  }
+  // set_soc_window() writes nothing when the stored pair is invalid, so the compiled
+  // defaults are kept for both values - never half of an invalid pair.
+  set_soc_window(boot_min_pptt, boot_max_pptt);
   datalayer.battery.settings.max_user_set_charge_dA =
       settings.getUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
   datalayer.battery.settings.max_user_set_discharge_dA =
