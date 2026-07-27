@@ -5,6 +5,38 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+// Parses a reassembled UDS ReadDTCInformation reply out of dtc_buffer: a 3-byte header
+// (59 02 <statusAvailabilityMask>) followed by 4 bytes per DTC, being a 3-byte code plus one status
+// byte. Only the raw codes are stored here; the web renderer formats them into the 5-character
+// Ford strings (P33D7, U1000) and looks their descriptions up in ford_machE_dtc.json.
+void FordMachEBattery::parseDTCResponse() {
+  const uint16_t DTC_HEADER_LEN = 3;
+
+  dtc_read_in_progress = false;
+  dtc_rx_active = false;
+  datalayer.battery.dtc.dtc_last_read_millis = millis();
+
+  if (dtc_rx_len < DTC_HEADER_LEN || dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
+    datalayer.battery.dtc.dtc_read_failed = true;
+    return;
+  }
+
+  uint16_t count = (dtc_rx_len - DTC_HEADER_LEN) / 4;
+  if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+    count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+  }
+
+  for (uint16_t i = 0; i < count; i++) {
+    uint16_t offset = DTC_HEADER_LEN + (i * 4);
+    datalayer.battery.dtc.dtc_codes[i] = ((uint32_t)dtc_buffer[offset] << 16) |
+                                         ((uint32_t)dtc_buffer[offset + 1] << 8) | (uint32_t)dtc_buffer[offset + 2];
+    datalayer.battery.dtc.dtc_status[i] = dtc_buffer[offset + 3];
+  }
+
+  datalayer.battery.dtc.dtc_count = count;
+  datalayer.battery.dtc.dtc_read_failed = false;
+}
+
 void FordMachEBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc;
@@ -120,6 +152,39 @@ void FordMachEBattery::update_values() {
   datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
   datalayer_extended.fordMachE.pid_maintenance_rebalance_status = pid_maintenance_rebalance_status;
   datalayer_extended.fordMachE.pid_hvb_max_charge_current = pid_hvb_max_charge_current;
+
+  // Perform diagnostic if user has requested it
+  if (UserRequestDTCreset && !dtc_clear_in_progress) {
+    UserRequestDTCreset = false;
+    dtc_clear_in_progress = true;
+    dtc_clear_millis = millis();
+    transmit_can_frame(&FORD_DTC_RESET);
+  }
+
+  // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
+  // untouched here: an unconfirmed erase is not evidence that the codes are gone.
+  if (dtc_clear_in_progress && (millis() - dtc_clear_millis > DTC_TIMEOUT_MS)) {
+    dtc_clear_in_progress = false;
+  }
+
+  if (UserRequestDTCreadout && !dtc_read_in_progress) {
+    UserRequestDTCreadout = false;
+    dtc_read_in_progress = true;
+    dtc_rx_active = false;
+    dtc_rx_len = 0;
+    dtc_rx_expected = 0;
+    dtc_request_millis = millis();
+    datalayer.battery.dtc.dtc_read_failed = false;
+    transmit_can_frame(&FORD_READ_DTC);
+  }
+
+  // Give up if the BMS never completes the reply, so the page stops showing a pending read.
+  if (dtc_read_in_progress && (millis() - dtc_request_millis > DTC_TIMEOUT_MS)) {
+    dtc_read_in_progress = false;
+    dtc_rx_active = false;
+    datalayer.battery.dtc.dtc_read_failed = true;
+    datalayer.battery.dtc.dtc_last_read_millis = millis();
+  }
 }
 
 void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -288,6 +353,70 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //OBD2 diag reply from BMS (Replies to both 7DF and 7E4)
+
+      // ClearDiagnosticInformation is acknowledged with a single-frame 54. Only then are the stored
+      // codes known to be gone. The read timestamp is reset too, so the page goes back to
+      // "not read yet": an erase says nothing about what the BMS will report from here on.
+      if (dtc_clear_in_progress && rx_frame.data.u8[0] == 0x01 && rx_frame.data.u8[1] == 0x54) {
+        dtc_clear_in_progress = false;
+        datalayer.battery.dtc.dtc_count = 0;
+        datalayer.battery.dtc.dtc_read_failed = false;
+        datalayer.battery.dtc.dtc_last_read_millis = 0;
+        break;
+      }
+
+      // A DTC readout answers on 0x7EC just like the group polling below, and its first frame would
+      // otherwise be mistaken for polling data. Intercept it while a read is in
+      // flight. The 0x59 service reply byte is what tells the two apart: a group reply carries 0x61.
+      if (dtc_read_in_progress) {
+        uint8_t pci = rx_frame.data.u8[0] & 0xF0;
+
+        if (pci == 0x00 && rx_frame.data.u8[1] == 0x59) {  //Single frame: reply fits in one message
+          dtc_rx_len = rx_frame.data.u8[0] & 0x0F;
+          if (dtc_rx_len > 7) {
+            dtc_rx_len = 7;
+          }
+          for (uint8_t i = 0; i < dtc_rx_len; i++) {
+            dtc_buffer[i] = rx_frame.data.u8[1 + i];
+          }
+          parseDTCResponse();
+          break;
+        }
+
+        if (pci == 0x10 && rx_frame.data.u8[2] == 0x59) {  //First frame of a multi-frame reply
+          dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          if (dtc_rx_expected > DTC_BUFFER_SIZE) {
+            dtc_rx_expected = DTC_BUFFER_SIZE;  //More codes than we can store, keep the first ones
+          }
+          dtc_rx_len = 0;
+          for (uint8_t i = 2; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
+            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          }
+          dtc_rx_active = true;
+          transmit_can_frame(&FORD_ACK_FRAME);  //Flow control, ask for the rest
+          break;
+        }
+
+        if (dtc_rx_active && pci == 0x20) {  //Consecutive frame
+          for (uint8_t i = 1; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
+            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          }
+          if (dtc_rx_len >= dtc_rx_expected) {
+            parseDTCResponse();
+          } else {
+            transmit_can_frame(&FORD_ACK_FRAME);
+          }
+          break;
+        }
+
+        if (rx_frame.data.u8[1] == 0x7F && rx_frame.data.u8[2] == 0x19) {  //Request rejected by BMS
+          dtc_read_in_progress = false;
+          dtc_rx_active = false;
+          datalayer.battery.dtc.dtc_read_failed = true;
+          datalayer.battery.dtc.dtc_last_read_millis = millis();
+          break;
+        }
+      }
 
       if (rx_frame.data.u8[0] < 0x10) {  //One line response
         incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -529,7 +658,9 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     FORD_PID_REQUEST_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     FORD_PID_REQUEST_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-    transmit_can_frame(&FORD_PID_REQUEST_7E4);
+    if (!dtc_read_in_progress) {
+      transmit_can_frame(&FORD_PID_REQUEST_7E4);
+    }
   }
 
   // Send 1s CAN Message
@@ -540,11 +671,6 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_3C3);
     transmit_can_frame(&FORD_581);
     */
-
-    if (UserRequestDTCreset) {
-      transmit_can_frame(&FORD_DTC_RESET);
-      UserRequestDTCreset = false;  //Reset the flag after sending the DTC reset command
-    }
   }
 }
 

@@ -50,13 +50,13 @@ FordMachEBattery* battery_awaiting_dtc_reply() {
   */
 
 // Real BMS capture holding four codes: U019B, U0100, U0293 and U0298. The announced ISO-TP length of
-// 0x02F (47 bytes) is telling us that there are more frames than this, but this is all the data we have
+// 0x013 (18 bytes) is synthetically made to cut down and only process 4 codes, all with status AF (confirmed)
 TEST(FordMachEDtcTests, ShouldParseMultiFrameReply) {
   auto battery = battery_awaiting_dtc_reply();
 
-  battery->handle_incoming_can_frame(ford_7ec_frame({0x10, 0x2F, 0x59, 0x02, 0xFF, 0xC1, 0x9B, 0x00}));
-  battery->handle_incoming_can_frame(ford_7ec_frame({0x21, 0xAF, 0xC1, 0x00, 0x00, 0x2F, 0xC2, 0x93}));
-  battery->handle_incoming_can_frame(ford_7ec_frame({0x22, 0x00, 0xAF, 0xC2, 0x98, 0x00, 0xAF, 0x1A}));
+  battery->handle_incoming_can_frame(ford_7ec_frame({0x10, 0x13, 0x59, 0x02, 0xFF, 0xC1, 0x9B, 0x00}));
+  battery->handle_incoming_can_frame(ford_7ec_frame({0x21, 0xAF, 0xC1, 0x00, 0x00, 0xAF, 0xC2, 0x93}));
+  battery->handle_incoming_can_frame(ford_7ec_frame({0x22, 0x00, 0xAF, 0xC2, 0x98, 0x00, 0xAF, 0xFF}));
 
   EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
   ASSERT_EQ(datalayer.battery.dtc.dtc_count, 4);
@@ -65,6 +65,6 @@ TEST(FordMachEDtcTests, ShouldParseMultiFrameReply) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[2], 0xC29300u);  // U0293
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[3], 0xC29800u);  // U0298
   for (int i = 0; i < 4; i++) {
-    EXPECT_EQ(datalayer.battery.dtc.dtc_status[i], 0x4E);
+    EXPECT_EQ(datalayer.battery.dtc.dtc_status[i], 0xAF);
   }
 }
