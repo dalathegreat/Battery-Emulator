@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "../Software/src/battery/BATTERIES.h"
+#include "../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/safety/safety.h"
@@ -371,5 +373,132 @@ TEST(BmsResetTests, PeriodicBmsResetGuardsDisabled) {
   handle_BMSpower();
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
 
+  teardown_periodic_reset_test();
+}
+
+/* A reset that keeps the BMS powered off for longer than the CAN liveness window must
+   hold up datalayer's alive counter, or the safety layer would latch
+   EVENT_CAN_BATTERY_MISSING partway through every reset. */
+TEST(BmsResetTests, LongBmsResetHoldsCanAlive) {
+  setup_periodic_reset_test(24);
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = 600000;  // 600 seconds, the new maximum
+
+  set_millis64(25 * ONE_HOUR_MS);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+
+  unsigned long reset_start = 25 * ONE_HOUR_MS;
+
+  // Nothing is refreshed before the first interval is up
+  datalayer.battery.status.CAN_battery_still_alive = 7;
+  set_millis64(reset_start + 58000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 7);
+
+  // The counter is topped up one second before the window would close, and again
+  // on every following interval, so it never reaches zero during the off time.
+  for (int interval = 1; interval <= 10; interval++) {
+    datalayer.battery.status.CAN_battery_still_alive = 1;
+    set_millis64(reset_start + interval * 59000);
+    handle_BMSpower();
+    EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE)
+        << "not refreshed at interval " << interval;
+    EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+  }
+
+  // Power-on grants a full window from that moment, so a short remainder of the
+  // last interval can't leave the BMS with too little time to rejoin the bus.
+  datalayer.battery.status.CAN_battery_still_alive = 1;
+  set_millis64(reset_start + 600000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+
+  set_millis64(reset_start + 600000 + bmsWarmupDuration + 1000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
+
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;
+  teardown_periodic_reset_test();
+}
+
+// An off time that fits inside the liveness window keeps the original behaviour, the
+// alive counter is left alone so a genuinely missing BMS is still detected.
+TEST(BmsResetTests, ShortBmsResetLeavesCanAliveAlone) {
+  setup_periodic_reset_test(24);
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
+
+  set_millis64(25 * ONE_HOUR_MS);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+
+  unsigned long reset_start = 25 * ONE_HOUR_MS;
+
+  datalayer.battery.status.CAN_battery_still_alive = 3;
+  set_millis64(reset_start + 20000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 3);
+
+  set_millis64(reset_start + 31000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 3);
+
+  teardown_periodic_reset_test();
+}
+
+/* A battery with a shut-down sequence keeps its BMS silent for longer than the CAN liveness
+   window on its own, the LEAF spec mandates a 61s wait before power removal. The keepalive
+   must therefore run during the sequence too, and regardless of the configured off time. */
+TEST(BmsResetTests, ShutdownSequenceHoldsCanAlive) {
+  // Mirrors shutdown_timeout_ms, which has internal linkage in the implementation
+  const unsigned long shutdown_timeout_ms = 90000;
+
+  setup_periodic_reset_test(24);
+  // Deliberately short, so the sequence is the only thing that needs the keepalive
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = 10000;
+
+  auto leaf = new NissanLeafBattery();
+  battery = leaf;
+
+  set_millis64(25 * ONE_HOUR_MS);
+  handle_BMSpower();
+  // The reset should hand over to the battery sequence rather than cutting power
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_SHUTDOWN_SEQUENCE);
+
+  unsigned long reset_start = 25 * ONE_HOUR_MS;
+
+  // Untouched before the first interval is up
+  datalayer.battery.status.CAN_battery_still_alive = 4;
+  set_millis64(reset_start + 58000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 4);
+
+  // Refreshed while the sequence runs, even though the off time is only 10s
+  datalayer.battery.status.CAN_battery_still_alive = 1;
+  set_millis64(reset_start + 59000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_SHUTDOWN_SEQUENCE);
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+
+  // The sequence never completes here, so the 90s guard cuts power. The keepalive
+  // stays in effect through the off time and power-on for this reset.
+  datalayer.battery.status.CAN_battery_still_alive = 1;
+  set_millis64(reset_start + shutdown_timeout_ms);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+
+  set_millis64(reset_start + shutdown_timeout_ms + 11000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+
+  set_millis64(reset_start + shutdown_timeout_ms + 11000 + bmsWarmupDuration + 1000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
+
+  battery = nullptr;
+  delete leaf;
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;
   teardown_periodic_reset_test();
 }

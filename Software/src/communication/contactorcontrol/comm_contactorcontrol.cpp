@@ -53,6 +53,16 @@ unsigned long bmsPowerOnTime = 0;
 const unsigned long bmsWarmupDuration = 3000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
 
+/* The safety layer decrements CAN_battery_still_alive once per second and latches
+   EVENT_CAN_BATTERY_MISSING when it reaches zero, so the BMS may only be silent for
+   CAN_STILL_ALIVE seconds. A reset that keeps the BMS powered off for longer than that
+   would always trip the event, so for those durations we refresh the liveness counters
+   ourselves while the reset runs. Refreshing one second before the window closes keeps
+   the counter from ever reaching zero. Durations that fit inside the window are left
+   alone and keep the original, unmasked behaviour. */
+#define BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS ((unsigned long)(CAN_STILL_ALIVE - 1) * 1000UL)
+unsigned long lastCanKeepaliveTime = 0;
+
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 
   if (contactor_control_inverted_logic) {
@@ -314,6 +324,11 @@ Feature is only used if user has enabled PERIODIC_BMS_RESET */
 // e.g. the Nissan LEAF sequence which includes a >1min wait before BAT OFF)
 const unsigned long bmsShutdownSequenceTimeout = 90000;
 static unsigned long shutdownSequenceStartTime = 0;
+/* True while the current reset includes a battery specific shut-down sequence. The LEAF
+   sequence alone keeps the LBC silent for longer than the CAN liveness window (the spec
+   mandated wait before BAT OFF is 61s), so a reset using a sequence always needs the
+   keepalive, whatever the configured off time is. */
+static bool shutdownSequenceInUse = false;
 
 // Ask all configured batteries that support it to start their BMS shut-down
 // sequence. Returns true if at least one battery started a sequence.
@@ -406,6 +421,39 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
   return PeriodicResetVerdict::Run;
 }
 
+/* True when the reset keeps the BMS silent for longer than the CAN liveness window and the
+   counters therefore need holding up. Either the configured off time outlasts the window on
+   its own, or a shut-down sequence is running, which outlasts it regardless of the off time. */
+static bool bms_reset_needs_can_keepalive() {
+  return shutdownSequenceInUse ||
+         datalayer.battery.settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
+}
+
+/* Pretends the batteries were just heard from, and restarts the keepalive interval.
+   Batteries that are not configured are skipped, since the safety layer does not look at
+   their counters either. */
+static void bms_reset_refresh_can_alive() {
+  lastCanKeepaliveTime = currentTime;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  if (battery2) {
+    datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+  if (battery3) {
+    datalayer.battery3.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+}
+
+// Called on every pass through the powered-off and powering-on states of a long reset.
+static void bms_reset_can_keepalive_tick() {
+  if (!bms_reset_needs_can_keepalive()) {
+    return;
+  }
+  if (currentTime - lastCanKeepaliveTime < BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS) {
+    return;
+  }
+  bms_reset_refresh_can_alive();
+}
+
 void handle_BMSpower() {
   //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
   if (datalayer.system.info.equipment_stop_active) {
@@ -468,6 +516,7 @@ void handle_BMSpower() {
           // At least one battery wants to perform a graceful CAN shut-down
           // sequence towards its BMS before we cut the power (e.g. Nissan LEAF)
           shutdownSequenceStartTime = currentTime;
+          shutdownSequenceInUse = true;
           datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
         } else {
           bms_power_off();
@@ -479,11 +528,17 @@ void handle_BMSpower() {
 
         logging.printf("BMS reset: Aborting, contactors are still under load.\n");
 
+        shutdownSequenceInUse = false;
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
         set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_SHUTDOWN_SEQUENCE) {
+      /* The LBC goes quiet early in the sequence and stays quiet through the mandated
+         wait before BAT OFF, so the counters need holding up here too, not just once
+         power is actually removed. */
+      bms_reset_can_keepalive_tick();
+
       // A battery specific CAN shut-down sequence is running. Wait for it to
       // complete (or time out) before removing power from the BMS.
       if (battery_shutdown_sequences_completed() ||
@@ -493,13 +548,23 @@ void handle_BMSpower() {
         datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+      bms_reset_can_keepalive_tick();
+
       // Check if the user configured duration has passed
       if (currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
         bms_power_on();
         bmsPowerOnTime = currentTime;
+        /* The last periodic refresh can have been up to a full interval ago, which would leave
+           the BMS only a sliver of the window to get back on the bus. Refreshing here gives it
+           the whole window from power-on, measured from the same moment for every off time. */
+        if (bms_reset_needs_can_keepalive()) {
+          bms_reset_refresh_can_alive();
+        }
         datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERING_ON) {
+      bms_reset_can_keepalive_tick();
+
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
@@ -507,6 +572,7 @@ void handle_BMSpower() {
 
         // Reset is complete
 
+        shutdownSequenceInUse = false;
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
         set_event(EVENT_PERIODIC_BMS_RESET, 0);
         clear_event(EVENT_PERIODIC_BMS_RESET);
@@ -520,6 +586,10 @@ void start_bms_reset() {
     if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
       // Record when we started the BMS reset process
       lastPowerRemovalTime = millis();
+      // Anchor the keepalive here so the first refresh lands one interval into the reset,
+      // rather than immediately or after a gap left over from a previous reset.
+      lastCanKeepaliveTime = lastPowerRemovalTime;
+      shutdownSequenceInUse = false;
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
       setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
@@ -532,6 +602,7 @@ void start_bms_reset() {
           // At least one battery wants to perform a graceful CAN shut-down
           // sequence towards its BMS before we cut the power (e.g. Nissan LEAF)
           shutdownSequenceStartTime = lastPowerRemovalTime;
+          shutdownSequenceInUse = true;
           datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
         } else {
           // Thus we can cut the BMS power now
