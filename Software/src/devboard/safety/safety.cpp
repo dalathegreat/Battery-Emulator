@@ -38,6 +38,26 @@ bool inverter_detected = false;
 battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
+// Shared CAN-aliveness handling for battery 1/2/3 and the charger: latch the
+// detected-event on the first counter refresh, raise the missing-event when the
+// counter runs out, decrement and clear it otherwise. The inverter has its own
+// logic (long-timeout option, startup grace) and is handled separately.
+static void check_can_component_alive(uint8_t& still_alive_counter, bool& detected, EVENTS_ENUM_TYPE detected_event,
+                                      EVENTS_ENUM_TYPE missing_event, uint8_t missing_event_data) {
+  if (!detected) {
+    if (still_alive_counter >= CAN_STILL_ALIVE) {
+      detected = true;
+      set_event(detected_event, 1);
+    }
+  }
+  if (!still_alive_counter) {
+    set_event(missing_event, missing_event_data);
+  } else {
+    --still_alive_counter;
+    clear_event(missing_event);
+  }
+}
+
 void update_machineryprotection() {
   //Check if we start to get low on memory
   static uint8_t hysteresisHeapSeconds = 0;
@@ -284,28 +304,10 @@ void update_machineryprotection() {
       }
     }
 
-    //Check if we have ever seen the Battery
-    if (!battery_detected) {
-      if (datalayer.battery.status.CAN_battery_still_alive >= CAN_STILL_ALIVE) {
-        battery_detected = true;
-        set_event(EVENT_CAN_BATTERY_DETECTED, 1);
-      }
-    }
-
-    // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
-    if (!datalayer.battery.status.CAN_battery_still_alive) {
-      set_event(EVENT_CAN_BATTERY_MISSING, can_config.battery);
-    } else {
-      datalayer.battery.status.CAN_battery_still_alive--;
-      clear_event(EVENT_CAN_BATTERY_MISSING);
-    }
-
-    // Too many malformed CAN messages recieved!
-    if (datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
-      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery);
-    } else {
-      clear_event(EVENT_CAN_CORRUPTED_WARNING);
-    }
+    // Check that the BMS has been seen and is still sending CAN messages.
+    // If we go 60s without messages we raise an error
+    check_can_component_alive(datalayer.battery.status.CAN_battery_still_alive, battery_detected,
+                              EVENT_CAN_BATTERY_DETECTED, EVENT_CAN_BATTERY_MISSING, can_config.battery);
   }
 
   if (inverter && inverter->interface_type() == InverterInterfaceType::Can) {
@@ -345,22 +347,11 @@ void update_machineryprotection() {
   }
 
   if (charger) {
-    // Check if we have ever seen the charger
-    if (!charger_detected) {
-      if (datalayer.charger.CAN_charger_still_alive >= CAN_STILL_ALIVE) {
-        charger_detected = true;
-        set_event(EVENT_CAN_CHARGER_DETECTED, 1);
-      }
-    }
-
     // Assuming chargers are all CAN here.
-    // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
-    if (!datalayer.charger.CAN_charger_still_alive) {
-      set_event(EVENT_CAN_CHARGER_MISSING, charger->interface());
-    } else {
-      datalayer.charger.CAN_charger_still_alive--;
-      clear_event(EVENT_CAN_CHARGER_MISSING);
-    }
+    // Check that the charger has been seen and is still sending CAN messages.
+    // If we go 60s without messages we raise a warning
+    check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
+                              EVENT_CAN_CHARGER_MISSING, charger->interface());
   }
 
   // Additional Double-Battery safeties are checked here
@@ -373,27 +364,9 @@ void update_machineryprotection() {
       datalayer.battery2.status.max_charge_power_W = 0;
     }
 
-    // Check if we have ever seen the Battery 2
-    if (!battery2_detected) {
-      if (datalayer.battery2.status.CAN_battery_still_alive >= CAN_STILL_ALIVE) {
-        battery2_detected = true;
-        set_event(EVENT_CAN_BATTERY2_DETECTED, 1);
-      }
-    }
-
-    if (!datalayer.battery2.status.CAN_battery_still_alive) {
-      set_event(EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
-    } else {
-      datalayer.battery2.status.CAN_battery_still_alive--;
-      clear_event(EVENT_CAN_BATTERY2_MISSING);
-    }
-
-    // Too many malformed CAN messages recieved!
-    if (datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
-      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_double);
-    } else {
-      clear_event(EVENT_CAN_CORRUPTED_WARNING);
-    }
+    // Check that the Battery 2 BMS has been seen and is still sending CAN messages
+    check_can_component_alive(datalayer.battery2.status.CAN_battery_still_alive, battery2_detected,
+                              EVENT_CAN_BATTERY2_DETECTED, EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
 
     // Cell overvoltage, critical latching error without automatic reset. Requires user action.
     if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
@@ -441,27 +414,9 @@ void update_machineryprotection() {
       datalayer.battery3.status.max_charge_power_W = 0;
     }
 
-    // Check if we have ever seen the Battery 3
-    if (!battery3_detected) {
-      if (datalayer.battery3.status.CAN_battery_still_alive >= CAN_STILL_ALIVE) {
-        battery3_detected = true;
-        set_event(EVENT_CAN_BATTERY3_DETECTED, 1);
-      }
-    }
-
-    if (!datalayer.battery3.status.CAN_battery_still_alive) {
-      set_event(EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
-    } else {
-      datalayer.battery3.status.CAN_battery_still_alive--;
-      clear_event(EVENT_CAN_BATTERY3_MISSING);
-    }
-
-    // Too many malformed CAN messages recieved!
-    if (datalayer.battery3.status.CAN_error_counter > MAX_CAN_FAILURES) {
-      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_triple);
-    } else {
-      clear_event(EVENT_CAN_CORRUPTED_WARNING);
-    }
+    // Check that the Battery 3 BMS has been seen and is still sending CAN messages
+    check_can_component_alive(datalayer.battery3.status.CAN_battery_still_alive, battery3_detected,
+                              EVENT_CAN_BATTERY3_DETECTED, EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
 
     // Cell overvoltage, critical latching error without automatic reset. Requires user action.
     if (datalayer.battery3.status.cell_max_voltage_mV >= datalayer.battery3.info.max_cell_voltage_mV) {
@@ -497,6 +452,28 @@ void update_machineryprotection() {
         clear_event(EVENT_SOH_DIFFERENCE);
       }
     }
+  }
+
+  // Too many malformed CAN messages received! EVENT_CAN_CORRUPTED_WARNING is shared by
+  // all batteries; evaluate them together so one battery's clean state can no longer
+  // clear another battery's active warning. Event data = first offending channel.
+  bool can_corrupted = false;
+  uint8_t corrupted_channel = can_config.battery;
+  if (battery && datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
+    can_corrupted = true;
+  }
+  if (battery2 && !can_corrupted && datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
+    can_corrupted = true;
+    corrupted_channel = can_config.battery_double;
+  }
+  if (battery3 && !can_corrupted && datalayer.battery3.status.CAN_error_counter > MAX_CAN_FAILURES) {
+    can_corrupted = true;
+    corrupted_channel = can_config.battery_triple;
+  }
+  if (can_corrupted) {
+    set_event(EVENT_CAN_CORRUPTED_WARNING, corrupted_channel);
+  } else {
+    clear_event(EVENT_CAN_CORRUPTED_WARNING);
   }
 
   //Safeties verified, Zero charge/discharge ampere values incase any safety wrote the W to 0
