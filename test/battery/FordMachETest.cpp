@@ -7,7 +7,7 @@
 
 namespace {
 
-    // Builds a 0x7EC reply frame from up to 8 raw bytes.
+// Builds a 0x7EC reply frame from up to 8 raw bytes.
 CAN_frame ford_7ec_frame(std::initializer_list<uint8_t> bytes) {
   CAN_frame frame = {};
   frame.DLC = 8;
