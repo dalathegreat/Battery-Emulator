@@ -43,6 +43,14 @@ TEST_F(SocWindowTest, MinBelowFloorRejected) {
   EXPECT_FALSE(validate_soc_window(-1100, 8000));
 }
 
+TEST_F(SocWindowTest, MaxBelowFloorRejected) {
+  // max = 0.00% would collide with the NVS "never stored" sentinel and be
+  // silently replaced by the compiled default at boot; the floor makes that
+  // combination unrepresentable. 1.00% is the lowest accepted maximum.
+  EXPECT_FALSE(validate_soc_window(-1000, 0));
+  EXPECT_TRUE(validate_soc_window(-1000, 100));
+}
+
 TEST_F(SocWindowTest, GapBoundary) {
   // Exactly the minimum 1% gap is accepted, one pptt less is rejected
   EXPECT_TRUE(validate_soc_window(7900, 8000));
