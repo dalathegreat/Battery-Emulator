@@ -71,6 +71,7 @@ add_executable(tests
     voltage_sync_tests.cpp
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
+    battery/FordMachETest.cpp
     battery/NissanLeafTest.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
