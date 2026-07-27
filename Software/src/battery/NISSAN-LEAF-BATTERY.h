@@ -216,24 +216,28 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
   //Balancing classification state, see update_values()
-  //Sliding window of recent group 0x06 reads over which bitmap changes are counted (max 16)
-  static const uint8_t BALANCING_ACTIVITY_WINDOW_POLLS = 12;
-  //Changes required within that window to call the pack actively balancing. The change interval must
-  //be shorter than WINDOW/CHANGES polls for this to trip, so with 12/3 a swap every 4 polls qualifies.
-  static const uint8_t BALANCING_CHANGES_FOR_ACTIVE = 3;
-  //Cells that must differ between two reads to count as a swap rather than a single cell flickering
-  static const uint8_t BALANCING_SIGNIFICANT_CELL_CHANGES = 2;
-  //Below this many flagged cells the pack counts as not balancing at all. Outside its balancing
-  //phases the LBC keeps a low-level bleed flickering on 0-2 cells (occasionally up to ~12), while a
-  //real pending or active phase always flags 30+, so this cleanly separates the two and stops the
-  //status chattering between READY and BLOCKED whenever the count crosses zero.
+  //The classifier tracks how many shunts change state per group 0x06 read, smoothed with an integer
+  //exponential moving average. balancing_churn_acc holds the average scaled by (1 << SHIFT), so the
+  //average in cells per read is (balancing_churn_acc >> BALANCING_CHURN_SHIFT).
+  static const uint8_t BALANCING_CHURN_SHIFT = 4;  //Smoothing factor, 1/16 per read
+  //Average shunts changing per read above which the LBC is considered to be actively bleeding and
+  //swapping cells, and below which it is considered to be holding a set at rest. Measured on a 2017
+  //30 kWh pack: 7.8-9.7 while balancing, 0.0-1.6 while pending, so these sit either side with margin.
+  static const uint8_t BALANCING_CHURN_ACTIVE = 3 * (1 << BALANCING_CHURN_SHIFT);
+  static const uint8_t BALANCING_CHURN_IDLE = (3 * (1 << BALANCING_CHURN_SHIFT)) / 2;
+  //Below this many flagged shunts the pack counts as not balancing at all
   static const uint8_t BALANCING_READY_BELOW_CELLS = 4;
+  //Consecutive reads below that count before READY is reported. A dropped group 0x06 response can
+  //momentarily read as all-clear, so a single low read is not enough to declare balancing finished.
+  static const uint8_t BALANCING_READY_DEBOUNCE_READS = 3;
   //Previous group 0x06 shunt bitmap (96 bits packed into 3 words), for change detection
   uint32_t balancing_bitmap_prev[3];
   //true once balancing_bitmap_prev holds a real reading
   bool balancing_bitmap_valid = false;
-  //One bit per recent read, set if that read differed significantly from the one before it
-  uint16_t balancing_activity_window = 0;
+  //Smoothed shunts-changed-per-read, scaled by (1 << BALANCING_CHURN_SHIFT)
+  uint16_t balancing_churn_acc = 0;
+  //Consecutive reads with fewer than BALANCING_READY_BELOW_CELLS shunts flagged
+  uint8_t balancing_low_reads = 0;
   //Which group 0x06 frames of the current response have arrived, so partial responses are discarded
   uint8_t balancing_frames_seen = 0;
   //Set by the group 0x06 handler once a complete response has been assembled

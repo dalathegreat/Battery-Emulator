@@ -192,16 +192,19 @@ void NissanLeafBattery::
   }
 
   // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on
-  // its own does not mean the pack is balancing: the LBC keeps a small bleed engaged much of the time
-  // and holds that set for hours while it waits for the pack to settle. During a real balance it
-  // duty-cycles the shunts, bleeding one set of cells for a few minutes before swapping to the next,
-  // so what distinguishes the two is how *often* the bitmap moves - not whether it moved recently.
-  // Count significant changes over a sliding window of reads: enough of them means ACTIVE, none at all
-  // means BLOCKED, and in between the previous status is held so the state does not chatter.
+  // its own does not mean the pack is balancing: the LBC flags a set of cells and can hold it for a
+  // day at a time while it waits for the pack to settle, at one point flagging every shunt it has and
+  // holding that perfectly static for 20 hours. During a real balance it duty-cycles the shunts,
+  // bleeding cells and swapping the set after each measurement. What separates the two is therefore
+  // not whether the bitmap moved but how *much* of it moves per read: on a 30 kWh pack roughly 8-10
+  // shunts change per read while balancing against under 2 while pending. Smooth that rate with an
+  // exponential moving average and compare it against a pair of thresholds, holding the previous
+  // status in between so the state does not chatter at the boundary.
   // Evaluated only on a complete group 0x06 response (~70s apart), never on the 1s update tick.
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
-    balancing_activity_window = 0;
+    balancing_churn_acc = 0;
+    balancing_low_reads = 0;
     set_balancing_status(BALANCING_STATUS_UNKNOWN);
   }
 
@@ -218,14 +221,24 @@ void NissanLeafBattery::
     }
 
     if (balancing_active_cells < BALANCING_READY_BELOW_CELLS) {
-      balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
-      balancing_activity_window = 0;
-      set_balancing_status(BALANCING_STATUS_READY);
+      //Nothing flagged. Wait for this to repeat before believing it: an incomplete group 0x06 response
+      //reads as all-clear for a single poll, which would otherwise end the phase early.
+      if (balancing_low_reads < BALANCING_READY_DEBOUNCE_READS) {
+        balancing_low_reads++;
+      }
+      if (balancing_low_reads >= BALANCING_READY_DEBOUNCE_READS) {
+        balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
+        balancing_churn_acc = 0;
+        set_balancing_status(BALANCING_STATUS_READY);
+      }
     } else {
-      //Count how many cells changed state since the previous read. A real swap moves several cells at
-      //once; a single cell hovering at the balancing threshold toggles on its own and is not activity.
-      uint8_t changed_cells = 0;
-      if (balancing_bitmap_valid) {
+      //Count how many shunts changed state since the previous read. Skip the read that follows a
+      //low-count one, since the bitmap it would be compared against is the suspect all-clear sample.
+      bool churn_valid = balancing_bitmap_valid && (balancing_low_reads == 0);
+      balancing_low_reads = 0;
+
+      if (churn_valid) {
+        uint8_t changed_cells = 0;
         for (uint8_t word = 0; word < 3; word++) {
           uint32_t diff = balancing_bitmap[word] ^ balancing_bitmap_prev[word];
           while (diff) {
@@ -233,26 +246,18 @@ void NissanLeafBattery::
             diff &= diff - 1;
           }
         }
-      }
 
-      //Shift the window along, recording whether this read counts as a change
-      balancing_activity_window <<= 1;
-      if (balancing_bitmap_valid && changed_cells >= BALANCING_SIGNIFICANT_CELL_CHANGES) {
-        balancing_activity_window |= 1;
-      }
-      balancing_activity_window &= (uint16_t)((1UL << BALANCING_ACTIVITY_WINDOW_POLLS) - 1);
+        //Integer exponential moving average: acc holds the rate scaled by (1 << SHIFT), so it settles
+        //at (changed_cells << SHIFT) for a steady rate. The decay term uses the pre-update value.
+        balancing_churn_acc = balancing_churn_acc + changed_cells - (balancing_churn_acc >> BALANCING_CHURN_SHIFT);
 
-      uint8_t changes_in_window = 0;
-      for (uint16_t bits = balancing_activity_window; bits; bits &= bits - 1) {
-        changes_in_window++;
+        if (balancing_churn_acc >= BALANCING_CHURN_ACTIVE) {
+          set_balancing_status(BALANCING_STATUS_ACTIVE);  //Swapping shunts steadily: really balancing
+        } else if (balancing_churn_acc <= BALANCING_CHURN_IDLE) {
+          set_balancing_status(BALANCING_STATUS_BLOCKED);  //Holding a set: flagged, but not yet at rest
+        }
+        //else: between the thresholds, hold the current status
       }
-
-      if (changes_in_window >= BALANCING_CHANGES_FOR_ACTIVE) {
-        set_balancing_status(BALANCING_STATUS_ACTIVE);  //Swapping cells regularly: really balancing
-      } else if (changes_in_window == 0) {
-        set_balancing_status(BALANCING_STATUS_BLOCKED);  //Same set for a whole window: flagged, at rest
-      }
-      //else: too sparse to call either way, hold the current status
 
       memcpy(balancing_bitmap_prev, balancing_bitmap, sizeof(balancing_bitmap));
       balancing_bitmap_valid = true;
