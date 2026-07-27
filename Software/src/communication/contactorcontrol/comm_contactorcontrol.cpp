@@ -388,7 +388,8 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
 
 /* True when the configured off time outlasts the CAN liveness window and the reset therefore
    needs the counters held up. Only the off time matters here: the surrounding pause and warmup
-   phases are short and the BMS is on the bus for part of them. */
+   phases are short and the BMS is on the bus for part of them. To test the statement in Leaf 
+   "GEN4_e_Battery_control_spec_ver1.0.pdf" page 4, "IGN to be OFF for more than 6 min 30 seconds every day. "*/
 static bool bms_reset_needs_can_keepalive() {
   return datalayer.battery.settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
 }
