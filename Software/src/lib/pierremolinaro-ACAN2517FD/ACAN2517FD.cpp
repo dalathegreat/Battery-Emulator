@@ -894,7 +894,7 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
 //----------------------------------------------------------------------------------------------------------------------
 
 #ifdef ARDUINO_ARCH_ESP32
-  void ACAN2517FD::poll (void) {
+  void IRAM_ATTR ACAN2517FD::poll (void) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE ;
     xSemaphoreGiveFromISR (mISRSemaphore, &xHigherPriorityTaskWoken) ;
     portYIELD_FROM_ISR () ;
@@ -919,7 +919,7 @@ bool ACAN2517FD::dispatchReceivedMessage (const tFilterMatchCallBack inFilterMat
 //----------------------------------------------------------------------------------------------------------------------
 
 #ifdef ARDUINO_ARCH_ESP32
-  void ACAN2517FD::isr (void) {
+  void IRAM_ATTR ACAN2517FD::isr (void) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE ;
     xSemaphoreGiveFromISR (mISRSemaphore, &xHigherPriorityTaskWoken) ;
     portYIELD_FROM_ISR () ;
