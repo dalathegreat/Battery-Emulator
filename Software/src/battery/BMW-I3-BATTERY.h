@@ -394,7 +394,7 @@ class BmwI3Battery : public CanBattery {
   uint8_t cw_recovery_attempts = 0;
   bool contactor_recovery_force_open = false;        // force BMW_10B open during recovery
   bool contactor_recovery_force_wakeup_low = false;  // force wakeup pin low during recovery
-  static const unsigned long CONTACTOR_ENGAGE_TIMEOUT_MS = 5000;
+  static const unsigned long CONTACTOR_ENGAGE_TIMEOUT_MS = 3000;
   static const unsigned long RECOVERY_WAKEUP_LOW_MS = 2000;
   static const uint8_t MAX_CONTACTOR_RECOVERY_ATTEMPTS = 3;
   void monitor_contactor_engagement(unsigned long currentMillis);
