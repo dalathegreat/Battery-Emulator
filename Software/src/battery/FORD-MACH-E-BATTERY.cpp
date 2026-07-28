@@ -559,6 +559,9 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
     previousMillis30 = currentMillis;
 
+    //TEST
+    transmit_can_frame(&FORD_77);  //Static, content never changes (TEST)
+
     //Full vehicle emulation, not required
     /*
 
@@ -594,7 +597,7 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     // Byte 7: counts down by 2 each step, maintaining byte6 + byte7 = 0x7F
     FORD_200.data.u8[7] = 0x7F - (counter_8_30ms * 2);
 
-    //transmit_can_frame(&FORD_77); Not needed for contactor closing
+    //
     //transmit_can_frame(&FORD_7D); Not needed for contactor closing
     //transmit_can_frame(&FORD_167); Not needed for contactor closing
     //transmit_can_frame(&FORD_48F);  //Only sent in AC charging logs! Not needed for contactor closing
@@ -614,9 +617,9 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
-    //transmit_can_frame(&FORD_42C); Not needed for contactor closing
-    //transmit_can_frame(&FORD_42F); Not needed for contactor closing
-    //transmit_can_frame(&FORD_43D);
+    transmit_can_frame(&FORD_42C);  //Static, content never changes (TEST)
+    transmit_can_frame(&FORD_42F);  //Static, content never changes (TEST)
+    transmit_can_frame(&FORD_43D);  //Static, content never changes (TEST)
   }
 
   // Send 100ms CAN Message
@@ -625,10 +628,12 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&FORD_185);  // Required to close contactors
 
+    //TEST
+    transmit_can_frame(&FORD_12F);
+
     //Full vehicle emulation, not required
     /*
-    transmit_can_frame(
-        &FORD_12F);  //This message actually has checksum/counter, but it seems to close contactors without those
+
     transmit_can_frame(&FORD_332);
     transmit_can_frame(&FORD_333);
     transmit_can_frame(&FORD_42B);
