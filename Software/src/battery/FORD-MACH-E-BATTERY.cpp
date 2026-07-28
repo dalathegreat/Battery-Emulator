@@ -549,8 +549,8 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_25B);
 
     //TEST
-    transmit_can_frame(&FORD_217);  //TEST
-    transmit_can_frame(&FORD_442);  //TEST
+    //transmit_can_frame(&FORD_217);  //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_442);  //Confirmed does NOT help reduce amount of DTCs
     //Full vehicle emulation, not required
     /*
     
@@ -564,8 +564,8 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     //TEST
     //transmit_can_frame(&FORD_77);  //Confirmed does NOT help reduce amount of DTCs
-    transmit_can_frame(&FORD_47);  //TEST
-    transmit_can_frame(&FORD_48);  //TEST
+    //transmit_can_frame(&FORD_47);  //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_48);  //Confirmed does NOT help reduce amount of DTCs
     //Full vehicle emulation, not required
     /*
 
@@ -633,15 +633,12 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_185);  // Required to close contactors
 
     //FORD_5A.data.u8
+    //transmit_can_frame(&FORD_5A);
 
     //TEST
     //transmit_can_frame(&FORD_12F); //Confirmed does NOT help reduce amount of DTCs
-    transmit_can_frame(&FORD_203);  //TEST
-    //transmit_can_frame(&FORD_5A);
-
-    //Full vehicle emulation, not required
-    /*
-
+    //transmit_can_frame(&FORD_203);  //Confirmed does NOT help reduce amount of DTCs
+    //WAVE3
     transmit_can_frame(&FORD_332);
     transmit_can_frame(&FORD_333);
     transmit_can_frame(&FORD_42B);
@@ -650,6 +647,15 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&FORD_166);
     transmit_can_frame(&FORD_175);
     transmit_can_frame(&FORD_178);
+    //Full vehicle emulation, not required
+    /*
+
+
+
+
+
+
+
 
     transmit_can_frame(
         &FORD_176);  //This message actually has checksum/counter, but it seems to close contactors without those
