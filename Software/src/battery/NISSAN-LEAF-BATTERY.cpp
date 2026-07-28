@@ -256,9 +256,36 @@ void NissanLeafBattery::
     }
 
 #endif
-    if (UserRequestDTCreset) {
+    if (UserRequestDTCreset && !dtc_clear_in_progress) {
       UserRequestDTCreset = false;
+      dtc_clear_in_progress = true;
+      dtc_clear_millis = millis();
       transmit_can_frame(&LEAF_CLEAR_DTC);
+    }
+
+    // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
+    // untouched here: an unconfirmed erase is not evidence that the codes are gone.
+    if (dtc_clear_in_progress && (millis() - dtc_clear_millis > DTC_TIMEOUT_MS)) {
+      dtc_clear_in_progress = false;
+    }
+
+    if (UserRequestDTCreadout && !dtc_read_in_progress) {
+      UserRequestDTCreadout = false;
+      dtc_read_in_progress = true;
+      dtc_rx_active = false;
+      dtc_rx_len = 0;
+      dtc_rx_expected = 0;
+      dtc_request_millis = millis();
+      datalayer_battery->dtc.dtc_read_failed = false;
+      transmit_can_frame(&LEAF_READ_DTC);
+    }
+
+    // Give up if the LBC never completes the reply, so the page stops showing a pending read.
+    if (dtc_read_in_progress && (millis() - dtc_request_millis > DTC_TIMEOUT_MS)) {
+      dtc_read_in_progress = false;
+      dtc_rx_active = false;
+      datalayer_battery->dtc.dtc_read_failed = true;
+      datalayer_battery->dtc.dtc_last_read_millis = millis();
     }
   }
 }
@@ -387,6 +414,70 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         break;
       }
 #endif
+
+      // ClearDiagnosticInformation is acknowledged with a single-frame 54. Only then are the stored
+      // codes known to be gone. The read timestamp is reset too, so the page goes back to
+      // "not read yet": an erase says nothing about what the LBC will report from here on.
+      if (dtc_clear_in_progress && rx_frame.data.u8[0] == 0x01 && rx_frame.data.u8[1] == 0x54) {
+        dtc_clear_in_progress = false;
+        datalayer_battery->dtc.dtc_count = 0;
+        datalayer_battery->dtc.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_last_read_millis = 0;
+        break;
+      }
+
+      // A DTC readout answers on 0x7BB just like the group polling below, and its first frame would
+      // otherwise be mistaken for group 0x02 (cell voltages). Intercept it while a read is in
+      // flight. The 0x59 service reply byte is what tells the two apart: a group reply carries 0x61.
+      if (dtc_read_in_progress) {
+        uint8_t pci = rx_frame.data.u8[0] & 0xF0;
+
+        if (pci == 0x00 && rx_frame.data.u8[1] == 0x59) {  //Single frame: reply fits in one message
+          dtc_rx_len = rx_frame.data.u8[0] & 0x0F;
+          if (dtc_rx_len > 7) {
+            dtc_rx_len = 7;
+          }
+          for (uint8_t i = 0; i < dtc_rx_len; i++) {
+            dtc_buffer[i] = rx_frame.data.u8[1 + i];
+          }
+          parseDTCResponse();
+          break;
+        }
+
+        if (pci == 0x10 && rx_frame.data.u8[2] == 0x59) {  //First frame of a multi-frame reply
+          dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          if (dtc_rx_expected > DTC_BUFFER_SIZE) {
+            dtc_rx_expected = DTC_BUFFER_SIZE;  //More codes than we can store, keep the first ones
+          }
+          dtc_rx_len = 0;
+          for (uint8_t i = 2; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
+            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          }
+          dtc_rx_active = true;
+          transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
+          break;
+        }
+
+        if (dtc_rx_active && pci == 0x20) {  //Consecutive frame
+          for (uint8_t i = 1; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
+            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          }
+          if (dtc_rx_len >= dtc_rx_expected) {
+            parseDTCResponse();
+          } else {
+            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);
+          }
+          break;
+        }
+
+        if (rx_frame.data.u8[1] == 0x7F && rx_frame.data.u8[2] == 0x19) {  //Request rejected by LBC
+          dtc_read_in_progress = false;
+          dtc_rx_active = false;
+          datalayer_battery->dtc.dtc_read_failed = true;
+          datalayer_battery->dtc.dtc_last_read_millis = millis();
+          break;
+        }
+      }
 
       if (stop_battery_query) {  //Leafspy is active, stop our own polling
         break;
@@ -619,6 +710,38 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
+// Parses a reassembled UDS ReadDTCInformation reply out of dtc_buffer: a 3-byte header
+// (59 02 <statusAvailabilityMask>) followed by 4 bytes per DTC, being a 3-byte code plus one status
+// byte. Only the raw codes are stored here; the web renderer formats them into the 5-character
+// Nissan strings (P33D7, U1000) and looks their descriptions up in nissan_leaf_dtc.json.
+void NissanLeafBattery::parseDTCResponse() {
+  const uint16_t DTC_HEADER_LEN = 3;
+
+  dtc_read_in_progress = false;
+  dtc_rx_active = false;
+  datalayer_battery->dtc.dtc_last_read_millis = millis();
+
+  if (dtc_rx_len < DTC_HEADER_LEN || dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
+    datalayer_battery->dtc.dtc_read_failed = true;
+    return;
+  }
+
+  uint16_t count = (dtc_rx_len - DTC_HEADER_LEN) / 4;
+  if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+    count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+  }
+
+  for (uint16_t i = 0; i < count; i++) {
+    uint16_t offset = DTC_HEADER_LEN + (i * 4);
+    datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)dtc_buffer[offset] << 16) |
+                                          ((uint32_t)dtc_buffer[offset + 1] << 8) | (uint32_t)dtc_buffer[offset + 2];
+    datalayer_battery->dtc.dtc_status[i] = dtc_buffer[offset + 3];
+  }
+
+  datalayer_battery->dtc.dtc_count = count;
+  datalayer_battery->dtc.dtc_read_failed = false;
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
@@ -837,8 +960,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
       previousMillis10s = currentMillis;
 
-      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
-      if (!stop_battery_query) {
+      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
+      //and don't start a new group transfer while a DTC readout is still being reassembled.
+      if (!stop_battery_query && !dtc_read_in_progress) {
 
         // Move to the next group
         PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]

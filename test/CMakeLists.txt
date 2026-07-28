@@ -72,6 +72,7 @@ add_executable(tests
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     soc_window_tests.cpp
+    battery_alive_tests.cpp
     battery/NissanLeafTest.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
@@ -85,6 +86,9 @@ add_executable(tests
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/settings_validation.cpp
+    ../Software/src/devboard/utils/led_handler.cpp
+    ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
+    emul/neopixel_show.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
