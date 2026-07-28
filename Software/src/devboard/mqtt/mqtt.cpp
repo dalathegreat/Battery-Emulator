@@ -186,8 +186,7 @@ static bool supports_charged(Battery* b) {
   return b->supports_charged_energy();
 }
 static bool supports_tesla_dcdc_metrics(Battery* b) {
-  return b != nullptr && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
-                          user_selected_battery_type == BatteryType::TeslaModelSX);
+  return b != nullptr && b->supports_tesla_dcdc_metrics();
 }
 static bool supports_byd_autocal_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::BydAtto3;

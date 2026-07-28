@@ -5,6 +5,8 @@
 
 class CanReceiver {
  public:
+  virtual ~CanReceiver() = default;
+
   virtual void receive_can_frame(CAN_frame* rx_frame) = 0;
 };
 

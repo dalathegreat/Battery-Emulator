@@ -12,6 +12,7 @@ class ChevyVoltCharger : public CanCharger {
   ChevyVoltCharger() : CanCharger(ChargerType::ChevyVolt) {}
 
   const char* name() { return Name; }
+  static constexpr ChargerType TYPE = ChargerType::ChevyVolt;
   static constexpr const char* Name = "Chevy Volt Gen1 Charger";
 
   void map_can_frame_to_variable(CAN_frame rx_frame);

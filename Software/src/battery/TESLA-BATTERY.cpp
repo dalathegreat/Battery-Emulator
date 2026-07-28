@@ -535,7 +535,7 @@ void TeslaBattery::
   // Pack-internal contactors: DC bus is live only when the BMS confirms CLOSED (4).
   // Guarded so the GPIO contactor state machine stays authoritative when enabled.
   if (!contactor_control_enabled) {
-    datalayer.system.status.dc_bus_live = (battery_contactor == 4);
+    datalayer.system.status.dc_bus_live = (BMS_contactorState == 4);
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
@@ -578,7 +578,7 @@ void TeslaBattery::
     datalayer_battery->settings.user_requests_tesla_isolation_clear = false;
   }
   if (datalayer_battery->settings.user_requests_tesla_bms_reset) {
-    if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
+    if (BMS_contactorState == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
@@ -592,7 +592,7 @@ void TeslaBattery::
   }
   if (datalayer_battery->settings.user_requests_tesla_soc_reset) {
     if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
-        battery_contactor == 1) {
+        BMS_contactorState == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
@@ -1153,7 +1153,7 @@ void TeslaBattery::
 
   printFaultCodesIfActive();
   logging.printf("Contactor State: ");
-  logging.printf(getBMSContactorState(battery_contactor));  // Display what state the BMS thinks the contactors are in
+  logging.printf(getBMSContactorState(BMS_contactorState));  // Display what state the BMS thinks the contactors are in
   logging.printf(" HVIL: ");
   logging.printf(getHvilStatusState(battery_hvil_status));
   logging.printf(" NegState: ");
@@ -1276,7 +1276,6 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_cpMiaOnHvs = ((rx_frame.data.u8[0] >> 6) & (0x01U));
       BMS_contactorState = (rx_frame.data.u8[1] &
                             (0x07U));  //0 "SNA" 1 "OPEN" 2 "OPENING" 3 "CLOSING" 4 "CLOSED" 5 "WELDED" 6 "BLOCKED" ;
-      battery_contactor = BMS_contactorState;
       //BMS_state = // Original code from older DBCs
       //((rx_frame.data.u8[1] >> 3) &
       //(0x0FU));  //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" ;
@@ -2448,7 +2447,7 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     //0x39D IBST_status
     transmit_can_frame(&TESLA_39D);
 
-    if (battery_contactor == 4) {  // Contactors closed
+    if (BMS_contactorState == 4) {  // Contactors closed
 
       // Frames to be sent only when contactors closed
       if (timeToMux3A1) {
@@ -2970,30 +2969,33 @@ void TeslaBattery::setup(void) {  // Performs one time setup at startup
       break;
   }
 
-  //IF 3 / Y
-  if (user_selected_battery_type == BatteryType::TeslaModel3Y) {
-    strncpy(datalayer.system.info.battery_protocol, Name3Y, 63);
-    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
-      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
-      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
-      datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
-      datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
-      datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
-    } else {
-      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
-      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
-      datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
-      datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
-      datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
-    }
-  } else {  //S/X
+  // Variant-specific pack design limits and reported protocol name
+  apply_variant_config();
+}
 
-    strncpy(datalayer.system.info.battery_protocol, NameSX, 63);
-    datalayer.system.info.battery_protocol[63] = '\0';
-    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
-    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
+void TeslaModel3YBattery::apply_variant_config() {
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
+  if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+    datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+    datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
+  } else {
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
     datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
     datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
     datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
+}
+
+void TeslaModelSXBattery::apply_variant_config() {
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 }
