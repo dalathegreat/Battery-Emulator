@@ -127,4 +127,6 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
+
+  datalayer.system.status.dc_bus_live = false; // Fake battery no voltage on the DC bus.
 }
