@@ -296,6 +296,7 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                         .ID = 0x185,
                         .data = {0x03, 0x4E, 0x75, 0x32, 0x00, 0x80, 0x00, 0x00}};
   //Message test to reduce active codes
+  /*
   CAN_frame FORD_43D = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -321,29 +322,45 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                        .DLC = 8,
                        .ID = 0x077,
                        .data = {0x00, 0x00, 0x08, 0x00, 0xFF, 0xF7, 0xEA, 0x02}};
-
-  //Messages to emulate full vehicle
-  /*
-  CAN_frame FORD_47 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x047,
-                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_48 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x048,
-                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_4C = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x04C,
-                       .data = {0x70, 0xAA, 0xBF, 0xDE, 0xCC, 0xEC, 0x00, 0x00}};
+                       */
+  CAN_frame FORD_203 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x203,
+                        .data = {0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_5A = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x05A,
                        .data = {0x00, 0x00, 0x00, 0x0B, 0xF2, 0x90, 0x10, 0x00}};
+  CAN_frame FORD_47 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x047,
+                       .data = {0x44, 0x34, 0xD2, 0xBE, 0xC0, 0xFB, 0x00, 0x00}};
+  CAN_frame FORD_48 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x048,
+                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_217 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x217,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_442 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x442,
+                        .data = {0x4E, 0x20, 0x38, 0x71, 0xBA, 0x00, 0x00, 0x40}};
+  //Messages to emulate full vehicle
+  /*
+
+  CAN_frame FORD_4C = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x04C,
+                       .data = {0x70, 0xAA, 0xBF, 0xDE, 0xCC, 0xEC, 0x00, 0x00}};
 
   CAN_frame FORD_7D = {.FD = false,
                        .ext_ID = false,
@@ -401,21 +418,13 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                         .DLC = 8,
                         .ID = 0x200,
                         .data = {0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x00, 0x70}};
-  CAN_frame FORD_203 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x203,
-                        .data = {0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
   CAN_frame FORD_204 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x204,
                         .data = {0xD4, 0x00, 0x7D, 0x00, 0x00, 0xF7, 0x00, 0x00}};
-  CAN_frame FORD_217 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x217,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
   CAN_frame FORD_230 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -455,11 +464,7 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
 
 
 
-  CAN_frame FORD_442 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x442,
-                        .data = {0x4E, 0x20, 0x78, 0x7E, 0x7C, 0x00, 0x00, 0x40}};
+
   CAN_frame FORD_48F = {.FD = false,  //Only sent in active charging logs (OBC?)
                         .ext_ID = false,
                         .DLC = 8,
