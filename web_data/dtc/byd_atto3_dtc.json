@@ -436,6 +436,7 @@
   {"dtc": "P1A3F00", "l_dsc": "Pre-charging Contactor Loop Check Fault"},
   {"dtc": "P1A4100", "l_dsc": "Main Contactor Sintering Fault"},
   {"dtc": "P1A4200", "l_dsc": "Negative Contactor Sintering"},
+  {"dtc": "P1A4800", "l_dsc": " Main Motor Cover Open Failure / Main motor opened housing fault"},
   {"dtc": "P1A5600", "l_dsc": "12V Supply Input of Battery Management System Too Low"},
   {"dtc": "P1A5B00", "l_dsc": "Contactor Disconnected Due to Dual-circuit Power Supply Fault"},
   {"dtc": "P1A6000", "l_dsc": "High Voltage Interlock 1 Fault"},
