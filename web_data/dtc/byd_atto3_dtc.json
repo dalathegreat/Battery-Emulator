@@ -591,6 +591,7 @@
   {"dtc": "U011181", "l_dsc": "Message Data of BMC Abnormal"},
   {"dtc": "U011182", "l_dsc": "Cycle Counter of BMC Abnormal"},
   {"dtc": "U011187", "l_dsc": "Communication with Battery Management System (BMS) Failed"},
+  {"dtc": "U012100", "l_dsc": "Lost Communication With ABS Module"},
   {"dtc": "U012187", "l_dsc": "Communication with ABS Failed"},
   {"dtc": "U014081", "l_dsc": "Message Data of BCM Abnormal"},
   {"dtc": "U014087", "l_dsc": "Communication with BCM Failed"},
