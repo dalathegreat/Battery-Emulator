@@ -78,6 +78,10 @@ extern battery_chemistry_enum user_selected_battery_chemistry;
 // Defines the interface to call battery specific functionality.
 class Battery {
  public:
+  // Factory-created objects are deleted through this base pointer (e.g. the
+  // host test suite) - the polymorphic base needs a virtual destructor.
+  virtual ~Battery() = default;
+
   virtual void setup(void) = 0;
   virtual void update_values() = 0;
 
@@ -93,6 +97,7 @@ class Battery {
   virtual bool mandatory_charge_taper() { return false; }
 
   virtual bool supports_clear_isolation() { return false; }
+  virtual bool supports_tesla_dcdc_metrics() { return false; }
   virtual bool supports_reset_BMS() { return false; }
   virtual bool supports_reset_SOC() { return false; }
   virtual bool supports_reset_crash() { return false; }

@@ -3,6 +3,8 @@
 
 class Transmitter {
  public:
+  virtual ~Transmitter() = default;
+
   virtual void transmit(unsigned long currentMillis) = 0;
 };
 

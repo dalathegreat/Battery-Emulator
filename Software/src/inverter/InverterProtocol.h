@@ -41,6 +41,8 @@ enum class InverterInterfaceType { Can, Rs485, Modbus };
 // The abstract base class for all inverter protocols
 class InverterProtocol {
  public:
+  virtual ~InverterProtocol() = default;
+
   virtual const char* name() = 0;
   virtual bool setup() { return true; }
   virtual const char* interface_name() = 0;

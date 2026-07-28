@@ -12,6 +12,7 @@ class Mg5Battery : public CanBattery {
   virtual void update_values();
   virtual void update_soc(uint16_t soc_times_ten);
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::Mg5;
   static constexpr const char* Name = "MG 5 battery";
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);
   bool storeUDSPayload(const uint8_t* payload, uint8_t length);

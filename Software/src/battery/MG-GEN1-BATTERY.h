@@ -20,6 +20,7 @@ class MgGen1Battery : public UdsCanBattery {
   virtual bool supports_reset_BMS() override;
   virtual void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
 
+  static constexpr BatteryType TYPE = BatteryType::MgGen1;
   static constexpr const char* Name = "MG Gen1 (HS/ZS/MG5/MarvelR)";
 
   String get_uds_info_html() override;
