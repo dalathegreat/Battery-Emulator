@@ -200,6 +200,22 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_cooldown_ready;
   bool autocal_crit_contactors;
 
+  // Native BMS termination: let the battery end the charge and recalibrate SOC itself, by running a
+  // real charge session on an already closed pack. Needs the pack case isolated from earth.
+  bool native_termination_enabled;
+  /** Session state: 0 off, 1 requesting, 2 ready, 3 charging, 4 finishing, 5 resting */
+  uint8_t charge_session_state;
+  /** Charge grant the battery gives the charger (0x347), zero means stop */
+  uint8_t charge_grant;
+  /** Seconds spent in the current session state, so the post-charge rest can be timed */
+  uint32_t charge_session_seconds;
+  /** Highest cell and cell spread at the moment the battery ended the last charge */
+  uint16_t termination_cell_max_mV;
+  uint16_t termination_cell_min_mV;
+  uint16_t termination_cell_delta_mV;
+  uint8_t termination_cell_max_number;
+  uint8_t termination_cell_min_number;
+
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI

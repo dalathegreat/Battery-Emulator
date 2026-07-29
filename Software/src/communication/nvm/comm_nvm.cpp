@@ -284,6 +284,9 @@ void init_stored_settings() {
   // One isolation-monitor setting for both batteries
   datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
+  // Native termination is primary-battery only: inverter charge limits come from battery 1 alone,
+  // so a secondary termination could not stop a parallel bank.
+  datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", false);
 }
 
 void clear_wifi_sta_settings() {
@@ -337,4 +340,5 @@ void store_settings() {
   settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
 }
