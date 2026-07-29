@@ -466,12 +466,16 @@ static void _receive_frame_canfd(ACAN2517FD* canfd, bool first) {
       map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
 
       if (datalayer.system.info.can_ODIS_bridge_active) {
-        //ODIS: Incoming CAN-FD message. Format it as normal CAN, and send to Native CAN
-        if (rx_frame.DLC > 8) {
-          rx_frame.DLC = 8;
+        // ODIS: forward CAN-FD frames to native CAN. Frames longer than classic CAN
+        // can carry are DROPPED, not truncated: a truncated ISO-TP frame has an
+        // inconsistent length nibble and corrupts the diagnostic session. The MEB
+        // BMS broadcasts 64-byte FD frames, so only <=8-byte traffic bridges today.
+        // Proper ISO-TP re-segmentation (FD single-frame -> classic FF/CF) is a
+        // planned follow-up.
+        if (rx_frame.DLC <= 8) {
+          rx_frame.FD = false;
+          transmit_can_frame_to_interface(&rx_frame, CAN_NATIVE);
         }
-        rx_frame.FD = false;
-        transmit_can_frame_to_interface(&rx_frame, CAN_NATIVE);
       }
     } else {
       map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518_2);
