@@ -43,6 +43,9 @@ extern bool wifiap_enabled;
 extern bool ap_active;
 extern bool mdns_enabled;
 extern bool espnow_enabled;
+// Optional list of ESP-NOW receiver MAC addresses. Any separator is accepted
+// ("AA:BB:CC:DD:EE:FF, 11-22-33-44-55-66"). Empty = broadcast to every device.
+extern std::string espnow_peer_macs;
 extern bool static_IP_enabled;
 // Stored as dotted-quad strings; parsed with IPAddress::fromString() when the interface is brought up.
 extern std::string static_local_IP;

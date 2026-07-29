@@ -245,6 +245,7 @@ void init_stored_settings() {
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
+  espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);

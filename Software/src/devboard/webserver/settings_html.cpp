@@ -721,6 +721,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
 
+  if (var == "ESPNOWMACS") {
+    return settings.getString("ESPNOWMACS");
+  }
+
   if (var == "MQTTENABLED") {
     return settings.getBool("MQTTENABLED") ? "checked" : "";
   }
@@ -1517,6 +1521,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-espnowenabled { display: none; }
+    form[data-espnowenabled="true"] .if-espnowenabled {
+      display: contents;
+    }
+
     </style>
 )rawliteral"
 
@@ -2076,7 +2085,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Enable ESPNow: </label>
-        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
+        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED%
+        title="Send battery telemetry to nearby devices over ESP-NOW" />
+
+        <div class='if-espnowenabled'>
+        <label>ESPNow receiver MACs: </label>
+        <input type='text' name='ESPNOWMACS' value="%ESPNOWMACS%" maxlength="180"
+        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*"
+        title="Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart." />
+        </div>
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
