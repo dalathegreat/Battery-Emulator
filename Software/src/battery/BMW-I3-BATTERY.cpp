@@ -44,9 +44,9 @@ void BmwI3Battery::end_balancing() {
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
       UserRequestBalancing == EXECUTING) {
-    digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
-  } else if (millis() > INTERVAL_1_S) {
-    digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
+    digitalWrite(wakeup_pin, LOW);         // Turn off wakeup pin
+  } else if (millis64() > INTERVAL_1_S) {  // millis64: plain millis() wraps after 49.7 days
+    digitalWrite(wakeup_pin, HIGH);        // Wake up the battery
   }
 
   // When balancing mode has stopped CAN, keep the alive counter refreshed

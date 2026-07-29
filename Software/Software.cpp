@@ -321,8 +321,12 @@ void update_calculated_values(unsigned long currentMillis) {
   /*Update free heap*/
   datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
 
-  /* Check is remote set limits have timed out */
-  if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
+  /* Check is remote set limits have timed out. Wrap-safe subtraction: the naive
+     "currentMillis > timestamp + timeout" comparison both overflows near the 49.7-day
+     millis() wrap (fresh limits expire immediately) and inverts after it (stale limits
+     persist up to another 49.7 days) */
+  if ((currentMillis - datalayer.battery.settings.remote_set_timestamp) >
+      datalayer.battery.settings.remote_set_timeout) {
     datalayer.battery.settings.remote_settings_limit_charge = false;
     datalayer.battery.settings.remote_settings_limit_discharge = false;
     datalayer.battery.settings.max_remote_set_charge_dA = 0;
