@@ -58,7 +58,7 @@ void PylonLvInverter::update_values() {
     PYLON_359.data.u8[0] |= 0x0C;
   if (datalayer.battery.status.voltage_dV <= datalayer.battery.info.min_design_voltage_dV)
     PYLON_359.data.u8[0] |= 0x04;
-  if (datalayer.battery.status.bms_status == FAULT)
+  if (datalayer.system.status.system_status == FAULT)
     PYLON_359.data.u8[1] |= 0x80;
   if (datalayer.battery.status.reported_current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
     PYLON_359.data.u8[1] |= 0x01;
@@ -81,7 +81,7 @@ void PylonLvInverter::update_values() {
     PYLON_359.data.u8[3] |= 0x01;
 
   PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
-  if (datalayer.battery.status.bms_status == FAULT)
+  if (datalayer.system.status.system_status == FAULT)
     PYLON_35C.data.u8[0] = 0x00;  // disable all
   else if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV)
     PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately

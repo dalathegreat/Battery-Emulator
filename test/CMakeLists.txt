@@ -68,15 +68,16 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 # add the executable
 add_executable(tests 
     tests.cpp
-    safety_tests.cpp
     voltage_sync_tests.cpp
     bms_reset_tests.cpp
+    inverter_alive_tests.cpp
+    battery/FordMachETest.cpp
+    battery_alive_tests.cpp
     battery/NissanLeafTest.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
-    ../Software/src/core/parallel_safety.cpp
-    ../Software/src/communication/can/obd.cpp
+    ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
@@ -84,8 +85,12 @@ add_executable(tests
     ../Software/src/devboard/utils/types.cpp
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/common_functions.cpp
+    ../Software/src/devboard/utils/led_handler.cpp
+    ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
+    emul/neopixel_show.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
+    ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusServer.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusServerRTU.cpp
@@ -103,6 +108,7 @@ add_executable(tests
     ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
+    ../Software/src/battery/CHARGEBYTE-CCS.cpp
     ../Software/src/battery/CHADEMO-BATTERY.cpp
     ../Software/src/battery/CHADEMO-CT.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
@@ -144,6 +150,7 @@ add_executable(tests
     ../Software/src/battery/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
+    ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
@@ -185,6 +192,7 @@ add_executable(tests
     emul/serial.cpp
     emul/Arduino.cpp
     emul/freertos/FreeRTOS.cpp
+    emul/driver/i2c_master.cpp
     )
 
 target_link_libraries(tests

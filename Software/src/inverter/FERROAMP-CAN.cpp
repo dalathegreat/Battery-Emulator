@@ -55,7 +55,7 @@ void FerroampCanInverter::
   FERROAMP_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     FERROAMP_4251.data.u8[0] = (0x00);  // Sleep
   } else if (datalayer.battery.status.reported_current_dA < 0) {
     FERROAMP_4251.data.u8[0] = (0x01);  // Charge
@@ -118,7 +118,7 @@ void FerroampCanInverter::
   FERROAMP_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     FERROAMP_4281.data.u8[0] = 0xAA;
     FERROAMP_4281.data.u8[1] = 0xAA;
     FERROAMP_4281.data.u8[2] = 0xAA;

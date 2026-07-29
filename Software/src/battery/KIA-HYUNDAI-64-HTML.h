@@ -10,6 +10,8 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
  public:
   KiaHyundai64HtmlRenderer(DATALAYER_INFO_KIAHYUNDAI64* dl) : kia_datalayer(dl) {}
 
+  bool renders_own_battery_data() { return true; }
+
   String get_status_html() {
     String content;
     auto print_hyundai = [&content](DATALAYER_INFO_KIAHYUNDAI64& data) {

@@ -55,14 +55,33 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
+  virtual uint32_t MCP2517_FREQ() { return 40000000; }
+
+  // MCP2518FD add-on via the GPIO pins
+  // SPI Bus is shared with the 1st interface, only INT and CS pins are needed
+  virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_12; }
+  virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_14; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_33; }
-  virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
-  virtual gpio_num_t BMS_POWER() { return GPIO_NUM_23; }
+  virtual gpio_num_t PRECHARGE_PIN() {  //Precharge and BMS power pins can be swapped in config
+    if (user_selected_gpioopt5 == GPIOOPT5::BMS_POWER_25) {
+      return GPIO_NUM_23;
+    }
+    return GPIO_NUM_25;
+  }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
+
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_19; }
-  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
+  virtual gpio_num_t BMS_POWER() {
+    if (user_selected_gpioopt5 == GPIOOPT5::BMS_POWER_25) {
+      return GPIO_NUM_25;
+    }
+    return GPIO_NUM_23;
+  }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_19; }
@@ -73,7 +92,12 @@ class StarkHal : public Esp32Hal {
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
-  virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
+  virtual uint8_t LED_MAX_BRIGHTNESS() { return 20; }
+  // LEDs 1-4 (PRECHARGE, CONTACTOR NEG, CONTACTOR POS, BMS POWER) are chained off the STATUS LED
+  // (pixel 0). On boards with the older plain hardwired LEDs there's no physical RGB LED at those
+  // positions, so this extra chain data has nowhere to go and is simply a no-op; on boards with
+  // the RGB LED PCB it lights them. No user-facing option needed either way.
+  virtual uint8_t LED_COUNT() { return 5; }
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_2; }
@@ -82,8 +106,12 @@ class StarkHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
+  // the FLA momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP if not running
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdNative};
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,
+            comm_interface::CanFdNative};
   }
 
   virtual const char* name_for_comm_interface(comm_interface comm) {
@@ -96,15 +124,17 @@ class StarkHal : public Esp32Hal {
         return "";
       case comm_interface::CanFdAddonMcp2518:
         return "";
+      case comm_interface::CanFdAddonMcp2518_2:
+        return "MCP2518FD (GPIO add-on)";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:
         return "RS485";
       case comm_interface::Highest:
         return "";
-        break;
+      default:
+        return Esp32Hal::name_for_comm_interface(comm);
     }
-    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 

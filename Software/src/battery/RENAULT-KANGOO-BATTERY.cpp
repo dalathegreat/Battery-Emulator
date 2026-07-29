@@ -210,7 +210,12 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&KANGOO_79B_Poll);
+    if (UserRequestDTCreset) {
+      UserRequestDTCreset = false;
+      transmit_can_frame(&KANGOO_CLEAR_DTC);
+    } else {  //Normal polling if no DTC reset request
+      transmit_can_frame(&KANGOO_79B_Poll);
+    }
   }
 }
 

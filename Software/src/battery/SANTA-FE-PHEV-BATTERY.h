@@ -23,11 +23,16 @@ class SantaFePhevBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Santa Fe PHEV";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestedDTCReset = true; }
+
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
+
+  bool UserRequestedDTCReset = false;
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
@@ -88,6 +93,11 @@ class SantaFePhevBattery : public CanBattery {
                                .DLC = 8,
                                .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
                                .data = {0x30, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame SANTAFE_CLEAR_DTC = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x7E4,
+                                 .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 };
 
 #endif

@@ -230,6 +230,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       l3_fault = rx_frame.data.u8[4] & 0x3F;
       master_warning = (rx_frame.data.u8[4] & 0xC0) >> 6;
       insulation_resistance_kOhm = ((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6]));
+      datalayer_battery->status.insulation_resistance_kOhm = insulation_resistance_kOhm;
+      datalayer_battery->status.insulation_resistance_available = true;
       //counter_325 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x334:  // Cellvoltages
@@ -478,7 +480,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       CMP_351.data.u8[1] = 0x10;
       CMP_351.data.u8[2] = 0x10;
     } else {  //Normal handling of 351 message according to we need to open/close contactors
-      if (datalayer_battery->status.bms_status == FAULT) {
+      if (datalayer.system.status.system_status == FAULT) {
         //Open contactors
         CMP_351.data.u8[0] = 0xA6;
         CMP_351.data.u8[1] = 0x10;
@@ -507,7 +509,7 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
       CMP_211.data.u8[4] = 0x17;    //Ready mode (unsure why this opens contactors)
     } else {                        //Normal handling of close/open
 
-      if (datalayer_battery->status.bms_status == FAULT) {
+      if (datalayer.system.status.system_status == FAULT) {
         //Open contactors
         CMP_211.data.u8[4] = 0x17;  //Ready mode (unsure why this opens contactors) (Bit 1 is insulation turn-off)
       } else {                      //Close contactors

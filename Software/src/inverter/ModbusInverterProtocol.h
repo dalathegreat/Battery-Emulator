@@ -19,6 +19,10 @@ class ModbusInverterProtocol : public InverterProtocol {
   ModbusInverterProtocol(int serverId);
   ~ModbusInverterProtocol();
 
+  // Sets the one-shot "inverter detected" event on the first valid request from the inverter
+  void notify_inverter_communication();
+  bool inverter_detected = false;
+
   ModbusMessage FC03(ModbusMessage request);
   ModbusMessage FC06(ModbusMessage request);
   ModbusMessage FC16(ModbusMessage request);

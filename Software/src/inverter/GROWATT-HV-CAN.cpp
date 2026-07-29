@@ -91,13 +91,13 @@ void GrowattHvInverter::
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000001);
   }
   if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b01000000);  // No Charge
   } else {                                                             //continue using battery
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000000);  // Charge allowed
   }
   if ((datalayer.battery.status.max_discharge_current_dA == 0) || (datalayer.battery.status.reported_soc == 0) ||
-      (datalayer.battery.status.bms_status == FAULT)) {
+      (datalayer.system.status.system_status == FAULT)) {
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00100000);  // No Discharge
   } else {                                                             //continue using battery
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000000);  // Discharge allowed

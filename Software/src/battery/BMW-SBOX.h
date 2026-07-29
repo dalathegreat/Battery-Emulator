@@ -31,7 +31,7 @@ class BmwSbox : public CanShunt {
       5000;  // Precharge time before precharge resistor is bypassed by positive contactor
   static const int CONTACTOR_CONTROL_T3 = 2000;  // Precharge relay lead time after positive contactor has been engaged
 
-  static const int MAX_ALLOWED_FAULT_TICKS = 1000;
+  static const int MAX_ALLOWED_FAULT_TICKS = 2000;
 
   enum SboxState { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
   SboxState contactorStatus = DISCONNECTED;
@@ -40,8 +40,8 @@ class BmwSbox : public CanShunt {
   unsigned long negativeStartTime = 0;
   unsigned long positiveStartTime = 0;
   unsigned long timeSpentInFaultedMode = 0;
-  unsigned long LastMsgTime = 0;  // will store last time a 20ms CAN Message was send
-  unsigned long LastAvgTime = 0;  // Last current storage time
+  unsigned long previousMillis10 = 0;  // will store last time a 10ms CAN Message was send
+  unsigned long LastAvgTime = 0;       // Last current storage time
   unsigned long ShuntLastSeen = 0;
 
   uint32_t avg_mA_array[10];

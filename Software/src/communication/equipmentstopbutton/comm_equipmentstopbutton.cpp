@@ -45,20 +45,20 @@ void monitor_equipment_stop_button() {
   if (equipment_stop_behavior == STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH) {
     if (changed_state == PRESSED) {
       // Changed to ON – initiating equipment stop.
-      setBatteryPause(true, false, true);
+      setBatteryPause(true, false, EquipmentStop::STOP);
     } else if (changed_state == RELEASED) {
       // Changed to OFF – ending equipment stop.
-      setBatteryPause(false, false, false);
+      setBatteryPause(false, false, EquipmentStop::RESUME);
     }
   } else if (equipment_stop_behavior == STOP_BUTTON_BEHAVIOR::MOMENTARY_SWITCH) {
     if (changed_state == RELEASED) {  // button is released
 
       if (timeSincePress < equipment_button_long_press_duration) {
         // Short press detected, trigger equipment stop
-        setBatteryPause(true, false, true);
+        setBatteryPause(true, false, EquipmentStop::STOP);
       } else {
         // Long press detected, reset equipment stop state
-        setBatteryPause(false, false, false);
+        setBatteryPause(false, false, EquipmentStop::RESUME);
       }
     }
   }

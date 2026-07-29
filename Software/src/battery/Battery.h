@@ -57,7 +57,9 @@ enum class BatteryType {
   GeelySea = 50,
   ThunderstruckBMS = 51,
   EnnoidBMS = 52,
-  MebOdisBridge = 53,
+  StellantisSmallWide4x4 = 53,
+  ChargebyteCCSBattery = 54,
+  MebOdisBridge = 55,
   Highest
 };
 
@@ -85,6 +87,11 @@ class Battery {
   // These are commands from external I/O (UI, MQTT etc.)
   // Override in battery if it supports them. Otherwise they are NOP.
 
+  /* True for battery types where the SOC-based charge power taper is
+     mandatory: the taper cannot be disabled and the start SOC is restricted
+     to 50-85%. Enforced at boot and reflected in the settings UI. */
+  virtual bool mandatory_charge_taper() { return false; }
+
   virtual bool supports_clear_isolation() { return false; }
   virtual bool supports_reset_BMS() { return false; }
   virtual bool supports_reset_SOC() { return false; }
@@ -108,7 +115,12 @@ class Battery {
   virtual bool supports_balancing() { return false; }
   virtual bool is_balancing_active() { return false; }
   virtual const char* get_balancing_state_string() { return nullptr; }
+  // Like supports_balancing(), but renders independent Start and Stop buttons that are BOTH always
+  // visible (instead of a single toggle). Used by batteries where balancing is a latching request.
+  virtual bool supports_balancing_request() { return false; }
+  virtual bool supports_isolation_test() { return false; }
 
+  virtual void request_isolation_test() {}
   virtual void clear_isolation() {}
   virtual void calibrate_SOC() {}
   virtual void reset_BMS() {}
@@ -129,6 +141,7 @@ class Battery {
   virtual void chademo_stop() {}
   virtual void initiate_balancing() {}
   virtual void end_balancing() {}
+  virtual void handle_precharge() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage();
@@ -138,6 +151,10 @@ class Battery {
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
+
+  // Battery reports insulation/isolation resistance via
+  // datalayer status insulation_resistance_kOhm
+  virtual bool supports_insulation_resistance() { return false; }
 
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 

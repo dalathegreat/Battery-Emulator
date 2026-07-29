@@ -640,7 +640,12 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&GEELY_POLL);
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&GEELY_CLEAR_DTC);
+      UserRequestDTCreset = false;
+    } else {
+      transmit_can_frame(&GEELY_POLL);
+    }
   }
 }
 

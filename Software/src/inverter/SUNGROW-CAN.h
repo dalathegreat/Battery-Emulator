@@ -221,21 +221,30 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x01E,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_400 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x400,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_401 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x401,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x402 - static .30 head frame (SBRBCU-S_22011.01.30). On the real bus it REPLACES 0x400 (both 0x400
+  //         and 0x1F0 stop when 0x402 starts). Payload is constant, byte 2 = 0x55. The emulator targets
+  //         .30, so this is sent every cycle in the head group (SoC is carried by 0x500/0x702).
+  CAN_frame SUNGROW_402 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x402,
+                           .data = {0x00, 0x00, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // 0x1F0 - firmware-update channel (fw .27-era; on the real bus 23 Jan-13 Jun 2026, dropped on .30).
+  //         Irregular cadence, not steady telemetry - not emulated (no frame defined or transmitted).
+  // 0x500 - BMS init message. b0-6 = static unknown values (kept visible below); b7 = SoC (set in update_values).
   CAN_frame SUNGROW_500 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x500,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x01,                    // Unknown (500_Unknown_0)
+                                    0x01, 0x03,              // Unknown (500_Unknown_1; b2 old guess: module count)
+                                    0xFF, 0x00, 0x01, 0x00,  // Unknown (500_Unknown_2)
+                                    0x00}};                  // Battery SoC integer % - set in update_values()
   CAN_frame SUNGROW_501 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
@@ -311,15 +320,17 @@ class SungrowInverter : public CanInverterProtocol {
                                     0x00, 0x00,    // Battery current
                                     0x00, 0x00,    // Another related battery voltage
                                     0x00, 0x00}};  // Battery temperature
-  // 0x705 - TODO
+  // 0x705 - Battery Status
   CAN_frame SUNGROW_705 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x705,
-                           .data = {0x00, 0x00,        // Status??
-                                    0x00, 0x00, 0x00,  // ????
-                                    0x00, 0x00,        // Yet another battery voltage
-                                    0x00}};            // Padding??
+                           .data = {0x02,        // Battery status: 0=Unplugged, 1=Standby, 2=Run (always Run)
+                                    0x00,        // Always 0 (705_Always_0)
+                                    0x01,        // Always 1 (705_Always_1)
+                                    0x00, 0x00,  // Battery model id - set in update_values() from module_count
+                                    0x00, 0x00,  // Battery voltage - set in update_values()
+                                    0x00}};      // Padding (705_Padding)
   // 0x706 - Battery Cell Status
   CAN_frame SUNGROW_706 = {.FD = false,
                            .ext_ID = false,
@@ -327,14 +338,19 @@ class SungrowInverter : public CanInverterProtocol {
                            .ID = 0x706,
                            .data = {0x00, 0x00,    // Cell MAX temperature
                                     0x00, 0x00,    // Cell MIN temperature
-                                    0x00, 0x00,    // Cell MIN voltage
-                                    0x00, 0x00}};  // Cell MAX voltage
-  // 0x707 - TODO
+                                    0x00, 0x00,    // Cell MAX voltage
+                                    0x00, 0x00}};  // Cell MIN voltage
+  // 0x707 - Battery Configuration
   CAN_frame SUNGROW_707 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x707,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x30,        // BMS firmware patch (BCD .30)
+                                    0x00, 0x00,  // Always 0
+                                    0x01,        // BMS firmware minor (BCD .1)
+                                    0x00, 0x00,  // Nameplate capacity Wh - filled in setup() from battery_config
+                                    0x00,        // Module count - filled in setup() from battery_config
+                                    0x00}};      // Always 0
   // 0x708 - Battery Serial Number (MUX)
   CAN_frame SUNGROW_708_00 = {.FD = false,
                               .ext_ID = false,
@@ -385,32 +401,55 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x70E,
                            .data = {0x07, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x70F (MUX)
+  // 0x70F (MUX). Byte 0 = mux selector, byte 1 = 0. Mux 00 b4-7 = max continuous power (static
+  //             rating), filled in setup() from battery_config; mux 05/06/07 = per-module SoC, set
+  //             in update_values(). The remaining unknown bytes below are frozen snapshots from a
+  //             real-battery capture - kept visible so they aren't mistaken for decoded or live
+  //             values. "Cold-drift cluster" = the 16-bit unknowns at b2-3 of muxes 02/03/04: on a
+  //             real pack all three drift slowly *together* and read higher in the cold. Ruled out
+  //             as power/current limits (those derate in cold), and as SoC and SoH.
   CAN_frame SUNGROW_70F_00 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x00,          // Mux selector
+                                       0x00,          // Always 0
+                                       0x88, 0x13,    // Unknown, fixed 5000 (static)
+                                       0x00, 0x00,    // Max continuous power W, live - set in setup()
+                                       0x00, 0x00}};  // Max continuous power W, rating - set in setup()
   CAN_frame SUNGROW_70F_01 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
+                              // Mux selector + padding: whole payload is 0 on a real pack
                               .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame SUNGROW_70F_02 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
-                              .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x02,          // Mux selector
+                                       0x00,          // Always 0
+                                       0x70, 0x20,    // Unknown 16-bit (cold-drift cluster)
+                                       0x00, 0x00,    // Padding (always 0)
+                                       0x92, 0x09}};  // Unknown 16-bit, near-constant (~5760)
   CAN_frame SUNGROW_70F_03 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
-                              .data = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x03,          // Mux selector
+                                       0x00,          // Always 0
+                                       0xFD, 0x1D,    // Unknown 16-bit (cold-drift cluster)
+                                       0x00, 0x00,    // Padding (always 0)
+                                       0xCE, 0x26}};  // Unknown ~9980 (x0.01 = 99.8 %); not SoC, not SoH
   CAN_frame SUNGROW_70F_04 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x70F,
-                              .data = {0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .data = {0x04,              // Mux selector
+                                       0x00,              // Always 0
+                                       0x0C, 0x06,        // Unknown 16-bit (cold-drift cluster), not charge
+                                       0x00, 0x00, 0x00,  // Padding (always 0)
+                                       0x00}};            // Charge state: 0 = Normal, 2 = Stop Charge
   CAN_frame SUNGROW_70F_05 = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
@@ -426,28 +465,31 @@ class SungrowInverter : public CanInverterProtocol {
                               .DLC = 8,
                               .ID = 0x70F,
                               .data = {0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x713 - Battery Cell Temperature Overview
+  // 0x713 - Battery Cell Temperature Overview. Cell/module locations are arbitrary static placeholders
+  //         (not the real min/max cell position); temperatures (b2-3, b6-7) set in update_values().
   CAN_frame SUNGROW_713 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x713,
-                           .data = {0x00,          // Cell location with minimum temperature
-                                    0x00,          // Module location with minimum temperature
-                                    0x00, 0x00,    // Cell MIN temperature
-                                    0x00,          // Cell location with maximum temperature
-                                    0x00,          // Module location with maximum temperature
-                                    0x00, 0x00}};  // Cell MAX temperature
-  // 0x714 - Battery Cell Voltage Overview
+                           .data = {0x02,          // Cell location, min temp (arbitrary)
+                                    0x01,          // Module location, min temp (arbitrary)
+                                    0x00, 0x00,    // Cell MIN temperature - set in update_values()
+                                    0x01,          // Cell location, max temp (arbitrary)
+                                    0x02,          // Module location, max temp (arbitrary)
+                                    0x00, 0x00}};  // Cell MAX temperature - set in update_values()
+  // 0x714 - Battery Cell Voltage Overview. Max-first: b0-3 = max cell, b4-7 = min cell (opposite of the
+  //         min-first 0x713/0x715/0x716; confirmed on a real SBR - b2-3 always > b6-7). Cell/module
+  //         locations are arbitrary static placeholders; voltages (b2-3, b6-7) set in update_values().
   CAN_frame SUNGROW_714 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x714,
-                           .data = {0x00,          // Cell location with minimum voltage
-                                    0x00,          // Module location with minimum voltage
-                                    0x00, 0x00,    // Cell MIN voltage
-                                    0x00,          // Cell location with maximum voltage
-                                    0x00,          // Module location with maximum voltage
-                                    0x00, 0x00}};  // Cell MAX voltage
+                           .data = {0x05,          // Cell location, max voltage (arbitrary)
+                                    0x01,          // Module location, max voltage (arbitrary)
+                                    0x00, 0x00,    // Cell MAX voltage - set in update_values()
+                                    0x11,          // Cell location, min voltage (arbitrary)
+                                    0x02,          // Module location, min voltage (arbitrary)
+                                    0x00, 0x00}};  // Cell MIN voltage - set in update_values()
   // 0x715 - Module 1+2 Cell Voltage Overview
   CAN_frame SUNGROW_715 = {.FD = false,
                            .ext_ID = false,
@@ -489,7 +531,8 @@ class SungrowInverter : public CanInverterProtocol {
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x719,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x02,                                        // Unknown (static, possibly status)
+                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  // (zero)
   // 0x71A - Module Cell Type (set in setup)
   CAN_frame SUNGROW_71A = {.FD = false,
                            .ext_ID = false,

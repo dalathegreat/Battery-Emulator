@@ -1,0 +1,74 @@
+[
+    {
+        "code": 363776,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Monitor Module Voltage Monitoring Performance"
+    },
+    {
+        "code": 697960,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Voltage System Isolation Fault"
+    },
+    {
+        "code": 699240,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Voltage Isolation Sensor Circuit Intermittent"
+    },
+    {
+        "code": 697856,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Voltage System Isolation Fault"
+    },
+    {
+        "code": 743680,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Voltage Sense G Circuit"
+    },
+    {
+        "code": 744960,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Voltage Sense H Circuit"
+    },
+    {
+        "code": 746240,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Voltage Sense I Circuit"
+    },
+    {
+        "code": 853914,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Charging System Positive Contactor Circuit"
+    },
+    {
+        "code": 929536,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "High Voltage Fuse B"
+    },
+    {
+        "code": 1733142,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Module 19 Temperature Sensor. General Electrical Failures. Circuit voltage below threshold"
+    },
+    {
+        "code": 12648448,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Lost Communication With Engine Control Module (ECM)"
+    },
+    {
+        "code": 12753408,
+        "dtc": "NULL",
+        "s_dsc": "NULL",
+        "l_dsc": "Lost Communication with EV Battery Pack Sensor Module"
+    }
+]

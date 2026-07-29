@@ -30,7 +30,7 @@ void SchneiderInverter::
         ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
   }
   /* Set active commands/warnings/faults/state*/
-  if (datalayer.battery.status.bms_status == FAULT) {
+  if (datalayer.system.status.system_status == FAULT) {
     state = STATE_FAULTED;
     //TODO: Map warnings and faults incase an event is set. Low prio, but nice to have
     commands = COMMAND_STOP;

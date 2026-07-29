@@ -1,7 +1,12 @@
 #include "comm_contactorcontrol.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
+#include "../../devboard/utils/led_handler.h"
 #include "../../inverter/INVERTERS.h"
+#ifndef UNIT_TEST
+#include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
+#endif
+#include <Arduino.h>
 
 // TODO: Ensure valid values at run-time
 // User can update all these values via Settings page
@@ -12,7 +17,10 @@ bool pwm_contactor_control = false;             //Should the contactors be econo
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
 bool contactor_control_enabled_triple_battery = false;  //Should a contactor for the third battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
-bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
+bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed?
+uint16_t periodic_bms_reset_interval_h = 24;            //How often the periodic BMS reset runs, in hours (24 or 48)
+bool periodic_bms_reset_defer_low_soc = false;          //Defer the reset while SOC is below BMS_RESET_DEFER_SOC_PPTT
+bool periodic_bms_reset_skip_balancing = false;         //Skip one period if the pack is balancing
 
 // Parameters
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -39,9 +47,11 @@ unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
+bool periodicResetDeferred = false;   //True while a due periodic reset is waiting for SOC to recover
+bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
 unsigned long bmsPowerOnTime = 0;
-const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
 const unsigned long bmsWarmupDuration = 3000;
+#define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 
@@ -60,6 +70,10 @@ void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
   } else {  // 0
     digitalWrite(pin, LOW);
   }
+}
+
+bool bms_power_is_active() {
+  return periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power();
 }
 
 // Initialization functions
@@ -85,14 +99,19 @@ bool init_contactors() {
       // Set all pins OFF (0% PWM)
       ledcWrite(posPin, PWM_OFF_DUTY);
       ledcWrite(negPin, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
     } else {  //Normal CONTACTOR_CONTROL
       pinMode(posPin, OUTPUT);
       set(posPin, OFF);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       pinMode(negPin, OUTPUT);
       set(negPin, OFF);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
     }  // Precharge never has PWM regardless of setting
     pinMode(precPin, OUTPUT);
     set(precPin, OFF);
+    set_indicator_led(IndicatorLed::PRECHARGE, false);
   }
 
   if (contactor_control_enabled_double_battery) {
@@ -118,7 +137,7 @@ bool init_contactors() {
   }
 
   // Init BMS contactor
-  if (periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power()) {
+  if (bms_power_is_active()) {
     auto pin = esp32hal->BMS_POWER();
     if (!esp32hal->alloc_pins("BMS power", pin)) {
       DEBUG_PRINTF("BMS power setup failed\n");
@@ -126,6 +145,7 @@ bool init_contactors() {
     }
     pinMode(pin, OUTPUT);
     digitalWrite(pin, HIGH);
+    set_indicator_led(IndicatorLed::BMS_POWER, true);
   }
 
   return true;
@@ -162,8 +182,12 @@ void handle_contactors() {
   }
 
   if (contactor_control_enabled) {
+    // DC is only live to the inverter once precharge is fully complete (COMPLETED). Re-evaluated every
+    // call, so any transition (open, fault-latch, precharge) is reflected within one 10 ms tick.
+    datalayer.system.status.dc_bus_live = (contactorStatus == COMPLETED);
+
     // First check if we have any active errors, incase we do, turn off the battery
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;
     } else {
       timeSpentInFaultedMode = 0;
@@ -178,6 +202,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::PRECHARGE, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
       datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
@@ -188,6 +215,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::PRECHARGE, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
       if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
@@ -207,8 +237,8 @@ void handle_contactors() {
 
     currentTime = millis();
 
-    if (currentTime < INTERVAL_10_S) {
-      // Skip running the state machine before system has started up.
+    if ((currentTime < INTERVAL_10_S) || !battery_detected) {
+      // Skip running the state machine before system has started up. Conditions are 10sec post boot, and battery comms established
       // Gives the system some time to detect any faults from battery before blindly just engaging the contactors
       return;
     }
@@ -217,6 +247,7 @@ void handle_contactors() {
     switch (contactorStatus) {
       case START_PRECHARGE:
         set(negPin, ON, PWM_ON_DUTY);
+        set_indicator_led(IndicatorLed::CONTACTOR_NEG, true);
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
@@ -226,6 +257,7 @@ void handle_contactors() {
       case PRECHARGE:
         if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
           set(prechargePin, ON);
+          set_indicator_led(IndicatorLed::PRECHARGE, true);
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
@@ -236,6 +268,7 @@ void handle_contactors() {
       case POSITIVE:
         if (currentTime - negativeStartTime >= precharge_time_ms) {
           set(posPin, ON, PWM_ON_DUTY);
+          set_indicator_led(IndicatorLed::CONTACTOR_POS, true);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
@@ -248,6 +281,7 @@ void handle_contactors() {
           set(prechargePin, OFF);
           set(negPin, ON, pwm_hold_duty);
           set(posPin, ON, pwm_hold_duty);
+          set_indicator_led(IndicatorLed::PRECHARGE, false);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
           datalayer.system.status.contactors_engaged = 1;
@@ -272,7 +306,7 @@ void handle_contactors_battery2() {
 }
 
 void handle_contactors_battery3() {
-  auto third_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
+  auto third_contactors = esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN();
 
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing) {
     set(third_contactors, ON);
@@ -283,7 +317,8 @@ void handle_contactors_battery3() {
   }
 }
 
-/* PERIODIC_BMS_RESET - Once every 24 hours we remove power from the BMS_power pin for 30 seconds.
+/* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
+The user can optionally defer the reset while SOC is low, and skip a single period while balancing.
 REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
 
 This makes the BMS recalculate all SOC% and avoid memory leaks
@@ -292,13 +327,79 @@ Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
 void bms_power_off() {
   digitalWrite(esp32hal->BMS_POWER(), LOW);
+  set_indicator_led(IndicatorLed::BMS_POWER, false);
 }
 
 void bms_power_on() {
   digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  set_indicator_led(IndicatorLed::BMS_POWER, true);
+}
+
+// Configured period between two automatic resets. Guarded to 24h in case the stored
+// value is missing or nonsensical, see load_settings().
+static unsigned long bms_reset_interval_ms() {
+  uint32_t hours = periodic_bms_reset_interval_h;
+  if (hours == 0) {
+    hours = 24;
+  }
+  return (unsigned long)hours * 60UL * 60UL * 1000UL;
+}
+
+/* The two guards behave differently on purpose, so the decision is three-way rather than
+   a plain yes/no. Only the periodic reset is affected, a remote reset requested by the user
+   via MQTT is always carried out. */
+enum class PeriodicResetVerdict {
+  Run,        // Nothing in the way, reset now
+  Defer,      // Stay due and reset as soon as the condition clears
+  SkipPeriod  // Give up this occurrence, try again one full period later
+};
+
+/* Decides what should happen to a periodic reset whose interval has elapsed. On a non-Run
+   verdict the reason is written to the out parameter for logging, and always points at a
+   string literal. Note that an unknown SOC reads as 0 and therefore also defers the reset
+   while the low SOC guard is enabled, which is the safe direction. */
+static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
+  // Low SOC defers: there is little point recalibrating against a nearly empty pack, and we
+  // want the reset to happen as soon as it is worthwhile rather than a whole period later.
+  if (periodic_bms_reset_defer_low_soc) {
+    if (datalayer.battery.status.real_soc < BMS_RESET_DEFER_SOC_PPTT) {
+      *reason = "real SOC below 15 percent";
+      return PeriodicResetVerdict::Defer;
+    }
+    if (datalayer.battery.status.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
+      *reason = "scaled SOC below 15 percent";
+      return PeriodicResetVerdict::Defer;
+    }
+  }
+
+  /* Balancing costs the reset a single period. If balancing is still active when the next
+     period comes around the reset goes ahead anyway, so a pack that reports balancing more
+     or less permanently cannot suppress the reset indefinitely.
+     Batteries that are not present report BALANCING_STATUS_UNKNOWN, so they never skip. */
+  if (periodic_bms_reset_skip_balancing && !balancingPeriodSkipped) {
+    if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+    if (datalayer.battery2.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery 2";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+    if (datalayer.battery3.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery 3";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+  }
+
+  return PeriodicResetVerdict::Run;
 }
 
 void handle_BMSpower() {
+  //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
+  if (datalayer.system.info.equipment_stop_active) {
+    return;
+  }
+
   if (periodic_bms_reset || remote_bms_reset) {
     currentTime = millis();
 
@@ -306,20 +407,49 @@ void handle_BMSpower() {
       // Idle state, no reset ongoing
 
       // Check if it's time to perform a periodic BMS reset
-      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
-        start_bms_reset();
+      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= bms_reset_interval_ms()) {
+        const char* reason = nullptr;
+        switch (periodic_bms_reset_verdict(&reason)) {
+          case PeriodicResetVerdict::Defer:
+            /* Leave lastPowerRemovalTime alone so the reset stays due. start_bms_reset()
+               re-anchors it when the reset finally runs, which is what moves the following
+               24h/48h periods to start from the deferred point. Logged once per episode,
+               since this branch is evaluated on every loop while the reset is due. */
+            if (!periodicResetDeferred) {
+              periodicResetDeferred = true;
+              logging.printf("BMS reset: Periodic reset deferred, %s.\n", reason);
+            }
+            break;
+
+          case PeriodicResetVerdict::SkipPeriod:
+            // Restarting the interval here is what turns this into a one period skip.
+            lastPowerRemovalTime = currentTime;
+            balancingPeriodSkipped = true;
+            logging.printf("BMS reset: Periodic reset skipped for one period, %s.\n", reason);
+            break;
+
+          case PeriodicResetVerdict::Run:
+            if (periodicResetDeferred) {
+              periodicResetDeferred = false;
+              logging.printf("BMS reset: Running previously deferred periodic reset.\n");
+            }
+            balancingPeriodSkipped = false;  // Each reset restores the one period allowance
+            start_bms_reset();
+            break;
+        }
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_WAITING_FOR_PAUSE) {
       // We've already issued a pause, now we're waiting for that to take effect.
 
       int16_t battery_current_dA = datalayer.battery.status.current_dA;
       int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+      int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
 
       if (
           // No current, safe to cut power
-          (battery_current_dA == 0 && battery2_current_dA == 0)
+          (battery_current_dA == 0 && battery2_current_dA == 0 && battery3_current_dA == 0)
           // or reasonably low current and 5 seconds has passed
-          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 &&
+          || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
         bms_power_off();
@@ -345,7 +475,7 @@ void handle_BMSpower() {
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
-        setBatteryPause(false, false, false, false);
+        setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 
         // Reset is complete
 
@@ -364,7 +494,7 @@ void start_bms_reset() {
       lastPowerRemovalTime = millis();
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
-      setBatteryPause(true, false, false, false);
+      setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
       if (contactor_control_enabled) {
         // We power the contactors directly, so we can avoid closing/opening them
@@ -384,4 +514,49 @@ void start_bms_reset() {
       }
     }
   }
+}
+
+// Decide whether a specific candidate pin should be latched. Only latch pins the firmware
+// is actively driving to a defined level — otherwise there's nothing meaningful to preserve,
+// and latching a floating/undriven pin could freeze it in an unwanted state.
+static bool should_hold_pin(gpio_num_t pin) {
+  if (pin == GPIO_NUM_NC) {
+    return false;
+  }
+  if (pin == esp32hal->BMS_POWER()) {
+    return bms_power_is_active();
+  }
+  return false;  // unknown pins are not held until explicitly supported
+}
+
+void hold_pins_across_reset() {
+  const auto pins = esp32hal->reset_hold_pins();
+  if (pins.empty()) {
+    return;
+  }
+#ifndef UNIT_TEST
+  bool any_held = false;
+  for (auto pin : pins) {
+    if (should_hold_pin(pin)) {
+      gpio_hold_en(pin);  // freeze the pad at its current (driven) level
+      any_held = true;
+    }
+  }
+  if (any_held) {
+    gpio_deep_sleep_hold_en();  // keep the hold(s) engaged through the reset
+  }
+#endif
+}
+
+void release_pins_across_reset() {
+#ifndef UNIT_TEST
+  // Release every candidate pin unconditionally. gpio_hold_dis() is a no-op on a pin that
+  // isn't held, so this also clears a stale hold left over from a previous session in which
+  // the feature was enabled but is now disabled.
+  for (auto pin : esp32hal->reset_hold_pins()) {
+    if (pin != GPIO_NUM_NC) {
+      gpio_hold_dis(pin);
+    }
+  }
+#endif
 }

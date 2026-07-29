@@ -106,20 +106,14 @@ void Kia64FDBattery::update_values() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We estimate this value for now
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else if (datalayer.battery.status.real_soc >
-             user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
-  }
-
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+
+  //The allowed charge power is not available. We use user set value for now
+  // Gets ramped down by inverter function on the webserver
+  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+
   //The allowed discharge power is not available. We use user set value for now
+  // Gets ramped down by inverter function on the webserver
   datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
@@ -396,7 +390,12 @@ void Kia64FDBattery::transmit_can(unsigned long currentMillis) {
       KIA64FD_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can_frame(&KIA64FD_7E4);
+        if (UserRequestDTCreset) {
+          transmit_can_frame(&KIA64FD_CLEAR_DTC);
+          UserRequestDTCreset = false;
+        } else {  //Normal poll
+          transmit_can_frame(&KIA64FD_7E4);
+        }
       }
 
       KIA_7E4_COUNTER++;

@@ -166,7 +166,7 @@ void MgHsPHEVBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         clear_event(EVENT_BATTERY_ISOLATION);
       }
 
-      if (datalayer_battery->status.bms_status == FAULT) {
+      if (datalayer.system.status.system_status == FAULT) {
         // If in fault state, don't try resetting things yet as it'll turn the
         // BMS off and we'll lose CAN info
       } else if ((rx_frame.data.u8[0] == 0x02 || rx_frame.data.u8[0] == 0x06) && rx_frame.data.u8[1] == 0x01) {
@@ -333,7 +333,7 @@ void MgHsPHEVBattery::transmit_can(unsigned long currentMillis) {
     // Leave the contactors open
     MG_HS_8A.data.u8[5] = 0x00;
 #else
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       // Fault, so open contactors!
       MG_HS_8A.data.u8[5] = 0x00;
     } else if (!datalayer.system.status.inverter_allows_contactor_closing) {

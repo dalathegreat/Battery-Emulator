@@ -14,6 +14,7 @@
 
 #define CANCTRL_REQOP_NORMAL    0x00
 #define CANCTRL_REQOP_CONFIG    0x80
+#define CANCTRL_REQOP_LOOPBACK  0x40
 
 #define REG_CANCTRL     0x0F
 #define REG_CNF1        0x2A
@@ -31,6 +32,10 @@
 #define CANINTF_TX0IF    0x04
 #define CANINTF_TX1IF    0x08
 #define CANINTF_TX2IF    0x10
+#define CANINTF_ERRIF    0x20
+
+#define EFLG_TXBO        0x20
+#define EFLG_EWARN       0x01
 
 
 static inline void packExtendedId(uint8_t* buffer, uint32_t id);
@@ -95,7 +100,42 @@ static bool calculateMCP2515Config(uint32_t f_osc, uint32_t can_rate, uint8_t *c
     return true;
 }
 
-bool MCP2515_Lite::begin(const MCP2515_Lite_Speed& speed) {
+uint32_t MCP2515_Lite::autodetectOscillatorFrequency() {
+    // 7813 baud at 8MHz is 128us per bit
+    if(!begin({7813, 8000000}, true, true)) {
+        return 0;
+    }
+
+    // Set task handle to current task
+    _can_task_handle = xTaskGetCurrentTaskHandle();
+
+    // Send a test frame
+    uint8_t cmd_frame[16];
+    cmd_frame[0] = CMD_LOAD_TX_BUFFER | 0x00; // Load TXB0
+    packExtendedId(&cmd_frame[1], 0x12345678);
+    cmd_frame[5] = 0x08; // DLC
+    spiTransactionBlocking(cmd_frame, nullptr, 14);
+
+    // Set RTS to start transmission
+    cmd_frame[0] = 0x81; // RTS TXB0
+    const uint32_t t1 = esp_timer_get_time() & 0xFFFFFFFF;
+    spiTransactionBlocking(cmd_frame, nullptr, 1);
+
+    // Wait for the frame to be received
+    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(100));
+    const uint32_t t2 = esp_timer_get_time() & 0xFFFFFFFF;
+
+    uint32_t elapsed_us = (t2 - t1);
+    DEBUG_PRINTF("MCP2515: autodetect=%uus\n", elapsed_us);
+
+    _can_task_handle = nullptr;
+    detachInterrupt(digitalPinToInterrupt(_int_pin));
+    reset();
+    
+    return elapsed_us < 13500 ? 16000000 : 8000000;
+}
+
+bool MCP2515_Lite::begin(const MCP2515_Lite_Speed& speed, bool loopback, bool skip_task_start) {
     // 1. Set up GPIO pins (SCK/MOSI/MISO are already set up)
 
     pinMode(_cs, OUTPUT);
@@ -124,10 +164,12 @@ bool MCP2515_Lite::begin(const MCP2515_Lite_Speed& speed) {
     applySpeedConfig(speed);
 
     // Leave config mode and enter normal mode
-    modifyRegister(REG_CANCTRL, 0xE0, CANCTRL_REQOP_NORMAL);
+    modifyRegister(REG_CANCTRL, 0xE0, loopback ? CANCTRL_REQOP_LOOPBACK : CANCTRL_REQOP_NORMAL);
 
-    // Start the background task
-    xTaskCreate(canTask, "MCP2515_Lite", MCP2515_LITE_TASK_STACK_SIZE, this, MCP2515_LITE_TASK_PRIORITY, &_can_task_handle);
+    if(!skip_task_start) {
+        // Start the background task
+        xTaskCreate(canTask, "MCP2515_Lite", MCP2515_LITE_TASK_STACK_SIZE, this, MCP2515_LITE_TASK_PRIORITY, &_can_task_handle);
+    }
 
     return true;
 }
@@ -153,6 +195,8 @@ bool MCP2515_Lite::receiveFrame(MCP2515_Lite_Frame& msg) {
 void MCP2515_Lite::changeSpeed(const MCP2515_Lite_Speed& new_speed) {
     _next_speed = new_speed;
     _speed_change_pending = true;
+    // Wake the task to enact the speed change
+    xTaskNotifyGive(_can_task_handle);
 }
 
 void MCP2515_Lite::pause(bool paused) {
@@ -217,15 +261,21 @@ void MCP2515_Lite::canTask(void* pvParameters) {
 
             // 2. Read the status register to see which interrupts are active
 
-            cmd_frame[0] = CMD_READ_STATUS;
-            self->spiTransactionBlocking(cmd_frame, rx_frame, 2);
-            const uint8_t status = rx_frame[1];
+            // cmd_frame[0] = CMD_READ_STATUS;
+            // self->spiTransactionBlocking(cmd_frame, rx_frame, 2);
+            // const uint8_t status = rx_frame[1];
+
+            cmd_frame[0] = CMD_READ;
+            cmd_frame[1] = REG_CANINTF;
+            self->spiTransactionBlocking(cmd_frame, rx_frame, 4);
+            const uint8_t intf = rx_frame[2];
+            const uint8_t eflag = rx_frame[3];
 
             // 3. Process any RX interrupts sequentially (clears receive flags)
 
             for (int i = 0; i < 2; i++) {
                 // Is there a frame in this slot to read?
-                if (status & (1 << i)) {
+                if (intf & (1 << i)) {
                     cmd_frame[0] = CMD_READ_RX_BUFFER | (i * 4); // 0x90 (RXB0) or 0x94 (RXB1)
                     
                     // Write 1 command byte + 13 payload read bytes
@@ -239,7 +289,7 @@ void MCP2515_Lite::canTask(void* pvParameters) {
                         can_frame.ext = false;
                         can_frame.id = unpackStandardId(&rx_frame[1]);
                     }
-                    can_frame.dlc = rx_frame[5] & 0x0F;
+                    can_frame.dlc = rx_frame[5] > 8 ? 8 : rx_frame[5]; // 8 bytes maximum
                     memcpy(can_frame.data, &rx_frame[6], can_frame.dlc);
                     
                     if(xQueueSend(self->_rx_queue, &can_frame, 0) != pdTRUE) {
@@ -249,12 +299,21 @@ void MCP2515_Lite::canTask(void* pvParameters) {
                 }
             }
 
-            // 4. Check for free transmit buffers, and clear interrupt flags if needed
+            // 4. Check for free transmit buffers or errors, and clear interrupt flags if needed
 
             int int_clear_mask = 0;
-            if (status & STATUS_TX0IF) { int_clear_mask |= CANINTF_TX0IF; tx_free_mask |= 0x01; } // TXB0 free
-            if (status & STATUS_TX1IF) { int_clear_mask |= CANINTF_TX1IF; tx_free_mask |= 0x02; } // TXB1 free
-            if (status & STATUS_TX2IF) { int_clear_mask |= CANINTF_TX2IF; tx_free_mask |= 0x04; } // TXB2 free
+            if (intf & CANINTF_TX0IF) { int_clear_mask |= CANINTF_TX0IF; tx_free_mask |= 0x01; } // TXB0 free
+            if (intf & CANINTF_TX1IF) { int_clear_mask |= CANINTF_TX1IF; tx_free_mask |= 0x02; } // TXB1 free
+            if (intf & CANINTF_TX2IF) { int_clear_mask |= CANINTF_TX2IF; tx_free_mask |= 0x04; } // TXB2 free
+
+            if(intf & CANINTF_ERRIF) { // ERRIF
+                if(eflag & (EFLG_TXBO | EFLG_EWARN)) {
+                    self->_errors = true;
+                }
+
+                int_clear_mask |= CANINTF_ERRIF;
+            }
+
 
             if (int_clear_mask) {
                 self->modifyRegister(REG_CANINTF, int_clear_mask, 0x00);

@@ -99,7 +99,7 @@ void SmaLvInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SMA_35F);
 
     //Remote quick stop (optional)
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       transmit_can_frame(&SMA_00F);
       //After receiving this message, Sunny Island will immediately go into standby.
       //Please send start command, to start again. Manual start is also possible.

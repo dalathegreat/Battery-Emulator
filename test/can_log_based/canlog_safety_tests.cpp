@@ -3,6 +3,7 @@
 #include "../utils/utils.h"
 
 #include "../../Software/src/battery/BATTERIES.h"
+#include "../../Software/src/battery/CanBattery.h"
 #include "../../Software/src/devboard/utils/events.h"
 
 #include <fstream>

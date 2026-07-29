@@ -1,0 +1,4358 @@
+[
+  {
+    "code": 41848,
+    "dtc": "P0C9500",
+    "s_dsc": "Diag_S_Temp_01CM11_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit High"
+  },
+  {
+    "code": 41849,
+    "dtc": "P0C9400",
+    "s_dsc": "Diag_S_Temp_01CM11_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit Low"
+  },
+  {
+    "code": 41850,
+    "dtc": "P0C9200",
+    "s_dsc": "Diag_S_Temp_01CM11_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit"
+  },
+  {
+    "code": 41851,
+    "dtc": "P0C9300",
+    "s_dsc": "Diag_S_Temp_01CM11_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Range/Performance"
+  },
+  {
+    "code": 41852,
+    "dtc": "P0C9500",
+    "s_dsc": "Diag_S_Temp_02CM11_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit High"
+  },
+  {
+    "code": 41853,
+    "dtc": "P0C9400",
+    "s_dsc": "Diag_S_Temp_02CM11_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit Low"
+  },
+  {
+    "code": 41854,
+    "dtc": "P0C9200",
+    "s_dsc": "Diag_S_Temp_02CM11_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit"
+  },
+  {
+    "code": 41855,
+    "dtc": "P0DD800",
+    "s_dsc": "Diag_S_Volt_CM12_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"L\""
+  },
+  {
+    "code": 41856,
+    "dtc": "P0DD800",
+    "s_dsc": "Diag_S_Volt_CM12_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"L\""
+  },
+  {
+    "code": 41857,
+    "dtc": "P0DD800",
+    "s_dsc": "Diag_S_Volt_CM12_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"L\""
+  },
+  {
+    "code": 41858,
+    "dtc": "P0DDB00",
+    "s_dsc": "Diag_S_Volt_CM12_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"L\" Range/Performance"
+  },
+  {
+    "code": 41859,
+    "dtc": "P0DDB00",
+    "s_dsc": "Diag_S_Volt_CM12_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"L\" Range/Performance"
+  },
+  {
+    "code": 41860,
+    "dtc": "P0C9A00",
+    "s_dsc": "Diag_S_Temp_01CM12_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Circuit High"
+  },
+  {
+    "code": 41861,
+    "dtc": "P0C9900",
+    "s_dsc": "Diag_S_Temp_01CM12_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Circuit Low"
+  },
+  {
+    "code": 41862,
+    "dtc": "P0C9700",
+    "s_dsc": "Diag_S_Temp_01CM12_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Circuit"
+  },
+  {
+    "code": 41863,
+    "dtc": "P0C9800",
+    "s_dsc": "Diag_S_Temp_01CM12_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Range/Performance"
+  },
+  {
+    "code": 41864,
+    "dtc": "P0C9A00",
+    "s_dsc": "Diag_S_Temp_02CM12_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Circuit High"
+  },
+  {
+    "code": 41865,
+    "dtc": "P0C9900",
+    "s_dsc": "Diag_S_Temp_02CM12_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Circuit Low"
+  },
+  {
+    "code": 41866,
+    "dtc": "P0C9700",
+    "s_dsc": "Diag_S_Temp_02CM12_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"L\" Circuit"
+  },
+  {
+    "code": 41867,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_S_Volt_CM13_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 41868,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_S_Volt_CM13_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 41869,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_S_Volt_CM13_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 41870,
+    "dtc": "P0DDF00",
+    "s_dsc": "Diag_S_Volt_CM13_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\" Range/Performance"
+  },
+  {
+    "code": 41871,
+    "dtc": "P0DDF00",
+    "s_dsc": "Diag_S_Volt_CM13_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\" Range/Performance"
+  },
+  {
+    "code": 41872,
+    "dtc": "P0CAB00",
+    "s_dsc": "Diag_S_Temp_01CM13_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit High"
+  },
+  {
+    "code": 41873,
+    "dtc": "P0CAA00",
+    "s_dsc": "Diag_S_Temp_01CM13_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit Low"
+  },
+  {
+    "code": 41874,
+    "dtc": "P0CAC00",
+    "s_dsc": "Diag_S_Temp_01CM13_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41875,
+    "dtc": "P0CA900",
+    "s_dsc": "Diag_S_Temp_01CM13_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit Range/Performance"
+  },
+  {
+    "code": 41876,
+    "dtc": "P0CAB00",
+    "s_dsc": "Diag_S_Temp_02CM13_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit High"
+  },
+  {
+    "code": 41877,
+    "dtc": "P0CAA00",
+    "s_dsc": "Diag_S_Temp_02CM13_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit Low"
+  },
+  {
+    "code": 41878,
+    "dtc": "P0CAC00",
+    "s_dsc": "Diag_S_Temp_02CM13_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"M\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41879,
+    "dtc": "P0DE000",
+    "s_dsc": "Diag_S_Volt_CM14_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"N\""
+  },
+  {
+    "code": 41880,
+    "dtc": "P0DE000",
+    "s_dsc": "Diag_S_Volt_CM14_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"N\""
+  },
+  {
+    "code": 41881,
+    "dtc": "P0DE000",
+    "s_dsc": "Diag_S_Volt_CM14_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"N\""
+  },
+  {
+    "code": 41882,
+    "dtc": "P0DE300",
+    "s_dsc": "Diag_S_Volt_CM14_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"N\" Range/Performance"
+  },
+  {
+    "code": 41883,
+    "dtc": "P0DE300",
+    "s_dsc": "Diag_S_Volt_CM14_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"N\" Range/Performance"
+  },
+  {
+    "code": 41884,
+    "dtc": "P0CB000",
+    "s_dsc": "Diag_S_Temp_01CM14_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit High"
+  },
+  {
+    "code": 41885,
+    "dtc": "P0CAF00",
+    "s_dsc": "Diag_S_Temp_01CM14_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit Low"
+  },
+  {
+    "code": 41886,
+    "dtc": "P0CB100",
+    "s_dsc": "Diag_S_Temp_01CM14_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41887,
+    "dtc": "P0CAE00",
+    "s_dsc": "Diag_S_Temp_01CM14_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit Range/Performance"
+  },
+  {
+    "code": 41888,
+    "dtc": "P0CB000",
+    "s_dsc": "Diag_S_Temp_02CM14_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit High"
+  },
+  {
+    "code": 41889,
+    "dtc": "P0CAF00",
+    "s_dsc": "Diag_S_Temp_02CM14_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit Low"
+  },
+  {
+    "code": 41890,
+    "dtc": "P0CB100",
+    "s_dsc": "Diag_S_Temp_02CM14_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"N\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41891,
+    "dtc": "P1C7900",
+    "s_dsc": "Diag_S_Volt_CM15_ORH",
+    "l_dsc": "Hybrid-/ high voltage battery controller 15 for battery cells electrical error"
+  },
+  {
+    "code": 41892,
+    "dtc": "P1C7900",
+    "s_dsc": "Diag_S_Volt_CM15_ORL",
+    "l_dsc": "Hybrid-/ high voltage battery controller 15 for battery cells electrical error"
+  },
+  {
+    "code": 41893,
+    "dtc": "P1C7900",
+    "s_dsc": "Diag_S_Volt_CM15_OC",
+    "l_dsc": "Hybrid-/ high voltage battery controller 15 for battery cells electrical error"
+  },
+  {
+    "code": 41894,
+    "dtc": "P1C7A00",
+    "s_dsc": "Diag_S_Volt_CM15_RAH",
+    "l_dsc": "Hybrid-/ high voltage battery controller 15 for battery cells Implausible signal"
+  },
+  {
+    "code": 41895,
+    "dtc": "P1C7A00",
+    "s_dsc": "Diag_S_Volt_CM15_RAL",
+    "l_dsc": "Hybrid-/ high voltage battery controller 15 for battery cells Implausible signal"
+  },
+  {
+    "code": 41896,
+    "dtc": "P0CB500",
+    "s_dsc": "Diag_S_Temp_01CM15_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit High"
+  },
+  {
+    "code": 41897,
+    "dtc": "P0CB400",
+    "s_dsc": "Diag_S_Temp_01CM15_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit Low"
+  },
+  {
+    "code": 41898,
+    "dtc": "P0CB600",
+    "s_dsc": "Diag_S_Temp_01CM15_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41899,
+    "dtc": "P0CB300",
+    "s_dsc": "Diag_S_Temp_01CM15_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit Range/Performance"
+  },
+  {
+    "code": 41900,
+    "dtc": "P0CB500",
+    "s_dsc": "Diag_S_Temp_02CM15_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit High"
+  },
+  {
+    "code": 41901,
+    "dtc": "P0CB400",
+    "s_dsc": "Diag_S_Temp_02CM15_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit Low"
+  },
+  {
+    "code": 41902,
+    "dtc": "P0CB600",
+    "s_dsc": "Diag_S_Temp_02CM15_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"O\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41903,
+    "dtc": "P1C7C00",
+    "s_dsc": "Diag_S_Volt_CM16_ORH",
+    "l_dsc": "Hybrid-/ high voltage battery controller 16 for battery cells electrical error"
+  },
+  {
+    "code": 41904,
+    "dtc": "P1C7C00",
+    "s_dsc": "Diag_S_Volt_CM16_ORL",
+    "l_dsc": "Hybrid-/ high voltage battery controller 16 for battery cells electrical error"
+  },
+  {
+    "code": 41905,
+    "dtc": "P1C7C00",
+    "s_dsc": "Diag_S_Volt_CM16_OC",
+    "l_dsc": "Hybrid-/ high voltage battery controller 16 for battery cells electrical error"
+  },
+  {
+    "code": 41906,
+    "dtc": "P1C7B00",
+    "s_dsc": "Diag_S_Volt_CM16_RAH",
+    "l_dsc": "Hybrid-/ high voltage battery controller 16 for battery cells Implausible signal"
+  },
+  {
+    "code": 41907,
+    "dtc": "P1C7B00",
+    "s_dsc": "Diag_S_Volt_CM16_RAL",
+    "l_dsc": "Hybrid-/ high voltage battery controller 16 for battery cells Implausible signal"
+  },
+  {
+    "code": 41908,
+    "dtc": "P0CBA00",
+    "s_dsc": "Diag_S_Temp_01CM16_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit High"
+  },
+  {
+    "code": 41909,
+    "dtc": "P0CB900",
+    "s_dsc": "Diag_S_Temp_01CM16_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit Low"
+  },
+  {
+    "code": 41910,
+    "dtc": "P0CBB00",
+    "s_dsc": "Diag_S_Temp_01CM16_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41911,
+    "dtc": "P0CB800",
+    "s_dsc": "Diag_S_Temp_01CM16_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit Range/Performance"
+  },
+  {
+    "code": 41912,
+    "dtc": "P0CBA00",
+    "s_dsc": "Diag_S_Temp_02CM16_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit High"
+  },
+  {
+    "code": 41913,
+    "dtc": "P0CB900",
+    "s_dsc": "Diag_S_Temp_02CM16_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit Low"
+  },
+  {
+    "code": 41914,
+    "dtc": "P0CBB00",
+    "s_dsc": "Diag_S_Temp_02CM16_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"P\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 41915,
+    "dtc": "P0DC700",
+    "s_dsc": "Diag_S_Volt_CM07_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"G\" Range/Performance"
+  },
+  {
+    "code": 41916,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 41917,
+    "dtc": "P0DC700",
+    "s_dsc": "Diag_S_Volt_CM07_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"G\" Range/Performance"
+  },
+  {
+    "code": 41921,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_02_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 41922,
+    "dtc": "P0C7D00",
+    "s_dsc": "Diag_S_Temp_01CM07_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit Range/Performance"
+  },
+  {
+    "code": 41923,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 41924,
+    "dtc": "P0C7F00",
+    "s_dsc": "Diag_S_Temp_02CM07_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit High"
+  },
+  {
+    "code": 41925,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 41926,
+    "dtc": "P0C7E00",
+    "s_dsc": "Diag_S_Temp_02CM07_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit Low"
+  },
+  {
+    "code": 41928,
+    "dtc": "P0C7C00",
+    "s_dsc": "Diag_S_Temp_02CM07_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit"
+  },
+  {
+    "code": 41930,
+    "dtc": "P0DC800",
+    "s_dsc": "Diag_S_Volt_CM08_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"H\""
+  },
+  {
+    "code": 41932,
+    "dtc": "P0DC800",
+    "s_dsc": "Diag_S_Volt_CM08_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"H\""
+  },
+  {
+    "code": 41934,
+    "dtc": "P0DC800",
+    "s_dsc": "Diag_S_Volt_CM08_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"H\""
+  },
+  {
+    "code": 41936,
+    "dtc": "P0DCB00",
+    "s_dsc": "Diag_S_Volt_CM08_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"H\" Range/Performance"
+  },
+  {
+    "code": 41938,
+    "dtc": "P0DCB00",
+    "s_dsc": "Diag_S_Volt_CM08_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"H\" Range/Performance"
+  },
+  {
+    "code": 41940,
+    "dtc": "P0C8400",
+    "s_dsc": "Diag_S_Temp_01CM08_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit High"
+  },
+  {
+    "code": 41942,
+    "dtc": "P0C8300",
+    "s_dsc": "Diag_S_Temp_01CM08_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit Low"
+  },
+  {
+    "code": 41944,
+    "dtc": "P0C8100",
+    "s_dsc": "Diag_S_Temp_01CM08_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit"
+  },
+  {
+    "code": 41946,
+    "dtc": "P0C8200",
+    "s_dsc": "Diag_S_Temp_01CM08_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit Range/Performance"
+  },
+  {
+    "code": 41948,
+    "dtc": "P0C8400",
+    "s_dsc": "Diag_S_Temp_02CM08_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit High"
+  },
+  {
+    "code": 41950,
+    "dtc": "P0C8300",
+    "s_dsc": "Diag_S_Temp_02CM08_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit Low"
+  },
+  {
+    "code": 41951,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_KompFehler_01_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41952,
+    "dtc": "P0C8100",
+    "s_dsc": "Diag_S_Temp_02CM08_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"H\" Circuit"
+  },
+  {
+    "code": 41953,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_KompFehler_01_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41954,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_S_Volt_CM09_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 41955,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_KompFehler_01_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41956,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_S_Volt_CM09_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 41957,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41958,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_S_Volt_CM09_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 41959,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41960,
+    "dtc": "P0DCF00",
+    "s_dsc": "Diag_S_Volt_CM09_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\" Range/Performance"
+  },
+  {
+    "code": 41961,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41962,
+    "dtc": "P0DCF00",
+    "s_dsc": "Diag_S_Volt_CM09_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\" Range/Performance"
+  },
+  {
+    "code": 41964,
+    "dtc": "P0C8A00",
+    "s_dsc": "Diag_S_Temp_01CM09_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Circuit Low"
+  },
+  {
+    "code": 41966,
+    "dtc": "P0C8A00",
+    "s_dsc": "Diag_S_Temp_01CM09_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Circuit Low"
+  },
+  {
+    "code": 41968,
+    "dtc": "P0C8800",
+    "s_dsc": "Diag_S_Temp_01CM09_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Circuit"
+  },
+  {
+    "code": 41969,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_06_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41970,
+    "dtc": "P0C8900",
+    "s_dsc": "Diag_S_Temp_01CM09_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Range/Performance"
+  },
+  {
+    "code": 41971,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41972,
+    "dtc": "P0C8A00",
+    "s_dsc": "Diag_S_Temp_02CM09_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Circuit Low"
+  },
+  {
+    "code": 41973,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 41974,
+    "dtc": "P0C8A00",
+    "s_dsc": "Diag_S_Temp_02CM09_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Circuit Low"
+  },
+  {
+    "code": 41976,
+    "dtc": "P0C8800",
+    "s_dsc": "Diag_S_Temp_02CM09_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"I\" Circuit"
+  },
+  {
+    "code": 41978,
+    "dtc": "P0DD000",
+    "s_dsc": "Diag_S_Volt_CM10_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"J\""
+  },
+  {
+    "code": 41980,
+    "dtc": "P0DD000",
+    "s_dsc": "Diag_S_Volt_CM10_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"J\""
+  },
+  {
+    "code": 41982,
+    "dtc": "P0DD000",
+    "s_dsc": "Diag_S_Volt_CM10_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"J\""
+  },
+  {
+    "code": 41984,
+    "dtc": "P0DD300",
+    "s_dsc": "Diag_S_Volt_CM10_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"J\" Range/Performance"
+  },
+  {
+    "code": 41986,
+    "dtc": "P0DD300",
+    "s_dsc": "Diag_S_Volt_CM10_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"J\" Range/Performance"
+  },
+  {
+    "code": 41988,
+    "dtc": "P0C9000",
+    "s_dsc": "Diag_S_Temp_01CM10_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Circuit High"
+  },
+  {
+    "code": 41990,
+    "dtc": "P0C8F00",
+    "s_dsc": "Diag_S_Temp_01CM10_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Circuit Low"
+  },
+  {
+    "code": 41992,
+    "dtc": "P0C8D00",
+    "s_dsc": "Diag_S_Temp_01CM10_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Circuit"
+  },
+  {
+    "code": 41994,
+    "dtc": "P0C8E00",
+    "s_dsc": "Diag_S_Temp_01CM10_RAT",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Range/Performance"
+  },
+  {
+    "code": 41996,
+    "dtc": "P0C9000",
+    "s_dsc": "Diag_S_Temp_02CM10_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Circuit High"
+  },
+  {
+    "code": 41998,
+    "dtc": "P0C8F00",
+    "s_dsc": "Diag_S_Temp_02CM10_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Circuit Low"
+  },
+  {
+    "code": 41999,
+    "dtc": "P0C8D00",
+    "s_dsc": "Diag_S_Temp_02CM10_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"J\" Circuit"
+  },
+  {
+    "code": 42000,
+    "dtc": "C10BE00",
+    "s_dsc": "Diag_F_WMode",
+    "l_dsc": "Service mode active"
+  },
+  {
+    "code": 42001,
+    "dtc": "P0DD400",
+    "s_dsc": "Diag_S_Volt_CM11_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"K\""
+  },
+  {
+    "code": 42003,
+    "dtc": "P0DD400",
+    "s_dsc": "Diag_S_Volt_CM11_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"K\""
+  },
+  {
+    "code": 42005,
+    "dtc": "P0DD400",
+    "s_dsc": "Diag_S_Volt_CM11_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"K\""
+  },
+  {
+    "code": 42007,
+    "dtc": "P0DD700",
+    "s_dsc": "Diag_S_Volt_CM11_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"K\" Range/Performance"
+  },
+  {
+    "code": 42009,
+    "dtc": "P0DD700",
+    "s_dsc": "Diag_S_Volt_CM11_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"K\" Range/Performance"
+  },
+  {
+    "code": 42011,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM08_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42012,
+    "dtc": "P0B6100",
+    "s_dsc": "Diag_P_Volt_CM08_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"H\" Circuit High"
+  },
+  {
+    "code": 42013,
+    "dtc": "P0B6100",
+    "s_dsc": "Diag_P_Volt_CM08_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"H\" Circuit High"
+  },
+  {
+    "code": 42014,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_ADC4",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42015,
+    "dtc": "P0B6000",
+    "s_dsc": "Diag_P_Volt_CM08_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"H\" Circuit Low"
+  },
+  {
+    "code": 42016,
+    "dtc": "P0B6000",
+    "s_dsc": "Diag_P_Volt_CM08_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"H\" Circuit Low"
+  },
+  {
+    "code": 42017,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM09_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42018,
+    "dtc": "P0B6600",
+    "s_dsc": "Diag_P_Volt_CM09_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"I\" Circuit High"
+  },
+  {
+    "code": 42019,
+    "dtc": "P060400",
+    "s_dsc": "Diag_H_BECM_RAM4",
+    "l_dsc": "Internal Contr.Module Random Access Memory (RAM) Error"
+  },
+  {
+    "code": 42020,
+    "dtc": "P0B6600",
+    "s_dsc": "Diag_P_Volt_CM09_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"I\" Circuit High"
+  },
+  {
+    "code": 42021,
+    "dtc": "P0B6500",
+    "s_dsc": "Diag_P_Volt_CM09_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"I\" Circuit Low"
+  },
+  {
+    "code": 42022,
+    "dtc": "P0B6500",
+    "s_dsc": "Diag_P_Volt_CM09_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"I\" Circuit Low"
+  },
+  {
+    "code": 42023,
+    "dtc": "P062F00",
+    "s_dsc": "Diag_H_BECM_FlashEEPROM4",
+    "l_dsc": "Internal Control Module EEPROM Error"
+  },
+  {
+    "code": 42024,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM10_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42025,
+    "dtc": "P0B6B00",
+    "s_dsc": "Diag_P_Volt_CM10_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"J\" Circuit High"
+  },
+  {
+    "code": 42026,
+    "dtc": "P0B6B00",
+    "s_dsc": "Diag_P_Volt_CM10_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"J\" Circuit High"
+  },
+  {
+    "code": 42027,
+    "dtc": "P0B6A00",
+    "s_dsc": "Diag_P_Volt_CM10_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"J\" Circuit Low"
+  },
+  {
+    "code": 42028,
+    "dtc": "U10BA00",
+    "s_dsc": "Diag_H_BECM_HMC3_SPI",
+    "l_dsc": "Local data bus no communication"
+  },
+  {
+    "code": 42029,
+    "dtc": "P0B6A00",
+    "s_dsc": "Diag_P_Volt_CM10_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"J\" Circuit Low"
+  },
+  {
+    "code": 42030,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM11_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42031,
+    "dtc": "P0B7000",
+    "s_dsc": "Diag_P_Volt_CM11_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"K\" Circuit High"
+  },
+  {
+    "code": 42032,
+    "dtc": "P0B7000",
+    "s_dsc": "Diag_P_Volt_CM11_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"K\" Circuit High"
+  },
+  {
+    "code": 42033,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_Adressline",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42034,
+    "dtc": "U033A00",
+    "s_dsc": "Diag_F_CMCe01_incompatible",
+    "l_dsc": "Software Incompatibility With Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42035,
+    "dtc": "P0B6F00",
+    "s_dsc": "Diag_P_Volt_CM11_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"K\" Circuit Low"
+  },
+  {
+    "code": 42036,
+    "dtc": "P0B6F00",
+    "s_dsc": "Diag_P_Volt_CM11_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"K\" Circuit Low"
+  },
+  {
+    "code": 42037,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_H_F_CMCe01_WDT",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42038,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM12_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42039,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_H_F_CMCe01_Volt_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42040,
+    "dtc": "P0DAF00",
+    "s_dsc": "Diag_H_F_CMCe01_Volt_Plausibility",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\" Range/Performance"
+  },
+  {
+    "code": 42041,
+    "dtc": "P0B7500",
+    "s_dsc": "Diag_P_Volt_CM12_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"L\" Circuit High"
+  },
+  {
+    "code": 42042,
+    "dtc": "P0B7500",
+    "s_dsc": "Diag_P_Volt_CM12_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"L\" Circuit High"
+  },
+  {
+    "code": 42043,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_H_F_CMCe01_Temp_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42044,
+    "dtc": "P0B7400",
+    "s_dsc": "Diag_P_Volt_CM12_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"L\" Circuit Low"
+  },
+  {
+    "code": 42045,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_H_F_CMCe01_Balancing",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42046,
+    "dtc": "U033E00",
+    "s_dsc": "Diag_F_CMCe02_incompatible",
+    "l_dsc": "Software Incompatibility With Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42047,
+    "dtc": "P0B7400",
+    "s_dsc": "Diag_P_Volt_CM12_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"L\" Circuit Low"
+  },
+  {
+    "code": 42048,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM13_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42049,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_H_F_CMCe02_WDT",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42050,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_H_F_CMCe02_Volt_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42051,
+    "dtc": "P0B7A00",
+    "s_dsc": "Diag_P_Volt_CM13_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"M\" Circuit High"
+  },
+  {
+    "code": 42052,
+    "dtc": "P0B7A00",
+    "s_dsc": "Diag_P_Volt_CM13_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"M\" Circuit High"
+  },
+  {
+    "code": 42053,
+    "dtc": "P0DBF00",
+    "s_dsc": "Diag_H_F_CMCe02_Volt_Plausibility",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\" Range/Performance"
+  },
+  {
+    "code": 42054,
+    "dtc": "P0B7900",
+    "s_dsc": "Diag_P_Volt_CM13_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"M\" Circuit Low"
+  },
+  {
+    "code": 42055,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_H_F_CMCe02_Temp_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42056,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_H_F_CMCe02_Balancing",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42057,
+    "dtc": "P0B7900",
+    "s_dsc": "Diag_P_Volt_CM13_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"M\" Circuit Low"
+  },
+  {
+    "code": 42058,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM14_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42059,
+    "dtc": "P0B7F00",
+    "s_dsc": "Diag_P_Volt_CM14_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"N\" Circuit High"
+  },
+  {
+    "code": 42060,
+    "dtc": "P0B7F00",
+    "s_dsc": "Diag_P_Volt_CM14_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"N\" Circuit High"
+  },
+  {
+    "code": 42061,
+    "dtc": "P0B7E00",
+    "s_dsc": "Diag_P_Volt_CM14_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"N\" Circuit Low"
+  },
+  {
+    "code": 42062,
+    "dtc": "P0B7E00",
+    "s_dsc": "Diag_P_Volt_CM14_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"N\" Circuit Low"
+  },
+  {
+    "code": 42063,
+    "dtc": "P0E4D00",
+    "s_dsc": "Diag_S_Volt_DCGND_OC",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"F\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 42064,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM15_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42065,
+    "dtc": "P0B8400",
+    "s_dsc": "Diag_P_Volt_CM15_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"O\" Circuit High"
+  },
+  {
+    "code": 42066,
+    "dtc": "P0B8400",
+    "s_dsc": "Diag_P_Volt_CM15_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"O\" Circuit High"
+  },
+  {
+    "code": 42067,
+    "dtc": "P0B8300",
+    "s_dsc": "Diag_P_Volt_CM15_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"O\" Circuit Low"
+  },
+  {
+    "code": 42068,
+    "dtc": "P0B8300",
+    "s_dsc": "Diag_P_Volt_CM15_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"O\" Circuit Low"
+  },
+  {
+    "code": 42069,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM16_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42070,
+    "dtc": "P0B8900",
+    "s_dsc": "Diag_P_Volt_CM16_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"P\" Circuit High"
+  },
+  {
+    "code": 42071,
+    "dtc": "P0B8900",
+    "s_dsc": "Diag_P_Volt_CM16_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"P\" Circuit High"
+  },
+  {
+    "code": 42072,
+    "dtc": "P0B8800",
+    "s_dsc": "Diag_P_Volt_CM16_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"P\" Circuit Low"
+  },
+  {
+    "code": 42073,
+    "dtc": "P0B8800",
+    "s_dsc": "Diag_P_Volt_CM16_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"P\" Circuit Low"
+  },
+  {
+    "code": 42074,
+    "dtc": "P0A7D00",
+    "s_dsc": "Diag_P_Cell_SOC_LL1",
+    "l_dsc": "Hybrid/EV Battery Pack State of Charge Low"
+  },
+  {
+    "code": 42075,
+    "dtc": "P0B2900",
+    "s_dsc": "Diag_P_Cell_SOC_LL2",
+    "l_dsc": "Hybrid/EV Battery \"B\" Voltage Low"
+  },
+  {
+    "code": 42076,
+    "dtc": "P0AB900",
+    "s_dsc": "Diag_P_HV_shortage",
+    "l_dsc": "Hybrid System Performance"
+  },
+  {
+    "code": 42077,
+    "dtc": "P0D3400",
+    "s_dsc": "Diag_P_ZCC_Current_Limit",
+    "l_dsc": "Hybrid/EV Battery System Current"
+  },
+  {
+    "code": 42078,
+    "dtc": "P0DAB00",
+    "s_dsc": "Diag_P_BECM_Level2",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Performance"
+  },
+  {
+    "code": 42082,
+    "dtc": "P0DBB00",
+    "s_dsc": "Diag_S_Volt_CM04_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"D\" Range/Performance"
+  },
+  {
+    "code": 42083,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_08_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42084,
+    "dtc": "P0DBB00",
+    "s_dsc": "Diag_S_Volt_CM04_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"D\" Range/Performance"
+  },
+  {
+    "code": 42085,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_08_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42087,
+    "dtc": "U011100",
+    "s_dsc": "Diag_C_IBUS_CMCe01_BMCe_TO",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 42088,
+    "dtc": "U011100",
+    "s_dsc": "Diag_C_IBUS_CMCe02_BMCe_TO",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 42089,
+    "dtc": "P0AE900",
+    "s_dsc": "Diag_S_Temp_01CM04_RAT",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"D\" Circuit Range/Performance"
+  },
+  {
+    "code": 42090,
+    "dtc": "P0AEB00",
+    "s_dsc": "Diag_S_Temp_02CM04_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"D\" Circuit High"
+  },
+  {
+    "code": 42091,
+    "dtc": "P0AEA00",
+    "s_dsc": "Diag_S_Temp_02CM04_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"D\" Circuit Low"
+  },
+  {
+    "code": 42092,
+    "dtc": "P0AE800",
+    "s_dsc": "Diag_S_Temp_02CM04_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"D\" Circuit"
+  },
+  {
+    "code": 42093,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_S_Volt_CM05_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42094,
+    "dtc": "P0DBF00",
+    "s_dsc": "Diag_S_Volt_CM05_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\" Range/Performance"
+  },
+  {
+    "code": 42095,
+    "dtc": "P0DBF00",
+    "s_dsc": "Diag_S_Volt_CM05_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\" Range/Performance"
+  },
+  {
+    "code": 42096,
+    "dtc": "P0BC300",
+    "s_dsc": "Diag_S_Temp_01CM05_RAT",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"E\" Circuit Range/Performance"
+  },
+  {
+    "code": 42097,
+    "dtc": "P0BC500",
+    "s_dsc": "Diag_S_Temp_02CM05_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"E\" Circuit High"
+  },
+  {
+    "code": 42098,
+    "dtc": "P0BC400",
+    "s_dsc": "Diag_S_Temp_02CM05_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"E\" Circuit Low"
+  },
+  {
+    "code": 42099,
+    "dtc": "P0BC200",
+    "s_dsc": "Diag_S_Temp_02CM05_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"E\" Circuit"
+  },
+  {
+    "code": 42100,
+    "dtc": "P0DC000",
+    "s_dsc": "Diag_S_Volt_CM06_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"F\""
+  },
+  {
+    "code": 42101,
+    "dtc": "P0DC300",
+    "s_dsc": "Diag_S_Volt_CM06_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"F\" Range/Performance"
+  },
+  {
+    "code": 42102,
+    "dtc": "P0DC300",
+    "s_dsc": "Diag_S_Volt_CM06_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"F\" Range/Performance"
+  },
+  {
+    "code": 42103,
+    "dtc": "P0C3400",
+    "s_dsc": "Diag_S_Temp_01CM06_RAT",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"F\" Cicuit Range/Performance"
+  },
+  {
+    "code": 42104,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_CALID_CVN_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42105,
+    "dtc": "P0C3600",
+    "s_dsc": "Diag_S_Temp_02CM06_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"F\" Circuit High"
+  },
+  {
+    "code": 42106,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_CALID_CVN_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42107,
+    "dtc": "P0C3500",
+    "s_dsc": "Diag_S_Temp_02CM06_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"F\" Circuit Low"
+  },
+  {
+    "code": 42108,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_KompFehler_01_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42109,
+    "dtc": "P0C3300",
+    "s_dsc": "Diag_S_Temp_02CM06_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"F\" Circuit"
+  },
+  {
+    "code": 42110,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_KompFehler_01_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42111,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_KompFehler_01_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42112,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42113,
+    "dtc": "P0DC400",
+    "s_dsc": "Diag_S_Volt_CM07_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"G\""
+  },
+  {
+    "code": 42114,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42115,
+    "dtc": "P0B4700",
+    "s_dsc": "Diag_P_Volt_CM03_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"C\" Circuit Low"
+  },
+  {
+    "code": 42116,
+    "dtc": "P0B4700",
+    "s_dsc": "Diag_P_Volt_CM03_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"C\" Circuit Low"
+  },
+  {
+    "code": 42117,
+    "dtc": "P0B5100",
+    "s_dsc": "Diag_P_Volt_CM05_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"E\" Circuit Low"
+  },
+  {
+    "code": 42118,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM06_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42119,
+    "dtc": "P0C7F00",
+    "s_dsc": "Diag_S_Temp_01CM07_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit High"
+  },
+  {
+    "code": 42120,
+    "dtc": "P0B5600",
+    "s_dsc": "Diag_P_Volt_CM06_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"F\" Circuit Low"
+  },
+  {
+    "code": 42121,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_ADC1",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42122,
+    "dtc": "P0B5B00",
+    "s_dsc": "Diag_P_Volt_CM07_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"G\" Circuit Low"
+  },
+  {
+    "code": 42123,
+    "dtc": "P0B5600",
+    "s_dsc": "Diag_P_Volt_CM06_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"F\" Circuit Low"
+  },
+  {
+    "code": 42124,
+    "dtc": "P060400",
+    "s_dsc": "Diag_H_BECM_RAM2",
+    "l_dsc": "Internal Contr.Module Random Access Memory (RAM) Error"
+  },
+  {
+    "code": 42125,
+    "dtc": "P0B4C00",
+    "s_dsc": "Diag_P_Volt_CM04_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"D\" Circuit Low"
+  },
+  {
+    "code": 42126,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM05_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42127,
+    "dtc": "P0B4D00",
+    "s_dsc": "Diag_P_Volt_CM04_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"D\" Circuit High"
+  },
+  {
+    "code": 42128,
+    "dtc": "P060400",
+    "s_dsc": "Diag_H_BECM_RAM",
+    "l_dsc": "Internal Contr.Module Random Access Memory (RAM) Error"
+  },
+  {
+    "code": 42129,
+    "dtc": "U10BA00",
+    "s_dsc": "Diag_H_BECM_HMC1_SPI",
+    "l_dsc": "Local data bus no communication"
+  },
+  {
+    "code": 42130,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_Clock",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42131,
+    "dtc": "P0B4C00",
+    "s_dsc": "Diag_P_Volt_CM04_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"D\" Circuit Low"
+  },
+  {
+    "code": 42132,
+    "dtc": "P060400",
+    "s_dsc": "Diag_H_BECM_RAM3",
+    "l_dsc": "Internal Contr.Module Random Access Memory (RAM) Error"
+  },
+  {
+    "code": 42133,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_WDT",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42134,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_Pilotline_EO_Circuit",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42135,
+    "dtc": "P0A8E00",
+    "s_dsc": "Diag_F_LV_UL",
+    "l_dsc": "14 Volt Power Module System Voltage High"
+  },
+  {
+    "code": 42136,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM07_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42137,
+    "dtc": "P0A8D00",
+    "s_dsc": "Diag_F_LV_LL",
+    "l_dsc": "14 Volt Power Module System Voltage Low"
+  },
+  {
+    "code": 42138,
+    "dtc": "P0B3600",
+    "s_dsc": "Diag_S_Terminal30C_ORH",
+    "l_dsc": "High Voltage Service Disconnect Circuit High"
+  },
+  {
+    "code": 42139,
+    "dtc": "U110300",
+    "s_dsc": "Diag_F_PMode",
+    "l_dsc": "Production mode active"
+  },
+  {
+    "code": 42141,
+    "dtc": "P109B00",
+    "s_dsc": "Diag_S_PowerSupplyCMC_DrCircuit",
+    "l_dsc": "Battery module current consumption Upper limit exceeded"
+  },
+  {
+    "code": 42142,
+    "dtc": "P0AC200",
+    "s_dsc": "Diag_S_Curr_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"A\" Circuit High"
+  },
+  {
+    "code": 42143,
+    "dtc": "P0AC100",
+    "s_dsc": "Diag_S_Curr_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"A\" Circuit Low"
+  },
+  {
+    "code": 42144,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_ADC2",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42145,
+    "dtc": "P0AC000",
+    "s_dsc": "Diag_S_Curr_RAT",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 42146,
+    "dtc": "P0AC000",
+    "s_dsc": "Diag_S_Curr_Offset",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 42147,
+    "dtc": "P0B1100",
+    "s_dsc": "Diag_S_Curr_2_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"B\" Circuit High"
+  },
+  {
+    "code": 42148,
+    "dtc": "P0B1000",
+    "s_dsc": "Diag_S_Curr_2_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"B\" Circuit Low"
+  },
+  {
+    "code": 42149,
+    "dtc": "P0B0F00",
+    "s_dsc": "Diag_S_Curr_2_Offset",
+    "l_dsc": "Hybrid/EV Battery Pack Current Sensor \"B\" Circuit Range/Performance"
+  },
+  {
+    "code": 42150,
+    "dtc": "U140900",
+    "s_dsc": "Diag_S_Temp_TBat",
+    "l_dsc": "Internal temperature measurement Implausible signal"
+  },
+  {
+    "code": 42151,
+    "dtc": "P0CA600",
+    "s_dsc": "Diag_P_Curr_Charge_UL",
+    "l_dsc": "Hybrid Battery Charging Current High"
+  },
+  {
+    "code": 42152,
+    "dtc": "P0CA700",
+    "s_dsc": "Diag_P_Curr_Discharge_UL",
+    "l_dsc": "Hybrid Battery Discharging Current High"
+  },
+  {
+    "code": 42153,
+    "dtc": "P0ABD00",
+    "s_dsc": "Diag_S_Volt_BatP_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"A\" Circuit High"
+  },
+  {
+    "code": 42154,
+    "dtc": "P0ABC00",
+    "s_dsc": "Diag_S_Volt_BatP_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"A\" Circuit Low"
+  },
+  {
+    "code": 42155,
+    "dtc": "P0A7E00",
+    "s_dsc": "Diag_P_Temp_Cell_UL",
+    "l_dsc": "Hybrid/EV Battery Pack Over Temperature"
+  },
+  {
+    "code": 42156,
+    "dtc": "P0ABB00",
+    "s_dsc": "Diag_S_Volt_BatP_RAH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 42157,
+    "dtc": "P0D3500",
+    "s_dsc": "Diag_P_ZCC_Current_Integral",
+    "l_dsc": "Hybrid/EV Battery System Current Unstable"
+  },
+  {
+    "code": 42158,
+    "dtc": "P0ABB00",
+    "s_dsc": "Diag_S_Volt_BatP_RAL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 42159,
+    "dtc": "P0B1700",
+    "s_dsc": "Diag_S_Volt_BatN_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"B\" Circuit High"
+  },
+  {
+    "code": 42161,
+    "dtc": "P0B1600",
+    "s_dsc": "Diag_S_Volt_BatN_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"B\" Circuit Low"
+  },
+  {
+    "code": 42162,
+    "dtc": "P0B1500",
+    "s_dsc": "Diag_S_Volt_BatN_RAH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"B\" Circuit Range/Performance"
+  },
+  {
+    "code": 42168,
+    "dtc": "P0B1A00",
+    "s_dsc": "Diag_S_Volt_HVP_RAH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 42170,
+    "dtc": "P0B1A00",
+    "s_dsc": "Diag_S_Volt_HVP_RAL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 42172,
+    "dtc": "P0B2100",
+    "s_dsc": "Diag_S_Volt_HVN_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"D\" Circuit High"
+  },
+  {
+    "code": 42174,
+    "dtc": "P0B2000",
+    "s_dsc": "Diag_S_Volt_HVN_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"D\" Circuit Low"
+  },
+  {
+    "code": 42175,
+    "dtc": "P0B1F00",
+    "s_dsc": "Diag_S_Volt_HVN_RAH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"D\" Circuit Range/Performance"
+  },
+  {
+    "code": 42178,
+    "dtc": "P0B1F00",
+    "s_dsc": "Diag_S_Volt_HVN_RAL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"D\" Circuit Range/Performance"
+  },
+  {
+    "code": 42179,
+    "dtc": "P0E4700",
+    "s_dsc": "Diag_S_Volt_DCP_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"E\" Circuit High"
+  },
+  {
+    "code": 42181,
+    "dtc": "P0E4600",
+    "s_dsc": "Diag_S_Volt_DCP_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"E\" Circuit Low"
+  },
+  {
+    "code": 42183,
+    "dtc": "P0E4500",
+    "s_dsc": "Diag_S_Volt_DCP_RAH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"E\" Circuit Range/Performance"
+  },
+  {
+    "code": 42185,
+    "dtc": "P0E4500",
+    "s_dsc": "Diag_S_Volt_DCP_RAL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"E\" Circuit Range/Performance"
+  },
+  {
+    "code": 42187,
+    "dtc": "P0E4C00",
+    "s_dsc": "Diag_S_Volt_DCN_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"F\" Circuit High"
+  },
+  {
+    "code": 42190,
+    "dtc": "P0E4B00",
+    "s_dsc": "Diag_S_Volt_DCN_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"F\" Circuit Low"
+  },
+  {
+    "code": 42192,
+    "dtc": "P0E4A00",
+    "s_dsc": "Diag_S_Volt_DCN_RAH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"F\" Circuit Range/Performance"
+  },
+  {
+    "code": 42194,
+    "dtc": "P0E4A00",
+    "s_dsc": "Diag_S_Volt_DCN_RAL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"F\" Circuit Range/Performance"
+  },
+  {
+    "code": 42196,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_S_Volt_CM01_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42198,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_S_Volt_CM01_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42200,
+    "dtc": "P0DAC00",
+    "s_dsc": "Diag_S_Volt_CM01_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\""
+  },
+  {
+    "code": 42202,
+    "dtc": "P0DAF00",
+    "s_dsc": "Diag_S_Volt_CM01_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\" Range/Performance"
+  },
+  {
+    "code": 42204,
+    "dtc": "P0DAF00",
+    "s_dsc": "Diag_S_Volt_CM01_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"A\" Range/Performance"
+  },
+  {
+    "code": 42206,
+    "dtc": "P0A9D00",
+    "s_dsc": "Diag_S_Temp_01CM01_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"A\" Circuit Low"
+  },
+  {
+    "code": 42208,
+    "dtc": "P0A9E00",
+    "s_dsc": "Diag_S_Temp_01CM01_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"A\" Circuit High"
+  },
+  {
+    "code": 42210,
+    "dtc": "P0A9B00",
+    "s_dsc": "Diag_S_Temp_01CM01_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"A\" Circuit"
+  },
+  {
+    "code": 42212,
+    "dtc": "P0A9C00",
+    "s_dsc": "Diag_S_Temp_01CM01_RAT",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 42214,
+    "dtc": "P0A9D00",
+    "s_dsc": "Diag_S_Temp_02CM01_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"A\" Circuit Low"
+  },
+  {
+    "code": 42216,
+    "dtc": "P0A9E00",
+    "s_dsc": "Diag_S_Temp_02CM01_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"A\" Circuit High"
+  },
+  {
+    "code": 42218,
+    "dtc": "P0A9B00",
+    "s_dsc": "Diag_S_Temp_02CM01_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"A\" Circuit"
+  },
+  {
+    "code": 42220,
+    "dtc": "P0DB000",
+    "s_dsc": "Diag_S_Volt_CM02_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"B\""
+  },
+  {
+    "code": 42222,
+    "dtc": "P0DB000",
+    "s_dsc": "Diag_S_Volt_CM02_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"B\""
+  },
+  {
+    "code": 42224,
+    "dtc": "P0DB000",
+    "s_dsc": "Diag_S_Volt_CM02_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"B\""
+  },
+  {
+    "code": 42225,
+    "dtc": "U10B800",
+    "s_dsc": "Diag_C_IBUS1_BusOff",
+    "l_dsc": "Local data bus faulty"
+  },
+  {
+    "code": 42226,
+    "dtc": "P0DB300",
+    "s_dsc": "Diag_S_Volt_CM02_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"B\" Range/Performance"
+  },
+  {
+    "code": 42227,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_C_IBUS1_Controller",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42228,
+    "dtc": "P0DB300",
+    "s_dsc": "Diag_S_Volt_CM02_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"B\" Range/Performance"
+  },
+  {
+    "code": 42229,
+    "dtc": "U003800",
+    "s_dsc": "Diag_C_IBUS1_global_TO",
+    "l_dsc": "Vehicle Communication Bus B Performance"
+  },
+  {
+    "code": 42230,
+    "dtc": "P0AC800",
+    "s_dsc": "Diag_S_Temp_01CM02_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"B\" Circuit High"
+  },
+  {
+    "code": 42232,
+    "dtc": "P0AC700",
+    "s_dsc": "Diag_S_Temp_01CM02_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"B\" Circuit Low"
+  },
+  {
+    "code": 42233,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42234,
+    "dtc": "P0AC500",
+    "s_dsc": "Diag_S_Temp_01CM02_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"B\" Circuit"
+  },
+  {
+    "code": 42235,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42236,
+    "dtc": "P0AC600",
+    "s_dsc": "Diag_S_Temp_01CM02_RAT",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"B\" Circuit Range/Performance"
+  },
+  {
+    "code": 42237,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42238,
+    "dtc": "P0AC800",
+    "s_dsc": "Diag_S_Temp_02CM02_ORH",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"B\" Circuit High"
+  },
+  {
+    "code": 42239,
+    "dtc": "P0AA100",
+    "s_dsc": "Diag_A_Ctc_MCP_remainsClosed",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Circuit Stuck Closed"
+  },
+  {
+    "code": 42240,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_02_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42241,
+    "dtc": "P0AC700",
+    "s_dsc": "Diag_S_Temp_02CM02_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"B\" Circuit Low"
+  },
+  {
+    "code": 42242,
+    "dtc": "P0AA200",
+    "s_dsc": "Diag_A_Ctc_MCP_remainsOpen",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Circuit Stuck Open"
+  },
+  {
+    "code": 42243,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_02_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42244,
+    "dtc": "P0AC500",
+    "s_dsc": "Diag_S_Temp_02CM02_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"B\" Circuit"
+  },
+  {
+    "code": 42245,
+    "dtc": "P0AD900",
+    "s_dsc": "Diag_H_Ctc_MCP_DrCircuit",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Control Circuit/Open"
+  },
+  {
+    "code": 42247,
+    "dtc": "P0DB400",
+    "s_dsc": "Diag_S_Volt_CM03_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"C\""
+  },
+  {
+    "code": 42248,
+    "dtc": "P0AA400",
+    "s_dsc": "Diag_A_Ctc_MCN_remainsClosed",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Circuit Stuck Closed"
+  },
+  {
+    "code": 42249,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_03_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42250,
+    "dtc": "P0DB400",
+    "s_dsc": "Diag_S_Volt_CM03_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"C\""
+  },
+  {
+    "code": 42251,
+    "dtc": "P0AA500",
+    "s_dsc": "Diag_A_Ctc_MCN_remainsOpen",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Circuit Stuck Open"
+  },
+  {
+    "code": 42252,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_03_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42253,
+    "dtc": "P0DB400",
+    "s_dsc": "Diag_S_Volt_CM03_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"C\""
+  },
+  {
+    "code": 42254,
+    "dtc": "P0ADD00",
+    "s_dsc": "Diag_H_Ctc_MCN_DrCircuit",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Control Circuit/Open"
+  },
+  {
+    "code": 42256,
+    "dtc": "P0DB700",
+    "s_dsc": "Diag_S_Volt_CM03_RAH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"C\" Range/Performance"
+  },
+  {
+    "code": 42258,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_04_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42259,
+    "dtc": "P0DB700",
+    "s_dsc": "Diag_S_Volt_CM03_RAL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"C\" Range/Performance"
+  },
+  {
+    "code": 42261,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_04_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42262,
+    "dtc": "P0ACD00",
+    "s_dsc": "Diag_S_Temp_01CM03_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"C\" Circuit High"
+  },
+  {
+    "code": 42265,
+    "dtc": "P0ACC00",
+    "s_dsc": "Diag_S_Temp_01CM03_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"C\" Circuit Low"
+  },
+  {
+    "code": 42266,
+    "dtc": "P0D0800",
+    "s_dsc": "Diag_A_Ctc_DCP_remainsClosed",
+    "l_dsc": "Battery Charging System Positive Contactor Stuck Closed"
+  },
+  {
+    "code": 42267,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42268,
+    "dtc": "P0ACA00",
+    "s_dsc": "Diag_S_Temp_01CM03_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"C\" Circuit"
+  },
+  {
+    "code": 42269,
+    "dtc": "P0D0900",
+    "s_dsc": "Diag_A_Ctc_DCP_remainsOpen",
+    "l_dsc": "Battery Charging System Positive Contactor Stuck Open"
+  },
+  {
+    "code": 42270,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42271,
+    "dtc": "P0ACB00",
+    "s_dsc": "Diag_S_Temp_01CM03_RAT",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 42272,
+    "dtc": "P0D0A00",
+    "s_dsc": "Diag_H_Ctc_DCP_DrCircuit",
+    "l_dsc": "Battery Charging System Positive Contactor Control Circuit/Open"
+  },
+  {
+    "code": 42274,
+    "dtc": "P0ACD00",
+    "s_dsc": "Diag_S_Temp_02CM03_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"C\" Circuit High"
+  },
+  {
+    "code": 42275,
+    "dtc": "P0D0F00",
+    "s_dsc": "Diag_A_Ctc_DCN_remainsClosed",
+    "l_dsc": "Battery Charging System Negative Contactor Stuck Closed"
+  },
+  {
+    "code": 42276,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_06_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42277,
+    "dtc": "P0ACC00",
+    "s_dsc": "Diag_S_Temp_02CM03_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"C\" Circuit Low"
+  },
+  {
+    "code": 42278,
+    "dtc": "P0D1000",
+    "s_dsc": "Diag_A_Ctc_DCN_remainsOpen",
+    "l_dsc": "Battery Charging System Negative Contactor Stuck Open"
+  },
+  {
+    "code": 42279,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_06_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42280,
+    "dtc": "P0ACA00",
+    "s_dsc": "Diag_S_Temp_02CM03_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"C\" Circuit"
+  },
+  {
+    "code": 42281,
+    "dtc": "P0D1100",
+    "s_dsc": "Diag_H_Ctc_DCN_DrCircuit",
+    "l_dsc": "Battery Charging System Negative Contactor Control Circuit/Open"
+  },
+  {
+    "code": 42283,
+    "dtc": "P0DB800",
+    "s_dsc": "Diag_S_Volt_CM04_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"D\""
+  },
+  {
+    "code": 42284,
+    "dtc": "P0A9500",
+    "s_dsc": "Diag_F_Fuse_Malfunction",
+    "l_dsc": "High Voltage Fuse"
+  },
+  {
+    "code": 42285,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_07_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42286,
+    "dtc": "P0DB800",
+    "s_dsc": "Diag_S_Volt_CM04_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"D\""
+  },
+  {
+    "code": 42287,
+    "dtc": "P0C7800",
+    "s_dsc": "Diag_F_PreCharge",
+    "l_dsc": "Hybrid/EV Battery System Precharge Time Too Long"
+  },
+  {
+    "code": 42288,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_07_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42289,
+    "dtc": "P0DB800",
+    "s_dsc": "Diag_S_Volt_CM04_OC",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"D\""
+  },
+  {
+    "code": 42293,
+    "dtc": "P0B3700",
+    "s_dsc": "Diag_F_ServiceDisconnect",
+    "l_dsc": "High Voltage Service Disconnect Open"
+  },
+  {
+    "code": 42294,
+    "dtc": "P0AEB00",
+    "s_dsc": "Diag_S_Temp_01CM04_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"D\" Circuit High"
+  },
+  {
+    "code": 42295,
+    "dtc": "P0B3300",
+    "s_dsc": "Diag_F_Terminal30c_OC",
+    "l_dsc": "High Voltage Service Disconnect Circuit"
+  },
+  {
+    "code": 42296,
+    "dtc": "P0AEA00",
+    "s_dsc": "Diag_S_Temp_01CM04_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"D\" Circuit Low"
+  },
+  {
+    "code": 42297,
+    "dtc": "P0AE800",
+    "s_dsc": "Diag_S_Temp_01CM04_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"D\" Circuit"
+  },
+  {
+    "code": 42298,
+    "dtc": "P056200",
+    "s_dsc": "Diag_F_Terminal30c_LL",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 42299,
+    "dtc": "P0AA700",
+    "s_dsc": "Diag_H_IsoResistant_Circuit_total",
+    "l_dsc": "Hybrid/EV Battery Voltage Isolation Sensor Circuit"
+  },
+  {
+    "code": 42300,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42301,
+    "dtc": "P0E7400",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_1_Pos_HVBATint",
+    "l_dsc": "Hybrid/EV Battery Voltage Internal Isolation Fault"
+  },
+  {
+    "code": 42302,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42303,
+    "dtc": "P0AA600",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_1_Pos_HVBATtotal",
+    "l_dsc": "Hybrid/EV Battery Voltage System Isolation Fault"
+  },
+  {
+    "code": 42304,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42305,
+    "dtc": "P0E7400",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_2_Pos_HVBATint",
+    "l_dsc": "Hybrid/EV Battery Voltage Internal Isolation Fault"
+  },
+  {
+    "code": 42306,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_02_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42307,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_S_Volt_CM05_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42308,
+    "dtc": "P0AA600",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_2_Pos_HVBATtotal",
+    "l_dsc": "Hybrid/EV Battery Voltage System Isolation Fault"
+  },
+  {
+    "code": 42309,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42310,
+    "dtc": "P0DBC00",
+    "s_dsc": "Diag_S_Volt_CM05_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"E\""
+  },
+  {
+    "code": 42311,
+    "dtc": "P0E7400",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_1_Neg_HVBATint",
+    "l_dsc": "Hybrid/EV Battery Voltage Internal Isolation Fault"
+  },
+  {
+    "code": 42312,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42313,
+    "dtc": "P0AA600",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_1_Neg_HVBATtotal",
+    "l_dsc": "Hybrid/EV Battery Voltage System Isolation Fault"
+  },
+  {
+    "code": 42314,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_03_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42315,
+    "dtc": "P0B3400",
+    "s_dsc": "Diag_S_Terminal30C_RAT",
+    "l_dsc": "High Voltage Service Disconnect Circuit Performance"
+  },
+  {
+    "code": 42316,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_ADC3",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42317,
+    "dtc": "P06B100",
+    "s_dsc": "Diag_S_Terminal30_ORL",
+    "l_dsc": "Sensor Power Supply \"A\" Circuit Low"
+  },
+  {
+    "code": 42318,
+    "dtc": "P0E7400",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_2_Neg_HVBATint",
+    "l_dsc": "Hybrid/EV Battery Voltage Internal Isolation Fault"
+  },
+  {
+    "code": 42319,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_03_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42320,
+    "dtc": "P0AA600",
+    "s_dsc": "Diag_F_Insulation_Resistance_Fault_2_Neg_HVBATtotal",
+    "l_dsc": "Hybrid/EV Battery Voltage System Isolation Fault"
+  },
+  {
+    "code": 42321,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_03_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42322,
+    "dtc": "P0BC500",
+    "s_dsc": "Diag_S_Temp_01CM05_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"E\" Circuit High"
+  },
+  {
+    "code": 42324,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_04_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42325,
+    "dtc": "P0BC400",
+    "s_dsc": "Diag_S_Temp_01CM05_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"E\" Circuit Low"
+  },
+  {
+    "code": 42326,
+    "dtc": "P160900",
+    "s_dsc": "Diag_F_Crash2_ShutOff_CAN",
+    "l_dsc": "Crash shut-off was triggered"
+  },
+  {
+    "code": 42327,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_04_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42328,
+    "dtc": "P0BC200",
+    "s_dsc": "Diag_S_Temp_01CM05_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"E\" Circuit"
+  },
+  {
+    "code": 42329,
+    "dtc": "P160900",
+    "s_dsc": "Diag_F_Crash_ShutOff_HW",
+    "l_dsc": "Crash shut-off was triggered"
+  },
+  {
+    "code": 42330,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_04_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42331,
+    "dtc": "P05B800",
+    "s_dsc": "Diag_F_Airbag_Malfunction",
+    "l_dsc": "Restraint Deployment Signal Circuit/Open"
+  },
+  {
+    "code": 42332,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42333,
+    "dtc": "P0A0A00",
+    "s_dsc": "Diag_F_Pilotline_OC",
+    "l_dsc": "High Voltage System Inter-Lock Circuit"
+  },
+  {
+    "code": 42334,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42335,
+    "dtc": "P0A0D00",
+    "s_dsc": "Diag_F_Pilotline_SCB",
+    "l_dsc": "High Voltage System Interlock Circuit High"
+  },
+  {
+    "code": 42336,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42337,
+    "dtc": "P0A0C00",
+    "s_dsc": "Diag_F_Pilotline_SCG",
+    "l_dsc": "High Voltage System Interlock Circuit Low"
+  },
+  {
+    "code": 42338,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_06_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42339,
+    "dtc": "P0DC000",
+    "s_dsc": "Diag_S_Volt_CM06_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"F\""
+  },
+  {
+    "code": 42341,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42342,
+    "dtc": "P0DC000",
+    "s_dsc": "Diag_S_Volt_CM06_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"F\""
+  },
+  {
+    "code": 42343,
+    "dtc": "P0A0E00",
+    "s_dsc": "Diag_F_Pilotline_EO",
+    "l_dsc": "High Voltage System Interlock Circuit Intermittent"
+  },
+  {
+    "code": 42344,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42345,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM01_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42346,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_07_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42347,
+    "dtc": "P0B3E00",
+    "s_dsc": "Diag_P_Volt_CM01_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"A\" Circuit High"
+  },
+  {
+    "code": 42348,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_07_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42349,
+    "dtc": "P0B3E00",
+    "s_dsc": "Diag_P_Volt_CM01_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"A\" Circuit High"
+  },
+  {
+    "code": 42350,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_07_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42351,
+    "dtc": "P0C3600",
+    "s_dsc": "Diag_S_Temp_01CM06_ORH",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"F\" Circuit High"
+  },
+  {
+    "code": 42352,
+    "dtc": "P0B3D00",
+    "s_dsc": "Diag_P_Volt_CM01_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"A\" Circuit Low"
+  },
+  {
+    "code": 42353,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_08_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42354,
+    "dtc": "P0C3500",
+    "s_dsc": "Diag_S_Temp_01CM06_ORL",
+    "l_dsc": "Hybrid Battery Temperature Sensor \"F\" Circuit Low"
+  },
+  {
+    "code": 42355,
+    "dtc": "P0B3D00",
+    "s_dsc": "Diag_P_Volt_CM01_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"A\" Circuit Low"
+  },
+  {
+    "code": 42356,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_08_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42357,
+    "dtc": "P0C3300",
+    "s_dsc": "Diag_S_Temp_01CM06_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"F\" Circuit"
+  },
+  {
+    "code": 42358,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM02_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42359,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_08_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42360,
+    "dtc": "P0B4300",
+    "s_dsc": "Diag_P_Volt_CM02_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"B\" Circuit High"
+  },
+  {
+    "code": 42361,
+    "dtc": "P0B4300",
+    "s_dsc": "Diag_P_Volt_CM02_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"B\" Circuit High"
+  },
+  {
+    "code": 42362,
+    "dtc": "P0B4200",
+    "s_dsc": "Diag_P_Volt_CM02_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"B\" Circuit Low"
+  },
+  {
+    "code": 42363,
+    "dtc": "P0B4200",
+    "s_dsc": "Diag_P_Volt_CM02_Cell_LL4",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"B\" Circuit Low"
+  },
+  {
+    "code": 42364,
+    "dtc": "P0DC400",
+    "s_dsc": "Diag_S_Volt_CM07_ORH",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"G\""
+  },
+  {
+    "code": 42365,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM03_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42366,
+    "dtc": "P0DC400",
+    "s_dsc": "Diag_S_Volt_CM07_ORL",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"G\""
+  },
+  {
+    "code": 42367,
+    "dtc": "P0B4800",
+    "s_dsc": "Diag_P_Volt_CM03_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"C\" Circuit High"
+  },
+  {
+    "code": 42368,
+    "dtc": "P0B4800",
+    "s_dsc": "Diag_P_Volt_CM03_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"C\" Circuit High"
+  },
+  {
+    "code": 42369,
+    "dtc": "P0E4800",
+    "s_dsc": "Diag_S_Volt_HVGND_OC",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"E\" Circuit Intermittent/Erratic"
+  },
+  {
+    "code": 42370,
+    "dtc": "P0BBD00",
+    "s_dsc": "Diag_P_Volt_CM04_Deviation",
+    "l_dsc": "Hybrid Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "code": 42371,
+    "dtc": "U10BA00",
+    "s_dsc": "Diag_H_BECM_HMC2_SPI",
+    "l_dsc": "Local data bus no communication"
+  },
+  {
+    "code": 42372,
+    "dtc": "P0B5700",
+    "s_dsc": "Diag_P_Volt_CM06_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"F\" Circuit High"
+  },
+  {
+    "code": 42373,
+    "dtc": "P0C7E00",
+    "s_dsc": "Diag_S_Temp_01CM07_ORL",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit Low"
+  },
+  {
+    "code": 42374,
+    "dtc": "P0B4D00",
+    "s_dsc": "Diag_P_Volt_CM04_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"D\" Circuit High"
+  },
+  {
+    "code": 42375,
+    "dtc": "P0B5700",
+    "s_dsc": "Diag_P_Volt_CM06_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"F\" Circuit High"
+  },
+  {
+    "code": 42376,
+    "dtc": "P06B200",
+    "s_dsc": "Diag_S_Terminal30_ORH",
+    "l_dsc": "Sensor Power Supply \"A\" Circuit High"
+  },
+  {
+    "code": 42377,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM_crit",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42378,
+    "dtc": "P0B5200",
+    "s_dsc": "Diag_P_Volt_CM05_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"E\" Circuit High"
+  },
+  {
+    "code": 42379,
+    "dtc": "P0C7C00",
+    "s_dsc": "Diag_S_Temp_01CM07_OC",
+    "l_dsc": "Hybrid/EV Battery Temperature Sensor \"G\" Circuit"
+  },
+  {
+    "code": 42380,
+    "dtc": "P0B1B00",
+    "s_dsc": "Diag_S_Volt_HVP_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"C\" Circuit Low"
+  },
+  {
+    "code": 42381,
+    "dtc": "P056300",
+    "s_dsc": "Diag_F_Terminal30c_UL",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 42382,
+    "dtc": "P062F00",
+    "s_dsc": "Diag_H_BECM_FlashEEPROM3",
+    "l_dsc": "Internal Control Module EEPROM Error"
+  },
+  {
+    "code": 42383,
+    "dtc": "P0B5100",
+    "s_dsc": "Diag_P_Volt_CM05_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"E\" Circuit Low"
+  },
+  {
+    "code": 42384,
+    "dtc": "P0B5C00",
+    "s_dsc": "Diag_P_Volt_CM07_Cell_UL1",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"G\" Circuit High"
+  },
+  {
+    "code": 42385,
+    "dtc": "P0B1C00",
+    "s_dsc": "Diag_S_Volt_HVP_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"C\" Circuit High"
+  },
+  {
+    "code": 42386,
+    "dtc": "P0B5B00",
+    "s_dsc": "Diag_P_Volt_CM07_Cell_LL3",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"G\" Circuit Low"
+  },
+  {
+    "code": 42387,
+    "dtc": "P0B1500",
+    "s_dsc": "Diag_S_Volt_BatN_RAL",
+    "l_dsc": "Hybrid/EV Battery Pack Voltage Sense \"B\" Circuit Range/Performance"
+  },
+  {
+    "code": 42388,
+    "dtc": "P062F00",
+    "s_dsc": "Diag_H_BECM_FlashEEPROM",
+    "l_dsc": "Internal Control Module EEPROM Error"
+  },
+  {
+    "code": 42389,
+    "dtc": "P0B5200",
+    "s_dsc": "Diag_P_Volt_CM05_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"E\" Circuit High"
+  },
+  {
+    "code": 42390,
+    "dtc": "P062F00",
+    "s_dsc": "Diag_H_BECM_FlashEEPROM2",
+    "l_dsc": "Internal Control Module EEPROM Error"
+  },
+  {
+    "code": 42391,
+    "dtc": "P056000",
+    "s_dsc": "Diag_S_Terminal30_RAT",
+    "l_dsc": "System Voltage Malfunction"
+  },
+  {
+    "code": 42392,
+    "dtc": "P0B5C00",
+    "s_dsc": "Diag_P_Volt_CM07_Cell_UL2",
+    "l_dsc": "Hybrid/EV Battery Voltage Sense \"G\" Circuit High"
+  },
+  {
+    "code": 42395,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_H_BECM",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42397,
+    "dtc": "P10F500",
+    "s_dsc": "Diag_S_Volt_Bat_ORL",
+    "l_dsc": "Hybrid-/ high voltage battery total voltage 7 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 42400,
+    "dtc": "P0A8D00",
+    "s_dsc": "Diag_F_LV_LL2",
+    "l_dsc": "14 Volt Power Module System Voltage Low"
+  },
+  {
+    "code": 42402,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_02_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42403,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_03_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42404,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_04_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42405,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42406,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_06_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42407,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_07_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42408,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_08_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42409,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42410,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42411,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_03_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42412,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_04_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42413,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42414,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42415,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_07_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42416,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_08_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42417,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42418,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42419,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_03_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42420,
+    "dtc": "U04A100",
+    "s_dsc": "Diag_C_IBUS_CMC_04_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42421,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42422,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42423,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_07_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42424,
+    "dtc": "U04A500",
+    "s_dsc": "Diag_C_IBUS_CMC_08_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42428,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_10_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42429,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42430,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42431,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_10_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42432,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_11_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42433,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_11_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42434,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_11_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42435,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_11_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42436,
+    "dtc": "P10F900",
+    "s_dsc": "Diag_S_Volt_AuxP_RAL",
+    "l_dsc": "Hybrid-/ high voltage battery total voltage 8 implausible"
+  },
+  {
+    "code": 42437,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_11_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42438,
+    "dtc": "P10F900",
+    "s_dsc": "Diag_S_Volt_AuxP_RAH",
+    "l_dsc": "Hybrid-/ high voltage battery total voltage 8 implausible"
+  },
+  {
+    "code": 42439,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_12_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42440,
+    "dtc": "P10F800",
+    "s_dsc": "Diag_S_Volt_AuxP_ORL",
+    "l_dsc": "Hybrid-/ high voltage battery total voltage 8 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 42441,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_12_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42442,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_12_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42443,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_12_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42444,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42445,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42446,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42447,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42449,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42451,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42453,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42455,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_10_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42456,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42457,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_10_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42458,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_KompFehler_01_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42459,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_KompFehler_01_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42460,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_KompFehler_01_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42462,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42464,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42466,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_10_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42468,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_11_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42470,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_11_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42471,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_11_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42472,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_Klemmen_Status_01_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42473,
+    "dtc": "U012200",
+    "s_dsc": "Diag_C_EVCAN_ESC_51_TO",
+    "l_dsc": "Lost Communication With Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 42474,
+    "dtc": "U011000",
+    "s_dsc": "Diag_C_EVCAN_EM1_01_TO",
+    "l_dsc": "Lost Communication With Drive Motor Control Module \"A\""
+  },
+  {
+    "code": 42477,
+    "dtc": "B158129",
+    "s_dsc": "Diag_C_LIN_unreasonable_message",
+    "l_dsc": "HV heater control module Range/Performance"
+  },
+  {
+    "code": 42479,
+    "dtc": "B158131",
+    "s_dsc": "Diag_C_LIN_slave_no_communication",
+    "l_dsc": "HV heater control module No signal"
+  },
+  {
+    "code": 42481,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42483,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42484,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42485,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42487,
+    "dtc": "U111800",
+    "s_dsc": "Diag_F_DSDL_Produktion",
+    "l_dsc": "Data set missing"
+  },
+  {
+    "code": 42489,
+    "dtc": "B1581F0",
+    "s_dsc": "Diag_F_PTC_Temperaturschutz",
+    "l_dsc": "HV heater control module Temperature sensor 1 upper limit exceeded"
+  },
+  {
+    "code": 42490,
+    "dtc": "P0D1D00",
+    "s_dsc": "Diag_A_Valve2_SCG",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Control Valve \"B\" Control Circuit Low"
+  },
+  {
+    "code": 42491,
+    "dtc": "B1581F2",
+    "s_dsc": "Diag_F_PTC_Ueberstrom",
+    "l_dsc": "HV heater control module Current fault"
+  },
+  {
+    "code": 42492,
+    "dtc": "P0D1E00",
+    "s_dsc": "Diag_A_Valve2_SCB",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Control Valve \"B\" Control Circuit High"
+  },
+  {
+    "code": 42493,
+    "dtc": "B168AF0",
+    "s_dsc": "Diag_F_PTC_Heizkreis",
+    "l_dsc": "HV heater Heater circuit 1 faulty"
+  },
+  {
+    "code": 42494,
+    "dtc": "B168A01",
+    "s_dsc": "Diag_F_PTC_Leckagestrom",
+    "l_dsc": "HV heater electrical error"
+  },
+  {
+    "code": 42496,
+    "dtc": "U010000",
+    "s_dsc": "Diag_C_EVCAN_Motor_54_TO",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 42497,
+    "dtc": "U107600",
+    "s_dsc": "Diag_C_LIN_electric_error",
+    "l_dsc": "Local data bus 2 electrical error"
+  },
+  {
+    "code": 42498,
+    "dtc": "U010000",
+    "s_dsc": "Diag_C_EVCAN_Motor_14_TO",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 42499,
+    "dtc": "U015100",
+    "s_dsc": "Diag_C_EVCAN_Airbag_01_TO_E2E",
+    "l_dsc": "Lost Communication With Restraints Control Module"
+  },
+  {
+    "code": 42500,
+    "dtc": "U15B800",
+    "s_dsc": "Diag_C_EVCAN_global_TO",
+    "l_dsc": "Data bus electrification no communication"
+  },
+  {
+    "code": 42501,
+    "dtc": "P0A1F00",
+    "s_dsc": "Diag_C_EVCAN_Controller",
+    "l_dsc": "Battery Energy Control Module"
+  },
+  {
+    "code": 42502,
+    "dtc": "U15B700",
+    "s_dsc": "Diag_C_EVCAN_BusOff",
+    "l_dsc": "Data bus electrification Faulty"
+  },
+  {
+    "code": 42503,
+    "dtc": "P1CA700",
+    "s_dsc": "Diag_H_F_PyroFuse",
+    "l_dsc": "Igniter for hybrid/high-voltage system fuse"
+  },
+  {
+    "code": 42504,
+    "dtc": "B168A00",
+    "s_dsc": "Diag_F_PTC_Intern",
+    "l_dsc": "HV heater"
+  },
+  {
+    "code": 42505,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_HVLM_14_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42506,
+    "dtc": "U040100",
+    "s_dsc": "Diag_C_EVCAN_HVK_01_CHK_E2E",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 42507,
+    "dtc": "U040100",
+    "s_dsc": "Diag_C_EVCAN_HVK_01_BZ_E2E",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 42508,
+    "dtc": "U010000",
+    "s_dsc": "Diag_C_EVCAN_HVK_01_TO_E2E",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 42509,
+    "dtc": "U010000",
+    "s_dsc": "Diag_C_EVCAN_eTM_01_TO",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 42510,
+    "dtc": "U041600",
+    "s_dsc": "Diag_C_EVCAN_ESP_21_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 42511,
+    "dtc": "U041600",
+    "s_dsc": "Diag_C_EVCAN_ESP_21_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 42512,
+    "dtc": "U012200",
+    "s_dsc": "Diag_C_EVCAN_ESP_21_TO_E2E",
+    "l_dsc": "Lost Communication With Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 42513,
+    "dtc": "U045200",
+    "s_dsc": "Diag_C_EVCAN_Airbag_01_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Restraints Control Module"
+  },
+  {
+    "code": 42514,
+    "dtc": "U045200",
+    "s_dsc": "Diag_C_EVCAN_Airbag_01_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Restraints Control Module"
+  },
+  {
+    "code": 42515,
+    "dtc": "U014600",
+    "s_dsc": "Diag_C_EVCAN_Diagnose_01_TO",
+    "l_dsc": "Lost Communication With Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 42516,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_12_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42517,
+    "dtc": "P10F700",
+    "s_dsc": "Diag_S_Volt_AuxP_ORH",
+    "l_dsc": "Hybrid-/ high voltage battery total voltage 8 Short circuit to B+"
+  },
+  {
+    "code": 42518,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_12_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42519,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_H_F_CMCe03_Balancing",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 42520,
+    "dtc": "U04A900",
+    "s_dsc": "Diag_C_IBUS_CMC_12_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42521,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_H_F_CMCe03_Temp_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 42522,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_12_09_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42523,
+    "dtc": "P0DCF00",
+    "s_dsc": "Diag_H_F_CMCe03_Volt_Plausibility",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\" Range/Performance"
+  },
+  {
+    "code": 42524,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42525,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_H_F_CMCe03_Volt_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 42526,
+    "dtc": "U011100",
+    "s_dsc": "Diag_C_IBUS_CMCe03_BMCe_TO",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 42527,
+    "dtc": "P0DCC00",
+    "s_dsc": "Diag_H_F_CMCe03_WDT",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"I\""
+  },
+  {
+    "code": 42528,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_CALID_CVN_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42529,
+    "dtc": "U034200",
+    "s_dsc": "Diag_F_CMCe03_incompatible",
+    "l_dsc": "Software Incompatibility With Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42530,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_Systeminfo_01_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42531,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_Reichweite_01_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42532,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_ORU_01_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42533,
+    "dtc": "U016400",
+    "s_dsc": "Diag_C_EVCAN_KLIMA_EV_06_TO",
+    "l_dsc": "Lost Communication With HVAC Control Module"
+  },
+  {
+    "code": 42534,
+    "dtc": "P0C4900",
+    "s_dsc": "Diag_A_Pump1_SCB",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump \"A\" Control Circuit High"
+  },
+  {
+    "code": 42536,
+    "dtc": "P0C4700",
+    "s_dsc": "Diag_A_Pump1_OC",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump \"A\" Control Circuit/Open"
+  },
+  {
+    "code": 42548,
+    "dtc": "P0CD700",
+    "s_dsc": "Diag_S_Temp_Outlet_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Temperature Sensor \"B\" Circuit Low"
+  },
+  {
+    "code": 42550,
+    "dtc": "P0C4400",
+    "s_dsc": "Diag_S_Temp_Inlet_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Temperature Sensor \"A\" Circuit Low"
+  },
+  {
+    "code": 42552,
+    "dtc": "P0C4500",
+    "s_dsc": "Diag_S_Temp_Inlet_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Temperature Sensor \"A\" Circuit High"
+  },
+  {
+    "code": 42558,
+    "dtc": "P0E1F00",
+    "s_dsc": "Diag_H_Pump1_Overtemp",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump \"A\" Control Circuit Driver Current/Temperature Too High"
+  },
+  {
+    "code": 42561,
+    "dtc": "P0CFF00",
+    "s_dsc": "Diag_A_Pump1_Stalled",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump Stuck"
+  },
+  {
+    "code": 42562,
+    "dtc": "P0CE200",
+    "s_dsc": "Diag_A_Valve1_SCG",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Control Valve \"A\" Control Circuit Low"
+  },
+  {
+    "code": 42564,
+    "dtc": "P2B2A00",
+    "s_dsc": "Diag_A_Pump1_Dryrun",
+    "l_dsc": "Hybrid/EV Electronics Coolant Pump Overspeed (Dry Run)"
+  },
+  {
+    "code": 42565,
+    "dtc": "P0CE300",
+    "s_dsc": "Diag_A_Valve1_SCB",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Control Valve \"A\" Control Circuit High"
+  },
+  {
+    "code": 42568,
+    "dtc": "P0C4800",
+    "s_dsc": "Diag_A_Pump1_SCG",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump \"A\" Control Circuit Low"
+  },
+  {
+    "code": 42569,
+    "dtc": "P0CD800",
+    "s_dsc": "Diag_S_Temp_Outlet_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Temperature Sensor \"B\" Circuit High"
+  },
+  {
+    "code": 42571,
+    "dtc": "P1CA800",
+    "s_dsc": "Diag_A_PyroFuse_OC",
+    "l_dsc": "Igniter for hybrid/high-voltage system fuse electrical error"
+  },
+  {
+    "code": 42572,
+    "dtc": "P1CAC00",
+    "s_dsc": "Diag_A_PyroFuse_open",
+    "l_dsc": "Hybrid/High-Voltage System blasting fuse triggered"
+  },
+  {
+    "code": 42573,
+    "dtc": "P1CAB00",
+    "s_dsc": "Diag_A_PyroFuse_SC",
+    "l_dsc": "Igniter for hybrid/high-voltage system fuse Implausible signal"
+  },
+  {
+    "code": 42574,
+    "dtc": "P1CAA00",
+    "s_dsc": "Diag_A_PyroFuse_SCG",
+    "l_dsc": "Igniter for hybrid/high-voltage system fuse Short circuit to Ground (GND)"
+  },
+  {
+    "code": 42575,
+    "dtc": "P1CA900",
+    "s_dsc": "Diag_A_PyroFuse_SCB",
+    "l_dsc": "Igniter for hybrid/high-voltage system fuse Short circuit to B+"
+  },
+  {
+    "code": 42576,
+    "dtc": "B200500",
+    "s_dsc": "Diag_F_DSDL_Ungueltiger_Datensatz",
+    "l_dsc": "Data record invalid"
+  },
+  {
+    "code": 42577,
+    "dtc": "B201200",
+    "s_dsc": "Diag_F_DSDL_Unplausibler_Datensatz",
+    "l_dsc": "Data record implausible"
+  },
+  {
+    "code": 42578,
+    "dtc": "P1CA800",
+    "s_dsc": "Diag_A_PyroShunt_OC",
+    "l_dsc": "Igniter for hybrid/high-voltage system fuse electrical error"
+  },
+  {
+    "code": 42579,
+    "dtc": "U014000",
+    "s_dsc": "Diag_C_EVCAN_Klima_Sensor_02_TO",
+    "l_dsc": "Lost Communication With Body Control Module"
+  },
+  {
+    "code": 42580,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_Standklima_01_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42581,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_HVEM_04_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42582,
+    "dtc": "P2B2800",
+    "s_dsc": "Diag_H_Pump1_Malfunction",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Pump Performance"
+  },
+  {
+    "code": 42584,
+    "dtc": "B203400",
+    "s_dsc": "Diag_F_Thermal_Propagation",
+    "l_dsc": "Pre-warning excessive temperature"
+  },
+  {
+    "code": 42648,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_09_TO_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42649,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_09_TO_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42650,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_09_TO_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42651,
+    "dtc": "U011100",
+    "s_dsc": "Diag_C_IBUS_CMCe04_BMCe_TO",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 42652,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42653,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42654,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42655,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42656,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_09_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42657,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42658,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42659,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_09_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42660,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_KompFehler_01_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42661,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_KompFehler_01_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42662,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_KompFehler_01_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42663,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42664,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42665,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42666,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42667,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_09_TO_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42668,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_KompFehler_02_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42669,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_KompFehler_02_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42670,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_KompFehler_02_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42671,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_CALID_CVN_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42672,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_H_F_CMCe04_Balancing",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 42673,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_H_F_CMCe04_Temp_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 42674,
+    "dtc": "P0DDF00",
+    "s_dsc": "Diag_H_F_CMCe04_Volt_Plausibility",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\" Range/Performance"
+  },
+  {
+    "code": 42675,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_H_F_CMCe04_Volt_Measure",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 42676,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42677,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42678,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42679,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42680,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42681,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42682,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42683,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42684,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42685,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_08_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42686,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_07_TO",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42687,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42688,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42689,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42690,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42691,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42692,
+    "dtc": "P0DDC00",
+    "s_dsc": "Diag_H_F_CMCe04_WDT",
+    "l_dsc": "Hybrid/EV Battery Cell Balancing Circuit \"M\""
+  },
+  {
+    "code": 42693,
+    "dtc": "U034600",
+    "s_dsc": "Diag_F_CMCe04_incompatible",
+    "l_dsc": "Software Incompatibility With Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42694,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_UZ_BZ_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42695,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_UZ_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42696,
+    "dtc": "U04AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_UZ_CHK_E2E",
+    "l_dsc": "Invalid Data Received From Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42697,
+    "dtc": "P10F500",
+    "s_dsc": "Diag_S_Volt_ChassisGND_OC",
+    "l_dsc": "Hybrid-/ high voltage battery total voltage 7 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 42698,
+    "dtc": "P0AFC00",
+    "s_dsc": "Diag_S_Temp_Curr_ORH",
+    "l_dsc": "Hybrid/EV Battery Pack Sensor Module"
+  },
+  {
+    "code": 42699,
+    "dtc": "P0AFC00",
+    "s_dsc": "Diag_S_Temp_Curr_ORL",
+    "l_dsc": "Hybrid/EV Battery Pack Sensor Module"
+  },
+  {
+    "code": 42700,
+    "dtc": "P0ADB00",
+    "s_dsc": "Diag_H_Ctc_MCP_SCG",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Control Circuit Low"
+  },
+  {
+    "code": 42701,
+    "dtc": "P0ADC00",
+    "s_dsc": "Diag_H_Ctc_MCP_SCB",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Control Circuit High"
+  },
+  {
+    "code": 42702,
+    "dtc": "P0ADF00",
+    "s_dsc": "Diag_H_Ctc_MCN_SCG",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Control Circuit Low"
+  },
+  {
+    "code": 42703,
+    "dtc": "P0ADE00",
+    "s_dsc": "Diag_H_Ctc_MCN_SCB",
+    "l_dsc": "Activation of the negative terminal of the hybrid-/ high voltage battery implausible signal"
+  },
+  {
+    "code": 42704,
+    "dtc": "P0D0C00",
+    "s_dsc": "Diag_H_Ctc_DCP_SCG",
+    "l_dsc": "Battery Charging System Positive Contactor Control Circuit Low"
+  },
+  {
+    "code": 42705,
+    "dtc": "P0D0D00",
+    "s_dsc": "Diag_H_Ctc_DCP_SCB",
+    "l_dsc": "Battery Charging System Positive Contactor Control Circuit High"
+  },
+  {
+    "code": 42706,
+    "dtc": "P0D1300",
+    "s_dsc": "Diag_H_Ctc_DCN_SCG",
+    "l_dsc": "Battery Charging System Negative Contactor Control Circuit Low"
+  },
+  {
+    "code": 42707,
+    "dtc": "P0D1400",
+    "s_dsc": "Diag_H_Ctc_DCN_SCB",
+    "l_dsc": "Battery Charging System Negative Contactor Control Circuit High"
+  },
+  {
+    "code": 42708,
+    "dtc": "P0D3400",
+    "s_dsc": "Diag_P_ZPC_Power_Limit",
+    "l_dsc": "Hybrid/EV Battery System Current"
+  },
+  {
+    "code": 42711,
+    "dtc": "P1F2A00",
+    "s_dsc": "Diag_A_Ctc_Contactor_Counter",
+    "l_dsc": "Hybrid / high-voltage battery power output protection Number of load dumps too high"
+  },
+  {
+    "code": 42724,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_01_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42725,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42726,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_01_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42727,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_02_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42728,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42729,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_02_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42730,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_03_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42731,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_03_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42732,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_03_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42733,
+    "dtc": "U01A000",
+    "s_dsc": "Diag_C_IBUS_CMC_04_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"A\""
+  },
+  {
+    "code": 42734,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_04_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42735,
+    "dtc": "U01A100",
+    "s_dsc": "Diag_C_IBUS_CMC_04_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"B\""
+  },
+  {
+    "code": 42736,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_05_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42737,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42738,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_05_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42739,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_06_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42740,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42741,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_06_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42742,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_07_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42743,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_07_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42744,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_07_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42745,
+    "dtc": "U01A400",
+    "s_dsc": "Diag_C_IBUS_CMC_08_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"E\""
+  },
+  {
+    "code": 42746,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_08_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42747,
+    "dtc": "U01A500",
+    "s_dsc": "Diag_C_IBUS_CMC_08_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"F\""
+  },
+  {
+    "code": 42748,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_09_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42749,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42750,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_09_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42751,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_10_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42752,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42753,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_10_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42754,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_11_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42755,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_11_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42756,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_11_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42757,
+    "dtc": "U01A800",
+    "s_dsc": "Diag_C_IBUS_CMC_12_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"I\""
+  },
+  {
+    "code": 42758,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_12_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42759,
+    "dtc": "U01A900",
+    "s_dsc": "Diag_C_IBUS_CMC_12_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"J\""
+  },
+  {
+    "code": 42760,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42761,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42762,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_13_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42763,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42764,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42765,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_14_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42766,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42767,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42768,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_15_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42769,
+    "dtc": "U01AC00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_07_TO_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"M\""
+  },
+  {
+    "code": 42770,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_07_BZ_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42771,
+    "dtc": "U01AD00",
+    "s_dsc": "Diag_C_IBUS_CMC_16_07_CHK_E2E",
+    "l_dsc": "Lost Communication with Hybrid/EV Battery Interface Control Module \"N\""
+  },
+  {
+    "code": 42772,
+    "dtc": "U196A00",
+    "s_dsc": "Diag_F_PowerMonitoring",
+    "l_dsc": "Hybrid/High-voltage batt. Manipulation detected"
+  },
+  {
+    "code": 42773,
+    "dtc": "B1581F4",
+    "s_dsc": "Diag_F_PTC_HvNetzFehler",
+    "l_dsc": "HV heater control module High-voltage too low"
+  },
+  {
+    "code": 42815,
+    "dtc": "U010000",
+    "s_dsc": "Diag_C_EVCAN_Motor_Code_01_TO",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 42850,
+    "dtc": "U180700",
+    "s_dsc": "Diag_F_CMCe01_configuration_incompatible",
+    "l_dsc": "Control module for cell module Configuration invalid"
+  },
+  {
+    "code": 42851,
+    "dtc": "U180700",
+    "s_dsc": "Diag_F_CMCe02_configuration_incompatible",
+    "l_dsc": "Control module for cell module Configuration invalid"
+  },
+  {
+    "code": 42852,
+    "dtc": "U180700",
+    "s_dsc": "Diag_F_CMCe03_configuration_incompatible",
+    "l_dsc": "Control module for cell module Configuration invalid"
+  },
+  {
+    "code": 42853,
+    "dtc": "U180700",
+    "s_dsc": "Diag_F_CMCe04_configuration_incompatible",
+    "l_dsc": "Control module for cell module Configuration invalid"
+  },
+  {
+    "code": 42855,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_HVLM_13_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42856,
+    "dtc": "U016400",
+    "s_dsc": "Diag_C_EVCAN_Klima_EV_07_TO",
+    "l_dsc": "Lost Communication With HVAC Control Module"
+  },
+  {
+    "code": 42857,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_Temperaturen_01_TO",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42859,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_ORUG01_01_TO_E2E",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42860,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_ORUG01_01_BZ_E2E",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42861,
+    "dtc": "U163F00",
+    "s_dsc": "Diag_C_EVCAN_ORUG01_01_CHK_E2E",
+    "l_dsc": "Hybrid/High-voltage battery system no communication with application server"
+  },
+  {
+    "code": 42865,
+    "dtc": "B199A00",
+    "s_dsc": "Diag_F_ORU_Updatemode",
+    "l_dsc": "Online Remote Update"
+  },
+  {
+    "code": 13697024,
+    "dtc": "U110000",
+    "s_dsc": "Diag_F_BMCe_KS_StartKey",
+    "l_dsc": "Component protection no basic setting"
+  },
+  {
+    "code": 13828096,
+    "dtc": "U111500",
+    "s_dsc": "Diag_F_BMCe_KS_MasterECUKey",
+    "l_dsc": "Component protection No basic setting for SHE key"
+  },
+  {
+    "code": 15360256,
+    "dtc": "U110100",
+    "s_dsc": "Diag_F_BMCe_KS_Symptom1",
+    "l_dsc": "Component protection active"
+  },
+  {
+    "code": 15360512,
+    "dtc": "U110100",
+    "s_dsc": "Diag_F_BMCe_KS_Symptom2",
+    "l_dsc": "Component protection active"
+  },
+  {
+    "code": 15361024,
+    "dtc": "U110100",
+    "s_dsc": "Diag_F_BMCe_KS_Symptom4",
+    "l_dsc": "Component protection active"
+  }
+]

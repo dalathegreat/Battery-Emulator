@@ -53,6 +53,7 @@ class VolvoSpaBattery : public CanBattery {
   uint16_t CELL_U_MAX = 370;             //0x37D
   uint16_t CELL_U_MIN = 370;             //0x37D
   uint8_t CELL_ID_U_MAX = 0;             //0x37D
+  uint16_t BECMsupplyVoltage = 12000;    //Polled
   uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
   uint16_t HvBattPwrLimDcha1 = 0;        //0x175
   uint16_t HvBattPwrLimDchaSlowAgi = 0;  //0x177

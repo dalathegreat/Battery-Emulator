@@ -49,10 +49,13 @@ void NissanLeafBattery::
     datalayer_battery->status.temperature_max_dC = (battery_AverageTemperature * 10);  //Increase range from C to C+1
   } else if (LEAF_battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    datalayer_battery->status.temperature_min_dC =
-        (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    datalayer_battery->status.temperature_max_dC =
-        (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    //Only update when both values have been read from the muxed message
+    if ((battery_HistData_Temperature_MIN != 86) && (battery_HistData_Temperature_MAX != 86)) {
+      datalayer_battery->status.temperature_min_dC =
+          (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+      datalayer_battery->status.temperature_max_dC =
+          (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    }
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
     if (battery_temp_raw_min != 0)  //We have a polled value available
     {
@@ -176,6 +179,43 @@ void NissanLeafBattery::
     }
   }
 
+  // Derive aggregate balancing status from the per-cell shunt bits polled from LBC group 0x06.
+  // The LBC duty-cycles its bleed resistors (and disables them while sampling cell voltages), and we
+  // only see one snapshot per ~70s poll rotation, so a single all-clear poll is not proof that the
+  // balancing phase has ended. Require BALANCING_IDLE_POLLS_TO_END consecutive idle polls before
+  // dropping back to READY. Evaluated only on fresh group 0x06 data, never on the 1s update tick.
+  static constexpr uint8_t BALANCING_IDLE_POLLS_TO_END = 3;  // ~3.5 minutes of quiet
+
+  if (balancing_data_received && balancing_data_fresh) {
+    balancing_data_fresh = false;
+
+    bool any_shunt_active = false;
+    for (uint8_t i = 0; i < 96; i++) {
+      if (battery_balancing_shunts[i]) {
+        any_shunt_active = true;
+        break;
+      }
+    }
+
+    if (any_shunt_active) {
+      balancing_idle_polls = 0;
+    } else if (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) {
+      balancing_idle_polls++;
+    }
+
+    balancing_status_enum new_status =
+        (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
+
+    if (new_status != datalayer_battery->status.balancing_status) {
+      if (new_status == BALANCING_STATUS_ACTIVE) {
+        set_event_latched(EVENT_BALANCING_START, 0);
+      } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
+        set_event(EVENT_BALANCING_END, 0);  // only ACTIVE -> READY, not the initial UNKNOWN -> READY
+      }
+    }
+    datalayer_battery->status.balancing_status = new_status;
+  }
+
   // Update webserver datalayer
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
@@ -210,12 +250,43 @@ void NissanLeafBattery::
     datalayer_nissan->challengeFailed = challengeFailed;
 
     // Update requests from webserver datalayer
-    if (datalayer_nissan->UserRequestSOHreset) {
+    if (UserRequestSOHreset) {
       stateMachineClearSOH = 0;  //Start the statemachine
-      datalayer_nissan->UserRequestSOHreset = false;
+      UserRequestSOHreset = false;
     }
 
 #endif
+    if (UserRequestDTCreset && !dtc_clear_in_progress) {
+      UserRequestDTCreset = false;
+      dtc_clear_in_progress = true;
+      dtc_clear_millis = millis();
+      transmit_can_frame(&LEAF_CLEAR_DTC);
+    }
+
+    // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
+    // untouched here: an unconfirmed erase is not evidence that the codes are gone.
+    if (dtc_clear_in_progress && (millis() - dtc_clear_millis > DTC_TIMEOUT_MS)) {
+      dtc_clear_in_progress = false;
+    }
+
+    if (UserRequestDTCreadout && !dtc_read_in_progress) {
+      UserRequestDTCreadout = false;
+      dtc_read_in_progress = true;
+      dtc_rx_active = false;
+      dtc_rx_len = 0;
+      dtc_rx_expected = 0;
+      dtc_request_millis = millis();
+      datalayer_battery->dtc.dtc_read_failed = false;
+      transmit_can_frame(&LEAF_READ_DTC);
+    }
+
+    // Give up if the LBC never completes the reply, so the page stops showing a pending read.
+    if (dtc_read_in_progress && (millis() - dtc_request_millis > DTC_TIMEOUT_MS)) {
+      dtc_read_in_progress = false;
+      dtc_rx_active = false;
+      datalayer_battery->dtc.dtc_read_failed = true;
+      datalayer_battery->dtc.dtc_last_read_millis = millis();
+    }
   }
 }
 
@@ -344,6 +415,70 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 #endif
 
+      // ClearDiagnosticInformation is acknowledged with a single-frame 54. Only then are the stored
+      // codes known to be gone. The read timestamp is reset too, so the page goes back to
+      // "not read yet": an erase says nothing about what the LBC will report from here on.
+      if (dtc_clear_in_progress && rx_frame.data.u8[0] == 0x01 && rx_frame.data.u8[1] == 0x54) {
+        dtc_clear_in_progress = false;
+        datalayer_battery->dtc.dtc_count = 0;
+        datalayer_battery->dtc.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_last_read_millis = 0;
+        break;
+      }
+
+      // A DTC readout answers on 0x7BB just like the group polling below, and its first frame would
+      // otherwise be mistaken for group 0x02 (cell voltages). Intercept it while a read is in
+      // flight. The 0x59 service reply byte is what tells the two apart: a group reply carries 0x61.
+      if (dtc_read_in_progress) {
+        uint8_t pci = rx_frame.data.u8[0] & 0xF0;
+
+        if (pci == 0x00 && rx_frame.data.u8[1] == 0x59) {  //Single frame: reply fits in one message
+          dtc_rx_len = rx_frame.data.u8[0] & 0x0F;
+          if (dtc_rx_len > 7) {
+            dtc_rx_len = 7;
+          }
+          for (uint8_t i = 0; i < dtc_rx_len; i++) {
+            dtc_buffer[i] = rx_frame.data.u8[1 + i];
+          }
+          parseDTCResponse();
+          break;
+        }
+
+        if (pci == 0x10 && rx_frame.data.u8[2] == 0x59) {  //First frame of a multi-frame reply
+          dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          if (dtc_rx_expected > DTC_BUFFER_SIZE) {
+            dtc_rx_expected = DTC_BUFFER_SIZE;  //More codes than we can store, keep the first ones
+          }
+          dtc_rx_len = 0;
+          for (uint8_t i = 2; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
+            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          }
+          dtc_rx_active = true;
+          transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
+          break;
+        }
+
+        if (dtc_rx_active && pci == 0x20) {  //Consecutive frame
+          for (uint8_t i = 1; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
+            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          }
+          if (dtc_rx_len >= dtc_rx_expected) {
+            parseDTCResponse();
+          } else {
+            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);
+          }
+          break;
+        }
+
+        if (rx_frame.data.u8[1] == 0x7F && rx_frame.data.u8[2] == 0x19) {  //Request rejected by LBC
+          dtc_read_in_progress = false;
+          dtc_rx_active = false;
+          datalayer_battery->dtc.dtc_read_failed = true;
+          datalayer_battery->dtc.dtc_last_read_millis = millis();
+          break;
+        }
+      }
+
       if (stop_battery_query) {  //Leafspy is active, stop our own polling
         break;
       }
@@ -366,6 +501,10 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
           battery_insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          if (battery_insulation > 0) {
+            datalayer_battery->status.insulation_resistance_kOhm = battery_insulation;
+            datalayer_battery->status.insulation_resistance_available = true;
+          }
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
@@ -497,6 +636,8 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
           memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+          balancing_data_received = true;
+          balancing_data_fresh = true;
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)
@@ -567,6 +708,38 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
+}
+
+// Parses a reassembled UDS ReadDTCInformation reply out of dtc_buffer: a 3-byte header
+// (59 02 <statusAvailabilityMask>) followed by 4 bytes per DTC, being a 3-byte code plus one status
+// byte. Only the raw codes are stored here; the web renderer formats them into the 5-character
+// Nissan strings (P33D7, U1000) and looks their descriptions up in nissan_leaf_dtc.json.
+void NissanLeafBattery::parseDTCResponse() {
+  const uint16_t DTC_HEADER_LEN = 3;
+
+  dtc_read_in_progress = false;
+  dtc_rx_active = false;
+  datalayer_battery->dtc.dtc_last_read_millis = millis();
+
+  if (dtc_rx_len < DTC_HEADER_LEN || dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
+    datalayer_battery->dtc.dtc_read_failed = true;
+    return;
+  }
+
+  uint16_t count = (dtc_rx_len - DTC_HEADER_LEN) / 4;
+  if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+    count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+  }
+
+  for (uint16_t i = 0; i < count; i++) {
+    uint16_t offset = DTC_HEADER_LEN + (i * 4);
+    datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)dtc_buffer[offset] << 16) |
+                                          ((uint32_t)dtc_buffer[offset + 1] << 8) | (uint32_t)dtc_buffer[offset + 2];
+    datalayer_battery->dtc.dtc_status[i] = dtc_buffer[offset + 3];
+  }
+
+  datalayer_battery->dtc.dtc_count = count;
+  datalayer_battery->dtc.dtc_read_failed = false;
 }
 
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
@@ -787,8 +960,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
       previousMillis10s = currentMillis;
 
-      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
-      if (!stop_battery_query) {
+      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
+      //and don't start a new group transfer while a DTC readout is still being reassembled.
+      if (!stop_battery_query && !dtc_read_in_progress) {
 
         // Move to the next group
         PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]

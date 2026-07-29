@@ -205,8 +205,9 @@ void RivianBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis10 >= (INTERVAL_200_MS)) {
     previousMillis10 = currentMillis;
 
-    //If we want to close contactors, and preconditions are met
-    if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
+    //If we want to close contactors, and system allows for it
+    if ((datalayer.system.status.inverter_allows_contactor_closing) &&
+        (datalayer.system.status.system_status != FAULT)) {
       //Standby -> Ready Mode
       if (BMS_state == STANDBY || BMS_state == SLEEP) {
         RIVIAN_150.data.u8[0] = 0x03;
