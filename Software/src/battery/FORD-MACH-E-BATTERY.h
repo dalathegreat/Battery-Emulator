@@ -15,10 +15,16 @@ class FordMachEBattery : public CanBattery {
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { UserRequestDTCreadout = true; }
 
  private:
   FordMachEHtmlRenderer renderer;
   bool UserRequestDTCreset = false;
+  bool UserRequestDTCreadout = false;
+  // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
+  // datalayer_battery->dtc.
+  void parseDTCResponse();
   //90S NMC
   static const int MAX_PACK_VOLTAGE_90S_DV = 3902;
   static const int MIN_PACK_VOLTAGE_90S_DV = 2490;
@@ -242,11 +248,41 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                                     .DLC = 8,
                                     .ID = 0x7E4,
                                     .data = {0x03, 0x22, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_ACK_FRAME = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E4,
+                              .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_DTC_RESET = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x7E4,
                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+  // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0x8F.
+  // The BMS answers on 0x7EC with 59 02 <availabilityMask> followed by 4 bytes per DTC
+  // (3-byte code + 1 status byte), multi-frame when more than one code is stored.
+  //(21.90) RX0 7E4 [8] 03 19 02 8F 00 00 00 00
+  //(21.92) RX0 7EC [8] 10 2F 59 02 FF C1 9B 00
+  //(21.92) RX0 7E4 [8] 30 00 00 00 00 00 00 00
+  //(21.92) RX0 7EC [8] 21 AF C1 00 00 2F C2 93
+  //(21.93) RX0 7EC [8] 22 00 AF C2 98 00 AF 1A
+  CAN_frame FORD_READ_DTC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E4,
+                             .data = {0x03, 0x19, 0x02, 0x8F, 0x00, 0x00, 0x00, 0x00}};
+  // DTC readout reassembly state. The reply shares the 0x7EC response ID with the periodic
+  // group polling, so it is intercepted separately while a readout is in flight.
+  static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+  static const unsigned long DTC_TIMEOUT_MS = 2000;
+  uint8_t dtc_buffer[DTC_BUFFER_SIZE];
+  uint16_t dtc_rx_expected = 0;  // Total payload length announced by the ISO-TP first frame
+  uint16_t dtc_rx_len = 0;       // Bytes reassembled so far
+  bool dtc_rx_active = false;    // A multi-frame reply is currently being reassembled
+  bool dtc_read_in_progress = false;
+  unsigned long dtc_request_millis = 0;
+  bool dtc_clear_in_progress = false;
+  unsigned long dtc_clear_millis = 0;
 
   //Message needed for contactor closing
   CAN_frame FORD_25B = {.FD = false,
