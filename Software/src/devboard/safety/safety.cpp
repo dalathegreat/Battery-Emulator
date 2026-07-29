@@ -58,6 +58,20 @@ static void check_can_component_alive(uint8_t& still_alive_counter, bool& detect
   }
 }
 
+/* Expire remote-set limits. Wrap-safe subtraction: the naive
+   "currentMillis > timestamp + timeout" comparison both overflows near the 49.7-day
+   millis() wrap (fresh limits expire immediately) and inverts after it (stale limits
+   persist up to another 49.7 days) */
+void update_remote_limit_expiry(uint32_t currentMillis) {
+  if ((currentMillis - datalayer.battery.settings.remote_set_timestamp) >
+      datalayer.battery.settings.remote_set_timeout) {
+    datalayer.battery.settings.remote_settings_limit_charge = false;
+    datalayer.battery.settings.remote_settings_limit_discharge = false;
+    datalayer.battery.settings.max_remote_set_charge_dA = 0;
+    datalayer.battery.settings.max_remote_set_discharge_dA = 0;
+  }
+}
+
 void update_machineryprotection() {
   //Check if we start to get low on memory
   static uint8_t hysteresisHeapSeconds = 0;

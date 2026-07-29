@@ -41,16 +41,16 @@ uint16_t pwm_hold_duty = 250;
 #define PWM_OFF_DUTY 0  //No need to have this userconfigurable
 #define PWM_Positive_Channel 0
 #define PWM_Negative_Channel 1
-static unsigned long prechargeStartTime = 0;
-unsigned long negativeStartTime = 0;
-unsigned long prechargeCompletedTime = 0;
-unsigned long timeSpentInFaultedMode = 0;
-unsigned long currentTime = 0;
-unsigned long lastPowerRemovalTime = 0;
+static uint32_t prechargeStartTime = 0;
+uint32_t negativeStartTime = 0;
+uint32_t prechargeCompletedTime = 0;
+uint32_t timeSpentInFaultedMode = 0;
+uint32_t currentTime = 0;
+uint32_t lastPowerRemovalTime = 0;
 bool periodicResetDeferred = false;   //True while a due periodic reset is waiting for SOC to recover
 bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
-unsigned long bmsPowerOnTime = 0;
-const unsigned long bmsWarmupDuration = 3000;
+uint32_t bmsPowerOnTime = 0;
+const uint32_t bmsWarmupDuration = 3000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
@@ -337,12 +337,12 @@ void bms_power_on() {
 
 // Configured period between two automatic resets. Guarded to 24h in case the stored
 // value is missing or nonsensical, see load_settings().
-static unsigned long bms_reset_interval_ms() {
+static uint32_t bms_reset_interval_ms() {
   uint32_t hours = periodic_bms_reset_interval_h;
   if (hours == 0) {
     hours = 24;
   }
-  return (unsigned long)hours * 60UL * 60UL * 1000UL;
+  return (uint32_t)hours * 60UL * 60UL * 1000UL;
 }
 
 /* The two guards behave differently on purpose, so the decision is three-way rather than

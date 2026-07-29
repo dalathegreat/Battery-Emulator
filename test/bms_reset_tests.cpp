@@ -13,7 +13,7 @@ const unsigned long bmsWarmupDuration = 3000;
 // contactors are powered directly by BE, so the reset doesn't need to wait for
 // zero current before cutting the BMS power.
 TEST(BmsResetTests, BmsResetSequenceDirectSuccess) {
-  set_millis64(0xffffffffffffffff - 10);  // Test overflow handling
+  set_millis64(0x100000000ULL - 10);  // Start just below the 32-bit millis() wrap to test overflow handling
   remote_bms_reset = true;
   contactor_control_enabled = true;
   datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
@@ -77,7 +77,7 @@ TEST(BmsResetTests, BmsResetSequenceDirectSuccess) {
 // contactors are powered by the BMS, so the reset needs to wait for zero
 // current before cutting power to avoid arcing.
 TEST(BmsResetTests, BmsResetSequenceWaitSuccess) {
-  set_millis64(0xffffffffffffffff - 10);
+  set_millis64(0x100000000ULL - 10);  // Start just below the 32-bit millis() wrap
   remote_bms_reset = true;
   contactor_control_enabled = false;
   datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
@@ -158,7 +158,7 @@ TEST(BmsResetTests, BmsResetSequenceWaitSuccess) {
 
 // Bring the reset scheduling state into the test so we can decide when the
 // configured interval has elapsed instead of having to simulate a full day.
-extern unsigned long lastPowerRemovalTime;
+extern uint32_t lastPowerRemovalTime;
 extern bool periodicResetDeferred;
 extern bool balancingPeriodSkipped;
 
