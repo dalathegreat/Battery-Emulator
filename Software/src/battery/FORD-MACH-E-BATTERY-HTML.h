@@ -152,6 +152,13 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months / 100.0, 0) + " Months </h4>";
     }
 
+    content += "<h4>Gear selected:";
+    if (datalayer_extended.fordMachE.pid_gear_commanded == 255) {
+      content += "N/A</h4>";
+    } else {
+      content += " " + String(datalayer_extended.fordMachE.pid_gear_commanded) + " </h4>";
+    }
+
     content += render_dtc_section(datalayer.battery.dtc);
 
     return content;

@@ -453,6 +453,7 @@ struct DATALAYER_INFO_FORD_MACH_E {
   uint16_t pid_battery_capacity_ah;
   uint8_t pid_maintenance_rebalance_status;
   uint8_t pid_hvb_soh;
+  uint8_t pid_gear_commanded;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {

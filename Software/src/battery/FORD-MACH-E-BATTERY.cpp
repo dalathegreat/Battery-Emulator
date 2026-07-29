@@ -152,6 +152,7 @@ void FordMachEBattery::update_values() {
   datalayer_extended.fordMachE.pid_battery_capacity_ah = pid_battery_capacity_ah;
   datalayer_extended.fordMachE.pid_maintenance_rebalance_status = pid_maintenance_rebalance_status;
   datalayer_extended.fordMachE.pid_hvb_max_charge_current = pid_hvb_max_charge_current;
+  datalayer_extended.fordMachE.pid_gear_commanded = pid_gear_commanded;
 
   // Perform diagnostic if user has requested it
   if (UserRequestDTCreset && !dtc_clear_in_progress) {
@@ -490,6 +491,7 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case PID_HVB_CHARGE_CURRENT_REQUESTED:
           break;
         case PID_GEAR_COMMANDED:
+          pid_gear_commanded = rx_frame.data.u8[4];
           break;
         case PID_KEY_STATE:
           //0x0E = Error
