@@ -2,6 +2,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
+#include "../../devboard/utils/led_handler.h"
 #include "../../inverter/INVERTERS.h"
 #ifndef UNIT_TEST
 #include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
@@ -109,14 +110,19 @@ bool init_contactors() {
       // Set all pins OFF (0% PWM)
       ledcWrite(posPin, PWM_OFF_DUTY);
       ledcWrite(negPin, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
     } else {  //Normal CONTACTOR_CONTROL
       pinMode(posPin, OUTPUT);
       set(posPin, OFF);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       pinMode(negPin, OUTPUT);
       set(negPin, OFF);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
     }  // Precharge never has PWM regardless of setting
     pinMode(precPin, OUTPUT);
     set(precPin, OFF);
+    set_indicator_led(IndicatorLed::PRECHARGE, false);
   }
 
   if (contactor_control_enabled_double_battery) {
@@ -150,6 +156,7 @@ bool init_contactors() {
     }
     pinMode(pin, OUTPUT);
     digitalWrite(pin, HIGH);
+    set_indicator_led(IndicatorLed::BMS_POWER, true);
   }
 
   return true;
@@ -206,6 +213,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::PRECHARGE, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
       datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
@@ -216,6 +226,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::PRECHARGE, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
       if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
@@ -245,6 +258,7 @@ void handle_contactors() {
     switch (contactorStatus) {
       case START_PRECHARGE:
         set(negPin, ON, PWM_ON_DUTY);
+        set_indicator_led(IndicatorLed::CONTACTOR_NEG, true);
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
@@ -254,6 +268,7 @@ void handle_contactors() {
       case PRECHARGE:
         if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
           set(prechargePin, ON);
+          set_indicator_led(IndicatorLed::PRECHARGE, true);
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
@@ -264,6 +279,7 @@ void handle_contactors() {
       case POSITIVE:
         if (currentTime - negativeStartTime >= precharge_time_ms) {
           set(posPin, ON, PWM_ON_DUTY);
+          set_indicator_led(IndicatorLed::CONTACTOR_POS, true);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
@@ -276,6 +292,7 @@ void handle_contactors() {
           set(prechargePin, OFF);
           set(negPin, ON, pwm_hold_duty);
           set(posPin, ON, pwm_hold_duty);
+          set_indicator_led(IndicatorLed::PRECHARGE, false);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
           datalayer.system.status.contactors_engaged = 1;
@@ -356,10 +373,12 @@ static bool battery_shutdown_sequences_completed() {
 
 void bms_power_off() {
   digitalWrite(esp32hal->BMS_POWER(), LOW);
+  set_indicator_led(IndicatorLed::BMS_POWER, false);
 }
 
 void bms_power_on() {
   digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  set_indicator_led(IndicatorLed::BMS_POWER, true);
 }
 
 // Configured period between two automatic resets. Guarded to 24h in case the stored
