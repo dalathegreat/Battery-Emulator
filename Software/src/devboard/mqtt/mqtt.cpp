@@ -217,6 +217,9 @@ static bool supports_byd_metrics(Battery* b) {
 static bool supports_insulation(Battery* b) {
   return b != nullptr && b->supports_insulation_resistance();
 }
+static bool supports_balancing_cmd(Battery* b) {
+  return b != nullptr && (b->supports_balancing() || b->supports_balancing_request());
+}
 static bool supports_leaf_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
 }
@@ -415,7 +418,9 @@ static const SensorConfig buttonConfigs[] = {
     {"STOP", "Open Contactors", nullptr, nullptr, nullptr},
     // Only published when a Tesla pack is configured.
     {"TESLA_BMS_RESET", "Tesla BMS Reset", nullptr, nullptr, tesla_bms_reset_available},
-    {"TESLA_SOC_RESET", "Tesla SOC Reset", nullptr, nullptr, tesla_soc_reset_available}};
+    {"TESLA_SOC_RESET", "Tesla SOC Reset", nullptr, nullptr, tesla_soc_reset_available},
+    {"STARTBALANCING", "Start balancing", nullptr, nullptr, supports_balancing_cmd},
+    {"STOPBALANCING", "Stop balancing", nullptr, nullptr, supports_balancing_cmd}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
 // init_mqtt() so that mqtt_message_received() does not rebuild temporary Strings on
@@ -428,6 +433,8 @@ enum ButtonCommand {
   BTN_STOP,
   BTN_TESLA_BMS_RESET,
   BTN_TESLA_SOC_RESET,
+  BTN_STARTBALANCING,
+  BTN_STOPBALANCING,
   BTN_SET_LIMITS,
   BTN_ESPNOW_RUN,
   BTN_SET_SCALESOC,
@@ -437,8 +444,9 @@ enum ButtonCommand {
   BTN_COUNT
 };
 static const char* button_commands[BTN_COUNT] = {
-    "BMSRESET",   "PAUSE",      "RESUME",       "RESTART",   "STOP",           "TESLA_BMS_RESET", "TESLA_SOC_RESET",
-    "SET_LIMITS", "ESPNOW_RUN", "SET_SCALESOC", "RESET_DTC", "SET_VOLTLIMITS", "SET_SOCSCALING"};
+    "BMSRESET",        "PAUSE",           "RESUME",         "RESTART",        "STOP",
+    "TESLA_BMS_RESET", "TESLA_SOC_RESET", "STARTBALANCING", "STOPBALANCING",  "SET_LIMITS",
+    "ESPNOW_RUN",      "SET_SCALESOC",    "RESET_DTC",      "SET_VOLTLIMITS", "SET_SOCSCALING"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -774,6 +782,10 @@ static const char* button_discovery_icon(const char* command) {
     return "mdi:restart-alert";
   if (strcmp(command, "TESLA_SOC_RESET") == 0)
     return "mdi:battery-check-outline";
+  if (strcmp(command, "STARTBALANCING") == 0)
+    return "mdi:scale-balance";
+  if (strcmp(command, "STOPBALANCING") == 0)
+    return "mdi:stop-circle-outline";
   return nullptr;
 }
 
@@ -1246,8 +1258,9 @@ static bool publish_buttons_discovery(void) {
       JsonDocument& doc = shared_doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         const SensorConfig& config = buttonConfigs[i];
-        // Most buttons apply to every installation and carry no condition.
-        if (config.condition != nullptr && !config.condition(nullptr)) {
+        // Most buttons apply to every installation and carry no condition. The installation-level
+        // ones ignore the battery they are given.
+        if (config.condition != nullptr && !config.condition(battery)) {
           continue;
         }
         doc["name"] = config.name;
@@ -1326,6 +1339,20 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   if (strcmp(topic, button_command_topics[BTN_TESLA_SOC_RESET].c_str()) == 0) {
     if (tesla_software_reset(TeslaReset::SOC, true) > 0) {
       logging.println("MQTT: Triggering Tesla SOC reset");
+    }
+  }
+
+  if (strcmp(topic, button_command_topics[BTN_STARTBALANCING].c_str()) == 0) {
+    if (battery != nullptr && (battery->supports_balancing() || battery->supports_balancing_request())) {
+      logging.println("Triggering start balancing");
+      battery->initiate_balancing();
+    }
+  }
+
+  if (strcmp(topic, button_command_topics[BTN_STOPBALANCING].c_str()) == 0) {
+    if (battery != nullptr && (battery->supports_balancing() || battery->supports_balancing_request())) {
+      logging.println("Triggering stop balancing");
+      battery->end_balancing();
     }
   }
 
