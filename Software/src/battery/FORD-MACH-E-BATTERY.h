@@ -52,13 +52,14 @@ class FordMachEBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2900;
   static const int CELL_TEMPERATURE_OFFSET = 22;  // Calibrated against BECM PID min/max cell temperatures
 
+  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
-  unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
-  unsigned long previousMillis50 = 0;    // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis30 = 0;    // will store last time a 30ms CAN Message was send
+  unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis250 = 0;   // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis250 = 0;   // will store last time a 250ms CAN Message was send
+  unsigned long previousMillis500 = 0;   // will store last time a 500ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
-  unsigned long previousMillis10s = 0;   // will store last time a 10s CAN Message was send
 
   int16_t cell_temperature[6] = {0};
   int16_t maximum_temperature = 0;
@@ -447,7 +448,37 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                        .DLC = 8,
                        .ID = 0x04C,
                        .data = {0x70, 0xAA, 0xBF, 0xDE, 0xCC, 0xEC, 0x00, 0x00}};
-
+  //TEST
+  CAN_frame FORD_3B3 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x3B3,
+                        .data = {0x40, 0x48, 0xC0, 0x12, 0x20, 0x05, 0x00, 0x22}};
+  CAN_frame FORD_3B5 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x3B5,
+                        .data = {0x01, 0x10, 0x01, 0x08, 0x01, 0x14, 0x00, 0xF8}};
+  CAN_frame FORD_076 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x076,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_215 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x215,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0xC0, 0xC0, 0xF0, 0x04}};
+  CAN_frame FORD_3DA = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x3DA,
+                        .data = {0x00, 0x00, 0x00, 0xFF, 0xC3, 0xFE, 0x00, 0x00}};
+  CAN_frame FORD_3EA = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x3EA,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x80}};
   /*
   CAN_frame FORD_176 = {.FD = false,
                         .ext_ID = false,

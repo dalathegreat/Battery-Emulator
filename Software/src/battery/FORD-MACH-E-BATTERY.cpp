@@ -538,6 +538,13 @@ void FordMachEBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void FordMachEBattery::transmit_can(unsigned long currentMillis) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    //transmit_can_frame(&FORD_217);  //Earlier tested as 20ms message, did NOT help to reduce amount of DTCs
+  }
+
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
@@ -550,7 +557,6 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&FORD_25B);  //Contactor control
 
-    //transmit_can_frame(&FORD_217);  //Confirmed does NOT help reduce amount of DTCs
     //transmit_can_frame(&FORD_442);  //Confirmed does NOT help reduce amount of DTCs
     //transmit_can_frame(&FORD_48F);  //Confirmed does NOT help reduce amount of DTCs
   }
@@ -656,6 +662,18 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     if (!dtc_read_in_progress) {
       transmit_can_frame(&FORD_PID_REQUEST_7E4);
     }
+  }
+
+  // Send 500ms CAN Message
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    previousMillis500 = currentMillis;
+
+    transmit_can_frame(&FORD_3B3);
+    transmit_can_frame(&FORD_3B5);
+    transmit_can_frame(&FORD_076);
+    transmit_can_frame(&FORD_215);
+    transmit_can_frame(&FORD_3DA);
+    transmit_can_frame(&FORD_3EA);
   }
 
   // Send 1s CAN Message
