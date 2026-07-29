@@ -92,7 +92,12 @@ class StarkHal : public Esp32Hal {
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
-  virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
+  virtual uint8_t LED_MAX_BRIGHTNESS() { return 20; }
+  // LEDs 1-4 (PRECHARGE, CONTACTOR NEG, CONTACTOR POS, BMS POWER) are chained off the STATUS LED
+  // (pixel 0). On boards with the older plain hardwired LEDs there's no physical RGB LED at those
+  // positions, so this extra chain data has nowhere to go and is simply a no-op; on boards with
+  // the RGB LED PCB it lights them. No user-facing option needed either way.
+  virtual uint8_t LED_COUNT() { return 5; }
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_2; }

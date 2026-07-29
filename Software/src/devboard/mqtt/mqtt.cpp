@@ -422,9 +422,8 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   char value_template[96];
   snprintf(entity_id, sizeof(entity_id), "%s%s", config.entity_id, id_suffix);
   snprintf(name_buf, sizeof(name_buf), "%s%s", config.name, name_suffix);
-  // The state topics are per-battery, so the value_template key is the base id for every
-  // battery — no "_2"/"_3" key variants exist anymore.
-  snprintf(value_template, sizeof(value_template), "{{ value_json.%s }}", config.entity_id);
+  // The state topics are per-battery, so the value_template key is the base id for every battery
+  snprintf(value_template, sizeof(value_template), "{{ value_json.%s | default(none) }}", config.entity_id);
 
   JsonDocument& doc = shared_doc;
   doc["name"] = name_buf;
