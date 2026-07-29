@@ -325,7 +325,9 @@ void update_machineryprotection() {
     // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise a warning
     if (!datalayer.system.status.CAN_inverter_still_alive) {
       // Inverters that are slow to boot get a startup grace window before we fault.
-      if (!inverter->needs_can_startup_grace() || millis() > INVERTER_STARTUP_GRACE_MS) {
+      // millis64: with plain millis() this comparison goes false again for 5 minutes
+      // after the 49.7-day wrap, re-suppressing detection of a new inverter-comms loss
+      if (!inverter->needs_can_startup_grace() || millis64() > INVERTER_STARTUP_GRACE_MS) {
         set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
       }
     } else {
