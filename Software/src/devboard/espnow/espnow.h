@@ -162,6 +162,15 @@ enum espnow_key_t {
   ESPNOW_KEY_CONTACTORS = 0x0D,      /* UINT8  0 = starting up, 1 = engaged, 2 = opened */
   ESPNOW_KEY_DC_BUS_LIVE = 0x0E,     /* BOOL   DC bus energized towards the inverter */
   ESPNOW_KEY_EQUIPMENT_STOP = 0x0F,  /* BOOL   equipment stop latched */
+  ESPNOW_KEY_IP_ADDRESS = 0x10,      /* BYTES  4 octets, IPv4 in display order (octets[0]
+                                        is the leading octet); omitted when the station
+                                        is not associated */
+  ESPNOW_KEY_SSID = 0x11,            /* STR    SSID the station is joined to; omitted when
+                                        not associated */
+  ESPNOW_KEY_AP_ACTIVE = 0x12,       /* BOOL   the emulator's own access point is up right
+                                        now - reflects the live Wi-Fi mode, so it goes
+                                        false once the AP is torn down on provisioning
+                                        timeout even though the setting stays enabled */
 
   /* ---- battery nameplate (ESPNOW_FRAME_BATTERY) ---- */
   ESPNOW_KEY_NUMBER_OF_CELLS = 0x30,       /* UINT8  cells in the pack */

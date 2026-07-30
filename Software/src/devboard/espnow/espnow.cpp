@@ -352,7 +352,14 @@ static void send_system_frame() {
   put_u8_field(ESPNOW_KEY_BATTERY_COUNT, num_batteries);
   if (WiFi.status() == WL_CONNECTED) {
     put_int(ESPNOW_KEY_WIFI_RSSI_DBM, ESPNOW_TYPE_INT, static_cast<uint8_t>(static_cast<int8_t>(WiFi.RSSI())), 1);
+    const IPAddress ip = WiFi.localIP();
+    const uint8_t ip_bytes[4] = {ip[0], ip[1], ip[2], ip[3]};
+    put_bytes_field(ESPNOW_KEY_IP_ADDRESS, ESPNOW_TYPE_BYTES, ip_bytes, sizeof(ip_bytes));
+    put_str_field(ESPNOW_KEY_SSID, WiFi.SSID().c_str());
   }
+  // Live mode bit rather than wifiap_enabled: the AP is torn down on provisioning
+  // timeout while the setting stays true, and a receiver showing the setting would lie.
+  put_bool_field(ESPNOW_KEY_AP_ACTIVE, (WiFi.getMode() & WIFI_MODE_AP) != 0);
   put_u8_field(ESPNOW_KEY_INVERTER_ALIVE, datalayer.system.status.CAN_inverter_still_alive);
   put_u8_field(ESPNOW_KEY_CONTACTORS, datalayer.system.status.contactors_engaged);
   put_bool_field(ESPNOW_KEY_DC_BUS_LIVE, datalayer.system.status.dc_bus_live);
