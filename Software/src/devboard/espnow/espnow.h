@@ -62,20 +62,33 @@
  *       i += n;
  *     }
  *
+ * Key 0xFF is reserved as an escape for a future 16 bit key space. The extended key is
+ * carried INSIDE the value - its first two bytes, little-endian - and NOT between the key
+ * and the tag. That keeps the tag as the second byte of every record, so the skip loop
+ * above stays correct with no knowledge of extended keys at all: an old receiver simply
+ * skips the record by its length, exactly as it would for any other unknown key. Putting
+ * the extended key before the tag would desynchronise every receiver written before the
+ * escape was used, which is the one failure mode this format exists to avoid.
+ *
  * Compatibility rules for future changes to this file:
  *   - Never reuse or change the meaning of an allocated key. Retire it instead.
  *   - Never change the unit or scaling of an allocated key. Allocate a new key.
  *   - New keys, new type classes and new frame types may be added freely.
  *   - Bump ESPNOW_PROTOCOL_VERSION only for a change that violates the above.
  *
- * ESP-NOW v2 / v1
- * ---------------
+ * Frame size
+ * ----------
  * ESP-NOW v2 (ESP-IDF 5.4+) raises the maximum payload from 250 to 1470 bytes, which is
- * what makes unquantized 16 bit cell voltages practical. The sender queries
- * esp_now_get_version() at init and sizes its frames accordingly, so the same firmware
- * still works when built against a v1-only IDF: the cell voltage array is split into
- * index-tagged chunks that fit whatever the local limit is. Receivers must therefore
- * always honour ESPNOW_KEY_CELL_INDEX rather than assuming a chunk starts at cell 0.
+ * what makes unquantized 16 bit cell voltages practical. v2 is assumed: every SoC the
+ * emulator runs on supports it, so there is no runtime version negotiation.
+ *
+ * Note that the limit that matters is the RECEIVER's buffer, not its silicon. A receiver
+ * that has not raised its own receive buffer above the 250 byte default will silently
+ * drop larger frames - ESPHome's espnow component is one such case (max_payload_size).
+ * The cell voltage array is therefore always split into index-tagged chunks sized by
+ * ESPNOW_MAX_PAYLOAD below, so lowering that one constant is enough to talk to a 250 byte
+ * receiver. Receivers must always honour ESPNOW_KEY_CELL_INDEX rather than assuming a
+ * chunk starts at cell 0.
  * =====================================================================================
  */
 
@@ -129,7 +142,8 @@ enum espnow_frame_type_t {
  *   0xA0..0xAF  events
  *   0xB0..0xEF  free for future upstream use
  *   0xF0..0xFE  reserved for private forks; upstream will never allocate here
- *   0xFF        reserved as an escape for a future 16 bit key space
+ *   0xFF        escape for a future 16 bit key space - the real key is the first
+ *               two bytes of the value (LE), so the record still skips correctly
  * ---------------------------------------------------------------------------------- */
 enum espnow_key_t {
   /* ---- emulator-wide (ESPNOW_FRAME_SYSTEM) ---- */

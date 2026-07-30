@@ -42,9 +42,24 @@ static uint8_t tx_buffer[ESPNOW_TX_BUFFER_SIZE];
 static size_t tx_len = 0;
 static bool tx_overflow = false;
 
-// Negotiated maximum ESP-NOW payload, and how many cells fit in one ESPNOW_FRAME_CELLS.
-static size_t max_payload = ESP_NOW_MAX_DATA_LEN;
-static uint16_t cells_per_chunk = 1;
+// ESP-NOW v2 frame limit. Lower this to talk to a receiver that has not raised its own
+// receive buffer above the 250 byte default; the cell array is chunked to fit.
+#ifndef ESPNOW_MAX_PAYLOAD
+#define ESPNOW_MAX_PAYLOAD ESP_NOW_MAX_DATA_LEN_V2
+#endif
+
+static constexpr size_t max_payload =
+    (ESPNOW_TX_BUFFER_SIZE < (size_t)ESPNOW_MAX_PAYLOAD) ? ESPNOW_TX_BUFFER_SIZE : (size_t)ESPNOW_MAX_PAYLOAD;
+
+// Cells that fit in one ESPNOW_FRAME_CELLS: 2 bytes of voltage plus 1 bit of balancing
+// state each (8 cells = 8*2 + 1 = 17 bytes), after the header and four record preambles.
+static constexpr uint16_t calc_cells_per_chunk(size_t payload) {
+  const size_t overhead = ESPNOW_HEADER_SIZE + 16;
+  const size_t room = (payload > overhead) ? (payload - overhead) : 0;
+  const size_t fit = room * 8u / 17u;
+  return static_cast<uint16_t>(fit < 1u ? 1u : (fit > MAX_AMOUNT_CELLS ? MAX_AMOUNT_CELLS : fit));
+}
+static constexpr uint16_t cells_per_chunk = calc_cells_per_chunk(max_payload);
 
 static bool espnow_initialized = false;
 static uint16_t emulator_id = 0;
@@ -167,7 +182,7 @@ static inline void put_u8(uint8_t v) {
 // fit in the negotiated payload, so the caller can drop it instead of corrupting a frame.
 static bool put_header(uint8_t key, uint8_t type, size_t len) {
   size_t need = 2 + len + (len > 255 ? 2 : (len > ESPNOW_LEN_CODE_MAX_INLINE ? 1 : 0));
-  if (tx_len + need > max_payload || tx_len + need > sizeof(tx_buffer)) {
+  if (tx_len + need > max_payload) {  // max_payload is clamped to the buffer at compile time
     tx_overflow = true;
     return false;
   }
@@ -517,34 +532,6 @@ void init_espnow() {
   // const wifi_tx_info_t* in ESP-IDF 5.5 - not registering one keeps this source building
   // against both.
 
-  // ESP-NOW v2 (IDF 5.4+) raises the payload limit from 250 to 1470 bytes. Query it at
-  // runtime so the same source still builds and runs against a v1-only IDF.
-#ifdef ESP_NOW_MAX_DATA_LEN_V2
-  uint32_t version = 1;
-  if (esp_now_get_version(&version) == ESP_OK && version >= 2) {
-    max_payload = ESP_NOW_MAX_DATA_LEN_V2;
-  }
-#endif
-  if (max_payload > sizeof(tx_buffer)) {
-    max_payload = sizeof(tx_buffer);  // never send more than we can ever fill
-  }
-
-  // Cells that fit in one ESPNOW_FRAME_CELLS: 2 bytes of voltage plus 1 bit of balancing
-  // state each, after the header and the four record preambles.
-  {
-    const size_t overhead = ESPNOW_HEADER_SIZE + 4 + 4 + 4 + 4;
-    const size_t room = (max_payload > overhead) ? (max_payload - overhead) : 0;
-    // 8 cells consume 8*2 + 1 = 17 bytes.
-    size_t fit = (room * 8u) / 17u;
-    if (fit < 1u) {
-      fit = 1u;
-    }
-    if (fit > MAX_AMOUNT_CELLS) {
-      fit = MAX_AMOUNT_CELLS;
-    }
-    cells_per_chunk = static_cast<uint16_t>(fit);
-  }
-
   const uint8_t peers = register_configured_peers();
   if (peers == 0) {
     esp_now_peer_info_t peer = {};
@@ -574,7 +561,7 @@ void init_espnow() {
     num_batteries++;
   }
 
-  logging.printf("ESPNow: protocol v%d, %u byte frames, %u cells per frame\n", ESPNOW_PROTOCOL_VERSION,
+  logging.printf("ESPNow: protocol v%d, max %u byte frames, %u cells per frame\n", ESPNOW_PROTOCOL_VERSION,
                  static_cast<unsigned>(max_payload), static_cast<unsigned>(cells_per_chunk));
 
   espnow_initialized = true;
