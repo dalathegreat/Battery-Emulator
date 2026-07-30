@@ -26,7 +26,9 @@ class BmwI3Battery : public CanBattery {
   BmwI3Battery() : renderer(*this) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    contactor_closing_allowed = nullptr;
+    // The symmetric parallel-join gate: the main pack must not command its
+    // contactors closed onto a link another pack holds live
+    contactor_closing_allowed = &datalayer.system.status.battery1_allowed_contactor_closing;
     wakeup_pin = esp32hal->WUP_PIN1();
   }
 
@@ -76,6 +78,24 @@ class BmwI3Battery : public CanBattery {
   uint8_t ST_precharge() { return battery_status_precharge_locked; }
   // Status DC switch, 0 contactors open, 1 precharge ongoing, 2 contactors engaged, 3 Invalid signal
   uint8_t ST_DCSW() { return battery_status_disconnecting_switch; }
+
+  // Value space of battery_status_disconnecting_switch (ST_DCSW)
+  enum class DisconnectingSwitch : uint8_t { Open = 0, PrechargeOngoing = 1, Engaged = 2, Invalid = 3 };
+
+  ContactorState reported_contactor_state() {
+    // Precharge counts as Closed: the link is already being energized
+    // through the resistor
+    switch (static_cast<DisconnectingSwitch>(battery_status_disconnecting_switch)) {
+      case DisconnectingSwitch::PrechargeOngoing:
+      case DisconnectingSwitch::Engaged:
+        return ContactorState::Closed;
+      case DisconnectingSwitch::Open:
+        return ContactorState::Open;
+      case DisconnectingSwitch::Invalid:
+      default:
+        return ContactorState::Unknown;
+    }
+  }
   // Status emergency, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal
   uint8_t ST_EMG() { return battery_status_emergency_mode; }
   // Status welding detection, 0 Contactors OK, 1 One contactor welded, 2 Two contactors welded, 3 Invalid signal
