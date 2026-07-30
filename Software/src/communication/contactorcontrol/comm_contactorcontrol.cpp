@@ -234,7 +234,11 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
+      // battery1_allowed_contactor_closing: the symmetric parallel-join gate -
+      // do not close the main battery onto a link another pack holds live with
+      // more than 1.5 V difference
+      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+          datalayer.system.status.battery1_allowed_contactor_closing) {
         contactorStatus = START_PRECHARGE;
       }
     }
