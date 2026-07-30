@@ -34,6 +34,8 @@ const uint8_t OFF = 0;
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
   1000  // After successful precharge, resistor is turned off after this delay (and contactors are economized if PWM enabled)
+#define ESTOP_OPEN_TIMEOUT_MS \
+  7000  // Equipment stop: max time to wait for the pause to reach zero current before opening contactors anyway
 uint16_t pwm_frequency = 20000;
 uint16_t pwm_hold_duty = 250;
 #define PWM_ON_DUTY 1023
@@ -47,6 +49,7 @@ unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
+static unsigned long estop_open_wait_start_ms = 0;
 bool periodicResetDeferred = false;   //True while a due periodic reset is waiting for SOC to recover
 bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
 unsigned long bmsPowerOnTime = 0;
@@ -225,11 +228,34 @@ void handle_contactors() {
       }
     }
 
-    // In case the inverter requests contactors to open, set the state accordingly
+    // In case the inverter or the equipment stop requests contactors to open, jump to Disconnected (recoverable)
     if (contactorStatus == COMPLETED) {
-      //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active) {
+      if (!datalayer.system.status.inverter_allows_contactor_closing) {
+        // Inverter-commanded opening stays immediate: the inverter has already
+        // stopped power transfer before revoking its permission
         contactorStatus = DISCONNECTED;
+      } else if (datalayer.system.info.equipment_stop_active) {
+        // Equipment stop: every e-stop entry point also issues a battery pause,
+        // so hold the contactors until the pause state machine reports PAUSED
+        // (current below 1.8 A) - opening under load risks arcing/welding.
+        // Bounded: after ESTOP_OPEN_TIMEOUT_MS we open anyway and raise an
+        // event, mirroring the BMS-reset give-up behavior.
+        unsigned long now = millis();
+        if (estop_open_wait_start_ms == 0) {
+          estop_open_wait_start_ms = now;
+        }
+        bool paused = (emulator_pause_status == PAUSED);
+        bool timed_out = (now - estop_open_wait_start_ms) > ESTOP_OPEN_TIMEOUT_MS;
+        if (paused || timed_out) {
+          if (timed_out) {
+            logging.printf("Contactors: Equipment stop wait timed out, opening under load\n");
+            set_event(EVENT_ERROR_OPEN_CONTACTOR, 1);
+          }
+          estop_open_wait_start_ms = 0;
+          contactorStatus = DISCONNECTED;
+        }
+      } else {
+        estop_open_wait_start_ms = 0;
       }
       // Skip running the state machine below if it has already completed
       return;
