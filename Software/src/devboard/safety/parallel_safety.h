@@ -28,6 +28,13 @@ struct ParallelJoinState {
   // single-process test binary means across tests too.
   uint8_t seconds_out_of_sync_battery2 = 0;
   uint8_t seconds_out_of_sync_battery3 = 0;
+
+  /* Symmetric half of the 1.5 V rule: while a joiner holds the link and the
+     voltages differ too much, the MAIN battery must not (re-)close onto it
+     either. Close-gating only - opening the main under load is its own hazard
+     and stays out of scope here. */
+  bool main_blocked_by_battery2 = false;
+  bool main_blocked_by_battery3 = false;
 };
 
 /* Declared here rather than kept private to the .cpp, matching SafetyState:
