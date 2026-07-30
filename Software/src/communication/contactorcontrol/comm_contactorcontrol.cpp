@@ -35,7 +35,7 @@ const uint8_t OFF = 0;
 #define PRECHARGE_COMPLETED_TIME_MS \
   1000  // After successful precharge, resistor is turned off after this delay (and contactors are economized if PWM enabled)
 #define ESTOP_OPEN_TIMEOUT_MS \
-  10000  // Equipment stop: max time to wait for the pause to reach zero current before opening contactors anyway
+  7000  // Equipment stop: max time to wait for the pause to reach zero current before opening contactors anyway
 uint16_t pwm_frequency = 20000;
 uint16_t pwm_hold_duty = 250;
 #define PWM_ON_DUTY 1023

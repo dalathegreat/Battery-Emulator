@@ -56,9 +56,9 @@ TEST_F(EstopGracefulOpenTest, EstopHoldsContactorsUntilTimeoutWhenCurrentFlows) 
   EXPECT_EQ(contactorStatus, COMPLETED) << "Still within the timeout window";
   EXPECT_EQ(get_event_pointer(EVENT_ERROR_OPEN_CONTACTOR)->state, EVENT_STATE_INACTIVE);
 
-  set_millis64(100000 + 11000);
+  set_millis64(100000 + 8000);
   handle_contactors();
-  EXPECT_EQ(contactorStatus, DISCONNECTED) << "The wait is bounded: open anyway after the timeout";
+  EXPECT_EQ(contactorStatus, DISCONNECTED) << "The wait is bounded: open anyway after the 7 s timeout";
   EXPECT_EQ(get_event_pointer(EVENT_ERROR_OPEN_CONTACTOR)->state, EVENT_STATE_ACTIVE)
       << "A forced open under load must be visible in the event log";
   EXPECT_EQ(get_event_pointer(EVENT_ERROR_OPEN_CONTACTOR)->data, 1);
