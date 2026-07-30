@@ -1,4 +1,5 @@
 #include "comm_contactorcontrol.h"
+#include "../../battery/BATTERIES.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../devboard/utils/led_handler.h"
@@ -55,6 +56,16 @@ bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a
 unsigned long bmsPowerOnTime = 0;
 const unsigned long bmsWarmupDuration = 3000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
+
+/* The safety layer decrements CAN_battery_still_alive once per second and latches
+   EVENT_CAN_BATTERY_MISSING when it reaches zero, so the BMS may only be silent for
+   CAN_STILL_ALIVE seconds. A reset that keeps the BMS powered off for longer than that
+   would always trip the event, so for those durations we refresh the liveness counters
+   ourselves while the reset runs. Refreshing one second before the window closes keeps
+   the counter from ever reaching zero. Durations that fit inside the window are left
+   alone and keep the original, unmasked behaviour. */
+#define BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS ((unsigned long)(CAN_STILL_ALIVE - 1) * 1000UL)
+unsigned long lastCanKeepaliveTime = 0;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 
@@ -420,6 +431,39 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
   return PeriodicResetVerdict::Run;
 }
 
+/* True when the configured off time outlasts the CAN liveness window and the reset therefore
+   needs the counters held up. Only the off time matters here: the surrounding pause and warmup
+   phases are short and the BMS is on the bus for part of them. To test the statement in Leaf 
+   "GEN4_e_Battery_control_spec_ver1.0.pdf" page 4, "IGN to be OFF for more than 6 min 30 seconds every day. "*/
+static bool bms_reset_needs_can_keepalive() {
+  return datalayer.battery.settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
+}
+
+/* Pretends the batteries were just heard from, and restarts the keepalive interval.
+   Batteries that are not configured are skipped, since the safety layer does not look at
+   their counters either. */
+static void bms_reset_refresh_can_alive() {
+  lastCanKeepaliveTime = currentTime;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  if (battery2) {
+    datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+  if (battery3) {
+    datalayer.battery3.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+}
+
+// Called on every pass through the powered-off and powering-on states of a long reset.
+static void bms_reset_can_keepalive_tick() {
+  if (!bms_reset_needs_can_keepalive()) {
+    return;
+  }
+  if (currentTime - lastCanKeepaliveTime < BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS) {
+    return;
+  }
+  bms_reset_refresh_can_alive();
+}
+
 void handle_BMSpower() {
   //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
   if (datalayer.system.info.equipment_stop_active) {
@@ -491,13 +535,23 @@ void handle_BMSpower() {
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+      bms_reset_can_keepalive_tick();
+
       // Check if the user configured duration has passed
       if (currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
         bms_power_on();
         bmsPowerOnTime = currentTime;
+        /* The last periodic refresh can have been up to a full interval ago, which would leave
+           the BMS only a sliver of the window to get back on the bus. Refreshing here gives it
+           the whole window from power-on, measured from the same moment for every off time. */
+        if (bms_reset_needs_can_keepalive()) {
+          bms_reset_refresh_can_alive();
+        }
         datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERING_ON) {
+      bms_reset_can_keepalive_tick();
+
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
@@ -518,6 +572,9 @@ void start_bms_reset() {
     if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
       // Record when we started the BMS reset process
       lastPowerRemovalTime = millis();
+      // Anchor the keepalive here so the first refresh lands one interval into the reset,
+      // rather than immediately or after a gap left over from a previous reset.
+      lastCanKeepaliveTime = lastPowerRemovalTime;
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
       setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
