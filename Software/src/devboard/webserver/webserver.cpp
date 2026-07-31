@@ -14,6 +14,7 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../i18n/i18n.h"
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -224,6 +225,103 @@ void init_webserver() {
 #endif  // SMALL_FLASH_DEVICE
 
   // Route for firmware info from ota update page
+  // i18n list + catalog serve. ONE dispatcher on purpose: this webserver
+  // prefix-matches plain URIs (url == uri OR url.startsWith(uri + "/")), so a
+  // separate /api/i18n/* route would be shadowed by the /api/i18n list route.
+  def_route_with_auth("/api/i18n", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    String url = request->url();
+    if (url == "/api/i18n" || url == "/api/i18n/") {
+      request->send(200, "application/json",
+                    i18n_list_json(i18n_stored_files(), String(user_selected_language.c_str())));
+      return;
+    }
+    // Sub-path: /api/i18n/<lang>.json -> stored <lang>.json.gz
+    String lang = url.substring(String("/api/i18n/").length());
+    if (lang.endsWith(".json")) {
+      lang = lang.substring(0, lang.length() - 5);
+    }
+    String filename = lang + ".json.gz";
+    int32_t total =
+        i18n_storage_available() && is_valid_i18n_filename(filename) ? i18n_store().length(filename.c_str()) : -1;
+    if (total < 0) {
+      request->send(404, "text/plain", "No such language");
+      return;
+    }
+    AsyncWebServerResponse* response = request->beginResponse(
+        "application/json", total, [filename, total](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
+          size_t remaining = (size_t)total - index;
+          size_t chunk = (remaining < maxLen) ? remaining : maxLen;
+          if (chunk > 0 && !i18n_store().read(filename.c_str(), index, buffer, chunk)) {
+            return 0;
+          }
+          return chunk;
+        });
+    response->addHeader("Content-Encoding", "gzip");
+    response->addHeader("Cache-Control", "no-cache");
+    request->send(response);
+  });
+
+  // NOTE: /api/i18n/delete and /api/i18n/format MUST stay registered before
+  // the /api/i18n upload handler - prefix matching would otherwise route them
+  // to the upload handler.
+  // i18n: delete a stored catalog (both formats of the language)
+  def_route_with_auth("/api/i18n/delete", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("lang", true) || !i18n_storage_available()) {
+      request->send(400, "text/plain", "Bad Request");
+      return;
+    }
+    String lang = request->getParam("lang", true)->value();
+    if (!is_valid_i18n_filename(lang + ".json.gz")) {
+      request->send(400, "text/plain", "Bad Request");
+      return;
+    }
+    i18n_store().remove((lang + ".json.gz").c_str());
+    i18n_store().remove((lang + ".blp").c_str());
+    request->send(200, "text/plain", "OK");
+  });
+
+  // i18n: format the language storage (explicit user action, no auto-format)
+  def_route_with_auth("/api/i18n/format", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (format_i18n_storage()) {
+      request->send(200, "text/plain", "OK");
+    } else {
+      request->send(500, "text/plain", "Format failed");
+    }
+  });
+
+  // i18n: catalog upload (<= 128 KB, validated name, atomic: the previous
+  // catalog stays served until the store's directory flip on commit)
+  server.on(
+      "/api/i18n", HTTP_POST,
+      [](AsyncWebServerRequest* request) {
+        bool ok = request->_tempObject == nullptr;
+        request->send(ok ? 200 : 400, "text/plain", ok ? "OK" : "Upload rejected");
+      },
+      [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
+        if (index == 0) {
+          // The multipart total isn't known up front: reserve from the request
+          // content length (a slight over-estimate; extents are 4 KB anyway)
+          uint32_t reserve = request->contentLength();
+          bool ok = i18n_storage_available() && is_valid_i18n_filename(filename) && reserve > 0 &&
+                    reserve <= I18nStore::MAX_FILE_SIZE && i18n_store().stream_begin(filename.c_str(), reserve);
+          if (!ok) {
+            request->_tempObject = (void*)1;  // Marks rejection for the completion handler
+          }
+        }
+        if (request->_tempObject == nullptr && len > 0) {
+          if (!i18n_store().stream_write(data, len)) {
+            request->_tempObject = (void*)1;
+          }
+        }
+        if (final && request->_tempObject == nullptr) {
+          if (!i18n_store().stream_commit()) {
+            request->_tempObject = (void*)1;
+          }
+        } else if (final) {
+          i18n_store().stream_abort();
+        }
+      });
+
   def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
   });
@@ -638,6 +736,9 @@ void init_webserver() {
                      [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
 
   // Route for editing SOCMax
+  // Route for selecting the active language ("" = built-in English)
+  update_string_setting("/updateLanguage", [](String value) { user_selected_language = value.c_str(); });
+
   update_string_setting("/updateSocMax", [](String value) {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });

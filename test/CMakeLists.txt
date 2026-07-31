@@ -72,6 +72,8 @@ add_executable(tests
     offgrid_downgrade_tests.cpp
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
+    i18n_util_tests.cpp
+    i18n_store_tests.cpp
     estop_graceful_open_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
@@ -83,6 +85,8 @@ add_executable(tests
     battery/UdsCanBatteryTest.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
+    ../Software/src/devboard/i18n/i18n_util.cpp
+    ../Software/src/devboard/i18n/i18n_store.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
