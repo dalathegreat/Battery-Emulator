@@ -179,8 +179,9 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = 3000;
-  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
-  uint16_t user_set_bms_reset_duration_ms = 30000;
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset.
+   * 32-bit because the setting accepts up to 600 s, which does not fit in a uint16_t */
+  uint32_t user_set_bms_reset_duration_ms = 30000;
   /* Max cell voltage during forced balancing */
   uint16_t balancing_max_cell_voltage_mV = 3650;
   /* Max cell deviation allowed during forced balancing */
