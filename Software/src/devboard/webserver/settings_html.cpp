@@ -8,6 +8,44 @@
 #include "../../datalayer/datalayer.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
+
+#define I18N_SETTINGS_BLOCK \
+  R"rawliteral(
+        <div class="settings-card">
+        <h3>Languages</h3>
+        <label>Active language: </label>
+        <select id='i18nLang' onchange='i18nSetLang()'><option value=''>English (built-in)</option></select>
+        <button onclick='i18nDelete()'>Delete</button>
+        <div id='i18nDrop' style='border:1px dashed #888;padding:8px;margin:4px 0;'
+          ondragover='event.preventDefault()' ondrop='i18nDrop(event)'>
+          Drop a language file here (ll.json.gz / ll.blp), or
+          <input type='file' onchange='i18nUpload(this.files[0])' />
+        </div>
+        <button onclick='i18nFormat()'>Format language storage</button>
+        </div>
+)rawliteral"
+#define I18N_SETTINGS_JS \
+  R"rawliteral(
+    function i18nRefresh(){fetch('/api/i18n').then(r=>r.json()).then(d=>{
+      var s=document.getElementById('i18nLang');s.innerHTML='';
+      var o=document.createElement('option');o.value='';o.text='English (built-in)';s.add(o);
+      d.languages.forEach(function(l){var o=document.createElement('option');o.value=l;o.text=l;s.add(o);});
+      s.value=d.active;}).catch(function(){});}
+    function i18nSetLang(){var v=document.getElementById('i18nLang').value;
+      fetch('/updateLanguage?value='+encodeURIComponent(v)).then(function(){location.reload();});}
+    function i18nUpload(f){if(!f){return;}var fd=new FormData();fd.append('file',f,f.name);
+      fetch('/api/i18n',{method:'POST',body:fd}).then(function(r){
+        if(!r.ok){alert('Upload rejected');}i18nRefresh();});}
+    function i18nDrop(e){e.preventDefault();if(e.dataTransfer.files.length){i18nUpload(e.dataTransfer.files[0]);}}
+    function i18nDelete(){var v=document.getElementById('i18nLang').value;
+      if(!v||!confirm('Delete language '+v+'?')){return;}
+      var fd=new FormData();fd.append('lang',v);
+      fetch('/api/i18n/delete',{method:'POST',body:fd}).then(function(){i18nRefresh();});}
+    function i18nFormat(){if(!confirm('Format the language storage? All installed languages are erased.')){return;}
+      fetch('/api/i18n/format',{method:'POST'}).then(function(r){
+        alert(r.ok?'Formatted':'Format failed');i18nRefresh();});}
+    window.addEventListener('load',i18nRefresh);)rawliteral"
+
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
@@ -1237,6 +1275,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
+)rawliteral" I18N_SETTINGS_JS R"rawliteral(
+
         function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
           if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
@@ -2149,6 +2189,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
+)rawliteral" I18N_SETTINGS_BLOCK R"rawliteral(
         <div class="settings-card">
         <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
