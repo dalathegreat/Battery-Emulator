@@ -546,22 +546,18 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
       FORD_25B.data.u8[2] = 0x09;
     }
 
-    transmit_can_frame(&FORD_25B);
+    transmit_can_frame(&FORD_25B);  //Contactor control
 
-    //Full vehicle emulation, not required
-    /*
-    //transmit_can_frame(&FORD_217); Not needed for contactor closing
-    //transmit_can_frame(&FORD_442); Not needed for contactor closing
-    */
+    //transmit_can_frame(&FORD_217);  //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_442);  //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_48F);  //Confirmed does NOT help reduce amount of DTCs
   }
 
   // Send 30ms CAN Message
   if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
     previousMillis30 = currentMillis;
 
-    //Full vehicle emulation, not required
     /*
-
     counter_30ms = (counter_30ms + 1) % 16;  // cycles 0-15
 
     // Byte 2: upper nibble = 0xF, lower nibble = (0xF - counter_10ms) % 16
@@ -594,29 +590,30 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     // Byte 7: counts down by 2 each step, maintaining byte6 + byte7 = 0x7F
     FORD_200.data.u8[7] = 0x7F - (counter_8_30ms * 2);
 
-    //transmit_can_frame(&FORD_77); Not needed for contactor closing
-    //transmit_can_frame(&FORD_7D); Not needed for contactor closing
-    //transmit_can_frame(&FORD_167); Not needed for contactor closing
-    //transmit_can_frame(&FORD_48F);  //Only sent in AC charging logs! Not needed for contactor closing
-    //transmit_can_frame(&FORD_204); Not needed for contactor closing
-    //transmit_can_frame(&FORD_4B0); Not needed for contactor closing
-    //transmit_can_frame(&FORD_47); Not needed for contactor closing
-    //transmit_can_frame(&FORD_230); Not needed for contactor closing
-    //transmit_can_frame(&FORD_415); Not needed for contactor closing
-    //transmit_can_frame(&FORD_4C);  Not needed for contactor closing
-    //transmit_can_frame(&FORD_7E); Not needed for contactor closing
-    //transmit_can_frame(&FORD_48); Not needed for contactor closing
-    //transmit_can_frame(&FORD_165); Not needed for contactor closing
-    //transmit_can_frame(&FORD_7F); Not needed for contactor closing
-    transmit_can_frame(&FORD_200);
     */
+
+    //transmit_can_frame(&FORD_77); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_47); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_48); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_7D); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_200); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_204); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_415); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_4B0); //Confirmed does NOT help reduce amount of DTCs
+
+    transmit_can_frame(&FORD_167);  //Some code here removes one DTC (P1A42 Propulsion System Status Signal Performance)
+    transmit_can_frame(&FORD_230);  //Some code here removes one DTC (P1A42 Propulsion System Status Signal Performance)
+    transmit_can_frame(&FORD_7F);   //Some code here removes one DTC (P1A42 Propulsion System Status Signal Performance)
+    transmit_can_frame(&FORD_165);  //Some code here removes one DTC (P1A42 Propulsion System Status Signal Performance)
+    transmit_can_frame(&FORD_7E);   //Some code here removes one DTC (P1A42 Propulsion System Status Signal Performance)
+    transmit_can_frame(&FORD_4C);   //Some code here removes one DTC (P1A42 Propulsion System Status Signal Performance)
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
-    //transmit_can_frame(&FORD_42C); Not needed for contactor closing
-    //transmit_can_frame(&FORD_42F); Not needed for contactor closing
-    //transmit_can_frame(&FORD_43D);
+    //transmit_can_frame(&FORD_42C);  //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_42F);  //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_43D);  //Confirmed does NOT help reduce amount of DTCs
   }
 
   // Send 100ms CAN Message
@@ -625,24 +622,20 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&FORD_185);  // Required to close contactors
 
-    //Full vehicle emulation, not required
-    /*
-    transmit_can_frame(
-        &FORD_12F);  //This message actually has checksum/counter, but it seems to close contactors without those
-    transmit_can_frame(&FORD_332);
-    transmit_can_frame(&FORD_333);
-    transmit_can_frame(&FORD_42B);
-    transmit_can_frame(&FORD_2EC);
-    transmit_can_frame(&FORD_156);
-    transmit_can_frame(
-        &FORD_5A);  //This message actually has checksum/counter, but it seems to close contactors without those
-    transmit_can_frame(&FORD_166);
-    transmit_can_frame(&FORD_175);
-    transmit_can_frame(&FORD_178);
-    transmit_can_frame(&FORD_203);  //MANDATORY FOR CONTACTOR OPERATION
-    transmit_can_frame(
-        &FORD_176);  //This message actually has checksum/counter, but it seems to close contactors without those
-*/
+    //FORD_5A.data.u8
+    //transmit_can_frame(&FORD_5A);
+
+    //transmit_can_frame(&FORD_12F);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_203);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_332);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_333);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_42B);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_2EC);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_156);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_166);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_175);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_178);//Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_176);//Confirmed does NOT help reduce amount of DTCs
   }
 
   // Send 250ms CAN Message
@@ -666,11 +659,9 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-    //Full vehicle emulation, not required
-    /*
-    transmit_can_frame(&FORD_3C3);
-    transmit_can_frame(&FORD_581);
-    */
+
+    //transmit_can_frame(&FORD_3C3); //Confirmed does NOT help reduce amount of DTCs
+    //transmit_can_frame(&FORD_581); //Confirmed does NOT help reduce amount of DTCs
   }
 }
 

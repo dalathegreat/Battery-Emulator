@@ -134,6 +134,9 @@ static bool supports_tesla_dcdc_metrics(Battery* b) {
 static bool supports_byd_autocal_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::BydAtto3;
 }
+static bool supports_byd_metrics(Battery* b) {
+  return b != nullptr && user_selected_battery_type == BatteryType::BydAtto3;
+}
 static bool supports_insulation(Battery* b) {
   return b != nullptr && b->supports_insulation_resistance();
 }
@@ -167,7 +170,9 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"autocal_taper", "BYD Auto-cal: In Taper", "", "", supports_byd_autocal_metrics},
     {"autocal_dwell_s", "BYD Auto-cal: Dwell Time", "s", "duration", supports_byd_autocal_metrics},
     {"autocal_cooldown_ready", "BYD Auto-cal: Cooldown Ready", "", "", supports_byd_autocal_metrics},
-    {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "battery", supports_byd_autocal_metrics}};
+    {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "battery", supports_byd_autocal_metrics},
+    {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
+    {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -355,6 +360,12 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["autocal_dwell_s"] = byd.autocal_dwell_accumulated_ms / 1000u;
     doc["autocal_cooldown_ready"] = byd.autocal_crit_cooldown_ready;
     doc["autocal_soc_drift"] = byd.autocal_drift_percent;
+  }
+  if (supports_byd_metrics(::battery)) {
+    const DATALAYER_INFO_BYDATTO3& byd =
+        (battery_index == 2) ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
+    doc["min_cell_number"] = byd.BMS_min_cell_voltage_number;
+    doc["max_cell_number"] = byd.BMS_max_cell_voltage_number;
   }
 }
 

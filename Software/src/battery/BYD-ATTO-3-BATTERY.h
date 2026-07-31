@@ -75,10 +75,7 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
   static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
-  static const int POLL_MIN_CELL_VOLTAGE_NUMBER = 0x002A;
-  static const int POLL_FOR_BATTERY_CELL_MV_MIN = 0x002B;
-  static const int POLL_MAX_CELL_VOLTAGE_NUMBER = 0x002C;
-  static const int POLL_FOR_BATTERY_CELL_MV_MAX = 0x002D;
+  // 0x002A-0x002D (cell min/max number + voltage) are sourced from the 0x446 broadcast, not polled.
   static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
   static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002F;
   static const int POLL_MAX_TEMP_MODULE_NUMBER = 0x0030;

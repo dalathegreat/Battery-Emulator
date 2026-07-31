@@ -153,7 +153,7 @@ void KiaEGmpBattery::update_values() {
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
-  if ((millis() > INTERVAL_60_S) && !set_voltage_limits) {
+  if ((millis64() > INTERVAL_60_S) && !set_voltage_limits) {  // millis64: plain millis() wraps after 49.7 days
     set_voltage_limits = true;
     set_voltage_minmax_limits();  // Count cells, and set voltage limits accordingly
   }

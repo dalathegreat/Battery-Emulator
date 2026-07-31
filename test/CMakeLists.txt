@@ -72,9 +72,11 @@ add_executable(tests
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     soc_window_tests.cpp
+    estop_graceful_open_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
-    battery/NissanLeafTest.cpp 
+    battery/NissanLeafTest.cpp
+    battery/foxess_tests.cpp 
     battery/still_alive_tests.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
