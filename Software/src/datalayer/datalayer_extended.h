@@ -910,14 +910,7 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint8_t HVSysDCRlySts1;
   uint8_t HVSysDCRlySts2;
   uint8_t HVSysIsoRMonrSts;
-  uint8_t DTCcount;
   uint8_t HVILstatusBits;
-  /** User requesting DTC reset via WebUI*/
-  bool UserRequestDTCreset;
-  /** User requesting DTC readout via WebUI*/
-  bool UserRequestDTCreadout;
-  /** User requesting BECM reset via WebUI*/
-  bool UserRequestBECMecuReset;
 };
 
 struct DATALAYER_INFO_VOLVO_HYBRID {
