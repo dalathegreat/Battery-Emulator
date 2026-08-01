@@ -65,6 +65,12 @@ class I18nStore {
 
   uint32_t free_space() const;
 
+  /* Bumped by every committed change to the directory. A reader streaming a
+   * catalog over several callbacks captures this first and re-checks it per
+   * chunk: extents move on commit, so a generation change means the bytes it
+   * is about to read may belong to a different file. */
+  uint32_t generation() const { return sequence_; }
+
  private:
   I18nFlash& flash_;
   bool mounted_ = false;

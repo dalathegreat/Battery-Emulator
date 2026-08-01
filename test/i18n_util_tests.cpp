@@ -42,3 +42,24 @@ TEST(I18nUtilTest, ListJsonEmptyStorage) {
   String json = i18n_list_json(files, "");
   EXPECT_STREQ(json.c_str(), "{\"active\":\"\",\"languages\":[]}");
 }
+
+TEST(I18nUtilTest, ValidLanguageCodes) {
+  EXPECT_TRUE(is_valid_language_code("sv"));
+  EXPECT_TRUE(is_valid_language_code("pt-BR"));
+  EXPECT_FALSE(is_valid_language_code(""));
+  EXPECT_FALSE(is_valid_language_code("s"));
+  EXPECT_FALSE(is_valid_language_code("SV"));
+  EXPECT_FALSE(is_valid_language_code("sve"));
+  EXPECT_FALSE(is_valid_language_code("pt-br"));
+  EXPECT_FALSE(is_valid_language_code("pt_BR"));
+  EXPECT_FALSE(is_valid_language_code("sv\"x"));
+}
+
+// A stale or hand-written NVS value must not be able to break out of the
+// JSON string literal it is interpolated into.
+TEST(I18nUtilTest, ListJsonRejectsMalformedActiveLanguage) {
+  std::vector<String> files = {"sv.json.gz"};
+  EXPECT_STREQ(i18n_list_json(files, "\",\"x\":\"").c_str(), "{\"active\":\"\",\"languages\":[\"sv\"]}");
+  EXPECT_STREQ(i18n_list_json(files, "</script>").c_str(), "{\"active\":\"\",\"languages\":[\"sv\"]}");
+  EXPECT_STREQ(i18n_list_json(files, "sv").c_str(), "{\"active\":\"sv\",\"languages\":[\"sv\"]}");
+}

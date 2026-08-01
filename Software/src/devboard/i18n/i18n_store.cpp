@@ -52,15 +52,30 @@ bool I18nStore::mount() {
     if (found && sequence <= sequence_) {
       continue;
     }
-    found = true;
-    sequence_ = sequence;
-    active_block_ = block;
-    entries_.clear();
+    // A valid CRC only proves the block is the one we wrote; it does not make
+    // the extents it describes sane. Everything downstream (read, find_extent,
+    // compact) assumes entries stay inside the partition, so enforce it here
+    // rather than trusting flash content.
+    std::vector<I18nStoreEntry> parsed;
+    bool entries_valid = true;
     for (uint16_t i = 0; i < count; i++) {
       I18nStoreEntry entry;
       memcpy(&entry, buf + DIR_HEADER_SIZE + i * sizeof(I18nStoreEntry), sizeof(I18nStoreEntry));
-      entries_.push_back(entry);
+      entry.name[sizeof(entry.name) - 1] = '\0';  // Never let a name run off the field
+      if (entry.name[0] == '\0' || entry.length == 0 || entry.length > MAX_FILE_SIZE || entry.offset < DATA_START ||
+          entry.offset > flash_.size() || entry.length > flash_.size() - entry.offset) {
+        entries_valid = false;
+        break;
+      }
+      parsed.push_back(entry);
     }
+    if (!entries_valid) {
+      continue;  // Fall back to the other block
+    }
+    found = true;
+    sequence_ = sequence;
+    active_block_ = block;
+    entries_ = parsed;
   }
   mounted_ = found;
   return mounted_;

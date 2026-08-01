@@ -37,6 +37,13 @@ bool is_valid_i18n_filename(const String& name) {
   return strcmp(suffix, ".json.gz") == 0 || strcmp(suffix, ".blp") == 0;
 }
 
+bool is_valid_language_code(const String& code) {
+  if (code.length() != 2 && code.length() != 5) {
+    return false;
+  }
+  return language_code_length(code.c_str()) == code.length();
+}
+
 String i18n_language_from_filename(const String& name) {
   if (!is_valid_i18n_filename(name)) {
     return "";
@@ -64,7 +71,11 @@ String i18n_list_json(const std::vector<String>& filenames, const String& active
       languages.push_back(lang);
     }
   }
-  String json = "{\"active\":\"" + active_language + "\",\"languages\":[";
+  // Never interpolate the stored value raw: it reaches the page as JSON and
+  // a stale/hand-written NVS value must not be able to break out of the
+  // string literal. Anything that is not a well-formed code reads as "".
+  String active = is_valid_language_code(active_language) ? active_language : String("");
+  String json = "{\"active\":\"" + active + "\",\"languages\":[";
   for (unsigned int i = 0; i < languages.size(); i++) {
     if (i > 0) {
       json += ",";
