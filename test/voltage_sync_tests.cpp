@@ -128,3 +128,32 @@ TEST_F(VoltageSyncTest, ZeroVoltageSkipsCheck) {
   // Should remain unchanged — early return
   EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
 }
+
+/* The 3700 dV sentinel means "no voltage decoded yet", but it is also a
+ * perfectly ordinary reading for a 370.0 V pack. Treating it as a continuous
+ * skip condition means a joined pair that drifts apart while ONE pack happens
+ * to read exactly 3700 never reaches the disengage, because the skip returns
+ * before the code that manages the contactor permission. Once both packs have
+ * been seen with real values, the check must never be skipped again.
+ *
+ * Note these tests share the latch, which is function-local static state: the
+ * fixture below deliberately drives it to the latched position first rather
+ * than assuming a starting point. */
+TEST_F(VoltageSyncTest, Battery2DisengagesWhenMainSitsAtTheSentinelVoltage) {
+  // Latch: one pass with both packs reporting real, in-sync voltages
+  datalayer.battery.status.voltage_dV = 3750;
+  datalayer.battery2.status.voltage_dV = 3750;
+  check_parallel_battery_safety(2);
+  ASSERT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+
+  // Now the main pack genuinely reads 370.0 V while battery2 drifts far away
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery2.status.voltage_dV = 3500;  // 20 V apart, way over 1.5 V
+
+  for (int i = 0; i < 10; i++) {
+    check_parallel_battery_safety(2);
+  }
+  check_parallel_battery_safety(2);
+  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing)
+      << "A pack sitting at exactly 370.0 V must not suspend the drift check";
+}
