@@ -260,8 +260,8 @@ class BydAttoBattery : public CanBattery {
   // Explicit flags, not zero timestamps: millis() is legitimately 0 at boot and at rollover.
   bool powerLimitFrameReceived = false;   // Checksum-valid 0x345 seen
   bool temperatureFrameReceived = false;  // Checksum-valid 0x447 seen
-  bool closeConfirmPending = false;               // Only for user closes, not the boot default
-  bool openTimeoutEventSent = false;              // Open-delay warning fired once per attempt
+  bool closeConfirmPending = false;       // Only for user closes, not the boot default
+  bool openTimeoutEventSent = false;      // Open-delay warning fired once per attempt
   bool requestContactorOpen = false;
   bool requestContactorClose = false;
   bool previousContactorsAllowedClosed = false;  // Combined fault + equipment-stop + inverter-permission state
@@ -287,7 +287,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
-  bool battery_insulation_valid = false;   // Zero is a valid 0x43A fault reading, so track receipt separately
+  bool battery_insulation_valid = false;  // Zero is a valid 0x43A fault reading, so track receipt separately
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
