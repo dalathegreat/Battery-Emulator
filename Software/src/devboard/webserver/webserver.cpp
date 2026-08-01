@@ -179,6 +179,50 @@ void canReplayTask(void* param) {
   vTaskDelete(NULL);
 }
 
+/* Upload rejection flag.
+ *
+ * Deliberately NOT AsyncWebServerRequest::_tempObject: the request destructor
+ * calls free() on that slot unconditionally (WebRequest.cpp), so a sentinel
+ * value like (void*)1 is passed straight to free() and corrupts the heap -
+ * an immediate panic and reboot on every rejected upload. Storing a real
+ * malloc'd byte would be legal but fails exactly when the heap is exhausted,
+ * which is one of the states the rejection path exists to handle.
+ *
+ * The store permits one stream at a time and the async server runs these
+ * callbacks on a single task, so one owner slot is sufficient. A request that
+ * is not the current owner is treated as rejected. */
+static AsyncWebServerRequest* upload_owner = nullptr;
+static bool upload_rejected = false;
+
+static void begin_upload(AsyncWebServerRequest* request) {
+  upload_owner = request;
+  upload_rejected = false;
+}
+
+static void reject_upload(AsyncWebServerRequest* request) {
+  if (request == upload_owner) {
+    upload_rejected = true;
+  }
+}
+
+// Null while the upload is still good; non-null once rejected (or if this
+// request never owned the upload at all).
+static const void* upload_state(AsyncWebServerRequest* request) {
+  if (request != upload_owner || upload_rejected) {
+    return &upload_rejected;
+  }
+  return nullptr;
+}
+
+// True when the request may write to the language store. Uploads cannot lean
+// on the server middleware chain for this - see the /api/i18n POST handler.
+static bool i18n_upload_authorized(AsyncWebServerRequest* request) {
+  if (!webserver_auth_is_ready()) {
+    return true;  // No credentials configured: same posture as every other route
+  }
+  return request->authenticate(http_username.c_str(), http_password.c_str());
+}
+
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
                          std::function<void(AsyncWebServerRequest*)> handler) {
   serv.on(uri, method, [handler](AsyncWebServerRequest* request) {
@@ -247,15 +291,23 @@ void init_webserver() {
       request->send(404, "text/plain", "No such language");
       return;
     }
-    AsyncWebServerResponse* response = request->beginResponse(
-        "application/json", total, [filename, total](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
-          size_t remaining = (size_t)total - index;
-          size_t chunk = (remaining < maxLen) ? remaining : maxLen;
-          if (chunk > 0 && !i18n_store().read(filename.c_str(), index, buffer, chunk)) {
-            return 0;
-          }
-          return chunk;
-        });
+    // The store hands out extents, and an upload/delete/format that commits
+    // mid-transfer moves them. Abort rather than splice bytes from whatever
+    // now occupies the extent: a truncated gzip fails cleanly at the client.
+    uint32_t generation = i18n_store().generation();
+    AsyncWebServerResponse* response =
+        request->beginResponse("application/json", total,
+                               [filename, total, generation](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
+                                 if (i18n_store().generation() != generation) {
+                                   return 0;
+                                 }
+                                 size_t remaining = (size_t)total - index;
+                                 size_t chunk = (remaining < maxLen) ? remaining : maxLen;
+                                 if (chunk > 0 && !i18n_store().read(filename.c_str(), index, buffer, chunk)) {
+                                   return 0;
+                                 }
+                                 return chunk;
+                               });
     response->addHeader("Content-Encoding", "gzip");
     response->addHeader("Cache-Control", "no-cache");
     request->send(response);
@@ -291,31 +343,45 @@ void init_webserver() {
 
   // i18n: catalog upload (<= 128 KB, validated name, atomic: the previous
   // catalog stays served until the store's directory flip on commit)
+  //
+  // The upload handler must authenticate itself. The server middleware chain
+  // (and therefore the auth middleware) only runs at PARSE_REQ_END - after
+  // the whole body has been parsed and every onUpload chunk has already been
+  // handed to us. Relying on the middleware would let an unauthenticated
+  // request erase and rewrite the language partition before it is rejected.
   server.on(
       "/api/i18n", HTTP_POST,
       [](AsyncWebServerRequest* request) {
-        bool ok = request->_tempObject == nullptr;
+        if (!i18n_upload_authorized(request)) {
+          return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
+        }
+        bool ok = upload_state(request) == nullptr;
         request->send(ok ? 200 : 400, "text/plain", ok ? "OK" : "Upload rejected");
       },
       [](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final) {
         if (index == 0) {
+          begin_upload(request);
+          if (!i18n_upload_authorized(request)) {
+            reject_upload(request);  // Nothing touches flash on an unauthenticated request
+            return;
+          }
           // The multipart total isn't known up front: reserve from the request
           // content length (a slight over-estimate; extents are 4 KB anyway)
           uint32_t reserve = request->contentLength();
           bool ok = i18n_storage_available() && is_valid_i18n_filename(filename) && reserve > 0 &&
                     reserve <= I18nStore::MAX_FILE_SIZE && i18n_store().stream_begin(filename.c_str(), reserve);
           if (!ok) {
-            request->_tempObject = (void*)1;  // Marks rejection for the completion handler
+            reject_upload(request);
           }
         }
-        if (request->_tempObject == nullptr && len > 0) {
+        if (upload_state(request) == nullptr && len > 0) {
           if (!i18n_store().stream_write(data, len)) {
-            request->_tempObject = (void*)1;
+            reject_upload(request);
           }
         }
-        if (final && request->_tempObject == nullptr) {
+        if (final && upload_state(request) == nullptr) {
           if (!i18n_store().stream_commit()) {
-            request->_tempObject = (void*)1;
+            reject_upload(request);
           }
         } else if (final) {
           i18n_store().stream_abort();
@@ -737,7 +803,9 @@ void init_webserver() {
 
   // Route for editing SOCMax
   // Route for selecting the active language ("" = built-in English)
-  update_string_setting("/updateLanguage", [](String value) { user_selected_language = value.c_str(); });
+  update_string_setting(
+      "/updateLanguage", [](String value) { user_selected_language = value.c_str(); },
+      [](String value) { return value.length() == 0 || is_valid_language_code(value); });
 
   update_string_setting("/updateSocMax", [](String value) {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);

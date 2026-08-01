@@ -208,3 +208,50 @@ TEST(I18nStoreTest, UploadCapAndNameLimits) {
   store.stream_abort();
   EXPECT_FALSE(store.stream_begin("this-name-is-way-too-long-for-an-entry.json.gz", 100));
 }
+
+// A directory block whose CRC checks out still only proves we wrote it. If
+// the extents it names fall outside the partition, every later read/compact
+// would work from those numbers - so the block has to be rejected at mount.
+TEST(I18nStoreTest, DirectoryWithOutOfRangeExtentIsRejected) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('A', 5000)));
+
+  // Rewrite the active block with an entry pointing past the end of flash,
+  // fixing up the CRC so only the range check can catch it.
+  uint8_t block[I18nStore::DIR_BLOCK_MAX];
+  ASSERT_TRUE(flash.read(I18nStore::SECTOR, block, sizeof(block)));
+  uint16_t count = 0;
+  memcpy(&count, block + 10, 2);
+  ASSERT_EQ(count, 1u);
+  uint32_t bogus_offset = 120 * 1024;
+  uint32_t bogus_length = 64 * 1024;  // Runs off the end of a 128 KB partition
+  memcpy(block + I18nStore::DIR_HEADER_SIZE + 24, &bogus_offset, 4);
+  memcpy(block + I18nStore::DIR_HEADER_SIZE + 28, &bogus_length, 4);
+  size_t payload = I18nStore::DIR_HEADER_SIZE + count * sizeof(I18nStoreEntry);
+  uint32_t crc = i18n_crc32(0, block, payload);
+  memcpy(block + payload, &crc, 4);
+  ASSERT_TRUE(flash.erase(I18nStore::SECTOR, I18nStore::SECTOR));
+  ASSERT_TRUE(flash.write(I18nStore::SECTOR, block, payload + 4));
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount()) << "Falls back to the older block, which is still sane";
+  EXPECT_FALSE(reopened.exists("sv.json.gz")) << "The out-of-range generation must not be adopted";
+}
+
+// Committing a change moves extents; a reader that captured a generation
+// needs to be able to see that its extent may no longer be its own.
+TEST(I18nStoreTest, GenerationChangesOnEveryCommit) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  uint32_t after_format = store.generation();
+
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('A', 5000)));
+  uint32_t after_upload = store.generation();
+  EXPECT_NE(after_format, after_upload);
+
+  ASSERT_TRUE(store.remove("sv.json.gz"));
+  EXPECT_NE(after_upload, store.generation());
+}
