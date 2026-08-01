@@ -66,21 +66,15 @@ class BydAttoBattery : public CanBattery {
   uint32_t autocal_grace_start_ms = 0;  // When current left the valid window
 
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
-  static const int POLL_FOR_BATTERY_SOC = 0x0005;
-  // 0x0008 (voltage) and 0x0009 (current) are no longer polled; 0x438 and 0x444 carry them faster
-  static const int POLL_MAX_CHARGE_POWER = 0x000A;
+  // 0x0005/0x0008/0x0009 (SOC, voltage, current) come from 0x444 and 0x438, not polled.
+  // 0x000A/0x000E (allowed charge/discharge power) come from 0x345 at ~100ms, not polled.
   static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
-  static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
   static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
   // 0x002A-0x002D (cell min/max number + voltage) are sourced from the 0x446 broadcast, not polled.
-  static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
-  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002F;
-  static const int POLL_MAX_TEMP_MODULE_NUMBER = 0x0030;
-  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
-  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
+  // 0x002E-0x0032 (temperatures and sensor numbers) are sourced from the 0x447 broadcast, not polled.
   static const int POLL_MODULE_1_LOWEST_MV_NUMBER = 0x016C;
   static const int POLL_MODULE_1_LOWEST_CELL_MV = 0x016D;
   static const int POLL_MODULE_1_HIGHEST_MV_NUMBER = 0x016E;
@@ -149,7 +143,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
 
   uint16_t rampdown_power = 0;
-  uint16_t poll_state = POLL_FOR_BATTERY_SOC;
+  uint16_t poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
   uint16_t pid_reply = 0;
   uint16_t battery_voltage = 0;                  // Whole volts from 0x444, used for the 0x441 link voltage
   uint16_t battery_voltage_dV = 0;               // Deci-volts from 0x438, primary pack voltage
@@ -175,8 +169,6 @@ class BydAttoBattery : public CanBattery {
   uint16_t solvedKey = 0;
 
   int16_t battery_temperature_ambient = 0;
-  int16_t battery_lowest_temperature = 0;
-  int16_t battery_highest_temperature = 0;
   int16_t battery_calc_min_temperature = 0;
   int16_t battery_calc_max_temperature = 0;
   int16_t battery_current_dA = 0;  // 0x444, deci-amps, negative while charging
@@ -252,6 +244,10 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t OPEN_CONFIRM_TIMEOUT_MS = 6000;    // Warn if the BMS hasn't opened by now
   static const uint32_t OPEN_TO_STANDBY_DELAY_MS = 2500;   // Car's wait between open and standby
   static const uint32_t CLOSE_CONFIRM_TIMEOUT_MS = 15000;  // Warn if the BMS hasn't closed by now
+  // Checked in update_values(), which runs at 1Hz, so the real worst case is the threshold plus a
+  // loop period: ~1.5s for power, ~6s for temperatures.
+  static const uint32_t POWER_LIMIT_STALE_MS = 500;   // ~5 missed 0x345 (~100ms cadence)
+  static const uint32_t TEMPERATURE_STALE_MS = 5000;  // ~5 missed 0x447 (~1s cadence)
 
   uint8_t contactorState = CONTACTORS_CLOSING;  // Boot default: close right away, as before
   uint8_t contactor_feedback = 0;               // Raw 0x344 byte 0
@@ -259,6 +255,11 @@ class BydAttoBattery : public CanBattery {
   unsigned long closeConfirmStartMillis = 0;
   unsigned long lastCurrentSampleMillis = 0;
   unsigned long lastContactorFeedbackMillis = 0;  // 0 = no 0x344 received yet
+  unsigned long lastPowerLimitFrameMillis = 0;
+  unsigned long lastTemperatureFrameMillis = 0;
+  // Explicit flags, not zero timestamps: millis() is legitimately 0 at boot and at rollover.
+  bool powerLimitFrameReceived = false;   // Checksum-valid 0x345 seen
+  bool temperatureFrameReceived = false;  // Checksum-valid 0x447 seen
   bool closeConfirmPending = false;               // Only for user closes, not the boot default
   bool openTimeoutEventSent = false;              // Open-delay warning fired once per attempt
   bool requestContactorOpen = false;
@@ -286,7 +287,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
-  bool battery_insulation_valid = false;  // Zero is a valid 0x43A fault reading, so track receipt separately
+  bool battery_insulation_valid = false;   // Zero is a valid 0x43A fault reading, so track receipt separately
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
@@ -316,8 +317,8 @@ class BydAttoBattery : public CanBattery {
   CAN_frame ATTO_3_7E7_POLL = {.FD = false,
                                .ext_ID = false,
                                .DLC = 8,
-                               .ID = 0x7E7,  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
-                               .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
+                               .ID = 0x7E7,  //Poll PID 03 22 1F FE (POLL_FOR_ORIGINAL_CALIBRATION)
+                               .data = {0x03, 0x22, 0x1F, 0xFE, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ATTO_3_7E7_ACK = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
