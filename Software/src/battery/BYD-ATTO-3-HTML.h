@@ -192,11 +192,11 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
 
     // Shared geometry for the three calibration panels below, so they line up with each other
-    const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4;width:180px;text-align:right'>";
-    const char* value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
+    const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4;width:50%;text-align:right'>";
+    const char* value_td = "<td style='padding:3px 0;color:white;font-weight:bold;text-align:left'>";
     const char* panel_table =
         "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white;"
-        "width:460px;table-layout:fixed'>";
+        "width:100%;max-width:460px;table-layout:fixed'>";
 
     // Native BMS termination. Off by default: the battery refuses the charge context while it reports
     // an insulation fault, so a pack out of a car usually needs its case isolated from earth first.
