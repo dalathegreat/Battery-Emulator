@@ -123,6 +123,7 @@ Navigate to Battery-Emulator/test folder
 ```
 sudo cmake CMakeLists.txt
 sudo make
+ctest --rerun-failed --output-on-failure
 ```
 
 ## Downloading a pull request build to test locally 🛜
