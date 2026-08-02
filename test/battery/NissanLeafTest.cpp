@@ -238,19 +238,6 @@ TEST(NissanLeafDtcTests, ShouldNotSendRequestWhileEarlierRequestIsUnanswered) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
 }
 
-// With BS=0 flow control the LBC streams every consecutive frame unprompted, so the reply must
-// still reassemble when no further flow control is sent between frames.
-TEST(NissanLeafDtcTests, ShouldReassembleBurstedMultiFrameReply) {
-  auto battery = battery_awaiting_dtc_reply();
-
-  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, 0x13, 0x59, 0x02, 0x4E, 0xD0, 0x00, 0x00}));
-  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x4E, 0x33, 0xD7, 0x00, 0x4E, 0x33, 0xD9}));
-  battery->handle_incoming_can_frame(leaf_7bb_frame({0x22, 0x00, 0x4E, 0x33, 0xDD, 0x00, 0x4E, 0xFF}));
-
-  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 4);
-  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[3], 0x33DD00u);
-}
-
 // The periodic group polling answers on 0x7BB too, and its first frame carries 0x02 in the byte the
 // group handler reads as a group number. The 0x61 service byte is what keeps the two apart, so a
 // group reply arriving mid-readout must not be swallowed by the DTC reassembler.

@@ -149,16 +149,6 @@ class NissanLeafBattery : public CanBattery {
                                       .DLC = 8,
                                       .ID = 0x79B,
                                       .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-  // Flow control for the DTC readout. BS=0 tells the LBC to send every remaining consecutive frame
-  // without waiting for another flow control, so the whole reply arrives in one burst. The group
-  // polling above uses BS=1 and asks frame by frame; for a DTC reply that would mean a flow control
-  // round trip through the main loop per frame, and a long list would be at the mercy of loop
-  // latency. This also matches the flow control used in the reference LBC capture.
-  CAN_frame LEAF_DTC_FLOW_CONTROL = {.FD = false,
-                                     .ext_ID = false,
-                                     .DLC = 8,
-                                     .ID = 0x79B,
-                                     .data = {0x30, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
   CAN_frame LEAF_CLEAR_DTC = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,

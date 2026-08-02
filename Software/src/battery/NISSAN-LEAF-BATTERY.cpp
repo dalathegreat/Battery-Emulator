@@ -447,7 +447,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
           }
           dtc_rx_active = true;
-          transmit_can_frame(&LEAF_DTC_FLOW_CONTROL);  //BS=0: send the remaining frames in one burst
+          transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
           break;
         }
 
@@ -457,8 +457,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           if (dtc_rx_len >= dtc_rx_expected) {
             parseDTCResponse();
+          } else {
+            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);
           }
-          //No flow control here: BS=0 asked the LBC to stream the rest unprompted.
           break;
         }
 
@@ -749,7 +750,10 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   // nothing else is talking on the channel either, which is what catches a third party such as
   // LeafSpy polling the same LBC.
   bool channel_idle = !uds_busy && (currentMillis - last_7bb_millis) > DTC_BUS_IDLE_MS;
-  bool busy = dtc_read_in_progress || dtc_clear_in_progress;
+  // The SOH clear runs its own multi-step exchange over the same request/response pair, so a DTC
+  // request must not be slipped in between its steps either.
+  bool soh_clear_running = stateMachineClearSOH < 255;
+  bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
 
   if (UserRequestDTCreadout && !busy && channel_idle) {
     UserRequestDTCreadout = false;
