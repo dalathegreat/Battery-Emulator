@@ -206,6 +206,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int PID_TEMP_POINT_16 = 0x1EBD;
   static const int PID_TEMP_POINT_17 = 0x1EBE;
   static const int PID_TEMP_POINT_18 = 0x1EBF;
+  static const int ROUTINE_ID_DTC_DELETE_TRIGGER = 0x0302;
 
   /* Define CAN ID messages */
   static const int OBD_Hybrid_01_Req = 0x18DA05F1;

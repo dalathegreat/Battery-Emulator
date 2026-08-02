@@ -1240,7 +1240,7 @@ void MebBattery::handle_basic_settings(unsigned long currentMillis) {
   if (basic_settings_state == BasicSettingsState::IDLE) {
     if (!uds_request_pending && datalayer_meb->UserRequestCrashReset) {
       datalayer_meb->UserRequestCrashReset = false;
-      basic_settings_routine_id = 0x0302;     // Erase crash DTC routine
+      basic_settings_routine_id = ROUTINE_ID_DTC_DELETE_TRIGGER; // Trigger protected DTC deletion routine
       basic_settings_routine_param = 0x0001;
       basic_settings_state = BasicSettingsState::SEND_EXT_SESSION;
       basic_settings_wait_ms = 0;
