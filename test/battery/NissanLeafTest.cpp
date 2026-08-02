@@ -256,6 +256,45 @@ TEST(NissanLeafDtcTests, ShouldNotConsumeGroupReplyAsDtc) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xD00000u);
 }
 
+// Reproduces a reply larger than our storage: the LBC announced 599 bytes (149 codes) when asked
+// with an over-wide status mask. The first 32 codes must be kept, and every remaining frame must
+// still be acknowledged, because falling silent mid-transfer leaves the LBC waiting on a flow
+// control that never arrives and blocks the next request.
+TEST(NissanLeafDtcTests, ShouldDrainReplyLargerThanStorage) {
+  auto battery = battery_awaiting_dtc_reply();
+
+  const uint16_t announced = 599;
+  battery->handle_incoming_can_frame(leaf_frame(
+      0x7BB, {(uint8_t)(0x10 | (announced >> 8)), (uint8_t)(announced & 0xFF), 0x59, 0x02, 0x4E, 0x0A, 0x1F, 0x00}));
+
+  // 6 payload bytes arrived in the first frame; feed consecutive frames until all 599 are sent.
+  uint16_t sent = 6;
+  uint8_t seq = 1;
+  bool checked_midway = false;
+  while (sent < announced) {
+    CAN_frame cf = leaf_frame(0x7BB, {(uint8_t)(0x20 | (seq & 0x0F))});
+    for (uint8_t i = 1; i < 8; i++) {
+      cf.data.u8[i] = (sent < announced) ? 0x40 : 0xFF;
+      sent++;
+    }
+    battery->handle_incoming_can_frame(cf);
+    seq++;
+
+    // Once our storage is full there is still far more to come. The readout must stay open and keep
+    // acknowledging, not declare itself finished the moment the buffer fills.
+    if (!checked_midway && sent >= 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+      EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0) << "readout ended early instead of draining";
+      checked_midway = true;
+    }
+  }
+  EXPECT_TRUE(checked_midway);
+
+  // Completed rather than timed out, and filled to capacity without overrunning it.
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0x0A1F00u);  // P0A1F, first code in the real capture
+}
+
 // nissan_leaf_dtc.json is keyed by the 5-character short form, so that is what has to end up in the
 // data-dtc-code attribute the JavaScript loader matches on.
 TEST(NissanLeafDtcTests, ShouldRenderShortNissanCodeAsLookupKey) {

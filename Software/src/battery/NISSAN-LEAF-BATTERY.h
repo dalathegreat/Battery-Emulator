@@ -154,6 +154,7 @@ class NissanLeafBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x79B,
                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+<<<<<<< ours
   // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0xFF.
   // The mask filters which stored codes are reported, and every 59 02 reply seen from the LBC
   // carries a DTCStatusAvailabilityMask of 0x4E, meaning it implements testFailedThisOperationCycle,
@@ -161,6 +162,15 @@ class NissanLeafBattery : public CanBattery {
   // requests every status bit the LBC actually supports, so nothing it holds is filtered out on the
   // way. A narrower mask only risks hiding codes, and the status column already shows how mature
   // each one is.
+=======
+  // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0x0E:
+  // testFailedThisOperationCycle, pendingDTC and confirmedDTC.
+  // The mask must not include testNotCompletedThisOperationCycle (bit 6). The LBC sets that bit on
+  // every code whose self test has not run yet, which on a stationary pack is nearly all of them,
+  // so asking with 0xFF returns its entire supported code list: 149 entries on a pack whose only
+  // real fault was U1000. Those entries also come straight back after an erase, because an untested
+  // code is not a fault that erasing can clear. 0x0E asks only for codes that actually failed.
+>>>>>>> theirs
   // The LBC answers on 0x7BB with 59 02 <availabilityMask> followed by 4 bytes per DTC
   // (3-byte code + 1 status byte), multi-frame when more than one code is stored.
   CAN_frame LEAF_READ_DTC = {.FD = false,
@@ -174,9 +184,10 @@ class NissanLeafBattery : public CanBattery {
   static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
   static const unsigned long DTC_TIMEOUT_MS = 2000;
   uint8_t dtc_buffer[DTC_BUFFER_SIZE];
-  uint16_t dtc_rx_expected = 0;  // Total payload length announced by the ISO-TP first frame
-  uint16_t dtc_rx_len = 0;       // Bytes reassembled so far
-  bool dtc_rx_active = false;    // A multi-frame reply is currently being reassembled
+  uint16_t dtc_rx_total = 0;   // Total payload length announced by the ISO-TP first frame
+  uint16_t dtc_rx_seen = 0;    // Bytes received so far, counted even when past our storage capacity
+  uint16_t dtc_rx_len = 0;     // Bytes actually stored, capped at DTC_BUFFER_SIZE
+  bool dtc_rx_active = false;  // A multi-frame reply is currently being reassembled
   bool dtc_read_in_progress = false;
   unsigned long dtc_request_millis = 0;
   bool dtc_clear_in_progress = false;

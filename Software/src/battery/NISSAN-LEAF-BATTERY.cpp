@@ -383,7 +383,8 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (uds_rx_remaining == 0) {
             uds_busy = false;
           }
-        } else if (rx_pci == 0x20) {  //Consecutive frame: up to seven more payload bytes
+        } else if (rx_pci == 0x20) {      //Consecutive frame: up to seven more payload bytes
+          uds_request_millis = millis();  //Still answering, so restart the no-answer timer
           uds_rx_remaining = (uds_rx_remaining > 7) ? (uds_rx_remaining - 7) : 0;
           if (uds_rx_remaining == 0) {
             uds_busy = false;
@@ -438,24 +439,36 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if (pci == 0x10 && rx_frame.data.u8[2] == 0x59) {  //First frame of a multi-frame reply
-          dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-          if (dtc_rx_expected > DTC_BUFFER_SIZE) {
-            dtc_rx_expected = DTC_BUFFER_SIZE;  //More codes than we can store, keep the first ones
-          }
+          dtc_rx_total = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          dtc_rx_seen = 0;
           dtc_rx_len = 0;
-          for (uint8_t i = 2; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
-            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
-          }
           dtc_rx_active = true;
-          transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
+          for (uint8_t i = 2; i < 8 && dtc_rx_seen < dtc_rx_total; i++) {
+            if (dtc_rx_len < DTC_BUFFER_SIZE) {
+              dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+            }
+            dtc_rx_seen++;
+          }
+          if (dtc_rx_seen >= dtc_rx_total) {
+            parseDTCResponse();
+          } else {
+            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
+          }
           break;
         }
 
         if (dtc_rx_active && pci == 0x20) {  //Consecutive frame
-          for (uint8_t i = 1; i < 8 && dtc_rx_len < dtc_rx_expected; i++) {
-            dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+          // Keep acknowledging frames right to the end even once the buffer is full. Falling silent
+          // mid-transfer leaves the LBC waiting on a flow control that never comes, and it will not
+          // take another request until that has timed out on its side.
+          for (uint8_t i = 1; i < 8 && dtc_rx_seen < dtc_rx_total; i++) {
+            if (dtc_rx_len < DTC_BUFFER_SIZE) {
+              dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+            }
+            dtc_rx_seen++;
           }
-          if (dtc_rx_len >= dtc_rx_expected) {
+          dtc_request_millis = millis();  //Progress, so the readout timeout measures silence
+          if (dtc_rx_seen >= dtc_rx_total) {
             parseDTCResponse();
           } else {
             transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);
@@ -760,7 +773,8 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
     dtc_read_in_progress = true;
     dtc_rx_active = false;
     dtc_rx_len = 0;
-    dtc_rx_expected = 0;
+    dtc_rx_total = 0;
+    dtc_rx_seen = 0;
     dtc_request_millis = currentMillis;
     datalayer_battery->dtc.dtc_read_failed = false;
     uds_busy = true;
