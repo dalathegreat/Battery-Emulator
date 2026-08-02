@@ -8,6 +8,7 @@ const char index_html_footer[] = INDEX_HTML_FOOTER;
 <!DOCTYPE HTML><html>
 <head>
   <title>Battery Emulator</title>
+  <link rel="icon" href="data:image/svg+xml;base64,<battery glyph, see INDEX_HTML_HEADER>">
   <meta name="viewport" content="width=device-width">
   <style>
     html {font-family: Arial; display: inline-block; text-align: center;}
