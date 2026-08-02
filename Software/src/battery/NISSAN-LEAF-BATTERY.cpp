@@ -195,15 +195,17 @@ void NissanLeafBattery::
   // its own does not mean the pack is balancing: the LBC flags a set of cells and can hold it for a
   // day at a time while it waits for the pack to settle, at one point flagging every shunt it has and
   // holding that perfectly static for 20 hours. During a real balance it duty-cycles the shunts,
-  // bleeding cells and swapping the set after each measurement. What separates the two is therefore
-  // not whether the bitmap moved but how *much* of it moves per read: on a 30 kWh pack roughly 8-10
-  // shunts change per read while balancing against under 2 while pending. Smooth that rate with an
-  // exponential moving average and compare it against a pair of thresholds, holding the previous
-  // status in between so the state does not chatter at the boundary.
+  // bleeding cells and re-deciding the set after each measurement. How *many* shunts move per read is
+  // a poor measure of that, because it climbs steadily as the balance proceeds and the flagged set
+  // shrinks. How *often* a read comes back completely unchanged is far more stable: across four
+  // balancing sessions of a 2017 30 kWh pack it stayed at 12% of reads whatever the pack state, while
+  // every pending phase sat at 82-100%. So count unchanged reads over a sliding window and compare
+  // that against a pair of thresholds, holding the previous status in between so the state does not
+  // chatter at the boundary.
   // Evaluated only on a complete group 0x06 response (~70s apart), never on the 1s update tick.
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
-    balancing_churn_acc = 0;
+    balancing_unchanged_window = 0;
     balancing_low_reads = 0;
     set_balancing_status(BALANCING_STATUS_UNKNOWN);
   }
@@ -228,33 +230,31 @@ void NissanLeafBattery::
       }
       if (balancing_low_reads >= BALANCING_READY_DEBOUNCE_READS) {
         balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
-        balancing_churn_acc = 0;
+        balancing_unchanged_window = 0;
         set_balancing_status(BALANCING_STATUS_READY);
       }
     } else {
-      //Count how many shunts changed state since the previous read. Skip the read that follows a
-      //low-count one, since the bitmap it would be compared against is the suspect all-clear sample.
-      bool churn_valid = balancing_bitmap_valid && (balancing_low_reads == 0);
+      //Compare against the previous read. Skip the read that follows a low-count one, since the
+      //bitmap it would be compared against is the suspect all-clear sample.
+      bool comparison_valid = balancing_bitmap_valid && (balancing_low_reads == 0);
       balancing_low_reads = 0;
 
-      if (churn_valid) {
-        uint8_t changed_cells = 0;
-        for (uint8_t word = 0; word < 3; word++) {
-          uint32_t diff = balancing_bitmap[word] ^ balancing_bitmap_prev[word];
-          while (diff) {
-            changed_cells++;
-            diff &= diff - 1;
-          }
+      if (comparison_valid) {
+        bool unchanged = (memcmp(balancing_bitmap, balancing_bitmap_prev, sizeof(balancing_bitmap)) == 0);
+
+        //Shift the window along, recording whether this read came back unchanged
+        balancing_unchanged_window = (uint16_t)(balancing_unchanged_window << 1) | (unchanged ? 1 : 0);
+        balancing_unchanged_window &= (uint16_t)((1UL << BALANCING_WINDOW_READS) - 1);
+
+        uint8_t unchanged_reads = 0;
+        for (uint16_t bits = balancing_unchanged_window; bits; bits &= bits - 1) {
+          unchanged_reads++;
         }
 
-        //Integer exponential moving average: acc holds the rate scaled by (1 << SHIFT), so it settles
-        //at (changed_cells << SHIFT) for a steady rate. The decay term uses the pre-update value.
-        balancing_churn_acc = balancing_churn_acc + changed_cells - (balancing_churn_acc >> BALANCING_CHURN_SHIFT);
-
-        if (balancing_churn_acc >= BALANCING_CHURN_ACTIVE) {
-          set_balancing_status(BALANCING_STATUS_ACTIVE);  //Swapping shunts steadily: really balancing
-        } else if (balancing_churn_acc <= BALANCING_CHURN_IDLE) {
+        if (unchanged_reads >= BALANCING_UNCHANGED_FOR_IDLE) {
           set_balancing_status(BALANCING_STATUS_BLOCKED);  //Holding a set: flagged, but not yet at rest
+        } else if (unchanged_reads <= BALANCING_UNCHANGED_FOR_ACTIVE) {
+          set_balancing_status(BALANCING_STATUS_ACTIVE);  //Re-deciding the set steadily: really balancing
         }
         //else: between the thresholds, hold the current status
       }

@@ -216,15 +216,14 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
   //Balancing classification state, see update_values()
-  //The classifier tracks how many shunts change state per group 0x06 read, smoothed with an integer
-  //exponential moving average. balancing_churn_acc holds the average scaled by (1 << SHIFT), so the
-  //average in cells per read is (balancing_churn_acc >> BALANCING_CHURN_SHIFT).
-  static const uint8_t BALANCING_CHURN_SHIFT = 4;  //Smoothing factor, 1/16 per read
-  //Average shunts changing per read above which the LBC is considered to be actively bleeding and
-  //swapping cells, and below which it is considered to be holding a set at rest. Measured on a 2017
-  //30 kWh pack: 7.8-9.7 while balancing, 0.0-1.6 while pending, so these sit either side with margin.
-  static const uint8_t BALANCING_CHURN_ACTIVE = 3 * (1 << BALANCING_CHURN_SHIFT);
-  static const uint8_t BALANCING_CHURN_IDLE = (3 * (1 << BALANCING_CHURN_SHIFT)) / 2;
+  //The classifier tracks how often a group 0x06 read comes back with the shunt set completely
+  //unchanged, over a sliding window of the most recent reads.
+  static const uint8_t BALANCING_WINDOW_READS = 16;
+  //Unchanged reads within that window at or above which the LBC is holding a set at rest, and at or
+  //below which it is bleeding and re-deciding. Measured over 232 h on a 2017 30 kWh pack: while
+  //balancing, 12% of reads come back unchanged whatever the pack state; while pending, 82-100% do.
+  static const uint8_t BALANCING_UNCHANGED_FOR_IDLE = 13;   //81% of the window
+  static const uint8_t BALANCING_UNCHANGED_FOR_ACTIVE = 7;  //44% of the window
   //Below this many flagged shunts the pack counts as not balancing at all
   static const uint8_t BALANCING_READY_BELOW_CELLS = 4;
   //Consecutive reads below that count before READY is reported. A dropped group 0x06 response can
@@ -234,8 +233,8 @@ class NissanLeafBattery : public CanBattery {
   uint32_t balancing_bitmap_prev[3];
   //true once balancing_bitmap_prev holds a real reading
   bool balancing_bitmap_valid = false;
-  //Smoothed shunts-changed-per-read, scaled by (1 << BALANCING_CHURN_SHIFT)
-  uint16_t balancing_churn_acc = 0;
+  //One bit per recent read, set if that read came back with the shunt set unchanged
+  uint16_t balancing_unchanged_window = 0;
   //Consecutive reads with fewer than BALANCING_READY_BELOW_CELLS shunts flagged
   uint8_t balancing_low_reads = 0;
   //Which group 0x06 frames of the current response have arrived, so partial responses are discarded
