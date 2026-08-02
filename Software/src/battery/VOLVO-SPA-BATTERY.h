@@ -1,6 +1,6 @@
 #ifndef VOLVO_SPA_BATTERY_H
 #define VOLVO_SPA_BATTERY_H
-
+#include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"
 
@@ -29,6 +29,9 @@ class VolvoSpaBattery : public CanBattery {
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
   bool UserRequestBECMecuReset = false;
+
+  friend class VolvoSPADtcTests_ShouldParseMultiFrameReply_Test;
+  friend class VolvoSPADtcTests_ShouldParseSingleFrameReply_Test;
 
   void readCellVoltages();
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into datalayer_battery->dtc.

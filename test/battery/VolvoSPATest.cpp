@@ -29,10 +29,10 @@ void reset_dtc_state() {
 
 // Drives a battery up to the point where it is waiting for a DTC reply on 0x635. update_values() is
 // what consumes the web request and puts 02 19 03 on the wire.
-VolvoSPABattery* battery_awaiting_dtc_reply() {
+VolvoSpaBattery* battery_awaiting_dtc_reply() {
   reset_dtc_state();
   set_millis64(50000);  // Non-zero, so a completed read is distinguishable from "never read"
-  auto battery = new VolvoSPABattery();
+  auto battery = new VolvoSpaBattery();
   battery->setup();
   battery->read_DTC();
   battery->update_values();
@@ -40,6 +40,17 @@ VolvoSPABattery* battery_awaiting_dtc_reply() {
 }
 
 }  // namespace
+
+TEST(VolvoSPADtcTests, ShouldParseSingleFrameReply) {
+  auto battery = battery_awaiting_dtc_reply();
+  ASSERT_TRUE(battery->dtc_read_in_progress);
+  //Single frame DTC reply with one active code, PAA06
+  battery->handle_incoming_can_frame(volvo_635_frame({0x07, 0x59, 0x02, 0x03, 0x0A, 0x95, 0x00, 0x4E}));
+
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0x0A9500u);  // PAA06
+}
 
 /*Example of DTC read - Real CAN data from vehicle and scan tool
 TX0 735 [8] 02 19 03 00 00 00 00 00
@@ -61,14 +72,15 @@ RX1 635 [8] 2C 68 00 21 00 00 00 00
 
 TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
   auto battery = battery_awaiting_dtc_reply();
-    //0x56 = how many bytes are in the reply, 0x0C = how many DTCs are in the reply
+  ASSERT_TRUE(battery->dtc_read_in_progress);
+  //0x56 = how many bytes are in the reply, 0x0C = how many DTCs are in the reply
   battery->handle_incoming_can_frame(volvo_635_frame({0x10, 0x56, 0x59, 0x03, 0x0C, 0xEE, 0x00, 0x20}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x21, 0x0C, 0xEE, 0x00, 0x21, 0x0D, 0x15, 0x00}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x22, 0x21, 0x0E, 0x0F, 0x00, 0x21, 0xC1, 0x10}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x23, 0x00, 0x20, 0xC1, 0x10, 0x00, 0x21, 0xC2}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x24, 0x92, 0x00, 0x20, 0xC2, 0x92, 0x00, 0x21}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x25, 0xC2, 0x99, 0x00, 0x20, 0xC2, 0x99, 0x00}));
-  battery->handle_incoming_can_frame(volvo_635_frame({0x26, 0x21, 0A, 0x95, 0x00, 0x21, 0x0E, 0xEA}));
+  battery->handle_incoming_can_frame(volvo_635_frame({0x26, 0x21, 0x0A, 0x95, 0x00, 0x21, 0x0E, 0xEA}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x27, 0x00, 0x20, 0x0E, 0xEA, 0x00, 0x21, 0x0D}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x28, 0x9C, 0x00, 0x20, 0x0D, 0x9C, 0x00, 0x21}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x29, 0xC1, 0x00, 0x00, 0x20, 0xC1, 0x00, 0x00}));
