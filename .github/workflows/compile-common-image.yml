@@ -105,7 +105,10 @@ jobs:
         sed -i "/if line\.split.*expected_hash:/i \                print('Hash check, sdkconfig has:', line.split(\"__\")[1].strip(), 'was expecting:', expected_hash, 'data is:', repr(custom_options.strip() + mcu))" ~/.platformio/platforms/espressif32/builder/frameworks/arduino.py || echo "sed failed"
 
     - name: Build image for ${{ matrix.board_name }}
-      run: pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt
+      shell: bash
+      run: |
+        set -o pipefail
+        pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt
 
     - name: Capture size report for ${{ matrix.board_name }}
       if: matrix.pio_env != 'compiler_warning_check'
