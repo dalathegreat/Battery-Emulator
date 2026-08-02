@@ -30,12 +30,9 @@ class VolvoSpaBattery : public CanBattery {
   bool UserRequestDTCreadout = false;
   bool UserRequestBECMecuReset = false;
 
-  friend class VolvoSPADtcTests_ShouldParseMultiFrameReply_Test;
-  friend class VolvoSPADtcTests_ShouldParseSingleFrameReply_Test;
-
   void readCellVoltages();
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into datalayer_battery->dtc.
-  void parseDTCResponse();
+  void parseDTCResponseVolvo();
   // DTC readout reassembly state. The reply shares the 0x635 response ID with the periodic
   // group polling, so it is intercepted separately while a readout is in flight.
   static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;

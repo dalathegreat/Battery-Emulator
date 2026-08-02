@@ -99,18 +99,27 @@ void VolvoSpaBattery::
   }
 }
 
-// Parses a reassembled UDS ReadDTCInformation reply out of dtc_buffer: a 3-byte header
-// (59 02 <statusAvailabilityMask>) followed by 4 bytes per DTC, being a 3-byte code plus one status
-// byte. Only the raw codes are stored here; the web renderer formats them into the 5-character
-// Volvo strings (P33D7, U1000) and looks their descriptions up in volvo_SPA_dtc.json
-void VolvoSpaBattery::parseDTCResponse() {
-  const uint16_t DTC_HEADER_LEN = 3;
+// Parses a reassembled UDS ReadDTCInformation reply out of dtc_buffer: a 4-byte header
+// (59 <subfunction> <statusAvailabilityMask> <DTCAndStatusAvailabilityRecord>) followed by
+// 4 bytes per DTC, being a 3-byte code plus one status byte. Only the raw codes are stored
+// here; the web renderer formats them into the 5-character Volvo strings (P33D7, U1000)
+// and looks up their descriptions up in volvo_SPA_dtc.json
+// Header length depends on subfunction: 0x02 responses include a statusAvailabilityMask
+// byte (3 bytes total: 59 02 <mask>), while 0x03 responses do not (2 bytes: 59 03).
+// Followed by 4 bytes per DTC: 3-byte code plus one status byte.
+void VolvoSpaBattery::parseDTCResponseVolvo() {
+  uint16_t DTC_HEADER_LEN;
+  if (dtc_buffer[1] == 0x02) {
+    DTC_HEADER_LEN = 3;  // 59 02 <statusMask>
+  } else {
+    DTC_HEADER_LEN = 2;  // 59 03 (no statusMask)
+  }
 
   dtc_read_in_progress = false;
   dtc_rx_active = false;
   datalayer.battery.dtc.dtc_last_read_millis = millis();
 
-  if (dtc_rx_len < DTC_HEADER_LEN || dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
+  if (dtc_rx_len < DTC_HEADER_LEN || dtc_buffer[0] != 0x59) {
     datalayer.battery.dtc.dtc_read_failed = true;
     return;
   }
@@ -257,7 +266,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           for (uint8_t i = 0; i < dtc_rx_len; i++) {
             dtc_buffer[i] = rx_frame.data.u8[1 + i];
           }
-          parseDTCResponse();
+          parseDTCResponseVolvo();
           break;
         }
 
@@ -280,7 +289,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
           }
           if (dtc_rx_len >= dtc_rx_expected) {
-            parseDTCResponse();
+            parseDTCResponseVolvo();
           } else {
             transmit_can_frame(&VOLVO_FlowControl);
           }

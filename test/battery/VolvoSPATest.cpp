@@ -43,7 +43,7 @@ VolvoSpaBattery* battery_awaiting_dtc_reply() {
 
 TEST(VolvoSPADtcTests, ShouldParseSingleFrameReply) {
   auto battery = battery_awaiting_dtc_reply();
-  ASSERT_TRUE(battery->dtc_read_in_progress);
+
   //Single frame DTC reply with one active code, PAA06
   battery->handle_incoming_can_frame(volvo_635_frame({0x07, 0x59, 0x02, 0x03, 0x0A, 0x95, 0x00, 0x4E}));
 
@@ -72,7 +72,10 @@ RX1 635 [8] 2C 68 00 21 00 00 00 00
 
 TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
   auto battery = battery_awaiting_dtc_reply();
-  ASSERT_TRUE(battery->dtc_read_in_progress);
+
+  EXPECT_EQ(battery->dtc_buffer[0], 0x00);
+  EXPECT_EQ(battery->dtc_buffer[1], 0x00);
+  EXPECT_EQ(battery->dtc_buffer[2], 0x00);
   //0x56 = how many bytes are in the reply, 0x0C = how many DTCs are in the reply
   battery->handle_incoming_can_frame(volvo_635_frame({0x10, 0x56, 0x59, 0x03, 0x0C, 0xEE, 0x00, 0x20}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x21, 0x0C, 0xEE, 0x00, 0x21, 0x0D, 0x15, 0x00}));
@@ -90,11 +93,20 @@ TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
 
   EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
   ASSERT_EQ(datalayer.battery.dtc.dtc_count, 21);
-  //EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xC19B00u);  // U019B
-  //EXPECT_EQ(datalayer.battery.dtc.dtc_codes[1], 0xC10000u);  // U0100
-  //EXPECT_EQ(datalayer.battery.dtc.dtc_codes[2], 0xC29300u);  // U0293
-  //EXPECT_EQ(datalayer.battery.dtc.dtc_codes[3], 0xC29800u);  // U0298
-  for (int i = 0; i < 4; i++) {
-    //EXPECT_EQ(datalayer.battery.dtc.dtc_status[i], 0xAF);
-  }
+  EXPECT_EQ(battery->dtc_buffer[0], 0x59);
+  EXPECT_EQ(battery->dtc_buffer[1], 0x03);
+  EXPECT_EQ(battery->dtc_buffer[2], 0x0C);
+  EXPECT_EQ(battery->dtc_buffer[3], 0xEE);
+  EXPECT_EQ(battery->dtc_buffer[4], 0x00);
+  EXPECT_EQ(battery->dtc_buffer[5], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0x0CEE00u);  // PO0CEE
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[1], 0x0CEE00u);  // PO0CEE
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[1], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[2], 0x0D1500u);  // P0E0F
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[2], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[3], 0x0E0F00u);  // U1100
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[3], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[4], 0xC11000u);
+  //ETC.
 }
