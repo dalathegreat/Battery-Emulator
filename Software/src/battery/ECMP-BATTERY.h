@@ -1,5 +1,6 @@
 #ifndef STELLANTIS_ECMP_BATTERY_H
 #define STELLANTIS_ECMP_BATTERY_H
+#include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
