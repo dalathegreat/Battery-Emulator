@@ -32,6 +32,10 @@ extern const char* version_number;  // defined in Software.cpp
 #define ESPNOW_CELL_CYCLE_MS 5000
 // Minimum gap between two frames.
 #define ESPNOW_FRAME_SPACING_MS 20
+// How often the event backlog is re-sent when nothing new has happened. A receiver that
+// boots after the emulator gets the history within this long; a new event does not wait
+// for it, because a change in the batch contents triggers a send immediately.
+#define ESPNOW_EVENT_CYCLE_MS 10000
 
 // Worst case frame: header + the cell count/index records + the full cell voltage array
 // + the balancing bitset + slack for record overhead.
@@ -74,11 +78,16 @@ static uint32_t cells_last_ms = 0;
 static bool cells_due = false;
 static uint8_t cursor_battery = 0;
 static uint16_t cursor_cell = 0;
-static uint16_t cursor_event = 0;
-// Events with a timestamp above this have not been transmitted yet. Deliberately separate
-// from the MQTT publish flag so the two transports do not consume each other's queue.
-static uint64_t event_watermark = 0;
-static uint64_t event_batch_max = 0;
+static uint8_t cursor_event = 0;
+// The batch currently being transmitted: the ESPNOW_EVENT_REPLAY most recent occurrences,
+// most recent first. Rebuilt at the start of every cycle that sends events.
+static EVENTS_ENUM_TYPE event_batch[ESPNOW_EVENT_REPLAY];
+static uint8_t event_batch_count = 0;
+static uint32_t events_last_ms = 0;
+static bool events_due = false;
+// Newest timestamp in the last batch built. A newer one means something happened and the
+// backlog is sent at once instead of waiting out ESPNOW_EVENT_CYCLE_MS.
+static uint64_t event_newest_sent = 0;
 
 // ---------------------------------------------------------------------------------------
 // Peers
@@ -502,9 +511,55 @@ static void send_cells_frame(uint8_t index, uint16_t first_cell, uint16_t count,
   end_frame();
 }
 
-static void send_event_frame(EVENTS_ENUM_TYPE handle, const EVENTS_STRUCT_TYPE* ev) {
-  begin_frame(ESPNOW_FRAME_EVENT, 0, 0);
+// Collects the ESPNOW_EVENT_REPLAY most recent occurrences into event_batch, most recent
+// first. Insertion sort over a fixed array: EVENT_NOF_EVENTS is a few hundred and the list
+// is ten long, so this is cheaper than it looks and allocates nothing.
+static void build_event_batch() {
+  uint64_t stamps[ESPNOW_EVENT_REPLAY];
+  event_batch_count = 0;
 
+  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
+    const EVENTS_ENUM_TYPE handle = static_cast<EVENTS_ENUM_TYPE>(i);
+    const EVENTS_STRUCT_TYPE* ev = get_event_pointer(handle);
+    if (ev == nullptr || ev->occurences == 0) {
+      continue;
+    }
+    // Full and older than everything held: nothing to do.
+    if (event_batch_count == ESPNOW_EVENT_REPLAY && ev->timestamp <= stamps[ESPNOW_EVENT_REPLAY - 1]) {
+      continue;
+    }
+    uint8_t pos = event_batch_count < ESPNOW_EVENT_REPLAY ? event_batch_count : ESPNOW_EVENT_REPLAY - 1;
+    while (pos > 0 && stamps[pos - 1] < ev->timestamp) {
+      stamps[pos] = stamps[pos - 1];
+      event_batch[pos] = event_batch[pos - 1];
+      pos--;
+    }
+    stamps[pos] = ev->timestamp;
+    event_batch[pos] = handle;
+    if (event_batch_count < ESPNOW_EVENT_REPLAY) {
+      event_batch_count++;
+    }
+  }
+
+  event_newest_sent = event_batch_count > 0 ? stamps[0] : 0;
+}
+
+// True when the event table holds an occurrence newer than anything in the last batch.
+static bool event_backlog_changed() {
+  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
+    const EVENTS_STRUCT_TYPE* ev = get_event_pointer(static_cast<EVENTS_ENUM_TYPE>(i));
+    if (ev != nullptr && ev->occurences > 0 && ev->timestamp > event_newest_sent) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void send_event_frame(EVENTS_ENUM_TYPE handle, const EVENTS_STRUCT_TYPE* ev, uint8_t index, uint8_t total) {
+  begin_frame(ESPNOW_FRAME_EVENT, 0, (index + 1 < total) ? ESPNOW_FLAG_MORE_CHUNKS : 0);
+
+  put_u8_field(ESPNOW_KEY_EVENT_INDEX, index);
+  put_u8_field(ESPNOW_KEY_EVENT_TOTAL, total);
   put_u16_field(ESPNOW_KEY_EVENT_ID, static_cast<uint16_t>(handle));
   put_str_field(ESPNOW_KEY_EVENT_NAME, get_event_enum_string(handle));
   put_enum_field(ESPNOW_KEY_EVENT_SEVERITY, static_cast<uint8_t>(ev->level));
@@ -587,10 +642,15 @@ void update_espnow() {
     }
     cycle_start_ms = now;
     cells_due = (now - cells_last_ms) >= ESPNOW_CELL_CYCLE_MS;
+    // Re-send the backlog on its own timer, or straight away if something new happened.
+    events_due = ((now - events_last_ms) >= ESPNOW_EVENT_CYCLE_MS) || event_backlog_changed();
+    if (events_due) {
+      events_last_ms = now;
+      build_event_batch();
+    }
     cursor_battery = 0;
     cursor_cell = 0;
     cursor_event = 0;
-    event_batch_max = event_watermark;
     phase = PHASE_SYSTEM;
   }
 
@@ -648,23 +708,18 @@ void update_espnow() {
     }
 
     case PHASE_EVENTS: {
-      // Walk the event table until the next untransmitted occurrence, send one frame and
-      // yield. Non-matching entries are skipped for free, so a quiet system ends the
-      // cycle on the first tick here.
-      while (cursor_event < EVENT_NOF_EVENTS) {
-        const EVENTS_ENUM_TYPE handle = static_cast<EVENTS_ENUM_TYPE>(cursor_event++);
+      // One frame of the prepared batch per tick, most recent first. The batch is a
+      // snapshot, so an event arriving mid-transmission is picked up by the next cycle
+      // rather than shifting the indices of the one in flight.
+      if (events_due && cursor_event < event_batch_count) {
+        const EVENTS_ENUM_TYPE handle = event_batch[cursor_event];
         const EVENTS_STRUCT_TYPE* ev = get_event_pointer(handle);
-        if (ev != nullptr && ev->occurences > 0 && ev->timestamp > event_watermark) {
-          if (ev->timestamp > event_batch_max) {
-            event_batch_max = ev->timestamp;
-          }
-          send_event_frame(handle, ev);
-          return;
+        if (ev != nullptr) {
+          send_event_frame(handle, ev, cursor_event, event_batch_count);
         }
+        cursor_event++;
+        return;
       }
-      // Watermark is only advanced once the whole table has been scanned, so an event
-      // that sorts later in the table but earlier in time is never skipped.
-      event_watermark = event_batch_max;
       phase = PHASE_IDLE;
       break;
     }

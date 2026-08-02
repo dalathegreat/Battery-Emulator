@@ -102,6 +102,13 @@
 /* Header flags */
 #define ESPNOW_FLAG_MORE_CHUNKS 0x01 /* another chunk of this frame_type follows */
 
+/* Events are not streamed as they happen: the most recent ESPNOW_EVENT_REPLAY entries are
+ * re-sent as a batch, so a receiver that starts after the emulator still gets the history.
+ * Every frame of a batch carries ESPNOW_KEY_EVENT_INDEX and ESPNOW_KEY_EVENT_TOTAL, and all
+ * but the last set ESPNOW_FLAG_MORE_CHUNKS. A receiver should therefore REPLACE its list on
+ * each batch rather than append, and should not de-duplicate: repetition is intended. */
+#define ESPNOW_EVENT_REPLAY 10
+
 /* Maximum number of explicitly configured unicast receivers. Empty configuration falls
  * back to a single broadcast peer. */
 #define ESPNOW_MAX_PEERS 8
@@ -236,7 +243,9 @@ enum espnow_key_t {
   ESPNOW_KEY_EVENT_COUNT = 0xA4,    /* UINT8  occurrences since boot */
   ESPNOW_KEY_EVENT_DATA = 0xA5,     /* UINT8  event specific payload byte */
   ESPNOW_KEY_EVENT_MILLIS = 0xA6,   /* UINT64 millis64() at the last occurrence */
-  ESPNOW_KEY_EVENT_MESSAGE = 0xA7   /* STR    human readable description */
+  ESPNOW_KEY_EVENT_MESSAGE = 0xA7,  /* STR    human readable description */
+  ESPNOW_KEY_EVENT_INDEX = 0xA8,    /* UINT8  position in the replay batch, 0 = most recent */
+  ESPNOW_KEY_EVENT_TOTAL = 0xA9     /* UINT8  events in this replay batch, 1..ESPNOW_EVENT_REPLAY */
 };
 
 void init_espnow();
