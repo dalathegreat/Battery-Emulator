@@ -141,12 +141,6 @@ void init_stored_settings() {
   user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
-  // Fall back to the value the global already holds, which is the driver's
-  // own default: the statics initialize before init_stored_settings() runs.
-  // A literal fallback here would both duplicate the constant and, because
-  // these are written raw into the emulated gateway frame with no 0-means-
-  // skip semantics, silently broadcast zeros on any install that never saved
-  // the keys.
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
   user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);
