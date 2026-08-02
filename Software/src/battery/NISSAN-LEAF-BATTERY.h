@@ -154,15 +154,6 @@ class NissanLeafBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x79B,
                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
-<<<<<<< ours
-  // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0xFF.
-  // The mask filters which stored codes are reported, and every 59 02 reply seen from the LBC
-  // carries a DTCStatusAvailabilityMask of 0x4E, meaning it implements testFailedThisOperationCycle,
-  // pendingDTC, confirmedDTC and testNotCompletedThisOperationCycle. Asking with 0xFF therefore
-  // requests every status bit the LBC actually supports, so nothing it holds is filtered out on the
-  // way. A narrower mask only risks hiding codes, and the status column already shows how mature
-  // each one is.
-=======
   // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0x0E:
   // testFailedThisOperationCycle, pendingDTC and confirmedDTC.
   // The mask must not include testNotCompletedThisOperationCycle (bit 6). The LBC sets that bit on
@@ -170,14 +161,13 @@ class NissanLeafBattery : public CanBattery {
   // so asking with 0xFF returns its entire supported code list: 149 entries on a pack whose only
   // real fault was U1000. Those entries also come straight back after an erase, because an untested
   // code is not a fault that erasing can clear. 0x0E asks only for codes that actually failed.
->>>>>>> theirs
   // The LBC answers on 0x7BB with 59 02 <availabilityMask> followed by 4 bytes per DTC
   // (3-byte code + 1 status byte), multi-frame when more than one code is stored.
   CAN_frame LEAF_READ_DTC = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x79B,
-                             .data = {0x03, 0x19, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00}};
+                             .data = {0x03, 0x19, 0x02, 0x0E, 0x00, 0x00, 0x00, 0x00}};
 
   // DTC readout reassembly state. The reply shares the 0x7BB response ID with the periodic
   // group polling, so it is intercepted separately while a readout is in flight.
