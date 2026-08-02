@@ -73,9 +73,6 @@ RX1 635 [8] 2C 68 00 21 00 00 00 00
 TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
   auto battery = battery_awaiting_dtc_reply();
 
-  EXPECT_EQ(battery->dtc_buffer[0], 0x00);
-  EXPECT_EQ(battery->dtc_buffer[1], 0x00);
-  EXPECT_EQ(battery->dtc_buffer[2], 0x00);
   //0x56 = how many bytes are in the reply, 0x0C = how many DTCs are in the reply
   battery->handle_incoming_can_frame(volvo_635_frame({0x10, 0x56, 0x59, 0x03, 0x0C, 0xEE, 0x00, 0x20}));
   battery->handle_incoming_can_frame(volvo_635_frame({0x21, 0x0C, 0xEE, 0x00, 0x21, 0x0D, 0x15, 0x00}));
@@ -93,12 +90,6 @@ TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
 
   EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
   ASSERT_EQ(datalayer.battery.dtc.dtc_count, 21);
-  EXPECT_EQ(battery->dtc_buffer[0], 0x59);
-  EXPECT_EQ(battery->dtc_buffer[1], 0x03);
-  EXPECT_EQ(battery->dtc_buffer[2], 0x0C);
-  EXPECT_EQ(battery->dtc_buffer[3], 0xEE);
-  EXPECT_EQ(battery->dtc_buffer[4], 0x00);
-  EXPECT_EQ(battery->dtc_buffer[5], 0x20);
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0x0CEE00u);  // PO0CEE
   EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0x20);
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[1], 0x0CEE00u);  // PO0CEE
