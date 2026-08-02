@@ -154,20 +154,22 @@ class NissanLeafBattery : public CanBattery {
                               .DLC = 8,
                               .ID = 0x79B,
                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
-  // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0x0E:
-  // testFailedThisOperationCycle, pendingDTC and confirmedDTC.
-  // The mask must not include testNotCompletedThisOperationCycle (bit 6). The LBC sets that bit on
-  // every code whose self test has not run yet, which on a stationary pack is nearly all of them,
-  // so asking with 0xFF returns its entire supported code list: 149 entries on a pack whose only
-  // real fault was U1000. Those entries also come straight back after an erase, because an untested
-  // code is not a fault that erasing can clear. 0x0E asks only for codes that actually failed.
+  // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0xFF, so the LBC
+  // reports against every status bit it implements (it advertises 0x4E: testFailedThisOperationCycle,
+  // pendingDTC, confirmedDTC, testNotCompletedThisOperationCycle).
+  // Be aware what this includes. Bit 6 is set on any code whose self test has not run this cycle,
+  // which on a stationary pack is most of them, so the reply is the LBC's near-complete supported
+  // code list rather than a fault list: one capture returned 149 entries of which exactly one, a
+  // U1000, had actually failed. Everything else carried status 0x40. That also means an erase does
+  // not visibly shrink this list, because an untested code is not a fault an erase can clear.
+  // Use the status column to tell them apart, or narrow the mask to 0x0E to see only real faults.
   // The LBC answers on 0x7BB with 59 02 <availabilityMask> followed by 4 bytes per DTC
   // (3-byte code + 1 status byte), multi-frame when more than one code is stored.
   CAN_frame LEAF_READ_DTC = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x79B,
-                             .data = {0x03, 0x19, 0x02, 0x0E, 0x00, 0x00, 0x00, 0x00}};
+                             .data = {0x03, 0x19, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00}};
 
   // DTC readout reassembly state. The reply shares the 0x7BB response ID with the periodic
   // group polling, so it is intercepted separately while a readout is in flight.
