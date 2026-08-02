@@ -19,6 +19,7 @@
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/i18n/i18n.h"
+#include "src/devboard/i18n/tr.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -733,6 +734,8 @@ void setup() {
   init_stored_settings();
 
   init_i18n_storage();  // Language catalogs; mount failure just disables the feature
+
+  i18n_activate(user_selected_language.c_str());  // Load pack indexes for the stored language
 
   // AP-button recovery must always run
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,

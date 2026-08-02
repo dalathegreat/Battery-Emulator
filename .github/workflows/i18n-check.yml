@@ -1,0 +1,85 @@
+name: i18n sheet check
+
+on:
+  push:
+    paths:
+      - "tools/translations.fods"
+      - "tools/i18n_gen.py"
+      - "tools/i18n_ids.json"
+      - "tools/test_i18n_tooling.py"
+      - "tools/check_escape_composition.py"
+      - "tools/check_untranslated.py"
+      - "tools/test_escaping_differential.py"
+      - "Software/src/devboard/i18n/**"
+      - "Software/src/devboard/utils/escape.*"
+      - "Software/src/devboard/webserver/**"
+      - ".github/workflows/i18n-check.yml"
+  pull_request:
+    paths:
+      - "tools/translations.fods"
+      - "tools/i18n_gen.py"
+      - "tools/i18n_ids.json"
+      - "tools/test_i18n_tooling.py"
+      - "tools/check_escape_composition.py"
+      - "tools/check_untranslated.py"
+      - "tools/test_escaping_differential.py"
+      - "Software/src/devboard/i18n/**"
+      - "Software/src/devboard/utils/escape.*"
+      - "Software/src/devboard/webserver/**"
+      - ".github/workflows/i18n-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # The append-only check needs the base branch
+      - name: Regenerate from the sheet
+        run: python3 tools/i18n_gen.py
+      # Only the sidecar is committed. i18n_keys.h / i18n_bootstrap.h are
+      # gitignored and regenerated at build time (platformio.ini and
+      # test/CMakeLists.txt both invoke the generator), so they cannot go
+      # stale - and diffing them here would be vacuous, since git diff never
+      # reports on an untracked path.
+      - name: Sidecar must be committed
+        run: git diff --exit-code tools/i18n_ids.json
+      # Ids are append-only with tombstones: renumbering a live key would make
+      # every pack already installed in the field serve the wrong strings.
+      # This has to compare against the base branch - a branch that renumbers
+      # and regenerates is self-consistent and passes any same-checkout check.
+      # TR() is for markup, TR_JS() for a JS literal, TR_RAW() for neither.
+      # Composing an escaper with a lookup by hand is how both escaping bugs
+      # in this subsystem shipped, so it is refused mechanically.
+      - name: No hand-composed escaper/lookup pairs
+        run: python3 tools/check_escape_composition.py
+      # Only meaningful now the count is zero: it is a ratchet against the next
+      # contributor hardcoding English into a button or an alert, which is how
+      # the whole untranslated-surfaces gap happened.
+      - name: No hardcoded user-facing English
+        run: python3 tools/check_untranslated.py
+      - name: Tooling self-tests
+        run: python3 tools/test_i18n_tooling.py
+      # The escapers are checked against real parsers rather than a list of
+      # characters: escape -> embed in HTML/JS -> parse -> assert the value is
+      # unchanged and nothing new appeared. Every escaping bug in this
+      # subsystem so far was a character nobody had thought of, so the test
+      # asks the parser instead of guessing.
+      - name: Escaping differential (real HTML + JS parsers)
+        run: |
+          cmake -S test -B test/build
+          cmake --build test/build --target escape_dump -j"$(nproc)"
+          python3 tools/test_escaping_differential.py
+      - name: Ids must be append-only against the base branch
+        run: |
+          git fetch origin main
+          base="$(git merge-base HEAD origin/main)"
+          if git cat-file -e "$base:tools/i18n_ids.json" 2>/dev/null; then
+            git show "$base:tools/i18n_ids.json" > /tmp/base_ids.json
+            python3 tools/i18n_gen.py --check --check-append-only-against=/tmp/base_ids.json
+          else
+            # No sidecar on the base branch (the branch introduces it):
+            # append-only holds trivially, but still run the plain check.
+            echo "tools/i18n_ids.json absent at merge-base $base"
+            python3 tools/i18n_gen.py --check
+          fi

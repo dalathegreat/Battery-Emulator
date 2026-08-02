@@ -35,10 +35,16 @@ class I18nStore {
   static constexpr uint32_t SECTOR = 4096;
   static constexpr uint32_t DATA_START = 8192;
   static constexpr uint16_t MAX_ENTRIES = 16;
-  static constexpr uint16_t FORMAT_VERSION = 1;
+  /* Bump on ANY change to the directory layout. Version 2 added the language
+   * hint, which moved DIR_HEADER_SIZE from 12 to 20: a v1 directory parsed
+   * with v2 offsets fails its CRC and reads as an unformatted store, so the
+   * version has to change with the layout or the mismatch shows up as
+   * silently lost catalogs after a firmware update. */
+  static constexpr uint16_t FORMAT_VERSION = 2;
   static constexpr uint32_t MAX_FILE_SIZE = 131072;  // 128 KB upload cap
-  // magic + version + sequence + count, entries, block crc
-  static constexpr size_t DIR_HEADER_SIZE = 12;
+  static constexpr size_t HINT_SIZE = 8;
+  // magic + version + sequence + count + language hint, entries, block crc
+  static constexpr size_t DIR_HEADER_SIZE = 12 + HINT_SIZE;
   static constexpr size_t DIR_BLOCK_MAX = DIR_HEADER_SIZE + MAX_ENTRIES * sizeof(I18nStoreEntry) + 4;
 
   explicit I18nStore(I18nFlash& flash) : flash_(flash) {}
@@ -49,7 +55,8 @@ class I18nStore {
 
   std::vector<String> file_names() const;
   bool exists(const char* name) const;
-  int32_t length(const char* name) const;  // -1 if absent
+  int32_t length(const char* name) const;       // -1 if absent
+  uint32_t file_crc32(const char* name) const;  // 0 if absent; serve-path ETag
   bool read(const char* name, uint32_t offset, void* buf, size_t len) const;
   bool remove(const char* name);
 
@@ -71,11 +78,18 @@ class I18nStore {
    * is about to read may belong to a different file. */
   uint32_t generation() const { return sequence_; }
 
+  /* Factory-image "preferred language" hint (e.g. "sv", "" = none): adopted
+   * on first boot when no explicit LANGUAGE setting exists in NVS. Written
+   * by the image builder, preserved across directory flips, cleared by
+   * format(). */
+  const char* language_hint() const { return hint_; }
+
  private:
   I18nFlash& flash_;
   bool mounted_ = false;
   uint32_t sequence_ = 0;
   uint8_t active_block_ = 0;
+  char hint_[HINT_SIZE] = {0};
   std::vector<I18nStoreEntry> entries_;
 
   // Active stream state

@@ -4,512 +4,474 @@
 #include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class EcmpHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "<h4>Main Connector State: ";
+    tr_h4_open(content, TrKey::DRV_MAIN_CONNECTOR_STATE);
     if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
-      content += "Contactors open</h4>";
+      tr_h4_end(content, TrKey::DRV_CONTACTORS_OPEN);
     } else if (datalayer_extended.stellantisECMP.MainConnectorState == 0x01) {
-      content += "Precharged</h4>";
+      tr_h4_end(content, TrKey::DRV_PRECHARGED);
     } else {
-      content += "Invalid</h4>";
+      tr_h4_end(content, TrKey::DRV_INVALID);
     }
-    content +=
-        "<h4>Insulation Resistance: " + String(datalayer_extended.stellantisECMP.InsulationResistance) + "kOhm</h4>";
-    content += "<h4>Interlock:  ";
+    tr_h4(content, TrKey::DRV_INSULATION_RESISTANCE, String(datalayer_extended.stellantisECMP.InsulationResistance),
+          "kOhm");
+    content += "<h4>" + TR(TrKey::DRV_INTERLOCK) + ":  ";
     if (datalayer_extended.stellantisECMP.InterlockOpen == true) {
       content += "BROKEN!</h4>";
     } else {
-      content += "Seated OK</h4>";
+      tr_h4_end(content, TrKey::DRV_SEATED_OK);
     }
-    content += "<h4>Insulation Diag: ";
+    tr_h4_open(content, TrKey::DRV_INSULATION_DIAG);
     if (datalayer_extended.stellantisECMP.InsulationDiag == 0) {
-      content += "No failure</h4>";
+      tr_h4_end(content, TrKey::DRV_NO_FAILURE);
     } else if (datalayer_extended.stellantisECMP.InsulationDiag == 1) {
-      content += "Symmetric failure</h4>";
+      tr_h4_end(content, TrKey::DRV_SYMMETRIC_FAILURE);
     } else {  //4 Invalid, 5-7 illegal, wrap em under one text
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     }
-    content += "<h4>Contactor weld check: ";
+    tr_h4_open(content, TrKey::DRV_CONTACTOR_WELD_CHECK);
     if (datalayer_extended.stellantisECMP.pid_welding_detection == 0) {
-      content += "OK</h4>";
+      tr_h4_end(content, TrKey::DRV_OK);
     } else if (datalayer_extended.stellantisECMP.pid_welding_detection == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {  //Problem
-      content += "WELDED!" + String(datalayer_extended.stellantisECMP.pid_welding_detection) + "</h4>";
+      content +=
+          TR(TrKey::DRV_WELDED_ALARM) + String(datalayer_extended.stellantisECMP.pid_welding_detection) + "</h4>";
     }
 
-    content += "<h4>Contactor opening reason: ";
+    tr_h4_open(content, TrKey::DRV_CONTACTOR_OPENING_REASON);
     if (datalayer_extended.stellantisECMP.pid_reason_open == 7) {
-      content += "Invalid Status</h4>";
+      tr_h4_end(content, TrKey::DRV_INVALID_STATUS);
     } else if (datalayer_extended.stellantisECMP.pid_reason_open == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {  //Problem (Also status 0 might be OK?)
-      content += "Unknown" + String(datalayer_extended.stellantisECMP.pid_reason_open) + "</h4>";
+      content += TR(TrKey::UI_UNKNOWN) + String(datalayer_extended.stellantisECMP.pid_reason_open) + "</h4>";
     }
 
-    content += "<h4>Status of power switch: " +
-               (datalayer_extended.stellantisECMP.pid_contactor_status == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_contactor_status)) +
-               "</h4>";
-    content += "<h4>Negative power switch control: " +
-               (datalayer_extended.stellantisECMP.pid_negative_contactor_control == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_negative_contactor_control)) +
-               "</h4>";
-    content += "<h4>Negative power switch status: " +
-               (datalayer_extended.stellantisECMP.pid_negative_contactor_status == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_negative_contactor_status)) +
-               "</h4>";
-    content += "<h4>Positive power switch control: " +
-               (datalayer_extended.stellantisECMP.pid_positive_contactor_control == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_positive_contactor_control)) +
-               "</h4>";
-    content += "<h4>Positive power switch status: " +
-               (datalayer_extended.stellantisECMP.pid_positive_contactor_status == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_positive_contactor_status)) +
-               "</h4>";
-    content += "<h4>Contactor negative: " +
-               (datalayer_extended.stellantisECMP.pid_contactor_negative == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_contactor_negative)) +
-               "</h4>";
-    content += "<h4>Contactor positive: " +
-               (datalayer_extended.stellantisECMP.pid_contactor_positive == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_contactor_positive)) +
-               "</h4>";
-    content += "<h4>Precharge control: " +
-               (datalayer_extended.stellantisECMP.pid_precharge_relay_control == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_precharge_relay_control)) +
-               "</h4>";
-    content += "<h4>Precharge status: " +
-               (datalayer_extended.stellantisECMP.pid_precharge_relay_status == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_precharge_relay_status)) +
-               "</h4>";
-    content += "<h4>Recharge Status: " +
-               (datalayer_extended.stellantisECMP.pid_recharge_status == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_recharge_status)) +
-               "</h4>";
-    content += "<h4>Delta temperature: " +
-               (datalayer_extended.stellantisECMP.pid_delta_temperature == 127
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_delta_temperature)) +
-               "&deg;C</h4>";
-    content += "<h4>Lowest temperature: " +
-               (datalayer_extended.stellantisECMP.pid_lowest_temperature == 127
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_lowest_temperature)) +
-               "&deg;C</h4>";
-    content += "<h4>Average temperature: " +
-               (datalayer_extended.stellantisECMP.pid_average_temperature == 127
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_average_temperature)) +
-               "&deg;C</h4>";
-    content += "<h4>Highest temperature: " +
-               (datalayer_extended.stellantisECMP.pid_highest_temperature == 127
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_highest_temperature)) +
-               "&deg;C</h4>";
-    content += "<h4>Coldest module: " +
-               (datalayer_extended.stellantisECMP.pid_coldest_module == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_coldest_module)) +
-               "</h4>";
-    content += "<h4>Hottest module: " +
-               (datalayer_extended.stellantisECMP.pid_hottest_module == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_hottest_module)) +
-               "</h4>";
-    content += "<h4>Average cell voltage: " +
-               (datalayer_extended.stellantisECMP.pid_avg_cell_voltage == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_avg_cell_voltage)) +
-               " mV</h4>";
-    content +=
-        "<h4>High precision current: " +
-        (datalayer_extended.stellantisECMP.pid_current == 255 ? "N/A"
-                                                              : String(datalayer_extended.stellantisECMP.pid_current)) +
-        " mA</h4>";
-    content += "<h4>Insulation resistance neg-gnd: " +
-               (datalayer_extended.stellantisECMP.pid_insulation_res_neg == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_insulation_res_neg)) +
-               " kOhm</h4>";
-    content += "<h4>Insulation resistance pos-gnd: " +
-               (datalayer_extended.stellantisECMP.pid_insulation_res_pos == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_insulation_res_pos)) +
-               " kOhm</h4>";
-    content += "<h4>Max current 10s: " +
-               (datalayer_extended.stellantisECMP.pid_max_current_10s == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_max_current_10s)) +
-               "</h4>";
-    content += "<h4>Max discharge power 10s: " +
-               (datalayer_extended.stellantisECMP.pid_max_discharge_10s == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_max_discharge_10s)) +
-               "</h4>";
-    content += "<h4>Max discharge power 30s: " +
-               (datalayer_extended.stellantisECMP.pid_max_discharge_30s == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_max_discharge_30s)) +
-               "</h4>";
-    content += "<h4>Max charge power 10s: " +
-               (datalayer_extended.stellantisECMP.pid_max_charge_10s == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_max_charge_10s)) +
-               "</h4>";
-    content += "<h4>Max charge power 30s: " +
-               (datalayer_extended.stellantisECMP.pid_max_charge_30s == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_max_charge_30s)) +
-               "</h4>";
-    content += "<h4>Energy capacity: " +
-               (datalayer_extended.stellantisECMP.pid_energy_capacity == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_energy_capacity)) +
-               "</h4>";
-    content += "<h4>Highest cell number: " +
-               (datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num)) +
-               "</h4>";
-    content += "<h4>Lowest cell voltage number: " +
-               (datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num)) +
-               "</h4>";
-    content += "<h4>Sum of all cell voltages: " +
-               (datalayer_extended.stellantisECMP.pid_sum_of_cells == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_sum_of_cells)) +
-               " dV</h4>";
-    content += "<h4>Cell min capacity: " +
-               (datalayer_extended.stellantisECMP.pid_cell_min_capacity == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_cell_min_capacity)) +
-               "</h4>";
-    content += "<h4>Cell voltage measurement status: " +
-               (datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status)) +
-               "</h4>";
-    content += "<h4>Battery Insulation Resistance: " +
-               (datalayer_extended.stellantisECMP.pid_insulation_res == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_insulation_res)) +
-               " kOhm</h4>";
-    content += "<h4>Pack voltage: " +
-               (datalayer_extended.stellantisECMP.pid_pack_voltage == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_pack_voltage)) +
-               " dV</h4>";
-    content += "<h4>Highest cell voltage: " +
-               (datalayer_extended.stellantisECMP.pid_high_cell_voltage == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_high_cell_voltage)) +
-               " mV</h4>";
-    content += "<h4>Lowest cell voltage: " +
-               (datalayer_extended.stellantisECMP.pid_low_cell_voltage == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_low_cell_voltage)) +
-               " mV</h4>";
-    content += "<h4>Battery Energy: " +
-               (datalayer_extended.stellantisECMP.pid_battery_energy == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_battery_energy)) +
-               "</h4>";
-    content += "<h4>Collision information Counter: " +
-               (datalayer_extended.stellantisECMP.pid_crash_counter == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_crash_counter)) +
-               "</h4>";
-    content += "<h4>Collision Counter recieved by Wire: " +
-               (datalayer_extended.stellantisECMP.pid_wire_crash == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_wire_crash)) +
-               "</h4>";
-    content += "<h4>Collision data sent from car to battery: " +
-               (datalayer_extended.stellantisECMP.pid_CAN_crash == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_CAN_crash)) +
-               "</h4>";
-    content += "<h4>History data: " +
-               (datalayer_extended.stellantisECMP.pid_history_data == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_history_data)) +
-               "</h4>";
-    content += "<h4>Low SOC counter: " +
-               (datalayer_extended.stellantisECMP.pid_lowsoc_counter == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_lowsoc_counter)) +
-               "</h4>";
-    content += "<h4>Last CAN failure detail: " +
-               (datalayer_extended.stellantisECMP.pid_last_can_failure_detail == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_last_can_failure_detail)) +
-               "</h4>";
-    content += "<h4>HW version number: " +
-               (datalayer_extended.stellantisECMP.pid_hw_version_num == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_hw_version_num)) +
-               "</h4>";
-    content += "<h4>SW version number: " +
-               (datalayer_extended.stellantisECMP.pid_sw_version_num == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_sw_version_num)) +
-               "</h4>";
-    content += "<h4>Factory mode: " +
-               (datalayer_extended.stellantisECMP.pid_factory_mode_control == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_factory_mode_control)) +
-               "</h4>";
+    tr_h4(content, TrKey::DRV_STATUS_POWER_SWITCH,
+          (datalayer_extended.stellantisECMP.pid_contactor_status == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_contactor_status)));
+    tr_h4(content, TrKey::DRV_NEGATIVE_POWER_SWITCH_CONTROL,
+          (datalayer_extended.stellantisECMP.pid_negative_contactor_control == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_negative_contactor_control)));
+    tr_h4(content, TrKey::DRV_NEGATIVE_POWER_SWITCH_STATUS,
+          (datalayer_extended.stellantisECMP.pid_negative_contactor_status == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_negative_contactor_status)));
+    tr_h4(content, TrKey::DRV_POSITIVE_POWER_SWITCH_CONTROL,
+          (datalayer_extended.stellantisECMP.pid_positive_contactor_control == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_positive_contactor_control)));
+    tr_h4(content, TrKey::DRV_POSITIVE_POWER_SWITCH_STATUS,
+          (datalayer_extended.stellantisECMP.pid_positive_contactor_status == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_positive_contactor_status)));
+    tr_h4(content, TrKey::DRV_CONTACTOR_NEGATIVE,
+          (datalayer_extended.stellantisECMP.pid_contactor_negative == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_contactor_negative)));
+    tr_h4(content, TrKey::DRV_CONTACTOR_POSITIVE,
+          (datalayer_extended.stellantisECMP.pid_contactor_positive == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_contactor_positive)));
+    tr_h4(content, TrKey::DRV_PRECHARGE_CONTROL,
+          (datalayer_extended.stellantisECMP.pid_precharge_relay_control == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_precharge_relay_control)));
+    tr_h4(content, TrKey::DRV_PRECHARGE_STATUS,
+          (datalayer_extended.stellantisECMP.pid_precharge_relay_status == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_precharge_relay_status)));
+    tr_h4(content, TrKey::DRV_RECHARGE_STATUS,
+          (datalayer_extended.stellantisECMP.pid_recharge_status == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_recharge_status)));
+    tr_h4(content, TrKey::DRV_DELTA_TEMPERATURE,
+          (datalayer_extended.stellantisECMP.pid_delta_temperature == 127
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_delta_temperature)),
+          "&deg;C");
+    tr_h4(content, TrKey::DRV_LOWEST_TEMPERATURE,
+          (datalayer_extended.stellantisECMP.pid_lowest_temperature == 127
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_lowest_temperature)),
+          "&deg;C");
+    tr_h4(content, TrKey::DRV_AVERAGE_TEMPERATURE,
+          (datalayer_extended.stellantisECMP.pid_average_temperature == 127
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_average_temperature)),
+          "&deg;C");
+    tr_h4(content, TrKey::DRV_HIGHEST_TEMPERATURE,
+          (datalayer_extended.stellantisECMP.pid_highest_temperature == 127
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_highest_temperature)),
+          "&deg;C");
+    tr_h4(content, TrKey::DRV_COLDEST_MODULE,
+          (datalayer_extended.stellantisECMP.pid_coldest_module == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_coldest_module)));
+    tr_h4(content, TrKey::DRV_HOTTEST_MODULE,
+          (datalayer_extended.stellantisECMP.pid_hottest_module == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_hottest_module)));
+    tr_h4(content, TrKey::DRV_AVERAGE_CELL_VOLTAGE,
+          (datalayer_extended.stellantisECMP.pid_avg_cell_voltage == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_avg_cell_voltage)),
+          " mV");
+    tr_h4(
+        content, TrKey::DRV_HIGH_PRECISION_CURRENT,
+        (datalayer_extended.stellantisECMP.pid_current == 255 ? TR(TrKey::DRV_NOT_APPLICABLE)
+                                                              : String(datalayer_extended.stellantisECMP.pid_current)),
+        " mA");
+    tr_h4(content, TrKey::DRV_INSULATION_RESISTANCE_NEG_GND,
+          (datalayer_extended.stellantisECMP.pid_insulation_res_neg == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_insulation_res_neg)),
+          " kOhm");
+    tr_h4(content, TrKey::DRV_INSULATION_RESISTANCE_POS_GND,
+          (datalayer_extended.stellantisECMP.pid_insulation_res_pos == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_insulation_res_pos)),
+          " kOhm");
+    tr_h4(content, TrKey::DRV_MAX_CURRENT_10S,
+          (datalayer_extended.stellantisECMP.pid_max_current_10s == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_max_current_10s)));
+    tr_h4(content, TrKey::DRV_MAX_DISCHARGE_POWER_10S,
+          (datalayer_extended.stellantisECMP.pid_max_discharge_10s == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_max_discharge_10s)));
+    tr_h4(content, TrKey::DRV_MAX_DISCHARGE_POWER_30S,
+          (datalayer_extended.stellantisECMP.pid_max_discharge_30s == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_max_discharge_30s)));
+    tr_h4(content, TrKey::DRV_MAX_CHARGE_POWER_10S,
+          (datalayer_extended.stellantisECMP.pid_max_charge_10s == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_max_charge_10s)));
+    tr_h4(content, TrKey::DRV_MAX_CHARGE_POWER_30S,
+          (datalayer_extended.stellantisECMP.pid_max_charge_30s == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_max_charge_30s)));
+    tr_h4(content, TrKey::DRV_ENERGY_CAPACITY,
+          (datalayer_extended.stellantisECMP.pid_energy_capacity == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_energy_capacity)));
+    tr_h4(content, TrKey::DRV_HIGHEST_CELL_NUMBER,
+          (datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num)));
+    tr_h4(content, TrKey::DRV_LOWEST_CELL_VOLTAGE_NUMBER,
+          (datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num)));
+    tr_h4(content, TrKey::DRV_SUM_ALL_CELL_VOLTAGES,
+          (datalayer_extended.stellantisECMP.pid_sum_of_cells == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_sum_of_cells)),
+          " dV");
+    tr_h4(content, TrKey::DRV_CELL_MIN_CAPACITY,
+          (datalayer_extended.stellantisECMP.pid_cell_min_capacity == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_cell_min_capacity)));
+    tr_h4(content, TrKey::DRV_CELL_VOLTAGE_MEASUREMENT_STATUS,
+          (datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status)));
+    tr_h4(content, TrKey::DRV_BATTERY_INSULATION_RESISTANCE,
+          (datalayer_extended.stellantisECMP.pid_insulation_res == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_insulation_res)),
+          " kOhm");
+    tr_h4(content, TrKey::DRV_PACK_VOLTAGE,
+          (datalayer_extended.stellantisECMP.pid_pack_voltage == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_pack_voltage)),
+          " dV");
+    tr_h4(content, TrKey::DRV_HIGHEST_CELL_VOLTAGE,
+          (datalayer_extended.stellantisECMP.pid_high_cell_voltage == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_high_cell_voltage)),
+          " mV");
+    tr_h4(content, TrKey::DRV_LOWEST_CELL_VOLTAGE,
+          (datalayer_extended.stellantisECMP.pid_low_cell_voltage == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_low_cell_voltage)),
+          " mV");
+    tr_h4(content, TrKey::DRV_BATTERY_ENERGY,
+          (datalayer_extended.stellantisECMP.pid_battery_energy == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_battery_energy)));
+    tr_h4(content, TrKey::DRV_COLLISION_INFORMATION_COUNTER,
+          (datalayer_extended.stellantisECMP.pid_crash_counter == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_crash_counter)));
+    tr_h4(content, TrKey::DRV_COLLISION_COUNTER_RECIEVED_BY_WIRE,
+          (datalayer_extended.stellantisECMP.pid_wire_crash == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_wire_crash)));
+    tr_h4(content, TrKey::DRV_COLLISION_DATA_SENT_FROM_CAR_BATTERY,
+          (datalayer_extended.stellantisECMP.pid_CAN_crash == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_CAN_crash)));
+    tr_h4(content, TrKey::DRV_HISTORY_DATA,
+          (datalayer_extended.stellantisECMP.pid_history_data == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_history_data)));
+    tr_h4(content, TrKey::DRV_LOW_SOC_COUNTER,
+          (datalayer_extended.stellantisECMP.pid_lowsoc_counter == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_lowsoc_counter)));
+    tr_h4(content, TrKey::DRV_LAST_CAN_FAILURE_DETAIL,
+          (datalayer_extended.stellantisECMP.pid_last_can_failure_detail == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_last_can_failure_detail)));
+    tr_h4(content, TrKey::DRV_HW_VERSION_NUMBER,
+          (datalayer_extended.stellantisECMP.pid_hw_version_num == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_hw_version_num)));
+    tr_h4(content, TrKey::DRV_SW_VERSION_NUMBER,
+          (datalayer_extended.stellantisECMP.pid_sw_version_num == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_sw_version_num)));
+    tr_h4(content, TrKey::DRV_FACTORY_MODE,
+          (datalayer_extended.stellantisECMP.pid_factory_mode_control == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_factory_mode_control)));
     char readableSerialNumber[14];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.stellantisECMP.pid_battery_serial,
            sizeof(datalayer_extended.stellantisECMP.pid_battery_serial));
     readableSerialNumber[13] = '\0';  // Null terminate the string
-    content += "<h4>Battery serial: " + String(readableSerialNumber) + "</h4>";
+    tr_h4(content, TrKey::DRV_BATTERY_SERIAL, String(readableSerialNumber));
     uint8_t day = (datalayer_extended.stellantisECMP.pid_date_of_manufacture >> 16) & 0xFF;
     uint8_t month = (datalayer_extended.stellantisECMP.pid_date_of_manufacture >> 8) & 0xFF;
     uint8_t year = datalayer_extended.stellantisECMP.pid_date_of_manufacture & 0xFF;
-    content += "<h4>Date of manufacture: " + String(day) + "/" + String(month) + "/" + String(year) + "</h4>";
-    content += "<h4>Aux fuse state: " +
-               (datalayer_extended.stellantisECMP.pid_aux_fuse_state == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_aux_fuse_state)) +
+    tr_h4(content, TrKey::DRV_DATE_MANUFACTURE, String(day) + "/" + String(month) + "/" + String(year));
+    tr_h4(content, TrKey::DRV_AUX_FUSE_STATE,
+          (datalayer_extended.stellantisECMP.pid_aux_fuse_state == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_aux_fuse_state)));
+    tr_h4(content, TrKey::DRV_BATTERY_STATE,
+          (datalayer_extended.stellantisECMP.pid_battery_state == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_battery_state)));
+    tr_h4(content, TrKey::DRV_PRECHARGE_SHORT_CIRCUIT,
+          (datalayer_extended.stellantisECMP.pid_precharge_short_circuit == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_precharge_short_circuit)));
+    tr_h4(content, TrKey::DRV_SERVICE_PLUG_STATE,
+          (datalayer_extended.stellantisECMP.pid_eservice_plug_state == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_eservice_plug_state)));
+    tr_h4(content, TrKey::DRV_MAIN_FUSE_STATE,
+          (datalayer_extended.stellantisECMP.pid_mainfuse_state == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_mainfuse_state)));
+    tr_h4(content, TrKey::DRV_MOST_CRITICAL_FAULT,
+          (datalayer_extended.stellantisECMP.pid_most_critical_fault == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_most_critical_fault)));
+    tr_h4(content, TrKey::DRV_CURRENT_TIME,
+          (datalayer_extended.stellantisECMP.pid_current_time == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_current_time)),
+          " ticks");
+    tr_h4(content, TrKey::DRV_TIME_SENT_BY_CAR,
+          (datalayer_extended.stellantisECMP.pid_time_sent_by_car == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_time_sent_by_car)),
+          " ticks");
+    tr_h4_start(content, TrKey::DRV_12V);
+    content += ": " +
+               (datalayer_extended.stellantisECMP.pid_12v == 255 ? TR(TrKey::DRV_NOT_APPLICABLE)
+                                                                 : String(datalayer_extended.stellantisECMP.pid_12v)) +
                "</h4>";
-    content += "<h4>Battery state: " +
-               (datalayer_extended.stellantisECMP.pid_battery_state == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_battery_state)) +
-               "</h4>";
-    content += "<h4>Precharge short circuit: " +
-               (datalayer_extended.stellantisECMP.pid_precharge_short_circuit == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_precharge_short_circuit)) +
-               "</h4>";
-    content += "<h4>Service plug state: " +
-               (datalayer_extended.stellantisECMP.pid_eservice_plug_state == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_eservice_plug_state)) +
-               "</h4>";
-    content += "<h4>Main fuse state: " +
-               (datalayer_extended.stellantisECMP.pid_mainfuse_state == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_mainfuse_state)) +
-               "</h4>";
-    content += "<h4>Most critical fault: " +
-               (datalayer_extended.stellantisECMP.pid_most_critical_fault == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_most_critical_fault)) +
-               "</h4>";
-    content += "<h4>Current time: " +
-               (datalayer_extended.stellantisECMP.pid_current_time == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_current_time)) +
-               " ticks</h4>";
-    content += "<h4>Time sent by car: " +
-               (datalayer_extended.stellantisECMP.pid_time_sent_by_car == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_time_sent_by_car)) +
-               " ticks</h4>";
-    content +=
-        "<h4>12V: " +
-        (datalayer_extended.stellantisECMP.pid_12v == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_12v)) +
-        "</h4>";
-    content += "<h4>12V abnormal: ";
+    tr_h4_open(content, TrKey::DRV_12V_ABNORMAL);
     if (datalayer_extended.stellantisECMP.pid_12v_abnormal == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else if (datalayer_extended.stellantisECMP.pid_12v_abnormal == 0) {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     } else {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     }
-    content += "<h4>HVIL IN Voltage: " +
-               (datalayer_extended.stellantisECMP.pid_hvil_in_voltage == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_hvil_in_voltage)) +
-               "mV</h4>";
-    content += "<h4>HVIL Out Voltage: " +
-               (datalayer_extended.stellantisECMP.pid_hvil_out_voltage == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_hvil_out_voltage)) +
-               "mV</h4>";
-    content += "<h4>HVIL State: " +
-               (datalayer_extended.stellantisECMP.pid_hvil_state == 255
-                    ? "N/A"
-                    : (datalayer_extended.stellantisECMP.pid_hvil_state == 0
-                           ? "OK"
-                           : String(datalayer_extended.stellantisECMP.pid_hvil_state))) +
-               "</h4>";
-    content += "<h4>BMS State: " +
-               (datalayer_extended.stellantisECMP.pid_bms_state == 255
-                    ? "N/A"
-                    : (datalayer_extended.stellantisECMP.pid_bms_state == 0
-                           ? "OK"
-                           : String(datalayer_extended.stellantisECMP.pid_bms_state))) +
-               "</h4>";
-    content += "<h4>Vehicle speed: " +
-               (datalayer_extended.stellantisECMP.pid_vehicle_speed == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_vehicle_speed)) +
-               " km/h</h4>";
-    content += "<h4>Time spent over 55c: " +
-               (datalayer_extended.stellantisECMP.pid_time_spent_over_55c == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_time_spent_over_55c)) +
-               " minutes</h4>";
-    content += "<h4>Contactor lifetime closing counter: " +
-               (datalayer_extended.stellantisECMP.pid_contactor_closing_counter == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
-               " cycles</h4>";
-    content += "<h4>State of Health Cell-1: " +
-               (datalayer_extended.stellantisECMP.pid_SOH_cell_1 == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_SOH_cell_1)) +
-               "</h4>";
+    tr_h4(content, TrKey::DRV_HVIL_VOLTAGE,
+          (datalayer_extended.stellantisECMP.pid_hvil_in_voltage == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_hvil_in_voltage)),
+          "mV");
+    tr_h4(content, TrKey::DRV_HVIL_OUT_VOLTAGE,
+          (datalayer_extended.stellantisECMP.pid_hvil_out_voltage == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_hvil_out_voltage)),
+          "mV");
+    tr_h4(content, TrKey::DRV_HVIL_STATE,
+          (datalayer_extended.stellantisECMP.pid_hvil_state == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : (datalayer_extended.stellantisECMP.pid_hvil_state == 0
+                      ? "OK"
+                      : String(datalayer_extended.stellantisECMP.pid_hvil_state))));
+    tr_h4(content, TrKey::DRV_BMS_STATE,
+          (datalayer_extended.stellantisECMP.pid_bms_state == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : (datalayer_extended.stellantisECMP.pid_bms_state == 0
+                      ? "OK"
+                      : String(datalayer_extended.stellantisECMP.pid_bms_state))));
+    tr_h4(content, TrKey::DRV_VEHICLE_SPEED,
+          (datalayer_extended.stellantisECMP.pid_vehicle_speed == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_vehicle_speed)),
+          " km/h");
+    tr_h4(content, TrKey::DRV_TIME_SPENT_OVER_55C,
+          (datalayer_extended.stellantisECMP.pid_time_spent_over_55c == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_time_spent_over_55c)),
+          " minutes");
+    tr_h4(content, TrKey::DRV_CONTACTOR_LIFETIME_CLOSING_COUNTER,
+          (datalayer_extended.stellantisECMP.pid_contactor_closing_counter == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)),
+          " cycles");
+    tr_h4(content, TrKey::DRV_STATE_HEALTH_CELL_1,
+          (datalayer_extended.stellantisECMP.pid_SOH_cell_1 == 255
+               ? TR(TrKey::DRV_NOT_APPLICABLE)
+               : String(datalayer_extended.stellantisECMP.pid_SOH_cell_1)));
 
     if (datalayer_extended.stellantisECMP.MysteryVan) {
-      content += "<h3>MysteryVan platform detected!</h3>";
-      content += "<h4>Contactor State: ";
+      tr_h3(content, TrKey::DRV_MYSTERYVAN_PLATFORM_DETECTED);
+      tr_h4_open(content, TrKey::DRV_CONTACTOR_STATUS);
       if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 0) {
-        content += "Open";
+        content += TR(TrKey::DRV_OPEN);
       } else if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 1) {
-        content += "Precharge";
+        content += TR(TrKey::DRV_PRECHARGE);
       } else if (datalayer_extended.stellantisECMP.CONTACTORS_STATE == 2) {
-        content += "Closed";
+        content += TR(TrKey::DRV_CLOSED);
       }
       content += "</h4>";
-      content += "<h4>Crash Memorized: ";
+      tr_h4_open(content, TrKey::DRV_CRASH_MEMORIZED);
       if (datalayer_extended.stellantisECMP.CrashMemorized) {
-        content += "Yes</h4>";
+        tr_h4_end(content, TrKey::DRV_YES);
       } else {
-        content += "No</h4>";
+        tr_h4_end(content, TrKey::DRV_NO);
       }
-      content += "<h4>Contactor Opening Reason: ";
+      tr_h4_open(content, TrKey::DRV_CONTACTOR_OPENING_REASON);
       if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 0) {
-        content += "No error";
+        content += TR(TrKey::DRV_NO_ERROR);
       } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 1) {
-        content += "Crash!";
+        content += TR(TrKey::DRV_CRASH);
       } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 2) {
-        content += "12V supply source undervoltage";
+        content += TR(TrKey::DRV_12V_SUPPLY_SOURCE_UNDERVOLTAGE);
       } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 3) {
-        content += "12V supply source overvoltage";
+        content += TR(TrKey::DRV_12V_SUPPLY_SOURCE_OVERVOLTAGE);
       } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 4) {
-        content += "Battery temperature";
+        content += TR(TrKey::DRV_BATTERY_TEMPERATURE);
       } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 5) {
-        content += "Interlock line open";
+        content += TR(TrKey::DRV_INTERLOCK_LINE_OPEN);
       } else if (datalayer_extended.stellantisECMP.CONTACTOR_OPENING_REASON == 6) {
-        content += "e-Service plug disconnected";
+        content += TR(TrKey::DRV_E_SERVICE_PLUG_DISCONNECTED);
       }
       content += "</h4>";
-      content += "<h4>Battery fault type: ";
+      tr_h4_open(content, TrKey::DRV_BATTERY_FAULT_TYPE);
       if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 0) {
-        content += "No fault";
+        content += TR(TrKey::DRV_NO_FAULT);
       } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 1) {
-        content += "FirstLevelFault: Warning Lamp";
+        content += TR(TrKey::DRV_FIRSTLEVELFAULT_WARNING_LAMP);
       } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 2) {
-        content += "SecondLevelFault: Stop Lamp";
+        content += TR(TrKey::DRV_SECONDLEVELFAULT_STOP_LAMP);
       } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 3) {
-        content += "ThirdLevelFault: Stop Lamp + contactor opening (EPS shutdown)";
+        content += TR(TrKey::DRV_THIRDLEVELFAULT_STOP_LAMP_CONTACTOR_OPENING_EPS_SHUTDOWN);
       } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 4) {
-        content += "FourthLevelFault: Stop Lamp + Active Discharge";
+        content += TR(TrKey::DRV_FOURTHLEVELFAULT_STOP_LAMP_ACTIVE_DISCHARGE);
       } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 5) {
-        content += "Inhibition of powertrain activation";
+        content += TR(TrKey::DRV_INHIBITION_POWERTRAIN_ACTIVATION);
       } else if (datalayer_extended.stellantisECMP.TBMU_FAULT_TYPE == 6) {
-        content += "Reserved";
+        content += TR(TrKey::DRV_RESERVED);
       }
       content += "</h4>";
-      content += "<h4>FC insulation minus resistance " +
-                 String(datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_MINUS_RES) + " kOhm</h4>";
-      content += "<h4>FC insulation plus resistance " +
-                 String(datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_PLUS_RES) + " kOhm</h4>";
-      content += "<h4>FC vehicle insulation plus resistance " +
-                 String(datalayer_extended.stellantisECMP.HV_BATT_FC_VHL_INSU_PLUS_RES) + " kOhm</h4>";
-      content += "<h4>FC vehicle insulation plus resistance " +
-                 String(datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES) + " kOhm</h4>";
+      tr_h4(content, TrKey::DRV_FC_INSULATION_MINUS_RESISTANCE,
+            String(datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_MINUS_RES), " kOhm");
+      tr_h4(content, TrKey::DRV_FC_INSULATION_PLUS_RESISTANCE,
+            String(datalayer_extended.stellantisECMP.HV_BATT_FC_INSU_PLUS_RES), " kOhm");
+      tr_h4(content, TrKey::DRV_FC_VEHICLE_INSULATION_PLUS_RESISTANCE,
+            String(datalayer_extended.stellantisECMP.HV_BATT_FC_VHL_INSU_PLUS_RES), " kOhm");
+      tr_h4(content, TrKey::DRV_FC_VEHICLE_INSULATION_PLUS_RESISTANCE,
+            String(datalayer_extended.stellantisECMP.HV_BATT_ONLY_INSU_MINUS_RES), " kOhm");
     }
-    content += "<h4>Alert Battery: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_BATTERY);
     if (datalayer_extended.stellantisECMP.ALERT_BATT) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Low SOC: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_LOW_SOC);
     if (datalayer_extended.stellantisECMP.ALERT_LOW_SOC) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert High SOC: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_HIGH_SOC);
     if (datalayer_extended.stellantisECMP.ALERT_HIGH_SOC) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert SOC Jump: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_SOC_JUMP);
     if (datalayer_extended.stellantisECMP.ALERT_SOC_JUMP) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Overcharge: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_OVERCHARGE);
     if (datalayer_extended.stellantisECMP.ALERT_OVERCHARGE) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Temp Diff: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_TEMP_DIFF);
     if (datalayer_extended.stellantisECMP.ALERT_TEMP_DIFF) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Temp High: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_TEMP_HIGH);
     if (datalayer_extended.stellantisECMP.ALERT_HIGH_TEMP) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Overvoltage: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_OVERVOLTAGE);
     if (datalayer_extended.stellantisECMP.ALERT_OVERVOLTAGE) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Cell Overvoltage: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_CELL_OVERVOLTAGE);
     if (datalayer_extended.stellantisECMP.ALERT_CELL_OVERVOLTAGE) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Cell Undervoltage: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_CELL_UNDERVOLTAGE);
     if (datalayer_extended.stellantisECMP.ALERT_CELL_UNDERVOLTAGE) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Alert Cell Poor Consistency: ";
+    tr_h4_open(content, TrKey::DRV_ALERT_CELL_POOR_CONSISTENCY);
     if (datalayer_extended.stellantisECMP.ALERT_CELL_POOR_CONSIST) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Remember to press Open Contactors from main menu before running the dianostic commands below:</h4>";
+    tr_h4(content, TrKey::DRV_REMEMBER_PRESS_OPEN_CONTACTORS_FROM_MAIN_MENU_BEFORE_RUNNING_DIANOSTIC_COMMANDS_BELOW);
     return content;
   }
 };

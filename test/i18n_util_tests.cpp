@@ -63,3 +63,27 @@ TEST(I18nUtilTest, ListJsonRejectsMalformedActiveLanguage) {
   EXPECT_STREQ(i18n_list_json(files, "</script>").c_str(), "{\"active\":\"\",\"languages\":[\"sv\"]}");
   EXPECT_STREQ(i18n_list_json(files, "sv").c_str(), "{\"active\":\"sv\",\"languages\":[\"sv\"]}");
 }
+
+TEST(I18nEtagTest, EtagFormatIsQuotedLowercaseHex) {
+  EXPECT_EQ(i18n_etag(0x6745fe63u), String("\"6745fe63\""));
+  EXPECT_EQ(i18n_etag(0x0000000au), String("\"0000000a\""));
+}
+
+TEST(I18nEtagTest, MatchAcceptsClientVariants) {
+  uint32_t crc = 0x6745fe63u;
+  EXPECT_TRUE(i18n_etag_match(String("\"6745fe63\""), crc)) << "Exact quoted form (what we emit)";
+  EXPECT_TRUE(i18n_etag_match(String("6745fe63"), crc)) << "Unquoted";
+  EXPECT_TRUE(i18n_etag_match(String("W/\"6745fe63\""), crc)) << "Weak validator";
+  EXPECT_TRUE(i18n_etag_match(String("w/\"6745FE63\""), crc)) << "Case variations";
+  EXPECT_TRUE(i18n_etag_match(String(" \"6745fe63\" "), crc)) << "Surrounding whitespace";
+  EXPECT_TRUE(i18n_etag_match(String("\"deadbeef\", \"6745fe63\""), crc)) << "Comma-separated list";
+  EXPECT_TRUE(i18n_etag_match(String("*"), crc)) << "Wildcard";
+}
+
+TEST(I18nEtagTest, MatchRejectsOtherPacks) {
+  uint32_t crc = 0x6745fe63u;
+  EXPECT_FALSE(i18n_etag_match(String("\"deadbeef\""), crc));
+  EXPECT_FALSE(i18n_etag_match(String(""), crc));
+  EXPECT_FALSE(i18n_etag_match(String("\"6745fe6\""), crc)) << "Truncated hex must not match";
+  EXPECT_FALSE(i18n_etag_match(String("\"6745fe631\""), crc)) << "Overlong candidate must not match";
+}

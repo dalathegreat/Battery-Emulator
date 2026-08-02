@@ -3,24 +3,34 @@
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/utils/millis64.h"
+#include "../i18n/tr.h"
+#include "html_escape.h"
+#include "index_html.h"
 
 const char EVENTS_HTML_START[] = R"=====(
 <style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:100px;word-break:break-word}</style><div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log"><div class="event" style="background-color:#1e2c33;font-weight:700"><div>Event Type</div><div>Severity</div><div>Last Event</div><div>Count</div><div>Data</div><div>Message</div></div>
 )=====";
-const char EVENTS_HTML_END[] = R"=====(
+const char EVENTS_HTML_BUTTONS[] = R"=====(
 </div></div>
 <style> button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; cursor: pointer; border-radius: 10px; }
 button:hover { background-color: #3A4A52; }</style>
-<button onclick="askClear()">Clear all events</button>
-<button onclick="home()">Back to main page</button>
+)=====";
+const char EVENTS_HTML_END[] = R"=====(
 <style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style>
-<script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Number(BigInt(Date.now()) - BigInt(n.innerText))).toLocaleString())})}function askClear(){window.confirm("Are you sure you want to clear all events?")&&(window.location.href="/clearevents")}function home(){window.location.href="/"}window.onload=function(){showEvent()}
+<script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Number(BigInt(Date.now()) - BigInt(n.innerText))).toLocaleString())})}function home(){window.location.href="/"}window.onload=function(){showEvent()}
 </script>
 )=====";
 
 static std::vector<EventData> order_events;
 
 String events_processor(const String& var) {
+  // COMMON_JAVASCRIPT is part of every template this serves; resolve its
+  // placeholder here or the raw token ships to the browser.
+  String common = common_javascript_processor(var);
+  if (common.length() > 0) {
+    return common;
+  }
+
   if (var == "X") {
     String content = "";
     content.reserve(5000);
@@ -77,7 +87,9 @@ String events_processor(const String& var) {
       content.concat("<div class='sec-ago'>" + String(current_timestamp - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");
       content.concat("<div>" + String(event_pointer->data) + "</div>");
-      content.concat("<div>" + get_event_message_string(event_handle) + "</div>");
+      // Event text is served raw to MQTT, so it is escaped here at the point
+      // it enters markup
+      content.concat("<div>" + html_escape(get_event_message_string(event_handle)) + "</div>");
       content.concat("</div>");  // End of event row
     }
 
@@ -88,6 +100,15 @@ String events_processor(const String& var) {
 
     //clear the vector
     order_events.clear();
+    content.concat(FPSTR(EVENTS_HTML_BUTTONS));
+    content += "<button onclick=\"askClear()\">" + TR(TrKey::UI_CLEAR_ALL_EVENTS) + "</button>";
+    content += "<button onclick=\"home()\">" + TR(TrKey::UI_BACK_MAIN_PAGE) + "</button>";
+    /* askClear() is built here rather than inside EVENTS_HTML_END: that raw
+       literal is part of the string this processor RETURNS, not part of the
+       template it is substituted into, so a %PLACEHOLDER% in it would never
+       be resolved. */
+    content += "<script>function askClear(){window.confirm('" + TR_JS(TrKey::UI_CONFIRM_CLEAR_ALL_EVENTS) +
+               "')&&(window.location.href=\"/clearevents\")}</script>";
     content.concat(FPSTR(EVENTS_HTML_END));
     return content;
   }

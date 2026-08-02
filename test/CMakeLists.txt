@@ -73,8 +73,18 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 # CONFIGURE_DEPENDS re-globs at build time, so a newly added file is picked up
 # without re-running cmake by hand. The filter drops the leftovers of an
 # in-source `cmake -B build` inside test/, which are not sources.
+# Generated i18n artifacts are not committed - regenerate at configure time
+execute_process(
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/../tools/i18n_gen.py
+    RESULT_VARIABLE I18N_GEN_RESULT)
+if(NOT I18N_GEN_RESULT EQUAL 0)
+    message(FATAL_ERROR "i18n generation from tools/translations.fods failed")
+endif()
+
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
+# escape_dump.cpp has its own main() - it is the differential dump tool, not a test
+list(FILTER TEST_SOURCES EXCLUDE REGEX "escape_dump")
 
 # The firmware sources stay an explicit, curated list, and must. It is not
 # "every file under Software/src" - it is the subset that links in a host build.
@@ -89,6 +99,8 @@ add_executable(tests
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/types.cpp
+    ../Software/src/devboard/i18n/tr.cpp
+    ../Software/src/devboard/utils/escape.cpp
     ../Software/src/devboard/i18n/i18n_util.cpp
     ../Software/src/devboard/i18n/i18n_store.cpp
     ../Software/src/devboard/utils/events.cpp
@@ -208,3 +220,12 @@ target_compile_definitions(tests PRIVATE
 )
 
 gtest_discover_tests(tests)
+
+# Dump tool for the escaping differential test (tools/test_escaping_differential.py).
+# Links the real escapers so the differential exercises production code, not a
+# reimplementation of it.
+add_executable(escape_dump
+    escape_dump.cpp
+    ../Software/src/devboard/utils/escape.cpp
+    emul/Arduino.cpp
+)

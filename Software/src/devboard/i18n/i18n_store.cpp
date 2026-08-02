@@ -75,6 +75,8 @@ bool I18nStore::mount() {
     found = true;
     sequence_ = sequence;
     active_block_ = block;
+    memcpy(hint_, buf + 12, HINT_SIZE);
+    hint_[HINT_SIZE - 1] = '\0';
     entries_ = parsed;
   }
   mounted_ = found;
@@ -87,6 +89,7 @@ bool I18nStore::format() {
     return false;
   }
   entries_.clear();
+  memset(hint_, 0, sizeof(hint_));
   sequence_ = 0;
   active_block_ = 1;  // So the fresh directory lands in block 0
   mounted_ = true;
@@ -110,6 +113,7 @@ bool I18nStore::commit_entries(const std::vector<I18nStoreEntry>& new_entries) {
   memcpy(buf + 6, &sequence, 4);
   uint16_t count = (uint16_t)new_entries.size();
   memcpy(buf + 10, &count, 2);
+  memcpy(buf + 12, hint_, HINT_SIZE);
   for (uint16_t i = 0; i < count; i++) {
     memcpy(buf + DIR_HEADER_SIZE + i * sizeof(I18nStoreEntry), &new_entries[i], sizeof(I18nStoreEntry));
   }
@@ -158,6 +162,14 @@ int32_t I18nStore::length(const char* name) const {
     return -1;
   }
   return (int32_t)entries_[index].length;
+}
+
+uint32_t I18nStore::file_crc32(const char* name) const {
+  int index = find_entry(name);
+  if (!mounted_ || index < 0) {
+    return 0;
+  }
+  return entries_[index].crc32;
 }
 
 bool I18nStore::read(const char* name, uint32_t offset, void* buf, size_t len) const {
@@ -212,6 +224,10 @@ bool I18nStore::find_extent(uint32_t len, uint32_t* offset) const {
   return true;
 }
 
+/* Space not claimed by a committed entry. An active stream's reservation is
+ * erased but not yet in entries_, so this reads high by up to stream_reserved_
+ * mid-upload - informational only, since stream_active_ blocks a second
+ * allocation. */
 uint32_t I18nStore::free_space() const {
   uint32_t used = 0;
   for (const I18nStoreEntry& entry : entries_) {
@@ -253,6 +269,24 @@ bool I18nStore::compact() {
         if (!flash_.read(entry.offset + pos, buf, chunk) || !flash_.write(target + pos, buf, chunk)) {
           return false;
         }
+      }
+      /* Verify the copy the same way stream_commit() verifies an upload:
+       * the directory flip is what makes the new extent authoritative, and
+       * committing it unchecked would promote a bad copy over a good
+       * original that is about to be treated as free space. */
+      uint32_t moved_crc = 0;
+      for (uint32_t pos = 0; pos < entry.length; pos += sizeof(buf)) {
+        size_t chunk = entry.length - pos;
+        if (chunk > sizeof(buf)) {
+          chunk = sizeof(buf);
+        }
+        if (!flash_.read(target + pos, buf, chunk)) {
+          return false;
+        }
+        moved_crc = i18n_crc32(moved_crc, buf, chunk);
+      }
+      if (moved_crc != entry.crc32) {
+        return false;  // Leave the directory pointing at the intact original
       }
       std::vector<I18nStoreEntry> new_entries = entries_;
       new_entries[i].offset = target;
@@ -300,7 +334,9 @@ bool I18nStore::stream_begin(const char* name, uint32_t reserve_len) {
 }
 
 bool I18nStore::stream_write(const void* buf, size_t len) {
-  if (!stream_active_ || stream_written_ + len > stream_reserved_) {
+  // Widened: stream_written_ + len is 32-bit on target, and a len near
+  // UINT32_MAX would wrap past the guard
+  if (!stream_active_ || (uint64_t)stream_written_ + len > stream_reserved_) {
     stream_abort();
     return false;
   }

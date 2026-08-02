@@ -2,6 +2,9 @@
 #include <Arduino.h>
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
+#include "../i18n/tr.h"
+#include "html_escape.h"
+#include "index_html.h"
 
 //Legend label for the cyan bars. A BMS can flag cells for balancing long before it actually bleeds
 //them, so when the aggregate status reports that waiting state, label the bars as pending instead.
@@ -10,6 +13,13 @@ static const char* balancing_legend_label(balancing_status_enum status) {
 }
 
 String cellmonitor_processor(const String& var) {
+  // COMMON_JAVASCRIPT is part of every template this serves; resolve its
+  // placeholder here or the raw token ships to the browser.
+  String common = common_javascript_processor(var);
+  if (common.length() > 0) {
+    return common;
+  }
+
   if (var == "X") {
     String content = "";
     // Page formatH
@@ -50,7 +60,7 @@ String cellmonitor_processor(const String& var) {
     }
     content += "</style>";
 
-    content += "<button onclick='home()'>Back to main page</button>";
+    content += "<button onclick='home()'>" + TR(TrKey::UI_BACK_MAIN_PAGE) + "</button>";
 
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
@@ -62,7 +72,7 @@ String cellmonitor_processor(const String& var) {
     // Display bars
     content += "<div id='graph'></div>";
     // Display single hovered value
-    content += "<div id='valueDisplay'>Value: ...</div>";
+    content += "<div id='valueDisplay'>" + TR(TrKey::UI_VALUE) + "</div>";
     //Legend for graph
     content +=
         "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
@@ -105,7 +115,7 @@ String cellmonitor_processor(const String& var) {
       // Display bars
       content += "<div id='graph2'></div>";
       // Display single hovered value
-      content += "<div id='valueDisplay2'>Value: ...</div>";
+      content += "<div id='valueDisplay2'>" + TR(TrKey::UI_VALUE) + "</div>";
       //Legend for graph
       content +=
           "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
@@ -143,7 +153,7 @@ String cellmonitor_processor(const String& var) {
       // Display bars
       content += "<div id='graph3'></div>";
       // Display single hovered value
-      content += "<div id='valueDisplay3'>Value: ...</div>";
+      content += "<div id='valueDisplay3'>" + TR(TrKey::UI_VALUE) + "</div>";
       //Legend for graph
       content +=
           "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
@@ -170,7 +180,7 @@ String cellmonitor_processor(const String& var) {
       content += "</div>";
     }
 
-    content += "<button onclick='home()'>Back to main page</button>";
+    content += "<button onclick='home()'>" + TR(TrKey::UI_BACK_MAIN_PAGE) + "</button>";
 
     content += "<script>";
     // Populate cell data
@@ -303,11 +313,10 @@ String cellmonitor_processor(const String& var) {
     content += "else {";
     if (datalayer.battery.info.number_of_cells > 0) {
       content += "document.getElementById('voltageValues').textContent = '" +
-                 String(datalayer.battery.info.number_of_cells) + " cells configured, but cellvoltages not yet read';";
+                 TR_JS(TrKey::UI_CELLS_CONFIGURED_NOT_READ, String(datalayer.battery.info.number_of_cells)) + "';";
     } else {
-      content +=
-          "document.getElementById('voltageValues').textContent = 'Amount of cells unknown. Cellvoltages not yet "
-          "read';";
+      content += "document.getElementById('voltageValues').textContent = '" +
+                 TR_JS(TrKey::UI_AMOUNT_OF_CELLS_UNKNOWN_CELLVOLTAGES_NOT_YET_READ) + "';";
     }
     content += "}";
 
@@ -423,8 +432,9 @@ String cellmonitor_processor(const String& var) {
           "const max_mv2 = Math.max(...data2);"
           "const cell_dev2 = max_mv2 - min_mv2;"
           "const voltVal2 = document.getElementById('voltageValues2');"
-          "voltVal2.innerHTML = `Battery #2<br>Max Voltage : ${max_mv2} mV<br>Min Voltage: ${min_mv2} mV<br>Voltage "
-          "Deviation: "
+          "voltVal2.innerHTML = `Battery #2<br>Max Voltage : ${max_mv2} mV<br>Min Voltage: ${min_mv2} mV<br>Voltage " +
+          TR_JS(TrKey::UI_DEVIATION) +
+          " "
           "${cell_dev2} mV`"
           "}";
 
@@ -437,12 +447,10 @@ String cellmonitor_processor(const String& var) {
       content += "else {";
       if (datalayer.battery2.info.number_of_cells > 0) {
         content += "document.getElementById('voltageValues2').textContent = '" +
-                   String(datalayer.battery2.info.number_of_cells) +
-                   " cells configured, but cellvoltages not yet read';";
+                   TR_JS(TrKey::UI_CELLS_CONFIGURED_NOT_READ, String(datalayer.battery2.info.number_of_cells)) + "';";
       } else {
-        content +=
-            "document.getElementById('voltageValues2').textContent = 'Amount of cells unknown. Cellvoltages not yet "
-            "read';";
+        content += "document.getElementById('voltageValues2').textContent = '" +
+                   TR_JS(TrKey::UI_AMOUNT_OF_CELLS_UNKNOWN_CELLVOLTAGES_NOT_YET_READ) + "';";
       }
       content += "}";
     }
@@ -559,8 +567,9 @@ String cellmonitor_processor(const String& var) {
           "const max_mv3 = Math.max(...data3);"
           "const cell_dev3 = max_mv3 - min_mv3;"
           "const voltVal3 = document.getElementById('voltageValues3');"
-          "voltVal3.innerHTML = `Battery #3<br>Max Voltage : ${max_mv3} mV<br>Min Voltage: ${min_mv3} mV<br>Voltage "
-          "Deviation: "
+          "voltVal3.innerHTML = `Battery #3<br>Max Voltage : ${max_mv3} mV<br>Min Voltage: ${min_mv3} mV<br>Voltage " +
+          TR_JS(TrKey::UI_DEVIATION) +
+          " "
           "${cell_dev3} mV`"
           "}";
 
@@ -573,12 +582,10 @@ String cellmonitor_processor(const String& var) {
       content += "else {";
       if (datalayer.battery3.info.number_of_cells > 0) {
         content += "document.getElementById('voltageValues3').textContent = '" +
-                   String(datalayer.battery3.info.number_of_cells) +
-                   " cells configured, but cellvoltages not yet read';";
+                   TR_JS(TrKey::UI_CELLS_CONFIGURED_NOT_READ, String(datalayer.battery3.info.number_of_cells)) + "';";
       } else {
-        content +=
-            "document.getElementById('voltageValues3').textContent = 'Amount of cells unknown. Cellvoltages not yet "
-            "read';";
+        content += "document.getElementById('voltageValues3').textContent = '" +
+                   TR_JS(TrKey::UI_AMOUNT_OF_CELLS_UNKNOWN_CELLVOLTAGES_NOT_YET_READ) + "';";
       }
       content += "}";
     }

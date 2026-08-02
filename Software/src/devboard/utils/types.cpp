@@ -1,4 +1,5 @@
 #include "types.h"
+#include "../i18n/tr.h"
 
 // Function to get string representation of system_status_enum
 std::string getBMSStatus(system_status_enum status) {
@@ -71,31 +72,31 @@ const char* limiting_factor_to_text(LimitingFactor factor) {
   }
 }
 
-const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
-                                     bool user_settings_limit_charge, bool user_settings_limit_discharge) {
+String get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                bool user_settings_limit_charge, bool user_settings_limit_discharge) {
   ChargingState state = get_charging_state(current_dA);
   if (state == ChargingState::Idle) {
-    return "Battery idle";
+    return TR_RAW(TrKey::UI_BATTERY_IDLE);
   }
   LimitingFactor factor = get_limiting_factor(state, inverter_limits_charge, inverter_limits_discharge,
                                               user_settings_limit_charge, user_settings_limit_discharge);
   if (state == ChargingState::Discharging) {
     switch (factor) {
       case LimitingFactor::Inverter:
-        return "Battery discharging! (Inverter limiting)";
+        return TR_RAW(TrKey::NAME_BATTERY_DISCHARGING_INVERTER_LIMITING);
       case LimitingFactor::UserSetting:
-        return "Battery discharging! (Settings limiting)";
+        return TR_RAW(TrKey::NAME_BATTERY_DISCHARGING_SETTINGS_LIMITING);
       default:
-        return "Battery discharging! (Battery limiting)";
+        return TR_RAW(TrKey::NAME_BATTERY_DISCHARGING_BATTERY_LIMITING);
     }
   }
   switch (factor) {
     case LimitingFactor::Inverter:
-      return "Battery charging! (Inverter limiting)";
+      return TR_RAW(TrKey::NAME_BATTERY_CHARGING_INVERTER_LIMITING);
     case LimitingFactor::UserSetting:
-      return "Battery charging! (Settings limiting)";
+      return TR_RAW(TrKey::NAME_BATTERY_CHARGING_SETTINGS_LIMITING);
     default:
-      return "Battery charging! (Battery limiting)";
+      return TR_RAW(TrKey::NAME_BATTERY_CHARGING_BATTERY_LIMITING);
   }
 }
 

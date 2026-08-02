@@ -1,6 +1,8 @@
 #ifndef INDEX_HTML_H
 #define INDEX_HTML_H
 
+#include <WString.h>
+
 // The icon itself is served from /favicon.svg (webserver.cpp) with a long
 // cache lifetime, so every page carries only this link tag. Small-flash
 // devices omit the icon entirely.
@@ -19,7 +21,7 @@
   R"rawliteral(
 <script>
 function askReboot() {
-  if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!')) {
+  if (window.confirm('%TRREBOOTCONFIRM%')) {
     reboot();
   }
 }
@@ -39,3 +41,9 @@ extern const char index_html_header[];
 extern const char index_html_footer[];
 
 #endif  // INDEX_HTML_H
+
+/* COMMON_JAVASCRIPT is concatenated into several page templates, so its
+ * %TRREBOOTCONFIRM% has to be resolvable by EVERY processor that serves one.
+ * Each calls this first and returns the result when it is non-empty, so
+ * adding a new page cannot silently ship the raw token. */
+String common_javascript_processor(const String& var);

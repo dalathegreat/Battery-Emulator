@@ -5,56 +5,7 @@
 #include <vector>
 
 #include "../Software/src/devboard/i18n/i18n_store.h"
-
-// RAM-backed fake of the narrow flash interface. write_budget simulates
-// power loss: once the budget is exhausted every mutation fails, and a new
-// store mounted on the same buffer sees exactly what made it to "flash".
-class RamFlash : public I18nFlash {
- public:
-  explicit RamFlash(uint32_t size) : data_(size, 0x00) {}  // 0x00 = unformatted junk
-
-  bool read(uint32_t offset, void* buf, size_t len) override {
-    if (offset + len > data_.size()) {
-      return false;
-    }
-    memcpy(buf, data_.data() + offset, len);
-    return true;
-  }
-
-  bool write(uint32_t offset, const void* buf, size_t len) override {
-    if (!consume_budget() || offset + len > data_.size()) {
-      return false;
-    }
-    memcpy(data_.data() + offset, buf, len);
-    return true;
-  }
-
-  bool erase(uint32_t offset, size_t len) override {
-    if (!consume_budget() || offset + len > data_.size()) {
-      return false;
-    }
-    memset(data_.data() + offset, 0xFF, len);
-    return true;
-  }
-
-  uint32_t size() override { return (uint32_t)data_.size(); }
-
-  int write_budget = -1;  // -1 = unlimited mutations
-
- private:
-  bool consume_budget() {
-    if (write_budget < 0) {
-      return true;
-    }
-    if (write_budget == 0) {
-      return false;
-    }
-    write_budget--;
-    return true;
-  }
-
-  std::vector<uint8_t> data_;
-};
+#include "ram_flash.h"
 
 static std::string blob(char fill, size_t len) {
   return std::string(len, fill);
@@ -109,6 +60,9 @@ TEST(I18nStoreTest, UploadListReadRoundTrip) {
   ASSERT_TRUE(upload(store, "sv.json.gz", content));
   EXPECT_TRUE(store.exists("sv.json.gz"));
   EXPECT_EQ(store.length("sv.json.gz"), 30000);
+  EXPECT_EQ(store.file_crc32("sv.json.gz"), i18n_crc32(0, content.data(), content.size()))
+      << "Directory CRC doubles as the serve-path ETag";
+  EXPECT_EQ(store.file_crc32("absent.blp"), 0u);
   EXPECT_EQ(read_all(store, "sv.json.gz"), content);
 
   // Survives a remount
@@ -199,6 +153,48 @@ TEST(I18nStoreTest, FullStoreRejectsUpload) {
   EXPECT_TRUE(upload(store, "bb.json.gz", blob('B', 12 * 1024))) << "A fitting upload must still work";
 }
 
+TEST(I18nStoreTest, LanguageHintSurvivesFlipsAndFormatClearsIt) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "sv.blp", blob('S', 3000)));
+
+  // Plant a hint the way the factory image builder does: rewrite the active
+  // directory block with the hint field set and a fixed CRC
+  {
+    uint8_t buf[I18nStore::DIR_BLOCK_MAX];
+    for (uint8_t block = 0; block < 2; block++) {
+      flash.read(block * I18nStore::SECTOR, buf, sizeof(buf));
+      if (memcmp(buf, "I18S", 4) != 0) {
+        continue;
+      }
+      uint16_t count = 0;
+      memcpy(&count, buf + 10, 2);
+      memcpy(buf + 12, "sv\0\0\0\0\0", I18nStore::HINT_SIZE);
+      size_t payload = I18nStore::DIR_HEADER_SIZE + count * sizeof(I18nStoreEntry);
+      uint32_t crc = i18n_crc32(0, buf, payload);
+      memcpy(buf + payload, &crc, 4);
+      flash.write(block * I18nStore::SECTOR, buf, payload + 4);
+    }
+  }
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_STREQ(reopened.language_hint(), "sv");
+
+  // A directory flip (any commit) must carry the hint along
+  ASSERT_TRUE(upload(reopened, "fi.blp", blob('F', 3000)));
+  I18nStore after_flip(flash);
+  ASSERT_TRUE(after_flip.mount());
+  EXPECT_STREQ(after_flip.language_hint(), "sv");
+
+  // An explicit user format wipes factory state, hint included
+  ASSERT_TRUE(after_flip.format());
+  I18nStore after_format(flash);
+  ASSERT_TRUE(after_format.mount());
+  EXPECT_STREQ(after_format.language_hint(), "");
+}
+
 TEST(I18nStoreTest, UploadCapAndNameLimits) {
   RamFlash flash(512 * 1024);
   I18nStore store(flash);
@@ -254,4 +250,31 @@ TEST(I18nStoreTest, GenerationChangesOnEveryCommit) {
 
   ASSERT_TRUE(store.remove("sv.json.gz"));
   EXPECT_NE(after_upload, store.generation());
+}
+
+// compact() moves an extent and then flips the directory to point at the
+// copy. The flip is what makes the copy authoritative, so a bad copy must
+// not be committed over an intact original - the same reasoning that puts a
+// read-back verify in stream_commit().
+TEST(I18nStoreTest, CompactionRejectsACorruptedCopy) {
+  RamFlash flash(40 * 1024);
+  I18nStore store(flash);
+  store.format();
+
+  ASSERT_TRUE(upload(store, "aa.json.gz", blob('A', 12 * 1024)));
+  ASSERT_TRUE(upload(store, "bb.json.gz", blob('B', 12 * 1024)));
+  ASSERT_TRUE(store.remove("aa.json.gz"));
+
+  // Corrupt what the compactor is about to copy INTO, after its erase
+  flash.corrupt_writes_at = I18nStore::DATA_START;
+
+  // The 16 KB upload only fits after compaction; compaction must now fail
+  // rather than commit a bad copy of bb
+  EXPECT_FALSE(upload(store, "cc.json.gz", blob('C', 16 * 1024)));
+  flash.corrupt_writes_at = 0;
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_EQ(read_all(reopened, "bb.json.gz"), blob('B', 12 * 1024))
+      << "The original extent must still be the one the directory points at";
 }

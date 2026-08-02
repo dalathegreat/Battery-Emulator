@@ -1,4 +1,5 @@
 #include "index_html.h"
+#include "../i18n/tr.h"
 
 const char index_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
 const char index_html_header[] = INDEX_HTML_HEADER;
@@ -21,3 +22,11 @@ const char index_html_footer[] = INDEX_HTML_FOOTER;
 </body>
 </html>
 */
+
+String common_javascript_processor(const String& var) {
+  if (var == "TRREBOOTCONFIRM") {
+    // JS string literal inside the shared script block
+    return TR_JS(TrKey::UI_CONFIRM_REBOOT_EMULATOR_CONTACTORS_OPEN);
+  }
+  return String();
+}

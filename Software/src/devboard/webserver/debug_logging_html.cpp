@@ -1,6 +1,7 @@
 #include "debug_logging_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
+#include "../i18n/tr.h"
 #include "index_html.h"
 
 char* strnchr(const char* s, int c, size_t n) {
@@ -37,7 +38,7 @@ String debug_logger_processor(void) {
   // Reserve enough space for the content to avoid reallocations.
   if (!content.reserve(1000 + sizeof(datalayer.system.info.logged_can_messages))) {
     if (content.reserve(15)) {
-      content += "Out of memory.";
+      content += TR(TrKey::UI_OUT_MEMORY);
     }
     return content;
   }
@@ -54,15 +55,15 @@ String debug_logger_processor(void) {
       "monospace; }";
   content += "</style>";
   if (datalayer.system.info.web_logging_active) {
-    content += "<button onclick='refreshPage()'>Refresh data</button> ";
+    content += "<button onclick='refreshPage()'>" + TR(TrKey::UI_REFRESH_DATA) + "</button> ";
   }
-  content += "<button onclick='exportLog()'>Export to .txt</button> ";
+  content += "<button onclick='exportLog()'>" + TR(TrKey::UI_EXPORT_TXT) + "</button> ";
 #ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
-    content += "<button onclick='deleteLog()'>Delete log file</button> ";
+    content += "<button onclick='deleteLog()'>" + TR(TrKey::UI_DELETE_LOG_FILE) + "</button> ";
   }
 #endif  // SDCARD
-  content += "<button onclick='goToMainPage()'>Back to main page</button>";
+  content += "<button onclick='goToMainPage()'>" + TR(TrKey::UI_BACK_MAIN_PAGE) + "</button>";
 
   // Start a new block for the debug log messages
   content += "<PRE style='text-align: left'>";

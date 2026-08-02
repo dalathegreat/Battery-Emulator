@@ -4,6 +4,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/utils/logging.h"
+#include "../i18n/tr.h"
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
@@ -316,266 +317,256 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
 String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2518FD_INIT_FAILURE:
-      return "CAN-FD initialization failed. Check hardware or bitrate settings";
+      return TR_RAW(TrKey::EVENT_CANMCP2518FD_INIT_FAILURE);
     case EVENT_CANMCP2515_INIT_FAILURE:
-      return "CAN-MCP addon initialization failed. Check hardware";
+      return TR_RAW(TrKey::EVENT_CANMCP2515_INIT_FAILURE);
     case EVENT_CAN_NATIVE_BUFFER_FULL:
     case EVENT_CANMCP2515_BUFFER_FULL:
     case EVENT_CANFD_BUFFER_FULL:
     case EVENT_CANFD_2_BUFFER_FULL:
-      return "CAN failed to send. Buffer full or no one on the bus to ACK the message!";
+      return TR_RAW(TrKey::EVENT_CAN_NATIVE_BUFFER_FULL);
     case EVENT_TASK_OVERRUN:
-      return "Task took too long to complete. CPU load might be too high. Info message, no action required.";
+      return TR_RAW(TrKey::EVENT_TASK_OVERRUN);
     case EVENT_THERMAL_RUNAWAY:
-      return "THERMAL RUNAWAY! POTENTIAL FIRE OR EXPLOSION IMMINENT!";
+      return TR_RAW(TrKey::EVENT_THERMAL_RUNAWAY);
     case EVENT_CAN_CORRUPTED_WARNING:
-      return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
+      return TR_RAW(TrKey::EVENT_CAN_CORRUPTED_WARNING);
     case EVENT_CAN_NATIVE_BUS_ERROR:
     case EVENT_CANMCP2515_BUS_ERROR:
     case EVENT_CANFD_BUS_ERROR:
     case EVENT_CANFD_2_BUS_ERROR:
-      return "Multiple CAN TX/RX errors. Check wiring!";
+      return TR_RAW(TrKey::EVENT_CAN_NATIVE_BUS_ERROR);
     case EVENT_CAN_BATTERY_DETECTED:
-      return "Successfully communicating with battery. Battery detected!";
+      return TR_RAW(TrKey::EVENT_CAN_BATTERY_DETECTED);
     case EVENT_CAN_BATTERY2_DETECTED:
-      return "Successfully communicating with secondary battery. Secondary battery detected!";
+      return TR_RAW(TrKey::EVENT_CAN_BATTERY2_DETECTED);
     case EVENT_CAN_BATTERY3_DETECTED:
-      return "Successfully communicating with third battery. Third battery detected!";
+      return TR_RAW(TrKey::EVENT_CAN_BATTERY3_DETECTED);
     case EVENT_CAN_BATTERY_MISSING:
-      return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return TR_RAW(TrKey::EVENT_CAN_BATTERY_MISSING);
     case EVENT_CAN_BATTERY2_MISSING:
-      return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return TR_RAW(TrKey::EVENT_CAN_BATTERY2_MISSING);
     case EVENT_CAN_BATTERY3_MISSING:
-      return "Third battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return TR_RAW(TrKey::EVENT_CAN_BATTERY3_MISSING);
     case EVENT_CAN_CHARGER_DETECTED:
-      return "Successfully communicating with charger. Charger detected!";
+      return TR_RAW(TrKey::EVENT_CAN_CHARGER_DETECTED);
     case EVENT_CAN_CHARGER_MISSING:
-      return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return TR_RAW(TrKey::EVENT_CAN_CHARGER_MISSING);
     case EVENT_CAN_INVERTER_DETECTED:
-      return "Successfully communicating with inverter. Inverter detected!";
+      return TR_RAW(TrKey::EVENT_CAN_INVERTER_DETECTED);
     case EVENT_CAN_INVERTER_MISSING:
-      return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return TR_RAW(TrKey::EVENT_CAN_INVERTER_MISSING);
     case EVENT_CONTACTOR_WELDED:
-      return "Contactors sticking/welded. Inspect battery with caution!";
+      return TR_RAW(TrKey::EVENT_CONTACTOR_WELDED);
     case EVENT_CONTACTOR_OPEN:
-      return "Battery decided to open contactors. Inspect battery!";
+      return TR_RAW(TrKey::EVENT_CONTACTOR_OPEN);
     case EVENT_CHARGE_LIMIT_EXCEEDED:
-      return "Inverter is charging faster than battery is allowing.";
+      return TR_RAW(TrKey::EVENT_CHARGE_LIMIT_EXCEEDED);
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
-      return "Inverter is discharging faster than battery is allowing.";
+      return TR_RAW(TrKey::EVENT_DISCHARGE_LIMIT_EXCEEDED);
     case EVENT_WATER_INGRESS:
-      return "Water leakage inside battery detected. Operation halted. Inspect battery!";
+      return TR_RAW(TrKey::EVENT_WATER_INGRESS);
     case EVENT_12V_LOW:
-      return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
+      return TR_RAW(TrKey::EVENT_12V_LOW);
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      return "SOC reported by battery not plausible. Restart battery!";
+      return TR_RAW(TrKey::EVENT_SOC_PLAUSIBILITY_ERROR);
     case EVENT_SOC_UNAVAILABLE:
-      return "SOC not sent by BMS. Calibrate BMS via app.";
+      return TR_RAW(TrKey::EVENT_SOC_UNAVAILABLE);
     case EVENT_STALE_VALUE:
-      return "Important values detected as stale. System might have locked up!";
+      return TR_RAW(TrKey::EVENT_STALE_VALUE);
     case EVENT_KWH_PLAUSIBILITY_ERROR:
-      return "kWh remaining reported by battery not plausible. Battery needs cycling.";
+      return TR_RAW(TrKey::EVENT_KWH_PLAUSIBILITY_ERROR);
     case EVENT_BALANCING_START:
-      return "Balancing has started";
+      return TR_RAW(TrKey::EVENT_BALANCING_START);
     case EVENT_BALANCING_END:
-      return "Balancing has ended";
+      return TR_RAW(TrKey::EVENT_BALANCING_END);
     case EVENT_BATTERY_EMPTY:
-      return "Battery is completely discharged";
+      return TR_RAW(TrKey::EVENT_BATTERY_EMPTY);
     case EVENT_BATTERY_FULL:
-      return "Battery is fully charged";
+      return TR_RAW(TrKey::EVENT_BATTERY_FULL);
     case EVENT_BATTERY_FUSE:
-      return "Battery internal fuse blown. Inspect battery";
+      return TR_RAW(TrKey::EVENT_BATTERY_FUSE);
     case EVENT_BATTERY_FROZEN:
-      return "Battery is too cold to operate optimally. Consider warming it up!";
+      return TR_RAW(TrKey::EVENT_BATTERY_FROZEN);
     case EVENT_BATTERY_CAUTION:
-      return "Battery has raised a general caution flag. Might want to inspect it closely.";
+      return TR_RAW(TrKey::EVENT_BATTERY_CAUTION);
     case EVENT_BATTERY_CHG_STOP_REQ:
-      return "Battery raised caution indicator AND requested charge stop. Inspect battery status!";
+      return TR_RAW(TrKey::EVENT_BATTERY_CHG_STOP_REQ);
     case EVENT_BATTERY_DISCHG_STOP_REQ:
-      return "Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
+      return TR_RAW(TrKey::EVENT_BATTERY_DISCHG_STOP_REQ);
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
-      return "Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
+      return TR_RAW(TrKey::EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
     case EVENT_BATTERY_REQUESTS_HEAT:
-      return "COLD BATTERY! Battery requesting heating pads to activate!";
+      return TR_RAW(TrKey::EVENT_BATTERY_REQUESTS_HEAT);
     case EVENT_BATTERY_WARMED_UP:
-      return "Battery requesting heating pads to stop. The battery is now warm enough.";
+      return TR_RAW(TrKey::EVENT_BATTERY_WARMED_UP);
     case EVENT_BATTERY_OVERHEAT:
-      return "Battery overheated. Shutting down to prevent thermal runaway!";
+      return TR_RAW(TrKey::EVENT_BATTERY_OVERHEAT);
     case EVENT_BATTERY_OVERVOLTAGE:
-      return "Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
+      return TR_RAW(TrKey::EVENT_BATTERY_OVERVOLTAGE);
     case EVENT_BATTERY_UNDERVOLTAGE:
-      return "Battery under minimum design voltage. Charge battery to prevent damage!";
+      return TR_RAW(TrKey::EVENT_BATTERY_UNDERVOLTAGE);
     case EVENT_BATTERY_VALUE_UNAVAILABLE:
-      return "Battery measurement unavailable. Check 12V power supply and battery wiring!";
+      return TR_RAW(TrKey::EVENT_BATTERY_VALUE_UNAVAILABLE);
     case EVENT_BATTERY_ISOLATION:
-      return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
+      return TR_RAW(TrKey::EVENT_BATTERY_ISOLATION);
     case EVENT_BATTERY_SOC_RECALIBRATION:
-      return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
+      return TR_RAW(TrKey::EVENT_BATTERY_SOC_RECALIBRATION);
     case EVENT_BYD_AUTO_SOC_CALIBRATION:
-      return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
+      return TR_RAW(TrKey::EVENT_BYD_AUTO_SOC_CALIBRATION);
     case EVENT_BYD_CONTACTOR_MISMATCH:
-      return "Battery did not confirm the contactor command in time. Data: 2 = open not confirmed, 3 = close not "
-             "confirmed.";
+      return TR_RAW(TrKey::EVENT_BYD_CONTACTOR_MISMATCH);
     case EVENT_BYD_CONTACTOR_FORCE_OPEN:
-      return "Contactors force-opened: pack current was not confirmed safe before the timeout. Data: 0 = current "
-             "stayed high, 1 = no fresh current reading. Check the inverter ramped down.";
+      return TR_RAW(TrKey::EVENT_BYD_CONTACTOR_FORCE_OPEN);
     case EVENT_BYD_CONTACTOR_OPEN_REQ:
-      return "Contactor open commanded. Power is set to zero and the contactors open once current stops. Data: 1 = "
-             "from an emergency stop saved across reboot.";
+      return TR_RAW(TrKey::EVENT_BYD_CONTACTOR_OPEN_REQ);
     case EVENT_BYD_CONTACTOR_CLOSE_REQ:
-      return "Contactor close commanded. The battery precharges and closes its contactors. Data: 1 = cancelled a "
-             "pending open.";
+      return TR_RAW(TrKey::EVENT_BYD_CONTACTOR_CLOSE_REQ);
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
-      return "SOC reset routine was successful.";
+      return TR_RAW(TrKey::EVENT_BATTERY_SOC_RESET_SUCCESS);
     case EVENT_BATTERY_SOC_RESET_FAIL:
-      return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
+      return TR_RAW(TrKey::EVENT_BATTERY_SOC_RESET_FAIL);
     case EVENT_VOLTAGE_DIFFERENCE_BAT2:
-      return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+      return TR_RAW(TrKey::EVENT_VOLTAGE_DIFFERENCE_BAT2);
     case EVENT_VOLTAGE_DIFFERENCE_BAT3:
-      return "Too large voltage diff between the batteries. Third battery cannot join the DC-link";
+      return TR_RAW(TrKey::EVENT_VOLTAGE_DIFFERENCE_BAT3);
     case EVENT_SOH_DIFFERENCE:
-      return "Large deviation in State of health between packs. Inspect battery.";
+      return TR_RAW(TrKey::EVENT_SOH_DIFFERENCE);
     case EVENT_SOH_LOW:
-      return "State of health critically low. Battery internal resistance too high to continue. Recycle "
-             "battery.";
+      return TR_RAW(TrKey::EVENT_SOH_LOW);
     case EVENT_HVIL_FAILURE:
-      return "Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
-             "Battery will be disabled!";
+      return TR_RAW(TrKey::EVENT_HVIL_FAILURE);
     case EVENT_LOW_HEAP_MEMORY:
-      return "Memory almost full. Inform developers.";
+      return TR_RAW(TrKey::EVENT_LOW_HEAP_MEMORY);
     case EVENT_PRECHARGE_FAILURE:
-      return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
+      return TR_RAW(TrKey::EVENT_PRECHARGE_FAILURE);
     case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
-      return "Automatic precharge FAILURE. Failed to reach target voltage or BMS timeout. Reboot emulator to retry!";
+      return TR_RAW(TrKey::EVENT_AUTOMATIC_PRECHARGE_FAILURE);
     case EVENT_INTERNAL_OPEN_FAULT:
-      return "High voltage cable removed while battery running. Opening contactors!";
+      return TR_RAW(TrKey::EVENT_INTERNAL_OPEN_FAULT);
     case EVENT_INVERTER_OPEN_CONTACTOR:
-      return "Inverter side opened contactors. Normal operation.";
+      return TR_RAW(TrKey::EVENT_INVERTER_OPEN_CONTACTOR);
     case EVENT_INTERFACE_MISSING:
-      return "Configuration trying to use CAN interface not baked into the software. Recompile software!";
+      return TR_RAW(TrKey::EVENT_INTERFACE_MISSING);
     case EVENT_ERROR_OPEN_CONTACTOR:
-      return "Too much time spent in error state. Opening contactors, not safe to continue. "
-             "Check other active ERROR code for reason. Reboot emulator after problem is solved!";
+      return TR_RAW(TrKey::EVENT_ERROR_OPEN_CONTACTOR);
     case EVENT_MODBUS_INVERTER_MISSING:
-      return "Modbus inverter has not sent any data. Inspect communication wiring!";
+      return TR_RAW(TrKey::EVENT_MODBUS_INVERTER_MISSING);
     case EVENT_MODBUS_INVERTER_DETECTED:
-      return "Successfully communicating with inverter over Modbus/RS485. Inverter detected!";
+      return TR_RAW(TrKey::EVENT_MODBUS_INVERTER_DETECTED);
     case EVENT_NO_ENABLE_DETECTED:
-      return "Inverter Enable line has not been active for a long time. Check Wiring!";
+      return TR_RAW(TrKey::EVENT_NO_ENABLE_DETECTED);
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
-      return "CELL VOLTAGE CRITICALLY LOW! Not possible to continue. Inspect battery!";
+      return TR_RAW(TrKey::EVENT_CELL_CRITICAL_UNDER_VOLTAGE);
     case EVENT_CELL_UNDER_VOLTAGE:
-      return "Cell undervoltage. Further discharge not possible. Check balancing of cells";
+      return TR_RAW(TrKey::EVENT_CELL_UNDER_VOLTAGE);
     case EVENT_CELL_OVER_VOLTAGE:
-      return "Cell overvoltage. Further charging not possible. Check balancing of cells";
+      return TR_RAW(TrKey::EVENT_CELL_OVER_VOLTAGE);
     case EVENT_CELL_CRITICAL_OVER_VOLTAGE:
-      return "CELL VOLTAGE CRITICALLY HIGH! Not possible to continue. Inspect battery!";
+      return TR_RAW(TrKey::EVENT_CELL_CRITICAL_OVER_VOLTAGE);
     case EVENT_CELL_DEVIATION_HIGH:
-      return "Large cell voltage deviation! Check balancing of cells";
+      return TR_RAW(TrKey::EVENT_CELL_DEVIATION_HIGH);
     case EVENT_UNKNOWN_EVENT_SET:
-      return "An unknown event was set! Review your code!";
+      return TR_RAW(TrKey::EVENT_UNKNOWN_EVENT_SET);
     case EVENT_DUMMY_INFO:
-      return "The dummy info event was set!";  // Don't change this event message!
+      return TR_RAW(TrKey::EVENT_DUMMY_INFO);  // Don't change this event message!
     case EVENT_DUMMY_DEBUG:
-      return "The dummy debug event was set!";  // Don't change this event message!
+      return TR_RAW(TrKey::EVENT_DUMMY_DEBUG);  // Don't change this event message!
     case EVENT_DUMMY_WARNING:
-      return "The dummy warning event was set!";  // Don't change this event message!
+      return TR_RAW(TrKey::EVENT_DUMMY_WARNING);  // Don't change this event message!
     case EVENT_DUMMY_ERROR:
-      return "The dummy error event was set!";  // Don't change this event message!
+      return TR_RAW(TrKey::EVENT_DUMMY_ERROR);  // Don't change this event message!
     case EVENT_PERSISTENT_SAVE_INFO:
-      return "Failed to save user settings. Namespace full?";
+      return TR_RAW(TrKey::EVENT_PERSISTENT_SAVE_INFO);
     case EVENT_SERIAL_RX_WARNING:
-      return "Error in serial function: No data received for some time, see data for minutes";
+      return TR_RAW(TrKey::EVENT_SERIAL_RX_WARNING);
     case EVENT_SERIAL_RX_FAILURE:
-      return "Error in serial function: No data for a long time!";
+      return TR_RAW(TrKey::EVENT_SERIAL_RX_FAILURE);
     case EVENT_SERIAL_TX_FAILURE:
-      return "Error in serial function: No ACK from receiver!";
+      return TR_RAW(TrKey::EVENT_SERIAL_TX_FAILURE);
     case EVENT_SERIAL_TRANSMITTER_FAILURE:
-      return "Error in serial function: Some ERROR level fault in transmitter, received by receiver";
+      return TR_RAW(TrKey::EVENT_SERIAL_TRANSMITTER_FAILURE);
     case EVENT_SMA_PAIRING:
-      return "SMA inverter trying to pair, contactors will close and open according to Enable line";
+      return TR_RAW(TrKey::EVENT_SMA_PAIRING);
     case EVENT_OTA_UPDATE:
-      return "OTA update started!";
+      return TR_RAW(TrKey::EVENT_OTA_UPDATE);
     case EVENT_OTA_UPDATE_TIMEOUT:
-      return "OTA update timed out!";
+      return TR_RAW(TrKey::EVENT_OTA_UPDATE_TIMEOUT);
     case EVENT_RECOVERY_START:
-      return "CAUTION! Emergency low charge recovery started! Make sure battery cells do not overheat!";
+      return TR_RAW(TrKey::EVENT_RECOVERY_START);
     case EVENT_RECOVERY_END:
-      return "Emergency charge recovery max time reached. Reboot and inspect if battery is able to continue normally";
+      return TR_RAW(TrKey::EVENT_RECOVERY_END);
     case EVENT_RESET_UNKNOWN:
-      return "The board was reset unexpectedly, and reason can't be determined";
+      return TR_RAW(TrKey::EVENT_RESET_UNKNOWN);
     case EVENT_RESET_POWERON:
-      return "The board was reset from a power-on event. Normal operation";
+      return TR_RAW(TrKey::EVENT_RESET_POWERON);
     case EVENT_RESET_EXT:
-      return "The board was reset from an external pin";
+      return TR_RAW(TrKey::EVENT_RESET_EXT);
     case EVENT_RESET_SW:
-      return "The board was reset via software, webserver or OTA. Normal operation";
+      return TR_RAW(TrKey::EVENT_RESET_SW);
     case EVENT_RESET_PANIC:
-      return "The board was reset due to an exception or panic. Inform developers!";
+      return TR_RAW(TrKey::EVENT_RESET_PANIC);
     case EVENT_RESET_INT_WDT:
-      return "The board was reset due to an interrupt watchdog timeout. Inform developers!";
+      return TR_RAW(TrKey::EVENT_RESET_INT_WDT);
     case EVENT_RESET_TASK_WDT:
-      return "The board was reset due to a task watchdog timeout. Inform developers!";
+      return TR_RAW(TrKey::EVENT_RESET_TASK_WDT);
     case EVENT_RESET_WDT:
-      return "The board was reset due to other watchdog timeout. Inform developers!";
+      return TR_RAW(TrKey::EVENT_RESET_WDT);
     case EVENT_RESET_DEEPSLEEP:
-      return "The board was reset after exiting deep sleep mode";
+      return TR_RAW(TrKey::EVENT_RESET_DEEPSLEEP);
     case EVENT_RESET_BROWNOUT:
-      return "The board was reset due to a momentary low voltage condition. This is expected during certain "
-             "operations like flashing via USB";
+      return TR_RAW(TrKey::EVENT_RESET_BROWNOUT);
     case EVENT_RESET_SDIO:
-      return "The board was reset over SDIO";
+      return TR_RAW(TrKey::EVENT_RESET_SDIO);
     case EVENT_RESET_USB:
-      return "The board was reset by the USB peripheral";
+      return TR_RAW(TrKey::EVENT_RESET_USB);
     case EVENT_RESET_JTAG:
-      return "The board was reset by JTAG";
+      return TR_RAW(TrKey::EVENT_RESET_JTAG);
     case EVENT_RESET_EFUSE:
-      return "The board was reset due to an efuse error";
+      return TR_RAW(TrKey::EVENT_RESET_EFUSE);
     case EVENT_RESET_PWR_GLITCH:
-      return "The board was reset due to a detected power glitch";
+      return TR_RAW(TrKey::EVENT_RESET_PWR_GLITCH);
     case EVENT_RESET_CPU_LOCKUP:
-      return "The board was reset due to CPU lockup. Inform developers!";
+      return TR_RAW(TrKey::EVENT_RESET_CPU_LOCKUP);
     case EVENT_RESTARTING:
-      return "The emulator is restarting.";
+      return TR_RAW(TrKey::EVENT_RESTARTING);
     case EVENT_RJXZS_LOG:
-      return "Error code active in RJXZS BMS. Clear via their smartphone app!";
+      return TR_RAW(TrKey::EVENT_RJXZS_LOG);
     case EVENT_PAUSE_BEGIN:
-      return "The emulator is trying to pause the battery.";
+      return TR_RAW(TrKey::EVENT_PAUSE_BEGIN);
     case EVENT_PAUSE_END:
-      return "The emulator is attempting to resume battery operation from pause.";
+      return TR_RAW(TrKey::EVENT_PAUSE_END);
     case EVENT_PID_FAILED:
-      return "Failed to write PID request to battery";
+      return TR_RAW(TrKey::EVENT_PID_FAILED);
     case EVENT_WIFI_CONNECT:
-      return "Wi-Fi connected.";
+      return TR_RAW(TrKey::EVENT_WIFI_CONNECT);
     case EVENT_WIFI_DISCONNECT:
-      return "Wi-Fi disconnected.";
+      return TR_RAW(TrKey::EVENT_WIFI_DISCONNECT);
     case EVENT_WIFI_AP_PASSWORD_DEFAULT:
-      return "The AP will be disabled after 5 idle minutes. Change default password to keep AP constantly on!";
+      return TR_RAW(TrKey::EVENT_WIFI_AP_PASSWORD_DEFAULT);
     case EVENT_WIFI_AP_PROVISION_TIMEOUT:
-      return "Wi-Fi AP disabled due to cybersecurity concern. Change default password to keep AP "
-             "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
+      return TR_RAW(TrKey::EVENT_WIFI_AP_PROVISION_TIMEOUT);
     case EVENT_MQTT_CONNECT:
-      return "MQTT connected.";
+      return TR_RAW(TrKey::EVENT_MQTT_CONNECT);
     case EVENT_MQTT_DISCONNECT:
-      return "MQTT disconnected.";
+      return TR_RAW(TrKey::EVENT_MQTT_DISCONNECT);
     case EVENT_EQUIPMENT_STOP:
-      return "User requested stop, either via equipment stop circuit or webserver Open Contactor button";
+      return TR_RAW(TrKey::EVENT_EQUIPMENT_STOP);
     case EVENT_SD_INIT_FAILED:
-      return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
+      return TR_RAW(TrKey::EVENT_SD_INIT_FAILED);
     case EVENT_PERIODIC_BMS_RESET:
-      return "BMS reset event completed.";
+      return TR_RAW(TrKey::EVENT_PERIODIC_BMS_RESET);
     case EVENT_PERIODIC_BMS_RESET_FAILURE:
-      return "BMS reset aborted - contactors were still under load.";
+      return TR_RAW(TrKey::EVENT_PERIODIC_BMS_RESET_FAILURE);
     case EVENT_BMS_RESET_REQ_SUCCESS:
-      return "BMS reset request completed successfully.";
+      return TR_RAW(TrKey::EVENT_BMS_RESET_REQ_SUCCESS);
     case EVENT_BMS_RESET_REQ_FAIL:
-      return "BMS reset request failed - check contactors are open.";
+      return TR_RAW(TrKey::EVENT_BMS_RESET_REQ_FAIL);
     case EVENT_GPIO_CONFLICT:
-      return "GPIO Pin Conflict: The pin used by '" + esp32hal->failed_allocator() + "' is already allocated by '" +
-             esp32hal->conflicting_allocator() + "'. Please check your configuration and assign different pins.";
+      return tr_expand(TR_RAW(TrKey::EVENT_GPIO_CONFLICT), esp32hal->failed_allocator(),
+                       esp32hal->conflicting_allocator());
     case EVENT_GPIO_NOT_DEFINED:
-      return "Missing GPIO Assignment: The component '" + esp32hal->failed_allocator() +
-             "' requires a GPIO pin that isn't configured. Please define a valid pin number in your settings.";
+      return tr_expand(TR_RAW(TrKey::EVENT_GPIO_NOT_DEFINED), esp32hal->failed_allocator());
     default:
       return "";
   }

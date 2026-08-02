@@ -267,6 +267,7 @@ void init_stored_settings() {
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   mqtt_publish_heap_metrics = settings.getBool("MQTTHEAP", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
+  i18n_language_never_set = !settings.settingExists("LANGUAGE");
   user_selected_language = settings.getString("LANGUAGE").c_str();
 
   migrate_static_ip_settings(settings);
