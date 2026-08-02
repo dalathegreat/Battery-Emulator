@@ -37,7 +37,10 @@ class NissanLeafBattery : public CanBattery {
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
-  void read_DTC() { UserRequestDTCreadout = true; }
+  void read_DTC() {
+    UserRequestDTCreadout = true;
+    dtc_read_retries = 0;
+  }
   bool supports_insulation_resistance() { return true; }
 
   bool soc_plausible() {
@@ -59,6 +62,9 @@ class NissanLeafBattery : public CanBattery {
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.
   void parseDTCResponse();
+
+  // Sends pending DTC requests once the diagnostic channel is idle, and times out unanswered ones.
+  void handle_DTC_requests(unsigned long currentMillis);
   static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -143,6 +149,16 @@ class NissanLeafBattery : public CanBattery {
                                       .DLC = 8,
                                       .ID = 0x79B,
                                       .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+  // Flow control for the DTC readout. BS=0 tells the LBC to send every remaining consecutive frame
+  // without waiting for another flow control, so the whole reply arrives in one burst. The group
+  // polling above uses BS=1 and asks frame by frame; for a DTC reply that would mean a flow control
+  // round trip through the main loop per frame, and a long list would be at the mercy of loop
+  // latency. This also matches the flow control used in the reference LBC capture.
+  CAN_frame LEAF_DTC_FLOW_CONTROL = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 8,
+                                     .ID = 0x79B,
+                                     .data = {0x30, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
   CAN_frame LEAF_CLEAR_DTC = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
@@ -169,6 +185,23 @@ class NissanLeafBattery : public CanBattery {
   unsigned long dtc_request_millis = 0;
   bool dtc_clear_in_progress = false;
   unsigned long dtc_clear_millis = 0;
+  // The LBC silently discards a diagnostic request that arrives while it is still transmitting a
+  // response, so both DTC operations wait for the 0x7BB channel to go quiet before transmitting.
+  // A group poll transfer completes in well under this, and polls are 10 s apart, so in practice
+  // the wait is either zero or a few tens of milliseconds.
+  static const unsigned long DTC_BUS_IDLE_MS = 100;
+  static const uint8_t DTC_MAX_RETRIES = 2;
+  unsigned long last_7bb_millis = 0;
+  uint8_t dtc_read_retries = 0;
+
+  // Generic tracking of our own outstanding UDS transaction on the 0x79B/0x7BB pair. The LBC serves
+  // one request at a time, so a new one must not go out until the previous answer is complete,
+  // whether that answer was good or an error. This covers the gap between sending a request and the
+  // first response frame arriving, which a quiet-channel check alone cannot see.
+  static const unsigned long UDS_RESPONSE_TIMEOUT_MS = 1000;
+  bool uds_busy = false;
+  unsigned long uds_request_millis = 0;
+  uint16_t uds_rx_remaining = 0;
 
   // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
   // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second

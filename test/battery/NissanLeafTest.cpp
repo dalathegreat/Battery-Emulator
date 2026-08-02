@@ -7,11 +7,11 @@
 
 namespace {
 
-// Builds a 0x7BB reply frame from up to 8 raw bytes.
-CAN_frame leaf_7bb_frame(std::initializer_list<uint8_t> bytes) {
+// Builds a frame on the given ID from up to 8 raw bytes.
+CAN_frame leaf_frame(uint32_t id, std::initializer_list<uint8_t> bytes) {
   CAN_frame frame = {};
   frame.DLC = 8;
-  frame.ID = 0x7BB;
+  frame.ID = id;
   uint8_t i = 0;
   for (uint8_t b : bytes) {
     if (i >= 8) {
@@ -20,6 +20,10 @@ CAN_frame leaf_7bb_frame(std::initializer_list<uint8_t> bytes) {
     frame.data.u8[i++] = b;
   }
   return frame;
+}
+
+CAN_frame leaf_7bb_frame(std::initializer_list<uint8_t> bytes) {
+  return leaf_frame(0x7BB, bytes);
 }
 
 // The datalayer is a global shared by every test, so put the DTC block back to its power-on state.
@@ -35,7 +39,7 @@ NissanLeafBattery* battery_awaiting_dtc_reply() {
   auto battery = new NissanLeafBattery();
   battery->setup();
   battery->read_DTC();
-  battery->update_values();
+  battery->transmit_can(50000);  // Channel is idle, so the request goes out immediately
   return battery;
 }
 
@@ -116,7 +120,7 @@ TEST(NissanLeafDtcTests, ShouldClearStoredDtcsOnlyOnAcknowledgement) {
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
 
   battery->reset_DTC();
-  battery->update_values();  // Sends 14 FF FF FF, but must not wipe anything yet
+  battery->transmit_can(50000);  // Sends 14 FF FF FF, but must not wipe anything yet
 
   EXPECT_EQ(datalayer.battery.dtc.dtc_count, 1);
 
@@ -141,10 +145,10 @@ TEST(NissanLeafDtcTests, ShouldKeepStoredDtcsWhenEraseIsNotAcknowledged) {
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
 
   battery->reset_DTC();
-  battery->update_values();
+  battery->transmit_can(50000);
 
   set_millis64(50000 + 2500);
-  battery->update_values();
+  battery->transmit_can(50000 + 2500);
 
   EXPECT_EQ(datalayer.battery.dtc.dtc_count, 1);
   EXPECT_EQ(datalayer.battery.dtc.dtc_last_read_millis, 50000u);
@@ -164,10 +168,87 @@ TEST(NissanLeafDtcTests, ShouldFlagFailureOnNegativeResponse) {
 TEST(NissanLeafDtcTests, ShouldTimeOutWhenLbcNeverReplies) {
   auto battery = battery_awaiting_dtc_reply();
 
-  set_millis64(50000 + 2500);
-  battery->update_values();
+  // Each unanswered attempt is retried; only after the retries are exhausted is it a failure.
+  unsigned long t = 50000;
+  for (int attempt = 0; attempt < 4; attempt++) {
+    t += 2500;
+    set_millis64(t);
+    battery->transmit_can(t);  // times out this attempt, re-arms if retries remain
+    battery->transmit_can(t);  // sends the retry
+  }
 
   EXPECT_TRUE(datalayer.battery.dtc.dtc_read_failed);
+}
+
+// Regression for the collision seen on real hardware: pressing Read DTC while a group poll transfer
+// was still in flight put 19 02 0E on the bus 1 ms after a flow control frame, and the LBC dropped
+// it without answering. The request must instead wait for the channel to go quiet.
+TEST(NissanLeafDtcTests, ShouldNotSendRequestWhileGroupTransferIsInFlight) {
+  reset_dtc_state();
+  set_millis64(60000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  // LBC is mid-transfer: first frame of a group 0x90 reply has just arrived.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, 0x0A, 0x61, 0x90, 0x47, 0x41, 0x51, 0x31}));
+
+  battery->read_DTC();
+  battery->transmit_can(60000);  // Channel busy, so nothing should go out yet
+
+  // A DTC reply arriving now would mean the request had been sent. Feed one and check it is ignored.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x07, 0x59, 0x02, 0x4E, 0xD0, 0x00, 0x00, 0x4E}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
+
+  // Once the channel has been quiet for longer than the idle threshold, the request goes out.
+  set_millis64(60000 + 200);
+  battery->transmit_can(60000 + 200);
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x07, 0x59, 0x02, 0x4E, 0xD0, 0x00, 0x00, 0x4E}));
+
+  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xD00000u);
+}
+
+// A request must not go out in the window between an earlier request being sent and its first
+// response frame arriving. The channel looks quiet there, but the LBC is still working on the
+// previous transaction and will drop whatever lands next.
+TEST(NissanLeafDtcTests, ShouldNotSendRequestWhileEarlierRequestIsUnanswered) {
+  reset_dtc_state();
+  set_millis64(70000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  // Periodic polling only runs once 0x5BC has marked the battery as alive.
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x43, 0xC0, 0xB4, 0x8C, 0xC8, 0x02, 0x5F, 0xFF}));
+
+  // Polling is held off for the first few 10 s cycles after startup, so tick past that until a
+  // group request actually goes out. The last tick leaves it outstanding with no reply yet.
+  unsigned long t = 70000;
+  for (int tick = 0; tick < 5; tick++) {
+    battery->transmit_can(t);
+    t += 10001;
+  }
+  battery->transmit_can(t);  // This one puts a group request on the bus
+
+  set_millis64(t + 500);
+  battery->read_DTC();
+  battery->transmit_can(t + 500);  // Channel is quiet, but that request is still unanswered
+
+  // If the DTC request had gone out, this reply would be accepted.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x07, 0x59, 0x02, 0x4E, 0xD0, 0x00, 0x00, 0x4E}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
+}
+
+// With BS=0 flow control the LBC streams every consecutive frame unprompted, so the reply must
+// still reassemble when no further flow control is sent between frames.
+TEST(NissanLeafDtcTests, ShouldReassembleBurstedMultiFrameReply) {
+  auto battery = battery_awaiting_dtc_reply();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, 0x13, 0x59, 0x02, 0x4E, 0xD0, 0x00, 0x00}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x4E, 0x33, 0xD7, 0x00, 0x4E, 0x33, 0xD9}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x22, 0x00, 0x4E, 0x33, 0xDD, 0x00, 0x4E, 0xFF}));
+
+  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 4);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[3], 0x33DD00u);
 }
 
 // The periodic group polling answers on 0x7BB too, and its first frame carries 0x02 in the byte the

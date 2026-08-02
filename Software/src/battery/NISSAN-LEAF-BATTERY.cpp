@@ -256,37 +256,6 @@ void NissanLeafBattery::
     }
 
 #endif
-    if (UserRequestDTCreset && !dtc_clear_in_progress) {
-      UserRequestDTCreset = false;
-      dtc_clear_in_progress = true;
-      dtc_clear_millis = millis();
-      transmit_can_frame(&LEAF_CLEAR_DTC);
-    }
-
-    // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
-    // untouched here: an unconfirmed erase is not evidence that the codes are gone.
-    if (dtc_clear_in_progress && (millis() - dtc_clear_millis > DTC_TIMEOUT_MS)) {
-      dtc_clear_in_progress = false;
-    }
-
-    if (UserRequestDTCreadout && !dtc_read_in_progress) {
-      UserRequestDTCreadout = false;
-      dtc_read_in_progress = true;
-      dtc_rx_active = false;
-      dtc_rx_len = 0;
-      dtc_rx_expected = 0;
-      dtc_request_millis = millis();
-      datalayer_battery->dtc.dtc_read_failed = false;
-      transmit_can_frame(&LEAF_READ_DTC);
-    }
-
-    // Give up if the LBC never completes the reply, so the page stops showing a pending read.
-    if (dtc_read_in_progress && (millis() - dtc_request_millis > DTC_TIMEOUT_MS)) {
-      dtc_read_in_progress = false;
-      dtc_rx_active = false;
-      datalayer_battery->dtc.dtc_read_failed = true;
-      datalayer_battery->dtc.dtc_last_read_millis = millis();
-    }
   }
 }
 
@@ -398,6 +367,30 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7BB:
 
+      // Any traffic here means the LBC is mid-response. Recorded before any handling below, so a
+      // pending DTC request holds off until the channel has been quiet for DTC_BUS_IDLE_MS.
+      last_7bb_millis = millis();
+
+      // Follow the ISO-TP framing of whatever answer is arriving, regardless of which service it
+      // belongs to, so we know when the LBC has finished replying and is ready for a new request.
+      if (uds_busy) {
+        uint8_t rx_pci = rx_frame.data.u8[0] & 0xF0;
+        if (rx_pci == 0x00) {  //Single frame: the whole answer, complete on arrival
+          uds_busy = false;
+        } else if (rx_pci == 0x10) {  //First frame: six payload bytes here, rest in the follow-ups
+          uint16_t announced = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          uds_rx_remaining = (announced > 6) ? (announced - 6) : 0;
+          if (uds_rx_remaining == 0) {
+            uds_busy = false;
+          }
+        } else if (rx_pci == 0x20) {  //Consecutive frame: up to seven more payload bytes
+          uds_rx_remaining = (uds_rx_remaining > 7) ? (uds_rx_remaining - 7) : 0;
+          if (uds_rx_remaining == 0) {
+            uds_busy = false;
+          }
+        }
+      }
+
 #ifndef SMALL_FLASH_DEVICE
       // This section checks if we are doing a SOH reset towards BMS. If we do, all 7BB handling is halted
       if (stateMachineClearSOH < 255) {
@@ -454,7 +447,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
           }
           dtc_rx_active = true;
-          transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
+          transmit_can_frame(&LEAF_DTC_FLOW_CONTROL);  //BS=0: send the remaining frames in one burst
           break;
         }
 
@@ -464,9 +457,8 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           if (dtc_rx_len >= dtc_rx_expected) {
             parseDTCResponse();
-          } else {
-            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);
           }
+          //No flow control here: BS=0 asked the LBC to stream the rest unprompted.
           break;
         }
 
@@ -742,7 +734,71 @@ void NissanLeafBattery::parseDTCResponse() {
   datalayer_battery->dtc.dtc_read_failed = false;
 }
 
+// Sends any pending DTC request and times out the ones that get no answer. Kept out of
+// update_values() so the transmission can be held back until the diagnostic channel is free: the
+// LBC drops a request that lands while it is still sending a group poll response, which loses the
+// readout silently.
+void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
+  // Stop waiting on an answer the LBC is never going to send, otherwise one lost reply would block
+  // the channel for good.
+  if (uds_busy && (currentMillis - uds_request_millis > UDS_RESPONSE_TIMEOUT_MS)) {
+    uds_busy = false;
+  }
+
+  // Free to transmit only when our own previous request has been fully answered (uds_busy) and
+  // nothing else is talking on the channel either, which is what catches a third party such as
+  // LeafSpy polling the same LBC.
+  bool channel_idle = !uds_busy && (currentMillis - last_7bb_millis) > DTC_BUS_IDLE_MS;
+  bool busy = dtc_read_in_progress || dtc_clear_in_progress;
+
+  if (UserRequestDTCreadout && !busy && channel_idle) {
+    UserRequestDTCreadout = false;
+    dtc_read_in_progress = true;
+    dtc_rx_active = false;
+    dtc_rx_len = 0;
+    dtc_rx_expected = 0;
+    dtc_request_millis = currentMillis;
+    datalayer_battery->dtc.dtc_read_failed = false;
+    uds_busy = true;
+    uds_request_millis = currentMillis;
+    transmit_can_frame(&LEAF_READ_DTC);
+    return;
+  }
+
+  if (UserRequestDTCreset && !busy && channel_idle) {
+    UserRequestDTCreset = false;
+    dtc_clear_in_progress = true;
+    dtc_clear_millis = currentMillis;
+    uds_busy = true;
+    uds_request_millis = currentMillis;
+    transmit_can_frame(&LEAF_CLEAR_DTC);
+    return;
+  }
+
+  // A readout that goes unanswered is retried before being reported as failed. A request lost to a
+  // busy channel is the expected cause, and by the time the timeout expires that channel is free.
+  if (dtc_read_in_progress && (currentMillis - dtc_request_millis > DTC_TIMEOUT_MS)) {
+    dtc_read_in_progress = false;
+    dtc_rx_active = false;
+    if (dtc_read_retries < DTC_MAX_RETRIES) {
+      dtc_read_retries++;
+      UserRequestDTCreadout = true;
+    } else {
+      datalayer_battery->dtc.dtc_read_failed = true;
+      datalayer_battery->dtc.dtc_last_read_millis = currentMillis;
+    }
+  }
+
+  // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
+  // untouched here: an unconfirmed erase is not evidence that the codes are gone.
+  if (dtc_clear_in_progress && (currentMillis - dtc_clear_millis > DTC_TIMEOUT_MS)) {
+    dtc_clear_in_progress = false;
+  }
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
+
+  handle_DTC_requests(currentMillis);
 
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
@@ -961,13 +1017,18 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       previousMillis10s = currentMillis;
 
       //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
-      //and don't start a new group transfer while a DTC readout is still being reassembled.
-      if (!stop_battery_query && !dtc_read_in_progress) {
+      //and don't start a group transfer while a DTC operation is pending or in flight: the two share
+      //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC.
+      bool dtc_operation_pending =
+          UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
+      if (!stop_battery_query && !dtc_operation_pending) {
 
         // Move to the next group
         PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
+        uds_busy = true;
+        uds_request_millis = currentMillis;
         transmit_can_frame(&LEAF_GROUP_REQUEST);
       }
 
