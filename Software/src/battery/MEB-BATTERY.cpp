@@ -1474,6 +1474,9 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
           if (data[1] == Start) {
             basic_settings_wait_ms = millis();  // start timestamp before the stop request
             basic_settings_state = BasicSettingsState::SEND_ROUTINE_STOP;
+#ifdef MEB_DEBUG
+            logging.printf("MEB: BasicSettings: routine 0x%04X started\n", (unsigned)basic_settings_routine_id);
+#endif
           } else if (data[1] == Stop) {
             // trigger now BMS reset
             datalayer_meb->UserRequestBMSReset = true;
