@@ -108,5 +108,37 @@ TEST(VolvoSPADtcTests, ShouldParseMultiFrameReply) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[3], 0x0E0F00u);  // U1100
   EXPECT_EQ(datalayer.battery.dtc.dtc_status[3], 0x21);
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[4], 0xC11000u);
-  //ETC.
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[4], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[5],  0xC11000u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[5], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[6],  0xC29200u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[6], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[7],  0xC29200u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[7], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[8],  0xC29900u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[8], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[9],  0xC29900u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[9], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[10], 0x0A9500u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[10], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[11], 0x0EEA00u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[11], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[12], 0x0EEA00u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[12], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[13], 0x0D9C00u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[13], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[14], 0x0D9C00u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[14], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[15], 0xC10000u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[15], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[16], 0xC10000u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[16], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[17], 0x0D9A00u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[17], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[18], 0x0D9A00u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[18], 0x21);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[19], 0x106800u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[19], 0x20);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[20], 0x106800u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[20], 0x21);
 }
