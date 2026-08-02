@@ -1,6 +1,7 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
 
+#include <WString.h>
 #include <chrono>
 #include <cstdint>
 #include <string>
@@ -132,8 +133,8 @@ const char* charging_state_to_text(ChargingState state);
 const char* limiting_factor_to_text(LimitingFactor factor);
 
 /** Human readable battery status, e.g. "Battery charging (Inverter limiting)". Used for the web UI. */
-const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
-                                     bool user_settings_limit_charge, bool user_settings_limit_discharge);
+String get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                bool user_settings_limit_charge, bool user_settings_limit_discharge);
 
 #ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */

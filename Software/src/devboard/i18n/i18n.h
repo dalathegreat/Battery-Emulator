@@ -13,6 +13,10 @@
 
 extern std::string user_selected_language;  // "" = built-in English
 
+// True when no LANGUAGE key exists in NVS (set during settings load); lets a
+// factory image's language hint apply on first boot only
+extern bool i18n_language_never_set;
+
 bool init_i18n_storage();
 bool i18n_storage_available();
 bool format_i18n_storage();

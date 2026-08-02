@@ -2,6 +2,7 @@
 #define _BATTERY_HTML_RENDERER_H
 
 #include "../../datalayer/datalayer.h"
+#include "../i18n/tr.h"
 
 #include <Arduino.h>
 #include <WString.h>
@@ -28,18 +29,18 @@ class BatteryHtmlRenderer {
     // Reserve enough space to avoid reallocs
     content.reserve(3300 + dtc.dtc_count * 320);
     content +=
-        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
-        "Diagnostic Trouble Codes</h4>";
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; " +
+        TR(TrKey::DRV_DIAGNOSTIC_TROUBLE_CODES) + "</h4>";
     if (dtc.dtc_last_read_millis == 0) {
-      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+      content += "<p style='color:#bbb;'>" + TR(TrKey::DRV_NOT_READ_YET_USE_READ_DTC_BUTTON_BELOW_SCAN) + "</p>";
     } else if (dtc.dtc_read_failed) {
-      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+      content += "<p style='color:#ff8a80;'>&#9888; " + TR(TrKey::DRV_LAST_DTC_READ_FAILED_TIMED_OUT) + "</p>";
     } else if (dtc.dtc_count == 0) {
-      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+      content += "<p style='color:#69f0ae;'>&#10003; " + TR(TrKey::DRV_NO_DTCS_PRESENT) + "</p>";
     } else {
       unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
-      content +=
-          "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) + "s ago</p>";
+      content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) +
+                 TR(TrKey::DRV_S_AGO) + "</p>";
       content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
       content +=
           "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
@@ -48,7 +49,8 @@ class BatteryHtmlRenderer {
           "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
           "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
           "<th style='padding:10px 18px;text-align:left;'>Status</th>"
-          "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+          "<th style='padding:10px 18px;text-align:left;'>" +
+          TR(TrKey::DRV_DESCRIPTION) + "</th></tr></thead><tbody>";
 
       const char SYS[5] = "PCBU";
       for (int i = 0; i < dtc.dtc_count; i++) {
@@ -70,14 +72,14 @@ class BatteryHtmlRenderer {
         }
 
         // Status precedence: Active (bit 0x01) > Confirmed (bit 0x08) > Stored.
-        const char* statusStr = "Stored";
+        String statusStr = TR(TrKey::DRV_STORED);
         const char* statusColor = "#9e9e9e";
         if (status & 0x08) {
-          statusStr = "Confirmed";
+          statusStr = TR(TrKey::DRV_CONFIRMED);
           statusColor = "#d29922";
         }
         if (status & 0x01) {
-          statusStr = "Active";
+          statusStr = TR(TrKey::DRV_ACTIVE_STATUS);
           statusColor = "#ff5252";
         }
 
@@ -199,7 +201,7 @@ class BatteryHtmlRenderer {
       }
 
       function fetchFromGitHub() {
-        statusEl.textContent = 'Fetching DTC descriptions from GitHub...';
+        statusEl.textContent = '" + TR_JS(TrKey::UI_FETCHING_DTC_DESCRIPTIONS_FROM_GITHUB) + "';
         statusEl.style.color = '#aaa';
         fetch(url).then(function(r){
           if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -227,7 +229,7 @@ class BatteryHtmlRenderer {
       fileInput.addEventListener('change', function(e){
         var file = e.target.files[0];
         if (!file) return;
-        statusEl.textContent = 'Loading...';
+        statusEl.textContent = '" + TR_JS(TrKey::UI_LOADING) + "';
         statusEl.style.color = '#aaa';
         var reader = new FileReader();
         reader.onload = function(ev){
@@ -238,7 +240,7 @@ class BatteryHtmlRenderer {
           }
         };
         reader.onerror = function(){
-          statusEl.textContent = 'File read error';
+          statusEl.textContent = '" + TR_JS(TrKey::UI_FILE_READ_ERROR) + "';
           statusEl.style.color = '#d32f2f';
         };
         reader.readAsText(file);
@@ -260,23 +262,33 @@ class BatteryHtmlRenderer {
          "L.forEach(function(t){var e=m[t.getAttribute('data-dtc-code')];"
          "if(e){var d=e.l_dsc;if(e.s_dsc)d+='<br /><em "
          "style=\\'color:#aaa;font-size:0.85em\\'>'+e.s_dsc+'</em>';t.innerHTML=d;n++;}});"
-         "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+(b?' (cached)':' (fetched)')+"
+         "S.innerHTML='" +
+         TR_JS(TrKey::UI_LOADED) +
+         " '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+(b?' (cached)':' (fetched)')+"
          "'. <a href=\\'#\\' id=\\'dtcRefresh\\' style=\\'color:#aaa;font-size:0.85em;\\'>Refresh</a>';"
          "S.style.color=n>0?'#4CAF50':'#ff9800';"
          "document.getElementById('dtcRefresh').addEventListener('click',function(e){"
          "e.preventDefault();try{localStorage.removeItem(k);}catch(x){}F();});}"
          "function P(msg){S.textContent=msg;S.style.color='#ff9800';C.style.display='';}"
-         "function F(){S.textContent='Fetching DTC descriptions from GitHub...';S.style.color='#aaa';"
+         "function F(){S.textContent='" +
+         TR_JS(TrKey::UI_FETCHING_DTC_DESCRIPTIONS_FROM_GITHUB) +
+         "';S.style.color='#aaa';"
          "fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})"
          ".then(function(t){try{localStorage.setItem(k,t);}catch(x){}A(JSON.parse(t),false);})"
          ".catch(function(err){P('GitHub unavailable ('+err.message+') - load from local file:');});}"
          "if(u.length>0){var g=null;try{g=localStorage.getItem(k);}catch(x){}"
          "if(g){try{A(JSON.parse(g),true);}catch(x){F();}}else{F();}}else{C.style.display='';}"
          "I.addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;"
-         "S.textContent='Loading...';S.style.color='#aaa';var R=new FileReader();"
+         "S.textContent='" +
+         TR_JS(TrKey::UI_LOADING) +
+         "';S.style.color='#aaa';var R=new FileReader();"
          "R.onload=function(v){try{A(JSON.parse(v.target.result),false);}"
-         "catch(err){S.textContent='Parse error: '+err.message;S.style.color='#d32f2f';}};"
-         "R.onerror=function(){S.textContent='File read error';S.style.color='#d32f2f';};"
+         "catch(err){S.textContent='" +
+         TR_JS(TrKey::UI_PARSE_ERROR) +
+         " '+err.message;S.style.color='#d32f2f';}};"
+         "R.onerror=function(){S.textContent='" +
+         TR_JS(TrKey::UI_FILE_READ_ERROR) +
+         "';S.style.color='#d32f2f';};"
          "R.readAsText(f);});})();</script>";
     return s;
   }

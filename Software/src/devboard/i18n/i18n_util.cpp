@@ -1,4 +1,5 @@
 #include "i18n_util.h"
+#include <cstdio>
 #include <cstring>
 
 static bool is_lower(char c) {
@@ -84,4 +85,43 @@ String i18n_list_json(const std::vector<String>& filenames, const String& active
   }
   json += "]}";
   return json;
+}
+
+String i18n_etag(uint32_t crc) {
+  char buf[12];
+  snprintf(buf, sizeof(buf), "\"%08x\"", (unsigned)crc);
+  return String(buf);
+}
+
+bool i18n_etag_match(const String& if_none_match, uint32_t crc) {
+  char want[9];
+  snprintf(want, sizeof(want), "%08x", (unsigned)crc);
+  const char* s = if_none_match.c_str();
+  while (*s != '\0') {
+    while (*s == ' ' || *s == '\t' || *s == ',') {
+      ++s;
+    }
+    if (*s == '\0') {
+      break;
+    }
+    if (*s == '*') {
+      return true;
+    }
+    if ((s[0] == 'W' || s[0] == 'w') && s[1] == '/') {
+      s += 2;
+    }
+    if (*s == '"') {
+      ++s;
+    }
+    // Candidate runs to quote, comma or whitespace
+    const char* end = s;
+    while (*end != '\0' && *end != '"' && *end != ',' && *end != ' ' && *end != '\t') {
+      ++end;
+    }
+    if (end - s == 8 && strncasecmp(s, want, 8) == 0) {
+      return true;
+    }
+    s = (*end == '"') ? end + 1 : end;
+  }
+  return false;
 }

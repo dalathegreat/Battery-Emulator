@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #endif
 #include "time_format.h"
+#include "../i18n/tr.h"
 
 struct TimeBreakdown {
   unsigned long days;
@@ -31,9 +32,14 @@ String format_ms_stamp(uint64_t ms) {
   return buf;
 }
 
+/* The unit words come from the catalog rather than a format string. Upstream
+   collected the two hand-rolled copies of this arithmetic into one helper,
+   which happens to make this the single place the uptime text needs
+   translating - so the conversion follows the helper instead of fighting it at
+   each call site. format_ms_stamp() above stays untouched: it emits unit
+   LETTERS (1d02h03m04s), which are not words and are not translated. */
 String format_ms_string(uint64_t ms) {
   TimeBreakdown t = ms_to_parts(ms);
-  char buf[64];
-  snprintf(buf, sizeof(buf), "%lu days, %lu hours, %lu minutes, %lu seconds", t.days, t.hours, t.minutes, t.seconds);
-  return buf;
+  return String(t.days) + " " + TR(TrKey::UI_DAYS) + ", " + String(t.hours) + " " + TR(TrKey::UI_HOURS) + ", " +
+         String(t.minutes) + " " + TR(TrKey::UI_MINUTES) + ", " + String(t.seconds) + " seconds";
 }

@@ -4,6 +4,7 @@
 #include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
@@ -19,7 +20,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       return content;
     }
 
-    content += "<h4>LEAF generation: ";
+    tr_h4_open(content, TrKey::DRV_LEAF_GENERATION);
     switch (nissan_dl->LEAF_gen) {
       case 0:
         content += String("ZE0</h4>");
@@ -31,45 +32,45 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         content += String("ZE1</h4>");
         break;
       default:
-        content += String("Unknown</h4>");
+        content += String(TR(TrKey::UI_UNKNOWN) + "</h4>");
     }
     char readableSerialNumber[16];  // One extra space for null terminator
     memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber, sizeof(nissan_dl->BatterySerialNumber));
     readableSerialNumber[15] = '\0';  // Null terminate the string
-    content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+    tr_h4(content, TrKey::DRV_SERIAL_NUMBER, String(readableSerialNumber));
     char readablePartNumber[8];  // One extra space for null terminator
     memcpy(readablePartNumber, nissan_dl->BatteryPartNumber, sizeof(nissan_dl->BatteryPartNumber));
     readablePartNumber[7] = '\0';  // Null terminate the string
-    content += "<h4>Part number: " + String(readablePartNumber) + "</h4>";
+    tr_h4(content, TrKey::DRV_PART_NUMBER, String(readablePartNumber));
     char readableBMSID[9];  // One extra space for null terminator
     memcpy(readableBMSID, nissan_dl->BMSIDcode, sizeof(nissan_dl->BMSIDcode));
     readableBMSID[8] = '\0';  // Null terminate the string
-    content += "<h4>BMS ID: " + String(readableBMSID) + "</h4>";
+    tr_h4(content, TrKey::DRV_BMS_ID, String(readableBMSID));
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
     content += "<h4>HX: " + String(nissan_dl->battery_HX) + "</h4>";
-    content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
-    content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
-    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
-    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + "</h4>";
-    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
-    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
-    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
-    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
-    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
-    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
-    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
-    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
-    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
-    content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
-    content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
+    tr_h4(content, TrKey::DRV_REGEN_KW, String(nissan_dl->ChargePowerLimit));
+    tr_h4(content, TrKey::DRV_CHARGE_KW, String(nissan_dl->MaxPowerForCharger));
+    tr_h4_colon(content, TrKey::DRV_INTERLOCK, String(nissan_dl->Interlock));
+    tr_h4(content, TrKey::DRV_INSULATION, String(nissan_dl->Insulation));
+    tr_h4(content, TrKey::DRV_RELAY_CUT_REQUEST, String(nissan_dl->RelayCutRequest));
+    tr_h4(content, TrKey::DRV_FAILSAFE_STATUS, String(nissan_dl->FailsafeStatus));
+    tr_h4(content, TrKey::DRV_FULLY_CHARGED, String(nissan_dl->Full));
+    tr_h4(content, TrKey::DRV_BATTERY_EMPTY, String(nissan_dl->Empty));
+    tr_h4(content, TrKey::DRV_MAIN_RELAY, String(nissan_dl->MainRelayOn));
+    tr_h4(content, TrKey::DRV_HEATER_PRESENT, String(nissan_dl->HeatExist));
+    tr_h4(content, TrKey::DRV_HEATING_STOPPED, String(nissan_dl->HeatingStop));
+    tr_h4(content, TrKey::DRV_HEATING_STARTED, String(nissan_dl->HeatingStart));
+    tr_h4(content, TrKey::DRV_HEATING_REQUESTED, String(nissan_dl->HeaterSendRequest));
+    tr_h4(content, TrKey::DRV_TEMPERATURE_1, String(nissan_dl->temperature1 / 10.0), " &deg;C");
+    tr_h4(content, TrKey::DRV_TEMPERATURE_2, String(nissan_dl->temperature2 / 10.0), " &deg;C");
     if (nissan_dl->LEAF_gen == 0) {
-      content += "<h4>Temperature 3: " + String(nissan_dl->temperature3 / 10.0) + " &deg;C</h4>";
+      tr_h4(content, TrKey::DRV_TEMPERATURE_3, String(nissan_dl->temperature3 / 10.0), " &deg;C");
     }
-    content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
-    content += "<h4>CryptoChallenge: " + String(nissan_dl->CryptoChallenge) + "</h4>";
-    content += "<h4>SolvedChallenge: " + String(nissan_dl->SolvedChallengeMSB) + String(nissan_dl->SolvedChallengeLSB) +
-               "</h4>";
-    content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
+    tr_h4(content, TrKey::DRV_TEMPERATURE_4, String(nissan_dl->temperature4 / 10.0), " &deg;C");
+    tr_h4(content, TrKey::DRV_CRYPTOCHALLENGE, String(nissan_dl->CryptoChallenge));
+    tr_h4(content, TrKey::DRV_SOLVEDCHALLENGE,
+          String(nissan_dl->SolvedChallengeMSB) + String(nissan_dl->SolvedChallengeLSB));
+    tr_h4(content, TrKey::DRV_CHALLENGE_FAILED, String(nissan_dl->challengeFailed));
 
     if (battery_dl) {
       content += render_dtc_section(battery_dl->dtc);
@@ -89,39 +90,42 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     content.reserve(3300 + dtc.dtc_count * 200);
 
     content +=
-        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
-        "Diagnostic Trouble Codes</h4>";
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; " +
+        TR(TrKey::DRV_DIAGNOSTIC_TROUBLE_CODES) + "</h4>";
 
     if (dtc.dtc_last_read_millis == 0) {
-      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+      content += "<p style='color:#bbb;'>" + TR(TrKey::DRV_NOT_READ_YET_USE_READ_DTC_BUTTON_BELOW_SCAN) + "</p>";
       return content;
     }
     if (dtc.dtc_read_failed) {
-      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+      content += "<p style='color:#ff8a80;'>&#9888; " + TR(TrKey::DRV_LAST_DTC_READ_FAILED_TIMED_OUT) + "</p>";
       return content;
     }
     if (dtc.dtc_count == 0) {
-      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+      content += "<p style='color:#69f0ae;'>&#10003; " + TR(TrKey::DRV_NO_DTCS_PRESENT) + "</p>";
       return content;
     }
 
     unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
-    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes";
+    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " " + TR(TrKey::DRV_CODES);
     if (dtc.dtc_reported_count > dtc.dtc_count) {
       // The battery had more to say than there are slots to hold it. Say so, rather than presenting
       // a truncated list as if it were the whole story.
-      content += " shown of " + String(dtc.dtc_reported_count) + " reported";
+      content += " " + TR(TrKey::DRV_SHOWN_OF) + " " + String(dtc.dtc_reported_count) + " " + TR(TrKey::DRV_REPORTED);
     }
-    content += " &mdash; read " + String(age_s) + "s ago</p>";
+    content += " &mdash; read " + String(age_s) + TR(TrKey::DRV_S_AGO) + "</p>";
     content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
     content +=
         "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
         "border:1px solid #4a5a64;border-radius:8px;overflow:hidden;'>";
     content +=
         "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
+        // "DTC" is the standard automotive acronym and is used verbatim in every
+        // language the catalog carries, so it stays untranslated.
         "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
-        "<th style='padding:10px 18px;text-align:left;'>Status</th>"
-        "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+        "<th style='padding:10px 18px;text-align:left;'>" +
+        TR(TrKey::DRV_STATUS) + "</th><th style='padding:10px 18px;text-align:left;'>" + TR(TrKey::DRV_DESCRIPTION) +
+        "</th></tr></thead><tbody>";
 
     const char SYS[5] = "PCBU";
     for (uint8_t i = 0; i < dtc.dtc_count; i++) {
@@ -141,14 +145,14 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       }
 
       // Status precedence: Active (bit 0x01) > Confirmed (bit 0x08) > Stored.
-      const char* statusStr = "Stored";
+      String statusStr = TR(TrKey::DRV_STORED);
       const char* statusColor = "#9e9e9e";
       if (status & 0x08) {
-        statusStr = "Confirmed";
+        statusStr = TR(TrKey::DRV_CONFIRMED);
         statusColor = "#d29922";
       }
       if (status & 0x01) {
-        statusStr = "Active";
+        statusStr = TR(TrKey::DRV_ACTIVE_STATUS);
         statusColor = "#ff5252";
       }
 
@@ -162,7 +166,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       content += statusStr;
       content += "</td><td data-dtc-code='";
       content += matchKey;
-      content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
+      content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>" + TR(TrKey::UI_UNKNOWN) + "</td></tr>";
     }
     content += "</tbody></table></div>";
     content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "nissan_leaf_dtc.json");

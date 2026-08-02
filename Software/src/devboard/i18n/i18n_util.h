@@ -23,4 +23,12 @@ String i18n_language_from_filename(const String& name);
  * English is the built-in default and is not a stored catalog. */
 String i18n_list_json(const std::vector<String>& filenames, const String& active_language);
 
+// Serve-path ETag for a pack: quoted lowercase hex of the store entry CRC
+String i18n_etag(uint32_t crc);
+
+/* True when an If-None-Match header value matches the pack's ETag. Tolerant
+ * per RFC 9110: weak validators (W/), optional quotes, comma-separated lists,
+ * surrounding whitespace, "*" wildcard, case-insensitive hex. */
+bool i18n_etag_match(const String& if_none_match, uint32_t crc);
+
 #endif

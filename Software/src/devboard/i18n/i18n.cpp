@@ -3,6 +3,7 @@
 #include "../utils/logging.h"
 
 std::string user_selected_language = "";
+bool i18n_language_never_set = false;
 
 // The slot store's narrow flash interface, backed by the spiffs partition
 class EspPartitionFlash : public I18nFlash {
@@ -46,6 +47,11 @@ bool init_i18n_storage() {
   if (!store.mount()) {
     logging.printf("i18n: language storage not mounted (unformatted?), feature off\n");
     return false;
+  }
+  // Factory-image language hint: only when the user never chose a language
+  if (i18n_language_never_set && store.language_hint()[0] != '\0') {
+    user_selected_language = store.language_hint();
+    logging.printf("i18n: adopting factory language hint '%s'\n", store.language_hint());
   }
   return true;
 }

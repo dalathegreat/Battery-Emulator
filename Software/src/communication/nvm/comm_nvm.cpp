@@ -256,6 +256,7 @@ void init_stored_settings() {
   ha_autodiscovery_topic = settings.getString("HADISCTOPIC", "homeassistant").c_str();
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
+  i18n_language_never_set = !settings.settingExists("LANGUAGE");
   user_selected_language = settings.getString("LANGUAGE").c_str();
 
   migrate_static_ip_settings(settings);

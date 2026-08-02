@@ -38,3 +38,7 @@ compile.bat
 
 # Ignore generated ESP-IDF component manifest
 Software/idf_component.yml
+__pycache__/
+tools/catalogs/
+Software/src/devboard/i18n/i18n_keys.h
+Software/src/devboard/i18n/i18n_bootstrap.h

@@ -4,18 +4,19 @@
 #include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
-inline const char* getContactorStates(int index) {
+inline String getContactorStates(int index) {
   switch (index) {
     case 0:
-      return "Open";
+      return TR(TrKey::DRV_OPEN);
     case 1:
-      return "Closed";
+      return TR(TrKey::DRV_CLOSED);
     case 2:
-      return "STUCK Open!";
+      return TR(TrKey::DRV_STUCK_OPEN);
     case 3:
-      return "STUCK Closed!";
+      return TR(TrKey::DRV_STUCK_CLOSED);
     default:
       return "";
   }
@@ -25,188 +26,191 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "<h4>Balancing active: ";
+    tr_h4_open(content, TrKey::DRV_BALANCING_ACTIVE);
     if (datalayer_extended.stellantisCMPsmart.battery_balancing_active) {
-      content += "Yes</h4>";
+      tr_h4_end(content, TrKey::DRV_YES);
     } else {
-      content += "No</h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
-    content += "<h4>Positive contactor: ";
+    tr_h4_open(content, TrKey::DRV_POSITIVE_CONTACTOR);
     content += getContactorStates(datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state);
-    content += "</h4><h4>Negative contactor: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_NEGATIVE_CONTACTOR);
     content += getContactorStates(datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state);
-    content += "</h4><h4>Precharge contactor: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_PRECHARGE_CONTACTOR);
     content += getContactorStates(datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state);
-    content += "</h4><h4>Wakeup reason: " + String(datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state) + "</h4>";
-    content += "<h4>Battery state: ";
+    content += "</h4>";
+    tr_h4(content, TrKey::DRV_WAKEUP_REASON, String(datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state));
+    tr_h4_open(content, TrKey::DRV_BATTERY_STATE);
     if (datalayer_extended.stellantisCMPsmart.battery_state == 0) {
-      content += "Sleep";
+      content += TR(TrKey::DRV_SLEEP);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 1) {
-      content += "Initialization";
+      content += TR(TrKey::DRV_INITIALIZATION);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 2) {
-      content += "Wait";
+      content += TR(TrKey::DRV_WAIT);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 3) {
-      content += "Ready";
+      content += TR(TrKey::DRV_READY);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 4) {
-      content += "Preheat";
+      content += TR(TrKey::DRV_PREHEAT);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 5) {
-      content += "Discharge";
+      content += TR(TrKey::DRV_DISCHARGE);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 6) {
-      content += "Charge";
+      content += TR(TrKey::DRV_CHARGE);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 7) {
-      content += "Fault";
+      content += TR(TrKey::DRV_FAULT);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 8) {
-      content += "Pre-shutdown";
+      content += TR(TrKey::DRV_PRE_SHUTDOWN);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 9) {
-      content += "Shutdown";
+      content += TR(TrKey::DRV_SHUTDOWN);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 10) {
-      content += "Cooling";
+      content += TR(TrKey::DRV_COOLING);
     } else if (datalayer_extended.stellantisCMPsmart.battery_state == 11) {
-      content += "HV battery precondition";
+      content += TR(TrKey::DRV_HV_BATTERY_PRECONDITION);
     }
     content += "</h4>";
 
-    content += "<h4>Battery fault level: " + String(datalayer_extended.stellantisCMPsmart.battery_fault) + "</h4>";
+    tr_h4(content, TrKey::DRV_BATTERY_FAULT_LEVEL, String(datalayer_extended.stellantisCMPsmart.battery_fault));
 
-    content += "<h4>Eplug status: ";
+    tr_h4_open(content, TrKey::DRV_EPLUG_STATUS);
     if (datalayer_extended.stellantisCMPsmart.eplug_status == 0) {
-      content += "Seated OK";
+      content += TR(TrKey::DRV_SEATED_OK);
     } else if (datalayer_extended.stellantisCMPsmart.eplug_status == 1) {
-      content += "Disconnected!";
+      content += TR(TrKey::DRV_DISCONNECTED);
     } else if (datalayer_extended.stellantisCMPsmart.eplug_status == 2) {
-      content += "Open Status";
+      content += TR(TrKey::DRV_OPEN_STATUS);
     } else if (datalayer_extended.stellantisCMPsmart.eplug_status == 3) {
-      content += "Invalid";
+      content += TR(TrKey::DRV_INVALID);
     }
     content += "</h4>";
 
-    content += "<h4>HVIL status: ";
+    tr_h4_open(content, TrKey::DRV_HVIL_STATUS);
     if (datalayer_extended.stellantisCMPsmart.HVIL_status == 0) {
-      content += "Closed OK";
+      content += TR(TrKey::DRV_CLOSED_OK);
     } else if (datalayer_extended.stellantisCMPsmart.HVIL_status == 1) {
-      content += "OPEN!!";
+      content += TR(TrKey::DRV_OPEN_ALARM);
     } else if (datalayer_extended.stellantisCMPsmart.HVIL_status == 2) {
-      content += "Error";
+      content += TR(TrKey::DRV_ERROR);
     } else if (datalayer_extended.stellantisCMPsmart.HVIL_status == 3) {
-      content += "Invalid";
+      content += TR(TrKey::DRV_INVALID);
     }
     content += "</h4>";
 
-    content += "<h4>EV Warning: ";
+    tr_h4_open(content, TrKey::DRV_EV_WARNING);
     if (datalayer_extended.stellantisCMPsmart.ev_warning == 0) {
-      content += "OK No alarm";
+      content += TR(TrKey::DRV_OK_NO_ALARM);
     } else if (datalayer_extended.stellantisCMPsmart.ev_warning == 1) {
-      content += "Blinking!!";
+      content += TR(TrKey::DRV_BLINKING);
     } else if (datalayer_extended.stellantisCMPsmart.ev_warning == 2) {
       content += "ON!!";
     } else if (datalayer_extended.stellantisCMPsmart.ev_warning == 3) {
-      content += "Invalid";
+      content += TR(TrKey::DRV_INVALID);
     }
     content += "</h4>";
 
-    content += "<h4>Authorised for usage: ";
+    tr_h4_open(content, TrKey::DRV_AUTHORISED_USAGE);
     if (datalayer_extended.stellantisCMPsmart.power_auth) {
-      content += "NOT authorised</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_AUTHORISED);
     } else {
-      content += "Authorised OK</h4>";
+      tr_h4_end(content, TrKey::DRV_AUTHORISED_OK);
     }
 
-    content += "<h4>Charging status: ";
+    tr_h4_open(content, TrKey::DRV_CHARGING_STATUS);
     if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 0) {
-      content += "Not initiated";
+      content += TR(TrKey::DRV_NOT_INITIATED);
     } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 1) {
-      content += "In progress";
+      content += TR(TrKey::DRV_PROGRESS);
     } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 2) {
-      content += "Completed";
+      content += TR(TrKey::DRV_COMPLETED);
     } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
-      content += "Failure";
+      content += TR(TrKey::DRV_FAILURE);
     } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
-      content += "Stopped";
+      content += TR(TrKey::DRV_STOPPED);
     } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
-      content += "Forbidden";
+      content += TR(TrKey::DRV_FORBIDDEN);
     } else if (datalayer_extended.stellantisCMPsmart.battery_charging_status == 3) {
-      content += "Prohibited, suggest preheat or precondition";
+      content += TR(TrKey::DRV_PROHIBITED_SUGGEST_PREHEAT_PRECONDITION);
     }
     content += "</h4>";
 
-    content += "<h4>Insulation status: ";
+    tr_h4_open(content, TrKey::DRV_INSULATION_STATUS);
     if (datalayer_extended.stellantisCMPsmart.insulation_fault == 0) {
-      content += "OK";
+      content += TR(TrKey::DRV_OK);
     } else if (datalayer_extended.stellantisCMPsmart.insulation_fault == 1) {
-      content += "Symmetrical failure!!";
+      content += TR(TrKey::DRV_SYMMETRICAL_FAILURE);
     } else if (datalayer_extended.stellantisCMPsmart.insulation_fault == 2) {
-      content += "Asymmetric failure HV+!!";
+      content += TR(TrKey::DRV_ASYMMETRIC_FAILURE_HV);
     } else if (datalayer_extended.stellantisCMPsmart.insulation_fault == 3) {
-      content += "Asymmetric failure HV-!!";
+      content += TR(TrKey::DRV_ASYMMETRIC_FAILURE_HV);
     }
     content += "</h4>";
 
-    content += "<h4>Insulation circuit status: ";
+    tr_h4_open(content, TrKey::DRV_INSULATION_CIRCUIT_STATUS);
     if (datalayer_extended.stellantisCMPsmart.insulation_circuit_status == 0) {
-      content += "Inactive (Insulation function not enable)";
+      content += TR(TrKey::DRV_INACTIVE_INSULATION_NOT_ENABLED);
     } else if (datalayer_extended.stellantisCMPsmart.insulation_circuit_status == 1) {
       content += "Active (Insulation function enable)";
     } else if (datalayer_extended.stellantisCMPsmart.insulation_circuit_status == 2) {
-      content += "FAULT!!";
+      content += TR(TrKey::DRV_FAULT_ALARM);
     } else if (datalayer_extended.stellantisCMPsmart.insulation_circuit_status == 3) {
-      content += "Insulation measurement in progress";
+      content += TR(TrKey::DRV_INSULATION_MEASUREMENT_PROGRESS);
     }
     content += "</h4>";
 
-    content += "<h4>Hardware fault status: ";
+    tr_h4_open(content, TrKey::DRV_HARDWARE_FAULT_STATUS);
     if (datalayer_extended.stellantisCMPsmart.hardware_fault_status == 0) {
-      content += "No Fault";
+      content += TR(TrKey::DRV_NO_FAULT);
     }
     if (datalayer_extended.stellantisCMPsmart.hardware_fault_status & 0b001) {
-      content += "FAULT! Temperature sensor!";
+      content += TR(TrKey::DRV_FAULT_TEMPERATURE_SENSOR);
     }
     if ((datalayer_extended.stellantisCMPsmart.hardware_fault_status & 0b010) >> 1) {
-      content += "FAULT! Voltage sensing circuit!";
+      content += TR(TrKey::DRV_FAULT_VOLTAGE_SENSING_CIRCUIT);
     }
     if ((datalayer_extended.stellantisCMPsmart.hardware_fault_status & 0b100) >> 2) {
-      content += "FAULT! Current sensor!";
+      content += TR(TrKey::DRV_FAULT_CURRENT_SENSOR);
     }
     content += "</h4>";
 
-    content += "<h4>L3 Fault: ";
+    tr_h4_open(content, TrKey::DRV_L3_FAULT);
     if (datalayer_extended.stellantisCMPsmart.l3_fault == 0) {
-      content += "No Fault";
+      content += TR(TrKey::DRV_NO_FAULT);
     }
     if (datalayer_extended.stellantisCMPsmart.l3_fault & 0b001) {
-      content += "Cell undervoltage";
+      content += TR(TrKey::DRV_CELL_UNDERVOLTAGE);
     }
     if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b010) >> 1) {
-      content += "Cell overvoltage";
+      content += TR(TrKey::DRV_CELL_OVERVOLTAGE);
     }
     if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b100) >> 2) {
-      content += "Over temperature";
+      content += TR(TrKey::DRV_OVER_TEMPERATURE);
     }
     if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b1000) >> 3) {
-      content += "Under temperature";
+      content += TR(TrKey::DRV_UNDER_TEMPERATURE);
     }
     if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b10000) >> 4) {
-      content += "Over discharge current";
+      content += TR(TrKey::DRV_OVER_DISCHARGE_CURRENT);
     }
     if ((datalayer_extended.stellantisCMPsmart.l3_fault & 0b100000) >> 5) {
-      content += "Pack undedr voltage";
+      content += TR(TrKey::DRV_PACK_UNDEDR_VOLTAGE);
     }
     content += "</h4>";
 
-    content += "<h4>Plausibility error: ";
+    tr_h4_open(content, TrKey::DRV_PLAUSIBILITY_ERROR);
     if (datalayer_extended.stellantisCMPsmart.plausibility_error == 0) {
-      content += "No error";
+      content += TR(TrKey::DRV_NO_ERROR);
     }
     if (datalayer_extended.stellantisCMPsmart.plausibility_error & 0b001) {
-      content += "Module temperature plausibility error";
+      content += TR(TrKey::DRV_MODULE_TEMPERATURE_PLAUSIBILITY_ERROR);
     }
     if ((datalayer_extended.stellantisCMPsmart.plausibility_error & 0b010) >> 1) {
-      content += "Cell voltage plausibility error";
+      content += TR(TrKey::DRV_CELL_VOLTAGE_PLAUSIBILITY_ERROR);
     }
     if ((datalayer_extended.stellantisCMPsmart.plausibility_error & 0b100) >> 2) {
-      content += "Battery voltlage plausibility error";
+      content += TR(TrKey::DRV_BATTERY_VOLTLAGE_PLAUSIBILITY_ERROR);
     }
     if ((datalayer_extended.stellantisCMPsmart.plausibility_error & 0b1000) >> 3) {
-      content += "HVBAT Current plausibility error";
+      content += TR(TrKey::DRV_HVBAT_CURRENT_PLAUSIBILITY_ERROR);
     }
     content += "</h4>";
 
@@ -215,56 +219,57 @@ class CmpSmartCarHtmlRenderer : public BatteryHtmlRenderer {
       content += "<h4>ALERT!!! ";
     }
     if (datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b001) {
-      content += "Cell Undervoltage ";
+      content += TR(TrKey::DRV_CELL_UNDERVOLTAGE) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b010) >> 1) {
-      content += "Cell Overvoltage ";
+      content += TR(TrKey::DRV_CELL_OVERVOLTAGE) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b100) >> 1) {
-      content += "High SOC ";
+      content += TR(TrKey::DRV_HIGH_SOC) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b1000) >> 1) {
-      content += "Low SOC ";
+      content += TR(TrKey::DRV_LOW_SOC) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b10000) >> 1) {
-      content += "Overvoltage ";
+      content += TR(TrKey::DRV_OVERVOLTAGE) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b100000) >> 1) {
-      content += "High temperature ";
+      content += TR(TrKey::DRV_HIGH_TEMPERATURE) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b01000000) >> 1) {
-      content += "Temperature Delta ";
+      content += TR(TrKey::DRV_TEMPERATURE_DELTA) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 & 0b10000000) >> 1) {
-      content += "Battery ";
+      content += TR(TrKey::DRV_BATTERY) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b10000) >> 1) {
-      content += "Contactor Opening ";
+      content += TR(TrKey::DRV_CONTACTOR_OPENING) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b100000) >> 1) {
-      content += "Overcharge ";
+      content += TR(TrKey::DRV_OVERCHARGE) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b01000000) >> 1) {
-      content += "Cell poor consistency ";
+      content += TR(TrKey::DRV_CELL_POOR_CONSISTENCY) + " ";
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame4 & 0b10000000) >> 1) {
-      content += "SOC jump";
+      content += TR(TrKey::DRV_SOC_JUMP);
     }
     if ((datalayer_extended.stellantisCMPsmart.alert_frame3 > 0) ||
         (datalayer_extended.stellantisCMPsmart.alert_frame4 > 0)) {
       content += "</h4>";
     }
 
-    content += "<h4>RCD line active: ";
+    tr_h4_open(content, TrKey::DRV_RCD_LINE_ACTIVE);
     if (datalayer_extended.stellantisCMPsmart.rcd_line_active) {
-      content += "Yes </h4>";
+      content += TR(TrKey::DRV_YES) + "</h4>";
     } else {
-      content += "No </h4>";
+      tr_h4_end(content, TrKey::DRV_NO);
     }
 
-    content += "<h4>Active DTC Code: " + String(datalayer_extended.stellantisCMPsmart.active_DTC_code);
+    tr_h4_open(content, TrKey::DRV_ACTIVE_DTC_CODE);
+    content += String(datalayer_extended.stellantisCMPsmart.active_DTC_code);
     if (datalayer_extended.stellantisCMPsmart.active_DTC_code == 9) {
-      content += " Temperature sensor missing between pin 21-22";
+      content += " " + TR(TrKey::DRV_TEMPERATURE_SENSOR_MISSING_BETWEEN_PIN_21_22);
     }
     content += "</h4>";
     return content;

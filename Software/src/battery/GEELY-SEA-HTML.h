@@ -3,91 +3,94 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class GeelySeaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "</h4><h4>BECM reported number of DTCs: " + String(datalayer_extended.GeelySEA.DTCcount) + "</h4>";
-    content += "</h4><h4>Inhibition status (crash): " + String(datalayer_extended.GeelySEA.CrashStatus) + "</h4>";
-    content += "<h4>BECM reported SOC: " + String(datalayer_extended.GeelySEA.soc_bms / 100.0) + " %</h4>";
-    content += "<h4>BECM reported SOH: " + String(datalayer_extended.GeelySEA.soh_bms / 100.0) + " %</h4>";
-    content += "<h4>HV voltage: " + String(datalayer_extended.GeelySEA.BECMBatteryVoltage / 100.0) + " V</h4>";
-    //content += "<h4>Battery current: " + String((datalayer_extended.GeelySEA.BatteryCurrent / 10.0) - 1638) + " A</h4>";
-    content += "<h4>Highest cell voltage: " + String(datalayer_extended.GeelySEA.CellVoltHighest / 1000.00) + " V</h4>";
-    content += "<h4>Lowest cell voltage: " + String(datalayer_extended.GeelySEA.CellVoltLowest / 1000.00) + " V</h4>";
-    content += "<h4>BECM supply voltage: " + String(datalayer_extended.GeelySEA.BECMsupplyVoltage / 1000.0) + " V</h4>";
-    content += "<h4>Cell count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
-    content +=
-        "<h4>Highest cell temp: " + String((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0) + " ºC</h4>";
-    content +=
-        "<h4>Average cell temp: " + String((datalayer_extended.GeelySEA.CellTempAverage / 100.0) - 50.0) + " ºC</h4>";
-    content +=
-        "<h4>Lowest cell temp: " + String((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0) + " ºC</h4>";
-    content += "<h4>HVIL Circuit 1 (M1+M2+FC connectors) status : ";
+    tr_h4(content, TrKey::DRV_BECM_REPORTED_NUMBER_DTCS, String(datalayer_extended.GeelySEA.DTCcount));
+    tr_h4(content, TrKey::DRV_INHIBITION_STATUS_CRASH, String(datalayer_extended.GeelySEA.CrashStatus));
+    tr_h4(content, TrKey::DRV_BECM_REPORTED_SOC, String(datalayer_extended.GeelySEA.soc_bms / 100.0), " %");
+    tr_h4(content, TrKey::DRV_BECM_REPORTED_SOH, String(datalayer_extended.GeelySEA.soh_bms / 100.0), " %");
+    tr_h4(content, TrKey::DRV_HV_VOLTAGE, String(datalayer_extended.GeelySEA.BECMBatteryVoltage / 100.0), " V");
+    //tr_h4(content, TrKey::DRV_BATTERY_CURRENT, String((datalayer_extended.GeelySEA.BatteryCurrent / 10.0) - 1638), " A");
+    tr_h4(content, TrKey::DRV_HIGHEST_CELL_VOLTAGE, String(datalayer_extended.GeelySEA.CellVoltHighest / 1000.00),
+          " V");
+    tr_h4(content, TrKey::DRV_LOWEST_CELL_VOLTAGE, String(datalayer_extended.GeelySEA.CellVoltLowest / 1000.00), " V");
+    tr_h4(content, TrKey::DRV_BECM_SUPPLY_VOLTAGE, String(datalayer_extended.GeelySEA.BECMsupplyVoltage / 1000.0),
+          " V");
+    tr_h4(content, TrKey::DRV_CELL_COUNT, String(datalayer.battery.info.number_of_cells));
+    tr_h4(content, TrKey::DRV_HIGHEST_CELL_TEMP, String((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0),
+          " ºC");
+    tr_h4(content, TrKey::DRV_AVERAGE_CELL_TEMP, String((datalayer_extended.GeelySEA.CellTempAverage / 100.0) - 50.0),
+          " ºC");
+    tr_h4(content, TrKey::DRV_LOWEST_CELL_TEMP, String((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0),
+          " ºC");
+    tr_h4_open(content, TrKey::DRV_HVIL_CIRCUIT_1_M1_M2_FC_CONNECTORS_STATUS);
     switch (datalayer_extended.GeelySEA.Interlock & 0x80) {
       case 0x80:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>HVIL Circuit 2 (LV connector pin 9-10) status: ";
+    tr_h4_open(content, TrKey::DRV_HVIL_CIRCUIT_2_LV_CONNECTOR_PIN_9_10_STATUS);
     switch (datalayer_extended.GeelySEA.Interlock & 0x40) {
       case 0x40:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>HVIL Circuit 3 (LV connector pin 8-12) status: ";
+    tr_h4_open(content, TrKey::DRV_HVIL_CIRCUIT_3_LV_CONNECTOR_PIN_8_12_STATUS);
     switch (datalayer_extended.GeelySEA.Interlock & 0x04) {
       case 0x04:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Unknow Contactor Status 1 (Negative FC?): ";
+    tr_h4_open(content, TrKey::DRV_UNKNOW_CONTACTOR_STATUS_1_NEGATIVE_FC);
     switch (datalayer_extended.GeelySEA.Interlock & 0x01) {
       case 0x01:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Unknown Contactor Status 2 (Positive FC?): ";
+    tr_h4_open(content, TrKey::DRV_UNKNOWN_CONTACTOR_STATUS_2_POSITIVE_FC);
     switch (datalayer_extended.GeelySEA.Interlock & 0x02) {
       case 0x02:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Negative Contactor Status: ";
+    tr_h4_open(content, TrKey::DRV_NEGATIVE_CONTACTOR_STATUS);
     switch (datalayer_extended.GeelySEA.Interlock & 0x08) {
       case 0x08:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Precharge Contactor Status: ";
+    tr_h4_open(content, TrKey::DRV_PRECHARGE_CONTACTOR_STATUS);
     switch (datalayer_extended.GeelySEA.Interlock & 0x10) {
       case 0x10:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Positive Contactor Status: ";
+    tr_h4_open(content, TrKey::DRV_POSITIVE_CONTACTOR_STATUS);
     switch (datalayer_extended.GeelySEA.Interlock & 0x20) {
       case 0x20:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
     content += "<h4>";
     return content;
