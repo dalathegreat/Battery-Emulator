@@ -1240,20 +1240,21 @@ void MebBattery::handle_basic_settings(unsigned long currentMillis) {
   if (basic_settings_state == BasicSettingsState::IDLE) {
     if (!uds_request_pending && datalayer_meb->UserRequestCrashReset) {
       datalayer_meb->UserRequestCrashReset = false;
-      basic_settings_routine_id = ROUTINE_ID_DTC_DELETE_TRIGGER; // Trigger protected DTC deletion routine
+      basic_settings_routine_id = ROUTINE_ID_DTC_DELETE_TRIGGER;  // Trigger protected DTC deletion routine
       basic_settings_routine_param = 0x0001;
       basic_settings_state = BasicSettingsState::SEND_EXT_SESSION;
       basic_settings_wait_ms = 0;
 #ifdef MEB_DEBUG
-      logging.printf("MEB: BasicSettings: starting routine 0x%04X param 0x%04X\n",
-                     basic_settings_routine_id, basic_settings_routine_param);
+      logging.printf("MEB: BasicSettings: starting routine 0x%04X param 0x%04X\n", basic_settings_routine_id,
+                     basic_settings_routine_param);
 #endif
     }
     return;
   }
 
   // Wait until the previous UDS request is complete before sending the next request.
-  if (uds_request_pending) return;
+  if (uds_request_pending)
+    return;
 
   switch (basic_settings_state) {
     case BasicSettingsState::SEND_EXT_SESSION: {
@@ -1284,7 +1285,8 @@ void MebBattery::handle_basic_settings(unsigned long currentMillis) {
       if (!is_start && (currentMillis - basic_settings_wait_ms) < BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS) {
         break;  // re-checked on the next transmit_can() tick
       }
-      uint8_t payload[6] = {RoutineControl, (uint8_t)(is_start ? Start : Stop),
+      uint8_t payload[6] = {RoutineControl,
+                            (uint8_t)(is_start ? Start : Stop),
                             (uint8_t)(basic_settings_routine_id >> 8),
                             (uint8_t)(basic_settings_routine_id & 0xFF),
                             (uint8_t)(basic_settings_routine_param >> 8),
@@ -1430,10 +1432,10 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       if (data[1] == 0x03 && len >= 6) {
         // Seed received (sub-function 0x03): compute key = seed + login_key and send it.
         // This is independent of any higher-level state machine.
-        security_access_seed = ((uint32_t)data[2] << 24) | ((uint32_t)data[3] << 16) |
-                           ((uint32_t)data[4] << 8) | data[5];
+        security_access_seed =
+            ((uint32_t)data[2] << 24) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 8) | data[5];
         uint32_t key = security_access_seed + security_login_key;
-        uint8_t key_payload[6] = {SecurityAccess, 0x04,
+        uint8_t key_payload[6] = {SecurityAccess,       0x04,
                                   (uint8_t)(key >> 24), (uint8_t)(key >> 16),
                                   (uint8_t)(key >> 8),  (uint8_t)(key & 0xFF)};
         isotp_send(key_payload, sizeof(key_payload));
@@ -1675,8 +1677,8 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
         uds_request_pending = false;
         if (basic_settings_state != BasicSettingsState::IDLE) {
 #ifdef MEB_DEBUG
-          logging.printf("MEB: BasicSettings: NRC 0x%02X for SID 0x%02X, aborting\n",
-                         len >= 3 ? data[2] : 0, len >= 2 ? data[1] : 0);
+          logging.printf("MEB: BasicSettings: NRC 0x%02X for SID 0x%02X, aborting\n", len >= 3 ? data[2] : 0,
+                         len >= 2 ? data[1] : 0);
 #endif
           basic_settings_state = BasicSettingsState::IDLE;
         }
