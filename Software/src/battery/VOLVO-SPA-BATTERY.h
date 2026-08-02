@@ -42,6 +42,7 @@ class VolvoSpaBattery : public CanBattery {
   uint16_t dtc_rx_len = 0;       // Bytes reassembled so far
   bool dtc_rx_active = false;    // A multi-frame reply is currently being reassembled
   bool dtc_read_in_progress = false;
+  bool cell_voltage_read_in_progress = false;
   unsigned long dtc_request_millis = 0;
   bool dtc_clear_in_progress = false;
   unsigned long dtc_clear_millis = 0;

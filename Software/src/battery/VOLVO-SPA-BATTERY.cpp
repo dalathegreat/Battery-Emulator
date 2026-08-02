@@ -241,6 +241,38 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x635:  // Diag request response
 
+      if (cell_voltage_read_in_progress) {
+        if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
+            (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
+        {
+          cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
+          rxConsecutiveFrames = true;
+        } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames)) {
+          cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
+          battery_request_idx++;
+          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+
+          if (batteryModuleNumber <= 0x2A)  // Run until last pack is read
+          {
+            VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
+            transmit_can_frame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for next module
+          } else {                                  //Last pack read, calculate min/max cell voltage
+            cell_voltage_read_in_progress = false;
+            min_max_voltage[0] = 9999;
+            min_max_voltage[1] = 0;
+            for (cellcounter = 0; cellcounter < 108; cellcounter++) {
+              if (min_max_voltage[0] > cell_voltages[cellcounter])
+                min_max_voltage[0] = cell_voltages[cellcounter];
+              if (min_max_voltage[1] < cell_voltages[cellcounter])
+                min_max_voltage[1] = cell_voltages[cellcounter];
+            }
+          }
+          rxConsecutiveFrames = false;
+        }
+      }
+
       // ClearDiagnosticInformation is acknowledged with a single-frame 54. Only then are the stored
       // codes known to be gone. The read timestamp is reset too, so the page goes back to
       // "not read yet": an erase says nothing about what the BMS will report from here on.
@@ -327,34 +359,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           datalayer_extended.VolvoPolestar.HVILstatusBits = (rx_frame.data.u8[4]);
           break;
         case PID_POLL_CELL_VOLTAGES:
-          if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
-              (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
-          {
-            cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
-            cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
-            rxConsecutiveFrames = true;
-          } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames)) {
-            cell_voltages[battery_request_idx] |= rx_frame.data.u8[1];
-            battery_request_idx++;
-            cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-
-            if (batteryModuleNumber <= 0x2A)  // Run until last pack is read
-            {
-              VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-              transmit_can_frame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for next module
-            } else {
-              min_max_voltage[0] = 9999;
-              min_max_voltage[1] = 0;
-              for (cellcounter = 0; cellcounter < 108; cellcounter++) {
-                if (min_max_voltage[0] > cell_voltages[cellcounter])
-                  min_max_voltage[0] = cell_voltages[cellcounter];
-                if (min_max_voltage[1] < cell_voltages[cellcounter])
-                  min_max_voltage[1] = cell_voltages[cellcounter];
-              }
-            }
-            rxConsecutiveFrames = false;
-          }
+          //Handled at the top of the 0x635 handler
           break;
         default:  //Unknown poll, ignore
           break;
@@ -366,6 +371,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void VolvoSpaBattery::readCellVoltages() {
+  cell_voltage_read_in_progress = true;
   battery_request_idx = 0;
   batteryModuleNumber = 0x10;
   rxConsecutiveFrames = false;
@@ -395,12 +401,13 @@ void VolvoSpaBattery::transmit_can(unsigned long currentMillis) {
 
     // Update current poll from the array
     currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 36;
+    poll_index = (poll_index + 1) % 3;
 
     VOLVO_Poll_frame.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     VOLVO_Poll_frame.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-    if (!dtc_read_in_progress) {  // Only send poll if not already reading DTCs
+    if (!dtc_read_in_progress &&
+        !cell_voltage_read_in_progress) {  // Only send poll if not already reading DTCs or cellvoltages
       transmit_can_frame(&VOLVO_Poll_frame);
     }
   }
@@ -417,7 +424,11 @@ void VolvoSpaBattery::transmit_can(unsigned long currentMillis) {
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    if (!dtc_read_in_progress) {
+
+    if (cell_voltage_read_in_progress) {
+      //If the last cellvoltage read was not completed, yield for next 60s to allow for normal PID polls too go thru
+      cell_voltage_read_in_progress = false;
+    } else if (!dtc_read_in_progress) {
       readCellVoltages();
     }
   }
