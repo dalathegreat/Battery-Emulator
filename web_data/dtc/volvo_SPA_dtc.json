@@ -1,66 +1,110 @@
 [
     {
-        "code": 363776,
         "dtc": "P058D",
         "s_dsc": "NULL",
         "l_dsc": "Battery Monitor Module Voltage Monitoring Performance"
     },
     {
-        "code": 697960,
+        "dtc": "P0A95",
+        "s_dsc": "NULL",
+        "l_dsc": "High Voltage Fuse"
+    },
+    {
         "dtc": "P0AA6",
         "s_dsc": "NULL",
         "l_dsc": "Battery Voltage System Isolation Fault"
     },
     {
-        "code": 699240,
         "dtc": "P0AAB",
         "s_dsc": "NULL",
         "l_dsc": "Battery Voltage Isolation Sensor Circuit Intermittent/Erratic"
     },
     {
-        "code": 743680,
         "dtc": "P0B59",
         "s_dsc": "NULL",
         "l_dsc": "EV Battery Voltage Sense G Circuit"
     },
     {
-        "code": 744960,
         "dtc": "P0B5E",
         "s_dsc": "NULL",
         "l_dsc": "EV Battery Voltage Sense H Circuit"
     },
     {
-        "code": 746240,
         "dtc": "P0B63",
         "s_dsc": "NULL",
         "l_dsc": "EV Battery Voltage Sense I Circuit"
     },
     {
-        "code": 853914,
+        "dtc": "P0CEE",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Pack Temperature Sensor"
+    },
+    {
         "dtc": "P0D07",
         "s_dsc": "NULL",
         "l_dsc": "Battery Charging System Positive Contactor Circuit"
     },
     {
-        "code": 929536,
+        "dtc": "P0D15",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Charging System High Voltage Interlock Circuit Open"
+    },
+    {
+        "dtc": "P0D9A",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Charging System"
+    },
+    {
+        "dtc": "P0D9C",
+        "s_dsc": "NULL",
+        "l_dsc": "Battery Charging System Voltage"
+    },
+    {
+        "dtc": "P0E0F",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Pack State of Charge Low"
+    },
+    {
         "dtc": "P0E2F",
         "s_dsc": "NULL",
         "l_dsc": "High Voltage Fuse B"
     },
     {
-        "code": 1733142,
+        "dtc": "P0EEA",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Pack Temperature Sensor Performance"
+    },
+    {
+        "dtc": "P1068",
+        "s_dsc": "NULL",
+        "l_dsc": "EV Battery Pack Maximum Voltage"
+    },
+    {
         "dtc": "P1A72",
         "s_dsc": "NULL",
         "l_dsc": "EV Battery Module 19 Temperature Sensor. General Electrical Failures. Circuit voltage below threshold"
     },
     {
-        "code": 12648448,
         "dtc": "U1000",
         "s_dsc": "NULL",
         "l_dsc": "Lost Communication With Engine Control Module (ECM)"
     },
     {
-        "code": 12753408,
+        "dtc": "U1100",
+        "s_dsc": "NULL",
+        "l_dsc": "Lost Communication With Battery Energy Control Module (BECM)"
+    },
+    {
+        "dtc": "U1292",
+        "s_dsc": "NULL",
+        "l_dsc": "Lost Communication With Battery Charger Control Module"
+    },
+    {
+        "dtc": "U1299",
+        "s_dsc": "NULL",
+        "l_dsc": "Lost Communication With Battery Charger Control Module B"
+    },
+    {
         "dtc": "U129A",
         "s_dsc": "NULL",
         "l_dsc": "Lost Communication with EV Battery Pack Sensor Module"
