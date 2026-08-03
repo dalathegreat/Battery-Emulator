@@ -325,7 +325,7 @@ class MebBattery : public CanBattery, public IsoTp {
   uint16_t basic_settings_routine_id = 0;     // 2-byte routine identifier sent in 31 01 <hi> <lo>
   uint16_t basic_settings_routine_param = 0;  // 2-byte routine parameter sent after the routine ID
   uint32_t security_access_seed = 0;
-  uint32_t security_login_key = 20103;  // MEB only, MQB Evo is set in setup() after determining the model.
+  uint32_t security_login_key = 20103;       // MEB only, MQB Evo is set in setup() after determining the model.
   unsigned long basic_settings_wait_ms = 0;  // start timestamp between routine steps
 
   // BMS reset state machine. Pause the battery and wait for the current to drop,
