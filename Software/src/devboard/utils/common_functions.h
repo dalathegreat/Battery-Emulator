@@ -24,6 +24,7 @@ extern const uint8_t crctable_crc8_2f[256];
  *
  * @return uint8_t Calculated checksum
  *
+ * "pure" tells the compiler this only reads memory and has no side effects.
  */
 extern uint8_t Crc_CalculateCRC8H2F(const uint8_t* data, uint16_t length, uint8_t initial_value,
-                                    uint8_t final_xor_value);
+                                    uint8_t final_xor_value) __attribute__((pure));
