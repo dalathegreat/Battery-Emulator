@@ -894,6 +894,7 @@ struct DATALAYER_INFO_MEB {
   bool dtc_read_in_progress = false;   // Flag to prevent concurrent reads
   bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
   bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestCrashReset = false;  // User requesting crash reset via WebUI
   bool UserRequestBMSReset = false;    // User requesting BMS reset via WebUI
 };
 
