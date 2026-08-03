@@ -203,13 +203,17 @@ void MebBattery::
   datalayer_battery->status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   if (nof_cells_determined) {
-    datalayer_battery->info.total_capacity_Wh =
-        ((float)datalayer_battery->info.number_of_cells) * 3.67f * ((float)BMS_capacity_ah) * 0.2f * 1.02564f;
-    // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
-    // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
-    // the total_capacity_Wh.
-    // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
-    // total_capacity_Wh calculated above.
+    if (BMS_max_usable_batt_energy_Wh > 0) {
+      datalayer_battery->info.total_capacity_Wh = BMS_max_usable_batt_energy_Wh;
+    } else {
+      datalayer_battery->info.total_capacity_Wh =
+          ((float)datalayer_battery->info.number_of_cells) * 3.67f * ((float)BMS_capacity_ah) * 0.2f * 1.02564f;
+      // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
+      // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
+      // the total_capacity_Wh.
+      // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
+      // total_capacity_Wh calculated above.
+    }
 
     if (battery_soh_polled > 0) {
       datalayer_battery->status.soh_pptt = battery_soh_polled;
@@ -773,6 +777,21 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
       }
       break;
+    case BMS_34: {
+      const uint16_t raw_ube = (uint16_t)((uint16_t)rx_frame.data.u8[2] | ((uint16_t)rx_frame.data.u8[3] << 8));
+      const uint16_t raw_ube_t =
+          (uint16_t)((uint16_t)rx_frame.data.u8[4] | ((uint16_t)rx_frame.data.u8[5] << 8));
+      const uint16_t raw_max_ube =
+          (uint16_t)((uint16_t)rx_frame.data.u8[6] | ((uint16_t)rx_frame.data.u8[7] << 8));
+      const uint16_t raw_nominal_voltage = (uint16_t)(((uint16_t)rx_frame.data.u8[8] | ((uint16_t)rx_frame.data.u8[9] << 8)) & 0x07FFU);
+
+      BMS_usable_batt_energy_Wh = ((int32_t)raw_ube * 5) - 7400;
+      BMS_usable_batt_energy_t_Wh = ((int32_t)raw_ube_t * 5) - 7400;
+      BMS_max_usable_batt_energy_Wh = ((int32_t)raw_max_ube * 5) - 7400;
+
+      BMS_nominal_voltage_dV = (uint16_t)(raw_nominal_voltage * 5U);  // 0.5V * 10 => 5 dV
+      break;
+    }
     case ISO_Hybrid_01_Resp_FD:  // Diag reply from battery — feed into the ISO-TP state machine.
       // Multi-frame reassembly and flow control are handled by IsoTp; the assembled UDS message
       // is delivered to on_isotp_rx_complete() -> uds_response_handler().
@@ -858,13 +877,13 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
+    if (platform == VAGPlatform::MEB) {
+      ESC_51_Auth_frame.data.u8[1] = ((ESC_51_Auth_frame.data.u8[1] & 0xF0) | counter_10ms);
+      ESC_51_Auth_frame.data.u8[0] = vw_crc_calc(ESC_51_Auth_frame.data.u8, ESC_51_Auth_frame.DLC, ESC_51_Auth_frame.ID);
+      counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    ESC_51_Auth_frame.data.u8[1] = ((ESC_51_Auth_frame.data.u8[1] & 0xF0) | counter_10ms);
-    ESC_51_Auth_frame.data.u8[0] = vw_crc_calc(ESC_51_Auth_frame.data.u8, ESC_51_Auth_frame.DLC, ESC_51_Auth_frame.ID);
-
-    counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-
-    transmit_can_frame(&ESC_51_Auth_frame);  // Required for contactor closing
+      transmit_can_frame(&ESC_51_Auth_frame);  // Required for contactor closing
+    }
   }
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
@@ -1019,6 +1038,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&Motor_14_frame);
     transmit_can_frame(&Motor_54_frame);
     transmit_can_frame(&Klima_EV_07_frame);  //PTC / EKK voltage free or not
+    if (platform == VAGPlatform::MQB_Evo) {
+      transmit_can_frame(&Motor_EV_01_frame);
+    }
   }
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
@@ -1177,6 +1199,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&Reichweite_01_frame);    // Loading profile
     transmit_can_frame(&Systeminfo_01_frame);    // Systeminfo
     transmit_can_frame(&Temperaturen_01_frame);  // Temperature QBit
+    if (platform == VAGPlatform::MQB_Evo) {
+      transmit_can_frame(&Kombi_02_frame);
+    }
     if (basic_settings_state != BasicSettingsState::IDLE) {
       transmit_can_frame(&Tester_present_frame);  // Keep BMS in extended diagnostic session
     }
@@ -1622,8 +1647,8 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
         int availableBytes = len - dtcStartIndex;
         int maxDtcCount = availableBytes / 4;
 
-        if (maxDtcCount > MAX_DTC_COUNT) {
-          maxDtcCount = MAX_DTC_COUNT;
+        if (maxDtcCount > datalayer_battery->dtc.MAX_DTC_COUNT) {
+          maxDtcCount = datalayer_battery->dtc.MAX_DTC_COUNT;
           logging.println("DTC count exceeds buffer, truncating");
         }
         if (maxDtcCount < 0)
@@ -1693,4 +1718,21 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   // The BMS may still be asleep at power-on, so our first frames won't be ACKed. Ignore
   // this interface's transient CAN errors for a while so they don't clutter the event log.
   ignore_can_errors_for(can_interface, BMS_CAN_ERR_IGNORE_MS);
+}
+
+void MqbEvoBattery::setup(void) {  // Performs one time setup at startup
+  MebBattery::setup();             // Common MEB init (isotp, memsets, defaults).
+
+  platform = VAGPlatform::MQB_Evo;  // Drives the shared transmit/update branches.
+  // MQB Evo battery is available only in one configuration.
+  datalayer_battery->info.number_of_cells = 96;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+  nof_cells_determined = true;
+  security_login_key = 20104;  //correct key for MQB Evo
+  renderer.dtc_json_filename = "vag_mqb_dtc.json";
+  poll_pid = PID_SOC; //MQB doesn't use the number of cells detection.
+
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);  // Overwrite the MEB name.
+  datalayer.system.info.battery_protocol[63] = '\0';
 }
