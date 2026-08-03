@@ -106,7 +106,13 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
 
     unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
-    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) + "s ago</p>";
+    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes";
+    if (dtc.dtc_reported_count > dtc.dtc_count) {
+      // The battery had more to say than there are slots to hold it. Say so, rather than presenting
+      // a truncated list as if it were the whole story.
+      content += " shown of " + String(dtc.dtc_reported_count) + " reported";
+    }
+    content += " &mdash; read " + String(age_s) + "s ago</p>";
     content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
     content +=
         "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
