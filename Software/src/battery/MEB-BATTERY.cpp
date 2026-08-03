@@ -808,7 +808,16 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   // If no UDS response arrived within the timeout window, allow the next request.
   if (uds_request_pending && (currentMillis - uds_request_timestamp > UDS_REQUEST_TIMEOUT_MS)) {
     uds_request_pending = false;
+    if (basic_settings_state != BasicSettingsState::IDLE) {
+#ifdef MEB_DEBUG
+      logging.println("MEB: BasicSettings: UDS timeout, aborting");
+#endif
+      basic_settings_state = BasicSettingsState::IDLE;
+    }
   }
+
+  // Drive basic settings state machine — takes priority over other UDS requests.
+  handle_basic_settings(currentMillis);
 
   // Drive the BMS reset state machine. While it holds the bus silent, skip all periodic
   // CAN transmits so the BMS sleeps. ISO-TP polling and the UDS timeout above still run.
@@ -819,7 +828,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
   // DTC readout requested via WebUI: UDS ReadDTCInformation (0x19), report-type 0x02
   // (reportDTCByStatusMask) with status mask 0x09 to read only active/confirmed DTCs.
-  if (!uds_request_pending && datalayer_extended.meb.UserRequestDTCreadout) {
+  if (!uds_request_pending && datalayer_extended.meb.UserRequestDTCreadout &&
+      basic_settings_state == BasicSettingsState::IDLE) {
     uint8_t payload[3] = {ReadDTCInformation, 0x02, 0x09};
     isotp_send(payload, sizeof(payload));
     uds_request_pending = true;
@@ -831,7 +841,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
   // DTC clear requested via WebUI: OBD service 0x04 (ClearDiagnosticInformation) sent to the
   // functional address. Response is handled in uds_response_handler().
-  if (!uds_request_pending && datalayer_extended.meb.UserRequestDTCreset) {
+  if (!uds_request_pending && datalayer_extended.meb.UserRequestDTCreset &&
+      basic_settings_state == BasicSettingsState::IDLE) {
     transmit_can_frame(&OBD_CLEAR_DTC);
     uds_request_pending = true;
     uds_request_timestamp = currentMillis;
@@ -1180,6 +1191,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&Reichweite_01_frame);    // Loading profile
     transmit_can_frame(&Systeminfo_01_frame);    // Systeminfo
     transmit_can_frame(&Temperaturen_01_frame);  // Temperature QBit
+    if (basic_settings_state != BasicSettingsState::IDLE) {
+      transmit_can_frame(&Tester_present_frame);  // Keep BMS in extended diagnostic session
+    }
   }
 
   static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
@@ -1222,6 +1236,72 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
+void MebBattery::handle_basic_settings(unsigned long currentMillis) {
+  if (basic_settings_state == BasicSettingsState::IDLE) {
+    if (!uds_request_pending && datalayer_meb->UserRequestCrashReset) {
+      datalayer_meb->UserRequestCrashReset = false;
+      basic_settings_routine_id = ROUTINE_ID_DTC_DELETE_TRIGGER;  // Trigger protected DTC deletion routine
+      basic_settings_routine_param = 0x0001;
+      basic_settings_state = BasicSettingsState::SEND_EXT_SESSION;
+      basic_settings_wait_ms = 0;
+#ifdef MEB_DEBUG
+      logging.printf("MEB: BasicSettings: starting routine 0x%04X param 0x%04X\n", basic_settings_routine_id,
+                     basic_settings_routine_param);
+#endif
+    }
+    return;
+  }
+
+  // Wait until the previous UDS request is complete before sending the next request.
+  if (uds_request_pending)
+    return;
+
+  switch (basic_settings_state) {
+    case BasicSettingsState::SEND_EXT_SESSION: {
+      // Step 1: switch to extended diagnostic session (10 03)
+      uint8_t payload[2] = {DiagnosticSessionControl, ExtendedSession};
+      isotp_send(payload, sizeof(payload));
+      uds_request_pending = true;
+      uds_request_timestamp = currentMillis;
+      basic_settings_state = BasicSettingsState::WAIT_EXT_SESSION;
+      break;
+    }
+    case BasicSettingsState::SEND_SEED_REQ: {
+      // Step 2: request seed for security access level 03 (27 03).
+      // The response handler sends the key automatically upon receiving 67 03.
+      uint8_t payload[2] = {SecurityAccess, 0x03};
+      isotp_send(payload, sizeof(payload));
+      uds_request_pending = true;
+      uds_request_timestamp = currentMillis;
+      basic_settings_state = BasicSettingsState::WAIT_SEED;
+      break;
+    }
+    case BasicSettingsState::SEND_ROUTINE_START:
+    case BasicSettingsState::SEND_ROUTINE_STOP: {
+      // Step 3: start routine (31 01 <routine_id_hi> <routine_id_lo> <param_hi> <param_lo>)
+      // Step 4: stop routine  (31 02 <same operands>)
+      const bool is_start = (basic_settings_state == BasicSettingsState::SEND_ROUTINE_START);
+      // Give the BMS time to run the routine before asking it to stop.
+      if (!is_start && (currentMillis - basic_settings_wait_ms) < BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS) {
+        break;  // re-checked on the next transmit_can() tick
+      }
+      uint8_t payload[6] = {RoutineControl,
+                            (uint8_t)(is_start ? Start : Stop),
+                            (uint8_t)(basic_settings_routine_id >> 8),
+                            (uint8_t)(basic_settings_routine_id & 0xFF),
+                            (uint8_t)(basic_settings_routine_param >> 8),
+                            (uint8_t)(basic_settings_routine_param & 0xFF)};
+      isotp_send(payload, sizeof(payload));
+      uds_request_pending = true;
+      uds_request_timestamp = currentMillis;
+      basic_settings_state = BasicSettingsState::WAIT_ROUTINE_RESULT;
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 void MebBattery::handle_bms_reset(unsigned long currentMillis) {
   switch (bms_reset_state) {
     case BmsResetState::IDLE:
@@ -1233,7 +1313,9 @@ void MebBattery::handle_bms_reset(unsigned long currentMillis) {
         setBatteryPause(true, false, UNCHANGED, false);
         bms_reset_state = BmsResetState::WAIT_FOR_PAUSE;
         bms_reset_ms = currentMillis;
-        //logging.println("MEB: BMS reset: pausing battery, waiting for current to drop");
+#ifdef MEB_DEBUG
+        logging.println("MEB: BMS reset: pausing battery, waiting for current to drop");
+#endif
       }
       break;
 
@@ -1243,12 +1325,16 @@ void MebBattery::handle_bms_reset(unsigned long currentMillis) {
         bms_reset_active = true;  // KL15 OFF + HV_OFF asserted in periodic TX
         bms_reset_state = BmsResetState::REQUEST_HV_OFF;
         bms_reset_ms = currentMillis;
-        //logging.println("MEB: BMS reset: current low, requesting HV_OFF / KL15 off");
+#ifdef MEB_DEBUG
+        logging.println("MEB: BMS reset: current low, requesting HV_OFF / KL15 off");
+#endif
       } else if (currentMillis - bms_reset_ms > BMS_RESET_PAUSE_TIMEOUT_MS) {
         // Inverter never honoured the 0-power request; abort instead of cutting HV under load.
         setBatteryPause(false, false, UNCHANGED, false);
         bms_reset_state = BmsResetState::IDLE;
-        //logging.println("MEB: BMS reset: aborting, battery still under load");
+#ifdef MEB_DEBUG
+        logging.println("MEB: BMS reset: aborting, battery still under load");
+#endif
       }
       break;
 
@@ -1258,7 +1344,9 @@ void MebBattery::handle_bms_reset(unsigned long currentMillis) {
         bms_reset_tx_suppressed = true;  // go silent so the BMS sleeps
         bms_reset_state = BmsResetState::SILENCE;
         bms_reset_ms = currentMillis;
-        //logging.println("MEB: BMS reset: bus silent, waiting for BMS to sleep");
+#ifdef MEB_DEBUG
+        logging.println("MEB: BMS reset: bus silent, waiting for BMS to sleep");
+#endif
       }
       break;
 
@@ -1268,7 +1356,9 @@ void MebBattery::handle_bms_reset(unsigned long currentMillis) {
           currentMillis - bms_reset_ms > BMS_RESET_SILENCE_TIMEOUT_MS) {
         bms_reset_state = BmsResetState::SLEEP_WAIT;
         bms_reset_ms = currentMillis;
-        //logging.println("MEB: BMS reset: BMS asleep, holding bus quiet");
+#ifdef MEB_DEBUG
+        logging.println("MEB: BMS reset: BMS asleep, holding bus quiet");
+#endif
       }
       break;
 
@@ -1329,6 +1419,77 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
     return;
   uint8_t response_service_id = data[0];
   switch (response_service_id) {
+    case (UDS_RESPONSE_SID_OF(DiagnosticSessionControl)):  // DiagnosticSessionControl positive response
+      uds_request_pending = false;
+      if (basic_settings_state == BasicSettingsState::WAIT_EXT_SESSION) {
+        basic_settings_state = BasicSettingsState::SEND_SEED_REQ;
+#ifdef MEB_DEBUG
+        logging.println("MEB: BasicSettings: extended session OK");
+#endif
+      }
+      break;
+    case (UDS_RESPONSE_SID_OF(SecurityAccess)):  // SecurityAccess positive response
+      if (data[1] == 0x03 && len >= 6) {
+        // Seed received (sub-function 0x03): compute key = seed + login_key and send it.
+        // This is independent of any higher-level state machine.
+        security_access_seed =
+            ((uint32_t)data[2] << 24) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 8) | data[5];
+        uint32_t key = security_access_seed + security_login_key;
+        uint8_t key_payload[6] = {SecurityAccess,       0x04,
+                                  (uint8_t)(key >> 24), (uint8_t)(key >> 16),
+                                  (uint8_t)(key >> 8),  (uint8_t)(key & 0xFF)};
+        isotp_send(key_payload, sizeof(key_payload));
+        uds_request_pending = true;
+        uds_request_timestamp = millis();
+#ifdef MEB_DEBUG
+        logging.printf("MEB: SecurityAccess: seed=0x%08X, sending key\n", (unsigned)security_access_seed);
+#endif
+        // Advance BasicSettings state machine if it was waiting for the seed.
+        if (basic_settings_state == BasicSettingsState::WAIT_SEED) {
+          basic_settings_state = BasicSettingsState::WAIT_KEY_RESP;
+        }
+      } else if (data[1] == 0x04) {
+        // Key accepted (sub-function 0x04).
+        uds_request_pending = false;
+#ifdef MEB_DEBUG
+        logging.println("MEB: SecurityAccess: access granted");
+#endif
+        if (basic_settings_state == BasicSettingsState::WAIT_KEY_RESP) {
+          basic_settings_state = BasicSettingsState::SEND_ROUTINE_START;
+        }
+      } else {
+        // Unexpected sub-function — abort.
+        uds_request_pending = false;
+        if (basic_settings_state != BasicSettingsState::IDLE) {
+          basic_settings_state = BasicSettingsState::IDLE;
+#ifdef MEB_DEBUG
+          logging.println("MEB: SecurityAccess: unexpected sub-function, aborting");
+#endif
+        }
+      }
+      break;
+    case (UDS_RESPONSE_SID_OF(RoutineControl)):  // RoutineControl positive response
+      uds_request_pending = false;
+      if (data[2] == (uint8_t)(basic_settings_routine_id >> 8) &&
+          data[3] == (uint8_t)(basic_settings_routine_id & 0xFF)) {
+        if (basic_settings_state == BasicSettingsState::WAIT_ROUTINE_RESULT) {
+          if (data[1] == Start) {
+            basic_settings_wait_ms = millis();  // start timestamp before the stop request
+            basic_settings_state = BasicSettingsState::SEND_ROUTINE_STOP;
+#ifdef MEB_DEBUG
+            logging.printf("MEB: BasicSettings: routine 0x%04X started\n", (unsigned)basic_settings_routine_id);
+#endif
+          } else if (data[1] == Stop) {
+            // trigger now BMS reset
+            datalayer_meb->UserRequestBMSReset = true;
+            basic_settings_state = BasicSettingsState::IDLE;
+          } else {
+            // Unexpected sub-function — abort.
+            basic_settings_state = BasicSettingsState::IDLE;
+          }
+        }
+      }
+      break;
     case (UDS_RESPONSE_SID_OF(ReadDataByIdentifier)):  // Read Data by Identifier positive response
       uds_request_pending = false;
       // After ISO-TP assembly the PCI bytes are stripped. Layout:
@@ -1514,6 +1675,13 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       } else {
         // Any other NRC: the transaction is complete (rejected), allow the next request.
         uds_request_pending = false;
+        if (basic_settings_state != BasicSettingsState::IDLE) {
+#ifdef MEB_DEBUG
+          logging.printf("MEB: BasicSettings: NRC 0x%02X for SID 0x%02X, aborting\n", len >= 3 ? data[2] : 0,
+                         len >= 2 ? data[1] : 0);
+#endif
+          basic_settings_state = BasicSettingsState::IDLE;
+        }
       }
       break;
     default:

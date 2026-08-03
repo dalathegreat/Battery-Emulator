@@ -3,6 +3,9 @@
 #include "CanBattery.h"
 #include "MEB-HTML.h"
 
+// Uncomment the next line to enable some debug logging.
+//#define MEB_DEBUG
+
 class MebBattery : public CanBattery, public IsoTp {
  public:
   // Use this constructor for the second battery.
@@ -29,6 +32,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void reset_DTC() { datalayer_extended.meb.UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
   void read_DTC() { datalayer_extended.meb.UserRequestDTCreadout = true; }
+  bool supports_reset_crash() { return true; }
+  void reset_crash() { datalayer_extended.meb.UserRequestCrashReset = true; }
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
   static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
@@ -42,6 +47,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void uds_read_data_by_id(const uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
   void uds_response_handler(const uint8_t* data, int len, enum isotp_tatype type);
+  /* drive basic settings state machine — called every transmit_can() tick */
+  void handle_basic_settings(unsigned long currentMillis);
   /* drive the BMS reset state machine — called every transmit_can() tick */
   void handle_bms_reset(unsigned long currentMillis);
   /* IsoTp override: send a raw CAN frame */
@@ -199,6 +206,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int PID_TEMP_POINT_16 = 0x1EBD;
   static const int PID_TEMP_POINT_17 = 0x1EBE;
   static const int PID_TEMP_POINT_18 = 0x1EBF;
+  static const int ROUTINE_ID_DTC_DELETE_TRIGGER = 0x0302;
 
   /* Define CAN ID messages */
   static const int OBD_Hybrid_01_Req = 0x18DA05F1;
@@ -296,8 +304,29 @@ class MebBattery : public CanBattery, public IsoTp {
   // outstanding at a time; the next request waits until a response arrives or the timeout expires.
   static const int MAX_DTC_COUNT = 32;  // matches dtc_codes[] size in DATALAYER_INFO_MEB
   static constexpr unsigned long UDS_REQUEST_TIMEOUT_MS = 1000;
+  // time between the routine start response and the routine stop request.
+  static constexpr unsigned long BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS = 600;
   bool uds_request_pending = false;
   unsigned long uds_request_timestamp = 0;
+
+  // Generic basic settings state machine.
+  enum class BasicSettingsState : uint8_t {
+    IDLE = 0,
+    SEND_EXT_SESSION,
+    WAIT_EXT_SESSION,
+    SEND_SEED_REQ,
+    WAIT_SEED,
+    WAIT_KEY_RESP,
+    SEND_ROUTINE_START,
+    SEND_ROUTINE_STOP,
+    WAIT_ROUTINE_RESULT,
+  };
+  BasicSettingsState basic_settings_state = BasicSettingsState::IDLE;
+  uint16_t basic_settings_routine_id = 0;     // 2-byte routine identifier sent in 31 01 <hi> <lo>
+  uint16_t basic_settings_routine_param = 0;  // 2-byte routine parameter sent after the routine ID
+  uint32_t security_access_seed = 0;
+  uint32_t security_login_key = 20103;       // MEB only, MQB Evo is set in setup() after determining the model.
+  unsigned long basic_settings_wait_ms = 0;  // start timestamp between routine steps
 
   // BMS reset state machine. Pause the battery and wait for the current to drop,
   // request HV_OFF + KL15 off, go silent until the BMS sleeps, wait, then restart.
