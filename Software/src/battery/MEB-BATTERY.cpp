@@ -5,8 +5,9 @@
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
-#include "../devboard/safety/safety.h"        //For emulator pause status and battery pause
+#include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
+#include "../devboard/safety/safety.h"           //For emulator pause status and battery pause
+#include "../devboard/utils/common_functions.h"  //For CRC calculation
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../lib/uds_isotp/uds.h"  // UDS service IDs and negative-response codes
@@ -95,9 +96,9 @@ static const uint8_t BMS_11_PDU_CONST[16] = {0x79, 0xB9, 0x67, 0xAD, 0xD5, 0xF7,
  * @see https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  * @see https://web.archive.org/web/20221105210302/https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  */
-uint8_t MebBattery::vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t address) {
+uint8_t MebBattery::vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t msg_id) {
 
-  constexpr uint8_t poly = 0x2F;
+  constexpr uint8_t initial_value = 0xFF;
   constexpr uint8_t xor_output = 0xFF;
 
   // Basic validation: need at least two bytes to read the counter
@@ -106,105 +107,90 @@ uint8_t MebBattery::vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint3
     return 0x00;
   }
 
-  uint8_t crc = 0xFF;
-  uint8_t magicByte = 0x00;
+  uint8_t const_pdu_byte = 0x00;
   uint8_t counter = inputBytes[1] & 0x0F;  // only the low nibble of the counter is relevant
 
-  switch (address) {
+  switch (msg_id) {
     case Airbag_01:  // Airbag (0x40)
-      magicByte = Airbag_01_PDU_CONST[counter];
+      const_pdu_byte = Airbag_01_PDU_CONST[counter];
       break;
     case EM1_01:  // Electric motor (0xC0)
-      magicByte = EM1_01_PDU_CONST[counter];
+      const_pdu_byte = EM1_01_PDU_CONST[counter];
       break;
     case BMS_20:  // BMS_20 (0xCF)
-      magicByte = BMS_20_PDU_CONST[counter];
+      const_pdu_byte = BMS_20_PDU_CONST[counter];
       break;
     case ESC_51_Auth:  // (0xFC)
-      magicByte = ESC_51_Auth_PDU_CONST[counter];
+      const_pdu_byte = ESC_51_Auth_PDU_CONST[counter];
       break;
     case ESP_21:  // ESP_21 (0xFD)
-      magicByte = ESP_21_PDU_CONST[counter];
+      const_pdu_byte = ESP_21_PDU_CONST[counter];
       break;
     case DCDC_04:  // DCDC (0xF7)
-      magicByte = DCDC_04_PDU_CONST[counter];
+      const_pdu_byte = DCDC_04_PDU_CONST[counter];
       break;
     case BMS_HYB_02:  // BMS_HYB_02 (0x97)
-      magicByte = BMS_HYB_02_PDU_CONST[counter];
+      const_pdu_byte = BMS_HYB_02_PDU_CONST[counter];
       break;
     case BMS_HYB_04:  // BMS_HYB_04 (0x124)
-      magicByte = BMS_HYB_04_PDU_CONST[counter];
+      const_pdu_byte = BMS_HYB_04_PDU_CONST[counter];
       break;
     case Motor_54:  // Motor_54 (0x14C)
-      magicByte = Motor_54_PDU_CONST[counter];
+      const_pdu_byte = Motor_54_PDU_CONST[counter];
       break;
     case MSG_HYB_30:  // HYB30 (0x153)
-      magicByte = MSG_HYB_30_PDU_CONST[counter];
+      const_pdu_byte = MSG_HYB_30_PDU_CONST[counter];
       break;
     case Motor_EV_01:  // Motor_EV_01 (0x187)
-      magicByte = Motor_EV_01_PDU_CONST[counter];
+      const_pdu_byte = Motor_EV_01_PDU_CONST[counter];
       break;
     case MSG_HYB_01:  // MSG_HYB_01 (0x3A6)
-      magicByte = MSG_HYB_01_PDU_CONST[counter];
+      const_pdu_byte = MSG_HYB_01_PDU_CONST[counter];
       break;
     case DC_HYB_02:  // DC_HYB_02 (0x3AF)
-      magicByte = DC_HYB_02_PDU_CONST[counter];
+      const_pdu_byte = DC_HYB_02_PDU_CONST[counter];
       break;
     case Motor_14:  // Motor_14 (0x3BE)
-      magicByte = Motor_14_PDU_CONST[counter];
+      const_pdu_byte = Motor_14_PDU_CONST[counter];
       break;
     case Klemmen_Status_01:  // Klemmen status (0x3C0)
-      magicByte = Klemmen_Status_01_PDU_CONST[counter];
+      const_pdu_byte = Klemmen_Status_01_PDU_CONST[counter];
       break;
     case HVK_01:  // HVK (0x503)
-      magicByte = HVK_01_PDU_CONST[counter];
+      const_pdu_byte = HVK_01_PDU_CONST[counter];
       break;
     case BMS_DC_01:  // BMS DC (0x578)
-      magicByte = BMS_DC_01_PDU_CONST[counter];
+      const_pdu_byte = BMS_DC_01_PDU_CONST[counter];
       break;
     case BMS_04:  // BMS (0x5A2)
-      magicByte = BMS_04_PDU_CONST[counter];
+      const_pdu_byte = BMS_04_PDU_CONST[counter];
       break;
     case BMS_07:  // BMS (0x5CA)
-      magicByte = BMS_07_PDU_CONST[counter];
+      const_pdu_byte = BMS_07_PDU_CONST[counter];
       break;
     case Motor_Code_01:  // Motor (0x641)
-      magicByte = Motor_Code_01_PDU_CONST[counter];
+      const_pdu_byte = Motor_Code_01_PDU_CONST[counter];
       break;
     case BMS_HYB_06:  // BMS_HYB_06 (0x6A3)
-      magicByte = BMS_HYB_06_PDU_CONST[counter];
+      const_pdu_byte = BMS_HYB_06_PDU_CONST[counter];
       break;
     case EM_HYB_05:  // EM_HYB_05 (0x6A4)
-      magicByte = EM_HYB_05_PDU_CONST[counter];
+      const_pdu_byte = EM_HYB_05_PDU_CONST[counter];
       break;
     case BMS_11:
-      magicByte = BMS_11_PDU_CONST[counter];
+      const_pdu_byte = BMS_11_PDU_CONST[counter];
       break;
     default:  // this won't lead to correct CRC checksums
       logging.println("Checksum request unknown");
-      magicByte = 0x00;
+      const_pdu_byte = 0x00;
       break;
   }
 
-  for (uint8_t i = 1; i < length + 1; i++) {
-    // We skip the empty CRC position and start at the timer
-    // The last element is the VAG magic byte for address 0x187 depending on the counter value.
-    if (i < length)
-      crc ^= inputBytes[i];
-    else
-      crc ^= magicByte;
+  // We skip the CRC position and start at payload. The final XOR is deferred here,
+  // because the VAG PDU const byte for this message ID is appended as the last CRC input.
+  uint8_t crc = Crc_CalculateCRC8H2F(&inputBytes[1], length - 1, initial_value, 0x00);
 
-    for (uint8_t j = 0; j < 8; j++) {
-      if (crc & 0x80)
-        crc = (crc << 1) ^ poly;
-      else
-        crc = (crc << 1);
-    }
-  }
-
-  crc ^= xor_output;
-
-  return crc;
+  return Crc_CalculateCRC8H2F(&const_pdu_byte, 1, crc, xor_output);
 }
 
 void MebBattery::

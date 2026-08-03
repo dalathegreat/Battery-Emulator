@@ -165,6 +165,21 @@ class CellVoltageTest : public CanLogTestFixture {
   int cellnum_;
 };
 
+// Check that the driver accepted every frame in the log. Drivers that verify a
+// checksum count rejected frames in CAN_error_counter.
+class NoCanErrorsTest : public CanLogTestFixture {
+ public:
+  explicit NoCanErrorsTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    datalayer.battery.status.CAN_battery_still_alive = 0;
+
+    ProcessLog();
+
+    EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
+    EXPECT_GT(datalayer.battery.status.CAN_battery_still_alive, 0);
+  }
+};
+
 void RegisterCanLogTests() {
   // The logs should be named as follows:
   //
@@ -178,6 +193,7 @@ void RegisterCanLogTests() {
   //     cov:  test that normal and critical cell overvoltage events are triggered
   //     cuv:  test that normal and critical cell undervoltage events are triggered
   //     cv88: test that cell 88 (or another) voltage is correctly set (to 3123mV)
+  //     crc:  test that no frame is rejected, i.e. the driver's checksum calculation
 
   std::string directoryPath = TEST_CAN_LOG_DIR;
 
@@ -225,6 +241,13 @@ void RegisterCanLogTests() {
                             ("TestCellUnderVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
                             nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new CellUnderVoltageTest(entry.path()); });
+    }
+
+    if (has_flag("crc")) {
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestNoCanErrors" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
+                            [=]() -> CanLogTestFixture* { return new NoCanErrorsTest(entry.path()); });
     }
 
     if (has_flag("cv")) {
