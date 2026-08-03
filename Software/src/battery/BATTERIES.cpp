@@ -415,7 +415,7 @@ void setup_battery() {
                                       can_config.battery_double, esp32hal->WUP_PIN2());
           break;
         case BatteryType::CmfaEv:
-          battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::CmpSmartCar:
           battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -475,7 +475,7 @@ void setup_battery() {
               new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3, can_config.battery_triple);
           break;
         case BatteryType::CmfaEv:
-          battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+          battery3 = new CmfaEvBattery(&datalayer.battery3, can_config.battery_triple);
           break;
         case BatteryType::RelionBattery:
           battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,

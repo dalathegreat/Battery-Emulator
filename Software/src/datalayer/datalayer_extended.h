@@ -284,31 +284,6 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryOverVoltage;
 };
 
-struct DATALAYER_INFO_CMFAEV {
-  uint64_t cumulative_energy_when_discharging;
-  uint64_t cumulative_energy_when_charging;
-  uint64_t cumulative_energy_in_regen;
-
-  uint32_t average_voltage_of_cells;
-
-  uint16_t soc_z;
-  uint16_t soc_u;
-  uint16_t soh_average;
-  uint16_t max_regen_power;
-  uint16_t max_discharge_power;
-  uint16_t maximum_charge_power;
-  uint16_t SOH_available_power;
-  uint16_t SOH_generated_power;
-  uint16_t lead_acid_voltage;
-
-  int16_t average_temperature;
-  int16_t minimum_temperature;
-  int16_t maximum_temperature;
-
-  uint8_t highest_cell_voltage_number;
-  uint8_t lowest_cell_voltage_number;
-};
-
 struct DATALAYER_INFO_CMPSMART {
   uint8_t battery_negative_contactor_state;
   uint8_t battery_precharge_contactor_state;
@@ -1041,7 +1016,6 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_CMFAEV CMFAEV;
     DATALAYER_INFO_CMPSMART stellantisCMPsmart;
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
