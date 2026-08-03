@@ -293,6 +293,26 @@ TEST(NissanLeafDtcTests, ShouldDrainReplyLargerThanStorage) {
   EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
   EXPECT_EQ(datalayer.battery.dtc.dtc_count, DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT);
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0x0A1F00u);  // P0A1F, first code in the real capture
+
+  // The full count is kept even though only the first 32 are stored, so the page can say the list
+  // is truncated. 599 bytes less the 3 byte header is 149 codes.
+  EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 149);
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_NE(renderer.get_status_html().str().find("32 codes shown of 149 reported"), std::string::npos);
+}
+
+// When everything fits, the page must not clutter the line with a redundant "of N reported".
+TEST(NissanLeafDtcTests, ShouldNotClaimTruncationWhenEverythingFits) {
+  auto battery = battery_awaiting_dtc_reply();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x07, 0x59, 0x02, 0x4E, 0xD0, 0x00, 0x00, 0x4E}));
+
+  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 1);
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_EQ(renderer.get_status_html().str().find("reported"), std::string::npos);
 }
 
 // nissan_leaf_dtc.json is keyed by the 5-character short form, so that is what has to end up in the

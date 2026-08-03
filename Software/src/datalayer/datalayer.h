@@ -16,6 +16,11 @@ struct DATALAYER_BATTERY_DTC_TYPE {
   uint8_t dtc_status[MAX_DTC_COUNT];
   // Number of DTCs stored
   uint8_t dtc_count;
+  // Number of DTCs the battery reported in its last answer. Equals dtc_count in the normal case,
+  // and exceeds it when the answer held more codes than MAX_DTC_COUNT slots, so the display can say
+  // that the list is truncated rather than silently showing the first few. Placed here because the
+  // uint16 fits in the padding after dtc_count and costs no extra bytes.
+  uint16_t dtc_reported_count;
   // Last successful read (0 = never read)
   unsigned long dtc_last_read_millis;
   // Indicates that the last read failed

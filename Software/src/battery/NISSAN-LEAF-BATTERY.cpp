@@ -415,6 +415,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (dtc_clear_in_progress && rx_frame.data.u8[0] == 0x01 && rx_frame.data.u8[1] == 0x54) {
         dtc_clear_in_progress = false;
         datalayer_battery->dtc.dtc_count = 0;
+        datalayer_battery->dtc.dtc_reported_count = 0;
         datalayer_battery->dtc.dtc_read_failed = false;
         datalayer_battery->dtc.dtc_last_read_millis = 0;
         break;
@@ -431,6 +432,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (dtc_rx_len > 7) {
             dtc_rx_len = 7;
           }
+          dtc_rx_total = dtc_rx_len;  //A single frame is the whole answer
           for (uint8_t i = 0; i < dtc_rx_len; i++) {
             dtc_buffer[i] = rx_frame.data.u8[1 + i];
           }
@@ -732,6 +734,9 @@ void NissanLeafBattery::parseDTCResponse() {
     return;
   }
 
+  // What the battery actually reported, which can be more than we have slots for.
+  uint16_t reported = (dtc_rx_total > DTC_HEADER_LEN) ? ((dtc_rx_total - DTC_HEADER_LEN) / 4) : 0;
+
   uint16_t count = (dtc_rx_len - DTC_HEADER_LEN) / 4;
   if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
     count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
@@ -745,6 +750,7 @@ void NissanLeafBattery::parseDTCResponse() {
   }
 
   datalayer_battery->dtc.dtc_count = count;
+  datalayer_battery->dtc.dtc_reported_count = reported;
   datalayer_battery->dtc.dtc_read_failed = false;
 }
 
