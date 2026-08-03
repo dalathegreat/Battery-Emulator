@@ -77,6 +77,7 @@ class LilyGoHal : public Esp32Hal {
 
 #ifdef SDCARD
   // SD card
+  uint8_t SD_SPI_BUS() override { return VSPI; }
   virtual gpio_num_t SD_MISO_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_2;

@@ -329,7 +329,7 @@ void init_webserver() {
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       pause_can_writing();
-      request->send(SD_MMC, CAN_LOG_FILE, String(), true);
+      request->send(SD, CAN_LOG_FILE, String(), true);
       resume_can_writing();
     });
 
@@ -380,7 +380,7 @@ void init_webserver() {
     // Define the handler to export debug log
     server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       pause_log_writing();
-      request->send(SD_MMC, LOG_FILE, String(), true);
+      request->send(SD, LOG_FILE, String(), true);
       resume_log_writing();
     });
   } else
