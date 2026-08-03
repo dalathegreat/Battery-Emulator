@@ -39,15 +39,15 @@ class MebBattery : public CanBattery, public IsoTp {
   /* validate crc for some CAN frames */
   uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t address);
   /* send a UDS ReadDataByIdentifier request for did via ISO-TP */
-  void uds_read_data_by_id(uint16_t did, unsigned long currentMillis);
+  void uds_read_data_by_id(const uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
-  void uds_response_handler(uint8_t* data, int len, enum isotp_tatype type);
+  void uds_response_handler(const uint8_t* data, int len, enum isotp_tatype type);
   /* drive the BMS reset state machine — called every transmit_can() tick */
   void handle_bms_reset(unsigned long currentMillis);
   /* IsoTp override: send a raw CAN frame */
-  void on_isotp_can_tx(uint32_t can_id, uint8_t* can_data, uint8_t can_dlc) override;
+  void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
-  void on_isotp_rx_complete(uint8_t* data, int len, isotp_tatype tatype) override;
+  void on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype tatype) override;
   MebHtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;

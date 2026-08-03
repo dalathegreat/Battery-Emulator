@@ -80,6 +80,19 @@ class SungrowInverter : public CanInverterProtocol {
     return static_cast<int16_t>(value);
   }
 
+  // 0x005 byte 1 - Status_Battery_End_Stop. Inert (always 0) on the 0x505/0x705 copies of this
+  // frame, so it is applied to 0x005 only. Bits 0-1 are a state code, not a pair of independent
+  // end-stop bits; bit 4 is a separate maintenance flag that ORs with that code.
+  enum EndStop : uint8_t {
+    END_STOP_NORMAL = 0,       // Neither end reached
+    END_STOP_FULL = 1,         // Pack full. A real pack reads 0 A charge limit for every sample of this
+    END_STOP_EMPTY = 2,        // Pack at its SoC floor. It still permits discharge here (~30 A observed)
+    END_STOP_SUSPENDED = 3,    // Online but passing no current while still advertising its limits.
+                               // Never sent: a real SBR uses it for BMS restarts and module upgrades,
+                               // and our limits are always live, so it would misinform the inverter.
+    END_STOP_MAINTENANCE = 16  // Never sent, for the same reason.
+  };
+
   //Actual content messages
   CAN_frame SUNGROW_000 = {.FD = false,
                            .ext_ID = false,
@@ -106,6 +119,7 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x004,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // A copy of 0x705 except byte 1, the end stop - both applied in update_values().
   CAN_frame SUNGROW_005 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
@@ -326,7 +340,7 @@ class SungrowInverter : public CanInverterProtocol {
                            .DLC = 8,
                            .ID = 0x705,
                            .data = {0x02,        // Battery status: 0=Unplugged, 1=Standby, 2=Run (always Run)
-                                    0x00,        // Always 0 (705_Always_0)
+                                    0x00,        // End stop, inert on this copy (705_End_Stop)
                                     0x01,        // Always 1 (705_Always_1)
                                     0x00, 0x00,  // Battery model id - set in update_values() from module_count
                                     0x00, 0x00,  // Battery voltage - set in update_values()

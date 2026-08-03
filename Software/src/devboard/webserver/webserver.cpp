@@ -20,6 +20,7 @@
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
+#include "favicon.h"
 #include "html_escape.h"
 
 #include <string>
@@ -206,6 +207,20 @@ void init_webserver() {
             request->send(response);
           })
       .skipServerMiddlewares();
+
+#ifndef SMALL_FLASH_DEVICE
+  // Browsers fetch the icon for the login page too, so the route must work
+  // without credentials. Cached hard: the icon only changes with a firmware
+  // update, so one fetch per browser instead of one per page load.
+  server
+      .on("/favicon.svg", HTTP_GET,
+          [](AsyncWebServerRequest* request) {
+            AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
+            response->addHeader("Cache-Control", "public, max-age=604800");
+            request->send(response);
+          })
+      .skipServerMiddlewares();
+#endif  // SMALL_FLASH_DEVICE
 
   // Route for firmware info from ota update page
   def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
