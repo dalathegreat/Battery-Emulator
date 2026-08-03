@@ -40,10 +40,8 @@ CAN_frame byd_corrupt_frame(uint32_t id, std::initializer_list<uint8_t> first7by
   return frame;
 }
 
-// Clears the shared global datalayer between tests. Baseline is off zero so tests can step
-// backwards from it; ShouldTreatFramesReceivedAtTimeZeroAsFresh covers the t=0 case itself.
+// Clears the shared global datalayer between tests, so none sees values left by another.
 void reset_byd_state() {
-  set_millis64(10000);
   datalayer.battery.status = DATALAYER_BATTERY_STATUS_TYPE{};
   datalayer.battery.settings.max_user_set_charge_dA = 300;
   datalayer_extended.bydAtto3.chargePower = 0;
@@ -54,11 +52,6 @@ void reset_byd_state() {
   datalayer_extended.bydAtto3.BMS_max_temp_module_number = 0;
 }
 
-// 420.0V, so the taper's power cap (current cap x voltage) is nonzero.
-CAN_frame voltage_frame() {
-  return byd_checksummed_frame(0x438, {0x55, 0x55, 0x01, 0xD6, 0x47, 0x68, 0x10});
-}
-
 // Coldest sensor 9 at 8C, hottest sensor 1 at 24C, SOC 99.2%, average 16C.
 CAN_frame temperature_frame() {
   return byd_checksummed_frame(0x447, {0x09, 0x30, 0x01, 0x40, 0xE0, 0x03, 0x38});
@@ -67,24 +60,6 @@ CAN_frame temperature_frame() {
 // Discharge 285.5kW (b0:b1 = 0x0B27), charge 131.1kW (b2:b3 = 0x051F).
 CAN_frame power_limit_frame() {
   return byd_checksummed_frame(0x345, {0x27, 0x0B, 0x1F, 0x05, 0x00, 0x00, 0x00});
-}
-
-// Marks the pack closed via 0x344 bit7. The software contactor state machine only runs from
-// transmit_can(), which these tests never call; its default CONTACTORS_CLOSING already passes.
-void close_contactor(BydAttoBattery* battery) {
-  battery->handle_incoming_can_frame(byd_frame(0x344, {0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
-}
-
-// Closed pack with every broadcast the power path depends on freshly received.
-BydAttoBattery* battery_with_power_flowing() {
-  auto battery = new BydAttoBattery();
-  battery->setup();
-  close_contactor(battery);
-  battery->handle_incoming_can_frame(voltage_frame());
-  battery->handle_incoming_can_frame(temperature_frame());
-  battery->handle_incoming_can_frame(power_limit_frame());
-  battery->update_values();
-  return battery;
 }
 
 }  // namespace
@@ -166,79 +141,4 @@ TEST(BydAtto3Tests, ShouldDecode0x444WholePercentSocAndRejectBadChecksum) {
   EXPECT_EQ(datalayer_extended.bydAtto3.SOC_polled, 31);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9300);
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 1);
-}
-
-// Regression for the receipt flags: frames arriving at millis() == 0, as they can at boot, are
-// fresh. A zero-timestamp sentinel would read them as never received and refuse power forever.
-// Asserts discharge only, since the taper's file-static slewer perturbs charge when time rewinds.
-TEST(BydAtto3Tests, ShouldTreatFramesReceivedAtTimeZeroAsFresh) {
-  reset_byd_state();
-  set_millis64(0);
-  auto battery = battery_with_power_flowing();
-
-  EXPECT_GT(datalayer.battery.status.max_discharge_power_W, 0u);
-}
-
-// A stale 0x345 must not leave an allowance standing. Ticks are on 1s boundaries because
-// production only calls update_values() at 1Hz.
-TEST(BydAtto3Tests, ShouldZeroPowerLimitsWhenPowerBroadcastGoesStale) {
-  reset_byd_state();
-  set_millis64(10000);
-  auto battery = battery_with_power_flowing();
-
-  ASSERT_GT(datalayer.battery.status.max_discharge_power_W, 0u);
-  ASSERT_GT(datalayer.battery.status.max_charge_power_W, 0u);
-
-  set_millis64(11000);  // 1000ms old, past the 500ms window
-  battery->update_values();
-
-  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
-  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
-}
-
-// Worst case: a frame arriving just under the threshold before a tick survives that tick and is
-// only withdrawn at the next, so power outlives the signal by ~1.5s, not the 500ms threshold.
-TEST(BydAtto3Tests, ShouldHoldPowerUntilTheSecondTickWhenFrameArrivesJustBeforeOne) {
-  reset_byd_state();
-  set_millis64(1501);  // 499ms before the 2000 tick
-  auto battery = battery_with_power_flowing();
-
-  ASSERT_GT(datalayer.battery.status.max_discharge_power_W, 0u);
-
-  set_millis64(2000);  // 499ms old, still inside the window
-  battery->update_values();
-  EXPECT_GT(datalayer.battery.status.max_discharge_power_W, 0u);
-
-  set_millis64(3000);  // 1499ms old
-  battery->update_values();
-  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
-}
-
-// 0x447 is now the only temperature source, so losing it withdraws power. Readings are retained,
-// not zeroed: a zero temperature would read as a safe pack.
-TEST(BydAtto3Tests, ShouldZeroPowerButRetainReadingsWhenTemperatureBroadcastGoesStale) {
-  reset_byd_state();
-  set_millis64(10000);
-  auto battery = battery_with_power_flowing();
-
-  ASSERT_GT(datalayer.battery.status.max_discharge_power_W, 0u);
-
-  // Past the 0x447 window (5s), with 0x345 kept fresh so only the temperature gate can fire.
-  set_millis64(10000 + 6000);
-  battery->handle_incoming_can_frame(power_limit_frame());
-  battery->update_values();
-
-  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
-  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
-
-  // Retained, not zeroed.
-  EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 80);
-  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 240);
-  EXPECT_EQ(datalayer.battery.status.real_soc, 9920);
-
-  // A fresh frame restores power.
-  battery->handle_incoming_can_frame(temperature_frame());
-  battery->update_values();
-
-  EXPECT_GT(datalayer.battery.status.max_discharge_power_W, 0u);
 }

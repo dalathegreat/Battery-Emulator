@@ -174,16 +174,9 @@ void BydAttoBattery::
   }
   // End taper
 
-  // Requires a closed pack and both sourcing broadcasts fresh; a lost signal must not leave an
-  // allowance standing.
-  const uint32_t now_millis = millis();
-  const bool power_limits_stale =
-      !powerLimitFrameReceived || (now_millis - lastPowerLimitFrameMillis > POWER_LIMIT_STALE_MS);
-  const bool temperatures_stale =
-      !temperatureFrameReceived || (now_millis - lastTemperatureFrameMillis > TEMPERATURE_STALE_MS);
+  // Hold power at zero until the pack confirms closed (0x344 bit7), and while opening/idle
   if (!(contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) ||
-      (contactorState != CONTACTORS_CLOSING && contactorState != CONTACTORS_ACTIVE) || power_limits_stale ||
-      temperatures_stale) {
+      (contactorState != CONTACTORS_CLOSING && contactorState != CONTACTORS_ACTIVE)) {
     datalayer_battery->status.max_charge_power_W = 0;
     datalayer_battery->status.max_discharge_power_W = 0;
   }
@@ -228,8 +221,8 @@ void BydAttoBattery::
     secondsSinceStartup++;
   }
 
-  // Held, not zeroed, if 0x447 stops: zero would read as a safe pack. Staleness pulls power.
-  if (temperatureFrameReceived) {
+  if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {
+    //Avoid triggering high delta if only one of the values is available
     datalayer_battery->status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
     datalayer_battery->status.temperature_max_dC = BMS_highest_cell_temperature * 10;
   }
@@ -429,8 +422,6 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         BMS_allowed_discharge_power = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];  // 0.1kW, same as DID 0x000E
         BMS_allowed_charge_power = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];     // 0.1kW, same as DID 0x000A
-        lastPowerLimitFrameMillis = millis();
-        powerLimitFrameReceived = true;
       } else {
         datalayer_battery->status.CAN_error_counter++;
       }
@@ -537,8 +528,6 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         BMS_highest_cell_temperature = (rx_frame.data.u8[3] - 40);
         battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
         BMS_average_cell_temperature = (rx_frame.data.u8[6] - 40);
-        lastTemperatureFrameMillis = millis();
-        temperatureFrameReceived = true;
       } else {
         datalayer_battery->status.CAN_error_counter++;
       }

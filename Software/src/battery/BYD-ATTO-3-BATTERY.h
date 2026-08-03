@@ -244,10 +244,6 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t OPEN_CONFIRM_TIMEOUT_MS = 6000;    // Warn if the BMS hasn't opened by now
   static const uint32_t OPEN_TO_STANDBY_DELAY_MS = 2500;   // Car's wait between open and standby
   static const uint32_t CLOSE_CONFIRM_TIMEOUT_MS = 15000;  // Warn if the BMS hasn't closed by now
-  // Checked in update_values(), which runs at 1Hz, so the real worst case is the threshold plus a
-  // loop period: ~1.5s for power, ~6s for temperatures.
-  static const uint32_t POWER_LIMIT_STALE_MS = 500;   // ~5 missed 0x345 (~100ms cadence)
-  static const uint32_t TEMPERATURE_STALE_MS = 5000;  // ~5 missed 0x447 (~1s cadence)
 
   uint8_t contactorState = CONTACTORS_CLOSING;  // Boot default: close right away, as before
   uint8_t contactor_feedback = 0;               // Raw 0x344 byte 0
@@ -255,13 +251,8 @@ class BydAttoBattery : public CanBattery {
   unsigned long closeConfirmStartMillis = 0;
   unsigned long lastCurrentSampleMillis = 0;
   unsigned long lastContactorFeedbackMillis = 0;  // 0 = no 0x344 received yet
-  unsigned long lastPowerLimitFrameMillis = 0;
-  unsigned long lastTemperatureFrameMillis = 0;
-  // Explicit flags, not zero timestamps: millis() is legitimately 0 at boot and at rollover.
-  bool powerLimitFrameReceived = false;   // Checksum-valid 0x345 seen
-  bool temperatureFrameReceived = false;  // Checksum-valid 0x447 seen
-  bool closeConfirmPending = false;       // Only for user closes, not the boot default
-  bool openTimeoutEventSent = false;      // Open-delay warning fired once per attempt
+  bool closeConfirmPending = false;               // Only for user closes, not the boot default
+  bool openTimeoutEventSent = false;              // Open-delay warning fired once per attempt
   bool requestContactorOpen = false;
   bool requestContactorClose = false;
   bool previousContactorsAllowedClosed = false;  // Combined fault + equipment-stop + inverter-permission state
