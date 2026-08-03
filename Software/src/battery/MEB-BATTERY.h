@@ -41,8 +41,8 @@ class MebBattery : public CanBattery, public IsoTp {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
-  /* validate crc for some CAN frames */
-  uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t address);
+  /* calculate CRC for some CAN frames */
+  uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t msg_id);
   /* send a UDS ReadDataByIdentifier request for did via ISO-TP */
   void uds_read_data_by_id(const uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
