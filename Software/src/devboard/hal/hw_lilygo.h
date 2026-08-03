@@ -75,6 +75,7 @@ class LilyGoHal : public Esp32Hal {
 
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
+#ifdef SDCARD
   // SD card
   virtual gpio_num_t SD_MISO_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
@@ -100,6 +101,7 @@ class LilyGoHal : public Esp32Hal {
     }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
     return GPIO_NUM_NC;
   }
+#endif  // SDCARD
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }

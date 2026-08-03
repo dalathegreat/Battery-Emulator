@@ -1,4 +1,7 @@
 #include "sdcard.h"
+
+#ifdef SDCARD
+
 #include "freertos/ringbuf.h"
 
 File can_log_file;
@@ -260,3 +263,5 @@ void log_sdcard_details() {
     logging.println(" MB");
   }
 }
+
+#endif  // SDCARD

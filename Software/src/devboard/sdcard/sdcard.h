@@ -1,6 +1,7 @@
 #ifndef SDCARD_H
 #define SDCARD_H
 
+#ifdef SDCARD
 #include <SD_MMC.h>
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
@@ -27,5 +28,7 @@ void pause_log_writing();
 
 void add_log_to_buffer(const uint8_t* buffer, size_t size);
 void write_log_to_sdcard();
+
+#endif  // SDCARD
 
 #endif  // SDCARD_H
