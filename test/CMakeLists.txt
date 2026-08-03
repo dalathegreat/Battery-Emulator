@@ -78,6 +78,7 @@ add_executable(tests
     battery/foxess_tests.cpp 
     battery/still_alive_tests.cpp
     battery/VolvoSPATest.cpp
+    battery/UdsCanBatteryTest.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
