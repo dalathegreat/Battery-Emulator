@@ -201,6 +201,15 @@ enum AccessTimingParametersType : uint8_t {
 //   Negative response handling
 // ================================================================
 
+/**
+ * @brief Negative Response SID
+ *
+ * Every negative response message starts with 0x7F (Section 8.4, p. 34):
+ * [0x7F][request SID][NRC]. 0x7F is not a service identifier itself, so it
+ * lives here rather than in the SID enum above.
+ */
+constexpr uint8_t kNegativeResponseSid = 0x7F;
+
 enum NegativeResponseCode : uint8_t {
   GeneralReject                    = 0x10,
   ServiceNotSupported              = 0x11,

@@ -328,6 +328,17 @@ void SungrowInverter::update_values() {
   SUNGROW_504.data.u8[2] = (current_dA_flipped & 0xFF);
   SUNGROW_504.data.u8[3] = ((current_dA_flipped >> 8) & 0xFF);
 
+  // 0x005 cannot be a straight copy either: byte 1 carries the end stop, inert on 0x705/0x505.
+  // Full is limit-driven, since a real pack reads 0 A charge limit throughout. Empty is not - a
+  // real pack still advertises ~30 A while reporting it - so that end tracks the SoC floor.
+  uint8_t end_stop = END_STOP_NORMAL;
+  if (datalayer.battery.status.max_charge_current_dA == 0) {
+    end_stop = END_STOP_FULL;
+  } else if (datalayer.battery.status.reported_soc == 0) {
+    end_stop = END_STOP_EMPTY;
+  }
+  SUNGROW_005.data.u8[1] = end_stop;
+
 // TODO: This needs to do something useful
 #ifdef DEBUG_VIA_USB
   if (inverter_sends_000) {
