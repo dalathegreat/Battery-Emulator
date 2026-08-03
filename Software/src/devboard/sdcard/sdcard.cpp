@@ -187,7 +187,7 @@ void init_logging_buffers() {
 }
 
 void deinit_logging_buffers() {
-  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.CAN_SD_logging_active)) {
+  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.SD_logging_active)) {
     if (can_bufferHandle != NULL) {
       vRingbufferDelete(can_bufferHandle);
     }
