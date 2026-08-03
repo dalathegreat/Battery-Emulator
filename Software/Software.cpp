@@ -333,6 +333,24 @@ void update_calculated_values(unsigned long currentMillis) {
     datalayer.battery.settings.max_remote_set_discharge_dA = 0;
   }
 
+  /* Cap max charge/discharge to the lowest battery's limits */
+  if (battery2) {
+    if (datalayer.battery.status.max_charge_power_W > datalayer.battery2.status.max_charge_power_W) {
+      datalayer.battery.status.max_charge_power_W = datalayer.battery2.status.max_charge_power_W;
+    }
+    if (datalayer.battery.status.max_discharge_power_W > datalayer.battery2.status.max_discharge_power_W) {
+      datalayer.battery.status.max_discharge_power_W = datalayer.battery2.status.max_discharge_power_W;
+    }
+  }
+  if (battery3) {
+    if (datalayer.battery.status.max_charge_power_W > datalayer.battery3.status.max_charge_power_W) {
+      datalayer.battery.status.max_charge_power_W = datalayer.battery3.status.max_charge_power_W;
+    }
+    if (datalayer.battery.status.max_discharge_power_W > datalayer.battery3.status.max_discharge_power_W) {
+      datalayer.battery.status.max_discharge_power_W = datalayer.battery3.status.max_discharge_power_W;
+    }
+  }
+
   /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
      If unavailable (some drivers report 0 before battery comms are up), fall back to the design
      max voltage - conservative, since it under-estimates current for a given power. If that is
