@@ -312,7 +312,7 @@ class MebBattery : public CanBattery, public IsoTp {
   // outstanding at a time; the next request waits until a response arrives or the timeout expires.
   static constexpr unsigned long UDS_REQUEST_TIMEOUT_MS = 1000;
   // time between the routine start response and the routine stop request.
-  static constexpr unsigned long BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS = 600;
+  static constexpr unsigned long BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS = 3000;
   bool uds_request_pending = false;
   unsigned long uds_request_timestamp = 0;
 

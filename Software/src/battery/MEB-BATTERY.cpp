@@ -10,12 +10,10 @@
 #include "../devboard/utils/common_functions.h"  //For CRC calculation
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
-#include "../lib/uds_isotp/uds.h"  // UDS service IDs and negative-response codes
 
 /*
 TODO list
 - Check all TODO:s in the code
-- Investigate why opening and then closing contactors from webpage does not always work
 - remaining_capacity_Wh is based on a lower limit of 5% soc. This means that at 5% soc, remaining_capacity_Wh returns 0.
 */
 
@@ -248,6 +246,14 @@ void MebBattery::
   //Map all cell voltages to the global array
   memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
+  datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance_kOhm * 5;
+  if (isolation_status != 0 && isolation_status != 7) {
+    // isolation is available if not in init or active measurement.
+    datalayer_battery->status.insulation_resistance_available = true;
+  } else {
+    datalayer_battery->status.insulation_resistance_available = false;
+  }
+
   if (service_disconnect_switch_missing) {
     set_event(EVENT_HVIL_FAILURE, 1);
   } else {
@@ -260,58 +266,58 @@ void MebBattery::
   }
 
   // Update webserver datalayer for "More battery info" page
-  datalayer_extended.meb.SDSW = service_disconnect_switch_missing;
-  datalayer_extended.meb.pilotline = pilotline_open;
-  datalayer_extended.meb.transportmode = transportation_mode_active;
-  datalayer_extended.meb.componentprotection = component_protection_active;
-  datalayer_extended.meb.shutdown_active = shutdown_active;
-  datalayer_extended.meb.HVIL = BMS_HVIL_status;
-  datalayer_extended.meb.BMS_mode = BMS_mode;
-  datalayer_extended.meb.battery_diagnostic = battery_diagnostic;
-  datalayer_extended.meb.status_HV_PTC_line = status_HV_PTC_line;
-  datalayer_extended.meb.BMS_fault_performance = BMS_fault_performance;
-  datalayer_extended.meb.BMS_fault_emergency_shutdown_crash = BMS_fault_emergency_shutdown_crash;
-  datalayer_extended.meb.BMS_error_shutdown_request = BMS_error_shutdown_request;
-  datalayer_extended.meb.BMS_error_shutdown = BMS_error_shutdown;
-  datalayer_extended.meb.BMS_welded_contactors_status = BMS_welded_contactors_status;
+  datalayer_meb->SDSW = service_disconnect_switch_missing;
+  datalayer_meb->pilotline = pilotline_open;
+  datalayer_meb->transportmode = transportation_mode_active;
+  datalayer_meb->componentprotection = component_protection_active;
+  datalayer_meb->shutdown_active = shutdown_active;
+  datalayer_meb->HVIL = BMS_HVIL_status;
+  datalayer_meb->BMS_mode = BMS_mode;
+  datalayer_meb->battery_diagnostic = battery_diagnostic;
+  datalayer_meb->status_HV_PTC_line = status_HV_PTC_line;
+  datalayer_meb->BMS_fault_performance = BMS_fault_performance;
+  datalayer_meb->BMS_fault_emergency_shutdown_crash = BMS_fault_emergency_shutdown_crash;
+  datalayer_meb->BMS_error_shutdown_request = BMS_error_shutdown_request;
+  datalayer_meb->BMS_error_shutdown = BMS_error_shutdown;
+  datalayer_meb->BMS_welded_contactors_status = BMS_welded_contactors_status;
 
-  datalayer_extended.meb.warning_support = warning_support;
-  datalayer_extended.meb.BMS_status_voltage_free = BMS_status_voltage_free;
-  datalayer_extended.meb.BMS_OBD_MIL = BMS_OBD_MIL;
-  datalayer_extended.meb.BMS_error_status = BMS_error_status;
-  datalayer_extended.meb.BMS_error_lamp_req = BMS_error_lamp_req;
-  datalayer_extended.meb.BMS_warning_lamp_req = BMS_warning_lamp_req;
-  datalayer_extended.meb.BMS_Kl30c_Status = BMS_Kl30c_Status;
-  datalayer_extended.meb.BMS_voltage_intermediate_dV = (BMS_voltage_intermediate - 2000) * 10 / 2;
-  datalayer_extended.meb.BMS_voltage_dV = BMS_voltage * 10 / 4;
-  datalayer_extended.meb.isolation_resistance = isolation_resistance_kOhm * 5;
-  datalayer_extended.meb.battery_heating = battery_heating_active;
-  datalayer_extended.meb.rt_overcurrent = realtime_overcurrent_monitor;
-  datalayer_extended.meb.rt_CAN_fault = realtime_CAN_communication_fault;
-  datalayer_extended.meb.rt_overcharge = realtime_overcharge_warning;
-  datalayer_extended.meb.rt_SOC_high = realtime_SOC_too_high;
-  datalayer_extended.meb.rt_SOC_low = realtime_SOC_too_low;
-  datalayer_extended.meb.rt_SOC_jumping = realtime_SOC_jumping_warning;
-  datalayer_extended.meb.rt_temp_difference = realtime_temperature_difference_warning;
-  datalayer_extended.meb.rt_cell_overtemp = realtime_cell_overtemperature_warning;
-  datalayer_extended.meb.rt_cell_undertemp = realtime_cell_undertemperature_warning;
-  datalayer_extended.meb.rt_battery_overvolt = realtime_battery_overvoltage_warning;
-  datalayer_extended.meb.rt_battery_undervol = realtime_battery_undervoltage_warning;
-  datalayer_extended.meb.rt_cell_overvolt = realtime_cell_overvoltage_warning;
-  datalayer_extended.meb.rt_cell_undervol = realtime_cell_undervoltage_warning;
-  datalayer_extended.meb.rt_cell_imbalance = realtime_cell_imbalance_warning;
-  datalayer_extended.meb.rt_battery_unathorized = realtime_warning_battery_unathorized;
-  if (balancing_active == 1 && datalayer_extended.meb.balancing_active != 1) {
+  datalayer_meb->warning_support = warning_support;
+  datalayer_meb->BMS_status_voltage_free = BMS_status_voltage_free;
+  datalayer_meb->BMS_OBD_MIL = BMS_OBD_MIL;
+  datalayer_meb->BMS_error_status = BMS_error_status;
+  datalayer_meb->BMS_error_lamp_req = BMS_error_lamp_req;
+  datalayer_meb->BMS_warning_lamp_req = BMS_warning_lamp_req;
+  datalayer_meb->BMS_Kl30c_Status = BMS_Kl30c_Status;
+  datalayer_meb->BMS_voltage_intermediate_dV = (BMS_voltage_intermediate - 2000) * 10 / 2;
+  datalayer_meb->BMS_voltage_dV = BMS_voltage * 10 / 4;
+  datalayer_meb->isolation_resistance = isolation_resistance_kOhm * 5;
+  datalayer_meb->battery_heating = battery_heating_active;
+  datalayer_meb->rt_overcurrent = realtime_overcurrent_monitor;
+  datalayer_meb->rt_CAN_fault = realtime_CAN_communication_fault;
+  datalayer_meb->rt_overcharge = realtime_overcharge_warning;
+  datalayer_meb->rt_SOC_high = realtime_SOC_too_high;
+  datalayer_meb->rt_SOC_low = realtime_SOC_too_low;
+  datalayer_meb->rt_SOC_jumping = realtime_SOC_jumping_warning;
+  datalayer_meb->rt_temp_difference = realtime_temperature_difference_warning;
+  datalayer_meb->rt_cell_overtemp = realtime_cell_overtemperature_warning;
+  datalayer_meb->rt_cell_undertemp = realtime_cell_undertemperature_warning;
+  datalayer_meb->rt_battery_overvolt = realtime_battery_overvoltage_warning;
+  datalayer_meb->rt_battery_undervol = realtime_battery_undervoltage_warning;
+  datalayer_meb->rt_cell_overvolt = realtime_cell_overvoltage_warning;
+  datalayer_meb->rt_cell_undervol = realtime_cell_undervoltage_warning;
+  datalayer_meb->rt_cell_imbalance = realtime_cell_imbalance_warning;
+  datalayer_meb->rt_battery_unathorized = realtime_warning_battery_unathorized;
+  if (balancing_active == 1 && datalayer_meb->balancing_active != 1) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
     set_event_latched(EVENT_BALANCING_START, 0);
   }
-  if (balancing_active == 2 && datalayer_extended.meb.balancing_active == 1) {
+  if (balancing_active == 2 && datalayer_meb->balancing_active == 1) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
     set_event(EVENT_BALANCING_END, 0);
   }
-  datalayer_extended.meb.balancing_active = balancing_active;
-  datalayer_extended.meb.balancing_request = balancing_request;
-  datalayer_extended.meb.charging_active = charging_active;
+  datalayer_meb->balancing_active = balancing_active;
+  datalayer_meb->balancing_request = balancing_request;
+  datalayer_meb->charging_active = charging_active;
 }
 
 void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -365,7 +371,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_BMS_21;
       max_discharge_power_watt =
-          ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6;  //*100
+          ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | ((rx_frame.data.u8[4] & 0xC0) >> 6);  //*100
       max_discharge_current_amp =
           ((rx_frame.data.u8[3] & 0x01) << 12) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*0.2
       max_charge_power_watt = (rx_frame.data.u8[7] << 5) | (rx_frame.data.u8[6] >> 3);                     //*100
@@ -401,8 +407,6 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       max_charge_percent = ((rx_frame.data.u8[7] << 3) | rx_frame.data.u8[6] >> 5);                  //*0.05
       min_charge_percent = ((rx_frame.data.u8[4] << 3) | rx_frame.data.u8[3] >> 5);                  //*0.05
       isolation_resistance_kOhm = (((rx_frame.data.u8[3] & 0x1F) << 7) | rx_frame.data.u8[2] >> 1);  //*5
-      datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance_kOhm * 5;
-      datalayer_battery->status.insulation_resistance_available = true;
       break;
     case BMS_25:  // BMS 500ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -414,7 +418,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       status_valve_1 = (rx_frame.data.u8[3] & 0x1C) >> 2;
       status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
       temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
-      datalayer_extended.meb.battery_temperature_dC = rx_frame.data.u8[5] * 5 - 400;  //*0,5 -40
+      datalayer_meb->battery_temperature_dC = rx_frame.data.u8[5] * 5 - 400;  //*0,5 -40
       target_flow_temperature_C = rx_frame.data.u8[6];                                //*0,5 -40
       return_temperature_C = rx_frame.data.u8[7];                                     //*0,5 -40
       break;
@@ -454,7 +458,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (mux) {
         case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
           for (uint8_t i = 0; i < 56; i++) {
-            datalayer_extended.meb.celltemperature_dC[i] = ((int16_t)rx_frame.data.u8[i + 1] * 5) - 400;
+            datalayer_meb->celltemperature_dC[i] = ((int16_t)rx_frame.data.u8[i + 1] * 5) - 400;
           }
           break;
         /*
@@ -692,7 +696,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
       BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
-      if (BMS_Kl30c_Status != 0) {  // init state
+      if (BMS_mode != BMS_TARGET_INIT) {  // init state
         BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       }
       break;
@@ -721,8 +725,10 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // through Init with KL_15 properly gated.
       if (!startup_bms_checked) {
         startup_bms_checked = true;
-        if (BMS_mode != BMS_TARGET_INIT) {
-          //logging.println("MEB: BMS already awake at boot (emulator reboot) - triggering BMS reset");
+        if (BMS_mode != BMS_TARGET_INIT && BMS_mode != BMS_TARGET_HV_OFF) {
+#ifdef MEB_DEBUG
+          logging.println("MEB: BMS mode not correct at boot, triggering BMS reset.");
+#endif
           datalayer_meb->UserRequestBMSReset = true;
         }
       }
@@ -833,26 +839,26 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
   // DTC readout requested via WebUI: UDS ReadDTCInformation (0x19), report-type 0x02
   // (reportDTCByStatusMask) with status mask 0x09 to read only active/confirmed DTCs.
-  if (!uds_request_pending && datalayer_extended.meb.UserRequestDTCreadout &&
+  if (!uds_request_pending && datalayer_meb->UserRequestDTCreadout &&
       basic_settings_state == BasicSettingsState::IDLE) {
     uint8_t payload[3] = {ReadDTCInformation, 0x02, 0x09};
     isotp_send(payload, sizeof(payload));
     uds_request_pending = true;
     uds_request_timestamp = currentMillis;
-    datalayer_extended.meb.UserRequestDTCreadout = false;  // consume the request
-    datalayer_extended.meb.dtc_read_in_progress = true;
+    datalayer_meb->UserRequestDTCreadout = false;  // consume the request
+    datalayer_meb->dtc_read_in_progress = true;
     datalayer_battery->dtc.dtc_read_failed = false;
   }
 
   // DTC clear requested via WebUI: OBD service 0x04 (ClearDiagnosticInformation) sent to the
   // functional address. Response is handled in uds_response_handler().
-  if (!uds_request_pending && datalayer_extended.meb.UserRequestDTCreset &&
+  if (!uds_request_pending && datalayer_meb->UserRequestDTCreset &&
       basic_settings_state == BasicSettingsState::IDLE) {
     transmit_can_frame(&OBD_CLEAR_DTC);
     uds_request_pending = true;
     uds_request_timestamp = currentMillis;
-    datalayer_extended.meb.UserRequestDTCreset = false;  // consume the request
-    datalayer_extended.meb.dtc_read_in_progress = true;
+    datalayer_meb->UserRequestDTCreset = false;  // consume the request
+    datalayer_meb->dtc_read_in_progress = true;
     datalayer_battery->dtc.dtc_read_failed = false;
   }
 
@@ -868,7 +874,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
       // Set the link voltage back to 0, so that when the BMS comes back, it
       // doesn't immediately skip the precharge.
       BMS_voltage_intermediate = 2000;
-      datalayer_extended.meb.BMS_voltage_intermediate_dV = 0;
+      datalayer_meb->BMS_voltage_intermediate_dV = 0;
 
       // Reset the HV requested state so that we don't skip the precharge.
       hv_requested = false;
@@ -940,9 +946,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           (hv_requested ||
-           (datalayer.battery.status.voltage_dV > 200 && datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
+           (datalayer.battery.status.voltage_dV > 200 && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
             labs(((int32_t)datalayer.battery.status.voltage_dV) -
-                 ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
+                 ((int32_t)datalayer_meb->BMS_voltage_intermediate_dV)) < 200))))) {
       // We are either:
       //  - Equipment stop is not active, and the inverter allows contactor closing, and the BMS is not in FAULT state, and either:
       //  - in BMS_ACTIVE state (contactors closed, normal operation)
@@ -1029,6 +1035,9 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
     Motor_54_frame.data.u8[1] = ((Motor_54_frame.data.u8[1] & 0xF0) | counter_100ms);
     Motor_54_frame.data.u8[0] = vw_crc_calc(Motor_54_frame.data.u8, Motor_54_frame.DLC, Motor_54_frame.ID);
+
+    Motor_EV_01_frame.data.u8[1] = ((Motor_EV_01_frame.data.u8[1] & 0xF0) | counter_100ms);
+    Motor_EV_01_frame.data.u8[0] = vw_crc_calc(Motor_EV_01_frame.data.u8, Motor_EV_01_frame.DLC, Motor_EV_01_frame.ID);
 
     counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
     transmit_can_frame(&HVK_01_frame);
@@ -1155,7 +1164,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     }
     // Send the UDS request only after ≥1 s of CAN activity and when no UDS transaction is
     // pending (ISO-TP is serial — one request/response at a time).
-    if (first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 && !uds_request_pending) {
+    if (first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 &&
+        !uds_request_pending && basic_settings_state == BasicSettingsState::IDLE) {
       uds_read_data_by_id(current_pid, currentMillis);
     } else {
       // if we could not send the request, don't advance to the next PID.
@@ -1211,8 +1221,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   static auto last_start_precharging = datalayer.system.info.start_precharging;
   static auto last_hv_requested = hv_requested;
   static auto last_voltage_dV = datalayer.battery.status.voltage_dV;
-  static auto last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
-  static auto BMS_mode = datalayer_extended.meb.BMS_mode;
+  static auto last_BMS_voltage_intermediate_dV = datalayer_meb->BMS_voltage_intermediate_dV;
+  static auto last_bms_mode = BMS_mode;
 
   if (last_real_bms_status != datalayer.battery.status.real_bms_status) {
     logging.printf("MEB: BMS status %d -> %d\n", last_real_bms_status, datalayer.battery.status.real_bms_status);
@@ -1235,15 +1245,15 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     last_voltage_dV = datalayer.battery.status.voltage_dV;
   }
 
-  if (last_BMS_voltage_intermediate_dV != datalayer_extended.meb.BMS_voltage_intermediate_dV) {
+  if (last_BMS_voltage_intermediate_dV != datalayer_meb->BMS_voltage_intermediate_dV) {
     logging.printf("MEB: BMS Voltage intermediate dV %d -> %d\n", last_BMS_voltage_intermediate_dV,
-                   datalayer_extended.meb.BMS_voltage_intermediate_dV);
-    last_BMS_voltage_intermediate_dV = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+                   datalayer_meb->BMS_voltage_intermediate_dV);
+    last_BMS_voltage_intermediate_dV = datalayer_meb->BMS_voltage_intermediate_dV;
   }
 
-  if (BMS_mode != datalayer_extended.meb.BMS_mode) {
-    logging.printf("MEB: BMS mode %d -> %d\n", BMS_mode, datalayer_extended.meb.BMS_mode);
-    BMS_mode = datalayer_extended.meb.BMS_mode;
+  if (last_bms_mode != BMS_mode) {
+    logging.printf("MEB: BMS mode %d -> %d\n", last_bms_mode, BMS_mode);
+    last_bms_mode = BMS_mode;
   }
 }
 
@@ -1491,9 +1501,13 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
             logging.printf("MEB: BasicSettings: routine 0x%04X started\n", (unsigned)basic_settings_routine_id);
 #endif
           } else if (data[1] == Stop) {
-            // trigger now BMS reset
+            // trigger now BMS reset and erase DTCs.
             datalayer_meb->UserRequestBMSReset = true;
+            datalayer_meb->UserRequestDTCreset = true;
             basic_settings_state = BasicSettingsState::IDLE;
+#ifdef MEB_DEBUG
+            logging.printf("MEB: BasicSettings: routine 0x%04X stopped\n", (unsigned)basic_settings_routine_id);
+#endif
           } else {
             // Unexpected sub-function — abort.
             basic_settings_state = BasicSettingsState::IDLE;
@@ -1619,7 +1633,7 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
           if (len < 5)
             break;
           if (pid_reply >= PID_TEMP_POINT_1 && pid_reply <= PID_TEMP_POINT_18) {
-            datalayer_extended.meb.temp_points[pid_reply - PID_TEMP_POINT_1] = (((data[3] << 8) | data[4]) / 8.f) - 40;
+            datalayer_meb->temp_points[pid_reply - PID_TEMP_POINT_1] = (((data[3] << 8) | data[4]) / 8.f) - 40;
           } else if (pid_reply >= PID_CELLVOLTAGE_CELL_1 && pid_reply <= PID_CELLVOLTAGE_CELL_108) {
             // The general case for cell voltages (some specific cases handled above)
             tempval = ((data[3] << 8) | data[4]);
@@ -1635,7 +1649,7 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       datalayer_battery->dtc.dtc_read_failed = false;
       datalayer_battery->dtc.dtc_count = 0;  // Clear any existing DTCs after a successful erase
       datalayer_battery->dtc.dtc_last_read_millis = 0;
-      datalayer_extended.meb.dtc_read_in_progress = false;
+      datalayer_meb->dtc_read_in_progress = false;
       break;
     case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):  // DTC read positive response (0x59)
       if (data[1] != 0x02) {
@@ -1670,9 +1684,9 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       }
       uds_request_pending = false;
       datalayer_battery->dtc.dtc_last_read_millis = millis();
-      datalayer_extended.meb.dtc_read_in_progress = false;
+      datalayer_meb->dtc_read_in_progress = false;
       break;
-    case (ServiceNotSupportedInActiveSession):  // Negative response (0x7F)
+    case (kNegativeResponseSid):  // Negative response (0x7F)
       // data[1] = original request service id, data[2] = NRC
       if (len >= 3 && data[2] == RequestCorrectlyReceived_ResponsePending) {
         // NRC 0x78: requestCorrectlyReceived-ResponsePending — the BMS is still processing.
@@ -1681,12 +1695,12 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       } else if (len >= 3 && data[1] == ReadDTCInformation) {
         // DTC read was rejected — the transaction is complete, allow the next request.
         uds_request_pending = false;
-        datalayer_extended.meb.dtc_read_in_progress = false;
+        datalayer_meb->dtc_read_in_progress = false;
         datalayer_battery->dtc.dtc_read_failed = true;
       } else {
         // Any other NRC: the transaction is complete (rejected), allow the next request.
         uds_request_pending = false;
-        if (basic_settings_state != BasicSettingsState::IDLE) {
+        if (basic_settings_state != BasicSettingsState::IDLE && data[1] == RoutineControl) {
 #ifdef MEB_DEBUG
           logging.printf("MEB: BasicSettings: NRC 0x%02X for SID 0x%02X, aborting\n", len >= 3 ? data[2] : 0,
                          len >= 2 ? data[1] : 0);
