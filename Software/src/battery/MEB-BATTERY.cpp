@@ -370,8 +370,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case BMS_21:  // BMS Limits 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       can_msg_received |= RX_BMS_21;
-      max_discharge_power_watt =
-          ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | ((rx_frame.data.u8[4] & 0xC0) >> 6);  //*100
+      max_discharge_power_watt = ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) |
+                                 ((rx_frame.data.u8[4] & 0xC0) >> 6);  //*100
       max_discharge_current_amp =
           ((rx_frame.data.u8[3] & 0x01) << 12) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*0.2
       max_charge_power_watt = (rx_frame.data.u8[7] << 5) | (rx_frame.data.u8[6] >> 3);                     //*100
@@ -419,8 +419,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
       temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
       datalayer_meb->battery_temperature_dC = rx_frame.data.u8[5] * 5 - 400;  //*0,5 -40
-      target_flow_temperature_C = rx_frame.data.u8[6];                                //*0,5 -40
-      return_temperature_C = rx_frame.data.u8[7];                                     //*0,5 -40
+      target_flow_temperature_C = rx_frame.data.u8[6];                        //*0,5 -40
+      return_temperature_C = rx_frame.data.u8[7];                             //*0,5 -40
       break;
     case BMS_31:  // BMS
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -785,11 +785,10 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case BMS_34: {
       const uint16_t raw_ube = (uint16_t)((uint16_t)rx_frame.data.u8[2] | ((uint16_t)rx_frame.data.u8[3] << 8));
-      const uint16_t raw_ube_t =
-          (uint16_t)((uint16_t)rx_frame.data.u8[4] | ((uint16_t)rx_frame.data.u8[5] << 8));
-      const uint16_t raw_max_ube =
-          (uint16_t)((uint16_t)rx_frame.data.u8[6] | ((uint16_t)rx_frame.data.u8[7] << 8));
-      const uint16_t raw_nominal_voltage = (uint16_t)(((uint16_t)rx_frame.data.u8[8] | ((uint16_t)rx_frame.data.u8[9] << 8)) & 0x07FFU);
+      const uint16_t raw_ube_t = (uint16_t)((uint16_t)rx_frame.data.u8[4] | ((uint16_t)rx_frame.data.u8[5] << 8));
+      const uint16_t raw_max_ube = (uint16_t)((uint16_t)rx_frame.data.u8[6] | ((uint16_t)rx_frame.data.u8[7] << 8));
+      const uint16_t raw_nominal_voltage =
+          (uint16_t)(((uint16_t)rx_frame.data.u8[8] | ((uint16_t)rx_frame.data.u8[9] << 8)) & 0x07FFU);
 
       BMS_usable_batt_energy_Wh = ((int32_t)raw_ube * 5) - 7400;
       BMS_usable_batt_energy_t_Wh = ((int32_t)raw_ube_t * 5) - 7400;
@@ -852,8 +851,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 
   // DTC clear requested via WebUI: OBD service 0x04 (ClearDiagnosticInformation) sent to the
   // functional address. Response is handled in uds_response_handler().
-  if (!uds_request_pending && datalayer_meb->UserRequestDTCreset &&
-      basic_settings_state == BasicSettingsState::IDLE) {
+  if (!uds_request_pending && datalayer_meb->UserRequestDTCreset && basic_settings_state == BasicSettingsState::IDLE) {
     transmit_can_frame(&OBD_CLEAR_DTC);
     uds_request_pending = true;
     uds_request_timestamp = currentMillis;
@@ -885,7 +883,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     previousMillis10ms = currentMillis;
     if (platform == VAGPlatform::MEB) {
       ESC_51_Auth_frame.data.u8[1] = ((ESC_51_Auth_frame.data.u8[1] & 0xF0) | counter_10ms);
-      ESC_51_Auth_frame.data.u8[0] = vw_crc_calc(ESC_51_Auth_frame.data.u8, ESC_51_Auth_frame.DLC, ESC_51_Auth_frame.ID);
+      ESC_51_Auth_frame.data.u8[0] =
+          vw_crc_calc(ESC_51_Auth_frame.data.u8, ESC_51_Auth_frame.DLC, ESC_51_Auth_frame.ID);
       counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
       transmit_can_frame(&ESC_51_Auth_frame);  // Required for contactor closing
@@ -1164,8 +1163,8 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     }
     // Send the UDS request only after ≥1 s of CAN activity and when no UDS transaction is
     // pending (ISO-TP is serial — one request/response at a time).
-    if (first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 &&
-        !uds_request_pending && basic_settings_state == BasicSettingsState::IDLE) {
+    if (first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 && !uds_request_pending &&
+        basic_settings_state == BasicSettingsState::IDLE) {
       uds_read_data_by_id(current_pid, currentMillis);
     } else {
       // if we could not send the request, don't advance to the next PID.
@@ -1745,7 +1744,7 @@ void MqbEvoBattery::setup(void) {  // Performs one time setup at startup
   nof_cells_determined = true;
   security_login_key = 20104;  //correct key for MQB Evo
   renderer.dtc_json_filename = "vag_mqb_dtc.json";
-  poll_pid = PID_SOC; //MQB doesn't use the number of cells detection.
+  poll_pid = PID_SOC;  //MQB doesn't use the number of cells detection.
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);  // Overwrite the MEB name.
   datalayer.system.info.battery_protocol[63] = '\0';
