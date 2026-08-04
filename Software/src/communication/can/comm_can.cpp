@@ -34,6 +34,9 @@ class NativeTwaiDevice : public CanDevice {
   NativeTwaiDevice() {
     name = "Native CAN";
     log_interface = CAN_NATIVE;
+    device_index = 0;
+    buffer_full_event = EVENT_CAN_NATIVE_BUFFER_FULL;
+    bus_error_event = EVENT_CAN_NATIVE_BUS_ERROR;
   }
 
   bool init(CAN_Speed speed) override {
@@ -119,10 +122,10 @@ class NativeTwaiDevice : public CanDevice {
     if ((flags & TWAI_BUS_OFF_ST) != 0) {
       // Bus off, reset the CAN controller
       change_speed(speed_);
-      datalayer.system.info.can_native_bus_error = true;
+      datalayer.system.info.can_device[device_index].bus_error = true;
     }
     if ((flags & TWAI_ERR_ST) != 0) {
-      datalayer.system.info.can_native_bus_error = true;
+      datalayer.system.info.can_device[device_index].bus_error = true;
     }
   }
 
@@ -181,6 +184,9 @@ class Mcp2515Device : public CanDevice {
   Mcp2515Device() {
     name = "MCP2515";
     log_interface = CAN_ADDON_MCP2515;
+    device_index = 1;
+    buffer_full_event = EVENT_CANMCP2515_BUFFER_FULL;
+    bus_error_event = EVENT_CANMCP2515_BUS_ERROR;
   }
 
   bool init(CAN_Speed speed) override {
@@ -245,7 +251,7 @@ class Mcp2515Device : public CanDevice {
     }
 
     if (can_->hasErrors()) {
-      datalayer.system.info.can_2515_bus_error = true;
+      datalayer.system.info.can_device[device_index].bus_error = true;
     }
   }
 
@@ -278,6 +284,12 @@ static Mcp2518Device* fd_instances[2] = {nullptr, nullptr};
 // receivers of every logical interface mapped to it.
 static CanDevice* device_for[NO_CAN_INTERFACE] = {};
 
+static std::vector<CanDevice*> all_devices;
+
+const std::vector<CanDevice*>& unique_can_devices() {
+  return all_devices;
+}
+
 // MCP2518FD add-on controller (CAN-FD over SPI). Instantiated twice on boards
 // with two FD chips; the SPI bus wiring (including bus sharing between the
 // two instances) is board topology and stays in init_CAN().
@@ -300,6 +312,10 @@ class Mcp2518Device : public CanDevice {
   explicit Mcp2518Device(const Config& config) : cfg_(config) {
     name = (cfg_.index == 0) ? "CAN-FD" : "CAN-FD 2";
     log_interface = (cfg_.index == 0) ? CANFD_ADDON_MCP2518 : CANFD_ADDON_MCP2518_2;
+    device_index = (cfg_.index == 0) ? 2 : 3;
+    buffer_full_event = (cfg_.index == 0) ? EVENT_CANFD_BUFFER_FULL : EVENT_CANFD_2_BUFFER_FULL;
+    bus_error_event = (cfg_.index == 0) ? EVENT_CANFD_BUS_ERROR : EVENT_CANFD_2_BUS_ERROR;
+    init_fail_event_ = (cfg_.index == 0) ? EVENT_CANMCP2518FD_INIT_FAILURE : EVENT_CANMCP2518FD_2_INIT_FAILURE;
     fd_instances[cfg_.index] = this;
   }
 
@@ -363,11 +379,7 @@ class Mcp2518Device : public CanDevice {
     }
 
     if (can_->hasCanErrors()) {
-      if (cfg_.index == 0) {
-        datalayer.system.info.can_2518_bus_error = true;
-      } else {
-        datalayer.system.info.can_2518_2_bus_error = true;
-      }
+      datalayer.system.info.can_device[device_index].bus_error = true;
     }
   }
 
@@ -389,7 +401,7 @@ class Mcp2518Device : public CanDevice {
     if (errorCode != 0) {
       logging.print(cfg_.error_log_prefix);
       logging.println(errorCode, HEX);
-      set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode);
+      set_event(init_fail_event_, (uint8_t)errorCode);
       // This will leak, but we have failed and won't try to reinit.
       can_ = nullptr;
       initialized = false;
@@ -401,6 +413,7 @@ class Mcp2518Device : public CanDevice {
   Config cfg_;
   ACAN2517FD* can_ = nullptr;
   ACAN2517FDSettings* settings_ = nullptr;
+  EVENTS_ENUM_TYPE init_fail_event_ = EVENT_NOF_EVENTS;
 };
 
 //CAN logging filter settings
@@ -412,6 +425,7 @@ bool init_CAN() {
   if (can_receiver_registered(CAN_NATIVE)) {
     native_dev = new NativeTwaiDevice();
     device_for[CAN_NATIVE] = native_dev;
+    all_devices.push_back(native_dev);
     if (!native_dev->init(can_receiver_speed(CAN_NATIVE, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -422,6 +436,7 @@ bool init_CAN() {
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
     mcp2515_dev = new Mcp2515Device();
     device_for[CAN_ADDON_MCP2515] = mcp2515_dev;
+    all_devices.push_back(mcp2515_dev);
     if (!mcp2515_dev->init(can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -485,6 +500,7 @@ bool init_CAN() {
     // One physical chip serves both logical FD names on boards that expose both.
     device_for[CANFD_NATIVE] = fd_dev;
     device_for[CANFD_ADDON_MCP2518] = fd_dev;
+    all_devices.push_back(fd_dev);
     if (!fd_dev->init(speed)) {
       return false;
     }
@@ -530,6 +546,7 @@ bool init_CAN() {
                                   .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
                                   .error_log_prefix = "CAN-FD 2 Configuration error 0x"});
     device_for[CANFD_ADDON_MCP2518_2] = fd_dev_2;
+    all_devices.push_back(fd_dev_2);
     if (!fd_dev_2->init(can_receiver_speed(CANFD_ADDON_MCP2518_2, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -550,31 +567,14 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
   }
 #endif
 
-  switch (interface) {
-    case CAN_NATIVE: {
-      if (native_dev == nullptr || !native_dev->try_send(*tx_frame)) {
-        datalayer.system.info.can_native_send_fail = true;
-      }
-    } break;
-    case CAN_ADDON_MCP2515: {
-      if (mcp2515_dev == nullptr || !mcp2515_dev->try_send(*tx_frame)) {
-        datalayer.system.info.can_2515_send_fail = true;
-      }
-    } break;
-    case CANFD_NATIVE:
-    case CANFD_ADDON_MCP2518: {
-      if (fd_dev == nullptr || !fd_dev->try_send(*tx_frame)) {
-        datalayer.system.info.can_2518_send_fail = true;
-      }
-    } break;
-    case CANFD_ADDON_MCP2518_2: {
-      if (fd_dev_2 == nullptr || !fd_dev_2->try_send(*tx_frame)) {
-        datalayer.system.info.can_2518_2_send_fail = true;
-      }
-    } break;
-    default:
-      // Invalid interface sent with function call. TODO: Raise event that coders messed up
-      break;
+  CanDevice* dev = (interface < NO_CAN_INTERFACE) ? device_for[interface] : nullptr;
+  if (dev == nullptr) {
+    // Invalid interface sent with function call. TODO: Raise event that coders messed up
+    return;
+  }
+
+  if (!dev->try_send(*tx_frame)) {
+    datalayer.system.info.can_device[dev->device_index].send_fail = true;
   }
 }
 

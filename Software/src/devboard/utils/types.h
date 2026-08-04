@@ -98,6 +98,10 @@ enum CAN_Interface {
   NO_CAN_INTERFACE = 5
 };
 
+// Number of physical CAN controllers a board can carry (native TWAI, MCP2515
+// and two MCP2518FD today). Indexes datalayer.system.info.can_device[].
+#define MAX_CAN_DEVICES 4
+
 extern const char* getCANInterfaceName(CAN_Interface interface);
 
 /* CAN Frame structure */

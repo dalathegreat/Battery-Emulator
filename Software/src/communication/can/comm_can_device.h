@@ -1,6 +1,10 @@
 #ifndef _COMM_CAN_DEVICE_H_
 #define _COMM_CAN_DEVICE_H_
 
+#include <vector>
+
+#include "../../datalayer/datalayer.h"
+#include "../../devboard/utils/events.h"
 #include "../../devboard/utils/types.h"
 #include "comm_can.h"
 
@@ -34,6 +38,34 @@ class CanDevice {
   // logged under CANFD_ADDON_MCP2518, not the lower-numbered CANFD_NATIVE),
   // so existing CAN-log captures and SavvyCAN bus numbers stay comparable.
   CAN_Interface log_interface = NO_CAN_INTERFACE;
+
+  // Health flags live in datalayer.system.info.can_device[device_index] -
+  // the datalayer is the observation surface - and the device writes only its
+  // own slot.
+  uint8_t device_index = 0;
+  EVENTS_ENUM_TYPE buffer_full_event = EVENT_NOF_EVENTS;
+  EVENTS_ENUM_TYPE bus_error_event = EVENT_NOF_EVENTS;
+
+  // Raises or clears this device's events from its health flags in the
+  // datalayer, consuming them. Called periodically by the safety monitor.
+  void update_health_events() {
+    DATALAYER_CAN_DEVICE_TYPE& health = datalayer.system.info.can_device[device_index];
+    if (health.send_fail) {
+      set_event(buffer_full_event, 0);
+      health.send_fail = false;
+    } else {
+      clear_event(buffer_full_event);
+    }
+    if (health.bus_error) {
+      set_event(bus_error_event, 0);
+      health.bus_error = false;
+    } else {
+      clear_event(bus_error_event);
+    }
+  }
 };
+
+// Unique physical CAN devices created by init_CAN(), in creation order.
+const std::vector<CanDevice*>& unique_can_devices();
 
 #endif  // _COMM_CAN_DEVICE_H_
