@@ -272,10 +272,9 @@ class Mcp2515Device : public CanDevice {
 
 class Mcp2518Device;
 
-static NativeTwaiDevice* native_dev = nullptr;
-static Mcp2515Device* mcp2515_dev = nullptr;
-static Mcp2518Device* fd_dev = nullptr;
-static Mcp2518Device* fd_dev_2 = nullptr;
+// The ACAN2517FD begin() callback must be a captureless function pointer, so
+// the two FD instances are reachable through this array for their ISR
+// trampolines.
 static Mcp2518Device* fd_instances[2] = {nullptr, nullptr};
 
 // Logical interface -> physical device. Entries may repeat: on boards where
@@ -423,7 +422,7 @@ bool init_CAN() {
   // Native CAN (onboard the ESP32)
 
   if (can_receiver_registered(CAN_NATIVE)) {
-    native_dev = new NativeTwaiDevice();
+    NativeTwaiDevice* native_dev = new NativeTwaiDevice();
     device_for[CAN_NATIVE] = native_dev;
     all_devices.push_back(native_dev);
     if (!native_dev->init(can_receiver_speed(CAN_NATIVE, CAN_Speed::CAN_SPEED_500KBPS))) {
@@ -434,7 +433,7 @@ bool init_CAN() {
   // Add-on CAN interface (via MCP2515)
 
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
-    mcp2515_dev = new Mcp2515Device();
+    Mcp2515Device* mcp2515_dev = new Mcp2515Device();
     device_for[CAN_ADDON_MCP2515] = mcp2515_dev;
     all_devices.push_back(mcp2515_dev);
     if (!mcp2515_dev->init(can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS))) {
@@ -486,17 +485,17 @@ bool init_CAN() {
       }
     }
 
-    fd_dev = new Mcp2518Device({.index = 0,
-                                .cs_pin = cs_pin,
-                                .int_pin = int_pin,
-                                .int0_pin = int0_pin,
-                                .int1_pin = int1_pin,
-                                .spi = spi2517,
-                                .freq = esp32hal->MCP2517_FREQ(),
-                                .set_clko = true,
-                                .clko_div = static_cast<uint8_t>(esp32hal->MCP2517_CLKODIV()),
-                                .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
-                                .error_log_prefix = "CAN-FD Configuration error 0x"});
+    Mcp2518Device* fd_dev = new Mcp2518Device({.index = 0,
+                                               .cs_pin = cs_pin,
+                                               .int_pin = int_pin,
+                                               .int0_pin = int0_pin,
+                                               .int1_pin = int1_pin,
+                                               .spi = spi2517,
+                                               .freq = esp32hal->MCP2517_FREQ(),
+                                               .set_clko = true,
+                                               .clko_div = static_cast<uint8_t>(esp32hal->MCP2517_CLKODIV()),
+                                               .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
+                                               .error_log_prefix = "CAN-FD Configuration error 0x"});
     // One physical chip serves both logical FD names on boards that expose both.
     device_for[CANFD_NATIVE] = fd_dev;
     device_for[CANFD_ADDON_MCP2518] = fd_dev;
@@ -534,17 +533,17 @@ bool init_CAN() {
       spi2517_2->begin(sck_pin, sdo_pin, sdi_pin);
     }
 
-    fd_dev_2 = new Mcp2518Device({.index = 1,
-                                  .cs_pin = cs_pin,
-                                  .int_pin = int_pin,
-                                  .int0_pin = GPIO_NUM_NC,
-                                  .int1_pin = GPIO_NUM_NC,
-                                  .spi = spi2517_2,
-                                  .freq = esp32hal->MCP2517_FREQ2(),
-                                  .set_clko = false,
-                                  .clko_div = 0,
-                                  .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
-                                  .error_log_prefix = "CAN-FD 2 Configuration error 0x"});
+    Mcp2518Device* fd_dev_2 = new Mcp2518Device({.index = 1,
+                                                 .cs_pin = cs_pin,
+                                                 .int_pin = int_pin,
+                                                 .int0_pin = GPIO_NUM_NC,
+                                                 .int1_pin = GPIO_NUM_NC,
+                                                 .spi = spi2517_2,
+                                                 .freq = esp32hal->MCP2517_FREQ2(),
+                                                 .set_clko = false,
+                                                 .clko_div = 0,
+                                                 .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
+                                                 .error_log_prefix = "CAN-FD 2 Configuration error 0x"});
     device_for[CANFD_ADDON_MCP2518_2] = fd_dev_2;
     all_devices.push_back(fd_dev_2);
     if (!fd_dev_2->init(can_receiver_speed(CANFD_ADDON_MCP2518_2, CAN_Speed::CAN_SPEED_500KBPS))) {
@@ -580,20 +579,10 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
 
 // Receive functions
 void receive_can() {
-  if (native_dev && native_dev->initialized) {
-    native_dev->poll_receive();  // Receive CAN messages from native CAN port
-  }
-
-  if (mcp2515_dev && mcp2515_dev->initialized) {
-    mcp2515_dev->poll_receive();  // Receive CAN messages on add-on MCP2515 chip
-  }
-
-  if (fd_dev && fd_dev->initialized) {
-    fd_dev->poll_receive();  // Receive CAN-FD messages.
-  }
-
-  if (fd_dev_2 && fd_dev_2->initialized) {
-    fd_dev_2->poll_receive();  // Receive CAN-FD messages on 2nd CAN-FD add-on.
+  for (CanDevice* dev : all_devices) {
+    if (dev->initialized) {
+      dev->poll_receive();
+    }
   }
 }
 
@@ -698,48 +687,28 @@ void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection ms
 }
 
 void stop_can() {
-  if (native_dev) {
-    native_dev->stop();
-  }
-
-  if (mcp2515_dev && mcp2515_dev->initialized) {
-    mcp2515_dev->stop();
-  }
-
-  if (fd_dev && fd_dev->initialized) {
-    fd_dev->stop();
-  }
-
-  if (fd_dev_2 && fd_dev_2->initialized) {
-    fd_dev_2->stop();
+  for (CanDevice* dev : all_devices) {
+    if (dev->initialized) {
+      dev->stop();
+    }
   }
 }
 
 void restart_can() {
-  if (native_dev) {
-    native_dev->restart();
-  }
-
-  if (mcp2515_dev && mcp2515_dev->initialized) {
-    mcp2515_dev->restart();
-  }
-
-  if (fd_dev && fd_dev->initialized) {
-    fd_dev->restart();
-  }
-
-  if (fd_dev_2 && fd_dev_2->initialized) {
-    fd_dev_2->restart();
+  for (CanDevice* dev : all_devices) {
+    if (dev->initialized) {
+      dev->restart();
+    }
   }
 }
 
 // Change the speed of the given CAN interface. Returns true if successful.
+// Devices without runtime speed change (the FD controllers) inherit the base
+// class refusal.
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
-  if (interface == CAN_Interface::CAN_NATIVE && native_dev) {
-    return native_dev->change_speed(speed);
-  } else if (interface == CAN_Interface::CAN_ADDON_MCP2515 && mcp2515_dev && mcp2515_dev->initialized) {
-    return mcp2515_dev->change_speed(speed);
+  CanDevice* dev = (interface < NO_CAN_INTERFACE) ? device_for[interface] : nullptr;
+  if (dev == nullptr || !dev->initialized) {
+    return false;
   }
-
-  return false;
+  return dev->change_speed(speed);
 }
