@@ -78,6 +78,7 @@ add_executable(tests
     battery/foxess_tests.cpp 
     battery/still_alive_tests.cpp
     battery/VolvoSPATest.cpp
+    battery/UdsCanBatteryTest.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
@@ -135,7 +136,7 @@ add_executable(tests
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
     ../Software/src/battery/MEB-BATTERY.cpp
     ../Software/src/battery/MG-5-BATTERY.cpp
-    ../Software/src/battery/MG-HS-PHEV-BATTERY.cpp
+    ../Software/src/battery/MG-GEN1-BATTERY.cpp
     ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
     ../Software/src/battery/ORION-BMS.cpp
     ../Software/src/battery/PYLON-BATTERY.cpp

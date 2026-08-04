@@ -35,7 +35,7 @@
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
-#include "MG-HS-PHEV-BATTERY.h"
+#include "MG-GEN1-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"
@@ -153,8 +153,8 @@ const char* name_for_battery_type(BatteryType type) {
     case BatteryType::Mg5:
       return Mg5Battery::Name;
 #endif
-    case BatteryType::MgHsPhev:
-      return MgHsPHEVBattery::Name;
+    case BatteryType::MgGen1:
+      return MgGen1Battery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -278,8 +278,8 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::Mg5:
       return new Mg5Battery();
 #endif
-    case BatteryType::MgHsPhev:
-      return new MgHsPHEVBattery();
+    case BatteryType::MgGen1:
+      return new MgGen1Battery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
@@ -348,7 +348,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
     case BatteryType::KiaHyundai64:
-    case BatteryType::MgHsPhev:
+    case BatteryType::MgGen1:
     case BatteryType::Pylon:
     case BatteryType::SantaFePhev:
     case BatteryType::RelionBattery:
@@ -428,8 +428,9 @@ void setup_battery() {
                                              &datalayer.system.status.battery2_allowed_contactor_closing,
                                              can_config.battery_double);
           break;
-        case BatteryType::MgHsPhev:
-          battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
+        case BatteryType::MgGen1:
+          battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
           break;
         case BatteryType::Pylon:
           battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);

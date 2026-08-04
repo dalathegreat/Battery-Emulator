@@ -42,7 +42,7 @@ enum class BatteryType {
   TestFake = 34,
   VolvoSpa = 35,
   VolvoSpaHybrid = 36,
-  MgHsPhev = 37,
+  MgGen1 = 37,
   SamsungSdiLv = 38,
   HyundaiIoniq28 = 39,
   Kia64FD = 40,
