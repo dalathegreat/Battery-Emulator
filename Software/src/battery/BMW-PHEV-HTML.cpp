@@ -387,7 +387,7 @@ String BmwPhevHtmlRenderer::get_status_html() {
 
     content += "<tbody>";
 
-    for (int i = 0; i < datalayer_extended.bmwphev.dtc_count; i++) {
+    for (int i = 0; i < datalayer_extended.bmwphev.dtc_count; ++i) {
       uint32_t code = datalayer_extended.bmwix.dtc_codes[i];    //Note we re-use datalayer for iX to save space
       uint8_t status = datalayer_extended.bmwix.dtc_status[i];  //Note we re-use datalayer for iX to save space
 

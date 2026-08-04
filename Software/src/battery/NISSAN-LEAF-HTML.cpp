@@ -120,7 +120,7 @@ String NissanLeafHtmlRenderer::render_dtc_section(DATALAYER_BATTERY_DTC_TYPE& dt
       "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
 
   const char SYS[5] = "PCBU";
-  for (uint8_t i = 0; i < dtc.dtc_count; i++) {
+  for (uint8_t i = 0; i < dtc.dtc_count; ++i) {
     uint32_t code = dtc.dtc_codes[i];
     uint8_t status = dtc.dtc_status[i];
 

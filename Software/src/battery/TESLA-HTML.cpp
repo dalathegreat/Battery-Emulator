@@ -451,9 +451,9 @@ String TeslaHtmlRenderer::get_status_html() {
 
     int total_active = 0;
     for (auto& g : groups) {
-      for (int i = 0; i < g.count; i++) {
+      for (int i = 0; i < g.count; ++i) {
         if (g.active[i]) {
-          total_active++;
+          ++total_active;
         }
       }
     }
@@ -467,7 +467,7 @@ String TeslaHtmlRenderer::get_status_html() {
           "<tr><th style='text-align:left;padding:2px 20px 2px 0'>ECU</th>"
           "<th style='text-align:left;padding:2px 0'>Description</th></tr>";
       for (auto& g : groups) {
-        for (int i = 0; i < g.count; i++) {
+        for (int i = 0; i < g.count; ++i) {
           if (!g.active[i]) {
             continue;
           }
