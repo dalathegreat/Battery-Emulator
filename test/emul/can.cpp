@@ -2,6 +2,7 @@
 
 #include "../../Software/src/communication/Transmitter.h"
 #include "../../Software/src/communication/can/comm_can.h"
+#include "../../Software/src/communication/can/comm_can_device.h"
 
 // Records every frame transmitted by the emulated CAN interface so unit tests
 // can assert what the firmware actually put on the wire (UDS requests, ISO-TP
@@ -24,6 +25,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
 
 // register_can_receiver and the fan-out now come from the real
 // comm_can_dispatch.cpp, which is hardware-free and in the test build.
+
+const std::vector<CanDevice*>& unique_can_devices() {
+  static std::vector<CanDevice*> no_devices;
+  return no_devices;
+}
 
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   return true;

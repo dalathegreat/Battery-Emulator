@@ -143,6 +143,7 @@ void init_events(void) {
   }
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2518FD_2_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_NATIVE_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
@@ -317,6 +318,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2518FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP2518FD_2_INIT_FAILURE:
+      return "Second CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CAN_NATIVE_BUFFER_FULL:
