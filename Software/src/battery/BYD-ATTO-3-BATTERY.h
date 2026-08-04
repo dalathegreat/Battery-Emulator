@@ -192,9 +192,20 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t RUNNING_STEP_1 = 1;
   static const uint8_t RUNNING_STEP_2 = 2;
   static const uint8_t RUNNING_STEP_3 = 3;
+  static const uint8_t RUNNING_STEP_4 = 4;
   uint8_t battery_type = NOT_DETERMINED_YET;
   uint8_t stateMachineClearCrash = NOT_RUNNING;
   uint8_t stateMachineCalibrateSOC = NOT_RUNNING;
+
+  // Isolation monitor routine (RoutineControl 0x2008); shares the 0x7E7 session with SOC cal.
+  uint8_t stateMachineIsoRoutine = NOT_RUNNING;
+  uint8_t isoRoutineAction = 0;  // 1 disable (31 01), 2 enable (31 02)
+  uint8_t increaseTimeoutIso = 0;
+  // keep_iso_disabled enforcement: re-send disable after each BMS start (monitor re-enables on power-up)
+  bool bms_was_alive = false;
+  bool iso_reassert_needed = false;
+  unsigned long bms_alive_since_ms = 0;
+  unsigned long iso_reassert_attempt_ms = 0;
 
   // DTC readout: request 0x19 02 09, reassemble the 0x59 02 ISO-TP reply, parse 4 bytes per DTC.
   static const int MAX_DTC_COUNT = 30;
@@ -287,6 +298,8 @@ class BydAttoBattery : public CanBattery {
 
   bool BMS_voltage_available = false;
   bool battery_insulation_valid = false;  // Zero is a valid 0x43A fault reading, so track receipt separately
+  bool battery_iso_measurement_active = false;  // 0x35E b0 bit0x80
+  unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};

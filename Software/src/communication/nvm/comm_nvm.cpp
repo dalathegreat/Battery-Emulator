@@ -275,9 +275,11 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);
   datalayer_extended.bydAtto3.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN", true);
+  datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
+  datalayer_extended.bydAtto3_2.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF2", true);
 }
 
 void clear_wifi_sta_settings() {
@@ -328,6 +330,8 @@ void store_settings() {
   settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
   settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDKEEPISOOFF2", datalayer_extended.bydAtto3_2.keep_iso_disabled);
 }
