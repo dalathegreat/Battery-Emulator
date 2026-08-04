@@ -1,0 +1,21 @@
+[
+  {"code": 5230592, "dtc": "4FD000", "s_dsc": "LBC INTERNAL COMMS", "l_dsc": "Lithium Battery Controller internal module communication error"},
+  {"code": 995582, "dtc": "0F30FE", "s_dsc": "CELL SAMPLING SIGNAL", "l_dsc": "Cell voltage sampling circuit intermittent signal invalid"},
+  {"code": 545521, "dtc": "0852F1", "s_dsc": "HV RELAY CIRCUIT FAULT", "l_dsc": "Traction battery relay circuit malfunction"},
+  {"code": 287712, "dtc": "0463E0", "s_dsc": "WATER PUMP AGEING", "l_dsc": "Cooling pump ageing counter threshold reached"},
+  {"code": 824576, "dtc": "0C9500", "s_dsc": "HV INTERLOCK ERROR", "l_dsc": "High voltage interlock loop open circuit"},
+  {"code": 786432, "dtc": "0C0000", "s_dsc": "GENERIC LBC FAULT", "l_dsc": "Generic Lithium Battery Controller error"},
+  {"code": 786688, "dtc": "0C0100", "s_dsc": "LBC CHECKSUM FAULT", "l_dsc": "Lithium Battery Controller EEPROM memory checksum fault"},
+  {"code": 786944, "dtc": "0C0200", "s_dsc": "LBC OVER-TEMPERATURE", "l_dsc": "Lithium Battery Controller over-temperature protection threshold exceeded"},
+  {"code": 787200, "dtc": "0C0300", "s_dsc": "CELL OVER-VOLTAGE", "l_dsc": "Lithium Battery Controller cell over-voltage hardware trip"},
+  {"code": 787456, "dtc": "0C0400", "s_dsc": "CELL UNDER-VOLTAGE", "l_dsc": "Lithium Battery Controller cell under-voltage hardware trip"},
+  {"code": 787712, "dtc": "0C0500", "s_dsc": "CURRENT SENSOR FAULT", "l_dsc": "Lithium Battery Controller current shunt sensor out of range"},
+  {"code": 787968, "dtc": "0C0600", "s_dsc": "INSULATION FAULT", "l_dsc": "High voltage battery insulation breakdown or low isolation resistance"},
+  {"code": 788224, "dtc": "0C0700", "s_dsc": "BALANCING FAULT", "l_dsc": "Lithium Battery Controller cell balancing transistor circuit fault"},
+  {"code": 788480, "dtc": "0C0800", "s_dsc": "CAN BUS TIMEOUT", "l_dsc": "Lithium Battery Controller CAN communication bus-off or timeout"},
+  {"code": 824832, "dtc": "0C9600", "s_dsc": "CONTACTOR STUCK CLOSED", "l_dsc": "Main high voltage contactor relay contacts welded or stuck closed"},
+  {"code": 825088, "dtc": "0C9700", "s_dsc": "PRECHARGE FAULT", "l_dsc": "Precharge circuit timeout or inverter DC bus capacitor precharge failure"},
+  {"code": 825344, "dtc": "0C9800", "s_dsc": "MAIN FUSE OPEN", "l_dsc": "Main high voltage battery fuse or manual service disconnect plug open"},
+  {"code": 545777, "dtc": "0853F1", "s_dsc": "HV SHORT CIRCUIT", "l_dsc": "High voltage DC bus short circuit or excessive discharge current surge"},
+  {"code": 546033, "dtc": "0854F1", "s_dsc": "CHARGER DC FAULT", "l_dsc": "Charger high voltage DC input reverse polarity or over-voltage fault"}
+]
