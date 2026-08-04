@@ -1,7 +1,6 @@
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
-#include <cstring>  //For unit test
+#include <algorithm>  //std::min_element/max_element
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
@@ -58,23 +57,80 @@ void RenaultZoeGen1Battery::
   }
 
   datalayer_battery->status.voltage_dV = ((calculated_total_pack_voltage_mV / 100));  // mV to dV
+}
 
-  //Update extended datalayer
-  if (datalayer_zoe) {
-    datalayer_zoe->CUV = LB_CUV;
-    datalayer_zoe->HVBIR = LB_HVBIR;
-    datalayer_zoe->HVBUV = LB_HVBUV;
-    datalayer_zoe->EOCR = LB_EOCR;
-    datalayer_zoe->HVBOC = LB_HVBOC;
-    datalayer_zoe->HVBOT = LB_HVBOT;
-    datalayer_zoe->HVBOV = LB_HVBOV;
-    datalayer_zoe->COV = LB_COV;
-    datalayer_zoe->mileage_km = battery_mileage_in_km;
-    datalayer_zoe->alltime_kWh = kWh_from_beginning_of_battery_life;
+uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `data`
+  // points at the raw value bytes, starting right after the echoed local
+  // identifier (the response is `61 <local ID> <value...>`).
+  switch (pid) {
+    case GROUP1_CELLVOLTAGES_1_POLL:  // 0x41, cells 1-62
+      if (length >= 124) {
+        for (uint8_t cell = 0; cell < 62; cell++) {
+          datalayer_battery->status.cell_voltages_mV[cell] = (data[cell * 2] << 8) | data[cell * 2 + 1];
+        }
+        // Cell 47 measurement is inbetween pack halves. If low, fuse blown
+        if (datalayer_battery->status.cell_voltages_mV[47] < 100) {
+          set_event(EVENT_BATTERY_FUSE, datalayer_battery->status.cell_voltages_mV[47]);
+        } else {
+          clear_event(EVENT_BATTERY_FUSE);
+        }
+      }
+      break;
+    case GROUP2_CELLVOLTAGES_2_POLL:  // 0x42, cells 63-96
+      if (length >= 68) {
+        for (uint8_t cell = 0; cell < 34; cell++) {
+          datalayer_battery->status.cell_voltages_mV[62 + cell] = (data[cell * 2] << 8) | data[cell * 2 + 1];
+        }
+      }
+      break;
+    case GROUP3_METRICS:  // 0x61, mileage + alltime energy
+      if (length >= 17) {
+        battery_mileage_in_km = (data[11] << 8) | data[12];
+        kWh_from_beginning_of_battery_life = (data[15] << 8) | data[16];
+      }
+      break;
+    case GROUP4_SOC:  // 0x03
+      if (length >= 6) {
+        SOC_polled = (data[4] << 8) | data[5];
+      }
+      break;
+    case GROUP5_TEMPERATURE_POLL:  // 0x04, 12 temperatures spaced 3 bytes apart
+      if (length >= 36) {
+        cell_1_temperature_polled = (data[2] - 40);
+        cell_2_temperature_polled = (data[5] - 40);
+        cell_3_temperature_polled = (data[8] - 40);
+        cell_4_temperature_polled = (data[11] - 40);
+        cell_5_temperature_polled = (data[14] - 40);
+        cell_6_temperature_polled = (data[17] - 40);
+        cell_7_temperature_polled = (data[20] - 40);
+        cell_8_temperature_polled = (data[23] - 40);
+        cell_9_temperature_polled = (data[26] - 40);
+        cell_10_temperature_polled = (data[29] - 40);
+        cell_11_temperature_polled = (data[32] - 40);
+        cell_12_temperature_polled = (data[35] - 40);
+      }
+      break;
+    case GROUP6_BALANCING:  // 0x07, one bit per cell, MSB first within each byte
+      for (uint8_t cell = 0; cell < 96; cell++) {
+        if ((cell >> 3) >= length) {
+          break;
+        }
+        datalayer_battery->status.cell_balancing_status[cell] = (data[cell >> 3] >> (7 - (cell & 7))) & 0x01;
+      }
+      break;
+    default:  //Unknown PID, ignore
+      break;
   }
+  return 0;  //Continue scanning the PID list in order
 }
 
 void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  // UDS frames (0x7BB replies) are handled by the superclass.
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
   switch (rx_frame.ID) {
     case 0x155:  //10ms - Charging power, current and SOC - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -92,7 +148,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
-        datalayer.battery.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;
       }
       LB_CUV = (rx_frame.data.u8[0] & 0x03);
@@ -122,7 +178,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Heartbeat = rx_frame.data.u8[2];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
-        datalayer.battery.status.CAN_error_counter++;
+        datalayer_battery->status.CAN_error_counter++;
         break;
       }
       break;
@@ -145,420 +201,6 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7BB:  //Reply from active polling
-      frame0 = rx_frame.data.u8[0];
-
-      switch (frame0) {
-        case 0x10:  //PID HEADER, datarow 0
-          requested_poll = rx_frame.data.u8[3];
-          transmit_can_frame(&ZOE_ACK_79B);
-
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[1] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[62] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[63] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP3_METRICS) {
-            //10,14,61,61,00,0A,8C,00,
-          }
-          if (requested_poll == GROUP4_SOC) {
-            //10,1D,61,03,01,94,1F,85, (1F85 = 8069 real SOC?)
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //10,4D,61,04,09,12,3A,09,
-            cell_1_temperature_polled = (rx_frame.data.u8[6] - 40);
-          }
-          if (requested_poll == GROUP6_BALANCING) {
-            //RX0 7BB [8] 10 0E 61 07 00 00 00 00
-            datalayer_battery->status.cell_balancing_status[0] = (rx_frame.data.u8[4] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[1] = (rx_frame.data.u8[4] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[2] = (rx_frame.data.u8[4] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[3] = (rx_frame.data.u8[4] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[4] = (rx_frame.data.u8[4] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[5] = (rx_frame.data.u8[4] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[6] = (rx_frame.data.u8[4] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[7] = (rx_frame.data.u8[4] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[8] = (rx_frame.data.u8[5] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[9] = (rx_frame.data.u8[5] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[10] = (rx_frame.data.u8[5] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[11] = (rx_frame.data.u8[5] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[12] = (rx_frame.data.u8[5] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[13] = (rx_frame.data.u8[5] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[14] = (rx_frame.data.u8[5] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[15] = (rx_frame.data.u8[5] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[16] = (rx_frame.data.u8[6] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[17] = (rx_frame.data.u8[6] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[18] = (rx_frame.data.u8[6] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[19] = (rx_frame.data.u8[6] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[20] = (rx_frame.data.u8[6] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[21] = (rx_frame.data.u8[6] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[22] = (rx_frame.data.u8[6] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[23] = (rx_frame.data.u8[6] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[24] = (rx_frame.data.u8[7] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[25] = (rx_frame.data.u8[7] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[26] = (rx_frame.data.u8[7] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[27] = (rx_frame.data.u8[7] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[28] = (rx_frame.data.u8[7] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[29] = (rx_frame.data.u8[7] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[30] = (rx_frame.data.u8[7] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[31] = (rx_frame.data.u8[7] & 0x01);
-          }
-          break;
-        case 0x21:  //First datarow in PID group
-          if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == false)) {
-            cellvoltages[2] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[3] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[4] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == true)) {
-            cellvoltages[58] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[59] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[60] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[64] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[65] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[66] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP3_METRICS) {
-            //21,C8,C8,C8,C0,C0,00,00,
-          }
-          if (requested_poll == GROUP4_SOC) {
-            //21,21,32,00,00,00,00,01, (2132 = 8498 dash SOC?)
-            SOC_polled = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            cell_2_temperature_polled = (rx_frame.data.u8[2] - 40);
-            cell_3_temperature_polled = (rx_frame.data.u8[5] - 40);
-            //21,11,3A,09,14,3A,09,0D,
-          }
-          if (requested_poll == GROUP6_BALANCING) {
-            //(62934.118) RX0 7BB [8] 21 00 00 00 00 00 00 00
-            datalayer_battery->status.cell_balancing_status[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[35] = (rx_frame.data.u8[1] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[36] = (rx_frame.data.u8[1] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[37] = (rx_frame.data.u8[1] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[38] = (rx_frame.data.u8[1] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[39] = (rx_frame.data.u8[1] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[40] = (rx_frame.data.u8[2] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[41] = (rx_frame.data.u8[2] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[42] = (rx_frame.data.u8[2] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[43] = (rx_frame.data.u8[2] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[44] = (rx_frame.data.u8[2] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[45] = (rx_frame.data.u8[2] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[46] = (rx_frame.data.u8[2] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[47] = (rx_frame.data.u8[2] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[48] = (rx_frame.data.u8[3] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[49] = (rx_frame.data.u8[3] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[50] = (rx_frame.data.u8[3] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[51] = (rx_frame.data.u8[3] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[52] = (rx_frame.data.u8[3] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[53] = (rx_frame.data.u8[3] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[54] = (rx_frame.data.u8[3] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[55] = (rx_frame.data.u8[3] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[56] = (rx_frame.data.u8[4] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[57] = (rx_frame.data.u8[4] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[58] = (rx_frame.data.u8[4] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[59] = (rx_frame.data.u8[4] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[60] = (rx_frame.data.u8[4] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[61] = (rx_frame.data.u8[4] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[62] = (rx_frame.data.u8[4] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[63] = (rx_frame.data.u8[4] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[64] = (rx_frame.data.u8[5] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[65] = (rx_frame.data.u8[5] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[66] = (rx_frame.data.u8[5] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[67] = (rx_frame.data.u8[5] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[68] = (rx_frame.data.u8[5] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[69] = (rx_frame.data.u8[5] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[70] = (rx_frame.data.u8[5] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[71] = (rx_frame.data.u8[5] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[72] = (rx_frame.data.u8[6] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[73] = (rx_frame.data.u8[6] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[74] = (rx_frame.data.u8[6] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[75] = (rx_frame.data.u8[6] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[76] = (rx_frame.data.u8[6] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[77] = (rx_frame.data.u8[6] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[78] = (rx_frame.data.u8[6] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[79] = (rx_frame.data.u8[6] & 0x01);
-
-            datalayer_battery->status.cell_balancing_status[80] = (rx_frame.data.u8[7] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[81] = (rx_frame.data.u8[7] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[82] = (rx_frame.data.u8[7] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[83] = (rx_frame.data.u8[7] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[87] = (rx_frame.data.u8[7] & 0x01);
-          }
-
-          break;
-        case 0x22:  //Second datarow in PID group
-          if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == false)) {
-            cellvoltages[5] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[6] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[7] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[8] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == true)) {
-            cellvoltages[61] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            looping_over_20 = false;
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[67] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[68] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[69] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[70] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP3_METRICS) {
-            //22,BB,7C,00,00,23,E4,FF, (BB7C = 47996km) (23E4 = 9188kWh)
-            battery_mileage_in_km = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            kWh_from_beginning_of_battery_life = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-          }
-          if (requested_poll == GROUP4_SOC) {
-            //22,95,01,93,00,00,00,FF,
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            cell_4_temperature_polled = (rx_frame.data.u8[1] - 40);
-            cell_5_temperature_polled = (rx_frame.data.u8[4] - 40);
-            cell_6_temperature_polled = (rx_frame.data.u8[7] - 40);
-            //22,3A,08,F6,3B,08,EE,3B,
-          }
-          if (requested_poll == GROUP6_BALANCING) {
-            //(62934.128) RX0 7BB [8] 22 00 00 00 00 00 00 00
-            datalayer_battery->status.cell_balancing_status[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
-            datalayer_battery->status.cell_balancing_status[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
-            datalayer_battery->status.cell_balancing_status[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
-            datalayer_battery->status.cell_balancing_status[91] = (rx_frame.data.u8[1] & 0x10) >> 4;
-            datalayer_battery->status.cell_balancing_status[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
-            datalayer_battery->status.cell_balancing_status[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
-            datalayer_battery->status.cell_balancing_status[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
-            datalayer_battery->status.cell_balancing_status[95] = (rx_frame.data.u8[1] & 0x01);
-          }
-          break;
-        case 0x23:  //Third datarow in PID group
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[9] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[10] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[11] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[71] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[72] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[73] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP4_SOC) {
-            //23,FF,FF,FF,01,20,7B,00,
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //23,08,AC,3D,08,C0,3C,09,
-            cell_7_temperature_polled = (rx_frame.data.u8[3] - 40);
-            cell_8_temperature_polled = (rx_frame.data.u8[6] - 40);
-          }
-          break;
-        case 0x24:  //Fourth datarow in PID group
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[12] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[13] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[14] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[15] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[74] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[75] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[76] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[77] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP4_SOC) {
-            //24,00,00,00,00,00,00,00,
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //24,03,3A,09,11,3A,09,19,
-            cell_9_temperature_polled = (rx_frame.data.u8[2] - 40);
-            cell_10_temperature_polled = (rx_frame.data.u8[5] - 40);
-          }
-          break;
-        case 0x25:  //Fifth datarow in PID group
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[16] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[17] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[18] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[78] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[79] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[80] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //25,3A,09,14,3A,FF,FF,FF,
-            cell_11_temperature_polled = (rx_frame.data.u8[1] - 40);
-            cell_12_temperature_polled = (rx_frame.data.u8[4] - 40);
-          }
-          break;
-        case 0x26:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[19] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[20] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[21] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[22] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[81] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[82] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[83] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[84] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //26,FF,FF,FF,FF,FF,FF,FF,G
-          }
-          break;
-        case 0x27:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[23] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[24] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[25] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[85] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[86] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[87] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //27,FF,FF,FF,FF,FF,FF,FF,
-          }
-          break;
-        case 0x28:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[26] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[27] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[28] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[29] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[88] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[89] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[91] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //28,FF,FF,FF,FF,FF,FF,FF,
-          }
-          break;
-        case 0x29:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[30] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[31] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[32] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[92] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[93] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[94] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //29,FF,FF,FF,FF,FF,FF,FF,
-          }
-          break;
-        case 0x2A:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[33] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[34] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[35] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[36] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP2_CELLVOLTAGES_2_POLL) {
-            cellvoltages[95] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            //All cells read, map them to the global array
-            memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages, 96 * sizeof(uint16_t));
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //2A,FF,FF,FF,FF,FF,3A,3A,
-          }
-          break;
-        case 0x2B:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[37] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[38] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[39] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            //2B,3D,00,00,00,00,00,00,
-          }
-          break;
-        case 0x2C:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[40] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[41] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[42] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[43] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          break;
-        case 0x2D:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[44] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[45] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[46] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          break;
-        case 0x2E:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[47] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            if (cellvoltages[47] < 100) {  //This cell measurement is inbetween pack halves. If low, fuse blown
-              set_event(EVENT_BATTERY_FUSE, cellvoltages[47]);
-            } else {
-              clear_event(EVENT_BATTERY_FUSE);
-            }
-            cellvoltages[48] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[49] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[50] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-          }
-          break;
-        case 0x2F:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[51] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[52] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-            cellvoltages[53] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-            highbyte_cell_next_frame = rx_frame.data.u8[7];
-          }
-          break;
-        case 0x20:
-          if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
-            cellvoltages[54] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
-            cellvoltages[55] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-            cellvoltages[56] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            cellvoltages[57] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-            looping_over_20 = true;
-          }
-          break;
-        default:
-          break;
-      }
-      break;
     default:
       break;
   }
@@ -566,7 +208,8 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
 
-  // Send 100ms CAN Message
+  // Send 100ms CAN Message (the BMS only answers diagnostic requests while it
+  // receives this wakeup frame)
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     transmit_can_frame(&ZOE_423);
@@ -580,47 +223,54 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
     }
     counter_423 = (counter_423 + 1) % 10;
   }
-  // 250ms CAN handling
-  if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
-    previousMillis250 = currentMillis;
 
-    switch (group) {
-      case 0:
-        current_poll = GROUP1_CELLVOLTAGES_1_POLL;
-        break;
-      case 1:
-        current_poll = GROUP2_CELLVOLTAGES_2_POLL;
-        break;
-      case 2:
-        current_poll = GROUP3_METRICS;
-        break;
-      case 3:
-        current_poll = GROUP4_SOC;
-        break;
-      case 4:
-        current_poll = GROUP5_TEMPERATURE_POLL;
-        break;
-      case 5:
-        current_poll = GROUP6_BALANCING;
-        break;
-      default:
-        break;
-    }
+  // UDS PID polling and DTC handling
+  transmit_uds_can(currentMillis);
+}
 
-    group = (group + 1) % 6;  // Cycle 0-1-2-3-4-5-0-1...
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
 
-    ZOE_POLL_79B.data.u8[2] = current_poll;
+String RenaultZoeGen1Battery::get_uds_info_html() {
+  String content;
+  content.reserve(500);
 
-    if (UserRequestedDTCReset == true) {
-      transmit_can_frame(&ZOE_CLEAR_DTC);
-      UserRequestedDTCReset = false;
-    } else {
-      transmit_can_frame(&ZOE_POLL_79B);
-    }
-  }
+  // clang-format off
+  content << "<h4>CUV " << LB_CUV << "</h4>"
+             "<h4>HVBIR " << LB_HVBIR << "</h4>"
+             "<h4>HVBUV " << LB_HVBUV << "</h4>"
+             "<h4>EOCR " << LB_EOCR << "</h4>"
+             "<h4>HVBOC " << LB_HVBOC << "</h4>"
+             "<h4>HVBOT " << LB_HVBOT << "</h4>"
+             "<h4>HVBOV " << LB_HVBOV << "</h4>"
+             "<h4>COV " << LB_COV << "</h4>"
+             "<h4>Battery mileage " << battery_mileage_in_km << " km</h4>"
+             "<h4>Alltime energy " << kWh_from_beginning_of_battery_life << " kWh</h4>";
+  // clang-format on
+
+  return content;
 }
 
 void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
+  // UDS: send requests/flow control to 0x79B, accept replies from the BMS on 0x7BB.
+  setup_uds(0x79B, 0x7BB);
+
+  // The Zoe Gen1 BMS only speaks KWP2000-style one-byte local identifiers.
+  set_pid_scan_mode(PidScanMode::OneByteLocalId);
+
+  static const uint16_t pid_scan_list[] = {
+      GROUP1_CELLVOLTAGES_1_POLL,  // Cells 1-62
+      GROUP2_CELLVOLTAGES_2_POLL,  // Cells 63-96
+      GROUP4_SOC,                  // SOC
+      GROUP5_TEMPERATURE_POLL,     // Cell temperatures
+      GROUP6_BALANCING,            // Balancing status bits
+      GROUP3_METRICS,              // Mileage + alltime energy
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;

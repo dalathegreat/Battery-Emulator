@@ -13,6 +13,9 @@ constexpr uint16_t UDS_PID_MAX_RETRIES = 10;
 // Traffic on 0x7DF (or on uds_address) that isn't ours implies an external
 // diagnostic tool is in use.
 constexpr uint16_t OBD2_REQUEST_ADDRESS = 0x7DF;
+// KWP2000 service for one-byte local identifier reads - not part of ISO 14229
+// UDS proper, but similar enough.
+constexpr uint8_t UDS_SID_READ_LOCAL_IDENTIFIER = 0x21;
 // How long to back off after detecting another diagnostic tool on the bus.
 constexpr uint16_t UDS_EXTERNAL_TOOL_BACKOFF_TICKS = 50;  // 5 seconds
 
@@ -220,6 +223,14 @@ static inline uint32_t parseBigEndianValue(const uint8_t* data, uint16_t length)
   return val;
 }
 
+void UdsCanBattery::set_pid_scan_mode(PidScanMode mode) {
+  // Derive the request SID and identifier width for this mode once, so the
+  // scan hot paths only read plain fields.
+  pid_scan_sid =
+      (mode == PidScanMode::OneByteLocalId) ? UDS_SID_READ_LOCAL_IDENTIFIER : (uint8_t)SID::ReadDataByIdentifier;
+  pid_scan_id_bytes = (mode == PidScanMode::OneByteLocalId) ? 1 : 2;
+}
+
 bool UdsCanBattery::transmit_uds_pid_scan() {
   // Called during the transmit phase if there's nothing else to do. Sends the
   // next request in the PID scan cycle. The PID list is walked in order and
@@ -244,10 +255,10 @@ bool UdsCanBattery::transmit_uds_pid_scan() {
     next_pid = pid_list[pid_scan_index];
   }
 
-  // Request the next PID
-  pending_pid = next_pid;
+  // Request the next PID.
   const uint8_t data[2] = {(uint8_t)((next_pid >> 8) & 0xFF), (uint8_t)(next_pid & 0xFF)};
-  uds_send(SID::ReadDataByIdentifier, data, sizeof(data), UDS_TIMEOUT_READ_DID);
+  pending_pid = next_pid;
+  uds_send((SID)pid_scan_sid, &data[2 - pid_scan_id_bytes], pid_scan_id_bytes, UDS_TIMEOUT_READ_DID);
   return true;
 }
 
@@ -257,32 +268,37 @@ bool UdsCanBattery::on_uds_pid_scan_response(uint8_t sid, const uint8_t* data, u
   // current PID transaction (unmatched frame, malformed response, or
   // ResponsePending, for which we keep waiting).
 
-  if (sid == UDS_RESPONSE_SID_OF(SID::ReadDataByIdentifier)) {
+  const uint8_t id_bytes = pid_scan_id_bytes;
+  const uint8_t value_offset = 1 + id_bytes;  // SID + identifier
+
+  if (sid == UDS_RESPONSE_SID_OF(pid_scan_sid)) {
     // This is a normal PID response, pass it to the handler
-    if (len < 3) {
-      // Malformed: no DID present, keep waiting for a proper response.
+    if (len < value_offset) {
+      // Malformed: no identifier present, keep waiting for a proper response.
       return false;
     }
-    uint16_t did = (data[1] << 8) | data[2];
+    uint16_t did = data[1];
+    if (id_bytes == 2) {
+      did = (did << 8) | data[2];
+    }
     if (did != pending_pid) {
-      // Response PID doesn't match the one we currently have in flight (maybe
-      // an old one?). Ignore it and keep waiting for the right one.
+      // Response identifier doesn't match the one we currently have in flight
+      // (maybe an old one?). Ignore it and keep waiting for the right one.
       return false;
     }
-    // Value starts at data[3]
-    // Decode up to 4 bytes of value, big endian.
-    uint32_t val = len > 3 ? parseBigEndianValue(&data[3], len - 3) : 0;
+    // Value starts after the identifier. Decode up to 4 bytes of value, big endian.
+    uint32_t val = len > value_offset ? parseBigEndianValue(&data[value_offset], len - value_offset) : 0;
 
     // The handler returns 0 to advance the scan list, or a PID to query
     // out-of-sequence first (a one-shot detour).
-    next_pid = handle_pid(did, val, &data[3], len - 3);
+    next_pid = handle_pid(did, val, &data[value_offset], len - value_offset);
     if (next_pid == 0) {
       advance_pid_scan();
     }
     pending_pid = 0;
     pid_retries = 0;
     return true;
-  } else if (sid == kNegativeResponseSid && len >= 3 && data[1] == (uint8_t)SID::ReadDataByIdentifier) {
+  } else if (sid == kNegativeResponseSid && len >= 3 && data[1] == pid_scan_sid) {
     if (data[2] == NegativeResponseCode::RequestCorrectlyReceived_ResponsePending) {
       // ResponsePending: keep waiting for the real response.
       return false;

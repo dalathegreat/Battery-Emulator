@@ -448,7 +448,7 @@ void setup_battery() {
                                        &datalayer.system.status.battery2_allowed_contactor_closing);
           break;
         case BatteryType::RenaultZoe1:
-          battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::RenaultZoe2:
           battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
