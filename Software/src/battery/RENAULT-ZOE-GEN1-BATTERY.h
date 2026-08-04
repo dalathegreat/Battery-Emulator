@@ -8,6 +8,7 @@
 
 class RenaultZoeGen1Battery : public CanBattery {
   friend class RenaultZoeGen1HtmlRenderer;
+
  public:
   // Use this constructor for the second battery.
   RenaultZoeGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ZOE* extended, CAN_Interface targetCan)

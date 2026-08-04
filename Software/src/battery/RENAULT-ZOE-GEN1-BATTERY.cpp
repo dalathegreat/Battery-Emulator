@@ -155,7 +155,8 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       static uint16_t dtc_exp = 0;
 
       if (pci == 0x00 && rx_frame.data.u8[1] == 0x50 && rx_frame.data.u8[2] == 0xC0) {  // Session 0xC0 granted!
-        CAN_frame f = {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x79B, .data = {0x03, 0x19, 0x02, 0xFF, 0, 0, 0, 0}};
+        CAN_frame f = {
+            .FD = false, .ext_ID = false, .DLC = 8, .ID = 0x79B, .data = {0x03, 0x19, 0x02, 0xFF, 0, 0, 0, 0}};
         transmit_can_frame(&f);
         break;
       }
@@ -168,8 +169,8 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         for (uint16_t i = 0; i < count; i++) {
           uint16_t offset = 2 + (i * 4);
           datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)rx_frame.data.u8[offset] << 16) |
-                                               ((uint32_t)rx_frame.data.u8[offset + 1] << 8) |
-                                               (uint32_t)rx_frame.data.u8[offset + 2];
+                                                ((uint32_t)rx_frame.data.u8[offset + 1] << 8) |
+                                                (uint32_t)rx_frame.data.u8[offset + 2];
           datalayer_battery->dtc.dtc_status[i] = rx_frame.data.u8[offset + 3];
         }
         datalayer_battery->dtc.dtc_count = count;
@@ -194,8 +195,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           for (uint16_t i = 0; i < count; i++) {
             uint16_t offset = 2 + (i * 4);
             datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)dtc_buf[offset] << 16) |
-                                                 ((uint32_t)dtc_buf[offset + 1] << 8) |
-                                                 (uint32_t)dtc_buf[offset + 2];
+                                                  ((uint32_t)dtc_buf[offset + 1] << 8) | (uint32_t)dtc_buf[offset + 2];
             datalayer_battery->dtc.dtc_status[i] = dtc_buf[offset + 3];
           }
           datalayer_battery->dtc.dtc_count = count;
