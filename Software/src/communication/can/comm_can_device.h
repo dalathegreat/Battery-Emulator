@@ -28,6 +28,12 @@ class CanDevice {
 
   bool initialized = false;
   const char* name = "";
+
+  // The logical interface received frames are logged under. Pinned to the
+  // values the pre-table code stamped on RX frames (the shared Stark FD chip
+  // logged under CANFD_ADDON_MCP2518, not the lower-numbered CANFD_NATIVE),
+  // so existing CAN-log captures and SavvyCAN bus numbers stay comparable.
+  CAN_Interface log_interface = NO_CAN_INTERFACE;
 };
 
 #endif  // _COMM_CAN_DEVICE_H_

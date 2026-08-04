@@ -26,13 +26,16 @@ volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .charger = CAN_NATIVE,
                                          .shunt = CAN_NATIVE};
 
-static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
+static void dispatch_frame(CAN_frame* rx_frame, class CanDevice* dev);
 static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
 
 // The native TWAI controller on the ESP32 itself.
 class NativeTwaiDevice : public CanDevice {
  public:
-  NativeTwaiDevice() { name = "Native CAN"; }
+  NativeTwaiDevice() {
+    name = "Native CAN";
+    log_interface = CAN_NATIVE;
+  }
 
   bool init(CAN_Speed speed) override {
     auto se_pin = esp32hal->CAN_SE_PIN();
@@ -116,7 +119,7 @@ class NativeTwaiDevice : public CanDevice {
         }
 
         //message incoming, pass it on to the handler
-        map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
+        dispatch_frame(&rx_frame, this);
       }
     }
 
@@ -183,7 +186,10 @@ class NativeTwaiDevice : public CanDevice {
 // MCP2515 add-on controller (classic CAN over SPI).
 class Mcp2515Device : public CanDevice {
  public:
-  Mcp2515Device() { name = "MCP2515"; }
+  Mcp2515Device() {
+    name = "MCP2515";
+    log_interface = CAN_ADDON_MCP2515;
+  }
 
   bool init(CAN_Speed speed) override {
     auto cs_pin = esp32hal->MCP2515_CS();
@@ -248,7 +254,7 @@ class Mcp2515Device : public CanDevice {
     int count = 0;
     while (count++ < 16 && can_->receiveFrame(rx_frame)) {
       copy_mcp2515_lite_frame_to_can_frame(rx_frame, full_frame);
-      map_can_frame_to_variable(&full_frame, CAN_ADDON_MCP2515);
+      dispatch_frame(&full_frame, this);
     }
 
     if (can_->hasErrors()) {
@@ -279,6 +285,12 @@ static Mcp2518Device* fd_dev = nullptr;
 static Mcp2518Device* fd_dev_2 = nullptr;
 static Mcp2518Device* fd_instances[2] = {nullptr, nullptr};
 
+// Logical interface -> physical device. Entries may repeat: on boards where
+// CANFD_NATIVE and CANFD_ADDON_MCP2518 are the same chip, both slots point at
+// the same device, and dispatch_frame delivers each physical frame to the
+// receivers of every logical interface mapped to it.
+static CanDevice* device_for[NO_CAN_INTERFACE] = {};
+
 // MCP2518FD add-on controller (CAN-FD over SPI). Instantiated twice on boards
 // with two FD chips; the SPI bus wiring (including bus sharing between the
 // two instances) is board topology and stays in init_CAN().
@@ -300,6 +312,7 @@ class Mcp2518Device : public CanDevice {
 
   explicit Mcp2518Device(const Config& config) : cfg_(config) {
     name = (cfg_.index == 0) ? "CAN-FD" : "CAN-FD 2";
+    log_interface = (cfg_.index == 0) ? CANFD_ADDON_MCP2518 : CANFD_ADDON_MCP2518_2;
     fd_instances[cfg_.index] = this;
   }
 
@@ -361,12 +374,7 @@ class Mcp2518Device : public CanDevice {
                      MCP2518frame.type == CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH);
       memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)sizeof(rx_frame.data.u8)));
       //message incoming, pass it on to the handler
-      if (cfg_.index == 0) {
-        map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
-        map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
-      } else {
-        map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518_2);
-      }
+      dispatch_frame(&rx_frame, this);
     }
 
     if (can_->hasCanErrors()) {
@@ -418,6 +426,7 @@ bool init_CAN() {
 
   if (can_receiver_registered(CAN_NATIVE)) {
     native_dev = new NativeTwaiDevice();
+    device_for[CAN_NATIVE] = native_dev;
     if (!native_dev->init(can_receiver_speed(CAN_NATIVE, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -427,6 +436,7 @@ bool init_CAN() {
 
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
     mcp2515_dev = new Mcp2515Device();
+    device_for[CAN_ADDON_MCP2515] = mcp2515_dev;
     if (!mcp2515_dev->init(can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -487,6 +497,9 @@ bool init_CAN() {
                                 .clko_div = static_cast<uint8_t>(esp32hal->MCP2517_CLKODIV()),
                                 .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
                                 .error_log_prefix = "CAN-FD Configuration error 0x"});
+    // One physical chip serves both logical FD names on boards that expose both.
+    device_for[CANFD_NATIVE] = fd_dev;
+    device_for[CANFD_ADDON_MCP2518] = fd_dev;
     if (!fd_dev->init(speed)) {
       return false;
     }
@@ -531,6 +544,7 @@ bool init_CAN() {
                                   .clko_div = 0,
                                   .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
                                   .error_log_prefix = "CAN-FD 2 Configuration error 0x"});
+    device_for[CANFD_ADDON_MCP2518_2] = fd_dev_2;
     if (!fd_dev_2->init(can_receiver_speed(CANFD_ADDON_MCP2518_2, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -646,24 +660,24 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
   }
 }
 
-static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
-  if (interface !=
-      CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
-    //TODO: This check can be removed later when refactored to use inline functions for logging
-    print_can_frame(*rx_frame, interface, frameDirection(MSG_RX));
-  }
+// Called by each device's poll_receive() once per received physical frame:
+// log it once, then deliver it to the receivers of every logical interface
+// mapped to the device.
+static void dispatch_frame(CAN_frame* rx_frame, CanDevice* dev) {
+  print_can_frame(*rx_frame, dev->log_interface, frameDirection(MSG_RX));
 
 #ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
-    if (interface !=
-        CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
-      //TODO: This check can be removed later when refactored to use inline functions for logging
-      add_can_frame_to_buffer(*rx_frame, interface, frameDirection(MSG_RX));
-    }
+    add_can_frame_to_buffer(*rx_frame, dev->log_interface, frameDirection(MSG_RX));
   }
 #endif
 
-  deliver_to_receivers(rx_frame, interface);
+  for (int i = 0; i < NO_CAN_INTERFACE; i++) {
+    if (device_for[i] != dev) {
+      continue;
+    }
+    deliver_to_receivers(rx_frame, static_cast<CAN_Interface>(i));
+  }
 }
 
 // For formatting CAN frames considerably faster than using snprintf
