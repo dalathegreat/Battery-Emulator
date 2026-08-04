@@ -25,7 +25,6 @@ volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .charger = CAN_NATIVE,
                                          .shunt = CAN_NATIVE};
 
-static void receive_frame_can_addon();
 static void receive_frame_canfd_addon();
 static void receive_frame_canfd_addon_2();
 static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
@@ -177,12 +176,94 @@ class NativeTwaiDevice : public CanDevice {
   gpio_num_t rx_pin_;
 };
 
+// MCP2515 add-on controller (classic CAN over SPI).
+class Mcp2515Device : public CanDevice {
+ public:
+  Mcp2515Device() { name = "MCP2515"; }
+
+  bool init(CAN_Speed speed) override {
+    auto cs_pin = esp32hal->MCP2515_CS();
+    auto int_pin = esp32hal->MCP2515_INT();
+    auto sck_pin = esp32hal->MCP2515_SCK();
+    auto miso_pin = esp32hal->MCP2515_MISO();
+    auto mosi_pin = esp32hal->MCP2515_MOSI();
+    auto rst_pin = esp32hal->MCP2515_RST();
+
+    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin, sck_pin, miso_pin, mosi_pin)) {
+      return false;
+    }
+
+    logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
+
+    if (rst_pin != GPIO_NUM_NC) {
+      pinMode(rst_pin, OUTPUT);
+      digitalWrite(rst_pin, HIGH);
+      delay(100);
+      digitalWrite(rst_pin, LOW);
+      delay(100);
+      digitalWrite(rst_pin, HIGH);
+      delay(100);
+    }
+
+    spi_ = new SPIClass(esp32hal->MCP2515_BUS());
+    spi_->begin(sck_pin, miso_pin, mosi_pin);
+    can_ = new MCP2515_Lite(*spi_, cs_pin, int_pin);
+
+    quartz_frequency_ = esp32hal->MCP2515_FREQ();
+    if (quartz_frequency_ == 0) {
+      quartz_frequency_ = can_->autodetectOscillatorFrequency();
+    }
+
+    if (can_->begin({(int)speed * 1000UL, quartz_frequency_})) {
+      logging.println("MCP2515 CAN ok");
+      initialized = true;
+      return true;
+    }
+    logging.println("MCP2515 CAN init failed");
+    set_event(EVENT_CANMCP2515_INIT_FAILURE, 1);
+    // This will leak, but we have failed and won't try to reinit.
+    can_ = nullptr;
+    return false;
+  }
+
+  bool try_send(const CAN_frame& tx_frame) override {
+    MCP2515_Lite_Frame mcp2515_frame;
+    copy_can_frame_to_mcp2515_lite_frame(tx_frame, mcp2515_frame);
+    return can_ != nullptr && can_->sendFrame(mcp2515_frame);
+  }
+
+  void poll_receive() override {
+    MCP2515_Lite_Frame rx_frame;
+    CAN_frame full_frame;
+
+    int count = 0;
+    while (count++ < 16 && can_->receiveFrame(rx_frame)) {
+      copy_mcp2515_lite_frame_to_can_frame(rx_frame, full_frame);
+      map_can_frame_to_variable(&full_frame, CAN_ADDON_MCP2515);
+    }
+
+    if (can_->hasErrors()) {
+      datalayer.system.info.can_2515_bus_error = true;
+    }
+  }
+
+  void stop() override { can_->pause(true); }
+
+  void restart() override { can_->pause(false); }
+
+  bool change_speed(CAN_Speed speed) override {
+    can_->changeSpeed({(int)speed * 1000UL, quartz_frequency_});
+    return true;
+  }
+
+ private:
+  MCP2515_Lite* can_ = nullptr;
+  SPIClass* spi_ = nullptr;
+  uint32_t quartz_frequency_ = 0;
+};
+
 static NativeTwaiDevice* native_dev = nullptr;
-
-static uint32_t quartz_frequency;
-
-static MCP2515_Lite* can2515 = nullptr;
-static SPIClass* SPI2515;
+static Mcp2515Device* mcp2515_dev = nullptr;
 
 static SPIClass* SPI2517;
 static ACAN2517FD* canfd = nullptr;
@@ -207,45 +288,8 @@ bool init_CAN() {
   // Add-on CAN interface (via MCP2515)
 
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
-    auto cs_pin = esp32hal->MCP2515_CS();
-    auto int_pin = esp32hal->MCP2515_INT();
-    auto sck_pin = esp32hal->MCP2515_SCK();
-    auto miso_pin = esp32hal->MCP2515_MISO();
-    auto mosi_pin = esp32hal->MCP2515_MOSI();
-    auto rst_pin = esp32hal->MCP2515_RST();
-
-    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin, sck_pin, miso_pin, mosi_pin)) {
-      return false;
-    }
-
-    logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
-
-    if (rst_pin != GPIO_NUM_NC) {
-      pinMode(rst_pin, OUTPUT);
-      digitalWrite(rst_pin, HIGH);
-      delay(100);
-      digitalWrite(rst_pin, LOW);
-      delay(100);
-      digitalWrite(rst_pin, HIGH);
-      delay(100);
-    }
-
-    SPI2515 = new SPIClass(esp32hal->MCP2515_BUS());
-    SPI2515->begin(sck_pin, miso_pin, mosi_pin);
-    can2515 = new MCP2515_Lite(*SPI2515, cs_pin, int_pin);
-
-    quartz_frequency = esp32hal->MCP2515_FREQ();
-    if (quartz_frequency == 0) {
-      quartz_frequency = can2515->autodetectOscillatorFrequency();
-    }
-
-    if (can2515->begin({(int)can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS) * 1000UL, quartz_frequency})) {
-      logging.println("MCP2515 CAN ok");
-    } else {
-      logging.println("MCP2515 CAN init failed");
-      set_event(EVENT_CANMCP2515_INIT_FAILURE, 1);
-      // This will leak, but we have failed and won't try to reinit.
-      can2515 = nullptr;
+    mcp2515_dev = new Mcp2515Device();
+    if (!mcp2515_dev->init(can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
   }
@@ -415,10 +459,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       }
     } break;
     case CAN_ADDON_MCP2515: {
-      MCP2515_Lite_Frame mcp2515_frame;
-      copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
-
-      if (can2515 == nullptr || !can2515->sendFrame(mcp2515_frame)) {
+      if (mcp2515_dev == nullptr || !mcp2515_dev->try_send(*tx_frame)) {
         datalayer.system.info.can_2515_send_fail = true;
       }
     } break;
@@ -467,8 +508,8 @@ void receive_can() {
     native_dev->poll_receive();  // Receive CAN messages from native CAN port
   }
 
-  if (can2515) {
-    receive_frame_can_addon();  // Receive CAN messages on add-on MCP2515 chip
+  if (mcp2515_dev && mcp2515_dev->initialized) {
+    mcp2515_dev->poll_receive();  // Receive CAN messages on add-on MCP2515 chip
   }
 
   if (canfd) {
@@ -477,22 +518,6 @@ void receive_can() {
 
   if (canfd_2) {
     receive_frame_canfd_addon_2();  // Receive CAN-FD messages on 2nd CAN-FD add-on.
-  }
-}
-
-static void
-receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
-  MCP2515_Lite_Frame rx_frame;
-  CAN_frame full_frame;
-
-  int count = 0;
-  while (count++ < 16 && can2515->receiveFrame(rx_frame)) {
-    copy_mcp2515_lite_frame_to_can_frame(rx_frame, full_frame);
-    map_can_frame_to_variable(&full_frame, CAN_ADDON_MCP2515);
-  }
-
-  if (can2515->hasErrors()) {
-    datalayer.system.info.can_2515_bus_error = true;
   }
 }
 
@@ -638,8 +663,8 @@ void stop_can() {
     native_dev->stop();
   }
 
-  if (can2515) {
-    can2515->pause(true);
+  if (mcp2515_dev && mcp2515_dev->initialized) {
+    mcp2515_dev->stop();
   }
 
   if (canfd) {
@@ -656,8 +681,8 @@ void restart_can() {
     native_dev->restart();
   }
 
-  if (can2515) {
-    can2515->pause(false);
+  if (mcp2515_dev && mcp2515_dev->initialized) {
+    mcp2515_dev->restart();
   }
 
   if (canfd) {
@@ -673,9 +698,8 @@ void restart_can() {
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   if (interface == CAN_Interface::CAN_NATIVE && native_dev) {
     return native_dev->change_speed(speed);
-  } else if (interface == CAN_Interface::CAN_ADDON_MCP2515 && can2515) {
-    can2515->changeSpeed({(int)speed * 1000UL, quartz_frequency});
-    return true;
+  } else if (interface == CAN_Interface::CAN_ADDON_MCP2515 && mcp2515_dev && mcp2515_dev->initialized) {
+    return mcp2515_dev->change_speed(speed);
   }
 
   return false;
