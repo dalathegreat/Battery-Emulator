@@ -41,9 +41,9 @@ void RenaultZoeGen1Battery::
 
   datalayer_battery->status.temperature_max_dC = max_temperature * 10;
 
-  // Calculate total pack voltage on packs that require this. Only calculate once all cellvotages have been read
+  // Calculate total pack voltage on packs that require this. Only calculate once all cellvoltages have been read
   if (datalayer_battery->status.cell_voltages_mV[95] > 0) {
-    calculated_total_pack_voltage_mV = datalayer_battery->status.cell_voltages_mV[0];
+    calculated_total_pack_voltage_mV = 0;
     for (uint8_t i = 0; i < datalayer_battery->info.number_of_cells; ++i) {
       calculated_total_pack_voltage_mV += datalayer_battery->status.cell_voltages_mV[i];
     }
