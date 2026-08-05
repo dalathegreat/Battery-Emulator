@@ -337,11 +337,26 @@ class Mcp2518Device : public CanDevice {
   };
 
   static constexpr Identity identity[MAX_CAN_FD_DEVICES] = {
-      {"CAN-FD", CANFD_ADDON_MCP2518, 2, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR,
-       EVENT_CANMCP2518FD_INIT_FAILURE, "CAN FD add-on (ESP32+MCP2517) selected", "CAN-FD Configuration error 0x"},
-      {"CAN-FD 2", CANFD_ADDON_MCP2518_2, 3, EVENT_CANFD_2_BUFFER_FULL, EVENT_CANFD_2_BUS_ERROR,
-       EVENT_CANMCP2518FD_2_INIT_FAILURE, "CAN FD add-on 2 (ESP32+MCP2517) selected",
-       "CAN-FD 2 Configuration error 0x"},
+      {
+          .name = "CAN-FD",
+          .log_interface = CANFD_ADDON_MCP2518,
+          .device_index = 2,
+          .buffer_full_event = EVENT_CANFD_BUFFER_FULL,
+          .bus_error_event = EVENT_CANFD_BUS_ERROR,
+          .init_fail_event = EVENT_CANMCP2518FD_INIT_FAILURE,
+          .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
+          .error_log_prefix = "CAN-FD Configuration error 0x",
+      },
+      {
+          .name = "CAN-FD 2",
+          .log_interface = CANFD_ADDON_MCP2518_2,
+          .device_index = 3,
+          .buffer_full_event = EVENT_CANFD_2_BUFFER_FULL,
+          .bus_error_event = EVENT_CANFD_2_BUS_ERROR,
+          .init_fail_event = EVENT_CANMCP2518FD_2_INIT_FAILURE,
+          .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
+          .error_log_prefix = "CAN-FD 2 Configuration error 0x",
+      },
   };
   static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's identity row and its ISR trampoline");
 
