@@ -36,6 +36,7 @@ class NativeTwaiDevice : public CanDevice {
   NativeTwaiDevice() {
     name = "Native CAN";
     log_interface = CAN_NATIVE;
+    static_assert(MAX_CAN_DEVICES == 4, "device_index slots must still cover every physical device");
     device_index = 0;
     buffer_full_event = EVENT_CAN_NATIVE_BUFFER_FULL;
     bus_error_event = EVENT_CAN_NATIVE_BUS_ERROR;
@@ -186,6 +187,7 @@ class Mcp2515Device : public CanDevice {
   Mcp2515Device() {
     name = "MCP2515";
     log_interface = CAN_ADDON_MCP2515;
+    static_assert(MAX_CAN_DEVICES == 4, "device_index slots must still cover every physical device");
     device_index = 1;
     buffer_full_event = EVENT_CANMCP2515_BUFFER_FULL;
     bus_error_event = EVENT_CANMCP2515_BUS_ERROR;
@@ -277,7 +279,7 @@ class Mcp2518Device;
 // The ACAN2517FD begin() callback must be a captureless function pointer, so
 // the two FD instances are reachable through this array for their ISR
 // trampolines.
-static Mcp2518Device* fd_instances[2] = {};  // value-initialized: both null
+static Mcp2518Device* fd_instances[MAX_CAN_FD_DEVICES] = {};  // value-initialized: all null
 
 // Logical interface -> physical device. Entries may repeat: on boards where
 // CANFD_NATIVE and CANFD_ADDON_MCP2518 are the same chip, both slots point at
@@ -306,17 +308,37 @@ class Mcp2518Device : public CanDevice {
     uint32_t freq;  // 0 = autodetect
     bool set_clko;  // instance 1 only: program the clock output divider
     uint8_t clko_div;
+  };
+
+  // Everything that differs between the FD chips, one row per instance,
+  // indexed by Config::index.
+  struct Identity {
+    const char* name;
+    CAN_Interface log_interface;
+    uint8_t device_index;  // slot in datalayer.system.info.can_device[]
+    EVENTS_ENUM_TYPE buffer_full_event;
+    EVENTS_ENUM_TYPE bus_error_event;
+    EVENTS_ENUM_TYPE init_fail_event;
     const char* selected_log;
     const char* error_log_prefix;
   };
 
+  static constexpr Identity identity[MAX_CAN_FD_DEVICES] = {
+      {"CAN-FD", CANFD_ADDON_MCP2518, 2, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR,
+       EVENT_CANMCP2518FD_INIT_FAILURE, "CAN FD add-on (ESP32+MCP2517) selected", "CAN-FD Configuration error 0x"},
+      {"CAN-FD 2", CANFD_ADDON_MCP2518_2, 3, EVENT_CANFD_2_BUFFER_FULL, EVENT_CANFD_2_BUS_ERROR,
+       EVENT_CANMCP2518FD_2_INIT_FAILURE, "CAN FD add-on 2 (ESP32+MCP2517) selected",
+       "CAN-FD 2 Configuration error 0x"},
+  };
+  static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's identity row and its ISR trampoline");
+
   explicit Mcp2518Device(const Config& config) : cfg_(config) {
-    name = (cfg_.index == 0) ? "CAN-FD" : "CAN-FD 2";
-    log_interface = (cfg_.index == 0) ? CANFD_ADDON_MCP2518 : CANFD_ADDON_MCP2518_2;
-    device_index = (cfg_.index == 0) ? 2 : 3;
-    buffer_full_event = (cfg_.index == 0) ? EVENT_CANFD_BUFFER_FULL : EVENT_CANFD_2_BUFFER_FULL;
-    bus_error_event = (cfg_.index == 0) ? EVENT_CANFD_BUS_ERROR : EVENT_CANFD_2_BUS_ERROR;
-    init_fail_event_ = (cfg_.index == 0) ? EVENT_CANMCP2518FD_INIT_FAILURE : EVENT_CANMCP2518FD_2_INIT_FAILURE;
+    name = identity[cfg_.index].name;
+    log_interface = identity[cfg_.index].log_interface;
+    device_index = identity[cfg_.index].device_index;
+    buffer_full_event = identity[cfg_.index].buffer_full_event;
+    bus_error_event = identity[cfg_.index].bus_error_event;
+    init_fail_event_ = identity[cfg_.index].init_fail_event;
     fd_instances[cfg_.index] = this;
   }
 
@@ -325,7 +347,7 @@ class Mcp2518Device : public CanDevice {
                           cfg_.int0_pin != GPIO_NUM_NC ? cfg_.int0_pin : 255,
                           cfg_.int1_pin != GPIO_NUM_NC ? cfg_.int1_pin : 255);
 
-    logging.println(cfg_.selected_log);
+    logging.println(identity[cfg_.index].selected_log);
 
     ACAN2517FDSettings::Oscillator osc_freq =
         (cfg_.freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
@@ -395,12 +417,15 @@ class Mcp2518Device : public CanDevice {
   // device marks itself dead (can_ nulled, initialized false) so the receive
   // and transmit paths skip it, matching the previous nulled-pointer state.
   bool begin() {
+    // One captureless trampoline per instance: ACAN2517FD::begin takes a
+    // plain void(*)(), so these are per-index code, not data.
+    static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's ISR trampoline");
     const uint32_t errorCode =
         can_->begin(*settings_, cfg_.index == 0 ? +[] { fd_instances[0]->run_isr(); }
                                                 : +[] { fd_instances[1]->run_isr(); });
     can_->poll();
     if (errorCode != 0) {
-      logging.print(cfg_.error_log_prefix);
+      logging.print(identity[cfg_.index].error_log_prefix);
       logging.println(errorCode, HEX);
       set_event(init_fail_event_, (uint8_t)errorCode);
       // This will leak, but we have failed and won't try to reinit.
@@ -487,17 +512,18 @@ bool init_CAN() {
       }
     }
 
-    Mcp2518Device* fd_dev = new Mcp2518Device({.index = 0,
-                                               .cs_pin = cs_pin,
-                                               .int_pin = int_pin,
-                                               .int0_pin = int0_pin,
-                                               .int1_pin = int1_pin,
-                                               .spi = spi2517,
-                                               .freq = esp32hal->MCP2517_FREQ(),
-                                               .set_clko = true,
-                                               .clko_div = static_cast<uint8_t>(esp32hal->MCP2517_CLKODIV()),
-                                               .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
-                                               .error_log_prefix = "CAN-FD Configuration error 0x"});
+    static_assert(MAX_CAN_FD_DEVICES == 2, "a third FD controller needs its own construction block here");
+    Mcp2518Device* fd_dev = new Mcp2518Device({
+        .index = 0,
+        .cs_pin = cs_pin,
+        .int_pin = int_pin,
+        .int0_pin = int0_pin,
+        .int1_pin = int1_pin,
+        .spi = spi2517,
+        .freq = esp32hal->MCP2517_FREQ(),
+        .set_clko = true,
+        .clko_div = static_cast<uint8_t>(esp32hal->MCP2517_CLKODIV()),
+    });
     // One physical chip serves both logical FD names on boards that expose both.
     device_for[CANFD_NATIVE] = fd_dev;
     device_for[CANFD_ADDON_MCP2518] = fd_dev;
@@ -535,17 +561,17 @@ bool init_CAN() {
       spi2517_2->begin(sck_pin, sdo_pin, sdi_pin);
     }
 
-    Mcp2518Device* fd_dev_2 = new Mcp2518Device({.index = 1,
-                                                 .cs_pin = cs_pin,
-                                                 .int_pin = int_pin,
-                                                 .int0_pin = GPIO_NUM_NC,
-                                                 .int1_pin = GPIO_NUM_NC,
-                                                 .spi = spi2517_2,
-                                                 .freq = esp32hal->MCP2517_FREQ2(),
-                                                 .set_clko = false,
-                                                 .clko_div = 0,
-                                                 .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
-                                                 .error_log_prefix = "CAN-FD 2 Configuration error 0x"});
+    Mcp2518Device* fd_dev_2 = new Mcp2518Device({
+        .index = 1,
+        .cs_pin = cs_pin,
+        .int_pin = int_pin,
+        .int0_pin = GPIO_NUM_NC,
+        .int1_pin = GPIO_NUM_NC,
+        .spi = spi2517_2,
+        .freq = esp32hal->MCP2517_FREQ2(),
+        .set_clko = false,
+        .clko_div = 0,
+    });
     device_for[CANFD_ADDON_MCP2518_2] = fd_dev_2;
     all_devices.push_back(fd_dev_2);
     if (!fd_dev_2->init(can_receiver_speed(CANFD_ADDON_MCP2518_2, CAN_Speed::CAN_SPEED_500KBPS))) {
