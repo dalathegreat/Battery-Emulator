@@ -19,7 +19,7 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     static const char* const kl30c_enum[] = {"Init", "Closed", "Open!", "Fault"};  // also used for HVIL
     static const char* const bms_mode_enum[] = {"HV inactive", "HV active",     "Balancing",   "Extern charging",
                                                 "AC charging", "Battery error", "DC charging", "Init"};
-    static const char* const balancing_enum[] = {"init", "active", "inactive"};
+    static const char* const balancing_enum[] = {"Init", "Active", "Inactive"};
     static const char* const diagnostic_enum[] = {"Init", "Battery display",        "?",     "?",
                                                   "Battery display OK", "?", "Battery display check", "Fault"};
     static const char* const ptc_line_enum[] = {"Init", "Heater no open HV line", "Heater open HV line", "Fault"};
@@ -39,9 +39,9 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     add_h4(content, "HVIL status", enum_str(kl30c_enum, datalayer_extended.meb.HVIL));
     add_h4(content, "KL30C status", enum_str(kl30c_enum, datalayer_extended.meb.BMS_Kl30c_Status));
     add_h4(content, "BMS mode", enum_str(bms_mode_enum, datalayer_extended.meb.BMS_mode));
-    add_h4(content, "Charging", datalayer_extended.meb.charging_active ? "active" : "not active");
+    add_h4(content, "Charging", datalayer_extended.meb.charging_active ? "Active" : "Not active");
     add_h4(content, "Balancing", enum_str(balancing_enum, datalayer_extended.meb.balancing_active));
-    add_h4(content, "Slow charging", datalayer_extended.meb.balancing_request ? "requested" : "not requested");
+    add_h4(content, "Slow charging", datalayer_extended.meb.balancing_request ? "Requested" : "Not requested");
     add_h4(content, "Diagnostic", enum_str(diagnostic_enum, datalayer_extended.meb.battery_diagnostic));
 
     content += "<h4>Heater HV line status: ";
@@ -130,9 +130,9 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
 
     content += "<h4>Battery temperature: ";
     if (datalayer_extended.meb.battery_temperature_dC == 875) {  //Raw value 255
-      content += "ERROR</h4>";
+      content += "Error</h4>";
     } else if (datalayer_extended.meb.battery_temperature_dC == 870) {  //Raw value 254
-      content += "INIT</h4>";
+      content += "Init</h4>";
     } else {
       content += String(datalayer_extended.meb.battery_temperature_dC / 10.f, 1) + " &deg;C</h4>";
     }
