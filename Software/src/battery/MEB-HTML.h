@@ -20,16 +20,17 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     static const char* const bms_mode_enum[] = {"HV inactive", "HV active",     "Balancing",   "Extern charging",
                                                 "AC charging", "Battery error", "DC charging", "Init"};
     static const char* const balancing_enum[] = {"Init", "Active", "Inactive"};
-    static const char* const diagnostic_enum[] = {"Init", "Battery display",        "?",     "?",
-                                                  "Battery display OK", "?", "Battery display check", "Fault"};
+    static const char* const diagnostic_enum[] = {"Init", "Battery display",       "?",    "?", "Battery display OK",
+                                                  "?",    "Battery display check", "Fault"};
     static const char* const ptc_line_enum[] = {"Init", "Heater no open HV line", "Heater open HV line", "Fault"};
     static const char* const welded_enum[] = {"Init", "No contactor welded", "At least 1 contactor welded",
                                               "Protection status detection error"};
     static const char* const warning_support_enum[] = {"OK", "Not OK", "?", "?", "?", "?", "Init", "Fault"};
     static const char* const voltage_free_enum[] = {"Init", "BMS interm circuit voltage free (U<20V)",
                                                     "BMS interm circuit not voltage free (U >= 25V)", "Error"};
-    static const char* const bms_error_enum[] = {"Component IO", "Iso Error 1", "Iso Error 2",           "Interlock",
-                                                 "SD",           "Performance red", "No component function", "Init"};
+    static const char* const bms_error_enum[] = {
+        "Component IO", "Iso Error 1",     "Iso Error 2",           "Interlock",
+        "SD",           "Performance red", "No component function", "Init"};
 
     add_h4(content, "Service disconnect switch", datalayer_extended.meb.SDSW ? "Missing!" : "OK");
     add_h4(content, "Pilotline", datalayer_extended.meb.pilotline ? "Open!" : "OK");
@@ -93,21 +94,10 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     // The values are copied out by name on purpose: indexing straight off &rt_overcurrent works
     // today but would silently mislabel everything if the struct is ever reordered.
     static const char* const rt_enum[] = {"No", "Error level 1", "Error level 2", "Error level 3"};
-    static const char* const rt_labels[] = {"Overcurrent",
-                                            "CAN fault",
-                                            "Overcharged",
-                                            "SOC too high",
-                                            "SOC too low",
-                                            "SOC jumping",
-                                            "Temp difference",
-                                            "Cell overtemp",
-                                            "Cell undertemp",
-                                            "Battery overvoltage",
-                                            "Battery undervoltage",
-                                            "Cell overvoltage",
-                                            "Cell undervoltage",
-                                            "Cell imbalance",
-                                            "Battery unathorized"};
+    static const char* const rt_labels[] = {
+        "Overcurrent",          "CAN fault",        "Overcharged",       "SOC too high",   "SOC too low",
+        "SOC jumping",          "Temp difference",  "Cell overtemp",     "Cell undertemp", "Battery overvoltage",
+        "Battery undervoltage", "Cell overvoltage", "Cell undervoltage", "Cell imbalance", "Battery unathorized"};
     const uint8_t rt_values[] = {datalayer_extended.meb.rt_overcurrent,
                                  datalayer_extended.meb.rt_CAN_fault,
                                  datalayer_extended.meb.rt_overcharge,
