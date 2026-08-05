@@ -1860,10 +1860,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
-        <div>
-        <label>Inverter is offgrid (downgrade grid-presence faults to warnings): </label>
-        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID% />
-        </div>
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
 
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
