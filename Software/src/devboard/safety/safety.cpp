@@ -73,9 +73,7 @@ void update_machineryprotection() {
   }
 
   // Check health status of CAN interfaces
-  for (CanDevice* can_device : unique_can_devices()) {
-    can_device->update_health_events();
-  }
+  update_can_health_events();
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
   // Don't check any battery issues if battery is not configured

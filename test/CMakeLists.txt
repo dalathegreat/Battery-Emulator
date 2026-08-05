@@ -74,6 +74,7 @@ add_executable(tests
     inverter_alive_tests.cpp
     estop_graceful_open_tests.cpp
     can_dispatch_tests.cpp
+    can_health_event_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
     battery/NissanLeafTest.cpp

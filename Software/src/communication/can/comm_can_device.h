@@ -44,31 +44,18 @@ class CanDevice {
   // own slot. Assigned by register_device() from registration order; devices
   // never set it themselves.
   uint8_t device_index = 0;
+
+  // Devices of one class share a health event pair; which devices an event
+  // concerns is a bitmask in its payload, so a new controller needs no new
+  // enum entries. That makes the raise/clear decision a per-EVENT one - see
+  // update_can_health_events(), which is why a device cannot make it alone.
   EVENTS_ENUM_TYPE buffer_full_event = EVENT_NOF_EVENTS;
   EVENTS_ENUM_TYPE bus_error_event = EVENT_NOF_EVENTS;
-
-  // Raises or clears this device's events from its health flags in the
-  // datalayer, consuming them. Called periodically by the safety monitor.
-  void update_health_events() {
-    DATALAYER_CAN_DEVICE_TYPE& health = datalayer.system.info.can_device[device_index];
-    // The event payload carries which device it was, so devices of the same
-    // class share one event instead of needing a new enum entry each.
-    if (health.send_fail) {
-      set_event(buffer_full_event, device_index);
-      health.send_fail = false;
-    } else {
-      clear_event(buffer_full_event);
-    }
-    if (health.bus_error) {
-      set_event(bus_error_event, device_index);
-      health.bus_error = false;
-    } else {
-      clear_event(bus_error_event);
-    }
-  }
 };
 
-// Unique physical CAN devices created by init_CAN(), in creation order.
-const std::vector<CanDevice*>& unique_can_devices();
+// Consumes every device's health flags and raises or clears each health event
+// once, from the union of the devices that share it. Called by the safety
+// monitor.
+void update_can_health_events();
 
 #endif  // BE_COMMUNICATION_CAN_COMM_CAN_DEVICE_H

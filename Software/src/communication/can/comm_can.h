@@ -67,4 +67,10 @@ void restart_can();
 // Change the speed of the CAN interface. Returns true if successful.
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed);
 
+// Index of the physical device behind a logical interface, or -1 if this board
+// has none. Several interfaces can share one device, so callers that mean "the
+// controller" - error suppression, health reporting - must key on this rather
+// than on the interface.
+int can_device_index_for(CAN_Interface interface);
+
 #endif

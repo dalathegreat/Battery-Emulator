@@ -23,13 +23,12 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
   }
 }
 
-// register_can_receiver and the fan-out now come from the real
-// comm_can_dispatch.cpp, which is hardware-free and in the test build.
+// register_can_receiver, the fan-out, the device registry and the health-event
+// aggregation all come from the real comm_can_dispatch.cpp now.
 
-const std::vector<CanDevice*>& unique_can_devices() {
-  static std::vector<CanDevice*> no_devices;
-  return no_devices;
-}
+// The logical->physical map is no longer modelled here: comm_can_dispatch.cpp
+// owns the real one and is in the test build, so tests wire a board with
+// map_interface_to_device() and there is a single source of truth.
 
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   return true;
