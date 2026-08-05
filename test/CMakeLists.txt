@@ -73,6 +73,10 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 # CONFIGURE_DEPENDS re-globs at build time, so a newly added file is picked up
 # without re-running cmake by hand. The filter drops the leftovers of an
 # in-source `cmake -B build` inside test/, which are not sources.
+# Some firmware sources include headers as "src/...", which PlatformIO resolves
+# from its src_dir (Software/). Give the test build the same root.
+include_directories(../Software)
+
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
 
@@ -85,6 +89,7 @@ add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
+    ../Software/src/communication/precharge_control/precharge_control.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp

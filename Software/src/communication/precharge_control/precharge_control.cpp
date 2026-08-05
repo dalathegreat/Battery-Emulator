@@ -12,8 +12,6 @@ uint16_t precharge_max_precharge_time_before_fault = 15000;
 uint16_t Precharge_max_PWM_Freq = 34000;
 
 // Hardcoded parameters
-#define Precharge_default_PWM_Freq 11000
-#define Precharge_min_PWM_Freq 5000
 #define Precharge_PWM_Res 8
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Precharge_Channel 0
@@ -49,6 +47,17 @@ bool init_precharge_control() {
   return true;
 }
 
+// A precharge sequence may only run while these hold. The start gate and the
+// abort check share them, so a sequence is never started that the next tick
+// would abort - which would otherwise toggle the inverter-disconnect contactor
+// on every pass of the 10 ms core loop.
+static bool precharge_conditions_ok() {
+  return datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+         datalayer.system.status.system_status == ACTIVE &&
+         (datalayer.battery.status.real_bms_status == BMS_STANDBY ||
+          datalayer.battery.status.real_bms_status == BMS_ACTIVE);
+}
+
 // Main functions
 void handle_precharge_control(unsigned long currentMillis) {
   auto hia4v1_pin = esp32hal->HIA4V1_PIN();
@@ -73,7 +82,7 @@ void handle_precharge_control(unsigned long currentMillis) {
 
   switch (datalayer.system.status.precharge_status) {
     case AUTO_PRECHARGE_IDLE:
-      if (datalayer.system.info.start_precharging && datalayer.system.status.inverter_allows_contactor_closing) {
+      if (datalayer.system.info.start_precharging && precharge_conditions_ok()) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_START;
       }
       break;
@@ -122,10 +131,7 @@ void handle_precharge_control(unsigned long currentMillis) {
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);  // also printing a log entry
         // Force stop any further precharge attempts
         datalayer.system.info.start_precharging = false;
-      } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
-                  datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
-                 datalayer.system.status.system_status != ACTIVE || datalayer.system.info.equipment_stop_active ||
-                 !datalayer.system.status.inverter_allows_contactor_closing) {
+      } else if (!precharge_conditions_ok()) {
         pinMode(hia4v1_pin, OUTPUT);
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
