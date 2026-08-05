@@ -69,6 +69,7 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 add_executable(tests 
     tests.cpp
     voltage_sync_tests.cpp
+    offgrid_downgrade_tests.cpp
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     estop_graceful_open_tests.cpp
