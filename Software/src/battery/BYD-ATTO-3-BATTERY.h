@@ -297,7 +297,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t secondsSinceStartup = 0;
 
   bool BMS_voltage_available = false;
-  bool battery_insulation_valid = false;  // Zero is a valid 0x43A fault reading, so track receipt separately
+  bool battery_insulation_valid = false;        // Zero is a valid 0x43A fault reading, so track receipt separately
   bool battery_iso_measurement_active = false;  // 0x35E b0 bit0x80
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
   bool calibrationAH_seeded = false;

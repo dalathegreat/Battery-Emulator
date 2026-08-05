@@ -208,10 +208,10 @@ struct DATALAYER_INFO_BYDATTO3 {
   // Isolation monitor control (RoutineControl 0x2008): disable = 31 01, enable = 31 02.
   bool UserRequestIsoRoutineEnable;
   bool UserRequestIsoRoutineDisable;
-  bool keep_iso_disabled;         // re-send disable on each BMS start (persisted)
-  bool iso_measurement_active;    // 0x35E b0 bit0x80: isolation measurement running
-  bool iso_status_valid;          // fresh 0x35E seen (else status unknown)
-  uint8_t iso_command_status;     // 0 idle, 1 running, 2 accepted, 3 rejected, 4 no reply
+  bool keep_iso_disabled;       // re-send disable on each BMS start (persisted)
+  bool iso_measurement_active;  // 0x35E b0 bit0x80: isolation measurement running
+  bool iso_status_valid;        // fresh 0x35E seen (else status unknown)
+  uint8_t iso_command_status;   // 0 idle, 1 running, 2 accepted, 3 rejected, 4 no reply
 };
 
 struct DATALAYER_INFO_CELLPOWER {
