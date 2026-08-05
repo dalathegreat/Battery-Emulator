@@ -41,7 +41,8 @@ class CanDevice {
 
   // Health flags live in datalayer.system.info.can_device[device_index] -
   // the datalayer is the observation surface - and the device writes only its
-  // own slot.
+  // own slot. Assigned by register_device() from registration order; devices
+  // never set it themselves.
   uint8_t device_index = 0;
   EVENTS_ENUM_TYPE buffer_full_event = EVENT_NOF_EVENTS;
   EVENTS_ENUM_TYPE bus_error_event = EVENT_NOF_EVENTS;
@@ -50,14 +51,16 @@ class CanDevice {
   // datalayer, consuming them. Called periodically by the safety monitor.
   void update_health_events() {
     DATALAYER_CAN_DEVICE_TYPE& health = datalayer.system.info.can_device[device_index];
+    // The event payload carries which device it was, so devices of the same
+    // class share one event instead of needing a new enum entry each.
     if (health.send_fail) {
-      set_event(buffer_full_event, 0);
+      set_event(buffer_full_event, device_index);
       health.send_fail = false;
     } else {
       clear_event(buffer_full_event);
     }
     if (health.bus_error) {
-      set_event(bus_error_event, 0);
+      set_event(bus_error_event, device_index);
       health.bus_error = false;
     } else {
       clear_event(bus_error_event);

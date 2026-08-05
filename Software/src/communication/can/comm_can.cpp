@@ -37,8 +37,6 @@ class NativeTwaiDevice : public CanDevice {
   NativeTwaiDevice() {
     name = "Native CAN";
     log_interface = CAN_NATIVE;
-    static_assert(MAX_CAN_DEVICES == 4, "device_index slots must still cover every physical device");
-    device_index = 0;
     buffer_full_event = EVENT_CAN_NATIVE_BUFFER_FULL;
     bus_error_event = EVENT_CAN_NATIVE_BUS_ERROR;
   }
@@ -195,8 +193,6 @@ class Mcp2515Device : public CanDevice {
   Mcp2515Device() {
     name = "MCP2515";
     log_interface = CAN_ADDON_MCP2515;
-    static_assert(MAX_CAN_DEVICES == 4, "device_index slots must still cover every physical device");
-    device_index = 1;
     buffer_full_event = EVENT_CANMCP2515_BUFFER_FULL;
     bus_error_event = EVENT_CANMCP2515_BUS_ERROR;
   }
@@ -302,6 +298,20 @@ static CanDevice* device_for[NO_CAN_INTERFACE] = {};
 
 static std::vector<CanDevice*> all_devices;
 
+// A device's datalayer health slot IS its registration order, so no class
+// hardcodes an index. Order is init_CAN()'s fixed construction sequence (and
+// later the board's declared bus list), which keeps a device's slot stable
+// across boots - logs and telemetry reference it by number.
+static bool register_device(CanDevice* device) {
+  if (all_devices.size() >= MAX_CAN_DEVICES) {
+    logging.println("More CAN devices than datalayer health slots - raise MAX_CAN_DEVICES");
+    return false;
+  }
+  device->device_index = static_cast<uint8_t>(all_devices.size());
+  all_devices.push_back(device);
+  return true;
+}
+
 const std::vector<CanDevice*>& unique_can_devices() {
   return all_devices;
 }
@@ -328,9 +338,9 @@ class Mcp2518Device : public CanDevice {
   struct Identity {
     const char* name;
     CAN_Interface log_interface;
-    uint8_t device_index;  // slot in datalayer.system.info.can_device[]
-    EVENTS_ENUM_TYPE buffer_full_event;
-    EVENTS_ENUM_TYPE bus_error_event;
+    // Init failure keeps a per-instance event: its payload is the controller's
+    // error code, so the instance cannot ride there as it does for the
+    // health events.
     EVENTS_ENUM_TYPE init_fail_event;
     const char* selected_log;
     const char* error_log_prefix;
@@ -340,9 +350,6 @@ class Mcp2518Device : public CanDevice {
       {
           .name = "CAN-FD",
           .log_interface = CANFD_ADDON_MCP2518,
-          .device_index = 2,
-          .buffer_full_event = EVENT_CANFD_BUFFER_FULL,
-          .bus_error_event = EVENT_CANFD_BUS_ERROR,
           .init_fail_event = EVENT_CANMCP2518FD_INIT_FAILURE,
           .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
           .error_log_prefix = "CAN-FD Configuration error 0x",
@@ -350,9 +357,6 @@ class Mcp2518Device : public CanDevice {
       {
           .name = "CAN-FD 2",
           .log_interface = CANFD_ADDON_MCP2518_2,
-          .device_index = 3,
-          .buffer_full_event = EVENT_CANFD_2_BUFFER_FULL,
-          .bus_error_event = EVENT_CANFD_2_BUS_ERROR,
           .init_fail_event = EVENT_CANMCP2518FD_2_INIT_FAILURE,
           .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
           .error_log_prefix = "CAN-FD 2 Configuration error 0x",
@@ -363,10 +367,11 @@ class Mcp2518Device : public CanDevice {
   explicit Mcp2518Device(const Config& config) : cfg_(config) {
     name = identity[cfg_.index].name;
     log_interface = identity[cfg_.index].log_interface;
-    device_index = identity[cfg_.index].device_index;
-    buffer_full_event = identity[cfg_.index].buffer_full_event;
-    bus_error_event = identity[cfg_.index].bus_error_event;
     init_fail_event_ = identity[cfg_.index].init_fail_event;
+    // Both FD chips share one health-event pair - which chip is in the event
+    // payload, so a third controller needs no new enum entries.
+    buffer_full_event = EVENT_CANFD_BUFFER_FULL;
+    bus_error_event = EVENT_CANFD_BUS_ERROR;
     fd_instances[cfg_.index] = this;
   }
 
@@ -481,7 +486,9 @@ bool init_CAN() {
   if (can_receiver_registered(CAN_NATIVE)) {
     NativeTwaiDevice* native_dev = new NativeTwaiDevice();
     device_for[CAN_NATIVE] = native_dev;
-    all_devices.push_back(native_dev);
+    if (!register_device(native_dev)) {
+      return false;
+    }
     if (!native_dev->init(can_receiver_speed(CAN_NATIVE, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -492,7 +499,9 @@ bool init_CAN() {
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
     Mcp2515Device* mcp2515_dev = new Mcp2515Device();
     device_for[CAN_ADDON_MCP2515] = mcp2515_dev;
-    all_devices.push_back(mcp2515_dev);
+    if (!register_device(mcp2515_dev)) {
+      return false;
+    }
     if (!mcp2515_dev->init(can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
@@ -557,7 +566,9 @@ bool init_CAN() {
     // One physical chip serves both logical FD names on boards that expose both.
     device_for[CANFD_NATIVE] = fd_dev;
     device_for[CANFD_ADDON_MCP2518] = fd_dev;
-    all_devices.push_back(fd_dev);
+    if (!register_device(fd_dev)) {
+      return false;
+    }
     if (!fd_dev->init(speed)) {
       return false;
     }
@@ -603,7 +614,9 @@ bool init_CAN() {
         .clko_div = 0,
     });
     device_for[CANFD_ADDON_MCP2518_2] = fd_dev_2;
-    all_devices.push_back(fd_dev_2);
+    if (!register_device(fd_dev_2)) {
+      return false;
+    }
     if (!fd_dev_2->init(can_receiver_speed(CANFD_ADDON_MCP2518_2, CAN_Speed::CAN_SPEED_500KBPS))) {
       return false;
     }
