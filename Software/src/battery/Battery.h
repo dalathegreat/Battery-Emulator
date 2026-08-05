@@ -77,11 +77,13 @@ extern battery_chemistry_enum user_selected_battery_chemistry;
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
 class Battery {
- public:
-  // Factory-created objects are deleted through this base pointer (e.g. the
-  // host test suite) - the polymorphic base needs a virtual destructor.
-  virtual ~Battery() = default;
+ protected:
+  // Used polymorphically but never deleted through the base: a protected
+  // non-virtual destructor makes delete-through-base a compile error instead
+  // of undefined behavior, at zero flash cost (no vtable dtor entries).
+  ~Battery() = default;
 
+ public:
   virtual void setup(void) = 0;
   virtual void update_values() = 0;
 

@@ -40,9 +40,11 @@ enum class InverterInterfaceType { Can, Rs485, Modbus };
 
 // The abstract base class for all inverter protocols
 class InverterProtocol {
- public:
-  virtual ~InverterProtocol() = default;
+ protected:
+  // Never deleted through the base - see Battery.h for the pattern rationale
+  ~InverterProtocol() = default;
 
+ public:
   virtual const char* name() = 0;
   virtual bool setup() { return true; }
   virtual const char* interface_name() = 0;

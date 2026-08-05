@@ -2,9 +2,11 @@
 #define _TRANSMITTER_H
 
 class Transmitter {
- public:
-  virtual ~Transmitter() = default;
+ protected:
+  // Never deleted through the base - see Battery.h for the pattern rationale
+  ~Transmitter() = default;
 
+ public:
   virtual void transmit(unsigned long currentMillis) = 0;
 };
 

@@ -18,12 +18,13 @@ class DataLayerResetListener : public ::testing::EmptyTestEventListener {
     reset_all_events();
 
     // Every instance holds pointers into the datalayer we just replaced, so
-    // destroy them all.
-    delete battery;
+    // drop them all. The driver base classes have protected destructors -
+    // nothing deletes a driver through a base pointer, in the emulator or
+    // here - so these are abandoned rather than freed. The instances leak for
+    // the lifetime of the test binary, which is bounded and deliberate; the
+    // point of the reset is that no live pointer outlives the datalayer.
     battery = nullptr;
-    delete battery2;
     battery2 = nullptr;
-    delete battery3;
     battery3 = nullptr;
     delete charger;
     charger = nullptr;
