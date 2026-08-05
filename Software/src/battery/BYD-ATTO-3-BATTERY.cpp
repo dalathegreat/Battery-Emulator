@@ -348,8 +348,9 @@ void BydAttoBattery::
     if (!datalayer_bydatto->keep_iso_disabled) {
       iso_reassert_needed = false;
     }
-    if (iso_reassert_needed && bms_alive && (millis() - bms_alive_since_ms > 5000) &&
-        (iso_reassert_attempt_ms == 0 || (millis() - iso_reassert_attempt_ms) > 15000) && !diag_busy) {
+    // Disable early and retry fast to beat the BMS's boot-time insulation trip.
+    if (iso_reassert_needed && bms_alive && (millis() - bms_alive_since_ms > 1000) &&
+        (iso_reassert_attempt_ms == 0 || (millis() - iso_reassert_attempt_ms) > 2000) && !diag_busy) {
       isoRoutineAction = 1;  // disable
       datalayer_bydatto->iso_command_status = 1;
       increaseTimeoutIso = 0;
