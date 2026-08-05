@@ -350,7 +350,7 @@ void MgGen1Battery::update_values() {
 
 void MgGen1Battery::announce_contactor_state(bool state) {
   // Only the primary battery should announce the contactor state
-  if (allowed_contactor_closing != nullptr) {
+  if (allowed_contactor_closing == nullptr) {
     datalayer.system.status.battery_allows_contactor_closing = state;
   }
 }
@@ -770,6 +770,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
                                         !identified_battery || voltageValidTime == 0 ||
                                         (allowed_contactor_closing != nullptr && !*allowed_contactor_closing);
 
+    bool send_8a = true;
     if (must_open_contactors || (should_open_contactors && currentMillis > STARTUP_GRACE_PERIOD_MS)) {
 
       if (announcedContactorsClosed) {
@@ -789,6 +790,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       // We are still in the startup grace period - don't send anything, if the
       // contactors are still closed, they can remain so until the battery times
       // out.
+      send_8a = false;
     } else {
       // Everything ready, close contactors
       MG_HS_8A.data.u8[5] = 0x02;
@@ -823,7 +825,9 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
                            MG_HS_8A.data.u8[4] ^ MG_HS_8A.data.u8[5] ^ MG_HS_8A.data.u8[6]);
     eightAcycle = (eightAcycle + 1) & 0xF;
 
-    transmit_can_frame(&MG_HS_8A);
+    if (send_8a) {
+      transmit_can_frame(&MG_HS_8A);
+    }
   }
 
   const unsigned long TICK_PERIOD_20 = fastTick ? INTERVAL_20_MS : INTERVAL_100_MS;
