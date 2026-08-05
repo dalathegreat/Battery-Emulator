@@ -18,12 +18,14 @@
 #include <algorithm>
 #include <map>
 
-volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
-                                         .inverter = CAN_NATIVE,
-                                         .battery_double = CAN_ADDON_MCP2515,
-                                         .battery_triple = CAN_ADDON_MCP2515,
-                                         .charger = CAN_NATIVE,
-                                         .shunt = CAN_NATIVE};
+volatile CAN_Configuration can_config = {
+    .battery = CAN_NATIVE,
+    .inverter = CAN_NATIVE,
+    .battery_double = CAN_ADDON_MCP2515,
+    .battery_triple = CAN_ADDON_MCP2515,
+    .charger = CAN_NATIVE,
+    .shunt = CAN_NATIVE,
+};
 
 static void dispatch_frame(CAN_frame* rx_frame, class CanDevice* dev);
 static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
@@ -93,7 +95,7 @@ class NativeTwaiDevice : public CanDevice {
     frame.id = tx_frame.ID;
     frame.ext = tx_frame.ext_ID;
     frame.len = tx_frame.DLC;
-    for (uint8_t i = 0; i < frame.len; i++) {
+    for (uint8_t i = 0; i < frame.len; ++i) {
       frame.data[i] = tx_frame.data.u8[i];
     }
     return ACAN_ESP32::can.tryToSend(frame);
@@ -109,7 +111,7 @@ class NativeTwaiDevice : public CanDevice {
         rx_frame.ID = frame.id;
         rx_frame.ext_ID = frame.ext;
         rx_frame.DLC = frame.len;
-        for (uint8_t i = 0; i < frame.len && i < 8; i++) {
+        for (uint8_t i = 0; i < frame.len && i < 8; ++i) {
           rx_frame.data.u8[i] = frame.data[i];
         }
 
@@ -275,7 +277,7 @@ class Mcp2518Device;
 // The ACAN2517FD begin() callback must be a captureless function pointer, so
 // the two FD instances are reachable through this array for their ISR
 // trampolines.
-static Mcp2518Device* fd_instances[2] = {nullptr, nullptr};
+static Mcp2518Device* fd_instances[2] = {};  // value-initialized: both null
 
 // Logical interface -> physical device. Entries may repeat: on boards where
 // CANFD_NATIVE and CANFD_ADDON_MCP2518 are the same chip, both slots point at
@@ -643,7 +645,7 @@ static void dispatch_frame(CAN_frame* rx_frame, CanDevice* dev) {
   }
 #endif
 
-  for (int i = 0; i < NO_CAN_INTERFACE; i++) {
+  for (int i = 0; i < NO_CAN_INTERFACE; ++i) {
     if (device_for[i] != dev) {
       continue;
     }
