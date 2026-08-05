@@ -3,8 +3,8 @@
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "CanReceiver.h"
-#include "comm_can_dispatch.h"
 #include "comm_can_device.h"
+#include "comm_can_dispatch.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/hal/hal.h"
 #include "src/devboard/safety/safety.h"
@@ -127,13 +127,16 @@ class NativeTwaiDevice : public CanDevice {
       }
     }
 
-    auto flags = ACAN_ESP32::can.statusRegister();
-    if ((flags & TWAI_BUS_OFF_ST) != 0) {
-      // Bus off, reset the CAN controller
-      change_speed(speed_);
-      datalayer.system.info.can_device[device_index].bus_error = true;
+    // The mirrored bit values must match the controller library's, or the
+    // host-tested decision would not describe what runs on the target.
+    static_assert(kTwaiBusOffStatusBit == TWAI_BUS_OFF_ST, "TWAI bus-off status bit moved");
+    static_assert(kTwaiErrorStatusBit == TWAI_ERR_ST, "TWAI error status bit moved");
+
+    const CanBusStatusAction action = evaluate_twai_status(ACAN_ESP32::can.statusRegister());
+    if (action.reinitialise) {
+      change_speed(speed_);  // Bus off: bring the controller back up
     }
-    if ((flags & TWAI_ERR_ST) != 0) {
+    if (action.flag_bus_error) {
       datalayer.system.info.can_device[device_index].bus_error = true;
     }
   }
@@ -294,28 +297,6 @@ static Mcp2518Device* fd_instances[MAX_CAN_FD_DEVICES] = {};  // value-initializ
 // CANFD_NATIVE and CANFD_ADDON_MCP2518 are the same chip, both slots point at
 // the same device, and dispatch_frame delivers each physical frame to the
 // receivers of every logical interface mapped to it.
-static CanDevice* device_for[NO_CAN_INTERFACE] = {};
-
-static std::vector<CanDevice*> all_devices;
-
-// A device's datalayer health slot IS its registration order, so no class
-// hardcodes an index. Order is init_CAN()'s fixed construction sequence (and
-// later the board's declared bus list), which keeps a device's slot stable
-// across boots - logs and telemetry reference it by number.
-static bool register_device(CanDevice* device) {
-  if (all_devices.size() >= MAX_CAN_DEVICES) {
-    logging.println("More CAN devices than datalayer health slots - raise MAX_CAN_DEVICES");
-    return false;
-  }
-  device->device_index = static_cast<uint8_t>(all_devices.size());
-  all_devices.push_back(device);
-  return true;
-}
-
-const std::vector<CanDevice*>& unique_can_devices() {
-  return all_devices;
-}
-
 // MCP2518FD add-on controller (CAN-FD over SPI). Instantiated twice on boards
 // with two FD chips; the SPI bus wiring (including bus sharing between the
 // two instances) is board topology and stays in init_CAN().
@@ -485,7 +466,7 @@ bool init_CAN() {
 
   if (can_receiver_registered(CAN_NATIVE)) {
     NativeTwaiDevice* native_dev = new NativeTwaiDevice();
-    device_for[CAN_NATIVE] = native_dev;
+    map_interface_to_device(CAN_NATIVE, native_dev);
     if (!register_device(native_dev)) {
       return false;
     }
@@ -498,7 +479,7 @@ bool init_CAN() {
 
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
     Mcp2515Device* mcp2515_dev = new Mcp2515Device();
-    device_for[CAN_ADDON_MCP2515] = mcp2515_dev;
+    map_interface_to_device(CAN_ADDON_MCP2515, mcp2515_dev);
     if (!register_device(mcp2515_dev)) {
       return false;
     }
@@ -531,7 +512,8 @@ bool init_CAN() {
 
   if (fdNativeWanted || fdAddonWanted) {
 
-    auto speed = fdNativeWanted ? can_receiver_speed(CANFD_NATIVE, CAN_Speed::CAN_SPEED_500KBPS) : can_receiver_speed(CANFD_ADDON_MCP2518, CAN_Speed::CAN_SPEED_500KBPS);
+    auto speed = fdNativeWanted ? can_receiver_speed(CANFD_NATIVE, CAN_Speed::CAN_SPEED_500KBPS)
+                                : can_receiver_speed(CANFD_ADDON_MCP2518, CAN_Speed::CAN_SPEED_500KBPS);
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
@@ -564,8 +546,8 @@ bool init_CAN() {
         .clko_div = static_cast<uint8_t>(esp32hal->MCP2517_CLKODIV()),
     });
     // One physical chip serves both logical FD names on boards that expose both.
-    device_for[CANFD_NATIVE] = fd_dev;
-    device_for[CANFD_ADDON_MCP2518] = fd_dev;
+    map_interface_to_device(CANFD_NATIVE, fd_dev);
+    map_interface_to_device(CANFD_ADDON_MCP2518, fd_dev);
     if (!register_device(fd_dev)) {
       return false;
     }
@@ -613,7 +595,7 @@ bool init_CAN() {
         .set_clko = false,
         .clko_div = 0,
     });
-    device_for[CANFD_ADDON_MCP2518_2] = fd_dev_2;
+    map_interface_to_device(CANFD_ADDON_MCP2518_2, fd_dev_2);
     if (!register_device(fd_dev_2)) {
       return false;
     }
@@ -637,20 +619,14 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
   }
 #endif
 
-  CanDevice* dev = (interface < NO_CAN_INTERFACE) ? device_for[interface] : nullptr;
-  if (dev == nullptr) {
-    // Invalid interface sent with function call. TODO: Raise event that coders messed up
-    return;
-  }
-
-  if (!dev->try_send(*tx_frame)) {
-    datalayer.system.info.can_device[dev->device_index].send_fail = true;
-  }
+  // Invalid or unmapped interface: dropped quietly.
+  // TODO: Raise event that coders messed up
+  route_frame_to_device(*tx_frame, interface);
 }
 
 // Receive functions
 void receive_can() {
-  for (CanDevice* dev : all_devices) {
+  for (CanDevice* dev : unique_can_devices()) {
     if (dev->initialized) {
       dev->poll_receive();
     }
@@ -718,7 +694,7 @@ static void dispatch_frame(CAN_frame* rx_frame, CanDevice* dev) {
 #endif
 
   for (int i = 0; i < NO_CAN_INTERFACE; ++i) {
-    if (device_for[i] != dev) {
+    if (can_device_index_for(static_cast<CAN_Interface>(i)) != dev->device_index) {
       continue;
     }
     deliver_to_receivers(rx_frame, static_cast<CAN_Interface>(i));
@@ -824,7 +800,7 @@ void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection ms
 }
 
 void stop_can() {
-  for (CanDevice* dev : all_devices) {
+  for (CanDevice* dev : unique_can_devices()) {
     if (dev->initialized) {
       dev->stop();
     }
@@ -832,7 +808,7 @@ void stop_can() {
 }
 
 void restart_can() {
-  for (CanDevice* dev : all_devices) {
+  for (CanDevice* dev : unique_can_devices()) {
     if (dev->initialized) {
       dev->restart();
     }
@@ -843,7 +819,7 @@ void restart_can() {
 // Devices without runtime speed change (the FD controllers) inherit the base
 // class refusal.
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
-  CanDevice* dev = (interface < NO_CAN_INTERFACE) ? device_for[interface] : nullptr;
+  CanDevice* dev = device_for_interface(interface);
   if (dev == nullptr || !dev->initialized) {
     return false;
   }

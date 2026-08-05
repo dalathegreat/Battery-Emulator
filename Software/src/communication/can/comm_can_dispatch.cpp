@@ -1,8 +1,11 @@
 #include "comm_can_dispatch.h"
 
 #include <map>
+#include <vector>
+#include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "CanReceiver.h"
+#include "comm_can_device.h"
 
 // Moved verbatim out of comm_can.cpp: same multimap, same insertion, same
 // equal_range fan-out in registration order.
@@ -43,4 +46,129 @@ size_t can_receiver_count() {
 
 void clear_can_receivers() {
   can_receivers.clear();
+}
+
+// The physical CAN devices and the health events they share. Not hardware:
+// registration order, datalayer slots and event bookkeeping only, so it lives
+// here with the receiver registry rather than beside the controller drivers.
+static std::vector<CanDevice*> all_devices;
+
+// Logical interface -> the physical device serving it. Entries may repeat.
+static CanDevice* device_for[NO_CAN_INTERFACE] = {};
+
+// A device's datalayer health slot IS its registration order, so no class
+// hardcodes an index. Order is init_CAN()'s fixed construction sequence (and
+// later the board's declared bus list), which keeps a device's slot stable
+// across boots - logs and telemetry reference it by number.
+bool register_device(CanDevice* device) {
+  if (all_devices.size() >= MAX_CAN_DEVICES) {
+    logging.println("More CAN devices than datalayer health slots - raise MAX_CAN_DEVICES");
+    return false;
+  }
+  device->device_index = static_cast<uint8_t>(all_devices.size());
+  all_devices.push_back(device);
+  return true;
+}
+
+void update_can_health_events() {
+  static_assert(MAX_CAN_DEVICES <= 8, "the device bitmask in the event payload is a uint8_t");
+
+  // Devices sharing an event collapse into one entry, so the decision to raise
+  // or clear is made once from the union of them. Deciding per device would
+  // let a healthy controller clear the event a faulty sibling just raised.
+  struct EventDevices {
+    EVENTS_ENUM_TYPE event;
+    uint8_t devices;  // bitmask, bit N = device N
+  };
+  EventDevices health[2 * MAX_CAN_DEVICES] = {};
+  uint8_t count = 0;
+
+  auto accumulate = [&](EVENTS_ENUM_TYPE event, bool active, uint8_t device_index) {
+    if (event == EVENT_NOF_EVENTS) {
+      return;
+    }
+    for (uint8_t i = 0; i < count; ++i) {
+      if (health[i].event == event) {
+        if (active) {
+          health[i].devices |= static_cast<uint8_t>(1 << device_index);
+        }
+        return;
+      }
+    }
+    health[count].event = event;
+    health[count].devices = active ? static_cast<uint8_t>(1 << device_index) : 0;
+    ++count;
+  };
+
+  for (CanDevice* device : all_devices) {
+    DATALAYER_CAN_DEVICE_TYPE& flags = datalayer.system.info.can_device[device->device_index];
+    accumulate(device->buffer_full_event, flags.send_fail, device->device_index);
+    accumulate(device->bus_error_event, flags.bus_error, device->device_index);
+    flags.send_fail = false;
+    flags.bus_error = false;
+  }
+
+  for (uint8_t i = 0; i < count; ++i) {
+    if (health[i].devices != 0) {
+      set_event(health[i].event, health[i].devices);
+    } else {
+      clear_event(health[i].event);
+    }
+  }
+}
+
+const std::vector<CanDevice*>& unique_can_devices() {
+  return all_devices;
+}
+
+CanBusStatusAction evaluate_twai_status(uint32_t status_register) {
+  CanBusStatusAction action = {};
+  // Bus-off is latching in the controller: it stops participating until it is
+  // re-initialised, so recovery is not optional and the error is also reported.
+  if ((status_register & kTwaiBusOffStatusBit) != 0) {
+    action.reinitialise = true;
+    action.flag_bus_error = true;
+  }
+  // Error-warning state alone means the error counters are high but the
+  // controller is still on the bus - report it, but do not reset a working
+  // controller out from under the traffic it is carrying.
+  if ((status_register & kTwaiErrorStatusBit) != 0) {
+    action.flag_bus_error = true;
+  }
+  return action;
+}
+
+void map_interface_to_device(CAN_Interface interface, CanDevice* device) {
+  if (interface < NO_CAN_INTERFACE) {
+    device_for[interface] = device;
+  }
+}
+
+CanDevice* device_for_interface(CAN_Interface interface) {
+  return interface < NO_CAN_INTERFACE ? device_for[interface] : nullptr;
+}
+
+int can_device_index_for(CAN_Interface interface) {
+  if (interface >= NO_CAN_INTERFACE || device_for[interface] == nullptr) {
+    return -1;
+  }
+  return device_for[interface]->device_index;
+}
+
+bool route_frame_to_device(const CAN_frame& tx_frame, CAN_Interface interface) {
+  CanDevice* dev = (interface < NO_CAN_INTERFACE) ? device_for[interface] : nullptr;
+  if (dev == nullptr) {
+    return false;
+  }
+  if (!dev->try_send(tx_frame)) {
+    datalayer.system.info.can_device[dev->device_index].send_fail = true;
+  }
+  return true;
+}
+
+void clear_can_devices() {
+  all_devices.clear();
+  for (int i = 0; i < NO_CAN_INTERFACE; ++i) {
+    device_for[i] = nullptr;
+  }
 }
