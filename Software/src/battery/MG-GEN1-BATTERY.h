@@ -48,13 +48,13 @@ class MgGen1Battery : public UdsCanBattery {
   static const uint16_t POLL_BATTERY_SYSTEM_SW_NUMBER = 0xF194;
 
   // PIDs read at boot time only (battery identifiers)
-  static constexpr uint16_t UDS_BOOT_PID_LIST[] = {POLL_BATTERY_TYPE,
+  static constexpr uint16_t UDS_BOOT_PID_LIST[] = {POLL_BATTERY_VEHICLE_HW_NUMBER,
+                                                   POLL_BATTERY_TYPE,
                                                    0xF120,
                                                    0xB18C,
                                                    POLL_BATTERY_FINGERPRINT,
                                                    POLL_BATTERY_MFR_DATE,
                                                    POLL_BATTERY_VIN,
-                                                   POLL_BATTERY_VEHICLE_HW_NUMBER,
                                                    POLL_BATTERY_SYSTEM_HW_NUMBER,
                                                    POLL_BATTERY_SYSTEM_SW_NUMBER,
                                                    0xF1A2,
@@ -67,7 +67,9 @@ class MgGen1Battery : public UdsCanBattery {
   static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x53534541;  // "SSEA"
   static const uint32_t BATTERY_TYPE_MG_ZS = 0x5a533131;       // "ZS11"
   static const uint32_t BATTERY_TYPE_MG5 = 0x00010203;         // Odd placeholder value
+  static const uint32_t BATTERY_TYPE_MG5_50_LFP = 0xFF000001;  // Sentinel value
   uint32_t batteryType = 0;
+  uint32_t vehicleHardwareNumber = 0;
 
   // Identifier PID payloads
   uint8_t pid_f18a[8] = {0};
