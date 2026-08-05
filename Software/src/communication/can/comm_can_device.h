@@ -1,5 +1,5 @@
-#ifndef _COMM_CAN_DEVICE_H_
-#define _COMM_CAN_DEVICE_H_
+#ifndef BE_COMMUNICATION_CAN_COMM_CAN_DEVICE_H
+#define BE_COMMUNICATION_CAN_COMM_CAN_DEVICE_H
 
 #include <vector>
 
@@ -68,4 +68,4 @@ class CanDevice {
 // Unique physical CAN devices created by init_CAN(), in creation order.
 const std::vector<CanDevice*>& unique_can_devices();
 
-#endif  // _COMM_CAN_DEVICE_H_
+#endif  // BE_COMMUNICATION_CAN_COMM_CAN_DEVICE_H
