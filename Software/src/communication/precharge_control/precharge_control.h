@@ -9,6 +9,11 @@ extern bool precharge_control_enabled;
 extern bool precharge_inverter_normally_open_contactor;
 extern uint16_t precharge_max_precharge_time_before_fault;
 extern uint16_t Precharge_max_PWM_Freq;
+
+// The precharge PWM starts here and is regulated between these bounds as the
+// external voltage closes on the pack voltage.
+#define Precharge_default_PWM_Freq 11000
+#define Precharge_min_PWM_Freq 5000
 /**
  * @brief Contactor initialization
  *

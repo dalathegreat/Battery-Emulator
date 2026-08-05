@@ -62,6 +62,10 @@ include_directories("${source_dir}/googletest/include"
 
 include_directories(emul)
 
+# Some firmware sources include headers as "src/...", which PlatformIO resolves
+# from its src_dir (Software/). Give the test build the same root.
+include_directories(../Software)
+
 # For eModBus
 add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
@@ -73,6 +77,7 @@ add_executable(tests
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     estop_graceful_open_tests.cpp
+    precharge_control_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
     battery/NissanLeafTest.cpp
@@ -85,6 +90,7 @@ add_executable(tests
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
+    ../Software/src/communication/precharge_control/precharge_control.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
