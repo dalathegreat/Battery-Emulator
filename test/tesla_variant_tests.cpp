@@ -46,12 +46,14 @@ TEST(TeslaVariantTest, FactoryCreatesDistinctVariants) {
   Battery* model_3y = create_battery(BatteryType::TeslaModel3Y);
   ASSERT_NE(model_3y, nullptr);
   EXPECT_TRUE(model_3y->supports_tesla_dcdc_metrics());
-  delete model_3y;
+  // Battery's destructor is protected non-virtual: deletion happens through
+  // the concrete type the factory is known to have produced
+  delete static_cast<TeslaModel3YBattery*>(model_3y);
 
   reset_state();
   Battery* model_sx = create_battery(BatteryType::TeslaModelSX);
   ASSERT_NE(model_sx, nullptr);
   model_sx->setup();
   EXPECT_STREQ(datalayer.system.info.battery_protocol, TeslaModelSXBattery::Name);
-  delete model_sx;
+  delete static_cast<TeslaModelSXBattery*>(model_sx);
 }
