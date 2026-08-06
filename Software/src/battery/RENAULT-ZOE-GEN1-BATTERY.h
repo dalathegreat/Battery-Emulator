@@ -28,6 +28,8 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   static constexpr const char* Name = "Renault Zoe Gen1 22/40kWh";
 
   String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "renault_zoe_gen1_dtc.json"; }
+  virtual bool get_dtc_standard_code_string() { return false; }
 
  protected:
   // Called by the UDS superclass for every successful PID response. `data`
