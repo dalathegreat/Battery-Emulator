@@ -4,6 +4,7 @@
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "CanReceiver.h"
 #include "comm_can.h"
+#include "comm_can_dispatch.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/hal/hal.h"
 #include "src/devboard/safety/safety.h"
@@ -25,13 +26,6 @@ volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .charger = CAN_NATIVE,
                                          .shunt = CAN_NATIVE};
 
-struct CanReceiverRegistration {
-  CanReceiver* receiver;
-  CAN_Speed speed;
-};
-
-static std::multimap<CAN_Interface, CanReceiverRegistration> can_receivers;
-
 static void receive_frame_can_native();
 static void receive_frame_can_addon();
 static void receive_frame_canfd_addon();
@@ -41,11 +35,6 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
 static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin);
 static bool begin_canfd();
 static bool begin_canfd_2();
-
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {
-  can_receivers.insert({interface, {receiver, speed}});
-  DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
-}
 
 static ACAN_ESP32_Settings* settingsespcan = nullptr;
 static CAN_Speed native_can_speed;
@@ -69,9 +58,7 @@ uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will 
 bool init_CAN() {
   // Native CAN (onboard the ESP32)
 
-  auto nativeIt = can_receivers.find(CAN_NATIVE);
-
-  if (nativeIt != can_receivers.end()) {
+  if (can_receiver_registered(CAN_NATIVE)) {
     auto se_pin = esp32hal->CAN_SE_PIN();
     auto tx_pin = esp32hal->CAN_TX_PIN();
     auto rx_pin = esp32hal->CAN_RX_PIN();
@@ -88,7 +75,8 @@ bool init_CAN() {
       return false;
     }
 
-    const uint32_t errorCode = init_native_can(nativeIt->second.speed, tx_pin, rx_pin);
+    const uint32_t errorCode =
+        init_native_can(can_receiver_speed(CAN_NATIVE, CAN_Speed::CAN_SPEED_500KBPS), tx_pin, rx_pin);
     if (errorCode == 0) {
       native_can_initialized = true;
       logging.println("Native Can ok");
@@ -119,8 +107,7 @@ bool init_CAN() {
 
   // Add-on CAN interface (via MCP2515)
 
-  auto addonIt = can_receivers.find(CAN_ADDON_MCP2515);
-  if (addonIt != can_receivers.end()) {
+  if (can_receiver_registered(CAN_ADDON_MCP2515)) {
     auto cs_pin = esp32hal->MCP2515_CS();
     auto int_pin = esp32hal->MCP2515_INT();
     auto sck_pin = esp32hal->MCP2515_SCK();
@@ -153,7 +140,8 @@ bool init_CAN() {
       quartz_frequency = can2515->autodetectOscillatorFrequency();
     }
 
-    if (can2515->begin({(int)addonIt->second.speed * 1000UL, quartz_frequency})) {
+    if (can2515->begin(
+            {(int)can_receiver_speed(CAN_ADDON_MCP2515, CAN_Speed::CAN_SPEED_500KBPS) * 1000UL, quartz_frequency})) {
       logging.println("MCP2515 CAN ok");
     } else {
       logging.println("MCP2515 CAN init failed");
@@ -166,11 +154,11 @@ bool init_CAN() {
 
   // FD interface(s) (via MCP2518FD)
 
-  auto fdNativeIt = can_receivers.find(CANFD_NATIVE);
-  auto fdAddonIt = can_receivers.find(CANFD_ADDON_MCP2518);
-  auto fdAddonIt_2 = can_receivers.find(CANFD_ADDON_MCP2518_2);
+  const bool fdNativeWanted = can_receiver_registered(CANFD_NATIVE);
+  const bool fdAddonWanted = can_receiver_registered(CANFD_ADDON_MCP2518);
+  const bool fdAddon2Wanted = can_receiver_registered(CANFD_ADDON_MCP2518_2);
 
-  if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end() || fdAddonIt_2 != can_receivers.end()) {
+  if (fdNativeWanted || fdAddonWanted || fdAddon2Wanted) {
     // Initialise SPI bus first
     auto sck_pin = esp32hal->MCP2517_SCK();
     auto sdo_pin = esp32hal->MCP2517_SDO();
@@ -184,9 +172,10 @@ bool init_CAN() {
     SPI2517->begin(sck_pin, sdo_pin, sdi_pin);
   }
 
-  if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
+  if (fdNativeWanted || fdAddonWanted) {
 
-    auto speed = (fdNativeIt != can_receivers.end()) ? fdNativeIt->second.speed : fdAddonIt->second.speed;
+    auto speed = fdNativeWanted ? can_receiver_speed(CANFD_NATIVE, CAN_Speed::CAN_SPEED_500KBPS)
+                                : can_receiver_speed(CANFD_ADDON_MCP2518, CAN_Speed::CAN_SPEED_500KBPS);
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
@@ -230,7 +219,7 @@ bool init_CAN() {
     }
   }
 
-  if (fdAddonIt_2 != can_receivers.end()) {
+  if (fdAddon2Wanted) {
 
     auto cs_pin = esp32hal->MCP2517_CS2();
     auto int_pin = esp32hal->MCP2517_INT2();
@@ -265,7 +254,7 @@ bool init_CAN() {
         (freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
                    : (freq == 20000000 ? ACAN2517FDSettings::OSC_20MHz : ACAN2517FDSettings::OSC_40MHz));
 
-    auto speed = fdAddonIt_2->second.speed;
+    auto speed = can_receiver_speed(CANFD_ADDON_MCP2518_2, CAN_Speed::CAN_SPEED_500KBPS);
     auto bitRate = (int)speed * 1000UL;
     // Crystal setting is ignored (library now autodetects)
     settings2517_2 = new ACAN2517FDSettings(osc_freq, bitRate, DataBitRateFactor::x4);
@@ -554,13 +543,7 @@ static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interfa
   }
 #endif
 
-  // Send the frame to all the receivers registered for this interface.
-  auto receivers = can_receivers.equal_range(interface);
-
-  for (auto it = receivers.first; it != receivers.second; ++it) {
-    auto& receiver = it->second;
-    receiver.receiver->receive_can_frame(rx_frame);
-  }
+  deliver_to_receivers(rx_frame, interface);
 }
 
 // For formatting CAN frames considerably faster than using snprintf
@@ -662,7 +645,7 @@ void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection ms
 }
 
 void stop_can() {
-  if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
+  if (can_receiver_registered(CAN_NATIVE)) {
     ACAN_ESP32::can.end();
   }
 
@@ -680,7 +663,7 @@ void stop_can() {
 }
 
 void restart_can() {
-  if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
+  if (can_receiver_registered(CAN_NATIVE)) {
     ACAN_ESP32::can.begin(*settingsespcan);
   }
 
