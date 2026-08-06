@@ -90,6 +90,7 @@ add_executable(tests
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/types.cpp
     ../Software/src/devboard/utils/events.cpp
+    ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
