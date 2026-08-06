@@ -85,6 +85,7 @@ add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
+    ../Software/src/communication/can/comm_can_dispatch.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
