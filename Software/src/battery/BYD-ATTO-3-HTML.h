@@ -293,7 +293,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Calibration target capacity: " + String(byd_datalayer->calibrationTargetAH) +
                " AH <button onclick='editCalTargetAH" + s + "()'>Edit</button></h4>";
 
-    // Isolation monitor control, per battery.
+    // Isolation monitor. Status is per battery; the controls are shown once and apply to both.
     {
       const char* iso_label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4'>";
       const char* iso_value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
@@ -350,20 +350,24 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         content += "</td></tr>";
       }
 
-      content += "<tr>";
-      content += iso_label_td;
-      content += "Keep disabled at boot:</td>";
-      content += iso_value_td;
-      content += "<input type='checkbox' id='keepIsoOff" + s + "' ";
-      content += (byd_datalayer->keep_iso_disabled ? "checked" : "");
-      content += " onchange='bydKeepIsoDisabled" + s + "()'>";
-      content += "</td></tr>";
+      if (s.length() == 0) {  // one set of controls, applied to every BYD battery
+        content += "<tr>";
+        content += iso_label_td;
+        content += "Keep disabled at boot:</td>";
+        content += iso_value_td;
+        content += "<input type='checkbox' id='keepIsoOff' ";
+        content += (byd_datalayer->keep_iso_disabled ? "checked" : "");
+        content += " onchange='bydKeepIsoDisabled()'>";
+        content += "</td></tr>";
+      }
 
       content += "</table>";
-      content += "<div style='margin:10px 0 0'>";
-      content += "<button onclick='bydIsoEnable" + s + "()'>Enable monitoring</button> ";
-      content += "<button onclick='bydIsoDisable" + s + "()'>Disable monitoring</button>";
-      content += "</div>";
+      if (s.length() == 0) {
+        content += "<div style='margin:10px 0 0'>";
+        content += "<button onclick='bydIsoEnable()'>Enable monitoring</button> ";
+        content += "<button onclick='bydIsoDisable()'>Disable monitoring</button>";
+        content += "</div>";
+      }
       content += "</div>";
     }
 
@@ -421,23 +425,25 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "  xhr.open('GET','/editBydAtto3AutoCalDriftPercent" + s + "?value='+percent,true);";
     content += "  xhr.send();";
     content += "}";
-    content += "function bydIsoSend" + s + "(url){";
-    content += "  var xhr=new XMLHttpRequest();";
-    content += "  xhr.onload=function(){ setTimeout(function(){ location.reload(); }, 2000); };";
-    content += "  xhr.onerror=editError;";
-    content += "  xhr.open('GET',url,true);";
-    content += "  xhr.send();";
-    content += "}";
-    content += "function bydIsoEnable" + s + "(){ bydIsoSend" + s + "('/bydAtto3IsoEnable" + s + "'); }";
-    content += "function bydIsoDisable" + s + "(){ bydIsoSend" + s + "('/bydAtto3IsoDisable" + s + "'); }";
-    content += "function bydKeepIsoDisabled" + s + "(){";
-    content += "  var on = document.getElementById('keepIsoOff" + s + "').checked;";
-    content += "  var xhr=new XMLHttpRequest();";
-    content += "  xhr.onload=editComplete;";
-    content += "  xhr.onerror=editError;";
-    content += "  xhr.open('GET','/bydAtto3KeepIsoDisabled" + s + "?value='+(on?1:0),true);";
-    content += "  xhr.send();";
-    content += "}";
+    if (s.length() == 0) {  // isolation controls are rendered once and apply to every BYD battery
+      content += "function bydIsoSend(url){";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=function(){ setTimeout(function(){ location.reload(); }, 2000); };";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET',url,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function bydIsoEnable(){ bydIsoSend('/bydAtto3IsoEnable'); }";
+      content += "function bydIsoDisable(){ bydIsoSend('/bydAtto3IsoDisable'); }";
+      content += "function bydKeepIsoDisabled(){";
+      content += "  var on = document.getElementById('keepIsoOff').checked;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/bydAtto3KeepIsoDisabled?value='+(on?1:0),true);";
+      content += "  xhr.send();";
+      content += "}";
+    }
     content += "</script>";
 
     auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
