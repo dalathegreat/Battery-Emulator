@@ -52,7 +52,9 @@ uint64_t start_time_values = 0;
 uint64_t start_time_cantx = 0;
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
+#ifdef SDCARD
 TaskHandle_t logging_loop_task;
+#endif
 TaskHandle_t mqtt_loop_task;
 Watchdog mqtt_loop_watchdog;
 
@@ -123,6 +125,7 @@ void connectivity_loop(void*) {
   }
 }
 
+#ifdef SDCARD
 void logging_loop(void*) {
   bool sd_initialized = false;
 
@@ -148,6 +151,7 @@ void logging_loop(void*) {
   // Delete the logging task only if SD failed to initialize to prevent panic.
   vTaskDelete(NULL);
 }
+#endif  // SDCARD
 
 /* Linear charge power taper over the top of the SOC window: full power at
    (100.00% - band), reaching 0W at 100.00% scaled SOC. Battery integration
@@ -762,10 +766,12 @@ void setup() {
 
   led_init();
 
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());
   }
+#endif  // SDCARD
 
   init_contactors();
 

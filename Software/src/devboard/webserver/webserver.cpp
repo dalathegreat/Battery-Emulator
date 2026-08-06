@@ -298,7 +298,11 @@ void init_webserver() {
     }
   });
 
-  if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+  if (datalayer.system.info.web_logging_active
+#ifdef SDCARD
+      || datalayer.system.info.SD_logging_active
+#endif
+  ) {
     // Route for going to debug logging web page
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
       AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
@@ -320,11 +324,12 @@ void init_webserver() {
       },
       handleFileUpload);
 
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       pause_can_writing();
-      request->send(SD_MMC, CAN_LOG_FILE, String(), true);
+      request->send(SD, CAN_LOG_FILE, String(), true);
       resume_can_writing();
     });
 
@@ -333,7 +338,9 @@ void init_webserver() {
       delete_can_log();
       request->send(200, "text/plain", "Log file deleted");
     });
-  } else {
+  } else
+#endif  // SDCARD
+  {
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       String logs = String(datalayer.system.info.logged_can_messages);
@@ -362,6 +369,7 @@ void init_webserver() {
     });
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     // Define the handler to delete log file
     server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -372,10 +380,12 @@ void init_webserver() {
     // Define the handler to export debug log
     server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       pause_log_writing();
-      request->send(SD_MMC, LOG_FILE, String(), true);
+      request->send(SD, LOG_FILE, String(), true);
       resume_log_writing();
     });
-  } else {
+  } else
+#endif  // SDCARD
+  {
     // Define the handler to export debug log
     server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
       String logs = String(datalayer.system.info.logged_can_messages);
@@ -434,12 +444,15 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",       "CNTCTRL",        "CNTCTRLDBL",  "PWMCNTCTRL",   "PERBMSRESET",   "SDLOGENABLED", "STATICIP",
-      "REMBMSRESET",  "EXTPRECHARGE",   "USBENABLED",  "CANLOGUSB",    "WEBENABLED",    "CANLOGSD",     "WIFIAPENABLED",
-      "MQTTENABLED",  "NOINVDISC",      "HADISC",      "MQTTCELLV",    "GTWRHD",        "DIGITALHVIL",  "PERFPROFILE",
-      "INTERLOCKREQ", "SOCESTIMATED",   "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR",  "TRIBTR",
-      "CNTCTRLTRI",   "ESPNOWENABLED",  "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",      "SLOWCANINV",
-      "CHGTAPERSOC",  "MEASURECPUTEMP", "SYSLOGEN",    "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",
+      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET",   "STATICIP",     "REMBMSRESET",
+      "EXTPRECHARGE", "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",
+      "HADISC",       "MQTTCELLV",    "GTWRHD",        "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",
+      "PYLONOFFSET",  "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",
+      "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
+      "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",
+#ifdef SDCARD
+      "SDLOGENABLED", "CANLOGSD",
+#endif  // SDCARD
   };
 
   const char* uintSettingNames[] = {
@@ -1629,7 +1642,11 @@ String processor(const String& var) {
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
-    if (datalayer.system.info.web_logging_active || datalayer.system.info.SD_logging_active) {
+    if (datalayer.system.info.web_logging_active
+#ifdef SDCARD
+        || datalayer.system.info.SD_logging_active
+#endif
+    ) {
       content += "<button onclick='Log()'>Log</button> ";
     }
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";

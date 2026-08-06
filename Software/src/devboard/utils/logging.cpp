@@ -294,9 +294,11 @@ void Logging::add_timestamp(size_t size) {
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
   }
+#endif
 
   if (datalayer.system.info.usb_logging_active) {
     usb_log_write((const uint8_t*)timestr, strlen(timestr));
@@ -306,7 +308,10 @@ void Logging::add_timestamp(size_t size) {
 size_t Logging::write(const uint8_t* buffer, size_t size) {
   // Check if any logging is enabled at runtime
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
-      !datalayer.system.info.SD_logging_active && !datalayer.system.info.syslog_logging_active) {
+#ifdef SDCARD
+      !datalayer.system.info.SD_logging_active &&
+#endif
+      !datalayer.system.info.syslog_logging_active) {
     return 0;
   }
 
@@ -319,9 +324,11 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     add_timestamp(size);
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer(buffer, size);
   }
+#endif
 
   if (datalayer.system.info.usb_logging_active) {
     usb_log_write(buffer, size);
@@ -349,7 +356,10 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 void Logging::printf(const char* fmt, ...) {
   // Check if any logging is enabled at runtime
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
-      !datalayer.system.info.SD_logging_active && !datalayer.system.info.syslog_logging_active) {
+#ifdef SDCARD
+      !datalayer.system.info.SD_logging_active &&
+#endif
+      !datalayer.system.info.syslog_logging_active) {
     return;
   }
 
@@ -401,9 +411,11 @@ void Logging::printf(const char* fmt, ...) {
     message_buffer[size - 1] = '\n';
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer((uint8_t*)message_buffer, size);
   }
+#endif
 
   if (datalayer.system.info.usb_logging_active) {
     usb_log_write((const uint8_t*)message_buffer, size);
