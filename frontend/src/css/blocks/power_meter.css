@@ -1,0 +1,60 @@
+.pm-container {
+  position: relative;
+  width: 150px;
+  height: 55px;
+  margin: 0 9px 0 8px;
+}
+
+.pm-container div {
+  position: absolute;
+}
+
+.pm-axis {
+  height: 21px;
+  border-bottom: 1px solid #fff;
+}
+
+.pm-label {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.pm-label.pm-left { left: -7px; }
+.pm-label.pm-right { right: -8px; }
+
+.pm-bar {
+  bottom: 0;
+  height: 6px;
+}
+
+.pm-tick {
+  height: 5px;
+  width: 1px;
+  bottom: 0;
+}
+
+.pm-tick.pm-left { left: 0; border-left: 1px solid #ffffff; }
+.pm-tick.pm-right { right: 0; border-right: 1px solid #ffffff; }
+
+.pm-center {
+  width: 1px;
+  height: 9px;
+  bottom: 0;
+  background: #ffffff;
+}
+
+.pm-pointer {
+  height: 5px;
+  width: 5px;
+  bottom: -6px;
+  border: 5px solid transparent;
+  border-bottom: 5px solid #ffffff;
+}
+
+.pm-value {
+  width: 50px;
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 500;
+  bottom: -38px;
+}

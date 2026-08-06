@@ -1,0 +1,13 @@
+.heading {
+    display: flex;
+    align-items: baseline;
+    margin: 0 0 1.2rem;
+}
+
+.heading h2 {
+    margin: 0;
+}
+
+.heading h2 + button {
+    margin-left: auto;
+}
