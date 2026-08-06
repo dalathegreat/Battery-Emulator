@@ -241,6 +241,8 @@ void BydAttoBattery::
     datalayer_bydatto->pack_voltage_dV = battery_voltage_dV;
     datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
+    datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
+    datalayer_bydatto->iso_measurement_active = battery_iso_measurement_active;
     datalayer_bydatto->battery_temperatures[0] = battery_daughterboard_temperatures[0];
     datalayer_bydatto->battery_temperatures[1] = battery_daughterboard_temperatures[1];
     datalayer_bydatto->battery_temperatures[2] = battery_daughterboard_temperatures[2];
@@ -287,28 +289,77 @@ void BydAttoBattery::
     datalayer_bydatto->contactor_drive_flag = (contactor_feedback & BMS_FEEDBACK_DRIVE_FLAG) != 0;
     datalayer_bydatto->contactor_charge_flag = (contactor_feedback & BMS_FEEDBACK_CHARGE_FLAG) != 0;
 
-    // Update requests from webserver datalayer
-    if (datalayer_bydatto->UserRequestCrashReset && stateMachineClearCrash == NOT_RUNNING) {
+    // Update requests from webserver datalayer. All 0x7E7 diagnostics share the request/reply IDs,
+    // so only one may run at a time; DTC reception counts as busy too.
+    bool diag_busy = (stateMachineClearCrash != NOT_RUNNING) || (stateMachineCalibrateSOC != NOT_RUNNING) ||
+                     (stateMachineReadDTC != NOT_RUNNING) || (stateMachineEraseDTC != NOT_RUNNING) ||
+                     (stateMachineIsoRoutine != NOT_RUNNING) || dtc_rx_active ||
+                     datalayer_bydatto->dtc_read_in_progress;
+
+    if (datalayer_bydatto->UserRequestCrashReset && !diag_busy) {
       stateMachineClearCrash = STARTED;
       datalayer_bydatto->UserRequestCrashReset = false;
+      diag_busy = true;
     }
 
-    if (datalayer_bydatto->UserRequestCalibrateSOC && stateMachineCalibrateSOC == NOT_RUNNING) {
+    if (datalayer_bydatto->UserRequestCalibrateSOC && !diag_busy) {
       stateMachineCalibrateSOC = STARTED;
       datalayer_bydatto->UserRequestCalibrateSOC = false;
+      diag_busy = true;
     }
 
-    if (datalayer_bydatto->UserRequestDTCreadout && stateMachineReadDTC == NOT_RUNNING) {
+    if (datalayer_bydatto->UserRequestDTCreadout && !diag_busy) {
       stateMachineReadDTC = STARTED;
       datalayer_bydatto->dtc_read_in_progress = true;
       datalayer_battery->dtc.dtc_read_failed = false;
       dtc_request_millis = millis();
       datalayer_bydatto->UserRequestDTCreadout = false;
+      diag_busy = true;
     }
 
-    if (datalayer_bydatto->UserRequestDTCreset && stateMachineEraseDTC == NOT_RUNNING) {
+    if (datalayer_bydatto->UserRequestDTCreset && !diag_busy) {
       stateMachineEraseDTC = STARTED;
       datalayer_bydatto->UserRequestDTCreset = false;
+      diag_busy = true;
+    }
+
+    if ((datalayer_bydatto->UserRequestIsoRoutineDisable || datalayer_bydatto->UserRequestIsoRoutineEnable) &&
+        !diag_busy) {
+      isoRoutineAction = datalayer_bydatto->UserRequestIsoRoutineDisable ? 1 : 2;
+      datalayer_bydatto->iso_command_status = 1;  // running
+      increaseTimeoutIso = 0;
+      stateMachineIsoRoutine = STARTED;
+      datalayer_bydatto->UserRequestIsoRoutineDisable = false;
+      datalayer_bydatto->UserRequestIsoRoutineEnable = false;
+      diag_busy = true;
+    }
+
+    // keep_iso_disabled: the monitor re-enables on every BMS power-up, so re-send disable after each
+    // BMS start (arm on the CAN alive edge, retry until accepted).
+    bool bms_alive = (lastContactorFeedbackMillis != 0) && ((millis() - lastContactorFeedbackMillis) < 3000);
+    if (bms_alive && !bms_was_alive) {
+      bms_alive_since_ms = millis();
+      if (datalayer_bydatto->keep_iso_disabled) {
+        iso_reassert_needed = true;
+        iso_reassert_attempt_ms = 0;
+      }
+    }
+    bms_was_alive = bms_alive;
+    if (!datalayer_bydatto->keep_iso_disabled) {
+      iso_reassert_needed = false;
+    }
+    // Disable early and retry fast to beat the BMS's boot-time insulation trip.
+    if (iso_reassert_needed && bms_alive && (millis() - bms_alive_since_ms > 1000) &&
+        (iso_reassert_attempt_ms == 0 || (millis() - iso_reassert_attempt_ms) > 2000) && !diag_busy) {
+      isoRoutineAction = 1;  // disable
+      datalayer_bydatto->iso_command_status = 1;
+      increaseTimeoutIso = 0;
+      stateMachineIsoRoutine = STARTED;
+      iso_reassert_attempt_ms = millis();
+      diag_busy = true;
+    }
+    if (iso_reassert_needed && iso_reassert_attempt_ms != 0 && datalayer_bydatto->iso_command_status == 2) {
+      iso_reassert_needed = false;  // accepted, monitor disabled until the next BMS restart
     }
     // Fail the read if the BMS never answers
     if (datalayer_bydatto->dtc_read_in_progress && (millis() - dtc_request_millis > 2000)) {
@@ -428,6 +479,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x35E:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // b0 bit 0x80 = isolation measurement active (set = running, clear = disabled/idle)
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        battery_iso_measurement_active = (rx_frame.data.u8[0] & 0x80) != 0;
+        last_35E_ms = millis();
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x360:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -559,6 +617,18 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x02) &&
           (rx_frame.data.u8[3] == 0xAA)) {
         servicemode = APPROVED;
+      }
+
+      // ISO routine reply (only while it is running): 71 = accepted; any 7F = rejected (session,
+      // security, or routine NRC). Ends the machine on the reply.
+      if (stateMachineIsoRoutine != NOT_RUNNING) {
+        if (rx_frame.data.u8[1] == 0x71 && rx_frame.data.u8[3] == 0x20 && rx_frame.data.u8[4] == 0x08) {
+          datalayer_bydatto->iso_command_status = 2;  // routine accepted
+          stateMachineIsoRoutine = NOT_RUNNING;
+        } else if (rx_frame.data.u8[1] == 0x7F) {
+          datalayer_bydatto->iso_command_status = 3;  // NRC
+          stateMachineIsoRoutine = NOT_RUNNING;
+        }
       }
 
       if (rx_frame.data.u8[0] == 0x10) {
@@ -985,6 +1055,56 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       default:
         break;
     }
+    switch (stateMachineIsoRoutine) {
+      case STARTED:
+        // DiagnosticSessionControl enter extendedDiagnosticSession (10 03)
+        solvedKey = 0;  // force a fresh seed before the key is sent
+        increaseTimeoutIso = 0;
+        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        stateMachineIsoRoutine = RUNNING_STEP_1;
+        break;
+      case RUNNING_STEP_1:
+        // SecurityAccess requestSeed (27 01)
+        ATTO_3_7E7_RESET_SOC.data = {0x02, 0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        stateMachineIsoRoutine = RUNNING_STEP_2;
+        break;
+      case RUNNING_STEP_2:
+        // Wait for the seed (RX sets solvedKey), then SecurityAccess sendKey (27 02)
+        if (solvedKey > 0) {
+          ATTO_3_7E7_RESET_SOC.data = {
+              0x04, 0x27, 0x02, (uint8_t)((solvedKey & 0xFF00) >> 8), (uint8_t)(solvedKey & 0x00FF), 0x00, 0x00, 0x00};
+          transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+          stateMachineIsoRoutine = RUNNING_STEP_3;
+        } else if (++increaseTimeoutIso > 30) {
+          datalayer_bydatto->iso_command_status = 4;  // no reply
+          stateMachineIsoRoutine = NOT_RUNNING;
+        }
+        break;
+      case RUNNING_STEP_3: {
+        // RoutineControl (1 disable -> 31 01, 2 enable -> 31 02)
+        uint8_t subfn = (isoRoutineAction == 1) ? 0x01 : 0x02;
+        ATTO_3_7E7_RESET_SOC.data = {0x04, 0x31, subfn, 0x20, 0x08, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
+        increaseTimeoutIso = 0;
+        stateMachineIsoRoutine = RUNNING_STEP_4;  // RX ends the machine on 71/7F
+        break;
+      }
+      case RUNNING_STEP_4:
+        // Wait for the routine reply (RX ends the machine); time out so the UI can't stick.
+        if (++increaseTimeoutIso > 20) {  // ~2 s at 100 ms/tick
+          if (datalayer_bydatto->iso_command_status == 1) {
+            datalayer_bydatto->iso_command_status = 4;  // no reply
+          }
+          stateMachineIsoRoutine = NOT_RUNNING;
+        }
+        break;
+      case NOT_RUNNING:
+        break;
+      default:
+        break;
+    }
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -1080,7 +1200,8 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     if ((stateMachineClearCrash == NOT_RUNNING) && (stateMachineCalibrateSOC == NOT_RUNNING) &&
         (stateMachineReadDTC == NOT_RUNNING) && (stateMachineEraseDTC == NOT_RUNNING) &&
-        !dtc_rx_active) {  //Don't poll battery for data if any diag ongoing
+        (stateMachineIsoRoutine == NOT_RUNNING) && !dtc_rx_active &&
+        !datalayer_bydatto->dtc_read_in_progress) {  //Don't poll battery for data if any diag ongoing
       transmit_can_frame(&ATTO_3_7E7_POLL);
     }
   }

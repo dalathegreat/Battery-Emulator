@@ -719,6 +719,30 @@ void init_webserver() {
     datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
   });
 
+  // Isolation monitor control (RoutineControl 0x2008). One setting, applied to both batteries.
+  def_route_with_auth("/bydAtto3IsoDisable", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    datalayer_extended.bydAtto3.UserRequestIsoRoutineDisable = true;
+    datalayer_extended.bydAtto3_2.UserRequestIsoRoutineDisable = true;
+    request->send(200, "text/plain", "OK");
+  });
+  def_route_with_auth("/bydAtto3IsoEnable", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    datalayer_extended.bydAtto3.UserRequestIsoRoutineEnable = true;
+    datalayer_extended.bydAtto3_2.UserRequestIsoRoutineEnable = true;
+    request->send(200, "text/plain", "OK");
+  });
+  def_route_with_auth("/bydAtto3KeepIsoDisabled", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3.keep_iso_disabled = enabled;
+      datalayer_extended.bydAtto3_2.keep_iso_disabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDKEEPISOOFF", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
   // Battery 2 auto-calibration routes
   update_string_setting("/editCalTargetSOC2", [](String value) {
     datalayer_extended.bydAtto3_2.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());
