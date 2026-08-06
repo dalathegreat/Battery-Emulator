@@ -73,6 +73,7 @@ add_executable(tests
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     estop_graceful_open_tests.cpp
+    calculated_soc_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
     battery/NissanLeafTest.cpp
@@ -96,6 +97,7 @@ add_executable(tests
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     emul/neopixel_show.cpp
     ../Software/src/datalayer/datalayer.cpp
+    ../Software/src/datalayer/calculated_soc.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
