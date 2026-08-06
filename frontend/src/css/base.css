@@ -1,0 +1,131 @@
+html, body, * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    background-color: #101010;
+    color: #eeeeee;
+}
+
+html, body, input, button {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    touch-action: manipulation;
+}
+
+p {
+    margin: 0 0 1.5rem;
+}
+
+hr {
+    border: none;
+    height: 1px;
+    background: radial-gradient(circle at center, #555555, #333333);
+    margin: 1.5rem 0;
+}
+
+.columns {
+    display: flex;
+}
+
+.content {
+    flex: 1 1 auto;
+    padding: 1.25rem 2rem;
+}
+
+.content h2 {
+    color: #ddd;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0.3rem 0 1.7rem;
+}
+
+.content h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+}
+
+/* base input styles */
+
+select {
+  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ebebeb' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") right 10px center no-repeat;
+  background-size: 12px;
+}
+input, select {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 10px 0.5rem;
+  font-size: 1.1rem;
+  border-radius: 5px;
+  border: 1px solid #666666;
+  background-color: #1c1c1c;
+  color: #ededed;
+  appearance: none;
+  outline:none;
+}
+label + input, label + select {
+  padding-top: 1.4rem;
+}
+input:invalid, select:invalid {
+  border-color: #ff3333;
+}
+input:focus:invalid, select:focus:invalid {
+  box-shadow: 0 0 0 1px #ff9999;
+  border-color: #ff9999;
+  outline-style: none;  
+}
+
+input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-block;
+  vertical-align: top;
+  margin: 0.1rem 0.8rem 0 0;
+  padding: 0;
+  border: 1px solid #666666;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:before {
+  content: "";
+  display: block;
+  width: 90%;
+  height: 90%;
+  margin: 5%;
+  background-color: #ffffff;
+  
+  clip-path: polygon(14% 44%, 0 58%, 38% 96%, 100% 16%, 84% 4%, 38% 66%);
+  display: none;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #3cdd93;
+  border-color: #3cdd93;
+}
+input[type="checkbox"]:checked:before {
+  display: block;
+}
+
+@media (min-width: 769px) {
+    .mo {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .nm {
+        /* no-mobile */
+        display: none !important;
+    }
+}

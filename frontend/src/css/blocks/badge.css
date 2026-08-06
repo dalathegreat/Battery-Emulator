@@ -1,0 +1,30 @@
+.badge {
+    --scale: 1;
+    --col: #ccc;
+    --sfg: #000; /* foreground color for solid badges */
+    display: inline-block;
+    border: 1px solid var(--col);
+    color: var(--col);
+    padding: calc(0.2rem * var(--scale)) calc(0.6rem * var(--scale)) calc(0.17rem * var(--scale));
+    border-radius: 6px; 
+    font-size: calc(0.9rem * var(--scale)); 
+    line-height: 1;
+    font-weight: 600;
+    align-self: center; /* when shown in topbar */
+}
+.badge.s { /* solid badge */
+    background: var(--col);
+    color: var(--sfg);
+}
+.badge[data-status="info"] { --col: #eeeeee; }
+.badge[data-status="warn"],
+.badge[data-d] { --col: #e7ce11; }
+.badge[data-status="error"] { --col: #b50909; --sfg: #fff; }
+
+.badge[data-status="ACTIVE"],
+.badge.g { --col: #1db706; --sfg: #fff; }
+.badge.d { --col: #e7ce11; }
+.badge.c { --col: #138cd2; --sfg: #fff; }
+.badge.i { --col: #777; }
+.badge[data-status="FAULT"],
+.badge.e { --col: #f52121; --sfg: #fff; }

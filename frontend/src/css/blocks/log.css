@@ -1,0 +1,9 @@
+.log {
+    background: #000000;
+    padding: 0.5rem;
+}
+.log div {
+    white-space: pre-wrap;
+    min-width: max-content;
+    font: 0.85rem monospace;
+}

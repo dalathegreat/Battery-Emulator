@@ -1,0 +1,30 @@
+.alert {
+  display: flex;
+  align-items: center;
+  background: #f5c12655;
+  border: 1px solid #f5c126;
+  color: white;
+  padding: 1.5rem;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.alert.slim {
+  padding: 0.75rem 1rem;
+}
+
+.alert[data-level="success"] {
+  background: #128b00;
+}
+
+.alert[data-level="info"] {
+  background: #333333;
+}
+
+.alert button {
+  margin-left: auto;
+  background: #f5c126;
+  color: #000;
+}

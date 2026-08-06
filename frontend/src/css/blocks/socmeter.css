@@ -1,0 +1,45 @@
+.socmeter {
+    width: 96px;
+    height: 16px;
+    display: block;
+}
+
+.socmeter rect.base {
+    fill: #ffffff11;
+}
+
+.stat-circle svg circle,
+.stat-circle svg line,
+.socmeter rect,
+.socmeter line {
+    transition: all 0.4s ease;
+}
+
+.soc-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #3a516f;
+    color: #ffffff;
+    text-align: center;
+    width: fit-content;
+    margin: 0 auto;
+    line-height: 1;
+}
+
+.soc-badge--charging {
+    border-color: #138cd2;
+    color: #138cd2;
+}
+
+.soc-badge--discharging {
+    border-color: #e7ce11;
+    color: #e7ce11;
+}
+
+.soc-badge--idle {
+    border-color: #3a516f;
+    color: #888;
+}
