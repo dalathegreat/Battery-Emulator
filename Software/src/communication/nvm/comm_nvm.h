@@ -44,7 +44,7 @@ void clear_wifi_sta_settings();
 // runs them automatically (via constructor/destructor).
 class BatteryEmulatorSettingsStore {
  public:
-  BatteryEmulatorSettingsStore(bool readOnly = false) {
+  BatteryEmulatorSettingsStore(bool readOnly = false) : readOnly(readOnly) {
     if (!settings.begin("batterySettings", readOnly)) {
       set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
     }
@@ -53,6 +53,9 @@ class BatteryEmulatorSettingsStore {
   ~BatteryEmulatorSettingsStore() { settings.end(); }
 
   void clearAll() {
+    if (readOnly) {
+      return;
+    }
     settings.clear();
     settingsUpdated = true;
   }
@@ -62,6 +65,9 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveInt(const char* name, int32_t value) {
+    if (readOnly) {
+      return;
+    }
     // isKey() check instead of a sentinel default: saving a value equal to the
     // sentinel into a missing key must not be skipped.
     if (!settings.isKey(name) || getInt(name, 0) != value) {
@@ -75,6 +81,9 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveUInt(const char* name, uint32_t value) {
+    if (readOnly) {
+      return;
+    }
     // isKey() check instead of a sentinel default: saving a value equal to the
     // sentinel into a missing key must not be skipped.
     if (!settings.isKey(name) || getUInt(name, 0) != value) {
@@ -90,6 +99,9 @@ class BatteryEmulatorSettingsStore {
   PreferenceType getType(const char* name) { return settings.getType(name); }
 
   void removeKey(const char* name) {
+    if (readOnly) {
+      return;
+    }
     if (settings.isKey(name)) {
       settings.remove(name);
       settingsUpdated = true;
@@ -101,6 +113,9 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveBool(const char* name, bool value) {
+    if (readOnly) {
+      return;
+    }
     // isKey() check: a stored 'false' must not be mistaken for a missing key,
     // or the first save of a false value would be skipped and never persisted.
     if (!settings.isKey(name) || getBool(name, false) != value) {
@@ -116,6 +131,9 @@ class BatteryEmulatorSettingsStore {
   }
 
   void saveString(const char* name, const char* value) {
+    if (readOnly) {
+      return;
+    }
     // isKey() check: a stored empty string must not be mistaken for a missing
     // key, or the first save of an empty value would be skipped.
     if (!settings.isKey(name) || getString(name, "") != String(value)) {
@@ -137,6 +155,7 @@ class BatteryEmulatorSettingsStore {
 
  private:
   Preferences settings;
+  const bool readOnly;
 
   // To track if settings were updated
   bool settingsUpdated = false;
