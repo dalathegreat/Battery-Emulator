@@ -77,12 +77,7 @@ static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
 
 /* Initialization function */
 void init_events(void) {
-  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
-    events.entries[i].data = 0;
-    events.entries[i].timestamp = 0;
-    events.entries[i].occurences = 0;
-    events.entries[i].MQTTpublished = false;  // Not published by default
-  }
+  reset_all_events();
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
