@@ -72,9 +72,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /* Some early integrations do not support reading allowed charge power from battery
   On these integrations we need to have the user specify what limits the battery can take */
   /** Overriden allowed battery discharge power in Watts. Set by user */
-  uint32_t override_discharge_power_W = 0;
+  uint32_t override_discharge_power_W = 1000;
   /** Overriden allowed battery charge power in Watts. Set by user */
-  uint32_t override_charge_power_W = 0;
+  uint32_t override_charge_power_W = 1000;
 
   /** int32_t */
   /** Instantaneous battery power in Watts. Calculated based on voltage_dV and current_dA */
@@ -213,7 +213,7 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   bool user_set_voltage_limits_active = false;
   /** SOC scaling setting. Increases battery life. 
    * If true will rescale SOC between the configured min/max-percentage */
-  bool soc_scaling_active = true;
+  bool soc_scaling_active = false;
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
@@ -308,7 +308,7 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** bool, determines if CPU temperature should be measured */
   bool CPU_measurement_enabled = false;
   /** int, determines the CPU temperature calibration offset. Some ESP32 chips report wildly inaccurate temperatures */
-  int CPU_temperature_calibration_offset = 0;
+  int32_t CPU_temperature_calibration_offset = 0;
   /** ESP32 free heap amount, for displaying on webserver and for safeties */
   uint32_t CPU_free_heap = 0;
 

@@ -214,7 +214,7 @@ const char* name_for_battery_type(BatteryType type) {
   }
 }
 
-const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
+const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NCA;
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
