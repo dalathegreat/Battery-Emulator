@@ -7,6 +7,9 @@
 
 class MebHtmlRenderer : public BatteryHtmlRenderer {
  public:
+  // platform's battery setup() overrides
+  const char* dtc_json_filename = "vag_meb_dtc.json";
+
   String get_status_html() {
     String content;
 
@@ -286,7 +289,7 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
                " kWh</h4>";
 
-    content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, "vag_meb_dtc.json", false);
+    content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, dtc_json_filename, false);
 
     return content;
   }

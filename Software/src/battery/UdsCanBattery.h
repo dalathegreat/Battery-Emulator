@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../lib/uds_isotp/isotp.h"
-#include "../lib/uds_isotp/uds.h"
 #include "CanBattery.h"
 #include "freertos/FreeRTOS.h"
 
