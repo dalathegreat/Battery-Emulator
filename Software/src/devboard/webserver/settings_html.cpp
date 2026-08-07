@@ -276,9 +276,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
            capability_css("if-tricapable", battery_supports_triple);
   }
   if (var == "BATTCHEM") {
-    return options_for_enum(
-        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
-        name_for_chemistry);
+    return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
+                            name_for_chemistry);
   }
   if (var == "INVTYPE") {
     return options_for_enum_with_none(
@@ -310,8 +309,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CTATTEN") {
     return options_for_enum_with_none(
-        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
-        adc_attenuation_enum::ADC_0db);
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
+        name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
   }
 
   if (var == "EQSTOP") {
@@ -360,7 +359,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SUNGROW_MODEL") {
-    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
+    return options_from_map(settings.getUInt("INVSUNTYPE", 0), sungrow_models);  // Default: SBR064, as boot assumes
   }
 
   if (var == "PYLON_MODEL") {
@@ -634,11 +633,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGPOWER") {
-    return String(settings.getUInt("CHGPOWER", 0));
+    return String(settings.getUInt("CHGPOWER", 1000));
   }
 
   if (var == "DCHGPOWER") {
-    return String(settings.getUInt("DCHGPOWER", 0));
+    return String(settings.getUInt("DCHGPOWER", 1000));
   }
 
   if (var == "LOCALIP") {
