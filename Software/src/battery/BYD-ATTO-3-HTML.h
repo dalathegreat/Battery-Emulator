@@ -127,16 +127,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
-    // 0x43A reports Ohm/V, so scale by pack voltage to get absolute resistance
-    content += "<h4>Insulation resistance: ";
-    if (byd_datalayer->insulation_valid) {
-      float insulation_kohm =
-          static_cast<float>(byd_datalayer->insulation_ohm_per_volt) * (dl_bat.status.voltage_dV / 10.0f) / 1000.0f;
-      content += String(insulation_kohm, 1) + " k&Omega; (" + String(byd_datalayer->insulation_ohm_per_volt) +
-                 " &Omega;/V)</h4>";
-    } else {
-      content += "Not received</h4>";
-    }
     if (byd_datalayer->battery_temperatures[0] != 215) {
       content += "<h4>Temperature sensor 1: " + String(byd_datalayer->battery_temperatures[0]) + " &deg;C</h4>";
     }
@@ -303,6 +293,84 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Calibration target capacity: " + String(byd_datalayer->calibrationTargetAH) +
                " AH <button onclick='editCalTargetAH" + s + "()'>Edit</button></h4>";
 
+    // Isolation monitor. Status is per battery; the controls are shown once and apply to both.
+    {
+      const char* iso_label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4'>";
+      const char* iso_value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
+
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      content += "<h4 style='margin:0 0 8px 0;color:white'>Isolation resistance monitor</h4>";
+      content += "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white'>";
+
+      // Monitoring status from 0x35E b0 bit0x80; only unambiguous when the pack is closed
+      bool iso_closed = byd_datalayer->contactor_main_closed;
+      bool iso_active = byd_datalayer->iso_measurement_active;
+      content += "<tr>";
+      content += iso_label_td;
+      content += "Monitoring:</td>";
+      content += iso_value_td;
+      if (!byd_datalayer->iso_status_valid) {
+        content += "<span style='color:#8b949e'>Unknown</span>";
+      } else if (!iso_closed) {
+        content += "<span style='color:#8b949e'>Inactive (pack open)</span>";
+      } else if (iso_active) {
+        content += "<span style='color:#3fb950'>On</span>";
+      } else {
+        content += "<span style='color:#ff7b72'>Off</span>";
+      }
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += iso_label_td;
+      content += "Insulation resistance:</td>";
+      content += iso_value_td;
+      if (byd_datalayer->insulation_valid) {
+        float iso_kohm =
+            static_cast<float>(byd_datalayer->insulation_ohm_per_volt) * (dl_bat.status.voltage_dV / 10.0f) / 1000.0f;
+        content += String(iso_kohm, 1) + " k&Omega; (" + String(byd_datalayer->insulation_ohm_per_volt) + " &Omega;/V)";
+      } else {
+        content += "<span style='color:#8b949e'>Not received</span>";
+      }
+      content += "</td></tr>";
+
+      // Command feedback, only shown while something is pending or after a failure
+      if (byd_datalayer->iso_command_status == 1 || byd_datalayer->iso_command_status == 3 ||
+          byd_datalayer->iso_command_status == 4) {
+        content += "<tr>";
+        content += iso_label_td;
+        content += "Last command:</td>";
+        content += iso_value_td;
+        if (byd_datalayer->iso_command_status == 1) {
+          content += "<span style='color:#d29922'>Sending&hellip;</span>";
+        } else if (byd_datalayer->iso_command_status == 3) {
+          content += "<span style='color:#ff7b72'>Rejected</span>";
+        } else {
+          content += "<span style='color:#ff7b72'>No response</span>";
+        }
+        content += "</td></tr>";
+      }
+
+      if (s.length() == 0) {  // one set of controls, applied to every BYD battery
+        content += "<tr>";
+        content += iso_label_td;
+        content += "Keep disabled at boot:</td>";
+        content += iso_value_td;
+        content += "<input type='checkbox' id='keepIsoOff' ";
+        content += (byd_datalayer->keep_iso_disabled ? "checked" : "");
+        content += " onchange='bydKeepIsoDisabled()'>";
+        content += "</td></tr>";
+      }
+
+      content += "</table>";
+      if (s.length() == 0) {
+        content += "<div style='margin:10px 0 0'>";
+        content += "<button onclick='bydIsoEnable()'>Enable monitoring</button> ";
+        content += "<button onclick='bydIsoDisable()'>Disable monitoring</button>";
+        content += "</div>";
+      }
+      content += "</div>";
+    }
+
     content += "<script>";
     content += "function editComplete() {";
     content += "  alert('Update successful!');";
@@ -357,6 +425,25 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "  xhr.open('GET','/editBydAtto3AutoCalDriftPercent" + s + "?value='+percent,true);";
     content += "  xhr.send();";
     content += "}";
+    if (s.length() == 0) {  // isolation controls are rendered once and apply to every BYD battery
+      content += "function bydIsoSend(url){";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=function(){ setTimeout(function(){ location.reload(); }, 2000); };";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET',url,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function bydIsoEnable(){ bydIsoSend('/bydAtto3IsoEnable'); }";
+      content += "function bydIsoDisable(){ bydIsoSend('/bydAtto3IsoDisable'); }";
+      content += "function bydKeepIsoDisabled(){";
+      content += "  var on = document.getElementById('keepIsoOff').checked;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/bydAtto3KeepIsoDisabled?value='+(on?1:0),true);";
+      content += "  xhr.send();";
+      content += "}";
+    }
     content += "</script>";
 
     auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;

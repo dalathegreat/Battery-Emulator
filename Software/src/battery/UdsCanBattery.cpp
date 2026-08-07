@@ -12,7 +12,7 @@ constexpr uint16_t UDS_TIMEOUT_READ_DID = 2;
 constexpr uint16_t UDS_PID_MAX_RETRIES = 10;
 // Traffic on 0x7DF (or on uds_address) that isn't ours implies an external
 // diagnostic tool is in use.
-constexpr uint16_t UDS_BROADCAST_REQUEST_ADDRESS = 0x7DF;
+constexpr uint16_t OBD2_REQUEST_ADDRESS = 0x7DF;
 // How long to back off after detecting another diagnostic tool on the bus.
 constexpr uint16_t UDS_EXTERNAL_TOOL_BACKOFF_TICKS = 50;  // 5 seconds
 
@@ -55,6 +55,10 @@ void UdsCanBattery::transmit_uds_can(unsigned long currentMillis) {
   }
 
   if (pending_seq_state != UDS_STATE_IDLE) {
+    if (seq_pause_ticks > 0) {
+      // Don't start the sequence until the pause expires.
+      return;
+    }
     // A new sequence was requested, start it now.
     uint16_t state = pending_seq_state;
     pending_seq_state = UDS_STATE_IDLE;
@@ -103,7 +107,7 @@ bool UdsCanBattery::transaction_tick() {
 
 bool UdsCanBattery::start_sequence(uint16_t state) {
   if (pending_seq_state != UDS_STATE_IDLE) {
-    // A sequence is already active or a PID request is in flight: refuse.
+    // A sequence is already queued: refuse.
     return false;
   }
 
@@ -121,6 +125,11 @@ bool UdsCanBattery::send_sequence_message(uint16_t state, SID sid, const uint8_t
 
   if (length > sizeof(seq_msg.data)) {
     // Payload doesn't fit the sequence buffer; refuse rather than truncate.
+    return false;
+  }
+
+  if (timeout_ticks == 0) {
+    // Timeout must be non-zero.
     return false;
   }
 
@@ -144,7 +153,7 @@ void UdsCanBattery::pause_uds(uint16_t ticks_100ms, UdsPriority block_upto) {
 bool UdsCanBattery::handle_incoming_uds_can_frame(CAN_frame rx) {
   // A UDS request frame being received implies that there is a diagnostic tool
   // on the bus. Back off so we don't interfere with it.
-  if (rx.ID == uds_address || rx.ID == UDS_BROADCAST_REQUEST_ADDRESS) {
+  if (rx.ID == uds_address || rx.ID == OBD2_REQUEST_ADDRESS) {
     if (seq_pause_ticks == 0) {
       logging.println("UDS: external diagnostic traffic detected, backing off");
     }
@@ -255,6 +264,11 @@ bool UdsCanBattery::on_uds_pid_scan_response(uint8_t sid, const uint8_t* data, u
       return false;
     }
     uint16_t did = (data[1] << 8) | data[2];
+    if (did != pending_pid) {
+      // Response PID doesn't match the one we currently have in flight (maybe
+      // an old one?). Ignore it and keep waiting for the right one.
+      return false;
+    }
     // Value starts at data[3]
     // Decode up to 4 bytes of value, big endian.
     uint32_t val = len > 3 ? parseBigEndianValue(&data[3], len - 3) : 0;
@@ -310,7 +324,7 @@ void UdsCanBattery::on_uds_receive(const uint8_t* data, uint16_t len) {
 
   const SID sid = (SID)data[0];
 
-  // Debugging
+#ifdef UDS_DEBUG
   if (sid != UDS_RESPONSE_SID_OF(SID::ReadDataByIdentifier)) {
     logging.printf("UDS RX: SID=0x%02X data=", (uint8_t)sid);
     for (int i = 0; i < len; i++) {
@@ -318,6 +332,7 @@ void UdsCanBattery::on_uds_receive(const uint8_t* data, uint16_t len) {
     }
     logging.println();
   }
+#endif
 
   if (seq_state == UDS_STATE_IDLE && pending_pid == 0) {
     // Nothing in flight: this can't be a response to anything we sent. Don't

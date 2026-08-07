@@ -188,11 +188,14 @@ class Esp32Hal {
 
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
+#ifdef SDCARD
   // SD card
+  virtual uint8_t SD_SPI_BUS() = 0;
   virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
+#endif  // SDCARD
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }

@@ -26,8 +26,8 @@ test/tests[1]_include.cmake
 logs
 .dummy/
 managed_components/
-sdkconfig.defaults
-sdkconfig.lilygo_330
+sdkconfig.*
+!sdkconfig.be_size.defaults
 
 # Ignore upload command (removes the need to re-compile after Verify when running Download, in e.g. VS Code)
 upload.bat

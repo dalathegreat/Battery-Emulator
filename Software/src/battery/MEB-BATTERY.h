@@ -6,13 +6,19 @@
 // Uncomment the next line to enable some debug logging.
 //#define MEB_DEBUG
 
+// VW Group platform battery types.
+enum class VAGPlatform : uint8_t {
+  MEB = 1,
+  MQB_Evo = 2,
+};
+
 class MebBattery : public CanBattery, public IsoTp {
  public:
   // Use this constructor for the second battery.
   MebBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_MEB* extended, CAN_Interface targetCan)
       : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-
+    datalayer_meb = extended;
     BMS_voltage = 0;
   }
   // Use the default constructor to create the first or single battery.
@@ -36,13 +42,13 @@ class MebBattery : public CanBattery, public IsoTp {
   void reset_crash() { datalayer_extended.meb.UserRequestCrashReset = true; }
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
-  static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
+  static constexpr const char* Name = "VW Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
- private:
-  /* validate crc for some CAN frames */
-  uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t address);
+ protected:
+  /* calculate CRC for some CAN frames */
+  uint8_t vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint32_t msg_id);
   /* send a UDS ReadDataByIdentifier request for did via ISO-TP */
   void uds_read_data_by_id(const uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
@@ -59,6 +65,8 @@ class MebBattery : public CanBattery, public IsoTp {
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_MEB* datalayer_meb;
+
+  VAGPlatform platform = VAGPlatform::MEB;
 
   static const int MAX_PACK_VOLTAGE_84S_DV = 3528;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_84S_DV = 2520;
@@ -302,10 +310,9 @@ class MebBattery : public CanBattery, public IsoTp {
 
   // ISO-TP / UDS request serialization. Only one UDS transaction (PID poll, DTC read) is
   // outstanding at a time; the next request waits until a response arrives or the timeout expires.
-  static const int MAX_DTC_COUNT = 32;  // matches dtc_codes[] size in DATALAYER_INFO_MEB
   static constexpr unsigned long UDS_REQUEST_TIMEOUT_MS = 1000;
   // time between the routine start response and the routine stop request.
-  static constexpr unsigned long BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS = 600;
+  static constexpr unsigned long BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS = 3000;
   bool uds_request_pending = false;
   unsigned long uds_request_timestamp = 0;
 
@@ -371,6 +378,10 @@ class MebBattery : public CanBattery, public IsoTp {
       false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
   uint32_t BMS_voltage_intermediate = 2000;
   uint32_t BMS_voltage = 1480;
+  int32_t BMS_usable_batt_energy_Wh = 0;
+  int32_t BMS_usable_batt_energy_t_Wh = 0;
+  int32_t BMS_max_usable_batt_energy_Wh = 0;
+  uint16_t BMS_nominal_voltage_dV = 0;
   uint8_t BMS_status_voltage_free =
       0;  //0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error
   bool BMS_OBD_MIL = false;
@@ -667,8 +678,22 @@ class MebBattery : public CanBattery, public IsoTp {
                                                .DLC = 8,
                                                .ID = Kombi_02,  // content
                                                .data = {0xFE, 0xFF, 0xEF, 0xFF, 0x3F, 0x1C, 0x02, 0x94}};
-
+  CAN_frame Motor_EV_01_frame = {.FD = true,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = Motor_EV_01,  // content
+                                 .data = {0x00, 0x80, 0x12, 0x00, 0x00, 0x00, 0x30, 0x96}};
   uint32_t can_msg_received = 0;
+};
+
+// MQB Evo shares all of the MEB CAN handling; only the one-time setup differs.
+class MqbEvoBattery : public MebBattery {
+ public:
+  MqbEvoBattery() = default;
+  MqbEvoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_MEB* extended, CAN_Interface targetCan)
+      : MebBattery(datalayer_ptr, extended, targetCan) {}
+  static constexpr const char* Name = "VW Group MQB Evo 2024+ via CAN-FD";
+  void setup(void) override;
 };
 
 #endif

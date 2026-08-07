@@ -132,6 +132,7 @@ void init_stored_settings() {
   user_selected_inverter_foxess_modules = settings.getUInt("FOXESSMODULES", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
+  user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
@@ -228,8 +229,10 @@ void init_stored_settings() {
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+#ifdef SDCARD
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+#endif  // SDCARD
   datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
   syslog_ip = settings.getString("SYSLOGIP").c_str();
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
@@ -279,6 +282,9 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
+  // One isolation-monitor setting for both batteries
+  datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
+  datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
 }
 
 void clear_wifi_sta_settings() {
@@ -329,6 +335,7 @@ void store_settings() {
   settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
   settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
 }

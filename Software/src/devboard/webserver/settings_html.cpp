@@ -698,6 +698,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("WEBENABLED") ? "checked" : "";
   }
 
+#ifdef SDCARD
   if (var == "CANLOGSD") {
     return settings.getBool("CANLOGSD") ? "checked" : "";
   }
@@ -705,6 +706,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
+#endif  // SDCARD
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
@@ -979,6 +981,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
+  if (var == "INVOFFGRID") {
+    return settings.getBool("INVOFFGRID") ? "checked" : "";
+  }
+
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
@@ -1150,6 +1156,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #else
 #define GPIOOPT6_SETTING ""
 #endif
+
+#ifdef SDCARD
+#define SD_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD%
+            title="Store incoming/outgoing CAN messages on SD card. Only works on hardware with SD-card slot." />
+  )rawliteral"
+#else
+#define SD_SETTING_HTML ""
+#endif  // SDCARD
 
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
@@ -1865,6 +1886,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
+
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
@@ -2171,19 +2196,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>General logging to SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
-
         <label>CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%
             title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
 
-        <label>CAN message logging to SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
-
-        )rawliteral" SYSLOG_SETTING_HTML R"rawliteral(
+        )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
         </div>
