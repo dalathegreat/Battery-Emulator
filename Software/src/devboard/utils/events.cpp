@@ -20,6 +20,39 @@ static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
 
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
+
+/* Offgrid downgrade.
+ *
+ * Some events describe the loss of something an offgrid system never had.
+ * The inverter going missing is a genuine fault when it is the grid-tied
+ * sink, and is normal when the system is meant to run standalone - and today
+ * it raises system_status to FAULT, which gates precharge and so blocks a
+ * black start outright.
+ *
+ * Downgraded here rather than by editing the table in init_events(), so the
+ * declared severity stays readable in one place and the exception is a short,
+ * auditable list. Applied at every point the level is READ, so what gets
+ * aggregated, logged and shown on the events page is the effective level -
+ * not a FAULT that merely displays as a warning.
+ *
+ * Extending this is a matter of adding an event id: the mechanism assumes
+ * nothing about which events belong here. */
+static const EVENTS_ENUM_TYPE OFFGRID_DOWNGRADED_EVENTS[] = {
+    EVENT_CAN_INVERTER_MISSING,
+};
+
+static EVENTS_LEVEL_TYPE effective_level(EVENTS_ENUM_TYPE event) {
+  EVENTS_LEVEL_TYPE level = events.entries[event].level;
+  if (!user_selected_inverter_offgrid || level <= EVENT_LEVEL_WARNING) {
+    return level;
+  }
+  for (EVENTS_ENUM_TYPE downgraded : OFFGRID_DOWNGRADED_EVENTS) {
+    if (event == downgraded) {
+      return EVENT_LEVEL_WARNING;
+    }
+  }
+  return level;
+}
 static bool can_error_ignored(EVENTS_ENUM_TYPE event);
 static void update_event_level(void);
 static void update_bms_status(void);
@@ -495,7 +528,7 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
 
 const char* get_event_level_string(EVENTS_ENUM_TYPE event) {
   // Return the event level but skip "EVENT_LEVEL_" that should always be first
-  return EVENTS_LEVEL_TYPE_STRING[events.entries[event].level] + 12;
+  return EVENTS_LEVEL_TYPE_STRING[effective_level(event)] + 12;
 }
 
 const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level) {
@@ -579,7 +612,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
 
-    LOG_SET_NEXT_SEVERITY(event_level_to_syslog(events.entries[event].level));
+    LOG_SET_NEXT_SEVERITY(event_level_to_syslog(effective_level(event)));
     DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
   }
 
@@ -591,7 +624,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
   // Update event level, only upwards. Downward changes are done in Software.ino:loop()
-  events.level = (EVENTS_LEVEL_TYPE)max(events.level, events.entries[event].level);
+  events.level = (EVENTS_LEVEL_TYPE)max(events.level, effective_level(event));
 
   update_bms_status();
 }
@@ -633,7 +666,7 @@ static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
-      temporary_level = (EVENTS_LEVEL_TYPE)max(events.entries[i].level, temporary_level);
+      temporary_level = (EVENTS_LEVEL_TYPE)max(effective_level((EVENTS_ENUM_TYPE)i), temporary_level);
     }
   }
   events.level = temporary_level;

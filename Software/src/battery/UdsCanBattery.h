@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../lib/uds_isotp/isotp.h"
-#include "../lib/uds_isotp/uds.h"
 #include "CanBattery.h"
 #include "freertos/FreeRTOS.h"
 
@@ -102,7 +100,10 @@ class UdsCanBattery : public CanBattery, public IsoTp {
     Custom = 2,    // User-initiated custom diagnostic messages
   };
 
-  inline bool uds_is_busy() const { return seq_state != UDS_STATE_IDLE || pending_pid != 0 || seq_pause_ticks > 0; }
+  inline bool uds_is_busy() const {
+    return seq_state != UDS_STATE_IDLE || pending_pid != 0 || pending_seq_state != UDS_STATE_IDLE ||
+           seq_pause_ticks > 0 || isotp_is_busy();
+  }
 
   virtual bool supports_read_DTC();
   virtual bool supports_reset_DTC();
@@ -150,14 +151,14 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   // Queues a new UDS sequence. Doesn't send anything yet, but during the next
   // UDS tick, `on_uds_sequence_step` will be called with the given state,
   // allowing the subclass to send the first step. Returns false if a sequence
-  // is already active or a PID scan is in flight.
+  // is already queued.
   bool start_sequence(uint16_t state);
 
   // Send a single step of a UDS sequence. The state is handed back to
   // on_uds_sequence_step() along with the response. The step is retried
   // automatically on timeout, up to `max_retries`. Increasing `priority` allows
-  // the send to override pauses (depending on level). Returns false if unable
-  // to send.
+  // the send to override pauses (depending on level). `timeout_ticks` must be
+  // non-zero. Returns false if unable to send.
   bool send_sequence_message(uint16_t state, SID sid, const uint8_t* data, uint16_t len, uint16_t timeout_ticks = 10,
                              uint8_t max_retries = 2, UdsPriority priority = UdsPriority::Sequence);
 
@@ -261,7 +262,7 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   UdsPriority seq_pause_level = UdsPriority::PidScan;
   // How many ticks left for the current request to complete, before it is
   // retried (or given up).
-  int16_t uds_transaction_timeout = 0;
+  int32_t uds_transaction_timeout = 0;
 
   UdsBatteryHtmlRenderer uds_renderer;
 };

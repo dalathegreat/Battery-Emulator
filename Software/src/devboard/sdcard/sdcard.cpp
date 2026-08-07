@@ -1,4 +1,7 @@
 #include "sdcard.h"
+
+#ifdef SDCARD
+
 #include "freertos/ringbuf.h"
 
 File can_log_file;
@@ -23,7 +26,7 @@ void delete_can_log() {
 
 void resume_can_writing() {
   can_logging_paused = false;
-  can_log_file = SD_MMC.open(CAN_LOG_FILE, FILE_APPEND);
+  can_log_file = SD.open(CAN_LOG_FILE, FILE_APPEND);
   can_file_open = true;
 }
 
@@ -37,13 +40,13 @@ void delete_log() {
     log_file.close();
     log_file_open = false;
   }
-  SD_MMC.remove(LOG_FILE);
+  SD.remove(LOG_FILE);
   logging_paused = false;
 }
 
 void resume_log_writing() {
   logging_paused = false;
-  log_file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+  log_file = SD.open(LOG_FILE, FILE_APPEND);
   log_file_open = true;
 }
 
@@ -109,7 +112,7 @@ void write_can_frame_to_sdcard() {
         can_file_open = false;
       }
       if (delete_can_file) {
-        SD_MMC.remove(CAN_LOG_FILE);
+        SD.remove(CAN_LOG_FILE);
         delete_can_file = false;
         can_logging_paused = false;
       }
@@ -118,7 +121,7 @@ void write_can_frame_to_sdcard() {
     }
 
     if (can_file_open == false) {
-      can_log_file = SD_MMC.open(CAN_LOG_FILE, FILE_APPEND);
+      can_log_file = SD.open(CAN_LOG_FILE, FILE_APPEND);
       can_file_open = true;
     }
 
@@ -157,7 +160,7 @@ void write_log_to_sdcard() {
     }
 
     if (log_file_open == false) {
-      log_file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+      log_file = SD.open(LOG_FILE, FILE_APPEND);
       log_file_open = true;
     }
 
@@ -187,7 +190,7 @@ void init_logging_buffers() {
 }
 
 void deinit_logging_buffers() {
-  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.CAN_SD_logging_active)) {
+  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.SD_logging_active)) {
     if (can_bufferHandle != NULL) {
       vRingbufferDelete(can_bufferHandle);
     }
@@ -201,15 +204,20 @@ bool init_sdcard() {
   auto miso_pin = esp32hal->SD_MISO_PIN();
   auto mosi_pin = esp32hal->SD_MOSI_PIN();
   auto sclk_pin = esp32hal->SD_SCLK_PIN();
+  auto cs_pin = esp32hal->SD_CS_PIN();
 
-  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin)) {
+  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin, cs_pin)) {
     return false;
   }
 
-  pinMode(miso_pin, INPUT_PULLUP);
+  static SPIClass sd_spi(esp32hal->SD_SPI_BUS());
+  sd_spi.begin(sclk_pin, miso_pin, mosi_pin, cs_pin);
 
-  SD_MMC.setPins(sclk_pin, mosi_pin, miso_pin);
-  if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
+  constexpr uint32_t SD_SPI_FREQ = 20 * 1000000;  // 20 MHz
+  constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default
+  constexpr bool FORMAT_IF_EMPTY = true;
+
+  if (!SD.begin(cs_pin, sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
     logging.println("SD Card initialization failed!");
     return false;
@@ -228,7 +236,7 @@ bool init_sdcard() {
 void log_sdcard_details() {
 
   logging.print("SD Card Type: ");
-  switch (SD_MMC.cardType()) {
+  switch (SD.cardType()) {
     case CARD_MMC:
       logging.println("MMC");
       break;
@@ -246,17 +254,19 @@ void log_sdcard_details() {
       break;
   }
 
-  if (SD_MMC.cardType() != CARD_NONE) {
+  if (SD.cardType() != CARD_NONE) {
     logging.print("SD Card Size: ");
-    logging.print(SD_MMC.cardSize() / 1024 / 1024);
+    logging.print(SD.cardSize() / 1024 / 1024);
     logging.println(" MB");
 
     logging.print("Total space: ");
-    logging.print(SD_MMC.totalBytes() / 1024 / 1024);
+    logging.print(SD.totalBytes() / 1024 / 1024);
     logging.println(" MB");
 
     logging.print("Used space: ");
-    logging.print(SD_MMC.usedBytes() / 1024 / 1024);
+    logging.print(SD.usedBytes() / 1024 / 1024);
     logging.println(" MB");
   }
 }
+
+#endif  // SDCARD
