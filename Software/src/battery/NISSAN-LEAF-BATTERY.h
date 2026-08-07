@@ -267,6 +267,10 @@ class NissanLeafBattery : public CanBattery {
   bool balancing_bitmap_valid = false;
   //One bit per recent read, set if that read came back with the shunt set unchanged
   uint16_t balancing_unchanged_window = 0;
+  //How many reads the window holds so far, saturating at BALANCING_WINDOW_READS. Until it is full the
+  //unchanged count is not meaningful - an empty window looks identical to one full of changed reads -
+  //so no classification is made and the status stays as it was, UNKNOWN after a boot or a BMS reset.
+  uint8_t balancing_window_fill = 0;
   //Consecutive reads with fewer than BALANCING_READY_BELOW_CELLS shunts flagged
   uint8_t balancing_low_reads = 0;
   //Which group 0x06 frames of the current response have arrived, so partial responses are discarded

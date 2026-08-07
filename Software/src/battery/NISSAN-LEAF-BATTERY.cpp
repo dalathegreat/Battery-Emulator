@@ -206,6 +206,7 @@ void NissanLeafBattery::
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
     balancing_unchanged_window = 0;
+    balancing_window_fill = 0;
     balancing_low_reads = 0;
     set_balancing_status(BALANCING_STATUS_UNKNOWN);
   }
@@ -231,6 +232,7 @@ void NissanLeafBattery::
       if (balancing_low_reads >= BALANCING_READY_DEBOUNCE_READS) {
         balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
         balancing_unchanged_window = 0;
+        balancing_window_fill = 0;
         set_balancing_status(BALANCING_STATUS_READY);
       }
     } else {
@@ -246,12 +248,21 @@ void NissanLeafBattery::
         balancing_unchanged_window = (uint16_t)(balancing_unchanged_window << 1) | (unchanged ? 1 : 0);
         balancing_unchanged_window &= (uint16_t)((1UL << BALANCING_WINDOW_READS) - 1);
 
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          balancing_window_fill++;
+        }
+
         uint8_t unchanged_reads = 0;
         for (uint16_t bits = balancing_unchanged_window; bits; bits &= bits - 1) {
           unchanged_reads++;
         }
 
-        if (unchanged_reads >= BALANCING_UNCHANGED_FOR_IDLE) {
+        //A partly filled window cannot be told apart from a busy one: both report few unchanged reads.
+        //Decide nothing until it is full, so the status stays UNKNOWN after a boot or a BMS reset
+        //rather than reporting a balance that has not been observed yet.
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          //Not enough history yet, hold the current status
+        } else if (unchanged_reads >= BALANCING_UNCHANGED_FOR_IDLE) {
           set_balancing_status(BALANCING_STATUS_BLOCKED);  //Holding a set: flagged, but not yet at rest
         } else if (unchanged_reads <= BALANCING_UNCHANGED_FOR_ACTIVE) {
           set_balancing_status(BALANCING_STATUS_ACTIVE);  //Re-deciding the set steadily: really balancing
