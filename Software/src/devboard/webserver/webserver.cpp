@@ -1,3 +1,5 @@
+#if 0
+
 #include "webserver.h"
 #include <Preferences.h>
 #include <ctime>
@@ -1820,3 +1822,5 @@ String formatPowerValue(T value, String unit, int precision) {
   result += unit;
   return result;
 }
+
+#endif

@@ -1,3 +1,5 @@
+#if 0
+
 #include "advanced_battery_html.h"
 #include <Arduino.h>
 #include <vector>
@@ -155,3 +157,5 @@ String advanced_battery_processor(const String& var) {
   }
   return String();
 }
+
+#endif

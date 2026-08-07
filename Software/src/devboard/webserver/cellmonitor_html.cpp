@@ -1,3 +1,5 @@
+#if 0
+
 #include "cellmonitor_html.h"
 #include <Arduino.h>
 #include "../../battery/BATTERIES.h"
@@ -579,3 +581,5 @@ String cellmonitor_processor(const String& var) {
   }
   return String();
 }
+
+#endif

@@ -1,3 +1,5 @@
+#if 0
+
 #include "can_replay_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
@@ -145,3 +147,5 @@ String can_replay_processor(void) {
   content += index_html_footer;
   return content;
 }
+
+#endif

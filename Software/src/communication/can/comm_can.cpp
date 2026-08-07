@@ -528,6 +528,9 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
       dump_can_frame(frame, interface, msgDir);
     }
   }
+  if (datalayer.system.info.can_streaming_active) {
+    stream_can_frame(frame, interface, msgDir);
+  }
 }
 
 static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {

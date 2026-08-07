@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <list>
 #include "HardwareSerial.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
@@ -18,6 +19,7 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
+#include "src/devboard/hal/hal.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -29,7 +31,7 @@
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/devboard/utils/watchdog.h"
-#include "src/devboard/webserver/webserver.h"
+#include "src/devboard/webserver/webserver_new.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
@@ -114,7 +116,7 @@ void connectivity_loop(void*) {
       update_espnow();
     }
 
-    ota_monitor();
+    webserver_tick();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
