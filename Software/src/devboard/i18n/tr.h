@@ -69,7 +69,6 @@ String& tr_h3(String& out, TrKey key,
 String& tr_h4_pair(String& out, TrKey k1, const char* sep1, const String& v1, const char* unit1, TrKey k2,
                    const char* sep2, const String& v2, const char* unit2);
 
-
 /* Bounds-checked catalog lookup for value tables, replacing per-value switch
  * chains. Adopted from upstream's enum_str (PR #1941 era) and kept table-driven
  * for the same reason: taking the array by reference deduces N, so a table and

@@ -18,13 +18,21 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
-    static constexpr TrKey hvil_status_values[] = {TrKey::DRV_INIT, TrKey::DRV_CLOSED, TrKey::DRV_OPEN_ALARM, TrKey::DRV_FAULT};
-    static constexpr TrKey bms_mode_values[] = {TrKey::DRV_HV_INACTIVE, TrKey::DRV_HV_ACTIVE, TrKey::UI_BALANCING, TrKey::DRV_EXTERN_CHARGING, TrKey::DRV_AC_CHARGING, TrKey::DRV_BATTERY_ERROR, TrKey::DRV_DC_CHARGING, TrKey::DRV_INIT};
+    static constexpr TrKey hvil_status_values[] = {TrKey::DRV_INIT, TrKey::DRV_CLOSED, TrKey::DRV_OPEN_ALARM,
+                                                   TrKey::DRV_FAULT};
+    static constexpr TrKey bms_mode_values[] = {
+        TrKey::DRV_HV_INACTIVE, TrKey::DRV_HV_ACTIVE,     TrKey::UI_BALANCING,    TrKey::DRV_EXTERN_CHARGING,
+        TrKey::DRV_AC_CHARGING, TrKey::DRV_BATTERY_ERROR, TrKey::DRV_DC_CHARGING, TrKey::DRV_INIT};
     static constexpr TrKey balancing_values[] = {TrKey::DRV_INIT, TrKey::DRV_ACTIVE_STATUS, TrKey::DRV_INACTIVE};
-    static constexpr TrKey heater_hv_line_status_values[] = {TrKey::DRV_INIT, TrKey::DRV_HEATER_NO_OPEN_HV_LINE, TrKey::DRV_HEATER_OPEN_HV_LINE, TrKey::DRV_FAULT};
-    static constexpr TrKey welded_contactors_values[] = {TrKey::DRV_INIT, TrKey::DRV_NO_CONTACTOR_WELDED, TrKey::DRV_AT_LEAST_1_CONTACTOR_WELDED, TrKey::DRV_PROTECTION_STATUS_DETECTION_ERROR};
-    static constexpr TrKey bms_error_status_values[] = {TrKey::DRV_COMPONENT_IO, TrKey::DRV_ISO_ERROR_1, TrKey::DRV_ISO_ERROR_2, TrKey::DRV_INTERLOCK, TrKey::DRV_SERVICE_DISCONNECT, TrKey::DRV_PERFORMANCE_RED, TrKey::DRV_NO_COMPONENT_FUNCTION, TrKey::DRV_INIT};
-
+    static constexpr TrKey heater_hv_line_status_values[] = {TrKey::DRV_INIT, TrKey::DRV_HEATER_NO_OPEN_HV_LINE,
+                                                             TrKey::DRV_HEATER_OPEN_HV_LINE, TrKey::DRV_FAULT};
+    static constexpr TrKey welded_contactors_values[] = {TrKey::DRV_INIT, TrKey::DRV_NO_CONTACTOR_WELDED,
+                                                         TrKey::DRV_AT_LEAST_1_CONTACTOR_WELDED,
+                                                         TrKey::DRV_PROTECTION_STATUS_DETECTION_ERROR};
+    static constexpr TrKey bms_error_status_values[] = {TrKey::DRV_COMPONENT_IO,          TrKey::DRV_ISO_ERROR_1,
+                                                        TrKey::DRV_ISO_ERROR_2,           TrKey::DRV_INTERLOCK,
+                                                        TrKey::DRV_SERVICE_DISCONNECT,    TrKey::DRV_PERFORMANCE_RED,
+                                                        TrKey::DRV_NO_COMPONENT_FUNCTION, TrKey::DRV_INIT};
 
     tr_h4(content, datalayer_extended.meb.SDSW ? TrKey::DRV_SERVICE_DISCONNECT_SWITCH_MISSING
                                                : TrKey::DRV_SERVICE_DISCONNECT_SWITCH_OK);
