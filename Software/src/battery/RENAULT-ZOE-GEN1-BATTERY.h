@@ -28,6 +28,7 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   static constexpr const char* Name = "Renault Zoe Gen1 22/40kWh";
 
   String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "renault_zoe_gen1_dtc.json"; }
 
  protected:
   // Called by the UDS superclass for every successful PID response. `data`
@@ -51,8 +52,6 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   static const int GROUP1_CELLVOLTAGES_1_POLL = 0x41;  // Cells 1-62
   static const int GROUP2_CELLVOLTAGES_2_POLL = 0x42;  // Cells 63-96
   static const int GROUP3_METRICS = 0x61;              // Mileage + alltime energy
-  static const int GROUP4_SOC = 0x03;                  // SOC
-  static const int GROUP5_TEMPERATURE_POLL = 0x04;     // Cell temperatures
   static const int GROUP6_BALANCING = 0x07;            // Balancing status bits
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
@@ -87,20 +86,10 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   uint8_t LB_HVBOT = 0;
   uint8_t LB_HVBOV = 0;
   uint8_t LB_COV = 0;
+  uint8_t LB_Charge_Limiting_Active = 0;
+  uint8_t LB_Regen_Inhibited = 0;
+  uint8_t LB_Discharge_Limiting_Active = 0;
   uint32_t calculated_total_pack_voltage_mV = 370000;
-  uint16_t SOC_polled = 5000;
-  int16_t cell_1_temperature_polled = 0;
-  int16_t cell_2_temperature_polled = 0;
-  int16_t cell_3_temperature_polled = 0;
-  int16_t cell_4_temperature_polled = 0;
-  int16_t cell_5_temperature_polled = 0;
-  int16_t cell_6_temperature_polled = 0;
-  int16_t cell_7_temperature_polled = 0;
-  int16_t cell_8_temperature_polled = 0;
-  int16_t cell_9_temperature_polled = 0;
-  int16_t cell_10_temperature_polled = 0;
-  int16_t cell_11_temperature_polled = 0;
-  int16_t cell_12_temperature_polled = 0;
   uint16_t battery_mileage_in_km = 0;
   uint16_t kWh_from_beginning_of_battery_life = 0;
 };

@@ -2,6 +2,7 @@
 #include <algorithm>  //std::min_element/max_element
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp
@@ -14,8 +15,8 @@ void RenaultZoeGen1Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer_battery->status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
 
-  datalayer_battery->status.real_soc = SOC_polled;
-  //datalayer_battery->status.real_soc = LB_Display_SOC; //Alternative would be to use Dash SOC%
+  datalayer_battery->status.real_soc = (uint16_t)(LB_Display_SOC * 0.25f);  // 0.0025% per bit -> pptt (0.01% units)
+  // Alternative: datalayer_battery->status.real_soc = (LB_SOC * 100); // Use raw BMS Chemical SOC% (0x654)
 
   datalayer_battery->status.current_dA = (((int32_t)LB_Current_raw * 10) / 4) - 5000;
 
@@ -27,18 +28,8 @@ void RenaultZoeGen1Battery::
 
   datalayer_battery->status.max_charge_power_W = LB_Regen_allowed_W;
 
-  int16_t temperatures[] = {cell_1_temperature_polled,  cell_2_temperature_polled,  cell_3_temperature_polled,
-                            cell_4_temperature_polled,  cell_5_temperature_polled,  cell_6_temperature_polled,
-                            cell_7_temperature_polled,  cell_8_temperature_polled,  cell_9_temperature_polled,
-                            cell_10_temperature_polled, cell_11_temperature_polled, cell_12_temperature_polled};
-
-  // Find the minimum and maximum temperatures
-  int16_t min_temperature = *std::min_element(temperatures, temperatures + 12);
-  int16_t max_temperature = *std::max_element(temperatures, temperatures + 12);
-
-  datalayer_battery->status.temperature_min_dC = min_temperature * 10;
-
-  datalayer_battery->status.temperature_max_dC = max_temperature * 10;
+  datalayer_battery->status.temperature_min_dC = LB_Cell_minimum_temperature * 10;
+  datalayer_battery->status.temperature_max_dC = LB_Cell_maximum_temperature * 10;
 
   // Calculate total pack voltage on packs that require this. Only calculate once all cellvotages have been read
   if (datalayer_battery->status.cell_voltages_mV[95] > 0) {
@@ -90,27 +81,6 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
         kWh_from_beginning_of_battery_life = (data[15] << 8) | data[16];
       }
       break;
-    case GROUP4_SOC:  // 0x03
-      if (length >= 6) {
-        SOC_polled = (data[4] << 8) | data[5];
-      }
-      break;
-    case GROUP5_TEMPERATURE_POLL:  // 0x04, 12 temperatures spaced 3 bytes apart
-      if (length >= 36) {
-        cell_1_temperature_polled = (data[2] - 40);
-        cell_2_temperature_polled = (data[5] - 40);
-        cell_3_temperature_polled = (data[8] - 40);
-        cell_4_temperature_polled = (data[11] - 40);
-        cell_5_temperature_polled = (data[14] - 40);
-        cell_6_temperature_polled = (data[17] - 40);
-        cell_7_temperature_polled = (data[20] - 40);
-        cell_8_temperature_polled = (data[23] - 40);
-        cell_9_temperature_polled = (data[26] - 40);
-        cell_10_temperature_polled = (data[29] - 40);
-        cell_11_temperature_polled = (data[32] - 40);
-        cell_12_temperature_polled = (data[35] - 40);
-      }
-      break;
     case GROUP6_BALANCING:  // 0x07, one bit per cell, MSB first within each byte
       for (uint8_t cell = 0; cell < 96; cell++) {
         if ((cell >> 3) >= length) {
@@ -140,17 +110,16 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
 
     case 0x42E:  //NOTE: Not present on 41kWh battery!
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Battery_Voltage = (((((rx_frame.data.u8[3] << 8) | (rx_frame.data.u8[4])) >> 5) & 0x3ff) * 0.5);  //0.5V/bit
       LB_Average_Temperature = (((((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6])) >> 5) & 0x7F) - 40);
       break;
     case 0x424:  //100ms - Charge limits, Temperatures, SOH - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
         datalayer_battery->status.CAN_error_counter++;
         break;
       }
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_CUV = (rx_frame.data.u8[0] & 0x03);
       LB_HVBIR = (rx_frame.data.u8[0] & 0x0C) >> 2;
       LB_HVBUV = (rx_frame.data.u8[0] & 0x30) >> 4;
@@ -159,6 +128,9 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_HVBOT = (rx_frame.data.u8[1] & 0x0C) >> 2;
       LB_HVBOV = (rx_frame.data.u8[1] & 0x30) >> 4;
       LB_COV = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      LB_Charge_Limiting_Active = (rx_frame.data.u8[2] & 0x40) >> 6;
+      LB_Regen_Inhibited = (rx_frame.data.u8[2] & 0x80) >> 7;
+      LB_Discharge_Limiting_Active = (rx_frame.data.u8[3] & 0x80) >> 7;
       LB_Regen_allowed_W = rx_frame.data.u8[2] * 500;
       LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
       LB_Cell_minimum_temperature = (rx_frame.data.u8[4] - 40);
@@ -166,40 +138,22 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
       break;
     case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40 & Zoe Gen1
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Cell_maximum_voltage = (((((rx_frame.data.u8[4] & 0x03) << 7) | (rx_frame.data.u8[5] >> 1)) * 10) + 1000);
       LB_Cell_minimum_voltage = (((((rx_frame.data.u8[6] & 0x01) << 8) | rx_frame.data.u8[7]) * 10) + 1000);
       break;
     case 0x427:  // NOTE: Not present on 41kWh battery!
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
       break;
     case 0x445:  //100ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Heartbeat = rx_frame.data.u8[2];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
         datalayer_battery->status.CAN_error_counter++;
         break;
       }
-      break;
-    case 0x4AE:  //3000ms Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
-      break;
-    case 0x4AF:  //100ms Zoe Gen1
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
     case 0x654:  //SOC
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_SOC = rx_frame.data.u8[3];
-      break;
-    case 0x658:  //SOH - NOTE: Not present on 41kWh battery! (Is this message on 21kWh?)
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //LB_SOH = (rx_frame.data.u8[4] & 0x7F);
-      break;
-    case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
-      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
@@ -236,19 +190,22 @@ inline String& operator<<(String& str, const T& value) {
 
 String RenaultZoeGen1Battery::get_uds_info_html() {
   String content;
-  content.reserve(500);
+  content.reserve(400);
 
   // clang-format off
-  content << "<h4>CUV " << LB_CUV << "</h4>"
-             "<h4>HVBIR " << LB_HVBIR << "</h4>"
-             "<h4>HVBUV " << LB_HVBUV << "</h4>"
-             "<h4>EOCR " << LB_EOCR << "</h4>"
-             "<h4>HVBOC " << LB_HVBOC << "</h4>"
-             "<h4>HVBOT " << LB_HVBOT << "</h4>"
-             "<h4>HVBOV " << LB_HVBOV << "</h4>"
-             "<h4>COV " << LB_COV << "</h4>"
-             "<h4>Battery mileage " << battery_mileage_in_km << " km</h4>"
-             "<h4>Alltime energy " << kWh_from_beginning_of_battery_life << " kWh</h4>";
+  content << "Cell Under Voltage: " << (LB_CUV ? "FAULT" : "OK") << "<br>"
+             "Cell Over Voltage: " << (LB_COV ? "FAULT" : "OK") << "<br>"
+             "Pack Under Voltage: " << (LB_HVBUV ? "FAULT" : "OK") << "<br>"
+             "Pack Over Voltage: " << (LB_HVBOV ? "FAULT" : "OK") << "<br>"
+             "Pack Over Current: " << (LB_HVBOC ? "FAULT" : "OK") << "<br>"
+             "Over Temp: " << (LB_HVBOT ? "FAULT" : "OK") << "<br>"
+             "Isolation Fault: " << (LB_HVBIR ? "FAULT" : "OK") << "<br>"
+             "End Of Charge: " << (LB_EOCR ? "YES" : "NO") << "<br>"
+             "Charge Limiting: " << (LB_Charge_Limiting_Active ? "YES" : "NO") << "<br>"
+             "Regen Inhibited: " << (LB_Regen_Inhibited ? "YES" : "NO") << "<br>"
+             "Discharge Limiting: " << (LB_Discharge_Limiting_Active ? "YES" : "NO") << "<br>"
+             "Battery Mileage: " << battery_mileage_in_km << " km<br>"
+             "Lifetime Energy: " << kWh_from_beginning_of_battery_life << " kWh<br>";
   // clang-format on
 
   return content;
@@ -264,8 +221,6 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   static const uint16_t pid_scan_list[] = {
       GROUP1_CELLVOLTAGES_1_POLL,  // Cells 1-62
       GROUP2_CELLVOLTAGES_2_POLL,  // Cells 63-96
-      GROUP4_SOC,                  // SOC
-      GROUP5_TEMPERATURE_POLL,     // Cell temperatures
       GROUP6_BALANCING,            // Balancing status bits
       GROUP3_METRICS,              // Mileage + alltime energy
   };
