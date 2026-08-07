@@ -193,14 +193,14 @@ String RenaultZoeGen1Battery::get_uds_info_html() {
   content.reserve(350);
 
   // clang-format off
-  content << "Cell Under Voltage: " << (LB_CUV != 3 ? "FAULT" : "OK") << "<br>"
-             "Cell Over Voltage: " << (LB_COV != 3 ? "FAULT" : "OK") << "<br>"
-             "Pack Under Voltage: " << (LB_HVBUV != 3 ? "FAULT" : "OK") << "<br>"
-             "Pack Over Voltage: " << (LB_HVBOV != 3 ? "FAULT" : "OK") << "<br>"
-             "Pack Over Current: " << (LB_HVBOC != 3 ? "FAULT" : "OK") << "<br>"
-             "Over Temp: " << (LB_HVBOT != 3 ? "FAULT" : "OK") << "<br>"
-             "Isolation Fault: " << (LB_HVBIR != 3 ? "FAULT" : "OK") << "<br>"
-             "End Of Charge: " << (LB_EOCR == 3 ? "YES" : "NO") << "<br>"
+  content << "Cell Under Voltage: " << (LB_CUV ? "FAULT" : "OK") << "<br>"
+             "Cell Over Voltage: " << (LB_COV ? "FAULT" : "OK") << "<br>"
+             "Pack Under Voltage: " << (LB_HVBUV ? "FAULT" : "OK") << "<br>"
+             "Pack Over Voltage: " << (LB_HVBOV ? "FAULT" : "OK") << "<br>"
+             "Pack Over Current: " << (LB_HVBOC ? "FAULT" : "OK") << "<br>"
+             "Over Temp: " << (LB_HVBOT ? "FAULT" : "OK") << "<br>"
+             "Isolation Fault: " << (LB_HVBIR ? "FAULT" : "OK") << "<br>"
+             "End Of Charge: " << (LB_EOCR ? "YES" : "NO") << "<br>"
              "Charge Limiting: " << (LB_Charge_Limiting_Active ? "YES" : "NO") << "<br>"
              "Regen Inhibited: " << (LB_Regen_Inhibited ? "YES" : "NO") << "<br>"
              "Discharge Limiting: " << (LB_Discharge_Limiting_Active ? "YES" : "NO") << "<br>"
