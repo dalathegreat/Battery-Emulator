@@ -39,6 +39,7 @@ class BmwIXBattery : public CanBattery {
   void request_open_contactors() { userRequestContactorOpen = true; }
   void request_close_contactors() { userRequestContactorClose = true; }
 
+  static constexpr BatteryType TYPE = BatteryType::BmwIX;
   static constexpr const char* Name = "BMW iX and i4-7 platform";
 
   // Getter methods for HTML renderer

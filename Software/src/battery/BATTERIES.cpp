@@ -188,9 +188,9 @@ const char* name_for_battery_type(BatteryType type) {
     case BatteryType::SimpBms:
       return SimpBmsBattery::Name;
     case BatteryType::TeslaModel3Y:
-      return TeslaBattery::Name3Y;
+      return TeslaModel3YBattery::Name;
     case BatteryType::TeslaModelSX:
-      return TeslaBattery::NameSX;
+      return TeslaModelSXBattery::Name;
     case BatteryType::TeslaLegacy:
       return TeslaLegacyBattery::Name;
     case BatteryType::TestFake:
@@ -315,8 +315,9 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::StellantisSmallWide4x4:
       return new StellantisSmallWide4x4Battery();
     case BatteryType::TeslaModel3Y:
+      return new TeslaModel3YBattery();
     case BatteryType::TeslaModelSX:
-      return new TeslaBattery();
+      return new TeslaModelSXBattery();
     case BatteryType::TeslaLegacy:
       return new TeslaLegacyBattery();
     case BatteryType::TestFake:
@@ -456,8 +457,10 @@ void setup_battery() {
           battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::TeslaModel3Y:
+          battery2 = new TeslaModel3YBattery(&datalayer.battery2, can_config.battery_double);
+          break;
         case BatteryType::TeslaModelSX:
-          battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
+          battery2 = new TeslaModelSXBattery(&datalayer.battery2, can_config.battery_double);
           break;
         default:
           break;

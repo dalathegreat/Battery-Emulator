@@ -10,6 +10,7 @@ class FordMachEBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::FordMachE;
   static constexpr const char* Name = "Ford Mustang Mach-E battery";
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
