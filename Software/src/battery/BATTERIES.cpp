@@ -373,6 +373,7 @@ bool battery_supports_triple(BatteryType type) {
   switch (type) {
     case BatteryType::NissanLeaf:
     case BatteryType::CmfaEv:
+    case BatteryType::StellantisEcmp:
     case BatteryType::RelionBattery:
     case BatteryType::TestFake:
       return true;
@@ -480,6 +481,9 @@ void setup_battery() {
           break;
         case BatteryType::CmfaEv:
           battery3 = new CmfaEvBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery3 = new EcmpBattery(&datalayer.battery3, can_config.battery_triple);
           break;
         case BatteryType::RelionBattery:
           battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
