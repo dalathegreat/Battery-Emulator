@@ -198,6 +198,7 @@ private:
 
   bool _sent = false;                            // response is sent
   bool _paused = false;                          // request is paused (request continuation)
+  bool _streaming = false;                       // handler manages the raw connection itself (no auto response)
   std::shared_ptr<AsyncWebServerRequest> _this;  // shared pointer to this request
 
   String _temp;
@@ -270,6 +271,17 @@ public:
 
   AsyncClient *client() {
     return _client;
+  }
+  // Called by handlers that take over the raw TCP connection themselves (e.g.
+  // for long-lived streaming). Once enabled, the framework will not send an
+  // automatic response when the handler returns; the handler manages the
+  // connection lifecycle (headers, data, closing) and it is closed when the
+  // client disconnects.
+  void setStreamingResponse(bool streaming = true) {
+    _streaming = streaming;
+  }
+  bool isStreamingResponse() const {
+    return _streaming;
   }
   uint8_t version() const {
     return _version;
