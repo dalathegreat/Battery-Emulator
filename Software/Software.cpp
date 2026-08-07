@@ -32,7 +32,7 @@
 #include "src/devboard/utils/value_mapping.h"
 #include "src/devboard/utils/version.h"
 #include "src/devboard/utils/watchdog.h"
-#include "src/devboard/webserver/webserver.h"
+#include "src/devboard/webserver/webserver_new.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 

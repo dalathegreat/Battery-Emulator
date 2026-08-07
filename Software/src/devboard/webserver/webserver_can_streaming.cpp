@@ -1,6 +1,6 @@
 #include "webserver_can_streaming.h"
 #include "../../communication/can/comm_can.h"
-#include "webserver.h"
+#include "webserver_new.h"
 
 #include <stdlib.h>
 #include <atomic>
