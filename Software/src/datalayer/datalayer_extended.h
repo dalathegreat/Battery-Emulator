@@ -201,7 +201,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_contactors;
 
   // Native BMS termination: let the battery end the charge and recalibrate SOC itself, by running a
-  // real charge session on an already closed pack. Needs the pack case isolated from earth.
+  // real charge session on an already closed pack. Needs the pack not reporting an insulation fault
+  // (the isolation-monitor-disable setting, on by default, normally keeps that clear).
   bool native_termination_enabled;
   /** Session state: 0 off, 1 requesting, 2 ready, 3 charging, 4 finishing, 5 resting */
   uint8_t charge_session_state;
@@ -1078,6 +1079,7 @@ class DataLayerExtended {
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
+      data.native_termination_enabled = true;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);

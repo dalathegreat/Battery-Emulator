@@ -198,8 +198,9 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white;"
         "width:100%;max-width:460px;table-layout:fixed'>";
 
-    // Native BMS termination. Off by default: the battery refuses the charge context while it reports
-    // an insulation fault, so a pack out of a car usually needs its case isolated from earth first.
+    // Native BMS termination. On by default. The battery only enters a charge session when it is not
+    // reporting an insulation fault; the isolation-monitor-disable option (also on by default) normally
+    // keeps that clear, so a pack out of a car does not need its case isolated from earth for this.
     // Primary battery only - the inverter charge limit follows battery 1, so a session on a second
     // battery could not stop the bank when it terminates.
     if (s.length() > 0) {
@@ -258,7 +259,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' id='nativeTerm" + s + "' ";
       content += (byd_datalayer->native_termination_enabled ? "checked" : "");
       content += " onchange='toggleNativeTermination" + s + "()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> default off</span>";
+      content += "<span style='font-weight:normal;color:#8b949e'> default on</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -314,9 +315,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "</table>";
       content +=
-          "<div style='margin:10px auto 0;font-size:0.9em;color:#ff6f00'>&#9888; Requires the pack case "
-          "isolated from earth. The battery will not enter a charge session while it reports an insulation "
-          "fault.</div>";
+          "<div style='margin:10px auto 0;font-size:0.9em;color:#8b949e'>The battery will not enter a "
+          "charge session while it reports an insulation fault. The isolation-monitor-disable option "
+          "(on by default) normally keeps that clear; otherwise the pack case must be isolated from "
+          "earth.</div>";
       content += "</div>";
       content += "<hr>";
     }

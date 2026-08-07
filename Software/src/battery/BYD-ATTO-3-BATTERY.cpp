@@ -814,8 +814,9 @@ closed pack - 0x24A/0x47E ask for charge, 0x36A/0x36D grant the DC work mode - a
 when the charge is over. Nothing here moves a contactor: the pack goes 0x86 -> 0x85 -> 0x84 in place,
 and discharge stays available throughout.
 
-Opt-in, because the BMS refuses the charge context while it reports an insulation fault, which for a
-pack out of a car usually means the case has to be isolated from earth. */
+On by default. The BMS only enters the charge context when it is not reporting an insulation fault;
+the isolation-monitor-disable setting (also on by default) normally keeps that clear, so a pack out of
+a car does not need its case isolated from earth for this. */
 
 void BydAttoBattery::start_charge_session(unsigned long currentMillis) {
   // Re-entry from a rest hold keeps the work mode it is already broadcasting; only a first session
