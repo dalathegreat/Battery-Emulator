@@ -413,6 +413,7 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
       rx_frame.ID = frame.id;
       rx_frame.ext_ID = frame.ext;
       rx_frame.DLC = frame.len;
+      rx_frame.FD = false;
       for (uint8_t i = 0; i < frame.len && i < 8; i++) {
         rx_frame.data.u8[i] = frame.data[i];
       }
@@ -459,6 +460,8 @@ static void _receive_frame_canfd(ACAN2517FD* canfd, bool first) {
     rx_frame.ID = MCP2518frame.id;
     rx_frame.ext_ID = MCP2518frame.ext;
     rx_frame.DLC = MCP2518frame.len;
+    rx_frame.FD = (MCP2518frame.type == CANFDMessage::CANFD_NO_BIT_RATE_SWITCH ||
+                   MCP2518frame.type == CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH);
     memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)sizeof(rx_frame.data.u8)));
     //message incoming, pass it on to the handler
     if (first) {
@@ -605,18 +608,18 @@ size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_In
   }
 
   char* ptr = buffer;
-  unsigned long currentTime = millis();
+  const unsigned long currentTime = millis();
   *ptr++ = '(';
   ptr = put_time(ptr, currentTime);
   *ptr++ = ')';
   *ptr++ = ' ';
   if (msgDir == MSG_RX) {
-    *ptr++ = 'R';
-    *ptr++ = 'X';
+    *ptr++ = frame.FD ? 'R' : 'r';
+    *ptr++ = frame.FD ? 'X' : 'x';
     *ptr++ = '0' + ((int)interface * 2);
   } else {
-    *ptr++ = 'T';
-    *ptr++ = 'X';
+    *ptr++ = frame.FD ? 'T' : 't';
+    *ptr++ = frame.FD ? 'X' : 'x';
     *ptr++ = '1' + ((int)interface * 2);
   }
   *ptr++ = ' ';
