@@ -34,7 +34,7 @@
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
-    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT)
+    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT) && !defined(HW_DFROBOT_EDGE101)
 #error You must select a target hardware!
 #endif
 
