@@ -77,6 +77,10 @@ TEST_F(FakeTripleTest, DefaultFakeVoltageRaisesNoEventAndNeverLatches) {
   }
 
   expect_no_difference_events("fake triple resting at the default 370.0 V");
+  // The name's second claim, checked directly rather than inferred from the
+  // permissions: the startup grace never lifts while every pack reads 3700.
+  EXPECT_FALSE(join_state.voltages_seen_battery2);
+  EXPECT_FALSE(join_state.voltages_seen_battery3);
   EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
   EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
 }
@@ -85,15 +89,20 @@ TEST_F(FakeTripleTest, DefaultFakeVoltageRaisesNoEventAndNeverLatches) {
    only way a fake setup's voltage moves at all. The mirror runs in the same
    tick as the check, so the difference is zero at every step. */
 TEST_F(FakeTripleTest, SweepingTheUserSetVoltageRaisesNoEvent) {
+  // 245.0 V and 404.0 V are the fake driver's own design limits
   for (uint16_t voltage_dV = 2450; voltage_dV <= 4040; voltage_dV += 10) {
     fake_triple_tick(voltage_dV);
     ASSERT_FALSE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT2))
-        << "fired while sweeping upwards at " << voltage_dV << " dV";
+        << "battery 2 fired while sweeping upwards at " << voltage_dV << " dV";
+    ASSERT_FALSE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT3))
+        << "battery 3 fired while sweeping upwards at " << voltage_dV << " dV";
   }
   for (uint16_t voltage_dV = 4040; voltage_dV >= 2450; voltage_dV -= 10) {
     fake_triple_tick(voltage_dV);
+    ASSERT_FALSE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT2))
+        << "battery 2 fired while sweeping downwards at " << voltage_dV << " dV";
     ASSERT_FALSE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT3))
-        << "fired while sweeping downwards at " << voltage_dV << " dV";
+        << "battery 3 fired while sweeping downwards at " << voltage_dV << " dV";
   }
 
   expect_no_difference_events("after a full sweep of the user set voltage");
@@ -146,12 +155,19 @@ TEST_F(FakeTripleTest, InstanceThatStopsMirroringDoesRaiseTheEvent) {
   }
   ASSERT_FALSE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT2));
 
-  // Battery 2 stops updating and is left behind as battery 1 moves away
-  for (int second = 0; second < 5; ++second) {
-    datalayer.battery.status.voltage_dV = 4000;
+  /* Battery 2 stops updating and is left behind as battery 1 moves away. The
+     event is raised once the counter passes 3, so the first three seconds out
+     of sync are silent and the fourth reports - pin both ends of that, or the
+     case would still pass against code that never raises the event at all. */
+  datalayer.battery.status.voltage_dV = 4000;  // Battery 2 stays at 3800
+
+  for (int second = 1; second <= 3; ++second) {
     check_parallel_battery_safety(2);
+    ASSERT_FALSE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT2))
+        << "raised after only " << second << " s out of sync, before the grace expires";
   }
 
+  check_parallel_battery_safety(2);
   EXPECT_TRUE(voltage_difference_active(EVENT_VOLTAGE_DIFFERENCE_BAT2))
       << "an instance frozen 20 V away from the main pack must be reported";
 }
