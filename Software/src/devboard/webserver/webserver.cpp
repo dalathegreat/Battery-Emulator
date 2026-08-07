@@ -18,6 +18,7 @@
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
+#include "../utils/settings_validation.h"
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
@@ -660,10 +661,17 @@ void init_webserver() {
   update_int_setting("/enableRecoveryMode",
                      [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
 
-  // Route for editing SOCMax
-  update_string_setting("/updateSocMax", [](String value) {
-    datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-  });
+  // Route for editing SOCMax. Validated together with the current minimum so an
+  // invalid pair is rejected with HTTP 400 instead of accepted and lost on reboot.
+  update_string_setting(
+      "/updateSocMax",
+      [](String value) {
+        set_soc_window(datalayer.battery.settings.min_percentage, static_cast<int32_t>(value.toFloat() * 100));
+      },
+      [](String value) {
+        return validate_soc_window(datalayer.battery.settings.min_percentage,
+                                   static_cast<int32_t>(value.toFloat() * 100));
+      });
 
   // Route for editing CAN ID cutoff filter
   update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
@@ -779,9 +787,17 @@ void init_webserver() {
   });
 
   // Route for editing SOCMin
-  update_string_setting("/updateSocMin", [](String value) {
-    datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-  });
+  // Route for editing SOCMin. Validated together with the current maximum so an
+  // invalid pair is rejected with HTTP 400 instead of accepted and lost on reboot.
+  update_string_setting(
+      "/updateSocMin",
+      [](String value) {
+        set_soc_window(static_cast<int32_t>(value.toFloat() * 100), datalayer.battery.settings.max_percentage);
+      },
+      [](String value) {
+        return validate_soc_window(static_cast<int32_t>(value.toFloat() * 100),
+                                   datalayer.battery.settings.max_percentage);
+      });
 
   // Route for editing MaxChargeA
   update_string_setting("/updateMaxChargeA", [](String value) {

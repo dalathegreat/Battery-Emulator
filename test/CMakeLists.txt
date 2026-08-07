@@ -72,6 +72,7 @@ add_executable(tests
     offgrid_downgrade_tests.cpp
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
+    soc_window_tests.cpp
     estop_graceful_open_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
@@ -90,6 +91,7 @@ add_executable(tests
     ../Software/src/devboard/utils/types.cpp
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/common_functions.cpp
+    ../Software/src/devboard/utils/settings_validation.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     emul/neopixel_show.cpp
