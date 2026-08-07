@@ -43,6 +43,11 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       name: Checkout code
+      with:
+        fetch-depth: 0 # To be able to determine the ancestor tag
+
+    - name: "Fetch upstream tags" # for forks
+      run: git fetch https://github.com/dalathegreat/Battery-Emulator.git --tags --no-recurse-submodules
 
     # The env cache should contain the PlatformIO installation, as well as our
     # previously built custom sdkconfig image. We can avoid redownloading
@@ -108,6 +113,10 @@ jobs:
 
     - name: Build image for ${{ matrix.board_name }}
       shell: bash
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_PR: ${{ github.event.pull_request.number }}
+        GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       run: |
         set -o pipefail
         pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt

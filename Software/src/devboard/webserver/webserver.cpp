@@ -1685,7 +1685,11 @@ String processor(const String& var) {
     // In-UI update notification (browser-side; skips dev builds, 6h cached) - issue #1660
     content += "<script>";
     content += "(function(){var cur='" + String(version_number) + "';";
-    content += "if(cur.indexOf('dev')>=0)return;";
+#ifdef GIT_TAG
+    content += "if(false)return;";
+#else
+    content += "if(true)return;";
+#endif
     content += "var el=document.getElementById('bxUpd');if(!el)return;";
     content += "function p(v){return v.replace(/^v/,'').split('.').map(function(x){return parseInt(x,10)||0;});}";
     content +=
