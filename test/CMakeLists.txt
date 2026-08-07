@@ -76,7 +76,8 @@ add_executable(tests
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
     battery/NissanLeafTest.cpp
-    battery/foxess_tests.cpp 
+    battery/BydAtto3Test.cpp
+    battery/foxess_tests.cpp
     battery/still_alive_tests.cpp
     battery/VolvoSPATest.cpp
     battery/UdsCanBatteryTest.cpp
