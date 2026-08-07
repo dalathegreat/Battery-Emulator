@@ -3,6 +3,23 @@
 #include "../../datalayer/datalayer.h"
 #include "../utils/events.h"
 
+/* Latch and drift-counter state. At file scope rather than as function-local statics
+   purely so a test can put the module back into its boot state - the firmware itself
+   never resets them, and the behaviour is identical either way. */
+static bool voltages_seen_battery2 = false;
+static bool voltages_seen_battery3 = false;
+static uint8_t secondsOutOfVoltageSyncBattery2 = 0;
+static uint8_t secondsOutOfVoltageSyncBattery3 = 0;
+
+#ifdef UNIT_TEST
+void reset_parallel_safety_state() {
+  voltages_seen_battery2 = false;
+  voltages_seen_battery3 = false;
+  secondsOutOfVoltageSyncBattery2 = 0;
+  secondsOutOfVoltageSyncBattery3 = 0;
+}
+#endif
+
 void check_parallel_battery_safety(uint8_t batteryNumber) {
   /* Before the checks are started, we need to know the battery is alive via CAN, and that the voltages have ben read*/
   if ((batteryNumber == 2) && battery2_detected) {
@@ -16,7 +33,6 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
        never reaches the 10 s disengage - both because this returns before the
        code that manages battery2_allowed_contactor_closing. Latch instead:
        once both packs have been seen off-sentinel, the check runs forever. */
-    static bool voltages_seen_battery2 = false;
     if (!voltages_seen_battery2) {
       if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery2.status.voltage_dV == 3700) {
         return;  // Startup grace: either pack may still hold the init default
@@ -25,7 +41,6 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     }
     uint16_t voltage_diff_battery2_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
-    static uint8_t secondsOutOfVoltageSyncBattery2 = 0;
 
     if (voltage_diff_battery2_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE_BAT2);
@@ -61,7 +76,6 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
        never reaches the 10 s disengage - both because this returns before the
        code that manages battery3_allowed_contactor_closing. Latch instead:
        once both packs have been seen off-sentinel, the check runs forever. */
-    static bool voltages_seen_battery3 = false;
     if (!voltages_seen_battery3) {
       if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery3.status.voltage_dV == 3700) {
         return;  // Startup grace: either pack may still hold the init default
@@ -70,7 +84,6 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
     }
     uint16_t voltage_diff_battery3_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);
-    static uint8_t secondsOutOfVoltageSyncBattery3 = 0;
 
     if (voltage_diff_battery3_towards_main <= 15) {  // If we are within 1.5V between the batteries
       clear_event(EVENT_VOLTAGE_DIFFERENCE_BAT3);

@@ -9,6 +9,7 @@ class VoltageSyncTest : public ::testing::Test {
  protected:
   void SetUp() override {
     init_events();
+    reset_parallel_safety_state();  // Latch and drift counters start from boot state, not from the previous case
     // Reset datalayer to known state
     datalayer.battery.status.voltage_dV = 3700;   // 370.0V
     datalayer.battery2.status.voltage_dV = 3700;  // 370.0V

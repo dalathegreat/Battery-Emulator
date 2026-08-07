@@ -16,4 +16,17 @@
  */
 void check_parallel_battery_safety(uint8_t batteryNumber);
 
+#ifdef UNIT_TEST
+/**
+ * @brief Put the module back into its power-on state. Test-only.
+ *
+ * The sentinel latch and the out-of-sync second counters persist for the
+ * lifetime of the process, which is correct in firmware and untestable in a
+ * test binary: without this, every case after the first inherits whatever
+ * latch state its predecessors left behind, and no case can exercise the
+ * startup grace at all.
+ */
+void reset_parallel_safety_state();
+#endif
+
 #endif
