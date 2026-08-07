@@ -556,7 +556,7 @@ static bool publish_common_info(void) {
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
-        logging.println("Common info MQTT msg could not be sent");
+        // logging.println("Common info MQTT msg could not be sent");
         return false;
       }
     }
@@ -913,13 +913,13 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
       break;
     case MQTT_EVENT_ERROR:
-      logging.println("MQTT_ERROR");
-      logging.print("reported from esp-tls");
-      logging.println(event->error_handle->esp_tls_last_esp_err);
-      logging.print("reported from tls stack");
-      logging.println(event->error_handle->esp_tls_stack_err);
-      logging.print("captured as transport's socket errno");
-      logging.println(strerror(event->error_handle->esp_transport_sock_errno));
+      // logging.println("MQTT_ERROR");
+      // logging.print("reported from esp-tls");
+      // logging.println(event->error_handle->esp_tls_last_esp_err);
+      // logging.print("reported from tls stack");
+      // logging.println(event->error_handle->esp_tls_stack_err);
+      // logging.print("captured as transport's socket errno");
+      // logging.println(strerror(event->error_handle->esp_transport_sock_errno));
       break;
     case MQTT_EVENT_SUBSCRIBED:
       break;
