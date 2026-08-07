@@ -1,3 +1,5 @@
+#if 0
+
 #include "index_html.h"
 
 const char index_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
@@ -21,3 +23,5 @@ const char index_html_footer[] = INDEX_HTML_FOOTER;
 </body>
 </html>
 */
+
+#endif

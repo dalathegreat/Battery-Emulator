@@ -317,6 +317,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, indicates if a webserver CAN stream is active */
+  bool can_streaming_active = false;
   /** bool, determines if USB serial logging should occur */
   bool CAN_usb_logging_active = false;
   /** bool, determines if USB serial logging should occur */

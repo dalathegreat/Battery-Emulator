@@ -9,7 +9,7 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/utils/logging.h"
-#include "../../devboard/webserver/webserver.h"
+#include "../../devboard/webserver/webserver_new.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
