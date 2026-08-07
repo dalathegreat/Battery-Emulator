@@ -9,7 +9,7 @@
 
 class EcmpBattery : public CanBattery {
  public:
-  // Use this constructor for the second battery.
+  // Use this constructor for the second/third battery.
   EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     datalayer_ecmp = NULL;
