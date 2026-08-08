@@ -10,6 +10,7 @@
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/logging.h"
+#include "src/devboard/webserver/webserver_can_streaming.h"
 #include "utils.h"
 
 #include <esp_private/periph_ctrl.h>
@@ -317,7 +318,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
 
 #ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
-    add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
+    add_can_frame_to_buffer(*tx_frame, interface, frameDirection(MSG_TX));
   }
 #endif
 
@@ -412,6 +413,7 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
       rx_frame.ID = frame.id;
       rx_frame.ext_ID = frame.ext;
       rx_frame.DLC = frame.len;
+      rx_frame.FD = false;
       for (uint8_t i = 0; i < frame.len && i < 8; i++) {
         rx_frame.data.u8[i] = frame.data[i];
       }
@@ -458,6 +460,8 @@ static void _receive_frame_canfd(ACAN2517FD* canfd, bool first) {
     rx_frame.ID = MCP2518frame.id;
     rx_frame.ext_ID = MCP2518frame.ext;
     rx_frame.DLC = MCP2518frame.len;
+    rx_frame.FD = (MCP2518frame.type == CANFDMessage::CANFD_NO_BIT_RATE_SWITCH ||
+                   MCP2518frame.type == CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH);
     memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)sizeof(rx_frame.data.u8)));
     //message incoming, pass it on to the handler
     if (first) {
@@ -528,6 +532,9 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
       dump_can_frame(frame, interface, msgDir);
     }
   }
+  if (datalayer.system.info.can_streaming_active) {
+    stream_can_frame(frame, interface, msgDir);
+  }
 }
 
 static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
@@ -542,7 +549,7 @@ static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interfa
     if (interface !=
         CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
       //TODO: This check can be removed later when refactored to use inline functions for logging
-      add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
+      add_can_frame_to_buffer(*rx_frame, interface, frameDirection(MSG_RX));
     }
   }
 #endif
@@ -556,39 +563,102 @@ static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interfa
   }
 }
 
-void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
-  char* message_string = datalayer.system.info.logged_can_messages;
-  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+// For formatting CAN frames considerably faster than using snprintf
+static const char* hex = "0123456789abcdef";
 
-  if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
-    // Not enough space, reset and start from the beginning
-    offset = 0;
+static char* put_hex(char* ptr, uint32_t value, uint8_t digits) {
+  for (int i = digits - 1; i >= 0; i--) {
+    *ptr++ = hex[(value >> (i * 4)) & 0x0f];
   }
-  unsigned long currentTime = millis();
-  // Add timestamp
-  offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
-                     currentTime % 1000);
+  return ptr;
+}
 
-  // Add direction. Multiplying the interface by two ensures that SavvyCAN puts TX and RX in a different bus.
-  offset += snprintf(message_string + offset, message_string_size - offset, "%s%d ", (msgDir == MSG_RX) ? "RX" : "TX",
-                     (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
+static char* put_time(char* ptr, unsigned long time) {
+  // Wrap around after 100000 seconds (about 27.7 hours)
+  if (time >= 100000000)
+    time = time % 100000000;
 
-  // Add ID and DLC
-  offset += snprintf(message_string + offset, message_string_size - offset, "%lX [%u] ", frame.ID, frame.DLC);
-
-  // Add data bytes
-  for (uint8_t i = 0; i < frame.DLC; i++) {
-    if (i < frame.DLC - 1) {
-      offset += snprintf(message_string + offset, message_string_size - offset, "%02X ", frame.data.u8[i]);
-    } else {
-      offset += snprintf(message_string + offset, message_string_size - offset, "%02X", frame.data.u8[i]);
+  char buf[8];
+  int i = 0;
+  do {
+    buf[i++] = (time % 10) + '0';
+    time /= 10;
+  } while (time > 0);
+  while (i > 0) {
+    *ptr++ = buf[--i];
+    if (i == 3) {
+      *ptr++ = '.';
     }
   }
-  // Add linebreak
-  offset += snprintf(message_string + offset, message_string_size - offset, "\n");
+  return ptr;
+}
 
-  datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
+// CAN log formatter: "(12345.678) RX0 123 [8] 01 02 03 ... 0A\n".
+size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_Interface interface,
+                        frameDirection msgDir) {
+  // Worst-case line length: '(' + up-to-8-digit time + optional '.' + ')' + ' '
+  // + "RX"/"TX" + channel digit + ' ' + 8-hex ID + ' ' + '[' + 2-digit DLC + ']'
+  // + 3 bytes per data byte + '\n'.
+  const size_t needed = 1 + 9 + 1 + 1 + 3 + 1 + 8 + 1 + 1 + 2 + 1 + (size_t)frame.DLC * 3 + 1;
+  if (needed > len) {
+    if (len > 0) {
+      buffer[0] = '\0';
+    }
+    return 0;
+  }
+
+  char* ptr = buffer;
+  const unsigned long currentTime = millis();
+  *ptr++ = '(';
+  ptr = put_time(ptr, currentTime);
+  *ptr++ = ')';
+  *ptr++ = ' ';
+  if (msgDir == MSG_RX) {
+    *ptr++ = frame.FD ? 'R' : 'r';
+    *ptr++ = frame.FD ? 'X' : 'x';
+    *ptr++ = '0' + ((int)interface * 2);
+  } else {
+    *ptr++ = frame.FD ? 'T' : 't';
+    *ptr++ = frame.FD ? 'X' : 'x';
+    *ptr++ = '1' + ((int)interface * 2);
+  }
+  *ptr++ = ' ';
+  if (frame.ext_ID)
+    ptr = put_hex(ptr, frame.ID, 8);
+  else
+    ptr = put_hex(ptr, frame.ID, 3);
+  *ptr++ = ' ';
+  *ptr++ = '[';
+  if (frame.DLC > 9) {
+    *ptr++ = '0' + (frame.DLC / 10);
+    *ptr++ = '0' + (frame.DLC % 10);
+  } else
+    *ptr++ = '0' + (frame.DLC);
+  *ptr++ = ']';
+  for (int i = 0; i < frame.DLC; i++) {
+    *ptr++ = ' ';
+    ptr = put_hex(ptr, frame.data.u8[i], 2);
+  }
+  *ptr++ = '\n';
+  *ptr = '\0';
+  return (size_t)(ptr - buffer);
+}
+
+void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+  char* message_string = datalayer.system.info.logged_can_messages;
+  size_t offset =
+      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+
+  size_t written = format_can_frame(message_string + offset, message_string_size - offset, frame, interface, msgDir);
+  if (written == 0 && offset != 0) {
+    // Not enough space left at the tail - wrap around and start from the beginning
+    offset = 0;
+    written = format_can_frame(message_string, message_string_size, frame, interface, msgDir);
+  }
+  if (written > 0) {
+    datalayer.system.info.logged_can_messages_offset = offset + written;  // Update offset in buffer
+  }
 }
 
 void stop_can() {

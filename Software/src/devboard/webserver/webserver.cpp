@@ -23,6 +23,7 @@
 #include "esp_task_wdt.h"
 #include "favicon.h"
 #include "html_escape.h"
+#include "webserver_can_streaming.h"
 
 #include <string>
 
@@ -30,7 +31,6 @@ std::string http_username;
 std::string http_password;
 
 bool webserver_auth = false;
-static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -797,6 +797,8 @@ void init_webserver() {
           }
           request->send(200, "text/plain", "Command performed.");
         });
+
+    register_dump_can_route(server);
   }
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
@@ -921,7 +923,9 @@ String getConnectResultString(wl_status_t status) {
   }
 }
 
-void ota_monitor() {
+void webserver_tick() {
+  can_dump_drain_tick();
+
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);

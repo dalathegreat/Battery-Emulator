@@ -723,6 +723,13 @@ void AsyncWebServerRequest::_send() {
 
     // user did not create a response ?
     if (!_response) {
+      if (_streaming) {
+        // The handler has taken over the raw connection (e.g. for long-lived
+        // streaming) and manages headers/data/closing itself, so there is
+        // nothing to auto-send here. The connection stays open until the client
+        // disconnects (handled in _onDisconnect).
+        return;
+      }
       send(501, T_text_plain, "Handler did not handle the request");
     }
 
