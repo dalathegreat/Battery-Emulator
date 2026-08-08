@@ -18,9 +18,8 @@ String MebHtmlRenderer::get_status_html() {
   static const char* const warning_support_enum[] = {"OK", "Not OK", "?", "?", "?", "?", "Init", "Fault"};
   static const char* const voltage_free_enum[] = {"Init", "BMS interm circuit voltage free (U<20V)",
                                                   "BMS interm circuit not voltage free (U >= 25V)", "Error"};
-  static const char* const bms_error_enum[] = {
-      "Component IO", "Iso Error 1",     "Iso Error 2",           "Interlock",
-      "SD",           "Performance red", "No component function", "Init"};
+  static const char* const bms_error_enum[] = {"Component IO", "Iso Error 1",     "Iso Error 2",           "Interlock",
+                                               "SD",           "Performance red", "No component function", "Init"};
 
   add_h4(content, "Service disconnect switch", datalayer_extended.meb.SDSW ? "Missing!" : "OK");
   add_h4(content, "Pilotline", datalayer_extended.meb.pilotline ? "Open!" : "OK");
