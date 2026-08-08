@@ -73,6 +73,7 @@ add_executable(tests
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     estop_graceful_open_tests.cpp
+    parallel_join_symmetry_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
     battery/NissanLeafTest.cpp
