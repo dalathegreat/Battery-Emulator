@@ -75,6 +75,7 @@ void RenaultZoeGen1Battery::
 }
 
 void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  uint8_t pci = 0;
   switch (rx_frame.ID) {
     case 0x155:  //10ms - Charging power, current and SOC - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -147,11 +148,79 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7BB:  //Reply from active polling
       frame0 = rx_frame.data.u8[0];
+      pci = frame0 & 0xF0;
+
+      static uint8_t dtc_buf[64];
+      static uint16_t dtc_len = 0;
+      static uint16_t dtc_exp = 0;
+
+      if (pci == 0x00 && rx_frame.data.u8[1] == 0x50 && rx_frame.data.u8[2] == 0xC0) {  // Session 0xC0 granted!
+        CAN_frame f = {
+            .FD = false, .ext_ID = false, .DLC = 8, .ID = 0x79B, .data = {0x03, 0x19, 0x02, 0xFF, 0, 0, 0, 0}};
+        transmit_can_frame(&f);
+        break;
+      }
+
+      if (pci == 0x00 && rx_frame.data.u8[1] == 0x59) {  // Single Frame positive DTC reply
+        uint16_t count = (frame0 > 2) ? (frame0 - 2) / 4 : 0;
+        if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+          count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+        }
+        for (uint16_t i = 0; i < count; i++) {
+          uint16_t offset = 2 + (i * 4);
+          datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)rx_frame.data.u8[offset] << 16) |
+                                                ((uint32_t)rx_frame.data.u8[offset + 1] << 8) |
+                                                (uint32_t)rx_frame.data.u8[offset + 2];
+          datalayer_battery->dtc.dtc_status[i] = rx_frame.data.u8[offset + 3];
+        }
+        datalayer_battery->dtc.dtc_count = count;
+        datalayer_battery->dtc.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_last_read_millis = millis();
+        requested_poll = 0;
+        break;
+      } else if (pci == 0x00 && rx_frame.data.u8[1] == 0x7F) {  // Negative response
+        datalayer_battery->dtc.dtc_read_failed = true;
+        datalayer_battery->dtc.dtc_last_read_millis = millis();
+        requested_poll = 0;
+        break;
+      } else if (pci == 0x20 && requested_poll == GROUP7_DTC_READ) {  // Consecutive Frame DTC response
+        for (uint8_t i = 1; i < 8 && dtc_len < dtc_exp; i++) {
+          dtc_buf[dtc_len++] = rx_frame.data.u8[i];
+        }
+        if (dtc_len >= dtc_exp && dtc_exp > 0) {
+          uint16_t count = (dtc_len > 2) ? (dtc_len - 2) / 4 : 0;
+          if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+            count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+          }
+          for (uint16_t i = 0; i < count; i++) {
+            uint16_t offset = 2 + (i * 4);
+            datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)dtc_buf[offset] << 16) |
+                                                  ((uint32_t)dtc_buf[offset + 1] << 8) | (uint32_t)dtc_buf[offset + 2];
+            datalayer_battery->dtc.dtc_status[i] = dtc_buf[offset + 3];
+          }
+          datalayer_battery->dtc.dtc_count = count;
+          datalayer_battery->dtc.dtc_read_failed = false;
+          datalayer_battery->dtc.dtc_last_read_millis = millis();
+          requested_poll = 0;
+        }
+        break;
+      }
 
       switch (frame0) {
         case 0x10:  //PID HEADER, datarow 0
           requested_poll = rx_frame.data.u8[3];
           transmit_can_frame(&ZOE_ACK_79B);
+
+          if (requested_poll == GROUP7_DTC_READ && rx_frame.data.u8[2] == 0x59) {
+            dtc_exp = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+            if (dtc_exp > sizeof(dtc_buf)) {
+              dtc_exp = sizeof(dtc_buf);
+            }
+            dtc_len = 0;
+            for (uint8_t i = 2; i < 8 && dtc_len < dtc_exp; i++) {
+              dtc_buf[dtc_len++] = rx_frame.data.u8[i];
+            }
+          }
 
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -584,37 +653,49 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
     previousMillis250 = currentMillis;
 
-    switch (group) {
-      case 0:
-        current_poll = GROUP1_CELLVOLTAGES_1_POLL;
-        break;
-      case 1:
-        current_poll = GROUP2_CELLVOLTAGES_2_POLL;
-        break;
-      case 2:
-        current_poll = GROUP3_METRICS;
-        break;
-      case 3:
-        current_poll = GROUP4_SOC;
-        break;
-      case 4:
-        current_poll = GROUP5_TEMPERATURE_POLL;
-        break;
-      case 5:
-        current_poll = GROUP6_BALANCING;
-        break;
-      default:
-        break;
-    }
-
-    group = (group + 1) % 6;  // Cycle 0-1-2-3-4-5-0-1...
-
-    ZOE_POLL_79B.data.u8[2] = current_poll;
-
     if (UserRequestedDTCReset == true) {
       transmit_can_frame(&ZOE_CLEAR_DTC);
       UserRequestedDTCReset = false;
+    } else if (UserRequestDTCreadout == true) {
+      requested_poll = GROUP7_DTC_READ;
+      dtc_read_start_millis = currentMillis;
+      datalayer_battery->dtc.dtc_count = 0;
+      datalayer_battery->dtc.dtc_read_failed = false;
+      CAN_frame f = {.FD = false, .ext_ID = false, .DLC = 8, .ID = 0x79B, .data = {0x02, 0x10, 0xC0, 0, 0, 0, 0, 0}};
+      transmit_can_frame(&f);
+      UserRequestDTCreadout = false;
+    } else if (requested_poll == GROUP7_DTC_READ) {
+      // Pause routine parameter polling while DTC read sequence is active
+      if (currentMillis - dtc_read_start_millis >= 2000) {
+        datalayer_battery->dtc.dtc_read_failed = true;
+        datalayer_battery->dtc.dtc_last_read_millis = currentMillis;
+        requested_poll = 0;
+      }
     } else {
+      switch (group) {
+        case 0:
+          current_poll = GROUP1_CELLVOLTAGES_1_POLL;
+          break;
+        case 1:
+          current_poll = GROUP2_CELLVOLTAGES_2_POLL;
+          break;
+        case 2:
+          current_poll = GROUP3_METRICS;
+          break;
+        case 3:
+          current_poll = GROUP4_SOC;
+          break;
+        case 4:
+          current_poll = GROUP5_TEMPERATURE_POLL;
+          break;
+        case 5:
+          current_poll = GROUP6_BALANCING;
+          break;
+        default:
+          break;
+      }
+      group = (group + 1) % 6;  // Cycle 0-1-2-3-4-5-0-1...
+      ZOE_POLL_79B.data.u8[2] = current_poll;
       transmit_can_frame(&ZOE_POLL_79B);
     }
   }
@@ -630,4 +711,23 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+}
+
+String RenaultZoeGen1HtmlRenderer::get_status_html() {
+  String content;
+
+  content += "<h4>CUV " + String(battery.datalayer_zoe->CUV) + "</h4>";
+  content += "<h4>HVBIR " + String(battery.datalayer_zoe->HVBIR) + "</h4>";
+  content += "<h4>HVBUV " + String(battery.datalayer_zoe->HVBUV) + "</h4>";
+  content += "<h4>EOCR " + String(battery.datalayer_zoe->EOCR) + "</h4>";
+  content += "<h4>HVBOC " + String(battery.datalayer_zoe->HVBOC) + "</h4>";
+  content += "<h4>HVBOT " + String(battery.datalayer_zoe->HVBOT) + "</h4>";
+  content += "<h4>HVBOV " + String(battery.datalayer_zoe->HVBOV) + "</h4>";
+  content += "<h4>COV " + String(battery.datalayer_zoe->COV) + "</h4>";
+  content += "<h4>Battery mileage " + String(battery.datalayer_zoe->mileage_km) + " km</h4>";
+  content += "<h4>Alltime energy " + String(battery.datalayer_zoe->alltime_kWh) + " kWh</h4>";
+
+  content += render_dtc_section_html(battery.datalayer_battery->dtc, "renault_zoe_gen1_dtc.json", false);
+
+  return content;
 }

@@ -7,10 +7,12 @@
 #include "RENAULT-ZOE-GEN1-HTML.h"
 
 class RenaultZoeGen1Battery : public CanBattery {
+  friend class RenaultZoeGen1HtmlRenderer;
+
  public:
   // Use this constructor for the second battery.
   RenaultZoeGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ZOE* extended, CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+      : CanBattery(targetCan), renderer(*this) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_zoe = extended;
@@ -19,7 +21,7 @@ class RenaultZoeGen1Battery : public CanBattery {
   }
 
   // Use the default constructor to create the first or single battery.
-  RenaultZoeGen1Battery() {
+  RenaultZoeGen1Battery() : renderer(*this) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     datalayer_zoe = &datalayer_extended.zoe;
@@ -35,11 +37,14 @@ class RenaultZoeGen1Battery : public CanBattery {
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestedDTCReset = true; }
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { UserRequestDTCreadout = true; }
 
  private:
   RenaultZoeGen1HtmlRenderer renderer;
 
   bool UserRequestedDTCReset = false;
+  bool UserRequestDTCreadout = false;
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
@@ -77,6 +82,11 @@ class RenaultZoeGen1Battery : public CanBattery {
                              .DLC = 8,
                              .ID = 0x79B,
                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_READ_DTC = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x79B,
+                            .data = {0x03, 0x19, 0x02, 0xFF, 0x00, 0x00, 0x00, 0x00}};
 
 #define GROUP1_CELLVOLTAGES_1_POLL 0x41
 #define GROUP2_CELLVOLTAGES_2_POLL 0x42
@@ -84,6 +94,7 @@ class RenaultZoeGen1Battery : public CanBattery {
 #define GROUP4_SOC 0x03
 #define GROUP5_TEMPERATURE_POLL 0x04
 #define GROUP6_BALANCING 0x07
+#define GROUP7_DTC_READ 0x02
 
   uint16_t LB_SOC = 50;
   uint16_t LB_Display_SOC = 50;
@@ -131,6 +142,7 @@ class RenaultZoeGen1Battery : public CanBattery {
   uint16_t battery_mileage_in_km = 0;
   uint16_t kWh_from_beginning_of_battery_life = 0;
   bool looping_over_20 = false;
+  unsigned long dtc_read_start_millis = 0;
 };
 
 #endif
