@@ -41,10 +41,12 @@
 // The current software version, shown on webserver
 const char* version_number = "12.3.dev";
 
-// Interval timers
-volatile unsigned long currentMillis = 0;
-unsigned long previousMillis10ms = 0;
-unsigned long previousMillisUpdateVal = 0;
+// Interval timers. Time values are uint32_t on purpose: that is the width
+// millis() actually has on the target, so the wrap arithmetic is identical on
+// every platform (including the 64-bit host test build).
+volatile uint32_t currentMillis = 0;
+uint32_t previousMillis10ms = 0;
+uint32_t previousMillisUpdateVal = 0;
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
 uint64_t start_time_10ms = 0;
@@ -311,7 +313,7 @@ static void filter_inverter_limits(void) {
   }
 }
 
-void update_calculated_values(unsigned long currentMillis) {
+void update_calculated_values(uint32_t currentMillis) {
   /* Update CPU temperature*/
   union {
     float temp;
@@ -325,17 +327,8 @@ void update_calculated_values(unsigned long currentMillis) {
   /*Update free heap*/
   datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
 
-  /* Check is remote set limits have timed out. Wrap-safe subtraction: the naive
-     "currentMillis > timestamp + timeout" comparison both overflows near the 49.7-day
-     millis() wrap (fresh limits expire immediately) and inverts after it (stale limits
-     persist up to another 49.7 days) */
-  if ((currentMillis - datalayer.battery.settings.remote_set_timestamp) >
-      datalayer.battery.settings.remote_set_timeout) {
-    datalayer.battery.settings.remote_settings_limit_charge = false;
-    datalayer.battery.settings.remote_settings_limit_discharge = false;
-    datalayer.battery.settings.max_remote_set_charge_dA = 0;
-    datalayer.battery.settings.max_remote_set_discharge_dA = 0;
-  }
+  /* Check if remote set limits have timed out */
+  update_remote_limit_expiry(currentMillis);
 
   /* Cap max charge/discharge to the lowest battery's limits */
   if (battery2) {

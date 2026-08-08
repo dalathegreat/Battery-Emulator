@@ -131,7 +131,9 @@ inline void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 unsigned long micros();
 // Can be previously declared as a macro in stupid eModbus
 #undef millis
-unsigned long millis();
+// uint32_t, deliberately: on the target unsigned long IS 32 bits wide, so this
+// is the truthful width of the millis() contract (wrap at 2^32 ms included).
+uint32_t millis();
 void set_millis64(uint64_t time);
 
 void delay(unsigned long ms);
