@@ -191,12 +191,14 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
 
-    // Shared geometry for the three calibration panels below, so they line up with each other
-    const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4;width:50%;text-align:right'>";
+    // Shared geometry for the three calibration panels below, so they line up with each other.
+    // Percent widths are written as &percnt; so no literal '%' reaches the template engine, which would
+    // otherwise treat pairs of '%' as placeholder markers and delete the content between them.
+    const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4;width:50&percnt;;text-align:right'>";
     const char* value_td = "<td style='padding:3px 0;color:white;font-weight:bold;text-align:left'>";
     const char* panel_table =
         "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white;"
-        "width:100%;max-width:460px;table-layout:fixed'>";
+        "width:100&percnt;;max-width:460px;table-layout:fixed'>";
 
     // Native BMS termination. On by default. The battery only enters a charge session when it is not
     // reporting an insulation fault; the isolation-monitor-disable option (also on by default) normally
@@ -247,9 +249,9 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
       content += "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration &amp; charge termination</h4>";
       content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>The battery decides when it is full: it ends "
-          "the charge itself and recalibrates its own SOC to 100&percnt; and its SOH, exactly as it would in the "
-          "car. Afterwards the pack rests fully charged, with discharge still available.</div>";
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>The battery ends the charge itself and "
+          "recalibrates its own SOC to 100&percnt; and SOH, as it would in the car, then rests full with discharge "
+          "still available.</div>";
       content += panel_table;
 
       content += "<tr>";
