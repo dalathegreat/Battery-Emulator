@@ -26,11 +26,14 @@ class ParallelJoinSymmetryTest : public ::testing::Test {
   void SetUp() override {
     datalayer = DataLayer();
     reset_all_events();
+    reset_parallel_safety_state();  // Latch and main-gate state start from boot, not from the previous case
     init_hal();
     battery2_detected = true;
     battery3_detected = false;
     datalayer.system.status.system_status = ACTIVE;
-    // Not 0 and not the 3700 init default (both make the check abort)
+    // Off the 3700 sentinel so the startup grace lifts on the first pass;
+    // MainGateStillEngagesWhenAPackSitsAtTheSentinelVoltage covers what
+    // happens when a pack genuinely reads 370.0 V afterwards.
     datalayer.battery.status.voltage_dV = 3900;
     datalayer.battery2.status.voltage_dV = 3900;
   }
@@ -123,4 +126,29 @@ TEST_F(ParallelJoinSymmetryTest, GateBlocksStartPrecharge) {
   contactor_control_enabled = false;
   contactorStatus = DISCONNECTED;
   set_millis64(0);
+}
+
+/* Raised by @jonny5532 in review: 3700 dV means "no voltage decoded yet", but it
+ * is also an ordinary reading for a pack sitting at 370.0 V. The skip used to be
+ * a continuous condition placed ABOVE the line that computes
+ * main_blocked_by_joiner, so a pack genuinely at that voltage left
+ * battery1_allowed_contactor_closing at its fail-open default and the symmetric
+ * gate never engaged at all - the hazard this PR exists to prevent, silently
+ * disabled. The latch makes the skip a startup grace, so once both packs have
+ * been seen off the sentinel the gate keeps working through it. */
+TEST_F(ParallelJoinSymmetryTest, MainGateStillEngagesWhenAPackSitsAtTheSentinelVoltage) {
+  datalayer.system.status.contactors_battery2_engaged = true;
+
+  // One pass with both packs off the sentinel and in sync: the grace lifts
+  check_parallel_battery_safety(2);
+  ASSERT_TRUE(datalayer.system.status.battery1_allowed_contactor_closing);
+
+  // The main pack now genuinely reads 370.0 V while the engaged pack sits 25 V away
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery2.status.voltage_dV = 3950;
+
+  check_parallel_battery_safety(2);
+
+  EXPECT_FALSE(datalayer.system.status.battery1_allowed_contactor_closing)
+      << "A main pack reading exactly 370.0 V must not suspend the symmetric gate";
 }
