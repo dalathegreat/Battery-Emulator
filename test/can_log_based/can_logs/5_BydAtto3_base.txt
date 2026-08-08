@@ -4,10 +4,8 @@
 (0.001) RX0 444 [8] A4 01 88 13 63 63 00 F9
 # insulation resistance
 (0.001) RX0 43a [8] 7E 0A 90 1A 00 00 00 CD
-# lowest cell
-(0.002) RX0 7ef [8] 00 00 00 2f 30 ee ee ee
-# highest cell
-(0.002) RX0 7ef [8] 00 00 00 31 40 ee ee ee
+# temperatures, sensor numbers and high-precision SOC
+(0.002) RX0 447 [8] 09 30 01 40 E0 03 38 6A
 
 # indicate the pack is still alive
 (0.003) RX0 244 [8] 00 00 00 00 00 00 00 00

@@ -66,21 +66,15 @@ class BydAttoBattery : public CanBattery {
   uint32_t autocal_grace_start_ms = 0;  // When current left the valid window
 
   static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
-  static const int POLL_FOR_BATTERY_SOC = 0x0005;
-  // 0x0008 (voltage) and 0x0009 (current) are no longer polled; 0x438 and 0x444 carry them faster
-  static const int POLL_MAX_CHARGE_POWER = 0x000A;
+  // 0x0005/0x0008/0x0009 (SOC, voltage, current) come from 0x444 and 0x438, not polled.
+  // 0x000A/0x000E (allowed charge/discharge power) come from 0x345 at ~100ms, not polled.
   static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
-  static const int POLL_MAX_DISCHARGE_POWER = 0x000E;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
   static const int POLL_TOTAL_DISCHARGED_KWH = 0x0012;
   // 0x002A-0x002D (cell min/max number + voltage) are sourced from the 0x446 broadcast, not polled.
-  static const int POLL_MIN_TEMP_MODULE_NUMBER = 0x002E;
-  static const int POLL_FOR_LOWEST_TEMP_CELL = 0x002F;
-  static const int POLL_MAX_TEMP_MODULE_NUMBER = 0x0030;
-  static const int POLL_FOR_HIGHEST_TEMP_CELL = 0x0031;
-  static const int POLL_FOR_BATTERY_PACK_AVG_TEMP = 0x0032;
+  // 0x002E-0x0032 (temperatures and sensor numbers) are sourced from the 0x447 broadcast, not polled.
   static const int POLL_MODULE_1_LOWEST_MV_NUMBER = 0x016C;
   static const int POLL_MODULE_1_LOWEST_CELL_MV = 0x016D;
   static const int POLL_MODULE_1_HIGHEST_MV_NUMBER = 0x016E;
@@ -149,7 +143,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
 
   uint16_t rampdown_power = 0;
-  uint16_t poll_state = POLL_FOR_BATTERY_SOC;
+  uint16_t poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
   uint16_t pid_reply = 0;
   uint16_t battery_voltage = 0;                  // Whole volts from 0x444, used for the 0x441 link voltage
   uint16_t battery_voltage_dV = 0;               // Deci-volts from 0x438, primary pack voltage
@@ -175,8 +169,6 @@ class BydAttoBattery : public CanBattery {
   uint16_t solvedKey = 0;
 
   int16_t battery_temperature_ambient = 0;
-  int16_t battery_lowest_temperature = 0;
-  int16_t battery_highest_temperature = 0;
   int16_t battery_calc_min_temperature = 0;
   int16_t battery_calc_max_temperature = 0;
   int16_t battery_current_dA = 0;  // 0x444, deci-amps, negative while charging
@@ -329,8 +321,8 @@ class BydAttoBattery : public CanBattery {
   CAN_frame ATTO_3_7E7_POLL = {.FD = false,
                                .ext_ID = false,
                                .DLC = 8,
-                               .ID = 0x7E7,  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
-                               .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
+                               .ID = 0x7E7,  //Poll PID 03 22 1F FE (POLL_FOR_ORIGINAL_CALIBRATION)
+                               .data = {0x03, 0x22, 0x1F, 0xFE, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ATTO_3_7E7_ACK = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
