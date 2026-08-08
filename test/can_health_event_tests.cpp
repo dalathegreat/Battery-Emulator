@@ -172,11 +172,19 @@ namespace {
 class CanHealthAggregationTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    // Order matters twice over, and getting it wrong only shows up under
+    // --gtest_shuffle. ignore_can_errors_for() resolves the interface to a
+    // device, so the table has to be populated or closing the windows is a
+    // silent no-op; and it stamps millis64() + duration, so the clock has to be
+    // at this test's value or the window is closed against the previous test's
+    // - leaving it open here, where it suppresses the events under test.
+    set_millis64(50000);
+    mapSharedFdBoard();
+    closeAllIgnoreWindows();
+
     clear_can_devices();
     reset_all_events();
-    closeAllIgnoreWindows();
     datalayer = DataLayer();
-    set_millis64(50000);
   }
   void TearDown() override { clear_can_devices(); }
 };

@@ -1,8 +1,12 @@
 #include "comm_can_dispatch.h"
 
+#include <Arduino.h>
+
 #include <map>
 #include <vector>
 #include "../../datalayer/datalayer.h"
+#include "../../devboard/safety/safety.h"
+#include "../../devboard/sdcard/sdcard.h"
 #include "../../devboard/utils/logging.h"
 #include "CanReceiver.h"
 #include "comm_can_device.h"
@@ -171,4 +175,102 @@ void clear_can_devices() {
   for (int i = 0; i < NO_CAN_INTERFACE; ++i) {
     device_for[i] = nullptr;
   }
+}
+
+uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
+
+void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+  char* message_string = datalayer.system.info.logged_can_messages;
+  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+
+  if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
+    // Not enough space, reset and start from the beginning
+    offset = 0;
+  }
+  unsigned long currentTime = millis();
+  // Add timestamp
+  offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
+                     currentTime % 1000);
+
+  // Add direction. Multiplying the interface by two ensures that SavvyCAN puts TX and RX in a different bus.
+  offset += snprintf(message_string + offset, message_string_size - offset, "%s%d ", (msgDir == MSG_RX) ? "RX" : "TX",
+                     (int)(interface * 2) + (msgDir == MSG_RX ? 0 : 1));
+
+  // Add ID and DLC
+  offset += snprintf(message_string + offset, message_string_size - offset, "%lX [%u] ", frame.ID, frame.DLC);
+
+  // Add data bytes
+  for (uint8_t i = 0; i < frame.DLC; i++) {
+    if (i < frame.DLC - 1) {
+      offset += snprintf(message_string + offset, message_string_size - offset, "%02X ", frame.data.u8[i]);
+    } else {
+      offset += snprintf(message_string + offset, message_string_size - offset, "%02X", frame.data.u8[i]);
+    }
+  }
+  // Add linebreak
+  offset += snprintf(message_string + offset, message_string_size - offset, "\n");
+
+  datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
+}
+
+void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
+
+  if (datalayer.system.info.CAN_usb_logging_active) {
+    // Build the whole line first, then write it in one go - and only if the TX
+    // buffer has room. This path runs in the core task: a blocked/slow USB host
+    // must never stall it (EVENT_TASK_OVERRUN). Frames that don't fit are
+    // counted and reported as a gap marker once the port drains.
+    static char usb_line[288];  // header + up to 64 CAN-FD data bytes at 3 chars each
+    static uint32_t usb_frames_dropped = 0;
+    unsigned long currentTime = millis();
+    size_t size = snprintf(usb_line, sizeof(usb_line), "(%lu.%02lu) %s%d %lX [%u] ", currentTime / 1000,
+                           (currentTime % 1000) / 10, (msgDir == MSG_RX) ? "RX" : "TX",
+                           (msgDir == MSG_RX) ? (int)(interface * 2) : (int)(interface * 2) + 1, frame.ID, frame.DLC);
+    for (uint8_t i = 0; i < frame.DLC; i++) {
+      size += snprintf(usb_line + size, sizeof(usb_line) - size, (i < frame.DLC - 1) ? "%02X " : "%02X\r\n",
+                       frame.data.u8[i]);
+    }
+    if (frame.DLC == 0) {
+      size += snprintf(usb_line + size, sizeof(usb_line) - size, "\r\n");
+    }
+
+    if ((size_t)Serial.availableForWrite() >= size) {
+      if (usb_frames_dropped > 0) {
+        char marker[48];
+        int marker_len =
+            snprintf(marker, sizeof(marker), "[%lu CAN frames not printed]\r\n", (unsigned long)usb_frames_dropped);
+        if ((size_t)Serial.availableForWrite() >= size + (size_t)marker_len) {
+          Serial.write((const uint8_t*)marker, marker_len);
+          usb_frames_dropped = 0;
+        }
+      }
+      Serial.write((const uint8_t*)usb_line, size);
+    } else {
+      usb_frames_dropped++;
+    }
+  }
+
+  if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
+    if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
+      dump_can_frame(frame, interface, msgDir);
+    }
+  }
+}
+
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
+  print_can_frame(*tx_frame, interface, frameDirection(MSG_TX));
+
+#ifdef SDCARD
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
+  }
+#endif
+
+  // Invalid or unmapped interface: dropped quietly.
+  // TODO: Raise event that coders messed up
+  route_frame_to_device(*tx_frame, interface);
 }
