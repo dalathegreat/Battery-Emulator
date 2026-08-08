@@ -60,7 +60,10 @@ class RecordingCanDevice : public CanDevice {
 static RecordingCanDevice emul_device;
 
 void emul_install_can_devices() {
-  clear_can_devices();
+  // A full reset, not just the device table: receivers are pointers to objects
+  // that die with the test that registered them, so carrying them forward is a
+  // dangling read waiting to happen.
+  reset_can_dispatch_state();
   emul_device.refuse_sends = false;
   register_device(&emul_device);
   for (int i = 0; i < NO_CAN_INTERFACE; ++i) {

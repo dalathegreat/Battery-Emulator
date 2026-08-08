@@ -54,7 +54,7 @@ void mapSharedFdBoard() {
   static FakeCanDevice mcp(1, EVENT_CANMCP2515_BUFFER_FULL, EVENT_CANMCP2515_BUS_ERROR);
   static FakeCanDevice fd1(2, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR);
   static FakeCanDevice fd2(3, EVENT_CANFD_2_BUFFER_FULL, EVENT_CANFD_2_BUS_ERROR);
-  clear_can_devices();
+  reset_can_dispatch_state();
   register_device(&native);
   register_device(&mcp);
   register_device(&fd1);
@@ -182,11 +182,11 @@ class CanHealthAggregationTest : public ::testing::Test {
     mapSharedFdBoard();
     closeAllIgnoreWindows();
 
-    clear_can_devices();
+    reset_can_dispatch_state();
     reset_all_events();
     datalayer = DataLayer();
   }
-  void TearDown() override { clear_can_devices(); }
+  void TearDown() override { reset_can_dispatch_state(); }
 };
 
 }  // namespace
@@ -305,7 +305,7 @@ class CanTxRoutingTest : public ::testing::Test {
       d->refuse_sends = false;
     }
   }
-  void TearDown() override { clear_can_devices(); }
+  void TearDown() override { reset_can_dispatch_state(); }
 
   static CAN_frame frame(uint32_t id) {
     CAN_frame f = {};

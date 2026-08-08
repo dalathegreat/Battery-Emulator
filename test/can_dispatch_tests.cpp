@@ -33,8 +33,8 @@ CAN_frame frame_with_id(uint32_t id) {
 
 class CanDispatchTest : public ::testing::Test {
  protected:
-  void SetUp() override { clear_can_receivers(); }
-  void TearDown() override { clear_can_receivers(); }
+  void SetUp() override { reset_can_dispatch_state(); }
+  void TearDown() override { reset_can_dispatch_state(); }
 };
 
 }  // namespace
