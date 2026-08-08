@@ -4,152 +4,155 @@
 #include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "<h3>Ford Mach-E Extra Information</h2>";
+    tr_h3(content, TrKey::DRV_FORD_MACH_E_EXTRA_INFORMATION);
     //If values are not sampled yet (255), show "N/A" instead of 255
 
-    content += "<h4>Polled allowed charge power:";
+    tr_h4_start(content, TrKey::DRV_POLLED_ALLOWED_CHARGE_POWER);
     if (datalayer_extended.fordMachE.pid_hvb_max_charge_current == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
       content += " " + String(datalayer_extended.fordMachE.pid_hvb_max_charge_current) + " A</h4>";
     }
 
-    content += "<h4>Average temperature:";
+    tr_h4_start(content, TrKey::DRV_AVERAGE_TEMPERATURE);
     if (datalayer_extended.fordMachE.pid_hvb_temp == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_temp) + " °C </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_temp) + " °C</h4>";
     }
 
-    content += "<h4>High precision voltage:";
+    tr_h4_start(content, TrKey::DRV_HIGH_PRECISION_VOLTAGE);
     if (datalayer_extended.fordMachE.pid_hvb_voltage == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_voltage / 100.0, 2) + " V </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_voltage / 100.0, 2) + " V</h4>";
     }
 
-    content += "<h4>State of health:";
+    tr_h4_start(content, TrKey::DRV_STATE_HEALTH);
     if (datalayer_extended.fordMachE.pid_hvb_soh == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soh) + " % </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soh) + " %</h4>";
     }
 
-    content += "<h4>State of charge:";
+    tr_h4_start(content, TrKey::DRV_STATE_CHARGE);
     if (datalayer_extended.fordMachE.pid_hvb_soc == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soc / 1000.0, 3) + " % </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_soc / 1000.0, 3) + " %</h4>";
     }
 
-    content += "<h4>Contactor status:";
+    tr_h4_start(content, TrKey::DRV_CONTACTOR_STATUS);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
       if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0xA00A8400) {
-        content += "Interlock Seated OK</h4>";
+        tr_h4_end(content, TrKey::DRV_INTERLOCK_SEATED_OK);
       } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0) {
-        content += "Interlock Not evaluated yet</h4>";
+        tr_h4_end(content, TrKey::DRV_INTERLOCK_NOT_EVALUATED_YET);
       } else if (datalayer_extended.fordMachE.pid_hvb_contactor_status == 0x00000400) {
-        content += "Interlock OPEN!</h4>";
+        tr_h4_end(content, TrKey::DRV_INTERLOCK_OPEN);
       } else {
-        content += "Unknown enumeration: " + String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
+        content += TR(TrKey::DRV_UNKNOWN_ENUMERATION) + " " +
+                   String(datalayer_extended.fordMachE.pid_hvb_contactor_status) + "</h4>";
       }
     }
 
-    content += "<h4>Pos contactor leak voltage:";
+    tr_h4_start(content, TrKey::DRV_POS_CONTACTOR_LEAK_VOLTAGE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_leak_voltage) + " mV</h4>";
     }
 
-    content += "<h4>Neg contactor leak voltage:";
+    tr_h4_start(content, TrKey::DRV_NEG_CONTACTOR_LEAK_VOLTAGE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_leak_voltage) + " mV</h4>";
     }
 
-    content += "<h4>Pos contactor voltage:";
+    tr_h4_start(content, TrKey::DRV_POS_CONTACTOR_VOLTAGE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_voltage) + " mV</h4>";
     }
 
-    content += "<h4>Neg contactor voltage:";
+    tr_h4_start(content, TrKey::DRV_NEG_CONTACTOR_VOLTAGE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage) + " mV </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_voltage) + " mV</h4>";
     }
 
-    content += "<h4>Pos contactor bus leak resistance:";
+    tr_h4_start(content, TrKey::DRV_POS_CONTACTOR_BUS_LEAK_RESISTANCE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
       content +=
-          " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance) + " kOhm </h4>";
+          " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_positive_bus_leak_resistance) + " kOhm</h4>";
     }
 
-    content += "<h4>Neg contactor bus leak resistance:";
+    tr_h4_start(content, TrKey::DRV_NEG_CONTACTOR_BUS_LEAK_RESISTANCE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
       content +=
-          " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance) + " kOhm </h4>";
+          " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_negative_bus_leak_resistance) + " kOhm</h4>";
     }
 
-    content += "<h4>Overall contactor leak resistance:";
+    tr_h4_start(content, TrKey::DRV_OVERALL_CONTACTOR_LEAK_RESISTANCE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance) + " kOhm </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_overall_leak_resistance) + " kOhm</h4>";
     }
 
-    content += "<h4>Open contactor leak resistance:";
+    tr_h4_start(content, TrKey::DRV_OPEN_CONTACTOR_LEAK_RESISTANCE);
     if (datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance) + " kOhm </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_contactor_open_leak_resistance) + " kOhm</h4>";
     }
 
-    content += "<h4>Capacity:";
+    tr_h4_start(content, TrKey::DRV_CAPACITY);
     if (datalayer_extended.fordMachE.pid_battery_capacity_ah == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah / 10.0, 1) + " Ah </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_battery_capacity_ah / 10.0, 1) + " Ah</h4>";
     }
 
-    content += "<h4>Maintenance rebalance status:";
+    tr_h4_start(content, TrKey::DRV_MAINTENANCE_REBALANCE_STATUS);
     if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
       if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x04) {
-        content += " Initializing</h4>";
+        content += " " + TR(TrKey::DRV_INITIALIZING) + "</h4>";
       } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x01) {
-        content += " In progress</h4>";
+        content += " " + TR(TrKey::DRV_PROGRESS) + "</h4>";
       } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x02) {
-        content += " Successfully</h4>";
+        content += " " + TR(TrKey::DRV_SUCCESSFULLY) + "</h4>";
       } else if (datalayer_extended.fordMachE.pid_maintenance_rebalance_status == 0x03) {
-        content += " Aborted pack fault</h4>";
+        content += " " + TR(TrKey::DRV_ABORTED_PACK_FAULT) + "</h4>";
       } else {
         content += " " + String(datalayer_extended.fordMachE.pid_maintenance_rebalance_status) + "</h4>";
       }
     }
 
-    content += "<h4>Calendar age:";
+    tr_h4_start(content, TrKey::DRV_CALENDAR_AGE);
     if (datalayer_extended.fordMachE.pid_hvb_calendar_age_months == 255) {
-      content += "N/A</h4>";
+      tr_h4_end(content, TrKey::DRV_NOT_APPLICABLE);
     } else {
-      content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months / 100.0, 0) + " Months </h4>";
+      content += " " + String(datalayer_extended.fordMachE.pid_hvb_calendar_age_months / 100.0, 0) + " " +
+                 TR(TrKey::DRV_MONTHS) + "</h4>";
     }
 
     content += render_dtc_section(datalayer.battery.dtc);
@@ -168,24 +171,25 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
     content.reserve(3300 + dtc.dtc_count * 200);
 
     content +=
-        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
-        "Diagnostic Trouble Codes</h4>";
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; " +
+        TR(TrKey::DRV_DIAGNOSTIC_TROUBLE_CODES) + "</h4>";
 
     if (dtc.dtc_last_read_millis == 0) {
-      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+      content += "<p style='color:#bbb;'>" + TR(TrKey::DRV_NOT_READ_YET_USE_READ_DTC_BUTTON_BELOW_SCAN) + "</p>";
       return content;
     }
     if (dtc.dtc_read_failed) {
-      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+      content += "<p style='color:#ff8a80;'>&#9888; " + TR(TrKey::DRV_LAST_DTC_READ_FAILED_TIMED_OUT) + "</p>";
       return content;
     }
     if (dtc.dtc_count == 0) {
-      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+      content += "<p style='color:#69f0ae;'>&#10003; " + TR(TrKey::DRV_NO_DTCS_PRESENT) + "</p>";
       return content;
     }
 
     unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
-    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) + "s ago</p>";
+    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) +
+               TR(TrKey::DRV_S_AGO) + "</p>";
     content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
     content +=
         "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
@@ -194,7 +198,8 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
         "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
         "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
         "<th style='padding:10px 18px;text-align:left;'>Status</th>"
-        "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+        "<th style='padding:10px 18px;text-align:left;'>" +
+        TR(TrKey::DRV_DESCRIPTION) + "</th></tr></thead><tbody>";
 
     const char SYS[5] = "PCBU";
     for (uint8_t i = 0; i < dtc.dtc_count; i++) {
@@ -214,14 +219,14 @@ class FordMachEHtmlRenderer : public BatteryHtmlRenderer {
       }
 
       // Status precedence: Active (bit 0x01) > Confirmed (bit 0x08) > Stored.
-      const char* statusStr = "Stored";
+      String statusStr = TR(TrKey::DRV_STORED);
       const char* statusColor = "#9e9e9e";
       if (status & 0x08) {
-        statusStr = "Confirmed";
+        statusStr = TR(TrKey::DRV_CONFIRMED);
         statusColor = "#d29922";
       }
       if (status & 0x01) {
-        statusStr = "Active";
+        statusStr = TR(TrKey::DRV_ACTIVE_STATUS);
         statusColor = "#ff5252";
       }
 

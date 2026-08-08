@@ -2,6 +2,7 @@
 
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
+#include "../../Software/src/devboard/i18n/tr.h"
 
 #include "Arduino.h"
 
@@ -299,7 +300,11 @@ TEST(NissanLeafDtcTests, ShouldDrainReplyLargerThanStorage) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 149);
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_NE(renderer.get_status_html().str().find("32 codes shown of 149 reported"), std::string::npos);
+  // Display text goes through TR(): assert via the runtime so the check holds
+  // whatever catalog is loaded.
+  const String truncation_line =
+      String("32 ") + TR(TrKey::DRV_CODES) + " " + TR(TrKey::DRV_SHOWN_OF) + " 149 " + TR(TrKey::DRV_REPORTED);
+  EXPECT_NE(renderer.get_status_html().str().find(truncation_line.c_str()), std::string::npos);
 }
 
 // When everything fits, the page must not clutter the line with a redundant "of N reported".
@@ -343,15 +348,19 @@ TEST(NissanLeafDtcTests, ShouldRenderShortNissanCodeAsLookupKey) {
 TEST(NissanLeafDtcTests, ShouldRenderReadStateWhenNoTableIsShown) {
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
 
+  // Display text goes through TR(): assert via the runtime so the check
+  // holds whether a catalog is loaded (real text) or not ([T<id>] marker)
   reset_dtc_state();  // Never read
-  EXPECT_NE(renderer.get_status_html().str().find("Not read yet"), std::string::npos);
+  EXPECT_NE(renderer.get_status_html().str().find(TR(TrKey::DRV_NOT_READ_YET_USE_READ_DTC_BUTTON_BELOW_SCAN).c_str()),
+            std::string::npos);
 
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
   datalayer.battery.dtc.dtc_read_failed = true;
-  EXPECT_NE(renderer.get_status_html().str().find("failed or timed out"), std::string::npos);
+  EXPECT_NE(renderer.get_status_html().str().find(TR(TrKey::DRV_LAST_DTC_READ_FAILED_TIMED_OUT).c_str()),
+            std::string::npos);
 
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
-  EXPECT_NE(renderer.get_status_html().str().find("No DTCs present"), std::string::npos);
+  EXPECT_NE(renderer.get_status_html().str().find(TR(TrKey::DRV_NO_DTCS_PRESENT).c_str()), std::string::npos);
 }

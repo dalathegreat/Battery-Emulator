@@ -62,6 +62,14 @@ include_directories("${source_dir}/googletest/include"
 
 include_directories(emul)
 
+# Generated i18n artifacts are not committed - regenerate at configure time
+execute_process(
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/../tools/i18n_gen.py
+    RESULT_VARIABLE I18N_GEN_RESULT)
+if(NOT I18N_GEN_RESULT EQUAL 0)
+    message(FATAL_ERROR "i18n generation from tools/translations.fods failed")
+endif()
+
 # For eModBus
 add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
@@ -72,6 +80,10 @@ add_executable(tests
     offgrid_downgrade_tests.cpp
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
+    i18n_util_tests.cpp
+    html_escape_tests.cpp
+    i18n_store_tests.cpp
+    i18n_tr_tests.cpp
     estop_graceful_open_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
@@ -83,6 +95,9 @@ add_executable(tests
     battery/UdsCanBatteryTest.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
+    ../Software/src/devboard/i18n/i18n_util.cpp
+    ../Software/src/devboard/i18n/i18n_store.cpp
+    ../Software/src/devboard/i18n/tr.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
@@ -153,6 +168,7 @@ add_executable(tests
     ../Software/src/battery/RJXZS-BMS.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
+    ../Software/src/devboard/utils/escape.cpp
     ../Software/src/battery/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
@@ -213,3 +229,12 @@ target_compile_definitions(tests PRIVATE
 )
 
 gtest_discover_tests(tests)
+
+# Dump tool for the escaping differential test (tools/test_escaping_differential.py).
+# Links the real escapers so the differential exercises production code, not a
+# reimplementation of it.
+add_executable(escape_dump
+    escape_dump.cpp
+    ../Software/src/devboard/utils/escape.cpp
+    emul/Arduino.cpp
+)

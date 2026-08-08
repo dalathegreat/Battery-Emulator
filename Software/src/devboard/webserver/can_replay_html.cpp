@@ -1,6 +1,8 @@
 #include "can_replay_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
+#include "../i18n/tr.h"
+#include "html_escape.h"
 #include "index_html.h"
 
 String can_replay_processor(void) {
@@ -22,16 +24,16 @@ String can_replay_processor(void) {
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
   content += "</style>";
-  content += "<button onclick='home()'>Back to main page</button>";
+  content += "<button onclick='home()'>" + TR(TrKey::UI_BACK_MAIN_PAGE) + "</button>";
 
   // Start a new block for the CAN messages
   content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
 
   // Ask user to select which CAN interface log should be sent to
-  content += "<h3>Step 1: Select CAN Interface for Playback</h3>";
+  tr_h3(content, TrKey::UI_STEP_1_SELECT_CAN_INTERFACE_PLAYBACK);
 
   // Dropdown with choices
-  content += "<label for='canInterface'>CAN Interface:</label>";
+  content += "<label for='canInterface'>" + TR(TrKey::UI_CAN_INTERFACE) + "</label>";
   content += "<select id='canInterface' name='canInterface'>";
   content += "<option value='" + String(CAN_NATIVE) + "' " +
              (datalayer.system.info.can_replay_interface == CAN_NATIVE ? "selected" : "") + ">CAN Native</option>";
@@ -48,28 +50,29 @@ String can_replay_processor(void) {
 
   // Add a button to submit the selected CAN interface
   // This function writes the selection to datalayer.system.info.can_replay_interface
-  content += "<button onclick='sendCANSelection()'>Apply</button>";
+  content += "<button onclick='sendCANSelection()'>" + TR(TrKey::UI_APPLY) + "</button>";
 
-  content += "<h3>Step 2: Upload CAN Log File</h3>";
-  content += "<p>Click Browse to select a .txt CANdump log file to upload</p>";
+  tr_h3(content, TrKey::UI_STEP_2_UPLOAD_CAN_LOG_FILE);
+  content += "<p>" + TR(TrKey::UI_CLICK_BROWSE_SELECT_TXT_CANDUMP_LOG_FILE_UPLOAD) + "</p>";
   content += "<input type='file' id='file-input' accept='.txt'>";
-  content += "<button id='upload-btn'>Upload</button>";
+  content += "<button id='upload-btn'>" + TR(TrKey::UI_UPLOAD) + "</button>";
 
-  content += "<h3>Step 3: Playback control</h3>";
+  tr_h3(content, TrKey::UI_STEP_3_PLAYBACK_CONTROL);
 
   //Checkbox to see if the user wants the log to repeat once it reaches the end
-  content += "<input type=\"checkbox\" id=\"loopCheckbox\"> Loop ";
+  content += "<input type=\"checkbox\" id=\"loopCheckbox\"> " + TR(TrKey::UI_LOOP) + " ";
 
   // Add a button to start playing the log
-  content += "<button onclick='startReplay()'>Start</button> ";
+  content += "<button onclick='startReplay()'>" + TR(TrKey::UI_START) + "</button> ";
 
   // Add a button to stop playing the log
-  content += "<button onclick='stopReplay()'>Stop</button> ";
+  content += "<button onclick='stopReplay()'>" + TR(TrKey::UI_STOP) + "</button> ";
 
   // Status indicator
-  content += "<span id='statusIndicator' style='margin-left:10px; font-weight:bold;'>Stopped</span> ";
+  content +=
+      "<span id='statusIndicator' style='margin-left:10px; font-weight:bold;'>" + TR(TrKey::DRV_STOPPED) + "</span> ";
 
-  content += "<h3>Uploaded Log Preview:</h3>";
+  tr_h3(content, TrKey::UI_UPLOADED_LOG_PREVIEW);
   content += "<pre id='file-content'></pre>";
 
   content += "<script>";
@@ -81,15 +84,16 @@ String can_replay_processor(void) {
   content += "fileInput.addEventListener('change', () => { selectedFile = fileInput.files[0]; });";
 
   content += "uploadBtn.addEventListener('click', () => {";
-  content += "if (!selectedFile) { alert('Please select a file first!'); return; }";
+  content += "if (!selectedFile) { alert('" + TR_JS(TrKey::UI_PLEASE_SELECT_A_FILE_FIRST) + "'); return; }";
   content += "const formData = new FormData();";
   content += "formData.append('file', selectedFile);";
   content += "const xhr = new XMLHttpRequest();";
   content += "xhr.open('POST', '/import_can_log', true);";
-  content +=
-      "xhr.onload = () => { if (xhr.status === 200) { alert('File uploaded successfully!'); const reader = new "
-      "FileReader(); reader.onload = function (e) { fileContent.textContent = e.target.result; }; "
-      "reader.readAsText(selectedFile); } else { alert('Upload failed! Server error.'); }};";
+  content += "xhr.onload = () => { if (xhr.status === 200) { alert('" + TR_JS(TrKey::UI_FILE_UPLOADED_SUCCESSFULLY) +
+             "'); const reader = new "
+             "FileReader(); reader.onload = function (e) { fileContent.textContent = e.target.result; }; "
+             "reader.readAsText(selectedFile); } else { alert('" +
+             TR_JS(TrKey::UI_UPLOAD_FAILED_SERVER_ERROR) + "'); }};";
   content += "xhr.send(formData);";
   content += "});";
   content += "</script>";
@@ -104,11 +108,11 @@ String can_replay_processor(void) {
   content += "    .then(response => response.text())";
   content += "    .then(data => {";
   content += "      console.log(data);";
-  content += "      document.getElementById('statusIndicator').innerText = 'Running...';";
+  content += "      document.getElementById('statusIndicator').innerText = '" + TR_JS(TrKey::UI_RUNNING) + "';";
   content += "      document.getElementById('statusIndicator').style.color = 'green';";
   content += "      if (loop === 0) {";  // If loop is not checked
   content += "        setTimeout(() => {";
-  content += "          document.getElementById('statusIndicator').innerText = 'Completed';";
+  content += "          document.getElementById('statusIndicator').innerText = '" + TR_JS(TrKey::UI_COMPLETED) + "';";
   content += "          document.getElementById('statusIndicator').style.color = 'white';";
   content += "        }, 5000);";  // 5-second timeout before reverting the text
   content += "      }";
@@ -120,7 +124,7 @@ String can_replay_processor(void) {
   content += "    .then(response => response.text())";
   content += "    .then(data => {";
   content += "      console.log(data);";
-  content += "      document.getElementById('statusIndicator').innerText = 'Stopped';";
+  content += "      document.getElementById('statusIndicator').innerText = '" + TR_JS(TrKey::UI_STOPPED) + "';";
   content += "      document.getElementById('statusIndicator').style.color = 'red';";
   content += "    })";
   content += "    .catch(error => console.error('Error:', error));";
@@ -132,9 +136,9 @@ String can_replay_processor(void) {
   content += "  xhr.onreadystatechange = function() {";
   content += "    if (xhr.readyState === 4) {";
   content += "      if (xhr.status === 200) {";
-  content += "        alert('Success: ' + xhr.responseText);";
+  content += "        alert('" + TR_JS(TrKey::UI_ALERT_SUCCESS_XHR_RESPONSETEXT) + " ' + xhr.responseText);";
   content += "      } else {";
-  content += "        alert('Error: ' + xhr.responseText);";
+  content += "        alert('" + TR_JS(TrKey::UI_ALERT_ERROR_XHR_RESPONSETEXT) + " ' + xhr.responseText);";
   content += "      }";
   content += "    }";
   content += "  };";

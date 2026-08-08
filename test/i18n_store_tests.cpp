@@ -1,0 +1,280 @@
+#include <gtest/gtest.h>
+
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include "../Software/src/devboard/i18n/i18n_store.h"
+#include "ram_flash.h"
+
+static std::string blob(char fill, size_t len) {
+  return std::string(len, fill);
+}
+
+static bool upload(I18nStore& store, const char* name, const std::string& content) {
+  if (!store.stream_begin(name, (uint32_t)content.size())) {
+    return false;
+  }
+  // Feed in uneven chunks to exercise the streaming path
+  size_t pos = 0;
+  while (pos < content.size()) {
+    size_t chunk = std::min<size_t>(1000, content.size() - pos);
+    if (!store.stream_write(content.data() + pos, chunk)) {
+      return false;
+    }
+    pos += chunk;
+  }
+  return store.stream_commit();
+}
+
+static std::string read_all(I18nStore& store, const char* name) {
+  int32_t len = store.length(name);
+  if (len < 0) {
+    return "<absent>";
+  }
+  std::string out((size_t)len, 0);
+  if (!store.read(name, 0, out.data(), out.size())) {
+    return "<readfail>";
+  }
+  return out;
+}
+
+TEST(I18nStoreTest, UnformattedFlashDoesNotMount) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  EXPECT_FALSE(store.mount()) << "Junk flash must leave the feature off, not auto-format";
+  EXPECT_TRUE(store.format());
+  EXPECT_TRUE(store.mounted());
+  EXPECT_EQ(store.file_names().size(), 0u);
+
+  I18nStore reopened(flash);
+  EXPECT_TRUE(reopened.mount()) << "A formatted store must mount";
+}
+
+TEST(I18nStoreTest, UploadListReadRoundTrip) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+
+  std::string content = blob('S', 30000);
+  ASSERT_TRUE(upload(store, "sv.json.gz", content));
+  EXPECT_TRUE(store.exists("sv.json.gz"));
+  EXPECT_EQ(store.length("sv.json.gz"), 30000);
+  EXPECT_EQ(store.file_crc32("sv.json.gz"), i18n_crc32(0, content.data(), content.size()))
+      << "Directory CRC doubles as the serve-path ETag";
+  EXPECT_EQ(store.file_crc32("absent.blp"), 0u);
+  EXPECT_EQ(read_all(store, "sv.json.gz"), content);
+
+  // Survives a remount
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_EQ(read_all(reopened, "sv.json.gz"), content);
+
+  ASSERT_TRUE(reopened.remove("sv.json.gz"));
+  EXPECT_FALSE(reopened.exists("sv.json.gz"));
+}
+
+TEST(I18nStoreTest, PowerLossMidUploadKeepsOldState) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('A', 8000)));
+
+  // Power dies while streaming the second file: no commit, no flip
+  ASSERT_TRUE(store.stream_begin("fi.json.gz", 8000));
+  std::string partial = blob('B', 4000);
+  ASSERT_TRUE(store.stream_write(partial.data(), partial.size()));
+  // (reboot)
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_EQ(read_all(reopened, "sv.json.gz"), blob('A', 8000));
+  EXPECT_FALSE(reopened.exists("fi.json.gz"));
+}
+
+TEST(I18nStoreTest, ReplaceThenPowerLossServesOldVersion) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('1', 6000)));
+
+  // Replacement streams fully but power dies at the directory flip
+  ASSERT_TRUE(store.stream_begin("sv.json.gz", 6000));
+  std::string v2 = blob('2', 6000);
+  ASSERT_TRUE(store.stream_write(v2.data(), v2.size()));
+  flash.write_budget = 0;  // Everything from here fails to reach flash
+  EXPECT_FALSE(store.stream_commit());
+  flash.write_budget = -1;
+  // (reboot)
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_EQ(read_all(reopened, "sv.json.gz"), blob('1', 6000)) << "The old catalog must survive a failed replace";
+}
+
+TEST(I18nStoreTest, CorruptedActiveBlockFallsBackToOlder) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();                                             // Directory generation 1 in block 0
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('A', 5000)));  // Generation 2 in block 1
+
+  // Corrupt the active directory block (bit rot / interrupted write)
+  uint8_t junk = 0x5A;
+  flash.write(I18nStore::SECTOR + 8, &junk, 1);
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount()) << "The older valid block must win";
+  EXPECT_FALSE(reopened.exists("sv.json.gz")) << "Fell back to the pre-upload generation";
+}
+
+TEST(I18nStoreTest, CompactionMakesRoom) {
+  // Dirs 8 KB + 32 KB data area
+  RamFlash flash(40 * 1024);
+  I18nStore store(flash);
+  store.format();
+
+  ASSERT_TRUE(upload(store, "aa.json.gz", blob('A', 12 * 1024)));
+  ASSERT_TRUE(upload(store, "bb.json.gz", blob('B', 12 * 1024)));
+  ASSERT_TRUE(store.remove("aa.json.gz"));
+
+  // Free space is 20 KB but split 12 KB + 8 KB: 16 KB only fits after compaction
+  ASSERT_TRUE(upload(store, "cc.json.gz", blob('C', 16 * 1024)));
+  EXPECT_EQ(read_all(store, "bb.json.gz"), blob('B', 12 * 1024)) << "Compaction must preserve moved catalogs";
+  EXPECT_EQ(read_all(store, "cc.json.gz"), blob('C', 16 * 1024));
+}
+
+TEST(I18nStoreTest, FullStoreRejectsUpload) {
+  RamFlash flash(40 * 1024);  // 32 KB data area
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "aa.json.gz", blob('A', 20 * 1024)));
+
+  EXPECT_FALSE(store.stream_begin("bb.json.gz", 16 * 1024)) << "No amount of compaction makes 36 KB fit in 32 KB";
+  EXPECT_TRUE(upload(store, "bb.json.gz", blob('B', 12 * 1024))) << "A fitting upload must still work";
+}
+
+TEST(I18nStoreTest, LanguageHintSurvivesFlipsAndFormatClearsIt) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "sv.blp", blob('S', 3000)));
+
+  // Plant a hint the way the factory image builder does: rewrite the active
+  // directory block with the hint field set and a fixed CRC
+  {
+    uint8_t buf[I18nStore::DIR_BLOCK_MAX];
+    for (uint8_t block = 0; block < 2; block++) {
+      flash.read(block * I18nStore::SECTOR, buf, sizeof(buf));
+      if (memcmp(buf, "I18S", 4) != 0) {
+        continue;
+      }
+      uint16_t count = 0;
+      memcpy(&count, buf + 10, 2);
+      memcpy(buf + 12, "sv\0\0\0\0\0", I18nStore::HINT_SIZE);
+      size_t payload = I18nStore::DIR_HEADER_SIZE + count * sizeof(I18nStoreEntry);
+      uint32_t crc = i18n_crc32(0, buf, payload);
+      memcpy(buf + payload, &crc, 4);
+      flash.write(block * I18nStore::SECTOR, buf, payload + 4);
+    }
+  }
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_STREQ(reopened.language_hint(), "sv");
+
+  // A directory flip (any commit) must carry the hint along
+  ASSERT_TRUE(upload(reopened, "fi.blp", blob('F', 3000)));
+  I18nStore after_flip(flash);
+  ASSERT_TRUE(after_flip.mount());
+  EXPECT_STREQ(after_flip.language_hint(), "sv");
+
+  // An explicit user format wipes factory state, hint included
+  ASSERT_TRUE(after_flip.format());
+  I18nStore after_format(flash);
+  ASSERT_TRUE(after_format.mount());
+  EXPECT_STREQ(after_format.language_hint(), "");
+}
+
+TEST(I18nStoreTest, UploadCapAndNameLimits) {
+  RamFlash flash(512 * 1024);
+  I18nStore store(flash);
+  store.format();
+  EXPECT_FALSE(store.stream_begin("sv.json.gz", I18nStore::MAX_FILE_SIZE + 1));
+  EXPECT_TRUE(store.stream_begin("sv.json.gz", I18nStore::MAX_FILE_SIZE));
+  store.stream_abort();
+  EXPECT_FALSE(store.stream_begin("this-name-is-way-too-long-for-an-entry.json.gz", 100));
+}
+
+// A directory block whose CRC checks out still only proves we wrote it. If
+// the extents it names fall outside the partition, every later read/compact
+// would work from those numbers - so the block has to be rejected at mount.
+TEST(I18nStoreTest, DirectoryWithOutOfRangeExtentIsRejected) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('A', 5000)));
+
+  // Rewrite the active block with an entry pointing past the end of flash,
+  // fixing up the CRC so only the range check can catch it.
+  uint8_t block[I18nStore::DIR_BLOCK_MAX];
+  ASSERT_TRUE(flash.read(I18nStore::SECTOR, block, sizeof(block)));
+  uint16_t count = 0;
+  memcpy(&count, block + 10, 2);
+  ASSERT_EQ(count, 1u);
+  uint32_t bogus_offset = 120 * 1024;
+  uint32_t bogus_length = 64 * 1024;  // Runs off the end of a 128 KB partition
+  memcpy(block + I18nStore::DIR_HEADER_SIZE + 24, &bogus_offset, 4);
+  memcpy(block + I18nStore::DIR_HEADER_SIZE + 28, &bogus_length, 4);
+  size_t payload = I18nStore::DIR_HEADER_SIZE + count * sizeof(I18nStoreEntry);
+  uint32_t crc = i18n_crc32(0, block, payload);
+  memcpy(block + payload, &crc, 4);
+  ASSERT_TRUE(flash.erase(I18nStore::SECTOR, I18nStore::SECTOR));
+  ASSERT_TRUE(flash.write(I18nStore::SECTOR, block, payload + 4));
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount()) << "Falls back to the older block, which is still sane";
+  EXPECT_FALSE(reopened.exists("sv.json.gz")) << "The out-of-range generation must not be adopted";
+}
+
+// Committing a change moves extents; a reader that captured a generation
+// needs to be able to see that its extent may no longer be its own.
+TEST(I18nStoreTest, GenerationChangesOnEveryCommit) {
+  RamFlash flash(128 * 1024);
+  I18nStore store(flash);
+  store.format();
+  uint32_t after_format = store.generation();
+
+  ASSERT_TRUE(upload(store, "sv.json.gz", blob('A', 5000)));
+  uint32_t after_upload = store.generation();
+  EXPECT_NE(after_format, after_upload);
+
+  ASSERT_TRUE(store.remove("sv.json.gz"));
+  EXPECT_NE(after_upload, store.generation());
+}
+
+// compact() moves an extent and then flips the directory to point at the
+// copy. The flip is what makes the copy authoritative, so a bad copy must
+// not be committed over an intact original - the same reasoning that puts a
+// read-back verify in stream_commit().
+TEST(I18nStoreTest, CompactionRejectsACorruptedCopy) {
+  RamFlash flash(40 * 1024);
+  I18nStore store(flash);
+  store.format();
+
+  ASSERT_TRUE(upload(store, "aa.json.gz", blob('A', 12 * 1024)));
+  ASSERT_TRUE(upload(store, "bb.json.gz", blob('B', 12 * 1024)));
+  ASSERT_TRUE(store.remove("aa.json.gz"));
+
+  // Corrupt what the compactor is about to copy INTO, after its erase
+  flash.corrupt_writes_at = I18nStore::DATA_START;
+
+  // The 16 KB upload only fits after compaction; compaction must now fail
+  // rather than commit a bad copy of bb
+  EXPECT_FALSE(upload(store, "cc.json.gz", blob('C', 16 * 1024)));
+  flash.corrupt_writes_at = 0;
+
+  I18nStore reopened(flash);
+  ASSERT_TRUE(reopened.mount());
+  EXPECT_EQ(read_all(reopened, "bb.json.gz"), blob('B', 12 * 1024))
+      << "The original extent must still be the one the directory points at";
+}

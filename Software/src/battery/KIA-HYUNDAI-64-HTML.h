@@ -4,6 +4,7 @@
 #include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
@@ -22,37 +23,37 @@ class KiaHyundai64HtmlRenderer : public BatteryHtmlRenderer {
       memcpy(readableVersionNumber, data.ecu_version_number, sizeof(data.ecu_version_number));
       readableVersionNumber[16] = '\0';  // Null terminate the string
 
-      content += "<h4>BMS serial number: " + String(readableSerialNumber) + "</h4>";
-      content += "<h4>BMS software version: " + String(readableVersionNumber) + "</h4>";
-      content += "<h4>Cells: " + String(data.total_cell_count) + " S</h4>";
-      content += "<h4>12V voltage: " + String(data.battery_12V / 10.0f, 1) + " V</h4>";
-      content += "<h4>Waterleakage: ";
+      tr_h4(content, TrKey::DRV_BMS_SERIAL_NUMBER, String(readableSerialNumber));
+      tr_h4(content, TrKey::DRV_BMS_SOFTWARE_VERSION, String(readableVersionNumber));
+      tr_h4(content, TrKey::DRV_CELLS, String(data.total_cell_count), " S");
+      tr_h4(content, TrKey::DRV_12V_VOLTAGE, String(data.battery_12V / 10.0f, 1), " V");
+      tr_h4_open(content, TrKey::DRV_WATERLEAKAGE);
       if (data.waterleakageSensor == 0) {
-        content += " LEAK DETECTED</h4>";
+        content += " " + TR(TrKey::DRV_LEAK_DETECTED) + "</h4>";
       } else if (data.waterleakageSensor == 164) {
-        content += " No leakage</h4>";
+        content += " " + TR(TrKey::DRV_NO_LEAKAGE) + "</h4>";
       } else {
         content += String(data.waterleakageSensor) + "</h4>";
       }
-      content += "<h4>Temperature, water inlet: " + String(data.temperature_water_inlet) + " &deg;C</h4>";
-      content += "<h4>Temperature, power relay: " + String(data.powerRelayTemperature) + " &deg;C</h4>";
-      content += "<h4>Batterymanagement mode: " + String(data.batteryManagementMode) + "</h4>";
-      content += "<h4>BMS ignition: " + String(data.BMS_ign) + "</h4>";
-      content += "<h4>Battery relay: " + String(data.batteryRelay) + "</h4>";
-      content += "<h4>Inverter voltage: " + String(data.inverterVoltage) + " V</h4>";
-      content += "<h4>Isolation resistance: " + String(data.isolation_resistance_kOhm) + " kOhm</h4>";
-      content += "<h4>Power on total time: " + String(data.powered_on_total_time) + " s</h4>";
-      content += "<h4>Fastcharging sessions: " + String(data.number_of_fastcharging_sessions) + " x</h4>";
-      content += "<h4>Slowcharging sessions: " + String(data.number_of_standard_charging_sessions) + " x</h4>";
-      content +=
-          "<h4>Normal charged energy amount: " + String(data.accumulated_normal_charging_energy_kWh) + " kWh</h4>";
-      content += "<h4>Fastcharged energy amount: " + String(data.accumulated_fastcharging_energy_kWh) + " kWh</h4>";
-      content += "<h4>Total amount charged energy: " + String(data.cumulative_energy_charged_kWh / 10.0) + " kWh</h4>";
-      content +=
-          "<h4>Total amount discharged energy: " + String(data.cumulative_energy_discharged_kWh / 10.0) + " kWh</h4>";
-      content += "<h4>Cumulative charge current: " + String(data.cumulative_charge_current_ah / 10.0) + " Ah</h4>";
-      content +=
-          "<h4>Cumulative discharge current: " + String(data.cumulative_discharge_current_ah / 10.0) + " Ah</h4>";
+      tr_h4(content, TrKey::DRV_TEMPERATURE_WATER_INLET, String(data.temperature_water_inlet), " &deg;C");
+      tr_h4(content, TrKey::DRV_TEMPERATURE_POWER_RELAY, String(data.powerRelayTemperature), " &deg;C");
+      tr_h4(content, TrKey::DRV_BATTERYMANAGEMENT_MODE, String(data.batteryManagementMode));
+      tr_h4(content, TrKey::DRV_BMS_IGNITION, String(data.BMS_ign));
+      tr_h4(content, TrKey::DRV_BATTERY_RELAY, String(data.batteryRelay));
+      tr_h4(content, TrKey::DRV_INVERTER_VOLTAGE, String(data.inverterVoltage), " V");
+      tr_h4(content, TrKey::DRV_ISOLATION_RESISTANCE, String(data.isolation_resistance_kOhm), " kOhm");
+      tr_h4(content, TrKey::DRV_POWER_TOTAL_TIME, String(data.powered_on_total_time), " s");
+      tr_h4(content, TrKey::DRV_FASTCHARGING_SESSIONS, String(data.number_of_fastcharging_sessions), " x");
+      tr_h4(content, TrKey::DRV_SLOWCHARGING_SESSIONS, String(data.number_of_standard_charging_sessions), " x");
+      tr_h4(content, TrKey::DRV_NORMAL_CHARGED_ENERGY_AMOUNT, String(data.accumulated_normal_charging_energy_kWh),
+            " kWh");
+      tr_h4(content, TrKey::DRV_FASTCHARGED_ENERGY_AMOUNT, String(data.accumulated_fastcharging_energy_kWh), " kWh");
+      tr_h4(content, TrKey::DRV_TOTAL_AMOUNT_CHARGED_ENERGY, String(data.cumulative_energy_charged_kWh / 10.0), " kWh");
+      tr_h4(content, TrKey::DRV_TOTAL_AMOUNT_DISCHARGED_ENERGY, String(data.cumulative_energy_discharged_kWh / 10.0),
+            " kWh");
+      tr_h4(content, TrKey::DRV_CUMULATIVE_CHARGE_CURRENT, String(data.cumulative_charge_current_ah / 10.0), " Ah");
+      tr_h4(content, TrKey::DRV_CUMULATIVE_DISCHARGE_CURRENT, String(data.cumulative_discharge_current_ah / 10.0),
+            " Ah");
     };
 
     print_hyundai(*kia_datalayer);

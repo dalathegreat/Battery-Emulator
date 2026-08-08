@@ -906,8 +906,10 @@ TEST_F(UdsCanBatteryTest, RendererShowsInfoAndDtcSection) {
   datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
   html = renderer.get_status_html().c_str();
   EXPECT_NE(html.find("TEST-INFO"), std::string::npos);
-  EXPECT_NE(html.find("Diagnostic Trouble Codes"), std::string::npos);
-  EXPECT_NE(html.find("Not read yet"), std::string::npos);
+  // Display text goes through TR(): assert via the runtime so the check holds
+  // whatever catalog is loaded.
+  EXPECT_NE(html.find(TR(TrKey::DRV_DIAGNOSTIC_TROUBLE_CODES).c_str()), std::string::npos);
+  EXPECT_NE(html.find(TR(TrKey::DRV_NOT_READ_YET_USE_READ_DTC_BUTTON_BELOW_SCAN).c_str()), std::string::npos);
 }
 
 }  // namespace

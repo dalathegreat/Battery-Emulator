@@ -10,6 +10,7 @@
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../i18n/tr.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
 #include "../webserver/webserver.h"
@@ -112,7 +113,7 @@ struct SensorConfig {
   // Base (battery #1 / un-suffixed) entity id. The per-battery variants ("_2", "_3") are
   // generated on the fly at discovery time instead of being stored.
   const char* entity_id;
-  const char* name;
+  TrKey name;
   const char* unit;
   const char* device_class;
 
@@ -142,45 +143,45 @@ static bool supports_insulation(Battery* b) {
 }
 
 static const SensorConfig batterySensorConfigTemplate[] = {
-    {"SOC", "SOC (Scaled)", "%", "battery", always},
-    {"SOC_real", "SOC (real)", "%", "battery", always},
-    {"state_of_health", "State of Health", "%", "battery", always},
-    {"temperature_min", "Temperature Min", "°C", "temperature", always},
-    {"temperature_max", "Temperature Max", "°C", "temperature", always},
-    {"stat_batt_power", "Battery Power", "W", "power", always},
-    {"battery_current", "Battery Current", "A", "current", always},
-    {"cell_max_voltage", "Cell Max Voltage", "V", "voltage", always},
-    {"cell_min_voltage", "Cell Min Voltage", "V", "voltage", always},
-    {"cell_voltage_delta", "Cell Voltage Delta", "mV", "voltage", always},
-    {"battery_voltage", "Battery Voltage", "V", "voltage", always},
-    {"total_capacity", "Total Capacity", "Wh", "energy", always},
-    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", always},
-    {"remaining_capacity_real", "Remaining Capacity (real)", "Wh", "energy", always},
-    {"max_discharge_power", "Max Discharge Power", "W", "power", always},
-    {"max_charge_power", "Max Charge Power", "W", "power", always},
-    {"charged_energy", "Battery Charged Energy", "Wh", "energy", supports_charged},
-    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", supports_charged},
-    {"insulation_resistance", "Insulation Resistance", "kΩ", "", supports_insulation},
-    {"balancing_active_cells", "Balancing Cells", "", "", always},
-    {"balancing_status", "Balancing Status", "", "", always},
-    {"charging_state", "Charging State", "", "", always},
-    {"limiting_factor", "Limiting Factor", "", "", always},
-    {"dc_dc_current", "DC-DC Current", "A", "current", supports_tesla_dcdc_metrics},
-    {"dc_dc_voltage", "DC-DC Voltage", "V", "voltage", supports_tesla_dcdc_metrics},
-    {"autocal_taper", "BYD Auto-cal: In Taper", "", "", supports_byd_autocal_metrics},
-    {"autocal_dwell_s", "BYD Auto-cal: Dwell Time", "s", "duration", supports_byd_autocal_metrics},
-    {"autocal_cooldown_ready", "BYD Auto-cal: Cooldown Ready", "", "", supports_byd_autocal_metrics},
-    {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "battery", supports_byd_autocal_metrics},
-    {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
-    {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics}};
+    {"SOC", TrKey::MQTT_SOC_SCALED, "%", "battery", always},
+    {"SOC_real", TrKey::MQTT_SOC_REAL, "%", "battery", always},
+    {"state_of_health", TrKey::MQTT_STATE_HEALTH, "%", "battery", always},
+    {"temperature_min", TrKey::MQTT_TEMPERATURE_MIN, "°C", "temperature", always},
+    {"temperature_max", TrKey::MQTT_TEMPERATURE_MAX, "°C", "temperature", always},
+    {"stat_batt_power", TrKey::MQTT_BATTERY_POWER, "W", "power", always},
+    {"battery_current", TrKey::MQTT_BATTERY_CURRENT, "A", "current", always},
+    {"cell_max_voltage", TrKey::MQTT_CELL_MAX_VOLTAGE, "V", "voltage", always},
+    {"cell_min_voltage", TrKey::MQTT_CELL_MIN_VOLTAGE, "V", "voltage", always},
+    {"cell_voltage_delta", TrKey::MQTT_CELL_VOLTAGE_DELTA, "mV", "voltage", always},
+    {"battery_voltage", TrKey::MQTT_BATTERY_VOLTAGE, "V", "voltage", always},
+    {"total_capacity", TrKey::MQTT_TOTAL_CAPACITY, "Wh", "energy", always},
+    {"remaining_capacity", TrKey::MQTT_REMAINING_CAPACITY_SCALED, "Wh", "energy", always},
+    {"remaining_capacity_real", TrKey::MQTT_REMAINING_CAPACITY_REAL, "Wh", "energy", always},
+    {"max_discharge_power", TrKey::MQTT_MAX_DISCHARGE_POWER, "W", "power", always},
+    {"max_charge_power", TrKey::MQTT_MAX_CHARGE_POWER, "W", "power", always},
+    {"charged_energy", TrKey::MQTT_BATTERY_CHARGED_ENERGY, "Wh", "energy", supports_charged},
+    {"discharged_energy", TrKey::MQTT_BATTERY_DISCHARGED_ENERGY, "Wh", "energy", supports_charged},
+    {"insulation_resistance", TrKey::MQTT_INSULATION_RESISTANCE, "kΩ", "", supports_insulation},
+    {"balancing_active_cells", TrKey::MQTT_BALANCING_CELLS, "", "", always},
+    {"balancing_status", TrKey::MQTT_BALANCING_STATUS, "", "", always},
+    {"charging_state", TrKey::MQTT_CHARGING_STATE, "", "", always},
+    {"limiting_factor", TrKey::MQTT_LIMITING_FACTOR, "", "", always},
+    {"dc_dc_current", TrKey::MQTT_DC_DC_CURRENT, "A", "current", supports_tesla_dcdc_metrics},
+    {"dc_dc_voltage", TrKey::MQTT_DC_DC_VOLTAGE, "V", "voltage", supports_tesla_dcdc_metrics},
+    {"autocal_taper", TrKey::MQTT_BYD_AUTO_CAL_TAPER, "", "", supports_byd_autocal_metrics},
+    {"autocal_dwell_s", TrKey::MQTT_BYD_AUTO_CAL_DWELL_TIME, "s", "duration", supports_byd_autocal_metrics},
+    {"autocal_cooldown_ready", TrKey::MQTT_BYD_AUTO_CAL_COOLDOWN_READY, "", "", supports_byd_autocal_metrics},
+    {"autocal_soc_drift", TrKey::MQTT_BYD_AUTO_CAL_SOC_DRIFT, "%", "battery", supports_byd_autocal_metrics},
+    {"min_cell_number", TrKey::MQTT_MIN_CELL_NUMBER, "", "", supports_byd_metrics},
+    {"max_cell_number", TrKey::MQTT_MAX_CELL_NUMBER, "", "", supports_byd_metrics}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
-    {"bms_status", "BMS Status", "", "", always},
-    {"pause_status", "Pause Status", "", "", always},
-    {"event_level", "Event Level", "", "", always},
-    {"emulator_status", "Emulator Status", "", "", always},
-    {"emulator_uptime", "Emulator Uptime", "s", "duration", always},
-    {"cpu_temp", "CPU Temperature", "°C", "temperature", always}};
+    {"bms_status", TrKey::MQTT_BMS_STATUS, "", "", always},
+    {"pause_status", TrKey::MQTT_PAUSE_STATUS, "", "", always},
+    {"event_level", TrKey::MQTT_EVENT_LEVEL, "", "", always},
+    {"emulator_status", TrKey::MQTT_EMULATOR_STATUS, "", "", always},
+    {"emulator_uptime", TrKey::MQTT_EMULATOR_UPTIME, "s", "duration", always},
+    {"cpu_temp", TrKey::MQTT_CPU_TEMPERATURE, "°C", "temperature", always}};
 
 // The battery instances the MQTT module publishes for. Battery #1 keeps the historical
 // un-suffixed topic ("<name>/info") and entity ids, so single-battery setups see no change.
@@ -206,11 +207,12 @@ static const BatteryTarget battery_targets[] = {
 // zero-copy const char* literals.
 static String info_topics[3];
 
-static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
-                                             {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr},
-                                             {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
+static const SensorConfig buttonConfigs[] = {
+    {"BMSRESET", TrKey::MQTT_RESET_BMS, nullptr, nullptr, nullptr},
+    {"PAUSE", TrKey::MQTT_PAUSE_CHARGE_DISCHARGE, nullptr, nullptr, nullptr},
+    {"RESUME", TrKey::UI_RESUME_CHARGE_DISCHARGE, nullptr, nullptr, nullptr},
+    {"RESTART", TrKey::MQTT_RESTART_BATTERY_EMULATOR, nullptr, nullptr, nullptr},
+    {"STOP", TrKey::UI_OPEN_CONTACTORS, nullptr, nullptr, nullptr}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
 // init_mqtt() so that mqtt_message_received() does not rebuild six temporary Strings on
@@ -429,15 +431,15 @@ static const char* button_discovery_icon(const char* command) {
 static bool publish_sensor_discovery(const SensorConfig& config, const char* id_suffix, const char* name_suffix,
                                      const String& state_topic) {
   char entity_id[64];
-  char name_buf[64];
   char value_template[96];
   snprintf(entity_id, sizeof(entity_id), "%s%s", config.entity_id, id_suffix);
-  snprintf(name_buf, sizeof(name_buf), "%s%s", config.name, name_suffix);
+  // Translated display name; ids/topics below stay untranslated by design
+  String name = TR_RAW(config.name) + name_suffix;
   // The state topics are per-battery, so the value_template key is the base id for every battery
   snprintf(value_template, sizeof(value_template), "{{ value_json.%s | default(none) }}", config.entity_id);
 
   JsonDocument& doc = shared_doc;
-  doc["name"] = name_buf;
+  doc["name"] = name;
   doc["state_topic"] = state_topic;
   doc["unique_id"] = topic_name + "_" + String(entity_id);
   const String default_entity_object_id = default_entity_id_prefix + String(entity_id);
@@ -796,7 +798,7 @@ static bool publish_buttons_discovery(void) {
       JsonDocument& doc = shared_doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         const SensorConfig& config = buttonConfigs[i];
-        doc["name"] = config.name;
+        doc["name"] = TR_RAW(config.name);
         doc["unique_id"] = default_entity_id_prefix + config.entity_id;
         doc["command_topic"] = generateButtonTopic(config.entity_id);
         {
