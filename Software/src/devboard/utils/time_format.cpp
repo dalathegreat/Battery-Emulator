@@ -5,8 +5,8 @@
 #else
 #include <Arduino.h>
 #endif
-#include "time_format.h"
 #include "../i18n/tr.h"
+#include "time_format.h"
 
 struct TimeBreakdown {
   unsigned long days;
