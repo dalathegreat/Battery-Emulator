@@ -470,6 +470,12 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x345:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        BMS_allowed_discharge_power = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];  // 0.1kW, same as DID 0x000E
+        BMS_allowed_charge_power = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];     // 0.1kW, same as DID 0x000A
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x347:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -553,6 +559,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_current_dA = (int16_t)(((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 5000);
         lastCurrentSampleMillis = millis();
         BMS_SOH = rx_frame.data.u8[4];
+        BMS_SOC = rx_frame.data.u8[5];  // Whole-percent SOC, same basis as DID 0x0005 (not the 0x447 basis)
         BMS_voltage_available = true;
       } else {
         datalayer_battery->status.CAN_error_counter++;
@@ -572,9 +579,16 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x447:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
-      battery_lowest_temperature = (rx_frame.data.u8[1] - 40);                                //Best guess for now
-      battery_highest_temperature = (rx_frame.data.u8[3] - 40);                               //Best guess for now
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        BMS_min_temp_module_number = rx_frame.data.u8[0];  // 1-based coldest sensor
+        BMS_lowest_cell_temperature = (rx_frame.data.u8[1] - 40);
+        BMS_max_temp_module_number = rx_frame.data.u8[2];  // 1-based hottest sensor
+        BMS_highest_cell_temperature = (rx_frame.data.u8[3] - 40);
+        battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
+        BMS_average_cell_temperature = (rx_frame.data.u8[6] - 40);
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x47B:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -636,18 +650,6 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       pid_reply = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
       switch (pid_reply) {
-        case POLL_FOR_BATTERY_SOC:
-          BMS_SOC = rx_frame.data.u8[4];
-          break;
-        case POLL_FOR_LOWEST_TEMP_CELL:
-          BMS_lowest_cell_temperature = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_FOR_HIGHEST_TEMP_CELL:
-          BMS_highest_cell_temperature = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_FOR_BATTERY_PACK_AVG_TEMP:
-          BMS_average_cell_temperature = (rx_frame.data.u8[4] - 40);
-          break;
         case POLL_FOR_ORIGINAL_CALIBRATION:
           BMS_capacity_original_calibration = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];
           BMC_SOC_original_calibration = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
@@ -656,14 +658,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           BMS_capacity_current_calibration = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];
           BMC_SOC_current_calibration = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case POLL_MAX_CHARGE_POWER:
-          BMS_allowed_charge_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
-          break;
         case POLL_CHARGE_TIMES:
           BMS_charge_times = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
-          break;
-        case POLL_MAX_DISCHARGE_POWER:
-          BMS_allowed_discharge_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case POLL_TOTAL_CHARGED_AH:
           BMS_total_charged_ah = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
@@ -679,12 +675,6 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           break;
         case POLL_TIMES_FULL_POWER:
           BMS_times_full_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
-          break;
-        case POLL_MIN_TEMP_MODULE_NUMBER:
-          BMS_min_temp_module_number = rx_frame.data.u8[4];
-          break;
-        case POLL_MAX_TEMP_MODULE_NUMBER:
-          BMS_max_temp_module_number = rx_frame.data.u8[4];
           break;
         default:  //Unrecognized reply
           break;
@@ -1111,27 +1101,6 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     previousMillis200 = currentMillis;
 
     switch (poll_state) {
-      case POLL_FOR_BATTERY_SOC:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_SOC & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_SOC & 0x00FF);
-        poll_state = POLL_FOR_LOWEST_TEMP_CELL;
-        break;
-      case POLL_FOR_LOWEST_TEMP_CELL:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_LOWEST_TEMP_CELL & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_LOWEST_TEMP_CELL & 0x00FF);
-        poll_state = POLL_FOR_HIGHEST_TEMP_CELL;
-        break;
-      case POLL_FOR_HIGHEST_TEMP_CELL:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_HIGHEST_TEMP_CELL & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_HIGHEST_TEMP_CELL & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_PACK_AVG_TEMP;
-        break;
-      case POLL_FOR_BATTERY_PACK_AVG_TEMP:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_PACK_AVG_TEMP & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_PACK_AVG_TEMP & 0x00FF);
-        // Cell min/max voltage now come from the 0x446 broadcast, not this poll.
-        poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
-        break;
       case POLL_FOR_ORIGINAL_CALIBRATION:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_ORIGINAL_CALIBRATION & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_ORIGINAL_CALIBRATION & 0x00FF);
@@ -1140,21 +1109,11 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case POLL_FOR_CURRENT_CALIBRATION:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_CURRENT_CALIBRATION & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_CURRENT_CALIBRATION & 0x00FF);
-        poll_state = POLL_MAX_CHARGE_POWER;
-        break;
-      case POLL_MAX_CHARGE_POWER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_CHARGE_POWER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_CHARGE_POWER & 0x00FF);
         poll_state = POLL_CHARGE_TIMES;
         break;
       case POLL_CHARGE_TIMES:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_CHARGE_TIMES & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_CHARGE_TIMES & 0x00FF);
-        poll_state = POLL_MAX_DISCHARGE_POWER;
-        break;
-      case POLL_MAX_DISCHARGE_POWER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_DISCHARGE_POWER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_DISCHARGE_POWER & 0x00FF);
         poll_state = POLL_TOTAL_CHARGED_AH;
         break;
       case POLL_TOTAL_CHARGED_AH:
@@ -1180,21 +1139,10 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case POLL_TIMES_FULL_POWER:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TIMES_FULL_POWER & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TIMES_FULL_POWER & 0x00FF);
-        // Cell min/max numbers now come from the 0x446 broadcast, not this poll.
-        poll_state = POLL_MIN_TEMP_MODULE_NUMBER;
-        break;
-      case POLL_MIN_TEMP_MODULE_NUMBER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MIN_TEMP_MODULE_NUMBER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MIN_TEMP_MODULE_NUMBER & 0x00FF);
-        poll_state = POLL_MAX_TEMP_MODULE_NUMBER;
-        break;
-      case POLL_MAX_TEMP_MODULE_NUMBER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_TEMP_MODULE_NUMBER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_TEMP_MODULE_NUMBER & 0x00FF);
-        poll_state = POLL_FOR_BATTERY_SOC;
+        poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
         break;
       default:
-        poll_state = POLL_FOR_BATTERY_SOC;
+        poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
         break;
     }
 

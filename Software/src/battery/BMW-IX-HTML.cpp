@@ -1,4 +1,5 @@
 #include "BMW-IX-HTML.h"
+#include "../devboard/utils/time_format.h"
 #include "BMW-IX-BATTERY.h"
 
 String BmwIXHtmlRenderer::get_status_html() {
@@ -176,15 +177,7 @@ String BmwIXHtmlRenderer::get_status_html() {
   content += "<h3 style='color: #757575; border-bottom: 2px solid #757575; padding-bottom: 5px;'>🔧 Diagnostics</h3>";
   content += "<div style='margin-left: 15px;'>";
 
-  // Convert uptime to days:hours:minutes:seconds format
-  unsigned long uptime_seconds = batt.get_bms_uptime();
-  unsigned long days = uptime_seconds / 86400;
-  unsigned long hours = (uptime_seconds % 86400) / 3600;
-  unsigned long minutes = (uptime_seconds % 3600) / 60;
-  unsigned long seconds = uptime_seconds % 60;
-
-  content += "<h4>BMS Uptime: " + String(days) + "d " + String(hours) + "h " + String(minutes) + "m " +
-             String(seconds) + "s</h4>";
+  content += "<h4>BMS Uptime: " + format_ms_string((uint64_t)batt.get_bms_uptime() * 1000) + "</h4>";
   content += "</div>";
 
   // Diagnostic Trouble Codes Section

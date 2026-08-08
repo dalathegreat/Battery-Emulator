@@ -90,9 +90,12 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   }
 
   if (reported_status == ACTIVE) {
-    mbPV[308] = datalayer.battery.status.voltage_dV;
+    // DC and Power values after contactors (outter values).
+    mbPV[308] = datalayer.battery.status.voltage_dV;  // DC outter voltage
+    mbPV[309] = static_cast<int16_t>(datalayer.battery.status.active_power_W);
   } else {
     mbPV[308] = 0;
+    mbPV[309] = 0;
   }
   mbPV[300] = reported_status;
   mbPV[302] = 128 + bms_char_dis_status;
@@ -115,11 +118,18 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
     mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
                          static_cast<uint32_t>(57960u));  //Cap to 58kWh
   }
-  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
-  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
-  mbPV[310] = datalayer.battery.status.voltage_dV;
+  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));       //Cap to 30000 if exceeding
+  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));          //Cap to 30000 if exceeding
+  mbPV[310] = datalayer.battery.status.voltage_dV;                            // DC inner voltage.
+  mbPV[311] = static_cast<int16_t>(datalayer.battery.status.active_power_W);  // DC inner power (before contactors).
   mbPV[312] = datalayer.battery.status.temperature_min_dC;
   mbPV[313] = datalayer.battery.status.temperature_max_dC;
+  // U64 for total charged/discharged Wh (314-317 and 318-321), but datalayer uses only 32-bit.
+  mbPV[316] = datalayer.battery.status.total_charged_battery_Wh >> 16;
+  mbPV[317] = datalayer.battery.status.total_charged_battery_Wh & 0xFFFF;
+  mbPV[320] = datalayer.battery.status.total_discharged_battery_Wh >> 16;
+  mbPV[321] = datalayer.battery.status.total_discharged_battery_Wh & 0xFFFF;
+  mbPV[322] = datalayer.battery.status.temperature_max_dC;  // Fill device temperature, perhaps BMS temperature.
   mbPV[323] = datalayer.battery.status.soh_pptt;
 }
 

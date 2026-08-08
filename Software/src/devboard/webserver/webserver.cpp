@@ -1,6 +1,5 @@
 #include "webserver.h"
 #include <Preferences.h>
-#include <ctime>
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
@@ -18,6 +17,8 @@
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
+#include "../utils/millis64.h"
+#include "../utils/time_format.h"
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
@@ -348,23 +349,11 @@ void init_webserver() {
         logs = "No logs available.";
       }
 
-      // Get the current time
-      time_t now = time(nullptr);
-      struct tm timeinfo;
-      localtime_r(&now, &timeinfo);
-
-      // Ensure time retrieval was successful
-      char filename[32];
-      if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
-        // Valid filename created
-      } else {
-        // Fallback filename if automatic timestamping failed
-        strcpy(filename, "battery_emulator_can_log.txt");
-      }
+      String filename = "canlog_" + format_ms_stamp(millis64()) + ".txt";
 
       // Use request->send with dynamic headers
       AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      response->addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
       request->send(response);
     });
   }
@@ -393,23 +382,11 @@ void init_webserver() {
         logs = "No logs available.";
       }
 
-      // Get the current time
-      time_t now = time(nullptr);
-      struct tm timeinfo;
-      localtime_r(&now, &timeinfo);
-
-      // Ensure time retrieval was successful
-      char filename[32];
-      if (strftime(filename, sizeof(filename), "log_%H-%M-%S.txt", &timeinfo)) {
-        // Valid filename created
-      } else {
-        // Fallback filename if automatic timestamping failed
-        strcpy(filename, "battery_emulator_log.txt");
-      }
+      String filename = "log_" + format_ms_stamp(millis64()) + ".txt";
 
       // Use request->send with dynamic headers
       AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-      response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+      response->addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
       request->send(response);
     });
   }
@@ -974,27 +951,6 @@ String get_firmware_info_processor(const String& var) {
   return String();
 }
 
-String get_uptime() {
-  uint64_t milliseconds;
-  uint32_t remaining_seconds_in_day;
-  uint32_t remaining_seconds;
-  uint32_t remaining_minutes;
-  uint32_t remaining_hours;
-  uint16_t total_days;
-
-  milliseconds = millis64();
-
-  //convert passed millis to days, hours, minutes, seconds
-  total_days = milliseconds / (1000 * 60 * 60 * 24);
-  remaining_seconds_in_day = (milliseconds / 1000) % (60 * 60 * 24);
-  remaining_hours = remaining_seconds_in_day / (60 * 60);
-  remaining_minutes = (remaining_seconds_in_day % (60 * 60)) / 60;
-  remaining_seconds = remaining_seconds_in_day % 60;
-
-  return (String)total_days + " days, " + (String)remaining_hours + " hours, " + (String)remaining_minutes +
-         " minutes, " + (String)remaining_seconds + " seconds";
-}
-
 String processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -1057,7 +1013,7 @@ String processor(const String& var) {
     } else {
       content += "</h4>";
     }
-    content += "<h4>Uptime: " + get_uptime() + "</h4>";
+    content += "<h4>Uptime: " + format_ms_string(millis64()) + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
       content +=
           "<h4>Free heap: " + String(ESP.getFreeHeap()) + ", max alloc: " + String(ESP.getMaxAllocHeap()) + "</h4>";

@@ -120,7 +120,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1f;
 
     content += "<h4>SOC measured: " + String(soc_measured) + "&percnt;</h4>";
-    content += "<h4>SOC OBD2: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";
+    content += "<h4>SOC 0x444: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";
     content += "<h4>Pack voltage: ";
     if (byd_datalayer->pack_voltage_dV > 0) {
       content += String(byd_datalayer->pack_voltage_dV / 10.0f, 1) + " V</h4>";

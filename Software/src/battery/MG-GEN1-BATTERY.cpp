@@ -350,7 +350,7 @@ void MgGen1Battery::update_values() {
 
 void MgGen1Battery::announce_contactor_state(bool state) {
   // Only the primary battery should announce the contactor state
-  if (allowed_contactor_closing != nullptr) {
+  if (allowed_contactor_closing == nullptr) {
     datalayer.system.status.battery_allows_contactor_closing = state;
   }
 }
@@ -586,6 +586,7 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 16600;
     }
+    // Definitely works fine with slower ticks
     fastTick = false;
   } else if (batteryType == BATTERY_TYPE_MG_ZS) {
     logging.println("[MG] Detected MG ZS EV battery (108s)");
@@ -601,6 +602,29 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     //   if(datalayer_battery->info.total_capacity_Wh == 0) {
     //     datalayer_battery->info.total_capacity_Wh = 61000;
     //   }
+  } else if (vehicleHardwareNumber == 0x11054259) {
+    // The 50.3kWh LFP and 61kWh NMC MG5 batteries have the same battery type
+    // code (the obviously fake 00010203), so we need to distinguish by
+    // something else. The vehicle hardware number seems a good candidate.
+
+    // 50.3kWh LFP:  11 05 42 59 01
+    // 52kWh NMC x2: 10 95 22 20 01
+    // 61kWh NMC:    11 01 61 90 01 (detected as ZS above anyway)
+
+    logging.println("[MG] Detected MG5 50kWh LFP (120s)");
+    batteryType = BATTERY_TYPE_MG5_50_LFP;
+    maxChargePowerW = 14000;
+    maxDischargePowerW = 14000;
+    datalayer_battery->info.number_of_cells = 120;
+    // Force the chemistry to LFP (for safety)
+    datalayer_battery->info.chemistry = LFP;
+    datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP_MV;
+    datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP_MV;
+    if (datalayer_battery->info.total_capacity_Wh == 0) {
+      datalayer_battery->info.total_capacity_Wh = 50300;
+    }
+    // Needs fast tick or contactors don't close and it emits strange frames
+    fastTick = true;
   } else {
     logging.printf("[MG] Assuming MG5 battery (96s)\n");
     batteryType = BATTERY_TYPE_MG5;
@@ -610,6 +634,7 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 52500;
     }
+    // Seems to work fine with slower ticks
     fastTick = false;
   }
 
@@ -634,6 +659,15 @@ uint16_t MgGen1Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
       datalayer_battery->status.soh_pptt = value;
       break;
 
+    case POLL_BATTERY_VEHICLE_HW_NUMBER:
+      if (value == 0) {
+        // Retry until we get a valid vehicle hardware number (0 is invalid)
+        return POLL_BATTERY_VEHICLE_HW_NUMBER;
+      }
+      vehicleHardwareNumber = value;
+      memcpy(pid_vehicle_hw_number, data,
+             length > sizeof(pid_vehicle_hw_number) ? sizeof(pid_vehicle_hw_number) : length);
+      break;
     case POLL_BATTERY_TYPE:  // Battery type
       if (value == 0) {
         // Retry until we get a valid battery type (0 is invalid)
@@ -656,10 +690,6 @@ uint16_t MgGen1Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
       break;
     case POLL_BATTERY_VIN:
       memcpy(pid_vin, data, length > sizeof(pid_vin) ? sizeof(pid_vin) : length);
-      break;
-    case POLL_BATTERY_VEHICLE_HW_NUMBER:
-      memcpy(pid_vehicle_hw_number, data,
-             length > sizeof(pid_vehicle_hw_number) ? sizeof(pid_vehicle_hw_number) : length);
       break;
     case POLL_BATTERY_SYSTEM_HW_NUMBER:
       memcpy(pid_system_hw_number, data, length > sizeof(pid_system_hw_number) ? sizeof(pid_system_hw_number) : length);
@@ -740,6 +770,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
                                         !identified_battery || voltageValidTime == 0 ||
                                         (allowed_contactor_closing != nullptr && !*allowed_contactor_closing);
 
+    bool send_8a = true;
     if (must_open_contactors || (should_open_contactors && currentMillis > STARTUP_GRACE_PERIOD_MS)) {
 
       if (announcedContactorsClosed) {
@@ -759,6 +790,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       // We are still in the startup grace period - don't send anything, if the
       // contactors are still closed, they can remain so until the battery times
       // out.
+      send_8a = false;
     } else {
       // Everything ready, close contactors
       MG_HS_8A.data.u8[5] = 0x02;
@@ -793,7 +825,9 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
                            MG_HS_8A.data.u8[4] ^ MG_HS_8A.data.u8[5] ^ MG_HS_8A.data.u8[6]);
     eightAcycle = (eightAcycle + 1) & 0xF;
 
-    transmit_can_frame(&MG_HS_8A);
+    if (send_8a) {
+      transmit_can_frame(&MG_HS_8A);
+    }
   }
 
   const unsigned long TICK_PERIOD_20 = fastTick ? INTERVAL_20_MS : INTERVAL_100_MS;

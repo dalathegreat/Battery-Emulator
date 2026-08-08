@@ -156,9 +156,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Last time a remote set command was received to enable timeout of settings */
-  unsigned long remote_set_timestamp = 0;
+  uint32_t remote_set_timestamp = 0;
   /** Timeout time for remote limits */
-  unsigned long remote_set_timeout = 0;
+  uint32_t remote_set_timeout = 0;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_max_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;      //For keeping track when balancing started
