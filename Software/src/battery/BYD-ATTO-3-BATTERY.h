@@ -149,10 +149,11 @@ class BydAttoBattery : public CanBattery {
   the pack bus so the BMS ends the charge itself and recalibrates SOC to 100%, instead of BE stopping the
   charge at its own cell clamp. An insulation fault keeps the BMS out of the charge context; the
   isolation-monitor-disable setting (on by default) normally keeps that clear. Inert while off. */
-  static const uint16_t SESSION_TAPER_START_MV = 3500;    // taper start, and where the BMS advisory hands over
-  static const uint16_t SESSION_TAPER_END_MV = 3752;      // top of the observed 3742-3753 termination band
-  static const uint8_t SESSION_TAIL_CURRENT_dA = 45;      // tail has to clear the site's net-delivery floor
-  static const uint16_t SESSION_CELL_CLAMP_MV = 3780;     // backstop above full+overshoot; applies only while a session owns the top
+  static const uint16_t SESSION_TAPER_START_MV = 3500;  // taper start, and where the BMS advisory hands over
+  static const uint16_t SESSION_TAPER_END_MV = 3752;    // top of the observed 3742-3753 termination band
+  static const uint8_t SESSION_TAIL_CURRENT_dA = 45;    // tail has to clear the site's net-delivery floor
+  static const uint16_t SESSION_CELL_CLAMP_MV =
+      3780;  // backstop above full+overshoot; applies only while a session owns the top
   static const uint16_t SESSION_DELTA_LIMIT_MV = 400;     // real cars run 250-360mV of spread at the top
   static const uint32_t SESSION_OBC_CAP_W = 7000;         // donor OBC maximum offer (0x47E b4 = 0x47)
   static const int16_t SESSION_ARM_CURRENT_dA = 20;       // arm on 2.0A of charge current...
