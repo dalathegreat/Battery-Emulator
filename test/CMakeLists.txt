@@ -111,23 +111,32 @@ add_executable(tests
     ../Software/src/battery/BMW-IX-BATTERY.cpp
     ../Software/src/battery/BMW-IX-HTML.cpp
     ../Software/src/battery/BMW-PHEV-BATTERY.cpp
+    ../Software/src/battery/BMW-PHEV-HTML.cpp
     ../Software/src/battery/BMW-SBOX.cpp
     ../Software/src/battery/BOLT-AMPERA-BATTERY.cpp
+    ../Software/src/battery/BOLT-AMPERA-HTML.cpp
     ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
+    ../Software/src/battery/BYD-ATTO-3-HTML.cpp
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
+    ../Software/src/battery/CELLPOWER-HTML.cpp
     ../Software/src/battery/CHARGEBYTE-CCS.cpp
     ../Software/src/battery/CHADEMO-BATTERY.cpp
+    ../Software/src/battery/CHADEMO-BATTERY-HTML.cpp
     ../Software/src/battery/CHADEMO-CT.cpp
     ../Software/src/battery/CHADEMO-SHUNTS.cpp
     ../Software/src/battery/CMFA-EV-BATTERY.cpp
     ../Software/src/battery/CMP-SMART-CAR-BATTERY.cpp
+    ../Software/src/battery/CMP-SMART-CAR-BATTERY-HTML.cpp
     ../Software/src/battery/DALY-BMS.cpp
     ../Software/src/battery/ECMP-BATTERY.cpp
+    ../Software/src/battery/ECMP-HTML.cpp
     ../Software/src/battery/ENNOID-BMS.cpp
     ../Software/src/battery/FORD-MACH-E-BATTERY.cpp
+    ../Software/src/battery/FORD-MACH-E-BATTERY-HTML.cpp
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
+    ../Software/src/battery/GEELY-GEOMETRY-C-HTML.cpp
     ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
@@ -137,20 +146,27 @@ add_executable(tests
     ../Software/src/battery/KIA-E-GMP-HTML.cpp
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
+    ../Software/src/battery/KIA-HYUNDAI-64-HTML.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
     ../Software/src/battery/MEB-BATTERY.cpp
+    ../Software/src/battery/MEB-HTML.cpp
     ../Software/src/battery/MG-5-BATTERY.cpp
     ../Software/src/battery/MG-GEN1-BATTERY.cpp
     ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
+    ../Software/src/battery/NISSAN-LEAF-HTML.cpp
     ../Software/src/battery/ORION-BMS.cpp
     ../Software/src/battery/PYLON-BATTERY.cpp
+    ../Software/src/battery/PYLON-HTML.cpp
     ../Software/src/battery/RANGE-ROVER-PHEV-BATTERY.cpp
     ../Software/src/battery/RELION-LV-BATTERY.cpp
     ../Software/src/battery/RENAULT-KANGOO-BATTERY.cpp
     ../Software/src/battery/RENAULT-TWIZY.cpp
     ../Software/src/battery/RENAULT-ZOE-GEN1-BATTERY.cpp
+    ../Software/src/battery/RENAULT-ZOE-GEN1-HTML.cpp
     ../Software/src/battery/RENAULT-ZOE-GEN2-BATTERY.cpp
+    ../Software/src/battery/RENAULT-ZOE-GEN2-HTML.cpp
     ../Software/src/battery/RIVIAN-BATTERY.cpp
+    ../Software/src/battery/RIVIAN-HTML.cpp
     ../Software/src/battery/RJXZS-BMS.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
@@ -159,14 +175,18 @@ add_executable(tests
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TESLA-HTML.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
     ../Software/src/battery/THUNDERSTRUCK-BMS.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp
+    ../Software/src/battery/GEELY-SEA-HTML.cpp
     ../Software/src/battery/UdsCanBattery.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
+    ../Software/src/battery/VOLVO-SPA-HTML.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
+    ../Software/src/battery/VOLVO-SPA-HYBRID-HTML.cpp
     ../Software/src/inverter/AFORE-CAN.cpp
     ../Software/src/inverter/BYD-CAN.cpp
     ../Software/src/inverter/BYD-MODBUS.cpp

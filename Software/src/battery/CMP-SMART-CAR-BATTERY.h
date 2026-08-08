@@ -1,5 +1,6 @@
 #ifndef CMP_SMART_CAR_BATTERY_H
 #define CMP_SMART_CAR_BATTERY_H
+#include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/hal/hal.h"
 #include "CMP-SMART-CAR-BATTERY-HTML.h"

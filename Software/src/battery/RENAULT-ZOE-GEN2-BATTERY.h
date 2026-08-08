@@ -1,6 +1,8 @@
 #ifndef RENAULT_ZOE_GEN2_BATTERY_H
 #define RENAULT_ZOE_GEN2_BATTERY_H
 
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN2-HTML.h"
 
