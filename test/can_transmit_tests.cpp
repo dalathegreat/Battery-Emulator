@@ -35,18 +35,8 @@ class CanTransmitTest : public ::testing::Test {
     allowed_to_send_CAN = true;
     set_millis64(12000);
     clear_transmitted_frames();
-
-    // print_can_frame() counts USB frames it had to drop in a function-static
-    // that nothing resets, and pays the count out as a gap marker on the next
-    // write that fits. Flush it here so a preceding test's drops cannot show up
-    // in this one's output.
-    Serial.tx_free = 4096;
-    datalayer.system.info.CAN_usb_logging_active = true;
-    transmit_can_frame_to_interface(&kFlush, CAN_NATIVE);
-    datalayer.system.info.CAN_usb_logging_active = false;
     Serial.clear_written();
     Serial.tx_free = 4096;
-    clear_transmitted_frames();
   }
 
   void TearDown() override {
@@ -70,11 +60,7 @@ class CanTransmitTest : public ::testing::Test {
     CAN_frame f = frame(id, b0);
     transmit_can_frame_to_interface(&f, interface);
   }
-
-  static const CAN_frame kFlush;
 };
-
-const CAN_frame CanTransmitTest::kFlush = {};
 
 }  // namespace
 
@@ -221,4 +207,31 @@ TEST_F(CanTransmitTest, CutoffFilterKeepsLowIdsOutOfTheWebserverBuffer) {
   EXPECT_GT(datalayer.system.info.logged_can_messages_offset, 0u);
 
   user_selected_CAN_ID_cutoff_filter = 0;
+}
+
+// The dropped-frame count is the one piece of this layer's state that no code
+// path clears on its own - it is paid out once and only when a write fits. A
+// case that fills the port would otherwise hand its pending gap marker to
+// whichever case printed next.
+TEST_F(CanTransmitTest, ResettingTheDispatchStateDropsAPendingGapMarker) {
+  datalayer.system.info.CAN_usb_logging_active = true;
+  Serial.tx_free = 4;
+  send(0x123, CAN_NATIVE);
+  send(0x124, CAN_NATIVE);
+  ASSERT_EQ(can_dispatch.usb_frames_dropped, 2u);
+
+  reset_can_dispatch_state();
+  EXPECT_EQ(can_dispatch.usb_frames_dropped, 0u);
+
+  // Nothing owed: the next frame that fits prints on its own.
+  emul_install_can_devices();  // the reset emptied the device table too
+  Serial.tx_free = 4096;
+  Serial.clear_written();
+  send(0x125, CAN_NATIVE);
+  EXPECT_EQ(Serial.written.find("not printed"), std::string::npos) << "got: " << Serial.written;
+  EXPECT_NE(Serial.written.find("TX1 125"), std::string::npos) << "got: " << Serial.written;
+}
+
+TEST_F(CanTransmitTest, EveryTestStartsWithNothingOwedOnTheConsole) {
+  EXPECT_EQ(can_dispatch.usb_frames_dropped, 0u);
 }
