@@ -22,7 +22,8 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
   }
 }
 
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {}
+// register_can_receiver and the fan-out now come from the real
+// comm_can_dispatch.cpp, which is hardware-free and in the test build.
 
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   return true;
