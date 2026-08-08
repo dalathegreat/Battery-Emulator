@@ -1,6 +1,7 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
+#include "../../communication/can/comm_can_device.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
@@ -72,54 +73,7 @@ void update_machineryprotection() {
   }
 
   // Check health status of CAN interfaces
-  if (datalayer.system.info.can_native_send_fail) {
-    set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
-    datalayer.system.info.can_native_send_fail = false;
-  } else {
-    clear_event(EVENT_CAN_NATIVE_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_native_bus_error) {
-    set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
-    datalayer.system.info.can_native_bus_error = false;
-  } else {
-    clear_event(EVENT_CAN_NATIVE_BUS_ERROR);
-  }
-  if (datalayer.system.info.can_2515_send_fail) {
-    set_event(EVENT_CANMCP2515_BUFFER_FULL, 0);
-    datalayer.system.info.can_2515_send_fail = false;
-  } else {
-    clear_event(EVENT_CANMCP2515_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_2515_bus_error) {
-    set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
-    datalayer.system.info.can_2515_bus_error = false;
-  } else {
-    clear_event(EVENT_CANMCP2515_BUS_ERROR);
-  }
-  if (datalayer.system.info.can_2518_send_fail) {
-    set_event(EVENT_CANFD_BUFFER_FULL, 0);
-    datalayer.system.info.can_2518_send_fail = false;
-  } else {
-    clear_event(EVENT_CANFD_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_2518_bus_error) {
-    set_event(EVENT_CANFD_BUS_ERROR, 0);
-    datalayer.system.info.can_2518_bus_error = false;
-  } else {
-    clear_event(EVENT_CANFD_BUS_ERROR);
-  }
-  if (datalayer.system.info.can_2518_2_send_fail) {
-    set_event(EVENT_CANFD_2_BUFFER_FULL, 0);
-    datalayer.system.info.can_2518_2_send_fail = false;
-  } else {
-    clear_event(EVENT_CANFD_2_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_2518_2_bus_error) {
-    set_event(EVENT_CANFD_2_BUS_ERROR, 0);
-    datalayer.system.info.can_2518_2_bus_error = false;
-  } else {
-    clear_event(EVENT_CANFD_2_BUS_ERROR);
-  }
+  update_can_health_events();
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
   // Don't check any battery issues if battery is not configured
