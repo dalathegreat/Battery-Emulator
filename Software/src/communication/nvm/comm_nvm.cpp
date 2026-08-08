@@ -142,11 +142,11 @@ void init_stored_settings() {
   user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
-  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
-  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
-  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", 0);
-  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
-  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
+  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
+  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
+  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);
+  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
+  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
 
   auto readIf = [&settings](const char* settingName) {
