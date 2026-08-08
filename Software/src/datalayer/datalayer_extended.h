@@ -793,6 +793,11 @@ struct DATALAYER_INFO_MEB {
   uint8_t BMS_Kl30c_Status;
   uint8_t balancing_active;
   uint8_t BMS_welded_contactors_status;
+  /** DCDC converter reported state (from DCDC_01/04). 0=Standby, 1=precharge, 2=Lowering(12V charge), 3=Raising, 7=Init */
+  uint8_t DCDC_mode = 0;
+  bool DCDC_precharge_complete = 0; /** true once DCDC precharge is complete */
+  int32_t DCDC_HV_voltage_dV = 0;
+  int16_t DCDC_HV_current_dA = 0;
 
   bool balancing_request;
   bool charging_active;

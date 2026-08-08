@@ -57,6 +57,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void handle_basic_settings(unsigned long currentMillis);
   /* drive the BMS reset state machine — called every transmit_can() tick */
   void handle_bms_reset(unsigned long currentMillis);
+  /* drive the HV bring-up coordinator (sequences the external DCDC + BMS) — called every 100 ms */
+  void high_voltage_coordinator(unsigned long currentMillis);
   /* IsoTp override: send a raw CAN frame */
   void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
@@ -248,6 +250,8 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int EM_HYB_05 = 0x6A4;
   static const int MSG_HYB_01 = 0x3A6;
   static const int DC_HYB_02 = 0x3AF;
+  static const int DCDC_01 = 0x2AE;
+  static const int DCDC_02 = 0x3F4;
   static const int DCDC_04 = 0xF7;
   static const int Motor_EV_01 = 0x187;
   static const int Airbag_01 = 0x40;
@@ -265,6 +269,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int Klima_EV_06 = 0x1A55552B;
   static const int Klima_EV_07 = 0x12DD5513;
   static const int HVEM_04 = 0x569;
+  static const int NVEM_10 = 0x20F;
   static const int eTM_01 = 0x16A954B4;
   static const int NMH_Gateway = 0x1B000010;
   static const int NMH_Klima = 0x1B000046;
@@ -350,6 +355,34 @@ class MebBattery : public CanBattery, public IsoTp {
   static constexpr unsigned long BMS_RESET_BMS_SILENT_MS = 1000;        // RX gap that means "asleep"
   static constexpr unsigned long BMS_RESET_SLEEP_MS = 5000;             // bus-quiet wait before restart
   static constexpr uint32_t BMS_CAN_ERR_IGNORE_MS = 2000;               // ignore CAN errors while BMS wakes after reset
+
+  // HVK_DCDC_Sollmodus / DC_IstModus_02 values (HVK_01 byte 3 bits 3-5, DCDC_04 DC_IstModus_02)
+#define DCDC_MODE_STANDBY 0
+#define DCDC_MODE_PRECHARGE_ON 1  // precharge
+#define DCDC_MODE_CHARGE_12V 2    // buck — normal HV supply
+
+  // HV coordinator: brings HV up by sequencing the external DCDC through precharge, then handing
+  // off to the BMS for AC charging. Any fault sets back to IDLE_HV_OFF.
+  enum class HvCoordinatorState : uint8_t {
+    IDLE_HV_OFF,         // command BMS HV_Off + DCDC Standby; wait for both to report it
+    REQUEST_PRECHARGE,   // command DCDC PRECHARGE_ON; wait dcdc_actual_mode == PRECHARGE_ON
+    PRECHARGING,         // precharge bit set; wait DC precharge status complete AND HV voltage matched
+    REQUEST_BMS_CHARGE,  // command BMS AC charge; wait bms_mode == AC_CHARGING
+    REQUEST_DCDC_BUCK,   // command DCDC CHARGE_12V; wait dcdc_actual_mode == CHARGE_12V
+    RUNNING,             // steady HV on; precharge bit cleared
+  };
+  HvCoordinatorState hv_coordinator_state = HvCoordinatorState::IDLE_HV_OFF;
+  unsigned long hv_coordinator_ms = 0;                       // phase-start timestamp (diagnostics)
+  static constexpr unsigned long HV_STEP_STALL_MS = 3000;    // log if a step stalls this long
+  static constexpr int PRECHARGE_VOLTAGE_MATCH_DV = 100;     // DCDC HV vs pack match window (10 V)
+
+  // DCDC converter state, decoded from the received DCDC_01/02/04 messages.
+  uint8_t dcdc_actual_mode = DCDC_MODE_STANDBY;  // DC mode from DCDC_04
+  bool dcdc_precharge_complete = false;          // DC precharge status from DCDC_04
+  int32_t dcdc_hv_voltage_dV = 0;                // DCDC_01 HV voltage measured
+  int16_t dcdc_hv_current_dA = 0;                // DCDC_01 HV current measured
+  uint16_t dcdc_consumption = 0;                 // DCDC_02 DC power consumption
+  uint8_t dcdc_utilization_pct = 0;              // DCDC_02 DC utilization percentage
 
   uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
   bool nof_cells_determined = false;
@@ -462,7 +495,7 @@ class MebBattery : public CanBattery, public IsoTp {
   uint16_t predicted_power_dyn_standard_watt = 0;
   uint8_t predicted_time_dyn_standard_minutes = 0;
   uint8_t mux = 0;
-  //uint16_t cellvoltages[160] = {0};
+  uint16_t cellvoltages[160] = {0};
   uint16_t duration_discharge_power_watt = 0;
   uint16_t duration_charge_power_watt = 0;
   uint16_t maximum_voltage = 0;
@@ -683,6 +716,11 @@ class MebBattery : public CanBattery, public IsoTp {
                                  .DLC = 8,
                                  .ID = Motor_EV_01,  // content
                                  .data = {0x00, 0x80, 0x12, 0x00, 0x00, 0x00, 0x30, 0x96}};
+  CAN_frame NVEM_10_frame = {.FD = true,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = NVEM_10,  // content
+                                 .data = {0x3E, 0x09, 0x00, 0x00, 0x40, 0x00, 0xFD, 0x00}};
   uint32_t can_msg_received = 0;
 };
 
