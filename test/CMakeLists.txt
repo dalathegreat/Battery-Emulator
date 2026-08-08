@@ -73,6 +73,7 @@ add_executable(tests
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
     estop_graceful_open_tests.cpp
+    can_dispatch_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
     battery/NissanLeafTest.cpp
@@ -86,6 +87,7 @@ add_executable(tests
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
+    ../Software/src/communication/can/comm_can_dispatch.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/types.cpp
