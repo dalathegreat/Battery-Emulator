@@ -431,12 +431,15 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
   if (dtc == nullptr)
     return;
 
-  if (len < 2 || data[1] != 0x02) {
+  const bool is_kwp2000 = (pid_scan_id_bytes == 1);
+  const bool valid_header = is_kwp2000 ? (data[0] == 0x59) : (data[1] == 0x02);
+
+  if (len < 2 || !valid_header) {
     // Unexpected report type or a malformed response — treat as a failed readout.
     dtc->dtc_read_failed = true;
   } else {
     dtc->dtc_read_failed = false;
-    int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
+    int dtcStartIndex = is_kwp2000 ? 2 : 3;  // KWP2000 starts at offset 2, standard UDS skips 59 02 <mask>
     int availableBytes = len - dtcStartIndex;
     int maxDtcCount = availableBytes / 4;
 

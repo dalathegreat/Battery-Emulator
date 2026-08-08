@@ -262,10 +262,10 @@ class PidDemuxTest : public CanLogTestFixture {
       EXPECT_EQ(datalayer.battery.status.cell_balancing_status[i], expected) << "cell " << i;
     }
 
-    // 0x03 SOC group: value bytes 1-2 are 0x2132 (8498 = 84.98%).
+    // 0x155 broadcast: SOC value bytes 4-5 are 0x2132 (8498 = 84.98%).
     EXPECT_EQ(datalayer.battery.status.real_soc, 8498);
 
-    // 0x04 temperature group: 12 temperatures, 18..21 C -> 180/210 dC.
+    // 0x424 broadcast: min/max temperatures (18 C / 21 C -> 180/210 dC).
     EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 180);
     EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 210);
 
