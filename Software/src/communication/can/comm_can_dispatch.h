@@ -76,4 +76,10 @@ bool route_frame_to_device(const CAN_frame& tx_frame, CAN_Interface interface);
 // Empties the device list. For tests; init_CAN builds it once at boot.
 void clear_can_devices();
 
+// Logs one frame to whichever sinks the user has switched on (USB console,
+// webserver CAN-log page). Lives here rather than in comm_can.cpp because it
+// is pure formatting: comm_can.cpp's dispatch_frame() calls it for RX, the
+// transmit path below for TX.
+void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
+
 #endif  // _COMM_CAN_DISPATCH_H_
