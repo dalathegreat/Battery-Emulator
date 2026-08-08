@@ -13,8 +13,9 @@
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
-bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
-bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
+bool mdns_enabled = true;           //If true, allows battery monitor te be found by .local address
+bool espnow_enabled = true;         //If true, allows battery emulator to send battery status by using ESPNow messages
+std::string espnow_peer_macs = "";  //Empty = broadcast, otherwise a list of receiver MAC addresses
 uint16_t wifi_channel = 0;
 extern const char* version_number;
 
