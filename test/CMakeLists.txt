@@ -75,6 +75,7 @@ add_executable(tests
     estop_graceful_open_tests.cpp
     battery/FordMachETest.cpp
     battery_alive_tests.cpp
+    safety_aggregation_tests.cpp
     battery/NissanLeafTest.cpp
     battery/BydAtto3Test.cpp
     battery/foxess_tests.cpp

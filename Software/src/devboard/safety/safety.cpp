@@ -6,7 +6,6 @@
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 
-static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
 static uint8_t discharge_limit_failures = 0;
 static bool battery_full_event_fired = false;
@@ -16,11 +15,6 @@ static bool battery_empty_event_fired = false;
 // Some inverters take a while to boot and start sending CAN. Suppress the
 // inverter-missing error during this startup window (measured from power-on).
 #define INVERTER_STARTUP_GRACE_MS 300000  // 300 s
-#define CELL_CRITICAL_MV 100              // If cells go this much outside design voltage, shut battery down!
-#define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
-#define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
-#define HYSTERESIS_OFFSET_DV 20
-#define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -267,14 +261,8 @@ void update_machineryprotection() {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
     }
 
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
+    // Cell deviation is checked for all batteries together after the
+    // per-battery blocks, so one pack cannot clear another pack's warning.
 
     // Inverter is charging with more power than battery wants!
     if (datalayer.battery.status.active_power_W > 0) {  // Charging
@@ -379,31 +367,9 @@ void update_machineryprotection() {
       set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
     }
 
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-
-    // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
-      // Both values available, check diff
-      uint16_t soh_diff_pptt;
-      if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
-        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
-      } else {
-        soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
-      }
-
-      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
-      } else {
-        clear_event(EVENT_SOH_DIFFERENCE);
-      }
-    }
+    // Cell deviation and pack SOH difference are checked for all batteries
+    // together after the per-battery blocks, so one pack cannot clear another
+    // pack's warning.
   }
 
   // Additional Triple-Battery safeties are checked here
@@ -429,31 +395,81 @@ void update_machineryprotection() {
       set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
     }
 
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
+    // Cell deviation and pack SOH difference are checked for all batteries
+    // together after the per-battery blocks, so one pack cannot clear another
+    // pack's warning.
+  }
+
+  // EVENT_CELL_DEVIATION_HIGH is shared by all batteries; evaluate them together
+  // so one pack's healthy spread can no longer clear another pack's active
+  // warning. Event data = first offending pack's deviation, same /20 scaling.
+  bool cell_deviation_high = false;
+  uint16_t deviation_for_event_mV = 0;
+  if (battery) {
+    uint16_t deviation_mV =
+        std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
+    if (deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
+      cell_deviation_high = true;
+      deviation_for_event_mV = deviation_mV;
+    }
+  }
+  if (battery2 && !cell_deviation_high) {
+    uint16_t deviation_mV =
+        std::abs(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+    if (deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+      cell_deviation_high = true;
+      deviation_for_event_mV = deviation_mV;
+    }
+  }
+  if (battery3 && !cell_deviation_high) {
+    uint16_t deviation_mV =
         std::abs(datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+    if (deviation_mV > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
+      cell_deviation_high = true;
+      deviation_for_event_mV = deviation_mV;
+    }
+  }
+  if (cell_deviation_high) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, (deviation_for_event_mV / 20));
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
+  }
+
+  // EVENT_SOH_DIFFERENCE compares battery 1 against each extra pack and is
+  // likewise shared; evaluate the pairs together. A pair only participates
+  // when both packs report a real SOH (not the 9900 placeholder), and the
+  // event is left untouched when no pair could be evaluated, exactly as the
+  // per-pair checks behaved for a single pair.
+  bool soh_pair_evaluated = false;
+  bool soh_difference_high = false;
+  if (battery2 && (datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
+    soh_pair_evaluated = true;
+    uint16_t soh_diff_pptt;
+    if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
+      soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
     } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
+      soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
     }
-
-    // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
-      // Both values available, check diff
-      uint16_t soh_diff_pptt;
-      if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
-        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery3.status.soh_pptt;
-      } else {
-        soh_diff_pptt = datalayer.battery3.status.soh_pptt - datalayer.battery.status.soh_pptt;
-      }
-
-      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
-      } else {
-        clear_event(EVENT_SOH_DIFFERENCE);
-      }
+    if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
+      soh_difference_high = true;
     }
+  }
+  if (battery3 && (datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
+    soh_pair_evaluated = true;
+    uint16_t soh_diff_pptt;
+    if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
+      soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery3.status.soh_pptt;
+    } else {
+      soh_diff_pptt = datalayer.battery3.status.soh_pptt - datalayer.battery.status.soh_pptt;
+    }
+    if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
+      soh_difference_high = true;
+    }
+  }
+  if (soh_difference_high) {
+    set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+  } else if (soh_pair_evaluated) {
+    clear_event(EVENT_SOH_DIFFERENCE);
   }
 
   // Too many malformed CAN messages received! EVENT_CAN_CORRUPTED_WARNING is shared by

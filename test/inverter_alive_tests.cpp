@@ -8,16 +8,19 @@
 
 // Tests for the inverter CAN aliveness handling in update_machineryprotection().
 //
-// NOTE on ordering: safety.cpp keeps a file-static inverter_detected latch with no
-// reset, so the detection test below must run before any other test in this suite
-// refreshes the counter to >= CAN_STILL_ALIVE. Google Test runs tests within a
-// suite in definition order (as long as shuffling is not enabled), so keep the
-// detection test first in this file.
+// The detection latch in safety.cpp has no reset of its own, so it used to have
+// to be the first test in the file and the suite could not be shuffled. The
+// fixture now clears it directly, the same way battery_alive_tests.cpp clears
+// the battery and charger latches, so these tests are order-independent.
+
+extern bool inverter_detected;
 
 namespace {
 
 void setup_can_inverter_test() {
   datalayer = DataLayer();
+  // Defined in safety.cpp; not exposed via safety.h like the battery latches are.
+  inverter_detected = false;
   reset_all_events();
   init_hal();
   // Avoid tripping the low-heap check (CPU_free_heap defaults to 0)
