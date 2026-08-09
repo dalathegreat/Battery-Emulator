@@ -23,6 +23,18 @@ bool NissanLeafBattery::supports_reset_SOH() {
   return LEAF_battery_Type != ZE1_BATTERY;
 }
 
+void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
+  if (new_status == datalayer_battery->status.balancing_status) {
+    return;
+  }
+  if (new_status == BALANCING_STATUS_ACTIVE) {
+    set_event_latched(EVENT_BALANCING_START, 0);
+  } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
+    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+  }
+  datalayer_battery->status.balancing_status = new_status;
+}
+
 void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
@@ -179,41 +191,88 @@ void NissanLeafBattery::
     }
   }
 
-  // Derive aggregate balancing status from the per-cell shunt bits polled from LBC group 0x06.
-  // The LBC duty-cycles its bleed resistors (and disables them while sampling cell voltages), and we
-  // only see one snapshot per ~70s poll rotation, so a single all-clear poll is not proof that the
-  // balancing phase has ended. Require BALANCING_IDLE_POLLS_TO_END consecutive idle polls before
-  // dropping back to READY. Evaluated only on fresh group 0x06 data, never on the 1s update tick.
-  static constexpr uint8_t BALANCING_IDLE_POLLS_TO_END = 3;  // ~3.5 minutes of quiet
+  // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on
+  // its own does not mean the pack is balancing: the LBC flags a set of cells and can hold it for a
+  // day at a time while it waits for the pack to settle, at one point flagging every shunt it has and
+  // holding that perfectly static for 20 hours. During a real balance it duty-cycles the shunts,
+  // bleeding cells and re-deciding the set after each measurement. How *many* shunts move per read is
+  // a poor measure of that, because it climbs steadily as the balance proceeds and the flagged set
+  // shrinks. How *often* a read comes back completely unchanged is far more stable: across four
+  // balancing sessions of a 2017 30 kWh pack it stayed at 12% of reads whatever the pack state, while
+  // every pending phase sat at 82-100%. So count unchanged reads over a sliding window and compare
+  // that against a pair of thresholds, holding the previous status in between so the state does not
+  // chatter at the boundary.
+  // Evaluated only on a complete group 0x06 response (~70s apart), never on the 1s update tick.
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
+    balancing_unchanged_window = 0;
+    balancing_window_fill = 0;
+    balancing_low_reads = 0;
+    set_balancing_status(BALANCING_STATUS_UNKNOWN);
+  }
 
-  if (balancing_data_received && balancing_data_fresh) {
+  if (balancing_data_fresh) {
     balancing_data_fresh = false;
 
-    bool any_shunt_active = false;
+    uint32_t balancing_bitmap[3] = {0, 0, 0};
+    uint8_t balancing_active_cells = 0;
     for (uint8_t i = 0; i < 96; i++) {
       if (battery_balancing_shunts[i]) {
-        any_shunt_active = true;
-        break;
+        balancing_bitmap[i / 32] |= (1UL << (i % 32));
+        balancing_active_cells++;
       }
     }
 
-    if (any_shunt_active) {
-      balancing_idle_polls = 0;
-    } else if (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) {
-      balancing_idle_polls++;
-    }
-
-    balancing_status_enum new_status =
-        (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
-
-    if (new_status != datalayer_battery->status.balancing_status) {
-      if (new_status == BALANCING_STATUS_ACTIVE) {
-        set_event_latched(EVENT_BALANCING_START, 0);
-      } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-        set_event(EVENT_BALANCING_END, 0);  // only ACTIVE -> READY, not the initial UNKNOWN -> READY
+    if (balancing_active_cells < BALANCING_READY_BELOW_CELLS) {
+      //Nothing flagged. Wait for this to repeat before believing it: an incomplete group 0x06 response
+      //reads as all-clear for a single poll, which would otherwise end the phase early.
+      if (balancing_low_reads < BALANCING_READY_DEBOUNCE_READS) {
+        balancing_low_reads++;
       }
+      if (balancing_low_reads >= BALANCING_READY_DEBOUNCE_READS) {
+        balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
+        balancing_unchanged_window = 0;
+        balancing_window_fill = 0;
+        set_balancing_status(BALANCING_STATUS_READY);
+      }
+    } else {
+      //Compare against the previous read. Skip the read that follows a low-count one, since the
+      //bitmap it would be compared against is the suspect all-clear sample.
+      bool comparison_valid = balancing_bitmap_valid && (balancing_low_reads == 0);
+      balancing_low_reads = 0;
+
+      if (comparison_valid) {
+        bool unchanged = (memcmp(balancing_bitmap, balancing_bitmap_prev, sizeof(balancing_bitmap)) == 0);
+
+        //Shift the window along, recording whether this read came back unchanged
+        balancing_unchanged_window = (uint16_t)(balancing_unchanged_window << 1) | (unchanged ? 1 : 0);
+        balancing_unchanged_window &= (uint16_t)((1UL << BALANCING_WINDOW_READS) - 1);
+
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          balancing_window_fill++;
+        }
+
+        uint8_t unchanged_reads = 0;
+        for (uint16_t bits = balancing_unchanged_window; bits; bits &= bits - 1) {
+          unchanged_reads++;
+        }
+
+        //A partly filled window cannot be told apart from a busy one: both report few unchanged reads.
+        //Decide nothing until it is full, so the status stays UNKNOWN after a boot or a BMS reset
+        //rather than reporting a balance that has not been observed yet.
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          //Not enough history yet, hold the current status
+        } else if (unchanged_reads >= BALANCING_UNCHANGED_FOR_IDLE) {
+          set_balancing_status(BALANCING_STATUS_BLOCKED);  //Holding a set: flagged, but not yet at rest
+        } else if (unchanged_reads <= BALANCING_UNCHANGED_FOR_ACTIVE) {
+          set_balancing_status(BALANCING_STATUS_ACTIVE);  //Re-deciding the set steadily: really balancing
+        }
+        //else: between the thresholds, hold the current status
+      }
+
+      memcpy(balancing_bitmap_prev, balancing_bitmap, sizeof(balancing_bitmap));
+      balancing_bitmap_valid = true;
     }
-    datalayer_battery->status.balancing_status = new_status;
   }
 
   // Update webserver datalayer
@@ -623,6 +682,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (group_7bb == 0x06)  //Balancing resistor status
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 1A 61 06 [14 55 55 51])
+          balancing_frames_seen = 0x01;     //Start of a new response
           for (int i = 0; i < 8; i++) {
             // Byte 4 - 7 (bits 0-31)
             for (int byte_i = 0; byte_i < 4; byte_i++) {
@@ -631,6 +691,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
         if (rx_frame.data.u8[0] == 0x21) {  // Second frame (21 [50 55 41 2B 56 54 15])
+          balancing_frames_seen |= 0x02;
           for (int i = 0; i < 8; i++) {
             // Byte 1 to 7 (bits 32-87)
             for (int byte_i = 0; byte_i < 7; byte_i++) {
@@ -639,13 +700,18 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
         if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 51 FF FF FF FF FF FF)
+          balancing_frames_seen |= 0x04;
           for (int i = 0; i < 8; i++) {
             // Byte 1 (bits 88-95)
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
-          memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
-          balancing_data_received = true;
-          balancing_data_fresh = true;
+          //Only publish once all three frames of this response arrived. A dropped frame would otherwise
+          //leave part of the array holding the previous response, which reads as a spurious change.
+          if (balancing_frames_seen == 0x07) {
+            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            balancing_data_fresh = true;
+          }
+          balancing_frames_seen = 0;
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)

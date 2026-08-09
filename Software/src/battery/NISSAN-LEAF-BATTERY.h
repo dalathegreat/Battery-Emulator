@@ -247,9 +247,38 @@ class NissanLeafBattery : public CanBattery {
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
   bool battery_balancing_shunts[96];            //array with all the balancing resistors
-  bool balancing_data_received = false;         //true once group 0x06 has answered at least once
-  bool balancing_data_fresh = false;            //set by group 0x06 handler, consumed by update_values()
-  uint8_t balancing_idle_polls = 0;             //consecutive group 0x06 polls with no shunt active
+  //Balancing classification state, see update_values()
+  //The classifier tracks how often a group 0x06 read comes back with the shunt set completely
+  //unchanged, over a sliding window of the most recent reads.
+  static const uint8_t BALANCING_WINDOW_READS = 16;
+  //Unchanged reads within that window at or above which the LBC is holding a set at rest, and at or
+  //below which it is bleeding and re-deciding. Measured over 232 h on a 2017 30 kWh pack: while
+  //balancing, 12% of reads come back unchanged whatever the pack state; while pending, 82-100% do.
+  static const uint8_t BALANCING_UNCHANGED_FOR_IDLE = 13;   //81% of the window
+  static const uint8_t BALANCING_UNCHANGED_FOR_ACTIVE = 7;  //44% of the window
+  //Below this many flagged shunts the pack counts as not balancing at all
+  static const uint8_t BALANCING_READY_BELOW_CELLS = 4;
+  //Consecutive reads below that count before READY is reported. A dropped group 0x06 response can
+  //momentarily read as all-clear, so a single low read is not enough to declare balancing finished.
+  static const uint8_t BALANCING_READY_DEBOUNCE_READS = 3;
+  //Previous group 0x06 shunt bitmap (96 bits packed into 3 words), for change detection
+  uint32_t balancing_bitmap_prev[3];
+  //true once balancing_bitmap_prev holds a real reading
+  bool balancing_bitmap_valid = false;
+  //One bit per recent read, set if that read came back with the shunt set unchanged
+  uint16_t balancing_unchanged_window = 0;
+  //How many reads the window holds so far, saturating at BALANCING_WINDOW_READS. Until it is full the
+  //unchanged count is not meaningful - an empty window looks identical to one full of changed reads -
+  //so no classification is made and the status stays as it was, UNKNOWN after a boot or a BMS reset.
+  uint8_t balancing_window_fill = 0;
+  //Consecutive reads with fewer than BALANCING_READY_BELOW_CELLS shunts flagged
+  uint8_t balancing_low_reads = 0;
+  //Which group 0x06 frames of the current response have arrived, so partial responses are discarded
+  uint8_t balancing_frames_seen = 0;
+  //Set by the group 0x06 handler once a complete response has been assembled
+  bool balancing_data_fresh = false;
+  //Applies a new balancing status, raising the start/end events on the ACTIVE edges
+  void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance
