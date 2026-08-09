@@ -990,7 +990,18 @@ String processor(const String& var) {
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<div id='bxUpd' style='text-align:center'></div>";
-    content += "<h4>Software: " + String(version_number);
+    content += "<h4>Software: ";
+#if defined(GIT_TAG) && defined(GITHUB_ORG) && defined(GITHUB_REPO)
+    content += "<a href='https://github.com/" GITHUB_ORG "/" GITHUB_REPO "/releases/tag/" GIT_TAG
+               "' target='_blank' style='color:#fff'>" +
+               String(version_number) + "</a>";
+#elif defined(GITHUB_PR) && defined(GITHUB_ORG) && defined(GITHUB_REPO)
+    content += "<a href='https://github.com/" GITHUB_ORG "/" GITHUB_REPO "/pull/" GITHUB_PR
+               "' target='_blank' style='color:#fff'>" +
+               String(version_number) + "</a>";
+#else
+    content += String(version_number);
+#endif
 
 // Show hardware used:
 #ifdef HW_LILYGO
@@ -1685,7 +1696,11 @@ String processor(const String& var) {
     // In-UI update notification (browser-side; skips dev builds, 6h cached) - issue #1660
     content += "<script>";
     content += "(function(){var cur='" + String(version_number) + "';";
-    content += "if(cur.indexOf('dev')>=0)return;";
+#ifdef GIT_TAG
+    content += "if(false)return;";
+#else
+    content += "if(true)return;";
+#endif
     content += "var el=document.getElementById('bxUpd');if(!el)return;";
     content += "function p(v){return v.replace(/^v/,'').split('.').map(function(x){return parseInt(x,10)||0;});}";
     content +=

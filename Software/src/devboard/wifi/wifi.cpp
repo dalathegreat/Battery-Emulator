@@ -141,6 +141,8 @@ void init_WiFi() {
   WiFi.onEvent(onWifiConnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
   WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(onApStaConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+  WiFi.onEvent(onApStaDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_AP_STADISCONNECTED);
 
   // Always set a WiFi hostname: the user's custom one if set, otherwise a default of
   // "battery-emulator-" + the last two bytes of the MAC address, so every device has a
@@ -358,6 +360,18 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
   current_check_interval = WIFI_CHECK_INTERVAL;                         // Reset the full reconnect interval
   clear_event(EVENT_WIFI_CONNECT);
+}
+
+static void log_ap_sta_event(const char* verb, const uint8_t* mac) {
+  logging.printf("AP: %02X:%02X:%02X:%02X:%02X:%02X %s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], verb);
+}
+
+void onApStaConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+  log_ap_sta_event("connected", info.wifi_ap_staconnected.mac);
+}
+
+void onApStaDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+  log_ap_sta_event("disconnected", info.wifi_ap_stadisconnected.mac);
 }
 
 // Event handler for Wi-Fi Got IP

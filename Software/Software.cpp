@@ -28,6 +28,7 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/version.h"
 #include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
@@ -39,7 +40,7 @@
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "12.3.dev";
+const char* version_number = BUILD_VERSION;
 
 // Interval timers. Time values are uint32_t on purpose: that is the width
 // millis() actually has on the target, so the wrap arithmetic is identical on
