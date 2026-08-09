@@ -139,7 +139,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x427:  // NOTE: Not present on 41kWh battery!
       LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
       break;
-    case 0x445:  //100ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
+    case 0x445:                            //100ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       LB_Heartbeat = rx_frame.data.u8[2];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
         datalayer_battery->status.CAN_error_counter++;
