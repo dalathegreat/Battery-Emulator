@@ -1,6 +1,8 @@
 #include "comm_contactorcontrol.h"
+#include "../../battery/BATTERIES.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
+#include "../../devboard/utils/led_handler.h"
 #include "../../inverter/INVERTERS.h"
 #ifndef UNIT_TEST
 #include "driver/gpio.h"  // gpio_hold_en / gpio_hold_dis / gpio_deep_sleep_hold_en
@@ -16,7 +18,10 @@ bool pwm_contactor_control = false;             //Should the contactors be econo
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
 bool contactor_control_enabled_triple_battery = false;  //Should a contactor for the third battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
-bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed each 24h?
+bool periodic_bms_reset = false;                        //Should periodic BMS reset be performed?
+uint16_t periodic_bms_reset_interval_h = 24;            //How often the periodic BMS reset runs, in hours (24 or 48)
+bool periodic_bms_reset_defer_low_soc = false;          //Defer the reset while SOC is below BMS_RESET_DEFER_SOC_PPTT
+bool periodic_bms_reset_skip_balancing = false;         //Skip one period if the pack is balancing
 
 // Parameters
 enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -30,6 +35,8 @@ const uint8_t OFF = 0;
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
   1000  // After successful precharge, resistor is turned off after this delay (and contactors are economized if PWM enabled)
+#define ESTOP_OPEN_TIMEOUT_MS \
+  7000  // Equipment stop: max time to wait for the pause to reach zero current before opening contactors anyway
 uint16_t pwm_frequency = 20000;
 uint16_t pwm_hold_duty = 250;
 #define PWM_ON_DUTY 1023
@@ -37,15 +44,28 @@ uint16_t pwm_hold_duty = 250;
 #define PWM_OFF_DUTY 0  //No need to have this userconfigurable
 #define PWM_Positive_Channel 0
 #define PWM_Negative_Channel 1
-static unsigned long prechargeStartTime = 0;
-unsigned long negativeStartTime = 0;
-unsigned long prechargeCompletedTime = 0;
-unsigned long timeSpentInFaultedMode = 0;
-unsigned long currentTime = 0;
-unsigned long lastPowerRemovalTime = 0;
-unsigned long bmsPowerOnTime = 0;
-const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
-const unsigned long bmsWarmupDuration = 3000;
+static uint32_t prechargeStartTime = 0;
+uint32_t negativeStartTime = 0;
+uint32_t prechargeCompletedTime = 0;
+uint32_t timeSpentInFaultedMode = 0;
+uint32_t currentTime = 0;
+uint32_t lastPowerRemovalTime = 0;
+static uint32_t estop_open_wait_start_ms = 0;
+bool periodicResetDeferred = false;   //True while a due periodic reset is waiting for SOC to recover
+bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
+uint32_t bmsPowerOnTime = 0;
+const uint32_t bmsWarmupDuration = 3000;
+#define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
+
+/* The safety layer decrements CAN_battery_still_alive once per second and latches
+   EVENT_CAN_BATTERY_MISSING when it reaches zero, so the BMS may only be silent for
+   CAN_STILL_ALIVE seconds. A reset that keeps the BMS powered off for longer than that
+   would always trip the event, so for those durations we refresh the liveness counters
+   ourselves while the reset runs. Refreshing one second before the window closes keeps
+   the counter from ever reaching zero. Durations that fit inside the window are left
+   alone and keep the original, unmasked behaviour. */
+#define BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS ((unsigned long)(CAN_STILL_ALIVE - 1) * 1000UL)
+unsigned long lastCanKeepaliveTime = 0;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 
@@ -93,14 +113,19 @@ bool init_contactors() {
       // Set all pins OFF (0% PWM)
       ledcWrite(posPin, PWM_OFF_DUTY);
       ledcWrite(negPin, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
     } else {  //Normal CONTACTOR_CONTROL
       pinMode(posPin, OUTPUT);
       set(posPin, OFF);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       pinMode(negPin, OUTPUT);
       set(negPin, OFF);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
     }  // Precharge never has PWM regardless of setting
     pinMode(precPin, OUTPUT);
     set(precPin, OFF);
+    set_indicator_led(IndicatorLed::PRECHARGE, false);
   }
 
   if (contactor_control_enabled_double_battery) {
@@ -134,6 +159,7 @@ bool init_contactors() {
     }
     pinMode(pin, OUTPUT);
     digitalWrite(pin, HIGH);
+    set_indicator_led(IndicatorLed::BMS_POWER, true);
   }
 
   return true;
@@ -170,6 +196,10 @@ void handle_contactors() {
   }
 
   if (contactor_control_enabled) {
+    // DC is only live to the inverter once precharge is fully complete (COMPLETED). Re-evaluated every
+    // call, so any transition (open, fault-latch, precharge) is reflected within one 10 ms tick.
+    datalayer.system.status.dc_bus_live = (contactorStatus == COMPLETED);
+
     // First check if we have any active errors, incase we do, turn off the battery
     if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;
@@ -186,6 +216,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::PRECHARGE, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
       datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
@@ -196,6 +229,9 @@ void handle_contactors() {
       set(prechargePin, OFF);
       set(negPin, OFF, PWM_OFF_DUTY);
       set(posPin, OFF, PWM_OFF_DUTY);
+      set_indicator_led(IndicatorLed::PRECHARGE, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
+      set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
       if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
@@ -203,11 +239,34 @@ void handle_contactors() {
       }
     }
 
-    // In case the inverter requests contactors to open, set the state accordingly
+    // In case the inverter or the equipment stop requests contactors to open, jump to Disconnected (recoverable)
     if (contactorStatus == COMPLETED) {
-      //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active) {
+      if (!datalayer.system.status.inverter_allows_contactor_closing) {
+        // Inverter-commanded opening stays immediate: the inverter has already
+        // stopped power transfer before revoking its permission
         contactorStatus = DISCONNECTED;
+      } else if (datalayer.system.info.equipment_stop_active) {
+        // Equipment stop: every e-stop entry point also issues a battery pause,
+        // so hold the contactors until the pause state machine reports PAUSED
+        // (current below 1.8 A) - opening under load risks arcing/welding.
+        // Bounded: after ESTOP_OPEN_TIMEOUT_MS we open anyway and raise an
+        // event, mirroring the BMS-reset give-up behavior.
+        uint32_t now = millis();
+        if (estop_open_wait_start_ms == 0) {
+          estop_open_wait_start_ms = now;
+        }
+        bool paused = (emulator_pause_status == PAUSED);
+        bool timed_out = (now - estop_open_wait_start_ms) > ESTOP_OPEN_TIMEOUT_MS;
+        if (paused || timed_out) {
+          if (timed_out) {
+            logging.printf("Contactors: Equipment stop wait timed out, opening under load\n");
+            set_event(EVENT_ERROR_OPEN_CONTACTOR, 1);
+          }
+          estop_open_wait_start_ms = 0;
+          contactorStatus = DISCONNECTED;
+        }
+      } else {
+        estop_open_wait_start_ms = 0;
       }
       // Skip running the state machine below if it has already completed
       return;
@@ -225,6 +284,7 @@ void handle_contactors() {
     switch (contactorStatus) {
       case START_PRECHARGE:
         set(negPin, ON, PWM_ON_DUTY);
+        set_indicator_led(IndicatorLed::CONTACTOR_NEG, true);
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
@@ -234,6 +294,7 @@ void handle_contactors() {
       case PRECHARGE:
         if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
           set(prechargePin, ON);
+          set_indicator_led(IndicatorLed::PRECHARGE, true);
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
@@ -244,6 +305,7 @@ void handle_contactors() {
       case POSITIVE:
         if (currentTime - negativeStartTime >= precharge_time_ms) {
           set(posPin, ON, PWM_ON_DUTY);
+          set_indicator_led(IndicatorLed::CONTACTOR_POS, true);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
@@ -256,6 +318,7 @@ void handle_contactors() {
           set(prechargePin, OFF);
           set(negPin, ON, pwm_hold_duty);
           set(posPin, ON, pwm_hold_duty);
+          set_indicator_led(IndicatorLed::PRECHARGE, false);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
           datalayer.system.status.contactors_engaged = 1;
@@ -291,7 +354,8 @@ void handle_contactors_battery3() {
   }
 }
 
-/* PERIODIC_BMS_RESET - Once every 24 hours we remove power from the BMS_power pin for 30 seconds.
+/* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
+The user can optionally defer the reset while SOC is low, and skip a single period while balancing.
 REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
 
 This makes the BMS recalculate all SOC% and avoid memory leaks
@@ -300,10 +364,104 @@ Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
 void bms_power_off() {
   digitalWrite(esp32hal->BMS_POWER(), LOW);
+  set_indicator_led(IndicatorLed::BMS_POWER, false);
 }
 
 void bms_power_on() {
   digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  set_indicator_led(IndicatorLed::BMS_POWER, true);
+}
+
+// Configured period between two automatic resets. Guarded to 24h in case the stored
+// value is missing or nonsensical, see load_settings().
+static uint32_t bms_reset_interval_ms() {
+  uint32_t hours = periodic_bms_reset_interval_h;
+  if (hours == 0) {
+    hours = 24;
+  }
+  return (uint32_t)hours * 60UL * 60UL * 1000UL;
+}
+
+/* The two guards behave differently on purpose, so the decision is three-way rather than
+   a plain yes/no. Only the periodic reset is affected, a remote reset requested by the user
+   via MQTT is always carried out. */
+enum class PeriodicResetVerdict {
+  Run,        // Nothing in the way, reset now
+  Defer,      // Stay due and reset as soon as the condition clears
+  SkipPeriod  // Give up this occurrence, try again one full period later
+};
+
+/* Decides what should happen to a periodic reset whose interval has elapsed. On a non-Run
+   verdict the reason is written to the out parameter for logging, and always points at a
+   string literal. Note that an unknown SOC reads as 0 and therefore also defers the reset
+   while the low SOC guard is enabled, which is the safe direction. */
+static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
+  // Low SOC defers: there is little point recalibrating against a nearly empty pack, and we
+  // want the reset to happen as soon as it is worthwhile rather than a whole period later.
+  if (periodic_bms_reset_defer_low_soc) {
+    if (datalayer.battery.status.real_soc < BMS_RESET_DEFER_SOC_PPTT) {
+      *reason = "real SOC below 15 percent";
+      return PeriodicResetVerdict::Defer;
+    }
+    if (datalayer.battery.status.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
+      *reason = "scaled SOC below 15 percent";
+      return PeriodicResetVerdict::Defer;
+    }
+  }
+
+  /* Balancing costs the reset a single period. If balancing is still active when the next
+     period comes around the reset goes ahead anyway, so a pack that reports balancing more
+     or less permanently cannot suppress the reset indefinitely.
+     Batteries that are not present report BALANCING_STATUS_UNKNOWN, so they never skip. */
+  if (periodic_bms_reset_skip_balancing && !balancingPeriodSkipped) {
+    if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+    if (datalayer.battery2.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery 2";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+    if (datalayer.battery3.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+      *reason = "balancing active on battery 3";
+      return PeriodicResetVerdict::SkipPeriod;
+    }
+  }
+
+  return PeriodicResetVerdict::Run;
+}
+
+/* True when the configured off time outlasts the CAN liveness window and the reset therefore
+   needs the counters held up. Only the off time matters here: the surrounding pause and warmup
+   phases are short and the BMS is on the bus for part of them. To test the statement in Leaf 
+   "GEN4_e_Battery_control_spec_ver1.0.pdf" page 4, "IGN to be OFF for more than 6 min 30 seconds every day. "*/
+static bool bms_reset_needs_can_keepalive() {
+  return datalayer.battery.settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
+}
+
+/* Pretends the batteries were just heard from, and restarts the keepalive interval.
+   Batteries that are not configured are skipped, since the safety layer does not look at
+   their counters either. */
+static void bms_reset_refresh_can_alive() {
+  lastCanKeepaliveTime = currentTime;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  if (battery2) {
+    datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+  if (battery3) {
+    datalayer.battery3.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+}
+
+// Called on every pass through the powered-off and powering-on states of a long reset.
+static void bms_reset_can_keepalive_tick() {
+  if (!bms_reset_needs_can_keepalive()) {
+    return;
+  }
+  if (currentTime - lastCanKeepaliveTime < BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS) {
+    return;
+  }
+  bms_reset_refresh_can_alive();
 }
 
 void handle_BMSpower() {
@@ -319,8 +477,36 @@ void handle_BMSpower() {
       // Idle state, no reset ongoing
 
       // Check if it's time to perform a periodic BMS reset
-      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
-        start_bms_reset();
+      if (periodic_bms_reset && currentTime - lastPowerRemovalTime >= bms_reset_interval_ms()) {
+        const char* reason = nullptr;
+        switch (periodic_bms_reset_verdict(&reason)) {
+          case PeriodicResetVerdict::Defer:
+            /* Leave lastPowerRemovalTime alone so the reset stays due. start_bms_reset()
+               re-anchors it when the reset finally runs, which is what moves the following
+               24h/48h periods to start from the deferred point. Logged once per episode,
+               since this branch is evaluated on every loop while the reset is due. */
+            if (!periodicResetDeferred) {
+              periodicResetDeferred = true;
+              logging.printf("BMS reset: Periodic reset deferred, %s.\n", reason);
+            }
+            break;
+
+          case PeriodicResetVerdict::SkipPeriod:
+            // Restarting the interval here is what turns this into a one period skip.
+            lastPowerRemovalTime = currentTime;
+            balancingPeriodSkipped = true;
+            logging.printf("BMS reset: Periodic reset skipped for one period, %s.\n", reason);
+            break;
+
+          case PeriodicResetVerdict::Run:
+            if (periodicResetDeferred) {
+              periodicResetDeferred = false;
+              logging.printf("BMS reset: Running previously deferred periodic reset.\n");
+            }
+            balancingPeriodSkipped = false;  // Each reset restores the one period allowance
+            start_bms_reset();
+            break;
+        }
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_WAITING_FOR_PAUSE) {
       // We've already issued a pause, now we're waiting for that to take effect.
@@ -349,13 +535,23 @@ void handle_BMSpower() {
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+      bms_reset_can_keepalive_tick();
+
       // Check if the user configured duration has passed
       if (currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
         bms_power_on();
         bmsPowerOnTime = currentTime;
+        /* The last periodic refresh can have been up to a full interval ago, which would leave
+           the BMS only a sliver of the window to get back on the bus. Refreshing here gives it
+           the whole window from power-on, measured from the same moment for every off time. */
+        if (bms_reset_needs_can_keepalive()) {
+          bms_reset_refresh_can_alive();
+        }
         datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERING_ON) {
+      bms_reset_can_keepalive_tick();
+
       // Wait for BMS to start up before unpausing
       if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
         // Unpause the battery
@@ -376,6 +572,9 @@ void start_bms_reset() {
     if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
       // Record when we started the BMS reset process
       lastPowerRemovalTime = millis();
+      // Anchor the keepalive here so the first refresh lands one interval into the reset,
+      // rather than immediately or after a gap left over from a previous reset.
+      lastCanKeepaliveTime = lastPowerRemovalTime;
 
       // Issue a pause, which should stop charge/discharge whilst the reset is ongoing
       setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);

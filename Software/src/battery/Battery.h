@@ -42,7 +42,7 @@ enum class BatteryType {
   TestFake = 34,
   VolvoSpa = 35,
   VolvoSpaHybrid = 36,
-  MgHsPhev = 37,
+  MgGen1 = 37,
   SamsungSdiLv = 38,
   HyundaiIoniq28 = 39,
   Kia64FD = 40,
@@ -59,7 +59,8 @@ enum class BatteryType {
   EnnoidBMS = 52,
   StellantisSmallWide4x4 = 53,
   ChargebyteCCSBattery = 54,
-  StellantisProOne = 55,
+  VAGMqbEvo = 55,
+  StellantisProOne = 56,
   Highest
 };
 
@@ -151,6 +152,10 @@ class Battery {
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
+
+  // Battery reports insulation/isolation resistance via
+  // datalayer status insulation_resistance_kOhm
+  virtual bool supports_insulation_resistance() { return false; }
 
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 

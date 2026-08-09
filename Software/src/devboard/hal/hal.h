@@ -188,15 +188,21 @@ class Esp32Hal {
 
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
+#ifdef SDCARD
   // SD card
+  virtual uint8_t SD_SPI_BUS() = 0;
   virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
+#endif  // SDCARD
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
+  // Number of LEDs chained off LED_PIN(). Pixel 0 is always the STATUS LED; boards that replace
+  // additional hardwired indicator LEDs with RGB LEDs on the same chain report more than 1 here.
+  virtual uint8_t LED_COUNT() { return 1; }
 
 #ifndef SMALL_FLASH_DEVICE
   // i2c display

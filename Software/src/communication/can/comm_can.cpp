@@ -5,8 +5,10 @@
 #include "CanReceiver.h"
 #include "comm_can.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/hal/hal.h"
 #include "src/devboard/safety/safety.h"
 #include "src/devboard/sdcard/sdcard.h"
+#include "src/devboard/utils/events.h"
 #include "src/devboard/utils/logging.h"
 #include "utils.h"
 
@@ -313,9 +315,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
   }
   print_can_frame(*tx_frame, interface, frameDirection(MSG_TX));
 
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
     add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
   }
+#endif
 
   switch (interface) {
     case CAN_NATIVE: {
@@ -533,6 +537,7 @@ static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interfa
     print_can_frame(*rx_frame, interface, frameDirection(MSG_RX));
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
     if (interface !=
         CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
@@ -540,6 +545,7 @@ static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interfa
       add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
     }
   }
+#endif
 
   // Send the frame to all the receivers registered for this interface.
   auto receivers = can_receivers.equal_range(interface);

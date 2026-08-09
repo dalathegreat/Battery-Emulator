@@ -8,8 +8,8 @@
 
 void CmpSmartCarBattery::update_values() {
   if (datalayer.system.info.equipment_stop_active == true) {
-    digitalWrite(esp32hal->WUP_PIN1(), LOW);  // Turn off wakeup pin
-  } else if (millis() > INTERVAL_1_S) {
+    digitalWrite(esp32hal->WUP_PIN1(), LOW);   // Turn off wakeup pin
+  } else if (millis64() > INTERVAL_1_S) {      // millis64: plain millis() wraps after 49.7 days
     digitalWrite(esp32hal->WUP_PIN1(), HIGH);  // Wake up the battery
   }
 
@@ -230,6 +230,8 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       l3_fault = rx_frame.data.u8[4] & 0x3F;
       master_warning = (rx_frame.data.u8[4] & 0xC0) >> 6;
       insulation_resistance_kOhm = ((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6]));
+      datalayer_battery->status.insulation_resistance_kOhm = insulation_resistance_kOhm;
+      datalayer_battery->status.insulation_resistance_available = true;
       //counter_325 = (rx_frame.data.u8[7] & 0x0F);
       break;
     case 0x334:  // Cellvoltages

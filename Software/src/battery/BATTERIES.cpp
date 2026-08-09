@@ -35,7 +35,7 @@
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
-#include "MG-HS-PHEV-BATTERY.h"
+#include "MG-GEN1-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"
@@ -152,12 +152,14 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+    case BatteryType::VAGMqbEvo:
+      return MqbEvoBattery::Name;
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
 #endif
-    case BatteryType::MgHsPhev:
-      return MgHsPHEVBattery::Name;
+    case BatteryType::MgGen1:
+      return MgGen1Battery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -279,12 +281,14 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundaiHybridBattery();
     case BatteryType::Meb:
       return new MebBattery();
+    case BatteryType::VAGMqbEvo:
+      return new MqbEvoBattery();
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
 #endif
-    case BatteryType::MgHsPhev:
-      return new MgHsPHEVBattery();
+    case BatteryType::MgGen1:
+      return new MgGen1Battery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
@@ -353,7 +357,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
     case BatteryType::KiaHyundai64:
-    case BatteryType::MgHsPhev:
+    case BatteryType::MgGen1:
     case BatteryType::Pylon:
     case BatteryType::SantaFePhev:
     case BatteryType::RelionBattery:
@@ -374,6 +378,7 @@ bool battery_supports_triple(BatteryType type) {
   switch (type) {
     case BatteryType::NissanLeaf:
     case BatteryType::CmfaEv:
+    case BatteryType::StellantisEcmp:
     case BatteryType::RelionBattery:
     case BatteryType::TestFake:
       return true;
@@ -412,14 +417,15 @@ void setup_battery() {
           battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
           break;
         case BatteryType::NissanLeaf:
-          battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 =
+              new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, can_config.battery_double);
           break;
         case BatteryType::BmwI3:
           battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                       can_config.battery_double, esp32hal->WUP_PIN2());
           break;
         case BatteryType::CmfaEv:
-          battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::CmpSmartCar:
           battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -432,8 +438,9 @@ void setup_battery() {
                                              &datalayer.system.status.battery2_allowed_contactor_closing,
                                              can_config.battery_double);
           break;
-        case BatteryType::MgHsPhev:
-          battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
+        case BatteryType::MgGen1:
+          battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
           break;
         case BatteryType::Pylon:
           battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -474,10 +481,14 @@ void setup_battery() {
     } else {
       switch (user_selected_battery_type) {
         case BatteryType::NissanLeaf:
-          battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+          battery3 =
+              new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3, can_config.battery_triple);
           break;
         case BatteryType::CmfaEv:
-          battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
+          battery3 = new CmfaEvBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery3 = new EcmpBattery(&datalayer.battery3, can_config.battery_triple);
           break;
         case BatteryType::RelionBattery:
           battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
@@ -515,8 +526,6 @@ int user_selected_daly_power_at_0_degree_C = 800;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
 uint16_t user_selected_pylon_baudrate = 500;
-/* For custom BMS which need rampdown. SOC% to start ramping down from max charge power towards 0 at 100.00%*/
-uint16_t user_set_rampdown_SOC = 9000;  //9000 = 90.00%
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;

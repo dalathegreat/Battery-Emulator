@@ -132,6 +132,7 @@ void init_stored_settings() {
   user_selected_inverter_foxess_modules = settings.getUInt("FOXESSMODULES", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
+  user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
@@ -147,7 +148,6 @@ void init_stored_settings() {
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
-  user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
 
   auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -195,6 +195,15 @@ void init_stored_settings() {
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
+  // Firmware versions before the reset interval was configurable only stored the enable flag,
+  // so an upgraded installation has no PERBMSRESETH key at all. Fall back to the previous
+  // hardcoded 24h behaviour, and treat any value we don't offer in the UI the same way.
+  periodic_bms_reset_interval_h = settings.getUInt("PERBMSRESETH", 24);
+  if (periodic_bms_reset_interval_h != 24 && periodic_bms_reset_interval_h != 48) {
+    periodic_bms_reset_interval_h = 24;
+  }
+  periodic_bms_reset_defer_low_soc = settings.getBool("PERBMSDEFSOC", false);
+  periodic_bms_reset_skip_balancing = settings.getBool("PERBMSSKIPBAL", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
   datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
@@ -220,8 +229,10 @@ void init_stored_settings() {
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+#ifdef SDCARD
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+#endif  // SDCARD
   datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
   syslog_ip = settings.getString("SYSLOGIP").c_str();
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
@@ -270,6 +281,9 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
+  // One isolation-monitor setting for both batteries
+  datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
+  datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
 }
 
 void clear_wifi_sta_settings() {
@@ -320,6 +334,7 @@ void store_settings() {
   settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
   settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
 }

@@ -57,9 +57,11 @@ String debug_logger_processor(void) {
     content += "<button onclick='refreshPage()'>Refresh data</button> ";
   }
   content += "<button onclick='exportLog()'>Export to .txt</button> ";
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     content += "<button onclick='deleteLog()'>Delete log file</button> ";
   }
+#endif  // SDCARD
   content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
   // Start a new block for the debug log messages
@@ -98,9 +100,11 @@ String debug_logger_processor(void) {
   content += "<script>";
   content += "function refreshPage(){ location.reload(true); }";
   content += "function exportLog() { window.location.href = '/export_log'; }";
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     content += "function deleteLog() { window.location.href = '/delete_log'; }";
   }
+#endif  // SDCARD
   content += "function goToMainPage() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;

@@ -16,6 +16,11 @@ struct DATALAYER_BATTERY_DTC_TYPE {
   uint8_t dtc_status[MAX_DTC_COUNT];
   // Number of DTCs stored
   uint8_t dtc_count;
+  // Number of DTCs the battery reported in its last answer. Equals dtc_count in the normal case,
+  // and exceeds it when the answer held more codes than MAX_DTC_COUNT slots, so the display can say
+  // that the list is truncated rather than silently showing the first few. Placed here because the
+  // uint16 fits in the padding after dtc_count and costs no extra bytes.
+  uint16_t dtc_reported_count;
   // Last successful read (0 = never read)
   unsigned long dtc_last_read_millis;
   // Indicates that the last read failed
@@ -101,6 +106,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
   uint16_t CAN_error_counter;
+  /** Insulation/isolation resistance between the HV pack and chassis, in kOhm.
+   * Not available for all battery types. Only valid once
+   * insulation_resistance_available has been set by the battery integration.
+   */
+  uint16_t insulation_resistance_kOhm = 0;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
@@ -127,6 +137,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
 
+  /** True once the battery integration has decoded a valid
+   * insulation_resistance_kOhm sample. Not available for all battery types.
+   */
+  bool insulation_resistance_available = false;
+
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
    */
@@ -141,9 +156,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Last time a remote set command was received to enable timeout of settings */
-  unsigned long remote_set_timestamp = 0;
+  uint32_t remote_set_timestamp = 0;
   /** Timeout time for remote limits */
-  unsigned long remote_set_timeout = 0;
+  uint32_t remote_set_timeout = 0;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_max_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;      //For keeping track when balancing started
@@ -169,8 +184,9 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = 3000;
-  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
-  uint16_t user_set_bms_reset_duration_ms = 30000;
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset.
+   * 32-bit because the setting accepts up to 600 s, which does not fit in a uint16_t */
+  uint32_t user_set_bms_reset_duration_ms = 30000;
   /* Max cell voltage during forced balancing */
   uint16_t balancing_max_cell_voltage_mV = 3650;
   /* Max cell deviation allowed during forced balancing */
@@ -380,6 +396,14 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
+   *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
+   *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
+   *  Each contactor topology sets it authoritatively; defaults true so direct-wired setups that never
+   *  gate the DC bus keep today's behaviour. Battery-side setters must be guarded with
+   *  !contactor_control_enabled so the GPIO contactor state machine (which writes every 10 ms when
+   *  enabled) stays the single writer in GPIO setups. */
+  bool dc_bus_live = true;
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
   /** True if the primary battery allows for the contactors to close */

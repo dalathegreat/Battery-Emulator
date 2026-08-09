@@ -5,7 +5,7 @@
 
 class BmwPhevBattery : public CanBattery {
  public:
-  bool mandatory_charge_taper() { return true; }
+  bool mandatory_charge_taper() { return true; }  //TODO: Investigate if actually needed
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -14,6 +14,7 @@ class BmwPhevBattery : public CanBattery {
   static constexpr const char* Name = "BMW PHEV Battery";
 
   bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void reset_DTC() { datalayer_extended.bmwphev.UserRequestDTCreset = true; }
 
   bool supports_reset_BMS() { return true; }
@@ -52,10 +53,7 @@ class BmwPhevBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4300;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Battery is put into emergency stop if one cell goes below this value
-  static const int MAX_DISCHARGE_POWER_ALLOWED_W = 10000;
-  static const int MAX_CHARGE_POWER_ALLOWED_W = 10000;
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int MAX_DTC_COUNT = 20;  // Maximum number of DTCs to store/display
+  static const int MAX_DTC_COUNT = 20;          // Maximum number of DTCs to store/display
   static const int STALE_PERIOD_CONFIG =
       3600000;  //Number of milliseconds before critical values are classed as stale/stuck 1800000 = 3600 seconds / 60mins
 

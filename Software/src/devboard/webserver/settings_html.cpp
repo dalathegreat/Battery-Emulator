@@ -112,6 +112,9 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
+// Periodic BMS reset interval, stored in hours.
+static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
+
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
     {17483, "DK (Denmark)"}, {17477, "DE (Germany)"}, {16725, "AU (Australia)"}};
@@ -347,6 +350,15 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
   }
 
+  if (var == "PERBMSRESETH") {
+    // Missing or unexpected values fall back to the historical 24h interval.
+    uint32_t interval = settings.getUInt("PERBMSRESETH", 24);
+    if (interval != 24 && interval != 48) {
+      interval = 24;
+    }
+    return options_from_map(interval, bms_reset_intervals);
+  }
+
   if (var == "SUNGROW_MODEL") {
     return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
   }
@@ -569,6 +581,14 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PERBMSRESET") ? "checked" : "";
   }
 
+  if (var == "PERBMSDEFSOC") {
+    return settings.getBool("PERBMSDEFSOC") ? "checked" : "";
+  }
+
+  if (var == "PERBMSSKIPBAL") {
+    return settings.getBool("PERBMSSKIPBAL") ? "checked" : "";
+  }
+
   if (var == "REMBMSRESET") {
     return settings.getBool("REMBMSRESET") ? "checked" : "";
   }
@@ -619,10 +639,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "DCHGPOWER") {
     return String(settings.getUInt("DCHGPOWER", 0));
-  }
-
-  if (var == "RAMPDOWNSOC") {
-    return String(settings.getUInt("RAMPDOWNSOC", 9000));
   }
 
   if (var == "LOCALIP") {
@@ -682,6 +698,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("WEBENABLED") ? "checked" : "";
   }
 
+#ifdef SDCARD
   if (var == "CANLOGSD") {
     return settings.getBool("CANLOGSD") ? "checked" : "";
   }
@@ -689,6 +706,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
+#endif  // SDCARD
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
@@ -959,6 +977,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
+  if (var == "INVOFFGRID") {
+    return settings.getBool("INVOFFGRID") ? "checked" : "";
+  }
+
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
@@ -1131,6 +1153,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT6_SETTING ""
 #endif
 
+#ifdef SDCARD
+#define SD_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD%
+            title="Store incoming/outgoing CAN messages on SD card. Only works on hardware with SD-card slot." />
+  )rawliteral"
+#else
+#define SD_SETTING_HTML ""
+#endif  // SDCARD
+
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1216,7 +1253,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=59){var 
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 59');}}}
 
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
@@ -1371,7 +1408,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
     form[data-battery="41"] .if-estimated,
-    form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
     form[data-battery="51"] .if-estimated {
       display: contents;
@@ -1406,6 +1442,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
+      display: contents;
+    }
+
+    form .if-perbmsreset { display: none; }
+    form[data-perbmsreset="true"] .if-perbmsreset {
       display: contents;
     }
 
@@ -1703,11 +1744,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
         min="0" max="65000" step="1"
         title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
-
-        <label>Rampdown SOC, pptt: </label>
-        <input type='number' name='RAMPDOWNSOC' value="%RAMPDOWNSOC%" 
-        min="7000" max="9000" step="1"
-        title="SOC percentage to start ramping down from max charge power towards 0W at 100.00pct" />
         </div>
 
         <div class="if-socestimated">
@@ -1840,6 +1876,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Pylon, manufacturer name: </label>
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
+
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
 
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
@@ -2003,8 +2043,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <label>Periodic BMS reset every 24h: </label>
+        <label>Periodic BMS reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
+
+        <div class="if-perbmsreset">
+            <label for='PERBMSRESETH'>Every: </label><select name='PERBMSRESETH' id='PERBMSRESETH'>
+            %PERBMSRESETH%
+            </select>
+
+            <label>Defer reset if SOC less than 15&#37;: </label>
+            <input type='checkbox' name='PERBMSDEFSOC' value='on' %PERBMSDEFSOC%
+            title="Holds the reset back while either the real or the scaled SOC is below 15 percent. It runs as soon as SOC recovers, and the interval restarts from that point" />
+
+            <label>Skip reset for one period if balancing: </label>
+            <input type='checkbox' name='PERBMSSKIPBAL' value='on' %PERBMSSKIPBAL%
+            title="Gives up one occurrence if the battery reports balancing as active. The next occurrence runs even if balancing is still active" />
+        </div>
 
         <label>External precharge via HIA4V1: </label>
         <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />
@@ -2125,19 +2179,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>General logging to SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
-
         <label>CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%
             title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
 
-        <label>CAN message logging to SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
-
-        )rawliteral" SYSLOG_SETTING_HTML R"rawliteral(
+        )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
         </div>

@@ -79,12 +79,25 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
 
-  if (datalayer.system.status.system_status == ACTIVE) {
-    mbPV[308] = datalayer.battery.status.voltage_dV;
+  // Don't advertise ACTIVE to the inverter until the DC bus is actually live. During the boot-gate +
+  // precharge window the emulator drives contactors on its own schedule (BYD-Modbus has no inverter
+  // handshake), so a polling Fronius would otherwise see an ACTIVE battery against a dead DC input and
+  // complain. STANDBY is the protocol-native "present but not delivering" resting state to report here.
+  // Only the ACTIVE case is remapped; FAULT/UPDATING/STANDBY pass through unchanged.
+  system_status_enum reported_status = datalayer.system.status.system_status;
+  if (reported_status == ACTIVE && !datalayer.system.status.dc_bus_live) {
+    reported_status = STANDBY;
+  }
+
+  if (reported_status == ACTIVE) {
+    // DC and Power values after contactors (outter values).
+    mbPV[308] = datalayer.battery.status.voltage_dV;  // DC outter voltage
+    mbPV[309] = static_cast<int16_t>(datalayer.battery.status.active_power_W);
   } else {
     mbPV[308] = 0;
+    mbPV[309] = 0;
   }
-  mbPV[300] = datalayer.system.status.system_status;
+  mbPV[300] = reported_status;
   mbPV[302] = 128 + bms_char_dis_status;
   if (datalayer.battery.status.reported_soc < 100) {
     mbPV[303] = 100;  //Force SOC to never go below 1% to avoid overdischarge
@@ -105,11 +118,18 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
     mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
                          static_cast<uint32_t>(57960u));  //Cap to 58kWh
   }
-  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
-  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
-  mbPV[310] = datalayer.battery.status.voltage_dV;
+  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));       //Cap to 30000 if exceeding
+  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));          //Cap to 30000 if exceeding
+  mbPV[310] = datalayer.battery.status.voltage_dV;                            // DC inner voltage.
+  mbPV[311] = static_cast<int16_t>(datalayer.battery.status.active_power_W);  // DC inner power (before contactors).
   mbPV[312] = datalayer.battery.status.temperature_min_dC;
   mbPV[313] = datalayer.battery.status.temperature_max_dC;
+  // U64 for total charged/discharged Wh (314-317 and 318-321), but datalayer uses only 32-bit.
+  mbPV[316] = datalayer.battery.status.total_charged_battery_Wh >> 16;
+  mbPV[317] = datalayer.battery.status.total_charged_battery_Wh & 0xFFFF;
+  mbPV[320] = datalayer.battery.status.total_discharged_battery_Wh >> 16;
+  mbPV[321] = datalayer.battery.status.total_discharged_battery_Wh & 0xFFFF;
+  mbPV[322] = datalayer.battery.status.temperature_max_dC;  // Fill device temperature, perhaps BMS temperature.
   mbPV[323] = datalayer.battery.status.soh_pptt;
 }
 

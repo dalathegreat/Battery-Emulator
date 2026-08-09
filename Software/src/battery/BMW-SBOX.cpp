@@ -95,12 +95,14 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
 
     if (contactorStatus == SHUTDOWN_REQUESTED) {
       datalayer.shunt.contactors_engaged = false;
+      datalayer.system.status.dc_bus_live = false;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
     }
 
     // After that, check if we are OK to start turning on the contactors
     if (contactorStatus == DISCONNECTED) {
       datalayer.shunt.contactors_engaged = false;
+      datalayer.system.status.dc_bus_live = false;
       SBOX_100.data.u8[0] = 0x55;  // All open
 
       if (datalayer.system.status.battery_allows_contactor_closing &&
@@ -150,6 +152,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
           contactorStatus = COMPLETED;
           logging.println("S-BOX Precharge relay released");
           datalayer.shunt.contactors_engaged = true;
+          datalayer.system.status.dc_bus_live = true;
         }
         break;
       case COMPLETED:

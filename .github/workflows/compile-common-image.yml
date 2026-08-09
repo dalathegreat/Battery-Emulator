@@ -35,44 +35,91 @@ jobs:
             pio_env: "BECom_330"
           - board_name: "Waveshare ESP32S3RS485CAN"
             pio_env: "waveshare_330"
+          - board_name: "DFRobot Edge101"
+            pio_env: "dfrobot_edge101_330"
           - board_name: "Compiler warning check"
             pio_env: "compiler_warning_check"
 
     steps:
     - uses: actions/checkout@v7
       name: Checkout code
+      with:
+        fetch-depth: 0 # To be able to determine the ancestor tag
 
-    - name: Get platformio.ini hash
-      id: platformio_ini_hash
-      run: |
-        PLATFORMIO_INI_HASH=$(md5sum platformio.ini | awk '{ print $1 }')
-        echo "platformio_ini_hash=$PLATFORMIO_INI_HASH" >> $GITHUB_OUTPUT
+    - name: "Fetch upstream tags" # for forks
+      run: git fetch https://github.com/dalathegreat/Battery-Emulator.git --tags --no-recurse-submodules
 
-    # Broader cache (just the download files)
-    - uses: actions/cache@v6
+    # The env cache should contain the PlatformIO installation, as well as our
+    # previously built custom sdkconfig image. We can avoid redownloading
+    # PlatformIO, reinstalling it and all the extra required tools, and
+    # rebuilding the custom sdkconfig image.
+    #
+    # NOTE: if you change the key/paths, make sure to update the corresponding
+    # save step below!
+    
+    - name: Try env cache
+      id: env-cache
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/packages
+          ~/.platformio/platforms
+          ~/.platformio/.cache
+          sdkconfig.defaults
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+
+    # The env cache will miss if platformio.ini or the custom sdkconfig has
+    # changed. In that case, we can use a fallback cache which just avoids
+    # redownloading all the PlatformIO packages.
+    #
+    # NOTE: if you change the key/paths, make sure to update the corresponding
+    # save step below!
+    
+    - name: Try fallback cache
+      id: fallback-cache
+      if: steps.env-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@v6
       with:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
 
-    # Tighter cache (of platformio itself)
-    - uses: actions/cache@v6
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.platformio
-        key: ${{ runner.os }}-pio-${{ steps.platformio_ini_hash.outputs.platformio_ini_hash }}
+    # PlatformIO uses several heuristics to determine whether the custom
+    # sdkconfig needs rebuilding. One of these is the mtime of the custom
+    # sdkconfig, which we need to pin to a fixed value (since git doesn't
+    # preserve mtimes).
+    - name: Pin sdkconfig mtime
+      run: |
+        # Fix the mtimes of the sdkconfig.be_size.defaults file to avoid unnecessary rebuilds.
+        touch -m -d2026-01-01 sdkconfig.be_size.defaults
+        # Check that the mtime is set correctly (in seconds since epoch).
+        ls -l sdkconfig.be_size.defaults
+        ls -l --time-style=+"%s" sdkconfig.be_size.defaults
 
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.13'
 
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
+    # Add a line to print out the hash check values, to help debug why
+    # PlatformIO might trigger a rebuild.
+    - name: Insert cache check debugging
+      run: |
+        sed -i "/if line\.split.*expected_hash:/i \                print('Hash check, sdkconfig has:', line.split(\"__\")[1].strip(), 'was expecting:', expected_hash, 'data is:', repr(custom_options.strip() + mcu))" ~/.platformio/platforms/espressif32/builder/frameworks/arduino.py || echo "sed failed"
+
     - name: Build image for ${{ matrix.board_name }}
-      run: pio run -e ${{ matrix.pio_env }} -t checkprogsize 2>&1 | tee checkprogsize.txt
+      shell: bash
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_PR: ${{ github.event.pull_request.number }}
+        GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        set -o pipefail
+        pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt
 
     - name: Capture size report for ${{ matrix.board_name }}
       if: matrix.pio_env != 'compiler_warning_check'
@@ -144,6 +191,46 @@ jobs:
         path: ${{ steps.name.outputs.prefix }}.size.json
         archive: false
         if-no-files-found: error
+
+    # Each architecture we don't need bundles about 160mb of unnecessary
+    # libraries, which we can delete to keep them out of the caches.
+    - name: Reduce size of cache
+      run: |
+        # Remove libs we don't use to keep the caches smaller
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c3
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c5
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c6
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32h2
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32p4
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32p4_es
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32s2
+        # Check sdkconfig mtimes for debugging purposes
+        ls -l sdkconfig.* || echo "ls failed"
+
+    # Only save env cache if it was a miss.
+    - name: Save env cache
+      if: steps.env-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/packages
+          ~/.platformio/platforms
+          ~/.platformio/.cache
+          sdkconfig.defaults
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+    
+    # Only save fallback cache if it was a miss. The always() means we'll still
+    # save the fallback cache even if the build failed, since we want to avoid
+    # hammering PlatformIO's download servers.
+    - name: Save fallback cache
+      if: always() && steps.fallback-cache.conclusion != 'skipped' && steps.fallback-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
 
   measure-size:
     needs: build

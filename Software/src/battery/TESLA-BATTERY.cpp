@@ -2,6 +2,7 @@
 #include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
@@ -475,26 +476,8 @@ void TeslaBattery::
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (battery_soc_ui > 990) {
-    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (battery_soc_ui > (user_set_rampdown_SOC /
-                               10)) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer_battery->status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED *
-        (1 - (battery_soc_ui - (user_set_rampdown_SOC / 10)) / (1000.0 - (user_set_rampdown_SOC / 10)));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
-      if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-      }
-    } else {  //NCM/A
-      if (battery_cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-      }
-    }
-  } else {  // No limits, max charging power allowed
-    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
-  }
+  //The inverter setting will ramp down this value based on SOC%
+  datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
 
   datalayer_battery->status.temperature_min_dC = battery_min_temp;
 
@@ -547,6 +530,12 @@ void TeslaBattery::
     set_event_latched(EVENT_CONTACTOR_WELDED, 0);
   } else if (BMS_contactorState != 5) {
     clear_event(EVENT_CONTACTOR_WELDED);
+  }
+
+  // Pack-internal contactors: DC bus is live only when the BMS confirms CLOSED (4).
+  // Guarded so the GPIO contactor state machine stays authoritative when enabled.
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = (battery_contactor == 4);
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
@@ -1300,6 +1289,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_isolationResistance =
           ((rx_frame.data.u8[3] & (0x1FU)) << 5) |
           ((rx_frame.data.u8[2] >> 3) & (0x1FU));  //19|10@1+ (10,0) [0|0] "kOhm"/to datalayer_extended
+      datalayer_battery->status.insulation_resistance_kOhm = BMS_isolationResistance * 10;
+      datalayer_battery->status.insulation_resistance_available = true;
       //BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
       BMS_chargeRequest = static_cast<bool>(extract_signal_value(rx_frame.data.u8, 29, 1));
       BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));

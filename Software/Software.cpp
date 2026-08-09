@@ -28,23 +28,26 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/version.h"
 #include "src/devboard/utils/watchdog.h"
 #include "src/devboard/webserver/webserver.h"
 #include "src/devboard/wifi/wifi.h"
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
-    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT)
+    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT) && !defined(HW_DFROBOT_EDGE101)
 #error You must select a target hardware!
 #endif
 
 // The current software version, shown on webserver
-const char* version_number = "11.2.dev";
+const char* version_number = BUILD_VERSION;
 
-// Interval timers
-volatile unsigned long currentMillis = 0;
-unsigned long previousMillis10ms = 0;
-unsigned long previousMillisUpdateVal = 0;
+// Interval timers. Time values are uint32_t on purpose: that is the width
+// millis() actually has on the target, so the wrap arithmetic is identical on
+// every platform (including the 64-bit host test build).
+volatile uint32_t currentMillis = 0;
+uint32_t previousMillis10ms = 0;
+uint32_t previousMillisUpdateVal = 0;
 // Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
 uint64_t start_time_10ms = 0;
@@ -52,7 +55,9 @@ uint64_t start_time_values = 0;
 uint64_t start_time_cantx = 0;
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
+#ifdef SDCARD
 TaskHandle_t logging_loop_task;
+#endif
 TaskHandle_t mqtt_loop_task;
 Watchdog mqtt_loop_watchdog;
 
@@ -123,6 +128,7 @@ void connectivity_loop(void*) {
   }
 }
 
+#ifdef SDCARD
 void logging_loop(void*) {
   bool sd_initialized = false;
 
@@ -148,6 +154,7 @@ void logging_loop(void*) {
   // Delete the logging task only if SD failed to initialize to prevent panic.
   vTaskDelete(NULL);
 }
+#endif  // SDCARD
 
 /* Linear charge power taper over the top of the SOC window: full power at
    (100.00% - band), reaching 0W at 100.00% scaled SOC. Battery integration
@@ -307,7 +314,7 @@ static void filter_inverter_limits(void) {
   }
 }
 
-void update_calculated_values(unsigned long currentMillis) {
+void update_calculated_values(uint32_t currentMillis) {
   /* Update CPU temperature*/
   union {
     float temp;
@@ -321,12 +328,25 @@ void update_calculated_values(unsigned long currentMillis) {
   /*Update free heap*/
   datalayer.system.info.CPU_free_heap = ESP.getFreeHeap();
 
-  /* Check is remote set limits have timed out */
-  if (currentMillis > datalayer.battery.settings.remote_set_timestamp + datalayer.battery.settings.remote_set_timeout) {
-    datalayer.battery.settings.remote_settings_limit_charge = false;
-    datalayer.battery.settings.remote_settings_limit_discharge = false;
-    datalayer.battery.settings.max_remote_set_charge_dA = 0;
-    datalayer.battery.settings.max_remote_set_discharge_dA = 0;
+  /* Check if remote set limits have timed out */
+  update_remote_limit_expiry(currentMillis);
+
+  /* Cap max charge/discharge to the lowest battery's limits */
+  if (battery2) {
+    if (datalayer.battery.status.max_charge_power_W > datalayer.battery2.status.max_charge_power_W) {
+      datalayer.battery.status.max_charge_power_W = datalayer.battery2.status.max_charge_power_W;
+    }
+    if (datalayer.battery.status.max_discharge_power_W > datalayer.battery2.status.max_discharge_power_W) {
+      datalayer.battery.status.max_discharge_power_W = datalayer.battery2.status.max_discharge_power_W;
+    }
+  }
+  if (battery3) {
+    if (datalayer.battery.status.max_charge_power_W > datalayer.battery3.status.max_charge_power_W) {
+      datalayer.battery.status.max_charge_power_W = datalayer.battery3.status.max_charge_power_W;
+    }
+    if (datalayer.battery.status.max_discharge_power_W > datalayer.battery3.status.max_discharge_power_W) {
+      datalayer.battery.status.max_discharge_power_W = datalayer.battery3.status.max_discharge_power_W;
+    }
   }
 
   /* Calculate allowed charge/discharge currents. Prefer live pack voltage for the conversion.
@@ -740,10 +760,12 @@ void setup() {
 
   led_init();
 
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());
   }
+#endif  // SDCARD
 
   init_contactors();
 

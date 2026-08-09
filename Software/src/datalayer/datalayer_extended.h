@@ -204,6 +204,14 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool dtc_read_in_progress;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI
   bool UserRequestDTCreset;    // User requesting DTC erase via WebUI
+
+  // Isolation monitor control (RoutineControl 0x2008): disable = 31 01, enable = 31 02.
+  bool UserRequestIsoRoutineEnable;
+  bool UserRequestIsoRoutineDisable;
+  bool keep_iso_disabled;       // re-send disable on each BMS start (persisted)
+  bool iso_measurement_active;  // 0x35E b0 bit0x80: isolation measurement running
+  bool iso_status_valid;        // fresh 0x35E seen (else status unknown)
+  uint8_t iso_command_status;   // 0 idle, 1 running, 2 accepted, 3 rejected, 4 no reply
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -282,31 +290,6 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryCurrentDeviation;
   bool FaultBatteryUnderVoltage;
   bool FaultBatteryOverVoltage;
-};
-
-struct DATALAYER_INFO_CMFAEV {
-  uint64_t cumulative_energy_when_discharging;
-  uint64_t cumulative_energy_when_charging;
-  uint64_t cumulative_energy_in_regen;
-
-  uint32_t average_voltage_of_cells;
-
-  uint16_t soc_z;
-  uint16_t soc_u;
-  uint16_t soh_average;
-  uint16_t max_regen_power;
-  uint16_t max_discharge_power;
-  uint16_t maximum_charge_power;
-  uint16_t SOH_available_power;
-  uint16_t SOH_generated_power;
-  uint16_t lead_acid_voltage;
-
-  int16_t average_temperature;
-  int16_t minimum_temperature;
-  int16_t maximum_temperature;
-
-  uint8_t highest_cell_voltage_number;
-  uint8_t lowest_cell_voltage_number;
 };
 
 struct DATALAYER_INFO_CMPSMART {
@@ -447,11 +430,12 @@ struct DATALAYER_INFO_FORD_MACH_E {
   uint16_t pid_hvb_contactor_negative_bus_leak_resistance;
   uint16_t pid_hvb_contactor_overall_leak_resistance;
   uint16_t pid_hvb_contactor_open_leak_resistance;
-  uint8_t pid_hvb_soh;
   uint16_t pid_hvb_voltage;
+  uint16_t pid_hvb_max_charge_current;
   uint16_t pid_hvb_calendar_age_months;
   uint16_t pid_battery_capacity_ah;
   uint8_t pid_maintenance_rebalance_status;
+  uint8_t pid_hvb_soh;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {
@@ -893,6 +877,7 @@ struct DATALAYER_INFO_MEB {
   bool dtc_read_in_progress = false;   // Flag to prevent concurrent reads
   bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
   bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestCrashReset = false;  // User requesting crash reset via WebUI
   bool UserRequestBMSReset = false;    // User requesting BMS reset via WebUI
 };
 
@@ -909,14 +894,7 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint8_t HVSysDCRlySts1;
   uint8_t HVSysDCRlySts2;
   uint8_t HVSysIsoRMonrSts;
-  uint8_t DTCcount;
   uint8_t HVILstatusBits;
-  /** User requesting DTC reset via WebUI*/
-  bool UserRequestDTCreset;
-  /** User requesting DTC readout via WebUI*/
-  bool UserRequestDTCreadout;
-  /** User requesting BECM reset via WebUI*/
-  bool UserRequestBECMecuReset;
 };
 
 struct DATALAYER_INFO_VOLVO_HYBRID {
@@ -1046,7 +1024,6 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_CMFAEV CMFAEV;
     DATALAYER_INFO_CMPSMART stellantisCMPsmart;
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
@@ -1056,7 +1033,11 @@ class DataLayerExtended {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
-    DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+    struct {
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_3;
+    };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
     DATALAYER_INFO_ZOE zoe;
