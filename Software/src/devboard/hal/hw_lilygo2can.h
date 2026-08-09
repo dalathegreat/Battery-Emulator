@@ -81,10 +81,11 @@ class LilyGo2CANHal : public Esp32Hal {
     if (user_selected_gpioopt1 == GPIOOPT1::ESTOP_BMS_POWER) {
       return GPIO_NUM_2;
     }
-    return GPIO_NUM_3;
+    // GPIO3 is used as INT1 on a T-2CAN FD (MCP2518), so use GPIO45 instead.
+    return is_fd() ? GPIO_NUM_45 : GPIO_NUM_3;
   }
-  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is either GPIO2, GPIO3
-  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_2, GPIO_NUM_3}; }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is either GPIO2, GPIO3, or GPIO45
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return { GPIO_NUM_2, is_fd() ? GPIO_NUM_45 : GPIO_NUM_3 }; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_4; }
 
