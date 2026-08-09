@@ -1546,6 +1546,9 @@ static bool render_live(CheckedHtml& content) {
 #ifdef HW_WAVESHARE
     content += " running on Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
+#ifdef HW_WAVESHARE_POE_8CH
+    content += " Hardware: Waveshare ESP32-S3-POE-8CH";
+#endif  // HW_WAVESHARE_POE_8CH
     if (datalayer.system.info.CPU_measurement_enabled) {
       content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C";
     }
