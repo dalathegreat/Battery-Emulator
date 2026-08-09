@@ -990,7 +990,18 @@ String processor(const String& var) {
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<div id='bxUpd' style='text-align:center'></div>";
-    content += "<h4>Software: " + String(version_number);
+    content += "<h4>Software: ";
+#if defined(GIT_TAG) && defined(GITHUB_ORG) && defined(GITHUB_REPO)
+    content += "<a href='https://github.com/" GITHUB_ORG "/" GITHUB_REPO "/releases/tag/" GIT_TAG
+               "' target='_blank' style='color:#fff'>" +
+               String(version_number) + "</a>";
+#elif defined(GITHUB_PR) && defined(GITHUB_ORG) && defined(GITHUB_REPO)
+    content += "<a href='https://github.com/" GITHUB_ORG "/" GITHUB_REPO "/pull/" GITHUB_PR
+               "' target='_blank' style='color:#fff'>" +
+               String(version_number) + "</a>";
+#else
+    content += String(version_number);
+#endif
 
 // Show hardware used:
 #ifdef HW_LILYGO
