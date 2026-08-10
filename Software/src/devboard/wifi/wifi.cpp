@@ -364,10 +364,8 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
   connected_once = true;
-  // SSID and BSSID are taken straight from the event payload: no esp_wifi_sta_get_ap_info()
-  // round trip and no String allocation. The BSSID identifies which AP we landed on when
-  // several of them share the SSID. The IP address is deliberately not printed here - it is
-  // not assigned yet at association time, onWifiGotIP() logs it a moment later.
+  // SSID and BSSID are taken from the event payload. The BSSID identifies which AP we landed on when
+  // several of them share the SSID.
   const wifi_event_sta_connected_t& ap = info.wifi_sta_connected;
   DEBUG_PRINTF("Wi-Fi connected (%d), RSSI: %d dBm, SSID: %.*s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x\n", WiFi.status(),
                WiFi.RSSI(), ap.ssid_len, (const char*)ap.ssid, ap.bssid[0], ap.bssid[1], ap.bssid[2], ap.bssid[3],
