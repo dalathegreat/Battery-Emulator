@@ -530,6 +530,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGTAPERSOC") {
+    if (settings.getBool("CHGESTIMATED")) {
+      return "checked";
+    }
     if (battery && battery->mandatory_charge_taper()) {
       return "checked";
     }
