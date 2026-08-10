@@ -41,9 +41,9 @@ void CmfaEvBattery::
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
   if (user_selected_use_estimated_charge_limits) {  //Some packs are locked? and do not report allowed charge/discharge power
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+    datalayer_battery->status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
-    datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+    datalayer_battery->status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
   } else {  //Use sane limits sent by battery
     datalayer_battery->status.max_charge_power_W = charge_power_w;
 
