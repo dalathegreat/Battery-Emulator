@@ -7,6 +7,7 @@
 #include "../Software/src/devboard/hal/hal.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
+#include "../Software/src/inverter/INVERTERS.h"
 
 void RegisterCanLogTests(void);
 void RegisterStillAliveTests(void);
@@ -27,6 +28,12 @@ class DataLayerResetListener : public ::testing::EmptyTestEventListener {
     battery3 = nullptr;
     delete charger;
     charger = nullptr;
+    /* The inverter is the same kind of instance and was the one omission here.
+       It also decides behaviour by TYPE - needs_can_startup_grace() is true for
+       the SMA family and false for the rest - so a test inheriting the previous
+       test's inverter silently runs against the wrong protocol. */
+    delete inverter;
+    inverter = nullptr;
 
     // Selection globals must be owned by each test's own fixture.
     user_selected_second_battery = false;
