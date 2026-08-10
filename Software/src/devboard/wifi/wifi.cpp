@@ -400,7 +400,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   // One call, not three: severity and the syslogLine[] assembly buffer are shared
   // globals, so a concurrent logger in another task can otherwise split the line.
   LOG_SET_NEXT_SEVERITY(5);  // notice
-  logging.printf("Wi-Fi Got IP, address: %s\n", WiFi.localIP().toString().c_str());
+  logging.printf("Wi-Fi got IP address: %s\n", WiFi.localIP().toString().c_str());
 
   // One-shot boot notice — fires once per boot, not on every reconnect.
   static bool boot_logged = false;
