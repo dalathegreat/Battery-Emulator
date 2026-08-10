@@ -64,6 +64,22 @@ static bool publish_common_info(void);
 static bool publish_cell_voltages(void);
 static bool publish_events(void);
 
+// A dropped broker connection makes every publish fail (QoS 0 returns -1 while the client
+// is not connected), and publish_values() runs again every mqtt_publish_interval_ms, so
+// logging each failure unconditionally repeats the same line for the whole outage. Pending
+// events make it worse: they are deliberately retried until they go out, so publish_events()
+// fails on every cycle from the moment EVENT_MQTT_DISCONNECT is raised until reconnect.
+// Log the first failure of an outage only; publish_values() re-arms the latch after a
+// complete successful cycle.
+static bool publish_failure_logged = false;
+
+static void log_publish_failure(const char* what) {
+  if (!publish_failure_logged) {
+    publish_failure_logged = true;
+    logging.printf("%s MQTT msg could not be sent\n", what);
+  }
+}
+
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
 
@@ -86,6 +102,9 @@ static void publish_values(void) {
       return;
     }
   }
+
+  // Whole cycle went out: arm the failure log again so the next outage is reported.
+  publish_failure_logged = false;
 }
 
 static bool ha_common_info_published = false;
@@ -556,7 +575,7 @@ static bool publish_common_info(void) {
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
-        // logging.println("Common info MQTT msg could not be sent");
+        log_publish_failure("Common info");
         return false;
       }
     }
@@ -575,7 +594,7 @@ static bool publish_common_info(void) {
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
         serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
-          logging.println("Common info MQTT msg could not be sent");
+          log_publish_failure("Common info");
           return false;
         }
       }
@@ -633,7 +652,7 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
   len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "]}");
 
   if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-    logging.println("Cell data MQTT msg could not be sent");
+    log_publish_failure("Cell data");
     return false;
   }
   return true;
@@ -775,7 +794,7 @@ bool publish_events() {
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-        logging.println("Common info MQTT msg could not be sent");
+        log_publish_failure("Event");
         return false;
       } else {
         set_event_MQTTpublished(event_handle);
