@@ -184,7 +184,7 @@ class NissanLeafBattery : public CanBattery {
   // group polling, so it is intercepted separately while a readout is in flight.
   static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
   static const unsigned long DTC_TIMEOUT_MS = 2000;
-  uint8_t dtc_buffer[DTC_BUFFER_SIZE];
+  uint8_t dtc_buffer[DTC_BUFFER_SIZE] = {0};
   uint16_t dtc_rx_total = 0;   // Total payload length announced by the ISO-TP first frame
   uint16_t dtc_rx_seen = 0;    // Bytes received so far, counted even when past our storage capacity
   uint16_t dtc_rx_len = 0;     // Bytes actually stored, capped at DTC_BUFFER_SIZE
@@ -259,8 +259,8 @@ class NissanLeafBattery : public CanBattery {
   //Counted down once per 10s tick, and polling only starts on the tick after it reaches zero,
   //the first group request goes out 0 seconds after startup.
   uint8_t hold_off_with_polling_10seconds = 0;
-  uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
-  bool battery_balancing_shunts[96];   //array with all the balancing resistors
+  uint16_t battery_cell_voltages[96] = {0};     //array with all the cellvoltages
+  bool battery_balancing_shunts[96] = {false};  //array with all the balancing resistors
   //Balancing classification state, see update_values()
   //The classifier tracks how often a group 0x06 read comes back with the shunt set completely
   //unchanged, over a sliding window of the most recent reads.
@@ -276,7 +276,7 @@ class NissanLeafBattery : public CanBattery {
   //momentarily read as all-clear, so a single low read is not enough to declare balancing finished.
   static const uint8_t BALANCING_READY_DEBOUNCE_READS = 3;
   //Previous group 0x06 shunt bitmap (96 bits packed into 3 words), for change detection
-  uint32_t balancing_bitmap_prev[3];
+  uint32_t balancing_bitmap_prev[3] = {0};
   //true once balancing_bitmap_prev holds a real reading
   bool balancing_bitmap_valid = false;
   //One bit per recent read, set if that read came back with the shunt set unchanged
@@ -294,11 +294,11 @@ class NissanLeafBattery : public CanBattery {
   //Applies a new balancing status, raising the start/end events on the ACTIVE edges
   void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
-  uint16_t battery_min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
-  uint16_t battery_HX_pptt = 0;            //Pack conductance estimate (Hx), in hundredths of a percent
-  uint16_t battery_insulation = 0;         //Insulation resistance
-  uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
-  uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges
+  uint16_t battery_min_max_voltage[2] = {0};  //contains cell min[0] and max[1] values in mV
+  uint16_t battery_HX_pptt = 0;               //Pack conductance estimate (Hx), in hundredths of a percent
+  uint16_t battery_insulation = 0;            //Insulation resistance
+  uint16_t battery_charge_count_qc = 0;       //Lifetime number of quick (CHAdeMO) charges
+  uint16_t battery_charge_count_l1l2 = 0;     //Lifetime number of L1/L2 (AC) charges
   uint16_t battery_temp_raw_1 = 718;
   uint8_t battery_temp_raw_2_highnibble = 0;
   uint16_t battery_temp_raw_2 = 718;
@@ -317,7 +317,7 @@ class NissanLeafBattery : public CanBattery {
   // Clear SOH values
 
   uint32_t incomingChallenge = 0xFFFFFFFF;
-  uint8_t solvedChallenge[8];
+  uint8_t solvedChallenge[8] = {0};
   bool challengeFailed = false;
 
   CAN_frame LEAF_CLEAR_SOH = {.FD = false,
