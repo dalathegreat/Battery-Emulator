@@ -41,33 +41,46 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     memcpy(readablePartNumber, nissan_dl->BatteryPartNumber, sizeof(nissan_dl->BatteryPartNumber));
     readablePartNumber[7] = '\0';  // Null terminate the string
     content += "<h4>Part number: " + String(readablePartNumber) + "</h4>";
-    char readableBMSID[9];  // One extra space for null terminator
-    memcpy(readableBMSID, nissan_dl->BMSIDcode, sizeof(nissan_dl->BMSIDcode));
-    readableBMSID[8] = '\0';  // Null terminate the string
-    content += "<h4>BMS ID: " + String(readableBMSID) + "</h4>";
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
-    content += "<h4>HX: " + String(nissan_dl->battery_HX) + "</h4>";
+    content +=
+        "<h4>Hx: " +
+        (nissan_dl->battery_HX_pptt ? String(nissan_dl->battery_HX_pptt / 100.0f, 2) + " %" : String("Unknown")) +
+        "</h4>";
+    //A used pack always has AC charges on it, so a zero L1/L2 count means the group was not read yet.
+    content +=
+        "<h4>QC charge count: " + (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountQC) : String("Unknown")) +
+        "</h4>";
+    content += "<h4>AC charge count: " +
+               (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
-    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
-    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + "</h4>";
-    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
-    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
-    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
-    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
-    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
-    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
-    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
-    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
-    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
     content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
     content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
     if (nissan_dl->LEAF_gen == 0) {
       content += "<h4>Temperature 3: " + String(nissan_dl->temperature3 / 10.0) + " &deg;C</h4>";
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
-    content += "<h4>CryptoChallenge: " + String(nissan_dl->CryptoChallenge) + "</h4>";
-    content += "<h4>SolvedChallenge: " + String(nissan_dl->SolvedChallengeMSB) + String(nissan_dl->SolvedChallengeLSB) +
+    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
+    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
+    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
+    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
+    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
+    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
+    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
+    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
+    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
+    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
+    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
+    //Both challenge values only ever get filled by the Reset degradation data sequence. Until that
+    //has run, incomingChallenge still holds its 0xFFFFFFFF default and the solved halves are zero,
+    //so say so rather than printing placeholder numbers that look like readings.
+    content += "<h4>CryptoChallenge: " +
+               (nissan_dl->CryptoChallenge != 0xFFFFFFFF ? String(nissan_dl->CryptoChallenge) : String("Not run")) +
+               "</h4>";
+    content += "<h4>SolvedChallenge: " +
+               ((nissan_dl->SolvedChallengeMSB || nissan_dl->SolvedChallengeLSB)
+                    ? String(nissan_dl->SolvedChallengeMSB) + "-" + String(nissan_dl->SolvedChallengeLSB)
+                    : String("Not run")) +
                "</h4>";
     content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
 
