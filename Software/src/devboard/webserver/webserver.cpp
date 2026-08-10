@@ -20,6 +20,7 @@
 #include "../utils/millis64.h"
 #include "../utils/time_format.h"
 #include "../utils/timer.h"
+#include "../utils/version.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
 #include "html_escape.h"

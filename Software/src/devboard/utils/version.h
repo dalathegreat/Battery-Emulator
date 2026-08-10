@@ -1,8 +1,11 @@
-#ifndef VERSION_H
-#define VERSION_H
+#pragma once
 
-// Assembles BUILD_VERSION from raw macros set by tools/identify_build.py.
-// Each macro is defined only when its value is available.
+// The build script (tools/identify_build.py) generates version_autogen.h
+// with raw GIT_* / GITHUB_* defines. BUILD_VERSION is assembled below.
+
+#if __has_include("version_autogen.h")
+#include "version_autogen.h"
+#endif
 
 #if defined(GIT_TAG)
 #define BUILD_VERSION GIT_TAG
@@ -19,5 +22,3 @@
 #else
 #define BUILD_VERSION "unknown"
 #endif
-
-#endif  // VERSION_H
