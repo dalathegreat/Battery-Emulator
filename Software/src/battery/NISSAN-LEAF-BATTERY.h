@@ -87,10 +87,14 @@ class NissanLeafBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-  uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
-  uint8_t mprun10 = 0;                  //counter 0-3
-  uint8_t mprun100 = 0;                 //counter 0-3
-  uint8_t counter_3B8 = 0;              //counter 0-14
+  //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
+  //info page fills in within seconds instead of over a minute. Counted down per request actually
+  //sent, so it always terminates and the steady state polling rate is left untouched.
+  static const unsigned long POLL_BURST_INTERVAL_MS = 2000;
+  uint8_t mprun10r = 0;     //counter 0-20 for 0x1F2 message
+  uint8_t mprun10 = 0;      //counter 0-3
+  uint8_t mprun100 = 0;     //counter 0-3
+  uint8_t counter_3B8 = 0;  //counter 0-14
   bool flip_3B8 = false;
 
   static const uint8_t ZE0_BATTERY = 0;
@@ -137,10 +141,13 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
-  uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x62};
-  //Start on the last entry so the first rotation step wraps to group 0x01, which carries the
-  //values the rest of the emulator waits for (precise SOC, Hx, insulation).
+  //Ordered so the values that identify an unknown pack come out first. The three static groups
+  //(0x62 charge counters, 0x84 serial number, 0x83 part number) are read once and then skipped,
+  //leaving 0x04/0x01/0x02/0x06 as the recurring rotation.
+  uint8_t PIDgroups[7] = {0x62, 0x84, 0x04, 0x01, 0x02, 0x06, 0x83};
+  //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
+  uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
                                   .DLC = 8,

@@ -1125,7 +1125,10 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     }
 
     //Send 10s CAN messages
-    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
+    //The first pass through the group list runs at the faster burst interval, so the battery info
+    //page is populated within seconds of startup rather than over the following minute.
+    if (currentMillis - previousMillis10s >=
+        (poll_burst_remaining ? POLL_BURST_INTERVAL_MS : (unsigned long)INTERVAL_10_S)) {
       previousMillis10s = currentMillis;
 
       //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
@@ -1135,15 +1138,21 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
       if (!stop_battery_query && !dtc_operation_pending) {
 
-        // Move to the next group
-        // Advance to the next group. Group 0x62 is asked for only until it answers: the lifetime
-        // charge counters cannot change in a stationary setup, so dropping it out of the rotation
-        // keeps the recurring groups at the same spacing they had before it was added.
+        // Move to the next group, skipping the static ones that already answered. The charge
+        // counters and the two identity strings cannot change while the pack is powered, so each
+        // is asked for only until its data is in, after which the recurring groups come round
+        // faster. Testing the data itself rather than a "seen" flag means a reply that arrived
+        // while another tool was polling the bus counts just as well.
         do {
           PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
-        } while (PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0);
+        } while ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
+                 (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
+                 (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
+        if (poll_burst_remaining) {
+          poll_burst_remaining--;
+        }
         uds_busy = true;
         uds_request_millis = currentMillis;
         transmit_can_frame(&LEAF_GROUP_REQUEST);
