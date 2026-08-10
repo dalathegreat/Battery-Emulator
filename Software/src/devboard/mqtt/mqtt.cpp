@@ -145,8 +145,8 @@ static bool supports_leaf_metrics(Battery* b) {
 }
 
 static const SensorConfig batterySensorConfigTemplate[] = {
-    {"SOC", "SOC (Scaled)", "%", "battery", always},
-    {"SOC_real", "SOC (real)", "%", "battery", always},
+    {"SOC", "SoC (scaled)", "%", "battery", always},
+    {"SOC_real", "SoC (real)", "%", "battery", always},
     {"state_of_health", "State of Health", "%", "battery", always},
     {"temperature_min", "Temperature Min", "°C", "temperature", always},
     {"temperature_max", "Temperature Max", "°C", "temperature", always},
