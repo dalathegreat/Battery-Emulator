@@ -219,7 +219,6 @@ bool init_sdcard() {
 
   if (!SD.begin(cs_pin, sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
-    logging.println("SD Card initialization failed!");
     return false;
   }
 

@@ -953,7 +953,6 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       break;
     case MQTT_EVENT_DISCONNECTED:
       set_event(EVENT_MQTT_DISCONNECT, 0);
-      logging.println("MQTT disconnected!");
       break;
     case MQTT_EVENT_DATA:
       mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);

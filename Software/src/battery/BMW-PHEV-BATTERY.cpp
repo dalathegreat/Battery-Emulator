@@ -509,7 +509,6 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_STALE_VALUE, 0);
-    logging.println("Stale Min/Max voltage values detected during charge/discharge sending - 9999mV...");
   } else {
 
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive

@@ -584,7 +584,6 @@ void TeslaBattery::
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
-      logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
       set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
@@ -599,7 +598,6 @@ void TeslaBattery::
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
-      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
@@ -2324,18 +2322,15 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("CAN UDS: BMS ECU reset request successful but ECU busy, response pending");
       }
       if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS ECU reset positive response, 1 second downtime");
         set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);
         clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS SOC reset accepted, resetting BMS ECU");
         set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);
         clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS);
         stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS SOC reset failed");
         set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
         clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
       }

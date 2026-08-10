@@ -237,7 +237,6 @@ void SmaBydHInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     case 0x5E7:  //Message originating from SMA inverter - Pairing request
       /* FALLTHROUGH */
     case 0x660:  //Message originating from SMA inverter - Pairing request
-      logging.println("Received SMA pairing request");
       pairing_events++;
       set_event(EVENT_SMA_PAIRING, pairing_events);
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
