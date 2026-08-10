@@ -71,8 +71,16 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
     content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
     content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
-    content += "<h4>CryptoChallenge: " + String(nissan_dl->CryptoChallenge) + "</h4>";
-    content += "<h4>SolvedChallenge: " + String(nissan_dl->SolvedChallengeMSB) + String(nissan_dl->SolvedChallengeLSB) +
+    //Both challenge values only ever get filled by the Reset degradation data sequence. Until that
+    //has run, incomingChallenge still holds its 0xFFFFFFFF default and the solved halves are zero,
+    //so say so rather than printing placeholder numbers that look like readings.
+    content += "<h4>CryptoChallenge: " +
+               (nissan_dl->CryptoChallenge != 0xFFFFFFFF ? String(nissan_dl->CryptoChallenge) : String("Not run")) +
+               "</h4>";
+    content += "<h4>SolvedChallenge: " +
+               ((nissan_dl->SolvedChallengeMSB || nissan_dl->SolvedChallengeLSB)
+                    ? String(nissan_dl->SolvedChallengeMSB) + "-" + String(nissan_dl->SolvedChallengeLSB)
+                    : String("Not run")) +
                "</h4>";
     content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
 
