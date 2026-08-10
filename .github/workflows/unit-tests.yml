@@ -29,3 +29,19 @@ jobs:
       run: |
         cd test/build
         ctest
+
+    # ctest is not enough on its own. test/CMakeLists.txt uses
+    # gtest_discover_tests(), which registers every case as its own ctest test,
+    # so each one runs in a fresh process and no global or static can leak
+    # between them. That makes the step above structurally unable to see an
+    # order dependency. Running the binary directly puts every case in one
+    # process, the way a developer runs it, and shuffling then breaks any
+    # remaining reliance on definition order.
+    - name: Check order independence
+      run: |
+        cd test/build
+        ./tests
+        for seed in 1 7 42 1234 99999; do
+          echo "--- shuffled, seed $seed ---"
+          ./tests --gtest_shuffle --gtest_random_seed=$seed
+        done
