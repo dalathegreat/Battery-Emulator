@@ -167,6 +167,16 @@ void init_WiFi() {
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
 
+  // Always associate with the strongest AP when several access points broadcast the same
+  // SSID (mesh / multi-AP networks). The driver defaults to WIFI_FAST_SCAN, which stops at
+  // the first matching AP it hears and can therefore latch onto a distant one. A full scan
+  // collects every candidate first, and the sort method then picks the best RSSI.
+  // Both settings end up in the STA config, so WiFi.reconnect(), FullReconnectToWiFi() and
+  // the driver's own auto-reconnect all reuse them: the strongest AP is picked at boot AND
+  // at every reconnect. Takes roughly 1 second of scan time per connection attempt.
+  WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+  WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+
   if (static_IP_enabled) {
     IPAddress local_IP, gateway, subnet, dns;
     if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
@@ -354,8 +364,12 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
   connected_once = true;
-  DEBUG_PRINTF("Wi-Fi connected. status: %d, RSSI: %d dBm, IP address: %s, SSID: %s\n", WiFi.status(), -WiFi.RSSI(),
-               WiFi.localIP().toString().c_str(), WiFi.SSID().c_str());
+  // SSID and BSSID are taken from the event payload. The BSSID identifies which AP we landed on when
+  // several of them share the SSID.
+  const wifi_event_sta_connected_t& ap = info.wifi_sta_connected;
+  DEBUG_PRINTF("Wi-Fi connected (%d), RSSI: %d dBm, SSID: %.*s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x\n", WiFi.status(),
+               WiFi.RSSI(), ap.ssid_len, (const char*)ap.ssid, ap.bssid[0], ap.bssid[1], ap.bssid[2], ap.bssid[3],
+               ap.bssid[4], ap.bssid[5]);
   hasConnectedBefore = true;                                            // Mark as successfully connected at least once
   reconnectAttempts = 0;                                                // Reset the attempt counter
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
