@@ -397,8 +397,6 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
-  // One call, not three: severity and the syslogLine[] assembly buffer are shared
-  // globals, so a concurrent logger in another task can otherwise split the line.
   LOG_SET_NEXT_SEVERITY(5);  // notice
   logging.printf("Wi-Fi got IP address: %s\n", WiFi.localIP().toString().c_str());
 
