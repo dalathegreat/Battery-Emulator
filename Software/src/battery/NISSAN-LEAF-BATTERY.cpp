@@ -281,6 +281,12 @@ void NissanLeafBattery::
     memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
     memcpy(datalayer_nissan->BMSIDcode, BMSIDcode, sizeof(BMSIDcode));
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
+    if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
+      //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
+      static_assert(Name[sizeof("Nissan LEAF ") - 1] == 'b', "Name must start with \"Nissan LEAF \"");
+      static const char LEAF_gen_name[3][5] = {"ZE0", "AZE0", "ZE1"};
+      strcpy(datalayer.system.info.battery_protocol + sizeof("Nissan LEAF ") - 1, LEAF_gen_name[LEAF_battery_Type]);
+    }
     datalayer_nissan->GIDS = battery_GIDS;
     datalayer_nissan->ChargePowerLimit = battery_Charge_Power_Limit;
     datalayer_nissan->MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
