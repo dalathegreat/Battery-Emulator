@@ -295,7 +295,7 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
-    datalayer_nissan->battery_HX = battery_HX;
+    datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
     datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature2 = ((Temp_fromRAW_to_F(battery_temp_raw_2) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature3 = ((Temp_fromRAW_to_F(battery_temp_raw_3) - 320) * 5) / 9;  //Convert from F to C
@@ -553,6 +553,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
+        //Remember how long the reply is. The group 1 layout differs between LEAF generations, and
+        //the announced length is what identifies which one the LBC just sent.
+        group_7bb_length = rx_frame.data.u8[1];
       }
 
       transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
@@ -575,7 +578,19 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          battery_HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+          // Hx sits at a different payload offset and uses a different scale depending on which
+          // layout the LBC answered with, so the reply length decides how to read it:
+          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27], already in hundredths of a %
+          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29], raw / 102.4 = percent
+          // This frame carries payload[25..31] in u8[1..7]. Any other length is a layout we do not
+          // know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
+          if (group_7bb_length == 0x35) {  //ZE1
+            uint16_t battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            //raw / 102.4 * 100 == raw * 125 / 128, rounded to nearest
+            battery_HX_pptt = (uint16_t)(((uint32_t)battery_HX_raw * 125u + 64u) / 128u);
+          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
+            battery_HX_pptt = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          }
         }
       }
 

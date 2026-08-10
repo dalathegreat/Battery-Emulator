@@ -762,8 +762,8 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t GIDS;
   /** Max regen power in kW */
   uint16_t ChargePowerLimit;
-  /** Internal resistance in percentage */
-  uint16_t battery_HX;
+  /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
+  uint16_t battery_HX_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
 

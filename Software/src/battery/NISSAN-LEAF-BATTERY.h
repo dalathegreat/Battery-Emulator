@@ -243,6 +243,9 @@ class NissanLeafBattery : public CanBattery {
   // Nissan LEAF battery data from polled CAN messages
   uint8_t battery_request_idx = 0;
   uint8_t group_7bb = 0;
+  //ISO-TP payload length of the group reply currently being received. Leaf group replies are all
+  //shorter than 256 bytes, so the low length byte of the first frame is enough to hold it.
+  uint8_t group_7bb_length = 0;
   bool stop_battery_query = true;
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
   uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
@@ -281,7 +284,7 @@ class NissanLeafBattery : public CanBattery {
   void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
-  uint16_t battery_HX = 0;              //Internal resistance
+  uint16_t battery_HX_pptt = 0;         //Pack conductance estimate (Hx), in hundredths of a percent
   uint16_t battery_insulation = 0;      //Insulation resistance
   uint16_t battery_temp_raw_1 = 718;
   uint8_t battery_temp_raw_2_highnibble = 0;

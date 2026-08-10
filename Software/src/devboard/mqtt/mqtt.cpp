@@ -140,6 +140,9 @@ static bool supports_byd_metrics(Battery* b) {
 static bool supports_insulation(Battery* b) {
   return b != nullptr && b->supports_insulation_resistance();
 }
+static bool supports_leaf_metrics(Battery* b) {
+  return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
+}
 
 static const SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "%", "battery", always},
@@ -172,7 +175,8 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"autocal_cooldown_ready", "BYD Auto-cal: Cooldown Ready", "", "", supports_byd_autocal_metrics},
     {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "battery", supports_byd_autocal_metrics},
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
-    {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics}};
+    {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
+    {"leaf_hx", "Hx", "%", "", supports_leaf_metrics}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -367,6 +371,16 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["min_cell_number"] = byd.BMS_min_cell_voltage_number;
     doc["max_cell_number"] = byd.BMS_max_cell_voltage_number;
   }
+  if (supports_leaf_metrics(::battery)) {
+    const DATALAYER_INFO_NISSAN_LEAF& leaf = (battery_index == 3)   ? datalayer_extended.nissanleaf_3
+                                             : (battery_index == 2) ? datalayer_extended.nissanleaf_2
+                                                                    : datalayer_extended.nissanleaf;
+    // Omit until a group 1 reply with a known layout has been decoded, so HA shows "unknown"
+    // instead of a false 0 % before the first poll completes.
+    if (leaf.battery_HX_pptt != 0u) {
+      doc["leaf_hx"] = ((float)leaf.battery_HX_pptt) / 100.0f;
+    }
+  }
 }
 
 static std::vector<EventData> order_events;
@@ -384,6 +398,9 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
     if (strcmp(entity_id, "insulation_resistance") == 0) {
       return "mdi:resistor";
+    }
+    if (strcmp(entity_id, "leaf_hx") == 0) {
+      return "mdi:battery-heart-variant";
     }
     if (strcmp(entity_id, "charging_state") == 0) {
       return "mdi:home-battery";
@@ -462,6 +479,12 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   if (strcmp(config.entity_id, "insulation_resistance") == 0) {
     doc["state_class"] = "measurement";
     doc["suggested_display_precision"] = 0;
+  }
+  // "leaf_hx" is a percentage with no matching device_class, so it misses the state_class
+  // assignment above too. Mark it as a measurement and show two decimals, like LeafSpy does.
+  if (strcmp(config.entity_id, "leaf_hx") == 0) {
+    doc["state_class"] = "measurement";
+    doc["suggested_display_precision"] = 2;
   }
   // "energy" device_class is only valid with state_class total / total_increasing, never
   // "measurement" — HA rejects the combination. The capacity sensors represent a current
