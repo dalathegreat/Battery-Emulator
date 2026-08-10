@@ -54,23 +54,23 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
-    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
-    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
-    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
-    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
-    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
-    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
-    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
-    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
-    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
-    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
-    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
     content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
     content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
     if (nissan_dl->LEAF_gen == 0) {
       content += "<h4>Temperature 3: " + String(nissan_dl->temperature3 / 10.0) + " &deg;C</h4>";
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
+    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
+    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
+    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
+    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
+    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
+    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
+    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
+    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
+    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
+    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
+    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
     content += "<h4>CryptoChallenge: " + String(nissan_dl->CryptoChallenge) + "</h4>";
     content += "<h4>SolvedChallenge: " + String(nissan_dl->SolvedChallengeMSB) + String(nissan_dl->SolvedChallengeLSB) +
                "</h4>";
