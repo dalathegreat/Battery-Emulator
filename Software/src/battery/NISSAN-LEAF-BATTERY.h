@@ -137,7 +137,7 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
-  uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90};
+  uint8_t PIDgroups[8] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90, 0x62};
   uint8_t PIDindex = 0;
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
@@ -283,9 +283,11 @@ class NissanLeafBattery : public CanBattery {
   //Applies a new balancing status, raising the start/end events on the ACTIVE edges
   void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
-  uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
-  uint16_t battery_HX_pptt = 0;         //Pack conductance estimate (Hx), in hundredths of a percent
-  uint16_t battery_insulation = 0;      //Insulation resistance
+  uint16_t battery_min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
+  uint16_t battery_HX_pptt = 0;            //Pack conductance estimate (Hx), in hundredths of a percent
+  uint16_t battery_insulation = 0;         //Insulation resistance
+  uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
+  uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges
   uint16_t battery_temp_raw_1 = 718;
   uint8_t battery_temp_raw_2_highnibble = 0;
   uint16_t battery_temp_raw_2 = 718;

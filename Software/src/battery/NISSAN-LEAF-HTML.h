@@ -50,6 +50,13 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Hx: " +
         (nissan_dl->battery_HX_pptt ? String(nissan_dl->battery_HX_pptt / 100.0f, 2) + " %" : String("Unknown")) +
         "</h4>";
+    //A used pack always has AC charges on it, so a zero L1/L2 count means the group was not read yet.
+    //The QC count itself may legitimately be zero on a pack that was never quick charged.
+    content +=
+        "<h4>QC charge count: " + (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountQC) : String("Unknown")) +
+        "</h4>";
+    content += "<h4>AC charge count: " +
+               (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
     content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
