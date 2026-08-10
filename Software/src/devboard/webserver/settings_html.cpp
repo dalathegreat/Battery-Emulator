@@ -517,6 +517,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
 
+  if (var == "CHGESTIMATED") {
+    return settings.getBool("CHGESTIMATED") ? "checked" : "";
+  }
+
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
@@ -1408,12 +1412,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="14"] .if-estimated, 
     form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
+    form[data-battery="26"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
     form[data-battery="41"] .if-estimated,
+    form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
     form[data-battery="51"] .if-estimated {
+      display: contents;
+    }
+
+    form .if-chgestimated { display: none; } /* Integrations where you sometimes want to fallback to user set charge/discharge power options, since they are for unknown reason not available on some packs */
+    form[data-battery="8"] .if-chgestimated,
+    form[data-battery="26"] .if-chgestimated,
+    form[data-battery="44"] .if-chgestimated {
       display: contents;
     }
 
@@ -1759,6 +1772,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Use estimated SOC: </label>
         <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% 
         title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
+        </div>
+
+        <div class="if-chgestimated">
+        <label>Use estimated charge limits: </label>
+        <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% 
+        title="Switch to estimated charge/discharge limits when accurate data is not available from the battery" />
         </div>
 
         <div class="if-battery">

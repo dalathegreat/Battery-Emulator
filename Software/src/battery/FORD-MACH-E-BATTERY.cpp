@@ -54,10 +54,16 @@ void FordMachEBattery::update_values() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W =
-      (discharge_current_allowed * datalayer.battery.status.voltage_dV) / 100;
+  if (user_selected_use_estimated_charge_limits) {  //Some packs are locked to 0A all the time (not sure why still) so we need to use user set limits instead of battery reported limits
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
-  datalayer.battery.status.max_charge_power_W = (charge_current_allowed * datalayer.battery.status.voltage_dV) / 100;
+    datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  } else {  //Use limits sent by battery
+    datalayer.battery.status.max_discharge_power_W =
+        (discharge_current_allowed * datalayer.battery.status.voltage_dV) / 100;
+
+    datalayer.battery.status.max_charge_power_W = (charge_current_allowed * datalayer.battery.status.voltage_dV) / 100;
+  }
 
   maximum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
   minimum_cellvoltage_mV = datalayer.battery.status.cell_voltages_mV[0];
