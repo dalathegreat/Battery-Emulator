@@ -250,8 +250,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t group_7bb_length = 0;
   bool stop_battery_query = true;
   //Counted down once per 10s tick, and polling only starts on the tick after it reaches zero,
-  //so the first group request goes out 30 seconds after startup.
-  uint8_t hold_off_with_polling_10seconds = 1;
+  //the first group request goes out 0 seconds after startup.
+  uint8_t hold_off_with_polling_10seconds = 0;
   uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
   bool battery_balancing_shunts[96];   //array with all the balancing resistors
   //Balancing classification state, see update_values()
