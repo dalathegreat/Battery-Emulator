@@ -199,7 +199,8 @@ static const SensorConfig globalSensorConfigTemplate[] = {
     {"event_level", "Event Level", "", "", always},
     {"emulator_status", "Emulator Status", "", "", always},
     {"emulator_uptime", "Emulator Uptime", "s", "duration", always},
-    {"cpu_temp", "CPU Temperature", "°C", "temperature", always}};
+    {"cpu_temp", "CPU Temperature", "°C", "temperature", always},
+    {"software_version", "Emulator Version", "", "", always}};
 
 // The battery instances the MQTT module publishes for. Battery #1 keeps the historical
 // un-suffixed topic ("<name>/info") and entity ids, so single-battery setups see no change.
@@ -228,7 +229,7 @@ static String info_topics[3];
 static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
                                              {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
                                              {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr},
+                                             {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
                                              {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
@@ -264,6 +265,11 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["model"] = "Battery Emulator";
   doc["device"]["manufacturer"] = "FOSS";
   doc["device"]["name"] = device_name;
+  // Board name and firmware version, shown in the Home Assistant device information panel.
+  // Both are string literals with static storage duration, so ArduinoJson keeps them
+  // zero-copy (stored by pointer) instead of allocating them in the document pool.
+  doc["device"]["hw_version"] = esp32hal->name();
+  doc["device"]["sw_version"] = version_number;
   doc["device"]["configuration_url"] = "http://" + WiFi.localIP().toString();
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
@@ -416,6 +422,9 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     if (strcmp(entity_id, "pause_status") == 0) {
       return "mdi:battery-outline";
     }
+    if (strcmp(entity_id, "software_version") == 0) {
+      return "mdi:tag-outline";
+    }
   }
   if (device_class != nullptr) {
     if (strcmp(device_class, "voltage") == 0)
@@ -445,8 +454,11 @@ static const char* button_discovery_icon(const char* command) {
 // value_template variants are generated into stack buffers here instead of being strdup()'d
 // into a permanent std::list at startup: discovery is one-shot, so nothing needs to stay
 // on the heap for it.
+// diagnostic: set for emulator-level sensors, which describe the emulator itself rather
+// than the battery it is talking to. Home Assistant then files them under the device's
+// Diagnostic section instead of the main sensor list.
 static bool publish_sensor_discovery(const SensorConfig& config, const char* id_suffix, const char* name_suffix,
-                                     const String& state_topic) {
+                                     const String& state_topic, bool diagnostic = false) {
   char entity_id[64];
   char name_buf[64];
   char value_template[96];
@@ -512,6 +524,9 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
       doc["icon"] = icon;
     }
   }
+  if (diagnostic) {
+    doc["entity_category"] = "diagnostic";
+  }
   set_common_discovery_attributes(doc);
   serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
@@ -538,9 +553,10 @@ static bool publish_common_info(void) {
         }
       }
     }
-    // Global (emulator-level) sensors stay on battery #1's "/info" topic.
+    // Global (emulator-level) sensors stay on battery #1's "/info" topic. They all describe
+    // the emulator rather than the battery, so they are published as diagnostic entities.
     for (const auto& config : globalSensorConfigTemplate) {
-      if (!publish_sensor_discovery(config, "", "", info_topics[0])) {
+      if (!publish_sensor_discovery(config, "", "", info_topics[0], true)) {
         return false;
       }
     }
@@ -568,6 +584,11 @@ static bool publish_common_info(void) {
 
       doc["event_level"] = get_event_level_string(get_event_level());
       doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+      // Static identity of the running binary. Published on every cycle (the topic is not
+      // retained, so a single publish would be lost on a Home Assistant restart) and stored
+      // zero-copy, both being const char* literals.
+      doc["hardware"] = esp32hal->name();
+      doc["software_version"] = version_number;
       if (datalayer.system.info.CPU_measurement_enabled) {
         doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
       }
@@ -752,6 +773,7 @@ bool publish_events() {
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     doc["icon"] = "mdi:information-outline";
+    doc["entity_category"] = "diagnostic";
     set_common_discovery_attributes(doc);
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
@@ -823,6 +845,11 @@ static bool publish_buttons_discovery(void) {
           if (icon != nullptr) {
             doc["icon"] = icon;
           }
+        }
+        // Rebooting the emulator is a maintenance action on the emulator itself, not a
+        // battery control like the pause/resume/stop buttons.
+        if (strcmp(config.entity_id, "RESTART") == 0) {
+          doc["entity_category"] = "diagnostic";
         }
         set_common_discovery_attributes(doc);
         serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
