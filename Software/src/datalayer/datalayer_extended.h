@@ -808,7 +808,6 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** Battery info, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[15];
   uint8_t BatteryPartNumber[7];
-  uint8_t BMSIDcode[8];
 };
 
 struct DATALAYER_INFO_MEB {

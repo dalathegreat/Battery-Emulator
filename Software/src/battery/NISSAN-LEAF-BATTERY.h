@@ -137,8 +137,10 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
-  uint8_t PIDgroups[8] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90, 0x62};
-  uint8_t PIDindex = 0;
+  uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x62};
+  //Start on the last entry so the first rotation step wraps to group 0x01, which carries the
+  //values the rest of the emulator waits for (precise SOC, Hx, insulation).
+  uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
                                   .DLC = 8,
@@ -247,9 +249,11 @@ class NissanLeafBattery : public CanBattery {
   //shorter than 256 bytes, so the low length byte of the first frame is enough to hold it.
   uint8_t group_7bb_length = 0;
   bool stop_battery_query = true;
-  uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
-  uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
-  bool battery_balancing_shunts[96];            //array with all the balancing resistors
+  //Counted down once per 10s tick, and polling only starts on the tick after it reaches zero,
+  //so the first group request goes out 30 seconds after startup.
+  uint8_t hold_off_with_polling_10seconds = 1;
+  uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
+  bool battery_balancing_shunts[96];   //array with all the balancing resistors
   //Balancing classification state, see update_values()
   //The classifier tracks how often a group 0x06 read comes back with the shunt set completely
   //unchanged, over a sliding window of the most recent reads.
@@ -299,7 +303,6 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_temp_polled_min = 0;
   uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
-  uint8_t BMSIDcode[8] = {0};
   uint8_t stateMachineClearSOH = 0xFF;
 
 #ifndef SMALL_FLASH_DEVICE

@@ -41,10 +41,6 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     memcpy(readablePartNumber, nissan_dl->BatteryPartNumber, sizeof(nissan_dl->BatteryPartNumber));
     readablePartNumber[7] = '\0';  // Null terminate the string
     content += "<h4>Part number: " + String(readablePartNumber) + "</h4>";
-    char readableBMSID[9];  // One extra space for null terminator
-    memcpy(readableBMSID, nissan_dl->BMSIDcode, sizeof(nissan_dl->BMSIDcode));
-    readableBMSID[8] = '\0';  // Null terminate the string
-    content += "<h4>BMS ID: " + String(readableBMSID) + "</h4>";
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
     content +=
         "<h4>Hx: " +

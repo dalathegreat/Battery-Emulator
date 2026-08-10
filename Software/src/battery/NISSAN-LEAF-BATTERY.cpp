@@ -279,7 +279,6 @@ void NissanLeafBattery::
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
     memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
-    memcpy(datalayer_nissan->BMSIDcode, BMSIDcode, sizeof(BMSIDcode));
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
     if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
       //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
@@ -798,21 +797,6 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           BatterySerialNumber[14] = rx_frame.data.u8[7];
         }
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 00 00 00 00 00 00 00)
-        }
-      }
-
-      if (group_7bb == 0x90) {              //BMSIDcode
-        if (rx_frame.data.u8[0] == 0x10) {  //First frame (100A619044434131)
-          BMSIDcode[0] = rx_frame.data.u8[4];
-          BMSIDcode[1] = rx_frame.data.u8[5];
-          BMSIDcode[2] = rx_frame.data.u8[6];
-          BMSIDcode[3] = rx_frame.data.u8[7];
-        }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (2130303535FFFFFF)
-          BMSIDcode[4] = rx_frame.data.u8[1];
-          BMSIDcode[5] = rx_frame.data.u8[2];
-          BMSIDcode[6] = rx_frame.data.u8[3];
-          BMSIDcode[7] = rx_frame.data.u8[4];
         }
       }
 
