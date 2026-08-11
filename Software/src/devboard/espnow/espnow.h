@@ -244,12 +244,12 @@ enum espnow_key_t {
   /* 0xA5 RETIRED. Was "UINT8 event specific payload byte". The payload is signed and wider
      than a byte (deci-Celsius temperatures), so per the compatibility rules above the key was
      retired rather than redefined, and ESPNOW_KEY_EVENT_DATA_I16 allocated in its place. */
-  ESPNOW_KEY_EVENT_MILLIS = 0xA6,    /* UINT64 millis64() at the last occurrence */
-  ESPNOW_KEY_EVENT_MESSAGE = 0xA7,   /* STR    human readable description, " (Battery N)" appended
+  ESPNOW_KEY_EVENT_MILLIS = 0xA6,  /* UINT64 millis64() at the last occurrence */
+  ESPNOW_KEY_EVENT_MESSAGE = 0xA7, /* STR    human readable description, " (Battery N)" appended
                                         when the event refers to one specific pack */
-  ESPNOW_KEY_EVENT_INDEX = 0xA8,     /* UINT8  position in the replay batch, 0 = most recent */
-  ESPNOW_KEY_EVENT_TOTAL = 0xA9,     /* UINT8  events in this replay batch, 1..ESPNOW_EVENT_REPLAY */
-  ESPNOW_KEY_EVENT_DATA_I16 = 0xAA   /* INT16  event specific payload, replaces retired 0xA5 */
+  ESPNOW_KEY_EVENT_INDEX = 0xA8,   /* UINT8  position in the replay batch, 0 = most recent */
+  ESPNOW_KEY_EVENT_TOTAL = 0xA9,   /* UINT8  events in this replay batch, 1..ESPNOW_EVENT_REPLAY */
+  ESPNOW_KEY_EVENT_DATA_I16 = 0xAA /* INT16  event specific payload, replaces retired 0xA5 */
 };
 
 void init_espnow();
