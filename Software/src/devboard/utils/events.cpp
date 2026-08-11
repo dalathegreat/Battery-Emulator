@@ -673,7 +673,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
     events.entries[event].MQTTpublished = false;
 
     LOG_SET_NEXT_SEVERITY(event_syslog_severity(event));
-    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
+    DEBUG_PRINTF("%s (event)\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info
