@@ -419,7 +419,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
   if (connected_once) {
-    set_event(EVENT_WIFI_DISCONNECT, 0);
+    set_event(EVENT_WIFI_DISCONNECT, 0);  // also printing a log entry
   }
   //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost

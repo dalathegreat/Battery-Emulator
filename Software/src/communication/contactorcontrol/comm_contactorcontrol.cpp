@@ -530,7 +530,7 @@ void handle_BMSpower() {
         // There's still current, and we don't want to weld the contactors, so give up.
 
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
-        set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);
+        set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);  // also printing a log entry
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {

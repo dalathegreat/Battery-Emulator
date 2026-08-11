@@ -49,7 +49,7 @@ class Esp32Hal {
         // Must be set BEFORE set_event(): set_event() logs the event message immediately,
         // and get_event_message_string() reads it back via failed_allocator().
         allocator_name = name;
-        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);
+        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);  // also printing a log entry
         return false;
       }
 
@@ -57,7 +57,7 @@ class Esp32Hal {
       if (it != allocated_pins.end()) {
         allocator_name = name;
         allocated_name = it->second.c_str();
-        set_event(EVENT_GPIO_CONFLICT, (int)pin);
+        set_event(EVENT_GPIO_CONFLICT, (int)pin);  // also printing a log entry
         return false;
       }
     }

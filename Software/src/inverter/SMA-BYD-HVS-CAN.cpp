@@ -133,7 +133,7 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       /* FALLTHROUGH */
     case 0x660:  //Message originating from SMA inverter - Pairing request
       pairing_events++;
-      set_event(EVENT_SMA_PAIRING, pairing_events);
+      set_event(EVENT_SMA_PAIRING, pairing_events);  // also printing a log entry
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE * 3;
       transmit_can_init();
       break;

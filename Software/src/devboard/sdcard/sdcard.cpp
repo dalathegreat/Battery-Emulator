@@ -218,7 +218,7 @@ bool init_sdcard() {
   constexpr bool FORMAT_IF_EMPTY = true;
 
   if (!SD.begin(cs_pin, sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
-    set_event_latched(EVENT_SD_INIT_FAILED, 0);
+    set_event_latched(EVENT_SD_INIT_FAILED, 0);  // also printing a log entry
     return false;
   }
 
