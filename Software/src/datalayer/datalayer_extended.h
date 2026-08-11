@@ -1024,6 +1024,7 @@ class DataLayerExtended {
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
+      data.keep_iso_disabled = true;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);

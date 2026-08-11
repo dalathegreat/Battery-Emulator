@@ -5,6 +5,7 @@ extern std::string http_username;
 extern std::string http_password;
 extern bool webserver_auth;
 extern bool ota_active;
+extern bool settingsUpdated;
 
 static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
 

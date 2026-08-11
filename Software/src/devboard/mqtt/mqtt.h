@@ -52,7 +52,7 @@ extern std::string ha_autodiscovery_topic;
 extern std::string mqtt_server;
 extern std::string mqtt_user;
 extern std::string mqtt_password;
-extern int mqtt_port;
+extern uint16_t mqtt_port;
 extern const char* mqtt_topic_name;
 extern const char* mqtt_object_id_prefix;
 extern const char* mqtt_device_name;
@@ -61,6 +61,7 @@ extern const char* ha_device_id;
 extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 
 uint32_t mqtt_firmware_signature(void);
+void republish_autodiscovery_if_changed(bool republish_enabled);
 bool init_mqtt(void);
 void mqtt_client_loop(void);
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain);

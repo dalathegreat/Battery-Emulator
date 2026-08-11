@@ -47,6 +47,8 @@ class BydAttoBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  static bool auto_calibrate_soc_enabled;
+
  private:
   BydAtto3HtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;

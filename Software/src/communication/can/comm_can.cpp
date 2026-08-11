@@ -25,6 +25,13 @@ volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .charger = CAN_NATIVE,
                                          .shunt = CAN_NATIVE};
 
+comm_interface user_selected_batt_comm = comm_interface::CanNative;
+comm_interface user_selected_batt2_comm = comm_interface::CanNative;
+comm_interface user_selected_batt3_comm = comm_interface::CanNative;
+comm_interface user_selected_inv_comm = comm_interface::CanNative;
+comm_interface user_selected_chg_comm = comm_interface::CanNative;
+comm_interface user_selected_shunt_comm = comm_interface::CanNative;
+
 struct CanReceiverRegistration {
   CanReceiver* receiver;
   CAN_Speed speed;
@@ -657,19 +664,10 @@ size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_In
 }
 
 void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
-  char* message_string = datalayer.system.info.logged_can_messages;
-  size_t offset =
-      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-
-  size_t written = format_can_frame(message_string + offset, message_string_size - offset, frame, interface, msgDir);
-  if (written == 0 && offset != 0) {
-    // Not enough space left at the tail - wrap around and start from the beginning
-    offset = 0;
-    written = format_can_frame(message_string, message_string_size, frame, interface, msgDir);
-  }
+  char local[256];  // worst-case formatted line is ~220 bytes
+  size_t written = format_can_frame(local, sizeof(local), frame, interface, msgDir);
   if (written > 0) {
-    datalayer.system.info.logged_can_messages_offset = offset + written;  // Update offset in buffer
+    web_log_append((const uint8_t*)local, written);
   }
 }
 

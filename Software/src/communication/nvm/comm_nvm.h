@@ -61,26 +61,30 @@ class BatteryEmulatorSettingsStore {
     return settings.isKey(name) ? settings.getInt(name, defaultValue) : defaultValue;
   }
 
-  void saveInt(const char* name, int32_t value) {
+  bool saveInt(const char* name, int32_t value) {
     // isKey() check instead of a sentinel default: saving a value equal to the
     // sentinel into a missing key must not be skipped.
     if (!settings.isKey(name) || getInt(name, 0) != value) {
       settings.putInt(name, value);
       settingsUpdated = true;
+      return true;
     }
+    return false;
   }
 
   uint32_t getUInt(const char* name, uint32_t defaultValue) {
     return settings.isKey(name) ? settings.getUInt(name, defaultValue) : defaultValue;
   }
 
-  void saveUInt(const char* name, uint32_t value) {
+  bool saveUInt(const char* name, uint32_t value) {
     // isKey() check instead of a sentinel default: saving a value equal to the
     // sentinel into a missing key must not be skipped.
     if (!settings.isKey(name) || getUInt(name, 0) != value) {
       settings.putUInt(name, value);
       settingsUpdated = true;
+      return true;
     }
+    return false;
   }
 
   bool settingExists(const char* name) { return settings.isKey(name); }
@@ -96,13 +100,15 @@ class BatteryEmulatorSettingsStore {
     return settings.isKey(name) ? settings.getBool(name, defaultValue) : defaultValue;
   }
 
-  void saveBool(const char* name, bool value) {
+  bool saveBool(const char* name, bool value) {
     // isKey() check: a stored 'false' must not be mistaken for a missing key,
     // or the first save of a false value would be skipped and never persisted.
     if (!settings.isKey(name) || getBool(name, false) != value) {
       settings.putBool(name, value);
       settingsUpdated = true;
+      return true;
     }
+    return false;
   }
 
   String getString(const char* name) { return getString(name, ""); }
@@ -111,13 +117,15 @@ class BatteryEmulatorSettingsStore {
     return settings.isKey(name) ? settings.getString(name, defaultValue) : String(defaultValue);
   }
 
-  void saveString(const char* name, const char* value) {
+  bool saveString(const char* name, const char* value) {
     // isKey() check: a stored empty string must not be mistaken for a missing
     // key, or the first save of an empty value would be skipped.
     if (!settings.isKey(name) || getString(name, "") != String(value)) {
       settings.putString(name, value);
       settingsUpdated = true;
+      return true;
     }
+    return false;
   }
 
   // Parses an IP string; returns 0.0.0.0 when missing/malformed (fromString leaves partial bytes on failure).

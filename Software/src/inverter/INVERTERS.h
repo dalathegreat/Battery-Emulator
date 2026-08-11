@@ -36,6 +36,16 @@ extern bool user_selected_inverter_long_CAN_timeout;
 extern bool user_selected_primo_gen24;
 extern bool inverter_low_pass_filter;
 extern bool charge_taper_soc;
+// Start SOC in whole percent - the taper band below is derived from it
+extern uint16_t charge_taper_start_soc;
+// Taper band in pptt (parts per ten-thousand of SOC): 500 = tapering begins at
+// 95.00% scaled SOC and reaches 0W at 100.00%.
 extern uint16_t charge_taper_band_pptt;
+
+// Derives the taper band from the NVM stored charge_taper_start_soc, performed
+// once at boot.
+inline void setup_charge_taper_band() {
+  charge_taper_band_pptt = 10000u - charge_taper_start_soc * 100u;
+}
 extern uint16_t charge_taper_floor_W;
 #endif

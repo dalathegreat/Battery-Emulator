@@ -29,10 +29,10 @@ bool mqtt_publish_heap_metrics = false;
 uint16_t mqtt_timeout_ms = 2000;
 uint16_t mqtt_publish_interval_ms = 5000;
 
-const int mqtt_port_default = 0;
+const uint16_t mqtt_port_default = 1883;
 const char* mqtt_server_default = "";
 
-int mqtt_port = mqtt_port_default;
+uint16_t mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
 #define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
@@ -155,6 +155,18 @@ static void store_autodiscovery_done(void) {
   settings.saveUInt("HADISCFW", mqtt_firmware_signature());
   LOG_SET_NEXT_SEVERITY(5);  // notice
   logging.println("Home Assistant autodiscovery published");
+}
+
+// Called at boot to arm the one-shot autodiscovery publish if enabled, and the
+// firmware has changed since the last publish.
+void republish_autodiscovery_if_changed(bool republish_enabled) {
+  if (!republish_enabled) {
+    return;
+  }
+  BatteryEmulatorSettingsStore settings(true);
+  if (settings.getUInt("HADISCFW", 0) != mqtt_firmware_signature()) {
+    ha_autodiscovery_enabled = true;
+  }
 }
 
 // RAII guard: clears the shared document on scope entry and exit, so every early return
