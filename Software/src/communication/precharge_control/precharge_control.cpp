@@ -119,8 +119,7 @@ void handle_precharge_control(unsigned long currentMillis) {
         digitalWrite(hia4v1_pin, LOW);
         digitalWrite(inverter_disconnect_contactor_pin, CONTACTOR_ON);
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_FAILURE;
-        logging.printf("Precharge: CRITICAL FAILURE (timeout/BMS fault) -> REQUIRES REBOOT\n");
-        set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
+        set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);  // also printing a log entry
         // Force stop any further precharge attempts
         datalayer.system.info.start_precharging = false;
       } else if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&

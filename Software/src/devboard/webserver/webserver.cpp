@@ -417,6 +417,7 @@ void init_webserver() {
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
     erase_phy_cal_data();
+    LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
   });
@@ -1760,10 +1761,12 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
+    LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("OTA update finished successfully!");
     hold_pins_across_reset();
     graceful_restart();
   } else {
+    LOG_SET_NEXT_SEVERITY(3);  // err
     logging.println("There was an error during OTA update!");
     // Unpause battery (preserving equipment stop if set)
     setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);

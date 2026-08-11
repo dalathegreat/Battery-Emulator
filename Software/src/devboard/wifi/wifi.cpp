@@ -91,7 +91,7 @@ static void check_ap_provisioning_window() {
   }
   // Direct log so EVERY expiry produces a log/syslog line, not just the first per
   // boot (set_event only emits its log line on the inactive->active transition).
-  LOG_SET_NEXT_SEVERITY(6);  // info
+  LOG_SET_NEXT_SEVERITY(5);  // notice
   logging.println("AP provisioning window expired (factory-default AP password), disabling access point.");
   WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
   ap_active = false;
@@ -242,11 +242,13 @@ static void check_ap_button() {
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
+      LOG_SET_NEXT_SEVERITY(5);  // notice
       logging.println("Factory reset performed from the board button.");
       erase_phy_cal_data();
       graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       clear_wifi_sta_settings();
+      LOG_SET_NEXT_SEVERITY(5);  // notice
       logging.println("Network settings wiped from the board button.");
       erase_phy_cal_data();
       hold_pins_across_reset();
@@ -395,9 +397,8 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
-  logging.print("Wi-Fi Got IP. ");
-  logging.print("IP address: ");
-  logging.println(WiFi.localIP().toString());
+  LOG_SET_NEXT_SEVERITY(5);  // notice
+  logging.printf("Wi-Fi got IP address: %s\n", WiFi.localIP().toString().c_str());
 
   // One-shot boot notice — fires once per boot, not on every reconnect.
   static bool boot_logged = false;
@@ -418,9 +419,8 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
   if (connected_once) {
-    set_event(EVENT_WIFI_DISCONNECT, 0);
+    set_event(EVENT_WIFI_DISCONNECT, 0);  // also printing a log entry
   }
-  logging.println("Wi-Fi disconnected.");
   //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost
   //normal reconnect retry start at first 2 seconds
