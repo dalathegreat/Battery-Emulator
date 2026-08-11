@@ -32,7 +32,13 @@ static void dispatch_frame(CAN_frame* rx_frame, class CanDevice* dev);
 // The native TWAI controller on the ESP32 itself.
 class NativeTwaiDevice : public CanDevice {
  public:
-  NativeTwaiDevice() {
+  struct Config {
+    gpio_num_t tx_pin;
+    gpio_num_t rx_pin;
+    gpio_num_t se_pin;  // GPIO_NUM_NC on boards without a silent-enable pin
+  };
+
+  explicit NativeTwaiDevice(const Config& config) : config_(config) {
     name = "Native CAN";
     log_interface = CAN_NATIVE;
     buffer_full_event = EVENT_CAN_NATIVE_BUFFER_FULL;
@@ -40,24 +46,13 @@ class NativeTwaiDevice : public CanDevice {
   }
 
   bool init(CAN_Speed speed) override {
-    auto se_pin = esp32hal->CAN_SE_PIN();
-    auto tx_pin = esp32hal->CAN_TX_PIN();
-    auto rx_pin = esp32hal->CAN_RX_PIN();
-
-    if (se_pin != GPIO_NUM_NC) {
-      if (!esp32hal->alloc_pins("CAN", se_pin)) {
-        return false;
-      }
-      pinMode(se_pin, OUTPUT);
-      digitalWrite(se_pin, LOW);
+    if (config_.se_pin != GPIO_NUM_NC) {
+      pinMode(config_.se_pin, OUTPUT);
+      digitalWrite(config_.se_pin, LOW);
     }
 
-    if (!esp32hal->alloc_pins("CAN", tx_pin, rx_pin)) {
-      return false;
-    }
-
-    tx_pin_ = tx_pin;
-    rx_pin_ = rx_pin;
+    tx_pin_ = config_.tx_pin;
+    rx_pin_ = config_.rx_pin;
 
     const uint32_t errorCode = begin_native(speed);
     if (errorCode == 0) {
@@ -184,6 +179,7 @@ class NativeTwaiDevice : public CanDevice {
 
   ACAN_ESP32_Settings* settings_ = nullptr;
   CAN_Speed speed_;
+  Config config_;
   gpio_num_t tx_pin_;
   gpio_num_t rx_pin_;
 };
@@ -191,7 +187,15 @@ class NativeTwaiDevice : public CanDevice {
 // MCP2515 add-on controller (classic CAN over SPI).
 class Mcp2515Device : public CanDevice {
  public:
-  Mcp2515Device() {
+  struct Config {
+    gpio_num_t cs_pin;
+    gpio_num_t int_pin;
+    gpio_num_t rst_pin;  // GPIO_NUM_NC when the controller has no reset line
+    SPIClass* spi;       // owned by the bus, not by this device
+    uint32_t freq;       // 0 = autodetect the crystal
+  };
+
+  explicit Mcp2515Device(const Config& config) : config_(config) {
     name = "MCP2515";
     log_interface = CAN_ADDON_MCP2515;
     buffer_full_event = EVENT_CANMCP2515_BUFFER_FULL;
@@ -199,19 +203,9 @@ class Mcp2515Device : public CanDevice {
   }
 
   bool init(CAN_Speed speed) override {
-    auto cs_pin = esp32hal->MCP2515_CS();
-    auto int_pin = esp32hal->MCP2515_INT();
-    auto sck_pin = esp32hal->MCP2515_SCK();
-    auto miso_pin = esp32hal->MCP2515_MISO();
-    auto mosi_pin = esp32hal->MCP2515_MOSI();
-    auto rst_pin = esp32hal->MCP2515_RST();
-
-    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin, sck_pin, miso_pin, mosi_pin)) {
-      return false;
-    }
-
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
 
+    const gpio_num_t rst_pin = config_.rst_pin;
     if (rst_pin != GPIO_NUM_NC) {
       pinMode(rst_pin, OUTPUT);
       digitalWrite(rst_pin, HIGH);
@@ -222,11 +216,9 @@ class Mcp2515Device : public CanDevice {
       delay(100);
     }
 
-    spi_ = new SPIClass(esp32hal->MCP2515_BUS());
-    spi_->begin(sck_pin, miso_pin, mosi_pin);
-    can_ = new MCP2515_Lite(*spi_, cs_pin, int_pin);
+    can_ = new MCP2515_Lite(*config_.spi, config_.cs_pin, config_.int_pin);
 
-    quartz_frequency_ = esp32hal->MCP2515_FREQ();
+    quartz_frequency_ = config_.freq;
     if (quartz_frequency_ == 0) {
       quartz_frequency_ = can_->autodetectOscillatorFrequency();
     }
@@ -279,8 +271,8 @@ class Mcp2515Device : public CanDevice {
   }
 
  private:
+  Config config_;
   MCP2515_Lite* can_ = nullptr;
-  SPIClass* spi_ = nullptr;
   uint32_t quartz_frequency_ = 0;
 };
 
@@ -462,7 +454,20 @@ bool init_CAN() {
   // Native CAN (onboard the ESP32)
 
   if (can_receiver_registered(CAN_NATIVE)) {
-    NativeTwaiDevice* native_dev = new NativeTwaiDevice();
+    const NativeTwaiDevice::Config native_config = {
+        .tx_pin = esp32hal->CAN_TX_PIN(),
+        .rx_pin = esp32hal->CAN_RX_PIN(),
+        .se_pin = esp32hal->CAN_SE_PIN(),
+    };
+
+    if (native_config.se_pin != GPIO_NUM_NC && !esp32hal->alloc_pins("CAN", native_config.se_pin)) {
+      return false;
+    }
+    if (!esp32hal->alloc_pins("CAN", native_config.tx_pin, native_config.rx_pin)) {
+      return false;
+    }
+
+    NativeTwaiDevice* native_dev = new NativeTwaiDevice(native_config);
     map_interface_to_device(CAN_NATIVE, native_dev);
     if (!register_device(native_dev)) {
       return false;
@@ -475,7 +480,33 @@ bool init_CAN() {
   // Add-on CAN interface (via MCP2515)
 
   if (can_receiver_registered(CAN_ADDON_MCP2515)) {
-    Mcp2515Device* mcp2515_dev = new Mcp2515Device();
+    /* SCK/MISO/MOSI belong to the bus, not to the device hanging off it, so
+       they are claimed once here and the device never sees them. The only
+       lines it owns are its chip select and its interrupt. */
+    const auto sck_pin = esp32hal->MCP2515_SCK();
+    const auto miso_pin = esp32hal->MCP2515_MISO();
+    const auto mosi_pin = esp32hal->MCP2515_MOSI();
+
+    if (!esp32hal->alloc_pins("CAN SPI bus", sck_pin, miso_pin, mosi_pin)) {
+      return false;
+    }
+
+    SPIClass* spi2515 = new SPIClass(esp32hal->MCP2515_BUS());
+    spi2515->begin(sck_pin, miso_pin, mosi_pin);
+
+    const Mcp2515Device::Config mcp2515_config = {
+        .cs_pin = esp32hal->MCP2515_CS(),
+        .int_pin = esp32hal->MCP2515_INT(),
+        .rst_pin = esp32hal->MCP2515_RST(),
+        .spi = spi2515,
+        .freq = esp32hal->MCP2515_FREQ(),
+    };
+
+    if (!esp32hal->alloc_pins("CAN", mcp2515_config.cs_pin, mcp2515_config.int_pin)) {
+      return false;
+    }
+
+    Mcp2515Device* mcp2515_dev = new Mcp2515Device(mcp2515_config);
     map_interface_to_device(CAN_ADDON_MCP2515, mcp2515_dev);
     if (!register_device(mcp2515_dev)) {
       return false;
