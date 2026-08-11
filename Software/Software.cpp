@@ -117,7 +117,7 @@ void connectivity_loop(void*) {
       update_espnow();
     }
 
-    ota_monitor();
+    webserver_tick();
 
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
