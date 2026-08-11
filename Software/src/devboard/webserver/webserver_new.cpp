@@ -5,10 +5,12 @@
 #include "webserver_new.h"
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <vector>
+#include "webserver_settings.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -578,238 +580,225 @@ static void register_battery_routes(AsyncWebServer& server) {
 // ---------------------------------------------------------------------------
 // Settings (GET/POST to /api/internal/settings)
 // ---------------------------------------------------------------------------
-struct UintSetting {
-  const char* name;
-  uint32_t min;
-  uint32_t max;
-  void (*update_func)(uint32_t value);
+
+// clang-format off
+static const Setting SETTINGS[] = {
+    // --- Unsigned integer / enum settings (persisted, reboot required) ---
+    UintSetting("INVTYPE", 0, (float)InverterProtocolType::Highest - 1),
+    UintSetting("INVCOMM", 0, (float)comm_interface::Highest - 1),
+    UintSetting("BATTTYPE", 0, (float)BatteryType::Highest - 1),
+    UintSetting("BATTCHEM", 0, (float)battery_chemistry_enum::Highest - 1),
+    UintSetting("BATTCOMM", 0, (float)comm_interface::Highest - 1),
+    UintSetting("BATTCVMAX", 0, 5000),
+    UintSetting("BATTCVMIN", 0, 5000),
+    UintSetting("CHGTYPE", 0, (float)ChargerType::Highest - 1),
+    UintSetting("CHGCOMM", 0, (float)comm_interface::Highest - 1),
+    UintSetting("EQSTOP", 0, (float)STOP_BUTTON_BEHAVIOR::Highest - 1),
+    UintSetting("BATT2COMM", 0, (float)comm_interface::Highest - 1),
+    UintSetting("BATT3COMM", 0, (float)comm_interface::Highest - 1),
+    UintSetting("SHUNTTYPE", 0, (float)ShuntType::Highest - 1),
+    UintSetting("SHUNTCOMM", 0, (float)comm_interface::Highest - 1),
+    UintSetting("MAXPRETIME", 0, 120000),
+    UintSetting("MAXPREFREQ", 0, 65535),
+    UintSetting("WIFICHANNEL", 0, 14),
+    UintSetting("DCHGPOWER", 0, 100000),
+    UintSetting("CHGPOWER", 0, 100000),
+    UintSetting("MQTTPORT", 0, 65535),
+    UintSetting("MQTTTIMEOUT", 0, 30000),
+    UintSetting("MQTTPUBLISHMS", 0, 3600000),
+    UintSetting("SOFAR_ID", 0, 255),
+    UintSetting("INVCELLS", 0, 65535),
+    UintSetting("INVMODULES", 0, 65535),
+    UintSetting("INVCELLSPER", 0, 65535),
+    UintSetting("INVVLEVEL", 0, 65535),
+    UintSetting("INVCAPACITY", 0, 65535),
+    UintSetting("INVBTYPE", 0, 255),
+    UintSetting("INVICNT", 0, 2),
+    UintSetting("CANFREQ", 0, 40),
+    UintSetting("CANFDFREQ", 0, 40),
+    UintSetting("PRECHGMS", 0, 120000),
+    UintSetting("PWMFREQ", 0, 65535),
+    UintSetting("PWMHOLD", 0, 1023),
+    UintSetting("GTWCOUNTRY", 0, 65535),
+    UintSetting("GTWMAPREG", 0, 9),
+    UintSetting("GTWCHASSIS", 0, 9),
+    UintSetting("GTWPACK", 0, 9),
+    UintSetting("LEDMODE", 0, 10),
+    // Persisted, but applied to live state immediately (no reboot needed).
+    UintInstantSetting("BATTERY_WH_MAX", 1, 400000,
+      [](float value) { datalayer.battery.info.total_capacity_Wh = (uint32_t)value; }),
+    UintSetting("GPIOOPT1", 0, 255),
+    UintSetting("GPIOOPT2", 0, 255),
+    UintSetting("GPIOOPT3", 0, 255),
+    UintSetting("GPIOOPT4", 0, 255),
+    UintSetting("GPIOOPT5", 0, 255),
+    UintSetting("GPIOOPT6", 0, 255),
+    UintSetting("INVSUNTYPE", 0, 255),
+    UintSetting("CTVNOM", 0, 65535),
+    UintSetting("CTANOM", 0, 65535),
+    UintSetting("CTATTEN", 0, (float)adc_attenuation_enum::Highest - 1),
+    UintSetting("PYLONBAUD", 0, 1000000),
+    UintSetting("PYLONBRAND", 0, 255),
+    UintSetting("DALYPWRPCT", 0, 10000),
+    UintSetting("DALYPWRDV", 0, 10000),
+    UintSetting("DALYDVSTART", 0, 255),
+    UintSetting("DALYPWRDEG", 0, 10000),
+    UintSetting("DALYPWR0C", 0, 100000),
+    UintSetting("PYLONSEND", 0, 1),
+    UintInstantSetting("BMSRESETDUR", 0, 60000,
+      [](float value) { datalayer.battery.settings.user_set_bms_reset_duration_ms = (uint32_t)value; }),
+    // Volatile: not persisted, applied and read back live.
+    UintVolatileSetting("TMP_CALTARGETSOC", 0, 100,
+      [](float value) { datalayer_extended.bydAtto3.calibrationTargetSOC = (uint16_t)value; },
+      []() { return (float)datalayer_extended.bydAtto3.calibrationTargetSOC; }),
+    UintVolatileSetting("TMP_CALTARGETAH", 0, 1000,
+      [](float value) { datalayer_extended.bydAtto3.calibrationTargetAH = (uint16_t)value; },
+      []() { return (float)datalayer_extended.bydAtto3.calibrationTargetAH; }),
+    UintVolatileSetting("TMP_FAKEBATTERYV", 0, 1000,
+      [](float value) { if (battery != nullptr) battery->set_fake_voltage((float)value); },
+      []() { return battery ? (float)battery->get_voltage() : NAN; }),
+    UintVolatileSetting("TMP_BALFLOATPOWER", 0, UINT32_MAX,
+      [](float value) { datalayer.battery.settings.balancing_float_power_W = (uint16_t)value; },
+      []() { return (float)datalayer.battery.settings.balancing_float_power_W; }),
+    UintVolatileSetting("TMP_BALMAXPACKV", 0, UINT32_MAX,
+      [](float value) { datalayer.battery.settings.balancing_max_pack_voltage_dV = (uint16_t)value; },
+      []() { return (float)datalayer.battery.settings.balancing_max_pack_voltage_dV; }),
+    UintVolatileSetting("TMP_BALMAXCELLV", 0, UINT32_MAX,
+      [](float value) { datalayer.battery.settings.balancing_max_cell_voltage_mV = (uint16_t)value; },
+      []() { return (float)datalayer.battery.settings.balancing_max_cell_voltage_mV; }),
+    UintVolatileSetting("TMP_BALMAXDEVCELLV", 0, UINT32_MAX,
+      [](float value) { datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = (uint16_t)value; },
+      []() { return (float)datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV; }),
+    UintSetting("CHGTAPERSTART", 0, 100),
+    UintSetting("CHGTAPERFLOOR", 0, 2000),
+    UintSetting("PERBMSRESETH", 24, 48),
+    UintSetting("FOXESSTYPE", 0, 255),
+    UintSetting("FOXESSSUBTYPE", 0, 255),
+    UintSetting("FOXESSMODULES", 0, 255),
+    UintSetting("SYSLOGPORT", 0, 65535),
+    UintSetting("SYSLOGFAC", 0, 23),
+
+    // --- Float edited, stored scaled as uint32_t ---
+    ScaledUintSetting("BATTPVMAX", 0.0f, 1000.0f, 10.0f),
+    ScaledUintSetting("BATTPVMIN", 0.0f, 1000.0f, 10.0f),
+    ScaledUintInstantSetting("MAXPERCENTAGE", 0.0f, 200.0f, 10.0f,
+      [](float value) { datalayer.battery.settings.max_percentage = (uint16_t)(value * 10.0f); }),
+    ScaledUintInstantSetting("MINPERCENTAGE", 0.0f, 100.0f, 10.0f,
+      [](float value) { datalayer.battery.settings.min_percentage = (int16_t)(value * 10.0f); }),
+    ScaledUintInstantSetting("MAXCHARGEAMP", 0.0f, 100.0f, 10.0f,
+      [](float value) { datalayer.battery.settings.max_user_set_charge_dA = (uint16_t)value; }),
+    ScaledUintInstantSetting("MAXDISCHARGEAMP", 0.0f, 100.0f, 10.0f,
+      [](float value) { datalayer.battery.settings.max_user_set_discharge_dA = (uint16_t)value; }),
+    ScaledUintInstantSetting("TARGETCHVOLT", 0.0f, 1000.0f, 10.0f,
+      [](float value) { datalayer.battery.settings.max_user_set_charge_voltage_dV = (uint16_t)value; }),
+    ScaledUintInstantSetting("TARGETDISCHVOLT", 0.0f, 1000.0f, 10.0f,
+      [](float value) { datalayer.battery.settings.max_user_set_discharge_voltage_dV = (uint16_t)value; }),
+    ScaledUintVolatileSetting("TMP_BALTIME", 0.0f, (float)UINT32_MAX / 60000.0f, 60000.0f,
+      [](float value) { datalayer.battery.settings.balancing_max_time_ms = (uint32_t)value; },
+      []() { return (float)datalayer.battery.settings.balancing_max_time_ms; }),
+
+    // --- Raw float settings (volatile only) ---
+    FloatVolatileSetting("TMP_CHARGERSETPOINTV", 0.0f, 1000.0f,
+      [](float value) {
+          if (value >= CHARGER_MIN_HV && value <= CHARGER_MAX_HV)
+            datalayer.charger.charger_setpoint_HV_VDC = (float)value;
+        },
+      []() { return (float)datalayer.charger.charger_setpoint_HV_VDC; }),
+    FloatVolatileSetting("TMP_CHARGERSETPOINTA", 0.0f, 100.0f,
+      [](float value) {
+          if ((value <= CHARGER_MAX_A) && (value <= datalayer.battery.settings.max_user_set_charge_dA) &&
+              (value * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER))
+            datalayer.charger.charger_setpoint_HV_IDC = (float)value;
+        },
+      []() { return (float)datalayer.charger.charger_setpoint_HV_IDC; }),
+    FloatVolatileSetting("TMP_CHARGERENDA", 0.0f, 100.0f,
+      [](float value) { datalayer.charger.charger_setpoint_HV_IDC_END = (float)value; },
+      []() { return (float)datalayer.charger.charger_setpoint_HV_IDC_END; }),
+
+    // --- Signed integer settings ---
+    IntSetting("CPUTEMPOFFSET", -100, 100),
+
+    // --- String settings (persisted, reboot required) ---
+    StringSetting("SSID", 32),
+    StringSetting("PASSWORD", 64, SETTING_SECRET),
+    StringSetting("APNAME", 64),
+    StringSetting("APPASSWORD", 64, SETTING_SECRET),
+    StringSetting("HOSTNAME", 64),
+    StringSetting("MQTTSERVER", 64),
+    StringSetting("MQTTUSER", 64),
+    StringSetting("MQTTPASSWORD", 64, SETTING_SECRET),
+    StringSetting("HTTPUSER", 32),
+    StringSetting("HTTPPASS", 64, SETTING_SECRET),
+    StringSetting("LOCALIP", 15),
+    StringSetting("GATEWAY", 15),
+    StringSetting("SUBNET", 15),
+    StringSetting("DNS", 15),
+    StringSetting("CTOFFSET", 16),
+    StringSetting("HADISCTOPIC", 64),
+    StringSetting("SYSLOGIP", 15),
+
+    // --- Boolean settings ---
+    BoolSetting("DBLBTR"),
+    BoolSetting("CNTCTRL"),
+    BoolSetting("CNTCTRLDBL"),
+    BoolSetting("PWMCNTCTRL"),
+    BoolSetting("PERBMSRESET"),
+    BoolSetting("REMBMSRESET"),
+    BoolSetting("EXTPRECHARGE"),
+    BoolSetting("NOINVDISC"),
+    BoolSetting("WIFIAPENABLED", SETTING_DEFAULT_TRUE),
+    BoolSetting("STATICIP"),
+    BoolSetting("PERFPROFILE"),
+    BoolSetting("CANLOGUSB"),
+    BoolSetting("USBENABLED"),
+    BoolSetting("WEBENABLED"),
+    BoolSetting("CANLOGSD"),
+    BoolSetting("SDLOGENABLED"),
+    BoolSetting("MQTTENABLED"),
+    BoolSetting("MQTTCELLV"),
+    BoolSetting("HADISC"),
+    BoolSetting("DEYEBYD"),
+    BoolSetting("INTERLOCKREQ"),
+    BoolSetting("DIGITALHVIL"),
+    BoolSetting("GTWRHD"),
+    BoolSetting("SOCESTIMATED"),
+    BoolSetting("PYLONOFFSET"),
+    BoolSetting("PYLONORDER"),
+    BoolSetting("NCCONTACTOR"),
+    BoolSetting("TRIBTR"),
+    BoolSetting("CNTCTRLTRI"),
+    BoolSetting("ESPNOWENABLED"),
+    BoolSetting("PRIMOGEN24"),
+    BoolInstantSetting("USE_SCALED_SOC",
+      [](bool value) { datalayer.battery.settings.soc_scaling_active = value; }),
+    BoolSetting("USEVOLTLIMITS"),
+    BoolSetting("LOWPASSFILTER"),
+    BoolSetting("CTINVERT"),
+    BoolSetting("WEBAUTH"),
+    BoolSetting("CHGTAPERSOC"),
+    BoolSetting("SLOWCANINV"),
+    BoolSetting("INVOFFGRID"),
+    BoolSetting("PERBMSDEFSOC"),
+    BoolSetting("PERBMSSKIPBAL"),
+    BoolSetting("MEASURECPUTEMP"),
+    BoolSetting("SYSLOGEN"),
+    BoolVolatileSetting("TMP_RECOVERYMODE",
+      [](bool value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; },
+      []() { return datalayer.battery.settings.user_requests_forced_charging_recovery_mode; }),
+    BoolVolatileSetting("TMP_BALANCE",
+      [](bool value) { datalayer.battery.settings.user_requests_balancing = value; },
+      []() { return datalayer.battery.settings.user_requests_balancing; }),
+    BoolVolatileSetting("TMP_CHARGERHVENABLED",
+      [](bool value) { datalayer.charger.charger_HV_enabled = value; },
+      []() { return datalayer.charger.charger_HV_enabled; }),
+    BoolVolatileSetting("TMP_CHARGERAUX12VENABLED",
+      [](bool value) { datalayer.charger.charger_aux12V_enabled = value; },
+      []() { return datalayer.charger.charger_aux12V_enabled; }),
 };
+// clang-format on
 
-static const UintSetting UINT_SETTINGS[] = {
-    // Name, min value, max value, update_func
-    {"INVTYPE", 0, (uint32_t)InverterProtocolType::Highest - 1, nullptr},
-    {"INVCOMM", 0, (uint32_t)comm_interface::Highest - 1, nullptr},
-    {"BATTTYPE", 0, (uint32_t)BatteryType::Highest - 1, nullptr},
-    {"BATTCHEM", 0, (uint32_t)battery_chemistry_enum::Highest - 1, nullptr},
-    {"BATTCOMM", 0, (uint32_t)comm_interface::Highest - 1, nullptr},
-    {"BATTCVMAX", 0, 5000, nullptr},
-    {"BATTCVMIN", 0, 5000, nullptr},
-    {"CHGTYPE", 0, (uint32_t)ChargerType::Highest - 1, nullptr},
-    {"CHGCOMM", 0, (uint32_t)comm_interface::Highest - 1, nullptr},
-    {"EQSTOP", 0, (uint32_t)STOP_BUTTON_BEHAVIOR::Highest - 1, nullptr},
-    {"BATT2COMM", 0, (uint32_t)comm_interface::Highest - 1, nullptr},
-    {"BATT3COMM", 0, (uint32_t)comm_interface::Highest - 1, nullptr},
-    {"SHUNTTYPE", 0, (uint32_t)ShuntType::Highest - 1, nullptr},
-    {"SHUNTCOMM", 0, (uint32_t)comm_interface::Highest - 1, nullptr},
-    {"MAXPRETIME", 0, 120000, nullptr},
-    {"MAXPREFREQ", 0, 65535, nullptr},
-    {"WIFICHANNEL", 0, 14, nullptr},
-    {"DCHGPOWER", 0, 100000, nullptr},
-    {"CHGPOWER", 0, 100000, nullptr},
-    {"MQTTPORT", 0, 65535, nullptr},
-    {"MQTTTIMEOUT", 0, 30000, nullptr},
-    {"MQTTPUBLISHMS", 0, 3600000, nullptr},
-    {"SOFAR_ID", 0, 255, nullptr},
-    {"INVCELLS", 0, 65535, nullptr},
-    {"INVMODULES", 0, 65535, nullptr},
-    {"INVCELLSPER", 0, 65535, nullptr},
-    {"INVVLEVEL", 0, 65535, nullptr},
-    {"INVCAPACITY", 0, 65535, nullptr},
-    {"INVBTYPE", 0, 255, nullptr},
-    {"INVICNT", 0, 2, nullptr},
-    {"CANFREQ", 0, 40, nullptr},
-    {"CANFDFREQ", 0, 40, nullptr},
-    {"PRECHGMS", 0, 120000, nullptr},
-    {"PWMFREQ", 0, 65535, nullptr},
-    {"PWMHOLD", 0, 1023, nullptr},
-    {"GTWCOUNTRY", 0, 65535, nullptr},
-    {"GTWMAPREG", 0, 9, nullptr},
-    {"GTWCHASSIS", 0, 9, nullptr},
-    {"GTWPACK", 0, 9, nullptr},
-    {"LEDMODE", 0, 10, nullptr},
-    {"BATTERY_WH_MAX", 1, 400000, [](uint32_t value) { datalayer.battery.info.total_capacity_Wh = value; }},
-    {"GPIOOPT1", 0, 255, nullptr},
-    {"GPIOOPT2", 0, 255, nullptr},
-    {"GPIOOPT3", 0, 255, nullptr},
-    {"GPIOOPT4", 0, 255, nullptr},
-    {"GPIOOPT5", 0, 255, nullptr},
-    {"GPIOOPT6", 0, 255, nullptr},
-    {"INVSUNTYPE", 0, 255, nullptr},
-    {"CTVNOM", 0, 65535, nullptr},
-    {"CTANOM", 0, 65535, nullptr},
-    {"CTATTEN", 0, (uint32_t)adc_attenuation_enum::Highest - 1, nullptr},
-    {"PYLONBAUD", 0, 1000000, nullptr},
-    {"PYLONBRAND", 0, 255, nullptr},
-    {"DALYPWRPCT", 0, 10000, nullptr},
-    {"DALYPWRDV", 0, 10000, nullptr},
-    {"DALYDVSTART", 0, 255, nullptr},
-    {"DALYPWRDEG", 0, 10000, nullptr},
-    {"DALYPWR0C", 0, 100000, nullptr},
-    {"PYLONSEND", 0, 1, nullptr},
-    {"BMSRESETDUR", 0, 60000,
-     [](uint32_t value) { datalayer.battery.settings.user_set_bms_reset_duration_ms = value; }},
-    {"TMP_CALTARGETSOC", 0, 100, [](uint32_t value) { datalayer_extended.bydAtto3.calibrationTargetSOC = value; }},
-    {"TMP_CALTARGETAH", 0, 1000, [](uint32_t value) { datalayer_extended.bydAtto3.calibrationTargetAH = value; }},
-    {"TMP_FAKEBATTERYV", 0, 1000,
-     [](uint32_t value) {
-       if (battery != nullptr)
-         battery->set_fake_voltage(value);
-     }},
-    {"TMP_BALFLOATPOWER", 0, UINT32_MAX,
-     [](uint32_t value) { datalayer.battery.settings.balancing_float_power_W = value; }},
-    {"TMP_BALMAXPACKV", 0, UINT32_MAX,
-     [](uint32_t value) { datalayer.battery.settings.balancing_max_pack_voltage_dV = value; }},
-    {"TMP_BALMAXCELLV", 0, UINT32_MAX,
-     [](uint32_t value) { datalayer.battery.settings.balancing_max_cell_voltage_mV = value; }},
-    {"TMP_BALMAXDEVCELLV", 0, UINT32_MAX,
-     [](uint32_t value) { datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = value; }},
-    {"CHGTAPERSTART", 0, 100, nullptr},
-    {"CHGTAPERFLOOR", 0, 2000, nullptr},
-    {"PERBMSRESETH", 24, 48, nullptr},
-    {"FOXESSTYPE", 0, 255, nullptr},
-    {"FOXESSSUBTYPE", 0, 255, nullptr},
-    {"FOXESSMODULES", 0, 255, nullptr},
-    {"SYSLOGPORT", 0, 65535, nullptr},
-    {"SYSLOGFAC", 0, 23, nullptr},
-    {nullptr, 0, 0, nullptr}};
-
-struct FloatToUintSetting {
-  const char* name;
-  float min;
-  float max;
-  float scale;
-  void (*update_func)(uint32_t value);
-};
-
-static const FloatToUintSetting FLOAT_TO_UINT_SETTINGS[] = {
-    {"BATTPVMAX", 0.0f, 1000.0f, 10.0f, nullptr},
-    {"BATTPVMIN", 0.0f, 1000.0f, 10.0f, nullptr},
-    // TODO - what range do we allow for scaled SoC?
-    {"MAXPERCENTAGE", 0.0f, 200.0f, 10.0f,
-     [](uint32_t value) { datalayer.battery.settings.max_percentage = value * 10.0f; }},
-    {"MINPERCENTAGE", 0.0f, 100.0f, 10.0f,
-     [](uint32_t value) { datalayer.battery.settings.min_percentage = value * 10.0f; }},
-    {"MAXCHARGEAMP", 0.0f, 100.0f, 10.0f,
-     [](uint32_t value) { datalayer.battery.settings.max_user_set_charge_dA = value; }},
-    {"MAXDISCHARGEAMP", 0.0f, 100.0f, 10.0f,
-     [](uint32_t value) { datalayer.battery.settings.max_user_set_discharge_dA = value; }},
-    {"TARGETCHVOLT", 0.0f, 1000.0f, 10.0f,
-     [](uint32_t value) { datalayer.battery.settings.max_user_set_charge_voltage_dV = value; }},
-    {"TARGETDISCHVOLT", 0.0f, 1000.0f, 10.0f,
-     [](uint32_t value) { datalayer.battery.settings.max_user_set_discharge_voltage_dV = value; }},
-    {"TMP_BALTIME", 0, UINT32_MAX / 60000.0f, 60000.0f,
-     [](uint32_t value) { datalayer.battery.settings.balancing_max_time_ms = value; }},
-    {nullptr, 0.0f, 0.0f, 0.0f, nullptr}};
-
-struct FloatSetting {
-  const char* name;
-  float min;
-  float max;
-  void (*update_func)(float value);
-};
-
-static const FloatSetting FLOAT_SETTINGS[] = {
-    {"TMP_CHARGERSETPOINTV", 0.0f, 1000.0f,
-     [](float value) {
-       if (value >= CHARGER_MIN_HV && value <= CHARGER_MAX_HV) {
-         datalayer.charger.charger_setpoint_HV_VDC = value;
-       }
-     }},
-    {"TMP_CHARGERSETPOINTA", 0.0f, 100.0f,
-     [](float value) {
-       if ((value <= CHARGER_MAX_A) && (value <= datalayer.battery.settings.max_user_set_charge_dA) &&
-           (value * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER)) {
-         datalayer.charger.charger_setpoint_HV_IDC = value;
-       }
-     }},
-    {"TMP_CHARGERENDA", 0.0f, 100.0f, [](float value) { datalayer.charger.charger_setpoint_HV_IDC_END = value; }},
-    {nullptr, 0.0f, 0.0f, nullptr}};
-
-struct IntSetting {
-  const char* name;
-  int32_t min;
-  int32_t max;
-};
-
-static const IntSetting INT_SETTINGS[] = {
-    // Signed values that can't go through UintSetting (e.g. calibration offsets).
-    {"CPUTEMPOFFSET", -100, 100},
-    {nullptr, 0, 0}};
-
-struct StringSetting {
-  const char* name;
-  uint8_t max_length;
-  bool secret;
-};
-
-static const StringSetting STRING_SETTINGS[] = {
-    {"SSID", 32, false},     {"PASSWORD", 64, true},    {"APNAME", 64, false},   {"APPASSWORD", 64, true},
-    {"HOSTNAME", 64, false}, {"MQTTSERVER", 64, false}, {"MQTTUSER", 64, false}, {"MQTTPASSWORD", 64, true},
-    {"HTTPUSER", 32, false}, {"HTTPPASS", 64, true},    {"LOCALIP", 15, false},  {"GATEWAY", 15, false},
-    {"SUBNET", 15, false},   {"DNS", 15, false},        {"CTOFFSET", 16, false}, {"HADISCTOPIC", 64, false},
-    {"SYSLOGIP", 15, false}, {nullptr, 0, false},
-};
-
-struct BoolSetting {
-  const char* name;
-  void (*update_func)(bool value);
-};
-
-static const BoolSetting BOOL_SETTINGS[] = {
-    {"DBLBTR", nullptr},
-    {"CNTCTRL", nullptr},
-    {"CNTCTRLDBL", nullptr},
-    {"PWMCNTCTRL", nullptr},
-    {"PERBMSRESET", nullptr},
-    {"REMBMSRESET", nullptr},
-    {"EXTPRECHARGE", nullptr},
-    {"NOINVDISC", nullptr},
-    {"WIFIAPENABLED", nullptr},
-    {"STATICIP", nullptr},
-    {"PERFPROFILE", nullptr},
-    {"CANLOGUSB", nullptr},
-    {"USBENABLED", nullptr},
-    {"WEBENABLED", nullptr},
-    {"CANLOGSD", nullptr},
-    {"SDLOGENABLED", nullptr},
-    {"MQTTENABLED", nullptr},
-    {"MQTTCELLV", nullptr},
-    {"HADISC", nullptr},
-    {"DEYEBYD", nullptr},
-    {"INTERLOCKREQ", nullptr},
-    {"DIGITALHVIL", nullptr},
-    {"GTWRHD", nullptr},
-    {"SOCESTIMATED", nullptr},
-    {"PYLONOFFSET", nullptr},
-    {"PYLONORDER", nullptr},
-    {"NCCONTACTOR", nullptr},
-    {"TRIBTR", nullptr},
-    {"CNTCTRLTRI", nullptr},
-    {"ESPNOWENABLED", nullptr},
-    {"PRIMOGEN24", nullptr},
-    {"USE_SCALED_SOC", [](bool value) { datalayer.battery.settings.soc_scaling_active = value; }},
-    {"USEVOLTLIMITS", nullptr},
-    {"LOWPASSFILTER", nullptr},
-    {"CTINVERT", nullptr},
-    {"WEBAUTH", nullptr},
-    {"CHGTAPERSOC", nullptr},
-    {"SLOWCANINV", nullptr},
-    {"INVOFFGRID", nullptr},
-    {"PERBMSDEFSOC", nullptr},
-    {"PERBMSSKIPBAL", nullptr},
-    {"MEASURECPUTEMP", nullptr},
-    {"SYSLOGEN", nullptr},
-    {"TMP_RECOVERYMODE",
-     [](bool value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; }},
-    {"TMP_BALANCE", [](bool value) { datalayer.battery.settings.user_requests_balancing = value; }},
-    {"TMP_CHARGERHVENABLED", [](bool value) { datalayer.charger.charger_HV_enabled = value; }},
-    {"TMP_CHARGERAUX12VENABLED", [](bool value) { datalayer.charger.charger_aux12V_enabled = value; }},
-    {nullptr, nullptr}};
-
-static const char* DEFAULT_TRUE_BOOL_SETTINGS[] = {"WIFIAPENABLED", nullptr};
-
-static bool isVolatileSetting(const char* name) {
-  return strncmp(name, "TMP_", 4) == 0;
+static bool setting_persisted(const Setting& s) {
+  return s.type != SettingType::Volatile;
 }
 
 static void register_settings_route(AsyncWebServer& server) {
@@ -884,63 +873,66 @@ static void register_settings_route(AsyncWebServer& server) {
 
         sets["CHGTAPERSTART"] = settings.getUInt("CHGTAPERSTART", 95);
 
-        // 3. ZERO DEFAULTS
+        // 3. PERSISTED, ZERO-DEFAULT SETTINGS
         // Most variables are zero/blank by default, so we just read them from
         // the settings (if present), defaulting to zero/blank if there is type
         // confusion. The settings interface can just default to zero/blank if
-        // these aren't supplied.
+        // these aren't supplied. Bool settings are always emitted so that
+        // checkboxes always have a value (using default_true when absent).
 
-        for (int i = 0; UINT_SETTINGS[i].name != nullptr; i++) {
-          if (settings.settingExists(UINT_SETTINGS[i].name)) {
-            sets[UINT_SETTINGS[i].name] = settings.getUInt(UINT_SETTINGS[i].name, 0);
+        for (const Setting& s : SETTINGS) {
+          if (!setting_persisted(s))
+            continue;
+          if (s.kind == SettingKind::Bool) {
+            bool def = (s.flags & SETTING_DEFAULT_TRUE) != 0;
+            sets[s.name] = settings.getBool(s.name, def);
+            continue;
           }
-        }
-        for (int i = 0; FLOAT_TO_UINT_SETTINGS[i].name != nullptr; i++) {
-          if (settings.settingExists(FLOAT_TO_UINT_SETTINGS[i].name)) {
-            // Some float settings are stored at a different scale to how they are edited
-            sets[FLOAT_TO_UINT_SETTINGS[i].name] =
-                settings.getUInt(FLOAT_TO_UINT_SETTINGS[i].name, 0) / FLOAT_TO_UINT_SETTINGS[i].scale;
-          }
-        }
-        for (int i = 0; STRING_SETTINGS[i].name != nullptr; i++) {
-          if (settings.settingExists(STRING_SETTINGS[i].name) && !STRING_SETTINGS[i].secret) {
-            sets[STRING_SETTINGS[i].name] = settings.getString(STRING_SETTINGS[i].name).c_str();
-          }
-        }
-        for (int i = 0; BOOL_SETTINGS[i].name != nullptr; i++) {
-          bool def = false;
-          for (int j = 0; DEFAULT_TRUE_BOOL_SETTINGS[j] != nullptr; j++) {
-            if (strcmp(BOOL_SETTINGS[i].name, DEFAULT_TRUE_BOOL_SETTINGS[j]) == 0) {
-              def = true;
+          if (!settings.settingExists(s.name))
+            continue;
+          switch (s.kind) {
+            case SettingKind::Uint:
+              sets[s.name] = settings.getUInt(s.name, 0);
               break;
-            }
+            case SettingKind::Int:
+              sets[s.name] = settings.getInt(s.name, 0);
+              break;
+            case SettingKind::ScaledUint:
+              // Some float settings are stored at a different scale to how they are edited
+              sets[s.name] = settings.getUInt(s.name, 0) / s.scale;
+              break;
+            case SettingKind::String:
+              if (!(s.flags & SETTING_SECRET))
+                sets[s.name] = settings.getString(s.name).c_str();
+              break;
+            default:
+              break;
           }
-          sets[BOOL_SETTINGS[i].name] = settings.getBool(BOOL_SETTINGS[i].name, def);
         }
 
         // 4. VOLATILE SETTINGS
         // Some settings aren't persisted to flash, but are still editable at
         // runtime. These are prefixed with TMP_ to indicate they are temporary.
 
-        sets["TMP_CALTARGETSOC"] = datalayer_extended.bydAtto3.calibrationTargetSOC;
-        sets["TMP_CALTARGETAH"] = datalayer_extended.bydAtto3.calibrationTargetAH;
-        if (battery != nullptr)
-          sets["TMP_FAKEBATTERYV"] = battery->get_voltage();
-        sets["TMP_BALTIME"] = datalayer.battery.settings.balancing_max_time_ms / 60000.0f;
-        sets["TMP_BALFLOATPOWER"] = datalayer.battery.settings.balancing_float_power_W;
-        sets["TMP_BALMAXPACKV"] = datalayer.battery.settings.balancing_max_pack_voltage_dV;
-        sets["TMP_BALMAXCELLV"] = datalayer.battery.settings.balancing_max_cell_voltage_mV;
-        sets["TMP_BALMAXDEVCELLV"] = datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
-
-        sets["TMP_CHARGERSETPOINTV"] = datalayer.charger.charger_setpoint_HV_VDC;
-        sets["TMP_CHARGERSETPOINTA"] = datalayer.charger.charger_setpoint_HV_IDC;
-        sets["TMP_CHARGERENDA"] = datalayer.charger.charger_setpoint_HV_IDC_END;
-
-        sets["TMP_RECOVERYMODE"] = datalayer.battery.settings.user_requests_forced_charging_recovery_mode;
-        sets["TMP_BALANCE"] = datalayer.battery.settings.user_requests_balancing;
-        sets["TMP_CHARGERHVENABLED"] = datalayer.charger.charger_HV_enabled;
-        sets["TMP_CHARGERAUX12VENABLED"] = datalayer.charger.charger_aux12V_enabled;
-
+        for (const Setting& s : SETTINGS) {
+          if (setting_persisted(s))
+            continue;
+          if (s.read.boolean == nullptr) {
+            // Is a union, so every read must be nullptr also, skip
+            continue;
+          } else if (s.kind == SettingKind::Bool) {
+            sets[s.name] = s.read.boolean();
+          } else if (s.kind == SettingKind::Uint) {
+            sets[s.name] = s.read.uinteger();
+          } else if (s.kind == SettingKind::Int) {
+            sets[s.name] = s.read.integer();
+          } else {  // decimal
+            float value = s.read.decimal();
+            if (std::isnan(value))
+              continue;  // No live value available (e.g. no battery present).
+            sets[s.name] = (s.kind == SettingKind::ScaledUint) ? value / s.scale : value;
+          }
+        }
         doc["reboot_required"] = settingsUpdated;
 
         String payload;
@@ -996,101 +988,108 @@ static void register_settings_route(AsyncWebServer& server) {
           request->send(400, "application/json", "{}");
           return;
         }
+        bool reboot_required_saved = false;
         for (int attempt = 0; attempt < 2; attempt++) {
-          for (int i = 0; UINT_SETTINGS[i].name != nullptr; i++) {
-            if (doc[UINT_SETTINGS[i].name].is<const char*>()) {
-              char* end = nullptr;
-              const char* str = doc[UINT_SETTINGS[i].name].as<const char*>();
-              unsigned long val = strtoul(str, &end, 10);
-              if (end && *end == 0) {
-                if (val < UINT_SETTINGS[i].min || val > UINT_SETTINGS[i].max) {
-                  errors[UINT_SETTINGS[i].name] = "Value out of range.";
-                } else if (attempt == 1) {
-                  if (!isVolatileSetting(UINT_SETTINGS[i].name))
-                    settings.saveUInt(UINT_SETTINGS[i].name, (uint32_t)val);
-                  if (UINT_SETTINGS[i].update_func)
-                    UINT_SETTINGS[i].update_func((uint32_t)val);
+          for (const Setting& s : SETTINGS) {
+            if (!doc[s.name].is<const char*>())
+              continue;
+            const char* str = doc[s.name].as<const char*>();
+            switch (s.kind) {
+              case SettingKind::Bool: {
+                bool bval = (strcmp(str, "true") == 0 || strcmp(str, "1") == 0);
+                if (attempt == 1) {
+                  if (setting_persisted(s)) {
+                    if (settings.saveBool(s.name, bval) && s.type == SettingType::RebootRequired)
+                      reboot_required_saved = true;
+                  }
+                  if (s.apply.boolean)
+                    s.apply.boolean(bval);
                 }
-              } else {
-                errors[UINT_SETTINGS[i].name] = "Invalid value.";
+                break;
               }
-            }
-          }
-          for (int i = 0; FLOAT_TO_UINT_SETTINGS[i].name != nullptr; i++) {
-            if (doc[FLOAT_TO_UINT_SETTINGS[i].name].is<const char*>()) {
-              char* end = nullptr;
-              const char* str = doc[FLOAT_TO_UINT_SETTINGS[i].name].as<const char*>();
-              float fval = strtof(str, &end);
-              if (end && *end == 0) {
-                if (fval < FLOAT_TO_UINT_SETTINGS[i].min || fval > FLOAT_TO_UINT_SETTINGS[i].max) {
-                  errors[FLOAT_TO_UINT_SETTINGS[i].name] = "Value out of range.";
-                } else if (attempt == 1) {
-                  uint32_t val = (uint32_t)(fval * FLOAT_TO_UINT_SETTINGS[i].scale);
-                  if (!isVolatileSetting(FLOAT_TO_UINT_SETTINGS[i].name))
-                    settings.saveUInt(FLOAT_TO_UINT_SETTINGS[i].name, val);
-                  if (FLOAT_TO_UINT_SETTINGS[i].update_func)
-                    FLOAT_TO_UINT_SETTINGS[i].update_func(val);
+              case SettingKind::Uint: {
+                char* end = nullptr;
+                unsigned long val = strtoul(str, &end, 10);
+                if (end && *end == 0) {
+                  if (val < s.uint_min || val > s.uint_max) {
+                    errors[s.name] = "Value out of range.";
+                  } else if (attempt == 1) {
+                    if (setting_persisted(s)) {
+                      if (settings.saveUInt(s.name, (uint32_t)val) && s.type == SettingType::RebootRequired)
+                        reboot_required_saved = true;
+                    }
+                    if (s.apply.uinteger)
+                      s.apply.uinteger(val);
+                  }
+                } else {
+                  errors[s.name] = "Invalid value.";
                 }
-              } else {
-                errors[FLOAT_TO_UINT_SETTINGS[i].name] = "Invalid value.";
+                break;
               }
-            }
-          }
-          for (int i = 0; INT_SETTINGS[i].name != nullptr; i++) {
-            if (doc[INT_SETTINGS[i].name].is<const char*>()) {
-              char* end = nullptr;
-              const char* str = doc[INT_SETTINGS[i].name].as<const char*>();
-              long val = strtol(str, &end, 10);
-              if (end && *end == 0) {
-                if (val < INT_SETTINGS[i].min || val > INT_SETTINGS[i].max) {
-                  errors[INT_SETTINGS[i].name] = "Value out of range.";
-                } else if (attempt == 1) {
-                  if (!isVolatileSetting(INT_SETTINGS[i].name))
-                    settings.saveInt(INT_SETTINGS[i].name, (int32_t)val);
+              case SettingKind::Int: {
+                char* end = nullptr;
+                long val = strtol(str, &end, 10);
+                if (end && *end == 0) {
+                  if (val < s.int_min || val > s.int_max) {
+                    errors[s.name] = "Value out of range.";
+                  } else if (attempt == 1) {
+                    if (setting_persisted(s)) {
+                      if (settings.saveInt(s.name, (int32_t)val) && s.type == SettingType::RebootRequired)
+                        reboot_required_saved = true;
+                    }
+                    if (s.apply.integer)
+                      s.apply.integer(val);
+                  }
+                } else {
+                  errors[s.name] = "Invalid value.";
                 }
-              } else {
-                errors[INT_SETTINGS[i].name] = "Invalid value.";
+                break;
               }
-            }
-          }
-          for (int i = 0; FLOAT_SETTINGS[i].name != nullptr; i++) {
-            if (doc[FLOAT_SETTINGS[i].name].is<const char*>()) {
-              char* end = nullptr;
-              const char* str = doc[FLOAT_SETTINGS[i].name].as<const char*>();
-              float val = strtof(str, &end);
-              if (end && *end == 0) {
-                if (val < FLOAT_SETTINGS[i].min || val > FLOAT_SETTINGS[i].max) {
-                  errors[FLOAT_SETTINGS[i].name] = "Value out of range.";
-                } else if (attempt == 1) {
-                  if (FLOAT_SETTINGS[i].update_func)
-                    FLOAT_SETTINGS[i].update_func(val);
+              case SettingKind::Float: {
+                char* end = nullptr;
+                float val = strtof(str, &end);
+                if (end && *end == 0) {
+                  if (val < s.float_min || val > s.float_max) {
+                    errors[s.name] = "Value out of range.";
+                  } else if (attempt == 1) {
+                    if (s.apply.decimal)
+                      s.apply.decimal((float)val);
+                  }
+                } else {
+                  errors[s.name] = "Invalid value.";
                 }
-              } else {
-                errors[FLOAT_SETTINGS[i].name] = "Invalid value.";
+                break;
               }
-            }
-          }
-          for (int i = 0; STRING_SETTINGS[i].name != nullptr; i++) {
-            if (doc[STRING_SETTINGS[i].name].is<const char*>()) {
-              const char* val = doc[STRING_SETTINGS[i].name].as<const char*>();
-              if (STRING_SETTINGS[i].secret && strlen(val) == 0)
-                continue;
-              if (strlen(val) > STRING_SETTINGS[i].max_length) {
-                errors[STRING_SETTINGS[i].name] = "Value too long.";
-              } else if (attempt == 1) {
-                settings.saveString(STRING_SETTINGS[i].name, val);
+              case SettingKind::ScaledUint: {
+                char* end = nullptr;
+                float fval = strtof(str, &end);
+                if (end && *end == 0) {
+                  if (fval < s.float_min || fval > s.float_max) {
+                    errors[s.name] = "Value out of range.";
+                  } else if (attempt == 1) {
+                    uint32_t val = (uint32_t)(fval * s.scale);
+                    if (setting_persisted(s)) {
+                      if (settings.saveUInt(s.name, val) && s.type == SettingType::RebootRequired)
+                        reboot_required_saved = true;
+                    }
+                    if (s.apply.decimal)
+                      s.apply.decimal((float)val);
+                  }
+                } else {
+                  errors[s.name] = "Invalid value.";
+                }
+                break;
               }
-            }
-          }
-          for (int i = 0; BOOL_SETTINGS[i].name != nullptr; i++) {
-            if (doc[BOOL_SETTINGS[i].name].is<const char*>()) {
-              const char* val = doc[BOOL_SETTINGS[i].name].as<const char*>();
-              bool bval = (strcmp(val, "true") == 0 || strcmp(val, "1") == 0);
-              if (attempt == 1) {
-                if (!isVolatileSetting(BOOL_SETTINGS[i].name))
-                  settings.saveBool(BOOL_SETTINGS[i].name, bval);
-                if (BOOL_SETTINGS[i].update_func)
-                  BOOL_SETTINGS[i].update_func(bval);
+              case SettingKind::String: {
+                if ((s.flags & SETTING_SECRET) && strlen(str) == 0)
+                  continue;
+                if (strlen(str) > s.max_length) {
+                  errors[s.name] = "Value too long.";
+                } else if (attempt == 1) {
+                  if (settings.saveString(s.name, str) && s.type == SettingType::RebootRequired)
+                    reboot_required_saved = true;
+                }
+                break;
               }
             }
           }
@@ -1103,8 +1102,10 @@ static void register_settings_route(AsyncWebServer& server) {
             return;
           }
         }
-        // TODO - don't set this for both-NVM-and-volatile updates
-        settingsUpdated |= settings.were_settings_updated();
+        // Only RebootRequired settings demand a reboot; Volatile and Instant
+        // settings take effect immediately, so they must not flag a reboot.
+        if (reboot_required_saved)
+          settingsUpdated = true;
 
         free(buf);
         request->_tempObject = nullptr;

@@ -11,6 +11,8 @@
 #include "Arduino.h"
 #include "CHADEMO-BATTERY.h"
 
+#include <string>
+
 #ifdef UNIT_TEST
 // provide minimal stub so unit tests can compile
 typedef enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db } adc_attenuation_t;
@@ -19,6 +21,7 @@ typedef enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db } adc_attenuation_t;
 // Ensure valid values at run-time
 // User can update all these values via Settings page
 float ct_clamp_offset_mV = -1.0;
+std::string ct_clamp_offset_text = "-1.0";
 uint16_t ct_clamp_nominal_voltage_dV = 40;
 uint16_t ct_clamp_nominal_current_A = 100;
 bool ct_invert_current = false;

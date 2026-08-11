@@ -29,10 +29,10 @@ bool mqtt_publish_heap_metrics = false;
 uint16_t mqtt_timeout_ms = 2000;
 uint16_t mqtt_publish_interval_ms = 5000;
 
-const int mqtt_port_default = 0;
+const uint16_t mqtt_port_default = 1883;
 const char* mqtt_server_default = "";
 
-int mqtt_port = mqtt_port_default;
+uint16_t mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
 #define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?

@@ -121,6 +121,12 @@ const SETTINGS: Record<string, string> = {
     USBENABLED: '1',
     CANLOGUSB: '1',
     LOWPASSFILTER: '1',
+    // BYD Atto 3 auto-calibration + isolation settings (see webserver_settings.cpp)
+    BYDAUTOCALEN: '1',
+    BYDAUTOCALDRIFT: '5',
+    BYDKEEPISOOFF: '0',
+    TMP_CALTARGETSOC: '100',
+    TMP_CALTARGETAH: '150',
 };
 let rebootRequired = false;
 
