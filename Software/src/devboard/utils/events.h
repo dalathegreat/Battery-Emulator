@@ -170,7 +170,10 @@ typedef enum : uint8_t {
 
 typedef struct {
   uint64_t timestamp;
-  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
+  int16_t data;             // Custom data passed when setting the event, for example cell number for under voltage.
+                            // Signed and 16 bits wide so deci-Celsius temperatures survive intact; the previous
+                            // uint8_t reported 50.1 degC as 245 and -25.1 degC as 5.
+  uint8_t battery;          // Battery the event refers to (1/2/3), or 0 when it is not battery specific
   uint8_t occurences;       // Number of occurrences since startup
   EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
   EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
@@ -193,8 +196,11 @@ EMULATOR_STATUS get_emulator_status();
 const char* get_emulator_status_string(EMULATOR_STATUS status);
 
 void init_events(void);
-void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
-void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
+void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data);
+void set_event(EVENTS_ENUM_TYPE event, int16_t data);
+// Battery-aware variant. battery is 1/2/3, or 0 when the event is not tied to one specific pack.
+// A non-zero value appends " (Battery N)" to the event message everywhere it is rendered.
+void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
 void clear_event(EVENTS_ENUM_TYPE event);
 // Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);

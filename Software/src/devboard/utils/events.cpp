@@ -19,7 +19,7 @@ static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)}
 static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
 
 /* Local function prototypes */
-static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
+static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latched, uint8_t battery);
 
 /* Offgrid downgrade.
  *
@@ -79,6 +79,7 @@ static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
 void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
+    events.entries[i].battery = 0;
     events.entries[i].timestamp = 0;
     events.entries[i].occurences = 0;
     events.entries[i].MQTTpublished = false;  // Not published by default
@@ -213,12 +214,16 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 }
 
-void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
-  set_event(event, data, false);
+void set_event(EVENTS_ENUM_TYPE event, int16_t data) {
+  set_event_internal(event, data, false, 0);
 }
 
-void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data) {
-  set_event(event, data, true);
+void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery) {
+  set_event_internal(event, data, false, battery);
+}
+
+void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data) {
+  set_event_internal(event, data, true, 0);
 }
 
 void clear_event(EVENTS_ENUM_TYPE event) {
@@ -240,6 +245,7 @@ void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
 void reset_all_events() {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
+    events.entries[i].battery = 0;
     events.entries[i].state = EVENT_STATE_INACTIVE;
     events.entries[i].timestamp = 0;
     events.entries[i].occurences = 0;
@@ -253,7 +259,7 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
   events.entries[event].MQTTpublished = true;
 }
 
-String get_event_message_string(EVENTS_ENUM_TYPE event) {
+static String get_event_base_message(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2518FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
@@ -521,6 +527,22 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
   }
 }
 
+String get_event_message_string(EVENTS_ENUM_TYPE event) {
+  String message = get_event_base_message(event);
+  // Several events are shared by every battery. Name the offending pack so the log line, the
+  // events page, MQTT and ESP-NOW all say which one it was. 0 = not battery specific, no suffix.
+  const uint8_t battery = events.entries[event].battery;
+  if (battery) {
+    // Built into a plain buffer and appended as const char*. The native unit-test build
+    // (test/emul/WString.h) only provides String::operator+=(const String&/std::string/const char*),
+    // and has no F() macro, so the Arduino-only integer and char overloads cannot be used here.
+    char suffix[16];
+    snprintf(suffix, sizeof(suffix), " (Battery %u)", (unsigned)battery);
+    message += suffix;
+  }
+  return message;
+}
+
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
   // Return the event name but skip "EVENT_" that should always be first
   return EVENTS_ENUM_TYPE_STRING[event] + 6;
@@ -596,7 +618,7 @@ static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
   return false;
 }
 
-static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
+static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latched, uint8_t battery) {
   // Just some defensive stuff if someone sets an unknown event
   if (event >= EVENT_NOF_EVENTS) {
     event = EVENT_UNKNOWN_EVENT_SET;
@@ -606,6 +628,11 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if (can_error_ignored(event)) {
     return;
   }
+
+  // Store the payload before the logging below: get_event_message_string() reads the battery
+  // number, so the log and syslog lines would otherwise name the previous occurrence's battery.
+  events.entries[event].data = data;
+  events.entries[event].battery = battery;
 
   // If the event is already set, no reason to continue
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
@@ -619,7 +646,6 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // We should set the event, update event info
   events.entries[event].occurences++;
   events.entries[event].timestamp = millis64();
-  events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
