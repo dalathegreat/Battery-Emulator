@@ -253,6 +253,13 @@ void init_stored_settings() {
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
+  // Always re-publish after a firmware update, ticked or not: the configs carry sw_version
+  // and can gain or change entities between releases, and nothing else ever republishes
+  // them. A device with no stored signature reads back 0, which never matches a real one,
+  // so the first boot on a build with this feature establishes the baseline.
+  if (settings.getUInt("HADISCFW", 0) != mqtt_firmware_signature()) {
+    ha_autodiscovery_enabled = true;
+  }
   ha_autodiscovery_topic = settings.getString("HADISCTOPIC", "homeassistant").c_str();
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();

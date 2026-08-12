@@ -59,6 +59,7 @@ extern const char* ha_device_id;
 
 extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 
+uint32_t mqtt_firmware_signature(void);
 bool init_mqtt(void);
 void mqtt_client_loop(void);
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain);
