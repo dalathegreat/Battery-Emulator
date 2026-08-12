@@ -376,11 +376,11 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x173:
       // Contains cell min/max voltages
       v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      if (v > 0 && v < 0x2000) {
+      if (v > 2301 && v < 4800) {
         // Is plausible
         datalayer_battery->status.cell_max_voltage_mV = v;
         v = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-        if (v > 0 && v < 0x2000) {
+        if (v > 2301 && v < 4800) {
           if (v < 3000) {
             logging.printf("[MG] Low cell min: %d mV\n", v);
           }
