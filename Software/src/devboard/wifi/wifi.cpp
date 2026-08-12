@@ -196,10 +196,10 @@ void init_WiFi() {
   }
 
   // Start Wi-Fi connection
-  DEBUG_PRINTF("start Wifi\n");
+  //DEBUG_PRINTF("start Wifi\n");
   connectToWiFi();
 
-  DEBUG_PRINTF("init_Wifi complete\n");
+  //DEBUG_PRINTF("init_Wifi complete\n");
 }
 
 // Board button (usually BOOT/GPIO0):
@@ -294,7 +294,7 @@ void wifi_monitor() {
       if (current_check_interval + STEP_WIFI_CHECK_INTERVAL <= MAX_STEP_WIFI_CHECK_INTERVAL) {
         current_check_interval += STEP_WIFI_CHECK_INTERVAL;
       }
-      DEBUG_PRINTF("Wi-Fi not connected (status=%d), attempting to reconnect\n", status);
+      DEBUG_PRINTF("Wi-Fi not connected (%d), attempting to reconnect\n", status);
 
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
@@ -380,7 +380,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 static void log_ap_sta_event(const char* verb, const uint8_t* mac) {
-  logging.printf("AP: %02X:%02X:%02X:%02X:%02X:%02X %s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], verb);
+  logging.printf("AP: %02x:%02x:%02x:%02x:%02x:%02x %s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], verb);
 }
 
 void onApStaConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
