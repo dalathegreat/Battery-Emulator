@@ -586,8 +586,6 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 16600;
     }
-    // Definitely works fine with slower ticks
-    fastTick = false;
   } else if (batteryType == BATTERY_TYPE_MG_ZS) {
     logging.println("[MG] Detected MG ZS EV battery (108s)");
     maxChargePowerW = 14000;
@@ -623,8 +621,6 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 50300;
     }
-    // Needs fast tick or contactors don't close and it emits strange frames
-    fastTick = true;
   } else {
     logging.printf("[MG] Assuming MG5 battery (96s)\n");
     batteryType = BATTERY_TYPE_MG5;
@@ -634,8 +630,6 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 52500;
     }
-    // Seems to work fine with slower ticks
-    fastTick = false;
   }
 
   datalayer_battery->info.max_design_voltage_dV =
@@ -745,9 +739,8 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     send_phase = 0;
   }
 
-  // Send 10ms CAN Message (or 100ms if we're non-fast-tick)
-  const unsigned long TICK_PERIOD_10 = fastTick ? INTERVAL_10_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis10 >= TICK_PERIOD_10 && send_phase == 0) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && send_phase == 0) {
     previousMillis10 = currentMillis;
 
     tx_count++;
@@ -806,7 +799,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       if (warmupCounter < 1100) {
         // Keep the 1 asserted for 1.1s
         MG_HS_8A.data.u8[6] = 0x10 | eightAcycle;
-        warmupCounter += TICK_PERIOD_10;
+        warmupCounter += INTERVAL_10_MS;
       } else {
         // After that we go to the 3
         MG_HS_8A.data.u8[6] = 0x30 | eightAcycle;
@@ -830,8 +823,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  const unsigned long TICK_PERIOD_20 = fastTick ? INTERVAL_20_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis20 >= TICK_PERIOD_20 && send_phase == 1) {
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS && send_phase == 1) {
     previousMillis20 = currentMillis;
 
     transmit_can_frame(&MG_HS_1F1);
