@@ -15,8 +15,8 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   int baud_rate() { return 57600; }
   void float2frame(uint8_t* arr, float value, uint8_t framepointer);
   bool check_kostal_frame_crc(int len);
-  // How many value updates we can go without inverter gets reported as missing \
-  // e.g. value set to 12, 12*5sec=60seconds without comm before event is raised
+  /* How many value updates we can go without inverter gets reported as missing
+  e.g. value set to 12, 12*5sec=60seconds without comm before event is raised */
   const int RS485_HEALTHY = 12;
 
   const uint8_t KOSTAL_FRAMEHEADER[5] = {0x62, 0xFF, 0x02, 0xFF, 0x29};
@@ -24,6 +24,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   uint16_t nominal_voltage_dV = 0;
   int16_t average_temperature_dC = 0;
   uint8_t incoming_message_counter = RS485_HEALTHY;
+  bool inverter_detected = false;
   int8_t f2_startup_count = 0;
 
   bool info_sent = false;

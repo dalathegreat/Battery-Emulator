@@ -34,15 +34,11 @@ class TestFakeBattery : public CanBattery {
 
   static const int MAX_CELL_DEVIATION_MV = 9999;
 
-  unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
-  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-
-  CAN_frame TEST = {.FD = false,
-                    .ext_ID = false,
-                    .DLC = 8,
-                    .ID = 0x123,
-                    .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+  static const int NUMBER_OF_CELLS = 96;
+  // Random spread applied on top of the evenly divided pack voltage, per cell
+  static const int CELL_SPREAD_MV = 20;
+  // Simulated balancing starts once the calculated SOC is above this level
+  static const uint16_t BALANCING_START_SOC_PPTT = 8500;  // 85.00%
 };
 
 #endif

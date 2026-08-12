@@ -1,6 +1,8 @@
 #ifndef RENAULT_ZOE_GEN1_BATTERY_H
 #define RENAULT_ZOE_GEN1_BATTERY_H
 
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN1-HTML.h"
 
@@ -31,8 +33,13 @@ class RenaultZoeGen1Battery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestedDTCReset = true; }
+
  private:
   RenaultZoeGen1HtmlRenderer renderer;
+
+  bool UserRequestedDTCReset = false;
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
@@ -46,6 +53,38 @@ class RenaultZoeGen1Battery : public CanBattery {
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
+  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
+  uint8_t counter_423 = 0;
+
+  CAN_frame ZOE_423 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x423,
+                       .data = {0x07, 0x1d, 0x00, 0x02, 0x5d, 0x80, 0x5d, 0xc8}};
+  CAN_frame ZOE_POLL_79B = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x79B,
+                            .data = {0x02, 0x21, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_ACK_79B = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x79B,
+                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_CLEAR_DTC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x79B,
+                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+
+#define GROUP1_CELLVOLTAGES_1_POLL 0x41
+#define GROUP2_CELLVOLTAGES_2_POLL 0x42
+#define GROUP3_METRICS 0x61
+#define GROUP4_SOC 0x03
+#define GROUP5_TEMPERATURE_POLL 0x04
+#define GROUP6_BALANCING 0x07
+
   uint16_t LB_SOC = 50;
   uint16_t LB_Display_SOC = 50;
   uint16_t LB_SOH = 99;
@@ -53,7 +92,7 @@ class RenaultZoeGen1Battery : public CanBattery {
   uint32_t LB_Charging_Power_W = 0;
   uint32_t LB_Regen_allowed_W = 0;
   uint32_t LB_Discharge_allowed_W = 0;
-  int16_t LB_Current = 0;
+  int16_t LB_Current_raw = 2000;  // 0x155 raw; 2000 => 0 A
   int16_t LB_Cell_minimum_temperature = 0;
   int16_t LB_Cell_maximum_temperature = 0;
   uint16_t LB_Cell_minimum_voltage = 3700;

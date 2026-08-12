@@ -1,10 +1,11 @@
+#include "../inverter/INVERTERS.h"
 #include "BMW-SBOX.h"
 #include "Shunt.h"
 
 CanShunt* shunt = nullptr;
 ShuntType user_selected_shunt_type = ShuntType::None;
 
-void setup_can_shunt() {
+void setup_shunt() {
   if (shunt) {
     return;
   }
@@ -15,23 +16,30 @@ void setup_can_shunt() {
       return;
     case ShuntType::BmwSbox:
       shunt = new BmwSbox();
-      break;
+      shunt->setup();
+      return;
+    case ShuntType::Inverter:
+      if (inverter && inverter->provides_shunt()) {
+        inverter->enable_shunt();
+      }
+      return;
+    case ShuntType::CustomClamp:
+      shunt = nullptr;
+      return;
     default:
       return;
-  }
-
-  if (shunt) {
-    shunt->setup();
   }
 }
 
 extern std::vector<ShuntType> supported_shunt_types() {
   std::vector<ShuntType> types;
+  types.push_back(ShuntType::None);
+  types.push_back(ShuntType::BmwSbox);
 
-  for (int i = 0; i < (int)ShuntType::Highest; i++) {
-    types.push_back((ShuntType)i);
-  }
+  if (inverter && inverter->provides_shunt())
+    types.push_back(ShuntType::Inverter);
 
+  types.push_back(ShuntType::CustomClamp);
   return types;
 }
 
@@ -41,6 +49,10 @@ extern const char* name_for_shunt_type(ShuntType type) {
       return "None";
     case ShuntType::BmwSbox:
       return BmwSbox::Name;
+    case ShuntType::Inverter:
+      return "Using inverter values";
+    case ShuntType::CustomClamp:
+      return "Custom Clamp";
     default:
       return nullptr;
   }

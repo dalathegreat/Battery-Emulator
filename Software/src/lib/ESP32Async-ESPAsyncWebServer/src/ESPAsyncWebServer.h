@@ -15,17 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(ESP32) || defined(LIBRETINY)
 #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
-#elif defined(ESP8266)
-#include <ESPAsyncTCP.h>
-#elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
-#include <RPAsyncTCP.h>
-#include <HTTP_Method.h>
-#include <http_parser.h>
-#else
-#error Platform not supported
-#endif
 
 #include "literals.h"
 
@@ -208,6 +198,7 @@ private:
 
   bool _sent = false;                            // response is sent
   bool _paused = false;                          // request is paused (request continuation)
+  bool _streaming = false;                       // handler manages the raw connection itself (no auto response)
   std::shared_ptr<AsyncWebServerRequest> _this;  // shared pointer to this request
 
   String _temp;
@@ -269,7 +260,7 @@ private:
   void _send();
   void _runMiddlewareChain();
 
-  static void _getEtag(uint8_t trailer[4], char *serverETag);
+  static bool _getEtag(File gzFile, char *eTag);
 
 public:
   File _tempFile;
@@ -280,6 +271,17 @@ public:
 
   AsyncClient *client() {
     return _client;
+  }
+  // Called by handlers that take over the raw TCP connection themselves (e.g.
+  // for long-lived streaming). Once enabled, the framework will not send an
+  // automatic response when the handler returns; the handler manages the
+  // connection lifecycle (headers, data, closing) and it is closed when the
+  // client disconnects.
+  void setStreamingResponse(bool streaming = true) {
+    _streaming = streaming;
+  }
+  bool isStreamingResponse() const {
+    return _streaming;
   }
   uint8_t version() const {
     return _version;
@@ -1220,8 +1222,6 @@ public:
   }
 };
 
-#include "AsyncEventSource.h"
-#include "AsyncWebSocket.h"
 #include "WebHandlerImpl.h"
 #include "WebResponseImpl.h"
 

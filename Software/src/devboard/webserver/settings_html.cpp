@@ -6,9 +6,14 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../wifi/wifi.h"
+#include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
+#include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
+
+#include <map>
 
 extern bool settingsUpdated;
 
@@ -71,6 +76,8 @@ String options_for_enum(TEnum selected, Func name_for_type) {
   String options;
   auto values = enum_values_and_names<TEnum>(name_for_type, nullptr);
   for (const auto& [name, type] : values) {
+    if (name[0] == '\0')
+      continue;  // Don't show blank options
     options +=
         ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
     options += name;
@@ -94,7 +101,19 @@ String options_from_map(int selected, const TMap& value_name_map) {
   return options;
 }
 
+// Shared IPv4 validation regex for every IP input on the settings page. Injected via the %IPPATTERN%
+// placeholder rather than repeated in the HTML template, so it only occupies flash once.
+static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d))";
+
+#ifdef HW_LILYGO2CAN
+static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
+                                                {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
+#else
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
+#endif
+
+// Periodic BMS reset interval, stored in hours.
+static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -108,6 +127,17 @@ static const std::map<int, String> tesla_chassis = {{0, "Model S"}, {1, "Model X
 
 static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
 
+static const std::map<int, String> sungrow_models = {
+    {0, "SBR064 (6.4 kWh, 2 modules)"},  {1, "SBR096 (9.6 kWh, 3 modules)"},  {2, "SBR128 (12.8 kWh, 4 modules)"},
+    {3, "SBR160 (16.0 kWh, 5 modules)"}, {4, "SBR192 (19.2 kWh, 6 modules)"}, {5, "SBR224 (22.4 kWh, 7 modules)"},
+    {6, "SBR256 (25.6 kWh, 8 modules)"}};
+
+static const std::map<int, String> pylon_models = {{0, "PYLONTECH"}, {1, "PYLON"}, {2, "DEYE"}};
+
+static const std::map<int, String> contactor_modes = {{0, "No Workaround"},
+                                                      {1, "Keep contactors always closed"},
+                                                      {2, "Lock contactors closed after first close request"}};
+
 const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
   switch (behavior) {
     case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
@@ -120,11 +150,273 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
       return nullptr;
   }
 }
+#ifdef HW_LILYGO2CAN
+const char* name_for_gpioopt1(GPIOOPT1 option) {
+  switch (option) {
+    case GPIOOPT1::DEFAULT_OPT:
+      return "WUP1 / WUP2";
+#ifndef SMALL_FLASH_DEVICE
+    case GPIOOPT1::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
+#endif  // SMALL_FLASH_DEVICE
+    case GPIOOPT1::ESTOP_BMS_POWER:
+      return "E-Stop / BMS Power";
+    default:
+      return nullptr;
+  }
+}
+#endif
+const char* name_for_gpioopt2(GPIOOPT2 option) {
+  switch (option) {
+    case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
+      return "Pin 18";
+    case GPIOOPT2::BMS_POWER_25:
+      return "Pin 25";
+    default:
+      return nullptr;
+  }
+}
+const char* name_for_gpioopt3(GPIOOPT3 option) {
+  switch (option) {
+    case GPIOOPT3::DEFAULT_SMA_ENABLE_05:
+      return "Pin 5";
+    case GPIOOPT3::SMA_ENABLE_33:
+      return "Pin 33";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_gpioopt4(GPIOOPT4 option) {
+  switch (option) {
+    case GPIOOPT4::DEFAULT_SD_CARD:
+      return "µSD Card";
+#ifndef SMALL_FLASH_DEVICE
+    case GPIOOPT4::I2C_DISPLAY_SSD1306:
+      return "I2C Display (SSD1306)";
+#endif  // SMALL_FLASH_DEVICE
+    default:
+      return nullptr;
+  }
+}
+
+#ifdef HW_STARK
+const char* name_for_gpioopt5(GPIOOPT5 option) {
+  switch (option) {
+    case GPIOOPT5::DEFAULT_BMS_POWER_23:
+      return "Pin 23 (BMS POWER)";
+    case GPIOOPT5::BMS_POWER_25:
+      return "Pin 25 (PRECHARGE)";
+    default:
+      return nullptr;
+  }
+}
+#endif
+#ifdef HW_WAVESHARE
+const char* name_for_gpioopt6(GPIOOPT6 option) {
+  switch (option) {
+    case GPIOOPT6::DEFAULT_STATUS_LED:
+      return "Status LED (GPIO2)";
+#ifndef SMALL_FLASH_DEVICE
+    case GPIOOPT6::I2C_DISPLAY_SSD1306:
+      return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL)";
+#endif  // SMALL_FLASH_DEVICE
+    default:
+      return nullptr;
+  }
+}
+#endif
+
+// Special unicode characters
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
+const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
+
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
+// only for the battery integrations that actually implement parallel batteries.
+// Generated from battery_supports_double()/battery_supports_triple() so the UI
+// can never drift out of sync with what setup_battery() is able to instantiate.
+static String capability_css(const char* className, bool (*supported)(BatteryType)) {
+  String selectors;
+
+  for (auto& type : enum_values<BatteryType>()) {
+    if (!supported(type)) {
+      continue;
+    }
+    if (!selectors.isEmpty()) {
+      selectors += ",";
+    }
+    selectors += "form[data-battery=\"" + String(to_underlying(type)) + "\"] ." + className;
+  }
+
+  String css = "form ." + String(className) + " { display: none; }";
+
+  if (!selectors.isEmpty()) {
+    css += selectors + " { display: contents; }";
+  }
+
+  return css;
+}
+
+String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
+  // HTML-ready values (such as select options) are returned here. These don't
+  // get any additional escaping.
+
+  if (var == "BATTTYPE") {
+    return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
+                                      name_for_battery_type, BatteryType::None);
+  }
+  if (var == "BATTCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+  if (var == "BTRCAPCSS") {
+    return capability_css("if-dblcapable", battery_supports_double) +
+           capability_css("if-tricapable", battery_supports_triple);
+  }
+  if (var == "BATTCHEM") {
+    return options_for_enum(
+        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
+        name_for_chemistry);
+  }
+  if (var == "INVTYPE") {
+    return options_for_enum_with_none(
+        (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type,
+        InverterProtocolType::None);
+  }
+  if (var == "INVCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+  if (var == "CHGTYPE") {
+    return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
+                                      name_for_charger_type, ChargerType::None);
+  }
+  if (var == "CHGCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "SHUNTTYPE") {
+    return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
+                                      name_for_shunt_type, ShuntType::None);
+  }
+
+  if (var == "SHUNTCOMM") {
+    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "CTATTEN") {
+    return options_for_enum_with_none(
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
+        adc_attenuation_enum::ADC_0db);
+  }
+
+  if (var == "EQSTOP") {
+    return options_for_enum_with_none(
+        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
+        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
+  }
+
+  if (var == "BATT2COMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "BATT3COMM") {
+    return options_for_enum((comm_interface)settings.getUInt("BATT3COMM", (int)comm_interface::CanNative),
+                            name_for_comm_interface);
+  }
+
+  if (var == "GTWCOUNTRY") {
+    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
+  }
+
+  if (var == "GTWMAPREG") {
+    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+  }
+
+  if (var == "GTWCHASSIS") {
+    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+  }
+
+  if (var == "GTWPACK") {
+    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+  }
+
+  if (var == "LEDMODE") {
+    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "PERBMSRESETH") {
+    // Missing or unexpected values fall back to the historical 24h interval.
+    uint32_t interval = settings.getUInt("PERBMSRESETH", 24);
+    if (interval != 24 && interval != 48) {
+      interval = 24;
+    }
+    return options_from_map(interval, bms_reset_intervals);
+  }
+
+  if (var == "SUNGROW_MODEL") {
+    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
+  }
+
+  if (var == "PYLON_MODEL") {
+    return options_from_map(settings.getUInt("PYLONBRAND", 0), pylon_models);
+  }
+
+  if (var == "INVICNT") {
+    return options_from_map(settings.getUInt("INVICNT", 0), contactor_modes);
+  }
+
+#ifdef HW_LILYGO2CAN
+  if (var == "GPIOOPT1") {
+    return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
+                                      name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
+  }
+#endif
+  if (var == "GPIOOPT2") {
+    return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
+                                      name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
+  }
+
+  if (var == "GPIOOPT3") {
+    return options_for_enum_with_none((GPIOOPT3)settings.getUInt("GPIOOPT3", (int)GPIOOPT3::DEFAULT_SMA_ENABLE_05),
+                                      name_for_gpioopt3, GPIOOPT3::DEFAULT_SMA_ENABLE_05);
+  }
+
+  if (var == "GPIOOPT4") {
+    return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
+                                      name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
+  }
+#ifdef HW_STARK
+  if (var == "GPIOOPT5") {
+    return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
+                                      name_for_gpioopt5, GPIOOPT5::DEFAULT_BMS_POWER_23);
+  }
+#endif
+#ifdef HW_WAVESHARE
+  if (var == "GPIOOPT6") {
+    return options_for_enum_with_none((GPIOOPT6)settings.getUInt("GPIOOPT6", (int)GPIOOPT6::DEFAULT_STATUS_LED),
+                                      name_for_gpioopt6, GPIOOPT6::DEFAULT_STATUS_LED);
+  }
+#endif
+  // All other values are wrapped by html_escape to avoid HTML injection.
+
+  return html_escape(raw_settings_processor(var, settings));
+}
+
+String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
+  // All of these returned values are raw un-escaped UTF-8 strings.
 
   if (var == "HOSTNAME") {
     return settings.getString("HOSTNAME");
+  }
+
+  if (var == "DEFAULTHOSTNAME") {
+    return default_hostname();
   }
 
   if (var == "BATTERYINTF") {
@@ -132,8 +424,25 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
       return battery->interface_name();
     }
   }
+
   if (var == "SSID") {
-    return String(ssid.c_str());
+    return settings.getString("SSID");
+  }
+
+  if (var == "PASSWORD") {
+    return String("");  // never expose the stored password in the served HTML
+  }
+
+  if (var == "WEBAUTH") {
+    return settings.getBool("WEBAUTH") ? "checked" : "";
+  }
+
+  if (var == "HTTPUSER") {
+    return settings.getString("HTTPUSER", "admin");
+  }
+
+  if (var == "HTTPPASS") {
+    return String("");
   }
 
   if (var == "SAVEDCLASS") {
@@ -178,6 +487,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     }
   }
 
+  if (var == "SHUNTINTF") {
+    if (shunt) {
+      return shunt->interface_name();
+    }
+  }
+
   if (var == "SHUNTCLASS") {
     if (!shunt) {
       return "hidden";
@@ -190,65 +505,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     }
   }
 
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "BATTTYPE") {
-    return options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
-                                      name_for_battery_type, BatteryType::None);
-  }
-  if (var == "BATTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-  if (var == "BATTCHEM") {
-    return options_for_enum(
-        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
-        name_for_chemistry);
-  }
-  if (var == "INVTYPE") {
-    return options_for_enum_with_none(
-        (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None), name_for_inverter_type,
-        InverterProtocolType::None);
-  }
-  if (var == "INVCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-  if (var == "CHGTYPE") {
-    return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
-                                      name_for_charger_type, ChargerType::None);
-  }
-  if (var == "CHGCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "SHUNTTYPE") {
-    return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
-                                      name_for_shunt_type, ShuntType::None);
-  }
-
-  if (var == "SHUNTCOMM") {
-    return options_for_enum((comm_interface)settings.getUInt("SHUNTCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
-  if (var == "EQSTOP") {
-    return options_for_enum_with_none(
-        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
-        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
-  }
-
-  if (var == "BATT2COMM") {
-    return options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
-  }
-
   if (var == "DBLBTR") {
     return settings.getBool("DBLBTR") ? "checked" : "";
+  }
+
+  if (var == "TRIBTR") {
+    return settings.getBool("TRIBTR") ? "checked" : "";
   }
 
   if (var == "SOCESTIMATED") {
@@ -259,8 +521,56 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
 
+  if (var == "LOWPASSFILTER") {
+    return settings.getBool("LOWPASSFILTER") ? "checked" : "";
+  }
+
+  if (var == "CHGTAPERSOC") {
+    if (battery && battery->mandatory_charge_taper()) {
+      return "checked";
+    }
+    return settings.getBool("CHGTAPERSOC") ? "checked" : "";
+  }
+
+  if (var == "CHGTAPERMANDATORY") {
+    return (battery && battery->mandatory_charge_taper()) ? "disabled" : "";
+  }
+
+  if (var == "CHGTAPERMAX") {
+    return (battery && battery->mandatory_charge_taper()) ? "85" : "99";
+  }
+
+  if (var == "CHGTAPERSTART") {
+    uint32_t start = settings.getUInt("CHGTAPERSTART", 95);
+    if (battery && battery->mandatory_charge_taper()) {
+      if (start > 85) {
+        start = 85;
+      }
+      if (start < 50) {
+        start = 50;
+      }
+    }
+    return String(start);
+  }
+
+  if (var == "CHGTAPERFLOOR") {
+    return String(settings.getUInt("CHGTAPERFLOOR", 400));
+  }
+
+  if (var == "SLOWCANINV") {
+    return settings.getBool("SLOWCANINV") ? "checked" : "";
+  }
+
+  if (var == "NCCONTACTOR") {
+    return settings.getBool("NCCONTACTOR") ? "checked" : "";
+  }
+
   if (var == "CNTCTRLDBL") {
     return settings.getBool("CNTCTRLDBL") ? "checked" : "";
+  }
+
+  if (var == "CNTCTRLTRI") {
+    return settings.getBool("CNTCTRLTRI") ? "checked" : "";
   }
 
   if (var == "PWMCNTCTRL") {
@@ -271,6 +581,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("PERBMSRESET") ? "checked" : "";
   }
 
+  if (var == "PERBMSDEFSOC") {
+    return settings.getBool("PERBMSDEFSOC") ? "checked" : "";
+  }
+
+  if (var == "PERBMSSKIPBAL") {
+    return settings.getBool("PERBMSSKIPBAL") ? "checked" : "";
+  }
+
   if (var == "REMBMSRESET") {
     return settings.getBool("REMBMSRESET") ? "checked" : "";
   }
@@ -279,16 +597,24 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("EXTPRECHARGE") ? "checked" : "";
   }
 
+  if (var == "MEASURECPUTEMP") {
+    return settings.getBool("MEASURECPUTEMP") ? "checked" : "";
+  }
+
+  if (var == "CPUTEMPOFFSET") {
+    return String(settings.getInt("CPUTEMPOFFSET", 0));
+  }
+
   if (var == "MAXPRETIME") {
     return String(settings.getUInt("MAXPRETIME", 15000));
   }
 
-  if (var == "NOINVDISC") {
-    return settings.getBool("NOINVDISC") ? "checked" : "";
+  if (var == "MAXPREFREQ") {
+    return String(settings.getUInt("MAXPREFREQ", 34000));
   }
 
-  if (var == "CANFDASCAN") {
-    return settings.getBool("CANFDASCAN") ? "checked" : "";
+  if (var == "NOINVDISC") {
+    return settings.getBool("NOINVDISC") ? "checked" : "";
   }
 
   if (var == "WIFIAPENABLED") {
@@ -296,11 +622,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "APPASSWORD") {
-    return settings.getString("APPASSWORD", "123456789");
-  }
-
-  if (var == "APNAME") {
-    return settings.getString("APNAME", "BatteryEmulator");
+    return String("");
   }
 
   if (var == "STATICIP") {
@@ -319,52 +641,45 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("DCHGPOWER", 0));
   }
 
-  if (var == "LOCALIP1") {
-    return String(settings.getUInt("LOCALIP1", 0));
+  if (var == "LOCALIP") {
+    return settings.getString("LOCALIP");
   }
 
-  if (var == "LOCALIP2") {
-    return String(settings.getUInt("LOCALIP2", 0));
+  if (var == "GATEWAY") {
+    return settings.getString("GATEWAY");
   }
 
-  if (var == "LOCALIP3") {
-    return String(settings.getUInt("LOCALIP3", 0));
+  if (var == "SUBNET") {
+    return settings.getString("SUBNET");
   }
 
-  if (var == "LOCALIP4") {
-    return String(settings.getUInt("LOCALIP4", 0));
+  if (var == "DNS") {
+    return settings.getString("DNS");
   }
 
-  if (var == "GATEWAY1") {
-    return String(settings.getUInt("GATEWAY1", 0));
+  // Placeholders for the static IP fields: the addresses currently in use, so pinning an existing DHCP
+  // lease is a matter of ticking the checkbox. Empty when there is no station link (AP-only mode) - we
+  // have nothing meaningful to suggest and made-up examples would only invite copying them verbatim.
+  if (var == "LOCALIPPH") {
+    return WiFi.isConnected() ? WiFi.localIP().toString() : String();
   }
 
-  if (var == "GATEWAY2") {
-    return String(settings.getUInt("GATEWAY2", 0));
+  if (var == "GATEWAYPH") {
+    return WiFi.isConnected() ? WiFi.gatewayIP().toString() : String();
   }
 
-  if (var == "GATEWAY3") {
-    return String(settings.getUInt("GATEWAY3", 0));
+  if (var == "SUBNETPH") {
+    return WiFi.isConnected() ? WiFi.subnetMask().toString() : String();
   }
 
-  if (var == "GATEWAY4") {
-    return String(settings.getUInt("GATEWAY4", 0));
+  if (var == "DNSPH") {
+    IPAddress dns = WiFi.dnsIP();
+    return (WiFi.isConnected() && dns != IPAddress(0, 0, 0, 0)) ? dns.toString() : String();
   }
 
-  if (var == "SUBNET1") {
-    return String(settings.getUInt("SUBNET1", 0));
-  }
-
-  if (var == "SUBNET2") {
-    return String(settings.getUInt("SUBNET2", 0));
-  }
-
-  if (var == "SUBNET3") {
-    return String(settings.getUInt("SUBNET3", 0));
-  }
-
-  if (var == "SUBNET4") {
-    return String(settings.getUInt("SUBNET4", 0));
+  // Emitted once per use so the regex is stored in flash a single time, not once per input field.
+  if (var == "IPPATTERN") {
+    return IPV4_PATTERN;
   }
 
   if (var == "PERFPROFILE") {
@@ -383,12 +698,33 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("WEBENABLED") ? "checked" : "";
   }
 
+#ifdef SDCARD
   if (var == "CANLOGSD") {
     return settings.getBool("CANLOGSD") ? "checked" : "";
   }
 
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
+  }
+#endif  // SDCARD
+  if (var == "SYSLOGEN") {
+    return settings.getBool("SYSLOGEN") ? "checked" : "";
+  }
+  if (var == "SYSLOGIP") {
+    return settings.getString("SYSLOGIP");
+  }
+  if (var == "SYSLOGPORT") {
+    return String(settings.getUInt("SYSLOGPORT", 514));
+  }
+  if (var == "SYSLOGFAC") {
+    return String(settings.getUInt("SYSLOGFAC", 1));
+  }
+  if (var == "ESPNOWENABLED") {
+    return settings.getBool("ESPNOWENABLED") ? "checked" : "";
+  }
+
+  if (var == "ESPNOWMACS") {
+    return settings.getString("ESPNOWMACS");
   }
 
   if (var == "MQTTENABLED") {
@@ -408,39 +744,27 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "MQTTPASSWORD") {
-    return settings.getString("MQTTPASSWORD");
-  }
-
-  if (var == "MQTTTOPICS") {
-    return settings.getBool("MQTTTOPICS") ? "checked" : "";
-  }
-
-  if (var == "MQTTTOPIC") {
-    return settings.getString("MQTTTOPIC");
+    return String("");
   }
 
   if (var == "MQTTTIMEOUT") {
     return String(settings.getUInt("MQTTTIMEOUT", 2000));
   }
 
-  if (var == "MQTTOBJIDPREFIX") {
-    return settings.getString("MQTTOBJIDPREFIX");
-  }
-
-  if (var == "MQTTDEVICENAME") {
-    return settings.getString("MQTTDEVICENAME");
+  if (var == "MQTTPUBLISHMS") {
+    return String(settings.getUInt("MQTTPUBLISHMS", 5000) / 1000);
   }
 
   if (var == "MQTTCELLV") {
     return settings.getBool("MQTTCELLV") ? "checked" : "";
   }
 
-  if (var == "HADEVICEID") {
-    return settings.getString("HADEVICEID");
-  }
-
   if (var == "HADISC") {
     return settings.getBool("HADISC") ? "checked" : "";
+  }
+
+  if (var == "HADISCTOPIC") {
+    return settings.getString("HADISCTOPIC", "homeassistant");
   }
 
   if (var == "MANUAL_BAL_CLASS") {
@@ -452,11 +776,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "BATTPVMAX") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0, 1);
+    return String(static_cast<float>(settings.getUInt("BATTPVMAX", 0)) / 10.0f, 1);
   }
 
   if (var == "BATTPVMIN") {
-    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0, 1);
+    return String(static_cast<float>(settings.getUInt("BATTPVMIN", 0)) / 10.0f, 1);
   }
 
   if (var == "BATTCVMAX") {
@@ -472,27 +796,27 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "MAX_CHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
   }
 
   if (var == "MAX_DISCHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery.settings.max_percentage / 100.0, 1);
+    return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery.settings.min_percentage / 100.0, 1);
+    return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
   }
 
   if (var == "CHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "DISCHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0, 1);
+    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "SOC_SCALING_ACTIVE_CLASS") {
@@ -508,7 +832,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SOC_SCALING") {
-    return datalayer.battery.settings.soc_scaling_active ? "&#10003;" : "&#10005;";
+    return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
 
   if (var == "FAKE_VOLTAGE_CLASS") {
@@ -521,9 +845,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "MANUAL_BALANCING") {
     if (datalayer.battery.settings.user_requests_balancing) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -535,9 +859,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "VOLTAGE_LIMITS") {
     if (datalayer.battery.settings.user_set_voltage_limits_active) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -546,25 +870,25 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1);
+    return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
-    return String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
   }
 
   if (var == "BAL_MAX_PACK_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0);
+    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
   }
   if (var == "BAL_MAX_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
   }
   if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0);
+    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
   }
 
   if (var == "BMS_RESET_DURATION") {
-    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0, 0);
+    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
   }
 
   if (var == "CHARGER_CLASS") {
@@ -583,9 +907,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CHG_HV") {
     if (datalayer.charger.charger_HV_enabled) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -599,9 +923,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CHG_AUX12V") {
     if (datalayer.charger.charger_aux12V_enabled) {
-      return "&#10003;";
+      return TRUE_CHAR_CODE;
     } else {
-      return "&#10005;";
+      return FALSE_CHAR_CODE;
     }
   }
 
@@ -615,6 +939,22 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "SOFAR_ID") {
     return String(settings.getUInt("SOFAR_ID", 0));
+  }
+
+  if (var == "PYLONSEND") {
+    return String(settings.getUInt("PYLONSEND", 0));
+  }
+
+  if (var == "PYLONOFFSET") {
+    return settings.getBool("PYLONOFFSET") ? "checked" : "";
+  }
+
+  if (var == "PYLONORDER") {
+    return settings.getBool("PYLONORDER") ? "checked" : "";
+  }
+
+  if (var == "PYLONBAUD") {
+    return String(settings.getUInt("PYLONBAUD", 500));
   }
 
   if (var == "INVCELLS") {
@@ -641,16 +981,16 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
-  if (var == "INVICNT") {
-    return settings.getBool("INVICNT") ? "checked" : "";
+  if (var == "INVOFFGRID") {
+    return settings.getBool("INVOFFGRID") ? "checked" : "";
   }
 
-  if (var == "CANFREQ") {
-    return String(settings.getUInt("CANFREQ", 8));
+  if (var == "DEYEBYD") {
+    return settings.getBool("DEYEBYD") ? "checked" : "";
   }
 
-  if (var == "CANFDFREQ") {
-    return String(settings.getUInt("CANFDFREQ", 40));
+  if (var == "PRIMOGEN24") {
+    return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
   if (var == "PRECHGMS") {
@@ -673,28 +1013,56 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
 
-  if (var == "GTWCOUNTRY") {
-    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
-  }
-
   if (var == "GTWRHD") {
     return settings.getBool("GTWRHD") ? "checked" : "";
   }
 
-  if (var == "GTWMAPREG") {
-    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+  if (var == "CTOFFSET") {
+    return settings.getString("CTOFFSET", "-1.0");
   }
 
-  if (var == "GTWCHASSIS") {
-    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+  if (var == "CTVNOM") {
+    return String(settings.getUInt("CTVNOM", 40));
   }
 
-  if (var == "GTWPACK") {
-    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+  if (var == "CTANOM") {
+    return String(settings.getUInt("CTANOM", 100));
   }
 
-  if (var == "LEDMODE") {
-    return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  if (var == "CTINVERT") {
+    return settings.getBool("CTINVERT") ? "checked" : "";
+  }
+
+  if (var == "DALYPWRPCT") {
+    return String(settings.getUInt("DALYPWRPCT", 50));
+  }
+
+  if (var == "DALYPWRDV") {
+    return String(settings.getUInt("DALYPWRDV", 50));
+  }
+
+  if (var == "DALYDVSTART") {
+    return String(settings.getUInt("DALYDVSTART", 20));
+  }
+
+  if (var == "DALYPWRDEG") {
+    return String(settings.getUInt("DALYPWRDEG", 60));
+  }
+
+  if (var == "DALYPWR0C") {
+    return String(settings.getUInt("DALYPWR0C", 800));
+  }
+
+  if (var == "FOXESSTYPE") {
+    return String(settings.getUInt("FOXESSTYPE", 0));
+  }
+
+  if (var == "FOXESSSUBTYPE") {
+    return String(settings.getUInt("FOXESSSUBTYPE", 0));
+  }
+
+  if (var == "FOXESSMODULES") {
+    return String(settings.getUInt("FOXESSMODULES", 0));
   }
 
   return String();
@@ -705,23 +1073,124 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-      if (use_canfd_as_can) {
-        return "CAN-FD Native (Classic CAN)";
-      } else {
-        return "CAN-FD Native";
-      }
+      return "CAN-FD Native";
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-      if (use_canfd_as_can) {
-        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
-      } else {
-        return "Add-on CAN-FD via GPIO MCP2518";
-      }
+      return "Add-on CAN-FD via GPIO MCP2518";
+    case CANFD_ADDON_MCP2518_2:
+      return "Add-on CAN-FD #2 via GPIO MCP2518";
     default:
       return "UNKNOWN";
   }
 }
+
+#ifdef HW_LILYGO2CAN
+#define GPIOOPT1_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT1">Configurable port:</label>
+    <select id="GPIOOPT1" name="GPIOOPT1">
+      %GPIOOPT1%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT1_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT2_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT2">BMS Power pin:</label>
+    <select id="GPIOOPT2" name="GPIOOPT2">
+      %GPIOOPT2%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT2_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT3_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT3">SMA enable pin:</label>
+    <select id="GPIOOPT3" name="GPIOOPT3">
+      %GPIOOPT3%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT3_SETTING ""
+#endif
+
+#ifdef HW_LILYGO
+#define GPIOOPT4_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT4">µSD Slot:</label>
+    <select id="GPIOOPT4" name="GPIOOPT4">
+      %GPIOOPT4%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT4_SETTING ""
+#endif
+
+#ifdef HW_STARK
+#define GPIOOPT5_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT5">BMS Power pin:</label>
+    <select id="GPIOOPT5" name="GPIOOPT5">
+      %GPIOOPT5%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT5_SETTING ""
+#endif
+
+#ifdef HW_WAVESHARE
+#define GPIOOPT6_SETTING \
+  R"rawliteral(
+    <label for="GPIOOPT6">GPIO 1/2 function:</label>
+    <select id="GPIOOPT6" name="GPIOOPT6">
+      %GPIOOPT6%
+    </select>
+  )rawliteral"
+#else
+#define GPIOOPT6_SETTING ""
+#endif
+
+#ifdef SDCARD
+#define SD_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD%
+            title="Store incoming/outgoing CAN messages on SD card. Only works on hardware with SD-card slot." />
+  )rawliteral"
+#else
+#define SD_SETTING_HTML ""
+#endif  // SDCARD
+
+#define SYSLOG_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to syslog server: </label>
+        <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN%
+              title="Send general logging as UDP syslog datagrams (RFC 5424) to a remote server. Events use their own severity; other lines are sent as debug." />
+
+        <div class='if-syslogen'>
+        <label>Syslog server IP: </label>
+        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" title="IPv4 address of the syslog server" />
+        <label>Syslog UDP port: </label>
+        <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
+              min="1" max="65535" step="1" title="UDP port (default 514)" />
+        <label>Syslog facility: </label>
+        <input type='number' name='SYSLOGFAC' value="%SYSLOGFAC%"
+              min="0" max="23" step="1"
+              title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
+        </div>
+  )rawliteral"
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
@@ -749,12 +1218,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
-
-        function editSSID(){var value=prompt('Which SSID to connect to. Enter new SSID:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}
-        
-        function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}
+        function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
+          if(value!==null){if(value==0||value==1){var xhr=new 
+        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
 
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
           if(value!==null){if(value>=1&&value<=400000){var xhr=new 
@@ -768,6 +1234,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
+
+
         function editSocMin(){
           var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
           if(value!==null){if(value>=-10&&value<=50){var xhr=new 
@@ -789,7 +1257,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=59){var 
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 59');}}}
 
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
@@ -891,15 +1359,39 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-shunt="0"] .if-shunt { display: none; }
+    form[data-shunttype="0"] .if-shunt,
+    form[data-shunttype="3"] .if-shunt { 
+      display: none; 
+    }
+    form[data-shunttype="0"] .if-ctclamp,
+    form[data-shunttype="1"] .if-ctclamp,
+    form[data-shunttype="2"] .if-ctclamp { 
+      display: none; 
+    }
+    form[data-shunttype="3"] .if-ctclamp { display: contents;}
+    
 
     form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms, form[data-battery="11"] .if-cbms, form[data-battery="22"] .if-cbms, form[data-battery="23"] .if-cbms, form[data-battery="24"] .if-cbms, form[data-battery="31"] .if-cbms {
+    form[data-battery="6"] .if-cbms,
+    form[data-battery="11"] .if-cbms,
+    form[data-battery="22"] .if-cbms,
+    form[data-battery="23"] .if-cbms,
+    form[data-battery="24"] .if-cbms,
+    form[data-battery="31"] .if-cbms,
+    form[data-battery="41"] .if-cbms,
+    form[data-battery="48"] .if-cbms,
+    form[data-battery="49"] .if-cbms,
+    form[data-battery="51"] .if-cbms {
       display: contents;
     }
 
     form .if-nissan { display: none; }
     form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
+    form .if-daly { display: none; }
+    form[data-battery="23"] .if-daly {
       display: contents;
     }
 
@@ -912,21 +1404,38 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
     form[data-battery="6"] .if-estimated, 
+    form[data-battery="8"] .if-estimated, 
     form[data-battery="14"] .if-estimated, 
     form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
-    form[data-battery="33"] .if-estimated {
+    form[data-battery="33"] .if-estimated,
+    form[data-battery="40"] .if-estimated,
+    form[data-battery="41"] .if-estimated,
+    form[data-battery="50"] .if-estimated,
+    form[data-battery="51"] .if-estimated {
       display: contents;
     }
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
-    form[data-battery="16"] .if-socestimated {
+    form[data-battery="16"] .if-socestimated,
+    form[data-battery="26"] .if-socestimated,
+    form[data-battery="41"] .if-socestimated,
+    form[data-battery="42"] .if-socestimated {
       display: contents;
     }
 
+    /* Integrations that support running two/three batteries in parallel.
+       Rules are generated at runtime from the battery capability predicates. */
+    %BTRCAPCSS%
+
     form .if-dblbtr { display: none; }
     form[data-dblbtr="true"] .if-dblbtr {
+      display: contents;
+    }
+
+    form .if-tribtr { display: none; }
+    form[data-tribtr="true"] .if-tribtr {
       display: contents;
     }
 
@@ -940,6 +1449,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-perbmsreset { display: none; }
+    form[data-perbmsreset="true"] .if-perbmsreset {
+      display: contents;
+    }
+
+    form .if-measurecputemp { display: none; }
+    form[data-measurecputemp="true"] .if-measurecputemp {
+      display: contents;
+    }
+
     form .if-extprecharge { display: none; }
     form[data-extprecharge="true"] .if-extprecharge {
       display: contents;
@@ -950,8 +1469,36 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-byd { display: none; }
+    form[data-inverter="2"] .if-byd {
+      display: contents;
+    }
+
+    form .if-bydmodbus { display: none; }
+    form[data-inverter="3"] .if-bydmodbus {
+      display: contents;
+    }
+
+    form .if-pylon { display: none; }
+    form[data-battery="22"] .if-pylon,
+    form[data-inverter="10"] .if-pylon {
+      display: contents;
+    }
+
+    form .if-pylon-inverter { display: none; }
+    form[data-inverter="10"] .if-pylon-inverter {
+      display: contents;
+    }
+
+    form .if-pylon-battery { display: none; }
+    form[data-battery="22"] .if-pylon-battery {
+      display: contents;
+    }
+
     form .if-pylonish { display: none; }
-    form[data-inverter="4"] .if-pylonish, form[data-inverter="10"] .if-pylonish, form[data-inverter="19"] .if-pylonish {
+    form[data-inverter="4"] .if-pylonish, 
+    form[data-inverter="10"] .if-pylonish, 
+    form[data-inverter="19"] .if-pylonish {
       display: contents;
     }
 
@@ -960,8 +1507,28 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-foxess { display: none; }
+    form[data-inverter="5"] .if-foxess {
+      display: contents;
+    }
+      
+    form .if-sungrow { display: none; }
+    form[data-inverter="21"] .if-sungrow {
+      display: contents;
+    }
+      
+    form .if-kostal { display: none; }
+    form[data-inverter="9"] .if-kostal {
+      display: contents;
+    }
+
     form .if-staticip { display: none; }
     form[data-staticip="true"] .if-staticip {
+      display: contents;
+    }
+
+    form .if-chgtapersoc { display: none; }
+    form[data-chgtapersoc="true"] .if-chgtapersoc {
       display: contents;
     }
 
@@ -970,8 +1537,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
-    form .if-topics { display: none; }
-    form[data-mqtttopics="true"] .if-topics {
+    form .if-syslogen { display: none; }
+    form[data-syslogen="true"] .if-syslogen {
+      display: contents;
+    }
+
+    form .if-espnowenabled { display: none; }
+    form[data-espnowenabled="true"] .if-espnowenabled {
       display: contents;
     }
 
@@ -983,16 +1555,132 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
 
-<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-    <h4 style='color: white;'>SSID: <span id='SSID'>%SSID%</span><button onclick='editSSID()'>Edit</button></h4>
-    <h4 style='color: white;'>Password: ######## <span id='Password'></span> <button onclick='editPassword()'>Edit</button></h4>
-</div>
+  <script>
+  function validateWebAuthPassword() {
+    const webAuth = document.querySelector('input[name="WEBAUTH"]');
+    const user = document.querySelector('input[name="HTTPUSER"]');
+    const pass = document.querySelector('input[name="HTTPPASS"]');
+    const confirm = document.querySelector('input[name="HTTPPASSCONFIRM"]');
+
+    if (pass.value !== confirm.value) {
+      alert('Web interface passwords do not match.');
+      confirm.focus();
+      return false;
+    }
+
+    return true;
+  }
+
+  function toggleWebPasswordVisibility(show) {
+    const fieldType = show ? 'text' : 'password';
+    document.querySelector('input[name="HTTPPASS"]').type = fieldType;
+    document.querySelector('input[name="HTTPPASSCONFIRM"]').type = fieldType;
+  }
+  </script>
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
+        </div>
+
+        <div class="settings-card">
+        <h3>Network config</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>SSID: </label>
+        <input type='text' name='SSID' value="%SSID%" 
+        pattern="[ -~]{1,63}" 
+        title="Max 63 characters, printable ASCII only"/>
+
+        <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
+        pattern="[ -~]{8,63}" 
+        title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
+
+        <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
+        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
+        pattern="[A-Za-z0-9_\-]+"
+        placeholder="%DEFAULTHOSTNAME%"
+        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+
+        <label>Use static IP address: </label>
+        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
+
+        <div class='if-staticip'>
+        <label>Local IP: </label>
+        <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
+
+        <label>Gateway: </label>
+        <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
+
+        <label>Subnet mask: </label>
+        <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
+
+        <label>DNS server: </label>
+        <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%DNSPH%"
+              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
+        </div>
+
+        <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
+        document.querySelector('input[name="STATICIP"]').addEventListener('change', function() {
+          if (!this.checked) return;
+          ['LOCALIP', 'GATEWAY', 'SUBNET', 'DNS'].forEach(function(name) {
+            const field = document.querySelector('input[name="' + name + '"]');
+            if (field && !field.value && field.placeholder.includes('.')) {
+              field.value = field.placeholder;
+            }
+          });
+        });
+        </script>
+
+        <label>Broadcast Wi-Fi Access Point: </label>
+        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+
+        <label>Access Point password: </label>
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
+        pattern="([ -~]{8,63})?"
+        title="Password must be 8-63 characters long, printable ASCII only."
+        placeholder='Leave blank to keep unchanged' />
+
+        <label>Wifi channel 0-14: </label>
+        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
+        min="0" max="14" step="1"
+        title="Force specific channel. Set to 0 for autodetect" required />
+
+        </div>
+        </div>
+
+        <div class="settings-card">
+        <h3>Web interface access</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+
+        <label>Enable password protection: </label>
+        <input type='checkbox' name='WEBAUTH' value='on' %WEBAUTH%
+        title="Require HTTP Basic authentication for the web interface and OTA page" />
+
+        <label>Username: </label>
+        <input type='text' name='HTTPUSER' value="%HTTPUSER%"
+        pattern="[ -~]{1,32}"
+        title="Web interface username, printable ASCII only" />
+
+        <label>Web interface password: </label>
+        <input type='password' name='HTTPPASS' value="%HTTPPASS%"
+        pattern="[ -~]{0,63}"
+        title="Set a password before enabling password protection. Printable ASCII only" placeholder='Leave blank to keep unchanged' />
+
+        <label>Repeat web interface password: </label>
+        <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%"
+        pattern="[ -~]{0,63}"
+        title="Repeat the web interface password" placeholder='Leave blank to keep unchanged' />
+
+        <label>Show web interface password: </label>
+        <input type='checkbox' onchange='toggleWebPasswordVisibility(this.checked)' />
+        </div>
         </div>
 
         <div class="settings-card">
@@ -1007,6 +1695,33 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-nissan">
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
+        </div>
+
+        <div class="if-daly">
+          <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
+          <input type='number' name='DALYPWRPCT' value="%DALYPWRPCT%"
+          min="1" max="10000" step="1"
+          title="Below 20% and above 80% SOC, limit power to this value * SOC% (e.g. 50 W/% means 150W at 3%, 500W at 10%)" />
+
+          <label>Voltage difference for start of voltage based discharge limit (dV): </label>
+          <input type='number' name='DALYDVSTART' value="%DALYDVSTART%"
+          min="1" max="200" step="1"
+          title="Power limiting begins when pack voltage is this many dV above the discharge voltage limit (default 20 = 2.0V)" />
+
+          <label>Max power per dV distance from minimum voltage (W/dV): </label>
+          <input type='number' name='DALYPWRDV' value="%DALYPWRDV%"
+          min="1" max="10000" step="1"
+          title="Max power per dV when approaching the discharge voltage limit" />
+
+          <label>Power change per °C above/below 0°C (W/°C): </label>
+          <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
+          min="1" max="10000" step="1"
+          title="Max power added or removed per degree above or below 0°C" />
+
+          <label>Power at 0°C (W): </label>
+          <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
+          min="0" max="100000" step="1"
+          title="Maximum allowed charge/discharge power at exactly 0°C" />
         </div>
 
         <div class="if-tesla">
@@ -1056,24 +1771,30 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-pylon-battery">
+        <label>Pylon CAN baudrate (kbps): </label>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
+        </div>
+
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
-        <input name='BATTPVMAX' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMAX%'   
+        <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%'   
         title="Maximum safe voltage for the entire battery pack in volts. Used as charge target and protection limits." />
 
         <label>Battery min design voltage (V): </label>
-        <input name='BATTPVMIN' pattern="^[0-9]+(\.[0-9]+)?$" type='text' value='%BATTPVMIN%' 
+        <input name='BATTPVMIN' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMIN%' 
         title="Minimum safe voltage for the entire battery pack in volts. Further discharge not possible below this limit." />
 
         <label>Cell max design voltage (mV): </label>
-        <input name='BATTCVMAX' pattern="^[0-9]+$" type='text' value='%BATTCVMAX%' 
+        <input name='BATTCVMAX' pattern="[0-9]+" type='text' value='%BATTCVMAX%' 
         title="Maximum voltage per individual cell in millivolts. Charging stops if one cell reaches this voltage." />
 
         <label>Cell min design voltage (mV): </label>
-        <input name='BATTCVMIN' pattern="^[0-9]+$" type='text' value='%BATTCVMIN%' 
+        <input name='BATTCVMIN' pattern="[0-9]+$" type='text' value='%BATTCVMIN%' 
         title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
         </div>
 
+        <div class="if-dblcapable">
         <label>Double battery: </label>
         <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
         title="Enable this option if you intend to run two batteries in parallel" />
@@ -1083,6 +1804,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
+
+        <div class="if-tricapable">
+        <label>Triple battery: </label>
+        <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
+        title="Enable this option if you intend to run three batteries in parallel" />
+
+        <div class="if-tribtr">
+        <label>Battery 3 interface: </label>
+        <select name='BATT3COMM'>
+            %BATT3COMM%
+        </select>
+        </div>
+
+        </div>
+
+        </div>
+
         </div>
 
         </div>
@@ -1100,40 +1838,115 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
+
+        <label>Ramp up charge limits gradually:</label>
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
+
+        <div class='if-chgtapersoc'>
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="%CHGTAPERMAX%" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
+
+        <label>Float charge power, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        </div>
+
+        <label>Allow longer CAN timeout: </label>
+        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
+        title="Use a longer timeout for inverter still alive CAN messages" />
         </div>
 
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
-        <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="^[0-9]{1,2}$" />
+        <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
+        </div>
+
+        <div class="if-pylon-inverter">
+        <label>Pylon, send group (0-1): </label>
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
+        title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
+
+        <label>Pylon, 30k offset: </label>
+        <input type='checkbox' name='PYLONOFFSET' value='on' %PYLONOFFSET% 
+        title="When enabled, 30k offset will be applied on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, invert byteorder: </label>
+        <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
+        title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
+
+        <label>Pylon, manufacturer name: </label>
+        <select name='PYLONBRAND'>%PYLON_MODEL%</select>
+        </div>
+
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
+
+        <div class="if-byd">
+        <label>Deye avoid over/undercharge fix: </label>
+        <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
+        </div>
+
+        <div class="if-bydmodbus">
+        <label>Fronius Primo, 450V maxvoltage cap: </label>
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
         </div>
 
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
-        <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="^[0-9]+$" />
+        <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
         </div>
 
         <div class="if-pylonish if-solax">
         <label>Reported module count (0 for default): </label>
-        <input name='INVMODULES' type='text' value="%INVMODULES%" pattern="^[0-9]+$" />
+        <input name='INVMODULES' type='text' value="%INVMODULES%" pattern="[0-9]+" />
         </div>
 
         <div class="if-pylonish">
         <label>Reported cells per module (0 for default): </label>
-        <input name='INVCELLSPER' type='text' value="%INVCELLSPER%" pattern="^[0-9]+$" />
+        <input name='INVCELLSPER' type='text' value="%INVCELLSPER%" pattern="[0-9]+" />
 
         <label>Reported voltage level (0 for default): </label>
-        <input name='INVVLEVEL' type='text' value="%INVVLEVEL%" pattern="^[0-9]+$" />
+        <input name='INVVLEVEL' type='text' value="%INVVLEVEL%" pattern="[0-9]+" />
 
         <label>Reported Ah capacity (0 for default): </label>
-        <input name='INVCAPACITY' type='text' value="%INVCAPACITY%" pattern="^[0-9]+$" />
+        <input name='INVCAPACITY' type='text' value="%INVCAPACITY%" pattern="[0-9]+" />
         </div>
 
         <div class="if-solax">
         <label>Reported battery type (in decimal): </label>
-        <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="^[0-9]+$" />
+        <input name='INVBTYPE' type='text' value="%INVBTYPE%" pattern="[0-9]+" />
+        </div>
 
-        <label>Inverter should ignore contactors: </label>
-        <input type='checkbox' name='INVICNT' value='on' %INVICNT% />
+        <div class="if-foxess">
+        <label>FoxESS battery type (0 for default): </label>
+        <input name='FOXESSTYPE' type='text' value="%FOXESSTYPE%" pattern="[0-9]+" />
+
+        <label>FoxESS battery subtype (0 for default): </label>
+        <input name='FOXESSSUBTYPE' type='text' value="%FOXESSSUBTYPE%" pattern="[0-9]+" />
+
+        <label>FoxESS module count (0 for default): </label>
+        <input name='FOXESSMODULES' type='text' value="%FOXESSMODULES%" pattern="[0-9]+" />
+        </div>
+
+        <div class="if-sungrow">
+        <label>Battery model: </label>
+        <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
+        </div>
+        
+        <div class="if-kostal if-solax">
+        <label>Inverter Contactor Workaround: </label>
+        <select name='INVICNT'>
+          %INVICNT%
+        </select>
         </div>
 
         </div>
@@ -1153,7 +1966,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='SHUNT'>
+        <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
 
@@ -1163,27 +1976,39 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        <div class="if-ctclamp">
+          <label>CT Clamp offset (mV): </label>
+          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
+          min="-1" max="3000" step="1"
+          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
+
+          <label>CT Clamp nominal voltage (dV): </label>
+          <input type='number' name='CTVNOM' value="%CTVNOM%" 
+          min="0" max="500" step="1"
+          title="Nominal voltage of the CT Clamp x10. Integer only." />
+
+          <label>CT Clamp nominal current (A): </label>
+          <input type='number' name='CTANOM' value="%CTANOM%" 
+          min="0" max="200" step="1"
+          title="Nominal current of the CT Clamp. Integer only." />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
+          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
+          </div>
         </div>
+
         </div>
 
         <div class="settings-card">
         <h3>Hardware config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Use CanFD as classic CAN: </label>
-        <input type='checkbox' name='CANFDASCAN' value='on' %CANFDASCAN% 
-        title="When enabled, CAN-FD channel will operate as normal 500kbps CAN" />
-
-        <label>CAN addon crystal (Mhz): </label>
-        <input type='number' name='CANFREQ' value="%CANFREQ%" 
-        min="0" max="1000" step="1"
-        title="Configure this if you are using a custom add-on CAN board. Integers only" />
-
-        <label>CAN-FD-addon crystal (Mhz): </label>
-        <input type='number' name='CANFDFREQ' value="%CANFDFREQ%" 
-        min="0" max="1000" step="1"
-        title="Configure this if you are using a custom add-on CAN board. Integers only" />
-        
         <label>Equipment stop button: </label><select name='EQSTOP'>
         %EQSTOP%  
         </select>
@@ -1191,6 +2016,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-dblbtr">
             <label>Double-Battery Contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <div class="if-tribtr">
+                <label>Triple-Battery Contactor control via GPIO: </label>
+                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            </div>
         </div>
 
         <label>Contactor control via GPIO: </label>
@@ -1201,6 +2030,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
             min="1" max="65000" step="1"
             title="Time in milliseconds the precharge should be active" />
+
+            <label>Use Normally Closed logic: </label>
+            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
+            title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
 
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
@@ -1219,84 +2052,72 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <label>Periodic BMS reset every 24h: </label>
+        <label>Periodic BMS reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
+
+        <div class="if-perbmsreset">
+            <label for='PERBMSRESETH'>Every: </label><select name='PERBMSRESETH' id='PERBMSRESETH'>
+            %PERBMSRESETH%
+            </select>
+
+            <label>Defer reset if SOC less than 15&#37;: </label>
+            <input type='checkbox' name='PERBMSDEFSOC' value='on' %PERBMSDEFSOC%
+            title="Holds the reset back while either the real or the scaled SOC is below 15 percent. It runs as soon as SOC recovers, and the interval restarts from that point" />
+
+            <label>Skip reset for one period if balancing: </label>
+            <input type='checkbox' name='PERBMSSKIPBAL' value='on' %PERBMSSKIPBAL%
+            title="Gives up one occurrence if the battery reports balancing as active. The next occurrence runs even if balancing is still active" />
+        </div>
 
         <label>External precharge via HIA4V1: </label>
         <input type='checkbox' name='EXTPRECHARGE' value='on' %EXTPRECHARGE% />
 
         <div class="if-extprecharge">
             <label>Precharge, maximum ms before fault: </label>
-            <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="^[0-9]+$" />
+            <input name='MAXPRETIME' type='text' value="%MAXPRETIME%" pattern="[0-9]+" />
+
+            <label>Precharge, maximum PWM frequency: </label>
+            <input name='MAXPREFREQ' type='text' value="%MAXPREFREQ%" pattern="[0-9]+" />
 
           <label>Normally Open (NO) inverter disconnect contactor: </label>
           <input type='checkbox' name='NOINVDISC' value='on' %NOINVDISC% />
+        </div>
+
+        <label>Measure CPU temperature: </label>
+        <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
+
+         <div class="if-measurecputemp">
+            <label>CPU temperature calibration offset (°C): </label>
+            <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
         </div>
 
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
         %LEDMODE%
         </select>
 
+        )rawliteral" GPIOOPT1_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT2_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT3_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT4_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT5_SETTING R"rawliteral(
+        )rawliteral" GPIOOPT6_SETTING R"rawliteral(
+
         </div>
         </div>
 
         <div class="settings-card">
-        <h3>Connectivity settings</h3>
+        <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Broadcast Wifi access point: </label>
-        <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
+        <label>Enable ESPNow: </label>
+        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED%
+        title="Send battery telemetry to nearby devices over ESP-NOW" />
 
-        <label>Access point name: </label>
-        <input type='text' name='APNAME' value="%APNAME%" 
-        pattern="[A-Za-z0-9!#*]{8,63}" 
-        title="Name must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
-        required />
-
-        <label>Access point password: </label>
-        <input type='text' name='APPASSWORD' value="%APPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]{8,63}" 
-        title="Password must be 8-63 characters long and may only contain letters, numbers and some special characters: !#*"
-        required />
-
-        <label>Wifi channel 0-14: </label>
-        <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
-        min="0" max="14" step="1"
-        title="Force specific channel. Set to 0 for autodetect" required />
-
-        <label>Custom Wifi hostname: </label>
-        <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
-        pattern="[A-Za-z0-9!*]" 
-        title="Optional: Hostname may only contain only letters, numbers, ! and *" />
-
-        <label>Use static IP address: </label>
-        <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
-
-        <div class='if-staticip'>
-        <div>
-          <div>Local IP:</div>
-          <input type="number" name="LOCALIP1" min="0" max="255" size="3" value="%LOCALIP1%">.
-          <input type="number" name="LOCALIP2" min="0" max="255" size="3" value="%LOCALIP2%">.
-          <input type="number" name="LOCALIP3" min="0" max="255" size="3" value="%LOCALIP3%">.
-          <input type="number" name="LOCALIP4" min="0" max="255" size="3" value="%LOCALIP4%">
-        </div>
-            
-        <div>
-            <div>Gateway:</div>
-            <input type="number" name="GATEWAY1" min="0" max="255" size="3" value="%GATEWAY1%">.
-            <input type="number" name="GATEWAY2" min="0" max="255" size="3" value="%GATEWAY2%">.
-            <input type="number" name="GATEWAY3" min="0" max="255" size="3" value="%GATEWAY3%">.
-            <input type="number" name="GATEWAY4" min="0" max="255" size="3" value="%GATEWAY4%">
-        </div>
-    
-        <div>
-          <div>Subnet:</div>
-          <input type="number" name="SUBNET1" min="0" max="255" size="3" value="%SUBNET1%">.
-          <input type="number" name="SUBNET2" min="0" max="255" size="3" value="%SUBNET2%">.
-          <input type="number" name="SUBNET3" min="0" max="255" size="3" value="%SUBNET3%">.
-          <input type="number" name="SUBNET4" min="0" max="255" size="3" value="%SUBNET4%">
-        </div>
-        <div></div>
+        <div class='if-espnowenabled'>
+        <label>ESPNow receiver MACs: </label>
+        <input type='text' name='ESPNOWMACS' value="%ESPNOWMACS%" maxlength="180"
+        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*"
+        title="Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart." />
         </div>
 
         <label>Enable MQTT: </label>
@@ -1305,39 +2126,35 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="^([A-Za-z0-9.-]+|)/$"
-        title="Hostname (letters, numbers, dots, hyphens)" />
+        pattern="[A-Za-z0-9.\-]+"
+        title="Hostname (letters, numbers, '.', '-')" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1"
         title="Port number (1-65535)" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[A-Za-z0-9!#*]" 
-        title="MQTT username can only contain letters, numbers and some special characters: !#*" />
+        pattern="[ -~]+"
+        title="MQTT username can only contain printable ASCII" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
-        pattern="[A-Za-z0-9!#*]" 
-        title="MQTT password can only contain letters, numbers and some special characters: !#*" />
+        pattern="[ -~]+"
+        title="MQTT password can only contain printable ASCII" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1"
         title="Timeout in milliseconds (1-60000)" />
+        <label>MQTT publish interval (seconds): </label>
+        <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
+        min="1" max="300" step="1"
+        title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
-        <label>Remote BMS reset via MQTT allowed: </label>
+        <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
-        <label>Customized MQTT topics: </label>
-        <input type='checkbox' name='MQTTTOPICS' value='on' %MQTTTOPICS% />
-
-        <div class='if-topics'>
-
-        <label>MQTT topic name: </label><input type='text' name='MQTTTOPIC' value="%MQTTTOPIC%" />
-        <label>Prefix for MQTT object ID: </label><input type='text' name='MQTTOBJIDPREFIX' value="%MQTTOBJIDPREFIX%" />
-        <label>HA device name: </label><input type='text' name='MQTTDEVICENAME' value="%MQTTDEVICENAME%" />
-        <label>HA device ID: </label><input type='text' name='HADEVICEID' value="%HADEVICEID%" />
-        
-        </div>
-
         <label>Enable Home Assistant auto discovery: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC% />
+        <label>Home Assistant auto discovery topic: </label>
+        <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
+        pattern="[A-Za-z0-9_\-]+"
+        title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
 
         </div>
 
@@ -1348,13 +2165,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Debug options</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label>Enable performance profiling on main page: </label>
+        <label>Performance profiling on main page: </label>
         <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE%          
-              title="For developers. Enable this to get detailed performance metrics on the front page" />
+              title="For developers. Get detailed performance metrics on the front page" />
 
-        <label>Enable CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
-              title="WARNING: Causes performance issues. Enable this to get incoming/outgoing CAN messages logged via USB cable. Avoid if possible" />
+        <label>General logging via Webserver: </label>
+        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
+              onclick="handleCheckboxSelection(this)"         
+              title="Enable this if you want general logging available in the Webserver." />
+
+        <label>General logging via USB serial: </label>
+        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
+              onclick="handleCheckboxSelection(this)" 
+              title="WARNING: Causes performance issues. Log general messages via USB cable. Avoid if possible!" />
+
         <script> //Make sure user only uses one general logging method, improves performance
         function handleCheckboxSelection(clickedCheckbox) { 
             const usbCheckbox = document.querySelector('input[name="USBENABLED"]');
@@ -1372,26 +2196,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>Enable general logging via USB serial: </label>
-        <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
-              onclick="handleCheckboxSelection(this)" 
-              title="WARNING: Causes performance issues. Enable this to get general logging via USB cable. Avoid if possible" />
+        <label>CAN message logging via USB serial: </label>
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%
+            title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
 
-        <label>Enable general logging via Webserver: </label>
-        <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
-              onclick="handleCheckboxSelection(this)"         
-              title="Enable this if you want general logging available in the Webserver" />
-
-        <label>Enable CAN message logging via SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-        title="Enable this if you want incoming/outgoing CAN messages to be stored to an SD card. Only works on select hardware with SD-card slot" />
-
-        <label>Enable general logging via SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-        title="Enable this if you want general logging to be stored to an SD card. Only works on select hardware with SD-card slot" />
+        )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
-         </div>
+        </div>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button type='submit'>Save</button></div>
 
@@ -1409,7 +2221,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
       
-      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Inverter'>%SHUNTINTF%</span></h4>
+      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
@@ -1437,6 +2249,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
       <h4 style='color: white;'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+
+      <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
     </div>
 

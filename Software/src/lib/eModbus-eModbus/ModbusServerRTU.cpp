@@ -6,9 +6,6 @@
 
 #if HAS_FREERTOS
 
-#undef LOG_LEVEL_LOCAL
-#include "Logging.h"
-
 // Init number of created ModbusServerRTU objects
 uint8_t ModbusServerRTU::instanceCounter = 0;
 
@@ -96,14 +93,12 @@ void ModbusServerRTU::doBegin(uint32_t baudRate, int coreID, uint32_t userInterv
   // Start task to handle the client
   xTaskCreatePinnedToCore((TaskFunction_t)&serve, taskName, SERVER_TASK_STACK, this, 8, &serverTask, coreID >= 0 ? coreID : tskNO_AFFINITY);
 
-  LOG_D("Server task %d started. Interval=%d\n", (uint32_t)serverTask, MSRinterval);
 }
 
 // end: kill server task
 void ModbusServerRTU::end() {
   if (serverTask != nullptr) {
     vTaskDelete(serverTask);
-    LOG_D("Server task %d stopped.\n", (uint32_t)serverTask);
     serverTask = nullptr;
   }
 }
@@ -112,13 +107,11 @@ void ModbusServerRTU::end() {
 void ModbusServerRTU::useModbusASCII(unsigned long timeout) {
   MSRuseASCII = true;
   serverTimeout = timeout; // Set timeout to ASCII's value
-  LOG_D("Protocol mode: ASCII\n");
 }
 
 // Toggle protocol to ModbusRTU
 void ModbusServerRTU::useModbusRTU() {
   MSRuseASCII = false;
-  LOG_D("Protocol mode: RTU\n");
 }
 
 // Inquire protocol mode
@@ -135,14 +128,12 @@ void ModbusServerRTU::setModbusTimeout(unsigned long timeout)
 // Toggle skipping of leading 0x00 byte
 void ModbusServerRTU::skipLeading0x00(bool onOff) {
   MSRskipLeadingZeroByte = onOff;
-  LOG_D("Skip leading 0x00 mode = %s\n", onOff ? "ON" : "OFF");
 }
 
 // Special case: worker to react on broadcast requests
 void ModbusServerRTU::registerBroadcastWorker(MSRlistener worker) {
   // If there is one already, it will be overwritten!
   listener = worker;
-  LOG_D("Registered worker for broadcast requests\n");
 }
 
 // Even more special: register a sniffer worker
@@ -151,7 +142,6 @@ void ModbusServerRTU::registerSniffer(MSRlistener worker) {
   // This holds true for the broadcast worker as well, 
   // so a sniffer never will do else but to sniff on broadcast requests!
   sniffer = worker;
-  LOG_D("Registered sniffer\n");
 }
 
 // serve: loop until killed and receive messages from the RTU interface
@@ -181,7 +171,6 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
 
     // Request longer than 1 byte (that will signal an error in receive())? 
     if (request.size() > 1) {
-      LOG_D("Request received.\n");
 
       // Yes. 
       // Do we have a sniffer listening?
@@ -191,12 +180,10 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
       }
       // Is it a broadcast?
       if (request[0] == 0) {
-        LOG_D("Broadcast!\n");
         // Yes. Do we have a listener?
         if (myServer->listener) {
           // Yes. call it
           myServer->listener(request);
-          LOG_D("Broadcast served.\n");
         }
         // else we simply ignore it
       } else {
@@ -204,16 +191,13 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
         // Do we have a callback function registered for it?
         MBSworker callBack = myServer->getWorker(request[0], request[1]);
         if (callBack) {
-          LOG_D("Callback found.\n");
           // Yes, we do. Count the message
           {
             LOCK_GUARD(cntLock, myServer->m);
             myServer->messageCount++;
           }
           // Get the user's response
-          LOG_D("Callback called.\n");
           m = callBack(request);
-          HEXDUMP_V("Callback response", m.data(), m.size());
 
           // Process Response. Is it one of the predefined types?
           if (m[0] == 0xFF && (m[1] == 0xF0 || m[1] == 0xF1)) {
@@ -248,7 +232,6 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
         if (response.size() >= 3) {
           // Yes. send it back.
           RTUutils::send(*(myServer->MSRserial), myServer->MSRlastMicros, myServer->MSRinterval, myServer->MRTSrts, response, myServer->MSRuseASCII);
-          LOG_D("Response sent.\n");
           // Count it, in case we had an error response
           if (response.getError() != SUCCESS) {
             LOCK_GUARD(errorCntLock, myServer->m);
@@ -262,7 +245,6 @@ void ModbusServerRTU::serve(ModbusServerRTU *myServer) {
       if (request[0] != TIMEOUT) {
         // Any other error could be important for debugging, so print it
         ModbusError me((Error)request[0]);
-        LOG_E("RTU receive: %02X - %s\n", (int)me, (const char *)me);
       }
     }
     // Give scheduler room to breathe

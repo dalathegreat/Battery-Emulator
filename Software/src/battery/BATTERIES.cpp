@@ -1,10 +1,68 @@
 #include "BATTERIES.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/hal/hal.h"
+#include "../devboard/utils/logging.h"
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
+#include "BMW-I3-BATTERY.h"
+#include "BMW-IX-BATTERY.h"
+#include "BMW-PHEV-BATTERY.h"
+#include "BMW-SBOX.h"
+#include "BOLT-AMPERA-BATTERY.h"
+#include "BYD-ATTO-3-BATTERY.h"
+#include "CELLPOWER-BMS.h"
+#include "CHADEMO-BATTERY.h"
+#include "CHADEMO-CT.h"
+#include "CHADEMO-SHUNTS.h"
+#include "CHARGEBYTE-CCS.h"
+#include "CMFA-EV-BATTERY.h"
+#include "CMP-SMART-CAR-BATTERY.h"
+#include "DALY-BMS.h"
+#include "ECMP-BATTERY.h"
+#include "ENNOID-BMS.h"
+#include "FORD-MACH-E-BATTERY.h"
+#include "FOXESS-BATTERY.h"
+#include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "GEELY-SEA-BATTERY.h"
+#include "GROWATT-HV-ARK-BATTERY.h"
+#include "HYUNDAI-IONIQ-28-BATTERY.h"
+#include "IMIEV-CZERO-ION-BATTERY.h"
+#include "JAGUAR-IPACE-BATTERY.h"
+#include "KIA-64FD-BATTERY.h"
+#include "KIA-E-GMP-BATTERY.h"
+#include "KIA-HYUNDAI-64-BATTERY.h"
+#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#include "MEB-BATTERY.h"
+#include "MG-5-BATTERY.h"
+#include "MG-GEN1-BATTERY.h"
+#include "NISSAN-LEAF-BATTERY.h"
+#include "ORION-BMS.h"
+#include "PYLON-BATTERY.h"
+#include "RANGE-ROVER-PHEV-BATTERY.h"
+#include "RELION-LV-BATTERY.h"
+#include "RENAULT-KANGOO-BATTERY.h"
+#include "RENAULT-TWIZY.h"
+#include "RENAULT-ZOE-GEN1-BATTERY.h"
+#include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "RIVIAN-BATTERY.h"
+#include "RJXZS-BMS.h"
+#include "SAMSUNG-SDI-LV-BATTERY.h"
+#include "SANTA-FE-PHEV-BATTERY.h"
+#include "SIMPBMS-BATTERY.h"
+#include "SONO-BATTERY.h"
+#include "STELLANTIS-SMALL-WIDE-4x4.h"
+#include "TESLA-BATTERY.h"
+#include "TESLA-LEGACY-BATTERY.h"
+#include "TEST-FAKE-BATTERY.h"
+#include "THINK-BATTERY.h"
+#include "THUNDERSTRUCK-BMS.h"
+#include "VOLVO-SPA-BATTERY.h"
+#include "VOLVO-SPA-HYBRID-BATTERY.h"
+
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
+Battery* battery3 = nullptr;
 
 std::vector<BatteryType> supported_battery_types() {
   std::vector<BatteryType> types;
@@ -26,28 +84,15 @@ const char* name_for_chemistry(battery_chemistry_enum chem) {
       return "NCA";
     case battery_chemistry_enum::NMC:
       return "NMC";
+    case battery_chemistry_enum::ZEBRA:
+      return "Molten Salt";
     default:
       return nullptr;
   }
 }
 
 const char* name_for_comm_interface(comm_interface comm) {
-  switch (comm) {
-    case comm_interface::Modbus:
-      return "Modbus";
-    case comm_interface::RS485:
-      return "RS485";
-    case comm_interface::CanNative:
-      return "Native CAN";
-    case comm_interface::CanFdNative:
-      return "Native CAN FD";
-    case comm_interface::CanAddonMcp2515:
-      return "CAN MCP 2515 add-on";
-    case comm_interface::CanFdAddonMcp2518:
-      return "CAN FD MCP 2518 add-on";
-    default:
-      return nullptr;
-  }
+  return esp32hal->name_for_comm_interface(comm);
 }
 
 const char* name_for_battery_type(BatteryType type) {
@@ -56,8 +101,10 @@ const char* name_for_battery_type(BatteryType type) {
       return "None";
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
-    case BatteryType::BmwIx:
+    case BatteryType::BmwIX:
       return BmwIXBattery::Name;
+    case BatteryType::BmwPhev:
+      return BmwPhevBattery::Name;
     case BatteryType::BoltAmpera:
       return BoltAmperaBattery::Name;
     case BatteryType::BydAtto3:
@@ -68,10 +115,18 @@ const char* name_for_battery_type(BatteryType type) {
       return ChademoBattery::Name;
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
+    case BatteryType::CmpSmartCar:
+      return CmpSmartCarBattery::Name;
+    case BatteryType::EnnoidBMS:
+      return EnnoidBms::Name;
+    case BatteryType::FordMachE:
+      return FordMachEBattery::Name;
     case BatteryType::Foxess:
       return FoxessBattery::Name;
     case BatteryType::GeelyGeometryC:
       return GeelyGeometryCBattery::Name;
+    case BatteryType::GrowattHvArk:
+      return GrowattHvArkBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -94,10 +149,14 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+    case BatteryType::VAGMqbEvo:
+      return MqbEvoBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
-    case BatteryType::MgHsPhev:
-      return MgHsPHEVBattery::Name;
+#endif
+    case BatteryType::MgGen1:
+      return MgGen1Battery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -124,18 +183,32 @@ const char* name_for_battery_type(BatteryType type) {
       return SamsungSdiLVBattery::Name;
     case BatteryType::SantaFePhev:
       return SantaFePhevBattery::Name;
+    case BatteryType::StellantisSmallWide4x4:
+      return StellantisSmallWide4x4Battery::Name;
     case BatteryType::SimpBms:
       return SimpBmsBattery::Name;
     case BatteryType::TeslaModel3Y:
-      return TeslaModel3YBattery::Name;
+      return TeslaBattery::Name3Y;
     case BatteryType::TeslaModelSX:
-      return TeslaModelSXBattery::Name;
+      return TeslaBattery::NameSX;
+    case BatteryType::TeslaLegacy:
+      return TeslaLegacyBattery::Name;
     case BatteryType::TestFake:
       return TestFakeBattery::Name;
+    case BatteryType::ThinkCity:
+      return ThinkBattery::Name;
+    case BatteryType::ThunderstruckBMS:
+      return ThunderstruckBMS::Name;
+    case BatteryType::GeelySea:
+      return GeelySeaBattery::Name;
     case BatteryType::VolvoSpa:
       return VolvoSpaBattery::Name;
     case BatteryType::VolvoSpaHybrid:
       return VolvoSpaHybridBattery::Name;
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::ChargebyteCCSBattery:
+      return ChargebyteCCSBattery::Name;
+#endif
     default:
       return nullptr;
   }
@@ -145,8 +218,9 @@ const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum:
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
-BatteryType user_selected_battery_type = BatteryType::NissanLeaf;
+BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
+bool user_selected_triple_battery = false;
 
 Battery* create_battery(BatteryType type) {
   switch (type) {
@@ -154,8 +228,10 @@ Battery* create_battery(BatteryType type) {
       return nullptr;
     case BatteryType::BmwI3:
       return new BmwI3Battery();
-    case BatteryType::BmwIx:
+    case BatteryType::BmwIX:
       return new BmwIXBattery();
+    case BatteryType::BmwPhev:
+      return new BmwPhevBattery();
     case BatteryType::BoltAmpera:
       return new BoltAmperaBattery();
     case BatteryType::BydAtto3:
@@ -166,10 +242,18 @@ Battery* create_battery(BatteryType type) {
       return new ChademoBattery();
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
+    case BatteryType::CmpSmartCar:
+      return new CmpSmartCarBattery();
+    case BatteryType::EnnoidBMS:
+      return new EnnoidBms();
+    case BatteryType::FordMachE:
+      return new FordMachEBattery();
     case BatteryType::Foxess:
       return new FoxessBattery();
     case BatteryType::GeelyGeometryC:
       return new GeelyGeometryCBattery();
+    case BatteryType::GrowattHvArk:
+      return new GrowattHvArkBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
@@ -192,10 +276,14 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundaiHybridBattery();
     case BatteryType::Meb:
       return new MebBattery();
+    case BatteryType::VAGMqbEvo:
+      return new MqbEvoBattery();
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
-    case BatteryType::MgHsPhev:
-      return new MgHsPHEVBattery();
+#endif
+    case BatteryType::MgGen1:
+      return new MgGen1Battery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
@@ -224,18 +312,73 @@ Battery* create_battery(BatteryType type) {
       return new SantaFePhevBattery();
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
+    case BatteryType::StellantisSmallWide4x4:
+      return new StellantisSmallWide4x4Battery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery(user_selected_battery_chemistry);
     case BatteryType::TeslaModelSX:
-      return new TeslaModelSXBattery();
+      return new TeslaBattery();
+    case BatteryType::TeslaLegacy:
+      return new TeslaLegacyBattery();
     case BatteryType::TestFake:
       return new TestFakeBattery();
+    case BatteryType::ThinkCity:
+      return new ThinkBattery();
+    case BatteryType::ThunderstruckBMS:
+      return new ThunderstruckBMS();
+    case BatteryType::GeelySea:
+      return new GeelySeaBattery();
     case BatteryType::VolvoSpa:
       return new VolvoSpaBattery();
     case BatteryType::VolvoSpaHybrid:
       return new VolvoSpaHybridBattery();
+#ifndef SMALL_FLASH_DEVICE
+    case BatteryType::ChargebyteCCSBattery:
+      return new ChargebyteCCSBattery();
+#endif
     default:
       return nullptr;
+  }
+}
+
+// The integrations that can be instantiated a second time on a separate
+// interface. Must match the switch in setup_battery() below.
+bool battery_supports_double(BatteryType type) {
+  switch (type) {
+    case BatteryType::BoltAmpera:
+    case BatteryType::BydAtto3:
+    case BatteryType::NissanLeaf:
+    case BatteryType::BmwI3:
+    case BatteryType::CmfaEv:
+    case BatteryType::CmpSmartCar:
+    case BatteryType::StellantisEcmp:
+    case BatteryType::KiaHyundai64:
+    case BatteryType::MgGen1:
+    case BatteryType::Pylon:
+    case BatteryType::SantaFePhev:
+    case BatteryType::RelionBattery:
+    case BatteryType::RenaultZoe1:
+    case BatteryType::RenaultZoe2:
+    case BatteryType::TestFake:
+    case BatteryType::TeslaModel3Y:
+    case BatteryType::TeslaModelSX:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// The integrations that can be instantiated a third time on a separate
+// interface. Must match the switch in setup_battery() below.
+bool battery_supports_triple(BatteryType type) {
+  switch (type) {
+    case BatteryType::NissanLeaf:
+    case BatteryType::CmfaEv:
+    case BatteryType::StellantisEcmp:
+    case BatteryType::RelionBattery:
+    case BatteryType::TestFake:
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -245,6 +388,11 @@ void setup_battery() {
     return;
   }
 
+  // Set the chemistry to the user selected value, the battery can override.
+  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
+  datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+
   battery = create_battery(user_selected_battery_type);
 
   if (battery) {
@@ -252,37 +400,105 @@ void setup_battery() {
   }
 
   if (user_selected_second_battery && !battery2) {
-    switch (user_selected_battery_type) {
-      case BatteryType::NissanLeaf:
-        battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::BmwI3:
-        battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                    can_config.battery_double, esp32hal->WUP_PIN2());
-        break;
-      case BatteryType::KiaHyundai64:
-        battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                           &datalayer.system.status.battery2_allowed_contactor_closing,
-                                           can_config.battery_double);
-      case BatteryType::SantaFePhev:
-        battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::RenaultZoe1:
-        battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::RenaultZoe2:
-        battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::TestFake:
-        battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      default:
-        DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
-        break;
+    if (!battery_supports_double(user_selected_battery_type)) {
+      DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
+    } else {
+      switch (user_selected_battery_type) {
+        case BatteryType::BoltAmpera:
+          battery2 =
+              new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+          break;
+        case BatteryType::BydAtto3:
+          battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
+          break;
+        case BatteryType::NissanLeaf:
+          battery2 =
+              new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, can_config.battery_double);
+          break;
+        case BatteryType::BmwI3:
+          battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                      can_config.battery_double, esp32hal->WUP_PIN2());
+          break;
+        case BatteryType::CmfaEv:
+          battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::CmpSmartCar:
+          battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::KiaHyundai64:
+          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
+                                             &datalayer.system.status.battery2_allowed_contactor_closing,
+                                             can_config.battery_double);
+          break;
+        case BatteryType::MgGen1:
+          battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+          break;
+        case BatteryType::Pylon:
+          battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::SantaFePhev:
+          battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::RelionBattery:
+          battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+          break;
+        case BatteryType::RenaultZoe1:
+          battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::RenaultZoe2:
+          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::TestFake:
+          battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::TeslaModel3Y:
+        case BatteryType::TeslaModelSX:
+          battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        default:
+          break;
+      }
     }
 
     if (battery2) {
       battery2->setup();
+    }
+  }
+
+  if (user_selected_triple_battery && !battery3) {
+    if (!battery_supports_triple(user_selected_battery_type)) {
+      DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
+    } else {
+      switch (user_selected_battery_type) {
+        case BatteryType::NissanLeaf:
+          battery3 =
+              new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3, can_config.battery_triple);
+          break;
+        case BatteryType::CmfaEv:
+          battery3 = new CmfaEvBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery3 = new EcmpBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::RelionBattery:
+          battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
+                                       &datalayer.system.status.battery3_allowed_contactor_closing);
+          break;
+        case BatteryType::TestFake:
+          battery3 = new TestFakeBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (battery3) {
+      battery3->setup();
     }
   }
 }
@@ -296,9 +512,15 @@ bool user_selected_tesla_GTW_rightHandDrive = true;
 uint16_t user_selected_tesla_GTW_mapRegion = 2;
 uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
+/* User-selected DALY BMS settings */
+int user_selected_daly_power_per_percent = 50;
+int user_selected_daly_power_per_dV = 50;
+int user_selected_daly_power_per_dV_start = 20;
+int user_selected_daly_power_per_degree_C = 60;
+int user_selected_daly_power_at_0_degree_C = 800;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
-
+uint16_t user_selected_pylon_baudrate = 500;
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;

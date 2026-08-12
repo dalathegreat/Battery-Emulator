@@ -33,11 +33,17 @@ class KiaHyundai64Battery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
   KiaHyundai64HtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_KIAHYUNDAI64* datalayer_battery_extended;
+
+  bool UserRequestDTCreset = false;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
@@ -70,11 +76,12 @@ class KiaHyundai64Battery : public CanBattery {
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
   uint16_t cellvoltages_mv[98];
-  int16_t leadAcidBatteryVoltage = 120;
+  uint16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;
   uint8_t poll_data_pid = 0;
+  uint8_t open_state = 0;
   uint16_t pid_reply = 0;
   bool holdPidCounter = false;
   uint8_t CellVmaxNo = 0;
@@ -135,6 +142,11 @@ class KiaHyundai64Battery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x2A1,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame KIA64_7E4_OPEN_CONTACTOR_SEQUENCE = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x7E4,
+                                                 .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame KIA64_7E4_poll = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
@@ -146,6 +158,11 @@ class KiaHyundai64Battery : public CanBattery {
       .DLC = 8,
       .ID = 0x7E4,
       .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
+  CAN_frame KIA64_CLEAR_DTC = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x7E4,
+                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
   static const int POLL_GROUP_1 = 0x0101;
   static const int POLL_GROUP_2 = 0x0102;
   static const int POLL_GROUP_3 = 0x0103;

@@ -23,7 +23,27 @@ class GrowattHvInverter : public CanInverterProtocol {
   static const int MANUFACTURER_ASCII_0 = 0x47;  //G
   static const int MANUFACTURER_ASCII_1 = 0x54;  //T
 
-  /* Do not change code below unless you are sure what you are doing */
+  unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was send
+  unsigned long previousMillisBatchSend = 0;
+  uint32_t unix_time = 0;
+  // 0x3140 expects capacity in 10 mAh units.
+  uint16_t capacity_remaining_10mAh = 0;
+  uint16_t capacity_full_10mAh = 0;
+  uint16_t send_times = 0;  // Overflows every 18hours. Cumulative number, plus 1 for each transmission
+  uint8_t safety_specification = 0;
+  uint8_t charging_command = 0;
+  uint8_t discharging_command = 0;
+  uint8_t shielding_external_communication_failure = 0;
+  uint8_t clearing_battery_fault =
+      0;  //When PCS receives the forced charge Mark 1 and Cell under- voltage protection fault, it will send 0XAA
+  uint8_t ISO_detection_command = 0;
+  uint8_t sleep_wakeup_control = 0;
+  uint8_t PCS_working_status = 0;     //00 standby, 01 operating
+  uint8_t serial_number_counter = 0;  //0-1-2-0-1-2...
+  uint8_t can_message_batch_index = 0;
+  const uint8_t delay_between_batches_ms = 10;
+  bool inverter_alive = false;
+  bool time_to_send_1s_data = false;
 
   //Actual content messages
   CAN_frame GROWATT_3110 = {.FD = false,
@@ -126,27 +146,6 @@ class GrowattHvInverter : public CanInverterProtocol {
                             .DLC = 8,
                             .ID = 0x3F00,
                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-  unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was send
-  unsigned long previousMillisBatchSend = 0;
-  uint32_t unix_time = 0;
-  uint16_t ampere_hours_remaining = 0;
-  uint16_t ampere_hours_full = 0;
-  uint16_t send_times = 0;  // Overflows every 18hours. Cumulative number, plus 1 for each transmission
-  uint8_t safety_specification = 0;
-  uint8_t charging_command = 0;
-  uint8_t discharging_command = 0;
-  uint8_t shielding_external_communication_failure = 0;
-  uint8_t clearing_battery_fault =
-      0;  //When PCS receives the forced charge Mark 1 and Cell under- voltage protection fault, it will send 0XAA
-  uint8_t ISO_detection_command = 0;
-  uint8_t sleep_wakeup_control = 0;
-  uint8_t PCS_working_status = 0;     //00 standby, 01 operating
-  uint8_t serial_number_counter = 0;  //0-1-2-0-1-2...
-  uint8_t can_message_batch_index = 0;
-  const uint8_t delay_between_batches_ms = 10;
-  bool inverter_alive = false;
-  bool time_to_send_1s_data = false;
 };
 
 #endif

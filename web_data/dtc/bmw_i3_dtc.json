@@ -1,0 +1,5 @@
+[
+  {"dtc": "21F284", "l_dsc": "High voltage battery unit, cell supervision circuit: Safety circuit activated"},
+  {"dtc": "21F01A", "l_dsc": "High voltage battery, cooling system: actuation of shutoff valve, line disconnected"},
+  {"dtc": "21F13D", "l_dsc": "High voltage battery, switch contactors: Switch-off after a fault"}
+]

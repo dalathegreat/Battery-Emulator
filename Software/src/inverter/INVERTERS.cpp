@@ -1,5 +1,29 @@
 #include "INVERTERS.h"
 
+#include "AFORE-CAN.h"
+#include "BYD-CAN.h"
+#include "BYD-MODBUS.h"
+#include "FERROAMP-CAN.h"
+#include "FOXESS-CAN.h"
+#include "GROWATT-HV-CAN.h"
+#include "GROWATT-LV-CAN.h"
+#include "GROWATT-WIT-CAN.h"
+#include "KOSTAL-RS485.h"
+#include "PYLON-CAN.h"
+#include "PYLON-LV-CAN.h"
+#include "PYLON-LV-RS485.h"
+#include "SCHNEIDER-CAN.h"
+#include "SMA-BYD-H-CAN.h"
+#include "SMA-BYD-HVS-CAN.h"
+#include "SMA-LV-CAN.h"
+#include "SMA-SBS-BYD-CAN.h"
+#include "SOFAR-CAN.h"
+#include "SOL-ARK-LV-CAN.h"
+#include "SOLAX-CAN.h"
+#include "SOLXPOW-CAN.h"
+#include "SUNGROW-CAN.h"
+#include "VCU-CAN.h"
+
 InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
@@ -7,13 +31,33 @@ InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::Byd
 // Some user-configurable settings that can be used by inverters. These
 // inverters should use sensible defaults if the corresponding user_selected
 // value is zero.
+uint16_t user_selected_pylon_send = 0;
 uint16_t user_selected_inverter_cells = 0;
 uint16_t user_selected_inverter_modules = 0;
 uint16_t user_selected_inverter_cells_per_module = 0;
 uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
-bool user_selected_inverter_ignore_contactors = false;
+uint16_t user_selected_inverter_sungrow_type = 0;
+uint16_t user_selected_inverter_foxess_type = 0;
+uint16_t user_selected_inverter_foxess_subtype = 0;
+uint16_t user_selected_inverter_foxess_modules = 0;
+uint16_t user_selected_inverter_pylon_type = 0;
+inverter_contactor_mode_enum user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
+bool user_selected_inverter_long_CAN_timeout = false;
+bool user_selected_pylon_30koffset = false;
+bool user_selected_pylon_invert_byteorder = false;
+bool user_selected_inverter_deye_workaround = false;
+bool user_selected_primo_gen24 =
+    false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
+
+bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
+
+bool charge_taper_soc = false;  //Should the charge power limit be tapered based on scaled SOC near full?
+uint16_t charge_taper_band_pptt =
+    500;  //Taper band in pptt. 500 = taper starts at 95.00% scaled SOC, reaching 0W at 100.00%
+uint16_t charge_taper_floor_W =
+    0;  //Minimum charge power in W held during tapering until 100.00% scaled SOC. 0 = disabled, taper goes linearly to 0W
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
@@ -63,20 +107,23 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLv:
       return PylonLvInverter::Name;
 
+    case InverterProtocolType::PylonLV485:
+      return PylonLV485InverterProtocol::Name;
+
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
 
     case InverterProtocolType::SmaBydH:
       return SmaBydHInverter::Name;
 
-    case InverterProtocolType::SmaBydHvs:
-      return SmaBydHvsInverter::Name;
-
     case InverterProtocolType::SmaLv:
       return SmaLvInverter::Name;
 
-    case InverterProtocolType::SmaTripower:
-      return SmaTripowerInverter::Name;
+    case InverterProtocolType::SmaBydHvs:
+      return SmaBydHvsInverter::Name;
+
+    case InverterProtocolType::SmaSBSByd:
+      return SmaSBSBydHvsInverter::Name;
 
     case InverterProtocolType::Sofar:
       return SofarInverter::Name;
@@ -92,6 +139,12 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::Sungrow:
       return SungrowInverter::Name;
+
+    case InverterProtocolType::VCU:
+      return VCUInverter::Name;
+
+    case InverterProtocolType::Highest:
+      return "None";
   }
   return nullptr;
 }
@@ -146,6 +199,10 @@ bool setup_inverter() {
       inverter = new PylonLvInverter();
       break;
 
+    case InverterProtocolType::PylonLV485:
+      inverter = new PylonLV485InverterProtocol();
+      break;
+
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();
       break;
@@ -154,16 +211,16 @@ bool setup_inverter() {
       inverter = new SmaBydHInverter();
       break;
 
-    case InverterProtocolType::SmaBydHvs:
-      inverter = new SmaBydHvsInverter();
+    case InverterProtocolType::SmaSBSByd:
+      inverter = new SmaSBSBydHvsInverter();
       break;
 
     case InverterProtocolType::SmaLv:
       inverter = new SmaLvInverter();
       break;
 
-    case InverterProtocolType::SmaTripower:
-      inverter = new SmaTripowerInverter();
+    case InverterProtocolType::SmaBydHvs:
+      inverter = new SmaBydHvsInverter();
       break;
 
     case InverterProtocolType::Sofar:
@@ -184,6 +241,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Sungrow:
       inverter = new SungrowInverter();
+      break;
+
+    case InverterProtocolType::VCU:
+      inverter = new VCUInverter();
       break;
 
     case InverterProtocolType::None:

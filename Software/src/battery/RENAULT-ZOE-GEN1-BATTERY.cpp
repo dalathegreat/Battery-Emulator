@@ -9,36 +9,8 @@ https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/veh
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
 Still TODO:
 - Automatically detect what vehicle and battery size we are on (Zoe 22/41 , Kangoo 33, Fluence ZE 22/36)
-/*
 
-/* Do not change code below unless you are sure what you are doing */
-
-CAN_frame ZOE_423 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x423,
-                     .data = {0x07, 0x1d, 0x00, 0x02, 0x5d, 0x80, 0x5d, 0xc8}};
-CAN_frame ZOE_POLL_79B = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x79B,
-                          .data = {0x02, 0x21, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame ZOE_ACK_79B = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x79B,
-                         .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-#define GROUP1_CELLVOLTAGES_1_POLL 0x41
-#define GROUP2_CELLVOLTAGES_2_POLL 0x42
-#define GROUP3_METRICS 0x61
-#define GROUP4_SOC 0x03
-#define GROUP5_TEMPERATURE_POLL 0x04
-
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
-static uint8_t counter_423 = 0;
-
+ Do not change code below unless you are sure what you are doing */
 void RenaultZoeGen1Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer_battery->status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
@@ -46,7 +18,7 @@ void RenaultZoeGen1Battery::
   datalayer_battery->status.real_soc = SOC_polled;
   //datalayer_battery->status.real_soc = LB_Display_SOC; //Alternative would be to use Dash SOC%
 
-  datalayer_battery->status.current_dA = LB_Current * 10;  //Convert A to dA
+  datalayer_battery->status.current_dA = (((int32_t)LB_Current_raw * 10) / 4) - 5000;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -69,16 +41,22 @@ void RenaultZoeGen1Battery::
 
   datalayer_battery->status.temperature_max_dC = max_temperature * 10;
 
-  // Calculate total pack voltage on packs that require this. Only calculate once all cellvotages have been read
+  // Calculate total pack voltage on packs that require this. Only calculate once all cellvoltages have been read
   if (datalayer_battery->status.cell_voltages_mV[95] > 0) {
-    calculated_total_pack_voltage_mV = datalayer_battery->status.cell_voltages_mV[0];
+    calculated_total_pack_voltage_mV = 0;
     for (uint8_t i = 0; i < datalayer_battery->info.number_of_cells; ++i) {
       calculated_total_pack_voltage_mV += datalayer_battery->status.cell_voltages_mV[i];
     }
   }
 
-  datalayer_battery->status.cell_min_voltage_mV = LB_Cell_minimum_voltage;
-  datalayer_battery->status.cell_max_voltage_mV = LB_Cell_maximum_voltage;
+  if (LB_Cell_minimum_voltage < 4400) {  //Value is initialized large for some reason
+    datalayer_battery->status.cell_min_voltage_mV = LB_Cell_minimum_voltage;
+  }
+
+  if (LB_Cell_maximum_voltage < 4400) {  //Value is initialized large for some reason
+    datalayer_battery->status.cell_max_voltage_mV = LB_Cell_maximum_voltage;
+  }
+
   datalayer_battery->status.voltage_dV = ((calculated_total_pack_voltage_mV / 100));  // mV to dV
 
   //Update extended datalayer
@@ -101,7 +79,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x155:  //10ms - Charging power, current and SOC - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Charging_Power_W = rx_frame.data.u8[0] * 300;
-      LB_Current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      LB_Current_raw = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];
       LB_Display_SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
 
@@ -112,6 +90,11 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x424:  //100ms - Charge limits, Temperatures, SOH - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
+      if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       LB_CUV = (rx_frame.data.u8[0] & 0x03);
       LB_HVBIR = (rx_frame.data.u8[0] & 0x0C) >> 2;
       LB_HVBUV = (rx_frame.data.u8[0] & 0x30) >> 4;
@@ -124,10 +107,9 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
       LB_Cell_minimum_temperature = (rx_frame.data.u8[4] - 40);
       LB_SOH = rx_frame.data.u8[5];
-      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
       break;
-    case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40
+    case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Cell_maximum_voltage = (((((rx_frame.data.u8[4] & 0x03) << 7) | (rx_frame.data.u8[5] >> 1)) * 10) + 1000);
       LB_Cell_minimum_voltage = (((((rx_frame.data.u8[6] & 0x01) << 8) | rx_frame.data.u8[7]) * 10) + 1000);
@@ -136,14 +118,19 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
       break;
-    case 0x445:  //100ms - Confirmed sent by: Fluence ZE40
+    case 0x445:  //100ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Heartbeat = rx_frame.data.u8[2];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
+      if ((LB_Heartbeat != 0x55) && (LB_Heartbeat != 0xAA)) {
+        datalayer.battery.status.CAN_error_counter++;
+        break;
+      }
       break;
-    case 0x4AE:  //3000ms
+    case 0x4AE:  //3000ms Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
-    case 0x4AF:  //100ms
+    case 0x4AF:  //100ms Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
@@ -155,7 +142,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //LB_SOH = (rx_frame.data.u8[4] & 0x7F);
       break;
-    case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40
+    case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40 & Zoe Gen1
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7BB:  //Reply from active polling
@@ -183,6 +170,44 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
             //10,4D,61,04,09,12,3A,09,
             cell_1_temperature_polled = (rx_frame.data.u8[6] - 40);
+          }
+          if (requested_poll == GROUP6_BALANCING) {
+            //RX0 7BB [8] 10 0E 61 07 00 00 00 00
+            datalayer_battery->status.cell_balancing_status[0] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[1] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[2] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[3] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[4] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[5] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[6] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[7] = (rx_frame.data.u8[4] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[8] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[9] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[10] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[11] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[12] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[13] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[14] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[15] = (rx_frame.data.u8[5] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[16] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[17] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[18] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[19] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[20] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[21] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[22] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[23] = (rx_frame.data.u8[6] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[24] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[25] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[26] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[27] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[28] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[29] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[30] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[31] = (rx_frame.data.u8[7] & 0x01);
           }
           break;
         case 0x21:  //First datarow in PID group
@@ -216,6 +241,72 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cell_3_temperature_polled = (rx_frame.data.u8[5] - 40);
             //21,11,3A,09,14,3A,09,0D,
           }
+          if (requested_poll == GROUP6_BALANCING) {
+            //(62934.118) RX0 7BB [8] 21 00 00 00 00 00 00 00
+            datalayer_battery->status.cell_balancing_status[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[35] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[36] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[37] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[38] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[39] = (rx_frame.data.u8[1] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[40] = (rx_frame.data.u8[2] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[41] = (rx_frame.data.u8[2] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[42] = (rx_frame.data.u8[2] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[43] = (rx_frame.data.u8[2] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[44] = (rx_frame.data.u8[2] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[45] = (rx_frame.data.u8[2] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[46] = (rx_frame.data.u8[2] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[47] = (rx_frame.data.u8[2] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[48] = (rx_frame.data.u8[3] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[49] = (rx_frame.data.u8[3] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[50] = (rx_frame.data.u8[3] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[51] = (rx_frame.data.u8[3] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[52] = (rx_frame.data.u8[3] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[53] = (rx_frame.data.u8[3] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[54] = (rx_frame.data.u8[3] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[55] = (rx_frame.data.u8[3] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[56] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[57] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[58] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[59] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[60] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[61] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[62] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[63] = (rx_frame.data.u8[4] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[64] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[65] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[66] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[67] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[68] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[69] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[70] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[71] = (rx_frame.data.u8[5] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[72] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[73] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[74] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[75] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[76] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[77] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[78] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[79] = (rx_frame.data.u8[6] & 0x01);
+
+            datalayer_battery->status.cell_balancing_status[80] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[81] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[82] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[83] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[87] = (rx_frame.data.u8[7] & 0x01);
+          }
+
           break;
         case 0x22:  //Second datarow in PID group
           if ((requested_poll == GROUP1_CELLVOLTAGES_1_POLL) && (looping_over_20 == false)) {
@@ -247,6 +338,17 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             cell_5_temperature_polled = (rx_frame.data.u8[4] - 40);
             cell_6_temperature_polled = (rx_frame.data.u8[7] - 40);
             //22,3A,08,F6,3B,08,EE,3B,
+          }
+          if (requested_poll == GROUP6_BALANCING) {
+            //(62934.128) RX0 7BB [8] 22 00 00 00 00 00 00 00
+            datalayer_battery->status.cell_balancing_status[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            datalayer_battery->status.cell_balancing_status[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            datalayer_battery->status.cell_balancing_status[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            datalayer_battery->status.cell_balancing_status[91] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            datalayer_battery->status.cell_balancing_status[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            datalayer_battery->status.cell_balancing_status[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            datalayer_battery->status.cell_balancing_status[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            datalayer_battery->status.cell_balancing_status[95] = (rx_frame.data.u8[1] & 0x01);
           }
           break;
         case 0x23:  //Third datarow in PID group
@@ -498,15 +600,23 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
       case 4:
         current_poll = GROUP5_TEMPERATURE_POLL;
         break;
+      case 5:
+        current_poll = GROUP6_BALANCING;
+        break;
       default:
         break;
     }
 
-    group = (group + 1) % 5;  // Cycle 0-1-2-3-4-0-1...
+    group = (group + 1) % 6;  // Cycle 0-1-2-3-4-5-0-1...
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
-    transmit_can_frame(&ZOE_POLL_79B);
+    if (UserRequestedDTCReset == true) {
+      transmit_can_frame(&ZOE_CLEAR_DTC);
+      UserRequestedDTCReset = false;
+    } else {
+      transmit_can_frame(&ZOE_POLL_79B);
+    }
   }
 }
 

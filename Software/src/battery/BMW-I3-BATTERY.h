@@ -1,6 +1,7 @@
 #ifndef BMW_I3_BATTERY_H
 #define BMW_I3_BATTERY_H
 
+#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
 #include "BMW-I3-HTML.h"
@@ -35,6 +36,28 @@ class BmwI3Battery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "BMW i3";
 
+  bool supports_balancing() { return true; }
+  bool is_balancing_active() { return UserRequestBalancing != NONE; }
+  const char* get_balancing_state_string() {
+    switch (UserRequestBalancing) {
+      case NONE:
+        return "None";
+      case REQUESTED:
+        return "Requested";
+      case STARTING:
+        return "Starting";
+      case EXECUTING:
+        return "Executing";
+      default:
+        return "Unknown";
+    }
+  }
+  virtual void initiate_balancing();
+  virtual void end_balancing();
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
   // SOC% raw battery value. Might not always reach 100%
   uint16_t SOC_raw() { return (battery_HVBatt_SOC * 10); }
   // SOC% instrumentation cluster value. Will always reach 100%
@@ -61,6 +84,21 @@ class BmwI3Battery : public CanBattery {
   uint8_t ST_isolation() { return battery_status_warning_isolation; }
   // Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal
   uint8_t ST_cold_shutoff_valve() { return battery_status_cold_shutoff_valve; }
+  // Status balancing
+  uint8_t ST_balancing_status() { return UserRequestBalancing; }
+  // Charge-abort request from the battery via 0x431 RQ_ABRT_CHGNG
+  const char* get_abort_charging_string() {
+    switch (battery_request_abort_charging) {
+      case 0:
+        return "None";
+      case 1:
+        return "Abort requested (charge finished)";
+      case 2:
+        return "Reserved";
+      default:
+        return "Signal invalid";
+    }
+  }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -68,18 +106,23 @@ class BmwI3Battery : public CanBattery {
   BmwI3HtmlRenderer renderer;
 
  private:
+  bool UserRequestDTCreset = false;
+  enum BalancingState { NONE, REQUESTED, STARTING, EXECUTING };
+  BalancingState UserRequestBalancing = NONE;
+  unsigned long UserRequestBalancingMillis = 0;
+
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_60AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_VOLTAGE_94AH = 4140;   // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_94AH = 2700;   // Battery is put into emergency stop if one cell goes below this value
-  const int MAX_CELL_VOLTAGE_120AH = 4190;  // Battery is put into emergency stop if one cell goes over this value
+  const int MAX_CELL_VOLTAGE_120AH = 4210;  // Battery is put into emergency stop if one cell goes over this value
   const int MIN_CELL_VOLTAGE_120AH = 2790;  // Battery is put into emergency stop if one cell goes below this value
   const int MAX_CELL_DEVIATION_MV = 250;    // LED turns yellow on the board if mv delta exceeds this value
   const int MAX_PACK_VOLTAGE_60AH = 3950;   // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_60AH = 2590;   // Discharge stops if pack voltage exceeds this value
   const int MAX_PACK_VOLTAGE_94AH = 3980;   // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_94AH = 2590;   // Discharge stops if pack voltage exceeds this value
-  const int MAX_PACK_VOLTAGE_120AH = 4030;  // Charge stops if pack voltage exceeds this value
+  const int MAX_PACK_VOLTAGE_120AH = 4032;  // Charge stops if pack voltage exceeds this value
   const int MIN_PACK_VOLTAGE_120AH = 2680;  // Discharge stops if pack voltage exceeds this value
   const int NUMBER_OF_CELLS = 96;
 
@@ -109,13 +152,13 @@ class BmwI3Battery : public CanBattery {
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;
 
-  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
+  enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST, CLEAR_DTC, OFF };
 
   CmdState cmdState = SOC;
 
   /* CAN messages from PT-CAN2 not needed to operate the battery
-     0AA 105 13D 0BB 0AD 0A5 150 100 1A1 10E 153 197 429 1AA 12F 59A 2E3 2BE 211 2b3 3FD 2E8 2B7 108 29D 29C 29B 2C0 330
-     3E9 32F 19E 326 55E 515 509 50A 51A 2F5 3A4 432 3C9 
+     0AA 105 13D 0BB 0AD 0A5 150 100 1A1 10E 153 197 429 1AA 12F 59A 2E3 2BE 211 2b3 3FD 2E8 2B7 29D 29C 29B 2C0 330
+     32F 326 55E 515 509 50A 51A 2F5 3A4 432 3C9
      */
 
   CAN_frame BMW_10B = {.FD = false,
@@ -123,6 +166,12 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 3,
                        .ID = 0x10B,
                        .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command
+  static constexpr CAN_frame BMW_108 = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x108,
+      .data = {0x00, 0x7D, 0xFF, 0xFF, 0x07, 0xF1, 0xFF, 0xFF}};  // Actual Charging Electronics Data
   CAN_frame BMW_12F = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -143,6 +192,12 @@ class BmwI3Battery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x19B,
                        .data = {0x20, 0x40, 0x40, 0x55, 0xFD, 0xFF, 0xFF, 0xFF}};
+  static constexpr CAN_frame BMW_19E = {
+      .FD = false,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x19E,
+      .data = {0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};  // Subsystems Control
   CAN_frame BMW_1D0 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -202,6 +257,11 @@ class BmwI3Battery : public CanBattery {
                                         .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
   CAN_frame BMW_3E5 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x3E5, .data = {0xFC, 0xFF, 0xFF}};
   CAN_frame BMW_3E8 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3E8, .data = {0xF0, 0xFF}};  //1000ms OBD reset
+  CAN_frame BMW_3E9 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3E9,
+                       .data = {0x08, 0x52, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame BMW_3EC = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -279,6 +339,11 @@ class BmwI3Battery : public CanBattery {
                                                  .DLC = 4,
                                                  .ID = 0x6F1,
                                                  .data = {0x07, 0x30, 0x00, 0x02}};
+  static constexpr CAN_frame BMW_6F1_CLEAR_DTC = {.FD = false,
+                                                  .ext_ID = false,
+                                                  .DLC = 6,
+                                                  .ID = 0x6F1,
+                                                  .data = {0xDF, 0x04, 0x14, 0xFF, 0xFF, 0xFF}};
   CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false,
                                            .ext_ID = false,
                                            .DLC = 7,
@@ -291,6 +356,20 @@ class BmwI3Battery : public CanBattery {
                                                       .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
 
   //The above CAN messages need to be sent towards the battery to keep it alive
+
+  // Balancing shutdown sequence constants (mirrors real car discharge log).
+  // Timing is measured from the moment 0x3E9 byte2 -> 0x41 (charge-finished signal),
+  // which coincides with balancing_start_time.
+  static const uint8_t BMW_12F_BYTE3_ACTIVE = 0xDD;       // Normal operation value for byte3
+  static const int BALANCING_CONTACTOR_DELAY_MS = 54000;  // Open contactors ~54s after charge-finished
+  static const int BALANCING_CAN_STOP_DELAY_MS = 96000;   // Stop all CAN ~96s after charge-finished (battery sleeps)
+  static const int BALANCING_12F_STEPS = 9;
+  const unsigned long balancing_12F_times[BALANCING_12F_STEPS] = {0, 625, 1250, 1875, 2500, 3125, 3750, 4375, 5000};
+  const uint8_t balancing_12F_values[BALANCING_12F_STEPS] = {0xDD, 0x6D, 0x5D, 0x5C, 0x4C, 0x3C, 0x2C, 0x1C, 0x1A};
+
+  bool balancing_mode_active = false;
+  bool can_communication_stopped = false;
+  unsigned long balancing_start_time = 0;
 
   uint8_t startup_counter_contactor = 0;
   uint8_t alive_counter_20ms = 0;
@@ -323,8 +402,9 @@ class BmwI3Battery : public CanBattery {
   uint32_t battery_BEV_available_power_longterm_charge = 0;
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
   uint16_t battery_energy_content_maximum_Wh = 0;
-  uint16_t battery_display_SOC = 0;
-  uint16_t battery_volts = 0;
+  uint16_t battery_display_SOC = 100;
+  uint16_t battery_volts = 3700;
+  uint16_t temp_voltage = 0;
   uint16_t battery_HVBatt_SOC = 0;
   uint16_t battery_DC_link_voltage = 0;
   uint16_t battery_max_charge_voltage = 0;

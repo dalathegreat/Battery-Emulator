@@ -1,0 +1,3 @@
+# Actually comes out as 3122mV
+# (this is synthetic, please replace with real logs)
+(123.893) RX0 206 [8] 00 00 13 84 00 00 a0 00

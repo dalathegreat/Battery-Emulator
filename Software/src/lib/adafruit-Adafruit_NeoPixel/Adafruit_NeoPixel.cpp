@@ -1,22 +1,26 @@
-/*Based on the Adafruit Neopixel library, which has been heavily modified to support only 1x RGB LED for lowest possible CPU usage*/
+/*Based on the Adafruit Neopixel library, which has been heavily modified to support a small chain of RGB/GRB LEDs (default 1) for lowest possible CPU usage*/
 
 #include "Adafruit_NeoPixel.h"
 
-extern "C" void espShow(uint16_t pin, uint8_t *pixels, uint8_t numBytes);
+extern "C" void espShow(uint16_t pin, uint8_t* pixels, uint8_t numBytes);
 
-Adafruit_NeoPixel::Adafruit_NeoPixel(int16_t p) : pixels(NULL) {
+Adafruit_NeoPixel::Adafruit_NeoPixel(int16_t p, uint16_t n) : pixels(NULL) {
+  numLEDs = n;
+  numBytes = 3 * n;
   updateLength();
   setPin(p);
 }
 
 void Adafruit_NeoPixel::updateLength(void) {
   free(pixels);
-  pixels = (uint8_t *)malloc(numBytes);
-  if (pixels) memset(pixels, 0, numBytes);
+  pixels = (uint8_t*)malloc(numBytes);
+  if (pixels)
+    memset(pixels, 0, numBytes);
 }
 
 void Adafruit_NeoPixel::setPin(int16_t p) {
-  if (pin >= 0) pinMode(pin, INPUT);
+  if (pin >= 0)
+    pinMode(pin, INPUT);
   pin = p;
   if ((p >= 0)) {
     pinMode(p, OUTPUT);
@@ -24,15 +28,41 @@ void Adafruit_NeoPixel::setPin(int16_t p) {
   }
 }
 
+#ifdef HW_LILYGO2CAN
+void Adafruit_NeoPixel::setColorOrder(uint32_t o) {
+  color_order = o;
+}
+#endif
+
 void Adafruit_NeoPixel::show(void) {
-  if (!pixels) return;
+  if (!pixels)
+    return;
   espShow(pin, pixels, numBytes);
 }
 
 void Adafruit_NeoPixel::setPixelColor(uint32_t c) {
-  uint8_t *p = pixels;
+  setPixelColor(0, c);
+}
+
+void Adafruit_NeoPixel::setPixelColor(uint16_t index, uint32_t c) {
+  if (!pixels || index >= numLEDs) {
+    return;
+  }
+  uint8_t* p = &pixels[index * 3];
   uint8_t r = (uint8_t)(c >> 16), g = (uint8_t)(c >> 8), b = (uint8_t)c;
+#ifdef HW_LILYGO2CAN
+  if (color_order == GRB) {  // GRB color order
+    p[rOffset] = g;
+    p[gOffset] = r;
+    p[bOffset] = b;
+  } else {  // default RGB color order
+    p[rOffset] = r;
+    p[gOffset] = g;
+    p[bOffset] = b;
+  }
+#else
   p[rOffset] = r;
   p[gOffset] = g;
   p[bOffset] = b;
+#endif
 }

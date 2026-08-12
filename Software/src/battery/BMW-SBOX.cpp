@@ -76,11 +76,12 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
   } else {
     datalayer.shunt.available = true;
   }
-  // Send 20ms CAN Message
-  if (currentMillis - LastMsgTime >= INTERVAL_20_MS) {
-    LastMsgTime = currentMillis;
+
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
     // First check if we have any active errors, incase we do, turn off the battery
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       timeSpentInFaultedMode++;
     } else {
       timeSpentInFaultedMode = 0;
@@ -94,17 +95,18 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
 
     if (contactorStatus == SHUTDOWN_REQUESTED) {
       datalayer.shunt.contactors_engaged = false;
+      datalayer.system.status.dc_bus_live = false;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
     }
 
     // After that, check if we are OK to start turning on the contactors
     if (contactorStatus == DISCONNECTED) {
       datalayer.shunt.contactors_engaged = false;
+      datalayer.system.status.dc_bus_live = false;
       SBOX_100.data.u8[0] = 0x55;  // All open
 
       if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
-          !datalayer.system.settings.equipment_stop_active &&
+          datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
           (datalayer.shunt.measured_voltage_mV > MINIMUM_INPUT_VOLTAGE * 1000)) {
         contactorStatus = PRECHARGE;
       }
@@ -112,8 +114,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
     // In case the inverter requests contactors to open, set the state accordingly
     if (contactorStatus == COMPLETED) {
       //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-      if (!datalayer.system.status.inverter_allows_contactor_closing ||
-          datalayer.system.settings.equipment_stop_active) {
+      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.info.equipment_stop_active) {
         contactorStatus = DISCONNECTED;
       }
     }
@@ -151,6 +152,7 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
           contactorStatus = COMPLETED;
           logging.println("S-BOX Precharge relay released");
           datalayer.shunt.contactors_engaged = true;
+          datalayer.system.status.dc_bus_live = true;
         }
         break;
       case COMPLETED:
@@ -171,6 +173,6 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwSbox::setup() {
-  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
-  datalayer.system.info.shunt_protocol[63] = '\0';
+  strncpy(datalayer.system.info.shunt_protocol, Name, 31);
+  datalayer.system.info.shunt_protocol[31] = '\0';
 }

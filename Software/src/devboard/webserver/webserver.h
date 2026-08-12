@@ -3,11 +3,15 @@
 
 #include <Preferences.h>
 #include <WiFi.h>
+#include <string>
 #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 
 extern const char* version_number;  // The current software version, shown on webserver
+extern std::string http_username;
+extern std::string http_password;
+extern bool webserver_auth;
 
 // Common charger parameters
 extern float charger_stat_HVcur;
@@ -19,6 +23,11 @@ extern float charger_stat_LVvol;
 
 //LEAF charger
 extern uint16_t OBC_Charge_Power;
+
+// OTA status
+extern bool ota_active;
+
+static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
 
 /**
  * @brief Initialization function for the webserver.
@@ -100,6 +109,7 @@ String formatPowerValue(T value, String unit, int precision);
 
 extern void store_settings();
 
-void ota_monitor();
+bool webserver_auth_is_ready();
+void webserver_tick();
 
 #endif

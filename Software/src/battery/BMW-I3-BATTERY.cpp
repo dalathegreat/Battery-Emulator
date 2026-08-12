@@ -1,34 +1,18 @@
 #include "BMW-I3-BATTERY.h"
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
-const unsigned char crc8_table[256] =
-    {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
-        0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
-        0xF7, 0xEA, 0xB9, 0xA4, 0x83, 0x9E, 0x25, 0x38, 0x1F, 0x02, 0x51, 0x4C, 0x6B, 0x76, 0x87, 0x9A, 0xBD, 0xA0,
-        0xF3, 0xEE, 0xC9, 0xD4, 0x6F, 0x72, 0x55, 0x48, 0x1B, 0x06, 0x21, 0x3C, 0x4A, 0x57, 0x70, 0x6D, 0x3E, 0x23,
-        0x04, 0x19, 0xA2, 0xBF, 0x98, 0x85, 0xD6, 0xCB, 0xEC, 0xF1, 0x13, 0x0E, 0x29, 0x34, 0x67, 0x7A, 0x5D, 0x40,
-        0xFB, 0xE6, 0xC1, 0xDC, 0x8F, 0x92, 0xB5, 0xA8, 0xDE, 0xC3, 0xE4, 0xF9, 0xAA, 0xB7, 0x90, 0x8D, 0x36, 0x2B,
-        0x0C, 0x11, 0x42, 0x5F, 0x78, 0x65, 0x94, 0x89, 0xAE, 0xB3, 0xE0, 0xFD, 0xDA, 0xC7, 0x7C, 0x61, 0x46, 0x5B,
-        0x08, 0x15, 0x32, 0x2F, 0x59, 0x44, 0x63, 0x7E, 0x2D, 0x30, 0x17, 0x0A, 0xB1, 0xAC, 0x8B, 0x96, 0xC5, 0xD8,
-        0xFF, 0xE2, 0x26, 0x3B, 0x1C, 0x01, 0x52, 0x4F, 0x68, 0x75, 0xCE, 0xD3, 0xF4, 0xE9, 0xBA, 0xA7, 0x80, 0x9D,
-        0xEB, 0xF6, 0xD1, 0xCC, 0x9F, 0x82, 0xA5, 0xB8, 0x03, 0x1E, 0x39, 0x24, 0x77, 0x6A, 0x4D, 0x50, 0xA1, 0xBC,
-        0x9B, 0x86, 0xD5, 0xC8, 0xEF, 0xF2, 0x49, 0x54, 0x73, 0x6E, 0x3D, 0x20, 0x07, 0x1A, 0x6C, 0x71, 0x56, 0x4B,
-        0x18, 0x05, 0x22, 0x3F, 0x84, 0x99, 0xBE, 0xA3, 0xF0, 0xED, 0xCA, 0xD7, 0x35, 0x28, 0x0F, 0x12, 0x41, 0x5C,
-        0x7B, 0x66, 0xDD, 0xC0, 0xE7, 0xFA, 0xA9, 0xB4, 0x93, 0x8E, 0xF8, 0xE5, 0xC2, 0xDF, 0x8C, 0x91, 0xB6, 0xAB,
-        0x10, 0x0D, 0x2A, 0x37, 0x64, 0x79, 0x5E, 0x43, 0xB2, 0xAF, 0x88, 0x95, 0xC6, 0xDB, 0xFC, 0xE1, 0x5A, 0x47,
-        0x60, 0x7D, 0x2E, 0x33, 0x14, 0x09, 0x7F, 0x62, 0x45, 0x58, 0x0B, 0x16, 0x31, 0x2C, 0x97, 0x8A, 0xAD, 0xB0,
-        0xE3, 0xFE, 0xD9, 0xC4};
-
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
-    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
 }
@@ -41,11 +25,47 @@ uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
+void BmwI3Battery::initiate_balancing() {
+  UserRequestBalancing = REQUESTED;
+  UserRequestBalancingMillis = millis();
+}
+
+void BmwI3Battery::end_balancing() {
+  UserRequestBalancing = NONE;
+  UserRequestBalancingMillis = 0;
+  balancing_mode_active = false;
+  can_communication_stopped = false;
+  BMW_12F.data.u8[3] = BMW_12F_BYTE3_ACTIVE;  // Restore active state
+  cmdState = SOC;
+  battery_info_available = false;
+  set_event(EVENT_BALANCING_END, 0);
+}
+
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.settings.equipment_stop_active == true) {
-    digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
-  } else if (millis() > INTERVAL_1_S) {
-    digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
+  if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
+      UserRequestBalancing == EXECUTING) {
+    digitalWrite(wakeup_pin, LOW);         // Turn off wakeup pin
+  } else if (millis64() > INTERVAL_1_S) {  // millis64: plain millis() wraps after 49.7 days
+    digitalWrite(wakeup_pin, HIGH);        // Wake up the battery
+  }
+
+  // When balancing mode has stopped CAN, keep the alive counter refreshed
+  // so the safety check (EVENT_CAN_BATTERY_MISSING) does not trigger
+  if (UserRequestBalancing == EXECUTING) {
+    datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    datalayer.system.status.system_status = STANDBY;
+    // During balancing sleep, report contactors as open so an old engaged state is not latched.
+    datalayer.system.status.contactors_engaged = 0;
+    if (!contactor_control_enabled) {
+      datalayer.system.status.dc_bus_live = false;
+    }
+  }
+
+  // Map internal balancing state to datalayer balancing_status
+  if (UserRequestBalancing == NONE) {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+  } else {
+    datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
   }
 
   if (!battery_awake) {
@@ -64,10 +84,15 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
 
   datalayer_battery->status.soh_pptt = battery_soh * 100;
 
-  datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+  if (UserRequestBalancing == NONE) {
+    datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
-  datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+  } else {
+    datalayer_battery->status.max_discharge_power_W = 0;
 
+    datalayer_battery->status.max_charge_power_W = 0;
+  }
   datalayer_battery->status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
   datalayer_battery->status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
@@ -103,17 +128,44 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   } else {
     clear_event(EVENT_CONTACTOR_WELDED);
   }
+
+  // Map BMW I3 DC switch status to system datalayer
+  // battery_status_disconnecting_switch: 0=open, 1=precharge ongoing, 2=contactors engaged, 3=invalid
+  switch (battery_status_disconnecting_switch) {
+    case 0:  // Contactors open
+      datalayer.system.status.contactors_engaged = 0;
+      break;
+    case 1:  // Precharge ongoing
+      datalayer.system.status.contactors_engaged = 3;
+      break;
+    case 2:  // Contactors engaged
+      datalayer.system.status.contactors_engaged = 1;
+      break;
+    default:  // Invalid signal - treat as open
+      datalayer.system.status.contactors_engaged = 0;
+      break;
+  }
+  // I3 drives its own DC switch, so DC is live once its contactors report engaged.
+  // Guarded so the GPIO contactor state machine stays authoritative when enabled.
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = (datalayer.system.status.contactors_engaged == 1);
+  }
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
-      battery_awake = true;
+      // Set to true unless balancing is going on and battery is supposed to go to sleep
+      battery_awake = UserRequestBalancing != EXECUTING;
       datalayer_battery->status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
-      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-      datalayer_battery->status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
+      temp_voltage = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);            //500.0 V
+      if (temp_voltage < 10000) {  //Some SMEs have been observed to send 0xFFFF when booting, so ignore those readings
+        battery_volts = temp_voltage;
+        datalayer_battery->status.voltage_dV =
+            battery_volts;  // Update the datalayer as soon as possible with this info
+      }
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
@@ -137,15 +189,20 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery_temperature_min = (rx_frame.data.u8[6] - 50);
-      battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      if (rx_frame.data.u8[6] != 0xFF) {  //Unavailable value during boot on some packs
+        battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      }
+      if (rx_frame.data.u8[7] != 0xFF) {  //Unavailable value during boot on some packs
+        battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      }
       break;
     case 0x239:                                                                                      //BMS [200ms]
       battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
       battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
-      battery_awake = true;
+      // Set to true unless balancing is going on and battery is supposed to go to sleep
+      battery_awake = UserRequestBalancing != EXECUTING;
       if (!skipCRCCheck) {
         if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
           // If calculated CRC does not match transmitted CRC, increase CANerror counter
@@ -172,7 +229,8 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
       break;
     case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
-      battery_awake = true;
+      // Set to true unless balancing is going on and battery is supposed to go to sleep
+      battery_awake = UserRequestBalancing != EXECUTING;
       battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
       break;
     case 0x363:  //BMS [1s] Identification High-Voltage Battery
@@ -214,7 +272,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_energy_content_maximum_Wh = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]) * 20;
       if (battery_energy_content_maximum_Wh > 33000) {
         detectedBattery = BATTERY_120AH;
-      } else if (battery_energy_content_maximum_Wh > 20000) {
+      } else if (battery_energy_content_maximum_Wh > 22050) {
         detectedBattery = BATTERY_94AH;
       } else {
         detectedBattery = BATTERY_60AH;
@@ -283,6 +341,8 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
               battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
             }
             break;
+          default:
+            break;
         }
       }
       break;
@@ -293,15 +353,82 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
 void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
-  if (battery_awake) {
-    //Send 20ms message
+  // Handle balancing mode request - simulates real car shutdown sequence from discharge log
+  // (timed from balancing start = 0x3E9 byte2 -> 0x41, the charge-finished signal):
+  // t=0s:   0x12F byte3 begins sequence DD->6D->5D->5C->4C->3C->2C->1C->1A (~5s)
+  // t=54s:  0x10B contactor opens (byte1 high nibble 1->0)
+  // t=96s:  All CAN communication stops (battery goes to sleep)
+  if (UserRequestBalancing != NONE && !balancing_mode_active) {
+    balancing_mode_active = true;
+    balancing_start_time = currentMillis;
+    can_communication_stopped = false;
+    cmdState = OFF;
+  } else if (UserRequestBalancing == NONE && balancing_mode_active) {
+    // Resume: already handled in end_balancing(), just ensure flags are consistent
+    balancing_mode_active = false;
+    can_communication_stopped = false;
+  }
+
+  // Run balancing shutdown sequence (0x12F byte3 transition)
+  if (balancing_mode_active && !can_communication_stopped) {
+    unsigned long elapsed_time = currentMillis - balancing_start_time;
+
+    // Update 0x12F byte3 based on elapsed time
+    BMW_12F.data.u8[3] = BMW_12F_BYTE3_ACTIVE;  // Start value (DD)
+    for (int i = BALANCING_12F_STEPS - 1; i >= 0; i--) {
+      if (elapsed_time >= balancing_12F_times[i]) {
+        BMW_12F.data.u8[3] = balancing_12F_values[i];
+        break;
+      }
+    }
+
+    // Transition states based on elapsed time
+    if (UserRequestBalancing == REQUESTED && elapsed_time >= 20000) {
+      UserRequestBalancing = STARTING;
+    }
+    if (UserRequestBalancing == STARTING && elapsed_time >= INTERVAL_30_S) {
+      UserRequestBalancing = EXECUTING;
+      set_event(EVENT_BALANCING_START, 0);
+    }
+
+    // Stop all CAN communication after ~96s (battery sleeps), ~42s after contactors open
+    if (elapsed_time >= BALANCING_CAN_STOP_DELAY_MS) {
+      can_communication_stopped = true;
+      battery_awake = false;  // Battery is sleeping, must re-detect on wakeup via 0x112
+    }
+  }
+
+  // Don't send any CAN when communication is stopped (battery sleeping)
+  if (can_communication_stopped) {
+    return;
+  }
+
+  // Keep transmitting during the whole balancing shutdown sequence even after
+  // battery_awake flips false at EXECUTING - the real car keeps sending 0x10B
+  // (with contactors open) and all keepalive frames until CAN stops at ~96s.
+  if (battery_awake || balancing_mode_active) {
+    // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
 
-      if (startup_counter_contactor < 160) {
+      // Contactor control: open ~54 seconds after balancing start (charge-finished signal)
+      // Until then, contactors stay closed (matches real car discharge log)
+      bool contactors_should_open =
+          balancing_mode_active && (currentMillis - balancing_start_time >= BALANCING_CONTACTOR_DELAY_MS);
+
+      if (contactors_should_open) {
+        BMW_10B.data.u8[1] = 0x00;  // Open contactors - balancing shutdown sequence
+      } else if (datalayer.system.status.system_status == FAULT) {
+        BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - fault condition
+      } else if (startup_counter_contactor < 160) {
         startup_counter_contactor++;
-      } else {                      //After 160 messages, turn on the request
+        BMW_10B.data.u8[1] = 0x00;  // Keep contactors open during startup
+      } else if (contactor_closing_allowed && !(*contactor_closing_allowed)) {
+        BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - master (primary battery) not ready
+      } else if (datalayer.system.status.inverter_allows_contactor_closing) {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      } else {
+        BMW_10B.data.u8[1] = 0x00;  // Keep contactors open
       }
 
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
@@ -312,25 +439,25 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_13E_counter++;
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
-      if (datalayer_battery->status.bms_status == FAULT) {
-      } else if (allows_contactor_closing) {
-        //If battery is not in Fault mode, and we are allowed to control contactors, we allow contactor to close by sending 10B
-        *allows_contactor_closing = true;
-        transmit_can_frame(&BMW_10B);
-      } else if (contactor_closing_allowed && *contactor_closing_allowed) {
-        transmit_can_frame(&BMW_10B);
+      if (allows_contactor_closing) {
+        *allows_contactor_closing = !contactors_should_open;
       }
+      transmit_can_frame(&BMW_10B);  // Always send 10B - content (0x00/0x10) controlled by logic above
     }
 
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+      // Always operate the BMW i3 in Charge/Calibration mode (0x35).
+      BMW_12F.data.u8[5] = 0x35;  // Charge/Calibration mode
+
       BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
       BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
 
       alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
+      transmit_can_frame(&BMW_108);  // Actual Charging Electronics Data
       transmit_can_frame(&BMW_12F);
     }
     // Send 200ms CAN Message
@@ -342,6 +469,45 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
+      // Set BMW_3E9 byte0/byte1 based on battery type, byte2 based on balancing state
+      switch (detectedBattery) {
+        case BATTERY_94AH:
+          BMW_3E9.data.u8[0] = 0x0B;
+          BMW_3E9.data.u8[1] = 0x81;
+          break;
+        case BATTERY_120AH:
+          BMW_3E9.data.u8[0] = 0xD8;
+          BMW_3E9.data.u8[1] = 0xA4;
+          break;
+        default:  // BATTERY_60AH
+          BMW_3E9.data.u8[0] = 0x08;
+          BMW_3E9.data.u8[1] = 0x52;
+          break;
+      }
+      // byte2 = Chg_Status_Info (high nibble) | Charge_Req (low nibble), per DBC AEMsg3E9:
+      // byte3/byte4 carry Chg_Readiness (byte3 bit0-1) and Charging_Pwr (byte3 bit4-7 + byte4, *25 W).
+      if (balancing_mode_active) {
+        BMW_3E9.data.u8[2] = 0x41;  // Charge_complete + PlugCharge (we start the shutdown/balancing)
+        BMW_3E9.data.u8[3] = 0x00;
+        BMW_3E9.data.u8[4] = 0x00;
+      } else {
+        BMW_3E9.data.u8[2] = 0x21;  // Charge_active + PlugCharge (always in charging / calibration mode)
+        // Charging_Pwr = the battery's own measured charging power (active_power_W, positive = charging),
+        // a 12-bit field at 25 W/bit spread over byte3 bit4-7 (low nibble) + byte4 (high 8 bits).
+        // byte3 bit0-1 keeps Chg_Readiness=Ready (0x1).
+        int32_t charge_power_W = datalayer_battery ? datalayer_battery->status.active_power_W : 0;
+        if (charge_power_W < 0) {
+          charge_power_W = 0;  // Only report charging power; clamp discharge/idle to zero
+        }
+        uint16_t charge_pwr_raw = charge_power_W / 25;  // 25 W per bit
+        if (charge_pwr_raw > 0x0FFF) {
+          charge_pwr_raw = 0x0FFF;  // Saturate to the 12-bit field
+        }
+        BMW_3E9.data.u8[3] = 0x01 | ((charge_pwr_raw & 0x0F) << 4);  // Chg_Readiness=Ready + Charging_Pwr low nibble
+        BMW_3E9.data.u8[4] = (charge_pwr_raw >> 4) & 0xFF;           // Charging_Pwr high bits
+      }
+
+      transmit_can_frame(&BMW_3E9);  // Load Status
       transmit_can_frame(&BMW_19B);
     }
     // Send 500ms CAN Message
@@ -353,6 +519,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
+      transmit_can_frame(&BMW_19E);  // Subsystems Control
       transmit_can_frame(&BMW_30B);
     }
     // Send 640ms CAN Message
@@ -417,6 +584,11 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
 
+      if (UserRequestDTCreset) {
+        cmdState = CLEAR_DTC;
+        UserRequestDTCreset = false;
+      }
+
       next_data = 0;
       switch (cmdState) {
         case SOC:
@@ -446,6 +618,16 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           break;
         case CELL_VOLTAGE_CELLNO_LAST:
           transmit_can_frame(&BMW_6F1_SOC);
+          cmdState = SOC;
+          break;
+        case CLEAR_DTC:
+          transmit_can_frame(&BMW_6F1_CLEAR_DTC);
+          cmdState = SOC;  //jump back to normal polling
+          break;
+        case OFF:
+          break;
+        default:
+          //Should never end up here
           cmdState = SOC;
           break;
       }
@@ -500,8 +682,8 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
-  //Before we have started up and detected which battery is in use, use 60AH values
-  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+  //Before we have started up and detected which battery is in use, use the widest limits
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 

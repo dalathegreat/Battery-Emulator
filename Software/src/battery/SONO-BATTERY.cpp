@@ -117,7 +117,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
     //VCU Command message
     SONO_400.data.u8[0] = 0x15;  //Charging enabled bit01, dischargign enabled bit23, dc charging bit45
 
-    if (datalayer.battery.status.bms_status == FAULT) {
+    if (datalayer.system.status.system_status == FAULT) {
       SONO_400.data.u8[0] = 0x14;  //Charging DISABLED
     }
     transmit_can_frame(&SONO_400);

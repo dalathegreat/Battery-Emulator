@@ -2,14 +2,22 @@
 #define _TYPES_H_
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 
 using milliseconds = std::chrono::milliseconds;
 using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
-enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum system_status_enum { STANDBY = 0, INACTIVE = 1, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
-enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, Highest };
+enum balancing_status_enum {
+  BALANCING_STATUS_UNKNOWN = 0,
+  BALANCING_STATUS_ERROR = 1,
+  BALANCING_STATUS_READY = 2,   //No balancing active, system supports balancing
+  BALANCING_STATUS_ACTIVE = 3,  //Balancing active!
+  BALANCING_STATUS_BLOCKED = 4  //Balancing blocked, cells not yet at rest
+};
+enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, ZEBRA = 4, Highest };
 
 enum class comm_interface {
   Modbus = 1,
@@ -18,10 +26,16 @@ enum class comm_interface {
   CanFdNative = 4,
   CanAddonMcp2515 = 5,
   CanFdAddonMcp2518 = 6,
+  CanFdAddonMcp2518_2 = 7,
   Highest
 };
 
+#ifdef HW_LILYGO2CAN
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, GRB_CLASSIC, GRB_FLOW, GRB_HEARTBEAT };
+#else
 enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
+#endif
+
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,
   AUTO_PRECHARGE_START,
@@ -29,6 +43,12 @@ enum PrechargeState {
   AUTO_PRECHARGE_OFF,
   AUTO_PRECHARGE_COMPLETED,
   AUTO_PRECHARGE_FAILURE
+};
+enum BMSResetState {
+  BMS_RESET_IDLE = 0,
+  BMS_RESET_WAITING_FOR_PAUSE,
+  BMS_RESET_POWERED_OFF,
+  BMS_RESET_POWERING_ON,
 };
 
 #define DISCHARGING 1
@@ -39,6 +59,7 @@ enum PrechargeState {
 #define INTERVAL_30_MS 30
 #define INTERVAL_40_MS 40
 #define INTERVAL_50_MS 50
+#define INTERVAL_60_MS 60
 #define INTERVAL_70_MS 70
 #define INTERVAL_100_MS 100
 #define INTERVAL_200_MS 200
@@ -68,7 +89,13 @@ enum CAN_Interface {
   CAN_ADDON_MCP2515 = 2,
 
   // Add-on CAN-FD MCP2518 connected to GPIO pins
-  CANFD_ADDON_MCP2518 = 3
+  CANFD_ADDON_MCP2518 = 3,
+
+  // 2nd add-on CAN-FD MCP2518 sharing bus with above
+  CANFD_ADDON_MCP2518_2 = 4,
+
+  // No CAN interface
+  NO_CAN_INTERFACE = 5
 };
 
 extern const char* getCANInterfaceName(CAN_Interface interface);
@@ -93,6 +120,83 @@ typedef struct {
   frameDirection direction;
 } CAN_log_frame;
 
-std::string getBMSStatus(bms_status_enum status);
+std::string getBMSStatus(system_status_enum status);
+
+enum class ChargingState { Idle, Charging, Discharging };
+enum class LimitingFactor { None, Inverter, UserSetting, Battery };
+
+ChargingState get_charging_state(int32_t current_dA);
+LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                   bool user_settings_limit_charge, bool user_settings_limit_discharge);
+const char* charging_state_to_text(ChargingState state);
+const char* limiting_factor_to_text(LimitingFactor factor);
+
+/** Human readable battery status, e.g. "Battery charging (Inverter limiting)". Used for the web UI. */
+const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                     bool user_settings_limit_charge, bool user_settings_limit_discharge);
+
+#ifdef HW_LILYGO2CAN
+/* Configurable GPIO options (device specific) */
+enum class GPIOOPT1 {
+  // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
+  DEFAULT_OPT = 0,
+  // T-2CAN: SDA/SCL on GPIO1/GPIO2
+  I2C_DISPLAY_SSD1306 = 1,
+  // T-2CAN: ESTOP on GPIO1, BMS_POWER on GPIO2
+  ESTOP_BMS_POWER = 2,
+  Highest
+};
+extern GPIOOPT1 user_selected_gpioopt1;
+#endif
+enum class GPIOOPT2 {
+  // T-CAN485: Default, BMS power on PIN18
+  DEFAULT_OPT_BMS_POWER_18 = 0,
+  // T-CAN485: Move BMS power to PIN25
+  BMS_POWER_25 = 1,
+  Highest
+};
+enum class GPIOOPT3 {
+  // T-CAN485: Default, SMA inverter pin PIN5
+  DEFAULT_SMA_ENABLE_05 = 0,
+  // T-CAN485: Move SMA inverter pin to PIN33
+  SMA_ENABLE_33 = 1,
+  Highest
+};
+enum class GPIOOPT4 {
+  // T-CAN485: Default, uSD Card
+  DEFAULT_SD_CARD = 0,
+  // T-CAN485: Disable SD,Enable Display on Pins 14,15
+  I2C_DISPLAY_SSD1306 = 1,
+  Highest
+};
+#ifdef HW_STARK
+enum class GPIOOPT5 {
+  // StarkCMR: Default, Gpio23 as BMS power
+  DEFAULT_BMS_POWER_23 = 0,
+  // StarkCMR: Gpio25 as BMS power
+  BMS_POWER_25 = 1,
+  Highest
+};
+extern GPIOOPT5 user_selected_gpioopt5;
+#endif
+#ifdef HW_WAVESHARE
+enum class GPIOOPT6 {
+  // Waveshare: GPIO2 = Status LED (default)
+  DEFAULT_STATUS_LED = 0,
+  // Waveshare: GPIO1 = I2C SDA, GPIO2 = I2C SCL
+  I2C_DISPLAY_SSD1306 = 1,
+  Highest
+};
+extern GPIOOPT6 user_selected_gpioopt6;
+#endif
+extern GPIOOPT2 user_selected_gpioopt2;
+extern GPIOOPT3 user_selected_gpioopt3;
+
+/* The system runs standalone, so events reporting the absence of a
+ * grid-tied inverter are not faults. Owned core-side because the core
+ * events engine is what consumes it; any inverter can be run offgrid, so it
+ * describes the installation rather than a protocol capability. */
+extern bool user_selected_inverter_offgrid;
+extern GPIOOPT4 user_selected_gpioopt4;
 
 #endif

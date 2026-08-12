@@ -71,4 +71,6 @@ class CanCharger : public Charger, Transmitter, CanReceiver {
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
+extern CanCharger* charger;
+
 #endif

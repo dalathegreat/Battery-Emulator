@@ -38,6 +38,7 @@ class ThreeLBHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_34; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_35; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_25; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
@@ -45,6 +46,7 @@ class ThreeLBHal : public Esp32Hal {
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_25; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_2; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_13; }
+  virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_25; }
@@ -53,12 +55,6 @@ class ThreeLBHal : public Esp32Hal {
   // SMA CAN contactor pins
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_36; }
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
-
-  // SD card
-  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_2; }
-  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_15; }
-  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
-  virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_13; }
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }

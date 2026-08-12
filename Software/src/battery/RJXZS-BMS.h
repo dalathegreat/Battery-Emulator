@@ -6,6 +6,7 @@
 
 class RjxzsBms : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   RjxzsBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
 
   virtual void setup(void);
@@ -16,14 +17,11 @@ class RjxzsBms : public CanBattery {
 
  private:
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was sent
 
   //Actual content messages
-  CAN_frame RJXZS_1C = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
-  CAN_frame RJXZS_10 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x10, 0x00, 0x02}};
+  CAN_frame RJXZS_F4 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
 
   static const int FIVE_MINUTES = 60;
 

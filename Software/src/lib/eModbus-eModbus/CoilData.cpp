@@ -4,8 +4,6 @@
 // =================================================================================================
 
 #include "CoilData.h"
-#undef LOCAL_LOG_LEVEL
-#include "Logging.h"
 
 // Constructor: optional size in bits, optional initial value for all bits
 // Maximum size is 2000 coils (=250 bytes)
@@ -516,41 +514,3 @@ uint16_t CoilData::coilsSetON() const {
 uint16_t CoilData::coilsSetOFF() const {
   return CDsize - coilsSetON();
 }
-
-#if !IS_LINUX
-// Not for Linux for the Print reference!
-
-// Print out a coil storage in readable form to ease debugging
-void CoilData::print(const char *label, Print& s) {
-  uint8_t bitptr = 0;
-  uint8_t labellen = strlen(label);
-  uint8_t pos = labellen;
-
-  // Put out the label
-  s.print(label);
-
-  // Print out all coils as "1" or "0"
-  for (uint16_t i = 0; i < CDsize; ++i) {
-    s.print((CDbuffer[byteIndex(i)] & (1 << bitptr)) ? "1" : "0");
-    pos++;
-    // Have a blank after every group of 4
-    if (i % 4 == 3) {
-      // Have a line break if > 80 characters, including the last group of 4
-      if (pos >= 80) {
-        s.println("");
-        pos = 0;
-        // Leave a nice empty space below the label
-        while (pos++ < labellen) {
-          s.print(" ");
-        }
-      } else {
-        s.print(" ");
-        pos++;
-      }
-    }
-    bitptr++;
-    bitptr &= 0x07;
-  }
-  s.println("");
-}
-#endif

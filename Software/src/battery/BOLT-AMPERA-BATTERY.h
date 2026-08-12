@@ -1,10 +1,28 @@
 #ifndef BOLT_AMPERA_BATTERY_H
 #define BOLT_AMPERA_BATTERY_H
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 
 class BoltAmperaBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
+  // Default constructor - first or single battery
+  BoltAmperaBattery() : renderer(&datalayer_extended.boltampera) {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    datalayer_boltampera = &datalayer_extended.boltampera;
+  }
+
+  // Second battery constructor
+  BoltAmperaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BOLTAMPERA* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = nullptr;
+    datalayer_boltampera = extended;
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -14,11 +32,15 @@ class BoltAmperaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
   BoltAmperaHtmlRenderer renderer;
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
-  static const int RAMPDOWN_SOC =
-      9000;  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_BOLTAMPERA* datalayer_boltampera;
+  bool* allows_contactor_closing;
+  bool UserRequestDTCreset = false;
 
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2510;
@@ -194,6 +216,11 @@ class BoltAmperaBattery : public CanBattery {
                             .DLC = 8,
                             .ID = 0x7E7,
                             .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame BOLT_CLEAR_DTC = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E7,
+                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
   // Other PID requests in the vehicle
   // All HV ECUs - 0x101
@@ -253,7 +280,6 @@ class BoltAmperaBattery : public CanBattery {
   int16_t temperature_6 = 0;
   int16_t temperature_highest_C = 0;
   int16_t temperature_lowest_C = 0;
-  uint8_t cellbank_mux = 0;
   uint8_t poll_index_7E4 = 0;
   uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
   uint16_t reply_poll_7E4 = 0;

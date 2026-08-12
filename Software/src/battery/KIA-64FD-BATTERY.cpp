@@ -1,6 +1,8 @@
 #include "KIA-64FD-BATTERY.h"
+#include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../system_settings.h"
@@ -76,7 +78,7 @@ void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCel
 uint8_t Kia64FDBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
-    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
 }
@@ -104,20 +106,15 @@ void Kia64FDBattery::update_values() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We estimate this value for now
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else if (datalayer.battery.status.real_soc >
-             RAMPDOWN_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED * (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
-  }
-
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  //The allowed discharge power is not available. We hardcode this value for now
-  datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+
+  //The allowed charge power is not available. We use user set value for now
+  // Gets ramped down by inverter function on the webserver
+  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+
+  //The allowed discharge power is not available. We use user set value for now
+  // Gets ramped down by inverter function on the webserver
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
@@ -393,7 +390,12 @@ void Kia64FDBattery::transmit_can(unsigned long currentMillis) {
       KIA64FD_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can_frame(&KIA64FD_7E4);
+        if (UserRequestDTCreset) {
+          transmit_can_frame(&KIA64FD_CLEAR_DTC);
+          UserRequestDTCreset = false;
+        } else {  //Normal poll
+          transmit_can_frame(&KIA64FD_7E4);
+        }
       }
 
       KIA_7E4_COUNTER++;

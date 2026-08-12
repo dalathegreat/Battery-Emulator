@@ -50,7 +50,7 @@ void ImievCZeroIonBattery::
   min_temp_cel = cell_temperatures[0];  // Initialize min with the first element of the array
   for (int i = 1; i < m; i++) {
     if (cell_temperatures[i] < min_temp_cel) {
-      if (min_temp_cel != -50.00) {           //-50.00 means this sensor not connected
+      if (min_temp_cel != -50.00f) {          //-50.00 means this sensor not connected
         min_temp_cel = cell_temperatures[i];  // Update max if we find a smaller element
       }
     }
@@ -61,11 +61,11 @@ void ImievCZeroIonBattery::
     datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
   datalayer.battery.info.number_of_cells = 88;
-  if (max_volt_cel > 2.2) {  // Only update cellvoltage when we have a value
+  if (max_volt_cel > 2.2f) {  // Only update cellvoltage when we have a value
     datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
   }
 
-  if (min_volt_cel > 2.2) {  // Only update cellvoltage when we have a value
+  if (min_volt_cel > 2.2f) {  // Only update cellvoltage when we have a value
     datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
   }
 
@@ -104,8 +104,8 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x373:  //BMU message, 100ms - Pack Voltage and current
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      BMU_Current = ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
-      BMU_PackVoltage = ((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.1);
+      BMU_Current = ((((((rx_frame.data.u8[2] * 256.0f) + rx_frame.data.u8[3])) - 32768)) * 0.01f);
+      BMU_PackVoltage = ((rx_frame.data.u8[4] * 256.0f + rx_frame.data.u8[5]) * 0.1f);
       BMU_Power = (BMU_Current * BMU_PackVoltage);
       break;
     case 0x6e1:  //BMU message, 25ms - Battery temperatures and voltages
@@ -120,17 +120,17 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
       //
       if (rx_frame.data.u8[1] != 0) {  // Only update temperatures if value is available
-        temp1 = rx_frame.data.u8[1] - 50.0;
+        temp1 = rx_frame.data.u8[1] - 50.0f;
       }
       if (rx_frame.data.u8[2] != 0) {
-        temp2 = rx_frame.data.u8[1] - 50.0;
+        temp2 = rx_frame.data.u8[1] - 50.0f;
       }
       if (rx_frame.data.u8[3] != 0) {
-        temp3 = rx_frame.data.u8[1] - 50.0;
+        temp3 = rx_frame.data.u8[1] - 50.0f;
       }
 
-      voltage1 = (((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.005) + 2.1);
-      voltage2 = (((rx_frame.data.u8[6] * 256.0 + rx_frame.data.u8[7]) * 0.005) + 2.1);
+      voltage1 = (((rx_frame.data.u8[4] * 256.0f + rx_frame.data.u8[5]) * 0.005f) + 2.1f);
+      voltage2 = (((rx_frame.data.u8[6] * 256.0f + rx_frame.data.u8[7]) * 0.005f) + 2.1f);
 
       voltage_index = ((cmu_id - 1) * 8 + (2 * pid_index));
       temp_index = ((cmu_id - 1) * 6 + (2 * pid_index));
@@ -139,10 +139,10 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         temp_index -= 3;
       }
 
-      if (voltage1 > 2.2) {  // Only update cellvoltages incase we have a value
+      if (voltage1 > 2.2f) {  // Only update cellvoltages incase we have a value
         cell_voltages[voltage_index] = voltage1;
       }
-      if (voltage2 > 2.2) {
+      if (voltage2 > 2.2f) {
         cell_voltages[voltage_index + 1] = voltage2;
       }
 

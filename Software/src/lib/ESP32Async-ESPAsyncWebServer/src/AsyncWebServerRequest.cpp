@@ -29,20 +29,16 @@ void AsyncWebServerRequest::send(FS &fs, const String &path, const char *content
   const String gzPath = path + asyncsrv::T__gz;
   File gzFile = fs.open(gzPath, fs::FileOpenMode::read);
 
-  // Compressed file not found or invalid
-  if (!gzFile.seek(gzFile.size() - 8)) {
-    send(404);
-    gzFile.close();
-    return;
-  }
-
   // ETag validation
   if (this->hasHeader(asyncsrv::T_INM)) {
     // Generate server ETag from CRC in gzip trailer
-    uint8_t crcInTrailer[4];
-    gzFile.read(crcInTrailer, 4);
     char serverETag[9];
-    _getEtag(crcInTrailer, serverETag);
+    if (!_getEtag(gzFile, serverETag)) {
+      // Compressed file not found or invalid
+      send(404);
+      gzFile.close();
+      return;
+    }
 
     // Compare with client's ETag
     const AsyncWebHeader *inmHeader = this->getHeader(asyncsrv::T_INM);
@@ -59,27 +55,36 @@ void AsyncWebServerRequest::send(FS &fs, const String &path, const char *content
 }
 
 /**
- * @brief Generates an ETag string from a 4-byte trailer
+ * @brief Generates an ETag string from the CRC32 trailer of a GZIP file.
  *
- * This function converts a 4-byte array into a hexadecimal ETag string enclosed in quotes.
+ * This function reads the CRC32 checksum (4 bytes) located at the end of a GZIP-compressed file
+ * and converts it into an 8-character hexadecimal ETag string (null-terminated).
  *
- * @param trailer[4] Input array of 4 bytes to convert to hexadecimal
- * @param serverETag Output buffer to store the ETag
- *                   Must be pre-allocated with minimum 9 bytes (8 hex + 1 null terminator)
+ * @param gzFile  Opened file handle pointing to the GZIP file.
+ * @param eTag    Output buffer to store the generated ETag.
+ *                Must be pre-allocated with at least 9 bytes (8 for hex digits + 1 for null terminator).
+ *
+ * @return true if the ETag was successfully generated, false otherwise (e.g., file too short or seek failed).
  */
-void AsyncWebServerRequest::_getEtag(uint8_t trailer[4], char *serverETag) {
+bool AsyncWebServerRequest::_getEtag(File gzFile, char *etag) {
   static constexpr char hexChars[] = "0123456789ABCDEF";
 
-  uint32_t data;
-  memcpy(&data, trailer, 4);
+  if (!gzFile.seek(gzFile.size() - 8)) {
+    return false;
+  }
 
-  serverETag[0] = hexChars[(data >> 4) & 0x0F];
-  serverETag[1] = hexChars[data & 0x0F];
-  serverETag[2] = hexChars[(data >> 12) & 0x0F];
-  serverETag[3] = hexChars[(data >> 8) & 0x0F];
-  serverETag[4] = hexChars[(data >> 20) & 0x0F];
-  serverETag[5] = hexChars[(data >> 16) & 0x0F];
-  serverETag[6] = hexChars[(data >> 28)];
-  serverETag[7] = hexChars[(data >> 24) & 0x0F];
-  serverETag[8] = '\0';
+  uint32_t crc;
+  gzFile.read(reinterpret_cast<uint8_t *>(&crc), sizeof(crc));
+
+  etag[0] = hexChars[(crc >> 4) & 0x0F];
+  etag[1] = hexChars[crc & 0x0F];
+  etag[2] = hexChars[(crc >> 12) & 0x0F];
+  etag[3] = hexChars[(crc >> 8) & 0x0F];
+  etag[4] = hexChars[(crc >> 20) & 0x0F];
+  etag[5] = hexChars[(crc >> 16) & 0x0F];
+  etag[6] = hexChars[(crc >> 28)];
+  etag[7] = hexChars[(crc >> 24) & 0x0F];
+  etag[8] = '\0';
+
+  return true;
 }

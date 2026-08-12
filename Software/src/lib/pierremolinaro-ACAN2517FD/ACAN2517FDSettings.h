@@ -22,6 +22,7 @@ class ACAN2517FDSettings {
 //······················································································································
 
   public: typedef enum : uint8_t {
+    OSC_AUTODETECT,
     OSC_4MHz,
     OSC_4MHz_DIVIDED_BY_2,
     OSC_4MHz10xPLL,
@@ -160,7 +161,7 @@ class ACAN2517FDSettings {
 //······················································································································
 
 //--- Driver transmit buffer size
-  public: uint16_t mDriverTransmitFIFOSize = 22 ; // >= 0
+  public: uint16_t mDriverTransmitFIFOSize = 32 ; // >= 0
 
 //--- Controller transmit FIFO size
   public: uint8_t mControllerTransmitFIFOSize = 1 ; // 1 ... 32

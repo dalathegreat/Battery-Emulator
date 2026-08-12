@@ -38,4 +38,7 @@
 */
 #define MAX_AMOUNT_CELLS 192
 
+// AsyncTCP should only need a 4k stack (default is 16k)
+#define CONFIG_ASYNC_TCP_STACK_SIZE 4096
+
 #endif

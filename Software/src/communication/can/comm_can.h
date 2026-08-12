@@ -3,16 +3,19 @@
 
 #include "../../devboard/utils/types.h"
 
-extern bool use_canfd_as_can;
-extern uint8_t user_selected_can_addon_crystal_frequency_mhz;
-extern uint8_t user_selected_canfd_addon_crystal_frequency_mhz;
+extern uint16_t user_selected_CAN_ID_cutoff_filter;
 
 void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface);
 
+// Format CAN logs to the given buffer. Returns the number of bytes written, or
+// 0 if the buffer is too small.
+// Null-terminates the buffer if len > 0, but the return value does not include the NUL.
+size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_Interface interface,
+                        frameDirection msgDir);
+
 //These defines are not used if user updates values via Settings page
 #define CRYSTAL_FREQUENCY_MHZ 8
-#define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ ACAN2517FDSettings::OSC_40MHz
 
 class CanReceiver;
 
@@ -20,6 +23,7 @@ typedef struct {
   CAN_Interface battery;
   CAN_Interface inverter;
   CAN_Interface battery_double;
+  CAN_Interface battery_triple;
   CAN_Interface charger;
   CAN_Interface shunt;
 } CAN_Configuration;
@@ -59,42 +63,6 @@ bool init_CAN();
  * @return void
  */
 void receive_can();
-
-/**
- * @brief Receive CAN messages from CAN tranceiver natively installed on Lilygo hardware
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_can_native();
-
-/**
- * @brief Receive CAN messages from CAN addon chip
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_can_addon();
-
-/**
- * @brief Receive CAN messages from CANFD addon chip
- *
- * @param[in] void
- *
- * @return void
- */
-void receive_frame_canfd_addon();
-
-/**
- * @brief print CAN frames via USB
- *
- * @param[in] void
- *
- * @return void
- */
-void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
 
 // Stop/pause CAN communication for all interfaces
 void stop_can();

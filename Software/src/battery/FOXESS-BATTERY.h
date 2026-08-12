@@ -31,7 +31,6 @@ class FoxessBattery : public CanBattery {
   uint16_t cut_mv_min = 0;
   uint16_t cycle_count = 0;
   uint16_t max_ac_voltage = 0;
-  uint16_t cellvoltages_mV[128] = {0};
   int16_t temperature_average = 0;
   int16_t pack1_current_sensor = 0;
   int16_t pack2_current_sensor = 0;
@@ -79,6 +78,9 @@ class FoxessBattery : public CanBattery {
   uint8_t STATUS_OPERATIONAL_PACKS =
       0;  //0x1875 b2 contains status for operational packs (responding) in binary so 01111111 is pack 8 not operational, 11101101 is pack 5 & 2 not operational
   uint8_t NUMBER_OF_PACKS = 0;  //1-8
+  // True once 0x1872 (BMS_Limits) has been seen: the BMS-reported design
+  // voltage limits are then authoritative over the HS-series pack table
+  bool bms_limits_received = false;
   uint8_t contactor_status = 0;
   uint8_t statemachine_polling = 0;
   bool charging_disabled = false;

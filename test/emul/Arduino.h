@@ -97,6 +97,22 @@ inline int analogRead(uint8_t pin) {
   return 0;  // Return 0 for predictable tests
 }
 
+inline uint16_t analogReadMilliVolts(uint8_t pin) {
+  (void)pin;
+  return 0;  // Return 0 for predictable tests
+}
+
+inline void analogReadResolution(uint8_t bits) {
+  (void)bits;  // Stub for test environment
+}
+
+inline void analogSetPinAttenuation(uint8_t pin, uint8_t atten) {
+  (void)pin;
+  (void)atten;  // Stub for test environment
+}
+
+#define ADC_BITWIDTH_DEFAULT 12
+
 // Mock WiFi types
 typedef int WiFiEvent_t;
 typedef int WiFiEventInfo_t;
@@ -115,7 +131,10 @@ inline void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 unsigned long micros();
 // Can be previously declared as a macro in stupid eModbus
 #undef millis
-unsigned long millis();
+// uint32_t, deliberately: on the target unsigned long IS 32 bits wide, so this
+// is the truthful width of the millis() contract (wrap at 2^32 ms included).
+uint32_t millis();
+void set_millis64(uint64_t time);
 
 void delay(unsigned long ms);
 void delayMicroseconds(unsigned long us);
@@ -131,6 +150,9 @@ class ESPClass {
     // that retrieves the flash chip size.
     return 4 * 1024 * 1024;  // Example: returning 4MB
   }
+
+  uint64_t getEfuseMac() { return 0xAABBCCDDEEFFULL; }
+  void restart() {}
 };
 
 extern ESPClass ESP;

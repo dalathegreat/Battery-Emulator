@@ -17,9 +17,18 @@ void init_hal() {
 #elif defined(HW_3LB)
 #include "hw_3LB.h"
   esp32hal = new ThreeLBHal();
+#elif defined(HW_BECOM)
+#include "hw_becom.h"
+  esp32hal = new BEComHal();
+#elif defined(HW_WAVESHARE)
+#include "hw_waveshare.h"
+  esp32hal = new WaveshareS3Rs485CanHal();
 #elif defined(HW_DEVKIT)
 #include "hw_devkit.h"
   esp32hal = new DevKitHal();
+#elif defined(HW_DFROBOT_EDGE101)
+#include "hw_dfrobot_edge101.h"
+  esp32hal = new DFRobotEdge101Hal();
 #else
 #error "No HW defined."
 #endif
