@@ -73,41 +73,56 @@ void mapSharedFdBoard() {
 constexpr uint8_t kFd1 = 1 << 2;
 constexpr uint8_t kFd2 = 1 << 3;
 
+// Raise the health flags the devices would have set, then run the pass that
+// turns them into events. The suppression lives there now, not inside
+// set_event(), so driving it any other way would test nothing.
+void reportSendFail(FakeCanDevice* dev) {
+  datalayer.system.info.can_device[dev->device_index].send_fail = true;
+}
+void reportBusError(FakeCanDevice* dev) {
+  datalayer.system.info.can_device[dev->device_index].bus_error = true;
+}
+
 }  // namespace
 
-// Both FD chips report through one event, so an ignore window over one of them
-// must not silence the other. Before health events were keyed by device, a
-// window on the first chip suppressed the second chip's faults as well.
+// Each FD chip owns its own event pair (dala, #2799), so a window over one
+// controller must leave the other's event alone - both the raising of it and,
+// before the ruling, the payload it was sharing.
 TEST(CanHealthEventTests, IgnoreWindowSuppressesOnlyItsOwnDevice) {
   reset_all_events();
   mapSharedFdBoard();
   set_millis64(10000);
   closeAllIgnoreWindows();
 
-  ignore_can_errors_for(CANFD_ADDON_MCP2518, 1000);  // device 2 only
+  ignore_can_errors_for(CANFD_ADDON_MCP2518, 1000);  // the first FD chip only
 
-  // Both chips are reporting a full buffer in the same event.
-  set_event(EVENT_CANFD_BUFFER_FULL, kFd1 | kFd2);
+  reportSendFail(g_board[2]);
+  reportSendFail(g_board[3]);
+  update_can_health_events();
 
-  const EVENTS_STRUCT_TYPE* event = get_event_pointer(EVENT_CANFD_BUFFER_FULL);
-  EXPECT_EQ(event->state, EVENT_STATE_ACTIVE);
-  EXPECT_EQ(event->data, kFd2) << "the ignored chip should be dropped from the payload, the other kept";
+  EXPECT_NE(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE)
+      << "the ignored chip must stay quiet";
+  EXPECT_EQ(get_event_pointer(EVENT_CANFD_2_BUFFER_FULL)->state, EVENT_STATE_ACTIVE)
+      << "the other chip reports on its own event regardless";
 }
 
-// With every device it names inside a window, the event has nothing left to
-// report and is dropped entirely - the original point of the ignore window.
-TEST(CanHealthEventTests, IgnoreWindowOverAllNamedDevicesDropsTheEvent) {
+// A window over every controller reporting drops the lot - the original point
+// of the ignore window.
+TEST(CanHealthEventTests, IgnoreWindowOverEveryReportingDeviceDropsTheEvents) {
   reset_all_events();
   mapSharedFdBoard();
   set_millis64(10000);
   closeAllIgnoreWindows();
 
-  ignore_can_errors_for(CANFD_ADDON_MCP2518, 1000);    // device 2
-  ignore_can_errors_for(CANFD_ADDON_MCP2518_2, 1000);  // device 3
+  ignore_can_errors_for(CANFD_ADDON_MCP2518, 1000);
+  ignore_can_errors_for(CANFD_ADDON_MCP2518_2, 1000);
 
-  set_event(EVENT_CANFD_BUFFER_FULL, kFd1 | kFd2);
+  reportSendFail(g_board[2]);
+  reportSendFail(g_board[3]);
+  update_can_health_events();
 
   EXPECT_NE(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_CANFD_2_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
 }
 
 // A window opened on either logical name of a shared controller must reach it:
@@ -118,11 +133,34 @@ TEST(CanHealthEventTests, EitherLogicalNameOpensTheWindowOnTheSharedChip) {
   set_millis64(10000);
   closeAllIgnoreWindows();
 
-  ignore_can_errors_for(CANFD_NATIVE, 1000);  // the other name for device 2
+  ignore_can_errors_for(CANFD_NATIVE, 1000);  // the other name for the first FD chip
 
-  set_event(EVENT_CANFD_BUS_ERROR, kFd1);
+  reportBusError(g_board[2]);
+  update_can_health_events();
 
   EXPECT_NE(get_event_pointer(EVENT_CANFD_BUS_ERROR)->state, EVENT_STATE_ACTIVE);
+}
+
+// An ignore window suppresses the raise; it must not be read as "healthy" and
+// clear an event that is already standing. Opening a window during a fault is
+// how the MEB and MG drivers cover their own BMS resets - the fault is still
+// real, we just stop reporting new ones.
+TEST(CanHealthEventTests, AWindowOverAStandingFaultDoesNotClearIt) {
+  reset_all_events();
+  mapSharedFdBoard();
+  set_millis64(10000);
+  closeAllIgnoreWindows();
+
+  reportSendFail(g_board[2]);
+  update_can_health_events();
+  ASSERT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
+
+  ignore_can_errors_for(CANFD_ADDON_MCP2518, 1000);
+  reportSendFail(g_board[2]);
+  update_can_health_events();
+
+  EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE)
+      << "the fault has not gone away; the window only stops it being re-reported";
 }
 
 // Once the window has passed the events must come back.
@@ -135,10 +173,10 @@ TEST(CanHealthEventTests, EventsReturnAfterTheWindowExpires) {
   ignore_can_errors_for(CANFD_ADDON_MCP2518, 1000);
   set_millis64(11500);  // window closed
 
-  set_event(EVENT_CANFD_BUFFER_FULL, kFd1);
+  reportSendFail(g_board[2]);
+  update_can_health_events();
 
   EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
-  EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->data, kFd1);
 }
 
 // Init-failure payloads are controller error codes, not device bitmasks, so
@@ -196,7 +234,7 @@ class CanHealthAggregationTest : public ::testing::Test {
 // what the faulty one had just raised.
 TEST_F(CanHealthAggregationTest, HealthySiblingDoesNotClearAFaultySiblingsEvent) {
   FakeCanDevice fd1(2, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR);
-  FakeCanDevice fd2(3, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR);
+  FakeCanDevice fd2(3, EVENT_CANFD_2_BUFFER_FULL, EVENT_CANFD_2_BUS_ERROR);
   ASSERT_TRUE(register_device(&fd1));
   ASSERT_TRUE(register_device(&fd2));
 
@@ -205,16 +243,20 @@ TEST_F(CanHealthAggregationTest, HealthySiblingDoesNotClearAFaultySiblingsEvent)
 
   update_can_health_events();
 
-  const EVENTS_STRUCT_TYPE* entry = get_event_pointer(EVENT_CANFD_BUFFER_FULL);
-  EXPECT_EQ(entry->state, EVENT_STATE_ACTIVE) << "the healthy sibling must not clear the faulty one's event";
-  EXPECT_EQ(entry->data, 1 << fd1.device_index) << "the payload names the faulty device";
+  EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE)
+      << "the faulty chip's own event is raised";
+  EXPECT_NE(get_event_pointer(EVENT_CANFD_2_BUFFER_FULL)->state, EVENT_STATE_ACTIVE)
+      << "the healthy chip's own event stays clear";
 }
 
 // Both faulty: the payload names both, which a single device index could not
 // express.
-TEST_F(CanHealthAggregationTest, PayloadNamesEveryFaultyDeviceSharingTheEvent) {
+// Two faulty chips raise two events. Before dala's #2799 ruling this was one
+// event whose payload was a bitmask of both, which is what made a healthy
+// sibling able to clear it - the defect is now impossible rather than guarded.
+TEST_F(CanHealthAggregationTest, EveryFaultyDeviceRaisesItsOwnEvent) {
   FakeCanDevice fd1(2, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR);
-  FakeCanDevice fd2(3, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR);
+  FakeCanDevice fd2(3, EVENT_CANFD_2_BUFFER_FULL, EVENT_CANFD_2_BUS_ERROR);
   register_device(&fd1);
   register_device(&fd2);
 
@@ -223,7 +265,8 @@ TEST_F(CanHealthAggregationTest, PayloadNamesEveryFaultyDeviceSharingTheEvent) {
 
   update_can_health_events();
 
-  EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->data, (1 << fd1.device_index) | (1 << fd2.device_index));
+  EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_CANFD_2_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
 }
 
 // The flags are consumed, so a fault reported once does not keep the event
@@ -372,15 +415,15 @@ TEST_F(CanTxRoutingTest, RefusedSendFlagsThatDeviceAndNotItsSibling) {
 
 // End to end with the aggregation: a refused send must actually surface as the
 // shared event, naming the device that failed.
-TEST_F(CanTxRoutingTest, ARefusedSendSurfacesAsTheSharedEventNamingTheDevice) {
+TEST_F(CanTxRoutingTest, ARefusedSendSurfacesAsThatDevicesOwnEvent) {
   g_board[2]->refuse_sends = true;
   route_frame_to_device(frame(0x600), CANFD_NATIVE);
 
   update_can_health_events();
 
-  const EVENTS_STRUCT_TYPE* entry = get_event_pointer(EVENT_CANFD_BUFFER_FULL);
-  EXPECT_EQ(entry->state, EVENT_STATE_ACTIVE);
-  EXPECT_EQ(entry->data, 1 << g_board[2]->device_index);
+  EXPECT_EQ(get_event_pointer(EVENT_CANFD_BUFFER_FULL)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_CANFD_2_BUFFER_FULL)->state, EVENT_STATE_ACTIVE)
+      << "the chip that refused nothing must stay clear";
 }
 
 TEST_F(CanTxRoutingTest, ASuccessfulSendFlagsNothing) {

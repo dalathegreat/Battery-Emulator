@@ -67,49 +67,36 @@ bool register_device(CanDevice* device) {
 }
 
 void update_can_health_events() {
-  static_assert(MAX_CAN_DEVICES <= 8, "the device bitmask in the event payload is a uint8_t");
+  /* One event pair per controller, so the raise/clear decision is per device
+     and no controller can touch another's event. The masking bug this used to
+     guard against - a healthy chip clearing what a faulty sibling had just
+     raised - is gone by construction rather than by aggregation (dala's ruling
+     on #2799; the enum already carried the second FD chip's pair).
 
-  // Devices sharing an event collapse into one entry, so the decision to raise
-  // or clear is made once from the union of them. Deciding per device would
-  // let a healthy controller clear the event a faulty sibling just raised.
-  struct EventDevices {
-    EVENTS_ENUM_TYPE event;
-    uint8_t devices;  // bitmask, bit N = device N
-  };
-  EventDevices health[2 * MAX_CAN_DEVICES] = {};
-  uint8_t count = 0;
-
-  auto accumulate = [&](EVENTS_ENUM_TYPE event, bool active, uint8_t device_index) {
-    if (event == EVENT_NOF_EVENTS) {
-      return;
-    }
-    for (uint8_t i = 0; i < count; ++i) {
-      if (health[i].event == event) {
-        if (active) {
-          health[i].devices |= static_cast<uint8_t>(1 << device_index);
-        }
-        return;
-      }
-    }
-    health[count].event = event;
-    health[count].devices = active ? static_cast<uint8_t>(1 << device_index) : 0;
-    ++count;
-  };
-
+     Consuming the flags is still this function's job: the devices set them from
+     wherever they run, and clearing them here is what makes a fault that has
+     stopped recurring clear its event on the next pass. */
   for (CanDevice* device : can_dispatch.devices) {
     DATALAYER_CAN_DEVICE_TYPE& flags = datalayer.system.info.can_device[device->device_index];
-    accumulate(device->buffer_full_event, flags.send_fail, device->device_index);
-    accumulate(device->bus_error_event, flags.bus_error, device->device_index);
+    const bool ignored = can_errors_ignored(device->device_index);
+
+    if (device->buffer_full_event != EVENT_NOF_EVENTS) {
+      if (flags.send_fail && !ignored) {
+        set_event(device->buffer_full_event, device->device_index);
+      } else if (!flags.send_fail) {
+        clear_event(device->buffer_full_event);
+      }
+    }
+    if (device->bus_error_event != EVENT_NOF_EVENTS) {
+      if (flags.bus_error && !ignored) {
+        set_event(device->bus_error_event, device->device_index);
+      } else if (!flags.bus_error) {
+        clear_event(device->bus_error_event);
+      }
+    }
+
     flags.send_fail = false;
     flags.bus_error = false;
-  }
-
-  for (uint8_t i = 0; i < count; ++i) {
-    if (health[i].devices != 0) {
-      set_event(health[i].event, health[i].devices);
-    } else {
-      clear_event(health[i].event);
-    }
   }
 }
 

@@ -314,6 +314,11 @@ class Mcp2518Device : public CanDevice {
     // error code, so the instance cannot ride there as it does for the
     // health events.
     EVENTS_ENUM_TYPE init_fail_event;
+    // Health events are per instance too: the enum already carries a second
+    // set for the second chip, and a log line that names the controller is
+    // what a troubleshooter wants (dala on #2799).
+    EVENTS_ENUM_TYPE buffer_full_event;
+    EVENTS_ENUM_TYPE bus_error_event;
     const char* selected_log;
     const char* error_log_prefix;
   };
@@ -323,6 +328,8 @@ class Mcp2518Device : public CanDevice {
           .name = "CAN-FD",
           .log_interface = CANFD_ADDON_MCP2518,
           .init_fail_event = EVENT_CANMCP2518FD_INIT_FAILURE,
+          .buffer_full_event = EVENT_CANFD_BUFFER_FULL,
+          .bus_error_event = EVENT_CANFD_BUS_ERROR,
           .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
           .error_log_prefix = "CAN-FD Configuration error 0x",
       },
@@ -330,20 +337,27 @@ class Mcp2518Device : public CanDevice {
           .name = "CAN-FD 2",
           .log_interface = CANFD_ADDON_MCP2518_2,
           .init_fail_event = EVENT_CANMCP2518FD_2_INIT_FAILURE,
+          .buffer_full_event = EVENT_CANFD_2_BUFFER_FULL,
+          .bus_error_event = EVENT_CANFD_2_BUS_ERROR,
           .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
           .error_log_prefix = "CAN-FD 2 Configuration error 0x",
       },
   };
   static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's identity row and its ISR trampoline");
+  // Per-instance health events are the point of the rows (dala, #2799): sharing
+  // a pair is what let a healthy chip clear a faulty sibling's event. Nothing
+  // host-testable constructs these, so the distinctness is asserted here.
+  static_assert(identity[0].buffer_full_event != identity[1].buffer_full_event &&
+                    identity[0].bus_error_event != identity[1].bus_error_event &&
+                    identity[0].init_fail_event != identity[1].init_fail_event,
+                "each FD instance needs its own event ids");
 
   explicit Mcp2518Device(const Config& config) : cfg_(config) {
     name = identity[cfg_.index].name;
     log_interface = identity[cfg_.index].log_interface;
     init_fail_event_ = identity[cfg_.index].init_fail_event;
-    // Both FD chips share one health-event pair - which chip is in the event
-    // payload, so a third controller needs no new enum entries.
-    buffer_full_event = EVENT_CANFD_BUFFER_FULL;
-    bus_error_event = EVENT_CANFD_BUS_ERROR;
+    buffer_full_event = identity[cfg_.index].buffer_full_event;
+    bus_error_event = identity[cfg_.index].bus_error_event;
     fd_instances[cfg_.index] = this;
   }
 

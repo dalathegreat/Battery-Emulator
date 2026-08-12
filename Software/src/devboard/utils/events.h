@@ -199,6 +199,12 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
 // Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
+
+// True while the controller is inside such a window. Asked at the point the
+// health events are raised rather than filtered inside set_event(): the events
+// are per controller now, so the caller knows which device it is speaking for
+// and events.cpp need not know which event ids are CAN health events.
+bool can_errors_ignored(uint8_t device);
 void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
