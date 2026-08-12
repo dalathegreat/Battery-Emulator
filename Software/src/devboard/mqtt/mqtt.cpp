@@ -143,15 +143,14 @@ static bool autodiscovery_complete(void) {
 }
 
 // Clears the one-shot setting and records the firmware the configs were published from.
-// The configs are retained at the broker, so Home Assistant replays them on every restart
-// without the emulator republishing at each boot. Runs at most once per boot.
+// The configs are retained at the broker, no need for emulator republishing at each boot.
 static void store_autodiscovery_done(void) {
   ha_autodiscovery_enabled = false;  // switches the publish paths to state-only for this session
   BatteryEmulatorSettingsStore settings;
   settings.saveBool("HADISC", false);
   settings.saveUInt("HADISCFW", mqtt_firmware_signature());
   LOG_SET_NEXT_SEVERITY(5);  // notice
-  logging.println("Home Assistant autodiscovery published, will re-run after a firmware update");
+  logging.println("Home Assistant autodiscovery published");
 }
 
 // RAII guard: clears the shared document on scope entry and exit, so every early return
