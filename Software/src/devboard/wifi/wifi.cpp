@@ -350,7 +350,6 @@ void connectToWiFi() {
 
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
-    logging.println("Connecting to Wi-Fi...");
     if (wifi_channel > 14) {
       wifi_channel = 0;
     }  //prevent users going out of bounds
