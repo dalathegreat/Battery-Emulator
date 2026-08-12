@@ -119,3 +119,21 @@ char const* getCANInterfaceName(CAN_Interface) {
 }
 
 void register_transmitter(Transmitter* transmitter) {}
+
+// #2769's streaming sink. The real one lives in webserver_can_streaming.cpp and
+// needs the async webserver; what the dispatch layer owes it is that it is
+// called, with the right frame and interface, exactly when the trigger flag is
+// set - which is what this records.
+std::vector<StreamedFrame> g_emul_streamed_frames;
+
+void clear_streamed_frames() {
+  g_emul_streamed_frames.clear();
+}
+
+const std::vector<StreamedFrame>& get_streamed_frames() {
+  return g_emul_streamed_frames;
+}
+
+void stream_can_frame(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
+  g_emul_streamed_frames.push_back({frame, interface, msgDir});
+}

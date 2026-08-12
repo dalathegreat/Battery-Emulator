@@ -111,6 +111,7 @@ class NativeTwaiDevice : public CanDevice {
         rx_frame.ID = frame.id;
         rx_frame.ext_ID = frame.ext;
         rx_frame.DLC = frame.len;
+        rx_frame.FD = false;
         for (uint8_t i = 0; i < frame.len && i < 8; ++i) {
           rx_frame.data.u8[i] = frame.data[i];
         }

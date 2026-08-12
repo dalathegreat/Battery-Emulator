@@ -7,8 +7,8 @@
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/safety/safety.h"
 #include "../../devboard/sdcard/sdcard.h"
-#include "../../devboard/webserver/webserver_can_streaming.h"
 #include "../../devboard/utils/logging.h"
+#include "../../devboard/webserver/webserver_can_streaming.h"
 #include "CanReceiver.h"
 #include "comm_can_device.h"
 

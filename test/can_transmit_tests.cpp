@@ -43,6 +43,8 @@ class CanTransmitTest : public ::testing::Test {
     allowed_to_send_CAN = true;
     datalayer.system.info.CAN_usb_logging_active = false;
     datalayer.system.info.can_logging_active = false;
+    datalayer.system.info.can_streaming_active = false;
+    clear_streamed_frames();
     Serial.clear_written();
     Serial.tx_free = 4096;
   }
@@ -192,7 +194,9 @@ TEST_F(CanTransmitTest, LoggedFrameLandsInTheWebserverBuffer) {
   send(0x123, CAN_NATIVE);
 
   EXPECT_GT(datalayer.system.info.logged_can_messages_offset, 0u);
-  EXPECT_NE(std::string(datalayer.system.info.logged_can_messages).find("TX1 123 [8]"), std::string::npos)
+  // #2769 replaced the snprintf formatter with format_can_frame(), which cases
+  // the direction on the FD flag: "TX" for an FD frame, "tx" for a classic one.
+  EXPECT_NE(std::string(datalayer.system.info.logged_can_messages).find("tx1 123 [8]"), std::string::npos)
       << "got: " << datalayer.system.info.logged_can_messages;
 }
 
@@ -234,4 +238,55 @@ TEST_F(CanTransmitTest, ResettingTheDispatchStateDropsAPendingGapMarker) {
 
 TEST_F(CanTransmitTest, EveryTestStartsWithNothingOwedOnTheConsole) {
   EXPECT_EQ(can_dispatch.usb_frames_dropped, 0u);
+}
+
+// --- Streaming sink (#2769) --------------------------------------------------
+//
+// The streaming hook rides in print_can_frame() alongside the webserver log.
+// These pin that the dispatch layer still calls it, on the same trigger and
+// with the same interface value the per-interface code used to pass - the
+// numbering streamed clients see must not shift because frames now reach the
+// sink through one dispatch point instead of four.
+
+TEST_F(CanTransmitTest, NothingIsStreamedWhileStreamingIsOff) {
+  clear_streamed_frames();
+
+  send(0x123, CAN_NATIVE);
+
+  EXPECT_TRUE(get_streamed_frames().empty());
+}
+
+TEST_F(CanTransmitTest, TransmittedFrameReachesTheStreamingSinkWithItsInterface) {
+  datalayer.system.info.can_streaming_active = true;
+  clear_streamed_frames();
+
+  send(0x123, CAN_ADDON_MCP2515, 0xAB);
+
+  ASSERT_EQ(get_streamed_frames().size(), 1u);
+  EXPECT_EQ(get_streamed_frames()[0].frame.ID, 0x123u);
+  EXPECT_EQ(get_streamed_frames()[0].frame.data.u8[0], 0xAB);
+  EXPECT_EQ(get_streamed_frames()[0].interface, CAN_ADDON_MCP2515)
+      << "streamed frames must carry the interface the pre-refactor code passed";
+  EXPECT_EQ(get_streamed_frames()[0].direction, MSG_TX);
+}
+
+TEST_F(CanTransmitTest, StreamingIsIndependentOfTheWebserverLog) {
+  datalayer.system.info.can_streaming_active = true;
+  datalayer.system.info.can_logging_active = false;
+  clear_streamed_frames();
+
+  send(0x123, CAN_NATIVE);
+
+  EXPECT_EQ(get_streamed_frames().size(), 1u);
+  EXPECT_EQ(datalayer.system.info.logged_can_messages_offset, 0u) << "the two sinks have separate triggers";
+}
+
+TEST_F(CanTransmitTest, TheSendGateStopsStreamingToo) {
+  datalayer.system.info.can_streaming_active = true;
+  clear_streamed_frames();
+  allowed_to_send_CAN = false;
+
+  send(0x123, CAN_NATIVE);
+
+  EXPECT_TRUE(get_streamed_frames().empty()) << "a frame that is never sent must not be streamed as if it were";
 }
