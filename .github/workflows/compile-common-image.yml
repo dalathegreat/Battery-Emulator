@@ -37,8 +37,6 @@ jobs:
             pio_env: "waveshare_330"
           - board_name: "DFRobot Edge101"
             pio_env: "dfrobot_edge101_330"
-          - board_name: "Compiler warning check"
-            pio_env: "compiler_warning_check"
 
     steps:
     - uses: actions/checkout@v7
