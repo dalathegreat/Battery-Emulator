@@ -625,36 +625,22 @@ void core_loop(void*) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
       }
       previousMillis10ms = currentMillis;
-      if (datalayer.system.info.performance_measurement_active) {
-        START_TIME_MEASUREMENT(10ms);
-        monitor_equipment_stop_button();
-        led_exe();
-        handle_contactors();  // Take care of startup precharge/contactor closing
-        if (precharge_control_enabled) {
-          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
-        }
-        if (battery) {
-          battery->handle_precharge();
-        }
-        END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
-      } else {  //Run 10ms tasks without timing it
-        monitor_equipment_stop_button();
-        led_exe();
-        handle_contactors();  // Take care of startup precharge/contactor closing
-        if (precharge_control_enabled) {
-          handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
-        }
-        if (battery) {
-          battery->handle_precharge();
-        }
+      START_TIME_MEASUREMENT(10ms);
+      monitor_equipment_stop_button();
+      led_exe();
+      handle_contactors();  // Take care of startup precharge/contactor closing
+      if (precharge_control_enabled) {
+        handle_precharge_control(currentMillis);  //Drive the hia4v1 via PWM
       }
+      if (battery) {
+        battery->handle_precharge();
+      }
+      END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
     }
 
     if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S && loopPhase == 1) {
       previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
-      if (datalayer.system.info.performance_measurement_active) {
-        START_TIME_MEASUREMENT(values);
-      }
+      START_TIME_MEASUREMENT(values);
       update_pause_state();  // Check if we are OK to send CAN or need to pause
 
       // Fetch battery values
@@ -682,26 +668,18 @@ void core_loop(void*) {
 
       update_restart_progress();  // Check if we need to restart the ESP32
 
-      if (datalayer.system.info.performance_measurement_active) {
-        END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
-      }
+      END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
     }
-    if (datalayer.system.info.performance_measurement_active) {
-      START_TIME_MEASUREMENT(cantx);
+    START_TIME_MEASUREMENT(cantx);
 
-      for (auto& transmitter : transmitters) {
-        transmitter->transmit(currentMillis);
-      }
-
-      END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
-    } else {
-      for (auto& transmitter : transmitters) {
-        transmitter->transmit(currentMillis);
-      }
+    for (auto& transmitter : transmitters) {
+      transmitter->transmit(currentMillis);
     }
 
+    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+
+    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
     if (datalayer.system.info.performance_measurement_active) {
-      END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
       if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
         // Update worst case total time
         datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
