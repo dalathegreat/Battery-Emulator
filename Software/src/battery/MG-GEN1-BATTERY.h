@@ -96,6 +96,8 @@ class MgGen1Battery : public UdsCanBattery {
   unsigned long previousMillis10 = 0;
   unsigned long previousMillis20 = 0;
 
+  uint32_t v = 0, i = 0, cell_id = 0, soc2 = 0;
+
   // Charge/discharge power limits and derating thresholds.
   uint16_t maxChargePowerW = 11000;
   uint16_t maxDischargePowerW = 11000;

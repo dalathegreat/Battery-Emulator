@@ -370,8 +370,6 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     return;
   }
 
-  uint32_t v, i, cell_id, soc2;
-
   switch (rx_frame.ID) {
     case 0x173:
       // Contains cell min/max voltages
