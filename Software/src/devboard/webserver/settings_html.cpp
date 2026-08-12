@@ -2156,7 +2156,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Home Assistant autodiscovery at next boot: </label>
         <input type='checkbox' name='HADISC' value='on' %HADISC%
-        title="Publishes the Home Assistant discovery configs once after the next restart, then clears itself. The broker retains them, so Home Assistant keeps the entities. Re-runs automatically after a firmware update." />
+        title="Publishes the Home Assistant discovery configs once after the next restart, then clears itself. A firmware update overrides this." />
 
         <div class='if-hadisc'>
         <label>Autodiscovery topic: </label>
