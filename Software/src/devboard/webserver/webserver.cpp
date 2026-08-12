@@ -447,7 +447,7 @@ void init_webserver() {
 
   const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
                                       "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
-                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
+                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWS"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
@@ -1071,7 +1071,7 @@ String processor(const String& var) {
       content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
       // MAC is the station address, which is also the source address of the ESPNow
       // frames - handy when filling in the ESPNow receiver MAC list on another node.
-      content += "<h4>IP: " + WiFi.localIP().toString() + " MAC: " + WiFi.macAddress() + "</h4>";
+      content += "<h4>IP: " + WiFi.localIP().toString() + " MAC: " + WiFi.macAddress().toLowerCase() + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
