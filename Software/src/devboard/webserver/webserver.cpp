@@ -445,8 +445,8 @@ void init_webserver() {
       "SYSLOGFAC",  "PERBMSRESETH",
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD",
-                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",  "SUBNET",
+  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
+                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
                                       "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
 
   // Handles the form POST from UI to save settings of the common image
