@@ -427,7 +427,7 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 void init_WiFi_AP() {
 
   DEBUG_PRINTF("Creating Wi-Fi AP: %s (password set with %u chars)\n", ssidAP.c_str(), (unsigned)passwordAP.length());
-  
+
   if (!ap_active) {
     // (Re)start the provisioning window timer only on an off->on transition, so
     // repeated re-inits from the STA reconnect fallback don't keep extending it.
