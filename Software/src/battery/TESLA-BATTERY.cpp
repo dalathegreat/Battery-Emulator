@@ -268,7 +268,7 @@ void generateFrameCounterChecksum(CAN_frame& f,
 // Function to extract raw bits/values from a given CAN frame signal
 inline uint64_t extract_signal_value(const uint8_t* data, uint32_t start_bit, uint32_t bit_length) {
   //
-  // Usage: uint8_t bms_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 31, 4));
+  // Usage: uint8_t bms_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 4));
   //
   // Calculate the starting byte and bit offset
   uint32_t byte_index = start_bit / 8;
@@ -584,10 +584,9 @@ void TeslaBattery::
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
-      logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
-      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
+      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);  // also printing a log entry
       clear_event(EVENT_BMS_RESET_REQ_FAIL);
     }
   }
@@ -599,10 +598,9 @@ void TeslaBattery::
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
-      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
-      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
+      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);  // also printing a log entry
       clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
     }
   }
@@ -1282,7 +1280,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //BMS_state = // Original code from older DBCs
       //((rx_frame.data.u8[1] >> 3) &
       //(0x0FU));  //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" ;
-      BMS_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 31, 4));
+      BMS_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 4));
       //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" 10 "BMS_DIAG";
       BMS_hvState = (rx_frame.data.u8[2] & (0x07U));
       //0 "DOWN" 1 "COMING_UP" 2 "GOING_DOWN" 3 "UP_FOR_DRIVE" 4 "UP_FOR_CHARGE" 5 "UP_FOR_DC_CHARGE" 6 "UP" ;
@@ -1294,7 +1292,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
       BMS_chargeRequest = static_cast<bool>(extract_signal_value(rx_frame.data.u8, 29, 1));
       BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-      BMS_uiChargeStatus = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 3));
+      BMS_uiChargeStatus = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 11, 3));
       //BMS_uiChargeStatus =
       //(rx_frame.data.u8[4] &
       //(0x07U));
@@ -2324,19 +2322,16 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("CAN UDS: BMS ECU reset request successful but ECU busy, response pending");
       }
       if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS ECU reset positive response, 1 second downtime");
-        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);
+        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);  // also printing a log entry
         clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS SOC reset accepted, resetting BMS ECU");
-        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);
+        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);  // also printing a log entry
         clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS);
         stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS SOC reset failed");
-        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
+        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);  // also printing a log entry
         clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
       }
       break;

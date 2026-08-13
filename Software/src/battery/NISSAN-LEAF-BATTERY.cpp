@@ -23,6 +23,18 @@ bool NissanLeafBattery::supports_reset_SOH() {
   return LEAF_battery_Type != ZE1_BATTERY;
 }
 
+void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
+  if (new_status == datalayer_battery->status.balancing_status) {
+    return;
+  }
+  if (new_status == BALANCING_STATUS_ACTIVE) {
+    set_event_latched(EVENT_BALANCING_START, 0);
+  } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
+    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+  }
+  datalayer_battery->status.balancing_status = new_status;
+}
+
 void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
@@ -179,49 +191,101 @@ void NissanLeafBattery::
     }
   }
 
-  // Derive aggregate balancing status from the per-cell shunt bits polled from LBC group 0x06.
-  // The LBC duty-cycles its bleed resistors (and disables them while sampling cell voltages), and we
-  // only see one snapshot per ~70s poll rotation, so a single all-clear poll is not proof that the
-  // balancing phase has ended. Require BALANCING_IDLE_POLLS_TO_END consecutive idle polls before
-  // dropping back to READY. Evaluated only on fresh group 0x06 data, never on the 1s update tick.
-  static constexpr uint8_t BALANCING_IDLE_POLLS_TO_END = 3;  // ~3.5 minutes of quiet
+  // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on
+  // its own does not mean the pack is balancing: the LBC flags a set of cells and can hold it for a
+  // day at a time while it waits for the pack to settle, at one point flagging every shunt it has and
+  // holding that perfectly static for 20 hours. During a real balance it duty-cycles the shunts,
+  // bleeding cells and re-deciding the set after each measurement. How *many* shunts move per read is
+  // a poor measure of that, because it climbs steadily as the balance proceeds and the flagged set
+  // shrinks. How *often* a read comes back completely unchanged is far more stable: across four
+  // balancing sessions of a 2017 30 kWh pack it stayed at 12% of reads whatever the pack state, while
+  // every pending phase sat at 82-100%. So count unchanged reads over a sliding window and compare
+  // that against a pair of thresholds, holding the previous status in between so the state does not
+  // chatter at the boundary.
+  // Evaluated only on a complete group 0x06 response (~70s apart), never on the 1s update tick.
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
+    balancing_unchanged_window = 0;
+    balancing_window_fill = 0;
+    balancing_low_reads = 0;
+    set_balancing_status(BALANCING_STATUS_UNKNOWN);
+  }
 
-  if (balancing_data_received && balancing_data_fresh) {
+  if (balancing_data_fresh) {
     balancing_data_fresh = false;
 
-    bool any_shunt_active = false;
+    uint32_t balancing_bitmap[3] = {0, 0, 0};
+    uint8_t balancing_active_cells = 0;
     for (uint8_t i = 0; i < 96; i++) {
       if (battery_balancing_shunts[i]) {
-        any_shunt_active = true;
-        break;
+        balancing_bitmap[i / 32] |= (1UL << (i % 32));
+        balancing_active_cells++;
       }
     }
 
-    if (any_shunt_active) {
-      balancing_idle_polls = 0;
-    } else if (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) {
-      balancing_idle_polls++;
-    }
-
-    balancing_status_enum new_status =
-        (balancing_idle_polls < BALANCING_IDLE_POLLS_TO_END) ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
-
-    if (new_status != datalayer_battery->status.balancing_status) {
-      if (new_status == BALANCING_STATUS_ACTIVE) {
-        set_event_latched(EVENT_BALANCING_START, 0);
-      } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-        set_event(EVENT_BALANCING_END, 0);  // only ACTIVE -> READY, not the initial UNKNOWN -> READY
+    if (balancing_active_cells < BALANCING_READY_BELOW_CELLS) {
+      //Nothing flagged. Wait for this to repeat before believing it: an incomplete group 0x06 response
+      //reads as all-clear for a single poll, which would otherwise end the phase early.
+      if (balancing_low_reads < BALANCING_READY_DEBOUNCE_READS) {
+        balancing_low_reads++;
       }
+      if (balancing_low_reads >= BALANCING_READY_DEBOUNCE_READS) {
+        balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
+        balancing_unchanged_window = 0;
+        balancing_window_fill = 0;
+        set_balancing_status(BALANCING_STATUS_READY);
+      }
+    } else {
+      //Compare against the previous read. Skip the read that follows a low-count one, since the
+      //bitmap it would be compared against is the suspect all-clear sample.
+      bool comparison_valid = balancing_bitmap_valid && (balancing_low_reads == 0);
+      balancing_low_reads = 0;
+
+      if (comparison_valid) {
+        bool unchanged = (memcmp(balancing_bitmap, balancing_bitmap_prev, sizeof(balancing_bitmap)) == 0);
+
+        //Shift the window along, recording whether this read came back unchanged
+        balancing_unchanged_window = (uint16_t)(balancing_unchanged_window << 1) | (unchanged ? 1 : 0);
+        balancing_unchanged_window &= (uint16_t)((1UL << BALANCING_WINDOW_READS) - 1);
+
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          balancing_window_fill++;
+        }
+
+        uint8_t unchanged_reads = 0;
+        for (uint16_t bits = balancing_unchanged_window; bits; bits &= bits - 1) {
+          unchanged_reads++;
+        }
+
+        //A partly filled window cannot be told apart from a busy one: both report few unchanged reads.
+        //Decide nothing until it is full, so the status stays UNKNOWN after a boot or a BMS reset
+        //rather than reporting a balance that has not been observed yet.
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          //Not enough history yet, hold the current status
+        } else if (unchanged_reads >= BALANCING_UNCHANGED_FOR_IDLE) {
+          set_balancing_status(BALANCING_STATUS_BLOCKED);  //Holding a set: flagged, but not yet at rest
+        } else if (unchanged_reads <= BALANCING_UNCHANGED_FOR_ACTIVE) {
+          set_balancing_status(BALANCING_STATUS_ACTIVE);  //Re-deciding the set steadily: really balancing
+        }
+        //else: between the thresholds, hold the current status
+      }
+
+      memcpy(balancing_bitmap_prev, balancing_bitmap, sizeof(balancing_bitmap));
+      balancing_bitmap_valid = true;
     }
-    datalayer_battery->status.balancing_status = new_status;
   }
 
   // Update webserver datalayer
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
     memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
-    memcpy(datalayer_nissan->BMSIDcode, BMSIDcode, sizeof(BMSIDcode));
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
+    if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
+      //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
+      static_assert(Name[sizeof("Nissan LEAF ") - 1] == 'b', "Name must start with \"Nissan LEAF \"");
+      static const char LEAF_gen_name[3][5] = {"ZE0", "AZE0", "ZE1"};
+      strcpy(datalayer.system.info.battery_protocol + sizeof("Nissan LEAF ") - 1, LEAF_gen_name[LEAF_battery_Type]);
+    }
     datalayer_nissan->GIDS = battery_GIDS;
     datalayer_nissan->ChargePowerLimit = battery_Charge_Power_Limit;
     datalayer_nissan->MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
@@ -236,7 +300,9 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
-    datalayer_nissan->battery_HX = battery_HX;
+    datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
+    datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
+    datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
     datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature2 = ((Temp_fromRAW_to_F(battery_temp_raw_2) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature3 = ((Temp_fromRAW_to_F(battery_temp_raw_3) - 320) * 5) / 9;  //Convert from F to C
@@ -494,6 +560,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
+        //Remember how long the reply is. The group 1 layout differs between LEAF generations, and
+        //the announced length is what identifies which one the LBC just sent.
+        group_7bb_length = rx_frame.data.u8[1];
       }
 
       transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
@@ -516,7 +585,19 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          battery_HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+          // Hx sits at a different payload offset and uses a different scale depending on which
+          // layout the LBC answered with, so the reply length decides how to read it:
+          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27], already in hundredths of a %
+          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29], raw / 102.4 = percent
+          // This frame carries payload[25..31] in u8[1..7]. Any other length is a layout we do not
+          // know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
+          if (group_7bb_length == 0x35) {  //ZE1
+            uint16_t battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            //raw / 102.4 * 100 == raw * 125 / 128, rounded to nearest
+            battery_HX_pptt = (uint16_t)(((uint32_t)battery_HX_raw * 125u + 64u) / 128u);
+          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
+            battery_HX_pptt = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          }
         }
       }
 
@@ -623,6 +704,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (group_7bb == 0x06)  //Balancing resistor status
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 1A 61 06 [14 55 55 51])
+          balancing_frames_seen = 0x01;     //Start of a new response
           for (int i = 0; i < 8; i++) {
             // Byte 4 - 7 (bits 0-31)
             for (int byte_i = 0; byte_i < 4; byte_i++) {
@@ -631,6 +713,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
         if (rx_frame.data.u8[0] == 0x21) {  // Second frame (21 [50 55 41 2B 56 54 15])
+          balancing_frames_seen |= 0x02;
           for (int i = 0; i < 8; i++) {
             // Byte 1 to 7 (bits 32-87)
             for (int byte_i = 0; byte_i < 7; byte_i++) {
@@ -639,16 +722,36 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
         if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 51 FF FF FF FF FF FF)
+          balancing_frames_seen |= 0x04;
           for (int i = 0; i < 8; i++) {
             // Byte 1 (bits 88-95)
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
-          memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
-          balancing_data_received = true;
-          balancing_data_fresh = true;
+          //Only publish once all three frames of this response arrived. A dropped frame would otherwise
+          //leave part of the array holding the previous response, which reads as a spurious change.
+          if (balancing_frames_seen == 0x07) {
+            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            balancing_data_fresh = true;
+          }
+          balancing_frames_seen = 0;
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)
+        }
+      }
+
+      if (group_7bb == 0x62) {              //Lifetime charge counters
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 76 61 62 08 00 01 5A)
+          //Both counters are carried in the first frame, no need to walk the rest of the reply:
+          //payload[0..1] holds the L1/L2 (AC) charges, payload[2..3] the quick (CHAdeMO) charges.
+          //A counter the LBC has no value for reads back as 0xFFFF. A used pack always has AC
+          //charges, so a zero L1/L2 count means "not read yet" and keeps the group in the rotation.
+          uint16_t count_l1l2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          uint16_t count_qc = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          if (count_l1l2 != 0xFFFF && count_qc != 0xFFFF) {
+            battery_charge_count_l1l2 = count_l1l2;
+            battery_charge_count_qc = count_qc;
+          }
         }
       }
 
@@ -694,21 +797,6 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           BatterySerialNumber[14] = rx_frame.data.u8[7];
         }
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 00 00 00 00 00 00 00)
-        }
-      }
-
-      if (group_7bb == 0x90) {              //BMSIDcode
-        if (rx_frame.data.u8[0] == 0x10) {  //First frame (100A619044434131)
-          BMSIDcode[0] = rx_frame.data.u8[4];
-          BMSIDcode[1] = rx_frame.data.u8[5];
-          BMSIDcode[2] = rx_frame.data.u8[6];
-          BMSIDcode[3] = rx_frame.data.u8[7];
-        }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (2130303535FFFFFF)
-          BMSIDcode[4] = rx_frame.data.u8[1];
-          BMSIDcode[5] = rx_frame.data.u8[2];
-          BMSIDcode[6] = rx_frame.data.u8[3];
-          BMSIDcode[7] = rx_frame.data.u8[4];
         }
       }
 
@@ -1037,7 +1125,10 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     }
 
     //Send 10s CAN messages
-    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
+    //The first pass through the group list runs at the faster burst interval, so the battery info
+    //page is populated within seconds of startup rather than over the following minute.
+    if (currentMillis - previousMillis10s >=
+        (poll_burst_remaining ? POLL_BURST_INTERVAL_MS : (unsigned long)INTERVAL_10_S)) {
       previousMillis10s = currentMillis;
 
       //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
@@ -1047,10 +1138,21 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
       if (!stop_battery_query && !dtc_operation_pending) {
 
-        // Move to the next group
-        PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]
+        // Move to the next group, skipping the static ones that already answered. The charge
+        // counters and the two identity strings cannot change while the pack is powered, so each
+        // is asked for only until its data is in, after which the recurring groups come round
+        // faster. Testing the data itself rather than a "seen" flag means a reply that arrived
+        // while another tool was polling the bus counts just as well.
+        do {
+          PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
+        } while ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
+                 (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
+                 (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
+        if (poll_burst_remaining) {
+          poll_burst_remaining--;
+        }
         uds_busy = true;
         uds_request_millis = currentMillis;
         transmit_can_frame(&LEAF_GROUP_REQUEST);

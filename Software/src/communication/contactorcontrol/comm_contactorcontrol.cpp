@@ -259,6 +259,7 @@ void handle_contactors() {
         bool timed_out = (now - estop_open_wait_start_ms) > ESTOP_OPEN_TIMEOUT_MS;
         if (paused || timed_out) {
           if (timed_out) {
+            LOG_SET_NEXT_SEVERITY(4);  // warning
             logging.printf("Contactors: Equipment stop wait timed out, opening under load\n");
             set_event(EVENT_ERROR_OPEN_CONTACTOR, 1);
           }
@@ -528,10 +529,8 @@ void handle_BMSpower() {
       } else if (currentTime - lastPowerRemovalTime >= 10000) {
         // There's still current, and we don't want to weld the contactors, so give up.
 
-        logging.printf("BMS reset: Aborting, contactors are still under load.\n");
-
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
-        set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);
+        set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);  // also printing a log entry
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {

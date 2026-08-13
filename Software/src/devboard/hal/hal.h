@@ -46,9 +46,10 @@ class Esp32Hal {
 
     for (gpio_num_t pin : requested_pins) {
       if (pin < 0) {
-        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);
+        // Must be set BEFORE set_event(): set_event() logs the event message immediately,
+        // and get_event_message_string() reads it back via failed_allocator().
         allocator_name = name;
-        DEBUG_PRINTF("%s attempted to allocate pin %d that wasn't defined for the selected HW.\n", name, (int)pin);
+        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);  // also printing a log entry
         return false;
       }
 
@@ -56,8 +57,7 @@ class Esp32Hal {
       if (it != allocated_pins.end()) {
         allocator_name = name;
         allocated_name = it->second.c_str();
-        DEBUG_PRINTF("GPIO conflict for pin %d between %s and %s.\n", (int)pin, name, it->second.c_str());
-        set_event(EVENT_GPIO_CONFLICT, (int)pin);
+        set_event(EVENT_GPIO_CONFLICT, (int)pin);  // also printing a log entry
         return false;
       }
     }

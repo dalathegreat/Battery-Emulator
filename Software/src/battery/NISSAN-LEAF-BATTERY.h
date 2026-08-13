@@ -87,10 +87,14 @@ class NissanLeafBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-  uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
-  uint8_t mprun10 = 0;                  //counter 0-3
-  uint8_t mprun100 = 0;                 //counter 0-3
-  uint8_t counter_3B8 = 0;              //counter 0-14
+  //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
+  //info page fills in within seconds instead of over a minute. Counted down per request actually
+  //sent, so it always terminates and the steady state polling rate is left untouched.
+  static const unsigned long POLL_BURST_INTERVAL_MS = 2000;
+  uint8_t mprun10r = 0;     //counter 0-20 for 0x1F2 message
+  uint8_t mprun10 = 0;      //counter 0-3
+  uint8_t mprun100 = 0;     //counter 0-3
+  uint8_t counter_3B8 = 0;  //counter 0-14
   bool flip_3B8 = false;
 
   static const uint8_t ZE0_BATTERY = 0;
@@ -137,8 +141,13 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
-  uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90};
-  uint8_t PIDindex = 0;
+  //Ordered so the values that identify an unknown pack come out first. The three static groups
+  //(0x62 charge counters, 0x84 serial number, 0x83 part number) are read once and then skipped,
+  //leaving 0x04/0x01/0x02/0x06 as the recurring rotation.
+  uint8_t PIDgroups[7] = {0x62, 0x84, 0x04, 0x01, 0x02, 0x06, 0x83};
+  //Start on the last entry so the first rotation step wraps to index 0.
+  uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
+  uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
                                   .DLC = 8,
@@ -175,7 +184,7 @@ class NissanLeafBattery : public CanBattery {
   // group polling, so it is intercepted separately while a readout is in flight.
   static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
   static const unsigned long DTC_TIMEOUT_MS = 2000;
-  uint8_t dtc_buffer[DTC_BUFFER_SIZE];
+  uint8_t dtc_buffer[DTC_BUFFER_SIZE] = {0};
   uint16_t dtc_rx_total = 0;   // Total payload length announced by the ISO-TP first frame
   uint16_t dtc_rx_seen = 0;    // Bytes received so far, counted even when past our storage capacity
   uint16_t dtc_rx_len = 0;     // Bytes actually stored, capped at DTC_BUFFER_SIZE
@@ -243,17 +252,53 @@ class NissanLeafBattery : public CanBattery {
   // Nissan LEAF battery data from polled CAN messages
   uint8_t battery_request_idx = 0;
   uint8_t group_7bb = 0;
+  //ISO-TP payload length of the group reply currently being received. Leaf group replies are all
+  //shorter than 256 bytes, so the low length byte of the first frame is enough to hold it.
+  uint8_t group_7bb_length = 0;
   bool stop_battery_query = true;
-  uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
-  uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
-  bool battery_balancing_shunts[96];            //array with all the balancing resistors
-  bool balancing_data_received = false;         //true once group 0x06 has answered at least once
-  bool balancing_data_fresh = false;            //set by group 0x06 handler, consumed by update_values()
-  uint8_t balancing_idle_polls = 0;             //consecutive group 0x06 polls with no shunt active
+  //Counted down once per 10s tick, and polling only starts on the tick after it reaches zero,
+  //the first group request goes out 0 seconds after startup.
+  uint8_t hold_off_with_polling_10seconds = 0;
+  uint16_t battery_cell_voltages[96] = {0};     //array with all the cellvoltages
+  bool battery_balancing_shunts[96] = {false};  //array with all the balancing resistors
+  //Balancing classification state, see update_values()
+  //The classifier tracks how often a group 0x06 read comes back with the shunt set completely
+  //unchanged, over a sliding window of the most recent reads.
+  static const uint8_t BALANCING_WINDOW_READS = 16;
+  //Unchanged reads within that window at or above which the LBC is holding a set at rest, and at or
+  //below which it is bleeding and re-deciding. Measured over 232 h on a 2017 30 kWh pack: while
+  //balancing, 12% of reads come back unchanged whatever the pack state; while pending, 82-100% do.
+  static const uint8_t BALANCING_UNCHANGED_FOR_IDLE = 13;   //81% of the window
+  static const uint8_t BALANCING_UNCHANGED_FOR_ACTIVE = 7;  //44% of the window
+  //Below this many flagged shunts the pack counts as not balancing at all
+  static const uint8_t BALANCING_READY_BELOW_CELLS = 4;
+  //Consecutive reads below that count before READY is reported. A dropped group 0x06 response can
+  //momentarily read as all-clear, so a single low read is not enough to declare balancing finished.
+  static const uint8_t BALANCING_READY_DEBOUNCE_READS = 3;
+  //Previous group 0x06 shunt bitmap (96 bits packed into 3 words), for change detection
+  uint32_t balancing_bitmap_prev[3] = {0};
+  //true once balancing_bitmap_prev holds a real reading
+  bool balancing_bitmap_valid = false;
+  //One bit per recent read, set if that read came back with the shunt set unchanged
+  uint16_t balancing_unchanged_window = 0;
+  //How many reads the window holds so far, saturating at BALANCING_WINDOW_READS. Until it is full the
+  //unchanged count is not meaningful - an empty window looks identical to one full of changed reads -
+  //so no classification is made and the status stays as it was, UNKNOWN after a boot or a BMS reset.
+  uint8_t balancing_window_fill = 0;
+  //Consecutive reads with fewer than BALANCING_READY_BELOW_CELLS shunts flagged
+  uint8_t balancing_low_reads = 0;
+  //Which group 0x06 frames of the current response have arrived, so partial responses are discarded
+  uint8_t balancing_frames_seen = 0;
+  //Set by the group 0x06 handler once a complete response has been assembled
+  bool balancing_data_fresh = false;
+  //Applies a new balancing status, raising the start/end events on the ACTIVE edges
+  void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
-  uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
-  uint16_t battery_HX = 0;              //Internal resistance
-  uint16_t battery_insulation = 0;      //Insulation resistance
+  uint16_t battery_min_max_voltage[2] = {0};  //contains cell min[0] and max[1] values in mV
+  uint16_t battery_HX_pptt = 0;               //Pack conductance estimate (Hx), in hundredths of a percent
+  uint16_t battery_insulation = 0;            //Insulation resistance
+  uint16_t battery_charge_count_qc = 0;       //Lifetime number of quick (CHAdeMO) charges
+  uint16_t battery_charge_count_l1l2 = 0;     //Lifetime number of L1/L2 (AC) charges
   uint16_t battery_temp_raw_1 = 718;
   uint8_t battery_temp_raw_2_highnibble = 0;
   uint16_t battery_temp_raw_2 = 718;
@@ -265,7 +310,6 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_temp_polled_min = 0;
   uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
-  uint8_t BMSIDcode[8] = {0};
   uint8_t stateMachineClearSOH = 0xFF;
 
 #ifndef SMALL_FLASH_DEVICE
@@ -273,7 +317,7 @@ class NissanLeafBattery : public CanBattery {
   // Clear SOH values
 
   uint32_t incomingChallenge = 0xFFFFFFFF;
-  uint8_t solvedChallenge[8];
+  uint8_t solvedChallenge[8] = {0};
   bool challengeFailed = false;
 
   CAN_frame LEAF_CLEAR_SOH = {.FD = false,

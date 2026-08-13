@@ -58,12 +58,11 @@ void pause_log_writing() {
 // Reported as a gap marker in the log once the buffer has room again.
 static uint32_t can_frames_dropped = 0;
 
-void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
+void add_can_frame_to_buffer(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
   if (!sd_card_active)
     return;
 
-  unsigned long currentTime = millis();
   // Sized for the worst case: gap marker + header + 64 data bytes (CAN-FD) at 3 chars each
   static char messagestr_buffer[320];
   size_t size = 0;
@@ -75,15 +74,11 @@ void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
                      "[%lu CAN frames dropped, SD buffer full]\n", (unsigned long)can_frames_dropped);
   }
 
-  size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
-                   currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
-
-  for (uint8_t i = 0; i < frame.DLC; i++) {
-    size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size,
-                     (i < frame.DLC - 1) ? "%02X " : "%02X\n", frame.data.u8[i]);
-  }
-  if (frame.DLC == 0) {  // Frames without payload still need to terminate the line
-    size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "\n");
+  // Format the frame, as long as it fits
+  size_t written =
+      format_can_frame(messagestr_buffer + size, sizeof(messagestr_buffer) - size, frame, interface, msgDir);
+  if (written > 0) {
+    size += written;
   }
 
   // One send per frame, zero timeout: this runs in the core task and must never
@@ -218,8 +213,7 @@ bool init_sdcard() {
   constexpr bool FORMAT_IF_EMPTY = true;
 
   if (!SD.begin(cs_pin, sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
-    set_event_latched(EVENT_SD_INIT_FAILED, 0);
-    logging.println("SD Card initialization failed!");
+    set_event_latched(EVENT_SD_INIT_FAILED, 0);  // also printing a log entry
     return false;
   }
 

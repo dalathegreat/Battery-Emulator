@@ -38,3 +38,6 @@ compile.bat
 
 # Ignore generated ESP-IDF component manifest
 Software/idf_component.yml
+
+# Ignore generated version header (produced by tools/identify_build.py)
+Software/src/devboard/utils/version_autogen.h

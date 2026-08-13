@@ -27,8 +27,8 @@ class TeslaLegacyBattery : public CanBattery {
   static const int MAX_PACK_VOLTAGE_100_DV = 5000;  //TODO, set
   static const int MIN_PACK_VOLTAGE_100_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4200;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 3400;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4200;  //Charging stops when one cell reaches this value
+  static const int MIN_CELL_VOLTAGE_MV = 3200;  //Discharge stops when one cell reaches this value2
   CAN_frame TESLA_25C = {.FD = false,           // fast charge status
                          .ext_ID = false,
                          .DLC = 8,

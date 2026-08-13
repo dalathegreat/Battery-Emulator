@@ -1,6 +1,7 @@
 #include "mqtt.h"
 #include <Arduino.h>
 #include <WiFi.h>
+#include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include "../../battery/BATTERIES.h"
@@ -22,6 +23,7 @@ bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 std::string ha_autodiscovery_topic = "homeassistant";
 bool mqtt_transmit_all_cellvoltages = false;
+bool mqtt_publish_heap_metrics = false;
 uint16_t mqtt_timeout_ms = 2000;
 uint16_t mqtt_publish_interval_ms = 5000;
 
@@ -64,6 +66,22 @@ static bool publish_common_info(void);
 static bool publish_cell_voltages(void);
 static bool publish_events(void);
 
+// A dropped broker connection makes every publish fail (QoS 0 returns -1 while the client
+// is not connected), and publish_values() runs again every mqtt_publish_interval_ms, so
+// logging each failure unconditionally repeats the same line for the whole outage. Pending
+// events make it worse: they are deliberately retried until they go out, so publish_events()
+// fails on every cycle from the moment EVENT_MQTT_DISCONNECT is raised until reconnect.
+// Log the first failure of an outage only; publish_values() re-arms the latch after a
+// complete successful cycle.
+static bool publish_failure_logged = false;
+
+static void log_publish_failure(const char* what) {
+  if (!publish_failure_logged) {
+    publish_failure_logged = true;
+    logging.printf("%s MQTT msg could not be sent\n", what);
+  }
+}
+
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
 
@@ -86,6 +104,9 @@ static void publish_values(void) {
       return;
     }
   }
+
+  // Whole cycle went out: arm the failure log again so the next outage is reported.
+  publish_failure_logged = false;
 }
 
 static bool ha_common_info_published = false;
@@ -140,10 +161,17 @@ static bool supports_byd_metrics(Battery* b) {
 static bool supports_insulation(Battery* b) {
   return b != nullptr && b->supports_insulation_resistance();
 }
+static bool supports_leaf_metrics(Battery* b) {
+  return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
+}
+// Emulator-level condition: the heap diagnostics are opt-in from the MQTT settings page.
+static bool heap_metrics_enabled(Battery* b) {
+  return mqtt_publish_heap_metrics;
+}
 
 static const SensorConfig batterySensorConfigTemplate[] = {
-    {"SOC", "SOC (Scaled)", "%", "battery", always},
-    {"SOC_real", "SOC (real)", "%", "battery", always},
+    {"SOC", "SoC (scaled)", "%", "battery", always},
+    {"SOC_real", "SoC (real)", "%", "battery", always},
     {"state_of_health", "State of Health", "%", "battery", always},
     {"temperature_min", "Temperature Min", "°C", "temperature", always},
     {"temperature_max", "Temperature Max", "°C", "temperature", always},
@@ -172,7 +200,8 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"autocal_cooldown_ready", "BYD Auto-cal: Cooldown Ready", "", "", supports_byd_autocal_metrics},
     {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "battery", supports_byd_autocal_metrics},
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
-    {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics}};
+    {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
+    {"leaf_hx", "Hx", "%", "", supports_leaf_metrics}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -180,7 +209,14 @@ static const SensorConfig globalSensorConfigTemplate[] = {
     {"event_level", "Event Level", "", "", always},
     {"emulator_status", "Emulator Status", "", "", always},
     {"emulator_uptime", "Emulator Uptime", "s", "duration", always},
-    {"cpu_temp", "CPU Temperature", "°C", "temperature", always}};
+    {"cpu_temp", "CPU Temperature", "°C", "temperature", always},
+    {"software_version", "Emulator Version", "", "", always},
+    // Internal-RAM heap diagnostics, mirroring the ESPHome debug component sensors
+    // (free / block / min_free / fragmentation). Only published when enabled in settings.
+    {"heap_free", "Heap Free", "B", "data_size", heap_metrics_enabled},
+    {"heap_max_block", "Heap Max Block", "B", "data_size", heap_metrics_enabled},
+    {"heap_min_free", "Heap Min Free", "B", "data_size", heap_metrics_enabled},
+    {"heap_fragmentation", "Heap Fragmentation", "%", "", heap_metrics_enabled}};
 
 // The battery instances the MQTT module publishes for. Battery #1 keeps the historical
 // un-suffixed topic ("<name>/info") and entity ids, so single-battery setups see no change.
@@ -209,7 +245,7 @@ static String info_topics[3];
 static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
                                              {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
                                              {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESTART", "Restart Battery Emulator", nullptr, nullptr, nullptr},
+                                             {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
                                              {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
@@ -245,6 +281,11 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["model"] = "Battery Emulator";
   doc["device"]["manufacturer"] = "FOSS";
   doc["device"]["name"] = device_name;
+  // Board name and firmware version, shown in the Home Assistant device information panel.
+  // Both are string literals with static storage duration, so ArduinoJson keeps them
+  // zero-copy (stored by pointer) instead of allocating them in the document pool.
+  doc["device"]["hw_version"] = esp32hal->name();
+  doc["device"]["sw_version"] = version_number;
   doc["device"]["configuration_url"] = "http://" + WiFi.localIP().toString();
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
@@ -282,7 +323,7 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
     case BALANCING_STATUS_ACTIVE:
       return "Active";
     case BALANCING_STATUS_BLOCKED:
-      return "Blocked";
+      return "Pending";  //Cells are flagged for balancing but the BMS is not bleeding them yet
     default:
       return "Unknown";
   }
@@ -367,6 +408,16 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["min_cell_number"] = byd.BMS_min_cell_voltage_number;
     doc["max_cell_number"] = byd.BMS_max_cell_voltage_number;
   }
+  if (supports_leaf_metrics(::battery)) {
+    const DATALAYER_INFO_NISSAN_LEAF& leaf = (battery_index == 3)   ? datalayer_extended.nissanleaf_3
+                                             : (battery_index == 2) ? datalayer_extended.nissanleaf_2
+                                                                    : datalayer_extended.nissanleaf;
+    // Omit until a group 1 reply with a known layout has been decoded, so HA shows "unknown"
+    // instead of a false 0 % before the first poll completes.
+    if (leaf.battery_HX_pptt != 0u) {
+      doc["leaf_hx"] = ((float)leaf.battery_HX_pptt) / 100.0f;
+    }
+  }
 }
 
 static std::vector<EventData> order_events;
@@ -385,6 +436,9 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     if (strcmp(entity_id, "insulation_resistance") == 0) {
       return "mdi:resistor";
     }
+    if (strcmp(entity_id, "leaf_hx") == 0) {
+      return "mdi:battery-heart-variant";
+    }
     if (strcmp(entity_id, "charging_state") == 0) {
       return "mdi:home-battery";
     }
@@ -396,6 +450,12 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
     if (strcmp(entity_id, "pause_status") == 0) {
       return "mdi:battery-outline";
+    }
+    if (strcmp(entity_id, "software_version") == 0) {
+      return "mdi:tag-outline";
+    }
+    if (strncmp(entity_id, "heap_", 5) == 0) {
+      return "mdi:memory";
     }
   }
   if (device_class != nullptr) {
@@ -426,8 +486,11 @@ static const char* button_discovery_icon(const char* command) {
 // value_template variants are generated into stack buffers here instead of being strdup()'d
 // into a permanent std::list at startup: discovery is one-shot, so nothing needs to stay
 // on the heap for it.
+// diagnostic: set for emulator-level sensors, which describe the emulator itself rather
+// than the battery it is talking to. Home Assistant then files them under the device's
+// Diagnostic section instead of the main sensor list.
 static bool publish_sensor_discovery(const SensorConfig& config, const char* id_suffix, const char* name_suffix,
-                                     const String& state_topic) {
+                                     const String& state_topic, bool diagnostic = false) {
   char entity_id[64];
   char name_buf[64];
   char value_template[96];
@@ -463,6 +526,18 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
     doc["state_class"] = "measurement";
     doc["suggested_display_precision"] = 0;
   }
+  // "leaf_hx" is a percentage with no matching device_class, so it misses the state_class
+  // assignment above too. Mark it as a measurement and show two decimals, like LeafSpy does.
+  if (strcmp(config.entity_id, "leaf_hx") == 0) {
+    doc["state_class"] = "measurement";
+    doc["suggested_display_precision"] = 2;
+  }
+  // "heap_fragmentation" is a percentage with no matching device_class either. Mark it as a
+  // measurement and show one decimal, like the ESPHome debug sensor does.
+  if (strcmp(config.entity_id, "heap_fragmentation") == 0) {
+    doc["state_class"] = "measurement";
+    doc["suggested_display_precision"] = 1;
+  }
   // "energy" device_class is only valid with state_class total / total_increasing, never
   // "measurement" — HA rejects the combination. The capacity sensors represent a current
   // stored amount, so use "energy_storage" (compatible with "measurement") instead. The
@@ -493,6 +568,9 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
       doc["icon"] = icon;
     }
   }
+  if (diagnostic) {
+    doc["entity_category"] = "diagnostic";
+  }
   set_common_discovery_attributes(doc);
   serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
@@ -519,9 +597,14 @@ static bool publish_common_info(void) {
         }
       }
     }
-    // Global (emulator-level) sensors stay on battery #1's "/info" topic.
+    // Global (emulator-level) sensors stay on battery #1's "/info" topic. They all describe
+    // the emulator rather than the battery, so they are published as diagnostic entities.
     for (const auto& config : globalSensorConfigTemplate) {
-      if (!publish_sensor_discovery(config, "", "", info_topics[0])) {
+      // Emulator-level sensors have no battery instance; the condition only gates on settings.
+      if (!config.condition(nullptr)) {
+        continue;
+      }
+      if (!publish_sensor_discovery(config, "", "", info_topics[0], true)) {
         return false;
       }
     }
@@ -549,14 +632,34 @@ static bool publish_common_info(void) {
 
       doc["event_level"] = get_event_level_string(get_event_level());
       doc["emulator_status"] = get_emulator_status_string(get_emulator_status());
+      // Static identity of the running binary. Published on every cycle (the topic is not
+      // retained, so a single publish would be lost on a Home Assistant restart) and stored
+      // zero-copy, both being const char* literals.
+      doc["hardware"] = esp32hal->name();
+      doc["software_version"] = version_number;
       if (datalayer.system.info.CPU_measurement_enabled) {
         doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
       }
       doc["emulator_uptime"] = millis64() / 1000;
 
+      // Internal-RAM heap diagnostics. Same sources and fragmentation formula as the ESPHome
+      // debug component, so the values are directly comparable with an ESPHome node's.
+      if (mqtt_publish_heap_metrics) {
+        const uint32_t heap_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        const uint32_t heap_max_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        doc["heap_free"] = heap_free;
+        doc["heap_max_block"] = heap_max_block;
+        doc["heap_min_free"] = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
+        // Share of the free heap that is not reachable as one contiguous block. Guarded
+        // against a zero free heap so no NaN is ever published.
+        if (heap_free > 0u) {
+          doc["heap_fragmentation"] = 100.0f - (100.0f * (float)heap_max_block / (float)heap_free);
+        }
+      }
+
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
-        // logging.println("Common info MQTT msg could not be sent");
+        log_publish_failure("Common info");
         return false;
       }
     }
@@ -575,7 +678,7 @@ static bool publish_common_info(void) {
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
         serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
-          logging.println("Common info MQTT msg could not be sent");
+          log_publish_failure("Common info");
           return false;
         }
       }
@@ -633,7 +736,7 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
   len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "]}");
 
   if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-    logging.println("Cell data MQTT msg could not be sent");
+    log_publish_failure("Cell data");
     return false;
   }
   return true;
@@ -733,6 +836,7 @@ bool publish_events() {
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     doc["icon"] = "mdi:information-outline";
+    doc["entity_category"] = "diagnostic";
     set_common_discovery_attributes(doc);
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
@@ -775,7 +879,7 @@ bool publish_events() {
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-        logging.println("Common info MQTT msg could not be sent");
+        log_publish_failure("Event");
         return false;
       } else {
         set_event_MQTTpublished(event_handle);
@@ -804,6 +908,11 @@ static bool publish_buttons_discovery(void) {
           if (icon != nullptr) {
             doc["icon"] = icon;
           }
+        }
+        // Rebooting the emulator is a maintenance action on the emulator itself, not a
+        // battery control like the pause/resume/stop buttons.
+        if (strcmp(config.entity_id, "RESTART") == 0) {
+          doc["entity_category"] = "diagnostic";
         }
         set_common_discovery_attributes(doc);
         serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -906,8 +1015,7 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       subscribe();
       break;
     case MQTT_EVENT_DISCONNECTED:
-      set_event(EVENT_MQTT_DISCONNECT, 0);
-      logging.println("MQTT disconnected!");
+      set_event(EVENT_MQTT_DISCONNECT, 0);  // also printing a log entry
       break;
     case MQTT_EVENT_DATA:
       mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);

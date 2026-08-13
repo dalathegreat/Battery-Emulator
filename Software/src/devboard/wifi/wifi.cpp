@@ -13,8 +13,9 @@
 
 bool wifi_enabled = true;
 bool wifiap_enabled = true;
-bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
-bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
+bool mdns_enabled = true;           //If true, allows battery monitor te be found by .local address
+bool espnow_enabled = true;         //If true, allows battery emulator to send battery status by using ESPNow messages
+std::string espnow_peer_macs = "";  //Empty = broadcast, otherwise a list of receiver MAC addresses
 uint16_t wifi_channel = 0;
 extern const char* version_number;
 
@@ -90,7 +91,7 @@ static void check_ap_provisioning_window() {
   }
   // Direct log so EVERY expiry produces a log/syslog line, not just the first per
   // boot (set_event only emits its log line on the inactive->active transition).
-  LOG_SET_NEXT_SEVERITY(6);  // info
+  LOG_SET_NEXT_SEVERITY(5);  // notice
   logging.println("AP provisioning window expired (factory-default AP password), disabling access point.");
   WiFi.softAPdisconnect(true);  // stop the AP and drop the AP bit from the WiFi mode; STA stays up
   ap_active = false;
@@ -126,7 +127,7 @@ static void init_mDNS() {
 }
 
 void init_WiFi() {
-  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
+  //DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
   // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
   // are stored in our own Preferences and reapplied at boot, so driver-level
@@ -166,6 +167,16 @@ void init_WiFi() {
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
 
+  // Always associate with the strongest AP when several access points broadcast the same
+  // SSID (mesh / multi-AP networks). The driver defaults to WIFI_FAST_SCAN, which stops at
+  // the first matching AP it hears and can therefore latch onto a distant one. A full scan
+  // collects every candidate first, and the sort method then picks the best RSSI.
+  // Both settings end up in the STA config, so WiFi.reconnect(), FullReconnectToWiFi() and
+  // the driver's own auto-reconnect all reuse them: the strongest AP is picked at boot AND
+  // at every reconnect. Takes roughly 1 second of scan time per connection attempt.
+  WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+  WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+
   if (static_IP_enabled) {
     IPAddress local_IP, gateway, subnet, dns;
     if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
@@ -185,10 +196,10 @@ void init_WiFi() {
   }
 
   // Start Wi-Fi connection
-  DEBUG_PRINTF("start Wifi\n");
+  //DEBUG_PRINTF("start Wifi\n");
   connectToWiFi();
 
-  DEBUG_PRINTF("init_Wifi complete\n");
+  //DEBUG_PRINTF("init_Wifi complete\n");
 }
 
 // Board button (usually BOOT/GPIO0):
@@ -231,11 +242,13 @@ static void check_ap_button() {
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
+      LOG_SET_NEXT_SEVERITY(5);  // notice
       logging.println("Factory reset performed from the board button.");
       erase_phy_cal_data();
       graceful_restart();
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
       clear_wifi_sta_settings();
+      LOG_SET_NEXT_SEVERITY(5);  // notice
       logging.println("Network settings wiped from the board button.");
       erase_phy_cal_data();
       hold_pins_across_reset();
@@ -281,12 +294,11 @@ void wifi_monitor() {
       if (current_check_interval + STEP_WIFI_CHECK_INTERVAL <= MAX_STEP_WIFI_CHECK_INTERVAL) {
         current_check_interval += STEP_WIFI_CHECK_INTERVAL;
       }
-      DEBUG_PRINTF("Wi-Fi not connected (status=%d), attempting to reconnect\n", status);
+      DEBUG_PRINTF("Wi-Fi not connected(%d), reconnect attempt\n", status);
 
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
         lastReconnectAttempt = currentMillis;  // Reset reconnection attempt timer
-        logging.println("Wi-Fi reconnect attempt...");
         if (WiFi.reconnect()) {
           logging.println("Wi-Fi reconnect attempt sucess...");
           reconnectAttempts = 0;  // Reset the attempt counter on successful reconnect
@@ -337,7 +349,6 @@ void connectToWiFi() {
 
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
-    logging.println("Connecting to Wi-Fi...");
     if (wifi_channel > 14) {
       wifi_channel = 0;
     }  //prevent users going out of bounds
@@ -353,8 +364,12 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
   connected_once = true;
-  DEBUG_PRINTF("Wi-Fi connected. status: %d, RSSI: %d dBm, IP address: %s, SSID: %s\n", WiFi.status(), -WiFi.RSSI(),
-               WiFi.localIP().toString().c_str(), WiFi.SSID().c_str());
+  // SSID and BSSID are taken from the event payload. The BSSID identifies which AP we landed on when
+  // several of them share the SSID.
+  const wifi_event_sta_connected_t& ap = info.wifi_sta_connected;
+  DEBUG_PRINTF("Wi-Fi connected(%d), RSSI: %d dBm, SSID: %.*s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x\n", WiFi.status(),
+               WiFi.RSSI(), ap.ssid_len, (const char*)ap.ssid, ap.bssid[0], ap.bssid[1], ap.bssid[2], ap.bssid[3],
+               ap.bssid[4], ap.bssid[5]);
   hasConnectedBefore = true;                                            // Mark as successfully connected at least once
   reconnectAttempts = 0;                                                // Reset the attempt counter
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
@@ -363,7 +378,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 static void log_ap_sta_event(const char* verb, const uint8_t* mac) {
-  logging.printf("AP: %02X:%02X:%02X:%02X:%02X:%02X %s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], verb);
+  logging.printf("AP: %02x:%02x:%02x:%02x:%02x:%02x %s\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], verb);
 }
 
 void onApStaConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -380,9 +395,8 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
-  logging.print("Wi-Fi Got IP. ");
-  logging.print("IP address: ");
-  logging.println(WiFi.localIP().toString());
+  LOG_SET_NEXT_SEVERITY(5);  // notice
+  logging.printf("Wi-Fi got IP address: %s\n", WiFi.localIP().toString().c_str());
 
   // One-shot boot notice — fires once per boot, not on every reconnect.
   static bool boot_logged = false;
@@ -403,9 +417,8 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
   if (connected_once) {
-    set_event(EVENT_WIFI_DISCONNECT, 0);
+    set_event(EVENT_WIFI_DISCONNECT, 0);  // also printing a log entry
   }
-  logging.println("Wi-Fi disconnected.");
   //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost
   //normal reconnect retry start at first 2 seconds
@@ -413,8 +426,7 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 void init_WiFi_AP() {
 
-  DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
-  DEBUG_PRINTF("Access Point password set (%u characters)\n", (unsigned)passwordAP.length());
+  DEBUG_PRINTF("Creating Wi-Fi AP: %s (password set with %u chars)\n", ssidAP.c_str(), (unsigned)passwordAP.length());
 
   if (!ap_active) {
     // (Re)start the provisioning window timer only on an off->on transition, so
@@ -431,10 +443,10 @@ void init_WiFi_AP() {
     // every AP start; the event additionally shows on the web UI / MQTT (set_event
     // emits its own log line only on the first inactive->active transition per boot).
     LOG_SET_NEXT_SEVERITY(6);  // info
-    logging.println("AP using default password.");
+    logging.println("Access Point using default password!");
     set_event(EVENT_WIFI_AP_PASSWORD_DEFAULT, 0);
   }
   IPAddress IP = WiFi.softAPIP();
 
-  DEBUG_PRINTF("Access Point created, IP address: %s\n", IP.toString().c_str());
+  DEBUG_PRINTF("Access Point IP address: %s\n", IP.toString().c_str());
 }

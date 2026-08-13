@@ -141,12 +141,13 @@ void init_stored_settings() {
   user_selected_daly_power_per_degree_C = settings.getUInt("DALYPWRDEG", 60);
   user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
+  user_selected_use_estimated_charge_limits = settings.getBool("CHGESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
-  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
-  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
-  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", 0);
-  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
-  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
+  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
+  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
+  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);
+  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
+  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
 
   auto readIf = [&settings](const char* settingName) {
@@ -248,12 +249,14 @@ void init_stored_settings() {
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
+  espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   ha_autodiscovery_topic = settings.getString("HADISCTOPIC", "homeassistant").c_str();
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
+  mqtt_publish_heap_metrics = settings.getBool("MQTTHEAP", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
   migrate_static_ip_settings(settings);
@@ -264,7 +267,7 @@ void init_stored_settings() {
   static_dns = settings.getString("DNS").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
-  mqtt_port = settings.getUInt("MQTTPORT", 0);
+  mqtt_port = settings.getUInt("MQTTPORT", 1883);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 

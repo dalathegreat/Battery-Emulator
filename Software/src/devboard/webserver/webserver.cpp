@@ -20,9 +20,11 @@
 #include "../utils/millis64.h"
 #include "../utils/time_format.h"
 #include "../utils/timer.h"
+#include "../utils/version.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
 #include "html_escape.h"
+#include "webserver_can_streaming.h"
 
 #include <string>
 
@@ -30,7 +32,6 @@ std::string http_username;
 std::string http_password;
 
 bool webserver_auth = false;
-static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -416,6 +417,7 @@ void init_webserver() {
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
     erase_phy_cal_data();
+    LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
   });
@@ -426,7 +428,7 @@ void init_webserver() {
       "HADISC",       "MQTTCELLV",    "GTWRHD",        "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",
       "PYLONOFFSET",  "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",
       "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
-      "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",
+      "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
@@ -443,9 +445,9 @@ void init_webserver() {
       "SYSLOGFAC",  "PERBMSRESETH",
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD",
-                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",  "SUBNET",
-                                      "DNS",        "HADISCTOPIC", "SYSLOGIP"};
+  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
+                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
+                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
@@ -797,6 +799,8 @@ void init_webserver() {
           }
           request->send(200, "text/plain", "Command performed.");
         });
+
+    register_dump_can_route(server);
   }
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
@@ -921,7 +925,9 @@ String getConnectResultString(wl_status_t status) {
   }
 }
 
-void ota_monitor() {
+void webserver_tick() {
+  can_dump_drain_tick();
+
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
@@ -985,7 +991,9 @@ String processor(const String& var) {
     content += "</style>";
 
     // Compact header
-    content += "<h2>Battery Emulator</h2>";
+    content +=
+        "<h2><a href='https://dalathegreat.github.io/Battery-Emulator-Wiki/' target='_blank' "
+        "rel='noopener' style='color:inherit'>Battery Emulator</a></h2>";
 
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
@@ -1063,7 +1071,11 @@ String processor(const String& var) {
     content += "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
-      content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
+      // MAC is the station address, which is also the source address of the ESPNow
+      // frames - handy when filling in the ESPNow receiver MAC list on another node.
+      String mac = WiFi.macAddress();
+      mac.toLowerCase();
+      content += "<h4>IP: " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
@@ -1757,10 +1769,12 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
+    LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("OTA update finished successfully!");
     hold_pins_across_reset();
     graceful_restart();
   } else {
+    LOG_SET_NEXT_SEVERITY(3);  // err
     logging.println("There was an error during OTA update!");
     // Unpause battery (preserving equipment stop if set)
     setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);

@@ -762,10 +762,14 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t GIDS;
   /** Max regen power in kW */
   uint16_t ChargePowerLimit;
-  /** Internal resistance in percentage */
-  uint16_t battery_HX;
+  /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
+  uint16_t battery_HX_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
+  /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
+  uint16_t ChargeCountQC;
+  /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
+  uint16_t ChargeCountL1L2;
 
   /** Max charge power in kW */
   int16_t MaxPowerForCharger;
@@ -804,7 +808,6 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** Battery info, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[15];
   uint8_t BatteryPartNumber[7];
-  uint8_t BMSIDcode[8];
 };
 
 struct DATALAYER_INFO_MEB {
