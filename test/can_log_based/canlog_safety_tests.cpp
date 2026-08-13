@@ -120,8 +120,8 @@ class BaseValuesPresentTest : public CanLogTestFixture {
     EXPECT_NE(datalayer.battery.status.temperature_max_dC, INT16_MIN);
     EXPECT_NE(datalayer.battery.status.temperature_min_dC, INT16_MIN);
 
-    EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 0);
-    EXPECT_EQ(get_event_pointer(EVENT_BATTERY_UNDERVOLTAGE)->occurences, 0);
+    EXPECT_EQ(get_event_pointer(EVENT_BATTERY1_OVERVOLTAGE)->occurences, 0);
+    EXPECT_EQ(get_event_pointer(EVENT_BATTERY1_UNDERVOLTAGE)->occurences, 0);
   }
 };
 
@@ -132,7 +132,7 @@ class OverVoltageTest : public CanLogTestFixture {
   void TestBody() override {
     HandleFramesAndUpdateValues();
 
-    EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 1);
+    EXPECT_EQ(get_event_pointer(EVENT_BATTERY1_OVERVOLTAGE)->occurences, 1);
   }
 };
 

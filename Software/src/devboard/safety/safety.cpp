@@ -65,74 +65,43 @@ static void check_can_component_alive(uint8_t& still_alive_counter, bool& detect
    The battery number is only attached when more than one battery is configured, so
    single-battery systems keep their existing event text. */
 static void check_battery_temperatures(void) {
-  struct {
-    const DATALAYER_BATTERY_TYPE* pack;
-    uint8_t number;
-  } packs[3];
-  uint8_t nof_packs = 0;
+  /* Each pack owns its own set of events now, so this is a plain per-pack set/clear with no
+     cross-pack reasoning: battery 1 and battery 2 can be overheating at the same time and both
+     are reported. That was impossible while the three events were shared. */
+  const DATALAYER_BATTERY_TYPE* packs[3] = {battery ? &datalayer.battery : nullptr,
+                                            battery2 ? &datalayer.battery2 : nullptr,
+                                            battery3 ? &datalayer.battery3 : nullptr};
 
-  if (battery) {
-    packs[nof_packs++] = {&datalayer.battery, 1};
-  }
-  if (battery2) {
-    packs[nof_packs++] = {&datalayer.battery2, 2};
-  }
-  if (battery3) {
-    packs[nof_packs++] = {&datalayer.battery3, 3};
-  }
-  if (nof_packs == 0) {
-    return;  // No battery configured, nothing to check
-  }
-  // With a single pack there is nothing to disambiguate, so report 0 and render no suffix
-  const bool name_the_battery = (nof_packs > 1);
-
-  int16_t hottest_dC = packs[0].pack->status.temperature_max_dC;
-  int16_t coldest_dC = packs[0].pack->status.temperature_min_dC;
-  int16_t widest_deviation_dC = 0;
-  uint8_t hottest_battery = packs[0].number;
-  uint8_t coldest_battery = packs[0].number;
-  uint8_t widest_battery = packs[0].number;
-
-  for (uint8_t i = 0; i < nof_packs; i++) {
-    const int16_t max_dC = packs[i].pack->status.temperature_max_dC;
-    const int16_t min_dC = packs[i].pack->status.temperature_min_dC;
+  for (uint8_t i = 0; i < 3; i++) {
+    if (!packs[i]) {
+      continue;  // Pack not configured
+    }
+    const uint8_t number = i + 1;
+    const int16_t max_dC = packs[i]->status.temperature_max_dC;
+    const int16_t min_dC = packs[i]->status.temperature_min_dC;
     const int16_t deviation_dC = (int16_t)labs((long)max_dC - (long)min_dC);
 
-    if (max_dC > hottest_dC) {
-      hottest_dC = max_dC;
-      hottest_battery = packs[i].number;
+    // Battery is overheated!
+    if (max_dC > BATTERY_MAXTEMPERATURE) {
+      set_event(EVENT_BATTERY1_OVERHEAT, max_dC, number);
+    } else {
+      clear_event(EVENT_BATTERY1_OVERHEAT, number);
     }
-    if (min_dC < coldest_dC) {
-      coldest_dC = min_dC;
-      coldest_battery = packs[i].number;
+
+    // Battery is too cold to operate optimally
+    if (min_dC < BATTERY_MINTEMPERATURE) {
+      set_event(EVENT_BATTERY1_FROZEN, min_dC, number);
+    } else {
+      clear_event(EVENT_BATTERY1_FROZEN, number);
     }
-    if (deviation_dC > widest_deviation_dC) {
-      widest_deviation_dC = deviation_dC;
-      widest_battery = packs[i].number;
+
+    /* Not latched: the else branch below could never release a latched event, since
+       clear_event() only acts on EVENT_STATE_ACTIVE. The warning now follows the pack. */
+    if (deviation_dC > BATTERY_MAX_TEMPERATURE_DEVIATION) {
+      set_event(EVENT_BATTERY1_TEMP_DEVIATION_HIGH, deviation_dC, number);
+    } else {
+      clear_event(EVENT_BATTERY1_TEMP_DEVIATION_HIGH, number);
     }
-  }
-
-  // Battery is overheated!
-  if (hottest_dC > BATTERY_MAXTEMPERATURE) {
-    set_event(EVENT_BATTERY_OVERHEAT, hottest_dC, name_the_battery ? hottest_battery : 0);
-  } else {
-    clear_event(EVENT_BATTERY_OVERHEAT);
-  }
-
-  // Battery is frozen!
-  if (coldest_dC < BATTERY_MINTEMPERATURE) {
-    set_event(EVENT_BATTERY_FROZEN, coldest_dC, name_the_battery ? coldest_battery : 0);
-  } else {
-    clear_event(EVENT_BATTERY_FROZEN);
-  }
-
-  // Spread between the hottest and coldest sensor inside one pack is too large. Not latched:
-  // the condition recovers on its own once the pack evens out, and the matching clear_event()
-  // below could never release a latched event anyway (clear_event only acts on EVENT_STATE_ACTIVE).
-  if (widest_deviation_dC > BATTERY_MAX_TEMPERATURE_DEVIATION) {
-    set_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH, widest_deviation_dC, name_the_battery ? widest_battery : 0);
-  } else {
-    clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH);
   }
 }
 
@@ -228,18 +197,18 @@ void update_machineryprotection() {
 
     // Battery voltage is over designed max voltage!
     if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+      set_event(EVENT_BATTERY1_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_OVERVOLTAGE);
+      clear_event(EVENT_BATTERY1_OVERVOLTAGE, 1);
     }
 
     // Battery voltage is under designed min voltage!
     if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
+      set_event(EVENT_BATTERY1_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
       datalayer.battery.status.max_discharge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_UNDERVOLTAGE);
+      clear_event(EVENT_BATTERY1_UNDERVOLTAGE, 1);
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
@@ -304,12 +273,12 @@ void update_machineryprotection() {
         datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
       if (!battery_full_event_fired) {
-        set_event(EVENT_BATTERY_FULL, 0);
+        set_event(EVENT_BATTERY1_FULL, 0, 1);
         battery_full_event_fired = true;
       }
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_FULL);
+      clear_event(EVENT_BATTERY1_FULL, 1);
       battery_full_event_fired = false;
     }
 
@@ -319,12 +288,12 @@ void update_machineryprotection() {
       if (datalayer.battery.status.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {
-          set_event(EVENT_BATTERY_EMPTY, 0);
+          set_event(EVENT_BATTERY1_EMPTY, 0, 1);
           battery_empty_event_fired = true;
         }
         datalayer.battery.status.max_discharge_power_W = 0;
       } else {
-        clear_event(EVENT_BATTERY_EMPTY);
+        clear_event(EVENT_BATTERY1_EMPTY, 1);
         battery_empty_event_fired = false;
       }
     }
