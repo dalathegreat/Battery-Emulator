@@ -127,7 +127,7 @@ static void init_mDNS() {
 }
 
 void init_WiFi() {
-  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
+  //DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
   // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
   // are stored in our own Preferences and reapplied at boot, so driver-level
@@ -294,12 +294,11 @@ void wifi_monitor() {
       if (current_check_interval + STEP_WIFI_CHECK_INTERVAL <= MAX_STEP_WIFI_CHECK_INTERVAL) {
         current_check_interval += STEP_WIFI_CHECK_INTERVAL;
       }
-      DEBUG_PRINTF("Wi-Fi not connected (%d), attempting to reconnect\n", status);
+      DEBUG_PRINTF("Wi-Fi not connected(%d), reconnect attempt\n", status);
 
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
         lastReconnectAttempt = currentMillis;  // Reset reconnection attempt timer
-        logging.println("Wi-Fi reconnect attempt...");
         if (WiFi.reconnect()) {
           logging.println("Wi-Fi reconnect attempt sucess...");
           reconnectAttempts = 0;  // Reset the attempt counter on successful reconnect
@@ -368,7 +367,7 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   // SSID and BSSID are taken from the event payload. The BSSID identifies which AP we landed on when
   // several of them share the SSID.
   const wifi_event_sta_connected_t& ap = info.wifi_sta_connected;
-  DEBUG_PRINTF("Wi-Fi connected (%d), RSSI: %d dBm, SSID: %.*s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x\n", WiFi.status(),
+  DEBUG_PRINTF("Wi-Fi connected(%d), RSSI: %d dBm, SSID: %.*s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x\n", WiFi.status(),
                WiFi.RSSI(), ap.ssid_len, (const char*)ap.ssid, ap.bssid[0], ap.bssid[1], ap.bssid[2], ap.bssid[3],
                ap.bssid[4], ap.bssid[5]);
   hasConnectedBefore = true;                                            // Mark as successfully connected at least once
@@ -427,9 +426,8 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 void init_WiFi_AP() {
 
-  DEBUG_PRINTF("Creating Access Point: %s\n", ssidAP.c_str());
-  DEBUG_PRINTF("Access Point password set (%u characters)\n", (unsigned)passwordAP.length());
-
+  DEBUG_PRINTF("Creating Wi-Fi AP: %s (password set with %u chars)\n", ssidAP.c_str(), (unsigned)passwordAP.length());
+  
   if (!ap_active) {
     // (Re)start the provisioning window timer only on an off->on transition, so
     // repeated re-inits from the STA reconnect fallback don't keep extending it.
@@ -445,10 +443,10 @@ void init_WiFi_AP() {
     // every AP start; the event additionally shows on the web UI / MQTT (set_event
     // emits its own log line only on the first inactive->active transition per boot).
     LOG_SET_NEXT_SEVERITY(6);  // info
-    logging.println("AP using default password.");
+    logging.println("Access Point using default password!");
     set_event(EVENT_WIFI_AP_PASSWORD_DEFAULT, 0);
   }
   IPAddress IP = WiFi.softAPIP();
 
-  DEBUG_PRINTF("Access Point created, IP address: %s\n", IP.toString().c_str());
+  DEBUG_PRINTF("Access Point IP address: %s\n", IP.toString().c_str());
 }
