@@ -765,6 +765,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("MQTTCELLV") ? "checked" : "";
   }
 
+  if (var == "MQTTHEAP") {
+    return settings.getBool("MQTTHEAP") ? "checked" : "";
+  }
+
   if (var == "HADISC") {
     return settings.getBool("HADISC") ? "checked" : "";
   }
@@ -2173,6 +2177,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="300" step="1"
         title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
+        <label>Publish heap metric diagnostics: </label>
+        <input type='checkbox' name='MQTTHEAP' value='on' %MQTTHEAP%
+        title="Publish free heap, largest free block, minimum free heap and heap fragmentation to the /info topic and to Home Assistant autodiscovery. Takes effect after a restart." />
         <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Home Assistant autodiscovery at next boot: </label>
