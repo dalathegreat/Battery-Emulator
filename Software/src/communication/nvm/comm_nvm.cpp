@@ -266,7 +266,7 @@ void init_stored_settings() {
   static_dns = settings.getString("DNS").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
-  mqtt_port = settings.getUInt("MQTTPORT", 0);
+  mqtt_port = settings.getUInt("MQTTPORT", 1883);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
