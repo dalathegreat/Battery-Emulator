@@ -1,7 +1,20 @@
 #include "comm_can.h"
 #include "../../lib/mcp2515_lite/mcp2515_lite.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+// Native CAN driver selection.
+// Default: TWAI_ESP32, a drop-in replacement for ACAN_ESP32 built on the ESP-IDF
+// TWAI driver (includes the ESP32 TWAI errata workarounds that the register-level
+// ACAN_ESP32 driver lacks). Define USE_ACAN_ESP32 in the build flags to revert to
+// the old raw-register driver.
+#ifdef USE_ACAN_ESP32
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
+using NativeCanDriver = ACAN_ESP32;
+using NativeCanSettings = ACAN_ESP32_Settings;
+#else
+#include "../../lib/esp32-twai/TWAI_ESP32.h"
+using NativeCanDriver = TWAI_ESP32;
+using NativeCanSettings = TWAI_ESP32_Settings;
+#endif
 #include "CanReceiver.h"
 #include "comm_can.h"
 #include "src/datalayer/datalayer.h"
@@ -47,7 +60,7 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_S
   DEBUG_PRINTF("CAN receiver registered, total: %d\n", can_receivers.size());
 }
 
-static ACAN_ESP32_Settings* settingsespcan = nullptr;
+static NativeCanSettings* settingsespcan = nullptr;
 static CAN_Speed native_can_speed;
 
 static uint32_t quartz_frequency;
@@ -332,7 +345,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
         frame.data[i] = tx_frame->data.u8[i];
       }
 
-      if (!ACAN_ESP32::can.tryToSend(frame)) {
+      if (!NativeCanDriver::can.tryToSend(frame)) {
         datalayer.system.info.can_native_send_fail = true;
       }
     } break;
@@ -406,8 +419,8 @@ static void
 receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CANMessage frame;
 
-  if (ACAN_ESP32::can.available()) {
-    if (ACAN_ESP32::can.receive(frame)) {
+  if (NativeCanDriver::can.available()) {
+    if (NativeCanDriver::can.receive(frame)) {
 
       CAN_frame rx_frame;
       rx_frame.ID = frame.id;
@@ -423,7 +436,7 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
     }
   }
 
-  auto flags = ACAN_ESP32::can.statusRegister();
+  auto flags = NativeCanDriver::can.statusRegister();
   if ((flags & TWAI_BUS_OFF_ST) != 0) {
     // Bus off, reset the CAN controller
     change_can_speed(CAN_Interface::CAN_NATIVE, native_can_speed);
@@ -663,7 +676,7 @@ void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection ms
 
 void stop_can() {
   if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
-    ACAN_ESP32::can.end();
+    NativeCanDriver::can.end();
   }
 
   if (can2515) {
@@ -681,7 +694,7 @@ void stop_can() {
 
 void restart_can() {
   if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
-    ACAN_ESP32::can.begin(*settingsespcan);
+    NativeCanDriver::can.begin(*settingsespcan);
   }
 
   if (can2515) {
@@ -703,8 +716,11 @@ void restart_can() {
 static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) {
 
   // TODO: check whether this is necessary? It seems to help with
-  // reinitialization.
+  // reinitialization. Only for the raw-register driver: the ESP-IDF TWAI driver
+  // manages the peripheral itself (clock enable + reset on node creation).
+#ifdef USE_ACAN_ESP32
   periph_module_reset(PERIPH_TWAI_MODULE);
+#endif
 
   if (settingsespcan != nullptr) {
     delete settingsespcan;
@@ -713,13 +729,13 @@ static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t r
   native_can_speed = speed;
 
   // Create a new settings object (as it does the bitrate calcs in the constructor)
-  settingsespcan = new ACAN_ESP32_Settings((int)speed * 1000UL);
-  settingsespcan->mRequestedCANMode = ACAN_ESP32_Settings::NormalMode;
+  settingsespcan = new NativeCanSettings((int)speed * 1000UL);
+  settingsespcan->mRequestedCANMode = NativeCanSettings::NormalMode;
   settingsespcan->mTxPin = tx_pin;
   settingsespcan->mRxPin = rx_pin;
 
   // (Re)start the CAN interface
-  return ACAN_ESP32::can.begin(*settingsespcan);
+  return NativeCanDriver::can.begin(*settingsespcan);
 }
 
 // Change the speed of the given CAN interface. Returns true if successful.

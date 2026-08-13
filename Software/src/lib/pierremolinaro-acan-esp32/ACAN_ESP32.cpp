@@ -1,4 +1,16 @@
 //------------------------------------------------------------------------------
+//   ACAN_ESP32: raw-register TWAI driver (legacy fallback)
+//------------------------------------------------------------------------------
+//   This driver programs the TWAI registers directly and does not include the
+//   ESP32 TWAI errata workarounds. It is kept only as a fallback: comm_can.cpp
+//   selects it by defining USE_ACAN_ESP32. By default (no define) the TWAI_ESP32
+//   driver built on the ESP-IDF TWAI driver is used instead, and this file
+//   compiles to nothing so the dead driver is not linked into the firmware.
+//------------------------------------------------------------------------------
+
+#ifdef USE_ACAN_ESP32
+
+//------------------------------------------------------------------------------
 //   Include files
 //------------------------------------------------------------------------------
 
@@ -528,3 +540,5 @@ void ACAN_ESP32::internalSendMessage (const CANMessage & inFrame) {
 #endif
 
 //------------------------------------------------------------------------------
+
+#endif // USE_ACAN_ESP32
