@@ -1071,7 +1071,9 @@ String processor(const String& var) {
       content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
       // MAC is the station address, which is also the source address of the ESPNow
       // frames - handy when filling in the ESPNow receiver MAC list on another node.
-      content += "<h4>IP: " + WiFi.localIP().toString() + " MAC: " + WiFi.macAddress() + "</h4>";
+      String mac = WiFi.macAddress();
+      mac.toLowerCase();
+      content += "<h4>IP: " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
