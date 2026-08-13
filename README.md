@@ -18,9 +18,9 @@ At the same time, EV manufacturers have been putting high capacity battery packs
 
 
 ## Quickstart guide 📜
-- Pick a [supported inverter](https://dalathegreat.github.io/Battery-Emulator-Wiki/10-inverters/) (solar panels optional) :sun_with_face: 
-- Pick a [supported battery](https://dalathegreat.github.io/Battery-Emulator-Wiki/20-battery/) :battery: 
-- Order the Battery-Emulator [compatible hardware](https://dalathegreat.github.io/Battery-Emulator-Wiki/30-hardware/) :robot: 
+- Pick a [supported inverter](https://dalathegreat.github.io/Battery-Emulator-Wiki/inverter/) (solar panels optional) :sun_with_face: 
+- Pick a [supported battery](https://dalathegreat.github.io/Battery-Emulator-Wiki/battery/) :battery: 
+- Order the Battery-Emulator [compatible hardware](https://dalathegreat.github.io/Battery-Emulator-Wiki/hardware/) :robot: 
 - Follow the [installation guidelines](https://dalathegreat.github.io/Battery-Emulator-Wiki/40-setup/10-hardware/Installation-guidelines/) section for how to install and commission your battery properly :notebook: 
 
 ## Installation basics 🪛
