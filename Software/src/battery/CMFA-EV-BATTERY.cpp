@@ -40,11 +40,15 @@ void CmfaEvBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  //Some packs are locked? and do not report allowed charge/discharge power
-  //Old versions of the code allowed a hack workaround. Let's not allow this anymore, to try and push for figuring out why this happens (DTC active?)
-  datalayer_battery->status.max_charge_power_W = charge_power_w;
+  if (user_selected_use_estimated_charge_limits) {  //Some packs are locked? and do not report allowed charge/discharge power
+    datalayer_battery->status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
-  datalayer_battery->status.max_discharge_power_W = discharge_power_w;
+    datalayer_battery->status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  } else {  //Use sane limits sent by battery
+    datalayer_battery->status.max_charge_power_W = charge_power_w;
+
+    datalayer_battery->status.max_discharge_power_W = discharge_power_w;
+  }
 
   datalayer_battery->status.temperature_min_dC = (lowest_cell_temperature * 10);
 

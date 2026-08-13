@@ -276,9 +276,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
            capability_css("if-tricapable", battery_supports_triple);
   }
   if (var == "BATTCHEM") {
-    return options_for_enum(
-        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
-        name_for_chemistry);
+    return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
+                            name_for_chemistry);
   }
   if (var == "INVTYPE") {
     return options_for_enum_with_none(
@@ -310,8 +309,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CTATTEN") {
     return options_for_enum_with_none(
-        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
-        adc_attenuation_enum::ADC_0db);
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
+        name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
   }
 
   if (var == "EQSTOP") {
@@ -360,7 +359,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SUNGROW_MODEL") {
-    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
+    return options_from_map(settings.getUInt("INVSUNTYPE", 0), sungrow_models);  // Default: SBR064, as boot assumes
   }
 
   if (var == "PYLON_MODEL") {
@@ -517,6 +516,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
 
+  if (var == "CHGESTIMATED") {
+    return settings.getBool("CHGESTIMATED") ? "checked" : "";
+  }
+
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
@@ -526,6 +529,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGTAPERSOC") {
+    if (settings.getBool("CHGESTIMATED")) {
+      return "checked";
+    }
     if (battery && battery->mandatory_charge_taper()) {
       return "checked";
     }
@@ -634,11 +640,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGPOWER") {
-    return String(settings.getUInt("CHGPOWER", 0));
+    return String(settings.getUInt("CHGPOWER", 1000));
   }
 
   if (var == "DCHGPOWER") {
-    return String(settings.getUInt("DCHGPOWER", 0));
+    return String(settings.getUInt("DCHGPOWER", 1000));
   }
 
   if (var == "LOCALIP") {
@@ -1408,12 +1414,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="14"] .if-estimated, 
     form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
+    form[data-battery="26"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
     form[data-battery="41"] .if-estimated,
+    form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
     form[data-battery="51"] .if-estimated {
+      display: contents;
+    }
+
+    form .if-chgestimated { display: none; } /* Integrations where you sometimes want to fallback to user set charge/discharge power options, since they are for unknown reason not available on some packs */
+    form[data-battery="8"] .if-chgestimated,
+    form[data-battery="26"] .if-chgestimated,
+    form[data-battery="44"] .if-chgestimated {
       display: contents;
     }
 
@@ -1759,6 +1774,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Use estimated SOC: </label>
         <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% 
         title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
+        </div>
+
+        <div class="if-chgestimated">
+        <label>Use estimated charge limits: </label>
+        <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% 
+        title="Switch to estimated charge/discharge limits when accurate data is not available from the battery" />
         </div>
 
         <div class="if-battery">

@@ -141,6 +141,7 @@ void init_stored_settings() {
   user_selected_daly_power_per_degree_C = settings.getUInt("DALYPWRDEG", 60);
   user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
+  user_selected_use_estimated_charge_limits = settings.getBool("CHGESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
@@ -265,7 +266,7 @@ void init_stored_settings() {
   static_dns = settings.getString("DNS").c_str();
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
-  mqtt_port = settings.getUInt("MQTTPORT", 0);
+  mqtt_port = settings.getUInt("MQTTPORT", 1883);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
