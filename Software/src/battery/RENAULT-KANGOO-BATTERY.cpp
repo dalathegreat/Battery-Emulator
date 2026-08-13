@@ -1,6 +1,6 @@
 #include "RENAULT-KANGOO-BATTERY.h"
 #include <Arduino.h>
-#include "../communication/can/comm_can.h"
+#include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
@@ -55,20 +55,14 @@ void RenaultKangooBattery::
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  /* Define power able to be discharged from battery */
-  if (LB_Discharge_Power_Limit > 0) {  //If polled value available
-    datalayer.battery.status.max_discharge_power_W =
-        (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  } else {                                 //If no polled value available, use hardcoded value
-    datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_W;
-  }
+  if (user_selected_use_estimated_charge_limits) {  //Some packs are locked? and do not report allowed charge/discharge power
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
-  LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  if (LB_MaxChargeAllowed_W != 76500) {                         //If the constantly sent value is available, use it!
-    datalayer.battery.status.max_charge_power_W = LB_MaxChargeAllowed_W;
-  } else {
-    //The above value is invalid/0 on some packs. We instead hardcode this now.
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+    datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  } else {  //Use sane limits sent by battery
+    datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 500);
+    datalayer.battery.status.max_charge_power_W =
+        (LB_Charge_Power_Limit * 500);  //Note, LB_MaxChargeAllowed_W also present on some packs
   }
 
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);

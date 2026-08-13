@@ -546,13 +546,13 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PID_FAILED:
       return "Failed to write PID request to battery";
     case EVENT_WIFI_CONNECT:
-      return "Wifi connected.";
+      return "Wi-Fi connected.";
     case EVENT_WIFI_DISCONNECT:
-      return "Wifi disconnected.";
+      return "Wi-Fi disconnected.";
     case EVENT_WIFI_AP_PASSWORD_DEFAULT:
       return "The AP will be disabled after 5 idle minutes. Change default password to keep AP constantly on!";
     case EVENT_WIFI_AP_PROVISION_TIMEOUT:
-      return "Wifi AP disabled due to cybersecurity concern. Change default password to keep AP "
+      return "Wi-Fi AP disabled due to cybersecurity concern. Change default password to keep AP "
              "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
