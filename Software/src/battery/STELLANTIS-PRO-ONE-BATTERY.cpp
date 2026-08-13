@@ -30,7 +30,32 @@ void StellantisProOneBattery::
   //datalayer.battery.status.temperature_max_dC; //TODO: locate
 }
 
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
+
+String StellantisProOneBattery::get_uds_info_html() {
+  String content;
+  content.reserve(600);
+
+  // clang-format off
+  content << "<h4>Pack voltage: " << pid_pack_voltage << " dV</h4>"
+              "<h4>12V voltage: " << lead_acid_voltage << "mV</h4>"
+              "<h4>Lowest temperature: " << pid_lowest_temperature << "°C</h4>"
+              "<h4>Highest temperature: " << pid_highest_temperature << "°C</h4>";
+  // clang-format on
+
+  return content;
+}
+
 void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  // UDS frames (0x7E7 PID/DTC replies) are handled by the superclass.
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
   switch (rx_frame.ID) {
     case 0x95:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -96,6 +121,164 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
+}
+
+uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+    case PID_WELD_CHECK:
+      break;
+    case PID_CONT_REASON_OPEN:
+      break;
+    case PID_CONTACTOR_STATUS:
+      break;
+    case PID_NEG_CONT_CONTROL:
+      break;
+    case PID_NEG_CONT_STATUS:
+      break;
+    case PID_POS_CONT_CONTROL:
+      break;
+    case PID_POS_CONT_STATUS:
+      break;
+    case PID_CONTACTOR_NEGATIVE:
+      break;
+    case PID_CONTACTOR_POSITIVE:
+      break;
+    case PID_PRECHARGE_RELAY_CONTROL:
+      break;
+    case PID_PRECHARGE_RELAY_STATUS:
+      break;
+    case PID_RECHARGE_STATUS:
+      break;
+    case PID_DELTA_TEMPERATURE:
+      break;
+    case PID_COLDEST_MODULE:
+      break;
+    case PID_LOWEST_TEMPERATURE:
+      pid_lowest_temperature = (int16_t)(value - 40);
+      break;
+    case PID_AVERAGE_TEMPERATURE:
+      break;
+    case PID_HIGHEST_TEMPERATURE:
+      pid_highest_temperature = (int16_t)(value - 40);
+      break;
+    case PID_HOTTEST_MODULE:
+      break;
+    case PID_AVG_CELL_VOLTAGE:
+      break;
+    case PID_CURRENT:
+      break;
+    case PID_INSULATION_NEG:
+      break;
+    case PID_INSULATION_POS:
+      break;
+    case PID_MAX_CURRENT_10S:
+      break;
+    case PID_MAX_DISCHARGE_10S:
+      break;
+    case PID_MAX_DISCHARGE_30S:
+      break;
+    case PID_MAX_CHARGE_10S:
+      break;
+    case PID_MAX_CHARGE_30S:
+      break;
+    case PID_ENERGY_CAPACITY:
+      break;
+    case PID_HIGH_CELL_NUM:
+      break;
+    case PID_LOW_CELL_NUM:
+      break;
+    case PID_SUM_OF_CELLS:
+      break;
+    case PID_CELL_MIN_CAPACITY:
+      break;
+    case PID_CELL_VOLTAGE_MEAS_STATUS:
+      break;
+    case PID_INSULATION_RES:
+      break;
+    case PID_PACK_VOLTAGE:
+      pid_pack_voltage = (uint16_t)value;
+      datalayer.battery.status.voltage_dV = (uint16_t)value;
+      break;
+    case PID_HIGH_CELL_VOLTAGE:
+      datalayer.battery.status.cell_max_voltage_mV = (uint16_t)value;
+      break;
+    case PID_ALL_CELL_VOLTAGES:
+      break;
+    case PID_LOW_CELL_VOLTAGE:
+      datalayer.battery.status.cell_min_voltage_mV = (uint16_t)value;
+      break;
+    case PID_BATTERY_ENERGY:
+      break;
+    case PID_CELLBALANCE_STATUS:
+      break;
+    case PID_CELLBALANCE_HWERR_MASK:
+      break;
+    case PID_CRASH_COUNTER:
+      break;
+    case PID_WIRE_CRASH:
+      break;
+    case PID_CAN_CRASH:
+      break;
+    case PID_HISTORY_DATA:
+      break;
+    case PID_LOWSOC_COUNTER:
+      break;
+    case PID_LAST_CAN_FAILURE_DETAIL:
+      break;
+    case PID_HW_VERSION_NUM:
+      break;
+    case PID_SW_VERSION_NUM:
+      break;
+    case PID_FACTORY_MODE_CONTROL:
+      break;
+    case PID_BATTERY_SERIAL:
+      break;
+    case PID_ALL_CELL_SOH:
+      break;
+    case PID_AUX_FUSE_STATE:
+      break;
+    case PID_BATTERY_STATE:
+      break;
+    case PID_PRECHARGE_SHORT_CIRCUIT:
+      break;
+    case PID_ESERVICE_PLUG_STATE:
+      break;
+    case PID_MAINFUSE_STATE:
+      break;
+    case PID_MOST_CRITICAL_FAULT:
+      break;
+    case PID_CURRENT_TIME:
+      break;
+    case PID_TIME_SENT_BY_CAR:
+      break;
+    case PID_12V:
+      lead_acid_voltage = (uint16_t)value;
+      break;
+    case PID_12V_ABNORMAL:
+      break;
+    case PID_HVIL_IN_VOLTAGE:
+      break;
+    case PID_HVIL_OUT_VOLTAGE:
+      break;
+    case PID_HVIL_STATE:
+      break;
+    case PID_BMS_STATE:
+      break;
+    case PID_VEHICLE_SPEED:
+      break;
+    case PID_TIME_SPENT_OVER_55C:
+      break;
+    case PID_CONTACTOR_CLOSING_COUNTER:
+      break;
+    case PID_DATE_OF_MANUFACTURE:
+      break;
+    default:  //Unknown pid
+      break;
+  }
+  return 0;  //Continue scanning the PID list in order
 }
 
 void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
@@ -194,12 +377,10 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-
-    if (UserRequestedDTCReset == true) {
-      UserRequestedDTCReset = false;
-      transmit_can_frame(&STELLANTIS_CLEAR_DTC);  //Send DTC reset command
-    }
   }
+
+  // UDS PID polling and DTC handling
+  transmit_uds_can(currentMillis);
 }
 
 void StellantisProOneBattery::setup(void) {  // Performs one time setup at startup
@@ -211,4 +392,79 @@ void StellantisProOneBattery::setup(void) {  // Performs one time setup at start
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  // UDS: send requests to 0x7E7, accept replies from the BMS on 0x7EF.
+  setup_uds(0x7E7, 0x7EF);
+  static const uint16_t pid_scan_list[] = {
+      PID_WELD_CHECK,
+      PID_CONT_REASON_OPEN,
+      PID_CONTACTOR_STATUS,
+      PID_NEG_CONT_CONTROL,
+      PID_NEG_CONT_STATUS,
+      PID_POS_CONT_CONTROL,
+      PID_POS_CONT_STATUS,
+      PID_CONTACTOR_NEGATIVE,
+      PID_CONTACTOR_POSITIVE,
+      PID_PRECHARGE_RELAY_CONTROL,
+      PID_PRECHARGE_RELAY_STATUS,
+      PID_RECHARGE_STATUS,
+      PID_DELTA_TEMPERATURE,
+      PID_COLDEST_MODULE,
+      PID_LOWEST_TEMPERATURE,
+      PID_AVERAGE_TEMPERATURE,
+      PID_HIGHEST_TEMPERATURE,
+      PID_HOTTEST_MODULE,
+      PID_AVG_CELL_VOLTAGE,
+      PID_CURRENT,
+      PID_INSULATION_NEG,
+      PID_INSULATION_POS,
+      PID_MAX_CURRENT_10S,
+      PID_MAX_DISCHARGE_10S,
+      PID_MAX_DISCHARGE_30S,
+      PID_MAX_CHARGE_10S,
+      PID_MAX_CHARGE_30S,
+      PID_ENERGY_CAPACITY,
+      PID_HIGH_CELL_NUM,
+      PID_LOW_CELL_NUM,
+      PID_SUM_OF_CELLS,
+      PID_CELL_MIN_CAPACITY,
+      PID_CELL_VOLTAGE_MEAS_STATUS,
+      PID_INSULATION_RES,
+      PID_PACK_VOLTAGE,
+      PID_HIGH_CELL_VOLTAGE,
+      PID_ALL_CELL_VOLTAGES,
+      PID_LOW_CELL_VOLTAGE,
+      PID_BATTERY_ENERGY,
+      PID_CELLBALANCE_STATUS,
+      PID_CELLBALANCE_HWERR_MASK,
+      PID_CRASH_COUNTER,
+      PID_WIRE_CRASH,
+      PID_CAN_CRASH,
+      PID_HISTORY_DATA,
+      PID_LOWSOC_COUNTER,
+      PID_LAST_CAN_FAILURE_DETAIL,
+      PID_HW_VERSION_NUM,
+      PID_SW_VERSION_NUM,
+      PID_FACTORY_MODE_CONTROL,
+      PID_BATTERY_SERIAL,
+      PID_ALL_CELL_SOH,
+      PID_AUX_FUSE_STATE,
+      PID_BATTERY_STATE,
+      PID_PRECHARGE_SHORT_CIRCUIT,
+      PID_ESERVICE_PLUG_STATE,
+      PID_MAINFUSE_STATE,
+      PID_MOST_CRITICAL_FAULT,
+      PID_CURRENT_TIME,
+      PID_TIME_SENT_BY_CAR,
+      PID_12V,
+      PID_12V_ABNORMAL,
+      PID_HVIL_IN_VOLTAGE,
+      PID_HVIL_OUT_VOLTAGE,
+      PID_HVIL_STATE,
+      PID_BMS_STATE,
+      PID_VEHICLE_SPEED,
+      PID_TIME_SPENT_OVER_55C,
+      PID_CONTACTOR_CLOSING_COUNTER,
+      PID_DATE_OF_MANUFACTURE,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
