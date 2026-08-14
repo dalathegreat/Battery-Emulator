@@ -4,7 +4,12 @@
 #include <freertos/task.h>
 
 //----------------------------------------------------------------------------------------
-//  TWAI_ESP32_Settings
+//  Bit timing
+//
+//  Mirror of the ESP-IDF TWAI driver's timing calculation (twai_node_timing_calc_param)
+//  with the APB clock as source, so the values exposed by the query methods match
+//  exactly what the driver programs into the controller. The HAL writes brp/2 - 1 into
+//  the BRP field, which compensates for the hardware's fixed /2 on the APB clock.
 //----------------------------------------------------------------------------------------
 
 // Bit timing constraints of the TWAI controller on ESP32 / ESP32-S3 (TWAI_LL_* values)
@@ -16,14 +21,9 @@ static const uint16_t kTseg1Min = 1 ;
 static const uint16_t kTseg2Min = 1 ;
 static const uint16_t kSjwMax   = 4 ;
 
-TWAI_ESP32_Settings::TWAI_ESP32_Settings (const uint32_t inDesiredBitRate) :
-mDesiredBitRate (inDesiredBitRate) {
-  // Mirror the ESP-IDF TWAI driver's timing calculation (twai_node_timing_calc_param)
-  // with the APB clock as source, so the values reported here match exactly what the
-  // driver programs into the controller. The HAL writes brp/2 - 1 into the BRP field,
-  // which compensates for the hardware's fixed /2 on the APB clock.
+bool TWAI_ESP32::computeBitTiming (const uint32_t inBitRate) {
   const uint32_t sourceFreq = getApbFrequency () ; // 80 MHz on ESP32 / ESP32-S3
-  const uint32_t totalDiv = (sourceFreq + inDesiredBitRate / 2) / inDesiredBitRate ;
+  const uint32_t totalDiv = (sourceFreq + inBitRate / 2) / inBitRate ;
   uint32_t preDiv = kBrpMin ;
   uint16_t tseg = 0 ;
   for (; preDiv <= kBrpMax ; preDiv ++) {
@@ -40,10 +40,10 @@ mDesiredBitRate (inDesiredBitRate) {
     mTimeSegment1 = 0 ;
     mTimeSegment2 = 0 ;
     mRJW = 0 ;
-    return ;
+    return false ;
   }
   const uint16_t defaultPoint =
-      (inDesiredBitRate >= 800000) ? 750 : ((inDesiredBitRate >= 500000) ? 800 : 875) ;
+      (inBitRate >= 800000) ? 750 : ((inBitRate >= 500000) ? 800 : 875) ;
   uint16_t tseg1 = (uint16_t)((tseg * defaultPoint) / 1000) - 1 ;
   if (tseg1 < kTseg1Min) tseg1 = kTseg1Min ;
   if (tseg1 > kTseg1Max) tseg1 = kTseg1Max ;
@@ -60,28 +60,7 @@ mDesiredBitRate (inDesiredBitRate) {
   mTimeSegment1 = (uint8_t)(prop + tseg1) ; // Propagation + phase segment 1
   mTimeSegment2 = (uint8_t) tseg2 ;
   mRJW = (uint8_t) sjw ;
-  mTripleSampling = false ;
-}
-
-uint32_t TWAI_ESP32_Settings::actualBitRate (void) const {
-  const uint32_t TQCount = 1 + mTimeSegment1 + mTimeSegment2 ; // Sync + TSEG1 + TSEG2
-  if (mBitRatePrescaler == 0 || TQCount == 0) {
-    return 0 ;
-  }
-  return getApbFrequency () / mBitRatePrescaler / TQCount ;
-}
-
-bool TWAI_ESP32_Settings::exactBitRate (void) const {
-  return actualBitRate () == mDesiredBitRate ;
-}
-
-uint32_t TWAI_ESP32_Settings::samplePointFromBitStart (void) const {
-  const uint32_t TQCount = 1 + mTimeSegment1 + mTimeSegment2 ;
-  if (TQCount == 0) {
-    return 0 ;
-  }
-  const uint32_t samplePoint = 1 + mTimeSegment1 - (mTripleSampling ? 1 : 0) ;
-  return (samplePoint * 100) / TQCount ;
+  return true ;
 }
 
 //----------------------------------------------------------------------------------------
@@ -139,10 +118,21 @@ void TWAI_ESP32::teardownNode (void) {
 }
 
 //----------------------------------------------------------------------------------------
-//   BEGIN
+//   BEGIN / RESTART
 //----------------------------------------------------------------------------------------
 
-uint32_t TWAI_ESP32::begin (const TWAI_ESP32_Settings & inSettings) {
+uint32_t TWAI_ESP32::begin (const uint32_t inBitRate,
+                            const gpio_num_t inTxPin,
+                            const gpio_num_t inRxPin,
+                            const CANMode inMode) {
+  if (!computeBitTiming (inBitRate)) {
+    return ESP_ERR_NOT_SUPPORTED ; // Unsupported bit rate; leave any running node alone
+  }
+  mBitRate = inBitRate ;
+  if (inTxPin != GPIO_NUM_NC) mTxPin = inTxPin ; // GPIO_NUM_NC keeps the previous pin
+  if (inRxPin != GPIO_NUM_NC) mRxPin = inRxPin ;
+  mMode = inMode ;
+
   teardownNode () ; // Re-init path (speed change, restart, bus-off recovery)
 
   resetTxSlots () ;
@@ -151,22 +141,22 @@ uint32_t TWAI_ESP32::begin (const TWAI_ESP32_Settings & inSettings) {
   mRxCount = 0 ;
 
   twai_onchip_node_config_t nodeConfig = {} ;
-  nodeConfig.io_cfg.tx = inSettings.mTxPin ;
-  nodeConfig.io_cfg.rx = inSettings.mRxPin ;
+  nodeConfig.io_cfg.tx = mTxPin ;
+  nodeConfig.io_cfg.rx = mRxPin ;
   nodeConfig.io_cfg.quanta_clk_out = GPIO_NUM_NC ;
   nodeConfig.io_cfg.bus_off_indicator = GPIO_NUM_NC ;
-  nodeConfig.bit_timing.bitrate = inSettings.mDesiredBitRate ;
+  nodeConfig.bit_timing.bitrate = mBitRate ;
   nodeConfig.fail_retry_cnt = -1 ; // Retransmit forever, like the old driver
   nodeConfig.tx_queue_depth = kTxSlotCount ;
-  switch (inSettings.mRequestedCANMode) {
-    case TWAI_ESP32_Settings::ListenOnlyMode :
+  switch (mMode) {
+    case ListenOnlyMode :
       nodeConfig.flags.enable_listen_only = 1 ;
       break ;
-    case TWAI_ESP32_Settings::LoopBackMode : // Self-test: no ACK required + self-reception
+    case LoopBackMode : // Self-test: no ACK required + self-reception
       nodeConfig.flags.enable_loopback = 1 ;
       nodeConfig.flags.enable_self_test = 1 ;
       break ;
-    case TWAI_ESP32_Settings::NormalMode :
+    case NormalMode :
     default :
       break ;
   }
@@ -201,11 +191,18 @@ uint32_t TWAI_ESP32::begin (const TWAI_ESP32_Settings & inSettings) {
 }
 
 //----------------------------------------------------------------------------------------
-//   END
+//   END / RESTART
 //----------------------------------------------------------------------------------------
 
 void TWAI_ESP32::end (void) {
   teardownNode () ;
+}
+
+uint32_t TWAI_ESP32::restart (void) {
+  if (mBitRate == 0) {
+    return ESP_ERR_INVALID_STATE ; // Never begun
+  }
+  return begin (mBitRate, mTxPin, mRxPin, mMode) ;
 }
 
 //----------------------------------------------------------------------------------------
@@ -218,6 +215,9 @@ bool TWAI_ESP32::available (void) const {
 
 bool TWAI_ESP32::receive (CANMessage & outMessage) {
   bool hasMessage = false ;
+  if (!available ()) {
+    return false ;
+  }
   portENTER_CRITICAL (& mMux) ;
   if (mRxCount > 0) {
     outMessage = mRxBuffer [mRxTail] ;

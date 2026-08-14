@@ -1,18 +1,22 @@
 //----------------------------------------------------------------------------------------
-//  TWAI_ESP32: drop-in replacement for the ACAN_ESP32 native CAN driver, built on the
-//  ESP-IDF TWAI driver (esp_twai.h / esp_twai_onchip.h).
+//  TWAI_ESP32: native CAN driver for the ESP32 / ESP32-S3, built on the ESP-IDF TWAI
+//  driver (esp_twai.h / esp_twai_onchip.h).
 //
-//  Why this exists: ACAN_ESP32 talks to the TWAI registers directly (raw bit-banging)
-//  and does not include the silicon errata workarounds (e.g. ESP32 TWAI_ERRATA_FIX_*:
-//  bus-off recovery, TX interrupt lost, RX frame invalid, RX FIFO corrupt, listen-only
-//  dominant). The ESP-IDF TWAI driver implements those workarounds.
+//  Why this instead of talking to the TWAI registers directly: the ESP-IDF driver
+//  implements the silicon errata workarounds (ESP32 TWAI_ERRATA_FIX_*: bus-off
+//  recovery, TX interrupt lost, RX frame invalid, RX FIFO corrupt, listen-only
+//  dominant).
 //
-//  The public interface mirrors the subset of ACAN_ESP32 used by comm_can.cpp:
-//    - TWAI_ESP32::can  (static instance, like ACAN_ESP32::can)
-//    - begin(settings)  (returns 0 on success, else a non-zero error code)
+//  API:
+//    - TWAI_ESP32::can  (static driver instance)
+//    - begin(bitRate, txPin, rxPin, mode)  (returns 0 on success, else a non-zero
+//      ESP error code; pass GPIO_NUM_NC for the pins to keep the ones from the
+//      last begin()/restart(), e.g. for a simple speed change)
+//    - restart()        (re-apply the last configuration)
 //    - end()            (stop the controller and release the driver)
 //    - tryToSend(CANMessage), available(), receive(CANMessage&), statusRegister()
-//    - TWAI_ESP32_Settings (bit rate, pins, mode, plus timing fields for logging)
+//    - Query methods (bitRatePrescaler(), timeSegment1(), actualBitRate(), ...)
+//      expose the bit timing computed by the last begin(), for logging.
 //
 //----------------------------------------------------------------------------------------
 
@@ -25,8 +29,8 @@
 #include "esp_twai_onchip.h"
 
 //----------------------------------------------------------------------------------------
-//  Generic CAN message (identical to the one shipped with ACAN_ESP32 / ACAN2517FD;
-//  the include guard makes all copies interchangeable)
+//  Generic CAN message (identical to the one shipped with ACAN2517FD; the include
+//  guard makes all copies interchangeable)
 //----------------------------------------------------------------------------------------
 
 #ifndef GENERIC_CAN_MESSAGE_DEFINED
@@ -51,27 +55,28 @@ class CANMessage {
   } ;
 } ;
 
+// Same companion typedefs as in the ACAN2517FD CANMessage.h, so the include
+// guard makes the two headers fully interchangeable regardless of include order.
+typedef enum {kStandard, kExtended} tFrameFormat ;
+typedef enum {kData, kRemote} tFrameKind ;
+typedef void (*ACANCallBackRoutine) (const CANMessage & inMessage) ;
+
 #endif
 
 //----------------------------------------------------------------------------------------
-//  Status register bits, same values and semantics as ACAN_ESP32 (SJA1000 status
-//  register). statusRegister() synthesizes them from the ESP-IDF driver state.
+//  Status register bits, same values and semantics as the classic SJA1000 CAN
+//  controller status register. statusRegister() synthesizes them from the ESP-IDF
+//  driver state.
 //----------------------------------------------------------------------------------------
 
 static const uint32_t TWAI_BUS_OFF_ST = 0x80 ; // Controller in bus-off state
 static const uint32_t TWAI_ERR_ST     = 0x40 ; // Error status (warning/passive/bus-off)
 
 //----------------------------------------------------------------------------------------
-//  TWAI_ESP32_Settings
-//
-//  Holds the desired bit rate, pins and mode. The timing fields (mBitRatePrescaler,
-//  mTimeSegment1, ...) are computed in the constructor with the same algorithm the
-//  ESP-IDF TWAI driver uses, so the values logged by comm_can.cpp match what the
-//  driver programs into the controller. Note the prescaler follows the driver's
-//  convention (80 MHz APB reference); the HAL writes brp/2 - 1 into the register.
+//  TWAI_ESP32 class
 //----------------------------------------------------------------------------------------
 
-class TWAI_ESP32_Settings {
+class TWAI_ESP32 {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //   CAN driver operating modes
@@ -84,56 +89,28 @@ class TWAI_ESP32_Settings {
   } CANMode ;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   CONSTRUCTOR: computes the bit timing for the given desired bit rate
+  //   Initialisation: returns 0 if ok, otherwise a non-zero ESP error code.
+  //
+  //   inBitRate   Desired bit rate, in bits/s. The bit timing is computed here
+  //               with the same algorithm the ESP-IDF TWAI driver uses, and is
+  //               exposed through the query methods below.
+  //   inTxPin     GPIO for CAN TX; GPIO_NUM_NC (the default) keeps the pin from
+  //               the last begin()/restart().
+  //   inRxPin     Same for CAN RX.
+  //   inMode      NormalMode (default), ListenOnlyMode or LoopBackMode.
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  public: TWAI_ESP32_Settings (const uint32_t inDesiredBitRate) ;
+  public: uint32_t begin (const uint32_t inBitRate = 500000,
+                          const gpio_num_t inTxPin = GPIO_NUM_NC,
+                          const gpio_num_t inRxPin = GPIO_NUM_NC,
+                          const CANMode inMode = NormalMode) ;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   CAN PINS
+  //   Re-apply the configuration of the last begin() (bus recovery, restart
+  //   after end()...). Returns 0 if ok, ESP_ERR_INVALID_STATE if never begun.
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  public: gpio_num_t mTxPin = GPIO_NUM_5 ;
-  public: gpio_num_t mRxPin = GPIO_NUM_4 ;
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   Desired bit rate (in bits/s) and computed bit timing
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  public: uint32_t mDesiredBitRate ;         // In bits/s
-  public: uint8_t mBitRatePrescaler = 0 ;    // 1...1024 (driver convention, 80 MHz reference)
-  public: uint8_t mTimeSegment1 = 0 ;        // 1...16 (propagation + phase segment 1)
-  public: uint8_t mTimeSegment2 = 0 ;        // 1...8
-  public: uint8_t mRJW = 0 ;                 // 1...4
-  public: bool mTripleSampling = false ;     // The ESP-IDF driver does not expose triple sampling
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   Requested mode
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  public: CANMode mRequestedCANMode = NormalMode ;
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   Query methods (used by comm_can.cpp logging)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  public: uint32_t actualBitRate (void) const ;   // Computed bit rate, matches the driver
-  public: bool exactBitRate (void) const ;        // true if actualBitRate == mDesiredBitRate
-  public: uint32_t samplePointFromBitStart (void) const ; // Sample point in %
-
-} ;
-
-//----------------------------------------------------------------------------------------
-//  TWAI_ESP32 class
-//----------------------------------------------------------------------------------------
-
-class TWAI_ESP32 {
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   Initialisation: returns 0 if ok, otherwise a non-zero ESP error code
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  public: uint32_t begin (const TWAI_ESP32_Settings & inSettings) ;
+  public: uint32_t restart (void) ;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //   Deinit: stop the controller and release the driver
@@ -155,10 +132,36 @@ class TWAI_ESP32 {
   public: bool tryToSend (const CANMessage & inMessage) ;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //   Synthesized status register (same bits as ACAN_ESP32)
+  //   Synthesized status register (SJA1000-style bits)
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   public: uint32_t statusRegister (void) const ;
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //   Bit timing computed by the last begin(), for logging. The values match
+  //   exactly what the driver programs into the controller. Note the prescaler
+  //   follows the driver's convention (80 MHz APB reference); the HAL writes
+  //   brp/2 - 1 into the register. The ESP-IDF driver does not expose triple
+  //   sampling.
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  // Inline: these are called from the logging code and would otherwise cost a
+  // function call and a function body each (flash is tight on this target).
+  public: uint32_t bitRatePrescaler (void) const { return mBitRatePrescaler ; } // 1...1024
+  public: uint32_t timeSegment1 (void) const { return mTimeSegment1 ; }         // 1...16 (prop + phase seg 1)
+  public: uint32_t timeSegment2 (void) const { return mTimeSegment2 ; }         // 1...8
+  public: uint32_t rjw (void) const { return mRJW ; }                           // 1...4
+  public: uint32_t actualBitRate (void) const {
+    const uint32_t TQCount = 1 + mTimeSegment1 + mTimeSegment2 ; // Sync + TSEG1 + TSEG2
+    if (mBitRatePrescaler == 0 || TQCount == 0) return 0 ;
+    return getApbFrequency () / mBitRatePrescaler / TQCount ;
+  }
+  public: bool exactBitRate (void) const { return actualBitRate () == mBitRate ; }
+  public: uint32_t samplePointFromBitStart (void) const {
+    const uint32_t TQCount = 1 + mTimeSegment1 + mTimeSegment2 ;
+    if (TQCount == 0) return 0 ;
+    return ((1 + mTimeSegment1) * 100) / TQCount ;
+  }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //   Driver instance
@@ -178,6 +181,10 @@ class TWAI_ESP32 {
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   private: TWAI_ESP32 (void) ;
+
+  //--- Compute the bit timing for the given bit rate and store it in the m*
+  //    members; returns false if the bit rate is unsupported.
+  private: bool computeBitTiming (const uint32_t inBitRate) ;
 
   //--- Stop and delete the current node (handles the bus-off case); safe to call
   //    when no node exists.
@@ -209,6 +216,16 @@ class TWAI_ESP32 {
   private: volatile uint16_t mRxTail = 0 ;
   private: volatile uint16_t mRxCount = 0 ;
   private: uint8_t mRxScratch [8] ;  // Buffer handed to twai_node_receive_from_isr()
+
+  //--- Last configuration (for restart() and the query methods)
+  private: uint32_t mBitRate = 0 ;        // Requested bit rate in bits/s; 0 = never begun
+  private: gpio_num_t mTxPin = GPIO_NUM_5 ;
+  private: gpio_num_t mRxPin = GPIO_NUM_4 ;
+  private: CANMode mMode = NormalMode ;
+  private: uint8_t mBitRatePrescaler = 0 ;
+  private: uint8_t mTimeSegment1 = 0 ;
+  private: uint8_t mTimeSegment2 = 0 ;
+  private: uint8_t mRJW = 0 ;
 
   private: twai_node_handle_t mNode = nullptr ;
   private: bool mNodeEnabled = false ;
