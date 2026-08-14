@@ -18,10 +18,10 @@ At the same time, EV manufacturers have been putting high capacity battery packs
 
 
 ## Quickstart guide 📜
-- Pick a [supported inverter](https://dalathegreat.github.io/Battery-Emulator-Wiki/10-inverters/) (solar panels optional) :sun_with_face: 
-- Pick a [supported battery](https://dalathegreat.github.io/Battery-Emulator-Wiki/20-battery/) :battery: 
-- Order the Battery-Emulator [compatible hardware](https://dalathegreat.github.io/Battery-Emulator-Wiki/30-hardware/) :robot: 
-- Follow the [installation guidelines](https://dalathegreat.github.io/Battery-Emulator-Wiki/40-setup/10-hardware/Installation-guidelines/) section for how to install and commission your battery properly :notebook: 
+- Pick a [supported inverter](https://dalathegreat.github.io/Battery-Emulator-Wiki/inverter/) (solar panels optional) :sun_with_face: 
+- Pick a [supported battery](https://dalathegreat.github.io/Battery-Emulator-Wiki/battery/) :battery: 
+- Order the Battery-Emulator [compatible hardware](https://dalathegreat.github.io/Battery-Emulator-Wiki/hardware/) :robot: 
+- Follow the [installation guidelines](https://dalathegreat.github.io/Battery-Emulator-Wiki/setup/installation_guidelines/) section for how to install and commission your battery properly :notebook: 
 
 ## Installation basics 🪛
 1. Connect your Battery Emulator hardware to your EV battery
@@ -31,7 +31,7 @@ At the same time, EV manufacturers have been putting high capacity battery packs
 5. Configure any additional requirements to allow Battery Emulator to switch on your EV battery (also referred to as 'closing contactors')
 6. Enjoy a big cheap grid connected battery!
 
-For examples showing wiring, see each battery type's own Wiki page. For instance the [Nissan LEAF page](https://dalathegreat.github.io/Battery-Emulator-Wiki/20-battery/Nissan-LEAF---e%E2%80%90NV200/)
+For examples showing wiring, see each battery type's own Wiki page. For instance the [Nissan LEAF page](https://dalathegreat.github.io/Battery-Emulator-Wiki/battery/nissan_leaf_e_nv200/)
 
 ## How to install the software 💻
 

@@ -1,6 +1,7 @@
 #include "mqtt.h"
 #include <Arduino.h>
 #include <WiFi.h>
+#include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include "../../battery/BATTERIES.h"
@@ -22,6 +23,7 @@ bool mqtt_enabled = false;
 bool ha_autodiscovery_enabled = false;
 std::string ha_autodiscovery_topic = "homeassistant";
 bool mqtt_transmit_all_cellvoltages = false;
+bool mqtt_publish_heap_metrics = false;
 uint16_t mqtt_timeout_ms = 2000;
 uint16_t mqtt_publish_interval_ms = 5000;
 
@@ -112,11 +114,46 @@ static bool ha_cell_voltages_published = false;
 static bool ha_events_published = false;
 static bool ha_buttons_published = false;
 
+// Set from the MQTT_EVENT_CONNECTED handler, acted on by mqtt_client_loop(). The handler
+// runs on the esp-mqtt task, so publishing the button configs from it would use shared_doc
+// and mqtt_msg concurrently with the publish cycle running on the MQTT task.
+static volatile bool pending_buttons_discovery = false;
+
 // One JsonDocument shared by all publish functions. They are only ever called sequentially
-// from publish_values() / the MQTT event handler, never concurrently, so sharing is safe
-// and caps the retained ArduinoJson pool to the single largest payload instead of one pool
-// per publish function.
+// from the MQTT task, never concurrently, so sharing is safe and caps the retained
+// ArduinoJson pool to the single largest payload instead of one pool per publish function.
 static JsonDocument shared_doc;
+
+// FNV-1a over the version string. A hash rather than the string itself keeps this to a
+// single primitive NVS entry, which is all that is needed to tell "same firmware as when
+// discovery was last published" from "updated since". Never returns 0, so a missing NVS
+// key (which reads back as 0) can never be mistaken for a matching signature.
+uint32_t mqtt_firmware_signature(void) {
+  uint32_t hash = 2166136261u;
+  for (const char* c = version_number; *c != '\0'; c++) {
+    hash = (hash ^ (uint8_t)*c) * 16777619u;
+  }
+  return (hash == 0u) ? 1u : hash;
+}
+
+// True once every discovery config that applies to this configuration has gone out. Cell
+// voltage configs only count when they are actually published (MQTTCELLV), and they are
+// only marked done once the cell count is known for every present battery.
+static bool autodiscovery_complete(void) {
+  return ha_common_info_published && ha_events_published && ha_buttons_published &&
+         (ha_cell_voltages_published || !mqtt_transmit_all_cellvoltages);
+}
+
+// Clears the one-shot setting and records the firmware the configs were published from.
+// The configs are retained at the broker, no need for emulator republishing at each boot.
+static void store_autodiscovery_done(void) {
+  ha_autodiscovery_enabled = false;  // switches the publish paths to state-only for this session
+  BatteryEmulatorSettingsStore settings;
+  settings.saveBool("HADISC", false);
+  settings.saveUInt("HADISCFW", mqtt_firmware_signature());
+  LOG_SET_NEXT_SEVERITY(5);  // notice
+  logging.println("Home Assistant autodiscovery published");
+}
 
 // RAII guard: clears the shared document on scope entry and exit, so every early return
 // (e.g. a failed publish mid-loop) releases the document memory instead of keeping a full
@@ -162,6 +199,10 @@ static bool supports_insulation(Battery* b) {
 static bool supports_leaf_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
 }
+// Emulator-level condition: the heap diagnostics are opt-in from the MQTT settings page.
+static bool heap_metrics_enabled(Battery* b) {
+  return mqtt_publish_heap_metrics;
+}
 
 static const SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SoC (scaled)", "%", "battery", always},
@@ -204,7 +245,13 @@ static const SensorConfig globalSensorConfigTemplate[] = {
     {"emulator_status", "Emulator Status", "", "", always},
     {"emulator_uptime", "Emulator Uptime", "s", "duration", always},
     {"cpu_temp", "CPU Temperature", "°C", "temperature", always},
-    {"software_version", "Emulator Version", "", "", always}};
+    {"software_version", "Emulator Version", "", "", always},
+    // Internal-RAM heap diagnostics, mirroring the ESPHome debug component sensors
+    // (free / block / min_free / fragmentation). Only published when enabled in settings.
+    {"heap_free", "Heap Free", "B", "data_size", heap_metrics_enabled},
+    {"heap_max_block", "Heap Max Block", "B", "data_size", heap_metrics_enabled},
+    {"heap_min_free", "Heap Min Free", "B", "data_size", heap_metrics_enabled},
+    {"heap_fragmentation", "Heap Fragmentation", "%", "", heap_metrics_enabled}};
 
 // The battery instances the MQTT module publishes for. Battery #1 keeps the historical
 // un-suffixed topic ("<name>/info") and entity ids, so single-battery setups see no change.
@@ -442,6 +489,9 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     if (strcmp(entity_id, "software_version") == 0) {
       return "mdi:tag-outline";
     }
+    if (strncmp(entity_id, "heap_", 5) == 0) {
+      return "mdi:memory";
+    }
   }
   if (device_class != nullptr) {
     if (strcmp(device_class, "voltage") == 0)
@@ -517,6 +567,12 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
     doc["state_class"] = "measurement";
     doc["suggested_display_precision"] = 2;
   }
+  // "heap_fragmentation" is a percentage with no matching device_class either. Mark it as a
+  // measurement and show one decimal, like the ESPHome debug sensor does.
+  if (strcmp(config.entity_id, "heap_fragmentation") == 0) {
+    doc["state_class"] = "measurement";
+    doc["suggested_display_precision"] = 1;
+  }
   // "energy" device_class is only valid with state_class total / total_increasing, never
   // "measurement" — HA rejects the combination. The capacity sensors represent a current
   // stored amount, so use "energy_storage" (compatible with "measurement") instead. The
@@ -579,6 +635,10 @@ static bool publish_common_info(void) {
     // Global (emulator-level) sensors stay on battery #1's "/info" topic. They all describe
     // the emulator rather than the battery, so they are published as diagnostic entities.
     for (const auto& config : globalSensorConfigTemplate) {
+      // Emulator-level sensors have no battery instance; the condition only gates on settings.
+      if (!config.condition(nullptr)) {
+        continue;
+      }
       if (!publish_sensor_discovery(config, "", "", info_topics[0], true)) {
         return false;
       }
@@ -616,6 +676,21 @@ static bool publish_common_info(void) {
         doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
       }
       doc["emulator_uptime"] = millis64() / 1000;
+
+      // Internal-RAM heap diagnostics. Same sources and fragmentation formula as the ESPHome
+      // debug component, so the values are directly comparable with an ESPHome node's.
+      if (mqtt_publish_heap_metrics) {
+        const uint32_t heap_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        const uint32_t heap_max_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        doc["heap_free"] = heap_free;
+        doc["heap_max_block"] = heap_max_block;
+        doc["heap_min_free"] = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
+        // Share of the free heap that is not reachable as one contiguous block. Guarded
+        // against a zero free heap so no NaN is ever published.
+        if (heap_free > 0u) {
+          doc["heap_fragmentation"] = 100.0f - (100.0f * (float)heap_max_block / (float)heap_free);
+        }
+      }
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
@@ -971,7 +1046,8 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       // "offline" last-will when the session drops — no per-cycle re-publish needed.
       mqtt_publish(lwt_topic.c_str(), "online", true);
 
-      publish_buttons_discovery();
+      // Handed to the MQTT task instead of published here, see pending_buttons_discovery.
+      pending_buttons_discovery = true;
       subscribe();
       break;
     case MQTT_EVENT_DISCONNECTED:
@@ -1076,9 +1152,21 @@ void mqtt_client_loop(void) {
       return;
     }
 
+    // Requested by the MQTT_EVENT_CONNECTED handler, published here so that shared_doc and
+    // mqtt_msg stay single-threaded. Retried on the next pass if the publish fails.
+    if (pending_buttons_discovery && !ota_active && publish_buttons_discovery()) {
+      pending_buttons_discovery = false;
+    }
+
     // Skip publishing if OTA update is in progress to avoid interference
     if (publish_global_timer.elapsed() && !ota_active) {
       publish_values();
+
+      // One-shot autodiscovery: as soon as every applicable config is out and retained at
+      // the broker, clear the setting so it is not republished on every boot.
+      if (ha_autodiscovery_enabled && autodiscovery_complete()) {
+        store_autodiscovery_done();
+      }
     }
   }
 }

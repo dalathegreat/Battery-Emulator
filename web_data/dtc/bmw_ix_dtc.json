@@ -54,6 +54,12 @@
     "l_dsc": "High-voltage battery unit, control unit: internal defective alarm function"
   },
   {
+    "code": 2224465,
+    "dtc": "",
+    "s_dsc": "",
+    "l_dsc": "High-voltage battery unit, safety function: High-voltage safety plug (HVIL), status undefined"
+  },
+  {
     "code": 2224902,
     "dtc": "",
     "s_dsc": "",
