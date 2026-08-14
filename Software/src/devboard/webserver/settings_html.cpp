@@ -773,6 +773,15 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("HADISC") ? "checked" : "";
   }
 
+  if (var == "HADISCFWU") {
+    return settings.getBool("HADISCFWU") ? "checked" : "";
+  }
+
+  // Not a stored setting: the master switch is on whenever one of the options below it is.
+  if (var == "HADISCEN") {
+    return (settings.getBool("HADISC") || settings.getBool("HADISCFWU")) ? "checked" : "";
+  }
+
   if (var == "HADISCTOPIC") {
     return settings.getString("HADISCTOPIC", "homeassistant");
   }
@@ -1312,6 +1321,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           function goToMainPage() { window.location.href = '/'; }
 
+          function haDisc(c) {
+            var f = document.querySelector("[name=HADISCFWU]"), n = document.querySelector("[name=HADISC]");
+            if (!c.checked) { f.checked = n.checked = false; } else if (!f.checked && !n.checked) { f.checked = true; }
+          }
+
           document.querySelectorAll('select,input').forEach(function(sel) {
             function ch() {
               sel.closest('form').setAttribute('data-' + sel.name?.toLowerCase(), sel.type=='checkbox'?sel.checked:sel.value);
@@ -1553,6 +1567,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-mqtt { display: none; }
     form[data-mqttenabled="true"] .if-mqtt {
+      display: contents;
+    }
+
+    form .if-hadiscen { display: none; }
+    form[data-hadiscen="true"] .if-hadiscen {
       display: contents;
     }
 
@@ -2177,12 +2196,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Publish free heap, largest free block, minimum free heap and heap fragmentation to the /info topic and to Home Assistant autodiscovery. Takes effect after a restart." />
         <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
-        <label>Enable Home Assistant auto discovery: </label>
-        <input type='checkbox' name='HADISC' value='on' %HADISC% />
-        <label>Home Assistant auto discovery topic: </label>
+        <label>Home Assistant autodiscovery: </label>
+        <input type='checkbox' name='HADISCEN' value='on' %HADISCEN% onchange='haDisc(this)'
+        title="Publish Home Assistant MQTT discovery configs. The broker retains them, so Home Assistant keeps the entities without them being republished at every boot." />
+
+        <div class='if-hadiscen'>
+        <label>Autodiscovery topic: </label>
         <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
         pattern="[A-Za-z0-9_\-]+"
         title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
+        <label>Publish at firmware updates: </label>
+        <input type='checkbox' name='HADISCFWU' value='on' %HADISCFWU%
+        title="Publish the discovery configs once after every firmware update. They carry the software version and can gain or change entities between releases." />
+        <label>Publish at next boot: </label>
+        <input type='checkbox' name='HADISC' value='on' %HADISC%
+        title="Publish the discovery configs once after the next restart. Clears itself once they have been published." />
+        </div>
 
         </div>
 
