@@ -88,22 +88,6 @@ bool init_CAN() {
     if (errorCode == 0) {
       native_can_initialized = true;
       logging.println("Native Can ok");
-      logging.print("Bit Rate prescaler: ");
-      logging.println(TWAI_ESP32::can.bitRatePrescaler());
-      logging.print("Time Segment 1:     ");
-      logging.println(TWAI_ESP32::can.timeSegment1());
-      logging.print("Time Segment 2:     ");
-      logging.println(TWAI_ESP32::can.timeSegment2());
-      logging.print("RJW:                ");
-      logging.println(TWAI_ESP32::can.rjw());
-      logging.print("Actual bit rate:    ");
-      logging.print(TWAI_ESP32::can.actualBitRate());
-      logging.println(" bit/s");
-      logging.print("Exact bit rate ?    ");
-      logging.println(TWAI_ESP32::can.exactBitRate() ? "yes" : "no");
-      logging.print("Sample point:       ");
-      logging.print(TWAI_ESP32::can.samplePointFromBitStart());
-      logging.println("%");
     } else {
       logging.print("Error Native Can: 0x");
       logging.println(errorCode, HEX);
