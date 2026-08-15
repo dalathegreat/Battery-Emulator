@@ -3,10 +3,13 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-// Constructor (private, only one instance is allowed)
-TWAI_ESP32::TWAI_ESP32(void) : _tx_slots(), _rx_buffer() {}
+TWAI_ESP32::TWAI_ESP32(gpio_num_t tx_pin, gpio_num_t rx_pin)
+    : _tx_slots(), _rx_buffer(), _tx_pin(tx_pin), _rx_pin(rx_pin) {}
 
-TWAI_ESP32 TWAI_ESP32::can;
+TWAI_ESP32::~TWAI_ESP32() {
+  // Note - teardownNode() isn't guaranteeed to succeed cleanly.
+  teardownNode();
+}
 
 // Stop and delete the current node (used internally)
 void TWAI_ESP32::teardownNode(void) {
@@ -32,13 +35,8 @@ void TWAI_ESP32::teardownNode(void) {
 }
 
 // Start the controller with the given bitrate, pins and mode.
-uint32_t TWAI_ESP32::begin(const uint32_t bit_rate,
-                           const gpio_num_t tx_pin,
-                           const gpio_num_t rx_pin,
-                           const CANMode mode) {
+uint32_t TWAI_ESP32::begin(const uint32_t bit_rate, const CANMode mode) {
   _bit_rate = bit_rate;
-  if (tx_pin != GPIO_NUM_NC) _tx_pin = tx_pin; // GPIO_NUM_NC keeps the previous pin
-  if (rx_pin != GPIO_NUM_NC) _rx_pin = rx_pin;
   _mode = mode;
 
   // If the node already exists, delete it first.
@@ -104,7 +102,7 @@ uint32_t TWAI_ESP32::restart(void) {
   if (_bit_rate == 0) {
     return ESP_ERR_INVALID_STATE; // Never begun, so we have no settings to reapply
   }
-  return begin(_bit_rate, _tx_pin, _rx_pin, _mode);
+  return begin(_bit_rate, _mode);
 }
 
 bool TWAI_ESP32::available (void) const {

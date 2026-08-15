@@ -3,14 +3,15 @@
 //  TWAI driver (esp_twai.h / esp_twai_onchip.h).
 //
 //  API:
-//    - TWAI_ESP32::can  (static driver instance)
-//    - begin(bit_rate, tx_pin, rx_pin, mode)  (returns 0 on success, else a
-//      non-zero ESP error code; pass GPIO_NUM_NC for the pins to keep the ones
-//      from the last begin()/restart(), e.g. for a simple speed change)
+//    - TWAI_ESP32(tx_pin, rx_pin)  (construct with the controller GPIO pins;
+//      they are fixed for the lifetime of the instance)
+//    - begin(bit_rate, mode)  (returns 0 on success, else a non-zero ESP error
+//      code; reuses the constructor pins, so a speed change is just
+//      begin(new_bit_rate))
 //    - restart()        (re-apply the last configuration)
 //    - end()            (stop the controller and release the driver)
 //    - tryToSend(CANMessage), available(), receive(CANMessage&),
-//      statusRegister()
+//      statusRegister(), recoverFromBusOff()
 //
 //----------------------------------------------------------------------------------------
 
@@ -74,9 +75,10 @@ public:
     LoopBackMode
   } CANMode;
 
+  TWAI_ESP32(gpio_num_t tx_pin, gpio_num_t rx_pin);
+  ~TWAI_ESP32();
+
   uint32_t begin(const uint32_t bitrate = 500000,
-                 const gpio_num_t tx_pin = GPIO_NUM_NC,
-                 const gpio_num_t rx_pin = GPIO_NUM_NC,
                  const CANMode mode = NormalMode);
     
   uint32_t restart(void);
@@ -96,16 +98,10 @@ public:
   // Attempt to recover from bus-off (non-blocking)
   bool recoverFromBusOff(void);
 
-  // The static instance corresponding to the single TWAI peripheral.
-  static TWAI_ESP32 can;
-
 private:
   // Disable copy
   TWAI_ESP32(const TWAI_ESP32&) = delete;
   TWAI_ESP32& operator = (const TWAI_ESP32&) = delete;
-
-  // Private constructor (only one instance, TWAI_ESP32::can, is allowed)
-  TWAI_ESP32(void);
 
   void teardownNode(void);
   // Event callbacks (called from ESP-IDF)

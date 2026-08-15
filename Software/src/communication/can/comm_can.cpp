@@ -58,6 +58,8 @@ static SPIClass* SPI2517_2;
 static ACAN2517FD* canfd_2 = nullptr;
 static ACAN2517FDSettings* settings2517_2;
 
+static TWAI_ESP32* native_can = nullptr;  // Native CAN driver (pins fixed at construction)
+
 static bool native_can_initialized = false;
 //CAN logging filter settings
 uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
@@ -310,7 +312,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
         frame.data[i] = tx_frame->data.u8[i];
       }
 
-      if (!TWAI_ESP32::can.tryToSend(frame)) {
+      if (native_can == nullptr || !native_can->tryToSend(frame)) {
         datalayer.system.info.can_native_send_fail = true;
       }
     } break;
@@ -385,7 +387,7 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
   CANMessage frame;
 
   int count = 0;
-  while (count++ < 16 && TWAI_ESP32::can.receive(frame)) {
+  while (count++ < 16 && native_can->receive(frame)) {
 
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
@@ -400,10 +402,10 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
     map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
   }
 
-  auto flags = TWAI_ESP32::can.statusRegister();
+  auto flags = native_can->statusRegister();
   if ((flags & TWAI_BUS_OFF_ST) != 0) {
     // Bus-off, attempt to recover.
-    TWAI_ESP32::can.recoverFromBusOff();
+    native_can->recoverFromBusOff();
     datalayer.system.info.can_native_bus_error = true;
   }
   if ((flags & TWAI_ERR_ST) != 0) {
@@ -640,7 +642,9 @@ void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection ms
 
 void stop_can() {
   if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
-    TWAI_ESP32::can.end();
+    if (native_can) {
+      native_can->end();
+    }
   }
 
   if (can2515) {
@@ -658,7 +662,9 @@ void stop_can() {
 
 void restart_can() {
   if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
-    TWAI_ESP32::can.restart();
+    if (native_can) {
+      native_can->restart();
+    }
   }
 
   if (can2515) {
@@ -681,16 +687,21 @@ void restart_can() {
 static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) {
   native_can_speed = speed;
 
+  // Create the driver instance once; its pins are fixed for its lifetime.
+  if (native_can == nullptr) {
+    native_can = new TWAI_ESP32(tx_pin, rx_pin);
+  }
+
   // (Re)start the CAN interface. The ESP-IDF TWAI driver manages the peripheral
   // itself (clock enable + reset on node creation).
-  return TWAI_ESP32::can.begin((uint32_t)speed * 1000UL, tx_pin, rx_pin);
+  return native_can->begin((uint32_t)speed * 1000UL);
 }
 
 // Change the speed of the given CAN interface. Returns true if successful.
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   if (interface == CAN_Interface::CAN_NATIVE && native_can_initialized) {
-    // Reinitialize with the new speed, keeping the pins from the last begin().
-    const uint32_t errorCode = TWAI_ESP32::can.begin((uint32_t)speed * 1000UL);
+    // Reinitialize with the new speed, keeping the pins from the constructor.
+    const uint32_t errorCode = native_can->begin((uint32_t)speed * 1000UL);
     if (errorCode != 0) {
       logging.print("Error Native Can: 0x");
       logging.println(errorCode, HEX);
