@@ -198,7 +198,7 @@ bool TWAI_ESP32::recoverFromBusOff(void) {
 
 // Called from ESP-IDF ISR context when a TX completes.
 // Finds the used transmit slot and marks it free.
-bool TWAI_ESP32::txDoneCallback(twai_node_handle_t handle,
+TWAI_ISR_CALLBACK_ATTR bool TWAI_ESP32::txDoneCallback(twai_node_handle_t handle,
                                 const twai_tx_done_event_data_t *edata,
                                 void *user_data) {
   TWAI_ESP32 *self = (TWAI_ESP32*)user_data;
@@ -216,7 +216,7 @@ bool TWAI_ESP32::txDoneCallback(twai_node_handle_t handle,
 }
 
 // Called from ESP-IDF ISR context when a RX completes.
-bool TWAI_ESP32::rxDoneCallback(twai_node_handle_t handle,
+TWAI_ISR_CALLBACK_ATTR bool TWAI_ESP32::rxDoneCallback(twai_node_handle_t handle,
                                 const twai_rx_done_event_data_t *edata,
                                 void *user_data) {
   TWAI_ESP32 *self = (TWAI_ESP32*)user_data;
@@ -230,7 +230,7 @@ bool TWAI_ESP32::rxDoneCallback(twai_node_handle_t handle,
   return false; // No task was unblocked
 }
 
-void TWAI_ESP32::storeRxFrame(const twai_frame_t &frame) {
+TWAI_ISR_CALLBACK_ATTR void TWAI_ESP32::storeRxFrame(const twai_frame_t &frame) {
   CANMessage message;
   message.id = frame.header.id;
   message.ext = frame.header.ide != 0;

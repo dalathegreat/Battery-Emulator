@@ -23,6 +23,21 @@
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
 
+// If CONFIG_TWAI_ISR_CACHE_SAFE is set, we must ensure that all our callbacks,
+// and all the code they themselves call, are IRAM_ATTR. This allows the ISR to
+// run with the flash cache disabled.
+
+// There is also an opt-in to move the callbacks to IRAM, as long as the ISR
+// itself is in IRAM (CONFIG_TWAI_ISR_IN_IRAM), which should increase
+// performance.
+// Enable this by defining TWAI_CALLBACKS_IN_IRAM.
+
+#if CONFIG_TWAI_ISR_CACHE_SAFE || (CONFIG_TWAI_ISR_IN_IRAM && defined(TWAI_CALLBACKS_IN_IRAM))
+#define TWAI_ISR_CALLBACK_ATTR IRAM_ATTR
+#else
+#define TWAI_ISR_CALLBACK_ATTR
+#endif
+
 //----------------------------------------------------------------------------------------
 //  Generic CAN message (identical to the one shipped with ACAN2517FD; the include
 //  guard makes all copies interchangeable)
@@ -105,10 +120,10 @@ private:
 
   void teardownNode(void);
   // Event callbacks (called from ESP-IDF)
-  static bool txDoneCallback(twai_node_handle_t handle,
+  static TWAI_ISR_CALLBACK_ATTR bool txDoneCallback(twai_node_handle_t handle,
                                        const twai_tx_done_event_data_t *edata,
                                        void *user_data);
-  static bool rxDoneCallback(twai_node_handle_t handle,
+  static TWAI_ISR_CALLBACK_ATTR bool rxDoneCallback(twai_node_handle_t handle,
                                        const twai_rx_done_event_data_t *edata,
                                        void *user_data);
 
@@ -138,5 +153,5 @@ private:
   portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
 
   void resetTxSlots(void);
-  void storeRxFrame(const twai_frame_t &frame);
+  TWAI_ISR_CALLBACK_ATTR void storeRxFrame(const twai_frame_t &frame);
 };
