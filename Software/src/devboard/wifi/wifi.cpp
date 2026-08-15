@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
+#include "../ethernet/ethernet.h"       // ethernet_connected()
 #include "../hal/hal.h"                 // esp32hal / AP_BUTTON_PIN()
 #include "../network/hostname.h"        // active_hostname()
 #include "../network/network_status.h"  // network_bring_services_up()
@@ -21,7 +22,7 @@ std::string ssidAP;
 std::string passwordAP;
 const char* DEFAULT_AP_PASSWORD = "123456789";
 
-// Set your Static IP address. Only used incase Static address option is set
+// Static IP configuration
 bool wifi_static_IP_enabled = false;
 IPAddress wifi_static_local_IP;
 IPAddress wifi_static_gateway;
@@ -295,12 +296,21 @@ void wifi_monitor() {
           }
         }
       } else {
-        // If no previous connection, force a full connection attempt
+        // If no previous connection, force a full connection attempt. On boards
+        // with Ethernet, skip forcing the AP up while Ethernet is online — the
+        // reconnect timeout that got us here gives Ethernet ample time to obtain
+        // an IP, so a live Ethernet link means we don't need a recovery AP.
+#ifdef ETHERNET
+        const bool eth_online = ethernet_connected();
+#else
+        const bool eth_online = false;
+#endif
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
-          logging.println("No previous OK connection, force a full connection attempt...");
           // Don't resurrect the rescue AP if its provisioning window already
           // expired with the factory-default password still in place.
-          if (!ap_provisioning_expired) {
+          if (!ap_provisioning_expired && !eth_online) {
+            logging.println(
+                "No previous OK connection, bringing up recovery AP and forcing a full connection attempt...");
             wifiap_enabled = true;
             WiFi.mode(WIFI_AP_STA);
             init_WiFi_AP();
