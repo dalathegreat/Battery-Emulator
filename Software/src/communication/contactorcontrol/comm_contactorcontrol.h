@@ -79,6 +79,13 @@ void handle_contactors_battery3();
 // True when init_contactors() drives BMS_POWER (i.e. the pin is actively controlled).
 bool bms_power_is_active();
 
+/* Switch the BMS ignition (IGN) line, on boards that have one wired separately from the
+   BAT line. Both are no-ops where there is no such pin, or where the BMS reset settings
+   left it uninitialised. Called by battery classes whose shut-down sequence begins with
+   IGN OFF, ahead of the CAN part of the sequence. */
+void bms_ignit_off();
+void bms_ignit_on();
+
 // Latch/unlatch reset-hold pins (see Esp32Hal::reset_hold_pins()).
 // hold: only pins currently driven by the firmware are latched.
 // release: every candidate pin is released unconditionally (clears any stale hold).

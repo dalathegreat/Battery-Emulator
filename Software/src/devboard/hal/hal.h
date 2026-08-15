@@ -172,6 +172,10 @@ class Esp32Hal {
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_NC; }
+  // Ignition (IGN) line towards the BMS, where the hardware has one separate from the BAT line.
+  // Driven alongside BMS_POWER, and switched off ahead of it during a BMS reset for batteries
+  // whose shut-down sequence starts with IGN OFF (e.g. Nissan LEAF).
+  virtual gpio_num_t BMS_IGNIT() { return GPIO_NUM_NC; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t TRIPLE_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_NC; }
 

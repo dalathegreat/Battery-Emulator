@@ -1,7 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
+#include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
+#include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
+#include "../../Software/src/devboard/hal/hal.h"
 
 #include "Arduino.h"
 
@@ -354,4 +359,269 @@ TEST(NissanLeafDtcTests, ShouldRenderReadStateWhenNoTableIsShown) {
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
   EXPECT_NE(renderer.get_status_html().str().find("No DTCs present"), std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// BMS shut-down sequence
+// ---------------------------------------------------------------------------
+
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
+
+namespace {
+
+// Nissan nibble checksum over 0x1F2: nibbles of bytes 0..6 plus the high nibble
+// of byte 7, plus 2, anded with 0xF. Recomputed here rather than reusing the
+// driver's helper, so a broken implementation cannot validate itself.
+uint8_t expected_1f2_checksum(const CAN_frame& frame) {
+  uint8_t sum = 0;
+  for (uint8_t j = 0; j < 7; j++) {
+    sum += (frame.data.u8[j] >> 4) + (frame.data.u8[j] & 0x0F);
+  }
+  sum += frame.data.u8[7] >> 4;
+  return (sum + 2) & 0x0F;
+}
+
+// Most recently transmitted frame on the given ID, or nullptr if there was none.
+const CAN_frame* last_transmitted(uint32_t id) {
+  const std::vector<CAN_frame>& frames = get_transmitted_frames();
+  for (auto it = frames.rbegin(); it != frames.rend(); ++it) {
+    if (it->ID == id) {
+      return &*it;
+    }
+  }
+  return nullptr;
+}
+
+// Runs the transmit loop for the given number of milliseconds. When feed_rx is
+// true the battery is also kept "talking" on the bus, as it is until the LBC
+// acts on the GoToSleep command.
+void run_leaf_ms(NissanLeafBattery* leaf, unsigned long ms, bool feed_rx) {
+  CAN_frame alive = leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0});
+  for (unsigned long i = 0; i < ms; i++) {
+    set_millis64(millis() + 1);
+    if (feed_rx && (millis() % 10 == 0)) {
+      leaf->handle_incoming_can_frame(alive);
+    }
+    leaf->transmit_can(millis());
+  }
+}
+
+}  // namespace
+
+/* Walks the whole shut-down sequence and checks the signal values the LBC sees at each
+   step, that the frames stay checksum/CRC valid while the driver rewrites them, that
+   transmission really stops before power removal is allowed, and that normal contents
+   come back afterwards. Signal positions per the GEN4 spec and the LEAF DBC:
+   CHG_STA_RQ = 0x1F2 byte 2 bits 5-6, BTONFN = 0x1D4 byte 4 bit 2,
+   RLYP = 0x1D4 byte 5 bit 6, VCM_WakeUpSleepCommand = 0x50B byte 3 bits 6-7. */
+TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRemoval) {
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+
+  // Baseline: normal operation, relays commanded on and the BMS told to stay awake.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 300, true);
+  const CAN_frame* frame_1d4 = last_transmitted(0x1D4);
+  const CAN_frame* frame_1f2 = last_transmitted(0x1F2);
+  const CAN_frame* frame_50b = last_transmitted(0x50B);
+  ASSERT_NE(frame_1d4, nullptr);
+  ASSERT_NE(frame_1f2, nullptr);
+  ASSERT_NE(frame_50b, nullptr);
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);  // BTONFN=1
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);  // RLYP=1
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x00);  // CHG_STA_RQ normal
+  EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0xC0);  // WakeUp
+
+  // The reset state machine pauses the battery and asks for the sequence.
+  datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+  leaf.request_bms_shutdown_sequence();
+  EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());
+
+  // Step 1: charge stop request, relays still commanded on.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 400, true);
+  frame_1f2 = last_transmitted(0x1F2);
+  frame_1d4 = last_transmitted(0x1D4);
+  frame_50b = last_transmitted(0x50B);
+  ASSERT_NE(frame_1f2, nullptr);
+  ASSERT_NE(frame_1d4, nullptr);
+  ASSERT_NE(frame_50b, nullptr);
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x60);  // CHG_STA_RQ=11b
+  EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);
+  EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0xC0);
+
+  // Step 2: BTONFN=0b, at the same time as MAIN RLY P(+) OFF.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 150, true);
+  frame_1d4 = last_transmitted(0x1D4);
+  ASSERT_NE(frame_1d4, nullptr);
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);  // RLYP not yet
+  CAN_frame crc_check = *frame_1d4;
+  EXPECT_EQ(frame_1d4->data.u8[7], leaf.calculate_crc(crc_check));
+
+  // Step 3: RLYP=0b, at the same time as MAIN RLY N(-) OFF.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 120, true);
+  frame_1d4 = last_transmitted(0x1D4);
+  ASSERT_NE(frame_1d4, nullptr);
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x00);
+  crc_check = *frame_1d4;
+  EXPECT_EQ(frame_1d4->data.u8[7], leaf.calculate_crc(crc_check));
+
+  // Step 4: GoToSleep, still transmitted while the LBC is on the bus.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 300, true);
+  frame_50b = last_transmitted(0x50B);
+  ASSERT_NE(frame_50b, nullptr);
+  EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0x00);
+  EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());
+
+  // Step 5: once the LBC has been quiet for more than a second, we stop too.
+  run_leaf_ms(&leaf, 1200, false);
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 500, false);
+  EXPECT_TRUE(get_transmitted_frames().empty());
+  EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());  // still inside the 1 min wait
+
+  // Step 6: after the wait the power may be cut, and the bus stayed silent throughout.
+  run_leaf_ms(&leaf, 61500, false);
+  EXPECT_TRUE(get_transmitted_frames().empty());
+  EXPECT_TRUE(leaf.bms_shutdown_sequence_completed());
+
+  // Once the reset is over the normal message contents come back by themselves.
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 300, true);
+  frame_1d4 = last_transmitted(0x1D4);
+  frame_1f2 = last_transmitted(0x1F2);
+  frame_50b = last_transmitted(0x50B);
+  ASSERT_NE(frame_1d4, nullptr);
+  ASSERT_NE(frame_1f2, nullptr);
+  ASSERT_NE(frame_50b, nullptr);
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);
+  EXPECT_EQ(frame_1d4->data.u8[5], 0x46);
+  EXPECT_EQ(frame_1f2->data.u8[2], 0x00);
+  EXPECT_EQ(frame_50b->data.u8[3], 0xC0);
+  crc_check = *frame_1d4;
+  EXPECT_EQ(frame_1d4->data.u8[7], leaf.calculate_crc(crc_check));
+}
+
+/* A battery that does not implement the hook must be left exactly as before: the base
+   class reports no sequence and reports completion immediately, so the reset state
+   machine never enters the extra state for it. */
+TEST(NissanLeafShutdownSequenceTests, ShouldNotAffectBatteriesWithoutTheHook) {
+  BydAttoBattery other;
+  EXPECT_FALSE(other.supports_bms_shutdown_sequence());
+  EXPECT_TRUE(other.bms_shutdown_sequence_completed());
+}
+
+// ---------------------------------------------------------------------------
+// BMS ignition line during the shut-down sequence
+// ---------------------------------------------------------------------------
+
+void clear_pin_writes();
+int get_pin_level(uint8_t pin);
+
+// Defined in comm_contactorcontrol.cpp; not in its header, as nothing outside the
+// reset state machine drives these lines in firmware.
+void bms_power_on();
+void bms_power_off();
+
+namespace {
+
+// The test suite builds for a board without a separate ignition line, so stand in a HAL
+// that has one. GPIO numbers match the Waveshare board, which is the first board wired
+// this way.
+class IgnitionHal : public Esp32Hal {
+ public:
+  const char* name() { return "Ignition line test HAL"; }
+  gpio_num_t BMS_POWER() { return GPIO_NUM_6; }
+  gpio_num_t BMS_IGNIT() { return GPIO_NUM_7; }
+  std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_6, GPIO_NUM_7}; }
+  std::vector<comm_interface> available_interfaces() { return {comm_interface::CanNative}; }
+};
+
+}  // namespace
+
+/* The spec puts IGN OFF ahead of the charge stop request, so the ignition line has to be
+   down before the sequence transmits anything, and has to come back up with the power. */
+TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionLineBeforeTransmittingChargeStop) {
+  Esp32Hal* saved_hal = esp32hal;
+  IgnitionHal ignition_hal;
+  esp32hal = &ignition_hal;
+
+  const bool saved_periodic = periodic_bms_reset;
+  const bool saved_remote = remote_bms_reset;
+  remote_bms_reset = true;  // One of the two settings that puts the BMS lines under control
+
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+
+  clear_pin_writes();
+  clear_transmitted_frames();
+
+  // Asking for the sequence drops IGN, before a single frame of the sequence goes out.
+  datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+  leaf.request_bms_shutdown_sequence();
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
+  EXPECT_TRUE(get_transmitted_frames().empty());
+  EXPECT_NE(get_pin_level(GPIO_NUM_6), LOW);  // BAT line still up, IGN goes first
+
+  // The charge stop request only starts once the ignition is already down.
+  run_leaf_ms(&leaf, 100, true);
+  const CAN_frame* frame_1f2 = last_transmitted(0x1F2);
+  ASSERT_NE(frame_1f2, nullptr);
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x60);
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
+
+  // Restoring power brings the ignition line back up, or the next reset would find it
+  // already low and the LBC would never see the transition.
+  bms_power_on();
+  EXPECT_EQ(get_pin_level(GPIO_NUM_6), HIGH);
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), HIGH);
+
+  // A power cut with no sequence in front of it still takes IGN down first.
+  bms_power_off();
+  EXPECT_EQ(get_pin_level(GPIO_NUM_6), LOW);
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  periodic_bms_reset = saved_periodic;
+  remote_bms_reset = saved_remote;
+  esp32hal = saved_hal;
+}
+
+/* Neither line is driven unless one of the two BMS reset settings is on, so a user who
+   has both switched off keeps the pins free for anything else. */
+TEST(NissanLeafShutdownSequenceTests, ShouldLeaveIgnitionLineAloneWhenResetsAreDisabled) {
+  Esp32Hal* saved_hal = esp32hal;
+  IgnitionHal ignition_hal;
+  esp32hal = &ignition_hal;
+
+  const bool saved_periodic = periodic_bms_reset;
+  const bool saved_remote = remote_bms_reset;
+  periodic_bms_reset = false;
+  remote_bms_reset = false;
+
+  clear_pin_writes();
+  bms_ignit_off();
+  bms_ignit_on();
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), -1);  // never written
+
+  periodic_bms_reset = saved_periodic;
+  remote_bms_reset = saved_remote;
+  esp32hal = saved_hal;
 }

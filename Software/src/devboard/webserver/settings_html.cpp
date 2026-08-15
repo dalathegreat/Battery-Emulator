@@ -216,10 +216,10 @@ const char* name_for_gpioopt5(GPIOOPT5 option) {
 const char* name_for_gpioopt6(GPIOOPT6 option) {
   switch (option) {
     case GPIOOPT6::DEFAULT_STATUS_LED:
-      return "Status LED (GPIO2)";
+      return "Equipment stop (GPIO1), Status LED (GPIO2)";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT6::I2C_DISPLAY_SSD1306:
-      return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL)";
+      return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL, no equipment stop)";
 #endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;

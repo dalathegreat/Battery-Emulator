@@ -49,6 +49,7 @@ enum BMSResetState {
   BMS_RESET_WAITING_FOR_PAUSE,
   BMS_RESET_POWERED_OFF,
   BMS_RESET_POWERING_ON,
+  BMS_RESET_SHUTDOWN_SEQUENCE,  //Battery specific CAN shut-down sequence is running before power is cut
 };
 
 #define DISCHARGING 1
@@ -181,9 +182,9 @@ extern GPIOOPT5 user_selected_gpioopt5;
 #endif
 #ifdef HW_WAVESHARE
 enum class GPIOOPT6 {
-  // Waveshare: GPIO2 = Status LED (default)
+  // Waveshare: GPIO1 = Equipment stop, GPIO2 = Status LED (default)
   DEFAULT_STATUS_LED = 0,
-  // Waveshare: GPIO1 = I2C SDA, GPIO2 = I2C SCL
+  // Waveshare: GPIO1 = I2C SDA, GPIO2 = I2C SCL (no equipment stop input available)
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
