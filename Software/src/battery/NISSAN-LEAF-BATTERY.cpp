@@ -1239,17 +1239,25 @@ the Nissan battery control specification (see chapter 3-1 of the GEN4 spec):
 
 The signal value changes are applied by transmit_can() while this state machine keeps
 track of which phase the sequence is in. */
+/* Logged once as each step of the sequence begins, carrying how long ago the BMS was last
+   heard from. Every step is entered on a fresh tick, so the figure stays small for as long
+   as the BMS is answering; the step where it jumps is the step the BMS stopped responding
+   to, which is what tells you whether it received the rest of the sequence at all. */
+void NissanLeafBattery::log_shutdown_step(const char* step, unsigned long currentMillis) {
+  DEBUG_PRINTF("LEAF: Shut-down step: %s - BMS last heard from %lu ms ago\n", step,
+               currentMillis - lastCanFrameReceivedMillis);
+}
+
 void NissanLeafBattery::request_bms_shutdown_sequence() {
   if (shutdownState == SHUTDOWN_INACTIVE) {
-#ifdef DEBUG_LOG
-    logging.println("LEAF: Starting BMS shut-down sequence");
-#endif
+    DEBUG_PRINTF("LEAF: Starting BMS shut-down sequence\n");
     /* "IGN OFF" is the first line of the sequence in the spec, ahead of the charge stop
        request, so drop the ignition line here rather than leaving it to the power cut.
        No-op on hardware without a separate IGN line. */
     bms_ignit_off();
     shutdownState = SHUTDOWN_CHG_STOP;
     shutdownPhaseStartMillis = millis();
+    log_shutdown_step("CHG_STA_RQ=11b (0x1F2, charge stop request)", shutdownPhaseStartMillis);
   }
 }
 
@@ -1263,6 +1271,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_CHG_STOP_DURATION_MS) {
         shutdownState = SHUTDOWN_BTONFN_OFF;
         shutdownPhaseStartMillis = currentMillis;
+        log_shutdown_step("BTONFN=0b (0x1D4, HV supply off, MAIN RLY P(+))", currentMillis);
       }
       break;
     case SHUTDOWN_BTONFN_OFF:
@@ -1270,6 +1279,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_RELAY_STEP_DURATION_MS) {
         shutdownState = SHUTDOWN_RLYP_OFF;
         shutdownPhaseStartMillis = currentMillis;
+        log_shutdown_step("RLYP=0b (0x1D4, main relay plus off, MAIN RLY N(-))", currentMillis);
       }
       break;
     case SHUTDOWN_RLYP_OFF:
@@ -1277,6 +1287,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_RELAY_STEP_DURATION_MS) {
         shutdownState = SHUTDOWN_GOTOSLEEP;
         shutdownPhaseStartMillis = currentMillis;
+        log_shutdown_step("VCM_WakeUpSleepCommand=00b (0x50B, GoToSleep)", currentMillis);
       }
       break;
     case SHUTDOWN_GOTOSLEEP:
@@ -1286,9 +1297,11 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       //timeout in case the LBC never goes silent
       if ((currentMillis - lastCanFrameReceivedMillis >= SHUTDOWN_BMS_CAN_SILENT_MS) ||
           (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS)) {
-#ifdef DEBUG_LOG
-        logging.println("LEAF: Shut-down sequence CAN stop, waiting before power removal is OK");
-#endif
+        /* Report which of the two exits fired and how long the BMS had been quiet. A short
+           silence means the BMS went off the bus almost as soon as the sequence began,
+           i.e. it very likely never received the CAN part of it. */
+        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop after %lu ms (BMS quiet for %lu ms)\n",
+                     currentMillis - shutdownPhaseStartMillis, currentMillis - lastCanFrameReceivedMillis);
         shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
         shutdownPhaseStartMillis = currentMillis;
       }
@@ -1297,9 +1310,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       //All CAN transmission towards the battery is now stopped.
       //Spec: "Wait (more than 1min)" before BAT OFF (power removal)
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_BAT_OFF_DELAY_MS) {
-#ifdef DEBUG_LOG
-        logging.println("LEAF: BMS shut-down sequence completed, power can be removed");
-#endif
+        DEBUG_PRINTF("LEAF: BMS shut-down sequence completed, power can be removed\n");
         shutdownState = SHUTDOWN_COMPLETED;
       }
       break;

@@ -91,6 +91,7 @@ class NissanLeafBattery : public CanBattery {
   void clearSOH(void);
   uint8_t calculate_checksum_nibble(CAN_frame& frame);
   void update_shutdown_sequence(unsigned long currentMillis);
+  void log_shutdown_step(const char* step, unsigned long currentMillis);
 
   // Shut-down sequence state machine. States are ordered so that >= comparisons
   // can be used, since signal values changed by earlier steps must be kept in
