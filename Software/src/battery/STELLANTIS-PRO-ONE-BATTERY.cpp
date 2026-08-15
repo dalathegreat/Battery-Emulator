@@ -128,152 +128,453 @@ uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const
   // the big-endian PID value (up to 4 bytes), `data` points at the raw value
   // bytes (without the SID/DID header). Return 0 to continue the scan list.
   switch (pid) {
-    case PID_WELD_CHECK:
+    case PID_UNKNOWN_1:
       break;
-    case PID_CONT_REASON_OPEN:
+    case PID_UNKNOWN_2:
       break;
-    case PID_CONTACTOR_STATUS:
+    case PID_UNKNOWN_3:
       break;
-    case PID_NEG_CONT_CONTROL:
+    case PID_UNKNOWN_4:
       break;
-    case PID_NEG_CONT_STATUS:
+    case PID_UNKNOWN_5:
       break;
-    case PID_POS_CONT_CONTROL:
+    case PID_UNKNOWN_6:
       break;
-    case PID_POS_CONT_STATUS:
+    case PID_UNKNOWN_7:
       break;
-    case PID_CONTACTOR_NEGATIVE:
+    case PID_UNKNOWN_8:
       break;
-    case PID_CONTACTOR_POSITIVE:
+    case PID_UNKNOWN_9:
       break;
-    case PID_PRECHARGE_RELAY_CONTROL:
+    case PID_UNKNOWN_10:
       break;
-    case PID_PRECHARGE_RELAY_STATUS:
+    case PID_UNKNOWN_11:
       break;
-    case PID_RECHARGE_STATUS:
+    case PID_UNKNOWN_12:
       break;
-    case PID_DELTA_TEMPERATURE:
+    case PID_UNKNOWN_13:
       break;
-    case PID_COLDEST_MODULE:
+    case PID_UNKNOWN_14:
       break;
-    case PID_LOWEST_TEMPERATURE:
-      pid_lowest_temperature = (int16_t)(value - 40);
+    case PID_UNKNOWN_15:
       break;
-    case PID_AVERAGE_TEMPERATURE:
+    case PID_UNKNOWN_16:
       break;
-    case PID_HIGHEST_TEMPERATURE:
-      pid_highest_temperature = (int16_t)(value - 40);
+    case PID_UNKNOWN_17:
       break;
-    case PID_HOTTEST_MODULE:
+    case PID_UNKNOWN_18:
       break;
-    case PID_AVG_CELL_VOLTAGE:
+    case PID_UNKNOWN_19:
       break;
-    case PID_CURRENT:
+    case PID_UNKNOWN_20:
       break;
-    case PID_INSULATION_NEG:
+    case PID_UNKNOWN_21:
       break;
-    case PID_INSULATION_POS:
+    case PID_UNKNOWN_22:
       break;
-    case PID_MAX_CURRENT_10S:
+    case PID_UNKNOWN_23:
       break;
-    case PID_MAX_DISCHARGE_10S:
+    case PID_UNKNOWN_24:
       break;
-    case PID_MAX_DISCHARGE_30S:
+    case PID_UNKNOWN_25:
       break;
-    case PID_MAX_CHARGE_10S:
+    case PID_UNKNOWN_26:
       break;
-    case PID_MAX_CHARGE_30S:
+    case PID_UNKNOWN_27:
       break;
-    case PID_ENERGY_CAPACITY:
+    case PID_UNKNOWN_28:
       break;
-    case PID_HIGH_CELL_NUM:
+    case PID_UNKNOWN_29:
       break;
-    case PID_LOW_CELL_NUM:
+    case PID_UNKNOWN_30:
       break;
-    case PID_SUM_OF_CELLS:
+    case PID_UNKNOWN_31:
       break;
-    case PID_CELL_MIN_CAPACITY:
+    case PID_UNKNOWN_32:
       break;
-    case PID_CELL_VOLTAGE_MEAS_STATUS:
+    case PID_UNKNOWN_33:
       break;
-    case PID_INSULATION_RES:
+    case PID_UNKNOWN_34:
       break;
-    case PID_PACK_VOLTAGE:
-      pid_pack_voltage = (uint16_t)value;
-      datalayer.battery.status.voltage_dV = (uint16_t)value;
+    case PID_UNKNOWN_35:
       break;
-    case PID_HIGH_CELL_VOLTAGE:
-      datalayer.battery.status.cell_max_voltage_mV = (uint16_t)value;
+    case PID_UNKNOWN_36:
       break;
-    case PID_ALL_CELL_VOLTAGES:
+    case PID_UNKNOWN_37:
       break;
-    case PID_LOW_CELL_VOLTAGE:
-      datalayer.battery.status.cell_min_voltage_mV = (uint16_t)value;
+    case PID_UNKNOWN_38:
       break;
-    case PID_BATTERY_ENERGY:
+    case PID_UNKNOWN_39:
       break;
-    case PID_CELLBALANCE_STATUS:
+    case PID_UNKNOWN_40:
       break;
-    case PID_CELLBALANCE_HWERR_MASK:
+    case PID_UNKNOWN_41:
       break;
-    case PID_CRASH_COUNTER:
+    case PID_UNKNOWN_42:
       break;
-    case PID_WIRE_CRASH:
+    case PID_UNKNOWN_43:
       break;
-    case PID_CAN_CRASH:
+    case PID_UNKNOWN_44:
       break;
-    case PID_HISTORY_DATA:
+    case PID_UNKNOWN_45:
       break;
-    case PID_LOWSOC_COUNTER:
+    case PID_UNKNOWN_46:
       break;
-    case PID_LAST_CAN_FAILURE_DETAIL:
+    case PID_UNKNOWN_47:
       break;
-    case PID_HW_VERSION_NUM:
+    case PID_UNKNOWN_48:
       break;
-    case PID_SW_VERSION_NUM:
+    case PID_UNKNOWN_49:
       break;
-    case PID_FACTORY_MODE_CONTROL:
+    case PID_UNKNOWN_50:
       break;
-    case PID_BATTERY_SERIAL:
+    case PID_UNKNOWN_51:
       break;
-    case PID_ALL_CELL_SOH:
+    case PID_UNKNOWN_52:
       break;
-    case PID_AUX_FUSE_STATE:
+    case PID_UNKNOWN_53:
       break;
-    case PID_BATTERY_STATE:
+    case PID_UNKNOWN_54:
       break;
-    case PID_PRECHARGE_SHORT_CIRCUIT:
+    case PID_UNKNOWN_55:
       break;
-    case PID_ESERVICE_PLUG_STATE:
+    case PID_UNKNOWN_56:
       break;
-    case PID_MAINFUSE_STATE:
+    case PID_UNKNOWN_57:
       break;
-    case PID_MOST_CRITICAL_FAULT:
+    case PID_UNKNOWN_58:
       break;
-    case PID_CURRENT_TIME:
+    case PID_UNKNOWN_59:
       break;
-    case PID_TIME_SENT_BY_CAR:
+    case PID_UNKNOWN_60:
       break;
-    case PID_12V:
-      lead_acid_voltage = (uint16_t)value;
+    case PID_UNKNOWN_61:
       break;
-    case PID_12V_ABNORMAL:
+    case PID_UNKNOWN_62:
       break;
-    case PID_HVIL_IN_VOLTAGE:
+    case PID_UNKNOWN_63:
       break;
-    case PID_HVIL_OUT_VOLTAGE:
+    case PID_UNKNOWN_64:
       break;
-    case PID_HVIL_STATE:
+    case PID_UNKNOWN_65:
       break;
-    case PID_BMS_STATE:
+    case PID_UNKNOWN_66:
       break;
-    case PID_VEHICLE_SPEED:
+    case PID_UNKNOWN_67:
       break;
-    case PID_TIME_SPENT_OVER_55C:
+    case PID_UNKNOWN_68:
       break;
-    case PID_CONTACTOR_CLOSING_COUNTER:
+    case PID_UNKNOWN_69:
       break;
-    case PID_DATE_OF_MANUFACTURE:
+    case PID_UNKNOWN_70:
+      break;
+    case PID_UNKNOWN_71:
+      break;
+    case PID_UNKNOWN_72:
+      break;
+    case PID_UNKNOWN_73:
+      break;
+    case PID_UNKNOWN_74:
+      break;
+    case PID_UNKNOWN_75:
+      break;
+    case PID_UNKNOWN_76:
+      break;
+    case PID_UNKNOWN_77:
+      break;
+    case PID_UNKNOWN_78:
+      break;
+    case PID_UNKNOWN_79:
+      break;
+    case PID_UNKNOWN_80:
+      break;
+    case PID_UNKNOWN_81:
+      break;
+    case PID_UNKNOWN_82:
+      break;
+    case PID_UNKNOWN_83:
+      break;
+    case PID_UNKNOWN_84:
+      break;
+    case PID_UNKNOWN_85:
+      break;
+    case PID_UNKNOWN_86:
+      break;
+    case PID_UNKNOWN_87:
+      break;
+    case PID_UNKNOWN_88:
+      break;
+    case PID_UNKNOWN_89:
+      break;
+    case PID_UNKNOWN_90:
+      break;
+    case PID_UNKNOWN_91:
+      break;
+    case PID_UNKNOWN_92:
+      break;
+    case PID_UNKNOWN_93:
+      break;
+    case PID_UNKNOWN_94:
+      break;
+    case PID_UNKNOWN_95:
+      break;
+    case PID_UNKNOWN_96:
+      break;
+    case PID_UNKNOWN_97:
+      break;
+    case PID_UNKNOWN_98:
+      break;
+    case PID_UNKNOWN_99:
+      break;
+    case PID_UNKNOWN_100:
+      break;
+    case PID_UNKNOWN_101:
+      break;
+    case PID_UNKNOWN_102:
+      break;
+    case PID_UNKNOWN_103:
+      break;
+    case PID_UNKNOWN_104:
+      break;
+    case PID_UNKNOWN_105:
+      break;
+    case PID_UNKNOWN_106:
+      break;
+    case PID_UNKNOWN_107:
+      break;
+    case PID_UNKNOWN_108:
+      break;
+    case PID_UNKNOWN_109:
+      break;
+    case PID_UNKNOWN_110:
+      break;
+    case PID_UNKNOWN_111:
+      break;
+    case PID_UNKNOWN_112:
+      break;
+    case PID_UNKNOWN_113:
+      break;
+    case PID_UNKNOWN_114:
+      break;
+    case PID_UNKNOWN_115:
+      break;
+    case PID_UNKNOWN_116:
+      break;
+    case PID_UNKNOWN_117:
+      break;
+    case PID_UNKNOWN_118:
+      break;
+    case PID_UNKNOWN_119:
+      break;
+    case PID_UNKNOWN_120:
+      break;
+    case PID_UNKNOWN_121:
+      break;
+    case PID_UNKNOWN_122:
+      break;
+    case PID_UNKNOWN_123:
+      break;
+    case PID_UNKNOWN_124:
+      break;
+    case PID_UNKNOWN_125:
+      break;
+    case PID_UNKNOWN_126:
+      break;
+    case PID_UNKNOWN_127:
+      break;
+    case PID_UNKNOWN_128:
+      break;
+    case PID_UNKNOWN_129:
+      break;
+    case PID_UNKNOWN_130:
+      break;
+    case PID_UNKNOWN_131:
+      break;
+    case PID_UNKNOWN_132:
+      break;
+    case PID_UNKNOWN_133:
+      break;
+    case PID_UNKNOWN_134:
+      break;
+    case PID_UNKNOWN_135:
+      break;
+    case PID_UNKNOWN_136:
+      break;
+    case PID_UNKNOWN_137:
+      break;
+    case PID_UNKNOWN_138:
+      break;
+    case PID_UNKNOWN_139:
+      break;
+    case PID_UNKNOWN_140:
+      break;
+    case PID_UNKNOWN_141:
+      break;
+    case PID_UNKNOWN_142:
+      break;
+    case PID_UNKNOWN_143:
+      break;
+    case PID_UNKNOWN_144:
+      break;
+    case PID_UNKNOWN_145:
+      break;
+    case PID_UNKNOWN_146:
+      break;
+    case PID_UNKNOWN_147:
+      break;
+    case PID_UNKNOWN_148:
+      break;
+    case PID_UNKNOWN_149:
+      break;
+    case PID_UNKNOWN_150:
+      break;
+    case PID_UNKNOWN_151:
+      break;
+    case PID_UNKNOWN_152:
+      break;
+    case PID_UNKNOWN_153:
+      break;
+    case PID_UNKNOWN_154:
+      break;
+    case PID_UNKNOWN_155:
+      break;
+    case PID_UNKNOWN_156:
+      break;
+    case PID_UNKNOWN_157:
+      break;
+    case PID_UNKNOWN_158:
+      break;
+    case PID_UNKNOWN_159:
+      break;
+    case PID_UNKNOWN_160:
+      break;
+    case PID_UNKNOWN_161:
+      break;
+    case PID_UNKNOWN_162:
+      break;
+    case PID_UNKNOWN_163:
+      break;
+    case PID_UNKNOWN_164:
+      break;
+    case PID_UNKNOWN_165:
+      break;
+    case PID_UNKNOWN_166:
+      break;
+    case PID_UNKNOWN_167:
+      break;
+    case PID_UNKNOWN_168:
+      break;
+    case PID_UNKNOWN_169:
+      break;
+    case PID_UNKNOWN_170:
+      break;
+    case PID_UNKNOWN_171:
+      break;
+    case PID_UNKNOWN_172:
+      break;
+    case PID_UNKNOWN_173:
+      break;
+    case PID_UNKNOWN_174:
+      break;
+    case PID_UNKNOWN_175:
+      break;
+    case PID_UNKNOWN_176:
+      break;
+    case PID_UNKNOWN_177:
+      break;
+    case PID_UNKNOWN_178:
+      break;
+    case PID_UNKNOWN_179:
+      break;
+    case PID_UNKNOWN_180:
+      break;
+    case PID_UNKNOWN_181:
+      break;
+    case PID_UNKNOWN_182:
+      break;
+    case PID_UNKNOWN_183:
+      break;
+    case PID_UNKNOWN_184:
+      break;
+    case PID_UNKNOWN_185:
+      break;
+    case PID_UNKNOWN_186:
+      break;
+    case PID_UNKNOWN_187:
+      break;
+    case PID_UNKNOWN_188:
+      break;
+    case PID_UNKNOWN_189:
+      break;
+    case PID_UNKNOWN_190:
+      break;
+    case PID_UNKNOWN_191:
+      break;
+    case PID_UNKNOWN_192:
+      break;
+    case PID_UNKNOWN_193:
+      break;
+    case PID_UNKNOWN_194:
+      break;
+    case PID_UNKNOWN_195:
+      break;
+    case PID_UNKNOWN_196:
+      break;
+    case PID_UNKNOWN_197:
+      break;
+    case PID_UNKNOWN_198:
+      break;
+    case PID_UNKNOWN_199:
+      break;
+    case PID_UNKNOWN_200:
+      break;
+    case PID_UNKNOWN_201:
+      break;
+    case PID_UNKNOWN_202:
+      break;
+    case PID_UNKNOWN_203:
+      break;
+    case PID_UNKNOWN_204:
+      break;
+    case PID_UNKNOWN_205:
+      break;
+    case PID_UNKNOWN_206:
+      break;
+    case PID_UNKNOWN_207:
+      break;
+    case PID_UNKNOWN_208:
+      break;
+    case PID_UNKNOWN_209:
+      break;
+    case PID_UNKNOWN_210:
+      break;
+    case PID_UNKNOWN_211:
+      break;
+    case PID_UNKNOWN_212:
+      break;
+    case PID_UNKNOWN_213:
+      break;
+    case PID_UNKNOWN_214:
+      break;
+    case PID_UNKNOWN_215:
+      break;
+    case PID_UNKNOWN_216:
+      break;
+    case PID_UNKNOWN_217:
+      break;
+    case PID_UNKNOWN_218:
+      break;
+    case PID_UNKNOWN_219:
+      break;
+    case PID_UNKNOWN_220:
+      break;
+    case PID_UNKNOWN_221:
+      break;
+    case PID_UNKNOWN_222:
+      break;
+    case PID_UNKNOWN_223:
+      break;
+    case PID_UNKNOWN_224:
       break;
     default:  //Unknown pid
       break;
@@ -395,76 +696,44 @@ void StellantisProOneBattery::setup(void) {  // Performs one time setup at start
   // UDS: send requests to 0x7E7, accept replies from the BMS on 0x7EF.
   setup_uds(0x7E7, 0x7EF);
   static const uint16_t pid_scan_list[] = {
-      PID_WELD_CHECK,
-      PID_CONT_REASON_OPEN,
-      PID_CONTACTOR_STATUS,
-      PID_NEG_CONT_CONTROL,
-      PID_NEG_CONT_STATUS,
-      PID_POS_CONT_CONTROL,
-      PID_POS_CONT_STATUS,
-      PID_CONTACTOR_NEGATIVE,
-      PID_CONTACTOR_POSITIVE,
-      PID_PRECHARGE_RELAY_CONTROL,
-      PID_PRECHARGE_RELAY_STATUS,
-      PID_RECHARGE_STATUS,
-      PID_DELTA_TEMPERATURE,
-      PID_COLDEST_MODULE,
-      PID_LOWEST_TEMPERATURE,
-      PID_AVERAGE_TEMPERATURE,
-      PID_HIGHEST_TEMPERATURE,
-      PID_HOTTEST_MODULE,
-      PID_AVG_CELL_VOLTAGE,
-      PID_CURRENT,
-      PID_INSULATION_NEG,
-      PID_INSULATION_POS,
-      PID_MAX_CURRENT_10S,
-      PID_MAX_DISCHARGE_10S,
-      PID_MAX_DISCHARGE_30S,
-      PID_MAX_CHARGE_10S,
-      PID_MAX_CHARGE_30S,
-      PID_ENERGY_CAPACITY,
-      PID_HIGH_CELL_NUM,
-      PID_LOW_CELL_NUM,
-      PID_SUM_OF_CELLS,
-      PID_CELL_MIN_CAPACITY,
-      PID_CELL_VOLTAGE_MEAS_STATUS,
-      PID_INSULATION_RES,
-      PID_PACK_VOLTAGE,
-      PID_HIGH_CELL_VOLTAGE,
-      PID_ALL_CELL_VOLTAGES,
-      PID_LOW_CELL_VOLTAGE,
-      PID_BATTERY_ENERGY,
-      PID_CELLBALANCE_STATUS,
-      PID_CELLBALANCE_HWERR_MASK,
-      PID_CRASH_COUNTER,
-      PID_WIRE_CRASH,
-      PID_CAN_CRASH,
-      PID_HISTORY_DATA,
-      PID_LOWSOC_COUNTER,
-      PID_LAST_CAN_FAILURE_DETAIL,
-      PID_HW_VERSION_NUM,
-      PID_SW_VERSION_NUM,
-      PID_FACTORY_MODE_CONTROL,
-      PID_BATTERY_SERIAL,
-      PID_ALL_CELL_SOH,
-      PID_AUX_FUSE_STATE,
-      PID_BATTERY_STATE,
-      PID_PRECHARGE_SHORT_CIRCUIT,
-      PID_ESERVICE_PLUG_STATE,
-      PID_MAINFUSE_STATE,
-      PID_MOST_CRITICAL_FAULT,
-      PID_CURRENT_TIME,
-      PID_TIME_SENT_BY_CAR,
-      PID_12V,
-      PID_12V_ABNORMAL,
-      PID_HVIL_IN_VOLTAGE,
-      PID_HVIL_OUT_VOLTAGE,
-      PID_HVIL_STATE,
-      PID_BMS_STATE,
-      PID_VEHICLE_SPEED,
-      PID_TIME_SPENT_OVER_55C,
-      PID_CONTACTOR_CLOSING_COUNTER,
-      PID_DATE_OF_MANUFACTURE,
+      PID_UNKNOWN_1,   PID_UNKNOWN_2,   PID_UNKNOWN_3,   PID_UNKNOWN_4,   PID_UNKNOWN_5,   PID_UNKNOWN_6,
+      PID_UNKNOWN_7,   PID_UNKNOWN_8,   PID_UNKNOWN_9,   PID_UNKNOWN_10,  PID_UNKNOWN_11,  PID_UNKNOWN_12,
+      PID_UNKNOWN_13,  PID_UNKNOWN_14,  PID_UNKNOWN_15,  PID_UNKNOWN_16,  PID_UNKNOWN_17,  PID_UNKNOWN_18,
+      PID_UNKNOWN_19,  PID_UNKNOWN_20,  PID_UNKNOWN_21,  PID_UNKNOWN_22,  PID_UNKNOWN_23,  PID_UNKNOWN_24,
+      PID_UNKNOWN_25,  PID_UNKNOWN_26,  PID_UNKNOWN_27,  PID_UNKNOWN_28,  PID_UNKNOWN_29,  PID_UNKNOWN_30,
+      PID_UNKNOWN_31,  PID_UNKNOWN_32,  PID_UNKNOWN_33,  PID_UNKNOWN_34,  PID_UNKNOWN_35,  PID_UNKNOWN_36,
+      PID_UNKNOWN_37,  PID_UNKNOWN_38,  PID_UNKNOWN_39,  PID_UNKNOWN_40,  PID_UNKNOWN_41,  PID_UNKNOWN_42,
+      PID_UNKNOWN_43,  PID_UNKNOWN_44,  PID_UNKNOWN_45,  PID_UNKNOWN_46,  PID_UNKNOWN_47,  PID_UNKNOWN_48,
+      PID_UNKNOWN_49,  PID_UNKNOWN_50,  PID_UNKNOWN_51,  PID_UNKNOWN_52,  PID_UNKNOWN_53,  PID_UNKNOWN_54,
+      PID_UNKNOWN_55,  PID_UNKNOWN_56,  PID_UNKNOWN_57,  PID_UNKNOWN_58,  PID_UNKNOWN_59,  PID_UNKNOWN_60,
+      PID_UNKNOWN_61,  PID_UNKNOWN_62,  PID_UNKNOWN_63,  PID_UNKNOWN_64,  PID_UNKNOWN_65,  PID_UNKNOWN_66,
+      PID_UNKNOWN_67,  PID_UNKNOWN_68,  PID_UNKNOWN_69,  PID_UNKNOWN_70,  PID_UNKNOWN_71,  PID_UNKNOWN_72,
+      PID_UNKNOWN_73,  PID_UNKNOWN_74,  PID_UNKNOWN_75,  PID_UNKNOWN_76,  PID_UNKNOWN_77,  PID_UNKNOWN_78,
+      PID_UNKNOWN_79,  PID_UNKNOWN_80,  PID_UNKNOWN_81,  PID_UNKNOWN_82,  PID_UNKNOWN_83,  PID_UNKNOWN_84,
+      PID_UNKNOWN_85,  PID_UNKNOWN_86,  PID_UNKNOWN_87,  PID_UNKNOWN_88,  PID_UNKNOWN_89,  PID_UNKNOWN_90,
+      PID_UNKNOWN_91,  PID_UNKNOWN_92,  PID_UNKNOWN_93,  PID_UNKNOWN_94,  PID_UNKNOWN_95,  PID_UNKNOWN_96,
+      PID_UNKNOWN_97,  PID_UNKNOWN_98,  PID_UNKNOWN_99,  PID_UNKNOWN_100, PID_UNKNOWN_101, PID_UNKNOWN_102,
+      PID_UNKNOWN_103, PID_UNKNOWN_104, PID_UNKNOWN_105, PID_UNKNOWN_106, PID_UNKNOWN_107, PID_UNKNOWN_108,
+      PID_UNKNOWN_109, PID_UNKNOWN_110, PID_UNKNOWN_111, PID_UNKNOWN_112, PID_UNKNOWN_113, PID_UNKNOWN_114,
+      PID_UNKNOWN_115, PID_UNKNOWN_116, PID_UNKNOWN_117, PID_UNKNOWN_118, PID_UNKNOWN_119, PID_UNKNOWN_120,
+      PID_UNKNOWN_121, PID_UNKNOWN_122, PID_UNKNOWN_123, PID_UNKNOWN_124, PID_UNKNOWN_125, PID_UNKNOWN_126,
+      PID_UNKNOWN_127, PID_UNKNOWN_128, PID_UNKNOWN_129, PID_UNKNOWN_130, PID_UNKNOWN_131, PID_UNKNOWN_132,
+      PID_UNKNOWN_133, PID_UNKNOWN_134, PID_UNKNOWN_135, PID_UNKNOWN_136, PID_UNKNOWN_137, PID_UNKNOWN_138,
+      PID_UNKNOWN_139, PID_UNKNOWN_140, PID_UNKNOWN_141, PID_UNKNOWN_142, PID_UNKNOWN_143, PID_UNKNOWN_144,
+      PID_UNKNOWN_145, PID_UNKNOWN_146, PID_UNKNOWN_147, PID_UNKNOWN_148, PID_UNKNOWN_149, PID_UNKNOWN_150,
+      PID_UNKNOWN_151, PID_UNKNOWN_152, PID_UNKNOWN_153, PID_UNKNOWN_154, PID_UNKNOWN_155, PID_UNKNOWN_156,
+      PID_UNKNOWN_157, PID_UNKNOWN_158, PID_UNKNOWN_159, PID_UNKNOWN_160, PID_UNKNOWN_161, PID_UNKNOWN_162,
+      PID_UNKNOWN_163, PID_UNKNOWN_164, PID_UNKNOWN_165, PID_UNKNOWN_166, PID_UNKNOWN_167, PID_UNKNOWN_168,
+      PID_UNKNOWN_169, PID_UNKNOWN_170, PID_UNKNOWN_171, PID_UNKNOWN_172, PID_UNKNOWN_173, PID_UNKNOWN_174,
+      PID_UNKNOWN_175, PID_UNKNOWN_176, PID_UNKNOWN_177, PID_UNKNOWN_178, PID_UNKNOWN_179, PID_UNKNOWN_180,
+      PID_UNKNOWN_181, PID_UNKNOWN_182, PID_UNKNOWN_183, PID_UNKNOWN_184, PID_UNKNOWN_185, PID_UNKNOWN_186,
+      PID_UNKNOWN_187, PID_UNKNOWN_188, PID_UNKNOWN_189, PID_UNKNOWN_190, PID_UNKNOWN_191, PID_UNKNOWN_192,
+      PID_UNKNOWN_193, PID_UNKNOWN_194, PID_UNKNOWN_195, PID_UNKNOWN_196, PID_UNKNOWN_197, PID_UNKNOWN_198,
+      PID_UNKNOWN_199, PID_UNKNOWN_200, PID_UNKNOWN_201, PID_UNKNOWN_202, PID_UNKNOWN_203, PID_UNKNOWN_204,
+      PID_UNKNOWN_205, PID_UNKNOWN_206, PID_UNKNOWN_207, PID_UNKNOWN_208, PID_UNKNOWN_209, PID_UNKNOWN_210,
+      PID_UNKNOWN_211, PID_UNKNOWN_212, PID_UNKNOWN_213, PID_UNKNOWN_214, PID_UNKNOWN_215, PID_UNKNOWN_216,
+      PID_UNKNOWN_217, PID_UNKNOWN_218, PID_UNKNOWN_219, PID_UNKNOWN_220, PID_UNKNOWN_221, PID_UNKNOWN_222,
+      PID_UNKNOWN_223, PID_UNKNOWN_224,
   };
   set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
