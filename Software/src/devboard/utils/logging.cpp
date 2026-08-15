@@ -4,7 +4,8 @@
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include "../wifi/wifi.h"  // custom_hostname, default_hostname()
+#include "../network/hostname.h"        // active_hostname()
+#include "../network/network_status.h"  // network_connected()
 
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14
@@ -72,23 +73,9 @@ static uint16_t syslogDropped = 0;
 // owned for a few microseconds (a memcpy) and contention is effectively zero.
 static SemaphoreHandle_t syslogMutex = xSemaphoreCreateMutex();
 
-// Same rule as init_WiFi(): custom hostname if set, otherwise the MAC-derived default.
-// Cached — default_hostname() re-reads eFuse and allocates a String on every call.
-// Only the default is cached, so a call made before settings are loaded cannot freeze a wrong name in.
-static const char* syslog_hostname(void) {
-  if (!custom_hostname.empty()) {
-    return custom_hostname.c_str();
-  }
-  static String fallback;
-  if (fallback.isEmpty()) {
-    fallback = default_hostname();
-  }
-  return fallback.c_str();
-}
-
 static bool syslog_online(void) {
-  // Sendable when joined to a network (STA) OR when a client is on our SoftAP.
-  return (WiFi.status() == WL_CONNECTED) || (WiFi.softAPgetStationNum() > 0);
+  // Sendable when connected to a network OR when a client is on our SoftAP.
+  return network_connected() || (WiFi.softAPgetStationNum() > 0);
 }
 
 // Called ONLY from syslog_task, and never with the mutex held.
@@ -102,7 +89,7 @@ static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
     // APP-NAME carries the FreeRTOS task that produced the line.
-    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, syslog_hostname(), proc, msg);
+    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, active_hostname().c_str(), proc, msg);
     syslogUdp.endPacket();
   }
 }

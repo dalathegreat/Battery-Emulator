@@ -7,6 +7,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/network/hostname.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
