@@ -105,16 +105,20 @@ class NissanLeafBattery : public CanBattery {
     SHUTDOWN_WAIT_BEFORE_BAT_OFF,  //CAN transmission stopped, waiting before power removal is OK
     SHUTDOWN_COMPLETED             //Sequence done, BMS power can be cut
   };
-  //Time to keep transmitting the charge stop request before "opening the main relays"
-  static const unsigned long SHUTDOWN_CHG_STOP_DURATION_MS = 500;
-  //Time between the BTONFN=0b and RLYP=0b steps (relays are switched off in sequence)
-  static const unsigned long SHUTDOWN_RELAY_STEP_DURATION_MS = 100;
+  /* Time each signal change is held before moving to the next step. The spec mandates no
+     wait between these steps at all, and an LBC that acts on the charge stop request may
+     leave the bus within ~100ms of the sequence starting, so the whole CAN part has to fit
+     inside that window. 0x1F2 and 0x1D4 both go out every 10ms, so this is 3 transmissions
+     of each state — enough repetitions to be seen, short enough that all four steps land. */
+  static const unsigned long SHUTDOWN_STEP_DURATION_MS = 30;
   //Spec: our CAN stop must happen more than 1s after the LBC stops its own CAN transmission
   static const unsigned long SHUTDOWN_BMS_CAN_SILENT_MS = 1100;
   //Safety net: proceed with the sequence even if the LBC never goes silent (e.g. LeafSpy on bus)
   static const unsigned long SHUTDOWN_GOTOSLEEP_TIMEOUT_MS = 10000;
   //Spec: "Wait (more than 1min)" between CAN stop and BAT OFF (power removal)
   static const unsigned long SHUTDOWN_BAT_OFF_DELAY_MS = 61000;
+
+  const char* shutdown_step_name(ShutdownSequenceState state);
 
   ShutdownSequenceState shutdownState = SHUTDOWN_INACTIVE;
   unsigned long shutdownPhaseStartMillis = 0;

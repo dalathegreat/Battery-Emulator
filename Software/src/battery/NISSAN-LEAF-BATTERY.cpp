@@ -1261,14 +1261,43 @@ void NissanLeafBattery::request_bms_shutdown_sequence() {
   }
 }
 
+const char* NissanLeafBattery::shutdown_step_name(ShutdownSequenceState state) {
+  switch (state) {
+    case SHUTDOWN_CHG_STOP:
+      return "CHG_STA_RQ=11b";
+    case SHUTDOWN_BTONFN_OFF:
+      return "BTONFN=0b";
+    case SHUTDOWN_RLYP_OFF:
+      return "RLYP=0b";
+    case SHUTDOWN_GOTOSLEEP:
+      return "VCM_WakeUpSleepCommand=00b";
+    default:
+      return "none";
+  }
+}
+
 void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
+  /* The BMS going quiet ends the CAN part of the sequence wherever we have got to. Anything
+     still unsent has nobody left to receive it, and the spec's own trigger for stopping
+     transmission is the BMS having stopped for more than a second. Checked in every step
+     rather than only in the last one, so a reset started on an already unresponsive BMS
+     skips straight to the wait instead of transmitting a whole sequence into nothing. */
+  if (shutdownState >= SHUTDOWN_CHG_STOP && shutdownState <= SHUTDOWN_GOTOSLEEP &&
+      currentMillis - lastCanFrameReceivedMillis >= SHUTDOWN_BMS_CAN_SILENT_MS) {
+    DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS quiet for %lu ms (last step sent: %s)\n",
+                 currentMillis - lastCanFrameReceivedMillis, shutdown_step_name(shutdownState));
+    shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
+    shutdownPhaseStartMillis = currentMillis;
+    return;
+  }
+
   switch (shutdownState) {
     case SHUTDOWN_INACTIVE:
     case SHUTDOWN_COMPLETED:
       break;
     case SHUTDOWN_CHG_STOP:
       //"CHG_STA_RQ=11b" is being transmitted in 0x1F2
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_CHG_STOP_DURATION_MS) {
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
         shutdownState = SHUTDOWN_BTONFN_OFF;
         shutdownPhaseStartMillis = currentMillis;
         log_shutdown_step("BTONFN=0b (0x1D4, HV supply off, MAIN RLY P(+))", currentMillis);
@@ -1276,7 +1305,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       break;
     case SHUTDOWN_BTONFN_OFF:
       //"BTONFN=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY P(+) OFF)
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_RELAY_STEP_DURATION_MS) {
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
         shutdownState = SHUTDOWN_RLYP_OFF;
         shutdownPhaseStartMillis = currentMillis;
         log_shutdown_step("RLYP=0b (0x1D4, main relay plus off, MAIN RLY N(-))", currentMillis);
@@ -1284,24 +1313,25 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       break;
     case SHUTDOWN_RLYP_OFF:
       //"RLYP=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY N(-) OFF)
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_RELAY_STEP_DURATION_MS) {
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
         shutdownState = SHUTDOWN_GOTOSLEEP;
         shutdownPhaseStartMillis = currentMillis;
         log_shutdown_step("VCM_WakeUpSleepCommand=00b (0x50B, GoToSleep)", currentMillis);
+        /* 0x50B is only transmitted every 100ms, so on a BMS that leaves the bus shortly
+           after the sequence starts, waiting for its next slot can mean the GoToSleep
+           command never goes out at all. Send one right away as well; the periodic copies
+           that follow carry the same value. */
+        LEAF_50B.data.u8[3] = 0x00;
+        transmit_can_frame(&LEAF_50B);
       }
       break;
     case SHUTDOWN_GOTOSLEEP:
-      //"VCM_WakeUpSleepCommand=00b" (GoToSleep) is being transmitted in 0x50B. Keep
-      //transmitting until the LBC has stopped its own CAN transmissions for more than 1s
-      //(spec: "Wait more than 1s from BMS CAN stop" before our own CAN stop), with a
-      //timeout in case the LBC never goes silent
-      if ((currentMillis - lastCanFrameReceivedMillis >= SHUTDOWN_BMS_CAN_SILENT_MS) ||
-          (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS)) {
-        /* Report which of the two exits fired and how long the BMS had been quiet. A short
-           silence means the BMS went off the bus almost as soon as the sequence began,
-           i.e. it very likely never received the CAN part of it. */
-        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop after %lu ms (BMS quiet for %lu ms)\n",
-                     currentMillis - shutdownPhaseStartMillis, currentMillis - lastCanFrameReceivedMillis);
+      /* "VCM_WakeUpSleepCommand=00b" (GoToSleep) is being transmitted in 0x50B. The normal
+         exit is the BMS going quiet, handled above; this is only the safety net for a BMS
+         that never stops talking (e.g. something else is keeping the bus alive). */
+      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS) {
+        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS still talking after %lu ms\n",
+                     currentMillis - shutdownPhaseStartMillis);
         shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
         shutdownPhaseStartMillis = currentMillis;
       }

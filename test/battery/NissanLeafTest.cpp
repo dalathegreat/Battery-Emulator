@@ -442,24 +442,25 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
   leaf.request_bms_shutdown_sequence();
   EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());
 
+  /* Steps run 30 ms apart, so each window below is sized to sit inside one step. 0x1D4 and
+     0x1F2 go out every 10 ms; 0x50B every 100 ms, so it is only checked once the sequence
+     has reached the step that changes it. */
+
   // Step 1: charge stop request, relays still commanded on.
   clear_transmitted_frames();
-  run_leaf_ms(&leaf, 400, true);
+  run_leaf_ms(&leaf, 20, true);
   frame_1f2 = last_transmitted(0x1F2);
   frame_1d4 = last_transmitted(0x1D4);
-  frame_50b = last_transmitted(0x50B);
   ASSERT_NE(frame_1f2, nullptr);
   ASSERT_NE(frame_1d4, nullptr);
-  ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x60);  // CHG_STA_RQ=11b
   EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);
   EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);
-  EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0xC0);
 
   // Step 2: BTONFN=0b, at the same time as MAIN RLY P(+) OFF.
   clear_transmitted_frames();
-  run_leaf_ms(&leaf, 150, true);
+  run_leaf_ms(&leaf, 20, true);
   frame_1d4 = last_transmitted(0x1D4);
   ASSERT_NE(frame_1d4, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
@@ -469,7 +470,7 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
 
   // Step 3: RLYP=0b, at the same time as MAIN RLY N(-) OFF.
   clear_transmitted_frames();
-  run_leaf_ms(&leaf, 120, true);
+  run_leaf_ms(&leaf, 30, true);
   frame_1d4 = last_transmitted(0x1D4);
   ASSERT_NE(frame_1d4, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
@@ -479,7 +480,7 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
 
   // Step 4: GoToSleep, still transmitted while the LBC is on the bus.
   clear_transmitted_frames();
-  run_leaf_ms(&leaf, 300, true);
+  run_leaf_ms(&leaf, 200, true);
   frame_50b = last_transmitted(0x50B);
   ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0x00);
@@ -624,4 +625,43 @@ TEST(NissanLeafShutdownSequenceTests, ShouldLeaveIgnitionLineAloneWhenResetsAreD
   periodic_bms_reset = saved_periodic;
   remote_bms_reset = saved_remote;
   esp32hal = saved_hal;
+}
+
+/* If the BMS leaves the bus part way through the sequence there is nobody left to receive
+   the rest of it, so transmission stops there instead of marching through the remaining
+   steps. Covers the case that matters most in practice: a reset started on a BMS that has
+   already stopped talking. */
+TEST(NissanLeafShutdownSequenceTests, ShouldStopTransmittingWhenBmsGoesQuietMidSequence) {
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+  run_leaf_ms(&leaf, 200, true);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+  leaf.request_bms_shutdown_sequence();
+
+  // BMS drops off the bus 10 ms in, before the sequence reaches its later steps.
+  run_leaf_ms(&leaf, 10, true);
+  run_leaf_ms(&leaf, 1000, false);
+
+  // Still transmitting: the BMS has not been quiet long enough to call it stopped.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 50, false);
+  EXPECT_FALSE(get_transmitted_frames().empty());
+
+  // Past the silence threshold it gives up, well before the GoToSleep timeout would fire.
+  run_leaf_ms(&leaf, 100, false);
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 500, false);
+  EXPECT_TRUE(get_transmitted_frames().empty());
+  EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());  // still inside the wait before BAT OFF
+
+  run_leaf_ms(&leaf, 61500, false);
+  EXPECT_TRUE(get_transmitted_frames().empty());
+  EXPECT_TRUE(leaf.bms_shutdown_sequence_completed());
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }
