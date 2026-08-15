@@ -4,6 +4,7 @@
 
 std::string custom_hostname;  // If not set, defaults to default_hostname()
 
+// Always uses the WiFi MAC for consistency, even when ETH is active
 String default_hostname() {
   static String cached;
   if (cached.isEmpty()) {

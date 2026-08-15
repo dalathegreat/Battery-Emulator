@@ -6,13 +6,27 @@
 #include "../wifi/wifi.h"      // wifi_connected()
 #include "mdns.h"              // init_mDNS()
 
+#ifdef ETHERNET
+#include "../ethernet/ethernet.h"
+#endif
+
 extern const char* version_number;  // defined in Software.cpp
 
 bool network_connected() {
+#ifdef ETHERNET
+  if (ethernet_connected()) {
+    return true;
+  }
+#endif
   return wifi_connected();
 }
 
 IPAddress network_localIP() {
+#ifdef ETHERNET
+  if (ethernet_connected()) {
+    return ETH.localIP();
+  }
+#endif
   return WiFi.localIP();
 }
 
