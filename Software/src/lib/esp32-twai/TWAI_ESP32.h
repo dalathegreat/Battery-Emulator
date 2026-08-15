@@ -136,6 +136,21 @@ private:
   };
   TxSlot _tx_slots[_tx_slot_count];
 
+  // TX flow control (workaround for a race in the ESP-IDF on-chip TWAI driver,
+  // esp_twai_onchip.c:_node_queue_tx). The driver's internal TX queue asserts
+  // "should always get frame at this moment" when a sender is preempted for
+  // longer than one CAN frame between queueing a frame and its "second chance"
+  // hw_busy CAS: the TX-done ISR then drains the queue and clears hw_busy, so
+  // the CAS wins but the queue is empty. To avoid the racy path entirely we
+  // hand the driver at most one frame at a time (_tx_in_flight) and park the
+  // rest in our own FIFO, feeding them to the driver one-by-one as each
+  // transmission completes. The driver's internal queue is then never used.
+  volatile bool _tx_in_flight = false;
+  volatile uint8_t _tx_pending[_tx_slot_count];
+  volatile uint8_t _tx_pending_head = 0;
+  volatile uint8_t _tx_pending_tail = 0;
+  volatile uint8_t _tx_pending_count = 0;
+
   // The receive ring buffer (filled by the RX callback, drained by receive())
   static const uint16_t _rx_buffer_size = 32;
   CANMessage _rx_buffer[_rx_buffer_size];
