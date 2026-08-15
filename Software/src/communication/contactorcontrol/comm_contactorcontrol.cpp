@@ -90,6 +90,38 @@ bool bms_power_is_active() {
   return periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power();
 }
 
+/* The ignition line is only driven on boards that have one, and only when init_contactors()
+   actually set it up, which is the same condition that gates BMS_POWER. */
+static bool bms_ignit_is_active() {
+  return bms_power_is_active() && esp32hal->BMS_IGNIT() != GPIO_NUM_NC;
+}
+
+/* Every level the firmware puts on the BMS BAT and IGN lines goes through the two helpers
+   below, so the log shows exactly when each line moved. That is what makes a reset possible
+   to line up against the CAN trace of a battery's shut-down sequence. Re-driving a line to
+   the level it already holds is not logged again; -1 means it has not been driven yet this
+   boot, so the first write after start-up always produces an entry. */
+static int bms_power_level = -1;
+static int bms_ignit_level = -1;
+
+static void drive_bms_power(bool high) {
+  auto pin = esp32hal->BMS_POWER();
+  digitalWrite(pin, high ? HIGH : LOW);
+  if (bms_power_level != (int)high) {
+    bms_power_level = (int)high;
+    DEBUG_PRINTF("BMS power line %s (GPIO%d)\n", high ? "HIGH" : "LOW", (int)pin);
+  }
+}
+
+static void drive_bms_ignit(bool high) {
+  auto pin = esp32hal->BMS_IGNIT();
+  digitalWrite(pin, high ? HIGH : LOW);
+  if (bms_ignit_level != (int)high) {
+    bms_ignit_level = (int)high;
+    DEBUG_PRINTF("BMS ignition line %s (GPIO%d)\n", high ? "HIGH" : "LOW", (int)pin);
+  }
+}
+
 // Initialization functions
 
 const char* contactors = "Contactors";
@@ -158,7 +190,7 @@ bool init_contactors() {
       return false;
     }
     pinMode(pin, OUTPUT);
-    digitalWrite(pin, HIGH);
+    drive_bms_power(true);
     set_indicator_led(IndicatorLed::BMS_POWER, true);
 
     /* The ignition line, on hardware that has one, is brought up with the BAT line and gated
@@ -170,7 +202,7 @@ bool init_contactors() {
         return false;
       }
       pinMode(ignit_pin, OUTPUT);
-      digitalWrite(ignit_pin, HIGH);
+      drive_bms_ignit(true);
     }
   }
 
@@ -410,21 +442,15 @@ static bool battery_shutdown_sequences_completed() {
   return true;
 }
 
-/* The ignition line is only driven on boards that have one, and only when init_contactors()
-   actually set it up, which is the same condition that gates BMS_POWER. */
-static bool bms_ignit_is_active() {
-  return bms_power_is_active() && esp32hal->BMS_IGNIT() != GPIO_NUM_NC;
-}
-
 void bms_ignit_off() {
   if (bms_ignit_is_active()) {
-    digitalWrite(esp32hal->BMS_IGNIT(), LOW);
+    drive_bms_ignit(false);
   }
 }
 
 void bms_ignit_on() {
   if (bms_ignit_is_active()) {
-    digitalWrite(esp32hal->BMS_IGNIT(), HIGH);
+    drive_bms_ignit(true);
   }
 }
 
@@ -433,12 +459,12 @@ void bms_power_off() {
      switches the ignition off itself has already done this by the time we get here, so
      this only matters for the batteries that run no sequence at all. */
   bms_ignit_off();
-  digitalWrite(esp32hal->BMS_POWER(), LOW);
+  drive_bms_power(false);
   set_indicator_led(IndicatorLed::BMS_POWER, false);
 }
 
 void bms_power_on() {
-  digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  drive_bms_power(true);
   bms_ignit_on();  // BAT first, then IGN, mirroring the start-up order
   set_indicator_led(IndicatorLed::BMS_POWER, true);
 }
