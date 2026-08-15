@@ -93,6 +93,8 @@ public:
   bool tryToSend(const CANMessage &message);
 
   uint32_t statusRegister(void) const;
+  // Attempt to recover from bus-off (non-blocking)
+  bool recoverFromBusOff(void);
 
   // The static instance corresponding to the single TWAI peripheral.
   static TWAI_ESP32 can;

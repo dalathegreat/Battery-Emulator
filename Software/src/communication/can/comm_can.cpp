@@ -402,8 +402,8 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
 
   auto flags = TWAI_ESP32::can.statusRegister();
   if ((flags & TWAI_BUS_OFF_ST) != 0) {
-    // Bus off, reset the CAN controller
-    change_can_speed(CAN_Interface::CAN_NATIVE, native_can_speed);
+    // Bus-off, attempt to recover.
+    TWAI_ESP32::can.recoverFromBusOff();
     datalayer.system.info.can_native_bus_error = true;
   }
   if ((flags & TWAI_ERR_ST) != 0) {

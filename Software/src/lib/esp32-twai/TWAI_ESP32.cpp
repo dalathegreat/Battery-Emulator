@@ -13,32 +13,17 @@ void TWAI_ESP32::teardownNode(void) {
   if (_node == nullptr) {
     return;
   }
-  esp_err_t err = twai_node_disable(_node);
-  if ((err == ESP_ERR_INVALID_STATE) && _node_enabled) {
-    // Disable failed because the node is bus-off. Start recovery and wait for
-    // it to leave the bus-off state. Once recovered we can then disable and
-    // delete the node.
-    twai_node_recover(_node);
-    twai_node_status_t status;
-    bool recovered = false;
-    for (int i = 0; i < 100; i++) { // Up to ~100 ms
-      if ((twai_node_get_info(_node, &status, nullptr) == ESP_OK) &&
-          (status.state != TWAI_ERROR_BUS_OFF)) {
-        recovered = true;
-        break;
-      }
-      vTaskDelay(pdMS_TO_TICKS(1));
-    }
-    if (!recovered) {
-      // Bus is still broken, keep the (bus-off) node so a later begin() can
-      // retry. Any new node creation will fail until it recovers.
-      return;
-    }
-    twai_node_disable(_node); // Should succeed once recovered
+  twai_node_status_t status;
+  if ((twai_node_get_info(_node, &status, nullptr) == ESP_OK) &&
+      (status.state == TWAI_ERROR_BUS_OFF)) {
+    // Node is bus-off, disabling would fail, so leave it running and give up.
+    return;
+  }
+  if (twai_node_disable(_node) != ESP_OK) {
+    return; // Already disabled, or another error - nothing to tear down
   }
   _node_enabled = false;
-  // Having successfully disabled, we can delete.
-  twai_node_delete(_node);
+  twai_node_delete(_node); // Requires the node to be disabled first
   _node = nullptr;
   resetTxSlots();
   _rx_head = 0;
@@ -202,6 +187,15 @@ uint32_t TWAI_ESP32::statusRegister(void) const {
     }
   }
   return result;
+}
+
+// Start a bus-off recovery (non-blocking).
+// The ESP32's controller doesn't recover automatically.
+bool TWAI_ESP32::recoverFromBusOff(void) {
+  if (_node == nullptr) {
+    return false;
+  }
+  return twai_node_recover(_node) == ESP_OK;
 }
 
 // Called from ESP-IDF ISR context when a TX completes.
