@@ -1755,7 +1755,11 @@ void onOTAStart() {
 void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (ota_progress_timer.elapsed()) {
-    logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+    if (final > 0) {
+      constexpr float BYTES_PER_KB = 1024.0f;
+      float percent = (float)current * 100.0f / (float) final;
+      logging.printf("OTA progress: %.1f%% (%.1f / %.1f KB)\n", percent, current / BYTES_PER_KB, final / BYTES_PER_KB);
+    }
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
