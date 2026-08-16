@@ -131,8 +131,8 @@ bool TWAI_ESP32::tryToSend(const CANMessage &message) {
   if (_node == nullptr) {
     return false;
   }
-  // Grab a free transmit slot. The slot stays reserved until the frame has
-  // actually been sent (TX done callback), including time spent in our FIFO.
+  // Grab a free transmit slot. These remain in use until the TX callback fires
+  // (ESP-IDF references our frame memory).
   TxSlot *slot = nullptr;
   portENTER_CRITICAL(&_mux);
   for (uint8_t i = 0; i < _tx_slot_count; i++) {
@@ -159,38 +159,11 @@ bool TWAI_ESP32::tryToSend(const CANMessage &message) {
     slot->data[i] = message.data[i];
   }
 
-  const uint8_t slot_index = (uint8_t)(slot - _tx_slots);
-
-  // Only hand the driver one frame at a time (see the header for why). If a
-  // frame is already in flight, park ours in the FIFO; the TX done callback
-  // feeds it to the driver when the bus frees up.
-  TxSlot *submit = nullptr;
-  portENTER_CRITICAL(&_mux);
-  if (!_tx_in_flight) {
-    // Driver idle: submit directly. hw_busy is false here, so the driver
-    // takes its direct-transmit fast path, never its racy queue path.
-    _tx_in_flight = true;
-    submit = slot;
-  } else if (_tx_pending_count < _tx_slot_count) {
-    _tx_pending[_tx_pending_tail] = slot_index;
-    _tx_pending_tail = (uint8_t)((_tx_pending_tail + 1) % _tx_slot_count);
-    _tx_pending_count = (uint8_t)(_tx_pending_count + 1);
-    portEXIT_CRITICAL(&_mux);
-    return true;  // Accepted into the FIFO
-  } else {
-    slot->in_use = false;  // FIFO full: drop
-    portEXIT_CRITICAL(&_mux);
-    return false;
-  }
-  portEXIT_CRITICAL(&_mux);
-
-  const esp_err_t err = twai_node_transmit(_node, &submit->frame, 0); // Non-blocking
+  const esp_err_t err = twai_node_transmit(_node, &slot->frame, 0); // Non-blocking
   if (err != ESP_OK) {
-    // Driver refused the frame (e.g. node is bus-off). Return the slot; the
-    // next call will retry with whatever is queued.
+    // If it failed, recover the slot immediately (the TX callback will not fire)
     portENTER_CRITICAL(&_mux);
-    submit->in_use = false;
-    _tx_in_flight = false;
+    slot->in_use = false;
     portEXIT_CRITICAL(&_mux);
     return false;
   }
@@ -224,46 +197,22 @@ bool TWAI_ESP32::recoverFromBusOff(void) {
 }
 
 // Called from ESP-IDF ISR context when a TX completes.
-// Frees the completed transmit slot and feeds the next queued frame to the
-// driver (one frame at a time - see the header for the rationale).
+// Finds the used transmit slot and marks it free.
 TWAI_ISR_CALLBACK_ATTR bool TWAI_ESP32::txDoneCallback(twai_node_handle_t handle,
                                 const twai_tx_done_event_data_t *edata,
                                 void *user_data) {
   TWAI_ESP32 *self = (TWAI_ESP32*)user_data;
-  if (edata->done_tx_frame == nullptr) {
-    return false;
-  }
-
-  TxSlot *next = nullptr;
-  portENTER_CRITICAL(&self->_mux);
-  for (uint8_t i = 0; i < _tx_slot_count; i++) {
-    if (&self->_tx_slots[i].frame == edata->done_tx_frame) {
-      self->_tx_slots[i].in_use = false;
-      break;
+  if (edata->done_tx_frame != nullptr) {
+    portENTER_CRITICAL(&self->_mux);
+    for (uint8_t i = 0; i < _tx_slot_count; i++) {
+      if (&self->_tx_slots [i].frame == edata->done_tx_frame) {
+        self->_tx_slots [i].in_use = false;
+        break;
+      }
     }
+    portEXIT_CRITICAL(&self->_mux);
   }
-  self->_tx_in_flight = false;
-  if (self->_tx_pending_count > 0) {
-    const uint8_t idx = self->_tx_pending[self->_tx_pending_head];
-    self->_tx_pending_head = (uint8_t)((self->_tx_pending_head + 1) % _tx_slot_count);
-    self->_tx_pending_count = (uint8_t)(self->_tx_pending_count - 1);
-    next = &self->_tx_slots[idx];
-    self->_tx_in_flight = true;
-  }
-  portEXIT_CRITICAL(&self->_mux);
-
-  if (next != nullptr) {
-    // We are inside the driver's TX-done ISR, so hw_busy is still held and the
-    // driver enqueues + immediately dequeues this frame itself - its racy
-    // second-chance path is never taken.
-    if (twai_node_transmit(handle, &next->frame, 0) != ESP_OK) {
-      portENTER_CRITICAL(&self->_mux);
-      next->in_use = false;
-      self->_tx_in_flight = false;
-      portEXIT_CRITICAL(&self->_mux);
-    }
-  }
-  return false;  // No task was unblocked
+  return false;
 }
 
 // Called from ESP-IDF ISR context when a RX completes.
@@ -306,9 +255,5 @@ void TWAI_ESP32::resetTxSlots(void) {
   for (uint8_t i = 0; i < _tx_slot_count; i++) {
     _tx_slots [i].in_use = false;
   }
-  _tx_in_flight = false;
-  _tx_pending_head = 0;
-  _tx_pending_tail = 0;
-  _tx_pending_count = 0;
   portEXIT_CRITICAL(&_mux);
 }
