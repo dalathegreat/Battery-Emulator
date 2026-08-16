@@ -80,6 +80,7 @@ add_executable(tests
     battery/NissanLeafTest.cpp
     battery/BydAtto3Test.cpp
     battery/foxess_tests.cpp
+    inverter/voltage_limits_tests.cpp
     battery/still_alive_tests.cpp
     battery/VolvoSPATest.cpp
     battery/UdsCanBatteryTest.cpp

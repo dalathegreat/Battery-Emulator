@@ -6,6 +6,98 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
+#define MIN(a, b)           \
+  ({                        \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a < _b ? _a : _b;      \
+  })
+#define MAX(a, b)           \
+  ({                        \
+    __typeof__(a) _a = (a); \
+    __typeof__(b) _b = (b); \
+    _a > _b ? _a : _b;      \
+  })
+
+BydVoltageLimits BydCanInverter::calculate_dynamic_voltage_limits() {
+  BydVoltageLimits limits = {0, UINT16_MAX};
+
+  if (datalayer.battery.info.number_of_cells == 0)
+    return limits;
+
+  int32_t cell_max_limit_mV = datalayer.battery.info.max_cell_voltage_mV - 100;
+  int32_t max_limit_dV = (cell_max_limit_mV * datalayer.battery.info.number_of_cells) / 100;
+  int32_t cell_min_limit_mV = datalayer.battery.info.min_cell_voltage_mV + 100;
+  int32_t min_limit_dV = (cell_min_limit_mV * datalayer.battery.info.number_of_cells) / 100;
+
+  // Is it better to use the pack voltage since cellvoltages often refresh very slowly?
+  int32_t cell_total_mV = datalayer.battery.status.voltage_dV * 100;
+
+  // for (uint8_t cell_num = 0; cell_num < datalayer.battery.info.number_of_cells; cell_num++) {
+  //   int32_t cell_voltage_mV = datalayer.battery.status.cell_voltages_mV[cell_num];
+  //   if (cell_voltage_mV == 0 || cell_voltage_mV > datalayer.battery.info.max_cell_voltage_mV) {
+  //     // Invalid cell voltage reading, bail
+  //     return UINT16_MAX;
+  //   }
+  //   cell_total_mV += cell_voltage_mV;
+  // }
+  int32_t mean_cell_voltage_mV = cell_total_mV / datalayer.battery.info.number_of_cells;
+
+  // How far is the highest cell above the mean?
+  int32_t deviation_max_mV = datalayer.battery.status.cell_max_voltage_mV - mean_cell_voltage_mV;
+  // Calculate how much to reduce the voltage limit by to account for this
+  // deviation, to avoid overcharging the highest cell.
+  int32_t deviation_reduction_mV = deviation_max_mV * datalayer.battery.info.number_of_cells;
+  if (deviation_reduction_mV > 0) {
+    max_limit_dV -= deviation_reduction_mV / 100;
+  }
+
+  // How far is the lowest cell below the mean?
+  int32_t deviation_min_mV = mean_cell_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
+  // Calculate how much to increase the voltage limit by to account for this
+  // deviation, to avoid overdischarging the lowest cell.
+  int32_t deviation_increase_mV = deviation_min_mV * datalayer.battery.info.number_of_cells;
+  if (deviation_increase_mV > 0) {
+    min_limit_dV += deviation_increase_mV / 100;
+  }
+
+  // Apply offsets
+  max_limit_dV -= 8;
+  min_limit_dV += 10;
+
+  limits.max_voltage_dV = MAX(MIN(max_limit_dV, UINT16_MAX), 0);
+  limits.min_voltage_dV = MAX(MIN(min_limit_dV, UINT16_MAX), 0);
+  return limits;
+}
+
+BydVoltageLimits BydCanInverter::calculate_voltage_limits() {
+  // Not sure why offset is subtracted from max and added to min, but this is
+  // what the original code did.
+  uint16_t max_voltage_dV = datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV;
+  uint16_t min_voltage_dV = datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV;
+
+  if (datalayer.battery.settings.user_set_voltage_limits_active) {
+    if (datalayer.battery.settings.max_user_set_charge_voltage_dV > 0 &&
+        datalayer.battery.settings.max_user_set_charge_voltage_dV < max_voltage_dV) {
+      max_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
+    }
+    if (datalayer.battery.settings.max_user_set_discharge_voltage_dV > 0 &&
+        datalayer.battery.settings.max_user_set_discharge_voltage_dV > min_voltage_dV) {
+      min_voltage_dV = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
+    }
+  }
+
+  auto dynamic_limits = calculate_dynamic_voltage_limits();
+  if (dynamic_limits.max_voltage_dV < max_voltage_dV) {
+    max_voltage_dV = dynamic_limits.max_voltage_dV;
+  }
+  if (dynamic_limits.min_voltage_dV > min_voltage_dV) {
+    min_voltage_dV = dynamic_limits.min_voltage_dV;
+  }
+
+  return {min_voltage_dV, max_voltage_dV};
+}
+
 void BydCanInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
@@ -27,22 +119,28 @@ void BydCanInverter::
     fully_charged_capacity_ah = (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
   }
 
+  auto voltage_limits = calculate_voltage_limits();
+  BYD_110.data.u8[0] = (voltage_limits.max_voltage_dV >> 8);
+  BYD_110.data.u8[1] = (voltage_limits.max_voltage_dV & 0x00FF);
+  BYD_110.data.u8[2] = (voltage_limits.min_voltage_dV >> 8);
+  BYD_110.data.u8[3] = (voltage_limits.min_voltage_dV & 0x00FF);
+
   //Map values to CAN messages
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
-    //Target charge voltage (eg 400.0V = 4000 , 16bits long)
-    BYD_110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
-    BYD_110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
-    //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
-    BYD_110.data.u8[2] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
-    BYD_110.data.u8[3] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
-  } else {  //Use the voltage based on battery reported design voltage +- offset to avoid triggering events
-    //Target charge voltage (eg 400.0V = 4000 , 16bits long)
-    BYD_110.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
-    BYD_110.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
-    //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
-    BYD_110.data.u8[2] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
-    BYD_110.data.u8[3] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
-  }
+  // if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  //   //Target charge voltage (eg 400.0V = 4000 , 16bits long)
+  //   BYD_110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
+  //   BYD_110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
+  //   //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
+  //   BYD_110.data.u8[2] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
+  //   BYD_110.data.u8[3] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
+  // } else {  //Use the voltage based on battery reported design voltage +- offset to avoid triggering events
+  //   //Target charge voltage (eg 400.0V = 4000 , 16bits long)
+  //   BYD_110.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
+  //   BYD_110.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
+  //   //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
+  //   BYD_110.data.u8[2] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
+  //   BYD_110.data.u8[3] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
+  // }
 
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
