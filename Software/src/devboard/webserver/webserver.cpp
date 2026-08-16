@@ -38,7 +38,7 @@ AsyncWebServer server(80);
 AsyncAuthenticationMiddleware web_auth_middleware;
 
 // Measure OTA progress
-unsigned long ota_progress_millis = 0;
+static MyTimer ota_progress_timer = MyTimer(1000);
 
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
@@ -1754,8 +1754,7 @@ void onOTAStart() {
 
 void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
-  if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();
+  if (ota_progress_timer.elapsed()) {
     logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
     // Reset the "watchdog"
     ota_timeout_timer.reset();
