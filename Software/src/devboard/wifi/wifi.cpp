@@ -22,11 +22,11 @@ std::string passwordAP;
 const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
-bool static_IP_enabled = false;
-std::string static_local_IP;
-std::string static_gateway;
-std::string static_subnet;
-std::string static_dns;
+bool wifi_static_IP_enabled = false;
+IPAddress wifi_static_local_IP;
+IPAddress wifi_static_gateway;
+IPAddress wifi_static_subnet;
+IPAddress wifi_static_dns;
 
 // Configuration Parameters
 static const uint16_t WIFI_CHECK_INTERVAL = 2000;            // 2 s normal check interval when last connected
@@ -157,17 +157,14 @@ void init_WiFi() {
   WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
   WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
 
-  if (static_IP_enabled) {
-    IPAddress local_IP, gateway, subnet, dns;
-    if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
-        subnet.fromString(static_subnet.c_str())) {
+  if (wifi_static_IP_enabled) {
+    if (wifi_static_local_IP != IPAddress() && wifi_static_gateway != IPAddress() &&
+        wifi_static_subnet != IPAddress()) {
       // WiFi.config() stops the DHCP client and unconditionally overwrites the DNS server. Passing no DNS
       // therefore leaves the resolver at 0.0.0.0 and breaks MQTT-by-hostname/release checks. Default to
       // the gateway, which is the resolver on virtually every home network.
-      if (!dns.fromString(static_dns.c_str())) {
-        dns = gateway;
-      }
-      if (!WiFi.config(local_IP, gateway, subnet, dns)) {
+      IPAddress dns = (wifi_static_dns != IPAddress()) ? wifi_static_dns : wifi_static_gateway;
+      if (!WiFi.config(wifi_static_local_IP, wifi_static_gateway, wifi_static_subnet, dns)) {
         logging.println("Static IP configuration rejected, falling back to DHCP");
       }
     } else {
