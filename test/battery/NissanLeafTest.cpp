@@ -699,8 +699,13 @@ TEST(NissanLeafShutdownSequenceTests, ShouldDecodeRefuseToSleepSeparatelyFromEmp
     leaf.update_values();
   };
 
-  // byte 6 = 0x30 -> LB_REFUSE = 3, LB_EMPTY = 0. A refusal must not look like an empty pack.
-  send_55b_byte6(0x30);
+  // byte 6 = 0x10 -> LB_REFUSE = 01b (RefuseToSleep), LB_EMPTY = 0. A refusal must not look
+  // like an empty pack.
+  send_55b_byte6(0x10);
+  EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
+
+  // byte 6 = 0x20 -> LB_REFUSE = 10b (ReadyToSleep), still not empty.
+  send_55b_byte6(0x20);
   EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
 
   // byte 6 = 0x80 -> LB_EMPTY = 1, LB_REFUSE = 0. Reading the wrong bits would swap these.

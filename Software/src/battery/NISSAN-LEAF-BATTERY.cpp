@@ -377,8 +377,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
          frame, and reported again by the sequence at the point it matters. */
       battery_RefuseToSleep = ((rx_frame.data.u8[6] & 0x30) >> 4);
       if (battery_RefuseToSleep != battery_RefuseToSleep_last) {
-        DEBUG_PRINTF("LEAF: LB_REFUSE (RefusetoSleep) changed %u -> %u\n", battery_RefuseToSleep_last,
-                     battery_RefuseToSleep);
+        DEBUG_PRINTF("LEAF: LB_REFUSE changed %u (%s) -> %u (%s)\n", battery_RefuseToSleep_last,
+                     refuse_to_sleep_name(battery_RefuseToSleep_last), battery_RefuseToSleep,
+                     refuse_to_sleep_name(battery_RefuseToSleep));
         battery_RefuseToSleep_last = battery_RefuseToSleep;
       }
       break;
@@ -1255,8 +1256,9 @@ track of which phase the sequence is in. */
    as the BMS is answering; the step where it jumps is the step the BMS stopped responding
    to, which is what tells you whether it received the rest of the sequence at all. */
 void NissanLeafBattery::log_shutdown_step(const char* step, unsigned long currentMillis) {
-  DEBUG_PRINTF("LEAF: Shut-down step: %s - BMS last heard from %lu ms ago, LB_REFUSE=%u\n", step,
-               currentMillis - lastCanFrameReceivedMillis, battery_RefuseToSleep);
+  DEBUG_PRINTF("LEAF: Shut-down step: %s - BMS last heard from %lu ms ago, LB_REFUSE=%u (%s)\n", step,
+               currentMillis - lastCanFrameReceivedMillis, battery_RefuseToSleep,
+               refuse_to_sleep_name(battery_RefuseToSleep));
 }
 
 void NissanLeafBattery::request_bms_shutdown_sequence() {
@@ -1265,6 +1267,19 @@ void NissanLeafBattery::request_bms_shutdown_sequence() {
     shutdownState = SHUTDOWN_CHG_STOP;
     shutdownPhaseStartMillis = millis();
     log_shutdown_step("CHG_STA_RQ=11b (0x1F2, charge stop request)", shutdownPhaseStartMillis);
+  }
+}
+
+/* Coding of LB_REFUSE from the pack CAN databook. Note that the signal is not a flag: the
+   LBC accepting the sleep command reads as 2, and only 1 means it is refusing. */
+const char* NissanLeafBattery::refuse_to_sleep_name(uint8_t value) {
+  switch (value) {
+    case 1:
+      return "RefuseToSleep";
+    case 2:
+      return "ReadyToSleep";
+    default:
+      return "reserved";
   }
 }
 
@@ -1342,8 +1357,9 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
          exit is the BMS going quiet, handled above; this is only the safety net for a BMS
          that never stops talking (e.g. something else is keeping the bus alive). */
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS) {
-        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS still talking after %lu ms (LB_REFUSE=%u)\n",
-                     currentMillis - shutdownPhaseStartMillis, battery_RefuseToSleep);
+        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS still talking after %lu ms (LB_REFUSE=%u (%s))\n",
+                     currentMillis - shutdownPhaseStartMillis, battery_RefuseToSleep,
+                     refuse_to_sleep_name(battery_RefuseToSleep));
         shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
         shutdownPhaseStartMillis = currentMillis;
       }
