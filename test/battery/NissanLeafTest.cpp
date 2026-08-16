@@ -6,6 +6,7 @@
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
+#include "../../Software/src/datalayer/datalayer_extended.h"
 #include "../../Software/src/devboard/hal/hal.h"
 
 #include "Arduino.h"
@@ -434,7 +435,8 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
   ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);  // BTONFN=1
   EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);  // RLYP=1
-  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x00);  // CHG_STA_RQ normal
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x20);  // CHG_STA_RQ=01b, held for normal operation
+  EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
   EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0xC0);  // WakeUp
 
   // The reset state machine pauses the battery and asks for the sequence.
@@ -510,7 +512,8 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
   ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);
   EXPECT_EQ(frame_1d4->data.u8[5], 0x46);
-  EXPECT_EQ(frame_1f2->data.u8[2], 0x00);
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x20);  // back to 01b, not 11b
+  EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
   EXPECT_EQ(frame_50b->data.u8[3], 0xC0);
   crc_check = *frame_1d4;
   EXPECT_EQ(frame_1d4->data.u8[7], leaf.calculate_crc(crc_check));
@@ -555,7 +558,10 @@ class IgnitionHal : public Esp32Hal {
 
 /* The spec puts IGN OFF ahead of the charge stop request, so the ignition line has to be
    down before the sequence transmits anything, and has to come back up with the power. */
-TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionLineBeforeTransmittingChargeStop) {
+/* NDS 293A0NDS25 5.1.2 step 3 stops the pack controller by turning IGN off and then sending
+   the sleep command, with the earlier relay-off messages still transmitted while IGN is on.
+   So the line must stay up through the first three steps and drop at the fourth. */
+TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionLineWithTheSleepCommand) {
   Esp32Hal* saved_hal = esp32hal;
   IgnitionHal ignition_hal;
   esp32hal = &ignition_hal;
@@ -570,23 +576,32 @@ TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionLineBeforeTransmittingCh
   NissanLeafBattery leaf;
   leaf.setup();
   leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+  run_leaf_ms(&leaf, 200, true);
 
   clear_pin_writes();
   clear_transmitted_frames();
 
-  // Asking for the sequence drops IGN, before a single frame of the sequence goes out.
+  // Requesting the sequence leaves both lines alone for now.
   datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
   leaf.request_bms_shutdown_sequence();
-  EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
-  EXPECT_TRUE(get_transmitted_frames().empty());
-  EXPECT_NE(get_pin_level(GPIO_NUM_6), LOW);  // BAT line still up, IGN goes first
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), -1);  // ignition not touched yet
 
-  // The charge stop request only starts once the ignition is already down.
-  run_leaf_ms(&leaf, 100, true);
-  const CAN_frame* frame_1f2 = last_transmitted(0x1F2);
-  ASSERT_NE(frame_1f2, nullptr);
-  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x60);
+  // Through the charge stop and both relay steps the ignition stays up.
+  run_leaf_ms(&leaf, 75, true);
+  const CAN_frame* frame_1d4 = last_transmitted(0x1D4);
+  ASSERT_NE(frame_1d4, nullptr);
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);  // BTONFN=0b already sent
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x00);  // RLYP=0b already sent
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), -1);       // and IGN is still untouched
+
+  // Reaching the sleep step drops it, and the sleep command goes out in the same step.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 30, true);
   EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
+  EXPECT_NE(get_pin_level(GPIO_NUM_6), LOW);  // BAT line still up
+  const CAN_frame* frame_50b = last_transmitted(0x50B);
+  ASSERT_NE(frame_50b, nullptr);
+  EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0x00);  // GoToSleep
 
   // Restoring power brings the ignition line back up, or the next reset would find it
   // already low and the LBC would never see the transition.
@@ -664,4 +679,35 @@ TEST(NissanLeafShutdownSequenceTests, ShouldStopTransmittingWhenBmsGoesQuietMidS
   EXPECT_TRUE(leaf.bms_shutdown_sequence_completed());
 
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+/* LB_REFUSE (LB_RefusetoSleep) sits in 0x55B byte 6 start bit 5, length 2, immediately below
+   LB_EMPTY in bit 7. They are one bit apart, so this pins that a refusal is not read as the
+   pack being empty (which would stop discharge) and vice versa. */
+TEST(NissanLeafShutdownSequenceTests, ShouldDecodeRefuseToSleepSeparatelyFromEmpty) {
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+
+  // 0x55B carries a CRC in byte 7, so the frames have to be signed or they are discarded.
+  auto send_55b_byte6 = [&](uint8_t byte6) {
+    CAN_frame frame = leaf_frame(0x55B, {0, 0, 0, 0, 0, 0, byte6, 0});
+    frame.data.u8[7] = leaf.calculate_crc(frame);
+    leaf.handle_incoming_can_frame(frame);
+    leaf.update_values();
+  };
+
+  // byte 6 = 0x30 -> LB_REFUSE = 3, LB_EMPTY = 0. A refusal must not look like an empty pack.
+  send_55b_byte6(0x30);
+  EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
+
+  // byte 6 = 0x80 -> LB_EMPTY = 1, LB_REFUSE = 0. Reading the wrong bits would swap these.
+  send_55b_byte6(0x80);
+  EXPECT_TRUE(datalayer_extended.nissanleaf.Empty);
+
+  // Leave the latched empty state clear so later tests are unaffected.
+  send_55b_byte6(0x00);
+  EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
 }

@@ -292,6 +292,9 @@ class NissanLeafBattery : public CanBattery {
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged
   bool battery_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
   bool battery_Capacity_Empty = false;    //battery_EMPTY, , Goes to 1 if battery is empty
+  //LB_REFUSE (LB_RefusetoSleep), 0x55B byte 6 start bit 5, length 2. Non-zero = LBC declines to sleep.
+  uint8_t battery_RefuseToSleep = 0;
+  uint8_t battery_RefuseToSleep_last = 0;
   bool battery_HeatExist = false;      //battery_HEATEXIST, Specifies if battery pack is equipped with heating elements
   bool battery_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
   bool battery_Heating_Start = false;  //When transitioning from 1->0, signals a START heat request

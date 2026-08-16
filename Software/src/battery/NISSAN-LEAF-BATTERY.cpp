@@ -371,6 +371,16 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_SOC = battery_TEMP;
       }
       battery_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      /* LB_RefusetoSleep, byte 6 start bit 5, length 2 (pack CAN databook). The LBC states
+         here whether it is declining to go to sleep, which is the direct answer to the
+         GoToSleep command the shut-down sequence sends. Logged on change rather than every
+         frame, and reported again by the sequence at the point it matters. */
+      battery_RefuseToSleep = ((rx_frame.data.u8[6] & 0x30) >> 4);
+      if (battery_RefuseToSleep != battery_RefuseToSleep_last) {
+        DEBUG_PRINTF("LEAF: LB_REFUSE (RefusetoSleep) changed %u -> %u\n", battery_RefuseToSleep_last,
+                     battery_RefuseToSleep);
+        battery_RefuseToSleep_last = battery_RefuseToSleep;
+      }
       break;
     case 0x5BC:
       battery_can_alive = true;
@@ -1062,13 +1072,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
-      // Shut down sequence: "CHG_STA_RQ=11b transmit" (charge status transition stop request,
-      // bits 5-6 of byte 2). Kept at 11b during the whole sequence.
-      LEAF_1F2.data.u8[2] = (shutdownState != SHUTDOWN_INACTIVE) ? 0x60 : 0x00;
-      if (shutdownState != SHUTDOWN_INACTIVE) {
-        //Contents changed, recalculate the nibble checksum in the low nibble of byte 7
-        LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | calculate_checksum_nibble(LEAF_1F2);
-      }
+      /* CHG_STA_RQ (Charge_StatusTransitionReqest) lives in bits 6-5 of byte 2. Per the
+         start-up sequence it is transmitted as 01b ("Normal Charge") and held there for all
+         of normal operation, and the shut-down sequence raises it to 11b ("Stop Request").
+         Byte 2 also carries KEEP_SOC_REQ (bit 4) and PSCONDET (bit 1), so only the two bits
+         that belong to this signal are touched. */
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | ((shutdownState != SHUTDOWN_INACTIVE) ? 0x60 : 0x20);
+      //Contents changed, recalculate the nibble checksum in the low nibble of byte 7
+      LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | calculate_checksum_nibble(LEAF_1F2);
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
@@ -1244,17 +1255,13 @@ track of which phase the sequence is in. */
    as the BMS is answering; the step where it jumps is the step the BMS stopped responding
    to, which is what tells you whether it received the rest of the sequence at all. */
 void NissanLeafBattery::log_shutdown_step(const char* step, unsigned long currentMillis) {
-  DEBUG_PRINTF("LEAF: Shut-down step: %s - BMS last heard from %lu ms ago\n", step,
-               currentMillis - lastCanFrameReceivedMillis);
+  DEBUG_PRINTF("LEAF: Shut-down step: %s - BMS last heard from %lu ms ago, LB_REFUSE=%u\n", step,
+               currentMillis - lastCanFrameReceivedMillis, battery_RefuseToSleep);
 }
 
 void NissanLeafBattery::request_bms_shutdown_sequence() {
   if (shutdownState == SHUTDOWN_INACTIVE) {
     DEBUG_PRINTF("LEAF: Starting BMS shut-down sequence\n");
-    /* "IGN OFF" is the first line of the sequence in the spec, ahead of the charge stop
-       request, so drop the ignition line here rather than leaving it to the power cut.
-       No-op on hardware without a separate IGN line. */
-    bms_ignit_off();
     shutdownState = SHUTDOWN_CHG_STOP;
     shutdownPhaseStartMillis = millis();
     log_shutdown_step("CHG_STA_RQ=11b (0x1F2, charge stop request)", shutdownPhaseStartMillis);
@@ -1284,8 +1291,8 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
      skips straight to the wait instead of transmitting a whole sequence into nothing. */
   if (shutdownState >= SHUTDOWN_CHG_STOP && shutdownState <= SHUTDOWN_GOTOSLEEP &&
       currentMillis - lastCanFrameReceivedMillis >= SHUTDOWN_BMS_CAN_SILENT_MS) {
-    DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS quiet for %lu ms (last step sent: %s)\n",
-                 currentMillis - lastCanFrameReceivedMillis, shutdown_step_name(shutdownState));
+    DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS quiet for %lu ms (last step sent: %s, LB_REFUSE=%u)\n",
+                 currentMillis - lastCanFrameReceivedMillis, shutdown_step_name(shutdownState), battery_RefuseToSleep);
     shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
     shutdownPhaseStartMillis = currentMillis;
     return;
@@ -1317,6 +1324,11 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
         shutdownState = SHUTDOWN_GOTOSLEEP;
         shutdownPhaseStartMillis = currentMillis;
         log_shutdown_step("VCM_WakeUpSleepCommand=00b (0x50B, GoToSleep)", currentMillis);
+        /* NDS 293A0NDS25 5.1.2 step 3 stops the controller in the pack by turning the IGN
+           signals off first (3.1) and sending the sleep command second (3.2), with the
+           relay-off messages above still sent while IGN is on. No-op on hardware without a
+           separate IGN line. */
+        bms_ignit_off();
         /* 0x50B is only transmitted every 100ms, so on a BMS that leaves the bus shortly
            after the sequence starts, waiting for its next slot can mean the GoToSleep
            command never goes out at all. Send one right away as well; the periodic copies
@@ -1330,8 +1342,8 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
          exit is the BMS going quiet, handled above; this is only the safety net for a BMS
          that never stops talking (e.g. something else is keeping the bus alive). */
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS) {
-        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS still talking after %lu ms\n",
-                     currentMillis - shutdownPhaseStartMillis);
+        DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS still talking after %lu ms (LB_REFUSE=%u)\n",
+                     currentMillis - shutdownPhaseStartMillis, battery_RefuseToSleep);
         shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
         shutdownPhaseStartMillis = currentMillis;
       }
