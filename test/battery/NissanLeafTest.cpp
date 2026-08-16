@@ -766,3 +766,49 @@ TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionBeforeAnySleepCommandRea
   remote_bms_reset = saved_remote;
   esp32hal = saved_hal;
 }
+
+/* The core loop samples currentMillis once per iteration and hands that same value to every
+   transmitter, while the reset trigger and the CAN receive path both read millis() live. So
+   transmit_can() can legitimately be called with a currentMillis a millisecond or two BEHIND
+   the phase start or the last receive timestamp. Unsigned subtraction wraps there, which
+   collapsed the first step to nothing and could have ended the CAN part of the sequence
+   before it began. */
+TEST(NissanLeafShutdownSequenceTests, ShouldNotCollapseStepsWhenTimestampsRunAhead) {
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  CAN_frame alive = leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0});
+  leaf.handle_incoming_can_frame(alive);
+  run_leaf_ms(&leaf, 200, true);
+
+  // The reset path stamps the phase with a live millis(), 2 ms ahead of the sample the
+  // transmit loop is still holding.
+  datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+  set_millis64(millis() + 2);
+  leaf.request_bms_shutdown_sequence();
+
+  /* Run the loop the way the firmware does: every transmitter gets the currentMillis
+     sampled at the top of the iteration, while receives keep stamping live millis(). */
+  const unsigned long start = millis();
+  long btonfn_cleared_at = -1;
+  for (int i = 0; i < 300; i++) {
+    set_millis64(millis() + 1);
+    if (millis() % 10 == 0) {
+      leaf.handle_incoming_can_frame(alive);
+    }
+    clear_transmitted_frames();
+    leaf.transmit_can(millis() - 2);
+    const CAN_frame* frame_1d4 = last_transmitted(0x1D4);
+    if (btonfn_cleared_at < 0 && frame_1d4 != nullptr && (frame_1d4->data.u8[4] & 0x04) == 0x00) {
+      btonfn_cleared_at = (long)(millis() - start);
+    }
+  }
+
+  // Step 2 must wait out the step dwell rather than firing on the first call.
+  ASSERT_GE(btonfn_cleared_at, 0);
+  EXPECT_GE(btonfn_cleared_at, 25);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}

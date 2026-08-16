@@ -1270,6 +1270,17 @@ void NissanLeafBattery::request_bms_shutdown_sequence() {
   }
 }
 
+/* Time comparison for the shut-down sequence. The core loop samples currentMillis once and
+   passes that same value to every transmitter, but the reset code and the CAN receive path
+   both call millis() live, so a phase start or a receive timestamp can be a millisecond or
+   two AHEAD of the currentMillis this runs with. Plain unsigned subtraction then wraps to
+   about 49 days and every interval looks elapsed. Casting the difference to signed keeps
+   both the normal case and the rollover at 49 days correct, and reads a future timestamp as
+   "not yet". */
+static bool elapsed_since(unsigned long now, unsigned long since, unsigned long interval) {
+  return (long)(now - since) >= (long)interval;
+}
+
 /* Coding of LB_REFUSE from the pack CAN databook. Note that the signal is not a flag: the
    LBC accepting the sleep command reads as 2, and only 1 means it is refusing. */
 const char* NissanLeafBattery::refuse_to_sleep_name(uint8_t value) {
@@ -1305,9 +1316,10 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
      rather than only in the last one, so a reset started on an already unresponsive BMS
      skips straight to the wait instead of transmitting a whole sequence into nothing. */
   if (shutdownState >= SHUTDOWN_CHG_STOP && shutdownState <= SHUTDOWN_GOTOSLEEP &&
-      currentMillis - lastCanFrameReceivedMillis >= SHUTDOWN_BMS_CAN_SILENT_MS) {
-    DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS quiet for %lu ms (last step sent: %s, LB_REFUSE=%u)\n",
-                 currentMillis - lastCanFrameReceivedMillis, shutdown_step_name(shutdownState), battery_RefuseToSleep);
+      elapsed_since(currentMillis, lastCanFrameReceivedMillis, SHUTDOWN_BMS_CAN_SILENT_MS)) {
+    DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS quiet for %lu ms (last step sent: %s, LB_REFUSE=%u (%s))\n",
+                 currentMillis - lastCanFrameReceivedMillis, shutdown_step_name(shutdownState), battery_RefuseToSleep,
+                 refuse_to_sleep_name(battery_RefuseToSleep));
     shutdownState = SHUTDOWN_WAIT_BEFORE_BAT_OFF;
     shutdownPhaseStartMillis = currentMillis;
     return;
@@ -1319,7 +1331,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       break;
     case SHUTDOWN_CHG_STOP:
       //"CHG_STA_RQ=11b" is being transmitted in 0x1F2
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
+      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_STEP_DURATION_MS)) {
         shutdownState = SHUTDOWN_BTONFN_OFF;
         shutdownPhaseStartMillis = currentMillis;
         log_shutdown_step("BTONFN=0b (0x1D4, HV supply off, MAIN RLY P(+))", currentMillis);
@@ -1327,7 +1339,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       break;
     case SHUTDOWN_BTONFN_OFF:
       //"BTONFN=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY P(+) OFF)
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
+      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_STEP_DURATION_MS)) {
         shutdownState = SHUTDOWN_RLYP_OFF;
         shutdownPhaseStartMillis = currentMillis;
         log_shutdown_step("RLYP=0b (0x1D4, main relay plus off, MAIN RLY N(-))", currentMillis);
@@ -1335,7 +1347,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       break;
     case SHUTDOWN_RLYP_OFF:
       //"RLYP=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY N(-) OFF)
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
+      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_STEP_DURATION_MS)) {
         shutdownState = SHUTDOWN_GOTOSLEEP;
         shutdownPhaseStartMillis = currentMillis;
         /* NDS 293A0NDS25 5.1.2 step 3 stops the controller in the pack by turning the IGN
@@ -1357,7 +1369,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       /* "VCM_WakeUpSleepCommand=00b" (GoToSleep) is being transmitted in 0x50B. The normal
          exit is the BMS going quiet, handled above; this is only the safety net for a BMS
          that never stops talking (e.g. something else is keeping the bus alive). */
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_GOTOSLEEP_TIMEOUT_MS) {
+      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_GOTOSLEEP_TIMEOUT_MS)) {
         DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS still talking after %lu ms (LB_REFUSE=%u (%s))\n",
                      currentMillis - shutdownPhaseStartMillis, battery_RefuseToSleep,
                      refuse_to_sleep_name(battery_RefuseToSleep));
@@ -1368,7 +1380,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
     case SHUTDOWN_WAIT_BEFORE_BAT_OFF:
       //All CAN transmission towards the battery is now stopped.
       //Spec: "Wait (more than 1min)" before BAT OFF (power removal)
-      if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_BAT_OFF_DELAY_MS) {
+      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_BAT_OFF_DELAY_MS)) {
         DEBUG_PRINTF("LEAF: BMS shut-down sequence completed, power can be removed\n");
         shutdownState = SHUTDOWN_COMPLETED;
       }
