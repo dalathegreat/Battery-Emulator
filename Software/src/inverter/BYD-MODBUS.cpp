@@ -104,20 +104,13 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   } else {
     mbPV[303] = datalayer.battery.status.reported_soc;
   }
-  if (battery2) {
-    mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh + datalayer.battery2.info.total_capacity_Wh,
-                         static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  } else {
-    mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  }
-  if (battery2) {
-    mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh +
-                             datalayer.battery2.status.reported_remaining_capacity_Wh,
-                         static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  } else {
-    mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
-                         static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  }
+  // Both capacity registers report the scaled (reported_) values, matching mbPV[202] in the p201 block.
+  // update_calculated_values() already sums battery 2 and 3 into the reported_ fields of battery 1,
+  // so no per-battery addition is needed here.
+  mbPV[304] =
+      std::min(datalayer.battery.info.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
+                       static_cast<uint32_t>(57960u));                        //Cap to 58kWh
   mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));       //Cap to 30000 if exceeding
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));          //Cap to 30000 if exceeding
   mbPV[310] = datalayer.battery.status.voltage_dV;                            // DC inner voltage.
