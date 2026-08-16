@@ -1774,7 +1774,7 @@ void onOTAEnd(bool success) {
     graceful_restart();
   } else {
     LOG_SET_NEXT_SEVERITY(3);  // err
-    logging.println("There was an error during OTA update!");
+    logging.println("OTA update failed.");
     // Unpause battery (preserving equipment stop if set)
     setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
   }
