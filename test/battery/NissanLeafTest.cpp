@@ -716,3 +716,53 @@ TEST(NissanLeafShutdownSequenceTests, ShouldDecodeRefuseToSleepSeparatelyFromEmp
   send_55b_byte6(0x00);
   EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
 }
+
+/* The ignition line has to be down before the sleep command reaches the wire, not merely
+   in the same step: NDS 293A0NDS25 5.1.2 orders IGN off (3.1) ahead of the command (3.2).
+   The two land in the same millisecond, so this pins the ordering inside that tick. */
+TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionBeforeAnySleepCommandReachesTheBus) {
+  Esp32Hal* saved_hal = esp32hal;
+  IgnitionHal ignition_hal;
+  esp32hal = &ignition_hal;
+
+  const bool saved_periodic = periodic_bms_reset;
+  const bool saved_remote = remote_bms_reset;
+  remote_bms_reset = true;
+
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+  run_leaf_ms(&leaf, 200, true);
+
+  clear_pin_writes();
+  clear_transmitted_frames();
+  datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+  leaf.request_bms_shutdown_sequence();
+
+  int sleep_frames_sent_with_ignition_up = 0;
+  CAN_frame alive = leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0});
+  for (unsigned long i = 0; i < 200; i++) {
+    set_millis64(millis() + 1);
+    if (millis() % 10 == 0) {
+      leaf.handle_incoming_can_frame(alive);
+    }
+    const size_t before = get_transmitted_frames().size();
+    leaf.transmit_can(millis());
+    for (size_t k = before; k < get_transmitted_frames().size(); k++) {
+      const CAN_frame& frame = get_transmitted_frames()[k];
+      if (frame.ID == 0x50B && (frame.data.u8[3] & 0xC0) == 0x00 && get_pin_level(GPIO_NUM_7) != LOW) {
+        sleep_frames_sent_with_ignition_up++;
+      }
+    }
+  }
+  EXPECT_EQ(sleep_frames_sent_with_ignition_up, 0);
+  EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  periodic_bms_reset = saved_periodic;
+  remote_bms_reset = saved_remote;
+  esp32hal = saved_hal;
+}

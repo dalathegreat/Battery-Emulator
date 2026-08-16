@@ -1338,12 +1338,13 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
       if (currentMillis - shutdownPhaseStartMillis >= SHUTDOWN_STEP_DURATION_MS) {
         shutdownState = SHUTDOWN_GOTOSLEEP;
         shutdownPhaseStartMillis = currentMillis;
-        log_shutdown_step("VCM_WakeUpSleepCommand=00b (0x50B, GoToSleep)", currentMillis);
         /* NDS 293A0NDS25 5.1.2 step 3 stops the controller in the pack by turning the IGN
            signals off first (3.1) and sending the sleep command second (3.2), with the
            relay-off messages above still sent while IGN is on. No-op on hardware without a
-           separate IGN line. */
+           separate IGN line. Done ahead of the step log so the ordering is visible in the
+           log too: the step line announces a step that has not transmitted anything yet. */
         bms_ignit_off();
+        log_shutdown_step("VCM_WakeUpSleepCommand=00b (0x50B, GoToSleep)", currentMillis);
         /* 0x50B is only transmitted every 100ms, so on a BMS that leaves the bus shortly
            after the sequence starts, waiting for its next slot can mean the GoToSleep
            command never goes out at all. Send one right away as well; the periodic copies
