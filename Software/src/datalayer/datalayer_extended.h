@@ -967,52 +967,6 @@ struct DATALAYER_INFO_ZOE {
   uint8_t COV;
 };
 
-struct DATALAYER_INFO_ZOE_PH2 {
-  uint32_t battery_slave_failures;
-  /** uint16_t */
-  uint16_t battery_soc;
-  uint16_t battery_usable_soc;
-  uint16_t battery_soh;
-  uint16_t battery_pack_voltage;
-  uint16_t battery_max_cell_voltage;
-  uint16_t battery_min_cell_voltage;
-  uint16_t battery_12v;
-  uint16_t battery_avg_temp;
-  uint16_t battery_min_temp;
-  uint16_t battery_max_temp;
-  uint16_t battery_max_power;
-  uint16_t battery_interlock;
-  uint16_t battery_kwh;
-  uint16_t battery_current;
-  uint16_t battery_current_offset;
-  uint16_t battery_max_generated;
-  uint16_t battery_max_available;
-  uint16_t battery_current_voltage;
-  uint16_t battery_charging_status;
-  uint16_t battery_remaining_charge;
-  uint16_t battery_balance_capacity_total;
-  uint16_t battery_balance_time_total;
-  uint16_t battery_balance_capacity_sleep;
-  uint16_t battery_balance_time_sleep;
-  uint16_t battery_balance_capacity_wake;
-  uint16_t battery_balance_time_wake;
-  uint16_t battery_bms_state;
-  uint16_t battery_energy_complete;
-  uint16_t battery_energy_partial;
-  uint16_t battery_mileage;
-  uint16_t battery_fan_speed;
-  uint16_t battery_fan_period;
-  uint16_t battery_fan_control;
-  uint16_t battery_fan_duty;
-  uint16_t battery_temporisation;
-  uint16_t battery_time;
-  uint16_t battery_pack_time;
-  uint16_t battery_soc_min;
-  uint16_t battery_soc_max;
-  /** User requesting NVROL reset via WebUI*/
-  bool UserRequestNVROLReset;
-};
-
 class DataLayerExtended {
  public:
   union {
@@ -1052,7 +1006,6 @@ class DataLayerExtended {
   DATALAYER_INFO_RIVIAN rivian;
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_GEELY_SEA GeelySEA;
-  DATALAYER_INFO_ZOE_PH2 zoePH2;
 
   DataLayerExtended() {
     memset(this, 0, sizeof(DataLayerExtended));

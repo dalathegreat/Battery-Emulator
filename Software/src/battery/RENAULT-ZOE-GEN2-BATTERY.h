@@ -1,27 +1,22 @@
 #ifndef RENAULT_ZOE_GEN2_BATTERY_H
 #define RENAULT_ZOE_GEN2_BATTERY_H
 
-#include "CanBattery.h"
-#include "RENAULT-ZOE-GEN2-HTML.h"
+#include "UdsCanBattery.h"
 
-class RenaultZoeGen2Battery : public CanBattery {
+class RenaultZoeGen2Battery : public UdsCanBattery {
  public:
   // Use this constructor for the second battery.
-  RenaultZoeGen2Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ZOE_PH2* extended,
-                        CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+  RenaultZoeGen2Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = nullptr;
-    datalayer_zoePH2 = extended;
+    dtc = &datalayer_battery->dtc;
 
     battery_pack_voltage_periodic_dV = 0;
   }
 
   // Use the default constructor to create the first or single battery.
-  RenaultZoeGen2Battery() {
+  RenaultZoeGen2Battery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    datalayer_zoePH2 = &datalayer_extended.zoePH2;
+    dtc = &datalayer_battery->dtc;
   }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -30,24 +25,23 @@ class RenaultZoeGen2Battery : public CanBattery {
   static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
 
   bool supports_reset_NVROL() { return true; }
-  void reset_NVROL() { datalayer_extended.zoePH2.UserRequestNVROLReset = true; }
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestedDTCReset = true; }
+  void reset_NVROL() { UserRequestNVROLReset = true; }
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  String get_uds_info_html() override;
 
   uint8_t calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor);
 
- private:
-  RenaultZoeGen2HtmlRenderer renderer;
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
+ private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_ZOE_PH2* datalayer_zoePH2;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
-  bool UserRequestedDTCReset = false;
+  bool UserRequestNVROLReset = false;
 
   bool is_message_corrupt(CAN_frame rx_frame, uint8_t crc_xor);
 
@@ -287,21 +281,12 @@ class RenaultZoeGen2Battery : public CanBattery {
                        .DLC = 3,
                        .ID = 0x6BF,
                        .data = {0x00, 0x00, 0x00}};
-  CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
-                                 .ext_ID = true,
-                                 .DLC = 8,
-                                 .ID = 0x18DADBF1,
-                                 .data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ZOE_POLL_FLOW_CONTROL = {.FD = false,
-                                     .ext_ID = true,
-                                     .DLC = 8,
-                                     .ID = 0x18DADBF1,
-                                     .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ZOE_CLEAR_DTC = {.FD = false,
-                             .ext_ID = true,
-                             .DLC = 8,
-                             .ID = 0x18DADBF1,
-                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_UDS_18DADBF1 = {.FD = false,
+                                .ext_ID = true,
+                                .DLC = 8,
+                                .ID = 0x18DADBF1,
+                                .data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
+  /* For information only 
   //NVROL Reset
   CAN_frame ZOE_NVROL_1_18DADBF1 = {.FD = false,
                                     .ext_ID = true,
@@ -324,178 +309,11 @@ class RenaultZoeGen2Battery : public CanBattery {
                                     .DLC = 8,
                                     .ID = 0x18DADBF1,
                                     .data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA}};
-
-  const uint16_t poll_commands[163] = {POLL_SOC,
-                                       POLL_USABLE_SOC,
-                                       POLL_SOH,
-                                       POLL_PACK_VOLTAGE,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_MAX_CELL_VOLTAGE,
-                                       POLL_MIN_CELL_VOLTAGE,
-                                       POLL_12V,
-                                       POLL_AVG_TEMP,
-                                       POLL_MIN_TEMP,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_MAX_TEMP,
-                                       POLL_MAX_POWER,
-                                       POLL_INTERLOCK,
-                                       POLL_KWH,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CURRENT_OFFSET,
-                                       POLL_MAX_GENERATED,
-                                       POLL_MAX_AVAILABLE,
-                                       POLL_CURRENT_VOLTAGE,
-                                       POLL_CHARGING_STATUS,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_REMAINING_CHARGE,
-                                       POLL_BALANCE_CAPACITY_TOTAL,
-                                       POLL_BALANCE_TIME_TOTAL,
-                                       POLL_BALANCE_CAPACITY_SLEEP,
-                                       POLL_BALANCE_TIME_SLEEP,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_BALANCE_CAPACITY_WAKE,
-                                       POLL_BALANCE_TIME_WAKE,
-                                       POLL_BMS_STATE,
-                                       POLL_BALANCE_SWITCHES,
-                                       POLL_ENERGY_COMPLETE,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_ENERGY_PARTIAL,
-                                       POLL_SLAVE_FAILURES,
-                                       POLL_MILEAGE,
-                                       POLL_FAN_SPEED,
-                                       POLL_FAN_PERIOD,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_FAN_CONTROL,
-                                       POLL_FAN_DUTY,
-                                       POLL_TEMPORISATION,
-                                       POLL_TIME,
-                                       POLL_PACK_TIME,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_SOC_MIN,
-                                       POLL_SOC_MAX,
-                                       POLL_CELL_0,
-                                       POLL_CELL_1,
-                                       POLL_CELL_2,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_3,
-                                       POLL_CELL_4,
-                                       POLL_CELL_5,
-                                       POLL_CELL_6,
-                                       POLL_CELL_7,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_8,
-                                       POLL_CELL_9,
-                                       POLL_CELL_10,
-                                       POLL_CELL_11,
-                                       POLL_CELL_12,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_13,
-                                       POLL_CELL_14,
-                                       POLL_CELL_15,
-                                       POLL_CELL_16,
-                                       POLL_CELL_17,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_18,
-                                       POLL_CELL_19,
-                                       POLL_CELL_20,
-                                       POLL_CELL_21,
-                                       POLL_CELL_22,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_23,
-                                       POLL_CELL_24,
-                                       POLL_CELL_25,
-                                       POLL_CELL_26,
-                                       POLL_CELL_27,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_28,
-                                       POLL_CELL_29,
-                                       POLL_CELL_30,
-                                       POLL_CELL_31,
-                                       POLL_CELL_32,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_33,
-                                       POLL_CELL_34,
-                                       POLL_CELL_35,
-                                       POLL_CELL_36,
-                                       POLL_CELL_37,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_38,
-                                       POLL_CELL_39,
-                                       POLL_CELL_40,
-                                       POLL_CELL_41,
-                                       POLL_CELL_42,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_43,
-                                       POLL_CELL_44,
-                                       POLL_CELL_45,
-                                       POLL_CELL_46,
-                                       POLL_CELL_47,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_48,
-                                       POLL_CELL_49,
-                                       POLL_CELL_50,
-                                       POLL_CELL_51,
-                                       POLL_CELL_52,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_53,
-                                       POLL_CELL_54,
-                                       POLL_CELL_55,
-                                       POLL_CELL_56,
-                                       POLL_CELL_57,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_58,
-                                       POLL_CELL_59,
-                                       POLL_CELL_60,
-                                       POLL_CELL_61,
-                                       POLL_CELL_62,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_63,
-                                       POLL_CELL_64,
-                                       POLL_CELL_65,
-                                       POLL_CELL_66,
-                                       POLL_CELL_67,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_68,
-                                       POLL_CELL_69,
-                                       POLL_CELL_70,
-                                       POLL_CELL_71,
-                                       POLL_CELL_72,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_73,
-                                       POLL_CELL_74,
-                                       POLL_CELL_75,
-                                       POLL_CELL_76,
-                                       POLL_CELL_77,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_78,
-                                       POLL_CELL_79,
-                                       POLL_CELL_80,
-                                       POLL_CELL_81,
-                                       POLL_CELL_82,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_83,
-                                       POLL_CELL_84,
-                                       POLL_CELL_85,
-                                       POLL_CELL_86,
-                                       POLL_CELL_87,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_88,
-                                       POLL_CELL_89,
-                                       POLL_CELL_90,
-                                       POLL_CELL_91,
-                                       POLL_CELL_92,
-                                       POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                       POLL_CELL_93,
-                                       POLL_CELL_94,
-                                       POLL_CELL_95};
+*/
   uint8_t counter_373 = 0;
-  uint8_t poll_index = 0;
-  uint16_t currentpoll = POLL_SOC;
-  uint16_t reply_poll = 0;
   uint8_t counter_10ms = 0;
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
-  unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
   /**
  * @brief Transmit CAN frame 0x376
