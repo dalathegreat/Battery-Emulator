@@ -1,10 +1,17 @@
 //----------------------------------------------------------------------------------------
-//  TWAI_ESP32: native CAN driver for the ESP32 / ESP32-S3, built on the ESP-IDF
-//  TWAI driver (esp_twai.h / esp_twai_onchip.h).
+//  TWAI_ESP32: native CAN driver for the ESP32 family, built on the ESP-IDF TWAI
+//  driver (esp_twai.h / esp_twai_onchip.h).
 //
 //  API:
-//    - TWAI_ESP32(tx_pin, rx_pin)  (construct with the controller GPIO pins;
-//      they are fixed for the lifetime of the instance)
+//    - TWAI_ESP32::instance(controller, tx_pin, rx_pin)
+//      One immortal instance per on-chip TWAI controller, allocated from
+//      internal RAM on first use (so unused controllers cost no RAM) and
+//      never freed. The controller index selects the peripheral slot
+//      (0 .. SOC_TWAI_CONTROLLER_NUM-1: 1 slot on ESP32/S2/S3/C3/H2, 2 on
+//      ESP32-C6, 3 on ESP32-P4); the pins are fixed at first use. Instances
+//      can never be destroyed, stack-allocated or created any other way -
+//      misuse is a compile error, and invalid controller indices, pin
+//      clashes or out-of-memory abort at runtime.
 //    - begin(bit_rate, mode)  (returns 0 on success, else a non-zero ESP error
 //      code; reuses the constructor pins, so a speed change is just
 //      begin(new_bit_rate))
@@ -12,6 +19,9 @@
 //    - end()            (stop the controller and release the driver)
 //    - tryToSend(CANMessage), available(), receive(CANMessage&),
 //      statusRegister(), recoverFromBusOff()
+//
+//  Note: the ESP-IDF driver assigns physical controllers automatically (first
+//  free slot) so the controller index is just a convenience.
 //
 //----------------------------------------------------------------------------------------
 
@@ -22,6 +32,7 @@
 
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
+#include "soc/soc_caps.h"
 
 // If CONFIG_TWAI_ISR_CACHE_SAFE is set, we must ensure that all our callbacks,
 // and all the code they themselves call, are IRAM_ATTR. This allows the ISR to
@@ -78,7 +89,7 @@ static const uint32_t TWAI_BUS_OFF_ST = 0x80; // Controller in bus-off state
 static const uint32_t TWAI_ERR_ST     = 0x40; // Error status (warning/passive/bus-off)
 
 //----------------------------------------------------------------------------------------
-//  TWAI_ESP32 class
+//  TWAI_ESP32 class (singleton per on-chip TWAI controller)
 //----------------------------------------------------------------------------------------
 
 class TWAI_ESP32 {
@@ -90,8 +101,9 @@ public:
     LoopBackMode
   } CANMode;
 
-  TWAI_ESP32(gpio_num_t tx_pin, gpio_num_t rx_pin);
-  ~TWAI_ESP32();
+  // Return the instance corresponding to the given controller index, creating it
+  // if necessary.
+  static TWAI_ESP32 &instance(uint8_t controller, gpio_num_t tx_pin, gpio_num_t rx_pin);
 
   uint32_t begin(const uint32_t bitrate = 500000,
                  const CANMode mode = NormalMode);
@@ -114,11 +126,20 @@ public:
   bool recoverFromBusOff(void);
 
 private:
-  // Disable copy
+  // Instances are immortal singletons, created only via instance(). This also
+  // guarantees the ESP-IDF driver's callback user_data and queued frame
+  // pointers always reference live memory.
+  TWAI_ESP32(gpio_num_t tx_pin, gpio_num_t rx_pin);
+  ~TWAI_ESP32(); // Never invoked: instances are never destroyed
   TWAI_ESP32(const TWAI_ESP32&) = delete;
   TWAI_ESP32& operator = (const TWAI_ESP32&) = delete;
 
+  // Stop the node. May block for a while if the node is bus-off, and is not
+  // guaranteed to succeed.
   void teardownNode(void);
+  // Attempt bus-off recovery, blocking until success or timeout.
+  esp_err_t recoverAndWait(twai_node_handle_t node);
+
   // Event callbacks (called from ESP-IDF)
   static TWAI_ISR_CALLBACK_ATTR bool txDoneCallback(twai_node_handle_t handle,
                                        const twai_tx_done_event_data_t *edata,
@@ -151,6 +172,8 @@ private:
   twai_node_handle_t _node = nullptr;
   bool _node_enabled = false;
   portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
+
+  static constexpr uint32_t kRecoveryTimeoutMs = 100;
 
   void resetTxSlots(void);
   TWAI_ISR_CALLBACK_ATTR void storeRxFrame(const twai_frame_t &frame);

@@ -687,10 +687,9 @@ void restart_can() {
 static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t rx_pin) {
   native_can_speed = speed;
 
-  // Create the driver instance once; its pins are fixed for its lifetime.
-  if (native_can == nullptr) {
-    native_can = new TWAI_ESP32(tx_pin, rx_pin);
-  }
+  // The first argument is the controller index, most chips only have
+  // controller 0.
+  native_can = &TWAI_ESP32::instance(0, tx_pin, rx_pin);
 
   // (Re)start the CAN interface. The ESP-IDF TWAI driver manages the peripheral
   // itself (clock enable + reset on node creation).

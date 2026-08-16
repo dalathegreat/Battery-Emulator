@@ -2,14 +2,60 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <new>
+
+
+// We can't use a conventional constructor/destructor, since we can't reliably
+// destruct nodes in all conditions, which would then leave dangling pointers
+// and leak hardware allocations.
+
+// Instead we have static pointers to the instances (one per controller),
+// allocating them first access.
+
+static TWAI_ESP32 *s_instances[SOC_TWAI_CONTROLLER_NUM];
+static portMUX_TYPE s_instance_mux = portMUX_INITIALIZER_UNLOCKED;
+
+// Return the instance corresponding to the given controller index, creating it
+// if necessary.
+TWAI_ESP32 &TWAI_ESP32::instance(uint8_t controller, gpio_num_t tx_pin, gpio_num_t rx_pin) {
+  if (controller >= SOC_TWAI_CONTROLLER_NUM) {
+    // Chip doesn't have this many controllers.
+    abort();
+  }
+  portENTER_CRITICAL(&s_instance_mux);
+  TWAI_ESP32 *can = s_instances[controller];
+  if (can == nullptr) {
+    // Each controller slot must be wired to its own pin pair (the GPIO matrix
+    // would silently remap shared pins otherwise).
+    for (uint8_t i = 0; i < SOC_TWAI_CONTROLLER_NUM; i++) {
+      TWAI_ESP32 *other = s_instances[i];
+      if (other != nullptr && (other->_tx_pin == tx_pin || other->_rx_pin == rx_pin)) {
+        portEXIT_CRITICAL(&s_instance_mux);
+        // Pins already in-use by another controller instance.
+        abort();
+      }
+    }
+    void *mem = heap_caps_malloc(sizeof(TWAI_ESP32), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (mem == nullptr) {
+      portEXIT_CRITICAL(&s_instance_mux);
+      // Failed to allocate, abort.
+      abort();
+    }
+    can = new (mem) TWAI_ESP32(tx_pin, rx_pin); // Placement-new; never destroyed
+    s_instances[controller] = can;
+  } else if (can->_tx_pin != tx_pin || can->_rx_pin != rx_pin) {
+    portEXIT_CRITICAL(&s_instance_mux);
+    // Pins don't match the original allocation, abort.
+    abort();
+  }
+  portEXIT_CRITICAL(&s_instance_mux);
+  return *can;
+}
 
 TWAI_ESP32::TWAI_ESP32(gpio_num_t tx_pin, gpio_num_t rx_pin)
-    : _tx_slots(), _rx_buffer(), _tx_pin(tx_pin), _rx_pin(rx_pin) {}
+    : _rx_buffer(), _tx_pin(tx_pin), _rx_pin(rx_pin) {}
 
-TWAI_ESP32::~TWAI_ESP32() {
-  // Note - teardownNode() isn't guaranteeed to succeed cleanly.
-  teardownNode();
-}
+TWAI_ESP32::~TWAI_ESP32() = default; // Never invoked: instances are immortal
 
 // Stop and delete the current node (used internally)
 void TWAI_ESP32::teardownNode(void) {
@@ -17,21 +63,44 @@ void TWAI_ESP32::teardownNode(void) {
     return;
   }
   twai_node_status_t status;
-  if ((twai_node_get_info(_node, &status, nullptr) == ESP_OK) &&
-      (status.state == TWAI_ERROR_BUS_OFF)) {
-    // Node is bus-off, disabling would fail, so leave it running and give up.
-    return;
+  const bool bus_off = (twai_node_get_info(_node, &status, nullptr) == ESP_OK) &&
+                       (status.state == TWAI_ERROR_BUS_OFF);
+  if (bus_off) {
+    // The driver cannot disable a bus-off node, so try to recover it first.
+    if (recoverAndWait(_node) != ESP_OK) {
+      return; // Bus still down - keep the node attached for later recovery
+    }
   }
   if (twai_node_disable(_node) != ESP_OK) {
-    return; // Already disabled, or another error - nothing to tear down
+    return; // Cannot disable the node - leave it attached
   }
-  _node_enabled = false;
   twai_node_delete(_node); // Requires the node to be disabled first
   _node = nullptr;
+  _node_enabled = false;
   resetTxSlots();
   _rx_head = 0;
   _rx_tail = 0;
   _rx_count = 0;
+}
+
+// Attempt bus-off recovery, blocking until success or timeout.
+esp_err_t TWAI_ESP32::recoverAndWait(twai_node_handle_t node) {
+  const esp_err_t err = twai_node_recover(node);
+  if (err != ESP_OK) {
+    return err;
+  }
+  const uint32_t start = millis();
+  twai_node_status_t status;
+  do {
+    if (twai_node_get_info(node, &status, nullptr) != ESP_OK) {
+      return ESP_ERR_INVALID_STATE;
+    }
+    if (status.state != TWAI_ERROR_BUS_OFF) {
+      return ESP_OK;
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  } while ((uint32_t)(millis() - start) < kRecoveryTimeoutMs);
+  return ESP_ERR_TIMEOUT;
 }
 
 // Start the controller with the given bitrate, pins and mode.
@@ -39,7 +108,9 @@ uint32_t TWAI_ESP32::begin(const uint32_t bit_rate, const CANMode mode) {
   _bit_rate = bit_rate;
   _mode = mode;
 
-  // If the node already exists, delete it first.
+  // If the node already exists, delete it first. On a bus-off node this tries
+  // recovery first; if the bus is still down, the node is kept attached so a
+  // later begin() / recoverFromBusOff() can retry.
   teardownNode();
 
   resetTxSlots();
@@ -80,14 +151,17 @@ uint32_t TWAI_ESP32::begin(const uint32_t bit_rate, const CANMode mode) {
   twai_event_callbacks_t callbacks = {};
   callbacks.on_tx_done = txDoneCallback;
   callbacks.on_rx_done = rxDoneCallback;
-  if(
-    twai_node_register_event_callbacks(_node, &callbacks, this) != ESP_OK
-    || twai_node_enable(_node) != ESP_OK
-  ) {
-    twai_node_disable(_node);
+  esp_err_t setup_err = twai_node_register_event_callbacks(_node, &callbacks, this);
+  if (setup_err == ESP_OK) {
+    setup_err = twai_node_enable(_node);
+  }
+  if (setup_err != ESP_OK) {
+    // The node is still stopped, so it can be discarded cleanly.
+    twai_node_disable(_node); // May report "already disabled"; ignored
     twai_node_delete(_node);
     _node = nullptr;
-    return (uint32_t) err;
+    _node_enabled = false;
+    return (uint32_t) setup_err;
   }
 
   _node_enabled = true;
