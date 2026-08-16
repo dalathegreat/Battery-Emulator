@@ -46,7 +46,11 @@ void RenaultZoeGen2Battery::update_values() {
     datalayer_battery->status.real_soc = 0;
   }
 
-  datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
+  if (battery_pack_voltage_periodic_dV < 8000) {  //If periodic value is available, use it!
+    datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
+  } else {  //Fallback on polled value if periodic value is not available. This is a workaround for some batteries that do not send periodic voltage updates
+    datalayer_battery->status.voltage_dV = battery_pack_voltage_polled_dV;
+  }
 
   datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
 
