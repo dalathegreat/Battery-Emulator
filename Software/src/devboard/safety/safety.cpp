@@ -569,7 +569,7 @@ void update_machineryprotection() {
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
-  DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
+  DEBUG_PRINTF("Battery pause sequence %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
   if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
