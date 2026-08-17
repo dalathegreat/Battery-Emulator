@@ -89,6 +89,12 @@ String StellantisProOneBattery::get_uds_info_html() {
   // clang-format off
   content << "<h4>BMS HW version number: " << pid_hw_version_num << "</h4>"
               "<h4>SW Homologation Code: " << hexToAscii(pid_sw_homologation_code).c_str() << "</h4>"
+              "<h4>Unknown12: " << pid_unknown_12 << "</h4>"
+              "<h4>Unknown12: " << pid_unknown_178 << "</h4>"
+              "<h4>Unknown12: " << pid_unknown_179 << "</h4>"
+              "<h4>Unknown12: " << pid_unknown_180 << "</h4>"
+              "<h4>Unknown12: " << pid_unknown_181 << "</h4>"
+              "<h4>Unknown12: " << pid_unknown_182 << "</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
