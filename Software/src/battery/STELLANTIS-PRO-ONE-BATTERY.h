@@ -24,7 +24,7 @@ class StellantisProOneBattery : public UdsCanBattery {
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
-  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
+  static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V TODO SET
   static const int MIN_PACK_VOLTAGE_DV = 1500;  //TODO SET
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
@@ -75,7 +75,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_10 = 0xA004;
   static const uint16_t PID_UNKNOWN_11 = 0xA005;
   static const uint16_t PID_UNKNOWN_12 = 0xA006;
-  static const uint16_t PID_UNKNOWN_13 = 0xA009;
+  static const uint16_t PID_CELL_MIN_MAX = 0xA009;
   static const uint16_t PID_UNKNOWN_14 = 0xA00A;
   static const uint16_t PID_UNKNOWN_15 = 0xA010;
   static const uint16_t PID_UNKNOWN_16 = 0xA011;
@@ -111,11 +111,11 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_CELLVOLTAGES_6 = 0xA105;
   static const uint16_t PID_CELLVOLTAGES_7 = 0xA106;
   static const uint16_t PID_CELLVOLTAGES_8 = 0xA107;
-  static const uint16_t PID_UNKNOWN_49 = 0xA200;
-  static const uint16_t PID_UNKNOWN_50 = 0xA221;
-  static const uint16_t PID_UNKNOWN_51 = 0xA222;
-  static const uint16_t PID_UNKNOWN_52 = 0xA223;
-  static const uint16_t PID_UNKNOWN_53 = 0xA224;
+  static const uint16_t PID_CELLTEMPERATURES_ALL = 0xA200;
+  /*
+  static const uint16_t PID_UNKNOWN_51 = 0xA222; //All of these PIDs contain the same temperatures over and over again
+  static const uint16_t PID_UNKNOWN_52 = 0xA223; //It is like a broken record, some of them are really large multiframes with only
+  static const uint16_t PID_UNKNOWN_53 = 0xA224; //10% of it populated with the same 30 measurements over and over again
   static const uint16_t PID_UNKNOWN_54 = 0xA225;
   static const uint16_t PID_UNKNOWN_55 = 0xA226;
   static const uint16_t PID_UNKNOWN_56 = 0xA227;
@@ -223,7 +223,8 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_158 = 0xA419;
   static const uint16_t PID_UNKNOWN_159 = 0xA420;
   static const uint16_t PID_UNKNOWN_160 = 0xA421;
-  static const uint16_t PID_UNKNOWN_161 = 0xA422;
+  static const uint16_t PID_UNKNOWN_161 = 0xA422; //Temperatures stop here
+  */
   static const uint16_t PID_UNKNOWN_162 = 0xB000;
   static const uint16_t PID_UNKNOWN_163 = 0xB001;
   static const uint16_t PID_UNKNOWN_164 = 0xB002;
@@ -276,7 +277,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_211 = 0xF187;  //Battery type?
   static const uint16_t PID_UNKNOWN_212 = 0xF188;
   static const uint16_t PID_UNKNOWN_213 = 0xF18C;
-  static const uint16_t PID_UNKNOWN_214 = 0xF190;
+  static const uint16_t PID_VIN = 0xF190;
   static const uint16_t PID_UNKNOWN_215 = 0xF191;
   static const uint16_t PID_UNKNOWN_216 = 0xF192;
   static const uint16_t PID_HW_VERSION_NUM = 0xF193;
@@ -288,8 +289,12 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_223 = 0xF804;
   static const uint16_t PID_UNKNOWN_224 = 0xF806;
 
+  int8_t celltemperatures[30] = {0};
+  bool temperaturesSampledOnce = false;
+  bool cellvoltagesSampledOnce = false;  //TODO: Remove once pack voltage is found, crude sum method
   uint8_t pid_hw_version_num = 0;
   uint64_t pid_sw_homologation_code = 0;
+  uint16_t pid_unknown_12 = 0;
   uint32_t pid_unknown_178 = 0;
   uint16_t pid_unknown_179 = 0;
   uint8_t pid_unknown_180 = 0;
