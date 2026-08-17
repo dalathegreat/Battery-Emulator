@@ -18,7 +18,11 @@
 //    list of PIDs to query, in scan order (e.g. {0xF18A, 0xF120, ...}). The
 //    list is walked from start to end and then wraps around. Call it again at
 //    any time to switch to a different list. PID scanning runs whenever no
-//    sequence (below) is active.
+//    sequence (below) is active. The scan uses two-byte UDS DIDs with
+//    ReadDataByIdentifier (0x22) by default; call
+//    `set_pid_scan_mode(PidScanMode::OneByteLocalId)` to query ECUs that only
+//    speak KWP2000-style one-byte local identifiers (0x21) instead. The list
+//    and handle_pid() interface stay the same in both modes.
 //
 // 3. Call `transmit_uds_can(unsigned long currentMillis)` in your battery's
 //    transmit_can() function to send UDS requests periodically.
@@ -100,6 +104,16 @@ class UdsCanBattery : public CanBattery, public IsoTp {
     Custom = 2,    // User-initiated custom diagnostic messages
   };
 
+  // Wire format used by the PID scan. Standard UDS ECUs are queried with
+  // two-byte DIDs via ReadDataByIdentifier (0x22). Some ECUs (e.g. Renault
+  // Zoe Gen1 / Kangoo) instead speak KWP2000-style one-byte local identifiers
+  // via ReadDataByLocalIdentifier (0x21). Both modes share the same scan list,
+  // handle_pid() interface and scan cycling - only the wire format differs.
+  enum class PidScanMode : uint8_t {
+    TwoByteDID = 0,      // UDS 0x22 ReadDataByIdentifier, two-byte DIDs (default)
+    OneByteLocalId = 1,  // KWP2000 0x21 ReadDataByLocalIdentifier, one-byte local IDs
+  };
+
   inline bool uds_is_busy() const {
     return seq_state != UDS_STATE_IDLE || pending_pid != 0 || pending_seq_state != UDS_STATE_IDLE ||
            seq_pause_ticks > 0 || isotp_is_busy();
@@ -142,6 +156,9 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   // Set (or change) the list of PIDs to scan, in order. The list is cycled
   // repeatedly - the scan restarts from the beginning of the new list.
   void set_pid_scan_list(const uint16_t* pid_list, uint16_t length);
+  // Set (or change) the wire format used by the PID scan (default:
+  // TwoByteDID).
+  void set_pid_scan_mode(PidScanMode mode);
 
   // Must be called by subclasses inside their `transmit_can` method.
   void transmit_uds_can(unsigned long currentMillis);
@@ -230,6 +247,10 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   static const uint16_t MAX_UDS_RESPONSE_ID = 0x7EF;
 
   uint32_t previousUdsMillis100 = 0;
+  // The request SID and identifier width used by the PID scan, derived from
+  // the scan mode in set_pid_scan_mode() (default: UDS 0x22 / two bytes).
+  uint8_t pid_scan_sid = static_cast<uint8_t>(SID::ReadDataByIdentifier);
+  uint8_t pid_scan_id_bytes = 2;
   // The list of PIDs to scan, in order. Set with set_pid_scan_list(). The list
   // is walked from start to end, then wraps around to the beginning.
   const uint16_t* pid_list = nullptr;
