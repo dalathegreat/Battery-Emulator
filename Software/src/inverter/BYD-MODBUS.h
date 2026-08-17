@@ -18,6 +18,13 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void verify_inverter_modbus();
   void handle_update_data_modbusp201_byd();
   void handle_update_data_modbusp301_byd();
+  int16_t byd_power_W();
+
+  // Register 303 status bits sent back to the inverter: bit 7 = normal operation,
+  // bit 0 = charging, bit 1 = discharging
+  static const uint16_t BYD_MODE_IDLE = 128;
+  static const uint16_t BYD_MODE_CHARGING = 129;
+  static const uint16_t BYD_MODE_DISCHARGING = 130;
 
   static const uint8_t HISTORY_LENGTH =
       5;  // Amount of samples(minutes) that needs to match for register to be considered stale
@@ -28,7 +35,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   uint32_t max_charge_W = 0;
   uint16_t register_401_history[5] = {0};
   uint8_t history_index = 0;
-  uint8_t bms_char_dis_status = STANDBY;
+  uint16_t bms_char_dis_status = BYD_MODE_IDLE;
   bool all_401_values_equal = false;
 };
 

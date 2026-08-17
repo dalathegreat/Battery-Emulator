@@ -9,6 +9,8 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
+#include "../../devboard/network/hostname.h"
+#include "../../devboard/network/network_status.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
@@ -321,7 +323,7 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   // zero-copy (stored by pointer) instead of allocating them in the document pool.
   doc["device"]["hw_version"] = esp32hal->name();
   doc["device"]["sw_version"] = version_number;
-  doc["device"]["configuration_url"] = "http://" + WiFi.localIP().toString();
+  doc["device"]["configuration_url"] = "http://" + network_localIP().toString();
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
   doc["payload_not_available"] = "offline";
@@ -1089,7 +1091,7 @@ bool init_mqtt(void) {
     return false;
   }
 
-  String hostname = String(WiFi.getHostname());
+  String hostname = active_hostname();
   topic_name = hostname;
   default_entity_id_prefix = hostname + "_";
   device_name = hostname;
@@ -1104,7 +1106,7 @@ bool init_mqtt(void) {
     button_command_topics[i] = generateButtonTopic(button_commands[i]);
   }
 
-  String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+  String clientId = String("BatteryEmulatorClient-") + hostname;
 
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = mqtt_server.c_str();
@@ -1140,8 +1142,8 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if Wi-Fi is connected and checkTimmer is elapsed
-  if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
+  // Only attempt to publish/reconnect MQTT if network is connected and checkTimmer is elapsed
+  if (check_global_timer.elapsed() && network_connected()) {
 
     if (client_started == false) {
       // Configure timer with the loaded interval on first use
