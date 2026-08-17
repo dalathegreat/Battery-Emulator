@@ -1,25 +1,20 @@
 #include "wifi.h"
-#include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
-#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
+#include "../hal/hal.h"                 // esp32hal / AP_BUTTON_PIN()
+#include "../network/hostname.h"        // active_hostname()
+#include "../network/network_status.h"  // network_bring_services_up()
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
-#ifndef SMALL_FLASH_DEVICE
-#include <ESPmDNS.h>
-#endif
 
-bool wifi_enabled = true;
 bool wifiap_enabled = true;
-bool mdns_enabled = true;           //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;         //If true, allows battery emulator to send battery status by using ESPNow messages
 std::string espnow_peer_macs = "";  //Empty = broadcast, otherwise a list of receiver MAC addresses
 uint16_t wifi_channel = 0;
 extern const char* version_number;
 
-std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
 std::string password;
 std::string ssidAP;
@@ -27,17 +22,16 @@ std::string passwordAP;
 const char* DEFAULT_AP_PASSWORD = "123456789";
 
 // Set your Static IP address. Only used incase Static address option is set
-bool static_IP_enabled = false;
-std::string static_local_IP;
-std::string static_gateway;
-std::string static_subnet;
-std::string static_dns;
+bool wifi_static_IP_enabled = false;
+IPAddress wifi_static_local_IP;
+IPAddress wifi_static_gateway;
+IPAddress wifi_static_subnet;
+IPAddress wifi_static_dns;
 
 // Configuration Parameters
-static const uint16_t WIFI_CHECK_INTERVAL = 2000;       // 1 seconds normal check interval when last connected
-static const uint16_t STEP_WIFI_CHECK_INTERVAL = 2000;  // 3 seconds wait step increase in checks for normal reconnects
-static const uint16_t MAX_STEP_WIFI_CHECK_INTERVAL =
-    10000;  // 15 seconds wait step increase in checks for normal reconnects
+static const uint16_t WIFI_CHECK_INTERVAL = 2000;            // 2 s normal check interval when last connected
+static const uint16_t STEP_WIFI_CHECK_INTERVAL = 2000;       // 2 s step increase in checks for normal reconnects
+static const uint16_t MAX_STEP_WIFI_CHECK_INTERVAL = 10000;  // 10 s cap on the normal-reconnect check interval
 
 static const uint16_t INIT_WIFI_FULL_RECONNECT_INTERVAL =
     10000;  // 10 seconds starting wait interval for full reconnects and first connection
@@ -101,33 +95,24 @@ static void check_ap_provisioning_window() {
   set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
 }
 
-String default_hostname() {
-  uint8_t mac_bytes[6];
-  esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
-  char mac_suffix[5];
-  snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
-  return "battery-emulator-" + String(mac_suffix);
+// STA is configured only when the user has actually configured credentials.
+static bool wifi_sta_configured() {
+  return !ssid.empty() && !password.empty();
 }
 
-// Initialise mDNS
-static void init_mDNS() {
-#ifndef SMALL_FLASH_DEVICE
-  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
-  String mdnsHost = String(WiFi.getHostname());
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-    logging.println("Error setting up mDNS responder!");
-  } else {
-    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
-    MDNS.addService("http", "tcp", 80);
-    logging.println("mDNS responder started.");
-  }
-#endif
+// The WiFi radio only needs to come up if either the AP is broadcast or STA
+// credentials are configured
+static bool wifi_required() {
+  return wifiap_enabled || wifi_sta_configured();
 }
 
 void init_WiFi() {
-  //DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
+  if (!wifi_required()) {
+    DEBUG_PRINTF("init_Wifi: neither AP nor STA configured; skipping\n");
+    return;
+  }
+
+  //DEBUG_PRINTF("init_Wifi ap=%d, ssid=%s\n", wifiap_enabled, ssid.c_str());
 
   // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
   // are stored in our own Preferences and reapplied at boot, so driver-level
@@ -148,19 +133,14 @@ void init_WiFi() {
   // Always set a WiFi hostname: the user's custom one if set, otherwise a default of
   // "battery-emulator-" + the last two bytes of the MAC address, so every device has a
   // meaningful, likely-unique hostname even without configuration.
-  String hostname;
-  if (!custom_hostname.empty()) {
-    hostname = String(custom_hostname.c_str());
-  } else {
-    hostname = default_hostname();
-  }
+  String hostname = active_hostname();
   WiFi.setHostname(hostname.c_str());
   ssidAP = std::string(hostname.c_str());  // Access Point SSID now matches the hostname, be consistent with MDNS too
 
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
     init_WiFi_AP();
-  } else if (wifi_enabled) {
+  } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
 
@@ -177,17 +157,14 @@ void init_WiFi() {
   WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
   WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
 
-  if (static_IP_enabled) {
-    IPAddress local_IP, gateway, subnet, dns;
-    if (local_IP.fromString(static_local_IP.c_str()) && gateway.fromString(static_gateway.c_str()) &&
-        subnet.fromString(static_subnet.c_str())) {
+  if (wifi_static_IP_enabled) {
+    if (wifi_static_local_IP != IPAddress() && wifi_static_gateway != IPAddress() &&
+        wifi_static_subnet != IPAddress()) {
       // WiFi.config() stops the DHCP client and unconditionally overwrites the DNS server. Passing no DNS
       // therefore leaves the resolver at 0.0.0.0 and breaks MQTT-by-hostname/release checks. Default to
       // the gateway, which is the resolver on virtually every home network.
-      if (!dns.fromString(static_dns.c_str())) {
-        dns = gateway;
-      }
-      if (!WiFi.config(local_IP, gateway, subnet, dns)) {
+      IPAddress dns = (wifi_static_dns != IPAddress()) ? wifi_static_dns : wifi_static_gateway;
+      if (!WiFi.config(wifi_static_local_IP, wifi_static_gateway, wifi_static_subnet, dns)) {
         logging.println("Static IP configuration rejected, falling back to DHCP");
       }
     } else {
@@ -256,9 +233,16 @@ static void check_ap_button() {
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
-        WiFi.mode(WIFI_AP_STA);
-        init_WiFi_AP();  // sets ap_active, restarts the provisioning window timer
-        logging.println("AP started from the board button.");
+        // Emergency recovery: bring the AP up for this boot only.
+        wifiap_enabled = true;
+        if (WiFi.getMode() == WIFI_MODE_NULL) {
+          // Radio was off: bring it up + register handlers
+          init_WiFi();
+        } else {
+          // Radio already up (STA configured): just add the AP.
+          WiFi.mode(WIFI_AP_STA);
+          init_WiFi_AP();  // sets ap_active
+        }
       }
     }
   }
@@ -267,10 +251,10 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-  check_ap_button();
+  check_ap_button();  // must always run: emergency-recovery path even when the radio is off
   check_ap_provisioning_window();
 
-  if (ssid.empty() || password.empty()) {
+  if (!wifi_sta_configured()) {
     return;
   }
 
@@ -341,13 +325,17 @@ void FullReconnectToWiFi() {
   connectToWiFi();             //force a full connection attempt
 }
 
+bool wifi_connected() {
+  return WiFi.status() == WL_CONNECTED;
+}
+
 // Function to handle Wi-Fi connection
 void connectToWiFi() {
-  if (ssid.empty() || password.empty()) {
+  if (!wifi_sta_configured()) {
     return;
   }
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (!wifi_connected()) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
     if (wifi_channel > 14) {
       wifi_channel = 0;
@@ -391,12 +379,8 @@ void onApStaDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
-  syslog_start();
-
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
-  LOG_SET_NEXT_SEVERITY(5);  // notice
-  logging.printf("Wi-Fi got IP address: %s\n", WiFi.localIP().toString().c_str());
 
   // One-shot boot notice — fires once per boot, not on every reconnect.
   static bool boot_logged = false;
@@ -406,11 +390,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
     logging.printf("Bootup complete, running version %s\n", version_number);
   }
 
-  static bool mdns_started = false;
-  if (mdns_enabled && !mdns_started) {
-    init_mDNS();
-    mdns_started = true;
-  }
+  network_bring_services_up(WiFi.localIP());  // log IP + syslog_start() + init_mDNS()
 }
 
 // Event handler for Wi-Fi disconnection

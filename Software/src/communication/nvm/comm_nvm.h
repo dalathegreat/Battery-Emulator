@@ -120,6 +120,15 @@ class BatteryEmulatorSettingsStore {
     }
   }
 
+  // Parses an IP string; returns 0.0.0.0 when missing/malformed (fromString leaves partial bytes on failure).
+  IPAddress getIP(const char* name) {
+    IPAddress ip;
+    if (!ip.fromString(getString(name).c_str())) {
+      ip = IPAddress();
+    }
+    return ip;
+  }
+
   bool were_settings_updated() const { return settingsUpdated; }
 
  private:
