@@ -38,7 +38,7 @@ AsyncWebServer server(80);
 AsyncAuthenticationMiddleware web_auth_middleware;
 
 // Measure OTA progress
-unsigned long ota_progress_millis = 0;
+static MyTimer ota_progress_timer = MyTimer(1000);
 
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
@@ -1754,9 +1754,12 @@ void onOTAStart() {
 
 void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
-  if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();
-    logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  if (ota_progress_timer.elapsed()) {
+    if (final > 0) {
+      constexpr float BYTES_PER_KB = 1024.0f;
+      float percent = (float)current * 100.0f / (float) final;
+      logging.printf("OTA progress: %.1f%% (%.1f / %.1f KB)\n", percent, current / BYTES_PER_KB, final / BYTES_PER_KB);
+    }
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -1775,7 +1778,7 @@ void onOTAEnd(bool success) {
     graceful_restart();
   } else {
     LOG_SET_NEXT_SEVERITY(3);  // err
-    logging.println("There was an error during OTA update!");
+    logging.println("OTA update failed.");
     // Unpause battery (preserving equipment stop if set)
     setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
   }
