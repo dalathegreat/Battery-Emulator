@@ -9,6 +9,8 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
+#include "../../devboard/network/hostname.h"
+#include "../../devboard/network/network_status.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
@@ -114,11 +116,46 @@ static bool ha_cell_voltages_published = false;
 static bool ha_events_published = false;
 static bool ha_buttons_published = false;
 
+// Set from the MQTT_EVENT_CONNECTED handler, acted on by mqtt_client_loop(). The handler
+// runs on the esp-mqtt task, so publishing the button configs from it would use shared_doc
+// and mqtt_msg concurrently with the publish cycle running on the MQTT task.
+static volatile bool pending_buttons_discovery = false;
+
 // One JsonDocument shared by all publish functions. They are only ever called sequentially
-// from publish_values() / the MQTT event handler, never concurrently, so sharing is safe
-// and caps the retained ArduinoJson pool to the single largest payload instead of one pool
-// per publish function.
+// from the MQTT task, never concurrently, so sharing is safe and caps the retained
+// ArduinoJson pool to the single largest payload instead of one pool per publish function.
 static JsonDocument shared_doc;
+
+// FNV-1a over the version string. A hash rather than the string itself keeps this to a
+// single primitive NVS entry, which is all that is needed to tell "same firmware as when
+// discovery was last published" from "updated since". Never returns 0, so a missing NVS
+// key (which reads back as 0) can never be mistaken for a matching signature.
+uint32_t mqtt_firmware_signature(void) {
+  uint32_t hash = 2166136261u;
+  for (const char* c = version_number; *c != '\0'; c++) {
+    hash = (hash ^ (uint8_t)*c) * 16777619u;
+  }
+  return (hash == 0u) ? 1u : hash;
+}
+
+// True once every discovery config that applies to this configuration has gone out. Cell
+// voltage configs only count when they are actually published (MQTTCELLV), and they are
+// only marked done once the cell count is known for every present battery.
+static bool autodiscovery_complete(void) {
+  return ha_common_info_published && ha_events_published && ha_buttons_published &&
+         (ha_cell_voltages_published || !mqtt_transmit_all_cellvoltages);
+}
+
+// Clears the one-shot setting and records the firmware the configs were published from.
+// The configs are retained at the broker, no need for emulator republishing at each boot.
+static void store_autodiscovery_done(void) {
+  ha_autodiscovery_enabled = false;  // switches the publish paths to state-only for this session
+  BatteryEmulatorSettingsStore settings;
+  settings.saveBool("HADISC", false);
+  settings.saveUInt("HADISCFW", mqtt_firmware_signature());
+  LOG_SET_NEXT_SEVERITY(5);  // notice
+  logging.println("Home Assistant autodiscovery published");
+}
 
 // RAII guard: clears the shared document on scope entry and exit, so every early return
 // (e.g. a failed publish mid-loop) releases the document memory instead of keeping a full
@@ -286,7 +323,7 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   // zero-copy (stored by pointer) instead of allocating them in the document pool.
   doc["device"]["hw_version"] = esp32hal->name();
   doc["device"]["sw_version"] = version_number;
-  doc["device"]["configuration_url"] = "http://" + WiFi.localIP().toString();
+  doc["device"]["configuration_url"] = "http://" + network_localIP().toString();
   doc["availability"][0]["topic"] = lwt_topic;
   doc["payload_available"] = "online";
   doc["payload_not_available"] = "offline";
@@ -1011,7 +1048,8 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       // "offline" last-will when the session drops — no per-cycle re-publish needed.
       mqtt_publish(lwt_topic.c_str(), "online", true);
 
-      publish_buttons_discovery();
+      // Handed to the MQTT task instead of published here, see pending_buttons_discovery.
+      pending_buttons_discovery = true;
       subscribe();
       break;
     case MQTT_EVENT_DISCONNECTED:
@@ -1053,7 +1091,7 @@ bool init_mqtt(void) {
     return false;
   }
 
-  String hostname = String(WiFi.getHostname());
+  String hostname = active_hostname();
   topic_name = hostname;
   default_entity_id_prefix = hostname + "_";
   device_name = hostname;
@@ -1068,7 +1106,7 @@ bool init_mqtt(void) {
     button_command_topics[i] = generateButtonTopic(button_commands[i]);
   }
 
-  String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+  String clientId = String("BatteryEmulatorClient-") + hostname;
 
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = mqtt_server.c_str();
@@ -1104,8 +1142,8 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if Wi-Fi is connected and checkTimmer is elapsed
-  if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
+  // Only attempt to publish/reconnect MQTT if network is connected and checkTimmer is elapsed
+  if (check_global_timer.elapsed() && network_connected()) {
 
     if (client_started == false) {
       // Configure timer with the loaded interval on first use
@@ -1116,9 +1154,21 @@ void mqtt_client_loop(void) {
       return;
     }
 
+    // Requested by the MQTT_EVENT_CONNECTED handler, published here so that shared_doc and
+    // mqtt_msg stay single-threaded. Retried on the next pass if the publish fails.
+    if (pending_buttons_discovery && !ota_active && publish_buttons_discovery()) {
+      pending_buttons_discovery = false;
+    }
+
     // Skip publishing if OTA update is in progress to avoid interference
     if (publish_global_timer.elapsed() && !ota_active) {
       publish_values();
+
+      // One-shot autodiscovery: as soon as every applicable config is out and retained at
+      // the broker, clear the setting so it is not republished on every boot.
+      if (ha_autodiscovery_enabled && autodiscovery_complete()) {
+        store_autodiscovery_done();
+      }
     }
   }
 }

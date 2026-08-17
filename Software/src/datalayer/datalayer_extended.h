@@ -953,20 +953,6 @@ struct DATALAYER_INFO_GEELY_SEA {
   bool UserRequestCrashReset;
 };
 
-struct DATALAYER_INFO_ZOE {
-  uint16_t mileage_km;
-  uint16_t alltime_kWh;
-
-  uint8_t CUV;
-  uint8_t HVBIR;
-  uint8_t HVBUV;
-  uint8_t EOCR;
-  uint8_t HVBOC;
-  uint8_t HVBOT;
-  uint8_t HVBOV;
-  uint8_t COV;
-};
-
 struct DATALAYER_INFO_ZOE_PH2 {
   uint32_t battery_slave_failures;
   /** uint16_t */
@@ -1043,7 +1029,6 @@ class DataLayerExtended {
     };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
-    DATALAYER_INFO_ZOE zoe;
   };
 
   // Entries with non-zero default values should go here.
