@@ -63,12 +63,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint8_t sent_10ms_messages = 0;  //Counter for the number of 10ms messages sent, goes from 0-0xFF and starts over
   uint8_t sent_20ms_messages = 0;  //Counter for the number of 10ms messages sent, goes from 0-0xFF and starts over
 
-  uint16_t lead_acid_voltage = 0;
-  uint16_t pid_pack_voltage = 0;
-  int16_t pid_lowest_temperature = 0;
-  int16_t pid_highest_temperature = 0;
-
-  static const uint16_t PID_UNKNOWN_1 = 0x0100;
+  static const uint16_t PID_UNKNOWN_1 = 0x0100;  //Multi frame reply
   static const uint16_t PID_UNKNOWN_2 = 0x0103;
   static const uint16_t PID_UNKNOWN_3 = 0x0107;
   static const uint16_t PID_UNKNOWN_4 = 0x010C;
@@ -108,14 +103,14 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_38 = 0xA074;
   static const uint16_t PID_UNKNOWN_39 = 0xA075;
   static const uint16_t PID_UNKNOWN_40 = 0xA076;
-  static const uint16_t PID_UNKNOWN_41 = 0xA100;
-  static const uint16_t PID_UNKNOWN_42 = 0xA101;
-  static const uint16_t PID_UNKNOWN_43 = 0xA102;
-  static const uint16_t PID_UNKNOWN_44 = 0xA103;
-  static const uint16_t PID_UNKNOWN_45 = 0xA104;
-  static const uint16_t PID_UNKNOWN_46 = 0xA105;
-  static const uint16_t PID_UNKNOWN_47 = 0xA106;
-  static const uint16_t PID_UNKNOWN_48 = 0xA107;
+  static const uint16_t PID_CELLVOLTAGES_1 = 0xA100;
+  static const uint16_t PID_CELLVOLTAGES_2 = 0xA101;
+  static const uint16_t PID_CELLVOLTAGES_3 = 0xA102;
+  static const uint16_t PID_CELLVOLTAGES_4 = 0xA103;
+  static const uint16_t PID_CELLVOLTAGES_5 = 0xA104;
+  static const uint16_t PID_CELLVOLTAGES_6 = 0xA105;
+  static const uint16_t PID_CELLVOLTAGES_7 = 0xA106;
+  static const uint16_t PID_CELLVOLTAGES_8 = 0xA107;
   static const uint16_t PID_UNKNOWN_49 = 0xA200;
   static const uint16_t PID_UNKNOWN_50 = 0xA221;
   static const uint16_t PID_UNKNOWN_51 = 0xA222;
@@ -278,20 +273,28 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_208 = 0xF170;
   static const uint16_t PID_UNKNOWN_209 = 0xF171;
   static const uint16_t PID_UNKNOWN_210 = 0xF185;
-  static const uint16_t PID_UNKNOWN_211 = 0xF187;
+  static const uint16_t PID_UNKNOWN_211 = 0xF187;  //Battery type?
   static const uint16_t PID_UNKNOWN_212 = 0xF188;
   static const uint16_t PID_UNKNOWN_213 = 0xF18C;
   static const uint16_t PID_UNKNOWN_214 = 0xF190;
   static const uint16_t PID_UNKNOWN_215 = 0xF191;
   static const uint16_t PID_UNKNOWN_216 = 0xF192;
-  static const uint16_t PID_UNKNOWN_217 = 0xF193;
+  static const uint16_t PID_HW_VERSION_NUM = 0xF193;
   static const uint16_t PID_UNKNOWN_218 = 0xF194;
   static const uint16_t PID_UNKNOWN_219 = 0xF195;
-  static const uint16_t PID_UNKNOWN_220 = 0xF196;
+  static const uint16_t PID_SW_HOMOLOGATION_CODE = 0xF196;
   static const uint16_t PID_UNKNOWN_221 = 0xF1A0;
   static const uint16_t PID_UNKNOWN_222 = 0xF1B0;
   static const uint16_t PID_UNKNOWN_223 = 0xF804;
   static const uint16_t PID_UNKNOWN_224 = 0xF806;
+
+  uint8_t pid_hw_version_num = 0;
+  uint64_t pid_sw_homologation_code = 0;
+  uint32_t pid_unknown_178 = 0;
+  uint16_t pid_unknown_179 = 0;
+  uint8_t pid_unknown_180 = 0;
+  uint8_t pid_unknown_181 = 0;
+  uint8_t pid_unknown_182 = 0;
 };
 
 #endif
