@@ -59,13 +59,30 @@ void BydModbusInverter::handle_update_data_modbusp201_byd() {
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
 
+/* Battery power in the sign convention of the emulated BYD, which reports charging as a negative
+   value and discharging as positive - the opposite of datalayer active_power_W. Clamped to int16
+   range before the cast, since a pack above 32.7kW would otherwise wrap and flip sign. */
+int16_t BydModbusInverter::byd_power_W() {
+  int32_t power_W = -datalayer.battery.status.active_power_W;
+  if (power_W > 32767) {
+    power_W = 32767;
+  } else if (power_W < -32768) {
+    power_W = -32768;
+  }
+  return static_cast<int16_t>(power_W);
+}
+
 void BydModbusInverter::handle_update_data_modbusp301_byd() {
+  /* Status bits reported back to the inverter in mbPV[302] (register 303): bit 7 marks normal
+     operation, bit 0 means charging, bit 1 means discharging - so 128/129/130 is idle/charging/
+     discharging. The DISCHARGING(1) and CHARGING(2) defines in types.h are the inverse of that
+     bit order, so build the value directly instead of adding the define to 128. */
   if (datalayer.battery.status.reported_current_dA == 0) {
-    bms_char_dis_status = STANDBY;
+    bms_char_dis_status = BYD_MODE_IDLE;
   } else if (datalayer.battery.status.reported_current_dA < 0) {  //Negative value = Discharging
-    bms_char_dis_status = DISCHARGING;
+    bms_char_dis_status = BYD_MODE_DISCHARGING;
   } else {  //Positive value = Charging
-    bms_char_dis_status = CHARGING;
+    bms_char_dis_status = BYD_MODE_CHARGING;
   }
   // Convert max discharge Amp value to max Watt
   user_configured_max_discharge_W =
@@ -92,13 +109,13 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   if (reported_status == ACTIVE) {
     // DC and Power values after contactors (outter values).
     mbPV[308] = datalayer.battery.status.voltage_dV;  // DC outter voltage
-    mbPV[309] = static_cast<int16_t>(datalayer.battery.status.active_power_W);
+    mbPV[309] = byd_power_W();                        // DC outter power, BYD reports charging as negative.
   } else {
     mbPV[308] = 0;
     mbPV[309] = 0;
   }
   mbPV[300] = reported_status;
-  mbPV[302] = 128 + bms_char_dis_status;
+  mbPV[302] = bms_char_dis_status;
   if (datalayer.battery.status.reported_soc < 100) {
     mbPV[303] = 100;  //Force SOC to never go below 1% to avoid overdischarge
   } else {
@@ -110,11 +127,11 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   mbPV[304] =
       std::min(datalayer.battery.info.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
   mbPV[305] = std::min(datalayer.battery.status.reported_remaining_capacity_Wh,
-                       static_cast<uint32_t>(57960u));                        //Cap to 58kWh
-  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));       //Cap to 30000 if exceeding
-  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));          //Cap to 30000 if exceeding
-  mbPV[310] = datalayer.battery.status.voltage_dV;                            // DC inner voltage.
-  mbPV[311] = static_cast<int16_t>(datalayer.battery.status.active_power_W);  // DC inner power (before contactors).
+                       static_cast<uint32_t>(57960u));                   //Cap to 58kWh
+  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
+  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
+  mbPV[310] = datalayer.battery.status.voltage_dV;                       // DC inner voltage.
+  mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309].
   mbPV[312] = datalayer.battery.status.temperature_min_dC;
   mbPV[313] = datalayer.battery.status.temperature_max_dC;
   // U64 for total charged/discharged Wh (314-317 and 318-321), but datalayer uses only 32-bit.
