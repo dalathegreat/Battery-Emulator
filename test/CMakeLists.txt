@@ -65,26 +65,23 @@ include_directories(emul)
 # For eModBus
 add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
+# Test sources are globbed so that adding a test does not mean editing this
+# list. Naming every file here means two branches that each add a test conflict
+# on the same line, always with the same resolution. CONFIGURE_DEPENDS re-globs
+# at build time, so a new file is picked up without re-running cmake by hand.
+# The production sources below stay explicit: they are a curated set, and not
+# everything under Software/src builds against the host emulation.
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*_tests.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/battery/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/can_log_based/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp"
+)
+
 # add the executable
 add_executable(tests 
     tests.cpp
-    voltage_sync_tests.cpp
-    offgrid_downgrade_tests.cpp
-    bms_reset_tests.cpp
-    inverter_alive_tests.cpp
-    millis_wrap_tests.cpp
-    estop_graceful_open_tests.cpp
-    contactor_sequence_tests.cpp
-    battery/FordMachETest.cpp
-    battery_alive_tests.cpp
-    battery/NissanLeafTest.cpp
-    battery/BydAtto3Test.cpp
-    battery/foxess_tests.cpp
-    battery/still_alive_tests.cpp
-    battery/VolvoSPATest.cpp
-    battery/UdsCanBatteryTest.cpp
-    can_log_based/canlog_safety_tests.cpp
-    utils/utils.cpp
+    ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
