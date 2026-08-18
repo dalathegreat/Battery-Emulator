@@ -90,6 +90,19 @@ bool bms_power_is_active() {
   return periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power();
 }
 
+bool bms_reset_expects_can_silence() {
+  switch (datalayer.system.status.bms_reset_status) {
+    case BMS_RESET_SHUTDOWN_SEQUENCE:
+    case BMS_RESET_POWERED_OFF:
+    case BMS_RESET_POWERING_ON:
+      return true;
+    default:
+      /* BMS_RESET_WAITING_FOR_PAUSE is deliberately not included: nothing has been done to
+         the battery yet at that point, so a CAN fault there is still a real one. */
+      return false;
+  }
+}
+
 /* The ignition line is only driven on boards that have one, and only when init_contactors()
    actually set it up, which is the same condition that gates BMS_POWER. */
 static bool bms_ignit_is_active() {

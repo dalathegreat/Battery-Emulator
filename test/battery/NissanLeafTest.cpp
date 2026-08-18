@@ -681,42 +681,6 @@ TEST(NissanLeafShutdownSequenceTests, ShouldStopTransmittingWhenBmsGoesQuietMidS
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }
 
-/* LB_REFUSE (LB_RefusetoSleep) sits in 0x55B byte 6 start bit 5, length 2, immediately below
-   LB_EMPTY in bit 7. They are one bit apart, so this pins that a refusal is not read as the
-   pack being empty (which would stop discharge) and vice versa. */
-TEST(NissanLeafShutdownSequenceTests, ShouldDecodeRefuseToSleepSeparatelyFromEmpty) {
-  set_millis64(1000);
-  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
-
-  NissanLeafBattery leaf;
-  leaf.setup();
-
-  // 0x55B carries a CRC in byte 7, so the frames have to be signed or they are discarded.
-  auto send_55b_byte6 = [&](uint8_t byte6) {
-    CAN_frame frame = leaf_frame(0x55B, {0, 0, 0, 0, 0, 0, byte6, 0});
-    frame.data.u8[7] = leaf.calculate_crc(frame);
-    leaf.handle_incoming_can_frame(frame);
-    leaf.update_values();
-  };
-
-  // byte 6 = 0x10 -> LB_REFUSE = 01b (RefuseToSleep), LB_EMPTY = 0. A refusal must not look
-  // like an empty pack.
-  send_55b_byte6(0x10);
-  EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
-
-  // byte 6 = 0x20 -> LB_REFUSE = 10b (ReadyToSleep), still not empty.
-  send_55b_byte6(0x20);
-  EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
-
-  // byte 6 = 0x80 -> LB_EMPTY = 1, LB_REFUSE = 0. Reading the wrong bits would swap these.
-  send_55b_byte6(0x80);
-  EXPECT_TRUE(datalayer_extended.nissanleaf.Empty);
-
-  // Leave the latched empty state clear so later tests are unaffected.
-  send_55b_byte6(0x00);
-  EXPECT_FALSE(datalayer_extended.nissanleaf.Empty);
-}
-
 /* The ignition line has to be down before the sleep command reaches the wire, not merely
    in the same step: NDS 293A0NDS25 5.1.2 orders IGN off (3.1) ahead of the command (3.2).
    The two land in the same millisecond, so this pins the ordering inside that tick. */

@@ -119,7 +119,6 @@ class NissanLeafBattery : public CanBattery {
   static const unsigned long SHUTDOWN_BAT_OFF_DELAY_MS = 61000;
 
   const char* shutdown_step_name(ShutdownSequenceState state);
-  const char* refuse_to_sleep_name(uint8_t value);
 
   ShutdownSequenceState shutdownState = SHUTDOWN_INACTIVE;
   unsigned long shutdownPhaseStartMillis = 0;
@@ -293,11 +292,6 @@ class NissanLeafBattery : public CanBattery {
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged
   bool battery_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
   bool battery_Capacity_Empty = false;    //battery_EMPTY, , Goes to 1 if battery is empty
-  /* LB_REFUSE (LB_RefusetoSleep), 0x55B byte 6 start bit 5, length 2. Coded, not a flag:
-     00b and 11b are reserved, 01b is RefuseToSleep and 10b is ReadyToSleep. So a value of 2
-     is the LBC accepting the sleep command, and only 1 is a refusal. */
-  uint8_t battery_RefuseToSleep = 0;
-  uint8_t battery_RefuseToSleep_last = 0;
   bool battery_HeatExist = false;      //battery_HEATEXIST, Specifies if battery pack is equipped with heating elements
   bool battery_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
   bool battery_Heating_Start = false;  //When transitioning from 1->0, signals a START heat request
