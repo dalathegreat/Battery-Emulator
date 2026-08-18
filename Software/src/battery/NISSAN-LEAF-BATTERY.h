@@ -102,11 +102,15 @@ class NissanLeafBattery : public CanBattery {
   static const uint8_t ZE1_BATTERY = 2;
 
   // These CAN messages need to be sent towards the battery to keep it alive
+  //Byte 2 carries CHG_STA_RQ (Charge_StatusTransitionRequest) in bits 6-5. The battery control
+  //specification has the VCM transmit it as 01b ("Normal charge") from the start-up sequence
+  //onwards and hold it there for all of normal operation, so it is set here rather than left at
+  //00b ("No request"). The low nibble of byte 7 is the message checksum and accounts for it.
   CAN_frame LEAF_1F2 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1F2,
-                        .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+                        .data = {0x10, 0x64, 0x20, 0xB0, 0x00, 0x1E, 0x00, 0x81}};
   CAN_frame LEAF_50B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 7,

@@ -950,90 +950,92 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&LEAF_1D4);
       }
 
+      //The low nibble of byte 7 is the Nissan nibble checksum over the rest of the message, so the
+      //constants below include the CHG_STA_RQ=01b held in byte 2 (see the frame initializer).
       switch (mprun10r) {
         case (0):
           LEAF_1F2.data.u8[3] = 0xB0;
           LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x8F;
+          LEAF_1F2.data.u8[7] = 0x81;
           break;
         case (1):
           LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x80;
+          LEAF_1F2.data.u8[7] = 0x82;
           break;
         case (2):
           LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x81;
+          LEAF_1F2.data.u8[7] = 0x83;
           break;
         case (3):
           LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x82;
+          LEAF_1F2.data.u8[7] = 0x84;
           break;
         case (4):
           LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x8F;
+          LEAF_1F2.data.u8[7] = 0x81;
           break;
         case (5):  // Set 2
           LEAF_1F2.data.u8[3] = 0xB4;
           LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x84;
+          LEAF_1F2.data.u8[7] = 0x86;
           break;
         case (6):
           LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x85;
+          LEAF_1F2.data.u8[7] = 0x87;
           break;
         case (7):
           LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x86;
+          LEAF_1F2.data.u8[7] = 0x88;
           break;
         case (8):
           LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x83;
+          LEAF_1F2.data.u8[7] = 0x85;
           break;
         case (9):
           LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x84;
+          LEAF_1F2.data.u8[7] = 0x86;
           break;
         case (10):  // Set 3
           LEAF_1F2.data.u8[3] = 0xB0;
           LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x81;
+          LEAF_1F2.data.u8[7] = 0x83;
           break;
         case (11):
           LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x82;
+          LEAF_1F2.data.u8[7] = 0x84;
           break;
         case (12):
           LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x8F;
+          LEAF_1F2.data.u8[7] = 0x81;
           break;
         case (13):
           LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x80;
+          LEAF_1F2.data.u8[7] = 0x82;
           break;
         case (14):
           LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x81;
+          LEAF_1F2.data.u8[7] = 0x83;
           break;
         case (15):  // Set 4
           LEAF_1F2.data.u8[3] = 0xB4;
           LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x86;
+          LEAF_1F2.data.u8[7] = 0x88;
           break;
         case (16):
           LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x83;
+          LEAF_1F2.data.u8[7] = 0x85;
           break;
         case (17):
           LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x84;
+          LEAF_1F2.data.u8[7] = 0x86;
           break;
         case (18):
           LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x85;
+          LEAF_1F2.data.u8[7] = 0x87;
           break;
         case (19):
           LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x86;
+          LEAF_1F2.data.u8[7] = 0x88;
           break;
         default:
           break;
