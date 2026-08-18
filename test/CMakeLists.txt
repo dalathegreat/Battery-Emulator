@@ -65,22 +65,23 @@ include_directories(emul)
 # For eModBus
 add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
-# Test sources are globbed so that adding a test does not mean editing this
-# list. Naming every file here means two branches that each add a test conflict
-# on the same line, always with the same resolution. CONFIGURE_DEPENDS re-globs
-# at build time, so a new file is picked up without re-running cmake by hand.
-# The production sources below stay explicit: they are a curated set, and not
-# everything under Software/src builds against the host emulation.
-file(GLOB TEST_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*_tests.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/battery/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/can_log_based/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp"
-)
+# The test sources are globbed. They were a hand-written list, which put every
+# branch that adds a test file in conflict with every other one - the list is
+# the only thing they all touch - for no benefit: a new test file appears in the
+# diff as a new file whether or not a line here accompanies it.
+#
+# CONFIGURE_DEPENDS re-globs at build time, so a newly added file is picked up
+# without re-running cmake by hand. The filter drops the leftovers of an
+# in-source `cmake -B build` inside test/, which are not sources.
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
 
-# add the executable
-add_executable(tests 
-    tests.cpp
+# The firmware sources stay an explicit, curated list, and must. It is not
+# "every file under Software/src" - it is the subset that links in a host build.
+# Software.cpp, the webserver and anything reaching for FS.h, ip_addr or the
+# async server are deliberately absent, and globbing here would drag them in and
+# silently change what is under test whenever upstream adds a driver.
+add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
@@ -93,7 +94,6 @@ add_executable(tests
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
-    emul/neopixel_show.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
@@ -193,12 +193,6 @@ add_executable(tests
     ../Software/src/charger/CHARGERS.cpp
     ../Software/src/charger/CHEVY-VOLT-CHARGER.cpp
     ../Software/src/charger/NISSAN-LEAF-CHARGER.cpp
-    emul/can.cpp
-    emul/time.cpp
-    emul/serial.cpp
-    emul/Arduino.cpp
-    emul/freertos/FreeRTOS.cpp
-    emul/driver/i2c_master.cpp
     )
 
 target_link_libraries(tests
