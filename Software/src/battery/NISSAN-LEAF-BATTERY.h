@@ -91,6 +91,7 @@ class NissanLeafBattery : public CanBattery {
   void clearSOH(void);
   uint8_t calculate_checksum_nibble(CAN_frame& frame);
   void update_shutdown_sequence(unsigned long currentMillis);
+  void invalidate_polled_static_data();
   void log_shutdown_step(const char* step, unsigned long currentMillis);
 
   // Shut-down sequence state machine. States are ordered so that >= comparisons
@@ -119,6 +120,10 @@ class NissanLeafBattery : public CanBattery {
   static const unsigned long SHUTDOWN_BAT_OFF_DELAY_MS = 61000;
 
   const char* shutdown_step_name(ShutdownSequenceState state);
+
+  /* True for the whole of a BMS reset, so its end can be detected however it finishes: the
+     shut-down sequence may not have run, and an aborted reset never reaches its later states. */
+  bool bmsResetInProgress = false;
 
   ShutdownSequenceState shutdownState = SHUTDOWN_INACTIVE;
   unsigned long shutdownPhaseStartMillis = 0;

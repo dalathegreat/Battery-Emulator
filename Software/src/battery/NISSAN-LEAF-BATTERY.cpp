@@ -278,8 +278,14 @@ void NissanLeafBattery::
 
   // Update webserver datalayer
   if (datalayer_nissan) {
-    memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
-    memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
+    /* Published only once a reply has landed. These are cleared when a BMS reset ends so they
+       get polled again, and the page should keep showing the previous reading meanwhile. */
+    if (BatterySerialNumber[0] != 0) {
+      memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
+    }
+    if (BatteryPartNumber[0] != 0) {
+      memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
+    }
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
     if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
       //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
@@ -302,8 +308,10 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
     datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
-    datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
-    datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
+    if (battery_charge_count_l1l2 != 0) {  //Same "have we been told yet" test the poll rotation uses
+      datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
+      datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
+    }
     datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature2 = ((Temp_fromRAW_to_F(battery_temp_raw_2) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature3 = ((Temp_fromRAW_to_F(battery_temp_raw_3) - 320) * 5) / 9;  //Convert from F to C
@@ -915,6 +923,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   handle_DTC_requests(currentMillis);
 
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    bmsResetInProgress = true;
     update_shutdown_sequence(currentMillis);
 
     if (shutdownState == SHUTDOWN_INACTIVE || shutdownState >= SHUTDOWN_WAIT_BEFORE_BAT_OFF) {
@@ -927,9 +936,12 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     }
     // While the shut-down sequence is in an active phase, the periodic messages below
     // keep being transmitted, with signal contents modified according to the sequence
-  } else if (shutdownState != SHUTDOWN_INACTIVE) {
-    // BMS reset has finished (power was cycled), resume normal message contents
+  } else if (bmsResetInProgress) {
+    // BMS reset has finished (power was cycled), resume normal message contents and ask the
+    // battery again for the values that are otherwise only polled until they first answer
+    bmsResetInProgress = false;
     shutdownState = SHUTDOWN_INACTIVE;
+    invalidate_polled_static_data();
   }
 
   if (battery_can_alive) {
@@ -1247,6 +1259,21 @@ track of which phase the sequence is in. */
 void NissanLeafBattery::log_shutdown_step(const char* step, unsigned long currentMillis) {
   DEBUG_PRINTF("LEAF: Shut-down step: %s - BMS last heard from %lu ms ago\n", step,
                currentMillis - lastCanFrameReceivedMillis);
+}
+
+/* The lifetime charge counters and the two identity strings are asked for only until they
+   answer, because they cannot change while the pack is powered. A BMS reset power cycles the
+   pack, so what the driver holds is a reading from before that: clearing it puts those groups
+   back in the poll rotation. The burst interval is re-armed as well, so the battery info page
+   refills within seconds of the reset rather than over the following minute, exactly as it
+   does at startup. The datalayer copies are left alone — update_values() keeps publishing the
+   previous reading until a fresh reply lands, so the page never blinks back to zero. */
+void NissanLeafBattery::invalidate_polled_static_data() {
+  battery_charge_count_l1l2 = 0;
+  battery_charge_count_qc = 0;
+  BatterySerialNumber[0] = 0;
+  BatteryPartNumber[0] = 0;
+  poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
 }
 
 void NissanLeafBattery::request_bms_shutdown_sequence() {

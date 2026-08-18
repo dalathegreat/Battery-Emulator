@@ -776,3 +776,70 @@ TEST(NissanLeafShutdownSequenceTests, ShouldNotCollapseStepsWhenTimestampsRunAhe
 
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }
+
+/* The lifetime charge counters and the identity strings drop out of the poll rotation once
+   they answer, on the grounds that they cannot change while the pack is powered. A BMS reset
+   power cycles the pack, so they have to go back into the rotation when it finishes — while
+   the previously read values stay on the page until fresh ones arrive. */
+namespace {
+
+// Requests go out on 0x79B with the group in byte 2.
+bool group_was_requested(uint8_t group) {
+  for (const CAN_frame& frame : get_transmitted_frames()) {
+    if (frame.ID == 0x79B && frame.data.u8[2] == group) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// First frame of the 0x62 reply: two AC charges, three quick charges.
+CAN_frame charge_counter_reply(uint16_t ac, uint16_t qc) {
+  return leaf_frame(0x7BB, {0x10, 0x76, 0x61, 0x62, (uint8_t)(ac >> 8), (uint8_t)(ac & 0xFF), (uint8_t)(qc >> 8),
+                            (uint8_t)(qc & 0xFF)});
+}
+
+}  // namespace
+
+TEST(NissanLeafShutdownSequenceTests, ShouldRepollChargeCountersAfterABmsReset) {
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+  /* stop_battery_query starts set and is only cleared by the 10s block in transmit_can, so
+     replies arriving before the driver has polled once are ignored by design. */
+  run_leaf_ms(&leaf, 11000, true);
+
+  // Answer the charge counter group once; it then drops out of the rotation.
+  leaf.handle_incoming_can_frame(charge_counter_reply(2, 3));
+  leaf.update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 2);
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountQC, 3);
+
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 30000, true);
+  EXPECT_FALSE(group_was_requested(0x62)) << "answered group should have left the rotation";
+
+  // Run a reset through to completion.
+  datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+  leaf.request_bms_shutdown_sequence();
+  run_leaf_ms(&leaf, 200, true);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run_leaf_ms(&leaf, 200, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  // The group is asked for again, and the page still shows the previous reading meanwhile.
+  clear_transmitted_frames();
+  run_leaf_ms(&leaf, 30000, true);
+  EXPECT_TRUE(group_was_requested(0x62)) << "reset should put the group back in the rotation";
+  leaf.update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 2) << "page must not blink back to zero";
+
+  // A fresh reply replaces it.
+  leaf.handle_incoming_can_frame(charge_counter_reply(4, 5));
+  leaf.update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 4);
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountQC, 5);
+}
