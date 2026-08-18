@@ -1,8 +1,8 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
 
+#include "../shunt/Shunt.h"
 #include "Battery.h"
-#include "Shunt.h"
 
 // Currently initialized objects for primary/secondary/tertiary battery.
 // Null value indicates that battery is not configured/initialized

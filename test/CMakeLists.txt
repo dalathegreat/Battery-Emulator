@@ -109,7 +109,7 @@ add_executable(tests
     ../Software/src/battery/BMW-IX-BATTERY.cpp
     ../Software/src/battery/BMW-IX-HTML.cpp
     ../Software/src/battery/BMW-PHEV-BATTERY.cpp
-    ../Software/src/battery/BMW-SBOX.cpp
+    ../Software/src/shunt/BMW-SBOX.cpp
     ../Software/src/battery/BOLT-AMPERA-BATTERY.cpp
     ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
     ../Software/src/battery/CanBattery.cpp
@@ -152,7 +152,7 @@ add_executable(tests
     ../Software/src/battery/RJXZS-BMS.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
-    ../Software/src/battery/Shunts.cpp
+    ../Software/src/shunt/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
