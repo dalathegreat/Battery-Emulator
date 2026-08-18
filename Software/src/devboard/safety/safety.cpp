@@ -290,29 +290,40 @@ void update_machineryprotection() {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
 
-    // Inverter is charging with more power than battery wants!
-    if (datalayer.battery.status.active_power_W > 0) {  // Charging
-      if (datalayer.battery.status.active_power_W > (datalayer.battery.status.max_charge_power_W + 2000)) {
+    /* Check that the inverter respects the charge/discharge limits we hand it.
+       Skipped entirely while a pause is requested or a fault is active: those zero the
+       limits above instantly, but the inverter only reads the new values on its next
+       poll and then still needs time to ramp down, so comparing during that window
+       blames it for a limit it cannot have seen yet. Counters and events are reset on
+       the way in, so the pause never leaves a stale alert behind.
+       The limits are unsigned, so cast before comparing against the signed power. */
+    if (emulator_pause_request_ON || emulator_pause_status != NORMAL ||
+        datalayer.system.status.system_status == FAULT) {
+      charge_limit_failures = 0;
+      discharge_limit_failures = 0;
+      clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
+      clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
+    } else {
+      // Inverter is charging with more power than battery wants!
+      if (datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
         if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
           charge_limit_failures++;
         }
-      } else {
+      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
         clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
         charge_limit_failures = 0;
       }
-    }
 
-    // Inverter is pulling too much power from battery!
-    if (datalayer.battery.status.active_power_W < 0) {  // Discharging
-      if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_discharge_power_W + 2000)) {
+      // Inverter is pulling too much power from battery!
+      if (-datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
         if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
           discharge_limit_failures++;
         }
-      } else {
+      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
         clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
         discharge_limit_failures = 0;
       }
@@ -558,7 +569,7 @@ void update_machineryprotection() {
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
-  DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
+  DEBUG_PRINTF("Battery pause sequence %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
   if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
