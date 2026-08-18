@@ -3,7 +3,6 @@
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
-#include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -14,6 +13,7 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../../shunt/Shunt.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"

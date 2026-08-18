@@ -2,7 +2,7 @@
 
 #include "CHARGEBYTE-CCS.h"
 #include "../datalayer/datalayer.h"
-#include "./Shunt.h"
+#include "../shunt/Shunt.h"
 
 /* Do not change code below unless you are sure what you are doing */
 // will store last time a 1s CAN Message was sent

@@ -5,10 +5,10 @@
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
+#include "../shunt/BMW-SBOX.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"
-#include "BMW-SBOX.h"
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"

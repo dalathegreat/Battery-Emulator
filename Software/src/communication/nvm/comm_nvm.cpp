@@ -2,7 +2,6 @@
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
-#include "../../battery/Shunt.h"
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
@@ -12,6 +11,7 @@
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
+#include "../../shunt/Shunt.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
