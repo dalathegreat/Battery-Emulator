@@ -2,7 +2,6 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/common_functions.h"
 #include "../devboard/utils/events.h"
 
@@ -54,28 +53,131 @@ void CmpSmartCarBattery::update_values() {
   if (thermal_runaway == 0x01) {
     set_event(EVENT_THERMAL_RUNAWAY, 0);
   }
+}
 
-  datalayer_extended.stellantisCMPsmart.battery_negative_contactor_state = battery_negative_contactor_state;
-  datalayer_extended.stellantisCMPsmart.battery_precharge_contactor_state = battery_precharge_contactor_state;
-  datalayer_extended.stellantisCMPsmart.battery_positive_contactor_state = battery_positive_contactor_state;
-  datalayer_extended.stellantisCMPsmart.battery_balancing_active = battery_balancing_active;
-  datalayer_extended.stellantisCMPsmart.eplug_status = eplug_status;
-  datalayer_extended.stellantisCMPsmart.HVIL_status = HVIL_status;
-  datalayer_extended.stellantisCMPsmart.ev_warning = ev_warning;
-  datalayer_extended.stellantisCMPsmart.power_auth = power_auth;
-  datalayer_extended.stellantisCMPsmart.insulation_fault = insulation_fault;
-  datalayer_extended.stellantisCMPsmart.insulation_circuit_status = insulation_circuit_status;
-  datalayer_extended.stellantisCMPsmart.battery_state = battery_state;
-  datalayer_extended.stellantisCMPsmart.alert_frame3 = alert_frame3;
-  datalayer_extended.stellantisCMPsmart.alert_frame4 = alert_frame4;
-  datalayer_extended.stellantisCMPsmart.hardware_fault_status = hardware_fault_status;
-  datalayer_extended.stellantisCMPsmart.l3_fault = l3_fault;
-  datalayer_extended.stellantisCMPsmart.plausibility_error = plausibility_error;
-  datalayer_extended.stellantisCMPsmart.battery_charging_status = battery_charging_status;
-  datalayer_extended.stellantisCMPsmart.battery_fault = battery_fault;
-  datalayer_extended.stellantisCMPsmart.hvbat_wakeup_state = hvbat_wakeup_state;
-  datalayer_extended.stellantisCMPsmart.active_DTC_code = active_DTC_code;
-  datalayer_extended.stellantisCMPsmart.rcd_line_active = rcd_line_active;
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
+
+inline const char* getContactorStates(int index) {
+  switch (index) {
+    case 0:
+      return "Open";
+    case 1:
+      return "Closed";
+    case 2:
+      return "STUCK Open!";
+    case 3:
+      return "STUCK Closed!";
+    default:
+      return "";
+  }
+}
+
+String CmpSmartCarBattery::get_uds_info_html() {
+  String content;
+  content.reserve(1800);
+
+  // clang-format off
+  content << "<h4>Balancing active: " << (battery_balancing_active ? "Yes" : "No") << "</h4>"
+             "<h4>Positive contactor: "   << getContactorStates(battery_positive_contactor_state)  << "</h4>"
+             "<h4>Negative contactor: "   << getContactorStates(battery_negative_contactor_state)  << "</h4>"
+             "<h4>Precharge contactor: "  << getContactorStates(battery_precharge_contactor_state) << "</h4>"
+             "<h4>Wakeup reason: "        << hvbat_wakeup_state << "</h4>";
+
+  static const char* batteryStates[] = {
+    "Sleep", "Initialization", "Wait", "Ready", "Preheat",
+    "Discharge", "Charge", "Fault", "Pre-shutdown", "Shutdown",
+    "Cooling", "HV battery precondition"
+  };
+  uint8_t bstate = battery_state;
+  content << "<h4>Battery state: " << (bstate < 12 ? batteryStates[bstate] : "Unknown") << "</h4>";
+
+  static const char* eplugStates[]   = { "Seated OK", "Disconnected!", "Open Status", "Invalid" };
+  static const char* hvilStates[]    = { "Closed OK", "OPEN!!", "Error", "Invalid" };
+  static const char* evWarnStates[]  = { "OK No alarm", "Blinking!!", "ON!!", "Invalid" };
+  static const char* chargeStates[]  = { "Not initiated", "In progress", "Completed", "Failure", "Stopped", "Forbidden", "Prohibited, suggest preheat or precondition" };
+  static const char* insulFault[]    = { "OK", "Symmetrical failure!!", "Asymmetric failure HV+!!", "Asymmetric failure HV-!!" };
+  static const char* insulCircuit[]  = { "Inactive (Insulation function not enabled)", "Active (Insulation function enabled)", "FAULT!!", "Insulation measurement in progress" };
+
+  uint8_t ep  = eplug_status;
+  uint8_t hv  = HVIL_status;
+  uint8_t ew  = ev_warning;
+  uint8_t cs  = battery_charging_status;
+  uint8_t ins = insulation_fault;
+  uint8_t irc = insulation_circuit_status;
+
+  content << "<h4>Battery fault level: " << battery_fault  << "</h4>"
+             "<h4>Eplug status: "         << (ep  < 4 ? eplugStates[ep]   : "Unknown") << "</h4>"
+             "<h4>HVIL status: "          << (hv  < 4 ? hvilStates[hv]    : "Unknown") << "</h4>"
+             "<h4>EV Warning: "           << (ew  < 4 ? evWarnStates[ew]  : "Unknown") << "</h4>"
+             "<h4>Authorised for usage: " << (power_auth ? "NOT authorised" : "Authorised OK") << "</h4>"
+             "<h4>Charging status: "      << (cs  < 7 ? chargeStates[cs]  : "Unknown") << "</h4>"
+             "<h4>Insulation status: "    << (ins < 4 ? insulFault[ins]   : "Unknown") << "</h4>"
+             "<h4>Insulation circuit status: " << (irc < 4 ? insulCircuit[irc] : "Unknown") << "</h4>";
+
+  // Hardware fault (bitmask)
+  uint8_t hw = hardware_fault_status;
+  content << "<h4>Hardware fault status: ";
+  if (hw == 0)        content << "No Fault";
+  if (hw & 0b001)     content << "FAULT! Temperature sensor! ";
+  if (hw & 0b010)     content << "FAULT! Voltage sensing circuit! ";
+  if (hw & 0b100)     content << "FAULT! Current sensor! ";
+  content << "</h4>";
+
+  // L3 fault (bitmask)
+  uint8_t l3 = l3_fault;
+  content << "<h4>L3 Fault: ";
+  if (l3 == 0)        content << "No Fault";
+  if (l3 & 0b000001) content << "Cell undervoltage ";
+  if (l3 & 0b000010) content << "Cell overvoltage ";
+  if (l3 & 0b000100) content << "Over temperature ";
+  if (l3 & 0b001000) content << "Under temperature ";
+  if (l3 & 0b010000) content << "Over discharge current ";
+  if (l3 & 0b100000) content << "Pack undervoltage ";
+  content << "</h4>";
+
+  // Plausibility error (bitmask)
+  uint8_t pe = plausibility_error;
+  content << "<h4>Plausibility error: ";
+  if (pe == 0)        content << "No error";
+  if (pe & 0b0001)   content << "Module temperature plausibility error ";
+  if (pe & 0b0010)   content << "Cell voltage plausibility error ";
+  if (pe & 0b0100)   content << "Battery voltage plausibility error ";
+  if (pe & 0b1000)   content << "HVBAT current plausibility error ";
+  content << "</h4>";
+
+  // Alerts (bitmask, two frames)
+  uint8_t a3 = alert_frame3;
+  uint8_t a4 = alert_frame4;
+  if (a3 || a4) {
+    content << "<h4>ALERT!!! ";
+    if (a3 & 0b00000001) content << "Cell Undervoltage ";
+    if (a3 & 0b00000010) content << "Cell Overvoltage ";
+    if (a3 & 0b00000100) content << "High SOC ";
+    if (a3 & 0b00001000) content << "Low SOC ";
+    if (a3 & 0b00010000) content << "Overvoltage ";
+    if (a3 & 0b00100000) content << "High temperature ";
+    if (a3 & 0b01000000) content << "Temperature Delta ";
+    if (a3 & 0b10000000) content << "Battery ";
+    if (a4 & 0b00010000) content << "Contactor Opening ";
+    if (a4 & 0b00100000) content << "Overcharge ";
+    if (a4 & 0b01000000) content << "Cell poor consistency ";
+    if (a4 & 0b10000000) content << "SOC jump ";
+    content << "</h4>";
+  }
+
+  content << "<h4>RCD line active: " << (rcd_line_active ? "Yes" : "No") << "</h4>";
+
+  uint16_t dtc = active_DTC_code;
+  content << "<h4>Active DTC Code: " << dtc;
+  if (dtc == 9) content << " Temperature sensor missing between pin 21-22";
+  content << "</h4>";
+  // clang-format on
+
+  return content;
 }
 
 bool checksum_OK(CAN_frame& rx_frame, uint8_t magic_byte) {
@@ -150,6 +252,10 @@ uint8_t calculate_checksum432(CAN_frame& rx_frame) {
 }
 
 void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  // UDS frames (0x6B4 PID/DTC replies) are handled by the superclass.
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
   switch (rx_frame.ID) {
     case 0x205:  //10ms
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -399,6 +505,19 @@ void CmpSmartCarBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
+uint16_t CmpSmartCarBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+      //case PID_CONTACTOR_CLOSING_COUNTER:
+      //break;
+    default:  //Unknown pid
+      break;
+  }
+  return 0;  //Continue scanning the PID list in order
+}
+
 void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
 
   // Send periodic CAN Messages simulating the car still being attached
@@ -543,11 +662,9 @@ void CmpSmartCarBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&CMP_552);
     //This message is odd. Non periodic, but increments 10 per cycle. Might be enough to send it once every second
     */
-    if (datalayer_extended.stellantisCMPsmart.UserRequestDTCreset) {
-      transmit_can_frame(&CMP_CLEAR_ALL_DTC);
-      datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = false;
-    }
   }
+  // UDS PID polling and DTC handling
+  transmit_uds_can(currentMillis);
 }
 
 void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
@@ -574,4 +691,11 @@ void CmpSmartCarBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100S_DV;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_100S_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  // UDS: send requests to 0x6B4, accept replies from the BMS on 0x694.
+  setup_uds(0x6B4, 0x694);
+  static const uint16_t pid_scan_list[] = {
+      //PID_WELD_CHECK,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }

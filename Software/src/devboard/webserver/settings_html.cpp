@@ -10,8 +10,8 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
-#include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
+#include "src/shunt/Shunt.h"
 
 #include <map>
 
