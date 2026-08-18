@@ -152,6 +152,9 @@ class NissanLeafBattery : public CanBattery {
   //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
+  //Set while a BMS reset is running. It suspends the "already answered, skip it" rule for one
+  //full pass through the list, so the static groups are asked again on the LBC's new session.
+  bool repoll_static_groups = false;
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
                                   .DLC = 8,
