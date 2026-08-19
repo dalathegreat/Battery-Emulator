@@ -146,6 +146,11 @@ void init_events(void) {
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2518FD_2_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  // Error, not warning: the interface the user configured is not there, so
+  // whatever was on it (usually the battery) will not talk at all.
+  events.entries[EVENT_INTERFACE_NOT_AVAILABLE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CANMCP2518FD_3_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2518FD_4_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_NATIVE_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
@@ -330,6 +335,12 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
     case EVENT_CANMCP2518FD_2_INIT_FAILURE:
       return "Second CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP2518FD_3_INIT_FAILURE:
+      return "CAN-FD 3 initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP2518FD_4_INIT_FAILURE:
+      return "CAN-FD 4 initialization failed. Check hardware or bitrate settings";
+    case EVENT_INTERFACE_NOT_AVAILABLE:
+      return "Configured comm interface is not available on this board. Check the interface settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CAN_NATIVE_BUFFER_FULL:
