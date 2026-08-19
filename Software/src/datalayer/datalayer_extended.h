@@ -292,31 +292,6 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryOverVoltage;
 };
 
-struct DATALAYER_INFO_CMPSMART {
-  uint8_t battery_negative_contactor_state;
-  uint8_t battery_precharge_contactor_state;
-  uint8_t battery_positive_contactor_state;
-  uint8_t battery_state;
-  uint8_t eplug_status;
-  uint8_t HVIL_status;
-  uint8_t ev_warning;
-  uint8_t insulation_fault;
-  uint8_t insulation_circuit_status;
-  uint8_t hardware_fault_status;
-  uint8_t l3_fault;
-  uint8_t plausibility_error;
-  uint8_t battery_charging_status;
-  uint8_t battery_fault;
-  uint8_t hvbat_wakeup_state;
-  uint8_t active_DTC_code;
-  uint8_t alert_frame3;
-  uint8_t alert_frame4;
-  bool rcd_line_active;
-  bool power_auth;
-  bool battery_balancing_active;
-  bool UserRequestDTCreset; /** User requesting DTC reset via WebUI*/
-};
-
 struct DATALAYER_INFO_ECMP {
 
   uint32_t pid_insulation_res_neg;
@@ -953,20 +928,6 @@ struct DATALAYER_INFO_GEELY_SEA {
   bool UserRequestCrashReset;
 };
 
-struct DATALAYER_INFO_ZOE {
-  uint16_t mileage_km;
-  uint16_t alltime_kWh;
-
-  uint8_t CUV;
-  uint8_t HVBIR;
-  uint8_t HVBUV;
-  uint8_t EOCR;
-  uint8_t HVBOC;
-  uint8_t HVBOT;
-  uint8_t HVBOV;
-  uint8_t COV;
-};
-
 struct DATALAYER_INFO_ZOE_PH2 {
   uint32_t battery_slave_failures;
   /** uint16_t */
@@ -1027,7 +988,6 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_CMPSMART stellantisCMPsmart;
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
@@ -1043,7 +1003,6 @@ class DataLayerExtended {
     };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
-    DATALAYER_INFO_ZOE zoe;
   };
 
   // Entries with non-zero default values should go here.

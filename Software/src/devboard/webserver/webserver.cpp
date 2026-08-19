@@ -3,7 +3,6 @@
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
-#include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -14,6 +13,9 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../../shunt/Shunt.h"
+#include "../network/hostname.h"
+#include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -21,6 +23,7 @@
 #include "../utils/time_format.h"
 #include "../utils/timer.h"
 #include "../utils/version.h"
+#include "../wifi/wifi.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
 #include "html_escape.h"
@@ -38,7 +41,7 @@ AsyncWebServer server(80);
 AsyncAuthenticationMiddleware web_auth_middleware;
 
 // Measure OTA progress
-unsigned long ota_progress_millis = 0;
+static MyTimer ota_progress_timer = MyTimer(1000);
 
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
@@ -902,29 +905,6 @@ void init_webserver() {
   server.begin();
 }
 
-String getConnectResultString(wl_status_t status) {
-  switch (status) {
-    case WL_CONNECTED:
-      return "Connected";
-    case WL_NO_SHIELD:
-      return "No shield";
-    case WL_IDLE_STATUS:
-      return "Idle status";
-    case WL_NO_SSID_AVAIL:
-      return "No SSID available";
-    case WL_SCAN_COMPLETED:
-      return "Scan completed";
-    case WL_CONNECT_FAILED:
-      return "Connect failed";
-    case WL_CONNECTION_LOST:
-      return "Connection lost";
-    case WL_DISCONNECTED:
-      return "Disconnected";
-    default:
-      return "Unknown";
-  }
-}
-
 void webserver_tick() {
   can_dump_drain_tick();
 
@@ -1061,23 +1041,26 @@ String processor(const String& var) {
       content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
     }
 
-    wl_status_t status = WiFi.status();
-    // Display ssid of network connected to and, if connected to the WiFi, its own IP
-    content += "<h4>SSID: " + html_escape(ssid.c_str());
-    if (status == WL_CONNECTED) {
-      // Get and display the signal strength (RSSI) and channel
-      content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
+    // SSID/RSSI/channel are WiFi-specific; only show them when configured
+    if (!ssid.empty()) {
+      content += "<h4>SSID: " + html_escape(ssid.c_str());
+      if (wifi_connected()) {
+        // Get and display the signal strength (RSSI) and channel
+        content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
+      }
+      content += "</h4>";
     }
-    content += "</h4>";
-    if (status == WL_CONNECTED) {
-      content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
+    // Reachability/hostname/IP reflect the active interface
+    if (network_connected()) {
+      content += "<h4>Hostname: " + html_escape(active_hostname()) + "</h4>";
       // MAC is the station address, which is also the source address of the ESPNow
       // frames - handy when filling in the ESPNow receiver MAC list on another node.
       String mac = WiFi.macAddress();
       mac.toLowerCase();
-      content += "<h4>IP: " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
+      content += "<h4>IP (WiFi): " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
     } else {
-      content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
+      // Reached only when no interface is up; keep this interface-agnostic
+      content += "<h4>Network state: Disconnected</h4>";
     }
 
     if (ap_active) {
@@ -1754,9 +1737,12 @@ void onOTAStart() {
 
 void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
-  if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();
-    logging.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  if (ota_progress_timer.elapsed()) {
+    if (final > 0) {
+      constexpr float BYTES_PER_KB = 1024.0f;
+      float percent = (float)current * 100.0f / (float) final;
+      logging.printf("OTA progress: %.1f%% (%.1f / %.1f KB)\n", percent, current / BYTES_PER_KB, final / BYTES_PER_KB);
+    }
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -1775,7 +1761,7 @@ void onOTAEnd(bool success) {
     graceful_restart();
   } else {
     LOG_SET_NEXT_SEVERITY(3);  // err
-    logging.println("There was an error during OTA update!");
+    logging.println("OTA update failed.");
     // Unpause battery (preserving equipment stop if set)
     setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
   }
