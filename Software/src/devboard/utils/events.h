@@ -207,7 +207,6 @@ void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
 // health events are raised rather than filtered inside set_event(): the events
 // are per controller now, so the caller knows which device it is speaking for
 // and events.cpp need not know which event ids are CAN health events.
-bool can_errors_ignored(uint8_t device);
 void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 

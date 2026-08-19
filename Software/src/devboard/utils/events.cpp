@@ -309,10 +309,6 @@ void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
   can_errors_ignore_until_ms[device] = millis64() + duration_ms;
 }
 
-bool can_errors_ignored(uint8_t device) {
-  return device < MAX_CAN_DEVICES && can_errors_ignore_until_ms[device] > millis64();
-}
-
 void reset_all_events() {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
@@ -651,10 +647,60 @@ const char* get_emulator_status_string(EMULATOR_STATUS status) {
 
 /* Local functions */
 
+/* The comm-error events whose payload is a bitmask of the devices concerned.
+   Init-failure events are not among them: their payload is the controller's
+   error code, so there is no room for a device there.
+
+   The device axis lives in `data` because that is the payload channel this
+   signature has. It is not a claim on the whole payload: #2799 is landing a
+   third argument for the per-PACK axis (`set_event(event, data, battery)`),
+   which is a different entity and arrives beside this rather than through it. */
+static bool is_can_health_event(EVENTS_ENUM_TYPE event) {
+  switch (event) {
+    case EVENT_CAN_NATIVE_BUFFER_FULL:
+    case EVENT_CAN_NATIVE_BUS_ERROR:
+    case EVENT_CANMCP2515_BUFFER_FULL:
+    case EVENT_CANMCP2515_BUS_ERROR:
+    case EVENT_CANFD_BUFFER_FULL:
+    case EVENT_CANFD_BUS_ERROR:
+    // The second FD chip's pair is no longer handed out by comm_can.cpp, but it
+    // is still a comm-error event with a device payload: anything that raises it
+    // must be filtered the same way, or the window silently stops applying.
+    case EVENT_CANFD_2_BUFFER_FULL:
+    case EVENT_CANFD_2_BUS_ERROR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Drops the devices with an open ignore window from a health event's bitmask,
+// so a window over one controller cannot silence another that shares the event.
+static uint8_t can_devices_not_ignored(uint8_t devices) {
+  uint64_t now = millis64();
+  for (uint8_t i = 0; i < MAX_CAN_DEVICES; i++) {
+    if (can_errors_ignore_until_ms[i] > now) {
+      devices &= static_cast<uint8_t>(~(1 << i));
+    }
+  }
+  return devices;
+}
+
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // Just some defensive stuff if someone sets an unknown event
   if (event >= EVENT_NOF_EVENTS) {
     event = EVENT_UNKNOWN_EVENT_SET;
+  }
+
+  // Drop transient CAN comm errors on controllers inside an ignore window, and
+  // the event itself once no device it names is left to report. Filtering here
+  // rather than at the raise sites is what makes it unbypassable: a new site
+  // cannot forget to ask.
+  if (is_can_health_event(event)) {
+    data = can_devices_not_ignored(data);
+    if (data == 0) {
+      return;
+    }
   }
 
   // If the event is already set, no reason to continue
