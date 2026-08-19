@@ -435,7 +435,7 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
   ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);  // BTONFN=1
   EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);  // RLYP=1
-  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x20);  // CHG_STA_RQ=01b, held for normal operation
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x00);  // CHG_STA_RQ=00b, the value this build boots with
   EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
   EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0xC0);  // WakeUp
 
@@ -512,7 +512,7 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
   ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);
   EXPECT_EQ(frame_1d4->data.u8[5], 0x46);
-  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x20);  // back to 01b, not 11b
+  EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x20);  // alternated to 01b by the reset, and not left at 11b
   EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
   EXPECT_EQ(frame_50b->data.u8[3], 0xC0);
   crc_check = *frame_1d4;
@@ -842,4 +842,55 @@ TEST(NissanLeafShutdownSequenceTests, ShouldRepollChargeCountersAfterABmsReset) 
   leaf.update_values();
   EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 4);
   EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountQC, 5);
+}
+
+/* CHG_STA_RQ is alternated between 00b and 01b on each BMS reset so both values can be tried
+   against the same pack without reflashing. It boots at 00b and is not persisted. */
+TEST(NissanLeafShutdownSequenceTests, ShouldAlternateChgStaRqOnEachReset) {
+  set_millis64(1000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  NissanLeafBattery leaf;
+  leaf.setup();
+  leaf.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+
+  auto transmitted_chg_sta_rq = [&]() {
+    clear_transmitted_frames();
+    run_leaf_ms(&leaf, 30, true);
+    const CAN_frame* frame = last_transmitted(0x1F2);
+    EXPECT_NE(frame, nullptr);
+    // The checksum has to stay valid whichever value is in use.
+    EXPECT_EQ(frame->data.u8[7] & 0x0F, expected_1f2_checksum(*frame));
+    return (uint8_t)((frame->data.u8[2] & 0x60) >> 5);
+  };
+
+  auto run_a_reset = [&]() {
+    datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+    leaf.request_bms_shutdown_sequence();
+    run_leaf_ms(&leaf, 200, true);
+    datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+    run_leaf_ms(&leaf, 100, false);
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    run_leaf_ms(&leaf, 30, true);
+  };
+
+  EXPECT_EQ(transmitted_chg_sta_rq(), 0x00) << "boots at 00b";
+  run_a_reset();
+  EXPECT_EQ(transmitted_chg_sta_rq(), 0x01) << "first reset switches to 01b";
+  run_a_reset();
+  EXPECT_EQ(transmitted_chg_sta_rq(), 0x00) << "second reset switches back to 00b";
+  run_a_reset();
+  EXPECT_EQ(transmitted_chg_sta_rq(), 0x01) << "and keeps alternating";
+
+  // A fresh driver starts from 00b again: the value is deliberately not persisted.
+  NissanLeafBattery rebooted;
+  rebooted.setup();
+  rebooted.handle_incoming_can_frame(leaf_frame(0x5BC, {0, 0, 0, 0, 0, 0, 0, 0}));
+  clear_transmitted_frames();
+  run_leaf_ms(&rebooted, 30, true);
+  const CAN_frame* after_boot = last_transmitted(0x1F2);
+  ASSERT_NE(after_boot, nullptr);
+  EXPECT_EQ(after_boot->data.u8[2] & 0x60, 0x00);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }

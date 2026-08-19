@@ -1074,12 +1074,13 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
-      /* CHG_STA_RQ (Charge_StatusTransitionReqest) lives in bits 6-5 of byte 2. Per the
-         start-up sequence it is transmitted as 01b ("Normal Charge") and held there for all
-         of normal operation, and the shut-down sequence raises it to 11b ("Stop Request").
-         Byte 2 also carries KEEP_SOC_REQ (bit 4) and PSCONDET (bit 1), so only the two bits
-         that belong to this signal are touched. */
-      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | ((shutdownState != SHUTDOWN_INACTIVE) ? 0x60 : 0x20);
+      /* CHG_STA_RQ (Charge_StatusTransitionReqest) lives in bits 6-5 of byte 2. The shut-down
+         sequence raises it to 11b ("Stop Request"); the rest of the time it holds whichever
+         of 00b / 01b this run is using, alternated on each BMS reset. Byte 2 also carries
+         KEEP_SOC_REQ (bit 4) and PSCONDET (bit 1), so only the two bits that belong to this
+         signal are touched. */
+      const uint8_t chg_sta_rq = (shutdownState != SHUTDOWN_INACTIVE) ? 0x03 : chg_sta_rq_normal;
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (uint8_t)(chg_sta_rq << 5);
       //Contents changed, recalculate the nibble checksum in the low nibble of byte 7
       LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | calculate_checksum_nibble(LEAF_1F2);
 
@@ -1279,6 +1280,13 @@ void NissanLeafBattery::invalidate_polled_static_data() {
 void NissanLeafBattery::request_bms_shutdown_sequence() {
   if (shutdownState == SHUTDOWN_INACTIVE) {
     DEBUG_PRINTF("LEAF: Starting BMS shut-down sequence\n");
+    /* Alternate the value the battery will be initialised with, so consecutive resets try 01b
+       and 00b against the same pack and the two runs can be compared side by side. Flipped at
+       the start of the reset but only transmitted once the pack is back: nothing goes out
+       while it is powered down, and the sequence itself forces 11b throughout. */
+    chg_sta_rq_normal = chg_sta_rq_normal ? 0x00 : 0x01;
+    DEBUG_PRINTF("LEAF: CHG_STA_RQ after this reset: %02ub (%s)\n", chg_sta_rq_normal,
+                 chg_sta_rq_name(chg_sta_rq_normal));
     shutdownState = SHUTDOWN_CHG_STOP;
     shutdownPhaseStartMillis = millis();
     log_shutdown_step("CHG_STA_RQ=11b (0x1F2, charge stop request)", shutdownPhaseStartMillis);
@@ -1294,6 +1302,23 @@ void NissanLeafBattery::request_bms_shutdown_sequence() {
    "not yet". */
 static bool elapsed_since(unsigned long now, unsigned long since, unsigned long interval) {
   return (long)(now - since) >= (long)interval;
+}
+
+/* Coding of CHG_STA_RQ (Charge_StatusTransitionReqest) from the pack CAN databook, which
+   spells 01b "namal charge". Written out properly here. */
+const char* NissanLeafBattery::chg_sta_rq_name(uint8_t code) {
+  switch (code) {
+    case 0x00:
+      return "other";
+    case 0x01:
+      return "normal charge";
+    case 0x02:
+      return "quick charge";
+    case 0x03:
+      return "stop request";
+    default:
+      return "?";
+  }
 }
 
 const char* NissanLeafBattery::shutdown_step_name(ShutdownSequenceState state) {

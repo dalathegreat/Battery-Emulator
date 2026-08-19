@@ -92,6 +92,7 @@ class NissanLeafBattery : public CanBattery {
   uint8_t calculate_checksum_nibble(CAN_frame& frame);
   void update_shutdown_sequence(unsigned long currentMillis);
   void invalidate_polled_static_data();
+  const char* chg_sta_rq_name(uint8_t code);
   void log_shutdown_step(const char* step, unsigned long currentMillis);
 
   // Shut-down sequence state machine. States are ordered so that >= comparisons
@@ -124,6 +125,13 @@ class NissanLeafBattery : public CanBattery {
   /* True for the whole of a BMS reset, so its end can be detected however it finishes: the
      shut-down sequence may not have run, and an aborted reset never reaches its later states. */
   bool bmsResetInProgress = false;
+
+  /* CHG_STA_RQ value held during normal operation, as the 2 bit code rather than the shifted
+     bits. Boots at 00b ("other") and alternates 01b / 00b on each BMS reset, so a run of
+     resets exercises both values against the same pack without a reflash. Flipped when a reset
+     begins; the pack only sees the new value once it is back, since the shut-down sequence
+     forces 11b throughout. Deliberately not persisted: every power-up starts from 00b. */
+  uint8_t chg_sta_rq_normal = 0x00;
 
   ShutdownSequenceState shutdownState = SHUTDOWN_INACTIVE;
   unsigned long shutdownPhaseStartMillis = 0;
