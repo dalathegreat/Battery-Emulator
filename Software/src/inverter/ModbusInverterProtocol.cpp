@@ -29,6 +29,126 @@ ModbusInverterProtocol::~ModbusInverterProtocol() {
   MBserver.unregisterWorker(_serverId, R_W_MULT_REGISTERS);
 }
 
+#ifdef MODBUS_LOG_INVERTER_WRITES
+/* Register 401 is the watchdog toggle the Fronius flips between 0x00FF and 0xFF00, already consumed
+   by BydModbusInverter::verify_inverter_modbus(). Logging it would only produce a line a minute. */
+static const uint16_t MODBUS_HANDLED_WRITE_ADDR = 401;
+
+/* Names from the Fronius GenericStorage register map. Only ControlData (400-408) and the droop law
+   block (500-506) are declared master-writable there, so a write anywhere else means the inverter
+   uses a register we believe to be read-only - worth seeing in the log verbatim. */
+static const char* inverter_write_target(uint16_t addr) {
+  switch (addr) {
+    case 400:
+      return "ControlData.opMode";
+    case 402:
+      return "ControlData.WatchDogTimeout";
+    case 403:
+    case 404:
+    case 405:
+    case 406:
+      return "ControlData.UTC";
+    case 407:
+      return "ControlData.RebootCommand";
+    case 408:
+      return "ControlData.DarkstartEnable";
+    case 500:
+      return "Drooplaw.DeadbandLowVoltage";
+    case 501:
+      return "Drooplaw.DeadbandHighVoltage";
+    case 502:
+      return "Drooplaw.PowerLimitCharge";
+    case 503:
+      return "Drooplaw.PowerLimitDischarge";
+    case 504:
+      return "Drooplaw.SlopeCharge";
+    case 505:
+      return "Drooplaw.SlopeDischarge";
+    case 506:
+      return "Drooplaw.SetDCDCCharacteristic";
+    default:
+      break;
+  }
+  if (addr >= 100 && addr <= 167) {
+    return "DeviceIdentificationData, expected read-only";
+  }
+  if (addr >= 200 && addr <= 212) {
+    return "NameplateData, expected read-only";
+  }
+  if (addr >= 300 && addr <= 323) {
+    return "MonitoringData, expected read-only";
+  }
+  if (addr >= 1000 && addr <= 1099) {
+    return "FaultBuffers, expected read-only";
+  }
+  return "not in the known register map";
+}
+
+void ModbusInverterProtocol::log_inverter_write(uint16_t addr, uint16_t value) {
+  if (addr == MODBUS_HANDLED_WRITE_ADDR) {
+    return;
+  }
+
+  const uint32_t now = millis();
+  InverterWriteLogSlot* slot = nullptr;
+
+  for (uint8_t i = 0; i < WRITE_LOG_SLOTS; i++) {  // Already tracking this address?
+    if (write_log[i].used && write_log[i].addr == addr) {
+      slot = &write_log[i];
+      break;
+    }
+  }
+  if (slot == nullptr) {  // No, take a free slot
+    for (uint8_t i = 0; i < WRITE_LOG_SLOTS; i++) {
+      if (!write_log[i].used) {
+        slot = &write_log[i];
+        break;
+      }
+    }
+  }
+  if (slot == nullptr) {  // Table full, evict the least recently logged address
+    slot = &write_log[0];
+    for (uint8_t i = 1; i < WRITE_LOG_SLOTS; i++) {
+      if ((int32_t)(write_log[i].last_log_ms - slot->last_log_ms) < 0) {
+        slot = &write_log[i];
+      }
+    }
+    slot->used = false;
+  }
+
+  const bool first_seen = !slot->used;
+  if (!first_seen) {
+    // Same value again carries no new information, and a fresh value still has to wait out the
+    // backoff. Either way remember what we saw, so the next line printed shows the current value.
+    if (slot->value == value || (uint32_t)(now - slot->last_log_ms) < (uint32_t)slot->backoff_s * 1000u) {
+      slot->value = value;
+      if (slot->suppressed < UINT16_MAX) {
+        slot->suppressed++;
+      }
+      return;
+    }
+  }
+
+  if (first_seen) {
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    DEBUG_PRINTF("Modbus inverter write, first time seen: reg %u (%s) = %u (0x%04X)\n", addr,
+                 inverter_write_target(addr), value, value);
+    slot->backoff_s = WRITE_LOG_BACKOFF_MIN_S;
+  } else {
+    DEBUG_PRINTF("Modbus inverter write: reg %u (%s) = %u (0x%04X), %u write(s) not logged since the last line\n", addr,
+                 inverter_write_target(addr), value, value, slot->suppressed);
+    const uint32_t next_backoff_s = (uint32_t)slot->backoff_s * 2u;
+    slot->backoff_s = (next_backoff_s > WRITE_LOG_BACKOFF_MAX_S) ? WRITE_LOG_BACKOFF_MAX_S : (uint16_t)next_backoff_s;
+  }
+
+  slot->used = true;
+  slot->addr = addr;
+  slot->value = value;
+  slot->last_log_ms = now;
+  slot->suppressed = 0;
+}
+#endif  // MODBUS_LOG_INVERTER_WRITES
+
 void ModbusInverterProtocol::notify_inverter_communication() {
   if (!inverter_detected) {
     inverter_detected = true;
@@ -81,6 +201,7 @@ ModbusMessage ModbusInverterProtocol::FC06(ModbusMessage request) {
   }
 
   // Do the write
+  log_inverter_write(addr, val);
   mbPV[addr] = val;
 
   // Set up response
@@ -119,6 +240,7 @@ ModbusMessage ModbusInverterProtocol::FC16(ModbusMessage request) {
   // Do the writes
   for (uint8_t i = 0; i < words; ++i) {
     request.get(7 + (i * 2), val);  //data starts at byte 6 in request packet
+    log_inverter_write((uint16_t)(addr + i), val);
     mbPV[addr + i] = val;
   }
 
@@ -167,6 +289,7 @@ ModbusMessage ModbusInverterProtocol::FC23(ModbusMessage request) {
   // Do the writes
   for (uint8_t i = 0; i < write_words; ++i) {
     request.get(11 + (i * 2), write_val);  //data starts at byte 6 in request packet
+    log_inverter_write((uint16_t)(write_addr + i), write_val);
     mbPV[write_addr + i] = write_val;
   }
 
