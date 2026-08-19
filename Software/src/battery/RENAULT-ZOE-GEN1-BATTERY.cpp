@@ -60,10 +60,10 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
         }
         // Cell 47 measurement is inbetween pack halves. If low, fuse blown
         if (datalayer_battery->status.cell_voltages_mV[47] < 100) {
-	  set_event(EVENT_BATTERY1_FUSE, datalayer_battery->status.cell_voltages_mV[47], battery_index);
+          set_event(EVENT_BATTERY1_FUSE, datalayer_battery->status.cell_voltages_mV[47], battery_index);
 
         } else {
-	  clear_event(EVENT_BATTERY1_FUSE, battery_index);
+          clear_event(EVENT_BATTERY1_FUSE, battery_index);
         }
       }
       break;
