@@ -1199,9 +1199,10 @@ String processor(const String& var) {
     content += "</style>";
 
     // Compact header
-    content += "<h2><a href='https://dalathegreat.github.io/Battery-Emulator-Wiki/' target='_blank' "
-               "rel='noopener' style='color:inherit'>" +
-               TR(TrKey::UI_BATTERY_EMULATOR) + "</a></h2>";
+    content +=
+        "<h2><a href='https://dalathegreat.github.io/Battery-Emulator-Wiki/' target='_blank' "
+        "rel='noopener' style='color:inherit'>" +
+        TR(TrKey::UI_BATTERY_EMULATOR) + "</a></h2>";
 
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
