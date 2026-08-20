@@ -466,6 +466,7 @@ void setup_battery() {
     }
 
     if (battery2) {
+      battery2->battery_index = 2;
       battery2->setup();
     }
   }
@@ -501,6 +502,7 @@ void setup_battery() {
     }
 
     if (battery3) {
+      battery3->battery_index = 3;
       battery3->setup();
     }
   }
