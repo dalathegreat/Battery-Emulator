@@ -53,6 +53,7 @@ class ContactorSequenceTest : public ::testing::Test {
     emulator_pause_status = NORMAL;
     battery_detected = true;
     datalayer.system.status.system_status = ACTIVE;
+    datalayer.system.status.battery_allows_contactor_closing = true;
     datalayer.system.status.inverter_allows_contactor_closing = true;
     datalayer.system.info.equipment_stop_active = false;
 
@@ -138,6 +139,19 @@ TEST_F(ContactorSequenceTest, LeavesDisconnectedOncePermittedAndNoStop) {
 
   EXPECT_EQ(contactorStatus, PRECHARGE);
   EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedClosing);
+}
+
+// The battery's veto is half of the permission gate. Handshake protocols
+// (CHAdeMO's EVSE session) hold it false until the vehicle side has granted
+// permission; losing this check is what let contactors close on inverter
+// say-so alone with nothing plugged in (the 1645c5b3 regression).
+TEST_F(ContactorSequenceTest, StaysDisconnectedWhileTheBatteryWithholdsPermission) {
+  datalayer.system.status.battery_allows_contactor_closing = false;
+
+  tick_at(kBootMs);
+
+  EXPECT_EQ(contactorStatus, DISCONNECTED);
+  EXPECT_EQ(datalayer.system.status.contactors_engaged, 0);
 }
 
 // --- The closing ladder ----------------------------------------------------
