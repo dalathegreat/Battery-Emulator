@@ -16,6 +16,9 @@
 #include "../../shunt/Shunt.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
+#ifdef ETHERNET
+#include "../ethernet/ethernet.h"
+#endif
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -435,6 +438,9 @@ void init_webserver() {
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
+#ifdef ETHERNET
+      "ETHSTATICIP",
+#endif  // ETHERNET
   };
 
   const char* uintSettingNames[] = {
@@ -448,9 +454,28 @@ void init_webserver() {
       "SYSLOGFAC",  "PERBMSRESETH",
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
-                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
-                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
+  const char* stringSettingNames[] = {"APPASSWORD",
+                                      "HOSTNAME",
+                                      "MQTTSERVER",
+                                      "MQTTUSER",
+                                      "MQTTPASSWORD",
+                                      "HTTPUSER",
+                                      "HTTPPASS",
+                                      "LOCALIP",
+                                      "GATEWAY",
+                                      "SUBNET",
+                                      "DNS",
+                                      "HADISCTOPIC",
+                                      "SYSLOGIP",
+                                      "ESPNOWMACS"
+#ifdef ETHERNET
+                                      ,
+                                      "ETHLOCALIP",
+                                      "ETHGATEWAY",
+                                      "ETHSUBNET",
+                                      "ETHDNS"
+#endif  // ETHERNET
+  };
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
@@ -1059,14 +1084,24 @@ String processor(const String& var) {
       }
       content += "</h4>";
     }
-    // Reachability/hostname/IP reflect the active interface
+    // Hostname is interface-agnostic; show it once whenever any interface is up.
     if (network_connected()) {
       content += "<h4>Hostname: " + html_escape(active_hostname()) + "</h4>";
-      // MAC is the station address, which is also the source address of the ESPNow
-      // frames - handy when filling in the ESPNow receiver MAC list on another node.
-      String mac = WiFi.macAddress();
-      mac.toLowerCase();
-      content += "<h4>IP (WiFi): " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
+      // Show both WiFi and Ethernet
+#ifdef ETHERNET
+      if (ethernet_connected()) {
+        String eth_mac = ETH.macAddress();
+        eth_mac.toLowerCase();
+        content += "<h4>IP (Ethernet): " + ETH.localIP().toString() + " MAC: " + eth_mac + "</h4>";
+      }
+#endif
+      if (wifi_connected()) {
+        // MAC is the station address, which is also the source address of the ESPNow
+        // frames - handy when filling in the ESPNow receiver MAC list on another node.
+        String mac = WiFi.macAddress();
+        mac.toLowerCase();
+        content += "<h4>IP (WiFi): " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
+      }
     } else {
       // Reached only when no interface is up; keep this interface-agnostic
       content += "<h4>Network state: Disconnected</h4>";

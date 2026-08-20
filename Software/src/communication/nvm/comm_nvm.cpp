@@ -5,6 +5,7 @@
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/ethernet/ethernet.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
 #include "../../devboard/utils/logging.h"
@@ -273,6 +274,14 @@ void init_stored_settings() {
   wifi_static_gateway = settings.getIP("GATEWAY");
   wifi_static_subnet = settings.getIP("SUBNET");
   wifi_static_dns = settings.getIP("DNS");
+
+#ifdef ETHERNET
+  eth_static_IP_enabled = settings.getBool("ETHSTATICIP", false);
+  eth_static_local_IP = settings.getIP("ETHLOCALIP");
+  eth_static_gateway = settings.getIP("ETHGATEWAY");
+  eth_static_subnet = settings.getIP("ETHSUBNET");
+  eth_static_dns = settings.getIP("ETHDNS");
+#endif
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 1883);

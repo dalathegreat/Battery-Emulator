@@ -6,7 +6,8 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
-#include "../network/hostname.h"  // default_hostname()
+#include "../ethernet/ethernet.h"  // ethernet_connected(), ETH (guarded by ETHERNET)
+#include "../network/hostname.h"   // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
@@ -691,6 +692,47 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return IPV4_PATTERN;
   }
 
+#ifdef ETHERNET
+  if (var == "ETHSTATICIP") {
+    return settings.getBool("ETHSTATICIP") ? "checked" : "";
+  }
+
+  if (var == "ETHLOCALIP") {
+    return settings.getString("ETHLOCALIP");
+  }
+
+  if (var == "ETHGATEWAY") {
+    return settings.getString("ETHGATEWAY");
+  }
+
+  if (var == "ETHSUBNET") {
+    return settings.getString("ETHSUBNET");
+  }
+
+  if (var == "ETHDNS") {
+    return settings.getString("ETHDNS");
+  }
+
+  // Placeholders: the Ethernet addresses currently in use, so pinning an existing DHCP lease is a
+  // matter of ticking the checkbox. Empty when Ethernet has no IP - nothing meaningful to suggest.
+  if (var == "ETHLOCALIPPH") {
+    return ethernet_connected() ? ETH.localIP().toString() : String();
+  }
+
+  if (var == "ETHGATEWAYPH") {
+    return ethernet_connected() ? ETH.gatewayIP().toString() : String();
+  }
+
+  if (var == "ETHSUBNETPH") {
+    return ethernet_connected() ? ETH.subnetMask().toString() : String();
+  }
+
+  if (var == "ETHDNSPH") {
+    IPAddress dns = ETH.dnsIP();
+    return (ethernet_connected() && dns != IPAddress(0, 0, 0, 0)) ? dns.toString() : String();
+  }
+#endif  // ETHERNET
+
   if (var == "PERFPROFILE") {
     return settings.getBool("PERFPROFILE") ? "checked" : "";
   }
@@ -1195,6 +1237,56 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SD_SETTING_HTML ""
 #endif  // SDCARD
 
+#ifdef ETHERNET
+#define ETH_STATIC_IP_HTML \
+  R"rawliteral(
+        <label>Use static IP address (Ethernet): </label>
+        <input type='checkbox' name='ETHSTATICIP' value='on' %ETHSTATICIP% />
+
+        <div class='if-eth-staticip'>
+        <label>Local IP: </label>
+        <input type='text' name='ETHLOCALIP' value="%ETHLOCALIP%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%ETHLOCALIPPH%" title="IPv4 address of this device on Ethernet" />
+
+        <label>Gateway: </label>
+        <input type='text' name='ETHGATEWAY' value="%ETHGATEWAY%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%ETHGATEWAYPH%" title="IPv4 address of your router" />
+
+        <label>Subnet mask: </label>
+        <input type='text' name='ETHSUBNET' value="%ETHSUBNET%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%ETHSUBNETPH%" title="Subnet mask of your network" />
+
+        <label>DNS server: </label>
+        <input type='text' name='ETHDNS' value="%ETHDNS%" pattern="%IPPATTERN%"
+              inputmode="decimal" placeholder="%ETHDNSPH%"
+              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
+        </div>
+
+        <script> //Ticking Ethernet static IP with empty fields adopts the addresses currently in use (the DHCP lease)
+        document.querySelector('input[name="ETHSTATICIP"]').addEventListener('change', function() {
+          if (!this.checked) return;
+          ['ETHLOCALIP', 'ETHGATEWAY', 'ETHSUBNET', 'ETHDNS'].forEach(function(name) {
+            const field = document.querySelector('input[name="' + name + '"]');
+            if (field && !field.value && field.placeholder.includes('.')) {
+              field.value = field.placeholder;
+            }
+          });
+        });
+        </script>
+  )rawliteral"
+
+#define ETH_STATIC_IP_CSS \
+  R"rawliteral(
+    form .if-eth-staticip { display: none; }
+    form[data-ethstaticip="true"] .if-eth-staticip {
+      display: contents;
+    }
+  )rawliteral"
+#else
+#define ETH_STATIC_IP_HTML ""
+#define ETH_STATIC_IP_CSS ""
+#endif  // ETHERNET
+
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1563,7 +1655,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-staticip="true"] .if-staticip {
       display: contents;
     }
-
+)rawliteral" ETH_STATIC_IP_CSS R"rawliteral(
     form .if-chgtapersoc { display: none; }
     form[data-chgtapersoc="true"] .if-chgtapersoc {
       display: contents;
@@ -1646,7 +1738,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         placeholder="%DEFAULTHOSTNAME%"
         title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
 
-        <label>Use static IP address: </label>
+        )rawliteral" ETH_STATIC_IP_HTML R"rawliteral(
+
+        <label>Use static IP address: (WiFi)</label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
 
         <div class='if-staticip'>
