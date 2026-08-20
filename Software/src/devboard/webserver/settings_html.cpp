@@ -329,20 +329,23 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  // The GTW keys must render with the same fallbacks init_stored_settings()
+  // boots with (the driver globals), or a device that never saved them shows
+  // values the firmware is not running.
   if (var == "GTWCOUNTRY") {
-    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
+    return options_from_map(settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country), tesla_countries);
   }
 
   if (var == "GTWMAPREG") {
-    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+    return options_from_map(settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion), tesla_mapregion);
   }
 
   if (var == "GTWCHASSIS") {
-    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+    return options_from_map(settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType), tesla_chassis);
   }
 
   if (var == "GTWPACK") {
-    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+    return options_from_map(settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy), tesla_pack);
   }
 
   if (var == "LEDMODE") {
@@ -1033,7 +1036,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "GTWRHD") {
-    return settings.getBool("GTWRHD") ? "checked" : "";
+    // Boots true when unset, so it must also render checked when unset.
+    return settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive) ? "checked" : "";
   }
 
   if (var == "CTOFFSET") {
