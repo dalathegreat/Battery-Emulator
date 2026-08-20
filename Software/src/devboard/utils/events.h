@@ -17,138 +17,183 @@
 #define EVENT_ETHERNET_DISCONNECT_ROW(XX)
 #endif
 
-#define EVENTS_ENUM_TYPE(XX)            \
-  XX(EVENT_CANMCP2518FD_INIT_FAILURE)   \
-  XX(EVENT_CANMCP2515_INIT_FAILURE)     \
-  XX(EVENT_CANFD_BUFFER_FULL)           \
-  XX(EVENT_CANFD_2_BUFFER_FULL)         \
-  XX(EVENT_CANMCP2515_BUFFER_FULL)      \
-  XX(EVENT_CAN_CORRUPTED_WARNING)       \
-  XX(EVENT_CAN_BATTERY_DETECTED)        \
-  XX(EVENT_CAN_BATTERY2_DETECTED)       \
-  XX(EVENT_CAN_BATTERY3_DETECTED)       \
-  XX(EVENT_CAN_BATTERY_MISSING)         \
-  XX(EVENT_CAN_BATTERY2_MISSING)        \
-  XX(EVENT_CAN_BATTERY3_MISSING)        \
-  XX(EVENT_CAN_CHARGER_DETECTED)        \
-  XX(EVENT_CAN_CHARGER_MISSING)         \
-  XX(EVENT_CAN_INVERTER_DETECTED)       \
-  XX(EVENT_CAN_INVERTER_MISSING)        \
-  XX(EVENT_CAN_NATIVE_BUFFER_FULL)      \
-  XX(EVENT_CAN_NATIVE_BUS_ERROR)        \
-  XX(EVENT_CANMCP2515_BUS_ERROR)        \
-  XX(EVENT_CANFD_BUS_ERROR)             \
-  XX(EVENT_CANFD_2_BUS_ERROR)           \
-  XX(EVENT_CHARGE_LIMIT_EXCEEDED)       \
-  XX(EVENT_CONTACTOR_WELDED)            \
-  XX(EVENT_CONTACTOR_OPEN)              \
-  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)    \
-  XX(EVENT_WATER_INGRESS)               \
-  XX(EVENT_12V_LOW)                     \
-  XX(EVENT_SOC_PLAUSIBILITY_ERROR)      \
-  XX(EVENT_SOC_UNAVAILABLE)             \
-  XX(EVENT_STALE_VALUE)                 \
-  XX(EVENT_KWH_PLAUSIBILITY_ERROR)      \
-  XX(EVENT_BALANCING_START)             \
-  XX(EVENT_BALANCING_END)               \
-  XX(EVENT_BATTERY_EMPTY)               \
-  XX(EVENT_BATTERY_FULL)                \
-  XX(EVENT_BATTERY_FUSE)                \
-  XX(EVENT_BATTERY_FROZEN)              \
-  XX(EVENT_BATTERY_CAUTION)             \
-  XX(EVENT_BATTERY_CHG_STOP_REQ)        \
-  XX(EVENT_BATTERY_DISCHG_STOP_REQ)     \
-  XX(EVENT_BATTERY_CHG_DISCHG_STOP_REQ) \
-  XX(EVENT_BATTERY_OVERHEAT)            \
-  XX(EVENT_BATTERY_OVERVOLTAGE)         \
-  XX(EVENT_BATTERY_UNDERVOLTAGE)        \
-  XX(EVENT_BATTERY_VALUE_UNAVAILABLE)   \
-  XX(EVENT_BATTERY_ISOLATION)           \
-  XX(EVENT_BATTERY_REQUESTS_HEAT)       \
-  XX(EVENT_BATTERY_WARMED_UP)           \
-  XX(EVENT_BATTERY_SOC_RECALIBRATION)   \
-  XX(EVENT_BYD_AUTO_SOC_CALIBRATION)    \
-  XX(EVENT_BYD_CONTACTOR_MISMATCH)      \
-  XX(EVENT_BYD_CONTACTOR_FORCE_OPEN)    \
-  XX(EVENT_BYD_CONTACTOR_OPEN_REQ)      \
-  XX(EVENT_BYD_CONTACTOR_CLOSE_REQ)     \
-  XX(EVENT_BATTERY_SOC_RESET_SUCCESS)   \
-  XX(EVENT_BATTERY_SOC_RESET_FAIL)      \
-  XX(EVENT_VOLTAGE_DIFFERENCE_BAT2)     \
-  XX(EVENT_VOLTAGE_DIFFERENCE_BAT3)     \
-  XX(EVENT_SOH_DIFFERENCE)              \
-  XX(EVENT_SOH_LOW)                     \
-  XX(EVENT_HVIL_FAILURE)                \
-  XX(EVENT_LOW_HEAP_MEMORY)             \
-  XX(EVENT_PRECHARGE_FAILURE)           \
-  XX(EVENT_INTERNAL_OPEN_FAULT)         \
-  XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
-  XX(EVENT_INTERFACE_MISSING)           \
-  XX(EVENT_MODBUS_INVERTER_MISSING)     \
-  XX(EVENT_MODBUS_INVERTER_DETECTED)    \
-  XX(EVENT_NO_ENABLE_DETECTED)          \
-  XX(EVENT_ERROR_OPEN_CONTACTOR)        \
-  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE) \
-  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)  \
-  XX(EVENT_CELL_UNDER_VOLTAGE)          \
-  XX(EVENT_CELL_OVER_VOLTAGE)           \
-  XX(EVENT_CELL_DEVIATION_HIGH)         \
-  XX(EVENT_UNKNOWN_EVENT_SET)           \
-  XX(EVENT_OTA_UPDATE)                  \
-  XX(EVENT_OTA_UPDATE_TIMEOUT)          \
-  XX(EVENT_RESTARTING)                  \
-  XX(EVENT_DUMMY_INFO)                  \
-  XX(EVENT_DUMMY_DEBUG)                 \
-  XX(EVENT_DUMMY_WARNING)               \
-  XX(EVENT_DUMMY_ERROR)                 \
-  XX(EVENT_PERSISTENT_SAVE_INFO)        \
-  XX(EVENT_SERIAL_RX_WARNING)           \
-  XX(EVENT_SERIAL_RX_FAILURE)           \
-  XX(EVENT_SERIAL_TX_FAILURE)           \
-  XX(EVENT_SERIAL_TRANSMITTER_FAILURE)  \
-  XX(EVENT_SMA_PAIRING)                 \
-  XX(EVENT_TASK_OVERRUN)                \
-  XX(EVENT_THERMAL_RUNAWAY)             \
-  XX(EVENT_RECOVERY_START)              \
-  XX(EVENT_RECOVERY_END)                \
-  XX(EVENT_RESET_UNKNOWN)               \
-  XX(EVENT_RESET_POWERON)               \
-  XX(EVENT_RESET_EXT)                   \
-  XX(EVENT_RESET_SW)                    \
-  XX(EVENT_RESET_PANIC)                 \
-  XX(EVENT_RESET_INT_WDT)               \
-  XX(EVENT_RESET_TASK_WDT)              \
-  XX(EVENT_RESET_WDT)                   \
-  XX(EVENT_RESET_DEEPSLEEP)             \
-  XX(EVENT_RESET_BROWNOUT)              \
-  XX(EVENT_RESET_SDIO)                  \
-  XX(EVENT_RESET_USB)                   \
-  XX(EVENT_RESET_JTAG)                  \
-  XX(EVENT_RESET_EFUSE)                 \
-  XX(EVENT_RESET_PWR_GLITCH)            \
-  XX(EVENT_RESET_CPU_LOCKUP)            \
-  XX(EVENT_RJXZS_LOG)                   \
-  XX(EVENT_PAUSE_BEGIN)                 \
-  XX(EVENT_PAUSE_END)                   \
-  XX(EVENT_PID_FAILED)                  \
-  XX(EVENT_WIFI_CONNECT)                \
-  XX(EVENT_WIFI_DISCONNECT)             \
-  XX(EVENT_WIFI_AP_PASSWORD_DEFAULT)    \
-  XX(EVENT_WIFI_AP_PROVISION_TIMEOUT)   \
-  EVENT_ETHERNET_CONNECT_ROW(XX)        \
-  EVENT_ETHERNET_DISCONNECT_ROW(XX)     \
-  XX(EVENT_MQTT_CONNECT)                \
-  XX(EVENT_MQTT_DISCONNECT)             \
-  XX(EVENT_EQUIPMENT_STOP)              \
-  XX(EVENT_AUTOMATIC_PRECHARGE_FAILURE) \
-  XX(EVENT_SD_INIT_FAILED)              \
-  XX(EVENT_PERIODIC_BMS_RESET)          \
-  XX(EVENT_PERIODIC_BMS_RESET_FAILURE)  \
-  XX(EVENT_BMS_RESET_REQ_SUCCESS)       \
-  XX(EVENT_BMS_RESET_REQ_FAIL)          \
-  XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH) \
-  XX(EVENT_GPIO_NOT_DEFINED)            \
-  XX(EVENT_GPIO_CONFLICT)               \
+/* NOTE ON THE PER-BATTERY EVENTS BELOW
+   Every EVENT_BATTERY<n>_* event exists once per pack. The three variants of an event MUST stay
+   contiguous and in 1,2,3 order: set_event(event, data, battery) resolves the concrete event by
+   adding (battery - 1) to the EVENT_BATTERY1_* variant. Inserting anything between them, or
+   reordering them, silently misdirects events -- the static_asserts in events.cpp fail the build
+   if that happens. Keep EVENT_BATTERY1_EMPTY first and EVENT_BATTERY3_TEMP_DEVIATION_HIGH last;
+   set_event() uses both as range bounds. */
+#define EVENTS_ENUM_TYPE(XX)             \
+  XX(EVENT_CANMCP2518FD_INIT_FAILURE)    \
+  XX(EVENT_CANMCP2515_INIT_FAILURE)      \
+  XX(EVENT_CANFD_BUFFER_FULL)            \
+  XX(EVENT_CANFD_2_BUFFER_FULL)          \
+  XX(EVENT_CANMCP2515_BUFFER_FULL)       \
+  XX(EVENT_CAN_CORRUPTED_WARNING)        \
+  XX(EVENT_CAN_BATTERY_DETECTED)         \
+  XX(EVENT_CAN_BATTERY2_DETECTED)        \
+  XX(EVENT_CAN_BATTERY3_DETECTED)        \
+  XX(EVENT_CAN_BATTERY_MISSING)          \
+  XX(EVENT_CAN_BATTERY2_MISSING)         \
+  XX(EVENT_CAN_BATTERY3_MISSING)         \
+  XX(EVENT_CAN_CHARGER_DETECTED)         \
+  XX(EVENT_CAN_CHARGER_MISSING)          \
+  XX(EVENT_CAN_INVERTER_DETECTED)        \
+  XX(EVENT_CAN_INVERTER_MISSING)         \
+  XX(EVENT_CAN_NATIVE_BUFFER_FULL)       \
+  XX(EVENT_CAN_NATIVE_BUS_ERROR)         \
+  XX(EVENT_CANMCP2515_BUS_ERROR)         \
+  XX(EVENT_CANFD_BUS_ERROR)              \
+  XX(EVENT_CANFD_2_BUS_ERROR)            \
+  XX(EVENT_CHARGE_LIMIT_EXCEEDED)        \
+  XX(EVENT_CONTACTOR_WELDED)             \
+  XX(EVENT_CONTACTOR_OPEN)               \
+  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)     \
+  XX(EVENT_WATER_INGRESS)                \
+  XX(EVENT_12V_LOW)                      \
+  XX(EVENT_SOC_PLAUSIBILITY_ERROR)       \
+  XX(EVENT_SOC_UNAVAILABLE)              \
+  XX(EVENT_STALE_VALUE)                  \
+  XX(EVENT_KWH_PLAUSIBILITY_ERROR)       \
+  XX(EVENT_BALANCING_START)              \
+  XX(EVENT_BALANCING_END)                \
+  XX(EVENT_BATTERY1_EMPTY)               \
+  XX(EVENT_BATTERY2_EMPTY)               \
+  XX(EVENT_BATTERY3_EMPTY)               \
+  XX(EVENT_BATTERY1_FULL)                \
+  XX(EVENT_BATTERY2_FULL)                \
+  XX(EVENT_BATTERY3_FULL)                \
+  XX(EVENT_BATTERY1_FUSE)                \
+  XX(EVENT_BATTERY2_FUSE)                \
+  XX(EVENT_BATTERY3_FUSE)                \
+  XX(EVENT_BATTERY1_FROZEN)              \
+  XX(EVENT_BATTERY2_FROZEN)              \
+  XX(EVENT_BATTERY3_FROZEN)              \
+  XX(EVENT_BATTERY1_CAUTION)             \
+  XX(EVENT_BATTERY2_CAUTION)             \
+  XX(EVENT_BATTERY3_CAUTION)             \
+  XX(EVENT_BATTERY1_CHG_STOP_REQ)        \
+  XX(EVENT_BATTERY2_CHG_STOP_REQ)        \
+  XX(EVENT_BATTERY3_CHG_STOP_REQ)        \
+  XX(EVENT_BATTERY1_DISCHG_STOP_REQ)     \
+  XX(EVENT_BATTERY2_DISCHG_STOP_REQ)     \
+  XX(EVENT_BATTERY3_DISCHG_STOP_REQ)     \
+  XX(EVENT_BATTERY1_CHG_DISCHG_STOP_REQ) \
+  XX(EVENT_BATTERY2_CHG_DISCHG_STOP_REQ) \
+  XX(EVENT_BATTERY3_CHG_DISCHG_STOP_REQ) \
+  XX(EVENT_BATTERY1_OVERHEAT)            \
+  XX(EVENT_BATTERY2_OVERHEAT)            \
+  XX(EVENT_BATTERY3_OVERHEAT)            \
+  XX(EVENT_BATTERY1_OVERVOLTAGE)         \
+  XX(EVENT_BATTERY2_OVERVOLTAGE)         \
+  XX(EVENT_BATTERY3_OVERVOLTAGE)         \
+  XX(EVENT_BATTERY1_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY2_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY3_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY1_VALUE_UNAVAILABLE)   \
+  XX(EVENT_BATTERY2_VALUE_UNAVAILABLE)   \
+  XX(EVENT_BATTERY3_VALUE_UNAVAILABLE)   \
+  XX(EVENT_BATTERY1_ISOLATION)           \
+  XX(EVENT_BATTERY2_ISOLATION)           \
+  XX(EVENT_BATTERY3_ISOLATION)           \
+  XX(EVENT_BATTERY1_REQUESTS_HEAT)       \
+  XX(EVENT_BATTERY2_REQUESTS_HEAT)       \
+  XX(EVENT_BATTERY3_REQUESTS_HEAT)       \
+  XX(EVENT_BATTERY1_WARMED_UP)           \
+  XX(EVENT_BATTERY2_WARMED_UP)           \
+  XX(EVENT_BATTERY3_WARMED_UP)           \
+  XX(EVENT_BATTERY1_SOC_RECALIBRATION)   \
+  XX(EVENT_BATTERY2_SOC_RECALIBRATION)   \
+  XX(EVENT_BATTERY3_SOC_RECALIBRATION)   \
+  XX(EVENT_BATTERY1_SOC_RESET_SUCCESS)   \
+  XX(EVENT_BATTERY2_SOC_RESET_SUCCESS)   \
+  XX(EVENT_BATTERY3_SOC_RESET_SUCCESS)   \
+  XX(EVENT_BATTERY1_SOC_RESET_FAIL)      \
+  XX(EVENT_BATTERY2_SOC_RESET_FAIL)      \
+  XX(EVENT_BATTERY3_SOC_RESET_FAIL)      \
+  XX(EVENT_BATTERY1_TEMP_DEVIATION_HIGH) \
+  XX(EVENT_BATTERY2_TEMP_DEVIATION_HIGH) \
+  XX(EVENT_BATTERY3_TEMP_DEVIATION_HIGH) \
+  XX(EVENT_BYD_AUTO_SOC_CALIBRATION)     \
+  XX(EVENT_BYD_CONTACTOR_MISMATCH)       \
+  XX(EVENT_BYD_CONTACTOR_FORCE_OPEN)     \
+  XX(EVENT_BYD_CONTACTOR_OPEN_REQ)       \
+  XX(EVENT_BYD_CONTACTOR_CLOSE_REQ)      \
+  XX(EVENT_VOLTAGE_DIFFERENCE_BAT2)      \
+  XX(EVENT_VOLTAGE_DIFFERENCE_BAT3)      \
+  XX(EVENT_SOH_DIFFERENCE)               \
+  XX(EVENT_SOH_LOW)                      \
+  XX(EVENT_HVIL_FAILURE)                 \
+  XX(EVENT_LOW_HEAP_MEMORY)              \
+  XX(EVENT_PRECHARGE_FAILURE)            \
+  XX(EVENT_INTERNAL_OPEN_FAULT)          \
+  XX(EVENT_INVERTER_OPEN_CONTACTOR)      \
+  XX(EVENT_INTERFACE_MISSING)            \
+  XX(EVENT_MODBUS_INVERTER_MISSING)      \
+  XX(EVENT_MODBUS_INVERTER_DETECTED)     \
+  XX(EVENT_NO_ENABLE_DETECTED)           \
+  XX(EVENT_ERROR_OPEN_CONTACTOR)         \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)  \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)   \
+  XX(EVENT_CELL_UNDER_VOLTAGE)           \
+  XX(EVENT_CELL_OVER_VOLTAGE)            \
+  XX(EVENT_CELL_DEVIATION_HIGH)          \
+  XX(EVENT_UNKNOWN_EVENT_SET)            \
+  XX(EVENT_OTA_UPDATE)                   \
+  XX(EVENT_OTA_UPDATE_TIMEOUT)           \
+  XX(EVENT_RESTARTING)                   \
+  XX(EVENT_DUMMY_INFO)                   \
+  XX(EVENT_DUMMY_DEBUG)                  \
+  XX(EVENT_DUMMY_WARNING)                \
+  XX(EVENT_DUMMY_ERROR)                  \
+  XX(EVENT_PERSISTENT_SAVE_INFO)         \
+  XX(EVENT_SERIAL_RX_WARNING)            \
+  XX(EVENT_SERIAL_RX_FAILURE)            \
+  XX(EVENT_SERIAL_TX_FAILURE)            \
+  XX(EVENT_SERIAL_TRANSMITTER_FAILURE)   \
+  XX(EVENT_SMA_PAIRING)                  \
+  XX(EVENT_TASK_OVERRUN)                 \
+  XX(EVENT_THERMAL_RUNAWAY)              \
+  XX(EVENT_RECOVERY_START)               \
+  XX(EVENT_RECOVERY_END)                 \
+  XX(EVENT_RESET_UNKNOWN)                \
+  XX(EVENT_RESET_POWERON)                \
+  XX(EVENT_RESET_EXT)                    \
+  XX(EVENT_RESET_SW)                     \
+  XX(EVENT_RESET_PANIC)                  \
+  XX(EVENT_RESET_INT_WDT)                \
+  XX(EVENT_RESET_TASK_WDT)               \
+  XX(EVENT_RESET_WDT)                    \
+  XX(EVENT_RESET_DEEPSLEEP)              \
+  XX(EVENT_RESET_BROWNOUT)               \
+  XX(EVENT_RESET_SDIO)                   \
+  XX(EVENT_RESET_USB)                    \
+  XX(EVENT_RESET_JTAG)                   \
+  XX(EVENT_RESET_EFUSE)                  \
+  XX(EVENT_RESET_PWR_GLITCH)             \
+  XX(EVENT_RESET_CPU_LOCKUP)             \
+  XX(EVENT_RJXZS_LOG)                    \
+  XX(EVENT_PAUSE_BEGIN)                  \
+  XX(EVENT_PAUSE_END)                    \
+  XX(EVENT_PID_FAILED)                   \
+  XX(EVENT_WIFI_CONNECT)                 \
+  XX(EVENT_WIFI_DISCONNECT)              \
+  XX(EVENT_WIFI_AP_PASSWORD_DEFAULT)     \
+  XX(EVENT_WIFI_AP_PROVISION_TIMEOUT)    \
+  EVENT_ETHERNET_CONNECT_ROW(XX)         \
+  EVENT_ETHERNET_DISCONNECT_ROW(XX)      \
+  XX(EVENT_MQTT_CONNECT)                 \
+  XX(EVENT_MQTT_DISCONNECT)              \
+  XX(EVENT_EQUIPMENT_STOP)               \
+  XX(EVENT_AUTOMATIC_PRECHARGE_FAILURE)  \
+  XX(EVENT_SD_INIT_FAILED)               \
+  XX(EVENT_PERIODIC_BMS_RESET)           \
+  XX(EVENT_PERIODIC_BMS_RESET_FAILURE)   \
+  XX(EVENT_BMS_RESET_REQ_SUCCESS)        \
+  XX(EVENT_BMS_RESET_REQ_FAIL)           \
+  XX(EVENT_GPIO_NOT_DEFINED)             \
+  XX(EVENT_GPIO_CONFLICT)                \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -180,7 +225,9 @@ typedef enum : uint8_t {
 
 typedef struct {
   uint64_t timestamp;
-  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
+  int16_t data;             // Custom data passed when setting the event, for example cell number for under voltage.
+                            // Signed and 16 bits wide so deci-Celsius temperatures survive intact; the previous
+                            // uint8_t reported 50.1 degC as 245 and -25.1 degC as 5.
   uint8_t occurences;       // Number of occurrences since startup
   EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
   EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
@@ -250,8 +297,18 @@ EMULATOR_STATUS get_emulator_status();
 const char* get_emulator_status_string(EMULATOR_STATUS status);
 
 void init_events(void);
-void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
-void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
+void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data);
+void set_event(EVENTS_ENUM_TYPE event, int16_t data);
+// Battery-aware variant. battery is 1/2/3, or 0 when the event is not tied to one specific pack.
+// A non-zero value appends " (Battery N)" to the event message everywhere it is rendered.
+/* Raise a battery specific event for pack 1, 2 or 3. Pass the EVENT_BATTERY1_* variant as
+   `event` and the pack number as `battery`; the concrete event is resolved from the two.
+   A driver instance passes its own battery_index, so the same driver code serves every pack.
+   Out of range arguments raise EVENT_BATTERY1_VALUE_UNAVAILABLE rather than corrupting an
+   unrelated event, since the resolution is index arithmetic over the enum. */
+void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
+void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
+void clear_event(EVENTS_ENUM_TYPE event, uint8_t battery);
 void clear_event(EVENTS_ENUM_TYPE event);
 // Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
