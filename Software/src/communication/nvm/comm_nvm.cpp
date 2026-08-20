@@ -7,6 +7,7 @@
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
+#include "../../devboard/settings/settings_table.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
@@ -43,6 +44,135 @@ static void migrate_static_ip_settings(BatteryEmulatorSettingsStore& settings) {
   for (auto key : legacy_keys) {
     settings.removeKey(key);
   }
+}
+
+// The NVS type tag a row's kind is written under. Preferences enforces the tag on read: a
+// getter that disagrees with it returns the caller's default instead of the stored value.
+static PreferenceType preference_type_for(SettingKind kind) {
+  switch (kind) {
+    case SettingKind::BoolU8:
+      return PT_U8;
+    case SettingKind::U32:
+      return PT_U32;
+    case SettingKind::I32:
+      return PT_I32;
+    case SettingKind::Str:
+      return PT_STR;
+  }
+  return PT_INVALID;
+}
+
+static bool setting_kind_for(PreferenceType type, SettingKind& kind) {
+  switch (type) {
+    case PT_U8:
+      kind = SettingKind::BoolU8;
+      return true;
+    case PT_U32:
+      kind = SettingKind::U32;
+      return true;
+    case PT_I32:
+      kind = SettingKind::I32;
+      return true;
+    case PT_STR:
+      kind = SettingKind::Str;
+      return true;
+    default:
+      return false;
+  }
+}
+
+static const char* preference_type_name(PreferenceType type) {
+  switch (type) {
+    case PT_I8:
+      return "i8";
+    case PT_U8:
+      return "u8";
+    case PT_I16:
+      return "i16";
+    case PT_U16:
+      return "u16";
+    case PT_I32:
+      return "i32";
+    case PT_U32:
+      return "u32";
+    case PT_I64:
+      return "i64";
+    case PT_U64:
+      return "u64";
+    case PT_STR:
+      return "str";
+    case PT_BLOB:
+      return "blob";
+    default:
+      return "invalid";
+  }
+}
+
+static String read_setting_as(BatteryEmulatorSettingsStore& settings, const char* key, SettingKind kind) {
+  switch (kind) {
+    case SettingKind::BoolU8:
+      return String(settings.getBool(key, false) ? 1 : 0);
+    case SettingKind::U32:
+      return String(settings.getUInt(key, 0));
+    case SettingKind::I32:
+      return String(settings.getInt(key, 0));
+    case SettingKind::Str:
+      return settings.getString(key, "");
+  }
+  return String();
+}
+
+// Reads the stored settings a second time through the descriptor table and reports where the
+// table and the flash disagree. It changes nothing: every value the hand-written loads above
+// produced still stands, and this only looks.
+//
+// What it looks for is the one failure that would make migrating those loads to the table
+// dangerous. NVS tags each entry with the type it was written as; a row whose kind does not
+// match that tag makes a typed read return its default instead of the stored value, so a
+// generic loader would quietly replace a user's setting with a default and a generic save
+// would then write that default back. That is data loss with no visible symptom, and it can
+// only be ruled out on devices carrying real settings - not by a test, and not by reading the
+// code, which is why this runs before anything depends on the table.
+//
+// Keys that were never stored are skipped: both paths would produce their own default, which
+// proves nothing about the flash.
+static void shadow_read_settings_table(BatteryEmulatorSettingsStore& settings) {
+  static_assert(SID_COUNT <= 255, "the mismatch event carries the row index as a uint8_t payload");
+
+  uint16_t stored = 0;
+  uint16_t mismatches = 0;
+  for (size_t i = 0; i < SID_COUNT; ++i) {
+    const SettingDesc& row = SETTINGS_TABLE[i];
+    if (!settings.settingExists(row.nvs_key)) {
+      continue;
+    }
+    ++stored;
+
+    const PreferenceType stored_type = settings.getType(row.nvs_key);
+    const PreferenceType table_type = preference_type_for(row.kind);
+    if (stored_type == table_type) {
+      continue;
+    }
+
+    if (mismatches == 0) {
+      set_event(EVENT_SETTINGS_SHADOW_MISMATCH, (uint8_t)i);
+    }
+    ++mismatches;
+
+    SettingKind stored_kind = row.kind;
+    const bool stored_readable = setting_kind_for(stored_type, stored_kind);
+    DEBUG_PRINTF(
+        "Settings shadow read: %s is stored as %s, the table calls it %s. Table reads '%s', stored value is "
+        "'%s'. Nothing was changed.\n",
+        row.nvs_key, preference_type_name(stored_type), preference_type_name(table_type),
+        read_setting_as(settings, row.nvs_key, row.kind).c_str(),
+        stored_readable ? read_setting_as(settings, row.nvs_key, stored_kind).c_str() : "unreadable");
+  }
+
+  // Always reported, including the happy case: a run that finds nothing has to be
+  // distinguishable from a run that had nothing to look at.
+  DEBUG_PRINTF("Settings shadow read: %u of %u rows are stored on this device, %u disagree.\n", (unsigned)stored,
+               (unsigned)SID_COUNT, (unsigned)mismatches);
 }
 
 // Initialization functions
@@ -310,6 +440,8 @@ void init_stored_settings() {
   // One isolation-monitor setting for both batteries
   datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
+
+  shadow_read_settings_table(settings);
 }
 
 void clear_wifi_sta_settings() {
