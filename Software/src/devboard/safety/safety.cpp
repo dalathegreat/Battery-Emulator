@@ -359,11 +359,13 @@ void update_machineryprotection() {
       // Inverter frames received recently - clear any previously raised missing-event
       // regardless of which timeout mode is active
       clear_event(EVENT_CAN_INVERTER_MISSING);
-      // If the inverter is a slow starter, only decrement the counter every 2 seconds to give it more time to start up before we report it as missing
+      // If the inverter is a slow starter, only decrement the counter every third second,
+      // tripling the timeout (60 s -> 180 s) to give it more time to start up before we
+      // report it as missing
       if (user_selected_inverter_long_CAN_timeout) {
         static uint8_t slow_start_counter = 0;
         slow_start_counter++;
-        if (slow_start_counter > 2) {  // Only decrement every 2 seconds
+        if (slow_start_counter > 2) {  // Counts 1, 2, 3: the decrement runs on every third pass
           datalayer.system.status.CAN_inverter_still_alive--;
           slow_start_counter = 0;
         }
