@@ -324,6 +324,13 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
 
   switch (interface) {
     case CAN_NATIVE: {
+      if (tx_frame->DLC > sizeof(CANMessage::data)) {
+        // An FD-length frame cannot be sent on a classic CAN interface (a CAN-FD
+        // battery configured on it produces these), and copying it below would
+        // overflow frame.data on the stack.
+        datalayer.system.info.can_native_send_fail = true;
+        break;
+      }
       CANMessage frame;
       frame.id = tx_frame->ID;
       frame.ext = tx_frame->ext_ID;
@@ -337,6 +344,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       }
     } break;
     case CAN_ADDON_MCP2515: {
+      if (tx_frame->DLC > sizeof(MCP2515_Lite_Frame::data)) {
+        // Same as CAN_NATIVE: an FD-length frame cannot travel over the MCP2515.
+        datalayer.system.info.can_2515_send_fail = true;
+        break;
+      }
       MCP2515_Lite_Frame mcp2515_frame;
       copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
 
