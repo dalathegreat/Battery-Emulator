@@ -319,9 +319,13 @@ class Mcp2518Device : public CanDevice {
     // what a troubleshooter wants (dala on #2799).
     EVENTS_ENUM_TYPE buffer_full_event;
     EVENTS_ENUM_TYPE bus_error_event;
-    const char* selected_log;
-    const char* error_log_prefix;
   };
+
+  // The channel number is a parameter rather than part of the text, so these are one
+  // message each instead of one per controller: another channel costs no strings, and
+  // each message is a single unit to translate rather than several near-identical ones.
+  static constexpr const char* SELECTED_LOG_FORMAT = "CAN FD %d add-on (ESP32+MCP2517) selected";
+  static constexpr const char* CONFIG_ERROR_FORMAT = "CAN-FD %d Configuration error 0x";
 
   static constexpr Identity identity[MAX_CAN_FD_DEVICES] = {
       {
@@ -330,8 +334,6 @@ class Mcp2518Device : public CanDevice {
           .init_fail_event = EVENT_CANMCP2518FD_INIT_FAILURE,
           .buffer_full_event = EVENT_CANFD_BUFFER_FULL,
           .bus_error_event = EVENT_CANFD_BUS_ERROR,
-          .selected_log = "CAN FD add-on (ESP32+MCP2517) selected",
-          .error_log_prefix = "CAN-FD Configuration error 0x",
       },
       {
           .name = "CAN-FD 2",
@@ -339,8 +341,6 @@ class Mcp2518Device : public CanDevice {
           .init_fail_event = EVENT_CANMCP2518FD_2_INIT_FAILURE,
           .buffer_full_event = EVENT_CANFD_2_BUFFER_FULL,
           .bus_error_event = EVENT_CANFD_2_BUS_ERROR,
-          .selected_log = "CAN FD add-on 2 (ESP32+MCP2517) selected",
-          .error_log_prefix = "CAN-FD 2 Configuration error 0x",
       },
   };
   static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's identity row and its ISR trampoline");
@@ -351,6 +351,9 @@ class Mcp2518Device : public CanDevice {
                     identity[0].bus_error_event != identity[1].bus_error_event &&
                     identity[0].init_fail_event != identity[1].init_fail_event,
                 "each FD instance needs its own event ids");
+
+  // 1-based, as the messages and the settings UI count channels.
+  int channel_number() const { return cfg_.index + 1; }
 
   explicit Mcp2518Device(const Config& config) : cfg_(config) {
     name = identity[cfg_.index].name;
@@ -366,7 +369,7 @@ class Mcp2518Device : public CanDevice {
                           cfg_.int0_pin != GPIO_NUM_NC ? cfg_.int0_pin : 255,
                           cfg_.int1_pin != GPIO_NUM_NC ? cfg_.int1_pin : 255);
 
-    logging.println(identity[cfg_.index].selected_log);
+    logging.printf(SELECTED_LOG_FORMAT, channel_number());
 
     ACAN2517FDSettings::Oscillator osc_freq =
         (cfg_.freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
@@ -446,7 +449,7 @@ class Mcp2518Device : public CanDevice {
                                                 : +[] { fd_instances[1]->run_isr(); });
     can_->poll();
     if (errorCode != 0) {
-      logging.print(identity[cfg_.index].error_log_prefix);
+      logging.printf(CONFIG_ERROR_FORMAT, channel_number());
       logging.println(errorCode, HEX);
       set_event(init_fail_event_, (uint8_t)errorCode);
       // This will leak, but we have failed and won't try to reinit.
