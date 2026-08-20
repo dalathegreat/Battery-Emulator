@@ -19,7 +19,8 @@ static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame, uint8_t length) {
 void StellantisProOneBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  //datalayer.battery.status.real_soc; //TODO: locate
+  datalayer.battery.status.real_soc =
+      (datalayer.battery.status.voltage_dV - 3000) * 10;  //TODO: locate, estimate now in place
   //datalayer.battery.status.soh_pptt; //TODO: locate
   //datalayer.battery.status.voltage_dV; //TODO: locate
   //datalayer.battery.status.current_dA; //TODO: locate
