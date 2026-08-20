@@ -4,142 +4,144 @@
 #include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "<h4>BECM supply voltage: " + String(datalayer_extended.VolvoPolestar.BECMsupplyVoltage) + " mV</h4>";
+    tr_h4(content, TrKey::DRV_BECM_SUPPLY_VOLTAGE, String(datalayer_extended.VolvoPolestar.BECMsupplyVoltage), " mV");
 
-    content += "<h4>Dynamic max voltage: " + String(datalayer_extended.VolvoPolestar.BECMUDynMaxLim) + " V</h4>";
-    content += "<h4>Dynamic min voltage: " + String(datalayer_extended.VolvoPolestar.BECMUDynMinLim) + " V</h4>";
+    tr_h4(content, TrKey::DRV_DYNAMIC_MAX_VOLTAGE, String(datalayer_extended.VolvoPolestar.BECMUDynMaxLim), " V");
+    tr_h4(content, TrKey::DRV_DYNAMIC_MIN_VOLTAGE, String(datalayer_extended.VolvoPolestar.BECMUDynMinLim), " V");
 
-    content +=
-        "<h4>Discharge power limit 1: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimDcha1) + " kW</h4>";
-    content +=
-        "<h4>Discharge soft power limit: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSoft) + " kW</h4>";
-    content +=
-        "<h4>Discharge power limit slow aging: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSlowAgi) +
-        " kW</h4>";
-    content +=
-        "<h4>Charge power limit slow aging: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimChrgSlowAgi) +
-        " kW</h4>";
-    content += "<h4>HVIL Circuit A status: ";
+    tr_h4(content, TrKey::DRV_DISCHARGE_POWER_LIMIT_1, String(datalayer_extended.VolvoPolestar.HvBattPwrLimDcha1),
+          " kW");
+    tr_h4(content, TrKey::DRV_DISCHARGE_SOFT_POWER_LIMIT, String(datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSoft),
+          " kW");
+    tr_h4(content, TrKey::DRV_DISCHARGE_POWER_LIMIT_SLOW_AGING,
+          String(datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSlowAgi), " kW");
+    tr_h4(content, TrKey::DRV_CHARGE_POWER_LIMIT_SLOW_AGING,
+          String(datalayer_extended.VolvoPolestar.HvBattPwrLimChrgSlowAgi), " kW");
+    tr_h4_open(content, TrKey::DRV_HVIL_CIRCUIT_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x01) {
       case 0x01:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "<h4>HVIL Circuit B status: ";
+    tr_h4_open(content, TrKey::DRV_HVIL_CIRCUIT_B_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x02) {
       case 0x02:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>HVIL Circuit C status: ";
+    tr_h4_open(content, TrKey::DRV_HVIL_CIRCUIT_C_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x04) {
       case 0x04:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Precharge contactor status: ";
+    tr_h4_open(content, TrKey::DRV_PRECHARGE_CONTACTOR_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x08) {
       case 0x08:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Positive Contactor status: ";
+    tr_h4_open(content, TrKey::DRV_POSITIVE_CONTACTOR_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x10) {
       case 0x10:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>Negative Contactor status: ";
+    tr_h4_open(content, TrKey::DRV_NEGATIVE_CONTACTOR_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVILstatusBits & 0x20) {
       case 0x20:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       default:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
     }
-    content += "<h4>HV system relay status: ";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_RELAY_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVSysRlySts) {
       case 0:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       case 1:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
         break;
       case 2:
-        content += String("KeepStatus");
+        content += String(TR(TrKey::DRV_KEEPSTATUS));
         break;
       case 3:
-        content += String("OpenAndRequestActiveDischarge");
+        content += String(TR(TrKey::DRV_OPENANDREQUESTACTIVEDISCHARGE));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "</h4><h4>HV system relay status 1: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_RELAY_STATUS_1);
     switch (datalayer_extended.VolvoPolestar.HVSysDCRlySts1) {
       case 0:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       case 1:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
         break;
       case 2:
-        content += String("KeepStatus");
+        content += String(TR(TrKey::DRV_KEEPSTATUS));
         break;
       case 3:
-        content += String("Fault");
+        content += String(TR(TrKey::DRV_FAULT));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "</h4><h4>HV system relay status 2: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_RELAY_STATUS_2);
     switch (datalayer_extended.VolvoPolestar.HVSysDCRlySts2) {
       case 0:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       case 1:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
         break;
       case 2:
-        content += String("KeepStatus");
+        content += String(TR(TrKey::DRV_KEEPSTATUS));
         break;
       case 3:
-        content += String("Fault");
+        content += String(TR(TrKey::DRV_FAULT));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "</h4><h4>HV system isolation resistance monitoring status: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_ISOLATION_RESISTANCE_MONITORING_STATUS);
     switch (datalayer_extended.VolvoPolestar.HVSysIsoRMonrSts) {
       case 0:
-        content += String("Not valid 1");
+        content += String(TR(TrKey::DRV_NOT_VALID_1));
         break;
       case 1:
-        content += String("False");
+        content += String(TR(TrKey::DRV_FALSE));
         break;
       case 2:
-        content += String("True");
+        content += String(TR(TrKey::DRV_TRUE));
         break;
       case 3:
-        content += String("Not valid 2");
+        content += String(TR(TrKey::DRV_NOT_VALID_2));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
 
     content += render_dtc_section(datalayer.battery.dtc);
@@ -158,33 +160,37 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
     content.reserve(3300 + dtc.dtc_count * 200);
 
     content +=
-        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
-        "Diagnostic Trouble Codes</h4>";
+        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; " +
+        TR(TrKey::DRV_DIAGNOSTIC_TROUBLE_CODES) + "</h4>";
 
     if (dtc.dtc_last_read_millis == 0) {
-      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+      content += "<p style='color:#bbb;'>" + TR(TrKey::DRV_NOT_READ_YET_USE_READ_DTC_BUTTON_BELOW_SCAN) + "</p>";
       return content;
     }
     if (dtc.dtc_read_failed) {
-      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+      content += "<p style='color:#ff8a80;'>&#9888; " + TR(TrKey::DRV_LAST_DTC_READ_FAILED_TIMED_OUT) + "</p>";
       return content;
     }
     if (dtc.dtc_count == 0) {
-      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+      content += "<p style='color:#69f0ae;'>&#10003; " + TR(TrKey::DRV_NO_DTCS_PRESENT) + "</p>";
       return content;
     }
 
     unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
-    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) + "s ago</p>";
+    content += "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " " + TR(TrKey::DRV_CODES) + " &mdash; read " +
+               String(age_s) + TR(TrKey::DRV_S_AGO) + "</p>";
     content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
     content +=
         "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
         "border:1px solid #4a5a64;border-radius:8px;overflow:hidden;'>";
     content +=
         "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
+        // "DTC" is the standard automotive acronym and is used verbatim in every
+        // language the catalog carries, so it stays untranslated.
         "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
-        "<th style='padding:10px 18px;text-align:left;'>Status</th>"
-        "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+        "<th style='padding:10px 18px;text-align:left;'>" +
+        TR(TrKey::DRV_STATUS) + "</th><th style='padding:10px 18px;text-align:left;'>" + TR(TrKey::DRV_DESCRIPTION) +
+        "</th></tr></thead><tbody>";
 
     const char SYS[5] = "PCBU";
     for (uint8_t i = 0; i < dtc.dtc_count; i++) {
@@ -204,14 +210,14 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
       }
 
       // Status precedence: Active (bit 0x01) > Confirmed (bit 0x08) > Stored.
-      const char* statusStr = "Stored";
+      String statusStr = TR(TrKey::DRV_STORED);
       const char* statusColor = "#9e9e9e";
       if (status & 0x08) {
-        statusStr = "Confirmed";
+        statusStr = TR(TrKey::DRV_CONFIRMED);
         statusColor = "#d29922";
       }
       if (status & 0x01) {
-        statusStr = "Active";
+        statusStr = TR(TrKey::DRV_ACTIVE_STATUS);
         statusColor = "#ff5252";
       }
 
@@ -225,7 +231,7 @@ class VolvoSpaHtmlRenderer : public BatteryHtmlRenderer {
       content += statusStr;
       content += "</td><td data-dtc-code='";
       content += matchKey;
-      content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
+      content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>" + TR(TrKey::UI_UNKNOWN) + "</td></tr>";
     }
     content += "</tbody></table></div>";
     content += get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, "volvo_SPA_dtc.json");

@@ -3,6 +3,7 @@
 
 #include <cstring>  //For unit test
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class GeelyGeometryCHtmlRenderer : public BatteryHtmlRenderer {
@@ -21,35 +22,35 @@ class GeelyGeometryCHtmlRenderer : public BatteryHtmlRenderer {
     memcpy(readableHardwareVersion, datalayer_extended.geometryC.BatteryHardwareVersion,
            sizeof(datalayer_extended.geometryC.BatteryHardwareVersion));
     readableHardwareVersion[16] = '\0';  // Null terminate the string
-    content += "<h4>Serial number: " + String(readableSoftwareVersion) + "</h4>";
-    content += "<h4>Software version: " + String(readableSerialNumber) + "</h4>";
-    content += "<h4>Hardware version: " + String(readableHardwareVersion) + "</h4>";
-    content += "<h4>SOC display: " + String(datalayer_extended.geometryC.soc) + "ppt</h4>";
-    content += "<h4>CC2 voltage: " + String(datalayer_extended.geometryC.CC2voltage) + "mV</h4>";
-    content += "<h4>Cell max voltage number: " + String(datalayer_extended.geometryC.cellMaxVoltageNumber) + "</h4>";
-    content += "<h4>Cell min voltage number: " + String(datalayer_extended.geometryC.cellMinVoltageNumber) + "</h4>";
-    content += "<h4>Cell total amount: " + String(datalayer_extended.geometryC.cellTotalAmount) + "S</h4>";
-    content += "<h4>Specificial Voltage: " + String(datalayer_extended.geometryC.specificialVoltage) + "dV</h4>";
-    content += "<h4>Unknown1: " + String(datalayer_extended.geometryC.unknown1) + "</h4>";
-    content += "<h4>Raw SOC max: " + String(datalayer_extended.geometryC.rawSOCmax) + "</h4>";
-    content += "<h4>Raw SOC min: " + String(datalayer_extended.geometryC.rawSOCmin) + "</h4>";
-    content += "<h4>Unknown4: " + String(datalayer_extended.geometryC.unknown4) + "</h4>";
-    content += "<h4>Capacity module max: " + String((datalayer_extended.geometryC.capModMax / 10)) + "Ah</h4>";
-    content += "<h4>Capacity module min: " + String((datalayer_extended.geometryC.capModMin / 10)) + "Ah</h4>";
-    content += "<h4>Unknown7: " + String(datalayer_extended.geometryC.unknown7) + "</h4>";
-    content += "<h4>Unknown8: " + String(datalayer_extended.geometryC.unknown8) + "</h4>";
-    content +=
-        "<h4>Module 1 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[0]) + " &deg;C</h4>";
-    content +=
-        "<h4>Module 2 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[1]) + " &deg;C</h4>";
-    content +=
-        "<h4>Module 3 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[2]) + " &deg;C</h4>";
-    content +=
-        "<h4>Module 4 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[3]) + " &deg;C</h4>";
-    content +=
-        "<h4>Module 5 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[4]) + " &deg;C</h4>";
-    content +=
-        "<h4>Module 6 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[5]) + " &deg;C</h4>";
+    tr_h4(content, TrKey::DRV_SERIAL_NUMBER, String(readableSoftwareVersion));
+    tr_h4(content, TrKey::DRV_SOFTWARE_VERSION, String(readableSerialNumber));
+    tr_h4(content, TrKey::DRV_HARDWARE_VERSION, String(readableHardwareVersion));
+    tr_h4(content, TrKey::DRV_SOC_DISPLAY, String(datalayer_extended.geometryC.soc), "ppt");
+    tr_h4(content, TrKey::DRV_CC2_VOLTAGE, String(datalayer_extended.geometryC.CC2voltage), "mV");
+    tr_h4(content, TrKey::DRV_CELL_MAX_VOLTAGE_NUMBER, String(datalayer_extended.geometryC.cellMaxVoltageNumber));
+    tr_h4(content, TrKey::DRV_CELL_MIN_VOLTAGE_NUMBER, String(datalayer_extended.geometryC.cellMinVoltageNumber));
+    tr_h4(content, TrKey::DRV_CELL_TOTAL_AMOUNT, String(datalayer_extended.geometryC.cellTotalAmount), "S");
+    tr_h4(content, TrKey::DRV_SPECIFICIAL_VOLTAGE, String(datalayer_extended.geometryC.specificialVoltage), "dV");
+    tr_h4(content, TrKey::DRV_UNKNOWN1, String(datalayer_extended.geometryC.unknown1));
+    tr_h4(content, TrKey::DRV_RAW_SOC_MAX, String(datalayer_extended.geometryC.rawSOCmax));
+    tr_h4(content, TrKey::DRV_RAW_SOC_MIN, String(datalayer_extended.geometryC.rawSOCmin));
+    tr_h4(content, TrKey::DRV_UNKNOWN4, String(datalayer_extended.geometryC.unknown4));
+    tr_h4(content, TrKey::DRV_CAPACITY_MODULE_MAX, String((datalayer_extended.geometryC.capModMax / 10)), "Ah");
+    tr_h4(content, TrKey::DRV_CAPACITY_MODULE_MIN, String((datalayer_extended.geometryC.capModMin / 10)), "Ah");
+    tr_h4(content, TrKey::DRV_UNKNOWN7, String(datalayer_extended.geometryC.unknown7));
+    tr_h4(content, TrKey::DRV_UNKNOWN8, String(datalayer_extended.geometryC.unknown8));
+    tr_h4(content, TrKey::DRV_MODULE_1_TEMPERATURE, String(datalayer_extended.geometryC.ModuleTemperatures[0]),
+          " &deg;C");
+    tr_h4(content, TrKey::DRV_MODULE_2_TEMPERATURE, String(datalayer_extended.geometryC.ModuleTemperatures[1]),
+          " &deg;C");
+    tr_h4(content, TrKey::DRV_MODULE_3_TEMPERATURE, String(datalayer_extended.geometryC.ModuleTemperatures[2]),
+          " &deg;C");
+    tr_h4(content, TrKey::DRV_MODULE_4_TEMPERATURE, String(datalayer_extended.geometryC.ModuleTemperatures[3]),
+          " &deg;C");
+    tr_h4(content, TrKey::DRV_MODULE_5_TEMPERATURE, String(datalayer_extended.geometryC.ModuleTemperatures[4]),
+          " &deg;C");
+    tr_h4(content, TrKey::DRV_MODULE_6_TEMPERATURE, String(datalayer_extended.geometryC.ModuleTemperatures[5]),
+          " &deg;C");
     return content;
   }
 };

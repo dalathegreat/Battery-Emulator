@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer.h"
+#include "../i18n/tr.h"
+#include "html_escape.h"
 #include "index_html.h"
 
 String can_logger_processor(void) {
@@ -27,15 +29,16 @@ String can_logger_processor(void) {
 
   // Configuration section
   content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px; margin-bottom: 20px;'>";
-  content += "<h3>CAN Logger Configuration</h3>";
-  content += "<div class='config-item'><span>CAN ID Cutoff Filter: " + String(user_selected_CAN_ID_cutoff_filter) +
-             "</span> <button onclick='editCANIDCutoff()'>Edit</button></div>";
-  content += "<button onclick='refreshPage()'>Refresh data</button> ";
-  content += "<button onclick='exportLog()'>Export to .txt</button> ";
+  tr_h3(content, TrKey::UI_CAN_LOGGER_CONFIGURATION);
+  content += "<div class='config-item'><span>" + TR(TrKey::UI_CAN_ID_CUTOFF_FILTER) + " " +
+             String(user_selected_CAN_ID_cutoff_filter) + "</span> <button onclick='editCANIDCutoff()'>" +
+             TR(TrKey::UI_EDIT) + "</button></div>";
+  content += "<button onclick='refreshPage()'>" + TR(TrKey::UI_REFRESH_DATA) + "</button> ";
+  content += "<button onclick='exportLog()'>" + TR(TrKey::UI_EXPORT_TXT) + "</button> ";
 #ifdef SDCARD
-  content += "<button onclick='deleteLogFile()'>Delete log file</button> ";
+  content += "<button onclick='deleteLogFile()'>" + TR(TrKey::UI_DELETE_LOG_FILE) + "</button> ";
 #endif
-  content += "<button onclick='stopLoggingAndGoToMainPage()'>Stop &amp; Back to main page</button>";
+  content += "<button onclick='stopLoggingAndGoToMainPage()'>" + TR(TrKey::UI_STOP_BACK_MAIN_PAGE) + "</button>";
   content += "</div>";
 
   // Start a new block for the CAN messages
@@ -43,7 +46,7 @@ String can_logger_processor(void) {
 
   // Check for messages
   if (datalayer.system.info.logged_can_messages[0] == 0) {
-    content += "CAN logger started! Refresh page to display incoming(RX) and outgoing(TX) messages";
+    content += TR(TrKey::UI_CAN_LOGGER_STARTED_REFRESH_PAGE_DISPLAY_INCOMING_RX_OUTGOING_TX_MESSAGES);
   } else {
     // Split the messages using the newline character
     String messages = String(datalayer.system.info.logged_can_messages);
@@ -71,17 +74,18 @@ String can_logger_processor(void) {
   content += "  fetch('/stop_can_logging').then(() => window.location.href = '/');";
   content += "}";
   content += "function editCANIDCutoff() {";
-  content += "  var value = prompt('CAN IDs in decimal, below this value will not be logged (0-65535):', '" +
+  content += "  var value = prompt('" +
+             TR_JS(TrKey::UI_CAN_IDS_IN_DECIMAL_BELOW_THIS_VALUE_WILL_NOT_BE_LOGGED_0_65535) + "', '" +
              String(user_selected_CAN_ID_cutoff_filter) + "');";
   content += "  if (value !== null) {";
   content += "    if (value >= 0 && value <= 65535) {";
   content += "      var xhr = new XMLHttpRequest();";
   content += "      xhr.onload = function() { location.reload(true); };";
-  content += "      xhr.onerror = function() { alert('Error updating CAN ID cutoff'); };";
+  content += "      xhr.onerror = function() { alert('" + TR_JS(TrKey::UI_ERROR_UPDATING_CAN_ID_CUTOFF) + "'); };";
   content += "      xhr.open('GET', '/set_can_id_cutoff?value=' + value, true);";
   content += "      xhr.send();";
   content += "    } else {";
-  content += "      alert('Invalid value. Please enter a value between 0 and 65535');";
+  content += "      alert('" + TR_JS(TrKey::UI_ALERT_INVALID_VALUE_PLEASE_ENTER_VALUE_BETWEEN_0_65535) + "');";
   content += "    }";
   content += "  }";
   content += "}";

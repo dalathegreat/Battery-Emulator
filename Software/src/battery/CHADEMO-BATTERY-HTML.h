@@ -3,67 +3,68 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class ChademoBatteryHtmlRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() {
     String content;
-    content += "<h4>Chademo state: ";
+    tr_h4_open(content, TrKey::DRV_CHADEMO_STATE);
     switch (datalayer_extended.chademo.CHADEMO_Status) {
       case 0:
-        content += String("FAULT</h4>");
+        content += String(TR(TrKey::DRV_FAULT) + "</h4>");
         break;
       case 1:
-        content += String("STOP</h4>");
+        content += String(TR(TrKey::UI_STOP) + "</h4>");
         break;
       case 2:
-        content += String("IDLE</h4>");
+        content += String(TR(TrKey::DRV_IDLE) + "</h4>");
         break;
       case 3:
-        content += String("CONNECTED</h4>");
+        content += String(TR(TrKey::UI_CONNECTED) + "</h4>");
         break;
       case 4:
-        content += String("INIT</h4>");
+        content += String(TR(TrKey::DRV_INIT) + "</h4>");
         break;
       case 5:
         content += String("NEGOTIATE</h4>");
         break;
       case 6:
-        content += String("EV ALLOWED</h4>");
+        content += String(TR(TrKey::DRV_EV_ALLOWED) + "</h4>");
         break;
       case 7:
-        content += String("EVSE PREPARE</h4>");
+        content += String(TR(TrKey::DRV_EVSE_PREPARE) + "</h4>");
         break;
       case 8:
-        content += String("EVSE START</h4>");
+        content += String(TR(TrKey::DRV_EVSE_START) + "</h4>");
         break;
       case 9:
-        content += String("EVSE CONTACTORS ENABLED</h4>");
+        content += String(TR(TrKey::DRV_EVSE_CONTACTORS_ENABLED) + "</h4>");
         break;
       case 10:
         content += String("POWERFLOW</h4>");
         break;
       default:
-        content += String("Unknown</h4>");
+        content += String(TR(TrKey::UI_UNKNOWN) + "</h4>");
         break;
     }
     if (datalayer_extended.chademo.FaultBatteryCurrentDeviation) {
-      content += "<h4>FAULT: Battery Current Deviation</h4>";
+      tr_h4(content, TrKey::DRV_FAULT_BATTERY_CURRENT_DEVIATION);
     }
     if (datalayer_extended.chademo.FaultBatteryOverVoltage) {
-      content += "<h4>FAULT: Battery Overvoltage</h4>";
+      tr_h4(content, TrKey::DRV_FAULT_BATTERY_OVERVOLTAGE);
     }
     if (datalayer_extended.chademo.FaultBatteryUnderVoltage) {
-      content += "<h4>FAULT: Battery Undervoltage</h4>";
+      tr_h4(content, TrKey::DRV_FAULT_BATTERY_UNDERVOLTAGE);
     }
     if (datalayer_extended.chademo.FaultBatteryVoltageDeviation) {
-      content += "<h4>FAULT: Battery Voltage Deviation</h4>";
+      tr_h4(content, TrKey::DRV_FAULT_BATTERY_VOLTAGE_DEVIATION);
     }
     if (datalayer_extended.chademo.FaultHighBatteryTemperature) {
-      content += "<h4>FAULT: Battery Temperature</h4>";
+      tr_h4(content, TrKey::DRV_FAULT_BATTERY_TEMPERATURE);
     }
-    content += "<h4>Protocol: " + String(datalayer_extended.chademo.ControlProtocolNumberEV) + "</h4>";
+    tr_h4(content, TrKey::DRV_PROTOCOL, String(datalayer_extended.chademo.ControlProtocolNumberEV));
 
     //Script for refreshing page
     content += "<script>";

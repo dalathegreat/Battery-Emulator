@@ -3,6 +3,7 @@
 
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
+#include "../devboard/i18n/tr.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
 class VolvoSpaHybridHtmlRenderer : public BatteryHtmlRenderer {
@@ -10,88 +11,91 @@ class VolvoSpaHybridHtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
 
-    content += "<h4>BECM reported SOC: " + String(datalayer_extended.VolvoHybrid.soc_bms) + "</h4>";
-    content += "<h4>Calculated SOC: " + String(datalayer_extended.VolvoHybrid.soc_calc) + "</h4>";
-    content += "<h4>Rescaled SOC: " + String(datalayer_extended.VolvoHybrid.soc_rescaled / 10) + "</h4>";
-    content += "<h4>BECM reported SOH: " + String(datalayer_extended.VolvoHybrid.soh_bms) + "</h4>";
-    content += "<h4>BECM supply voltage: " + String(datalayer_extended.VolvoHybrid.BECMsupplyVoltage) + " mV</h4>";
+    tr_h4(content, TrKey::DRV_BECM_REPORTED_SOC, String(datalayer_extended.VolvoHybrid.soc_bms));
+    tr_h4(content, TrKey::DRV_CALCULATED_SOC, String(datalayer_extended.VolvoHybrid.soc_calc));
+    tr_h4(content, TrKey::DRV_RESCALED_SOC, String(datalayer_extended.VolvoHybrid.soc_rescaled / 10));
+    tr_h4(content, TrKey::DRV_BECM_REPORTED_SOH, String(datalayer_extended.VolvoHybrid.soh_bms));
+    tr_h4(content, TrKey::DRV_BECM_SUPPLY_VOLTAGE, String(datalayer_extended.VolvoHybrid.BECMsupplyVoltage), " mV");
 
-    content += "<h4>HV voltage: " + String(datalayer_extended.VolvoHybrid.BECMBatteryVoltage) + " V</h4>";
-    content += "<h4>HV current: " + String(datalayer_extended.VolvoHybrid.BECMBatteryCurrent) + " A</h4>";
-    content += "<h4>Dynamic max voltage: " + String(datalayer_extended.VolvoHybrid.BECMUDynMaxLim) + " V</h4>";
-    content += "<h4>Dynamic min voltage: " + String(datalayer_extended.VolvoHybrid.BECMUDynMinLim) + " V</h4>";
+    tr_h4(content, TrKey::DRV_HV_VOLTAGE, String(datalayer_extended.VolvoHybrid.BECMBatteryVoltage), " V");
+    tr_h4(content, TrKey::DRV_HV_CURRENT, String(datalayer_extended.VolvoHybrid.BECMBatteryCurrent), " A");
+    tr_h4(content, TrKey::DRV_DYNAMIC_MAX_VOLTAGE, String(datalayer_extended.VolvoHybrid.BECMUDynMaxLim), " V");
+    tr_h4(content, TrKey::DRV_DYNAMIC_MIN_VOLTAGE, String(datalayer_extended.VolvoHybrid.BECMUDynMinLim), " V");
 
-    content += "<h4>Discharge power limit 1: " + String(datalayer_extended.VolvoHybrid.HvBattPwrLimDcha1) + " kW</h4>";
-    content +=
-        "<h4>Discharge soft power limit: " + String(datalayer_extended.VolvoHybrid.HvBattPwrLimDchaSoft) + " kW</h4>";
+    tr_h4(content, TrKey::DRV_DISCHARGE_POWER_LIMIT_1, String(datalayer_extended.VolvoHybrid.HvBattPwrLimDcha1), " kW");
+    tr_h4(content, TrKey::DRV_DISCHARGE_SOFT_POWER_LIMIT, String(datalayer_extended.VolvoHybrid.HvBattPwrLimDchaSoft),
+          " kW");
 
-    content += "<h4>HV system relay status: ";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_RELAY_STATUS);
     switch (datalayer_extended.VolvoHybrid.HVSysRlySts) {
       case 0:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       case 1:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
         break;
       case 2:
-        content += String("KeepStatus");
+        content += String(TR(TrKey::DRV_KEEPSTATUS));
         break;
       case 3:
-        content += String("OpenAndRequestActiveDischarge");
+        content += String(TR(TrKey::DRV_OPENANDREQUESTACTIVEDISCHARGE));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "</h4><h4>HV system relay status 1: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_RELAY_STATUS_1);
     switch (datalayer_extended.VolvoHybrid.HVSysDCRlySts1) {
       case 0:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       case 1:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
         break;
       case 2:
-        content += String("KeepStatus");
+        content += String(TR(TrKey::DRV_KEEPSTATUS));
         break;
       case 3:
-        content += String("Fault");
+        content += String(TR(TrKey::DRV_FAULT));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "</h4><h4>HV system relay status 2: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_RELAY_STATUS_2);
     switch (datalayer_extended.VolvoHybrid.HVSysDCRlySts2) {
       case 0:
-        content += String("Open");
+        content += String(TR(TrKey::DRV_OPEN));
         break;
       case 1:
-        content += String("Closed");
+        content += String(TR(TrKey::DRV_CLOSED));
         break;
       case 2:
-        content += String("KeepStatus");
+        content += String(TR(TrKey::DRV_KEEPSTATUS));
         break;
       case 3:
-        content += String("Fault");
+        content += String(TR(TrKey::DRV_FAULT));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
-    content += "</h4><h4>HV system isolation resistance monitoring status: ";
+    content += "</h4>";
+    tr_h4_open(content, TrKey::DRV_HV_SYSTEM_ISOLATION_RESISTANCE_MONITORING_STATUS);
     switch (datalayer_extended.VolvoHybrid.HVSysIsoRMonrSts) {
       case 0:
-        content += String("Not valid 1");
+        content += String(TR(TrKey::DRV_NOT_VALID_1));
         break;
       case 1:
-        content += String("False");
+        content += String(TR(TrKey::DRV_FALSE));
         break;
       case 2:
-        content += String("True");
+        content += String(TR(TrKey::DRV_TRUE));
         break;
       case 3:
-        content += String("Not valid 2");
+        content += String(TR(TrKey::DRV_NOT_VALID_2));
         break;
       default:
-        content += String("Not valid");
+        content += String(TR(TrKey::DRV_NOT_VALID));
     }
 
     return content;

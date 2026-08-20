@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <string>
 
+#include "../i18n/tr.h"
+
 /**
  * @brief Replaces placeholder with content section in web page
  *
@@ -23,10 +25,10 @@ struct BatteryCommand {
   const char* identifier;
 
   // Display name for the command. Can be used in the UI.
-  const char* title;
+  TrKey title;
 
-  // Are you sure? prompt text. If null, no confirmation is asked.
-  const char* prompt;
+  // Are you sure? prompt text. If TR_NONE, no confirmation is asked.
+  TrKey prompt;
 
   // Function to determine whether the given battery supports this command.
   std::function<bool(Battery*)> condition;

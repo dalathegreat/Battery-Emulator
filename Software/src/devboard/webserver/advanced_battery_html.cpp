@@ -4,66 +4,75 @@
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../i18n/tr.h"
+#include "html_escape.h"
+#include "index_html.h"
 
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
-    {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
+    {"clearIsolation", TrKey::UI_CLEAR_ISOLATION_FAULT, TrKey::UI_CLEAR_ANY_ACTIVE_ISOLATION_FAULT,
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
-    {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
+    {"calibrateSOC", TrKey::UI_CALIBRATE_SOC, TrKey::UI_CALIBRATE_SOC_NOTE_WILL_CALIBRATE_BMS_ACCORDING_SET_TARGETS,
      [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
-    {"chademoRestart", "Restart", "restart the V2X session?",
+    {"chademoRestart", TrKey::UI_RESTART, TrKey::UI_RESTART_V2X_SESSION,
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
-    {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
+    {"chademoStop", TrKey::UI_STOP, TrKey::UI_STOP_V2X, [](Battery* b) { return b && b->supports_chademo_restart(); },
      [](Battery* b) { b->chademo_restart(); }},
-    {"resetBMS", "BMS Reset", "Reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
+    {"resetBMS", TrKey::UI_BMS_RESET, TrKey::UI_RESET_BMS, [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) { b->reset_BMS(); }},
-    {"resetSOC", "SOC Reset", "Reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
+    {"resetSOC", TrKey::UI_SOC_RESET, TrKey::UI_RESET_SOC, [](Battery* b) { return b && b->supports_reset_SOC(); },
      [](Battery* b) { b->reset_SOC(); }},
-    {"resetCrash", "Unlock crashed BMS",
-     "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",
+    {"resetCrash", TrKey::UI_UNLOCK_CRASHED_BMS,
+     TrKey::UI_RESET_CRASH_DATA_NOTE_WILL_UNLOCK_YOUR_BMS_ENABLE_CONTACTOR_CLOSING_SOC_CALCULATION,
      [](Battery* b) { return b && b->supports_reset_crash(); }, [](Battery* b) { b->reset_crash(); }},
-    {"resetNVROL", "Perform NVROL reset",
-     "trigger an NVROL reset? Battery will be unavailable for 30 seconds while this is active!",
+    {"resetNVROL", TrKey::UI_PERFORM_NVROL_RESET,
+     TrKey::UI_TRIGGER_NVROL_RESET_BATTERY_WILL_UNAVAILABLE_30_SECONDS_WHILE_ACTIVE,
      [](Battery* b) { return b && b->supports_reset_NVROL(); }, [](Battery* b) { b->reset_NVROL(); }},
-    {"resetContactor", "Perform contactor reset", "reset contactors?",
+    {"resetContactor", TrKey::UI_PERFORM_CONTACTOR_RESET, TrKey::UI_RESET_CONTACTORS,
      [](Battery* b) { return b && b->supports_contactor_reset(); }, [](Battery* b) { b->reset_contactor(); }},
-    {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
+    {"resetDTC", TrKey::UI_ERASE_DTC, TrKey::UI_ERASE_DTCS, [](Battery* b) { return b && b->supports_reset_DTC(); },
      [](Battery* b) { b->reset_DTC(); }, true},
-    {"startBalancing", "Balancing",
-     "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
-     "balancing. It often takes many hours. There will be no progress indication.",
+    {"startBalancing", TrKey::UI_BALANCING,
+     TrKey::UI_BALANCING_IT_OFTEN_TAKES_MANY_HOURS_THERE_WILL_NO_PROGRESS_INDICATION,
      [](Battery* b) { return b && b->supports_balancing() && !b->is_balancing_active(); },
      [](Battery* b) { b->initiate_balancing(); }},
-    {"endBalancing", "Stop Balancing Mode", "end offline balancing?",
+    {"endBalancing", TrKey::UI_STOP_BALANCING_MODE, TrKey::UI_END_OFFLINE_BALANCING,
      [](Battery* b) { return b && b->supports_balancing() && b->is_balancing_active(); },
      [](Battery* b) { b->end_balancing(); }},
-    {"startBalancingRequest", "Start Balancing", "request the BMS to start cell balancing?",
+    {"startBalancingRequest", TrKey::UI_START_BALANCING, TrKey::UI_REQUEST_BMS_START_CELL_BALANCING,
      [](Battery* b) { return b && b->supports_balancing_request(); }, [](Battery* b) { b->initiate_balancing(); }},
-    {"stopBalancingRequest", "Stop Balancing", "request the BMS to stop cell balancing?",
+    {"stopBalancingRequest", TrKey::UI_STOP_BALANCING, TrKey::UI_REQUEST_BMS_STOP_CELL_BALANCING,
      [](Battery* b) { return b && b->supports_balancing_request(); }, [](Battery* b) { b->end_balancing(); }},
-    {"isolationTest", "Isolation Test", "start an isolation test?",
+    {"isolationTest", TrKey::UI_ISOLATION_TEST, TrKey::UI_START_ISOLATION_TEST,
      [](Battery* b) { return b && b->supports_isolation_test(); }, [](Battery* b) { b->request_isolation_test(); }},
-    {"readDTC", "Read DTC", nullptr, [](Battery* b) { return b && b->supports_read_DTC(); },
+    {"readDTC", TrKey::UI_READ_DTC, TR_NONE, [](Battery* b) { return b && b->supports_read_DTC(); },
      [](Battery* b) { b->read_DTC(); }, true},
-    {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
-     [](Battery* b) { b->reset_BECM(); }},
-    {"contactorClose", "Close Contactors", "a contactor close request?",
+    {"resetBECM", TrKey::UI_RESTART_BECM_MODULE, TrKey::UI_RESTART_BECM,
+     [](Battery* b) { return b && b->supports_reset_BECM(); }, [](Battery* b) { b->reset_BECM(); }},
+    {"contactorClose", TrKey::UI_CLOSE_CONTACTORS, TrKey::UI_CONTACTOR_CLOSE_REQUEST,
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
-    {"contactorOpen", "Open Contactors", "a contactor open request?",
+    {"contactorOpen", TrKey::UI_OPEN_CONTACTORS, TrKey::UI_CONTACTOR_OPEN_REQUEST,
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
-    {"resetSOH", "Reset degradation data", "reset degradation data?",
+    {"resetSOH", TrKey::UI_RESET_DEGRADATION_DATA, TrKey::UI_RESET_DEGRADATION_DATA_PROMPT,
      [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
-    {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
+    {"setFactoryMode", TrKey::UI_SET_FACTORY_MODE, TrKey::UI_SET_FACTORY_MODE_DISABLE_ISOLATION_MEASUREMENT,
      [](Battery* b) { return b && b->supports_factory_mode_method(); }, [](Battery* b) { b->set_factory_mode(); }},
-    {"toggleSOC", "Toggle SOC method",
-     "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
+    {"toggleSOC", TrKey::UI_TOGGLE_SOC_METHOD,
+     TrKey::UI_TOGGLE_SOC_METHOD_WILL_TOGGLE_BETWEEN_ESTIMATED_MEASURED_SOC_METHODS,
      [](Battery* b) { return b && b->supports_toggle_SOC_method(); }, [](Battery* b) { b->toggle_SOC_method(); }},
-    {"resetEnergySavingMode", "Reset Energy Saving Mode", "reset energy saving mode to normal?",
+    {"resetEnergySavingMode", TrKey::UI_RESET_ENERGY_SAVING_MODE, TrKey::UI_RESET_ENERGY_SAVING_MODE_NORMAL,
      [](Battery* b) { return b && b->supports_energy_saving_mode_reset(); },
      [](Battery* b) { b->reset_energy_saving_mode(); }},
 };
 
 String advanced_battery_processor(const String& var) {
+  // COMMON_JAVASCRIPT is part of every template this serves; resolve its
+  // placeholder here or the raw token ships to the browser.
+  String common = common_javascript_processor(var);
+  if (common.length() > 0) {
+    return common;
+  }
+
   if (var == "X") {
     String content = "";
     //Page format
@@ -75,7 +84,7 @@ String advanced_battery_processor(const String& var) {
     content += "button:hover { background-color: #3A4A52; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
     content += "</style>";
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<button onclick='goToMainPage()'>" + TR(TrKey::UI_BACK_MAIN_PAGE) + "</button>";
 
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -85,15 +94,17 @@ String advanced_battery_processor(const String& var) {
       for (const auto& cmd : battery_commands) {
         if (cmd.condition(batt)) {
           // Button for user action
-          content += "<button onclick='ask" + String(cmd.identifier) + "(" + String(ix) + ")'>" + String(cmd.title) +
-                     "</button>";
+          content +=
+              "<button onclick='ask" + String(cmd.identifier) + "(" + String(ix) + ")'>" + TR(cmd.title) + "</button>";
 
           // Script that calls the backend to perform the command
           content += "<script>";
           content += "function ask" + String(cmd.identifier) + "(batteryNum) { ";
 
-          if (cmd.prompt) {
-            content += "if (window.confirm('Are you sure you want to " + String(cmd.prompt) + "'))";
+          if (cmd.prompt != TR_NONE) {
+            // JS string literal, not markup: the prompt name is substituted
+            // into the question and the whole result escaped for the literal
+            content += "if (window.confirm('" + TR_JS(TrKey::UI_ARE_YOU_SURE_YOU_WANT, TR_RAW(cmd.prompt)) + "'))";
           }
 
           content += "{" + String(cmd.identifier) + "(batteryNum); } }";
@@ -120,8 +131,8 @@ String advanced_battery_processor(const String& var) {
       if (renderer.renders_own_battery_data()) {
         content += renderer.get_status_html();
       } else {
-        content +=
-            "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
+        content += "<h4 style='color: #f39c12;'>" +
+                   TR(TrKey::UI_ADVANCED_DETAILED_INFO_CURRENTLY_LIMITED_MAIN_BATTERY) + "</h4>";
       }
     };
 
@@ -132,14 +143,14 @@ String advanced_battery_processor(const String& var) {
 
     if (battery2) {
       content += "<hr>";
-      content += "<h4>Values from battery 2</h4>";
+      tr_h4(content, TrKey::UI_VALUES_FROM_BATTERY_2);
       render_secondary_battery_status(battery2);
       render_command_buttons(battery2, 1);
     }
 
     if (battery3) {
       content += "<hr>";
-      content += "<h4>Values from battery 3</h4>";
+      tr_h4(content, TrKey::UI_VALUES_FROM_BATTERY_3);
       render_secondary_battery_status(battery3);
       render_command_buttons(battery3, 2);
     }
