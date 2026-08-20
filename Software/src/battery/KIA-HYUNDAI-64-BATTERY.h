@@ -34,6 +34,7 @@ class KiaHyundai64Battery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
   bool supports_reset_DTC() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
 
  private:

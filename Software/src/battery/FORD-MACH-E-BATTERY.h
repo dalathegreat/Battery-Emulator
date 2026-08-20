@@ -15,10 +15,16 @@ class FordMachEBattery : public CanBattery {
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { UserRequestDTCreadout = true; }
 
  private:
   FordMachEHtmlRenderer renderer;
   bool UserRequestDTCreset = false;
+  bool UserRequestDTCreadout = false;
+  // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
+  // datalayer_battery->dtc.
+  void parseDTCResponse();
   //90S NMC
   static const int MAX_PACK_VOLTAGE_90S_DV = 3902;
   static const int MIN_PACK_VOLTAGE_90S_DV = 2490;
@@ -44,11 +50,7 @@ class FordMachEBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 250;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2900;
-  static const int CELL_TEMPERATURE_OFFSET =
-      22;  // Calibrated against BECM PID min/max cell temperatures. Ford signal offset is -22
-
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 200;  // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
+  static const int CELL_TEMPERATURE_OFFSET = 22;  // Calibrated against BECM PID min/max cell temperatures
 
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
   unsigned long previousMillis30 = 0;    // will store last time a 10ms CAN Message was send
@@ -67,11 +69,9 @@ class FordMachEBattery : public CanBattery {
   int16_t battery_current = 0;
   uint16_t maximum_cellvoltage_mV = 3700;
   uint16_t minimum_cellvoltage_mV = 3700;
-
-  uint8_t counter_30ms = 0;
-  uint8_t counter_8_30ms = 0;
+  uint16_t charge_current_allowed = 0;
+  uint16_t discharge_current_allowed = 0;
   uint16_t pid_reply = 0;
-
   uint16_t polled_12V = 12000;
 
   uint8_t display_soc = 0;
@@ -210,9 +210,9 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
   uint16_t pid_charger_power_limit = NOT_SAMPLED_YET;
   uint8_t pid_hvb_soh = NOT_SAMPLED_YET;
   uint16_t pid_hvb_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_hvb_max_charge_current = NOT_SAMPLED_YET;
   uint16_t pid_hvb_charge_voltage_requested = NOT_SAMPLED_YET;
   uint16_t pid_hvb_soc_d = NOT_SAMPLED_YET;
-  uint16_t pid_hvb_max_charge_current = NOT_SAMPLED_YET;
   uint16_t pid_hvb_charge_current_requested = NOT_SAMPLED_YET;
   uint8_t pid_gear_commanded = NOT_SAMPLED_YET;
   uint8_t pid_key_state = NOT_SAMPLED_YET;
@@ -244,11 +244,41 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                                     .DLC = 8,
                                     .ID = 0x7E4,
                                     .data = {0x03, 0x22, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_ACK_FRAME = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E4,
+                              .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_DTC_RESET = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
                               .ID = 0x7E4,
                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+  // UDS ReadDTCInformation (0x19) / reportDTCByStatusMask (0x02) with status mask 0x8F.
+  // The BMS answers on 0x7EC with 59 02 <availabilityMask> followed by 4 bytes per DTC
+  // (3-byte code + 1 status byte), multi-frame when more than one code is stored.
+  //(21.90) RX0 7E4 [8] 03 19 02 8F 00 00 00 00
+  //(21.92) RX0 7EC [8] 10 2F 59 02 FF C1 9B 00
+  //(21.92) RX0 7E4 [8] 30 00 00 00 00 00 00 00
+  //(21.92) RX0 7EC [8] 21 AF C1 00 00 2F C2 93
+  //(21.93) RX0 7EC [8] 22 00 AF C2 98 00 AF 1A
+  CAN_frame FORD_READ_DTC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E4,
+                             .data = {0x03, 0x19, 0x02, 0x8F, 0x00, 0x00, 0x00, 0x00}};
+  // DTC readout reassembly state. The reply shares the 0x7EC response ID with the periodic
+  // group polling, so it is intercepted separately while a readout is in flight.
+  static const uint16_t DTC_BUFFER_SIZE = 3 + 4 * DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+  static const unsigned long DTC_TIMEOUT_MS = 2000;
+  uint8_t dtc_buffer[DTC_BUFFER_SIZE];
+  uint16_t dtc_rx_expected = 0;  // Total payload length announced by the ISO-TP first frame
+  uint16_t dtc_rx_len = 0;       // Bytes reassembled so far
+  bool dtc_rx_active = false;    // A multi-frame reply is currently being reassembled
+  bool dtc_read_in_progress = false;
+  unsigned long dtc_request_millis = 0;
+  bool dtc_clear_in_progress = false;
+  unsigned long dtc_clear_millis = 0;
 
   //Message needed for contactor closing
   CAN_frame FORD_25B = {.FD = false,
@@ -261,181 +291,185 @@ static const uint16_t PID_UNKNOWN_37 = 0xF449;
                         .DLC = 8,
                         .ID = 0x185,
                         .data = {0x03, 0x4E, 0x75, 0x32, 0x00, 0x80, 0x00, 0x00}};
-  //Messages to emulate full vehicle
+  //Message test to reduce active codes
   /*
-  CAN_frame FORD_47 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x047,
-                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_48 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x048,
-                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_4C = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x04C,
-                       .data = {0x70, 0xAA, 0xBF, 0xDE, 0xCC, 0xEC, 0x00, 0x00}};
-  CAN_frame FORD_5A = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x05A,
-                       .data = {0x00, 0x00, 0x00, 0x0B, 0xF2, 0x90, 0x10, 0x00}};
-  CAN_frame FORD_77 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x077,
-                       .data = {0x00, 0x00, 0x0F, 0xFE, 0xFF, 0xFF, 0xFB, 0xFE}};
-  CAN_frame FORD_7D = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x07D,
-                       .data = {0x00, 0x00, 0xF0, 0xF0, 0x00, 0x3F, 0xEF, 0xFE}};
-  CAN_frame FORD_7E = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x07E,
-                       .data = {0x00, 0x00, 0x3E, 0x80, 0x00, 0x04, 0x00, 0x00}};
-  CAN_frame FORD_7F = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x07F,
-                       .data = {0x00, 0x00, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_156 = {.FD = false,
+  CAN_frame FORD_43D = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x156,
-                        .data = {0x4B, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_165 = {.FD = false,
+                        .ID = 0x43D,  //Data from AC charge log
+                        .data = {0x40, 0x10, 0xDC, 0x13, 0x07, 0x86, 0x02, 0xB5}};
+  CAN_frame FORD_42F = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x165,
-                        .data = {0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_166 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x166,
-                        .data = {0x00, 0x00, 0x00, 0x01, 0x5C, 0x89, 0x00, 0x00}};
-  CAN_frame FORD_167 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x167,
-                        .data = {0x00, 0x80, 0x00, 0x11, 0xFF, 0xE0, 0x00, 0x00}};
-  CAN_frame FORD_175 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x175,
+                        .ID = 0x42F,  //Data from AC charge log
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_176 = {.FD = false,
+  CAN_frame FORD_42C = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x176,
-                        .data = {0x00, 0x0E, 0xF0, 0x10, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_178 = {.FD = false,  //Static content
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x175,
-                        .data = {0x01, 0xB6, 0x02, 0x00, 0x4E, 0x46, 0xC6, 0x17}};
+                        .ID = 0x42C,  //Data from AC charge log
+                        .data = {0x80, 0x02, 0x00, 0x00, 0x19, 0xB0, 0x00, 0x00}};
   CAN_frame FORD_12F = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x12F,
                         .data = {0x0A, 0xF8, 0x3F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-
-  CAN_frame FORD_200 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x200,
-                        .data = {0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x00, 0x70}};
+  CAN_frame FORD_77 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x077,
+                       .data = {0x00, 0x00, 0x08, 0x00, 0xFF, 0xF7, 0xEA, 0x02}};
+                       
   CAN_frame FORD_203 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x203,
                         .data = {0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_204 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x204,
-                        .data = {0xD4, 0x00, 0x7D, 0x00, 0x00, 0xF7, 0x00, 0x00}};
+  CAN_frame FORD_5A = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x05A,
+                       .data = {0x00, 0x00, 0x00, 0x0B, 0xF2, 0x90, 0x10, 0x00}};
+  CAN_frame FORD_47 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x047,
+                       .data = {0x44, 0x34, 0xD2, 0xBE, 0xC0, 0xFB, 0x00, 0x00}};
+  CAN_frame FORD_48 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x048,
+                       .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_217 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x217,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_230 = {.FD = false,
+  CAN_frame FORD_442 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x230,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
+                        .ID = 0x442,
+                        .data = {0x4E, 0x20, 0x38, 0x71, 0xBA, 0x00, 0x00, 0x40}};
 
-  CAN_frame FORD_2EC = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x2EC,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00}};
+  //Wave3
   CAN_frame FORD_332 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x332,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00}};
   CAN_frame FORD_333 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x333,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_3C3 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x3C3,
-                        .data = {0x5C, 0xC8, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}};
-  CAN_frame FORD_415 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x415,
-                        .data = {0x00, 0x00, 0xC0, 0xFC, 0x0F, 0xFE, 0xEF, 0xFE}};
+                        .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FORD_42B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x42B,
                         .data = {0xCB, 0xBE, 0x00, 0x02, 0x00, 0x00, 0xCE, 0x00}};
-  CAN_frame FORD_42C = {.FD = false,
+  CAN_frame FORD_2EC = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x42C,
-                        .data = {0x80, 0x02, 0x00, 0x00, 0x19, 0xA0, 0x00, 0x00}};
-  CAN_frame FORD_42F = {.FD = false,
+                        .ID = 0x2EC,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x01, 0x60, 0x00, 0x00}};
+  CAN_frame FORD_156 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x42F,
+                        .ID = 0x156,
+                        .data = {0x4B, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_166 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x166,
+                        .data = {0x00, 0x00, 0x00, 0x01, 0x5C, 0x89, 0x00, 0x00}};
+  CAN_frame FORD_175 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x175,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FORD_43D = {.FD = false,
+  CAN_frame FORD_178 = {.FD = false,  //Static content
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x43D,
-                        .data = {0x00, 0x00, 0xDC, 0x00, 0x00, 0x77, 0x00, 0x00}};
-  CAN_frame FORD_442 = {.FD = false,
+                        .ID = 0x175,
+                        .data = {0x01, 0xB6, 0x02, 0x00, 0x46, 0x3C, 0xC6, 0x17}};
+    CAN_frame FORD_7D = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x07D,
+                       .data = {0x00, 0x00, 0xF0, 0xF0, 0x00, 0x3F, 0xEF, 0xFE}};
+  CAN_frame FORD_204 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x442,
-                        .data = {0x4E, 0x20, 0x78, 0x7E, 0x7C, 0x00, 0x00, 0x40}};
-  CAN_frame FORD_48F = {.FD = false,  //Only sent in active charging logs (OBC?)
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x48F,
-                        .data = {0x30, 0x4E, 0x20, 0x80, 0x00, 0x00, 0x80, 0x00}};
+                        .ID = 0x204,
+                        .data = {0xD4, 0x00, 0x7D, 0x00, 0x00, 0xF7, 0x00, 0x00}};
   CAN_frame FORD_4B0 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x4B0,
                         .data = {0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0xF0}};
+  CAN_frame FORD_415 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x415,
+                        .data = {0x00, 0x00, 0xC0, 0xFC, 0x0F, 0xFE, 0xEF, 0xFE}};
+  CAN_frame FORD_200 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x200,
+                        .data = {0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x00, 0x70}};
+                        */
+  CAN_frame FORD_167 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x167,
+                        .data = {0x03, 0x80, 0x00, 0x11, 0xFF, 0xE0, 0x00, 0x00}};
+  CAN_frame FORD_230 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x230,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
+  CAN_frame FORD_7F = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x07F,
+                       .data = {0x00, 0x00, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_165 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x165,
+                        .data = {0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_7E = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x07E,
+                       .data = {0x00, 0x00, 0x3E, 0x80, 0x00, 0x04, 0x00, 0x00}};
+  CAN_frame FORD_4C = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x04C,
+                       .data = {0x70, 0xAA, 0xBF, 0xDE, 0xCC, 0xEC, 0x00, 0x00}};
+
+  /*
+  CAN_frame FORD_176 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x176,
+                        .data = {0x00, 0x0E, 0xF0, 0x10, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FORD_3C3 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x3C3,
+                        .data = {0x5C, 0xC8, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}};
+  CAN_frame FORD_48F = {.FD = false,  //Only sent in active charging logs (OBC?)
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x48F,
+                        .data = {0x30, 0x4E, 0x20, 0x80, 0x00, 0x00, 0x80, 0x00}};
   CAN_frame FORD_581 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x4B0,
                         .data = {0x81, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-                        */
+*/
 };
 
 #endif

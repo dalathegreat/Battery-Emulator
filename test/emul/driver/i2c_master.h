@@ -31,6 +31,7 @@ typedef struct {
   size_t trans_queue_depth;
   struct {
     uint32_t enable_internal_pullup : 1;
+    uint32_t allow_pd : 1;
   } flags;
 } i2c_master_bus_config_t;
 

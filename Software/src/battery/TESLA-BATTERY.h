@@ -15,6 +15,7 @@ extern uint16_t user_selected_tesla_GTW_packEnergy;
 
 class TeslaBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Use the default constructor to create the first or single battery.
   TeslaBattery() {
     datalayer_battery = &datalayer.battery;
@@ -33,6 +34,7 @@ class TeslaBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
 
   bool supports_clear_isolation() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void clear_isolation() { datalayer_battery->settings.user_requests_tesla_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }
@@ -55,9 +57,6 @@ class TeslaBattery : public CanBattery {
 
  protected:
   /* Do not change anything below this line! */
-  static const int RAMPDOWNPOWERALLOWED = 10000;      // What power we ramp down from towards top balancing
-  static const int FLOAT_MAX_POWER_W = 200;           // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;               // mV, how many mV under overvoltage to start float charging
   static const int MAX_PACK_VOLTAGE_SX_NCMA = 4600;   // V+1, if pack voltage goes over this, charge stops
   static const int MIN_PACK_VOLTAGE_SX_NCMA = 2850;   // V+1, if pack voltage goes over this, charge stops
   static const int MAX_PACK_VOLTAGE_3Y_NCMA = 4030;   // V+1, if pack voltage goes over this, charge stops

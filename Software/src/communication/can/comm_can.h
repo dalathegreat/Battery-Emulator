@@ -8,6 +8,12 @@ extern uint16_t user_selected_CAN_ID_cutoff_filter;
 void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface);
 
+// Format CAN logs to the given buffer. Returns the number of bytes written, or
+// 0 if the buffer is too small.
+// Null-terminates the buffer if len > 0, but the return value does not include the NUL.
+size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_Interface interface,
+                        frameDirection msgDir);
+
 //These defines are not used if user updates values via Settings page
 #define CRYSTAL_FREQUENCY_MHZ 8
 

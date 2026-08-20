@@ -127,11 +127,7 @@ void GeelyGeometryCBattery::update_values() {
 }
 
 bool is_message_corrupt(CAN_frame* rx_frame) {
-  uint8_t crc = 0xFF;  // Initial value
-  for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable_geely_geometryC[crc ^ rx_frame->data.u8[j]];
-  }
-  crc = (crc ^ 0xFF);  // Final XOR
+  uint8_t crc = Crc_CalculateCRC8H2F(rx_frame->data.u8, 7, 0xFF, 0xFF);
   return crc != rx_frame->data.u8[7];
 }
 
@@ -440,13 +436,7 @@ void GeelyGeometryCBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 uint8_t calc_crc8_geely(CAN_frame* rx_frame) {
-  uint8_t crc = 0xFF;  // Initial value
-
-  for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable_geely_geometryC[crc ^ rx_frame->data.u8[j]];
-  }
-
-  return crc ^ 0xFF;  // Final XOR
+  return Crc_CalculateCRC8H2F(rx_frame->data.u8, 7, 0xFF, 0xFF);
 }
 
 void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {

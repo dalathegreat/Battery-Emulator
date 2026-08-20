@@ -7,9 +7,9 @@
 #include "CHADEMO-CT.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../shunt/Shunt.h"
 #include "Arduino.h"
 #include "CHADEMO-BATTERY.h"
-#include "Shunt.h"
 
 #ifdef UNIT_TEST
 // provide minimal stub so unit tests can compile

@@ -46,9 +46,10 @@ class Esp32Hal {
 
     for (gpio_num_t pin : requested_pins) {
       if (pin < 0) {
-        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);
+        // Must be set BEFORE set_event(): set_event() logs the event message immediately,
+        // and get_event_message_string() reads it back via failed_allocator().
         allocator_name = name;
-        DEBUG_PRINTF("%s attempted to allocate pin %d that wasn't defined for the selected HW.\n", name, (int)pin);
+        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);  // also printing a log entry
         return false;
       }
 
@@ -56,8 +57,7 @@ class Esp32Hal {
       if (it != allocated_pins.end()) {
         allocator_name = name;
         allocated_name = it->second.c_str();
-        DEBUG_PRINTF("GPIO conflict for pin %d between %s and %s.\n", (int)pin, name, it->second.c_str());
-        set_event(EVENT_GPIO_CONFLICT, (int)pin);
+        set_event(EVENT_GPIO_CONFLICT, (int)pin);  // also printing a log entry
         return false;
       }
     }
@@ -188,15 +188,21 @@ class Esp32Hal {
 
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
+#ifdef SDCARD
   // SD card
+  virtual uint8_t SD_SPI_BUS() = 0;
   virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
+#endif  // SDCARD
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
+  // Number of LEDs chained off LED_PIN(). Pixel 0 is always the STATUS LED; boards that replace
+  // additional hardwired indicator LEDs with RGB LEDs on the same chain report more than 1 here.
+  virtual uint8_t LED_COUNT() { return 1; }
 
 #ifndef SMALL_FLASH_DEVICE
   // i2c display

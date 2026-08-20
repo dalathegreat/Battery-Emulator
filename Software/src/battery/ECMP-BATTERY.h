@@ -9,7 +9,7 @@
 
 class EcmpBattery : public CanBattery {
  public:
-  // Use this constructor for the second battery.
+  // Use this constructor for the second/third battery.
   EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     datalayer_ecmp = NULL;
@@ -28,6 +28,7 @@ class EcmpBattery : public CanBattery {
   static constexpr const char* Name = "Stellantis ECMP battery";
 
   bool supports_clear_isolation() { return true; }
+  bool supports_insulation_resistance() { return true; }
   void clear_isolation() { UserRequestIsolationReset = true; }
 
   bool supports_factory_mode_method() { return true; }

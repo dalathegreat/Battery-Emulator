@@ -5,10 +5,10 @@
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
+#include "../shunt/BMW-SBOX.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"
-#include "BMW-SBOX.h"
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
@@ -36,7 +36,7 @@
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "MEB-BATTERY.h"
 #include "MG-5-BATTERY.h"
-#include "MG-HS-PHEV-BATTERY.h"
+#include "MG-GEN1-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"
@@ -152,12 +152,14 @@ const char* name_for_battery_type(BatteryType type) {
       return KiaHyundaiHybridBattery::Name;
     case BatteryType::Meb:
       return MebBattery::Name;
+    case BatteryType::VAGMqbEvo:
+      return MqbEvoBattery::Name;
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return Mg5Battery::Name;
 #endif
-    case BatteryType::MgHsPhev:
-      return MgHsPHEVBattery::Name;
+    case BatteryType::MgGen1:
+      return MgGen1Battery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
@@ -277,12 +279,14 @@ Battery* create_battery(BatteryType type) {
       return new KiaHyundaiHybridBattery();
     case BatteryType::Meb:
       return new MebBattery();
+    case BatteryType::VAGMqbEvo:
+      return new MqbEvoBattery();
 #ifndef SMALL_FLASH_DEVICE
     case BatteryType::Mg5:
       return new Mg5Battery();
 #endif
-    case BatteryType::MgHsPhev:
-      return new MgHsPHEVBattery();
+    case BatteryType::MgGen1:
+      return new MgGen1Battery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
     case BatteryType::Pylon:
@@ -341,6 +345,48 @@ Battery* create_battery(BatteryType type) {
   }
 }
 
+// The integrations that can be instantiated a second time on a separate
+// interface. Must match the switch in setup_battery() below.
+bool battery_supports_double(BatteryType type) {
+  switch (type) {
+    case BatteryType::BoltAmpera:
+    case BatteryType::BydAtto3:
+    case BatteryType::NissanLeaf:
+    case BatteryType::BmwI3:
+    case BatteryType::CmfaEv:
+    case BatteryType::CmpSmartCar:
+    case BatteryType::StellantisEcmp:
+    case BatteryType::KiaHyundai64:
+    case BatteryType::MgGen1:
+    case BatteryType::Pylon:
+    case BatteryType::SantaFePhev:
+    case BatteryType::RelionBattery:
+    case BatteryType::RenaultZoe1:
+    case BatteryType::RenaultZoe2:
+    case BatteryType::TestFake:
+    case BatteryType::TeslaModel3Y:
+    case BatteryType::TeslaModelSX:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// The integrations that can be instantiated a third time on a separate
+// interface. Must match the switch in setup_battery() below.
+bool battery_supports_triple(BatteryType type) {
+  switch (type) {
+    case BatteryType::NissanLeaf:
+    case BatteryType::CmfaEv:
+    case BatteryType::StellantisEcmp:
+    case BatteryType::RelionBattery:
+    case BatteryType::TestFake:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void setup_battery() {
   if (battery) {
     // Let's not create the battery again.
@@ -359,89 +405,109 @@ void setup_battery() {
   }
 
   if (user_selected_second_battery && !battery2) {
-    switch (user_selected_battery_type) {
-      case BatteryType::BoltAmpera:
-        battery2 =
-            new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
-        break;
-      case BatteryType::BydAtto3:
-        battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
-        break;
-      case BatteryType::NissanLeaf:
-        battery2 = new NissanLeafBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::BmwI3:
-        battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                    can_config.battery_double, esp32hal->WUP_PIN2());
-        break;
-      case BatteryType::CmfaEv:
-        battery2 = new CmfaEvBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::CmpSmartCar:
-        battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::StellantisEcmp:
-        battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::KiaHyundai64:
-        battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                           &datalayer.system.status.battery2_allowed_contactor_closing,
-                                           can_config.battery_double);
-        break;
-      case BatteryType::MgHsPhev:
-        battery2 = new MgHsPHEVBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::Pylon:
-        battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::SantaFePhev:
-        battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::RelionBattery:
-        battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
-                                     &datalayer.system.status.battery2_allowed_contactor_closing);
-        break;
-      case BatteryType::RenaultZoe1:
-        battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::RenaultZoe2:
-        battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
-        break;
-      case BatteryType::TestFake:
-        battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      case BatteryType::TeslaModel3Y:
-      case BatteryType::TeslaModelSX:
-        battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
-        break;
-      default:
-        DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
-        break;
+    if (!battery_supports_double(user_selected_battery_type)) {
+      DEBUG_PRINTF("User tried enabling double battery on non-supported integration!\n");
+    } else {
+      switch (user_selected_battery_type) {
+        case BatteryType::BoltAmpera:
+          battery2 =
+              new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+          break;
+        case BatteryType::BydAtto3:
+          battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);
+          break;
+        case BatteryType::NissanLeaf:
+          battery2 =
+              new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, can_config.battery_double);
+          break;
+        case BatteryType::BmwI3:
+          battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                      can_config.battery_double, esp32hal->WUP_PIN2());
+          break;
+        case BatteryType::CmfaEv:
+          battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::CmpSmartCar:
+          battery2 = new CmpSmartCarBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::KiaHyundai64:
+          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
+                                             &datalayer.system.status.battery2_allowed_contactor_closing,
+                                             can_config.battery_double);
+          break;
+        case BatteryType::MgGen1:
+          battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+          break;
+        case BatteryType::Pylon:
+          battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::SantaFePhev:
+          battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::RelionBattery:
+          battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
+                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+          break;
+        case BatteryType::RenaultZoe1:
+          battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::RenaultZoe2:
+          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          break;
+        case BatteryType::TestFake:
+          battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        case BatteryType::TeslaModel3Y:
+        case BatteryType::TeslaModelSX:
+          battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        default:
+          break;
+      }
     }
 
     if (battery2) {
+      battery2->battery_index = 2;
       battery2->setup();
     }
   }
 
   if (user_selected_triple_battery && !battery3) {
-    switch (user_selected_battery_type) {
-      case BatteryType::NissanLeaf:
-        battery3 = new NissanLeafBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
-        break;
-      case BatteryType::CmfaEv:
-        battery3 = new CmfaEvBattery(&datalayer.battery3, nullptr, can_config.battery_triple);
-        break;
-      case BatteryType::RelionBattery:
-        battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
-                                     &datalayer.system.status.battery3_allowed_contactor_closing);
-        break;
-      default:
-        DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
-        break;
+    if (!battery_supports_triple(user_selected_battery_type)) {
+      DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
+    } else {
+      switch (user_selected_battery_type) {
+        case BatteryType::NissanLeaf:
+          battery3 =
+              new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3, can_config.battery_triple);
+          break;
+        case BatteryType::CmfaEv:
+          battery3 = new CmfaEvBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::CmpSmartCar:
+          battery3 = new CmpSmartCarBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::StellantisEcmp:
+          battery3 = new EcmpBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::RelionBattery:
+          battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
+                                       &datalayer.system.status.battery3_allowed_contactor_closing);
+          break;
+        case BatteryType::TestFake:
+          battery3 = new TestFakeBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        default:
+          break;
+      }
     }
 
     if (battery3) {
+      battery3->battery_index = 3;
       battery3->setup();
     }
   }
@@ -464,9 +530,8 @@ int user_selected_daly_power_per_degree_C = 60;
 int user_selected_daly_power_at_0_degree_C = 800;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
+bool user_selected_use_estimated_charge_limits = false;
 uint16_t user_selected_pylon_baudrate = 500;
-/* For custom BMS which need rampdown. SOC% to start ramping down from max charge power towards 0 at 100.00%*/
-uint16_t user_set_rampdown_SOC = 9000;  //9000 = 90.00%
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
 uint16_t user_selected_min_pack_voltage_dV = 0;

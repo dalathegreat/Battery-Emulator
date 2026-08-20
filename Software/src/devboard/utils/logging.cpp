@@ -4,7 +4,8 @@
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include "../wifi/wifi.h"  // custom_hostname, default_hostname()
+#include "../network/hostname.h"        // active_hostname()
+#include "../network/network_status.h"  // network_connected()
 
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14
@@ -72,23 +73,9 @@ static uint16_t syslogDropped = 0;
 // owned for a few microseconds (a memcpy) and contention is effectively zero.
 static SemaphoreHandle_t syslogMutex = xSemaphoreCreateMutex();
 
-// Same rule as init_WiFi(): custom hostname if set, otherwise the MAC-derived default.
-// Cached — default_hostname() re-reads eFuse and allocates a String on every call.
-// Only the default is cached, so a call made before settings are loaded cannot freeze a wrong name in.
-static const char* syslog_hostname(void) {
-  if (!custom_hostname.empty()) {
-    return custom_hostname.c_str();
-  }
-  static String fallback;
-  if (fallback.isEmpty()) {
-    fallback = default_hostname();
-  }
-  return fallback.c_str();
-}
-
 static bool syslog_online(void) {
-  // Sendable when joined to a network (STA) OR when a client is on our SoftAP.
-  return (WiFi.status() == WL_CONNECTED) || (WiFi.softAPgetStationNum() > 0);
+  // Sendable when connected to a network OR when a client is on our SoftAP.
+  return network_connected() || (WiFi.softAPgetStationNum() > 0);
 }
 
 // Called ONLY from syslog_task, and never with the mutex held.
@@ -102,7 +89,7 @@ static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
     // APP-NAME carries the FreeRTOS task that produced the line.
-    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, syslog_hostname(), proc, msg);
+    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, active_hostname().c_str(), proc, msg);
     syslogUdp.endPacket();
   }
 }
@@ -294,9 +281,11 @@ void Logging::add_timestamp(size_t size) {
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
   }
+#endif
 
   if (datalayer.system.info.usb_logging_active) {
     usb_log_write((const uint8_t*)timestr, strlen(timestr));
@@ -306,7 +295,10 @@ void Logging::add_timestamp(size_t size) {
 size_t Logging::write(const uint8_t* buffer, size_t size) {
   // Check if any logging is enabled at runtime
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
-      !datalayer.system.info.SD_logging_active && !datalayer.system.info.syslog_logging_active) {
+#ifdef SDCARD
+      !datalayer.system.info.SD_logging_active &&
+#endif
+      !datalayer.system.info.syslog_logging_active) {
     return 0;
   }
 
@@ -319,9 +311,11 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     add_timestamp(size);
   }
 
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer(buffer, size);
   }
+#endif
 
   if (datalayer.system.info.usb_logging_active) {
     usb_log_write(buffer, size);
@@ -349,7 +343,10 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 void Logging::printf(const char* fmt, ...) {
   // Check if any logging is enabled at runtime
   if (!datalayer.system.info.web_logging_active && !datalayer.system.info.usb_logging_active &&
-      !datalayer.system.info.SD_logging_active && !datalayer.system.info.syslog_logging_active) {
+#ifdef SDCARD
+      !datalayer.system.info.SD_logging_active &&
+#endif
+      !datalayer.system.info.syslog_logging_active) {
     return;
   }
 
@@ -382,12 +379,30 @@ void Logging::printf(const char* fmt, ...) {
 
   va_list args;
   va_start(args, fmt);
-  int size = min(MAX_LINE_LENGTH_PRINTF - 1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
+  int needed = vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args);
   va_end(args);
 
+  // Nothing usable was produced (encoding error, or an empty message)
+  if (needed <= 0) {
+    return;
+  }
+
+  int size = min(MAX_LINE_LENGTH_PRINTF - 1, needed);
+
+  /* vsnprintf returns the length the line WOULD have had, so a larger value means the output
+     was truncated and any trailing newline went with it. Terminate the line ourselves. Without
+     this previous_message_was_newline stays false, and the next message - which may be logged
+     hours later - is appended to this line instead of starting a new one with its own
+     timestamp. */
+  if (needed >= MAX_LINE_LENGTH_PRINTF) {
+    message_buffer[size - 1] = '\n';
+  }
+
+#ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
     add_log_to_buffer((uint8_t*)message_buffer, size);
   }
+#endif
 
   if (datalayer.system.info.usb_logging_active) {
     usb_log_write((const uint8_t*)message_buffer, size);

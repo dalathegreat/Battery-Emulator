@@ -2,15 +2,16 @@
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
-#include "../../battery/Shunt.h"
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
+#include "../../devboard/network/hostname.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
+#include "../../shunt/Shunt.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
@@ -132,6 +133,7 @@ void init_stored_settings() {
   user_selected_inverter_foxess_modules = settings.getUInt("FOXESSMODULES", 0);
   user_selected_inverter_contactor_mode = (inverter_contactor_mode_enum)settings.getUInt("INVICNT", 0);
   user_selected_inverter_deye_workaround = settings.getBool("DEYEBYD", false);
+  user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
@@ -140,14 +142,14 @@ void init_stored_settings() {
   user_selected_daly_power_per_degree_C = settings.getUInt("DALYPWRDEG", 60);
   user_selected_daly_power_at_0_degree_C = settings.getUInt("DALYPWR0C", 800);
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
+  user_selected_use_estimated_charge_limits = settings.getBool("CHGESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
-  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", 0);
-  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", false);
-  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", 0);
-  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", 0);
-  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", 0);
+  user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
+  user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
+  user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);
+  user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
+  user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
-  user_set_rampdown_SOC = settings.getUInt("RAMPDOWNSOC", 9000);
 
   auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -195,6 +197,15 @@ void init_stored_settings() {
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
+  // Firmware versions before the reset interval was configurable only stored the enable flag,
+  // so an upgraded installation has no PERBMSRESETH key at all. Fall back to the previous
+  // hardcoded 24h behaviour, and treat any value we don't offer in the UI the same way.
+  periodic_bms_reset_interval_h = settings.getUInt("PERBMSRESETH", 24);
+  if (periodic_bms_reset_interval_h != 24 && periodic_bms_reset_interval_h != 48) {
+    periodic_bms_reset_interval_h = 24;
+  }
+  periodic_bms_reset_defer_low_soc = settings.getBool("PERBMSDEFSOC", false);
+  periodic_bms_reset_skip_balancing = settings.getBool("PERBMSSKIPBAL", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
   datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
@@ -220,8 +231,10 @@ void init_stored_settings() {
   datalayer.system.info.CAN_usb_logging_active = settings.getBool("CANLOGUSB", false);
   datalayer.system.info.usb_logging_active = settings.getBool("USBENABLED", false);
   datalayer.system.info.web_logging_active = settings.getBool("WEBENABLED", false);
+#ifdef SDCARD
   datalayer.system.info.CAN_SD_logging_active = settings.getBool("CANLOGSD", false);
   datalayer.system.info.SD_logging_active = settings.getBool("SDLOGENABLED", false);
+#endif  // SDCARD
   datalayer.system.info.syslog_logging_active = settings.getBool("SYSLOGEN", false);
   syslog_ip = settings.getString("SYSLOGIP").c_str();
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
@@ -237,23 +250,32 @@ void init_stored_settings() {
   wifi_channel = settings.getUInt("WIFICHANNEL", 0);
   passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
+  espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
+  // Publish after a firmware update when asked to: the configs carry sw_version and can
+  // gain or change entities between releases, and nothing else ever republishes them. A
+  // device with no stored signature reads back 0, which never matches a real one, so the
+  // first boot after enabling this establishes the baseline.
+  if (settings.getBool("HADISCFWU", false) && settings.getUInt("HADISCFW", 0) != mqtt_firmware_signature()) {
+    ha_autodiscovery_enabled = true;
+  }
   ha_autodiscovery_topic = settings.getString("HADISCTOPIC", "homeassistant").c_str();
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
+  mqtt_publish_heap_metrics = settings.getBool("MQTTHEAP", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
   migrate_static_ip_settings(settings);
-  static_IP_enabled = settings.getBool("STATICIP", false);
-  static_local_IP = settings.getString("LOCALIP").c_str();
-  static_gateway = settings.getString("GATEWAY").c_str();
-  static_subnet = settings.getString("SUBNET").c_str();
-  static_dns = settings.getString("DNS").c_str();
+  wifi_static_IP_enabled = settings.getBool("STATICIP", false);
+  wifi_static_local_IP = settings.getIP("LOCALIP");
+  wifi_static_gateway = settings.getIP("GATEWAY");
+  wifi_static_subnet = settings.getIP("SUBNET");
+  wifi_static_dns = settings.getIP("DNS");
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
-  mqtt_port = settings.getUInt("MQTTPORT", 0);
+  mqtt_port = settings.getUInt("MQTTPORT", 1883);
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
@@ -270,6 +292,9 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRFT2", 5), 1u, 20u);
   datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled = settings.getBool("BYDAUTOCALEN2", true);
+  // One isolation-monitor setting for both batteries
+  datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
+  datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
 }
 
 void clear_wifi_sta_settings() {
@@ -320,6 +345,7 @@ void store_settings() {
   settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
   settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
 }

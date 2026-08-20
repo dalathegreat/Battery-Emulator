@@ -126,10 +126,12 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t SOC_highprec;
   /** SOC% polled OBD2 value. Can be locked if pack is crashed */
   uint16_t SOC_polled;
-  /** Voltage raw battery value */
-  uint16_t voltage_periodic;
-  /** Voltage polled OBD2*/
-  uint16_t voltage_polled;
+  /** Pack voltage from 0x438, deci-volts. Zero until the frame is received */
+  uint16_t pack_voltage_dV;
+  /** Insulation resistance from 0x43A, Ohm per volt. Multiply by pack voltage for Ohms. Zero is a valid fault reading */
+  uint16_t insulation_ohm_per_volt;
+  /** True once a checksum-valid 0x43A has been seen */
+  bool insulation_valid;
   uint16_t chargePower;
   uint16_t charge_times;
   uint16_t dischargePower;
@@ -202,6 +204,14 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool dtc_read_in_progress;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI
   bool UserRequestDTCreset;    // User requesting DTC erase via WebUI
+
+  // Isolation monitor control (RoutineControl 0x2008): disable = 31 01, enable = 31 02.
+  bool UserRequestIsoRoutineEnable;
+  bool UserRequestIsoRoutineDisable;
+  bool keep_iso_disabled;       // re-send disable on each BMS start (persisted)
+  bool iso_measurement_active;  // 0x35E b0 bit0x80: isolation measurement running
+  bool iso_status_valid;        // fresh 0x35E seen (else status unknown)
+  uint8_t iso_command_status;   // 0 idle, 1 running, 2 accepted, 3 rejected, 4 no reply
 };
 
 struct DATALAYER_INFO_CELLPOWER {
@@ -280,56 +290,6 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryCurrentDeviation;
   bool FaultBatteryUnderVoltage;
   bool FaultBatteryOverVoltage;
-};
-
-struct DATALAYER_INFO_CMFAEV {
-  uint64_t cumulative_energy_when_discharging;
-  uint64_t cumulative_energy_when_charging;
-  uint64_t cumulative_energy_in_regen;
-
-  uint32_t average_voltage_of_cells;
-
-  uint16_t soc_z;
-  uint16_t soc_u;
-  uint16_t soh_average;
-  uint16_t max_regen_power;
-  uint16_t max_discharge_power;
-  uint16_t maximum_charge_power;
-  uint16_t SOH_available_power;
-  uint16_t SOH_generated_power;
-  uint16_t lead_acid_voltage;
-
-  int16_t average_temperature;
-  int16_t minimum_temperature;
-  int16_t maximum_temperature;
-
-  uint8_t highest_cell_voltage_number;
-  uint8_t lowest_cell_voltage_number;
-};
-
-struct DATALAYER_INFO_CMPSMART {
-  uint8_t battery_negative_contactor_state;
-  uint8_t battery_precharge_contactor_state;
-  uint8_t battery_positive_contactor_state;
-  uint8_t battery_state;
-  uint8_t eplug_status;
-  uint8_t HVIL_status;
-  uint8_t ev_warning;
-  uint8_t insulation_fault;
-  uint8_t insulation_circuit_status;
-  uint8_t hardware_fault_status;
-  uint8_t l3_fault;
-  uint8_t plausibility_error;
-  uint8_t battery_charging_status;
-  uint8_t battery_fault;
-  uint8_t hvbat_wakeup_state;
-  uint8_t active_DTC_code;
-  uint8_t alert_frame3;
-  uint8_t alert_frame4;
-  bool rcd_line_active;
-  bool power_auth;
-  bool battery_balancing_active;
-  bool UserRequestDTCreset; /** User requesting DTC reset via WebUI*/
 };
 
 struct DATALAYER_INFO_ECMP {
@@ -445,11 +405,12 @@ struct DATALAYER_INFO_FORD_MACH_E {
   uint16_t pid_hvb_contactor_negative_bus_leak_resistance;
   uint16_t pid_hvb_contactor_overall_leak_resistance;
   uint16_t pid_hvb_contactor_open_leak_resistance;
-  uint8_t pid_hvb_soh;
   uint16_t pid_hvb_voltage;
+  uint16_t pid_hvb_max_charge_current;
   uint16_t pid_hvb_calendar_age_months;
   uint16_t pid_battery_capacity_ah;
   uint8_t pid_maintenance_rebalance_status;
+  uint8_t pid_hvb_soh;
 };
 
 struct DATALAYER_INFO_GEELY_GEOMETRY_C {
@@ -776,10 +737,14 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t GIDS;
   /** Max regen power in kW */
   uint16_t ChargePowerLimit;
-  /** Internal resistance in percentage */
-  uint16_t battery_HX;
+  /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
+  uint16_t battery_HX_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
+  /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
+  uint16_t ChargeCountQC;
+  /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
+  uint16_t ChargeCountL1L2;
 
   /** Max charge power in kW */
   int16_t MaxPowerForCharger;
@@ -818,7 +783,6 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** Battery info, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[15];
   uint8_t BatteryPartNumber[7];
-  uint8_t BMSIDcode[8];
 };
 
 struct DATALAYER_INFO_MEB {
@@ -891,6 +855,7 @@ struct DATALAYER_INFO_MEB {
   bool dtc_read_in_progress = false;   // Flag to prevent concurrent reads
   bool UserRequestDTCreset = false;    // User requesting DTC erase via WebUI
   bool UserRequestDTCreadout = false;  // User requesting DTC readout via WebUI
+  bool UserRequestCrashReset = false;  // User requesting crash reset via WebUI
   bool UserRequestBMSReset = false;    // User requesting BMS reset via WebUI
 };
 
@@ -907,14 +872,7 @@ struct DATALAYER_INFO_VOLVO_POLESTAR {
   uint8_t HVSysDCRlySts1;
   uint8_t HVSysDCRlySts2;
   uint8_t HVSysIsoRMonrSts;
-  uint8_t DTCcount;
   uint8_t HVILstatusBits;
-  /** User requesting DTC reset via WebUI*/
-  bool UserRequestDTCreset;
-  /** User requesting DTC readout via WebUI*/
-  bool UserRequestDTCreadout;
-  /** User requesting BECM reset via WebUI*/
-  bool UserRequestBECMecuReset;
 };
 
 struct DATALAYER_INFO_VOLVO_HYBRID {
@@ -968,20 +926,6 @@ struct DATALAYER_INFO_GEELY_SEA {
   bool UserRequestBECMecuReset;
   /** User requesting reset of crash status via WebUI*/
   bool UserRequestCrashReset;
-};
-
-struct DATALAYER_INFO_ZOE {
-  uint16_t mileage_km;
-  uint16_t alltime_kWh;
-
-  uint8_t CUV;
-  uint8_t HVBIR;
-  uint8_t HVBUV;
-  uint8_t EOCR;
-  uint8_t HVBOC;
-  uint8_t HVBOT;
-  uint8_t HVBOV;
-  uint8_t COV;
 };
 
 struct DATALAYER_INFO_ZOE_PH2 {
@@ -1044,8 +988,6 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_CMFAEV CMFAEV;
-    DATALAYER_INFO_CMPSMART stellantisCMPsmart;
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
@@ -1054,10 +996,13 @@ class DataLayerExtended {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
-    DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+    struct {
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;
+      DATALAYER_INFO_NISSAN_LEAF nissanleaf_3;
+    };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
-    DATALAYER_INFO_ZOE zoe;
   };
 
   // Entries with non-zero default values should go here.

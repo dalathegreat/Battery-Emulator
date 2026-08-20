@@ -2,6 +2,7 @@
 #include <cstring>  //For unit test
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
@@ -267,7 +268,7 @@ void generateFrameCounterChecksum(CAN_frame& f,
 // Function to extract raw bits/values from a given CAN frame signal
 inline uint64_t extract_signal_value(const uint8_t* data, uint32_t start_bit, uint32_t bit_length) {
   //
-  // Usage: uint8_t bms_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 31, 4));
+  // Usage: uint8_t bms_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 4));
   //
   // Calculate the starting byte and bit offset
   uint32_t byte_index = start_bit / 8;
@@ -475,26 +476,8 @@ void TeslaBattery::
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (battery_soc_ui > 990) {
-    datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-  } else if (battery_soc_ui > (user_set_rampdown_SOC /
-                               10)) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer_battery->status.max_charge_power_W =
-        RAMPDOWNPOWERALLOWED *
-        (1 - (battery_soc_ui - (user_set_rampdown_SOC / 10)) / (1000.0 - (user_set_rampdown_SOC / 10)));
-    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (datalayer_battery->info.chemistry == battery_chemistry_enum::LFP) {
-      if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-      }
-    } else {  //NCM/A
-      if (battery_cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-        datalayer_battery->status.max_charge_power_W = FLOAT_MAX_POWER_W;
-      }
-    }
-  } else {  // No limits, max charging power allowed
-    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
-  }
+  //The inverter setting will ramp down this value based on SOC%
+  datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
 
   datalayer_battery->status.temperature_min_dC = battery_min_temp;
 
@@ -531,22 +514,29 @@ void TeslaBattery::
   }
   //Voltage between 0.5-5.0V, pyrofuse most likely blown
   if (datalayer_battery->status.voltage_dV >= 5 && datalayer_battery->status.voltage_dV <= 50) {
-    set_event(EVENT_BATTERY_FUSE, 0);
+    set_event(EVENT_BATTERY1_FUSE, 0, battery_index);
   } else {
-    clear_event(EVENT_BATTERY_FUSE);
+    clear_event(EVENT_BATTERY1_FUSE, battery_index);
   }
   // Raise any Tesla BMS events in BE
   // Events: Informational
-  if (BMS_a145_SW_SOC_Change) {                             // BMS has newly recalibrated pack SOC
-    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0);  // Latcched as BMS_a145 can be active for a while
+  if (BMS_a145_SW_SOC_Change) {  // BMS has newly recalibrated pack SOC
+    set_event_latched(EVENT_BATTERY1_SOC_RECALIBRATION, 0,
+                      battery_index);  // Latcched as BMS_a145 can be active for a while
   } else if (!BMS_a145_SW_SOC_Change) {
-    clear_event(EVENT_BATTERY_SOC_RECALIBRATION);
+    clear_event(EVENT_BATTERY1_SOC_RECALIBRATION, battery_index);
   }
   // Events: Warning
   if (BMS_contactorState == 5) {  // BMS has detected welded contactor(s)
     set_event_latched(EVENT_CONTACTOR_WELDED, 0);
   } else if (BMS_contactorState != 5) {
     clear_event(EVENT_CONTACTOR_WELDED);
+  }
+
+  // Pack-internal contactors: DC bus is live only when the BMS confirms CLOSED (4).
+  // Guarded so the GPIO contactor state machine stays authoritative when enabled.
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = (battery_contactor == 4);
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};
@@ -595,10 +585,9 @@ void TeslaBattery::
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
-      logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
       stateMachineBMSReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_bms_reset = false;
-      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);
+      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);  // also printing a log entry
       clear_event(EVENT_BMS_RESET_REQ_FAIL);
     }
   }
@@ -610,11 +599,10 @@ void TeslaBattery::
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
-      logging.println("ERROR: SOC reset failed, SOC not < 15 or > 90, or contactors not open");
       stateMachineSOCReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
-      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
-      clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
+      set_event(EVENT_BATTERY1_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
+      clear_event(EVENT_BATTERY1_SOC_RESET_FAIL, battery_index);
     }
   }
 
@@ -1293,17 +1281,19 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //BMS_state = // Original code from older DBCs
       //((rx_frame.data.u8[1] >> 3) &
       //(0x0FU));  //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" ;
-      BMS_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 31, 4));
+      BMS_state = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 4));
       //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" 10 "BMS_DIAG";
       BMS_hvState = (rx_frame.data.u8[2] & (0x07U));
       //0 "DOWN" 1 "COMING_UP" 2 "GOING_DOWN" 3 "UP_FOR_DRIVE" 4 "UP_FOR_CHARGE" 5 "UP_FOR_DC_CHARGE" 6 "UP" ;
       BMS_isolationResistance =
           ((rx_frame.data.u8[3] & (0x1FU)) << 5) |
           ((rx_frame.data.u8[2] >> 3) & (0x1FU));  //19|10@1+ (10,0) [0|0] "kOhm"/to datalayer_extended
+      datalayer_battery->status.insulation_resistance_kOhm = BMS_isolationResistance * 10;
+      datalayer_battery->status.insulation_resistance_available = true;
       //BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
       BMS_chargeRequest = static_cast<bool>(extract_signal_value(rx_frame.data.u8, 29, 1));
       BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));
-      BMS_uiChargeStatus = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 32, 3));
+      BMS_uiChargeStatus = static_cast<uint8_t>(extract_signal_value(rx_frame.data.u8, 11, 3));
       //BMS_uiChargeStatus =
       //(rx_frame.data.u8[4] &
       //(0x07U));
@@ -2333,20 +2323,17 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("CAN UDS: BMS ECU reset request successful but ECU busy, response pending");
       }
       if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS ECU reset positive response, 1 second downtime");
-        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);
+        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);  // also printing a log entry
         clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS SOC reset accepted, resetting BMS ECU");
-        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);
-        clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS);
+        set_event(EVENT_BATTERY1_SOC_RESET_SUCCESS, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BATTERY1_SOC_RESET_SUCCESS, battery_index);
         stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
-        logging.println("CAN UDS: BMS SOC reset failed");
-        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);
-        clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
+        set_event(EVENT_BATTERY1_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BATTERY1_SOC_RESET_FAIL, battery_index);
       }
       break;
     default:
