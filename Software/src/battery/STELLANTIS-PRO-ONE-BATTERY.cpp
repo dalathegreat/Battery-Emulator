@@ -17,15 +17,15 @@ static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame, uint8_t length) {
 }
 
 uint16_t estimate_SOC_based_on_v(uint16_t voltage) {
-  uint16_t result = 0;
+  // Voltage ranges between 3780dV when full, and 2880dV when empty
+  // Range = 3780 - 2880 = 900dV → represents 100% SOC
+
   if (voltage <= 2880)
     return 0;
   if (voltage >= 3780)
-    return 1000;
+    return 10000;
 
-  result = voltage - 2880;         // Shift range to 0–900
-  result = (result * 1000) / 900;  // Scale to 0–1000 (0.0%–100.0%)
-  return result;
+  return (uint32_t)(voltage - 2880) * 10000 / 900;
 }
 
 void StellantisProOneBattery::
