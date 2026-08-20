@@ -16,11 +16,25 @@ static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame, uint8_t length) {
   return crc ^ 0xFF;  // final XOR 0xFF
 }
 
+uint16_t estimate_SOC_based_on_v(uint16_t voltage) {
+  uint16_t result = 0;
+  if (voltage <= 2880)
+    return 0;
+  if (voltage >= 3780)
+    return 1000;
+
+  result = voltage - 2880;         // Shift range to 0–900
+  result = (result * 1000) / 900;  // Scale to 0–1000 (0.0%–100.0%)
+  return result;
+}
+
 void StellantisProOneBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc =
-      (datalayer.battery.status.voltage_dV - 3000) * 10;  //TODO: locate, estimate now in place
+  datalayer.battery.status.real_soc = estimate_SOC_based_on_v(datalayer.battery.status.voltage_dV);
+
+  datalayer.battery.status.max_discharge_power_W = 1000;  //TODO: locate
+  datalayer.battery.status.max_charge_power_W = 1000;     //TODO: locate
   //datalayer.battery.status.soh_pptt; //TODO: locate
   //datalayer.battery.status.voltage_dV; //TODO: locate
   //datalayer.battery.status.current_dA; //TODO: locate
