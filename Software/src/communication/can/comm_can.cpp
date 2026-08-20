@@ -284,6 +284,10 @@ class Mcp2518Device;
 // trampolines.
 static Mcp2518Device* fd_instances[MAX_CAN_FD_DEVICES] = {};  // value-initialized: all null
 
+// How many FD controllers this file's board-setup path actually builds. Raise it
+// with the construction blocks, not with MAX_CAN_FD_DEVICES.
+static constexpr uint8_t kConstructedFdDevices = 2;
+
 // Logical interface -> physical device. Entries may repeat: on boards where
 // CANFD_NATIVE and CANFD_ADDON_MCP2518 are the same chip, both slots point at
 // the same device, and dispatch_frame delivers each physical frame to the
@@ -294,7 +298,7 @@ static Mcp2518Device* fd_instances[MAX_CAN_FD_DEVICES] = {};  // value-initializ
 class Mcp2518Device : public CanDevice {
  public:
   struct Config {
-    uint8_t index;  // 0 or 1, selects the ISR trampoline
+    uint8_t index;  // selects the identity row and the ISR trampoline
     gpio_num_t cs_pin;
     gpio_num_t int_pin;  // GPIO_NUM_NC on instance 1 means use the INT0/INT1 pair
     gpio_num_t int0_pin;
@@ -333,10 +337,25 @@ class Mcp2518Device : public CanDevice {
           .log_interface = CANFD_ADDON_MCP2518_2,
           .init_fail_event = EVENT_CANMCP2518FD_2_INIT_FAILURE,
       },
+      {
+          .name = "CAN-FD 3",
+          .log_interface = CANFD_ADDON_MCP2518_3,
+          .init_fail_event = EVENT_CANMCP2518FD_3_INIT_FAILURE,
+      },
+      {
+          .name = "CAN-FD 4",
+          .log_interface = CANFD_ADDON_MCP2518_4,
+          .init_fail_event = EVENT_CANMCP2518FD_4_INIT_FAILURE,
+      },
   };
-  static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's identity row and its ISR trampoline");
-  // Init failure stays per instance, so those must still differ.
-  static_assert(identity[0].init_fail_event != identity[1].init_fail_event,
+  static_assert(MAX_CAN_FD_DEVICES == 4, "add the new FD instance's identity row and its ISR trampoline");
+  // Init failure stays per instance, so those must all differ.
+  static_assert(identity[0].init_fail_event != identity[1].init_fail_event &&
+                    identity[1].init_fail_event != identity[2].init_fail_event &&
+                    identity[2].init_fail_event != identity[3].init_fail_event &&
+                    identity[0].init_fail_event != identity[2].init_fail_event &&
+                    identity[0].init_fail_event != identity[3].init_fail_event &&
+                    identity[1].init_fail_event != identity[3].init_fail_event,
                 "each FD instance needs its own init-failure event id");
 
   // 1-based, as the messages and the settings UI count channels.
@@ -425,17 +444,27 @@ class Mcp2518Device : public CanDevice {
 
   void run_isr() { can_->isr(); }
 
+  // One captureless trampoline per instance: ACAN2517FD::begin takes a plain
+  // void(*)(), so these are per-index code, not data. A table rather than a
+  // chain of ternaries, so a new channel is one line.
+  using IsrTrampoline = void (*)();
+  IsrTrampoline fd_trampoline() const {
+    static_assert(MAX_CAN_FD_DEVICES == 4, "add the new FD instance's ISR trampoline");
+    static const IsrTrampoline trampoline[MAX_CAN_FD_DEVICES] = {
+        +[] { fd_instances[0]->run_isr(); },
+        +[] { fd_instances[1]->run_isr(); },
+        +[] { fd_instances[2]->run_isr(); },
+        +[] { fd_instances[3]->run_isr(); },
+    };
+    return trampoline[cfg_.index];
+  }
+
  private:
   // Starts the controller; shared by init() and restart(). On failure the
   // device marks itself dead (can_ nulled, initialized false) so the receive
   // and transmit paths skip it, matching the previous nulled-pointer state.
   bool begin() {
-    // One captureless trampoline per instance: ACAN2517FD::begin takes a
-    // plain void(*)(), so these are per-index code, not data.
-    static_assert(MAX_CAN_FD_DEVICES == 2, "add the new FD instance's ISR trampoline");
-    const uint32_t errorCode =
-        can_->begin(*settings_, cfg_.index == 0 ? +[] { fd_instances[0]->run_isr(); }
-                                                : +[] { fd_instances[1]->run_isr(); });
+    const uint32_t errorCode = can_->begin(*settings_, fd_trampoline());
     can_->poll();
     if (errorCode != 0) {
       logging.printf(CONFIG_ERROR_FORMAT, channel_number());
@@ -568,7 +597,13 @@ bool init_CAN() {
       }
     }
 
-    static_assert(MAX_CAN_FD_DEVICES == 2, "a third FD controller needs its own construction block here");
+    /* This board-setup path constructs two FD controllers. MAX_CAN_FD_DEVICES is
+       deliberately larger: the identity rows and trampolines for channels 3 and
+       4 exist so the isolated dual-FD board's hal work can land against them,
+       and that work brings the construction blocks with it. The guard is
+       therefore "the tables cover what we construct", not an equality. */
+    static_assert(kConstructedFdDevices <= MAX_CAN_FD_DEVICES,
+                  "a construction block exists for an FD instance the tables do not cover");
     Mcp2518Device* fd_dev = new Mcp2518Device({
         .index = 0,
         .cs_pin = cs_pin,

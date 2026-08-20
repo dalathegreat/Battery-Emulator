@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <vector>
 
 #include "../Software/src/communication/can/comm_can_device.h"
 #include "../Software/src/communication/can/comm_can_dispatch.h"
@@ -310,12 +311,13 @@ TEST_F(CanHealthAggregationTest, RegistrationOrderAssignsSlotsAndTheLimitIsEnfor
   EXPECT_EQ(a.device_index, 0) << "the slot comes from registration order, not from the device";
   EXPECT_EQ(b.device_index, 1);
 
-  FakeCanDevice extra[MAX_CAN_DEVICES] = {
-      {99, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR},
-      {99, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR},
-      {99, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR},
-      {99, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR},
-  };
+  // Sized from MAX_CAN_DEVICES so raising the cap does not silently stop this
+  // test from overflowing the slots, which is the whole point of it.
+  std::vector<FakeCanDevice> extra;
+  extra.reserve(MAX_CAN_DEVICES);
+  for (int i = 0; i < MAX_CAN_DEVICES; ++i) {
+    extra.emplace_back(99, EVENT_CANFD_BUFFER_FULL, EVENT_CANFD_BUS_ERROR);
+  }
   bool refused = false;
   for (int i = 0; i < MAX_CAN_DEVICES; ++i) {
     if (!register_device(&extra[i])) {

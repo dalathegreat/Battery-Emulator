@@ -94,16 +94,22 @@ enum CAN_Interface {
   // 2nd add-on CAN-FD MCP2518 sharing bus with above
   CANFD_ADDON_MCP2518_2 = 4,
 
+  // 3rd and 4th add-on CAN-FD MCP2518 (isolated dual-FD board), sharing the same bus
+  CANFD_ADDON_MCP2518_3 = 5,
+  CANFD_ADDON_MCP2518_4 = 6,
+
   // No CAN interface
-  NO_CAN_INTERFACE = 5
+  NO_CAN_INTERFACE = 7
 };
 
 // Number of physical CAN controllers a board can carry (native TWAI, MCP2515
-// and two MCP2518FD today). Indexes datalayer.system.info.can_device[].
-#define MAX_CAN_DEVICES 4
+// and four MCP2518FD today - the Stark's isolated dual-FD board brings the
+// count to six). Indexes datalayer.system.info.can_device[]; register_device()
+// refuses a device beyond this rather than writing past the health slots.
+#define MAX_CAN_DEVICES 6
 // Of those, the MCP2518FD (CAN-FD) controllers. Raising this needs a new
 // identity row in Mcp2518Device and a matching ISR trampoline.
-#define MAX_CAN_FD_DEVICES 2
+#define MAX_CAN_FD_DEVICES 4
 
 extern const char* getCANInterfaceName(CAN_Interface interface);
 
