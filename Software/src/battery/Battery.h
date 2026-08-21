@@ -77,6 +77,12 @@ extern battery_chemistry_enum user_selected_battery_chemistry;
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
 class Battery {
+ protected:
+  // Used polymorphically but never deleted through the base: a protected
+  // non-virtual destructor makes delete-through-base a compile error instead
+  // of undefined behavior, at zero flash cost (no vtable dtor entries).
+  ~Battery() = default;
+
  public:
   virtual void setup(void) = 0;
   virtual void update_values() = 0;
@@ -93,6 +99,7 @@ class Battery {
   virtual bool mandatory_charge_taper() { return false; }
 
   virtual bool supports_clear_isolation() { return false; }
+  virtual bool supports_tesla_dcdc_metrics() { return false; }
   virtual bool supports_reset_BMS() { return false; }
   virtual bool supports_reset_SOC() { return false; }
   virtual bool supports_reset_crash() { return false; }

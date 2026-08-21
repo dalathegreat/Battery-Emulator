@@ -13,10 +13,13 @@ extern uint16_t user_selected_tesla_GTW_mapRegion;
 extern uint16_t user_selected_tesla_GTW_chassisType;
 extern uint16_t user_selected_tesla_GTW_packEnergy;
 
+// Common implementation for the Gen3 Tesla packs. Instantiate one of the
+// variant subclasses below - the variant behavior lives in their
+// apply_variant_config() overrides instead of being resolved from the
+// user_selected_battery_type global inside the driver.
 class TeslaBattery : public CanBattery {
- public:
-  bool mandatory_charge_taper() { return true; }
-  // Use the default constructor to create the first or single battery.
+ protected:
+  // Use this constructor to create the first or single battery.
   TeslaBattery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
@@ -28,6 +31,13 @@ class TeslaBattery : public CanBattery {
     allows_contactor_closing = nullptr;
     previous_max_percentage = datalayer_ptr->settings.max_percentage;
   }
+
+  // Variant-specific pack design limits and reported protocol name,
+  // applied at the end of setup().
+  virtual void apply_variant_config() = 0;
+
+ public:
+  bool mandatory_charge_taper() { return true; }
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -49,8 +59,7 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
-  static constexpr const char* NameSX = "Tesla Model S/X";
-  static constexpr const char* Name3Y = "Tesla Model 3/Y";
+  bool supports_tesla_dcdc_metrics() { return true; }
 
  private:
   TeslaHtmlRenderer renderer;
@@ -575,8 +584,6 @@ class TeslaBattery : public CanBattery {
   uint8_t battery_BrickModelTMin = 0;
   uint8_t battery_BrickVoltageMaxNum = 0;  //rename from battery_max_vno
   uint8_t battery_BrickVoltageMinNum = 0;  //rename from battery_min_vno
-  //0x20A: 522 HVP_contactorState
-  uint8_t battery_contactor = 0;  //State of contactor
   uint8_t battery_hvil_status = 0;
   uint8_t battery_packContNegativeState = 0;
   uint8_t battery_packContPositiveState = 0;
@@ -1144,6 +1151,30 @@ class TeslaBattery : public CanBattery {
   bool CP_a094_inductiveResetSuccessful = false;
   bool CP_a095_thermalDcLimitActive = false;
   bool CP_a096_pilotWake = false;
+};
+
+class TeslaModel3YBattery : public TeslaBattery {
+ public:
+  static constexpr BatteryType TYPE = BatteryType::TeslaModel3Y;
+  static constexpr const char* Name = "Tesla Model 3/Y";
+  TeslaModel3YBattery() = default;
+  TeslaModel3YBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
+      : TeslaBattery(datalayer_ptr, targetCan) {}
+
+ protected:
+  void apply_variant_config();
+};
+
+class TeslaModelSXBattery : public TeslaBattery {
+ public:
+  static constexpr BatteryType TYPE = BatteryType::TeslaModelSX;
+  static constexpr const char* Name = "Tesla Model S/X";
+  TeslaModelSXBattery() = default;
+  TeslaModelSXBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
+      : TeslaBattery(datalayer_ptr, targetCan) {}
+
+ protected:
+  void apply_variant_config();
 };
 
 #endif
