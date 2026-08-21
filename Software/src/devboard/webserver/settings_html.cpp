@@ -1924,9 +1924,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-bydmodbus">
-        <label>WatchDog Timeout: </label><span>%INVWDT%</span>
+        <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
 
-        <label>Inverter time (UTC): </label><span>%INVUTC%</span>
+        <label>Inverter time (UTC): </label><span class='settings-value'>%INVUTC%</span>
         </div>
 
         <div class="if-sofar">
