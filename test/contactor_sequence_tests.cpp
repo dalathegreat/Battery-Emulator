@@ -2,6 +2,7 @@
 
 #include <Arduino.h>  // Emul: set_millis64() to control the test clock
 
+#include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/hal/hal.h"
@@ -151,6 +152,45 @@ TEST_F(ContactorSequenceTest, StaysDisconnectedWhileTheBatteryWithholdsPermissio
   tick_at(kBootMs);
 
   EXPECT_EQ(contactorStatus, DISCONNECTED);
+  EXPECT_EQ(datalayer.system.status.contactors_engaged, 0);
+}
+
+// Pinned semantics, stated deliberately: the battery's veto gates CLOSING
+// only. A battery that withdraws permission mid-session does NOT open the
+// contactors from COMPLETED - opening under load is the arc/weld hazard the
+// e-stop path exists to sequence properly, and protocol teardowns (CHAdeMO
+// A.7.2.x) manage their own current-drop ordering before contactors open.
+// If this behavior is ever changed, it must be changed on purpose: this test
+// is the tripwire, not an endorsement of either semantic.
+TEST_F(ContactorSequenceTest, CompletedIsNotReopenedByBatteryRevocation) {
+  contactorStatus = COMPLETED;
+  datalayer.system.status.battery_allows_contactor_closing = false;
+
+  tick_at(kBootMs);
+  tick_at(kBootMs + 1000);
+
+  EXPECT_EQ(contactorStatus, COMPLETED);
+}
+
+// The end-to-end #1863 scenario, through the REAL driver: a CHAdeMO
+// integration with nothing plugged in must not close contactors at boot.
+// The driver withholds battery_allows_contactor_closing until the EVSE
+// handshake grants it (that half never regressed); this asserts the GATE
+// reads the veto - the half 1645c5b3 dropped, which let contactors close on
+// inverter say-so alone with no vehicle present.
+TEST_F(ContactorSequenceTest, ChademoWithNothingPluggedInNeverClosesAtBoot) {
+  user_selected_battery_type = BatteryType::Chademo;
+  setup_battery();
+  ASSERT_NE(battery, nullptr);
+  // The driver owns the veto now; the fixture's blanket grant must not stand
+  // in for it.
+  datalayer.system.status.battery_allows_contactor_closing = false;
+  battery->update_values();  // IDLE tick: unplugged EVSE, no grant
+
+  for (int t = 0; t < 5; ++t) {
+    tick_at(kBootMs + t * 1000);
+    ASSERT_EQ(contactorStatus, DISCONNECTED) << "contactors left DISCONNECTED with no vehicle present (t=" << t << ")";
+  }
   EXPECT_EQ(datalayer.system.status.contactors_engaged, 0);
 }
 
