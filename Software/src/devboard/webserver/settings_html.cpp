@@ -1098,7 +1098,20 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
              ? "checked"
              : "";
   }
+  if (var == "UUGP_STARTMODE_0") {
+   return settings.getUInt("UUGP_STARTMODE", 1) == 0
+              ? "selected"              : "";
+  }
 
+  if (var == "UUGP_STARTMODE_1") {
+     return settings.getUInt("UUGP_STARTMODE", 1) == 1
+              ? "selected"              : "";
+  }
+
+  if (var == "UUGP_STARTMODE_2") {
+     return settings.getUInt("UUGP_STARTMODE", 1) == 2
+              ? "selected"              : "";
+  }
   return String();
 }
 
@@ -2053,11 +2066,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
            step="1"
            title="UUGP discharge cut-off SOC." />
         <label>UUGP start mode: </label>
-        <select name='UUGP_STARTMODE'
-           <option value"0">Default RS485</option>
-           <option value"1" selected>Card swipe</option>
-           <option value"2">Plug & charge</option>
-           /select>
+        <select name='UUGP_STARTMODE'>
+          <option value="0" %UUGP_STARTMODE_0%>Default RS485</option>
+          <option value="1" %UUGP_STARTMODE_1%>Card swipe</option>
+          <option value="2" %UUGP_STARTMODE_2%>Plug &amp; charge</option>
+        </select>
         <p>
         UUGP communication: RS485, 9600 baud, 8N1.
         </p>

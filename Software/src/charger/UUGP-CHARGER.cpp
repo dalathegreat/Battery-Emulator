@@ -3,10 +3,12 @@
 #include <time.h>
 
 #include "../datalayer/datalayer.h"
+#include <cstring>
 
 volatile uint16_t uugp_power_limit_W = 10000;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
 volatile bool uugp_allow_discharge_to_home_grid = false;
+volatile uint8_t uugp_start_mode = 1;
 
 UUGPCharger::UUGPCharger()
     : Charger(ChargerType::UUGP) {
@@ -19,8 +21,7 @@ const char* UUGPCharger::name() {
 }
 
 float UUGPCharger::outputPowerDC() {
-  return datalayer.charger.uugp_dc_voltage_V *
-         datalayer.charger.uugp_dc_current_A;
+  return datalayer.charger.uugp_active_power_W
 }
 
 float UUGPCharger::HVDC_output_voltage() {
@@ -67,6 +68,7 @@ void UUGPCharger::send_frame(uint8_t function,
    */
 
   const uint16_t transaction = next_transaction();
+  expected_transaction_id = transaction;
 
   const uint16_t length =
       static_cast<uint16_t>(2 + payload_length);
@@ -251,47 +253,40 @@ void UUGPCharger::initialize_system_time() {
 }
 
 void UUGPCharger::initialize_current_limiting() {
-  /*
-   * Initial values requested:
-   *
-   * 4011 = 10000 W
-   * 4012 = configurable, default 80 %
-   * 4013 = 0 (Stop)
-   */
-  uint16_t values[3];
-
-  values[0] = 10000;
-
-  values[1] = uugp_discharge_cutoff_soc;
-
-  if (values[1] < 10 || values[1] > 90) {
-    values[1] = 80;
-  }
-
-  values[2] = 0;
-
-  write_multiple(REG_POWER_LIMIT, values, 3);
+    switch (initialization_step) {     
+        case 6:
+          write_single(REG_POWER_LIMIT, 10000);
+          break;
+        case 7: {
+            uint16_t soc = uugp_discharge_cutoff_soc;
+            if (soc < 10 || soc > 90) {
+                soc = 80;
+            }
+            write_single(REG_DISCHARGE_CUTOFF_SOC, soc);
+            break;
+        }
+        case 8:
+            write_single(REG_CONTROL_MODE, 0);
+            break;
+            }
 }
 
 void UUGPCharger::initialize_pcs_information() {
-  const uint16_t max_voltage_dV =
-      get_max_pack_voltage_dV();
+   const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
+   const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
 
-  /*
-   * 4050/4051 are 0.1 V.
-   * max_design_voltage_dV is already 0.1 V.
-   */
-  const uint16_t pcs_model =
-      max_voltage_dV < 5700 ? 0 : 1;
-
-  uint16_t values[3];
-
-  values[0] = max_voltage_dV;
-  values[1] = max_voltage_dV;
-  values[2] = pcs_model;
-
-  write_multiple(REG_VBUS_UPPER, values, 3);
-}
+   switch (initialization_step) {
+     case 9:
+       write_single(REG_VBUS_UPPER, max_voltage_dV);
+       break;
+     case 10:
+       write_single(REG_VBUS_LOWER, max_voltage_dV);
+       break;
+     case 11:
+       write_single(REG_PCS_MODEL, pcs_model);
+       break;
+   }
+ }
 
 void UUGPCharger::initialize_start_mode() {
   /*
@@ -303,7 +298,10 @@ void UUGPCharger::initialize_start_mode() {
    *
    * Requested default = 1.
    */
-  write_single(REG_START_MODE, 1);
+  write_single(REG_START_MODE, uugp_start_mode);
+if (uugp_start_mode > 2) {
+   uugp_start_mode = 1;
+ }
 }
 
 void UUGPCharger::initialize() {
@@ -322,18 +320,22 @@ void UUGPCharger::initialize() {
       break;
 
     case 6:
+    case 7:
+    case 8:
       initialize_current_limiting();
       break;
 
-    case 7:
+    case 9:
+    case 10:
+    case 11:
       initialize_pcs_information();
-      break;
-
-    case 8:
+      break; 
+     
+    case 12:
       initialize_start_mode();
       break;
 
-    default:
+      default:
       initialization_complete = true;
       return;
   }
@@ -342,7 +344,7 @@ void UUGPCharger::initialize() {
 
   ++initialization_step;
 
-  if (initialization_step > 8) {
+  if (initialization_step > 12) {
     initialization_complete = true;
   }
 }
@@ -426,6 +428,11 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 
   if (!ensure_serial()) {
     return;
+  }
+
+  if (last_response_ms != 0 &&
+     millis() - last_response_ms > 3000) {
+   datalayer.charger.uugp_communication_ok = false;
   }
 
   if (!initialization_complete) {
@@ -538,6 +545,13 @@ void UUGPCharger::process_response(
   if (function != FC_READ_INPUT &&
       function != FC_READ_HOLDING) {
     return;
+  }
+  const uint16_t response_transaction =
+     (static_cast<uint16_t>(frame[0]) << 8) |
+     frame[1];
+
+  if (response_transaction != expected_transaction_id) {
+    return;
   }
 
   const uint8_t byte_count = frame[8];

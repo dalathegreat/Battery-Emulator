@@ -297,8 +297,24 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
   uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
-  if (uugp_power_limit_W > 22000) {uugp_power_limit_W = 22000;} uugp_discharge_cutoff_soc = settings.getUInt("UUGP_DSOC", 80);
-  if (uugp_discharge_cutoff_soc < 10 ||uugp_discharge_cutoff_soc > 90) {uugp_discharge_cutoff_soc = 80;} uugp_allow_discharge_to_home_grid = settings.getBool("UUGP_ALLOW", false);
+  if (uugp_power_limit_W > 22000) {
+     uugp_power_limit_W = 22000;
+  }
+
+  uugp_discharge_cutoff_soc = settings.getUInt("UUGP_DSOC", 80);
+  if (uugp_discharge_cutoff_soc < 10 || uugp_discharge_cutoff_soc > 90) {
+     uugp_discharge_cutoff_soc = 80;
+  }
+
+  uugp_allow_discharge_to_home_grid =
+       settings.getBool("UUGP_ALLOW", false);
+
+  uugp_start_mode =
+     settings.getUInt("UUGP_STARTMODE", 1);
+
+  if (uugp_start_mode > 2) {
+     uugp_start_mode = 1;
+  }
 }
 
 void clear_wifi_sta_settings() {
