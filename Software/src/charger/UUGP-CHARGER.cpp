@@ -35,13 +35,9 @@ bool UUGPCharger::ensure_serial() {
   if (serial_initialized) {
     return true;
   }
-
-  if (!rs485_begin(Name, serial, BAUDRATE, SERIAL_8N1)) {
-    return false;
-  }
-
-  serial_initialized = true;
-  return true;
+  serial_initialized =
+    rs485_begin(Name, serial, 9600, SERIAL_8N1);
+  return serial_initialized;
 }
 
 uint16_t UUGPCharger::next_transaction() {
