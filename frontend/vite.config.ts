@@ -4,37 +4,77 @@ import preact from '@preact/preset-vite'
 import { viteSingleFile } from "vite-plugin-singlefile"
 import Sonda from 'sonda/vite'; 
 
-import { writeFileSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { writeFileSync, readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 import zlib from 'node:zlib';
 
+// Build-time firmware version.
+//
+// Mirrors Software/src/devboard/utils/version.h exactly: reads the raw
+// GIT_*/GITHUB_* defines that tools/identify_build.py wrote into
+// version_autogen.h (a PlatformIO pre-script, so the header is always fresh
+// when the frontend build runs) and assembles BUILD_VERSION with the same
+// precedence. The result is baked into the bundle as __APP_VERSION__ and
+// therefore into frontend.h, so the frontend and the backend firmware always
+// report exactly the same version.
+// Note: the config is bundled into node_modules/.vite-temp before it runs, so
+// import.meta.url points at the temp copy, not this file. Anchor at cwd
+// instead: build_frontend.py (and `bun run build` locally) always run from
+// the frontend/ directory.
+function findVersionAutogen(): string | null {
+  const candidates = [
+    resolve(process.cwd(), '../Software/src/devboard/utils/version_autogen.h'),
+    resolve(process.cwd(), 'Software/src/devboard/utils/version_autogen.h'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+function computeBuildVersion(): string {
+  const autogenPath = findVersionAutogen();
+  if (!autogenPath) return "unknown"; // no autogen header (e.g. standalone build)
+
+  const defines: Record<string, string> = {};
+  for (const line of readFileSync(autogenPath, 'utf8').split('\n')) {
+    const m = line.match(/^#define\s+(\w+)\s+"(.*)"$/);
+    if (m) defines[m[1]] = m[2];
+  }
+
+  if (defines.GIT_TAG) return defines.GIT_TAG;
+  if (defines.GIT_ANCESTOR_TAG && defines.GIT_SHORT_SHA) {
+    if (defines.GITHUB_PR && defines.GITHUB_PR_HEAD_SHORT_SHA) {
+      return `${defines.GIT_ANCESTOR_TAG}dev-${defines.GITHUB_PR_HEAD_SHORT_SHA} (#${defines.GITHUB_PR})`;
+    }
+    if (defines.GIT_BRANCH) {
+      return `${defines.GIT_ANCESTOR_TAG}dev-${defines.GIT_SHORT_SHA} (${defines.GIT_BRANCH})`;
+    }
+    return `${defines.GIT_ANCESTOR_TAG}dev-${defines.GIT_SHORT_SHA}`;
+  }
+  return "unknown";
+}
+
+const APP_VERSION = computeBuildVersion();
+console.log(`[frontend] Building for firmware version: ${APP_VERSION}`);
+
 async function zopfliCompress(input: string | Buffer): Promise<Buffer> {
-  const args = ["zopfli", "--iterations=1500", "--gzip", "/dev/stdin", "-c"];
+  // zopfli cannot read from a pipe: /dev/stdin fails ("Invalid filename" /
+  // "Files larger than 2GB are not supported") and it exits without producing
+  // output, silently yielding an empty C array. It needs a seekable regular
+  // file, so write the input to a temp file first.
+  const dir = mkdtempSync(join(tmpdir(), 'bep-zopfli-'));
+  const inputFile = join(dir, 'input.html');
+  const args = ["--iterations=1500", "--gzip", inputFile, "-c"];
 
   try {
-    // Spawn the zopfli process, passing the input via stdin
-    const proc = Bun.spawn(args, {
-      // @ts-ignore
-      stdin: input,
-      stdout: 'pipe',
-      stderr: 'pipe',
+    writeFileSync(inputFile, input);
+    const compressedData = execFileSync("zopfli", args, {
+      maxBuffer: 64 * 1024 * 1024,
     });
-
-    await proc.exited;
-
-    // Await the process completion and get the exit code
-    const exitCode = proc.exitCode;
-
-    // Check if the process exited with an error
-    if (exitCode !== 0) {
-      const stderr = await new Response(proc.stderr).text();
-      throw new Error(`zopfli process exited with code ${exitCode}: ${stderr.trim()}`);
-    }
-
-    // Read the compressed data from stdout
-    const compressedData = await new Response(proc.stdout).arrayBuffer();
-    
     return Buffer.from(compressedData);
   } catch (error: any) {
     if (error.code === 'ENOENT') {
@@ -42,6 +82,8 @@ async function zopfliCompress(input: string | Buffer): Promise<Buffer> {
     }
     // Re-throw other errors
     throw error;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
@@ -167,6 +209,15 @@ function gzipChunkOptimizer(options = {}) {
   };
 }
 
+
+function writeIfChanged(filePath: string, content: string) {
+  // Only touch the file when the content actually changed, so SCons does not
+  // see a stale header and rebuild webserver_new.cpp.o on every build.
+  try {
+    if (readFileSync(filePath, 'utf8') === content) return;
+  } catch { /* file does not exist yet */ }
+  writeFileSync(filePath, content);
+}
 
 /**
  * Vite/Rollup plugin to stochastically reorder modules within output
@@ -332,10 +383,28 @@ function htmlToCArray(options = {}) {
       try {
         // 1. Read the generated HTML file content
         const htmlContent = readFileSync(htmlFilePath);
-        
-        // 2. Compress the HTML using gzip
-        //const gzippedContent = Bun.gzipSync(htmlContent);
-        const gzippedContent = await zopfliCompress(htmlContent);
+
+        // 2. Compress the HTML. Prefer zopfli (smallest output); fall back to
+        //    gzip so the build still works on machines without the zopfli
+        //    binary installed (at the cost of a slightly larger embedded
+        //    payload).
+        let gzippedContent: Buffer;
+        try {
+          gzippedContent = await zopfliCompress(htmlContent);
+        } catch (e: any) {
+          if (String(e?.message || '').includes('zopfli')) {
+            console.warn('[html-to-c-array] zopfli not found, using gzip (output will be larger)');
+            gzippedContent = zlib.gzipSync(htmlContent, { level: 9 });
+          } else {
+            throw e;
+          }
+        }
+
+        // Abort if compression silently produced nothing (e.g. a broken zopfli
+        // binary exiting 0 without writing output): never embed an empty array.
+        if (gzippedContent.length === 0) {
+          this.error('Compression produced empty output - refusing to generate an empty C array');
+        }
 
         // 3. Convert the gzipped buffer into a C array literal string
         // Each byte is formatted as a two-digit hexadecimal number (e.g., 0x0A)
@@ -370,9 +439,10 @@ ${cArrayLiteral}
 const unsigned int ${arrayName}_len = ${gzippedContent.length};
 `;
         
-        // 4. Write the C header file to the output directory
-        writeFileSync(outputHeaderPath, headerFileContent.trim());
-        writeFileSync(resolve(config.build.outDir, '../../Software/src/devboard/webserver/frontend.h'), headerFileContent.trim());
+        // 4. Write the C header file to the output directory (only when the
+        //    content changed, so consumers don't rebuild unnecessarily).
+        writeIfChanged(outputHeaderPath, headerFileContent.trim());
+        writeIfChanged(resolve(config.build.outDir, '../../Software/src/devboard/webserver/frontend.h'), headerFileContent.trim());
 
         // @ts-ignore
         this.info(`Successfully generated C array at: ${outputHeaderPath}, size: ${gzippedContent.length} bytes`);
@@ -385,13 +455,44 @@ const unsigned int ${arrayName}_len = ${gzippedContent.length};
   };
 }
 
-import.meta.env.VITE_API_BASE = import.meta.env.NODE_ENV == "development" ? 'http://192.168.4.1' : '';
-//import.meta.env.VITE_API_BASE = import.meta.env.NODE_ENV == "development" ? 'http://192.168.0.107:12345' : '';
+process.env.VITE_API_BASE = process.env.NODE_ENV == "development" ? 'http://192.168.4.1' : '';
+//process.env.VITE_API_BASE = process.env.NODE_ENV == "development" ? 'http://192.168.0.107:12345' : '';
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    // Burnt into the bundle at build time; identical to the firmware's
+    // BUILD_VERSION (see Software/src/devboard/utils/version.h).
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   build: {
-    sourcemap: true,
+    cssMinify: 'lightningcss',
+    // Source maps are useless once the app is inlined into a single HTML file
+    // and embedded in the device; disable them so the build doesn't emit a
+    // large .js.map artifact or a sourceMappingURL comment in the shipped HTML.
+    sourcemap: false,
+    // Terser with multiple compression passes produces smaller output than
+    // Vite's default esbuild minifier - worthwhile because the entire app is
+    // inlined into one HTML file that gets embedded in device flash.
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        // Run the optimizer several times; each pass can unlock further wins.
+        passes: 3,
+        // Drop informational console.log() calls (e.g. CAN-log parse stats),
+        // keep console.error/warn for real diagnostics.
+        pure_funcs: ['console.log'],
+      },
+      mangle: true,
+      // The app already ships modern syntax (optional chaining, nullish
+      // coalescing, AbortSignal...); don't let terser hold back optimizations
+      // for Safari 10.
+      safari10: false,
+      format: {
+        comments: false,
+        ecma: 2020,
+      },
+    },
   },
   //base: import.meta.env.VITE_DEMO_MODE === "true" ? '/be/demo/' : './',
   plugins: [
