@@ -1385,6 +1385,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       color: darkgrey;
     }
 
+    /* Values shown in the settings grid that are not editable. Boxed like a form control so the
+       value column lines up with the dropdowns above and the checkboxes below it. */
+    .settings-value { 
+      display: flex; 
+      align-items: center; 
+      min-height: 1.5em; 
+      padding-left: 5px; 
+    }
+
     .inactiveSoc {
       color: red;
     }
