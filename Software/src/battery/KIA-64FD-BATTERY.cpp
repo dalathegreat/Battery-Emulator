@@ -93,6 +93,8 @@ void Kia64FDBattery::update_values() {
   // For comparison or fallback, we can still calculate from min/max cell voltages
   SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
   SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
+  datalayer_battery_extended->SOC_estimated_lowest = SOC_estimated_lowest;
+  datalayer_battery_extended->SOC_estimated_highest = SOC_estimated_highest;
 #else
   datalayer_battery->status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 #endif
@@ -200,6 +202,9 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
             allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
             SOC_BMS = rx_frame.data.u8[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
+            datalayer_battery_extended->allowedChargePower = allowedChargePower;
+            datalayer_battery_extended->allowedDischargePower = allowedDischargePower;
+            datalayer_battery_extended->SOC_BMS = SOC_BMS;
 
           } else if (poll_data_pid == 2) {
             // set cell voltages data, start bite, data length from start, start cell
@@ -237,11 +242,13 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             write_cell_voltages(rx_frame, 1, 7, 166);
           } else if (poll_data_pid == 6) {
             batteryManagementMode = rx_frame.data.u8[5];
+            datalayer_battery_extended->batteryManagementMode = batteryManagementMode;
           }
           break;
         case 0x23:  //Third datarow in PID group
           if (poll_data_pid == 1) {
             temperature_water_inlet = rx_frame.data.u8[6];
+            datalayer_battery_extended->temperature_water_inlet = temperature_water_inlet;
             CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
             // temp2 = rx_frame.data.u8[1];
             // temp3 = rx_frame.data.u8[2];
@@ -264,6 +271,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
             // airbag = rx_frame.data.u8[6];
             heatertemp = rx_frame.data.u8[7];
+            datalayer_battery_extended->heatertemp = heatertemp;
           }
           break;
         case 0x24:  //Fourth datarow in PID group
@@ -274,6 +282,9 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             // fanMod = rx_frame.data.u8[4];
             // fanSpeed = rx_frame.data.u8[5];
             leadAcidBatteryVoltage = rx_frame.data.u8[6];  //12v Battery Volts
+            datalayer_battery_extended->CellVmaxNo = CellVmaxNo;
+            datalayer_battery_extended->CellVminNo = CellVminNo;
+            datalayer_battery_extended->leadAcidBatteryVoltage = leadAcidBatteryVoltage;
             //cumulative_charge_current[0] = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
             write_cell_voltages(rx_frame, 1, 7, 20);
@@ -289,6 +300,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             write_cell_voltages(rx_frame, 1, 7, 180);
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
+            datalayer_battery_extended->batterySOH = batterySOH;
             // maxDetCell = rx_frame.data.u8[4];
             // minDet = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6];
             // minDetCell = rx_frame.data.u8[7];
@@ -321,6 +333,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           } else if (poll_data_pid == 5) {
             // datalayer_battery->info.number_of_cells = 98;
             SOC_Display = rx_frame.data.u8[1] * 5;
+            datalayer_battery_extended->SOC_Display = SOC_Display;
           }
           break;
         case 0x26:  //Sixth datarow in PID group
@@ -345,6 +358,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //opTimeBytes[3] = rx_frame.data.u8[5];
 
             BMS_ign = rx_frame.data.u8[6];
+            datalayer_battery_extended->BMS_ign = BMS_ign;
             inverterVoltageFrameHigh = rx_frame.data.u8[7];  // BMS Capacitoir
 
             // set_cumulative_energy_discharged();
@@ -354,6 +368,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x28:  //Eighth datarow in PID group
           if (poll_data_pid == 1) {
             inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
+            datalayer_battery_extended->inverterVoltage = inverterVoltage;
           }
           break;
       }

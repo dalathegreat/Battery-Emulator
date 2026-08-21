@@ -440,7 +440,7 @@ void setup_battery() {
         // Double only: needs a CAN-FD bus of its own, and only two exist.
         // See the comment on battery_supports_triple() above.
         case BatteryType::Kia64FD:
-          battery2 = new Kia64FDBattery(&datalayer.battery2, can_config.battery_double,
+          battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double,
                                         &datalayer.system.status.battery2_allowed_contactor_closing);
           break;
         case BatteryType::KiaHyundai64:

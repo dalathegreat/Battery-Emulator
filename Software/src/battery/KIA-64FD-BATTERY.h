@@ -2,7 +2,9 @@
 #define KIA_64_FD_BATTERY_H
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
+#include "KIA-64FD-HTML.h"
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
@@ -10,15 +12,18 @@ class Kia64FDBattery : public CanBattery {
  public:
   // Use this constructor for the second battery. This integration is CAN-FD and
   // is limited to double battery, see battery_supports_triple() in BATTERIES.cpp.
-  Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* allows_contactor_closing_ptr)
-      : CanBattery(targetCan) {
+  Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIA64FD* extended_ptr, CAN_Interface targetCan,
+                 bool* allows_contactor_closing_ptr)
+      : CanBattery(targetCan), renderer(extended_ptr) {
     datalayer_battery = datalayer_ptr;
+    datalayer_battery_extended = extended_ptr;
     allows_contactor_closing = allows_contactor_closing_ptr;
   }
 
   // Use the default constructor to create the first or single battery.
-  Kia64FDBattery() {
+  Kia64FDBattery() : renderer(&datalayer_extended.Kia64FD) {
     datalayer_battery = &datalayer.battery;
+    datalayer_battery_extended = &datalayer_extended.Kia64FD;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
   }
 
@@ -32,8 +37,13 @@ class Kia64FDBattery : public CanBattery {
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  Kia64FDHtmlRenderer renderer;
+
   DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_KIA64FD* datalayer_battery_extended;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
