@@ -15,6 +15,7 @@
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
+#include "../../charger/UUGP-CHARGER.h"
 
 // Keys holding the static IP configuration, as dotted-quad strings.
 static const char* const STATIC_IP_KEYS[] = {"LOCALIP", "GATEWAY", "SUBNET", "DNS"};
@@ -295,6 +296,9 @@ void init_stored_settings() {
   // One isolation-monitor setting for both batteries
   datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
+  uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
+  if (uugp_power_limit_W > 22000) {uugp_power_limit_W = 22000;} uugp_discharge_cutoff_soc = settings.getUInt("UUGP_DSOC", 80);
+  if (uugp_discharge_cutoff_soc < 10 ||uugp_discharge_cutoff_soc > 90) {uugp_discharge_cutoff_soc = 80;} uugp_allow_discharge_to_home_grid = settings.getBool("UUGP_ALLOW", false);
 }
 
 void clear_wifi_sta_settings() {
@@ -348,4 +352,7 @@ void store_settings() {
   settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
+  settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
+  settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
+  settings.saveBool("UUGP_ALLOW",uugp_allow_discharge_to_home_grid);
 }

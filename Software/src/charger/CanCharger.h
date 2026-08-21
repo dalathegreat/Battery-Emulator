@@ -8,7 +8,7 @@
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/types.h"
 
-enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
+enum class ChargerType { None, NissanLeaf, ChevyVolt, UUGP, Highest };
 
 extern ChargerType user_selected_charger_type;
 
@@ -71,6 +71,6 @@ class CanCharger : public Charger, Transmitter, CanReceiver {
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
-extern CanCharger* charger;
+extern Charger* charger;
 
 #endif
