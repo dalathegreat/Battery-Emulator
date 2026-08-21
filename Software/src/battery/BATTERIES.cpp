@@ -351,6 +351,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
+    case BatteryType::Kia64FD:
     case BatteryType::KiaHyundai64:
     case BatteryType::MgGen1:
     case BatteryType::Pylon:
@@ -369,6 +370,14 @@ bool battery_supports_double(BatteryType type) {
 
 // The integrations that can be instantiated a third time on a separate
 // interface. Must match the switch in setup_battery() below.
+//
+// CAN-FD integrations must NOT be listed here. Only two physically distinct
+// CAN-FD buses exist: CANFD_NATIVE and CANFD_ADDON_MCP2518 are served by the
+// same MCP2518 controller (see transmit_can_frame_to_interface() and
+// receive_canfd() in comm_can.cpp), leaving CANFD_ADDON_MCP2518_2 as the only
+// separate one. A third FD pack would therefore have to share a bus with one
+// of the first two, which collides on both the diagnostic requests and the
+// periodic broadcasts. Such integrations are limited to double battery.
 bool battery_supports_triple(BatteryType type) {
   switch (type) {
     case BatteryType::NissanLeaf:
@@ -427,6 +436,12 @@ void setup_battery() {
           break;
         case BatteryType::StellantisEcmp:
           battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        // Double only: needs a CAN-FD bus of its own, and only two exist.
+        // See the comment on battery_supports_triple() above.
+        case BatteryType::Kia64FD:
+          battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double,
+                                        &datalayer.system.status.battery2_allowed_contactor_closing);
           break;
         case BatteryType::KiaHyundai64:
           battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
