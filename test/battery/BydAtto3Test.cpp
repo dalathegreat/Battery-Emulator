@@ -183,10 +183,11 @@ TEST(BydAtto3Tests, ShouldIgnore0x438UntilAReference0x444HasArrived) {
   battery->setup();
 
   // No 0x444 yet, so there is nothing to cross-check against and 0x438 must not be adopted.
+  const uint16_t initial_voltage_dV = datalayer.battery.status.voltage_dV;
   battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x05, 0xFF, 0x00, 0x00, 0x8E}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer.battery.status.voltage_dV, 0);
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, initial_voltage_dV);
 
   // Once the reference arrives, the same 0x438 is judged and rejected.
   battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xD2, 0x01, 0x88, 0x13, 0x64, 0x1C, 0x4E}));
