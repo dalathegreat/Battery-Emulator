@@ -81,7 +81,7 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
   uint8_t status_step = 0;
 
   uint16_t transaction_id = 0;
-
+  uint16_t expected_transaction_id = 0;
   uint16_t expected_register = 0;
   uint16_t expected_count = 0;
 

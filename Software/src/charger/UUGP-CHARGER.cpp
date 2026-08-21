@@ -21,7 +21,7 @@ const char* UUGPCharger::name() {
 }
 
 float UUGPCharger::outputPowerDC() {
-  return datalayer.charger.uugp_active_power_W
+  return datalayer.charger.uugp_active_power_W;
 }
 
 float UUGPCharger::HVDC_output_voltage() {
@@ -269,11 +269,11 @@ void UUGPCharger::initialize_current_limiting() {
             write_single(REG_CONTROL_MODE, 0);
             break;
             }
-}
+[^\x00-\x7F]
 
 void UUGPCharger::initialize_pcs_information() {
-   const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
-   const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
+    const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
+    const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
 
    switch (initialization_step) {
      case 9:
@@ -298,10 +298,11 @@ void UUGPCharger::initialize_start_mode() {
    *
    * Requested default = 1.
    */
-  write_single(REG_START_MODE, uugp_start_mode);
-if (uugp_start_mode > 2) {
+ if (uugp_start_mode > 2) {
    uugp_start_mode = 1;
  }
+
+ write_single(REG_START_MODE, uugp_start_mode);
 }
 
 void UUGPCharger::initialize() {
@@ -558,7 +559,7 @@ void UUGPCharger::process_response(
 
   if ((byte_count & 1) != 0 ||
       byte_count > 100 ||
-      9 + byte_count > length) {
+      9 + byte_count != length) {
     return;
   }
 
