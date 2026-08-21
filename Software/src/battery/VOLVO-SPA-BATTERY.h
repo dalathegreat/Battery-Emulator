@@ -1,6 +1,8 @@
 #ifndef VOLVO_SPA_BATTERY_H
 #define VOLVO_SPA_BATTERY_H
+
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"
 
