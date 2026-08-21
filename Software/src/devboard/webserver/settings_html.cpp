@@ -1385,6 +1385,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       color: darkgrey;
     }
 
+    /* Values shown in the settings grid that are not editable. Boxed like a form control so the
+       value column lines up with the dropdowns above and the checkboxes below it. */
+    .settings-value { 
+      display: flex; 
+      align-items: center; 
+      min-height: 1.5em; 
+      padding-left: 5px; 
+    }
+
     .inactiveSoc {
       color: red;
     }
@@ -1915,9 +1924,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <div class="if-bydmodbus">
-        <label>WatchDog Timeout: </label><span>%INVWDT%</span>
+        <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
 
-        <label>Inverter time (UTC): </label><span>%INVUTC%</span>
+        <label>Inverter time (UTC): </label><span class='settings-value'>%INVUTC%</span>
         </div>
 
         <div class="if-sofar">
