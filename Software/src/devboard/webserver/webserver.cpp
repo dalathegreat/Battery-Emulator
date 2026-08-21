@@ -576,7 +576,16 @@ void init_webserver() {
 
               for (auto& boolSetting : boolSettingNames) {
                 auto p = request->getParam(boolSetting, true);
-                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                // The comparison default must match what the firmware boots with when the
+                // key is unset, or saving that state writes nothing and the page keeps
+                // disagreeing with the firmware. Only two bools boot true: WIFIAPENABLED
+                // and GTWRHD (whose boot fallback is the driver global).
+                bool default_value = false;
+                if (std::string(boolSetting) == std::string("WIFIAPENABLED")) {
+                  default_value = true;
+                } else if (std::string(boolSetting) == std::string("GTWRHD")) {
+                  default_value = user_selected_tesla_GTW_rightHandDrive;
+                }
                 const bool value = p != nullptr && p->value() == "on";
                 if (settings.getBool(boolSetting, default_value) != value) {
                   settings.saveBool(boolSetting, value);

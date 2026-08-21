@@ -158,6 +158,11 @@ class Battery {
 
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 
+  /* Which pack this instance drives: 1, 2 or 3. The same driver code serves every pack, so a
+     driver cannot name its own battery in an event without this. Assigned centrally in
+     setup_battery() and passed to set_event() as the third argument. */
+  uint8_t battery_index = 1;
+
  private:
   BatteryDefaultRenderer defaultRenderer;
 };
