@@ -514,17 +514,17 @@ void TeslaBattery::
   }
   //Voltage between 0.5-5.0V, pyrofuse most likely blown
   if (datalayer_battery->status.voltage_dV >= 5 && datalayer_battery->status.voltage_dV <= 50) {
-    set_event(EVENT_BATTERY1_FUSE, 0, battery_index);
+    set_event(EVENT_BATTERY_FUSE, 0, battery_index);
   } else {
-    clear_event(EVENT_BATTERY1_FUSE, battery_index);
+    clear_event(EVENT_BATTERY_FUSE, battery_index);
   }
   // Raise any Tesla BMS events in BE
   // Events: Informational
   if (BMS_a145_SW_SOC_Change) {  // BMS has newly recalibrated pack SOC
-    set_event_latched(EVENT_BATTERY1_SOC_RECALIBRATION, 0,
+    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0,
                       battery_index);  // Latcched as BMS_a145 can be active for a while
   } else if (!BMS_a145_SW_SOC_Change) {
-    clear_event(EVENT_BATTERY1_SOC_RECALIBRATION, battery_index);
+    clear_event(EVENT_BATTERY_SOC_RECALIBRATION, battery_index);
   }
   // Events: Warning
   if (BMS_contactorState == 5) {  // BMS has detected welded contactor(s)
@@ -601,8 +601,8 @@ void TeslaBattery::
     } else {
       stateMachineSOCReset = 0xFF;
       datalayer_battery->settings.user_requests_tesla_soc_reset = false;
-      set_event(EVENT_BATTERY1_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
-      clear_event(EVENT_BATTERY1_SOC_RESET_FAIL, battery_index);
+      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
+      clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
     }
   }
 
@@ -2327,13 +2327,13 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
-        set_event(EVENT_BATTERY1_SOC_RESET_SUCCESS, 0, battery_index);  // also printing a log entry
-        clear_event(EVENT_BATTERY1_SOC_RESET_SUCCESS, battery_index);
+        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS, battery_index);
         stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
-        set_event(EVENT_BATTERY1_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
-        clear_event(EVENT_BATTERY1_SOC_RESET_FAIL, battery_index);
+        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
       }
       break;
     default:
