@@ -1,12 +1,27 @@
 #ifndef KIA_64_FD_BATTERY_H
 #define KIA_64_FD_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "CanBattery.h"
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
 class Kia64FDBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery. This integration is CAN-FD and
+  // is limited to double battery, see battery_supports_triple() in BATTERIES.cpp.
+  Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* allows_contactor_closing_ptr)
+      : CanBattery(targetCan) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = allows_contactor_closing_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  Kia64FDBattery() {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+  }
+
   bool mandatory_charge_taper() { return true; }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -18,11 +33,17 @@ class Kia64FDBattery : public CanBattery {
   void reset_DTC() { UserRequestDTCreset = true; }
 
  private:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
+  bool* allows_contactor_closing;
+
   bool UserRequestDTCreset = false;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
   uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
+  void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell);
 
   static const int MAX_PACK_VOLTAGE_DV = 4032;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
