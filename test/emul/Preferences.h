@@ -168,24 +168,28 @@ class Preferences {
     return ns->second.erase(key) > 0;
   }
 
+  /* Typed reads honor the tag: real NVS refuses a getInt on a key stored via
+   * putUInt and hands back the caller's default. The settings shadow audit and
+   * the accessor layer both lean on exactly this, so the emulation has to get
+   * it right or their tests prove nothing. */
   int32_t getInt(const char* key, int32_t defaultValue = 0) {
     const emul_nvs::Value* v = find(key);
-    return v ? v->i32 : defaultValue;
+    return (v != nullptr && v->type == emul_nvs::Value::INT) ? v->i32 : defaultValue;
   }
 
   uint32_t getUInt(const char* key, uint32_t defaultValue = 0) {
     const emul_nvs::Value* v = find(key);
-    return v ? v->u32 : defaultValue;
+    return (v != nullptr && v->type == emul_nvs::Value::UINT) ? v->u32 : defaultValue;
   }
 
   bool getBool(const char* key, bool defaultValue = false) {
     const emul_nvs::Value* v = find(key);
-    return v ? v->b : defaultValue;
+    return (v != nullptr && v->type == emul_nvs::Value::BOOL) ? v->b : defaultValue;
   }
 
   size_t getString(const char* key, char* value, size_t maxLen) {
     const emul_nvs::Value* v = find(key);
-    if (!v || value == nullptr || maxLen == 0) {
+    if (!v || v->type != emul_nvs::Value::STRING || value == nullptr || maxLen == 0) {
       return 0;
     }
     size_t n = v->s.length() < maxLen - 1 ? v->s.length() : maxLen - 1;
@@ -196,7 +200,7 @@ class Preferences {
 
   String getString(const char* key, String defaultValue = String()) {
     const emul_nvs::Value* v = find(key);
-    return v ? v->s : defaultValue;
+    return (v != nullptr && v->type == emul_nvs::Value::STRING) ? v->s : defaultValue;
   }
 
  private:
