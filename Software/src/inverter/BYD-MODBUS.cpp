@@ -208,8 +208,8 @@ void BydModbusInverter::handle_inverter_control_data() {
   if (declared_timeout_s >= WATCHDOG_TIMEOUT_MIN_S && declared_timeout_s <= WATCHDOG_TIMEOUT_MAX_S &&
       declared_timeout_s != inverter_modbus_watchdog_timeout_s) {
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    DEBUG_PRINTF("Inverter changed the WatchDog Timeout from %u s to %u s\n", inverter_modbus_watchdog_timeout_s,
-                 declared_timeout_s);
+    logging.printf("Inverter changed the WatchDog Timeout from %u s to %u s\n", inverter_modbus_watchdog_timeout_s,
+                   declared_timeout_s);
     inverter_modbus_watchdog_timeout_s = declared_timeout_s;
     inverter_modbus_watchdog_changed = true;
   }
@@ -226,11 +226,20 @@ void BydModbusInverter::handle_inverter_control_data() {
   const uint16_t reboot_command = mbPV[407];
   if (reboot_command != last_register_407) {
     last_register_407 = reboot_command;
-    if (reboot_command != 0 && user_selected_accept_inverter_reboot) {
+    if (reboot_command != 0) {
       LOG_SET_NEXT_SEVERITY(5);  // notice
-      logging.println("The emulator is restarting as requested by the inverter");
-      hold_pins_across_reset();
-      graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
+      if (user_selected_accept_inverter_reboot) {
+        logging.println("The emulator is restarting as requested by the inverter");
+        hold_pins_across_reset();
+        graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
+      } else {
+        // Logged rather than passed over in silence: the inverter asking for a restart is worth
+        // knowing about even when we are configured not to act on it.
+        logging.printf(
+            "The inverter requested a restart (RebootCommand %u), ignored because accepting reboot commands from the "
+            "inverter is disabled\n",
+            reboot_command);
+      }
     }
   }
 }

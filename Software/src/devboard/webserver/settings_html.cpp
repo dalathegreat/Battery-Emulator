@@ -1033,12 +1033,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     if (inverter_modbus_utc_epoch_s == 0) {
       return "not yet received";
     }
-    const time_t inverter_time = (time_t)inverter_modbus_utc_epoch_s;
-    struct tm utc;
-    char formatted[20];
-    gmtime_r(&inverter_time, &utc);
-    strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S", &utc);
-    return String(formatted);
+    // Emitted as raw epoch seconds and turned into a date by the page. Formatting it here would pull
+    // strftime and the newlib time conversion tables into the image for the sake of one label.
+    char epoch[21];
+    snprintf(epoch, sizeof(epoch), "%llu", (unsigned long long)inverter_modbus_utc_epoch_s);
+    return String(epoch);
   }
 
   if (var == "PRECHGMS") {
@@ -1363,6 +1362,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             sel.addEventListener('change', ch);
             ch();
           });
+
+          var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
+          if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
     </script>
 )rawliteral"
 
@@ -1926,7 +1928,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-bydmodbus">
         <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
 
-        <label>Inverter time (UTC): </label><span class='settings-value'>%INVUTC%</span>
+        <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
         </div>
 
         <div class="if-sofar">
