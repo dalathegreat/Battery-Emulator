@@ -12,6 +12,106 @@
 
 bool previous_message_was_newline = true;
 
+// Semaphore to guard the web log ring buffer against torn reads while the
+// webserver copies a chunk out. It is only ever held for a memcpy, so with a
+// short timeout it never actually blocks the logging path.
+static SemaphoreHandle_t webLogMutex = xSemaphoreCreateMutex();
+
+static void web_log_lock(void) {
+  if (webLogMutex != nullptr) {
+    xSemaphoreTake(webLogMutex, pdMS_TO_TICKS(2));
+  }
+}
+
+static void web_log_unlock(void) {
+  if (webLogMutex != nullptr) {
+    xSemaphoreGive(webLogMutex);
+  }
+}
+
+// Appends `size` bytes to the ring buffer.
+void web_log_append(const uint8_t* data, size_t size) {
+  char* message_string = datalayer.system.info.logged_can_messages;
+  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  if (size > message_string_size) {
+    // Attempting to write more than the entire ring can hold, truncate.
+    data += size - message_string_size;
+    size = message_string_size;
+  }
+
+  web_log_lock();
+  // Wrap our write pointer to the ring size, so we can memcpy in one or two chunks.
+  size_t pos = (size_t)(datalayer.system.info.logged_can_messages_written % message_string_size);
+  size_t first = min(size, message_string_size - pos);
+  memcpy(message_string + pos, data, first);
+  if (first < size) {
+    memcpy(message_string, data + first, size - first);
+  }
+  datalayer.system.info.logged_can_messages_written += size;
+  datalayer.system.info.logged_can_messages_offset =
+      (size_t)(datalayer.system.info.logged_can_messages_written % message_string_size);
+  web_log_unlock();
+}
+
+// Read the ring buffer starting at logical position `from` and copy up to `max`
+// bytes into `dst`. Return the number of bytes copied, and update `*out_pos` to
+// the logical position of the next byte to read. If the lock isn't available,
+// return 0;
+size_t web_log_fetch(uint64_t from, char* dst, size_t max, uint64_t* out_pos) {
+  const size_t ring_size = sizeof(datalayer.system.info.logged_can_messages);
+  const char* ring = datalayer.system.info.logged_can_messages;
+
+  *out_pos = from;
+  if (max == 0 || dst == nullptr) {
+    return 0;
+  }
+
+  // If the lock isn't available, return 0. The caller can retry later.
+  if (webLogMutex == nullptr || xSemaphoreTake(webLogMutex, 0) != pdTRUE) {
+    return 0;
+  }
+
+  uint64_t total = datalayer.system.info.logged_can_messages_written;
+  if (from > total) {
+    // The client is ahead of us (device rebooted since its last request):
+    // restart from the beginning. The client will notice and indicate a gap in
+    // the log.
+    from = 0;
+  }
+
+  uint64_t available = total - from;
+  if (available > ring_size) {
+    // The ring has wrapped past `from`, the oldest bytes we still hold are the
+    // only ones we can deliver, everything before that is gone for good.
+    from = total - ring_size;
+    available = ring_size;
+  }
+  if (available > max) {
+    // The client is falling behind, deliver only the newest bytes. The client
+    // will notice and indicate a gap in the log.
+    from = total - max;
+    available = max;
+  }
+
+  size_t len = (size_t)available;
+  if (len > 0) {
+    // Copy the bytes out of the ring buffer, which may wrap around. We wrap the
+    // read pointer to the ring size, so we can memcpy in one or two chunks.
+    size_t start = (size_t)(from % ring_size);
+    if (start + len <= ring_size) {
+      memcpy(dst, ring + start, len);
+    } else {
+      size_t first = ring_size - start;
+      memcpy(dst, ring + start, first);
+      memcpy(dst + first, ring, len - first);
+    }
+  }
+
+  *out_pos = total;
+  web_log_unlock();
+  return len;
+}
+
 // ---- USB debug-log sink ----
 // Writes only when the TX ring buffer has room. This path runs in the core task
 // (and others): it must never block on a host that stops draining the port
@@ -250,45 +350,25 @@ static void syslog_emit(const uint8_t* buffer, size_t size) {
   }
 }
 
-void Logging::add_timestamp(size_t size) {
-
-  size_t offset =
-      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+void Logging::add_timestamp() {
   unsigned long currentTime = millis();
-  char* timestr;
   static char timestr_buffer[MAX_LENGTH_TIME_STR];
 
-  if (datalayer.system.info.web_logging_active) {
-    if (!datalayer.system.info.can_logging_active) {
-      /* If web debug is active and can logging is inactive, 
-       * we use the debug logging memory directly for writing the timestring */
-      if (offset + size + MAX_LENGTH_TIME_STR > message_string_size) {
-        offset = 0;
-      }
-      timestr = datalayer.system.info.logged_can_messages + offset;
-    } else {
-      timestr = timestr_buffer;
-    }
-  } else {
-    timestr = timestr_buffer;
-  }
-
-  offset += min(MAX_LENGTH_TIME_STR - 1,
-                snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
+  size_t written = min(MAX_LENGTH_TIME_STR - 1, snprintf(timestr_buffer, MAX_LENGTH_TIME_STR, "%8lu.%03lu ",
+                                                         currentTime / 1000, currentTime % 1000));
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
-    datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
+    web_log_append((const uint8_t*)timestr_buffer, written);
   }
 
 #ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
-    add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
+    add_log_to_buffer((uint8_t*)timestr_buffer, MAX_LENGTH_TIME_STR);
   }
 #endif
 
   if (datalayer.system.info.usb_logging_active) {
-    usb_log_write((const uint8_t*)timestr, strlen(timestr));
+    usb_log_write((const uint8_t*)timestr_buffer, strlen(timestr_buffer));
   }
 }
 
@@ -308,7 +388,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   }
 
   if (previous_message_was_newline) {
-    add_timestamp(size);
+    add_timestamp();
   }
 
 #ifdef SDCARD
@@ -324,16 +404,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   syslog_emit(buffer, size);
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
-    char* message_string = datalayer.system.info.logged_can_messages;
-    size_t offset =
-        datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-    size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-
-    if (offset + size > message_string_size) {
-      offset = 0;
-    }
-    memcpy(message_string + offset, buffer, size);
-    datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
+    web_log_append(buffer, size);
   }
 
   previous_message_was_newline = buffer[size - 1] == '\n';
@@ -351,35 +422,14 @@ void Logging::printf(const char* fmt, ...) {
   }
 
   if (previous_message_was_newline) {
-    add_timestamp(MAX_LINE_LENGTH_PRINTF);
+    add_timestamp();
   }
 
-  char* message_string = datalayer.system.info.logged_can_messages;
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-  size_t offset =
-      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   static char buffer[MAX_LINE_LENGTH_PRINTF];
-  char* message_buffer;
-
-  if (datalayer.system.info.web_logging_active) {
-    if (!datalayer.system.info.can_logging_active) {
-      /* If web debug is active and can logging is inactive, 
-       * we use the debug logging memory directly for writing the output */
-      if (offset + MAX_LINE_LENGTH_PRINTF > message_string_size) {
-        // Not enough space, reset and start from the beginning
-        offset = 0;
-      }
-      message_buffer = message_string + offset;
-    } else {
-      message_buffer = buffer;
-    }
-  } else {
-    message_buffer = buffer;
-  }
 
   va_list args;
   va_start(args, fmt);
-  int needed = vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args);
+  int needed = vsnprintf(buffer, MAX_LINE_LENGTH_PRINTF, fmt, args);
   va_end(args);
 
   // Nothing usable was produced (encoding error, or an empty message)
@@ -395,26 +445,24 @@ void Logging::printf(const char* fmt, ...) {
      hours later - is appended to this line instead of starting a new one with its own
      timestamp. */
   if (needed >= MAX_LINE_LENGTH_PRINTF) {
-    message_buffer[size - 1] = '\n';
+    buffer[size - 1] = '\n';
   }
 
 #ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
-    add_log_to_buffer((uint8_t*)message_buffer, size);
+    add_log_to_buffer((uint8_t*)buffer, size);
   }
 #endif
 
   if (datalayer.system.info.usb_logging_active) {
-    usb_log_write((const uint8_t*)message_buffer, size);
+    usb_log_write((const uint8_t*)buffer, size);
   }
 
-  syslog_emit((const uint8_t*)message_buffer, size);
+  syslog_emit((const uint8_t*)buffer, size);
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
-    // Data was already added to buffer, just move offset
-    datalayer.system.info.logged_can_messages_offset =
-        offset + size;  // Keeps track of the current position in the buffer
+    web_log_append((const uint8_t*)buffer, (size_t)size);
   }
 
-  previous_message_was_newline = message_buffer[size - 1] == '\n';
+  previous_message_was_newline = buffer[size - 1] == '\n';
 }

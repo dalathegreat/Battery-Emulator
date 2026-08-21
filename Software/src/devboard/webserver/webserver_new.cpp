@@ -3,43 +3,23 @@
 // Provides the API endpoints required by the new (Preact) frontend.
 
 #include "webserver_new.h"
-#include <algorithm>
-#include <atomic>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <functional>
 #include <vector>
 #include "webserver_settings.h"
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../battery/MG-GEN1-BATTERY.h"
-#include "../../battery/Shunt.h"
-#include "../../charger/CHARGERS.h"
+#include "../../battery/RENAULT-ZOE-GEN1-BATTERY.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
-#include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
-#include "../../communication/nvm/comm_nvm.h"
-#include "../../communication/precharge_control/precharge_control.h"
-#include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
-#include "../../devboard/hal/hal.h"
-#include "../../devboard/mqtt/mqtt.h"
-#include "../../devboard/safety/safety.h"
-#include "../../devboard/utils/events.h"
 #include "../../devboard/utils/logging.h"
-#include "../../devboard/utils/millis64.h"
 #include "../../devboard/utils/timer.h"
-#include "../../devboard/utils/types.h"
 #include "../../devboard/webserver/frontend.h"
-#include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
-#include "../../inverter/InverterProtocol.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 
 #include "webserver_can_streaming.h"
@@ -53,7 +33,7 @@ bool settingsUpdated = false;
 // enum it is actually declared with is local to comm_contactorcontrol.cpp).
 extern int contactorStatus;
 
-std::string http_username;
+std::string http_username = "admin";
 std::string http_password;
 bool webserver_auth = false;
 MyTimer ota_timeout_timer = MyTimer(15000);
@@ -338,12 +318,15 @@ static void register_battery_routes(AsyncWebServer& server) {
     const uint8_t* data = nullptr;
     size_t size = 0;
 
-    // Special case: the MG Gen1 battery is a C++ class, not a plain
-    // DATALAYER_INFO struct. Dump the raw memory of the class object itself so
-    // the frontend can inspect its fields (see extract_datalayer_info_structures.ts).
-    if (battery != nullptr && user_selected_battery_type == BatteryType::MgGen1) {
+    // Special case: the MG Gen1 and Renault Zoe Gen1 batteries are C++ classes,
+    // not plain DATALAYER_INFO structs. Dump the raw memory of the class object
+    // itself so the frontend can inspect its fields (see
+    // tools/extract_datalayer_info_structures.py).
+    if (battery != nullptr &&
+        (user_selected_battery_type == BatteryType::MgGen1 || user_selected_battery_type == BatteryType::RenaultZoe1)) {
       data = (const uint8_t*)battery;
-      size = sizeof(MgGen1Battery);
+      size =
+          (user_selected_battery_type == BatteryType::MgGen1) ? sizeof(MgGen1Battery) : sizeof(RenaultZoeGen1Battery);
     } else {
       switch (user_selected_battery_type) {
         case BatteryType::BoltAmpera:
@@ -398,10 +381,6 @@ static void register_battery_routes(AsyncWebServer& server) {
         case BatteryType::VolvoSpaHybrid:
           data = (const uint8_t*)&datalayer_extended.VolvoHybrid;
           size = sizeof(datalayer_extended.VolvoHybrid);
-          break;
-        case BatteryType::RenaultZoe1:
-          data = (const uint8_t*)&datalayer_extended.zoe;
-          size = sizeof(datalayer_extended.zoe);
           break;
         case BatteryType::RenaultZoe2:
           data = (const uint8_t*)&datalayer_extended.zoePH2;
@@ -575,543 +554,21 @@ static void register_battery_routes(AsyncWebServer& server) {
     }
     request->send(204);
   });
-}
 
-// ---------------------------------------------------------------------------
-// Settings (GET/POST to /api/internal/settings)
-// ---------------------------------------------------------------------------
-
-// clang-format off
-static const Setting SETTINGS[] = {
-    // --- Unsigned integer / enum settings (persisted, reboot required) ---
-    UintSetting("INVTYPE", 0, (float)InverterProtocolType::Highest - 1),
-    UintSetting("INVCOMM", 0, (float)comm_interface::Highest - 1),
-    UintSetting("BATTTYPE", 0, (float)BatteryType::Highest - 1),
-    UintSetting("BATTCHEM", 0, (float)battery_chemistry_enum::Highest - 1),
-    UintSetting("BATTCOMM", 0, (float)comm_interface::Highest - 1),
-    UintSetting("BATTCVMAX", 0, 5000),
-    UintSetting("BATTCVMIN", 0, 5000),
-    UintSetting("CHGTYPE", 0, (float)ChargerType::Highest - 1),
-    UintSetting("CHGCOMM", 0, (float)comm_interface::Highest - 1),
-    UintSetting("EQSTOP", 0, (float)STOP_BUTTON_BEHAVIOR::Highest - 1),
-    UintSetting("BATT2COMM", 0, (float)comm_interface::Highest - 1),
-    UintSetting("BATT3COMM", 0, (float)comm_interface::Highest - 1),
-    UintSetting("SHUNTTYPE", 0, (float)ShuntType::Highest - 1),
-    UintSetting("SHUNTCOMM", 0, (float)comm_interface::Highest - 1),
-    UintSetting("MAXPRETIME", 0, 120000),
-    UintSetting("MAXPREFREQ", 0, 65535),
-    UintSetting("WIFICHANNEL", 0, 14),
-    UintSetting("DCHGPOWER", 0, 100000),
-    UintSetting("CHGPOWER", 0, 100000),
-    UintSetting("MQTTPORT", 0, 65535),
-    UintSetting("MQTTTIMEOUT", 0, 30000),
-    UintSetting("MQTTPUBLISHMS", 0, 3600000),
-    UintSetting("SOFAR_ID", 0, 255),
-    UintSetting("INVCELLS", 0, 65535),
-    UintSetting("INVMODULES", 0, 65535),
-    UintSetting("INVCELLSPER", 0, 65535),
-    UintSetting("INVVLEVEL", 0, 65535),
-    UintSetting("INVCAPACITY", 0, 65535),
-    UintSetting("INVBTYPE", 0, 255),
-    UintSetting("INVICNT", 0, 2),
-    UintSetting("CANFREQ", 0, 40),
-    UintSetting("CANFDFREQ", 0, 40),
-    UintSetting("PRECHGMS", 0, 120000),
-    UintSetting("PWMFREQ", 0, 65535),
-    UintSetting("PWMHOLD", 0, 1023),
-    UintSetting("GTWCOUNTRY", 0, 65535),
-    UintSetting("GTWMAPREG", 0, 9),
-    UintSetting("GTWCHASSIS", 0, 9),
-    UintSetting("GTWPACK", 0, 9),
-    UintSetting("LEDMODE", 0, 10),
-    // Persisted, but applied to live state immediately (no reboot needed).
-    UintInstantSetting("BATTERY_WH_MAX", 1, 400000,
-      [](float value) { datalayer.battery.info.total_capacity_Wh = (uint32_t)value; }),
-    UintSetting("GPIOOPT1", 0, 255),
-    UintSetting("GPIOOPT2", 0, 255),
-    UintSetting("GPIOOPT3", 0, 255),
-    UintSetting("GPIOOPT4", 0, 255),
-    UintSetting("GPIOOPT5", 0, 255),
-    UintSetting("GPIOOPT6", 0, 255),
-    UintSetting("INVSUNTYPE", 0, 255),
-    UintSetting("CTVNOM", 0, 65535),
-    UintSetting("CTANOM", 0, 65535),
-    UintSetting("CTATTEN", 0, (float)adc_attenuation_enum::Highest - 1),
-    UintSetting("PYLONBAUD", 0, 1000000),
-    UintSetting("PYLONBRAND", 0, 255),
-    UintSetting("DALYPWRPCT", 0, 10000),
-    UintSetting("DALYPWRDV", 0, 10000),
-    UintSetting("DALYDVSTART", 0, 255),
-    UintSetting("DALYPWRDEG", 0, 10000),
-    UintSetting("DALYPWR0C", 0, 100000),
-    UintSetting("PYLONSEND", 0, 1),
-    UintInstantSetting("BMSRESETDUR", 0, 60000,
-      [](float value) { datalayer.battery.settings.user_set_bms_reset_duration_ms = (uint32_t)value; }),
-    // Volatile: not persisted, applied and read back live.
-    UintVolatileSetting("TMP_CALTARGETSOC", 0, 100,
-      [](float value) { datalayer_extended.bydAtto3.calibrationTargetSOC = (uint16_t)value; },
-      []() { return (float)datalayer_extended.bydAtto3.calibrationTargetSOC; }),
-    UintVolatileSetting("TMP_CALTARGETAH", 0, 1000,
-      [](float value) { datalayer_extended.bydAtto3.calibrationTargetAH = (uint16_t)value; },
-      []() { return (float)datalayer_extended.bydAtto3.calibrationTargetAH; }),
-    UintVolatileSetting("TMP_FAKEBATTERYV", 0, 1000,
-      [](float value) { if (battery != nullptr) battery->set_fake_voltage((float)value); },
-      []() { return battery ? (float)battery->get_voltage() : NAN; }),
-    UintVolatileSetting("TMP_BALFLOATPOWER", 0, UINT32_MAX,
-      [](float value) { datalayer.battery.settings.balancing_float_power_W = (uint16_t)value; },
-      []() { return (float)datalayer.battery.settings.balancing_float_power_W; }),
-    UintVolatileSetting("TMP_BALMAXPACKV", 0, UINT32_MAX,
-      [](float value) { datalayer.battery.settings.balancing_max_pack_voltage_dV = (uint16_t)value; },
-      []() { return (float)datalayer.battery.settings.balancing_max_pack_voltage_dV; }),
-    UintVolatileSetting("TMP_BALMAXCELLV", 0, UINT32_MAX,
-      [](float value) { datalayer.battery.settings.balancing_max_cell_voltage_mV = (uint16_t)value; },
-      []() { return (float)datalayer.battery.settings.balancing_max_cell_voltage_mV; }),
-    UintVolatileSetting("TMP_BALMAXDEVCELLV", 0, UINT32_MAX,
-      [](float value) { datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = (uint16_t)value; },
-      []() { return (float)datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV; }),
-    UintSetting("CHGTAPERSTART", 0, 100),
-    UintSetting("CHGTAPERFLOOR", 0, 2000),
-    UintSetting("PERBMSRESETH", 24, 48),
-    UintSetting("FOXESSTYPE", 0, 255),
-    UintSetting("FOXESSSUBTYPE", 0, 255),
-    UintSetting("FOXESSMODULES", 0, 255),
-    UintSetting("SYSLOGPORT", 0, 65535),
-    UintSetting("SYSLOGFAC", 0, 23),
-
-    // --- Float edited, stored scaled as uint32_t ---
-    ScaledUintSetting("BATTPVMAX", 0.0f, 1000.0f, 10.0f),
-    ScaledUintSetting("BATTPVMIN", 0.0f, 1000.0f, 10.0f),
-    ScaledUintInstantSetting("MAXPERCENTAGE", 0.0f, 200.0f, 10.0f,
-      [](float value) { datalayer.battery.settings.max_percentage = (uint16_t)(value * 10.0f); }),
-    ScaledUintInstantSetting("MINPERCENTAGE", 0.0f, 100.0f, 10.0f,
-      [](float value) { datalayer.battery.settings.min_percentage = (int16_t)(value * 10.0f); }),
-    ScaledUintInstantSetting("MAXCHARGEAMP", 0.0f, 100.0f, 10.0f,
-      [](float value) { datalayer.battery.settings.max_user_set_charge_dA = (uint16_t)value; }),
-    ScaledUintInstantSetting("MAXDISCHARGEAMP", 0.0f, 100.0f, 10.0f,
-      [](float value) { datalayer.battery.settings.max_user_set_discharge_dA = (uint16_t)value; }),
-    ScaledUintInstantSetting("TARGETCHVOLT", 0.0f, 1000.0f, 10.0f,
-      [](float value) { datalayer.battery.settings.max_user_set_charge_voltage_dV = (uint16_t)value; }),
-    ScaledUintInstantSetting("TARGETDISCHVOLT", 0.0f, 1000.0f, 10.0f,
-      [](float value) { datalayer.battery.settings.max_user_set_discharge_voltage_dV = (uint16_t)value; }),
-    ScaledUintVolatileSetting("TMP_BALTIME", 0.0f, (float)UINT32_MAX / 60000.0f, 60000.0f,
-      [](float value) { datalayer.battery.settings.balancing_max_time_ms = (uint32_t)value; },
-      []() { return (float)datalayer.battery.settings.balancing_max_time_ms; }),
-
-    // --- Raw float settings (volatile only) ---
-    FloatVolatileSetting("TMP_CHARGERSETPOINTV", 0.0f, 1000.0f,
-      [](float value) {
-          if (value >= CHARGER_MIN_HV && value <= CHARGER_MAX_HV)
-            datalayer.charger.charger_setpoint_HV_VDC = (float)value;
-        },
-      []() { return (float)datalayer.charger.charger_setpoint_HV_VDC; }),
-    FloatVolatileSetting("TMP_CHARGERSETPOINTA", 0.0f, 100.0f,
-      [](float value) {
-          if ((value <= CHARGER_MAX_A) && (value <= datalayer.battery.settings.max_user_set_charge_dA) &&
-              (value * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER))
-            datalayer.charger.charger_setpoint_HV_IDC = (float)value;
-        },
-      []() { return (float)datalayer.charger.charger_setpoint_HV_IDC; }),
-    FloatVolatileSetting("TMP_CHARGERENDA", 0.0f, 100.0f,
-      [](float value) { datalayer.charger.charger_setpoint_HV_IDC_END = (float)value; },
-      []() { return (float)datalayer.charger.charger_setpoint_HV_IDC_END; }),
-
-    // --- Signed integer settings ---
-    IntSetting("CPUTEMPOFFSET", -100, 100),
-
-    // --- String settings (persisted, reboot required) ---
-    StringSetting("SSID", 32),
-    StringSetting("PASSWORD", 64, SETTING_SECRET),
-    StringSetting("APNAME", 64),
-    StringSetting("APPASSWORD", 64, SETTING_SECRET),
-    StringSetting("HOSTNAME", 64),
-    StringSetting("MQTTSERVER", 64),
-    StringSetting("MQTTUSER", 64),
-    StringSetting("MQTTPASSWORD", 64, SETTING_SECRET),
-    StringSetting("HTTPUSER", 32),
-    StringSetting("HTTPPASS", 64, SETTING_SECRET),
-    StringSetting("LOCALIP", 15),
-    StringSetting("GATEWAY", 15),
-    StringSetting("SUBNET", 15),
-    StringSetting("DNS", 15),
-    StringSetting("CTOFFSET", 16),
-    StringSetting("HADISCTOPIC", 64),
-    StringSetting("SYSLOGIP", 15),
-
-    // --- Boolean settings ---
-    BoolSetting("DBLBTR"),
-    BoolSetting("CNTCTRL"),
-    BoolSetting("CNTCTRLDBL"),
-    BoolSetting("PWMCNTCTRL"),
-    BoolSetting("PERBMSRESET"),
-    BoolSetting("REMBMSRESET"),
-    BoolSetting("EXTPRECHARGE"),
-    BoolSetting("NOINVDISC"),
-    BoolSetting("WIFIAPENABLED", SETTING_DEFAULT_TRUE),
-    BoolSetting("STATICIP"),
-    BoolSetting("PERFPROFILE"),
-    BoolSetting("CANLOGUSB"),
-    BoolSetting("USBENABLED"),
-    BoolSetting("WEBENABLED"),
-    BoolSetting("CANLOGSD"),
-    BoolSetting("SDLOGENABLED"),
-    BoolSetting("MQTTENABLED"),
-    BoolSetting("MQTTCELLV"),
-    BoolSetting("HADISC"),
-    BoolSetting("DEYEBYD"),
-    BoolSetting("INTERLOCKREQ"),
-    BoolSetting("DIGITALHVIL"),
-    BoolSetting("GTWRHD"),
-    BoolSetting("SOCESTIMATED"),
-    BoolSetting("PYLONOFFSET"),
-    BoolSetting("PYLONORDER"),
-    BoolSetting("NCCONTACTOR"),
-    BoolSetting("TRIBTR"),
-    BoolSetting("CNTCTRLTRI"),
-    BoolSetting("ESPNOWENABLED"),
-    BoolSetting("PRIMOGEN24"),
-    BoolInstantSetting("USE_SCALED_SOC",
-      [](bool value) { datalayer.battery.settings.soc_scaling_active = value; }),
-    BoolSetting("USEVOLTLIMITS"),
-    BoolSetting("LOWPASSFILTER"),
-    BoolSetting("CTINVERT"),
-    BoolSetting("WEBAUTH"),
-    BoolSetting("CHGTAPERSOC"),
-    BoolSetting("SLOWCANINV"),
-    BoolSetting("INVOFFGRID"),
-    BoolSetting("PERBMSDEFSOC"),
-    BoolSetting("PERBMSSKIPBAL"),
-    BoolSetting("MEASURECPUTEMP"),
-    BoolSetting("SYSLOGEN"),
-    BoolVolatileSetting("TMP_RECOVERYMODE",
-      [](bool value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; },
-      []() { return datalayer.battery.settings.user_requests_forced_charging_recovery_mode; }),
-    BoolVolatileSetting("TMP_BALANCE",
-      [](bool value) { datalayer.battery.settings.user_requests_balancing = value; },
-      []() { return datalayer.battery.settings.user_requests_balancing; }),
-    BoolVolatileSetting("TMP_CHARGERHVENABLED",
-      [](bool value) { datalayer.charger.charger_HV_enabled = value; },
-      []() { return datalayer.charger.charger_HV_enabled; }),
-    BoolVolatileSetting("TMP_CHARGERAUX12VENABLED",
-      [](bool value) { datalayer.charger.charger_aux12V_enabled = value; },
-      []() { return datalayer.charger.charger_aux12V_enabled; }),
-};
-// clang-format on
-
-static bool setting_persisted(const Setting& s) {
-  return s.type != SettingType::Volatile;
-}
-
-static void register_settings_route(AsyncWebServer& server) {
-  server.on(
-      "/api/internal/settings", HTTP_GET | HTTP_POST,
-      [](AsyncWebServerRequest* request) {
-        // GET handler - returns all settings in JSON format
-
-        if (request->method() != HTTP_GET) {
-          return;
-        }
-        if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
-          return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
-        }
-
-        BatteryEmulatorSettingsStore settings;
-
-        JsonDocument doc;
-        JsonArray bats = doc["batteries"].to<JsonArray>();
-        for (int i = 0; i < (int)BatteryType::Highest; i++)
-          bats[i] = name_for_battery_type((BatteryType)i);
-        JsonArray invs = doc["inverters"].to<JsonArray>();
-        for (int i = 0; i < (int)InverterProtocolType::Highest; i++)
-          invs[i] = name_for_inverter_type((InverterProtocolType)i);
-
-        JsonObject sets = doc["settings"].to<JsonObject>();
-
-        // 1. NONZERO DEFAULTS
-        // Populate some settings with the current values from the comm_nvm.cpp
-        // loaded variables. These are settings that have non-zero defaults, so
-        // by using the current value we show the existing default to the user.
-
-        sets["BMSRESETDUR"] = datalayer.battery.settings.user_set_bms_reset_duration_ms;
-        sets["PYLONBAUD"] = user_selected_pylon_baudrate;
-        sets["DALYPWRPCT"] = user_selected_daly_power_per_percent;
-        sets["DALYPWRDV"] = user_selected_daly_power_per_dV;
-        sets["DALYDVSTART"] = user_selected_daly_power_per_dV_start;
-        sets["DALYPWRDEG"] = user_selected_daly_power_per_degree_C;
-        sets["DALYPWR0C"] = user_selected_daly_power_at_0_degree_C;
-        sets["PRECHGMS"] = precharge_time_ms;
-        sets["PWMFREQ"] = pwm_frequency;
-        sets["PWMHOLD"] = pwm_hold_duty;
-        sets["MAXPRETIME"] = precharge_max_precharge_time_before_fault;
-        sets["MAXPREFREQ"] = Precharge_max_PWM_Freq;
-        sets["CHGPOWER"] = datalayer.battery.status.override_charge_power_W;
-        sets["DCHGPOWER"] = datalayer.battery.status.override_discharge_power_W;
-        sets["MQTTTIMEOUT"] = mqtt_timeout_ms;
-        sets["MQTTPUBLISHMS"] = mqtt_publish_interval_ms;
-        sets["WIFIAPENABLED"] = wifiap_enabled;
-        sets["APNAME"] = ssidAP;
-        sets["LOCALIP"] = static_local_IP;
-        sets["GATEWAY"] = static_gateway;
-        sets["SUBNET"] = static_subnet;
-        sets["DNS"] = static_dns;
-        sets["CTOFFSET"] = ct_clamp_offset_mV;
-        sets["CTVNOM"] = ct_clamp_nominal_voltage_dV;
-        sets["CTANOM"] = ct_clamp_nominal_current_A;
-        sets["CTATTEN"] = (int)ct_clamp_pin_atten;
-        sets["CHGTAPERFLOOR"] = charge_taper_floor_W;
-        sets["PERBMSRESETH"] = periodic_bms_reset_interval_h;
-        sets["SYSLOGPORT"] = syslog_port;
-        sets["SYSLOGFAC"] = syslog_facility;
-        sets["HTTPUSER"] = http_username;
-        sets["HADISCTOPIC"] = ha_autodiscovery_topic;
-
-        // 2. MANGLED NONZERO DEFAULTS
-        // Some variables have default values like the above, but have been
-        // mangled after loading, so we can't show them back to the user.
-        // Duplicate their defaults here.
-        // NOTE: if these change in `comm_nvm.cpp` they must be changed here.
-        // TODO: define them via constants
-
-        sets["CHGTAPERSTART"] = settings.getUInt("CHGTAPERSTART", 95);
-
-        // 3. PERSISTED, ZERO-DEFAULT SETTINGS
-        // Most variables are zero/blank by default, so we just read them from
-        // the settings (if present), defaulting to zero/blank if there is type
-        // confusion. The settings interface can just default to zero/blank if
-        // these aren't supplied. Bool settings are always emitted so that
-        // checkboxes always have a value (using default_true when absent).
-
-        for (const Setting& s : SETTINGS) {
-          if (!setting_persisted(s))
-            continue;
-          if (s.kind == SettingKind::Bool) {
-            bool def = (s.flags & SETTING_DEFAULT_TRUE) != 0;
-            sets[s.name] = settings.getBool(s.name, def);
-            continue;
-          }
-          if (!settings.settingExists(s.name))
-            continue;
-          switch (s.kind) {
-            case SettingKind::Uint:
-              sets[s.name] = settings.getUInt(s.name, 0);
-              break;
-            case SettingKind::Int:
-              sets[s.name] = settings.getInt(s.name, 0);
-              break;
-            case SettingKind::ScaledUint:
-              // Some float settings are stored at a different scale to how they are edited
-              sets[s.name] = settings.getUInt(s.name, 0) / s.scale;
-              break;
-            case SettingKind::String:
-              if (!(s.flags & SETTING_SECRET))
-                sets[s.name] = settings.getString(s.name).c_str();
-              break;
-            default:
-              break;
-          }
-        }
-
-        // 4. VOLATILE SETTINGS
-        // Some settings aren't persisted to flash, but are still editable at
-        // runtime. These are prefixed with TMP_ to indicate they are temporary.
-
-        for (const Setting& s : SETTINGS) {
-          if (setting_persisted(s))
-            continue;
-          if (s.read.boolean == nullptr) {
-            // Is a union, so every read must be nullptr also, skip
-            continue;
-          } else if (s.kind == SettingKind::Bool) {
-            sets[s.name] = s.read.boolean();
-          } else if (s.kind == SettingKind::Uint) {
-            sets[s.name] = s.read.uinteger();
-          } else if (s.kind == SettingKind::Int) {
-            sets[s.name] = s.read.integer();
-          } else {  // decimal
-            float value = s.read.decimal();
-            if (std::isnan(value))
-              continue;  // No live value available (e.g. no battery present).
-            sets[s.name] = (s.kind == SettingKind::ScaledUint) ? value / s.scale : value;
-          }
-        }
-        doc["reboot_required"] = settingsUpdated;
-
-        String payload;
-        serializeJson(doc, payload);
-        request->send(200, "application/json", payload);
-      },
-      nullptr,
-      [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-        // Accumulate the whole JSON body (it can arrive as several TCP chunks).
-        // Stored as a single malloc'd block so the request destructor's
-        // free(_tempObject) stays consistent if the upload is aborted early.
-        struct Buf {
-          size_t size;
-          size_t cap;
-          char data[];
-        };
-        Buf* buf = static_cast<Buf*>(request->_tempObject);
-        if (buf == nullptr) {
-          size_t cap = total > 512 ? (total + 1) : 4096;
-          buf = static_cast<Buf*>(malloc(sizeof(Buf) + cap));
-          if (buf == nullptr) {
-            request->send(400, "application/json", "{}");
-            return;
-          }
-          buf->size = 0;
-          buf->cap = cap;
-          request->_tempObject = buf;
-        }
-        if (buf->size + len > buf->cap) {
-          size_t ncap = buf->cap * 2 + 1;
-          Buf* nb = static_cast<Buf*>(realloc(buf, sizeof(Buf) + ncap));
-          if (nb == nullptr) {
-            request->send(400, "application/json", "{}");
-            return;
-          }
-          buf = nb;
-          buf->cap = ncap;
-          request->_tempObject = buf;
-        }
-        memcpy(buf->data + buf->size, data, len);
-        buf->size += len;
-        if (index + len < total) {
-          return;  // wait for the remaining chunks
-        }
-
-        JsonDocument errors;
-        BatteryEmulatorSettingsStore settings;
-        JsonDocument doc;
-        auto err = deserializeJson(doc, buf->data, buf->size);
-        if (err) {
-          free(buf);
-          request->_tempObject = nullptr;
-          request->send(400, "application/json", "{}");
-          return;
-        }
-        bool reboot_required_saved = false;
-        for (int attempt = 0; attempt < 2; attempt++) {
-          for (const Setting& s : SETTINGS) {
-            if (!doc[s.name].is<const char*>())
-              continue;
-            const char* str = doc[s.name].as<const char*>();
-            switch (s.kind) {
-              case SettingKind::Bool: {
-                bool bval = (strcmp(str, "true") == 0 || strcmp(str, "1") == 0);
-                if (attempt == 1) {
-                  if (setting_persisted(s)) {
-                    if (settings.saveBool(s.name, bval) && s.type == SettingType::RebootRequired)
-                      reboot_required_saved = true;
-                  }
-                  if (s.apply.boolean)
-                    s.apply.boolean(bval);
-                }
-                break;
-              }
-              case SettingKind::Uint: {
-                char* end = nullptr;
-                unsigned long val = strtoul(str, &end, 10);
-                if (end && *end == 0) {
-                  if (val < s.uint_min || val > s.uint_max) {
-                    errors[s.name] = "Value out of range.";
-                  } else if (attempt == 1) {
-                    if (setting_persisted(s)) {
-                      if (settings.saveUInt(s.name, (uint32_t)val) && s.type == SettingType::RebootRequired)
-                        reboot_required_saved = true;
-                    }
-                    if (s.apply.uinteger)
-                      s.apply.uinteger(val);
-                  }
-                } else {
-                  errors[s.name] = "Invalid value.";
-                }
-                break;
-              }
-              case SettingKind::Int: {
-                char* end = nullptr;
-                long val = strtol(str, &end, 10);
-                if (end && *end == 0) {
-                  if (val < s.int_min || val > s.int_max) {
-                    errors[s.name] = "Value out of range.";
-                  } else if (attempt == 1) {
-                    if (setting_persisted(s)) {
-                      if (settings.saveInt(s.name, (int32_t)val) && s.type == SettingType::RebootRequired)
-                        reboot_required_saved = true;
-                    }
-                    if (s.apply.integer)
-                      s.apply.integer(val);
-                  }
-                } else {
-                  errors[s.name] = "Invalid value.";
-                }
-                break;
-              }
-              case SettingKind::Float: {
-                char* end = nullptr;
-                float val = strtof(str, &end);
-                if (end && *end == 0) {
-                  if (val < s.float_min || val > s.float_max) {
-                    errors[s.name] = "Value out of range.";
-                  } else if (attempt == 1) {
-                    if (s.apply.decimal)
-                      s.apply.decimal((float)val);
-                  }
-                } else {
-                  errors[s.name] = "Invalid value.";
-                }
-                break;
-              }
-              case SettingKind::ScaledUint: {
-                char* end = nullptr;
-                float fval = strtof(str, &end);
-                if (end && *end == 0) {
-                  if (fval < s.float_min || fval > s.float_max) {
-                    errors[s.name] = "Value out of range.";
-                  } else if (attempt == 1) {
-                    uint32_t val = (uint32_t)(fval * s.scale);
-                    if (setting_persisted(s)) {
-                      if (settings.saveUInt(s.name, val) && s.type == SettingType::RebootRequired)
-                        reboot_required_saved = true;
-                    }
-                    if (s.apply.decimal)
-                      s.apply.decimal((float)val);
-                  }
-                } else {
-                  errors[s.name] = "Invalid value.";
-                }
-                break;
-              }
-              case SettingKind::String: {
-                if ((s.flags & SETTING_SECRET) && strlen(str) == 0)
-                  continue;
-                if (strlen(str) > s.max_length) {
-                  errors[s.name] = "Value too long.";
-                } else if (attempt == 1) {
-                  if (settings.saveString(s.name, str) && s.type == SettingType::RebootRequired)
-                    reboot_required_saved = true;
-                }
-                break;
-              }
-            }
-          }
-          if (errors.size()) {
-            String payload;
-            serializeJson(errors, payload);
-            free(buf);
-            request->_tempObject = nullptr;
-            request->send(400, "application/json", payload);
-            return;
-          }
-        }
-        // Only RebootRequired settings demand a reboot; Volatile and Instant
-        // settings take effect immediately, so they must not flag a reboot.
-        if (reboot_required_saved)
-          settingsUpdated = true;
-
-        free(buf);
-        request->_tempObject = nullptr;
-        // The frontend calls response.json() on success, so return a JSON body.
-        request->send(200, "application/json", "{}");
-      });
+  // BYD Atto 3 isolation monitor commands (RoutineControl 0x2008). One
+  // control, applied to every BYD battery at once - mirrors the old
+  // /bydAtto3IsoEnable|Disable routes. The frontend (ext/byd_atto3.tsx) POSTs
+  // to these; the current state is read from the batext blob.
+  route(server, "/api/bydatto3/iso/enable", HTTP_POST, [](AsyncWebServerRequest* request) {
+    datalayer_extended.bydAtto3.UserRequestIsoRoutineEnable = true;
+    datalayer_extended.bydAtto3_2.UserRequestIsoRoutineEnable = true;
+    request->send(204);
+  });
+  route(server, "/api/bydatto3/iso/disable", HTTP_POST, [](AsyncWebServerRequest* request) {
+    datalayer_extended.bydAtto3.UserRequestIsoRoutineDisable = true;
+    datalayer_extended.bydAtto3_2.UserRequestIsoRoutineDisable = true;
+    request->send(204);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1172,9 +629,52 @@ static void register_control_routes(AsyncWebServer& server) {
     request->send(200, "text/plain", payload);
   });
 
+  // GET /api/log - incremental web-log fetch.
+  //
+  // The web log is a ring buffer - each poll, the frontend keeps the byte
+  // position it has received up to, and asks for the small amount of new data
+  // since then:
+  //   GET /api/log            -> everything currently in the ring (first load)
+  //   GET /api/log?pos=<uint> -> only bytes after <uint>
+  //
+  // Response (application/octet-stream):
+  //   bytes 0..7 : uint64 LE - byte position to request next time
+  //   bytes 8..  : raw log bytes
+  //
+  // The position only ever increases, so a wrap around implies that the device has
+  // rebooted.
   route(server, "/api/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/plain", (const uint8_t*)datalayer.system.info.logged_can_messages,
-                  sizeof(datalayer.system.info.logged_can_messages));
+    constexpr size_t LOG_CHUNK_MAX = 4096;  // steady-state polls stay small
+
+    // Parse ?pos= as a plain decimal uint64.
+    uint64_t from = 0;
+    if (request->hasParam("pos")) {
+      const char* s = request->getParam("pos")->value().c_str();
+      while (*s >= '0' && *s <= '9') {
+        from = from * 10 + (uint64_t)(*s - '0');
+        s++;
+      }
+    }
+
+    // Allocate a buffer to hold the chunk whilst we send it out (it is too big
+    // to fit on the stack).
+    char* chunk = (char*)malloc(LOG_CHUNK_MAX);
+    if (chunk == nullptr) {
+      request->send(503, "text/plain", "Out of memory");
+      return;
+    }
+
+    uint64_t pos = 0;
+    size_t len = web_log_fetch(from, chunk, LOG_CHUNK_MAX, &pos);
+
+    AsyncResponseStream* response = new AsyncResponseStream("application/octet-stream", len + sizeof(pos));
+    // Write the position directly (little-endian)
+    response->write((const uint8_t*)&pos, sizeof(pos));
+    if (len > 0) {
+      response->write((const uint8_t*)chunk, len);
+    }
+    free(chunk);
+    request->send(response);
   });
 }
 

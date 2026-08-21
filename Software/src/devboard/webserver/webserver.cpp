@@ -13,6 +13,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/safety/safety.h"
+#include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../shunt/Shunt.h"
@@ -61,6 +62,20 @@ const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 String importedLogs = "";      // Store the uploaded logfile contents in RAM
 bool isReplayRunning = false;  // Global flag to track replay state
+
+// Return the log ring buffer as a String.
+static String web_log_full_dump(void) {
+  const size_t ring_size = sizeof(datalayer.system.info.logged_can_messages);
+  char* buf = (char*)malloc(ring_size);
+  if (buf == nullptr) {
+    return String("Out of memory.");
+  }
+  uint64_t pos = 0;
+  size_t len = web_log_fetch(0, buf, ring_size, &pos);
+  String logs(buf, len);
+  free(buf);
+  return logs;
+}
 
 // True when user has updated settings that need a reboot to be effective.
 bool settingsUpdated = false;
@@ -350,7 +365,7 @@ void init_webserver() {
   {
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-      String logs = String(datalayer.system.info.logged_can_messages);
+      String logs = web_log_full_dump();
       if (logs.length() == 0) {
         logs = "No logs available.";
       }
@@ -383,7 +398,7 @@ void init_webserver() {
   {
     // Define the handler to export debug log
     server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-      String logs = String(datalayer.system.info.logged_can_messages);
+      String logs = web_log_full_dump();
       if (logs.length() == 0) {
         logs = "No logs available.";
       }

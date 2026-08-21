@@ -412,39 +412,6 @@ const MOCK_DATA: Record<string, any> = {
         }],
     }),
 
-    '/api/log': () => (`       0.221 init_Wifi enabled=1, ap=1, ssid=, password=
-       0.223 transmitter registered, total: 1
-       0.224 CAN receiver registered, total: 1
-       0.224 Requesting 500 kbps for inverter CAN interface ()
-       0.224 transmitter registered, total: 2
-       0.225 CAN receiver registered, total: 2
-       0.228 Native Can ok
-       0.229 Bit Rate prescaler: 4
-       0.229 Time Segment 1:     13
-       0.229 Time Segment 2:     6
-       0.229 RJW:                4
-       0.229 Triple Sampling:    no
-       0.229 Actual bit rate:    500000 bit/s
-       0.229 Exact bit rate ?    yes
-       0.229 Sample point:       70%
-       0.230 Dual CAN Bus (ESP32+MCP2515) selected
-       0.297 init_Wifi set event handlers
-       0.297 start Wifi
-       0.297 init_Wifi complete
-       0.534 Can ok
-       0.535 Event: The board was reset via software, webserver or OTA. Normal operation
-       0.539 Setup complete!
-       0.540 Battery: Nissan LEAF battery detected on interface 0
-       0.541 Inverter: SolaX Triple Power LFP over CAN bus detected on interface 0
-       0.541 Contactors closed
-       1.003 Event: Battery is completely discharged
-      61.006 Event: Battery not sending messages via CAN for the last 60 seconds. Check wiring!
-      61.007 Event: Inverter not sending messages via CAN for the last 60 seconds. Check wiring!
-    1573.788 Event: Task took too long to complete. CPU load might be too high. Info message, no action required.
-   63560.336 Event: Battery not sending messages via CAN for the last 60 seconds. Check wiring!
-   63560.337 Event: Inverter not sending messages via CAN for the last 60 seconds. Check wiring!
-\x00`),
-
     '/api/batext': () => buildBatext(effectiveBtype()),
 
     '/api/batold': () => `<div class="panel">
@@ -548,6 +515,9 @@ function mockGet(url: string): Response {
         }
         return json(statusPayload());
     }
+    if (url === '/api/log' || url.startsWith('/api/log?')) {
+        return mockLogFetch(url);
+    }
     const d = MOCK_DATA[url];
     if (d !== undefined) {
         const v = typeof d === 'function' ? d() : d;
@@ -575,6 +545,53 @@ function shouldMock(u: string): boolean {
 // ---------------------------------------------------------------------------
 // Demo CAN log dump (for the CAN sender and /dump_can endpoints)
 // ---------------------------------------------------------------------------
+
+// Stateful /api/log mock. The real device keeps a ring buffer and serves
+// increments ("everything since byte N") with a small binary header; the mock
+// does the same, appending a couple of fake lines on every poll so the log
+// view visibly updates in real time.
+let mockLogText = '';
+let mockLogSeq = 0;
+const MOCK_LOG_RING = 15000;
+
+function mockLogFetch(url: string): Response {
+    // A couple of new lines were logged since the last poll.
+    const n = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+        mockLogSeq++;
+        mockLogText +=
+            `  ${((mockLogSeq * 37) % 100000 / 1000).toFixed(3)} mock: event line ${mockLogSeq}` +
+            ` (status=ok, cpu=${(30 + Math.random() * 10).toFixed(1)}C)\n`;
+    }
+    // Keep a long demo session from growing without bound; resetting the text
+    // below the client's position mimics a device reboot (handled via the flag).
+    if (mockLogText.length > MOCK_LOG_RING * 2) {
+        mockLogText = '';
+        mockLogSeq = 0;
+    }
+    const total = mockLogText.length;  // mock lines are ASCII: chars == bytes
+
+    const m = url.match(/^\/api\/log(?:\?pos=(\d+))?$/);
+    let from = 0;
+    if (m && m[1]) {
+        from = parseInt(m[1], 10);
+        if (from > total) {
+            from = 0;   // device rebooted: position goes backwards, client notices
+        }
+    }
+    // Mimic the ring: only the newest MOCK_LOG_RING bytes are still available.
+    // (The client computes how many it missed from the position delta.)
+    if (total - from > MOCK_LOG_RING) {
+        from = total - MOCK_LOG_RING;
+    }
+    const chunk = new TextEncoder().encode(mockLogText.slice(from));
+
+    const buf = new ArrayBuffer(8 + chunk.length);
+    const dv = new DataView(buf);
+    dv.setBigUint64(0, BigInt(total), true);
+    new Uint8Array(buf, 8).set(chunk);
+    return new Response(buf, { headers: { 'Content-Type': 'application/octet-stream' } });
+}
 
 export function demoDumpCan(): string {
     const ids = [0x0116, 0x01F2, 0x01F3, 0x02BC, 0x02C1, 0x0314, 0x0328, 0x03A4, 0x03B2, 0x0446,

@@ -303,6 +303,10 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   char inverter_brand[8] = {0};
 
   size_t logged_can_messages_offset = 0;
+  /** Total bytes ever written to logged_can_messages. Never resets when the ring wraps,
+   * so a client can fetch increments ("everything since byte N"). A value of 0 means
+   * the device has just booted and positions from a previous boot are stale. */
+  uint64_t logged_can_messages_written = 0;
   /** ESP32 main CPU temperature, for displaying on webserver */
   float CPU_temperature = 0;
   /** bool, determines if CPU temperature should be measured */
