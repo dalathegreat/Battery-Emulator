@@ -8,10 +8,7 @@
 #include "../../Software/src/datalayer/datalayer.h"
 
 #include "Arduino.h"
-
-// TX frame capture injected by the emulated CAN layer (see emul/can.cpp).
-void clear_transmitted_frames();
-const std::vector<CAN_frame>& get_transmitted_frames();
+#include "emul_can.h"  // TX frame capture from the emulated CAN layer
 
 namespace {
 

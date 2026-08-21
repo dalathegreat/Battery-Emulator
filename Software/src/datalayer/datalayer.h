@@ -292,6 +292,13 @@ struct DATALAYER_SHUNT_TYPE {
   bool available = false;
 };
 
+struct DATALAYER_CAN_DEVICE_TYPE {
+  /** bool, this physical CAN device failed to send */
+  bool send_fail = false;
+  /** bool, this physical CAN device experienced repeated tx/rx errors */
+  bool bus_error = false;
+};
+
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** array with incoming CAN messages, for displaying on webserver */
   char logged_can_messages[15000] = {0};
@@ -333,22 +340,9 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool syslog_logging_active = false;
   /** bool, determines if CAN replay should loop or not */
   bool loop_playback = false;
-  /** bool, Native CAN failed to send flag */
-  bool can_native_send_fail = false;
-  /** bool, Native CAN experienced repeated tx/rx errors flag */
-  bool can_native_bus_error = false;
-  /** bool, MCP2515 CAN failed to send flag */
-  bool can_2515_send_fail = false;
-  /** bool, MCP2515 CAN experienced repeated tx/rx errors flag */
-  bool can_2515_bus_error = false;
-  /** bool, MCP2518 CANFD failed to send flag */
-  bool can_2518_send_fail = false;
-  /** bool, MCP2518 CANFD experienced repeated tx/rx errors flag */
-  bool can_2518_bus_error = false;
-  /** bool, MCP2518 CANFD 2nd interface failed to send flag */
-  bool can_2518_2_send_fail = false;
-  /** bool, MCP2518 CANFD 2nd interface experienced repeated tx/rx errors flag */
-  bool can_2518_2_bus_error = false;
+  /** Health flags per physical CAN device, indexed by CanDevice::device_index.
+   * Each device writes only its own slot; the safety monitor consumes them. */
+  DATALAYER_CAN_DEVICE_TYPE can_device[MAX_CAN_DEVICES];
   /** bool, determines if detailed performance measurement should be shown on webserver */
   bool performance_measurement_active = false;
   bool equipment_stop_active = false;  //Has user enabled equipment stop?
