@@ -27,6 +27,15 @@ void init_stored_settings();
  */
 void store_settings_equipment_stop();
 
+/**
+ * @brief Persist a WatchDogTimeout the inverter changed, if one is pending
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void store_settings_inverter_watchdog();
+
 void erase_phy_cal_data();
 
 /**

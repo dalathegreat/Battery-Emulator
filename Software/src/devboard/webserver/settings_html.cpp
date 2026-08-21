@@ -1015,6 +1015,32 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
+  if (var == "INVACCREB") {
+    return settings.getBool("INVACCREB", true) ? "checked" : "";
+  }
+
+  if (var == "INVWDT") {
+    // Not editable: the value comes from the inverter (register 402) and is only kept in NVM so it
+    // survives a reboot. "(default)" marks the value we start from when no inverter has changed it.
+    String watchdog = String(inverter_modbus_watchdog_timeout_s) + " s";
+    if (inverter_modbus_watchdog_timeout_s == MODBUS_INV_WATCHDOG_DEFAULT_S) {
+      watchdog += " (default)";
+    }
+    return watchdog;
+  }
+
+  if (var == "INVUTC") {
+    if (inverter_modbus_utc_epoch_s == 0) {
+      return "not yet received";
+    }
+    const time_t inverter_time = (time_t)inverter_modbus_utc_epoch_s;
+    struct tm utc;
+    char formatted[20];
+    gmtime_r(&inverter_time, &utc);
+    strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S", &utc);
+    return String(formatted);
+  }
+
   if (var == "PRECHGMS") {
     return String(settings.getUInt("PRECHGMS", 100));
   }
@@ -1886,30 +1912,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
-
-        <label>Ramp up charge limits gradually:</label>
-        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
-
-        <label>Charge power tapering based on SOC:</label>
-        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
-        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
-
-        <div class='if-chgtapersoc'>
-        <label>Start tapering at SOC, percent: </label>
-        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
-        min="50" max="%CHGTAPERMAX%" step="1"
-        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
-
-        <label>Float charge power, W: </label>
-        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
-        min="0" max="2000" step="10"
-        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
         </div>
 
-        <label>Allow longer CAN timeout: </label>
-        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
-        title="Use a longer timeout for inverter still alive CAN messages" />
+        <div class="if-bydmodbus">
+        <label>WatchDog Timeout: </label><span>%INVWDT%</span>
+
+        <label>Inverter time (UTC): </label><span>%INVUTC%</span>
         </div>
 
         <div class="if-sofar">
@@ -1934,10 +1942,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
-        <label>Inverter run entirely offgrid: </label>
-        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
-        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
-
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
@@ -1946,6 +1950,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-bydmodbus">
         <label>Fronius Primo, 450V maxvoltage cap: </label>
         <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
+
+        <label>Accept reboot command from inverter: </label>
+        <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
+        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
         </div>
 
         <div class="if-pylonish">
@@ -1997,6 +2005,41 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        </div>
+
+        <div class="if-inverter">
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;
+        margin-top: 5px; padding-top: 12px; border-top: 1px solid #4d5f69;'>
+
+        <label>Ramp up charge limits gradually:</label>
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
+
+        <div class='if-chgtapersoc'>
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="%CHGTAPERMAX%" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
+
+        <label>Float charge power, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        </div>
+
+        <label>Allow longer CAN timeout: </label>
+        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
+        title="Use a longer timeout for inverter still alive CAN messages" />
+
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
+
+        </div>
         </div>
         </div>
 
