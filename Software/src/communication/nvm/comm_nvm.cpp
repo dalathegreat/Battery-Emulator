@@ -5,6 +5,7 @@
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/i18n/i18n.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
 #include "../../devboard/utils/logging.h"
@@ -266,6 +267,7 @@ void init_stored_settings() {
   mqtt_transmit_all_cellvoltages = settings.getBool("MQTTCELLV", false);
   mqtt_publish_heap_metrics = settings.getBool("MQTTHEAP", false);
   custom_hostname = settings.getString("HOSTNAME").c_str();
+  user_selected_language = settings.getString("LANGUAGE").c_str();
 
   migrate_static_ip_settings(settings);
   wifi_static_IP_enabled = settings.getBool("STATICIP", false);
@@ -334,6 +336,7 @@ void store_settings() {
   BatteryEmulatorSettingsStore settings(false);
 
   settings.saveUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
+  settings.saveString("LANGUAGE", user_selected_language.c_str());
   settings.saveBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
   settings.saveUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10);
   settings.saveInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10);
