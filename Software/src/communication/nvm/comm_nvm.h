@@ -70,7 +70,17 @@ class BatteryEmulatorSettingsStore {
     }
     // isKey() check instead of a sentinel default: saving a value equal to the
     // sentinel into a missing key must not be skipped.
-    if (!settings.isKey(name) || getInt(name, 0) != value) {
+    // A skip must also require the stored TYPE TAG to match. NVS records the type
+    // a value was written under, and a typed read returns the caller's default
+    // when it does not match - so on a mistagged key getX() answers with the
+    // default rather than what is stored. Saving exactly that default then
+    // compares equal and the write is skipped, and that write is the only thing
+    // that would have repaired the tag, since nvs_set_* replaces an entry of any
+    // type. The key stays mistagged and every later read returns the row default.
+    //
+    // Concretely: a WIFIAPENABLED stored as u32, a user switching the AP off, and
+    // a device that boots with the AP on because the false was never written.
+    if (!settings.isKey(name) || settings.getType(name) != PT_I32 || getInt(name, 0) != value) {
       settings.putInt(name, value);
       settingsUpdated = true;
     }
@@ -86,7 +96,7 @@ class BatteryEmulatorSettingsStore {
     }
     // isKey() check instead of a sentinel default: saving a value equal to the
     // sentinel into a missing key must not be skipped.
-    if (!settings.isKey(name) || getUInt(name, 0) != value) {
+    if (!settings.isKey(name) || settings.getType(name) != PT_U32 || getUInt(name, 0) != value) {
       settings.putUInt(name, value);
       settingsUpdated = true;
     }
@@ -114,7 +124,7 @@ class BatteryEmulatorSettingsStore {
     }
     // isKey() check: a stored 'false' must not be mistaken for a missing key,
     // or the first save of a false value would be skipped and never persisted.
-    if (!settings.isKey(name) || getBool(name, false) != value) {
+    if (!settings.isKey(name) || settings.getType(name) != PT_U8 || getBool(name, false) != value) {
       settings.putBool(name, value);
       settingsUpdated = true;
     }
@@ -132,7 +142,7 @@ class BatteryEmulatorSettingsStore {
     }
     // isKey() check: a stored empty string must not be mistaken for a missing
     // key, or the first save of an empty value would be skipped.
-    if (!settings.isKey(name) || getString(name, "") != String(value)) {
+    if (!settings.isKey(name) || settings.getType(name) != PT_STR || getString(name, "") != String(value)) {
       settings.putString(name, value);
       settingsUpdated = true;
     }
@@ -148,6 +158,14 @@ class BatteryEmulatorSettingsStore {
   }
 
   bool were_settings_updated() const { return settingsUpdated; }
+
+#ifdef UNIT_TEST
+  // Host tests need the stored TYPE TAG and the number of writes that reached
+  // storage: the repair is invisible from the value alone, because a mistagged
+  // read and a repaired read can report the same thing.
+  PreferenceType stored_type(const char* name) { return settings.getType(name); }
+  unsigned storage_writes() const { return settings.writes(); }
+#endif
 
  private:
   Preferences settings;

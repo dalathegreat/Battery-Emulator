@@ -57,6 +57,24 @@ inline size_t emul_nvs_key_count(const char* ns) {
   return it == emul_nvs::store().end() ? 0 : it->second.size();
 }
 
+// The tag NVS records alongside a value. The real Preferences.h defines this
+// and returns it from getType(); code that has to know what a key is stored AS
+// - rather than what it can be read as - needs it, and cannot get there from
+// the getters, because those answer with the caller's default on a mismatch.
+enum PreferenceType {
+  PT_I8,
+  PT_U8,
+  PT_I16,
+  PT_U16,
+  PT_I32,
+  PT_U32,
+  PT_I64,
+  PT_U64,
+  PT_STR,
+  PT_BLOB,
+  PT_INVALID,
+};
+
 class Preferences {
  public:
   Preferences() {}
@@ -80,6 +98,7 @@ class Preferences {
       return 0;
     }
     emul_nvs::Value v;
+    ++writes_;
     v.type = emul_nvs::Value::INT;
     v.i32 = value;
     emul_nvs::store()[ns_][key] = v;
@@ -91,6 +110,7 @@ class Preferences {
       return 0;
     }
     emul_nvs::Value v;
+    ++writes_;
     v.type = emul_nvs::Value::UINT;
     v.u32 = value;
     emul_nvs::store()[ns_][key] = v;
@@ -102,6 +122,7 @@ class Preferences {
       return 0;
     }
     emul_nvs::Value v;
+    ++writes_;
     v.type = emul_nvs::Value::BOOL;
     v.b = value;
     emul_nvs::store()[ns_][key] = v;
@@ -115,6 +136,7 @@ class Preferences {
       return 0;
     }
     emul_nvs::Value v;
+    ++writes_;
     v.type = emul_nvs::Value::STRING;
     v.s = value;
     emul_nvs::store()[ns_][key] = v;
@@ -148,6 +170,31 @@ class Preferences {
     return (v != nullptr && v->type == emul_nvs::Value::UINT) ? v->u32 : defaultValue;
   }
 
+  // putBool stores a UCHAR on the device (Preferences::putBool forwards to
+  // putUChar), so a bool and a u8 share a tag and a u32 does not.
+  PreferenceType getType(const char* key) {
+    const emul_nvs::Value* v = find(key);
+    if (v == nullptr) {
+      return PT_INVALID;
+    }
+    switch (v->type) {
+      case emul_nvs::Value::INT:
+        return PT_I32;
+      case emul_nvs::Value::UINT:
+        return PT_U32;
+      case emul_nvs::Value::BOOL:
+        return PT_U8;
+      case emul_nvs::Value::STRING:
+        return PT_STR;
+    }
+    return PT_INVALID;
+  }
+
+  // How many writes actually reached storage. The skip-identical optimisation
+  // is invisible from the stored value, so this is the only way a test can tell
+  // "already correct, left alone" from "rewritten with the same value".
+  unsigned writes() const { return writes_; }
+
   bool getBool(const char* key, bool defaultValue = false) {
     const emul_nvs::Value* v = find(key);
     return (v != nullptr && v->type == emul_nvs::Value::BOOL) ? v->b : defaultValue;
@@ -170,6 +217,7 @@ class Preferences {
   }
 
  private:
+  unsigned writes_ = 0;
   const emul_nvs::Value* find(const char* key) {
     auto ns = emul_nvs::store().find(ns_);
     if (ns == emul_nvs::store().end()) {
