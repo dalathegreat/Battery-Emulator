@@ -904,8 +904,15 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   digitalWrite(pin10, LOW);
   pinMode(pin_lock, OUTPUT);
   digitalWrite(pin_lock, LOW);
-  pinMode(pin4, INPUT);
-  pinMode(pin7, INPUT);
+  // Plug detect (pin 7) and vehicle permission (pin 4) read HIGH when
+  // asserted. A plain INPUT floats with nothing plugged in, and a floating
+  // ESP32 input beside CAN transceivers reads HIGH - the state machine then
+  // walks off IDLE with no vehicle present (#1863). Pull them down where the
+  // silicon can; on input-only pads (the 3LB's GPIO 34/35) there are no
+  // internal pulls, the call degrades to plain INPUT, and the board needs its
+  // own external pull-downs.
+  pinMode(pin4, INPUT_PULLDOWN);
+  pinMode(pin7, INPUT_PULLDOWN);
 
   // initialise the CT measurement helper
   if (user_selected_shunt_type == ShuntType::CustomClamp) {
