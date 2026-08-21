@@ -31,13 +31,17 @@ uint16_t estimate_SOC_based_on_v(uint16_t voltage) {
 void StellantisProOneBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = estimate_SOC_based_on_v(datalayer.battery.status.voltage_dV);
+  datalayer.battery.status.real_soc =
+      estimate_SOC_based_on_v(datalayer.battery.status.voltage_dV);  //TODO, locate real SOC and don't estimate!
 
-  datalayer.battery.status.max_discharge_power_W = 1000;  //TODO: locate
-  datalayer.battery.status.max_charge_power_W = 1000;     //TODO: locate
+  datalayer.battery.status.current_dA = battery_current;
+
+  datalayer.battery.status.max_discharge_power_W = 3000;  //TODO: locate
+  datalayer.battery.status.max_charge_power_W = 3000;     //TODO: locate
+
   //datalayer.battery.status.soh_pptt; //TODO: locate
   //datalayer.battery.status.voltage_dV; //TODO: locate
-  //datalayer.battery.status.current_dA; //TODO: locate
+
   //datalayer.battery.status.remaining_capacity_Wh; //TODO: locate
   //datalayer.battery.status.max_discharge_power_W; //TODO: locate
   //datalayer.battery.status.max_charge_power_W; //TODO: locate
@@ -138,6 +142,7 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x95:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_current = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) - 15000;
       break;
     case 0xE0:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
