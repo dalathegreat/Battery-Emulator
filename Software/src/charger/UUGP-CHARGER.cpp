@@ -269,7 +269,6 @@ void UUGPCharger::initialize_current_limiting() {
             write_single(REG_CONTROL_MODE, 0);
             break;
             }
-[^\x00-\x7F]
 
 void UUGPCharger::initialize_pcs_information() {
     const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
