@@ -46,6 +46,15 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j
 5. (OPTIONAL, connect the board to your home Wifi)
 6. Connect your battery and inverter to the board and you are done! 🔋⚡
 
+## Community displays 🖥️
+
+These independently maintained displays can show Battery Emulator telemetry over ESP-NOW:
+
+- [Battery Display for LILYGO T-Display-S3](https://github.com/sort282-rgb/battery-display-t-display-s3) ([web installer](https://sort282-rgb.github.io/battery-display-t-display-s3/))
+- [Battery Display for ESP32-4848S040C](https://github.com/sort282-rgb/battery-display-esp32-4848s040c) ([web installer](https://sort282-rgb.github.io/battery-display-esp32-4848s040c/installer/))
+
+See the [ESP-NOW Wiki page](https://dalathegreat.github.io/Battery-Emulator-Wiki/setup/software/espnow/) for setup and payload-size compatibility notes.
+
 ## Dependencies 📖
 This code uses the following excellent libraries: 
 - [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
