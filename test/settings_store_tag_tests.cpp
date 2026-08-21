@@ -69,9 +69,12 @@ TEST_F(SettingsTagTest, SavingZeroOntoAMistaggedUIntRepairsTheTag) {
   EXPECT_EQ(store.getUInt("MQTTPORT", 1883u), 0u);
 }
 
-// The skip is a real optimisation and must survive: a correctly-tagged key
-// saved with the value it already holds must NOT be rewritten, or every save
-// cycle writes every key and the flash wears for nothing.
+// The skip must survive - but note what it is NOT worth. It does not save flash
+// wear: ESP-IDF's NVS compares before writing and skips an identical set by
+// itself, measured on the bench (7f40ebc1). What it does keep correct is the
+// store's own bookkeeping - settingsUpdated drives whether the user is told to
+// reboot to apply a setting - and it avoids a pointless NVS round trip per key
+// per save cycle.
 TEST_F(SettingsTagTest, AnUnchangedCorrectlyTaggedValueIsStillSkipped) {
   store.saveBool("WEBAUTH", true);
   const unsigned after_first = store.storage_writes();
@@ -79,8 +82,7 @@ TEST_F(SettingsTagTest, AnUnchangedCorrectlyTaggedValueIsStillSkipped) {
 
   store.saveBool("WEBAUTH", true);
   EXPECT_EQ(store.storage_writes(), after_first)
-      << "an unchanged, correctly-tagged value was written again - the skip is gone, and every save "
-         "cycle now rewrites every key";
+      << "an unchanged, correctly-tagged value was written again - the skip is gone";
 
   store.saveBool("WEBAUTH", false);
   EXPECT_EQ(store.storage_writes(), after_first + 1) << "a changed value was skipped";
