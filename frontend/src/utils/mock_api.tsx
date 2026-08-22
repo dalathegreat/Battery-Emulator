@@ -37,12 +37,14 @@ import { useEffect, useState } from 'preact/hooks'
 //     DATALAYER_INFO_ZOE_PH2_FIELDS,
 // } from '../ext/datalayer.ts';
 
+import { DATALAYER_INFO_BYDATTO3_FIELDS } from '../ext/datalayer/DATALAYER_INFO_BYDATTO3.ts';
+
 // Same battery-type -> field-list mapping as used by the Extended info page.
 const FIELD_LISTS: Record<number, any[]> = {
     // 4: DATALAYER_INFO_BOLTAMPERA_FIELDS,
     // 43: DATALAYER_INFO_BMWPHEV_FIELDS,
     // 3: DATALAYER_INFO_BMWIX_FIELDS,
-    // 5: DATALAYER_INFO_BYDATTO3_FIELDS,
+    5: DATALAYER_INFO_BYDATTO3_FIELDS,
     // 6: DATALAYER_INFO_CELLPOWER_FIELDS,
     // 7: DATALAYER_INFO_CHADEMO_FIELDS,
     // 45: DATALAYER_INFO_CMPSMART_FIELDS,
@@ -496,6 +498,9 @@ function mockPost(url: string, init?: any): Response {
         return json({ ok: true });
     }
     if (/^\/api\/batteries\/\d+\/[a-z_]+$/.test(url)) {
+        return new Response(null, { status: 204 });
+    }
+    if (/^\/api\/bydatto3\/iso\/(enable|disable)$/.test(url)) {
         return new Response(null, { status: 204 });
     }
     if (url.startsWith('/ota/start')) {

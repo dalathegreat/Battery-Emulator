@@ -20,11 +20,28 @@ import { useGetApi } from "./utils/api.tsx";
 //     DATALAYER_INFO_ZOE_PH2_FIELDS,
 // } from "./ext/datalayer.ts";
 
-import { Basic } from "./ext/basic.tsx";
+import type { ComponentType } from "preact";
+
+//import { Basic } from "./ext/basic.tsx";
 import { TeslaExtended } from "./ext/tesla.tsx";
 import { MgGen1Extended } from "./ext/mg.tsx";
+import { BydAtto3Extended } from "./ext/byd_atto3.tsx";
 
-const FIELD_LISTS = {
+// Battery-specific extended-info views. Keyed by the C++ BatteryType enum
+// value (Software/src/battery/Battery.h) - keep in sync with it.
+//
+// Each battery with bespoke UI gets its own file under src/ext/ (byd_atto3,
+// tesla, mg...). Batteries without an entry fall back to the generic Basic
+// dump, driven by the generated DATALAYER_INFO_* field tables.
+type ExtProps = { view: DataView; battery?: 1 | 2; cells?: number };
+const BATTERY_EXT: Record<number, ComponentType<ExtProps>> = {
+    5: BydAtto3Extended,  // BYD Atto 3 / Seal / Dolphin
+    32: TeslaExtended,    // Tesla Model 3/Y
+    33: TeslaExtended,    // Tesla Model S/X
+    37: MgGen1Extended,   // MG HS PHEV (Gen1, UDS)
+};
+
+//const FIELD_LISTS = {
     // 4: DATALAYER_INFO_BOLTAMPERA_FIELDS,
     // 43: DATALAYER_INFO_BMWPHEV_FIELDS,
     // 5: DATALAYER_INFO_BYDATTO3_FIELDS,
@@ -42,7 +59,7 @@ const FIELD_LISTS = {
     // 36: DATALAYER_INFO_VOLVO_HYBRID_FIELDS,
     // 28: DATALAYER_INFO_ZOE_FIELDS,
     // 29: DATALAYER_INFO_ZOE_PH2_FIELDS,
-} as { [key: number]: any[] };
+//} as { [key: number]: any[] };
 
 function command(id: string, cmd: string) {
     return () => {
@@ -84,9 +101,17 @@ export function Extended() {
         // demo mock) hands us an ArrayBuffer.
         return new DataView(data);
     }, [data]);
+
+    // Number of cells for the primary battery (needed by e.g. the BYD view's
+    // "Detected cells" row). The main datalayer count is not part of the
+    // batext blob.
+    const cellsData = useGetApi('/api/cells', 5000);
+    const cells = cellsData?.battery?.[0]?.voltages?.length;
     
     const btype = view?.getUint32(0, true) || 0;
-    const fields = FIELD_LISTS[btype] || [];
+    //const fields = FIELD_LISTS[btype] || [];
+
+    // <Basic view={ view } fields={ fields } />
 
     // These commands all have one command per 'supports' flag
     const commands_list = [
@@ -112,12 +137,14 @@ export function Extended() {
         <>
             <h2>Extended battery info</h2>
 
-            <div ref={oldContainerRef} dangerouslySetInnerHTML={{__html: old }}></div>
-            <hr />
+            { view && (BATTERY_EXT[btype] ? (() => {
+                const BatteryView = BATTERY_EXT[btype];
+                return <BatteryView view={ view } battery={ 1 } cells={ cells } />;
+              })() : 
+                <div ref={oldContainerRef} dangerouslySetInnerHTML={{__html: old }}></div>
+            ) }
 
-            { (view && (btype == 32 || btype == 33) && <TeslaExtended view={ view } />) ||
-              (view && btype == 37 && <MgGen1Extended view={ view } />) ||
-              <Basic view={ view } fields={ fields } /> }
+            <hr />
 
             { commands?.battery?.map((bat: any) => (
                 <div key={ bat.id }>

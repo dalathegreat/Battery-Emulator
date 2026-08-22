@@ -18,6 +18,7 @@ export const LENGTHS: { [key: string]: number } = {
     'i8': 1,
     'i16': 2,
     'i32': 4,
+    'f': 4,
     'b': 1,
     ' ': 1,
 };
