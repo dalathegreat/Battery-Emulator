@@ -34,13 +34,21 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return GPIO_NUM_4; }
   virtual gpio_num_t PRECHARGE_PIN() { return GPIO_NUM_5; }
   virtual gpio_num_t BMS_POWER() { return GPIO_NUM_6; }
+  virtual gpio_num_t BMS_IGNIT() { return GPIO_NUM_7; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_8; }
 
-  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER is GPIO6
-  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_6}; }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only):
+  // BMS_POWER is GPIO6, BMS_IGNIT is GPIO7
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_6, GPIO_NUM_7}; }
 
-  // Equipment stop pin
-  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_7; }
+  // Equipment stop pin. Shares GPIO1 with the optional I2C display, so it is only
+  // available while GPIO 1/2 are not assigned to the display.
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() {
+    if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {
+      return GPIO_NUM_NC;
+    }
+    return GPIO_NUM_1;
+  }
 
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_8; }

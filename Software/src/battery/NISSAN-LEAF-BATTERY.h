@@ -43,6 +43,20 @@ class NissanLeafBattery : public CanBattery {
   }
   bool supports_insulation_resistance() { return true; }
 
+  // Graceful BMS (LBC) shut-down sequence performed before BMS power is removed
+  // during a BMS reset (both periodic and MQTT-triggered). Implements the CAN
+  // transmissions of the "Shut down sequence" from the Nissan LEAF battery
+  // control specification (GEN4 spec, chapter 3-1):
+  //   1. "CHG_STA_RQ=11b" (Charge stop request) transmitted in 0x1F2
+  //   2. "BTONFN=0b" (HV power supply off) transmitted in 0x1D4
+  //   3. "RLYP=0b" (Main relay plus off) transmitted in 0x1D4
+  //   4. "VCM_WakeUpSleepCommand=00b" (GoToSleep) transmitted in 0x50B
+  //   5. CAN transmission stopped >1s after the LBC stops its own CAN
+  //   6. Wait more than 1 min before power (BAT line) may be removed
+  bool supports_bms_shutdown_sequence() { return true; }
+  void request_bms_shutdown_sequence();
+  bool bms_shutdown_sequence_completed() { return shutdownState == SHUTDOWN_COMPLETED; }
+
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
     return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
@@ -75,6 +89,53 @@ class NissanLeafBattery : public CanBattery {
 
   bool is_message_corrupt(CAN_frame rx_frame);
   void clearSOH(void);
+  uint8_t calculate_checksum_nibble(CAN_frame& frame);
+  void update_shutdown_sequence(unsigned long currentMillis);
+  void invalidate_polled_static_data();
+  const char* chg_sta_rq_name(uint8_t code);
+  void log_shutdown_step(const char* step, unsigned long currentMillis);
+
+  // Shut-down sequence state machine. States are ordered so that >= comparisons
+  // can be used, since signal values changed by earlier steps must be kept in
+  // all later steps.
+  enum ShutdownSequenceState {
+    SHUTDOWN_INACTIVE = 0,         //Normal operation
+    SHUTDOWN_CHG_STOP,             //"CHG_STA_RQ=11b" transmitted in 0x1F2
+    SHUTDOWN_BTONFN_OFF,           //+ "BTONFN=0b" transmitted in 0x1D4
+    SHUTDOWN_RLYP_OFF,             //+ "RLYP=0b" transmitted in 0x1D4
+    SHUTDOWN_GOTOSLEEP,            //+ "VCM_WakeUpSleepCommand=00b" transmitted in 0x50B
+    SHUTDOWN_WAIT_BEFORE_BAT_OFF,  //CAN transmission stopped, waiting before power removal is OK
+    SHUTDOWN_COMPLETED             //Sequence done, BMS power can be cut
+  };
+  /* Time each signal change is held before moving to the next step. The spec mandates no
+     wait between these steps at all, and an LBC that acts on the charge stop request may
+     leave the bus within ~100ms of the sequence starting, so the whole CAN part has to fit
+     inside that window. 0x1F2 and 0x1D4 both go out every 10ms, so this is 3 transmissions
+     of each state — enough repetitions to be seen, short enough that all four steps land. */
+  static const unsigned long SHUTDOWN_STEP_DURATION_MS = 30;
+  //Spec: our CAN stop must happen more than 1s after the LBC stops its own CAN transmission
+  static const unsigned long SHUTDOWN_BMS_CAN_SILENT_MS = 1100;
+  //Safety net: proceed with the sequence even if the LBC never goes silent (e.g. LeafSpy on bus)
+  static const unsigned long SHUTDOWN_GOTOSLEEP_TIMEOUT_MS = 10000;
+  //Spec: "Wait (more than 1min)" between CAN stop and BAT OFF (power removal)
+  static const unsigned long SHUTDOWN_BAT_OFF_DELAY_MS = 61000;
+
+  const char* shutdown_step_name(ShutdownSequenceState state);
+
+  /* True for the whole of a BMS reset, so its end can be detected however it finishes: the
+     shut-down sequence may not have run, and an aborted reset never reaches its later states. */
+  bool bmsResetInProgress = false;
+
+  /* CHG_STA_RQ value held during normal operation, as the 2 bit code rather than the shifted
+     bits. Boots at 00b ("other") and alternates 01b / 00b on each BMS reset, so a run of
+     resets exercises both values against the same pack without a reflash. Flipped when a reset
+     begins; the pack only sees the new value once it is back, since the shut-down sequence
+     forces 11b throughout. Deliberately not persisted: every power-up starts from 00b. */
+  uint8_t chg_sta_rq_normal = 0x00;
+
+  ShutdownSequenceState shutdownState = SHUTDOWN_INACTIVE;
+  unsigned long shutdownPhaseStartMillis = 0;
+  unsigned long lastCanFrameReceivedMillis = 0;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;

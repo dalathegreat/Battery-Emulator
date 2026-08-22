@@ -1,5 +1,7 @@
 #include "Arduino.h"
 
+#include <map>
+
 #include "../../Software/src/communication/can/comm_can.h"
 
 // Provide the definition that was previously in USER_SETTINGS.cpp
@@ -14,7 +16,23 @@ void delayMicroseconds(unsigned long us) {}
 int digitalRead(uint8_t pin) {
   return 0;
 }
-void digitalWrite(uint8_t pin, uint8_t val) {}
+// Records the last level written to each pin so unit tests can assert what the
+// firmware actually drove (BMS power/ignition lines, contactor outputs, ...).
+static std::map<uint8_t, uint8_t> g_emul_pin_levels;
+
+void clear_pin_writes() {
+  g_emul_pin_levels.clear();
+}
+
+// Returns the last level written to the pin, or -1 if it was never written.
+int get_pin_level(uint8_t pin) {
+  auto it = g_emul_pin_levels.find(pin);
+  return (it == g_emul_pin_levels.end()) ? -1 : (int)it->second;
+}
+
+void digitalWrite(uint8_t pin, uint8_t val) {
+  g_emul_pin_levels[pin] = val;
+}
 
 unsigned long micros() {
   return 0;

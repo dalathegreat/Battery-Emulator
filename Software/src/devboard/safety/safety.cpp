@@ -1,6 +1,7 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
@@ -119,6 +120,19 @@ void update_remote_limit_expiry(uint32_t currentMillis) {
   }
 }
 
+/* Raises or clears the health event for one CAN interface. The fault flag is a latch set by
+   the CAN driver and read once a second here, so it is consumed either way — a fault seen
+   while errors were expected must not surface on a later pass once they no longer are. */
+static void check_can_interface_health(bool& fault_flag, EVENTS_ENUM_TYPE event, bool errors_expected) {
+  const bool fault = fault_flag;
+  fault_flag = false;
+  if (fault && !errors_expected) {
+    set_event(event, 0);
+  } else if (!fault) {
+    clear_event(event);
+  }
+}
+
 void update_machineryprotection() {
   //Check if we start to get low on memory
   static uint8_t hysteresisHeapSeconds = 0;
@@ -133,54 +147,23 @@ void update_machineryprotection() {
   }
 
   // Check health status of CAN interfaces
-  if (datalayer.system.info.can_native_send_fail) {
-    set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
-    datalayer.system.info.can_native_send_fail = false;
-  } else {
-    clear_event(EVENT_CAN_NATIVE_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_native_bus_error) {
-    set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
-    datalayer.system.info.can_native_bus_error = false;
-  } else {
-    clear_event(EVENT_CAN_NATIVE_BUS_ERROR);
-  }
-  if (datalayer.system.info.can_2515_send_fail) {
-    set_event(EVENT_CANMCP2515_BUFFER_FULL, 0);
-    datalayer.system.info.can_2515_send_fail = false;
-  } else {
-    clear_event(EVENT_CANMCP2515_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_2515_bus_error) {
-    set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
-    datalayer.system.info.can_2515_bus_error = false;
-  } else {
-    clear_event(EVENT_CANMCP2515_BUS_ERROR);
-  }
-  if (datalayer.system.info.can_2518_send_fail) {
-    set_event(EVENT_CANFD_BUFFER_FULL, 0);
-    datalayer.system.info.can_2518_send_fail = false;
-  } else {
-    clear_event(EVENT_CANFD_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_2518_bus_error) {
-    set_event(EVENT_CANFD_BUS_ERROR, 0);
-    datalayer.system.info.can_2518_bus_error = false;
-  } else {
-    clear_event(EVENT_CANFD_BUS_ERROR);
-  }
-  if (datalayer.system.info.can_2518_2_send_fail) {
-    set_event(EVENT_CANFD_2_BUFFER_FULL, 0);
-    datalayer.system.info.can_2518_2_send_fail = false;
-  } else {
-    clear_event(EVENT_CANFD_2_BUFFER_FULL);
-  }
-  if (datalayer.system.info.can_2518_2_bus_error) {
-    set_event(EVENT_CANFD_2_BUS_ERROR, 0);
-    datalayer.system.info.can_2518_2_bus_error = false;
-  } else {
-    clear_event(EVENT_CANFD_2_BUS_ERROR);
-  }
+  /* A BMS reset deliberately takes the battery off the bus, and with no other node left to
+     acknowledge them the emulator's own frames fail to send and the controller reports bus
+     errors. Those are part of the reset, not a wiring problem, so they are not reported
+     while it is running. */
+  const bool can_errors_expected = bms_reset_expects_can_silence();
+  check_can_interface_health(datalayer.system.info.can_native_send_fail, EVENT_CAN_NATIVE_BUFFER_FULL,
+                             can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_native_bus_error, EVENT_CAN_NATIVE_BUS_ERROR,
+                             can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_2515_send_fail, EVENT_CANMCP2515_BUFFER_FULL,
+                             can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_2515_bus_error, EVENT_CANMCP2515_BUS_ERROR, can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_2518_send_fail, EVENT_CANFD_BUFFER_FULL, can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_2518_bus_error, EVENT_CANFD_BUS_ERROR, can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_2518_2_send_fail, EVENT_CANFD_2_BUFFER_FULL,
+                             can_errors_expected);
+  check_can_interface_health(datalayer.system.info.can_2518_2_bus_error, EVENT_CANFD_2_BUS_ERROR, can_errors_expected);
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
   // Don't check any battery issues if battery is not configured

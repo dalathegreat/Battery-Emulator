@@ -79,6 +79,20 @@ void handle_contactors_battery3();
 // True when init_contactors() drives BMS_POWER (i.e. the pin is actively controlled).
 bool bms_power_is_active();
 
+/* True once a BMS reset has reached the point where the battery is meant to be off the bus:
+   the battery specific shut-down sequence, the power off time, and the warm-up before it is
+   back. On a bus whose only other node has just been told to sleep, nothing acknowledges
+   what the emulator sends, so transmit failures and bus errors in that window are a
+   consequence of the reset rather than a fault to report. */
+bool bms_reset_expects_can_silence();
+
+/* Switch the BMS ignition (IGN) line, on boards that have one wired separately from the
+   BAT line. Both are no-ops where there is no such pin, or where the BMS reset settings
+   left it uninitialised. Called by battery classes whose shut-down sequence begins with
+   IGN OFF, ahead of the CAN part of the sequence. */
+void bms_ignit_off();
+void bms_ignit_on();
+
 // Latch/unlatch reset-hold pins (see Esp32Hal::reset_hold_pins()).
 // hold: only pins currently driven by the firmware are latched.
 // release: every candidate pin is released unconditionally (clears any stale hold).

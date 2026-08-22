@@ -90,6 +90,51 @@ bool bms_power_is_active() {
   return periodic_bms_reset || remote_bms_reset || esp32hal->always_enable_bms_power();
 }
 
+bool bms_reset_expects_can_silence() {
+  switch (datalayer.system.status.bms_reset_status) {
+    case BMS_RESET_SHUTDOWN_SEQUENCE:
+    case BMS_RESET_POWERED_OFF:
+    case BMS_RESET_POWERING_ON:
+      return true;
+    default:
+      /* BMS_RESET_WAITING_FOR_PAUSE is deliberately not included: nothing has been done to
+         the battery yet at that point, so a CAN fault there is still a real one. */
+      return false;
+  }
+}
+
+/* The ignition line is only driven on boards that have one, and only when init_contactors()
+   actually set it up, which is the same condition that gates BMS_POWER. */
+static bool bms_ignit_is_active() {
+  return bms_power_is_active() && esp32hal->BMS_IGNIT() != GPIO_NUM_NC;
+}
+
+/* Every level the firmware puts on the BMS BAT and IGN lines goes through the two helpers
+   below, so the log shows exactly when each line moved. That is what makes a reset possible
+   to line up against the CAN trace of a battery's shut-down sequence. Re-driving a line to
+   the level it already holds is not logged again; -1 means it has not been driven yet this
+   boot, so the first write after start-up always produces an entry. */
+static int bms_power_level = -1;
+static int bms_ignit_level = -1;
+
+static void drive_bms_power(bool high) {
+  auto pin = esp32hal->BMS_POWER();
+  digitalWrite(pin, high ? HIGH : LOW);
+  if (bms_power_level != (int)high) {
+    bms_power_level = (int)high;
+    DEBUG_PRINTF("BMS power line %s (GPIO%d)\n", high ? "HIGH" : "LOW", (int)pin);
+  }
+}
+
+static void drive_bms_ignit(bool high) {
+  auto pin = esp32hal->BMS_IGNIT();
+  digitalWrite(pin, high ? HIGH : LOW);
+  if (bms_ignit_level != (int)high) {
+    bms_ignit_level = (int)high;
+    DEBUG_PRINTF("BMS ignition line %s (GPIO%d)\n", high ? "HIGH" : "LOW", (int)pin);
+  }
+}
+
 // Initialization functions
 
 const char* contactors = "Contactors";
@@ -158,8 +203,20 @@ bool init_contactors() {
       return false;
     }
     pinMode(pin, OUTPUT);
-    digitalWrite(pin, HIGH);
+    drive_bms_power(true);
     set_indicator_led(IndicatorLed::BMS_POWER, true);
+
+    /* The ignition line, on hardware that has one, is brought up with the BAT line and gated
+       by the same two settings, so a board without it simply has nothing to drive here. */
+    auto ignit_pin = esp32hal->BMS_IGNIT();
+    if (ignit_pin != GPIO_NUM_NC) {
+      if (!esp32hal->alloc_pins("BMS ignition", ignit_pin)) {
+        DEBUG_PRINTF("BMS ignition setup failed\n");
+        return false;
+      }
+      pinMode(ignit_pin, OUTPUT);
+      drive_bms_ignit(true);
+    }
   }
 
   return true;
@@ -363,13 +420,65 @@ This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
 Feature is only used if user has enabled PERIODIC_BMS_RESET */
 
+// Maximum time we allow a battery specific BMS shut-down sequence to run before
+// giving up and cutting power anyway (must be longer than the longest sequence,
+// e.g. the Nissan LEAF sequence which includes a >1min wait before BAT OFF)
+const unsigned long bmsShutdownSequenceTimeout = 90000;
+static unsigned long shutdownSequenceStartTime = 0;
+/* True once a shut-down sequence has been started for the ongoing reset. The sequence
+   leaves the BMS silent for longer than the safety layer's liveness window all on its
+   own, before the power is even cut, so the keepalive below is needed for the whole
+   reset regardless of how long the user configured the power off duration to be. */
+static bool shutdownSequenceInUse = false;
+
+// Ask all configured batteries that support it to start their BMS shut-down
+// sequence. Returns true if at least one battery started a sequence.
+static bool request_battery_shutdown_sequences() {
+  bool sequence_started = false;
+  Battery* batteries[] = {battery, battery2, battery3};
+  for (Battery* b : batteries) {
+    if (b != nullptr && b->supports_bms_shutdown_sequence()) {
+      b->request_bms_shutdown_sequence();
+      sequence_started = true;
+    }
+  }
+  return sequence_started;
+}
+
+static bool battery_shutdown_sequences_completed() {
+  Battery* batteries[] = {battery, battery2, battery3};
+  for (Battery* b : batteries) {
+    if (b != nullptr && b->supports_bms_shutdown_sequence() && !b->bms_shutdown_sequence_completed()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void bms_ignit_off() {
+  if (bms_ignit_is_active()) {
+    drive_bms_ignit(false);
+  }
+}
+
+void bms_ignit_on() {
+  if (bms_ignit_is_active()) {
+    drive_bms_ignit(true);
+  }
+}
+
 void bms_power_off() {
-  digitalWrite(esp32hal->BMS_POWER(), LOW);
+  /* IGN before BAT, per the spec's shut-down order. A battery whose shut-down sequence
+     switches the ignition off itself has already done this by the time we get here, so
+     this only matters for the batteries that run no sequence at all. */
+  bms_ignit_off();
+  drive_bms_power(false);
   set_indicator_led(IndicatorLed::BMS_POWER, false);
 }
 
 void bms_power_on() {
-  digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  drive_bms_power(true);
+  bms_ignit_on();  // BAT first, then IGN, mirroring the start-up order
   set_indicator_led(IndicatorLed::BMS_POWER, true);
 }
 
@@ -437,6 +546,11 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
    phases are short and the BMS is on the bus for part of them. To test the statement in Leaf 
    "GEN4_e_Battery_control_spec_ver1.0.pdf" page 4, "IGN to be OFF for more than 6 min 30 seconds every day. "*/
 static bool bms_reset_needs_can_keepalive() {
+  /* A shut-down sequence adds its own stretch of silence in front of the off time, long
+     enough to close the window on its own, so it always needs the counters held up. */
+  if (shutdownSequenceInUse) {
+    return true;
+  }
   return datalayer.battery.settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
 }
 
@@ -523,15 +637,36 @@ void handle_BMSpower() {
           || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
-        bms_power_off();
-        lastPowerRemovalTime = currentTime;
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        if (request_battery_shutdown_sequences()) {
+          /* At least one battery wants to perform a graceful CAN shut-down sequence
+             towards its BMS before the power is cut (e.g. Nissan LEAF) */
+          shutdownSequenceStartTime = currentTime;
+          shutdownSequenceInUse = true;
+          datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+        } else {
+          bms_power_off();
+          lastPowerRemovalTime = currentTime;
+          datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        }
       } else if (currentTime - lastPowerRemovalTime >= 10000) {
         // There's still current, and we don't want to weld the contactors, so give up.
 
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+        shutdownSequenceInUse = false;
         set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);  // also printing a log entry
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
+      }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_SHUTDOWN_SEQUENCE) {
+      /* A battery specific CAN shut-down sequence is running. The battery goes quiet part
+         way through it, so hold the liveness counters up here too, then wait for the
+         sequence to complete (or time out) before removing power from the BMS. */
+      bms_reset_can_keepalive_tick();
+
+      if (battery_shutdown_sequences_completed() ||
+          currentTime - shutdownSequenceStartTime >= bmsShutdownSequenceTimeout) {
+        bms_power_off();
+        lastPowerRemovalTime = currentTime;
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
       bms_reset_can_keepalive_tick();
@@ -559,6 +694,7 @@ void handle_BMSpower() {
         // Reset is complete
 
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+        shutdownSequenceInUse = false;
         set_event(EVENT_PERIODIC_BMS_RESET, 0);
         clear_event(EVENT_PERIODIC_BMS_RESET);
       }
@@ -582,11 +718,19 @@ void start_bms_reset() {
         // We power the contactors directly, so we can avoid closing/opening them
         // during reset.
 
-        // Thus we can cut the BMS power now
-        bms_power_off();
+        if (request_battery_shutdown_sequences()) {
+          /* At least one battery wants to perform a graceful CAN shut-down sequence
+             towards its BMS before the power is cut (e.g. Nissan LEAF) */
+          shutdownSequenceStartTime = lastPowerRemovalTime;
+          shutdownSequenceInUse = true;
+          datalayer.system.status.bms_reset_status = BMS_RESET_SHUTDOWN_SEQUENCE;
+        } else {
+          // Thus we can cut the BMS power now
+          bms_power_off();
 
-        // and jump straight to powered off state, no need to wait.
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+          // and jump straight to powered off state, no need to wait.
+          datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        }
       } else {
         // The BMS powers the contactors, so we need to wait for the pause to
         // take effect before cutting power to it, or the contactors might drop
@@ -607,6 +751,9 @@ static bool should_hold_pin(gpio_num_t pin) {
   }
   if (pin == esp32hal->BMS_POWER()) {
     return bms_power_is_active();
+  }
+  if (pin == esp32hal->BMS_IGNIT()) {
+    return bms_ignit_is_active();
   }
   return false;  // unknown pins are not held until explicitly supported
 }
