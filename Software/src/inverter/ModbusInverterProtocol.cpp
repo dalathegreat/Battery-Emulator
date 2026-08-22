@@ -33,6 +33,11 @@ ModbusInverterProtocol::~ModbusInverterProtocol() {
 /* Register 401 is the watchdog toggle the Fronius flips between 0x00FF and 0xFF00, already consumed
    by BydModbusInverter::verify_inverter_modbus(). Logging it would only produce a line a minute. */
 static const uint16_t MODBUS_HANDLED_WRITE_ADDR = 401;
+/* ControlData.UTC, the inverter's clock. All four words carry a new value on essentially every
+   write, so the backoff never settles into silence, and nothing here reacts to them anyway -
+   handle_inverter_control_data() keeps the value for display only. Not worth a log line. */
+static const uint16_t MODBUS_UTC_FIRST_ADDR = 403;
+static const uint16_t MODBUS_UTC_LAST_ADDR = 406;
 
 /* Names from the Fronius GenericStorage register map. Only ControlData (400-408) and the droop law
    block (500-506) are declared master-writable there, so a write anywhere else means the inverter
@@ -86,6 +91,9 @@ static const char* inverter_write_target(uint16_t addr) {
 
 void ModbusInverterProtocol::log_inverter_write(uint16_t addr, uint16_t value) {
   if (addr == MODBUS_HANDLED_WRITE_ADDR) {
+    return;
+  }
+  if (addr >= MODBUS_UTC_FIRST_ADDR && addr <= MODBUS_UTC_LAST_ADDR) {
     return;
   }
 

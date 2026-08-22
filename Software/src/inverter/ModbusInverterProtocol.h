@@ -42,7 +42,8 @@ class ModbusInverterProtocol : public InverterProtocol {
   /* Logs one register write received from the inverter. The first write to an address is always
      logged (at syslog NOTICE, since it means the inverter uses a register we have never seen it
      touch); after that only value changes are logged, with a per-address exponential backoff so a
-     register that changes on every poll - a clock, for instance - cannot flood the log. */
+     register that changes on every poll cannot flood the log. The UTC block is skipped outright,
+     since a clock changes every time and none of it is acted on. */
   void log_inverter_write(uint16_t addr, uint16_t value);
 
   // Addresses tracked at once. The inverter only writes a handful, so this never fills in practice;
