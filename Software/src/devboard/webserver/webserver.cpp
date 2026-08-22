@@ -574,8 +574,18 @@ void init_webserver() {
                 }
               }
 
+              // Checkboxes are absent from a POST when unchecked, so absent-means-false
+              // is correct ONLY for the full settings form, which marks itself with a
+              // hidden FULLFORM field. A partial POST - curl, a script, an API client
+              // setting one field - must not silently wipe every boolean it did not
+              // mention; without the marker a boolean is applied only when its field is
+              // present ('on' = true, anything else = false).
+              const bool full_form = request->getParam("FULLFORM", true) != nullptr;
               for (auto& boolSetting : boolSettingNames) {
                 auto p = request->getParam(boolSetting, true);
+                if (!full_form && p == nullptr) {
+                  continue;
+                }
                 // The comparison default must match what the firmware boots with when the
                 // key is unset, or saving that state writes nothing and the page keeps
                 // disagreeing with the firmware. Only two bools boot true: WIFIAPENABLED
