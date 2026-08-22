@@ -1022,7 +1022,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "INVWDT") {
     // Not editable: the value comes from the inverter (register 402) and is only kept in NVM so it
     // survives a reboot. "(default)" marks the value we start from when no inverter has changed it.
-    String watchdog = String(inverter_modbus_watchdog_timeout_s) + " s";
+    String watchdog = String(inverter_modbus_watchdog_timeout_s) + "s";
     if (inverter_modbus_watchdog_timeout_s == MODBUS_INV_WATCHDOG_DEFAULT_S) {
       watchdog += " (default)";
     }
