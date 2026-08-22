@@ -210,6 +210,48 @@ TEST_F(UdsCanBatteryTest, SetupUdsRestartsTheScanAtTheFirstPid) {
 }
 
 // ---------------------------------------------------------------------------
+// PID scan: CAN FD transmission option
+// ---------------------------------------------------------------------------
+
+TEST_F(UdsCanBatteryTest, UdsFramesAreClassicCanByDefault) {
+  const uint16_t pids[] = {0x9001};
+  battery->set_pid_scan_list(pids, 1);
+
+  tick(1000);
+  ASSERT_EQ(get_transmitted_frames().size(), 1u);
+  // Without the FD option, UDS frames go out as classic CAN.
+  EXPECT_FALSE(last_frame(get_transmitted_frames()).FD);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x22);
+}
+
+TEST_F(UdsCanBatteryTest, UdsFramesAreCanFdWhenOptionIsSet) {
+  battery->setup_uds(0x79B, 0x7BB, UdsCanBatteryOptions{.fd = true});
+
+  const uint16_t pids[] = {0x9001};
+  battery->set_pid_scan_list(pids, 1);
+
+  tick(1000);
+  ASSERT_EQ(get_transmitted_frames().size(), 1u);
+  // The FD option marks the UDS request frames as CAN FD.
+  EXPECT_TRUE(last_frame(get_transmitted_frames()).FD);
+  // The frame payload is unchanged by the option.
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x22);
+  EXPECT_EQ(requested_pid(last_frame(get_transmitted_frames())), 0x9001);
+}
+
+TEST_F(UdsCanBatteryTest, SetupUdsWithoutOptionsResetsTheFdFlag) {
+  battery->setup_uds(0x79B, 0x7BB, UdsCanBatteryOptions{.fd = true});
+  battery->setup_uds(0x79B, 0x7BB);  // No options: back to classic CAN.
+
+  const uint16_t pids[] = {0x9001};
+  battery->set_pid_scan_list(pids, 1);
+
+  tick(1000);
+  ASSERT_EQ(get_transmitted_frames().size(), 1u);
+  EXPECT_FALSE(last_frame(get_transmitted_frames()).FD);
+}
+
+// ---------------------------------------------------------------------------
 // PID scan: response decoding
 // ---------------------------------------------------------------------------
 
