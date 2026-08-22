@@ -99,7 +99,7 @@ export function Ota() {
     const blah = useGetApi("https://api.github.com/repos/dalathegreat/BE-Web-Installer/git/trees/main?recursive=1");
     const githubReleases = useGetApi("https://api.github.com/repos/dalathegreat/Battery-Emulator/releases");
 
-    const currentVersionKey = versionSortKey("1.2.3");//versionSortKey(status?.firmware);
+    const currentVersionKey = versionSortKey(__APP_VERSION__);
     const hardware: string = {
         'LilyGo T_2CAN': 'LilygoT-2CAN',
         'LilyGo T-CAN485': 'LilygoT-CAN485',
@@ -150,6 +150,7 @@ export function Ota() {
 
     return <div>
         <h2>Over-The-Air (OTA) upgrade</h2>
+        <p>Current firmware version: <b>{__APP_VERSION__}</b></p>
         <p>Upload a new <b>.ota.bin</b> firmware file to update the system. The device will reboot automatically, and your settings will be preserved.</p>
         <div style="margin: 1.5rem 0;">
         <input type="file" style="font-size: 1.25rem; border: 2px solid #333; border-radius: 0.5rem;" onChange={ (ev) => {
