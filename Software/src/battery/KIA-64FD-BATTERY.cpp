@@ -439,6 +439,8 @@ void Kia64FDBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 
+  // Main battery only. Battery 2's flag is driven by parallel_safety.cpp once
+  // the packs are voltage matched, so the pointer is null there.
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
