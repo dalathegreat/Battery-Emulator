@@ -1,1 +1,28 @@
 .d-flex { display: flex; align-items: center; }
+
+/* Extended-info views (src/ext/*.tsx): status colours for the small
+   key/value tables used by e.g. the BYD Atto 3 auto-calibration and
+   isolation panels. */
+.text-ok { color: #3fb950; font-weight: bold; }
+.text-warn { color: #d29922; font-weight: bold; }
+.text-error { color: #ff7b72; font-weight: bold; }
+.text-muted { color: #8b949e; }
+
+.stat-table {
+    border-collapse: collapse;
+    margin: 0.6rem 0 1rem;
+    font-size: 0.95em;
+    text-align: left;
+    color: inherit;
+}
+.stat-table td {
+    padding: 3px 14px 3px 0;
+}
+.stat-table tr td:last-child {
+    color: #fff;
+    font-weight: bold;
+}
+
+.button-row {
+    margin: 0.6rem 0 0;
+}
