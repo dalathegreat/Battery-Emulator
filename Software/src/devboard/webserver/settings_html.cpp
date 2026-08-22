@@ -1622,6 +1622,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
         <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword()'>
+        <!-- Marks the full settings form: only with this marker may the server
+             treat an absent checkbox as unchecked. Partial POSTs lack it and
+             leave unmentioned booleans alone. -->
+        <input type='hidden' name='FULLFORM' value='on'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
