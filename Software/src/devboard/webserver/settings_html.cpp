@@ -1022,7 +1022,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "INVWDT") {
     // Not editable: the value comes from the inverter (register 402) and is only kept in NVM so it
     // survives a reboot. "(default)" marks the value we start from when no inverter has changed it.
-    String watchdog = String(inverter_modbus_watchdog_timeout_s) + " s";
+    String watchdog = String(inverter_modbus_watchdog_timeout_s) + "s";
     if (inverter_modbus_watchdog_timeout_s == MODBUS_INV_WATCHDOG_DEFAULT_S) {
       watchdog += " (default)";
     }
@@ -1925,12 +1925,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <div class="if-bydmodbus">
-        <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
-
-        <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
-        </div>
-
         <div class="if-sofar">
         <label>Sofar Battery ID (0-15): </label>
         <input name='SOFAR_ID' type='text' value="%SOFAR_ID%" pattern="[0-9]{1,2}" />
@@ -1958,13 +1952,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
-        <div class="if-bydmodbus">
-        <label>Fronius Primo, 450V maxvoltage cap: </label>
-        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
-
+       <div class="if-bydmodbus">
         <label>Accept reboot command from inverter: </label>
         <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
         title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
+
+        <label>Fronius Primo, 450V maxvoltage cap: </label>
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
+        title="Use only in case you see Invalid battery size detected message on Primo, with higher voltage batteries." />
+
+        <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
+
+        <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
         </div>
 
         <div class="if-pylonish">
