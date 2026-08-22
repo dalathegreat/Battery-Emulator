@@ -212,6 +212,24 @@ TEST_F(SafetyAggregationTest, SohDifferenceClearsWhenEveryPairIsClose) {
   EXPECT_FALSE(event_active(EVENT_SOH_DIFFERENCE));
 }
 
+// The commit promises the event is left UNTOUCHED when no pair has two real
+// readings, exactly as the old per-pair check behaved - that is what the
+// soh_pair_evaluated guard is for. Without this pin, simplifying its
+// `else if` to a plain `else` would clear a genuine warning the moment any
+// pack transiently reports the 9900 placeholder, and nothing would fail.
+TEST_F(SafetyAggregationTest, SohDifferenceIsUntouchedWhenNoPairIsEvaluable) {
+  datalayer.battery.status.soh_pptt = 9000;
+  datalayer.battery2.status.soh_pptt = 5000;
+  update_machineryprotection();
+  ASSERT_TRUE(event_active(EVENT_SOH_DIFFERENCE));
+
+  // Battery 1 falls back to the placeholder: neither pair is evaluable now.
+  datalayer.battery.status.soh_pptt = 9900;
+  update_machineryprotection();
+  EXPECT_TRUE(event_active(EVENT_SOH_DIFFERENCE))
+      << "a placeholder SOH reading must leave the warning alone, not clear it";
+}
+
 // --- Group B: the per-battery protection suite -----------------------------
 
 TEST_F(SafetyAggregationTest, OverheatSetsAboveThresholdAndClearsBelow) {
