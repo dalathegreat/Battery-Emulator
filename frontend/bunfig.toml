@@ -1,0 +1,7 @@
+# Bun test runner configuration.
+# `bun test` picks up *.test.{ts,tsx} files anywhere in the project.
+[test]
+# Browserless DOM: register happy-dom globals and install DOM stubs before
+# every test file. See test/dom.ts.
+preload = ["./test/dom.ts"]
+timeout = 10000

@@ -214,7 +214,7 @@ const char* name_for_battery_type(BatteryType type) {
   }
 }
 
-const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
+const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NCA;
 
 battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
@@ -518,11 +518,11 @@ uint16_t user_selected_tesla_GTW_mapRegion = 2;
 uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
 /* User-selected DALY BMS settings */
-int user_selected_daly_power_per_percent = 50;
-int user_selected_daly_power_per_dV = 50;
-int user_selected_daly_power_per_dV_start = 20;
-int user_selected_daly_power_per_degree_C = 60;
-int user_selected_daly_power_at_0_degree_C = 800;
+uint16_t user_selected_daly_power_per_percent = 50;
+uint16_t user_selected_daly_power_per_dV = 50;
+uint16_t user_selected_daly_power_per_dV_start = 20;
+uint16_t user_selected_daly_power_per_degree_C = 60;
+uint16_t user_selected_daly_power_at_0_degree_C = 800;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
 bool user_selected_use_estimated_charge_limits = false;

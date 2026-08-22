@@ -5,7 +5,18 @@
 
 extern uint16_t user_selected_CAN_ID_cutoff_filter;
 
+// User-selected communication interface for each CAN-capable peripheral,
+// stored as comm_interface (the CAN_Interface value is derived at boot in
+// comm_nvm.cpp). Defaults to CanNative so an absent key means CAN-native.
+extern comm_interface user_selected_batt_comm;
+extern comm_interface user_selected_batt2_comm;
+extern comm_interface user_selected_batt3_comm;
+extern comm_interface user_selected_inv_comm;
+extern comm_interface user_selected_chg_comm;
+extern comm_interface user_selected_shunt_comm;
+
 void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
+void stream_can_frame(const CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface);
 
 // Format CAN logs to the given buffer. Returns the number of bytes written, or

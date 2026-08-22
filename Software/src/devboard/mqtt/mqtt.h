@@ -52,7 +52,7 @@ extern std::string ha_autodiscovery_topic;
 extern std::string mqtt_server;
 extern std::string mqtt_user;
 extern std::string mqtt_password;
-extern int mqtt_port;
+extern uint16_t mqtt_port;
 extern const char* mqtt_topic_name;
 extern const char* mqtt_object_id_prefix;
 extern const char* mqtt_device_name;

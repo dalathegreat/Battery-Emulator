@@ -36,6 +36,7 @@ extern bool user_selected_inverter_long_CAN_timeout;
 extern bool user_selected_primo_gen24;
 extern bool inverter_low_pass_filter;
 extern bool charge_taper_soc;
+extern uint16_t charge_taper_start_soc;  // Start SOC in whole percent; the taper band is derived from it at boot
 extern uint16_t charge_taper_band_pptt;
 extern uint16_t charge_taper_floor_W;
 #endif

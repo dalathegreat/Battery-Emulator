@@ -1,0 +1,16 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    // `bun test` transpiles JSX itself and discovers the nearest tsconfig.json
+    // (it does not follow the project references above). Without an explicit
+    // preact runtime here it defaults to the React JSX runtime, whose elements
+    // are frozen objects that preact's renderer cannot diff. Match the app
+    // config (tsconfig.app.json) so tests produce real preact vnodes.
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
+  }
+}

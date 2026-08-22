@@ -1,3 +1,5 @@
+#if 0
+
 #include "debug_logging_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
@@ -110,3 +112,5 @@ String debug_logger_processor(void) {
   content += index_html_footer;
   return content;
 }
+
+#endif

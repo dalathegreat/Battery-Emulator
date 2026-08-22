@@ -8,6 +8,7 @@
 #include "../../src/devboard/utils/types.h"
 #include "Arduino.h"
 
+#include <string>
 #include <vector>
 
 enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Highest };
@@ -47,7 +48,9 @@ extern const char* name_for_shunt_type(ShuntType type);
 extern ShuntType user_selected_shunt_type;
 
 // Updateable parameters for the Chademo CT Clamp shunt type. Stored in NVM and modifiable via the webserver.
+// CTOFFSET is edited as a string (e.g. "-1.0") and parsed to ct_clamp_offset_mV at boot.
 extern float ct_clamp_offset_mV;
+extern std::string ct_clamp_offset_text;
 extern uint16_t ct_clamp_nominal_voltage_dV;
 extern uint16_t ct_clamp_nominal_current_A;
 enum class adc_attenuation_enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db, Highest };

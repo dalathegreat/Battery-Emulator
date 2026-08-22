@@ -1,0 +1,9 @@
+.log {
+    background: #000;
+    border: 1px solid #333;
+    font: 0.85rem monospace;
+    white-space: pre-wrap;
+    padding: 0.5rem;
+    height: calc(100vh - 11rem);
+    overflow-y: auto;
+}

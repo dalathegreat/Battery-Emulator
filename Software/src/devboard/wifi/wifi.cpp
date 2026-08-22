@@ -1,4 +1,6 @@
 #include "wifi.h"
+#include <Arduino.h>
+#include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
 #include "../hal/hal.h"                 // esp32hal / AP_BUTTON_PIN()
@@ -10,7 +12,8 @@
 #include "../utils/logging.h"
 
 bool wifiap_enabled = true;
-bool espnow_enabled = true;         //If true, allows battery emulator to send battery status by using ESPNow messages
+bool mdns_enabled = true;           //If true, allows battery monitor te be found by .local address
+bool espnow_enabled = false;        //If true, allows battery emulator to send battery status by using ESPNow messages
 std::string espnow_peer_macs = "";  //Empty = broadcast, otherwise a list of receiver MAC addresses
 uint16_t wifi_channel = 0;
 extern const char* version_number;
@@ -18,8 +21,8 @@ extern const char* version_number;
 std::string ssid;
 std::string password;
 std::string ssidAP;
-std::string passwordAP;
 const char* DEFAULT_AP_PASSWORD = "123456789";
+std::string passwordAP = DEFAULT_AP_PASSWORD;
 
 // Set your Static IP address. Only used incase Static address option is set
 bool wifi_static_IP_enabled = false;

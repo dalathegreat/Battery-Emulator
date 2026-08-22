@@ -1,3 +1,5 @@
+#if 0
+
 #include "html_escape.h"
 
 String html_escape(const String& var) {
@@ -30,3 +32,5 @@ String html_escape(const String& var) {
   }
   return escaped;
 }
+
+#endif
