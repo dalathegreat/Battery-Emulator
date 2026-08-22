@@ -1958,7 +1958,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
 
         <label>Fronius Primo, 450V maxvoltage cap: </label>
-        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24%
         title="Use only in case you see Invalid battery size detected message on Primo, with higher voltage batteries." />
 
         <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
