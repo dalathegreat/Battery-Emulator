@@ -140,6 +140,7 @@ add_executable(tests
     ../Software/src/battery/MG-5-BATTERY.cpp
     ../Software/src/battery/MG-GEN1-BATTERY.cpp
     ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
+    ../Software/src/battery/OMODA-E5-BATTERY.cpp
     ../Software/src/battery/ORION-BMS.cpp
     ../Software/src/battery/PYLON-BATTERY.cpp
     ../Software/src/battery/RANGE-ROVER-PHEV-BATTERY.cpp
