@@ -46,3 +46,17 @@ void network_bring_services_up(const IPAddress& ip) {
   init_mDNS();
 #endif
 }
+
+#ifdef ETHERNET
+// CONFIG_ESP_NETIF_SET_DNS_PER_DEFAULT_NETIF=y is set for the ETH board in
+// platformio.ini, so esp_netif_set_default_netif() (called by setDefault())
+// automatically copies the winning interface's DNS into the global resolver.
+// setDefault() therefore handles both routing and DNS in one call.
+void network_update_default_interface() {
+  if (ethernet_connected()) {
+    ETH.setDefault();
+  } else if (wifi_connected()) {
+    WiFi.STA.setDefault();
+  }
+}
+#endif

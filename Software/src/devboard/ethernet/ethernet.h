@@ -12,6 +12,7 @@ void init_Ethernet();
 void onEthStart(WiFiEvent_t event, WiFiEventInfo_t info);
 void onEthConnected(WiFiEvent_t event, WiFiEventInfo_t info);
 void onEthGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
+void onEthLostIP(WiFiEvent_t event, WiFiEventInfo_t info);
 void onEthDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
 // True after the PHY reports link-up and the interface has an IP

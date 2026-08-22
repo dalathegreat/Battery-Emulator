@@ -12,3 +12,10 @@ IPAddress network_localIP();
 // an IP: log the address, start syslog, and start the mDNS responder. Called
 // from GOT_IP handlers
 void network_bring_services_up(const IPAddress& ip);
+
+#ifdef ETHERNET
+// Set the default route and DNS source to the highest-priority connected
+// interface (Ethernet > WiFi STA). Call from every GOT_IP and DISCONNECTED
+// handler so the choice is always deterministic.
+void network_update_default_interface();
+#endif

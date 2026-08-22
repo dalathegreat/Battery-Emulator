@@ -50,16 +50,27 @@ void onEthConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   // Encode link speed + duplex into the event's data
   set_event(EVENT_ETHERNET_CONNECT, eth_encode_link(ETH.linkSpeed(), ETH.fullDuplex()));
   clear_event(EVENT_ETHERNET_CONNECT);
+  // ETH has link but no IP yet. Re-pin the default interface NOW so that
+  // we stay online over WiFi
+  network_update_default_interface();
 }
 
 // Event handler for Ethernet acquiring an IP address
 void onEthGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   network_bring_services_up(ETH.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
+  network_update_default_interface();
+}
+
+// Event handler for Ethernet losing its IP address
+void onEthLostIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+  // Trigger the switch to WiFi
+  network_update_default_interface();
 }
 
 // Event handler for Ethernet link-down
 void onEthDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
   set_event(EVENT_ETHERNET_DISCONNECT, 0);
+  network_update_default_interface();
 }
 
 void init_Ethernet() {
@@ -78,6 +89,7 @@ void init_Ethernet() {
   WiFi.onEvent(onEthStart, WiFiEvent_t::ARDUINO_EVENT_ETH_START);
   WiFi.onEvent(onEthConnected, WiFiEvent_t::ARDUINO_EVENT_ETH_CONNECTED);
   WiFi.onEvent(onEthGotIP, WiFiEvent_t::ARDUINO_EVENT_ETH_GOT_IP);
+  WiFi.onEvent(onEthLostIP, WiFiEvent_t::ARDUINO_EVENT_ETH_LOST_IP);
   WiFi.onEvent(onEthDisconnected, WiFiEvent_t::ARDUINO_EVENT_ETH_DISCONNECTED);
 
   const bool ok = ETH.begin(phy_type_from_kind(esp32hal->ETH_PHY_TYPE_ID()), esp32hal->ETH_PHY_ADDR_NUM(),

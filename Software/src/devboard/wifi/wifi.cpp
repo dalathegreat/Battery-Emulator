@@ -394,6 +394,9 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
 
   network_bring_services_up(WiFi.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
+#ifdef ETHERNET
+  network_update_default_interface();
+#endif
 }
 
 // Event handler for Wi-Fi disconnection
@@ -402,6 +405,9 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   if (connected_once) {
     set_event(EVENT_WIFI_DISCONNECT, 0);  // also printing a log entry
   }
+#ifdef ETHERNET
+  network_update_default_interface();
+#endif
   //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost
   //normal reconnect retry start at first 2 seconds
