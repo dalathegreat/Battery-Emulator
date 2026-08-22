@@ -370,14 +370,6 @@ bool battery_supports_double(BatteryType type) {
 
 // The integrations that can be instantiated a third time on a separate
 // interface. Must match the switch in setup_battery() below.
-//
-// CAN-FD integrations must NOT be listed here. Only two physically distinct
-// CAN-FD buses exist: CANFD_NATIVE and CANFD_ADDON_MCP2518 are served by the
-// same MCP2518 controller (see transmit_can_frame_to_interface() and
-// receive_canfd() in comm_can.cpp), leaving CANFD_ADDON_MCP2518_2 as the only
-// separate one. A third FD pack would therefore have to share a bus with one
-// of the first two, which collides on both the diagnostic requests and the
-// periodic broadcasts. Such integrations are limited to double battery.
 bool battery_supports_triple(BatteryType type) {
   switch (type) {
     case BatteryType::NissanLeaf:
