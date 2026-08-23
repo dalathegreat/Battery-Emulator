@@ -150,7 +150,7 @@ void init_stored_settings() {
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
-  user_selected_accept_inverter_reboot = settings.getBool("INVACCREB", true);
+  user_selected_accept_inverter_reboot = settings.getBool("INVACCREB", false);
   // Watchdog period the inverter last told us about, or the default if it never has
   inverter_modbus_watchdog_timeout_s = settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S);
 
@@ -326,7 +326,12 @@ void store_settings_inverter_watchdog() {
   }
   inverter_modbus_watchdog_changed = false;
   BatteryEmulatorSettingsStore settings(false);
-  settings.saveUInt("INVWDTMO", inverter_modbus_watchdog_timeout_s);
+  // Never write a value NVM already holds. saveUInt() skips an unchanged key on its own, but it
+  // writes when the key is missing, which would put the default into flash the first time an
+  // inverter declares it.
+  if (settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S) != inverter_modbus_watchdog_timeout_s) {
+    settings.saveUInt("INVWDTMO", inverter_modbus_watchdog_timeout_s);
+  }
 }
 
 // Erase RF PHY calibration data (the "phy" NVS namespace — untouched by

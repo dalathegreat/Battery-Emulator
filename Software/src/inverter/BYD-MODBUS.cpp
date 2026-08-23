@@ -227,18 +227,16 @@ void BydModbusInverter::handle_inverter_control_data() {
   if (reboot_command != last_register_407) {
     last_register_407 = reboot_command;
     if (reboot_command != 0) {
-      LOG_SET_NEXT_SEVERITY(5);  // notice
       if (user_selected_accept_inverter_reboot) {
+        LOG_SET_NEXT_SEVERITY(5);  // notice
         logging.println("The emulator is restarting as requested by the inverter");
         hold_pins_across_reset();
         graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
       } else {
-        // Logged rather than passed over in silence: the inverter asking for a restart is worth
-        // knowing about even when we are configured not to act on it.
-        logging.printf(
-            "The inverter requested a restart (RebootCommand %u), ignored because accepting reboot commands from the "
-            "inverter is disabled\n",
-            reboot_command);
+        // Raised as an event rather than only logged: declining leaves the inverter believing it
+        // asked for something that never happened, which the user should see on the status page
+        // without having to have logging switched on at the time.
+        set_event(EVENT_INVERTER_REBOOT_DECLINED, reboot_command);
       }
     }
   }
