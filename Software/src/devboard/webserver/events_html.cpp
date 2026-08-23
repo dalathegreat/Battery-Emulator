@@ -1,3 +1,5 @@
+#if 0
+
 #include "events_html.h"
 #include <limits>
 #include "../../datalayer/datalayer.h"
@@ -125,3 +127,5 @@ String events_processor(const String& var) {
     };
 </script>
 */
+
+#endif

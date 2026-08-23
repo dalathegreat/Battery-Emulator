@@ -1,0 +1,125 @@
+.menu {
+    min-width: 12rem;
+    top: 0;
+    background: linear-gradient(180deg, #2a2a2a, #111111) top no-repeat;
+    background-size: auto 700px;
+    padding: 1.25rem 12px;
+    gap: 0.5rem;
+}
+.menu > div {
+    min-height: calc(100vh - 110px);
+    position: sticky;
+    top: 90px;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu a {
+    display: inline-block;
+    padding: 0.6rem 17px;
+    border-radius: 0 6px 6px 0;
+    color: #eeeeee;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+}
+
+.menu a .badge {
+    border-radius: 999px;
+    margin-left: 0.3rem;
+}
+
+.menu a[data-cur] {
+    color: #ffffff;
+    background: #404040;
+    border-color: #3cddb2;
+}
+
+.menu .toggle {
+    cursor: pointer;
+    background: #434343;
+    padding: 0.6rem 17px;
+    border-radius: 0 6px 6px 0;
+    color: #eeeeee;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.menu .toggle input {
+    width: 1.5rem;
+    height: 1.5rem;
+    vertical-align: bottom;
+    margin-right: 0.8rem;
+}
+
+.menu .gap-above {
+    margin-top: auto;
+}
+
+.menu *:has(+ .gap-above) {
+    margin-bottom: 20px;
+}
+
+.menu-toggle {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 250px;
+        overflow-y: auto;
+        z-index: 100;
+        transform: translateX(-250px);
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .menu > div {
+        top: 45px;
+    }
+
+    [data-menu-open] .menu {
+        transform: translateX(0);
+    }
+
+    .menu-toggle {
+        display: block;
+        position: fixed;
+        top: 0rem;
+        left: 0rem;
+        z-index: 99;
+        font-size: 1.8rem;
+        line-height: 1;
+        color: #ffffff;
+        padding: 0.8rem 1.2rem;
+    }
+
+    .menu-close {
+        margin: -2rem -1rem 0;
+        font-size: 1.8rem;
+        color: #ffffff;
+    }
+
+    .menu-cloak {
+        opacity: 0;
+        position: fixed;
+        display: none;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        content: "";
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 99;
+        touch-action: manipulation;
+        transition: display 0.3s ease, opacity 0.3s ease;
+        transition-behavior: allow-discrete;
+    }
+
+    [data-menu-open] .menu-cloak {
+        display: block;
+        opacity: 1;
+    }
+}

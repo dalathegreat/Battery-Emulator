@@ -11,7 +11,7 @@
 // Real implementation for production
 
 class Logging : public Print {
-  void add_timestamp(size_t size);
+  void add_timestamp();
 
  public:
   virtual size_t write(const uint8_t* buffer, size_t size);
@@ -20,6 +20,15 @@ class Logging : public Print {
   void set_next_severity(uint8_t sev);  // syslog severity for the next assembled line
   Logging() {}
 };
+
+// Read the ring buffer starting at logical position `from` and copy up to `max`
+// bytes into `dst`. Return the number of bytes copied, and update `*out_pos` to
+// the logical position of the next byte to read. Return 0 if the lock isn't
+// available - the caller can retry later.
+size_t web_log_fetch(uint64_t from, char* dst, size_t max, uint64_t* out_pos);
+
+// Appends `size` bytes to the ring buffer.
+void web_log_append(const uint8_t* data, size_t size);
 
 // Production macros
 #define DEBUG_PRINTF(fmt, ...)                                                                  \

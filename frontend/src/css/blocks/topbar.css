@@ -1,0 +1,71 @@
+.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: #2a2a2a;
+    padding: 1rem 2rem 1rem 24px;
+}
+
+#tray {
+    margin-left: auto;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+/* .topbar .battery-level {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-shadow: 0 0 4px #000000aa;
+    min-width: 96px;
+    padding: 0.1rem 0.25rem;
+}
+
+.topbar .battery-level .socmeter {
+    width: 96px;
+    height: 16px;
+} */
+
+.topbar .battery-level-text {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.topbar .battery-level span {
+    position: relative;
+    top: -1px;
+}
+
+.topbar .status {
+    font-weight: 600;
+    background: #444444;
+    padding: 0.5rem 0.8rem 0.5rem 0.6rem;
+    /* color: #ffffff; */
+}
+
+.topbar .status[data-status="OK"] { background: #0eb70e; }
+.topbar .status[data-status="WARNING"] { background: #e6b70e; color: #000000; }
+.topbar .status[data-status="ERROR"] { background: #b70e0e; }
+
+.topbar h1 {
+    font-size: 1.7rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .topbar {
+        position: fixed;
+        width: 100%;
+        z-index: 98;
+        padding: 1rem 1rem 0;
+        min-height: 3.5rem;
+    }
+
+    .topbar + * {
+        padding-top: 3.5rem;
+    }
+}

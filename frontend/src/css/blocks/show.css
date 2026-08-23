@@ -1,0 +1,21 @@
+/* Show/hide container used by <Show> in components/forms.tsx.
+   When revealed, a short expand + fade + slide-in animation plays. */
+
+[data-show] {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-0.3rem);
+    transition: grid-template-rows 0.2s ease-out, opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+[data-show="1"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+[data-show] > div {
+    position: relative;
+    overflow: hidden;
+}

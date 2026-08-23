@@ -1,3 +1,5 @@
+#if 0
+
 #include "can_logging_html.h"
 #include <Arduino.h>
 #include "../../communication/can/comm_can.h"
@@ -89,3 +91,5 @@ String can_logger_processor(void) {
   content += index_html_footer;
   return content;
 }
+
+#endif

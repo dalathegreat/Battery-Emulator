@@ -103,6 +103,20 @@ jobs:
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
+    - name: Install bun (frontend build)
+      uses: oven-sh/setup-bun@v2
+
+    # zopfli gives the smallest possible gzip output for the embedded HTML.
+    # Non-fatal: if it's unavailable the frontend build falls back to gzip.
+    - name: Install zopfli (frontend compression)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zopfli || echo "zopfli unavailable, using gzip fallback"
+
+    - name: Install frontend dependencies
+      working-directory: frontend
+      run: bun install --frozen-lockfile
+
     # Add a line to print out the hash check values, to help debug why
     # PlatformIO might trigger a rebuild.
     - name: Insert cache check debugging

@@ -1,0 +1,30 @@
+.release {
+    border: 1px solid #333;
+    background: #212121;
+    padding: 0.5rem 1rem;
+    border-radius: 0.7rem;
+    max-width: 70%;
+}
+
+.release > div > span {
+    font-weight: bold;
+}
+
+.release ul,
+.release ol {
+    margin: 0 0 2rem 1.8rem;
+    padding: 0;
+}
+
+.release li {
+    margin: 0 0 0.3rem;
+}
+
+.release h2 {
+    font-size: 1.1rem;
+}
+
+.release img {
+    max-width: 100%;
+    height: auto;
+}
