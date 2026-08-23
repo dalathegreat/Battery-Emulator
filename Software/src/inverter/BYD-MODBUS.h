@@ -39,6 +39,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   uint16_t register_401_history[5] = {0};
   uint8_t history_index = 0;
   uint16_t last_register_407 = 0;  // Last RebootCommand seen, so only changes are acted on
+  uint16_t last_register_408 = 0;  // Last DarkstartEnable seen, so only changes are logged
   // Bounds for a WatchDogTimeout accepted from register 402. 0 means the inverter is not using the
   // field, and an implausibly large value would push inverter-missing detection out of usefulness.
   static const uint32_t WATCHDOG_TIMEOUT_MIN_S = 5;

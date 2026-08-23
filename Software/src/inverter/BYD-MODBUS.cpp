@@ -240,6 +240,17 @@ void BydModbusInverter::handle_inverter_control_data() {
       }
     }
   }
+
+  // DarkstartEnable (408). Nothing acts on it yet, but the inverter announcing that it expects the
+  // battery to be able to black start the system is worth having in the log. Only changes are
+  // logged; a value of 0 here is a real setting rather than an absent command, so an inverter that
+  // writes 0 from the start is indistinguishable from one that never writes the register at all.
+  const uint16_t darkstart_enable = mbPV[408];
+  if (darkstart_enable != last_register_408) {
+    last_register_408 = darkstart_enable;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Inverter set DarkstartEnable to %u\n", darkstart_enable);
+  }
 }
 
 bool BydModbusInverter::setup(void) {  // Performs one time setup at startup over CAN bus
