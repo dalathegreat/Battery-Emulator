@@ -602,7 +602,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Successfully communicating with inverter over Modbus/RS485. Inverter detected!";
     case EVENT_INVERTER_REBOOT_DECLINED:
       return "Inverter asked the emulator to restart, but the request was declined. "
-             "Enable 'Accept reboot command from inverter' in the settings to allow it!";
+             "Enable 'Accept reboot command from inverter' in the settings if you want to allow it next time.";
     case EVENT_NO_ENABLE_DETECTED:
       return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
