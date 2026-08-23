@@ -1016,7 +1016,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "INVACCREB") {
-    return settings.getBool("INVACCREB", true) ? "checked" : "";
+    return settings.getBool("INVACCREB") ? "checked" : "";
   }
 
   if (var == "INVWDT") {
@@ -1955,7 +1955,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-bydmodbus">
         <label>Accept reboot command from inverter: </label>
         <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
-        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
+        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first. Disabled by default: the request is recorded as a warning event instead." />
 
         <label>Fronius Primo, 450V maxvoltage cap: </label>
         <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24%

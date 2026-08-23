@@ -61,7 +61,7 @@ uint16_t charge_taper_floor_W =
 
 uint32_t inverter_modbus_watchdog_timeout_s = MODBUS_INV_WATCHDOG_DEFAULT_S;
 bool inverter_modbus_watchdog_changed = false;
-bool user_selected_accept_inverter_reboot = true;
+bool user_selected_accept_inverter_reboot = false;
 uint64_t inverter_modbus_utc_epoch_s = 0;
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
