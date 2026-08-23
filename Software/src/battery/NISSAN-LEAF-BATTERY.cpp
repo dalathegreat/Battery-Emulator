@@ -971,9 +971,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
       // Shut down sequence: "At the same time of MAIN RLY P OFF, BTONFN=0b transmit" and
       // "At the same time of MAIN RLY N OFF, RLYP=0b transmit"
-      LEAF_1D4.data.u8[5] = (shutdownState >= SHUTDOWN_RLYP_OFF) ? 0x06 : 0x46;  //RLYP is bit 6 of byte 5
+      LEAF_1D4.data.u8[5] = (shutdownState >= SHUTDOWN_STOP_AND_RELAYS_OFF) ? 0x06 : 0x46;  //RLYP is bit 6 of byte 5
       if (shutdownState != SHUTDOWN_INACTIVE) {
-        if (shutdownState >= SHUTDOWN_BTONFN_OFF) {
+        if (shutdownState >= SHUTDOWN_STOP_AND_RELAYS_OFF) {
           LEAF_1D4.data.u8[4] &= ~0x04;  //BTONFN=0b (bit 2 of byte 4)
         }
         LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);  //Contents changed, recalculate CRC
@@ -1287,9 +1287,10 @@ void NissanLeafBattery::request_bms_shutdown_sequence() {
     chg_sta_rq_normal = chg_sta_rq_normal ? 0x00 : 0x01;
     DEBUG_PRINTF("LEAF: CHG_STA_RQ after this reset: %02ub (%s)\n", chg_sta_rq_normal,
                  chg_sta_rq_name(chg_sta_rq_normal));
-    shutdownState = SHUTDOWN_CHG_STOP;
+    shutdownState = SHUTDOWN_STOP_AND_RELAYS_OFF;
     shutdownPhaseStartMillis = millis();
-    log_shutdown_step("CHG_STA_RQ=11b (0x1F2, charge stop request)", shutdownPhaseStartMillis);
+    log_shutdown_step("CHG_STA_RQ=11b (0x1F2) + BTONFN=0b + RLYP=0b (0x1D4, both relays off)",
+                      shutdownPhaseStartMillis);
   }
 }
 
@@ -1323,12 +1324,8 @@ const char* NissanLeafBattery::chg_sta_rq_name(uint8_t code) {
 
 const char* NissanLeafBattery::shutdown_step_name(ShutdownSequenceState state) {
   switch (state) {
-    case SHUTDOWN_CHG_STOP:
-      return "CHG_STA_RQ=11b";
-    case SHUTDOWN_BTONFN_OFF:
-      return "BTONFN=0b";
-    case SHUTDOWN_RLYP_OFF:
-      return "RLYP=0b";
+    case SHUTDOWN_STOP_AND_RELAYS_OFF:
+      return "CHG_STA_RQ=11b + BTONFN=0b + RLYP=0b";
     case SHUTDOWN_GOTOSLEEP:
       return "VCM_WakeUpSleepCommand=00b";
     default:
@@ -1342,7 +1339,7 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
      transmission is the BMS having stopped for more than a second. Checked in every step
      rather than only in the last one, so a reset started on an already unresponsive BMS
      skips straight to the wait instead of transmitting a whole sequence into nothing. */
-  if (shutdownState >= SHUTDOWN_CHG_STOP && shutdownState <= SHUTDOWN_GOTOSLEEP &&
+  if (shutdownState >= SHUTDOWN_STOP_AND_RELAYS_OFF && shutdownState <= SHUTDOWN_GOTOSLEEP &&
       elapsed_since(currentMillis, lastCanFrameReceivedMillis, SHUTDOWN_BMS_CAN_SILENT_MS)) {
     DEBUG_PRINTF("LEAF: Shut-down sequence CAN stop, BMS quiet for %lu ms (last step sent: %s)\n",
                  currentMillis - lastCanFrameReceivedMillis, shutdown_step_name(shutdownState));
@@ -1355,25 +1352,11 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
     case SHUTDOWN_INACTIVE:
     case SHUTDOWN_COMPLETED:
       break;
-    case SHUTDOWN_CHG_STOP:
-      //"CHG_STA_RQ=11b" is being transmitted in 0x1F2
-      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_STEP_DURATION_MS)) {
-        shutdownState = SHUTDOWN_BTONFN_OFF;
-        shutdownPhaseStartMillis = currentMillis;
-        log_shutdown_step("BTONFN=0b (0x1D4, HV supply off, MAIN RLY P(+))", currentMillis);
-      }
-      break;
-    case SHUTDOWN_BTONFN_OFF:
-      //"BTONFN=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY P(+) OFF)
-      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_STEP_DURATION_MS)) {
-        shutdownState = SHUTDOWN_RLYP_OFF;
-        shutdownPhaseStartMillis = currentMillis;
-        log_shutdown_step("RLYP=0b (0x1D4, main relay plus off, MAIN RLY N(-))", currentMillis);
-      }
-      break;
-    case SHUTDOWN_RLYP_OFF:
-      //"RLYP=0b" is being transmitted in 0x1D4 (spec: at the same time as MAIN RLY N(-) OFF)
-      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_STEP_DURATION_MS)) {
+    case SHUTDOWN_STOP_AND_RELAYS_OFF:
+      /* "CHG_STA_RQ=11b" is being transmitted in 0x1F2 and both relay-off signals in 0x1D4.
+         The spec places no wait between them, so they went out together; this dwell only
+         gives the battery a transmission of them before the ignition line drops. */
+      if (elapsed_since(currentMillis, shutdownPhaseStartMillis, SHUTDOWN_RELAYS_OFF_DURATION_MS)) {
         shutdownState = SHUTDOWN_GOTOSLEEP;
         shutdownPhaseStartMillis = currentMillis;
         /* NDS 293A0NDS25 5.1.2 step 3 stops the controller in the pack by turning the IGN
@@ -1383,10 +1366,8 @@ void NissanLeafBattery::update_shutdown_sequence(unsigned long currentMillis) {
            log too: the step line announces a step that has not transmitted anything yet. */
         bms_ignit_off();
         log_shutdown_step("VCM_WakeUpSleepCommand=00b (0x50B, GoToSleep)", currentMillis);
-        /* 0x50B is only transmitted every 100ms, so on a BMS that leaves the bus shortly
-           after the sequence starts, waiting for its next slot can mean the GoToSleep
-           command never goes out at all. Send one right away as well; the periodic copies
-           that follow carry the same value. */
+        /* Sent immediately rather than waiting for the next 100ms slot of 0x50B, so it follows
+           the ignition line going low with no gap. The periodic copies carry the same value. */
         LEAF_50B.data.u8[3] = 0x00;
         transmit_can_frame(&LEAF_50B);
       }

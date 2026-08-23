@@ -444,48 +444,36 @@ TEST(NissanLeafShutdownSequenceTests, ShouldFollowSpecifiedSequenceBeforePowerRe
   leaf.request_bms_shutdown_sequence();
   EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());
 
-  /* Steps run 30 ms apart, so each window below is sized to sit inside one step. 0x1D4 and
-     0x1F2 go out every 10 ms; 0x50B every 100 ms, so it is only checked once the sequence
-     has reached the step that changes it. */
+  /* The charge stop request and both relay-off signals are applied together, then held for
+     10 ms before the ignition drops and the sleep command follows. 0x1D4 and 0x1F2 go out
+     every 10 ms; 0x50B every 100 ms, so it is only checked once the sequence has reached the
+     step that changes it. */
 
-  // Step 1: charge stop request, relays still commanded on.
+  // Step 1: charge stop request and both relays off, in the same frame batch.
   clear_transmitted_frames();
-  run_leaf_ms(&leaf, 20, true);
+  run_leaf_ms(&leaf, 5, true);
   frame_1f2 = last_transmitted(0x1F2);
   frame_1d4 = last_transmitted(0x1D4);
   ASSERT_NE(frame_1f2, nullptr);
   ASSERT_NE(frame_1d4, nullptr);
   EXPECT_EQ(frame_1f2->data.u8[2] & 0x60, 0x60);  // CHG_STA_RQ=11b
   EXPECT_EQ(frame_1f2->data.u8[7] & 0x0F, expected_1f2_checksum(*frame_1f2));
-  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x04);
-  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);
-
-  // Step 2: BTONFN=0b, at the same time as MAIN RLY P(+) OFF.
-  clear_transmitted_frames();
-  run_leaf_ms(&leaf, 20, true);
-  frame_1d4 = last_transmitted(0x1D4);
-  ASSERT_NE(frame_1d4, nullptr);
-  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
-  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x40);  // RLYP not yet
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);  // BTONFN=0b
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x00);  // RLYP=0b, no wait between the two
   CAN_frame crc_check = *frame_1d4;
   EXPECT_EQ(frame_1d4->data.u8[7], leaf.calculate_crc(crc_check));
 
-  // Step 3: RLYP=0b, at the same time as MAIN RLY N(-) OFF.
-  clear_transmitted_frames();
-  run_leaf_ms(&leaf, 30, true);
-  frame_1d4 = last_transmitted(0x1D4);
-  ASSERT_NE(frame_1d4, nullptr);
-  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
-  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x00);
-  crc_check = *frame_1d4;
-  EXPECT_EQ(frame_1d4->data.u8[7], leaf.calculate_crc(crc_check));
-
-  // Step 4: GoToSleep, still transmitted while the LBC is on the bus.
+  // Step 2: GoToSleep, still transmitted while the LBC is on the bus.
   clear_transmitted_frames();
   run_leaf_ms(&leaf, 200, true);
   frame_50b = last_transmitted(0x50B);
   ASSERT_NE(frame_50b, nullptr);
   EXPECT_EQ(frame_50b->data.u8[3] & 0xC0, 0x00);
+  // The relay-off values are not undone by the sleep step.
+  frame_1d4 = last_transmitted(0x1D4);
+  ASSERT_NE(frame_1d4, nullptr);
+  EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);
+  EXPECT_EQ(frame_1d4->data.u8[5] & 0x40, 0x00);
   EXPECT_FALSE(leaf.bms_shutdown_sequence_completed());
 
   // Step 5: once the LBC has been quiet for more than a second, we stop too.
@@ -586,8 +574,8 @@ TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionLineWithTheSleepCommand)
   leaf.request_bms_shutdown_sequence();
   EXPECT_EQ(get_pin_level(GPIO_NUM_7), -1);  // ignition not touched yet
 
-  // Through the charge stop and both relay steps the ignition stays up.
-  run_leaf_ms(&leaf, 75, true);
+  // While the charge stop request and the relay-off signals are being sent, ignition stays up.
+  run_leaf_ms(&leaf, 5, true);
   const CAN_frame* frame_1d4 = last_transmitted(0x1D4);
   ASSERT_NE(frame_1d4, nullptr);
   EXPECT_EQ(frame_1d4->data.u8[4] & 0x04, 0x00);  // BTONFN=0b already sent
@@ -596,7 +584,7 @@ TEST(NissanLeafShutdownSequenceTests, ShouldDropIgnitionLineWithTheSleepCommand)
 
   // Reaching the sleep step drops it, and the sleep command goes out in the same step.
   clear_transmitted_frames();
-  run_leaf_ms(&leaf, 30, true);
+  run_leaf_ms(&leaf, 10, true);
   EXPECT_EQ(get_pin_level(GPIO_NUM_7), LOW);
   EXPECT_NE(get_pin_level(GPIO_NUM_6), LOW);  // BAT line still up
   const CAN_frame* frame_50b = last_transmitted(0x50B);
@@ -756,7 +744,7 @@ TEST(NissanLeafShutdownSequenceTests, ShouldNotCollapseStepsWhenTimestampsRunAhe
   /* Run the loop the way the firmware does: every transmitter gets the currentMillis
      sampled at the top of the iteration, while receives keep stamping live millis(). */
   const unsigned long start = millis();
-  long btonfn_cleared_at = -1;
+  long sleep_sent_at = -1;
   for (int i = 0; i < 300; i++) {
     set_millis64(millis() + 1);
     if (millis() % 10 == 0) {
@@ -764,15 +752,16 @@ TEST(NissanLeafShutdownSequenceTests, ShouldNotCollapseStepsWhenTimestampsRunAhe
     }
     clear_transmitted_frames();
     leaf.transmit_can(millis() - 2);
-    const CAN_frame* frame_1d4 = last_transmitted(0x1D4);
-    if (btonfn_cleared_at < 0 && frame_1d4 != nullptr && (frame_1d4->data.u8[4] & 0x04) == 0x00) {
-      btonfn_cleared_at = (long)(millis() - start);
+    const CAN_frame* frame_50b = last_transmitted(0x50B);
+    if (sleep_sent_at < 0 && frame_50b != nullptr && (frame_50b->data.u8[3] & 0xC0) == 0x00) {
+      sleep_sent_at = (long)(millis() - start);
     }
   }
 
-  // Step 2 must wait out the step dwell rather than firing on the first call.
-  ASSERT_GE(btonfn_cleared_at, 0);
-  EXPECT_GE(btonfn_cleared_at, 25);
+  /* The sleep step must wait out the dwell rather than firing on the first call. The relay-off
+     signals go out immediately now, so the sleep command is what marks the transition. */
+  ASSERT_GE(sleep_sent_at, 0);
+  EXPECT_GE(sleep_sent_at, 8);
 
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }

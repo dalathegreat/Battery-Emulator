@@ -100,19 +100,17 @@ class NissanLeafBattery : public CanBattery {
   // all later steps.
   enum ShutdownSequenceState {
     SHUTDOWN_INACTIVE = 0,         //Normal operation
-    SHUTDOWN_CHG_STOP,             //"CHG_STA_RQ=11b" transmitted in 0x1F2
-    SHUTDOWN_BTONFN_OFF,           //+ "BTONFN=0b" transmitted in 0x1D4
-    SHUTDOWN_RLYP_OFF,             //+ "RLYP=0b" transmitted in 0x1D4
-    SHUTDOWN_GOTOSLEEP,            //+ "VCM_WakeUpSleepCommand=00b" transmitted in 0x50B
+    SHUTDOWN_STOP_AND_RELAYS_OFF,  //"CHG_STA_RQ=11b" (0x1F2) plus "BTONFN=0b" and "RLYP=0b" (0x1D4)
+    SHUTDOWN_GOTOSLEEP,            //+ IGN line low, then "VCM_WakeUpSleepCommand=00b" in 0x50B
     SHUTDOWN_WAIT_BEFORE_BAT_OFF,  //CAN transmission stopped, waiting before power removal is OK
     SHUTDOWN_COMPLETED             //Sequence done, BMS power can be cut
   };
-  /* Time each signal change is held before moving to the next step. The spec mandates no
-     wait between these steps at all, and an LBC that acts on the charge stop request may
-     leave the bus within ~100ms of the sequence starting, so the whole CAN part has to fit
-     inside that window. 0x1F2 and 0x1D4 both go out every 10ms, so this is 3 transmissions
-     of each state — enough repetitions to be seen, short enough that all four steps land. */
-  static const unsigned long SHUTDOWN_STEP_DURATION_MS = 30;
+  /* The charge stop request and both relay-off signals are applied together, as the spec
+     places no wait between them, and are then held for this long before the ignition line
+     drops and the sleep command follows. 0x1F2 and 0x1D4 both go out every 10ms, so this is
+     one transmission of the new values; the same values keep being sent afterwards, since
+     the sleep step does not undo them. */
+  static const unsigned long SHUTDOWN_RELAYS_OFF_DURATION_MS = 10;
   //Spec: our CAN stop must happen more than 1s after the LBC stops its own CAN transmission
   static const unsigned long SHUTDOWN_BMS_CAN_SILENT_MS = 1100;
   //Safety net: proceed with the sequence even if the LBC never goes silent (e.g. LeafSpy on bus)
