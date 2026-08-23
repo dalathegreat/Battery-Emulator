@@ -242,8 +242,11 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x612:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x18DAF1DB:  // LBC Reply from active polling (Handled in handle_pid())
+    case 0x18DAF1DB:  // LBC Reply from active polling
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // Hand the reply to the UDS superclass: ISO-TP reassembly, then handle_pid()
+      // for PID scan responses and the DTC handlers for the rest.
+      handle_incoming_uds_can_frame(rx_frame);
       break;
     default:
       break;
