@@ -43,14 +43,13 @@ void StellantisProOneBattery::
   datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;  //TODO: locate
 
   //datalayer.battery.status.soh_pptt; //TODO: locate
-  //datalayer.battery.status.voltage_dV; //TODO: locate
 
   //datalayer.battery.status.remaining_capacity_Wh; //TODO: locate
   //datalayer.battery.status.max_discharge_power_W; //TODO: locate
   //datalayer.battery.status.max_charge_power_W; //TODO: locate
 
-  //datalayer.battery.status.cell_max_voltage_mV; //Read in PID reply
-  //datalayer.battery.status.cell_min_voltage_mV; //Read in PID reply
+  datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
+  datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
 
   if (temperaturesSampledOnce) {
     int8_t min_temp = celltemperatures[0];
@@ -113,9 +112,6 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
               "<h4>281_1: " << unknown_281_0 << "</h4>"
               "<h4>281_2: " << unknown_281_1 << "</h4>"
-              "<h4>220_1chg?: " << unknown_220_0 << "</h4>"
-              "<h4>220_2chg?: " << unknown_220_1 << "</h4>"
-              "<h4>220_3chg?: " << unknown_220_2 << "</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
@@ -173,17 +169,17 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x1D0:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x220:  //Allowed Charge/Discharge?
+    case 0x220:  //Cellvoltages avg/min/max
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      unknown_220_0 = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-      unknown_220_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      unknown_220_2 = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
+      cellvoltage_average_mV = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+      cellvoltage_max_mV = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+      cellvoltage_min_mV = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
       break;
     case 0x281:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       unknown_281_0 = rx_frame.data.u8[1];
       unknown_281_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      pack_voltage = (((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) / 8) * 10);
+      pack_voltage = (uint16_t)((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) * 1.25);
       break;
     case 0x285:  //Allowed Charge/Discharge?
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -275,8 +271,8 @@ uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const
     0E BA = 3770 — lowest cell voltage (mV)
     1E 1C = 7708 — possibly pack voltage × some scale?
     80 15 and 80 14 — unknown, possibly temperatures or current*/
-      datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(data[2] << 8) | data[3];
-      datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(data[4] << 8) | data[5];
+      polled_max_cellvoltage_mV = (uint16_t)(data[2] << 8) | data[3];
+      polled_min_cellvoltage_mV = (uint16_t)(data[4] << 8) | data[5];
       break;
     case PID_UNKNOWN_14:
       break;
