@@ -308,6 +308,11 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint16_t unknown_285_0 = 0;
   uint16_t unknown_285_1 = 0;
   uint16_t unknown_285_2 = 0;
+  uint16_t unknown_281_0 = 0;
+  uint16_t unknown_281_1 = 0;
+  uint16_t unknown_220_0 = 0;
+  uint16_t unknown_220_1 = 0;
+  uint16_t unknown_220_2 = 0;
 };
 
 #endif

@@ -99,18 +99,23 @@ String StellantisProOneBattery::get_uds_info_html() {
   // clang-format off
   content << "<h4>BMS HW version number: " << pid_hw_version_num << "</h4>"
               "<h4>SW Homologation Code: " << hexToAscii(pid_sw_homologation_code).c_str() << "</h4>"
-              "<h4>Unknown12: " << pid_unknown_12 << "</h4>"
-              "<h4>Unknown178: " << pid_unknown_178 << "</h4>"
-              "<h4>Unknown179: " << pid_unknown_179 << "</h4>"
-              "<h4>Unknown180: " << pid_unknown_180 << "</h4>"
-              "<h4>Unknown181: " << pid_unknown_181 << "</h4>"
-              "<h4>Unknown182: " << pid_unknown_182 << "</h4>"
+              "<h4>PID AA06: " << pid_unknown_12 << "</h4>"
+              "<h4>PID DA75: " << pid_unknown_178 << "</h4>"
+              "<h4>PID DA76: " << pid_unknown_179 << "</h4>"
+              "<h4>PID DA77: " << pid_unknown_180 << "</h4>"
+              "<h4>PID DA78: " << pid_unknown_181 << "</h4>"
+              "<h4>PID DA79: " << pid_unknown_182 << "</h4>"
               "<h4>306_1: " << unknown_306_0 << "</h4>"
               "<h4>306_2: " << unknown_306_1 << "</h4>"
               "<h4>306_3: " << unknown_306_2 << "</h4>"
               "<h4>285_1chg?: " << unknown_285_0 << "</h4>"
               "<h4>285_2chg?: " << unknown_285_1 << "</h4>"
               "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
+              "<h4>281_1: " << unknown_281_0 << "</h4>"
+              "<h4>281_2: " << unknown_281_1 << "</h4>"
+              "<h4>220_1chg?: " << unknown_220_0 << "</h4>"
+              "<h4>220_2chg?: " << unknown_220_1 << "</h4>"
+              "<h4>220_3chg?: " << unknown_220_2 << "</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
@@ -168,11 +173,16 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x1D0:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x220:
+    case 0x220:  //Allowed Charge/Discharge?
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      unknown_220_0 = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+      unknown_220_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+      unknown_220_2 = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
       break;
     case 0x281:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      unknown_281_0 = rx_frame.data.u8[1];
+      unknown_281_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
       pack_voltage = (((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) / 8) * 10);
       break;
     case 0x285:  //Allowed Charge/Discharge?
