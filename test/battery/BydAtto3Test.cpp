@@ -215,3 +215,50 @@ TEST(BydAtto3Tests, ShouldStopTrusting0x438OnceItDivergesFrom0x444) {
   EXPECT_EQ(datalayer.battery.status.voltage_dV, 4200);
   EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4200);
 }
+
+// The close request is edge-triggered on permission. Before the fix, a close that timed out
+// against a still-silent BMS (Battery-Emulator powered before the battery - the wiki's
+// documented startup-order restriction) consumed the only edge: the FSM fell back to standby
+// and no code path ever requested close again until the emulator was rebooted. The retry
+// fires only on 0x344 feedback NEWER than the give-up, so a dead bus cannot loop it.
+TEST(BydAtto3Tests, LateBmsGetsAnotherCloseAfterTheConfirmTimeoutGaveUp) {
+  reset_byd_state();
+  set_millis64(1000);
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  // Boot with the inverter not yet granting permission: held open.
+  datalayer.system.info.equipment_stop_active = false;
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+  datalayer.system.status.system_status = ACTIVE;
+  battery->transmit_can(millis());
+  battery->update_values();
+  ASSERT_EQ(datalayer_extended.bydAtto3.contactor_control_state, 7 /*CONTACTORS_BOOT_ESTOP*/);
+
+  // Permission arrives (the one edge); the battery is still powered off - no 0x344 ever.
+  datalayer.system.status.inverter_allows_contactor_closing = true;
+  set_millis64(2000);
+  battery->transmit_can(millis());
+  battery->update_values();
+  ASSERT_EQ(datalayer_extended.bydAtto3.contactor_control_state, 0 /*CONTACTORS_CLOSING*/);
+
+  // The confirm window expires against the silent BMS: fall back to standby.
+  set_millis64(2000 + 15001);
+  battery->transmit_can(millis());
+  battery->update_values();
+  ASSERT_EQ(datalayer_extended.bydAtto3.contactor_control_state, 4 /*CONTACTORS_STANDBY*/);
+
+  // The battery finally powers on and speaks: 0x344, contactors open (bit7 clear).
+  set_millis64(2000 + 20000);
+  battery->handle_incoming_can_frame(byd_frame(0x344, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->transmit_can(millis());
+  // The retry consumes the request on the NEXT tick (requests are processed at entry).
+  set_millis64(2000 + 20050);
+  battery->transmit_can(millis());
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.bydAtto3.contactor_control_state, 0 /*CONTACTORS_CLOSING*/)
+      << "a late BMS must get another close attempt without an emulator reboot";
+
+  set_millis64(0);
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+}
