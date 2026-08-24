@@ -244,6 +244,12 @@ void init_stored_settings() {
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+  // Battery 2 reuses battery 1's manual power settings: update_calculated_values() caps the
+  // combined system's max charge/discharge power to whichever battery reports less, so leaving
+  // these at their unset default of 0 would silently zero out the whole system for double-battery
+  // setups using the same "estimated power" integrations as above.
+  datalayer.battery2.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery2.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
