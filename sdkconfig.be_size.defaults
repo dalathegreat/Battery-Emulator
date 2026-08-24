@@ -85,11 +85,16 @@ CONFIG_FMB_MASTER_MAX_API_BLOCKING_TIME_MS=6000
 # >>> Caveat: same as above - if you ever run an on-device TLS server, revert.
 CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 
-# Remove assertion checks outright (not just the message strings). Larger flash
-# win than SILENT. Trade-off: a bug that would have cleanly asserted becomes
-# undefined behaviour instead. Switch back to _SILENT if you want the aborts.
-# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
-# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT is not set
+# Silent assertions: every check is KEPT and still aborts on failure - only the
+# per-assert message strings are dropped, which is where the flash mass is
+# (~85.6 % of the full-disable saving: lilygo_330 -55,664 B, esp32devkit_330
+# -55,432 B, vs -65,040/-64,704 for _DISABLE). A failed assert reports the
+# abort address instead of the string; it decodes against the build's ELF:
+#   xtensa-esp32-elf-addr2line -pfiaC -e firmware.elf <PC>
+# _DISABLE (checks compiled OUT, silent UB on broken invariants) stays
+# deliberately unset until the base is declared stable.
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE is not set
 
 # -----------------------------------------------------------------------------
 # TIER 3 - measure carefully, board-by-board. May interact with AsyncTCP / mDNS.
