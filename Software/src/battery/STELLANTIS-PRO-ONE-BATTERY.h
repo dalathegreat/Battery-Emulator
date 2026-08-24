@@ -5,6 +5,7 @@
 
 class StellantisProOneBattery : public UdsCanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }  //TODO: Remove once charge limits found
   StellantisProOneBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
     dtc = &datalayer_battery->dtc;
@@ -301,6 +302,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint8_t pid_unknown_180 = 0;
   uint8_t pid_unknown_181 = 0;
   uint8_t pid_unknown_182 = 0;
+  uint16_t unknown_306_1 = 0;
 };
 
 #endif

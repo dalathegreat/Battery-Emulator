@@ -36,8 +36,9 @@ void StellantisProOneBattery::
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.status.max_discharge_power_W = 3000;  //TODO: locate
-  datalayer.battery.status.max_charge_power_W = 3000;     //TODO: locate
+  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;  //TODO: locate
+
+  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;  //TODO: locate
 
   //datalayer.battery.status.soh_pptt; //TODO: locate
   //datalayer.battery.status.voltage_dV; //TODO: locate
@@ -114,6 +115,7 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>Unknown180: " << pid_unknown_180 << "</h4>"
               "<h4>Unknown181: " << pid_unknown_181 << "</h4>"
               "<h4>Unknown182: " << pid_unknown_182 << "</h4>"
+              "<h4>Unknown306_1: " << unknown_306_1 << "</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
@@ -174,6 +176,8 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
+      unknown_306_1 = (uint16_t)((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
       break;
     case 0x307:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -364,7 +368,7 @@ uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const
     case PID_CELLTEMPERATURES_ALL:  //Cell temperatures 1-30
       if (length >= 30) {
         for (int i = 0; i < 30; i++) {
-          celltemperatures[i] = (int8_t)(data[i] - 40);
+          celltemperatures[i] = (int8_t)(data[i] - 50);
         }
         temperaturesSampledOnce = true;
       }
