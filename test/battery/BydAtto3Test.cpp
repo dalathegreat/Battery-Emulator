@@ -262,3 +262,49 @@ TEST(BydAtto3Tests, LateBmsGetsAnotherCloseAfterTheConfirmTimeoutGaveUp) {
   set_millis64(0);
   datalayer.system.status.inverter_allows_contactor_closing = false;
 }
+
+// review R169: the retry's sharp refusal, pinned. Stale feedback (0x344 only
+// BEFORE the give-up) must not fire the retry - "strictly newer" is what keeps
+// a dead-since bus from looping the close forever. (The permission-withdrawn
+// disarm is NOT asserted here: the retry gate already requires permission, and
+// a re-grant is its own close-requesting edge, so the disarm line has no
+// behavior observable through the public API - it guards only the
+// double-flip-within-one-tick corner, which this API cannot construct.)
+TEST(BydAtto3Tests, StaleFeedbackFromBeforeTheGiveUpDoesNotRetry) {
+  reset_byd_state();
+  set_millis64(1000);
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  datalayer.system.info.equipment_stop_active = false;
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+  datalayer.system.status.system_status = ACTIVE;
+  battery->transmit_can(millis());
+  battery->update_values();
+
+  // The BMS speaks BEFORE the close attempt (stale feedback exists)...
+  battery->handle_incoming_can_frame(byd_frame(0x344, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+
+  // ...then permission arrives and the confirm window expires with no NEW frame.
+  datalayer.system.status.inverter_allows_contactor_closing = true;
+  set_millis64(2000);
+  battery->transmit_can(millis());
+  battery->update_values();
+  set_millis64(2000 + 15001);
+  battery->transmit_can(millis());
+  battery->update_values();
+  ASSERT_EQ(datalayer_extended.bydAtto3.contactor_control_state, 4 /*CONTACTORS_STANDBY*/);
+
+  // Dead bus from here on: ticks pass, the stale pre-give-up frame must not fire the retry.
+  set_millis64(2000 + 30000);
+  battery->transmit_can(millis());
+  battery->update_values();
+  set_millis64(2000 + 30050);
+  battery->transmit_can(millis());
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.bydAtto3.contactor_control_state, 4 /*CONTACTORS_STANDBY*/)
+      << "feedback OLDER than the give-up fired the retry - a dead bus can now loop the close";
+
+  set_millis64(0);
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+}
