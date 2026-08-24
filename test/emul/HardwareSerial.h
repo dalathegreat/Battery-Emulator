@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <cstddef>
+#include <string>
 #include "Print.h"
 #include "Stream.h"
 
@@ -50,12 +51,26 @@ class HardwareSerial : public Stream {
   void setRxBufferSize(uint16_t size) {}
   bool setRxFIFOFull(uint8_t fifoBytes) { return false; }
 
-  // Add the buffer write method
+  // A modelled TX buffer rather than a black hole. Callers that must not stall
+  // the core task (the CAN frame printer) check availableForWrite() and drop
+  // what does not fit; with a stub that always reported 0 free bytes, that
+  // whole branch was untestable and the drop accounting never ran.
   size_t write(const uint8_t* buffer, size_t size) override {
-    (void)buffer;
-    (void)size;
-    return 0;
+    if (size > tx_free) {
+      size = tx_free;
+    }
+    written.append(reinterpret_cast<const char*>(buffer), size);
+    tx_free -= size;
+    return size;
   }
+
+  int availableForWrite() { return static_cast<int>(tx_free); }
+
+  // Test knobs: what the port has accepted, and how much room it has left.
+  std::string written;
+  size_t tx_free = 1024;
+
+  void clear_written() { written.clear(); }
 };
 extern HardwareSerial Serial;
 extern HardwareSerial Serial1;

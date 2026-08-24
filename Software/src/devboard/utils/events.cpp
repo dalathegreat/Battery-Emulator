@@ -1,6 +1,8 @@
 #include "events.h"
 #include <Arduino.h>
 #include <string.h>  // memchr, for the notice_events lookup
+
+#include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/utils/logging.h"
@@ -17,7 +19,7 @@ static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRI
 static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)};
 
 // Timed "ignore CAN errors" window per interface. Uses the 64-bit clock so there is no wraparound.
-static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
+static uint64_t can_errors_ignore_until_ms[MAX_CAN_DEVICES] = {0};
 
 /* Local function prototypes */
 static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latched);
@@ -143,6 +145,12 @@ void init_events(void) {
   }
 
   events.entries[EVENT_CANMCP2518FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2518FD_2_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  // Error, not warning: the interface the user configured is not there, so
+  // whatever was on it (usually the battery) will not talk at all.
+  events.entries[EVENT_INTERFACE_NOT_AVAILABLE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CANMCP2518FD_3_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2518FD_4_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_NATIVE_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
@@ -389,11 +397,15 @@ void clear_event(EVENTS_ENUM_TYPE event) {
 }
 
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
-  // Suppress the buffer-full / bus-error events of a single CAN interface for a while.
-  if ((uint8_t)interface >= NO_CAN_INTERFACE) {
+  // Suppress the buffer-full / bus-error events of a single CAN controller for
+  // a while. Keyed by physical device, not by logical interface: interfaces
+  // that share a controller share its health events, so an interface-keyed
+  // window would either miss them or silence a sibling controller too.
+  const int device = can_device_index_for(interface);
+  if (device < 0 || device >= MAX_CAN_DEVICES) {
     return;
   }
-  can_errors_ignore_until_ms[interface] = millis64() + duration_ms;
+  can_errors_ignore_until_ms[device] = millis64() + duration_ms;
 }
 
 void reset_all_events() {
@@ -416,6 +428,14 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANMCP2518FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP2518FD_2_INIT_FAILURE:
+      return "Second CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP2518FD_3_INIT_FAILURE:
+      return "CAN-FD 3 initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP2518FD_4_INIT_FAILURE:
+      return "CAN-FD 4 initialization failed. Check hardware or bitrate settings";
+    case EVENT_INTERFACE_NOT_AVAILABLE:
+      return "Configured comm interface is not available on this board. Check the interface settings";
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CAN_NATIVE_BUFFER_FULL:
@@ -782,33 +802,43 @@ const char* get_emulator_status_string(EMULATOR_STATUS status) {
 
 /* Local functions */
 
-// True if 'event' is one of the two comm-error events belonging to 'interface'.
-static bool is_can_error_of_interface(EVENTS_ENUM_TYPE event, CAN_Interface interface) {
-  switch (interface) {
-    case CAN_NATIVE:
-      return event == EVENT_CAN_NATIVE_BUFFER_FULL || event == EVENT_CAN_NATIVE_BUS_ERROR;
-    case CANFD_NATIVE:  // routed through the MCP2518 path, shares the CANFD events
-    case CANFD_ADDON_MCP2518:
-      return event == EVENT_CANFD_BUFFER_FULL || event == EVENT_CANFD_BUS_ERROR;
-    case CAN_ADDON_MCP2515:
-      return event == EVENT_CANMCP2515_BUFFER_FULL || event == EVENT_CANMCP2515_BUS_ERROR;
-    case CANFD_ADDON_MCP2518_2:
-      return event == EVENT_CANFD_2_BUFFER_FULL || event == EVENT_CANFD_2_BUS_ERROR;
+/* The comm-error events whose payload is a bitmask of the devices concerned.
+   Init-failure events are not among them: their payload is the controller's
+   error code, so there is no room for a device there.
+
+   The device axis lives in `data` because that is the payload channel this
+   signature has. It is not a claim on the whole payload: #2799 is landing a
+   third argument for the per-PACK axis (`set_event(event, data, battery)`),
+   which is a different entity and arrives beside this rather than through it. */
+static bool is_can_health_event(EVENTS_ENUM_TYPE event) {
+  switch (event) {
+    case EVENT_CAN_NATIVE_BUFFER_FULL:
+    case EVENT_CAN_NATIVE_BUS_ERROR:
+    case EVENT_CANMCP2515_BUFFER_FULL:
+    case EVENT_CANMCP2515_BUS_ERROR:
+    case EVENT_CANFD_BUFFER_FULL:
+    case EVENT_CANFD_BUS_ERROR:
+    // The second FD chip's pair is no longer handed out by comm_can.cpp, but it
+    // is still a comm-error event with a device payload: anything that raises it
+    // must be filtered the same way, or the window silently stops applying.
+    case EVENT_CANFD_2_BUFFER_FULL:
+    case EVENT_CANFD_2_BUS_ERROR:
+      return true;
     default:
       return false;
   }
 }
 
-// Returns true while any interface has an open ignore window that 'event' belongs to.
-// Checked per interface so several windows can be active at once.
-static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
+// Drops the devices with an open ignore window from a health event's bitmask,
+// so a window over one controller cannot silence another that shares the event.
+static uint8_t can_devices_not_ignored(uint8_t devices) {
   uint64_t now = millis64();
-  for (uint8_t i = 0; i < NO_CAN_INTERFACE; i++) {
-    if (can_errors_ignore_until_ms[i] > now && is_can_error_of_interface(event, (CAN_Interface)i)) {
-      return true;
+  for (uint8_t i = 0; i < MAX_CAN_DEVICES; i++) {
+    if (can_errors_ignore_until_ms[i] > now) {
+      devices &= static_cast<uint8_t>(~(1 << i));
     }
   }
-  return false;
+  return devices;
 }
 
 static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latched) {
@@ -817,9 +847,15 @@ static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latche
     event = EVENT_UNKNOWN_EVENT_SET;
   }
 
-  // Drop transient CAN comm errors on the specified interface
-  if (can_error_ignored(event)) {
-    return;
+  // Drop transient CAN comm errors on controllers inside an ignore window, and
+  // the event itself once no device it names is left to report. Filtering here
+  // rather than at the raise sites is what makes it unbypassable: a new site
+  // cannot forget to ask.
+  if (is_can_health_event(event)) {
+    data = can_devices_not_ignored(data);
+    if (data == 0) {
+      return;
+    }
   }
 
   // Store the payload before the logging below, so the log and syslog lines carry this
