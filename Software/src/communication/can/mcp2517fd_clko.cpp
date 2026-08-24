@@ -16,8 +16,11 @@ void mcp2517fd_program_clko(SPIClass& spi, uint8_t cs_pin, int clkodiv) {
   pinMode(cs_pin, OUTPUT);
   digitalWrite(cs_pin, HIGH);
 
-  // 800 kHz keeps the transaction legal while the chip still runs on the
-  // divided-by-10 power-up clock (the SPI limit is just under SYSCLK/2).
+  // Deliberately slow: a one-off two-command transaction has no throughput
+  // needs, and 800 kHz is legal in every state this bus can be in. (Note:
+  // CLKODIV divides only the CLKO OUTPUT - chip 1 itself runs from its own
+  // crystal, so the divided-clock SPI limit belongs to chip 2, which this
+  // transaction never addresses.)
   spi.beginTransaction(SPISettings(800000, MSBFIRST, SPI_MODE0));
 
   digitalWrite(cs_pin, LOW);

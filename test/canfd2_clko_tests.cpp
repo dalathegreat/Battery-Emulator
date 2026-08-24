@@ -40,10 +40,13 @@ TEST(CanFd2Clko, DividerLandsInBits5and6) {
   EXPECT_EQ(spi.transferred[4], 0b10 << 5);
 }
 
-TEST(CanFd2Clko, StaysUnderThePowerUpSpiLimit) {
-  // Until the divider is programmed the chip runs on a 4 MHz SYSCLK, capping
-  // SPI at just under SYSCLK/2 - the whole transaction must respect that.
+TEST(CanFd2Clko, KeepsTheDeliberatelyConservativeSpiSpeed) {
+  // The transaction runs at a deliberately conservative 800 kHz - it has no
+  // throughput needs and that speed is legal in every state the bus can be
+  // in. (CLKODIV divides only the CLKO OUTPUT: chip 1 runs from its own
+  // crystal, so no divided-clock SPI limit applies to this transaction -
+  // the speed is a choice, and this pins the choice.)
   SPIClass spi;
   mcp2517fd_program_clko(spi, 14, 0b00);
-  EXPECT_LE(spi.transaction_clock, 2000000u - 1);
+  EXPECT_LE(spi.transaction_clock, 800000u);
 }
