@@ -290,10 +290,10 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_223 = 0xF804;
   static const uint16_t PID_UNKNOWN_224 = 0xF806;
 
+  uint16_t pack_voltage = 3700;
   int16_t battery_current = 0;
   int8_t celltemperatures[30] = {0};
   bool temperaturesSampledOnce = false;
-  bool cellvoltagesSampledOnce = false;  //TODO: Remove once pack voltage is found, crude sum method
   uint8_t pid_hw_version_num = 0;
   uint64_t pid_sw_homologation_code = 0;
   uint16_t pid_unknown_12 = 0;
@@ -302,7 +302,12 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint8_t pid_unknown_180 = 0;
   uint8_t pid_unknown_181 = 0;
   uint8_t pid_unknown_182 = 0;
+  uint16_t unknown_306_0 = 0;
   uint16_t unknown_306_1 = 0;
+  uint16_t unknown_306_2 = 0;
+  uint16_t unknown_285_0 = 0;
+  uint16_t unknown_285_1 = 0;
+  uint16_t unknown_285_2 = 0;
 };
 
 #endif
