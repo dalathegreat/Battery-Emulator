@@ -67,10 +67,10 @@ uint16_t Kia64FDBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
 }
 
-void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
-  for (size_t i = 0; i < length; i++) {
+void Kia64FDBattery::write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
+  for (int i = 0; i < length; i++) {
     if ((rx_frame.data.u8[start + i] * 20) > 1000) {
-      datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
+      datalayer_battery->status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
     }
   }
 }
@@ -87,42 +87,46 @@ void Kia64FDBattery::update_values() {
 
 #ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
   // Use the simplified pack-based SOC estimation with proper compensation
-  datalayer.battery.status.real_soc = estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
+  datalayer_battery->status.real_soc =
+      estimateSOC(batteryVoltage, datalayer_battery->info.number_of_cells, batteryAmps);
 
   // For comparison or fallback, we can still calculate from min/max cell voltages
   SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
   SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
+  datalayer_battery_extended->SOC_estimated_lowest = SOC_estimated_lowest;
+  datalayer_battery_extended->SOC_estimated_highest = SOC_estimated_highest;
 #else
-  datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer_battery->status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 #endif
 
-  datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
+  datalayer_battery->status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
-  datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
+  datalayer_battery->status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  datalayer.battery.status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0)
+  datalayer_battery->status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0)
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+  //datalayer_battery->status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
+  //datalayer_battery->status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
 
   //The allowed charge power is not available. We use user set value for now
   // Gets ramped down by inverter function on the webserver
-  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
+  // The override values are only populated from NVM on the primary datalayer, so always read them from there.
+  datalayer_battery->status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
   //The allowed discharge power is not available. We use user set value for now
   // Gets ramped down by inverter function on the webserver
-  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
+  datalayer_battery->status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
-  datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
+  datalayer_battery->status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
-  datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
+  datalayer_battery->status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
+  datalayer_battery->status.cell_max_voltage_mV = CellVoltMax_mV;
 
-  datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+  datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
 
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
@@ -133,55 +137,55 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x150:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x1F5:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x215:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x21A:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x235:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x245:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x25A:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x275:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x2FA:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x325:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x330:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x335:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x360:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x365:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3BA:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3F5:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:
       // print_canfd_frame(frame);
@@ -198,6 +202,9 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
             allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
             SOC_BMS = rx_frame.data.u8[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
+            datalayer_battery_extended->allowedChargePower = allowedChargePower;
+            datalayer_battery_extended->allowedDischargePower = allowedDischargePower;
+            datalayer_battery_extended->SOC_BMS = SOC_BMS;
 
           } else if (poll_data_pid == 2) {
             // set cell voltages data, start bite, data length from start, start cell
@@ -235,11 +242,13 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             write_cell_voltages(rx_frame, 1, 7, 166);
           } else if (poll_data_pid == 6) {
             batteryManagementMode = rx_frame.data.u8[5];
+            datalayer_battery_extended->batteryManagementMode = batteryManagementMode;
           }
           break;
         case 0x23:  //Third datarow in PID group
           if (poll_data_pid == 1) {
             temperature_water_inlet = rx_frame.data.u8[6];
+            datalayer_battery_extended->temperature_water_inlet = temperature_water_inlet;
             CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
             // temp2 = rx_frame.data.u8[1];
             // temp3 = rx_frame.data.u8[2];
@@ -262,6 +271,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
             // airbag = rx_frame.data.u8[6];
             heatertemp = rx_frame.data.u8[7];
+            datalayer_battery_extended->heatertemp = heatertemp;
           }
           break;
         case 0x24:  //Fourth datarow in PID group
@@ -272,6 +282,9 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             // fanMod = rx_frame.data.u8[4];
             // fanSpeed = rx_frame.data.u8[5];
             leadAcidBatteryVoltage = rx_frame.data.u8[6];  //12v Battery Volts
+            datalayer_battery_extended->CellVmaxNo = CellVmaxNo;
+            datalayer_battery_extended->CellVminNo = CellVminNo;
+            datalayer_battery_extended->leadAcidBatteryVoltage = leadAcidBatteryVoltage;
             //cumulative_charge_current[0] = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
             write_cell_voltages(rx_frame, 1, 7, 20);
@@ -287,6 +300,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             write_cell_voltages(rx_frame, 1, 7, 180);
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
+            datalayer_battery_extended->batterySOH = batterySOH;
             // maxDetCell = rx_frame.data.u8[4];
             // minDet = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6];
             // minDetCell = rx_frame.data.u8[7];
@@ -317,8 +331,9 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             write_cell_voltages(rx_frame, 1, 5, 187);
             //set_cell_count();
           } else if (poll_data_pid == 5) {
-            // datalayer.battery.info.number_of_cells = 98;
+            // datalayer_battery->info.number_of_cells = 98;
             SOC_Display = rx_frame.data.u8[1] * 5;
+            datalayer_battery_extended->SOC_Display = SOC_Display;
           }
           break;
         case 0x26:  //Sixth datarow in PID group
@@ -343,6 +358,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             //opTimeBytes[3] = rx_frame.data.u8[5];
 
             BMS_ign = rx_frame.data.u8[6];
+            datalayer_battery_extended->BMS_ign = BMS_ign;
             inverterVoltageFrameHigh = rx_frame.data.u8[7];  // BMS Capacitoir
 
             // set_cumulative_energy_discharged();
@@ -352,6 +368,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x28:  //Eighth datarow in PID group
           if (poll_data_pid == 1) {
             inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
+            datalayer_battery_extended->inverterVoltage = inverterVoltage;
           }
           break;
       }
@@ -415,11 +432,16 @@ void Kia64FDBattery::transmit_can(unsigned long currentMillis) {
 void Kia64FDBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.number_of_cells = 96;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+
+  // Main battery only. Battery 2's flag is driven by parallel_safety.cpp once
+  // the packs are voltage matched, so the pointer is null there.
+  if (allows_contactor_closing) {
+    *allows_contactor_closing = true;
+  }
 }
