@@ -1,10 +1,11 @@
-#ifndef _WEBSERVER_SETTINGS_HANDLERS_H_
-#define _WEBSERVER_SETTINGS_HANDLERS_H_
+#pragma once
 
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "settings_types.h"
 #include "webserver_settings.h"
 
+#include <array>
 #include <cmath>
 #include <cstdlib>
 
@@ -342,6 +343,9 @@ inline void process_setting(const VolatileUint& s, const JsonDocument& doc, Json
   }
 }
 
+// Volatile settings are never persisted. Stored-mode VolatileBools (non-null
+// storage) write/read the live variable directly; hook-mode entries use apply().
+
 inline void process_setting(const VolatileBool& s, const JsonDocument& doc, JsonDocument& errors,
                             BatteryEmulatorSettingsStore& settings, bool save, bool&) {
   if (!doc[s.name].is<const char*>()) {
@@ -350,7 +354,11 @@ inline void process_setting(const VolatileBool& s, const JsonDocument& doc, Json
   const char* str = doc[s.name].as<const char*>();
   bool bval = (strcmp(str, "true") == 0 || strcmp(str, "1") == 0);
   if (save) {
-    s.apply(bval);
+    if (s.storage != nullptr) {
+      *s.storage = bval;
+    } else {
+      s.apply(bval);
+    }
   }
 }
 
@@ -424,7 +432,7 @@ inline void emit_setting(const VolatileUint& s, JsonObject& sets, BatteryEmulato
   sets[s.name] = (s.width == 0) ? s.read() : readSettingValue(s.storage, s.width);
 }
 inline void emit_setting(const VolatileBool& s, JsonObject& sets, BatteryEmulatorSettingsStore&) {
-  sets[s.name] = s.read();
+  sets[s.name] = (s.storage != nullptr) ? *s.storage : s.read();
 }
 inline void emit_setting(const VolatileFloat& s, JsonObject& sets, BatteryEmulatorSettingsStore&) {
   float value = s.read();
@@ -441,39 +449,37 @@ inline void emit_setting(const VolatileScaled& s, JsonObject& sets, BatteryEmula
 
 // ---------------------------------------------------------------------------
 // Generic walkers: apply the correct overload above to every element of a
-// settings table. `N` is deduced from the array declaration, so a table's
-// element count can never drift from the loops that consume it.
+// settings table. `N` is deduced from the std::array, so a table's element
+// count can never drift from the loops that consume it.
 // ---------------------------------------------------------------------------
 
 template <typename T, size_t N>
-void load_all_settings(const T (&arr)[N], BatteryEmulatorSettingsStore& settings) {
-  for (size_t i = 0; i < N; i++) {
-    load_setting(arr[i], settings);
+void load_all_settings(const std::array<T, N>& arr, BatteryEmulatorSettingsStore& settings) {
+  for (const auto& s : arr) {
+    load_setting(s, settings);
   }
 }
 
 template <typename T, size_t N>
-void store_all_settings(const T (&arr)[N], BatteryEmulatorSettingsStore& settings) {
-  for (size_t i = 0; i < N; i++) {
-    store_setting(arr[i], settings);
+void store_all_settings(const std::array<T, N>& arr, BatteryEmulatorSettingsStore& settings) {
+  for (const auto& s : arr) {
+    store_setting(s, settings);
   }
 }
 
 template <typename T, size_t N>
-void process_all_settings(const T (&arr)[N], const JsonDocument& doc, JsonDocument& errors,
+void process_all_settings(const std::array<T, N>& arr, const JsonDocument& doc, JsonDocument& errors,
                           BatteryEmulatorSettingsStore& settings, bool save, bool& reboot_required) {
-  for (size_t i = 0; i < N; i++) {
-    process_setting(arr[i], doc, errors, settings, save, reboot_required);
+  for (const auto& s : arr) {
+    process_setting(s, doc, errors, settings, save, reboot_required);
   }
 }
 
 template <typename T, size_t N>
-void emit_all_settings(const T (&arr)[N], JsonObject& sets, BatteryEmulatorSettingsStore& settings) {
-  for (size_t i = 0; i < N; i++) {
-    emit_setting(arr[i], sets, settings);
+void emit_all_settings(const std::array<T, N>& arr, JsonObject& sets, BatteryEmulatorSettingsStore& settings) {
+  for (const auto& s : arr) {
+    emit_setting(s, sets, settings);
   }
 }
 
 }  // namespace
-
-#endif  // _WEBSERVER_SETTINGS_HANDLERS_H_
