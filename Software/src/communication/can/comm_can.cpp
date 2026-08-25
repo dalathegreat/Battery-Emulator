@@ -284,6 +284,55 @@ class Mcp2518Device;
 // trampolines.
 static Mcp2518Device* fd_instances[MAX_CAN_FD_DEVICES] = {};  // value-initialized: all null
 
+// The ISR top-half must stay executable while the flash cache is disabled (NVS
+// commit, OTA write): with CONFIG_ARDUINO_ISR_IRAM=y the GPIO dispatcher keeps
+// running through those windows and jumps straight here. So the whole path -
+// this table, the trampolines below, and the FreeRTOS give they call - must
+// avoid flash. The semaphore handles are cached in THIS array rather than
+// reached through fd_instances[i]->can_->mISRSemaphore, because that walk is
+// member-function code the linker is free to leave in flash; a plain static
+// array lives in DRAM and is always readable. Filled by begin(), cleared when a
+// controller is torn down.
+static volatile SemaphoreHandle_t fd_isr_semaphore[MAX_CAN_FD_DEVICES] = {};
+
+// Per-channel INT counters, so the bench can tell "INT serviced during the
+// flash window" from "INT masked until the window ended" (the wq185 oracle).
+static volatile uint32_t fd_isr_marks[MAX_CAN_FD_DEVICES] = {};
+
+// One named trampoline per instance. Named statics rather than the captureless
+// lambdas this table used to hold: a lambda's operator() does NOT inherit
+// IRAM_ATTR (the point #2652 makes, citing pierremolinaro/acan2517FD#66), so
+// the lambdas landed in flash and took the flash-resident ACAN2517FD::isr()
+// with them. Giving the driver's semaphore directly keeps the SPI drain in the
+// library's own task, unchanged, and needs no vendored-library edit.
+static void IRAM_ATTR fd_isr_give(uint8_t index) {
+  SemaphoreHandle_t sem = fd_isr_semaphore[index];
+  if (sem == nullptr) {
+    return;  // INT before begin() finished, or after teardown
+  }
+  fd_isr_marks[index] = fd_isr_marks[index] + 1;
+  BaseType_t higher_priority_task_woken = pdFALSE;
+  xSemaphoreGiveFromISR(sem, &higher_priority_task_woken);
+  portYIELD_FROM_ISR(higher_priority_task_woken);
+}
+
+static void IRAM_ATTR fd_isr_top_half_0() {
+  fd_isr_give(0);
+}
+static void IRAM_ATTR fd_isr_top_half_1() {
+  fd_isr_give(1);
+}
+static void IRAM_ATTR fd_isr_top_half_2() {
+  fd_isr_give(2);
+}
+static void IRAM_ATTR fd_isr_top_half_3() {
+  fd_isr_give(3);
+}
+
+uint32_t get_fd_isr_marks(uint8_t index) {
+  return index < MAX_CAN_FD_DEVICES ? fd_isr_marks[index] : 0;
+}
+
 // How many FD controllers this file's board-setup path actually builds. Raise it
 // with the construction blocks, not with MAX_CAN_FD_DEVICES.
 static constexpr uint8_t kConstructedFdDevices = 2;
@@ -442,19 +491,19 @@ class Mcp2518Device : public CanDevice {
 
   void restart() override { begin(); }
 
-  void run_isr() { can_->isr(); }
-
-  // One captureless trampoline per instance: ACAN2517FD::begin takes a plain
-  // void(*)(), so these are per-index code, not data. A table rather than a
-  // chain of ternaries, so a new channel is one line.
+  // One trampoline per instance: ACAN2517FD::begin takes a plain void(*)(), so
+  // these are per-index code, not data. A table rather than a chain of
+  // ternaries, so a new channel is one line. They are NAMED IRAM_ATTR functions
+  // rather than captureless lambdas - see fd_isr_top_half_* above for why that
+  // distinction is load-bearing rather than stylistic.
   using IsrTrampoline = void (*)();
   IsrTrampoline fd_trampoline() const {
     static_assert(MAX_CAN_FD_DEVICES == 4, "add the new FD instance's ISR trampoline");
     static const IsrTrampoline trampoline[MAX_CAN_FD_DEVICES] = {
-        +[] { fd_instances[0]->run_isr(); },
-        +[] { fd_instances[1]->run_isr(); },
-        +[] { fd_instances[2]->run_isr(); },
-        +[] { fd_instances[3]->run_isr(); },
+        fd_isr_top_half_0,
+        fd_isr_top_half_1,
+        fd_isr_top_half_2,
+        fd_isr_top_half_3,
     };
     return trampoline[cfg_.index];
   }
@@ -464,9 +513,13 @@ class Mcp2518Device : public CanDevice {
   // device marks itself dead (can_ nulled, initialized false) so the receive
   // and transmit paths skip it, matching the previous nulled-pointer state.
   bool begin() {
+    // Publish the handle the IRAM top-half gives BEFORE begin() attaches the
+    // interrupt, so an INT arriving immediately finds it.
+    fd_isr_semaphore[cfg_.index] = can_->mISRSemaphore;
     const uint32_t errorCode = can_->begin(*settings_, fd_trampoline());
     can_->poll();
     if (errorCode != 0) {
+      fd_isr_semaphore[cfg_.index] = nullptr;
       logging.printf(CONFIG_ERROR_FORMAT, channel_number());
       logging.println(errorCode, HEX);
       set_event(init_fail_event_, (uint8_t)errorCode);
