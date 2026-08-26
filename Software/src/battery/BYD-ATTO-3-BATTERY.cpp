@@ -762,9 +762,21 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
     previousContactorsAllowedClosed = contactorsAllowedClosed;
     if (!contactorsAllowedClosed) {
       requestContactorOpen = true;
+      closeRetryArmed = false;  // Permission withdrawn - the abandoned close must not resurrect
     } else {
       requestContactorClose = true;
     }
+  }
+
+  // The close request is edge-triggered on permission, so a close that timed out against a
+  // still-silent BMS (emulator powered before the battery) used to consume the only edge:
+  // the FSM fell back to standby and nothing ever asked again until a reboot. Retry when the
+  // BMS has SPOKEN since the give-up - only feedback newer than the fallback counts, so a
+  // dead bus cannot loop this, and each failed retry re-arms against strictly newer feedback.
+  if (closeRetryArmed && contactorState == CONTACTORS_STANDBY && contactorsAllowedClosed &&
+      (int32_t)(lastContactorFeedbackMillis - closeRetryArmedMillis) >= 0 && lastContactorFeedbackMillis != 0) {
+    closeRetryArmed = false;
+    requestContactorClose = true;
   }
 
   if (requestContactorOpen) {
@@ -906,6 +918,10 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       set_12D_payload(0x50, 0x14, 0x02, 0x10, 0x04, 0x31);  // Standby pattern
       contactorState = CONTACTORS_STANDBY;
       closeConfirmPending = false;
+      // A BMS that was simply not powered yet gets another close when it appears (see the
+      // retry above); permission is still granted or we would be on the open path instead.
+      closeRetryArmed = true;
+      closeRetryArmedMillis = currentMillis;
     }
   }
 }
