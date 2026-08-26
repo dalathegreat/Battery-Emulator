@@ -118,6 +118,7 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
               "<h4>281_1: " << unknown_281_0 << "</h4>"
               "<h4>281_2: " << unknown_281_1 << "</h4>"
+              "<h4>Contactor state: " << contactor_status << " (0off,1pre,2on)</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
