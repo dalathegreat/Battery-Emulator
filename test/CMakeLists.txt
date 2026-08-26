@@ -155,6 +155,7 @@ add_executable(tests
     ../Software/src/battery/RENAULT-ZOE-GEN2-BATTERY.cpp
     ../Software/src/battery/RIVIAN-BATTERY.cpp
     ../Software/src/battery/RJXZS-BMS.cpp
+    ../Software/src/battery/utils/cell_soc_estimator.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
     ../Software/src/shunt/Shunts.cpp

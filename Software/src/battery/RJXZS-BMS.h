@@ -3,6 +3,7 @@
 
 #include "../system_settings.h"
 #include "CanBattery.h"
+#include "utils/cell_soc_estimator.h"
 
 class RjxzsBms : public CanBattery {
  public:
@@ -16,6 +17,8 @@ class RjxzsBms : public CanBattery {
   static constexpr const char* Name = "RJXZS BMS, DIY battery";
 
  private:
+  uint16_t estimateSOC();
+
   static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
 
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was sent

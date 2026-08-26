@@ -10,26 +10,7 @@
 
 // Function to estimate SOC based on cell voltage
 uint16_t KiaEGmpBattery::estimateSOCFromCell(uint16_t cellVoltage) {
-  if (cellVoltage >= voltage[0]) {
-    return SOC[0];
-  }
-  if (cellVoltage <= voltage[numPoints - 1]) {
-    return SOC[numPoints - 1];
-  }
-
-  for (int i = 1; i < numPoints; ++i) {
-    if (cellVoltage >= voltage[i]) {
-      // Cast to float for proper division
-      float t = (float)(cellVoltage - voltage[i]) / (float)(voltage[i - 1] - voltage[i]);
-
-      // Calculate interpolated SOC value
-      uint16_t socDiff = SOC[i - 1] - SOC[i];
-      uint16_t interpolatedValue = SOC[i] + (uint16_t)(t * socDiff);
-
-      return interpolatedValue;
-    }
-  }
-  return 0;  // Default return for safety, should never reach here
+  return soc_from_cell_voltage(cellVoltage, battery_chemistry_enum::NMC);
 }
 
 // Simplified version of the pack-based SOC estimation with compensation

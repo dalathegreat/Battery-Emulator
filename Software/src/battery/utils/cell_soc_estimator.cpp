@@ -88,3 +88,42 @@ uint16_t soc_from_min_max_cell_voltage(uint16_t min_cell_voltage_mV, uint16_t ma
   }
   return soc_from_min;  // Lower half of range, trust the lowest cell (avoid over-discharging it)
 }
+
+uint16_t cell_voltage_table_max_mV(battery_chemistry_enum chemistry) {
+  switch (chemistry) {
+    case battery_chemistry_enum::LFP:
+      return lfpVoltageLookup[0];
+    case battery_chemistry_enum::NCA:
+    case battery_chemistry_enum::NMC:
+    case battery_chemistry_enum::ZEBRA:
+    case battery_chemistry_enum::Autodetect:
+    default:
+      return nmcVoltageLookup[0];
+  }
+}
+
+uint16_t cell_voltage_table_min_mV(battery_chemistry_enum chemistry) {
+  switch (chemistry) {
+    case battery_chemistry_enum::LFP:
+      return lfpVoltageLookup[numPoints - 1];
+    case battery_chemistry_enum::NCA:
+    case battery_chemistry_enum::NMC:
+    case battery_chemistry_enum::ZEBRA:
+    case battery_chemistry_enum::Autodetect:
+    default:
+      return nmcVoltageLookup[numPoints - 1];
+  }
+}
+
+bool cell_voltage_range_matches_chemistry(uint16_t min_cell_voltage_mV, uint16_t max_cell_voltage_mV,
+                                          battery_chemistry_enum chemistry) {
+  // Real protection setpoints are often configured a bit past the curve's 0%/100% points
+  // (e.g. an LFP pack protecting at 3.65V even though the curve tops out at 3.60V), so this
+  // margin absorbs that without flagging correctly-configured packs.
+  const uint16_t kMarginMv = 200;
+
+  uint16_t table_max = cell_voltage_table_max_mV(chemistry);
+  uint16_t table_min = cell_voltage_table_min_mV(chemistry);
+
+  return max_cell_voltage_mV <= table_max + kMarginMv && min_cell_voltage_mV >= table_min - kMarginMv;
+}
