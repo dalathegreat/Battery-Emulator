@@ -1,15 +1,19 @@
 #include "BYD-MODBUS.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
+#include "../devboard/safety/safety.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 #include "../inverter/INVERTERS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
 void BydModbusInverter::update_values() {
   verify_temperature();
+  handle_inverter_control_data();
   verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
@@ -166,11 +170,13 @@ void BydModbusInverter::verify_temperature() {
 }
 
 void BydModbusInverter::verify_inverter_modbus() {
-  // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
-  // We sample the register every 60 seconds. Incase the value has not changed for 5 minutes, we raise an event
+  // Once per watchdog period, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
+  // We sample the register at the same period. In case the value has not changed for HISTORY_LENGTH
+  // periods, we raise an event. The period defaults to 60s and follows register 402 from the moment
+  // the inverter declares a different one.
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+  if (currentMillis - previousMillis60s >= (inverter_modbus_watchdog_timeout_s * 1000UL)) {
     previousMillis60s = currentMillis;
 
     all_401_values_equal = true;
@@ -190,6 +196,61 @@ void BydModbusInverter::verify_inverter_modbus() {
     // Update history
     register_401_history[history_index] = mbPV[401];
     history_index = (history_index + 1) % HISTORY_LENGTH;
+  }
+}
+
+void BydModbusInverter::handle_inverter_control_data() {
+  // WatchDogTimeout (402). The inverter declares the period it kicks register 401 with. Follow it, so
+  // inverter-missing detection tracks the inverter instead of a hardcoded assumption. Only flagged
+  // when it actually changes, so a boot with the value we already hold never writes NVM. The write
+  // itself belongs to the core loop, keeping this driver free of any storage dependency.
+  const uint32_t declared_timeout_s = mbPV[402];
+  if (declared_timeout_s >= WATCHDOG_TIMEOUT_MIN_S && declared_timeout_s <= WATCHDOG_TIMEOUT_MAX_S &&
+      declared_timeout_s != inverter_modbus_watchdog_timeout_s) {
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Inverter changed the WatchDog Timeout from %u s to %u s\n", inverter_modbus_watchdog_timeout_s,
+                   declared_timeout_s);
+    inverter_modbus_watchdog_timeout_s = declared_timeout_s;
+    inverter_modbus_watchdog_changed = true;
+  }
+
+  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. Kept for display only.
+  const uint64_t inverter_utc =
+      ((uint64_t)mbPV[403] << 48) | ((uint64_t)mbPV[404] << 32) | ((uint64_t)mbPV[405] << 16) | (uint64_t)mbPV[406];
+  if (inverter_utc > 0) {
+    inverter_modbus_utc_epoch_s = inverter_utc;
+  }
+
+  // RebootCommand (407). The inverter writes 0 here as part of every ControlData block write, so only
+  // a change to a non-zero value is a command.
+  const uint16_t reboot_command = mbPV[407];
+  if (reboot_command != last_register_407) {
+    last_register_407 = reboot_command;
+    if (reboot_command != 0) {
+      if (user_selected_accept_inverter_reboot) {
+        LOG_SET_NEXT_SEVERITY(5);  // notice
+        logging.println("The emulator is restarting as requested by the inverter");
+        hold_pins_across_reset();
+        graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
+      } else {
+        // Raised as an event rather than only logged: declining leaves the inverter believing it
+        // asked for something that never happened, which the user should see on the status page
+        // without having to have logging switched on at the time.
+        set_event(EVENT_INVERTER_REBOOT_DECLINED, reboot_command);
+      }
+    }
+  }
+
+  // DarkstartEnable (408). Nothing acts on it yet, but the inverter announcing that it expects the
+  // battery to be able to black start the system is worth having in the log. Only changes are
+  // logged; a value of 0 here is a real setting rather than an absent command, so an inverter that
+  // writes 0 from the start is indistinguishable from one that never writes the register at all.
+  // BYD Battery-Box Premium HVS&HVM have a button, for black start it needs to be pressed for 3 seconds
+  const uint16_t darkstart_enable = mbPV[408];
+  if (darkstart_enable != last_register_408) {
+    last_register_408 = darkstart_enable;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Inverter set DarkstartEnable to %u\n", darkstart_enable);
   }
 }
 
