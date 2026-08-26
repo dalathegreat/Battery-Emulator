@@ -25,6 +25,10 @@ class StellantisProOneBattery : public UdsCanBattery {
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
+  static const uint8_t CONTACTORS_OFF = 0;
+  static const uint8_t CONTACTORS_PRECHARGE = 1;
+  static const uint8_t CONTACTORS_ON = 2;
+
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 250;
@@ -52,6 +56,12 @@ class StellantisProOneBattery : public UdsCanBattery {
                        .DLC = 8,
                        .ID = 0x1D8,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Sending 3D2 removes P056200 (Contains 12V measurement from car)
+  CAN_frame ONE_3D2 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D2,
+                       .data = {0x7C, 0x00, 0x03, 0xE3, 0x82, 0x00, 0x00, 0x00}};
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -290,6 +300,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_223 = 0xF804;
   static const uint16_t PID_UNKNOWN_224 = 0xF806;
 
+  uint8_t contactor_status = 0;
   uint16_t pack_voltage = 3700;
   int16_t battery_current = 0;
   int8_t celltemperatures[30] = {0};

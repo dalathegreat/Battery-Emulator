@@ -38,9 +38,15 @@ void StellantisProOneBattery::
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;  //TODO: locate
+  if (contactor_status == CONTACTORS_OFF) {
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
+  } else {
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;  //TODO: locate
 
-  datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;  //TODO: locate
+    datalayer.battery.status.max_discharge_power_W =
+        datalayer.battery.status.override_discharge_power_W;  //TODO: locate
+  }
 
   //datalayer.battery.status.soh_pptt; //TODO: locate
 
@@ -161,6 +167,11 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       expectedCRC = CalculateCRC8SAEJ1850(rx_frame, 7);
       if (expectedCRC == rx_frame.data.u8[7]) {
         //Message is valid, process it
+        contactor_status = (rx_frame.data.u8[5] & 0x0F);
+        if (contactor_status == CONTACTORS_OFF) {
+          datalayer.battery.status.max_charge_power_W = 0;
+          datalayer.battery.status.max_discharge_power_W = 0;
+        }
       } else {
         //CRC error, ignore message
         datalayer.battery.status.CAN_error_counter++;
@@ -655,6 +666,7 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
+    transmit_can_frame(&ONE_3D2);
   }
 
   // UDS PID polling and DTC handling
