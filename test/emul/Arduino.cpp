@@ -1,7 +1,5 @@
 #include "Arduino.h"
 
-#include <map>
-
 #include "../../Software/src/communication/can/comm_can.h"
 
 // Provide the definition that was previously in USER_SETTINGS.cpp
@@ -16,22 +14,30 @@ void delayMicroseconds(unsigned long us) {}
 int digitalRead(uint8_t pin) {
   return 0;
 }
-// Records the last level written to each pin so unit tests can assert what the
-// firmware actually drove (BMS power/ignition lines, contactor outputs, ...).
-static std::map<uint8_t, uint8_t> g_emul_pin_levels;
+// Records every pin write so tests can assert what the firmware actually drove
+// (contactor toggling, precharge PWM enable, BMS power/ignition lines, ...).
+std::vector<PinWrite> g_emul_pin_writes;
 
 void clear_pin_writes() {
-  g_emul_pin_levels.clear();
+  g_emul_pin_writes.clear();
+}
+
+const std::vector<PinWrite>& get_pin_writes() {
+  return g_emul_pin_writes;
 }
 
 // Returns the last level written to the pin, or -1 if it was never written.
 int get_pin_level(uint8_t pin) {
-  auto it = g_emul_pin_levels.find(pin);
-  return (it == g_emul_pin_levels.end()) ? -1 : (int)it->second;
+  for (auto it = g_emul_pin_writes.rbegin(); it != g_emul_pin_writes.rend(); ++it) {
+    if (it->pin == pin) {
+      return (int)it->value;
+    }
+  }
+  return -1;
 }
 
 void digitalWrite(uint8_t pin, uint8_t val) {
-  g_emul_pin_levels[pin] = val;
+  g_emul_pin_writes.push_back({pin, val});
 }
 
 unsigned long micros() {
@@ -47,6 +53,23 @@ bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, int8_t ch
   return true;
 }
 bool ledcWrite(uint8_t pin, uint32_t duty) {
+  return true;
+}
+// Records the precharge PWM frequency the firmware asks for, so the regulation
+// loop can be asserted on the value it actually drove rather than on internal
+// state.
+std::vector<ToneWrite> g_emul_tone_writes;
+
+void clear_tone_writes() {
+  g_emul_tone_writes.clear();
+}
+
+const std::vector<ToneWrite>& get_tone_writes() {
+  return g_emul_tone_writes;
+}
+
+bool ledcWriteTone(uint8_t pin, uint32_t freq) {
+  g_emul_tone_writes.push_back({pin, freq});
   return true;
 }
 

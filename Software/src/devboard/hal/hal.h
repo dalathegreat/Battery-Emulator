@@ -143,8 +143,6 @@ class Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_INT0() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_INT1() { return GPIO_NUM_NC; }
   virtual uint32_t MCP2517_FREQ() { return 0; }  // 0 means unknown
 
   // 2nd CANFD Interface: MCP2517/8

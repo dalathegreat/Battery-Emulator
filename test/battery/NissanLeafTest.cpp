@@ -520,9 +520,6 @@ TEST(NissanLeafShutdownSequenceTests, ShouldNotAffectBatteriesWithoutTheHook) {
 // BMS ignition line during the shut-down sequence
 // ---------------------------------------------------------------------------
 
-void clear_pin_writes();
-int get_pin_level(uint8_t pin);
-
 // Defined in comm_contactorcontrol.cpp; not in its header, as nothing outside the
 // reset state machine drives these lines in firmware.
 void bms_power_on();

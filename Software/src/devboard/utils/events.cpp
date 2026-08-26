@@ -398,6 +398,12 @@ void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
 }
 
 void reset_all_events() {
+  /* The ignore windows are event state too: leaving one armed here would carry a
+     suppression from before the reset into the fresh event set, silencing real CAN
+     faults for the rest of the window. */
+  for (uint8_t i = 0; i < NO_CAN_INTERFACE; i++) {
+    can_errors_ignore_until_ms[i] = 0;
+  }
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
     events.entries[i].state = EVENT_STATE_INACTIVE;
@@ -602,7 +608,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Successfully communicating with inverter over Modbus/RS485. Inverter detected!";
     case EVENT_INVERTER_REBOOT_DECLINED:
       return "Inverter asked the emulator to restart, but the request was declined. "
-             "Enable 'Accept reboot command from inverter' in the settings to allow it!";
+             "Enable 'Accept reboot command from inverter' in the settings if you want to allow it next time.";
     case EVENT_NO_ENABLE_DETECTED:
       return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:

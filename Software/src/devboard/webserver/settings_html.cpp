@@ -1952,14 +1952,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
-       <div class="if-bydmodbus">
+        <div class="if-bydmodbus">
         <label>Accept reboot command from inverter: </label>
         <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
-        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first. Disabled by default: the request is recorded as a warning event instead." />
+        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
 
         <label>Fronius Primo, 450V maxvoltage cap: </label>
         <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24%
-        title="Use only in case you see Invalid battery size detected message on Primo, with higher voltage batteries." />
+        title="Use only in case you see 'Invalid battery size detected' message on Primo, with higher voltage batteries." />
 
         <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
 
