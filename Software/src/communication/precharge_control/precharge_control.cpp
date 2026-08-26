@@ -21,7 +21,8 @@ uint16_t Precharge_max_PWM_Freq = 34000;
 static unsigned long prechargeStartTime = 0;
 static uint32_t freq = Precharge_default_PWM_Freq;
 static uint16_t delta_freq = 1;
-static int32_t prev_external_voltage = 20000;
+static const int32_t UNREAD_EXTERNAL_VOLTAGE = 20000;  // 2000V, bogus value
+static int32_t prev_external_voltage = UNREAD_EXTERNAL_VOLTAGE;
 
 // Initialization functions
 
@@ -87,6 +88,8 @@ void handle_precharge_control(unsigned long currentMillis) {
       }
       break;
     case AUTO_PRECHARGE_START:
+      // Reset the last reading and initial frequency
+      prev_external_voltage = UNREAD_EXTERNAL_VOLTAGE;
       freq = Precharge_default_PWM_Freq;
       ledcAttachChannel(hia4v1_pin, freq, Precharge_PWM_Res, PWM_Precharge_Channel);
       ledcWriteTone(hia4v1_pin, freq);  // Set frequency and set dutycycle to 50%
