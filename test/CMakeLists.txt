@@ -98,6 +98,7 @@ add_executable(tests
     ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/led_handler.cpp
+    ../Software/src/devboard/settings/settings_table.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
@@ -208,6 +209,7 @@ target_link_libraries(tests
 # Define the path for tests
 target_compile_definitions(tests PRIVATE 
     TEST_CAN_LOG_DIR="${CMAKE_SOURCE_DIR}/can_log_based/can_logs"
+    TEST_SETTINGS_LOADER_SOURCE="${CMAKE_SOURCE_DIR}/../Software/src/communication/nvm/comm_nvm.cpp"
 )
 
 gtest_discover_tests(tests)
