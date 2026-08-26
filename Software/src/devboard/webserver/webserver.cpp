@@ -512,6 +512,17 @@ void init_webserver() {
                 } else if (p->name() == "charger") {
                   auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
                   settings.saveUInt("CHGTYPE", (int)type);
+                } else if (p->name() == "CHGSTARQ") {
+                  // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
+                  // is not offered, so anything else falls back to "no request".
+                  uint8_t request = atoi(p->value().c_str());
+                  if (request > 2) {
+                    request = 0;
+                  }
+                  settings.saveUInt("CHGSTARQ", request);
+                  // Unlike the other settings this one is taken into use without a reboot, so the
+                  // reset offered below sends the newly chosen request rather than the old one.
+                  user_selected_LEAF_chg_sta_rq = request;
                 } else if (p->name() == "CHGCOMM") {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("CHGCOMM", (int)type);
@@ -602,6 +613,23 @@ void init_webserver() {
               }
               if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
                 settings.saveBool("TRIBTR", false);
+              }
+
+              // The page offers a BMS reset when the starting sequence request was changed, since
+              // the LBC only reads that signal while it powers up. Done after every setting is
+              // stored so the reset runs against the saved configuration.
+              auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
+              if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
+                if (periodic_bms_reset || remote_bms_reset) {
+                  LOG_SET_NEXT_SEVERITY(5);  // notice
+                  logging.println("BMS reset requested from the settings page.");
+                  start_bms_reset();
+                } else {
+                  LOG_SET_NEXT_SEVERITY(4);  // warning
+                  logging.println(
+                      "BMS reset requested from the settings page, but no BMS reset method is enabled. "
+                      "The new setting applies at the next BMS power cycle.");
+                }
               }
 
               settingsUpdated = settings.were_settings_updated();
