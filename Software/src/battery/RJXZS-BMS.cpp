@@ -201,22 +201,22 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // could also be EVENT_CHARGE_LIMIT_EXCEEDED
         } else if (protecting_historical_logs == 0x02) {
           // over discharge protection
-          set_event(EVENT_BATTERY_UNDERVOLTAGE, 0);
+          set_event(EVENT_BATTERY_UNDERVOLTAGE, 0, battery_index);
         } else if (protecting_historical_logs == 0x03) {
           // overcharge protection
-          set_event(EVENT_BATTERY_OVERVOLTAGE, 0);
+          set_event(EVENT_BATTERY_OVERVOLTAGE, 0, battery_index);
         } else if (protecting_historical_logs == 0x04) {
           // Over temperature protection
-          set_event(EVENT_BATTERY_OVERHEAT, 0);
+          set_event(EVENT_BATTERY_OVERHEAT, 0, battery_index);
         } else if (protecting_historical_logs == 0x05) {
           // Battery string error protection
-          set_event(EVENT_BATTERY_CAUTION, 0);
+          set_event(EVENT_BATTERY_CAUTION, 0, battery_index);
         } else if (protecting_historical_logs == 0x06) {
           // Damaged charging relay
-          set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
+          set_event(EVENT_BATTERY_CHG_STOP_REQ, 0, battery_index);
         } else if (protecting_historical_logs == 0x07) {
           // Damaged discharge relay
-          set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
+          set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0, battery_index);
         } else if (protecting_historical_logs == 0x08) {
           // Low voltage power outage protection
           set_event(EVENT_12V_LOW, 0);
@@ -225,7 +225,7 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           set_event(EVENT_VOLTAGE_DIFFERENCE_BAT2, differential_pressure_setting_value);
         } else if (protecting_historical_logs == 0x0A) {
           // Low temperature protection
-          set_event(EVENT_BATTERY_FROZEN, low_temperature_protection_setting_value);
+          set_event(EVENT_BATTERY_FROZEN, low_temperature_protection_setting_value, battery_index);
         }
       } else if (mux == 0x54) {
         hall_sensor_type = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];

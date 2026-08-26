@@ -244,10 +244,10 @@ void Mg5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       if (rx_frame.data.u8[1] == 0xf && previousState != 0xf) {
         // Isolation fault, set event
-        set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0]);
+        set_event(EVENT_BATTERY_ISOLATION, rx_frame.data.u8[0], battery_index);
       } else if (rx_frame.data.u8[1] != 0xf && previousState == 0xf) {
         // Isolation fault has cleared, clear event
-        clear_event(EVENT_BATTERY_ISOLATION);
+        clear_event(EVENT_BATTERY_ISOLATION, battery_index);
       }
 
       if (rx_frame.data.u8[1] == 0x03 && previousState != 0x03) {

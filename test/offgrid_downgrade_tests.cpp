@@ -35,6 +35,6 @@ TEST_F(OffgridDowngradeTest, InverterMissingIsAWarningWhenOffgrid) {
 // that is still a real fault when standalone.
 TEST_F(OffgridDowngradeTest, OffgridDoesNotDowngradeUnlistedEvents) {
   user_selected_inverter_offgrid = true;
-  set_event(EVENT_BATTERY_OVERHEAT, 0);
+  set_event(EVENT_BATTERY_OVERHEAT, 0, 1);
   EXPECT_EQ(get_event_level(), EVENT_LEVEL_ERROR);
 }

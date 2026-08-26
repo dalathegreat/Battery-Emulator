@@ -247,7 +247,7 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
         if (cellvoltage_reading == 0) {
           //Blown fuse/celltap. Force value to 10mV so user sees this in cellmonitor page. Also fire event
           cellvoltage_reading = 10;
-          set_event(EVENT_BATTERY_FUSE, cellnumber);
+          set_event(EVENT_BATTERY_FUSE, cellnumber, battery_index);
         }
         datalayer_battery->status.cell_voltages_mV[cellnumber] = (uint16_t)(cellvoltage_reading * 0.976563f);
       }

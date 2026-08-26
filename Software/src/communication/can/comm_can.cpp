@@ -190,24 +190,12 @@ bool init_CAN() {
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
-    auto int0_pin = esp32hal->MCP2517_INT0();
-    auto int1_pin = esp32hal->MCP2517_INT1();
 
-    if (!esp32hal->alloc_pins("CANFD", cs_pin)) {
+    if (!esp32hal->alloc_pins("CANFD", cs_pin, int_pin)) {
       return false;
     }
-    if (int_pin != GPIO_NUM_NC) {
-      if (!esp32hal->alloc_pins("CANFD", int_pin)) {
-        return false;
-      }
-    } else {
-      if (!esp32hal->alloc_pins("CANFD", int0_pin, int1_pin)) {
-        return false;
-      }
-    }
 
-    canfd = new ACAN2517FD(cs_pin, *SPI2517, int_pin != GPIO_NUM_NC ? int_pin : 255,
-                           int0_pin != GPIO_NUM_NC ? int0_pin : 255, int1_pin != GPIO_NUM_NC ? int1_pin : 255);
+    canfd = new ACAN2517FD(cs_pin, *SPI2517, int_pin);
 
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
 
@@ -324,6 +312,13 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
 
   switch (interface) {
     case CAN_NATIVE: {
+      if (tx_frame->DLC > sizeof(CANMessage::data)) {
+        // An FD-length frame cannot be sent on a classic CAN interface (a CAN-FD
+        // battery configured on it produces these), and copying it below would
+        // overflow frame.data on the stack.
+        datalayer.system.info.can_native_send_fail = true;
+        break;
+      }
       CANMessage frame;
       frame.id = tx_frame->ID;
       frame.ext = tx_frame->ext_ID;
@@ -337,6 +332,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       }
     } break;
     case CAN_ADDON_MCP2515: {
+      if (tx_frame->DLC > sizeof(MCP2515_Lite_Frame::data)) {
+        // Same as CAN_NATIVE: an FD-length frame cannot travel over the MCP2515.
+        datalayer.system.info.can_2515_send_fail = true;
+        break;
+      }
       MCP2515_Lite_Frame mcp2515_frame;
       copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
 

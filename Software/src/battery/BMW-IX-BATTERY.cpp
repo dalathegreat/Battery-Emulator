@@ -707,7 +707,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 ||
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
           logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
-          //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
+          //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis()), battery_index); //Eventually need new Info level event type
           transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
         } else {  //Only ingest values if they are not the 10V Error state
           min_cell_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);

@@ -90,7 +90,7 @@ void TeslaLegacyBattery::update_values() {
       datalayer.battery.info.total_capacity_Wh = 70000;
       break;
     default:  //Unknown hwID. Raise event
-      set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID);
+      set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID, battery_index);
       break;
   }
 
