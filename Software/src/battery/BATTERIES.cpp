@@ -516,6 +516,7 @@ void setup_battery() {
 
 /* User-selected Nissan LEAF settings */
 bool user_selected_LEAF_interlock_mandatory = false;
+uint8_t user_selected_LEAF_chg_sta_rq = 0;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
 uint16_t user_selected_tesla_GTW_country = 17477;

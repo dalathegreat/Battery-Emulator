@@ -136,6 +136,12 @@ void init_stored_settings() {
   user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
+  // Stored as the two CHG_STA_RQ bits themselves. 11b is the charge stop request and is not
+  // offered, so anything outside 00b/01b/10b falls back to the default of no request.
+  user_selected_LEAF_chg_sta_rq = settings.getUInt("CHGSTARQ", 0);
+  if (user_selected_LEAF_chg_sta_rq > 2) {
+    user_selected_LEAF_chg_sta_rq = 0;
+  }
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
   user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);
