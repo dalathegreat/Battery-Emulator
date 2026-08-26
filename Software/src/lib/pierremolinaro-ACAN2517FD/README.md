@@ -80,7 +80,7 @@ void loop () {
 ```
 `CANFDMessage` is the class that defines a CAN FD message. The `message` object is fully initialized by the default constructor. Here, we set the `id` to `0x542` for sending a standard data frame, without data, with this identifier.
 
-The `can.tryToSend` tries to send the message. It returns `true` if the message has been sucessfully added to the driver transmit buffer.
+The `can.tryToSend` tries to send the message. It returns `true` if the message has been successfully added to the driver transmit buffer.
 
 The `gSendDate` variable handles sending a CAN message every 2000 ms.
 
