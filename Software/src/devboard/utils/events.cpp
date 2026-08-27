@@ -253,6 +253,7 @@ void init_events(void) {
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_OTA_ROLLBACK].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_RESTARTING].level = EVENT_LEVEL_UPDATE;  // Stops Fronius erroring out during restarts
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
@@ -641,6 +642,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "OTA update started!";
     case EVENT_OTA_UPDATE_TIMEOUT:
       return "OTA update timed out!";
+    case EVENT_OTA_ROLLBACK:
+      return "A firmware update did not start up and was rolled back. This board is running the previous firmware; "
+             "the log line names which version failed.";
     case EVENT_RECOVERY_START:
       return "CAUTION! Emergency low charge recovery started! Make sure battery cells do not overheat!";
     case EVENT_RECOVERY_END:
