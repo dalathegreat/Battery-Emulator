@@ -1,6 +1,7 @@
 #ifndef GEELY_SEA_BATTERY_H
 #define GEELY_SEA_BATTERY_H
 
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "GEELY-SEA-HTML.h"
 

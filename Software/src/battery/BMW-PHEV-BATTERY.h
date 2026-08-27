@@ -1,5 +1,7 @@
 #ifndef BMW_PHEV_BATTERY_H
 #define BMW_PHEV_BATTERY_H
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "BMW-PHEV-HTML.h"
 #include "CanBattery.h"
 
