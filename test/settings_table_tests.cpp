@@ -157,7 +157,9 @@ TEST(SettingsTableTest, CurrentLimitDefaultsMatchTheDatalayerDefaults) {
 }
 
 TEST(SettingsTableTest, EveryRowIsReachableThroughItsSid) {
-  EXPECT_EQ(SID_COUNT, 145u) << "a row was added or removed - update this count deliberately";
+  // 145 -> 148: three keys absorbed from upstream (CHGSTARQ, INVACCREB,
+  // INVWDTMO). Bumped deliberately, which is what this guard is for.
+  EXPECT_EQ(SID_COUNT, 148u) << "a row was added or removed - update this count deliberately";
   EXPECT_EQ(setting_desc(Sid::SSID).nvs_key, std::string("SSID"));
   EXPECT_EQ(setting_desc(static_cast<Sid>(SID_COUNT - 1)).nvs_key, std::string("CTINVERT"));
   EXPECT_TRUE(table_valid());

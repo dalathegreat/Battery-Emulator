@@ -177,6 +177,14 @@ struct SettingDesc {
   /* --- Charger --- */                                                                                                \
   S_INT(CHGTYPE,        "CHGTYPE",        "CHGTYPE",        U32,    SF_REBOOT_REQUIRED,             0, 0, INT32_MAX)   \
   S_INT(CHGCOMM,        "CHGCOMM",        "CHGCOMM",        U32,    SF_REBOOT_REQUIRED,             3, 0, INT32_MAX)   \
+  /* Absorbed from upstream; every value is upstream's own. CHGSTARQ: loader default 0, the     */     \
+  /* POST handler clamps anything above 2 back to 0, and it is applied without a reboot.        */     \
+  /* INVACCREB: read with getBool, default false. INVWDTMO is not user-editable at all - the    */     \
+  /* inverter declares it over Modbus register 402 - so it has NO %VAR% placeholder, and its    */     \
+  /* default and range are BYD-MODBUS.h's own MODBUS_INV_WATCHDOG_DEFAULT_S and MIN/MAX_S.      */     \
+  S_INT(CHGSTARQ,       "CHGSTARQ",       "CHGSTARQ",       U32,    SF_NONE,                        0, 0, 2)           \
+  S_INT(INVACCREB,      "INVACCREB",      "INVACCREB",      BoolU8, SF_REBOOT_REQUIRED,             0, 0, 1)           \
+  S_INT(INVWDTMO,       "INVWDTMO",       nullptr,          U32,    SF_NONE,                       60, 5, 3600)        \
   S_INT(CHGPOWER,       "CHGPOWER",       "CHGPOWER",       U32,    SF_REBOOT_REQUIRED,          1000, 0, 65000)       \
   S_INT(DCHGPOWER,      "DCHGPOWER",      "DCHGPOWER",      U32,    SF_REBOOT_REQUIRED,          1000, 0, 65000)       \
                                                                                                                        \
