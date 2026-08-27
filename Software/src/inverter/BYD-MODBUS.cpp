@@ -52,8 +52,12 @@ void BydModbusInverter::handle_static_data() {
 }
 
 void BydModbusInverter::handle_update_data_modbusp201_byd() {
-  mbPV[202] =
-      std::min(datalayer.battery.info.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  mbPV[200] = 0;  //BatteryCapabilityFlags uint32
+  mbPV[201] = 0;  //BatteryCapabilityFlags uint32
+  mbPV[202] = std::min(datalayer.battery.info.reported_total_capacity_Wh,
+                       static_cast<uint32_t>(57960u));  //NominalCapacity, cap to 58kWh
+  mbPV[203] = 40960;                                    //ContMaxChargePwr uint16_t
+  mbPV[204] = 40960;                                    //ContMaxDischargePwr uint16_t
   if (user_selected_primo_gen24) {
     mbPV[205] =  // Max Voltage, if higher Gen24 forces discharge, cap to 450.0V for Primo to avoid constant warning
         std::min(datalayer.battery.info.max_design_voltage_dV, static_cast<uint16_t>(4500u));
@@ -61,6 +65,12 @@ void BydModbusInverter::handle_update_data_modbusp201_byd() {
     mbPV[205] = datalayer.battery.info.max_design_voltage_dV;
   }
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
+  mbPV[207] = 53248;                                           //PeakMaxChargePwr uint16_t
+  mbPV[208] = 10;                                              //PeakMaxChargeT uint16_t
+  mbPV[209] = 53248;                                           //PeakMaxDischargePwr uint16_t
+  mbPV[210] = 10;                                              //PeakMaxDischargeT uint16_t
+  mbPV[211] = 0;                                               //MaxSlope uint16_t
+  mbPV[212] = 0;                                               //MinSlope uint16_t
 }
 
 /* Battery power in the sign convention of the emulated BYD, which reports charging as a negative
@@ -134,17 +144,18 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
                        static_cast<uint32_t>(57960u));                   //Cap to 58kWh
   mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
-  mbPV[310] = datalayer.battery.status.voltage_dV;                       // DC inner voltage.
-  mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309].
-  mbPV[312] = datalayer.battery.status.temperature_min_dC;
-  mbPV[313] = datalayer.battery.status.temperature_max_dC;
+  mbPV[310] = datalayer.battery.status.voltage_dV;                       // DC inner voltage, UDC_internal uint16
+  mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309], PDC_internal int16
+  mbPV[312] = datalayer.battery.status.temperature_min_dC;  //TCellMin
+  mbPV[313] = datalayer.battery.status.temperature_max_dC;  //TCellMax
   // U64 for total charged/discharged Wh (314-317 and 318-321), but datalayer uses only 32-bit.
   mbPV[316] = datalayer.battery.status.total_charged_battery_Wh >> 16;
   mbPV[317] = datalayer.battery.status.total_charged_battery_Wh & 0xFFFF;
   mbPV[320] = datalayer.battery.status.total_discharged_battery_Wh >> 16;
   mbPV[321] = datalayer.battery.status.total_discharged_battery_Wh & 0xFFFF;
-  mbPV[322] = datalayer.battery.status.temperature_max_dC;  // Fill device temperature, perhaps BMS temperature.
-  mbPV[323] = datalayer.battery.status.soh_pptt;
+  mbPV[322] =
+      datalayer.battery.status.temperature_max_dC;  //Ambient temperature, max temp used since we don't have ambient
+  mbPV[323] = datalayer.battery.status.soh_pptt;    //SOH
 }
 
 void BydModbusInverter::verify_temperature() {
