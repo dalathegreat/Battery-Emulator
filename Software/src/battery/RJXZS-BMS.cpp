@@ -10,11 +10,11 @@ uint16_t RjxzsBms::estimateSOC() {
 
 void RjxzsBms::update_values() {
 
-  bool chemistry_matches_configured_voltages = cell_voltage_range_matches_chemistry(
-      datalayer.battery.info.min_cell_voltage_mV, datalayer.battery.info.max_cell_voltage_mV,
-      datalayer.battery.info.chemistry);
-
-  if (user_selected_use_estimated_SOC && chemistry_matches_configured_voltages) {
+  // Short-circuits: skips the chemistry/voltage-range check entirely while estimated SOC is off.
+  if (user_selected_use_estimated_SOC &&
+      cell_voltage_range_matches_chemistry(datalayer.battery.info.min_cell_voltage_mV,
+                                           datalayer.battery.info.max_cell_voltage_mV,
+                                           datalayer.battery.info.chemistry)) {
     // BMS-reported SOC drifts when its current sensor is inaccurate. Estimate SOC from cell
     // voltages instead, which does not depend on the current sensor.
     datalayer.battery.status.real_soc = estimateSOC();
