@@ -1694,11 +1694,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   function validateSocEstimatedChemistry() {
     const form = document.querySelector('input[name="SOCESTIMATED"]').closest('form');
     if (form.dataset.battery === '24' && form.dataset.socestimated === 'true') {
-      const chemSelect = document.querySelector('select[name="BATTCHEM"]');
-      const chemName = chemSelect.selectedOptions[0].text;
-      return confirm('Use estimated SOC on RJXZS calculates SOC from the "Battery chemistry" setting ' +
-        '(currently: ' + chemName + '). Make sure this matches your actual cells, otherwise the ' +
-        'estimated SOC will be wrong.\n\nContinue saving?');
+      const chem = document.querySelector('select[name="BATTCHEM"]').selectedOptions[0].text;
+      return confirm('RJXZS estimated SOC uses the "Battery chemistry" setting (' + chem +
+        '). Make sure it matches your cells, or SOC will be wrong.\n\nContinue?');
     }
     return true;
   }

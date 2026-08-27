@@ -473,8 +473,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_SOC_UNAVAILABLE:
       return "SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_ESTIMATED_SOC_MISCONFIGURED:
-      return "Estimated SOC enabled, but cell design voltage range does not match the selected battery "
-             "chemistry. Falling back to BMS-reported SOC until this is corrected.";
+      return "Estimated SOC: cell voltage range doesn't match selected chemistry. Using BMS SOC instead.";
     case EVENT_STALE_VALUE:
       return "Important values detected as stale. System might have locked up!";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
