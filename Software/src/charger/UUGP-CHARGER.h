@@ -4,9 +4,9 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
-#include "CanCharger.h"
 #include "../communication/Transmitter.h"
 #include "../communication/rs485/comm_rs485.h"
+#include "CanCharger.h"
 
 class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
  public:
@@ -96,20 +96,13 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
 
   uint16_t next_transaction();
 
-  void send_frame(uint8_t function,
-                  const uint8_t* payload,
-                  size_t payload_length);
+  void send_frame(uint8_t function, const uint8_t* payload, size_t payload_length);
 
-  void read_registers(uint8_t function,
-                      uint16_t address,
-                      uint16_t count);
+  void read_registers(uint8_t function, uint16_t address, uint16_t count);
 
-  void write_single(uint16_t address,
-                    uint16_t value);
+  void write_single(uint16_t address, uint16_t value);
 
-  void write_multiple(uint16_t address,
-                      const uint16_t* values,
-                      uint16_t count);
+  void write_multiple(uint16_t address, const uint16_t* values, uint16_t count);
 
   void initialize();
 
@@ -120,16 +113,11 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
 
   void poll_status();
 
-  void process_response(const uint8_t* frame,
-                        size_t length);
+  void process_response(const uint8_t* frame, size_t length);
 
-  void process_input_registers(uint16_t address,
-                               const uint16_t* values,
-                               uint16_t count);
+  void process_input_registers(uint16_t address, const uint16_t* values, uint16_t count);
 
-  void process_holding_registers(uint16_t address,
-                                 const uint16_t* values,
-                                 uint16_t count);
+  void process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count);
 
   void update_power_limit();
 

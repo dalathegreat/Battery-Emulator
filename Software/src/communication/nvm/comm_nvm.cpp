@@ -3,6 +3,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CanCharger.h"
+#include "../../charger/UUGP-CHARGER.h"
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
@@ -15,7 +16,6 @@
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
-#include "../../charger/UUGP-CHARGER.h"
 
 // Keys holding the static IP configuration, as dotted-quad strings.
 static const char* const STATIC_IP_KEYS[] = {"LOCALIP", "GATEWAY", "SUBNET", "DNS"};
@@ -313,12 +313,12 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
   uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
   if (uugp_power_limit_W > 22000) {
-     uugp_power_limit_W = 22000;
+      uugp_power_limit_W = 22000;
   }
 
   uugp_discharge_cutoff_soc = settings.getUInt("UUGP_DSOC", 80);
   if (uugp_discharge_cutoff_soc < 10 || uugp_discharge_cutoff_soc > 90) {
-     uugp_discharge_cutoff_soc = 80;
+      uugp_discharge_cutoff_soc = 80;
   }
 
   uugp_allow_discharge_to_home_grid =
@@ -328,7 +328,7 @@ void init_stored_settings() {
      settings.getUInt("UUGP_STARTMODE", 1);
 
   if (uugp_start_mode > 2) {
-     uugp_start_mode = 1;
+      uugp_start_mode = 1;
   }
 }
 
@@ -399,5 +399,5 @@ void store_settings() {
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
   settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
   settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
-  settings.saveBool("UUGP_ALLOW",uugp_allow_discharge_to_home_grid);
+  settings.saveBool("UUGP_ALLOW", uugp_allow_discharge_to_home_grid);
 }
