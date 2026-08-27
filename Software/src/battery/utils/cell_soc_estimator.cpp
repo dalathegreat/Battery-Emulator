@@ -71,10 +71,14 @@ uint16_t soc_from_cell_voltage(uint16_t cell_voltage_mV, battery_chemistry_enum 
     case battery_chemistry_enum::NCA:
     case battery_chemistry_enum::NMC:
     case battery_chemistry_enum::ZEBRA:
-    case battery_chemistry_enum::Autodetect:
-    default:
       // No dedicated curve for these yet, fall back to a generic Li-ion (NMC/NCA) curve
       return interpolate_soc(cell_voltage_mV, nmcVoltageLookup);
+    case battery_chemistry_enum::Autodetect:
+    default:
+      // Nothing here actually detects chemistry, so there is no curve to read this voltage
+      // against. Report 0% rather than silently guessing NMC/NCA - callers that can tolerate a
+      // guess should resolve a concrete chemistry themselves before calling this.
+      return 0;
   }
 }
 
@@ -96,9 +100,14 @@ uint16_t cell_voltage_table_max_mV(battery_chemistry_enum chemistry) {
     case battery_chemistry_enum::NCA:
     case battery_chemistry_enum::NMC:
     case battery_chemistry_enum::ZEBRA:
+      return nmcVoltageLookup[0];
     case battery_chemistry_enum::Autodetect:
     default:
-      return nmcVoltageLookup[0];
+      // No real curve to report a top for. Unlike soc_from_cell_voltage(), 0 would be actively
+      // dangerous here (an ">= max" overvoltage guard built on it would trip on every voltage), so
+      // return a value no real cell will ever reach instead: any such guard simply never fires,
+      // and callers fall through to soc_from_cell_voltage(), which safely reports 0%.
+      return UINT16_MAX;
   }
 }
 
@@ -109,14 +118,22 @@ uint16_t cell_voltage_table_min_mV(battery_chemistry_enum chemistry) {
     case battery_chemistry_enum::NCA:
     case battery_chemistry_enum::NMC:
     case battery_chemistry_enum::ZEBRA:
+      return nmcVoltageLookup[numPoints - 1];
     case battery_chemistry_enum::Autodetect:
     default:
-      return nmcVoltageLookup[numPoints - 1];
+      // Mirrors cell_voltage_table_max_mV(): 0 is a value no working cell reports, so an
+      // "<= min" undervoltage guard built on it never spuriously fires either.
+      return 0;
   }
 }
 
 bool cell_voltage_range_matches_chemistry(uint16_t min_cell_voltage_mV, uint16_t max_cell_voltage_mV,
                                           battery_chemistry_enum chemistry) {
+  if (chemistry == battery_chemistry_enum::Autodetect) {
+    // No real curve to validate against - refuse rather than silently falling back to NMC/NCA.
+    return false;
+  }
+
   // Real protection setpoints are often configured a bit past the curve's 0%/100% points
   // (e.g. an LFP pack protecting at 3.65V even though the curve tops out at 3.60V), so this
   // margin absorbs that without flagging correctly-configured packs.

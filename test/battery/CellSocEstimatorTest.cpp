@@ -42,11 +42,17 @@ TEST(CellSocEstimatorTest, NmcClampsAtBottomOfCurveToOnePercent) {
   EXPECT_EQ(soc_from_cell_voltage(2500, battery_chemistry_enum::NMC), 100);
 }
 
-TEST(CellSocEstimatorTest, NcaAndAutodetectFallBackToTheNmcCurve) {
+TEST(CellSocEstimatorTest, NcaFallsBackToTheNmcCurve) {
   EXPECT_EQ(soc_from_cell_voltage(3650, battery_chemistry_enum::NCA),
             soc_from_cell_voltage(3650, battery_chemistry_enum::NMC));
-  EXPECT_EQ(soc_from_cell_voltage(3650, battery_chemistry_enum::Autodetect),
-            soc_from_cell_voltage(3650, battery_chemistry_enum::NMC));
+}
+
+TEST(CellSocEstimatorTest, AutodetectReportsZeroRatherThanGuessingNmc) {
+  // Nothing here resolves Autodetect to a real chemistry, so it must not silently borrow the
+  // NMC/NCA curve - a caller that forgot to gate on cell_voltage_range_matches_chemistry() should
+  // see an obviously-wrong 0%, not a plausible-looking but unfounded number.
+  EXPECT_EQ(soc_from_cell_voltage(3650, battery_chemistry_enum::Autodetect), 0);
+  EXPECT_EQ(soc_from_min_max_cell_voltage(3350, 3641, battery_chemistry_enum::Autodetect), 0);
 }
 
 TEST(CellSocEstimatorTest, MinMaxTrustsHighestCellAboveFiftyPercent) {
@@ -66,6 +72,13 @@ TEST(CellSocEstimatorTest, TableBoundsMatchTheCurvesUsedAbove) {
   EXPECT_EQ(cell_voltage_table_min_mV(battery_chemistry_enum::NMC), 3090);
 }
 
+TEST(CellSocEstimatorTest, AutodetectTableBoundsNeverTriggerAnOvervoltageOrUndervoltageGuard) {
+  // No real voltage a caller could plausibly pass should trip an ">= max" or "<= min" guard
+  // built directly on these two for Autodetect.
+  EXPECT_EQ(cell_voltage_table_max_mV(battery_chemistry_enum::Autodetect), UINT16_MAX);
+  EXPECT_EQ(cell_voltage_table_min_mV(battery_chemistry_enum::Autodetect), 0);
+}
+
 TEST(CellSocEstimatorTest, RangeMatchesWhenDesignVoltagesFitTheSelectedChemistry) {
   EXPECT_TRUE(cell_voltage_range_matches_chemistry(2800, 3650, battery_chemistry_enum::LFP));
   EXPECT_TRUE(cell_voltage_range_matches_chemistry(3000, 4200, battery_chemistry_enum::NMC));
@@ -76,6 +89,12 @@ TEST(CellSocEstimatorTest, RangeMismatchesWhenLfpCellsAreConfiguredAsNmc) {
   // the min sits well below the NMC curve's floor even with the safety margin, so this must not
   // enter estimated-SOC mode.
   EXPECT_FALSE(cell_voltage_range_matches_chemistry(2800, 3650, battery_chemistry_enum::NMC));
+}
+
+TEST(CellSocEstimatorTest, RangeAlwaysMismatchesForAutodetect) {
+  // Nothing here actually detects chemistry, so Autodetect must never be treated as plausible,
+  // regardless of how well the voltages would otherwise fit the NMC/NCA fallback curve.
+  EXPECT_FALSE(cell_voltage_range_matches_chemistry(3000, 4200, battery_chemistry_enum::Autodetect));
 }
 
 TEST(CellSocEstimatorTest, RangeMismatchesWhenNmcCellsAreConfiguredAsLfp) {
