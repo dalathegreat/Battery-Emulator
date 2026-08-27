@@ -137,6 +137,12 @@ void init_stored_settings() {
   user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
+  // Stored as the two CHG_STA_RQ bits themselves. 11b is the charge stop request and is not
+  // offered, so anything outside 00b/01b/10b falls back to the default of no request.
+  user_selected_LEAF_chg_sta_rq = settings.getUInt("CHGSTARQ", 0);
+  if (user_selected_LEAF_chg_sta_rq > 2) {
+    user_selected_LEAF_chg_sta_rq = 0;
+  }
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
   user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);
@@ -151,6 +157,9 @@ void init_stored_settings() {
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
+  user_selected_accept_inverter_reboot = settings.getBool("INVACCREB", false);
+  // Watchdog period the inverter last told us about, or the default if it never has
+  inverter_modbus_watchdog_timeout_s = settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S);
 
   auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -245,6 +254,12 @@ void init_stored_settings() {
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+  // Battery 2 reuses battery 1's manual power settings: update_calculated_values() caps the
+  // combined system's max charge/discharge power to whichever battery reports less, so leaving
+  // these at their unset default of 0 would silently zero out the whole system for double-battery
+  // setups using the same "estimated power" integrations as above.
+  datalayer.battery2.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery2.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
@@ -335,6 +350,20 @@ void clear_wifi_sta_settings() {
 void store_settings_equipment_stop() {
   BatteryEmulatorSettingsStore settings(false);
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
+}
+
+void store_settings_inverter_watchdog() {
+  if (!inverter_modbus_watchdog_changed) {
+    return;
+  }
+  inverter_modbus_watchdog_changed = false;
+  BatteryEmulatorSettingsStore settings(false);
+  // Never write a value NVM already holds. saveUInt() skips an unchanged key on its own, but it
+  // writes when the key is missing, which would put the default into flash the first time an
+  // inverter declares it.
+  if (settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S) != inverter_modbus_watchdog_timeout_s) {
+    settings.saveUInt("INVWDTMO", inverter_modbus_watchdog_timeout_s);
+  }
 }
 
 // Erase RF PHY calibration data (the "phy" NVS namespace — untouched by

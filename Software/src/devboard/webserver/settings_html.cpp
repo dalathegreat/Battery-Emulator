@@ -115,6 +115,12 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
+// CHG_STA_RQ transmitted in 0x1F2 while the LBC starts up. The key is the two-bit signal value
+// itself, which is what gets stored; 11b (charge stop request) is deliberately not offered.
+static const std::map<int, String> leaf_chg_sta_rq = {{0, "other (default)"},
+                                                      {1, "normal charge (experimental)"},
+                                                      {2, "quick charge (experimental)"}};
+
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
     {17483, "DK (Denmark)"}, {17477, "DE (Germany)"}, {16725, "AU (Australia)"}};
@@ -346,6 +352,17 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "GTWPACK") {
     return options_from_map(settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy), tesla_pack);
+  }
+
+  if (var == "CHGSTARQ") {
+    return options_from_map(settings.getUInt("CHGSTARQ", user_selected_LEAF_chg_sta_rq), leaf_chg_sta_rq);
+  }
+
+  if (var == "CHGSTARQCANRESET") {
+    // Offering to reset the BMS is only honest when the firmware currently running would act on
+    // it. These are the same two globals start_bms_reset() checks, and they only take their
+    // stored values at boot, so a reset method enabled but not yet rebooted into reads as off.
+    return (periodic_bms_reset || remote_bms_reset) ? "1" : "0";
   }
 
   if (var == "LEDMODE") {
@@ -1015,6 +1032,31 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
+  if (var == "INVACCREB") {
+    return settings.getBool("INVACCREB") ? "checked" : "";
+  }
+
+  if (var == "INVWDT") {
+    // Not editable: the value comes from the inverter (register 402) and is only kept in NVM so it
+    // survives a reboot. "(default)" marks the value we start from when no inverter has changed it.
+    String watchdog = String(inverter_modbus_watchdog_timeout_s) + "s";
+    if (inverter_modbus_watchdog_timeout_s == MODBUS_INV_WATCHDOG_DEFAULT_S) {
+      watchdog += " (default)";
+    }
+    return watchdog;
+  }
+
+  if (var == "INVUTC") {
+    if (inverter_modbus_utc_epoch_s == 0) {
+      return "not yet received";
+    }
+    // Emitted as raw epoch seconds and turned into a date by the page. Formatting it here would pull
+    // strftime and the newlib time conversion tables into the image for the sake of one label.
+    char epoch[21];
+    snprintf(epoch, sizeof(epoch), "%llu", (unsigned long long)inverter_modbus_utc_epoch_s);
+    return String(epoch);
+  }
+
   if (var == "PRECHGMS") {
     return String(settings.getUInt("PRECHGMS", 100));
   }
@@ -1361,6 +1403,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             sel.addEventListener('change', ch);
             ch();
           });
+
+          var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
+          if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
     </script>
 )rawliteral"
 
@@ -1381,6 +1426,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
     .inactive {
       color: darkgrey;
+    }
+
+    /* Values shown in the settings grid that are not editable. Boxed like a form control so the
+       value column lines up with the dropdowns above and the checkboxes below it. */
+    .settings-value { 
+      display: flex; 
+      align-items: center; 
+      min-height: 1.5em; 
+      padding-left: 5px; 
     }
 
     .inactiveSoc {
@@ -1641,6 +1695,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     return true;
   }
 
+  //The LBC latches the starting sequence request as it powers up, so a change to it is inert
+  //until the BMS is reset. Offer to do that right away rather than leaving the setting saved
+  //but not in effect.
+  function confirmBmsRestart() {
+    const sel = document.getElementById('CHGSTARQ');
+    const flag = document.getElementById('CHGSTARQRESET');
+    if (!sel || !flag || sel.value === sel.dataset.initial) {
+      return true;
+    }
+    if (flag.dataset.canreset !== '1') {
+      alert('The BMS only reads the starting sequence request while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
+      return true;
+    }
+    flag.value = window.confirm('The BMS only reads the starting sequence request while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
+    return true;
+  }
+
   function toggleWebPasswordVisibility(show) {
     const fieldType = show ? 'text' : 'password';
     document.querySelector('input[name="HTTPPASS"]').type = fieldType;
@@ -1649,7 +1720,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   </script>
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword()'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && confirmBmsRestart()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
@@ -1763,9 +1834,24 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         <div class="if-nissan">
+            <label for='CHGSTARQ'>BMS starting sequence request: </label>
+            <select name='CHGSTARQ' id='CHGSTARQ'
+            title="CHG_STA_RQ transmitted in 0x1F2. The LBC only acts on it while starting up, so a BMS reset is needed to apply a change.">
+            %CHGSTARQ%
+            </select>
+            <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
+            data-canreset='%CHGSTARQCANRESET%' />
+
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
+
+        <script> //Remember what the LBC is currently being sent, so a change can be spotted on save
+        (function() {
+          const sel = document.getElementById('CHGSTARQ');
+          if (sel) { sel.dataset.initial = sel.value; }
+        })();
+        </script>
 
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
@@ -1914,30 +2000,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
-
-        <label>Ramp up charge limits gradually:</label>
-        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
-
-        <label>Charge power tapering based on SOC:</label>
-        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
-        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
-
-        <div class='if-chgtapersoc'>
-        <label>Start tapering at SOC, percent: </label>
-        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
-        min="50" max="%CHGTAPERMAX%" step="1"
-        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
-
-        <label>Float charge power, W: </label>
-        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
-        min="0" max="2000" step="10"
-        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
-        </div>
-
-        <label>Allow longer CAN timeout: </label>
-        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
-        title="Use a longer timeout for inverter still alive CAN messages" />
         </div>
 
         <div class="if-sofar">
@@ -1962,18 +2024,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
-        <label>Inverter run entirely offgrid: </label>
-        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
-        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
-
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
         <div class="if-bydmodbus">
+        <label>Accept reboot command from inverter: </label>
+        <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
+        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
+
         <label>Fronius Primo, 450V maxvoltage cap: </label>
-        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24%
+        title="Use only in case you see 'Invalid battery size detected' message on Primo, with higher voltage batteries." />
+
+        <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
+
+        <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
         </div>
 
         <div class="if-pylonish">
@@ -2025,6 +2092,41 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        </div>
+
+        <div class="if-inverter">
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;
+        margin-top: 5px; padding-top: 12px; border-top: 1px solid #4d5f69;'>
+
+        <label>Ramp up charge limits gradually:</label>
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
+
+        <div class='if-chgtapersoc'>
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="%CHGTAPERMAX%" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
+
+        <label>Float charge power, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        </div>
+
+        <label>Allow longer CAN timeout: </label>
+        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
+        title="Use a longer timeout for inverter still alive CAN messages" />
+
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
+
+        </div>
         </div>
         </div>
 

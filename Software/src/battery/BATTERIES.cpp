@@ -351,6 +351,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
+    case BatteryType::Kia64FD:
     case BatteryType::KiaHyundai64:
     case BatteryType::MgGen1:
     case BatteryType::Pylon:
@@ -427,6 +428,11 @@ void setup_battery() {
           break;
         case BatteryType::StellantisEcmp:
           battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        // Double only: needs a CAN-FD bus of its own, and only two exist.
+        // See the comment on battery_supports_triple() above.
+        case BatteryType::Kia64FD:
+          battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
           battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
@@ -510,6 +516,7 @@ void setup_battery() {
 
 /* User-selected Nissan LEAF settings */
 bool user_selected_LEAF_interlock_mandatory = false;
+uint8_t user_selected_LEAF_chg_sta_rq = 0;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
 uint16_t user_selected_tesla_GTW_country = 17477;

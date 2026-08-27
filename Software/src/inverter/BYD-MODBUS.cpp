@@ -1,15 +1,19 @@
 #include "BYD-MODBUS.h"
 #include "../battery/BATTERIES.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../communication/rs485/comm_rs485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
+#include "../devboard/safety/safety.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 #include "../inverter/INVERTERS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
 void BydModbusInverter::update_values() {
   verify_temperature();
+  handle_inverter_control_data();
   verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
@@ -48,8 +52,12 @@ void BydModbusInverter::handle_static_data() {
 }
 
 void BydModbusInverter::handle_update_data_modbusp201_byd() {
-  mbPV[202] =
-      std::min(datalayer.battery.info.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  mbPV[200] = 0;  //BatteryCapabilityFlags uint32
+  mbPV[201] = 0;  //BatteryCapabilityFlags uint32
+  mbPV[202] = std::min(datalayer.battery.info.reported_total_capacity_Wh,
+                       static_cast<uint32_t>(57960u));  //NominalCapacity, cap to 58kWh
+  mbPV[203] = 40960;                                    //ContMaxChargePwr uint16_t
+  mbPV[204] = 40960;                                    //ContMaxDischargePwr uint16_t
   if (user_selected_primo_gen24) {
     mbPV[205] =  // Max Voltage, if higher Gen24 forces discharge, cap to 450.0V for Primo to avoid constant warning
         std::min(datalayer.battery.info.max_design_voltage_dV, static_cast<uint16_t>(4500u));
@@ -57,6 +65,12 @@ void BydModbusInverter::handle_update_data_modbusp201_byd() {
     mbPV[205] = datalayer.battery.info.max_design_voltage_dV;
   }
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
+  mbPV[207] = 53248;                                           //PeakMaxChargePwr uint16_t
+  mbPV[208] = 10;                                              //PeakMaxChargeT uint16_t
+  mbPV[209] = 53248;                                           //PeakMaxDischargePwr uint16_t
+  mbPV[210] = 10;                                              //PeakMaxDischargeT uint16_t
+  mbPV[211] = 0;                                               //MaxSlope uint16_t
+  mbPV[212] = 0;                                               //MinSlope uint16_t
 }
 
 /* Battery power in the sign convention of the emulated BYD, which reports charging as a negative
@@ -130,17 +144,18 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
                        static_cast<uint32_t>(57960u));                   //Cap to 58kWh
   mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
-  mbPV[310] = datalayer.battery.status.voltage_dV;                       // DC inner voltage.
-  mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309].
-  mbPV[312] = datalayer.battery.status.temperature_min_dC;
-  mbPV[313] = datalayer.battery.status.temperature_max_dC;
+  mbPV[310] = datalayer.battery.status.voltage_dV;                       // DC inner voltage, UDC_internal uint16
+  mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309], PDC_internal int16
+  mbPV[312] = datalayer.battery.status.temperature_min_dC;  //TCellMin
+  mbPV[313] = datalayer.battery.status.temperature_max_dC;  //TCellMax
   // U64 for total charged/discharged Wh (314-317 and 318-321), but datalayer uses only 32-bit.
   mbPV[316] = datalayer.battery.status.total_charged_battery_Wh >> 16;
   mbPV[317] = datalayer.battery.status.total_charged_battery_Wh & 0xFFFF;
   mbPV[320] = datalayer.battery.status.total_discharged_battery_Wh >> 16;
   mbPV[321] = datalayer.battery.status.total_discharged_battery_Wh & 0xFFFF;
-  mbPV[322] = datalayer.battery.status.temperature_max_dC;  // Fill device temperature, perhaps BMS temperature.
-  mbPV[323] = datalayer.battery.status.soh_pptt;
+  mbPV[322] =
+      datalayer.battery.status.temperature_max_dC;  //Ambient temperature, max temp used since we don't have ambient
+  mbPV[323] = datalayer.battery.status.soh_pptt;    //SOH
 }
 
 void BydModbusInverter::verify_temperature() {
@@ -166,11 +181,13 @@ void BydModbusInverter::verify_temperature() {
 }
 
 void BydModbusInverter::verify_inverter_modbus() {
-  // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
-  // We sample the register every 60 seconds. Incase the value has not changed for 5 minutes, we raise an event
+  // Once per watchdog period, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
+  // We sample the register at the same period. In case the value has not changed for HISTORY_LENGTH
+  // periods, we raise an event. The period defaults to 60s and follows register 402 from the moment
+  // the inverter declares a different one.
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+  if (currentMillis - previousMillis60s >= (inverter_modbus_watchdog_timeout_s * 1000UL)) {
     previousMillis60s = currentMillis;
 
     all_401_values_equal = true;
@@ -190,6 +207,61 @@ void BydModbusInverter::verify_inverter_modbus() {
     // Update history
     register_401_history[history_index] = mbPV[401];
     history_index = (history_index + 1) % HISTORY_LENGTH;
+  }
+}
+
+void BydModbusInverter::handle_inverter_control_data() {
+  // WatchDogTimeout (402). The inverter declares the period it kicks register 401 with. Follow it, so
+  // inverter-missing detection tracks the inverter instead of a hardcoded assumption. Only flagged
+  // when it actually changes, so a boot with the value we already hold never writes NVM. The write
+  // itself belongs to the core loop, keeping this driver free of any storage dependency.
+  const uint32_t declared_timeout_s = mbPV[402];
+  if (declared_timeout_s >= WATCHDOG_TIMEOUT_MIN_S && declared_timeout_s <= WATCHDOG_TIMEOUT_MAX_S &&
+      declared_timeout_s != inverter_modbus_watchdog_timeout_s) {
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Inverter changed the WatchDog Timeout from %u s to %u s\n", inverter_modbus_watchdog_timeout_s,
+                   declared_timeout_s);
+    inverter_modbus_watchdog_timeout_s = declared_timeout_s;
+    inverter_modbus_watchdog_changed = true;
+  }
+
+  // UTC (403-406), a big-endian uint64 holding Unix epoch seconds. Kept for display only.
+  const uint64_t inverter_utc =
+      ((uint64_t)mbPV[403] << 48) | ((uint64_t)mbPV[404] << 32) | ((uint64_t)mbPV[405] << 16) | (uint64_t)mbPV[406];
+  if (inverter_utc > 0) {
+    inverter_modbus_utc_epoch_s = inverter_utc;
+  }
+
+  // RebootCommand (407). The inverter writes 0 here as part of every ControlData block write, so only
+  // a change to a non-zero value is a command.
+  const uint16_t reboot_command = mbPV[407];
+  if (reboot_command != last_register_407) {
+    last_register_407 = reboot_command;
+    if (reboot_command != 0) {
+      if (user_selected_accept_inverter_reboot) {
+        LOG_SET_NEXT_SEVERITY(5);  // notice
+        logging.println("The emulator is restarting as requested by the inverter");
+        hold_pins_across_reset();
+        graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
+      } else {
+        // Raised as an event rather than only logged: declining leaves the inverter believing it
+        // asked for something that never happened, which the user should see on the status page
+        // without having to have logging switched on at the time.
+        set_event(EVENT_INVERTER_REBOOT_DECLINED, reboot_command);
+      }
+    }
+  }
+
+  // DarkstartEnable (408). Nothing acts on it yet, but the inverter announcing that it expects the
+  // battery to be able to black start the system is worth having in the log. Only changes are
+  // logged; a value of 0 here is a real setting rather than an absent command, so an inverter that
+  // writes 0 from the start is indistinguishable from one that never writes the register at all.
+  // BYD Battery-Box Premium HVS&HVM have a button, for black start it needs to be pressed for 3 seconds
+  const uint16_t darkstart_enable = mbPV[408];
+  if (darkstart_enable != last_register_408) {
+    last_register_408 = darkstart_enable;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Inverter set DarkstartEnable to %u\n", darkstart_enable);
   }
 }
 
