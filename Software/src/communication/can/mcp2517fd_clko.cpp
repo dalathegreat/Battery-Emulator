@@ -16,21 +16,17 @@ void mcp2517fd_program_clko(SPIClass& spi, uint8_t cs_pin, int clkodiv) {
   pinMode(cs_pin, OUTPUT);
   digitalWrite(cs_pin, HIGH);
 
-  // Deliberately slow: a one-off two-command transaction has no throughput
-  // needs, and 800 kHz is legal in every state this bus can be in. (Note:
-  // CLKODIV divides only the CLKO OUTPUT - chip 1 itself runs from its own
-  // crystal, so the divided-clock SPI limit belongs to chip 2, which this
-  // transaction never addresses.)
+  // 800 kHz: no throughput needs, and legal in every state this bus can be in.
   spi.beginTransaction(SPISettings(800000, MSBFIRST, SPI_MODE0));
 
+  // Reset first: it guarantees Configuration mode, where OSC is writable.
   digitalWrite(cs_pin, LOW);
   spi.transfer16(RESET_COMMAND);
   digitalWrite(cs_pin, HIGH);
 
+  // CLKODIV lives in bits 6:5; PLLEN, OSCDIS and SCLKDIV stay 0.
   digitalWrite(cs_pin, LOW);
   spi.transfer16((WRITE_OPCODE << 12) | OSC_REGISTER);
-  // CLKODIV lives in bits 6:5; PLLEN, OSCDIS and SCLKDIV stay 0 (oscillator
-  // on, SCLK divide-by-1) - the same byte ACAN2517FD::begin composes.
   spi.transfer((uint8_t)((clkodiv & 0b11) << 5));
   digitalWrite(cs_pin, HIGH);
 

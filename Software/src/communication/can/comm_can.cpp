@@ -257,11 +257,9 @@ bool init_CAN() {
       SPI2517_2->begin(sck_pin, sdo_pin, sdi_pin);
     }
 
-    // On boards that clock the 2nd chip from the 1st chip's CLKO output (a
-    // non-default MCP2517_CLKODIV), the divider is normally programmed when
-    // the 1st interface starts. Running the 2nd interface alone leaves the
-    // 1st chip at its divide-by-10 power-up default, clocking this chip 10x
-    // slower than MCP2517_FREQ2() declares, so program it here.
+    // Boards that clock the 2nd chip from the 1st chip's CLKO output normally get
+    // the divider programmed when the 1st interface starts. Running the 2nd alone
+    // leaves the 1st chip at its divide-by-10 default, so program it here.
     bool fd1_in_use = fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end();
     if (mcp2517fd_clko_kick_needed(fd1_in_use, esp32hal->MCP2517_CLKODIV())) {
       auto cs1_pin = esp32hal->MCP2517_CS();
