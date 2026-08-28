@@ -51,6 +51,9 @@ void reset_byd_state() {
   datalayer_extended.bydAtto3.BMS_min_temp_module_number = 0;
   datalayer_extended.bydAtto3.BMS_max_temp_module_number = 0;
   datalayer_extended.bydAtto3.pack_voltage_dV = 0;
+  datalayer_extended.bydAtto3.keep_iso_disabled = false;
+  datalayer_extended.bydAtto3.iso_command_status = 0;
+  datalayer_extended.bydAtto3.iso_measurement_active = false;
 }
 
 // Coldest sensor 9 at 8C, hottest sensor 1 at 24C, SOC 99.2%, average 16C.
@@ -61,6 +64,16 @@ CAN_frame temperature_frame() {
 // Discharge 285.5kW (b0:b1 = 0x0B27), charge 131.1kW (b2:b3 = 0x051F).
 CAN_frame power_limit_frame() {
   return byd_checksummed_frame(0x345, {0x27, 0x0B, 0x1F, 0x05, 0x00, 0x00, 0x00});
+}
+
+// 0x35E b0 bit7 = isolation measurement running: 0x01 disabled, 0x81 re-armed.
+CAN_frame iso_measurement_frame(bool active) {
+  return byd_checksummed_frame(0x35E, {(uint8_t)(active ? 0x81 : 0x01), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+}
+
+// 0x344 carries contactor feedback; receiving it is what marks the BMS alive.
+CAN_frame contactor_feedback_frame(uint8_t mode) {
+  return byd_frame(0x344, {mode, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
 }
 
 }  // namespace
@@ -214,4 +227,27 @@ TEST(BydAtto3Tests, ShouldStopTrusting0x438OnceItDivergesFrom0x444) {
 
   EXPECT_EQ(datalayer.battery.status.voltage_dV, 4200);
   EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4200);
+}
+
+// The monitor re-arms ~30s after a contactor open, with the BMS never restarting.
+TEST(BydAtto3Tests, ShouldReDisableIsolationMonitorWhenItRearmsWithoutABmsRestart) {
+  reset_byd_state();
+  set_millis64(10000);
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  // Come alive with the setting off, so the BMS-start edge arms nothing and cannot fire again.
+  battery->handle_incoming_can_frame(contactor_feedback_frame(0x84));
+  battery->handle_incoming_can_frame(iso_measurement_frame(false));
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 0);
+
+  datalayer_extended.bydAtto3.keep_iso_disabled = true;
+
+  // A contactor cycle keeps the BMS alive, so the 0x35E edge is the only report of the re-arm.
+  set_millis64(60000);
+  battery->handle_incoming_can_frame(contactor_feedback_frame(0x84));
+  battery->handle_incoming_can_frame(iso_measurement_frame(true));
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 1);
 }
