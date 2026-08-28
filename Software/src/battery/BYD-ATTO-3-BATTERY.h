@@ -20,7 +20,9 @@ enum class BydCellBalanceTimeState : uint8_t {
 
 // Lifetime balancer on-time in whole hours.
 struct BydCellBalanceTimeData {
-  static constexpr uint8_t MAX_CELLS = 126;
+  // Matches the datalayer so larger BYD packs are read in full rather than silently truncated.
+  static_assert(MAX_AMOUNT_CELLS <= 255, "cell cursors are uint8_t");
+  static constexpr uint8_t MAX_CELLS = MAX_AMOUNT_CELLS;
   static constexpr uint8_t VALID_BYTES = (MAX_CELLS + 7) / 8;
 
   BydCellBalanceTimeState state = BydCellBalanceTimeState::NOT_READ;
@@ -206,7 +208,8 @@ class BydAttoBattery : public CanBattery {
 
   static const uint16_t CELL_BALANCE_TIME_DID_BASE = 0x003F;
   static const uint16_t CELL_BALANCE_TIME_TIMEOUT_MS = 600;
-  static const uint32_t CELL_BALANCE_TIME_SCAN_TIMEOUT_MS = 60000;
+  // 126 cells take about 27s, so the cap needs headroom for the largest packs on a slow bus.
+  static const uint32_t CELL_BALANCE_TIME_SCAN_TIMEOUT_MS = 90000;
   static const uint8_t CELL_BALANCE_TIME_RETRIES = 1;
   BydCellBalanceTimeData cell_balance_time_data;
   unsigned long cell_balance_time_scan_millis = 0;

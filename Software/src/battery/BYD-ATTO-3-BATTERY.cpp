@@ -954,7 +954,7 @@ String BydAttoBattery::cell_balance_times_json() const {
           ? BydCellBalanceTimeState::QUEUED
           : snapshot.state;
   String json;
-  json.reserve(900);
+  json.reserve(64 + snapshot.expected_cells * 7);
   json += "{\"s\":" + String(static_cast<uint8_t>(state));
   json += ",\"e\":" + String(snapshot.expected_cells);
   json += ",\"r\":" + String(snapshot.received_cells);
