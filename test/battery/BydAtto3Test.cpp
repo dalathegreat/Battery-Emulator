@@ -380,7 +380,8 @@ TEST_F(BydAtto3BalanceTimeTest, ResponsePendingCannotHoldTheScanOpen) {
   battery->transmit_can(200);
 
   battery->handle_incoming_can_frame(uds_reply({0x03, 0x7F, 0x22, 0x78, 0x00, 0x00, 0x00, 0x00}));
-  battery->transmit_can(60200);
+  // Must be past CELL_BALANCE_TIME_SCAN_TIMEOUT_MS, otherwise the scan is still legitimately open.
+  battery->transmit_can(90200);
 
   EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::FAILED);
   EXPECT_EQ(battery->cell_balance_times().scan_id, 1u);

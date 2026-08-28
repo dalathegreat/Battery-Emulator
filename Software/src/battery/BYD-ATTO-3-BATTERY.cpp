@@ -963,7 +963,7 @@ String BydAttoBattery::cell_balance_times_json() const {
   json += ",\"v\":[";
   for (uint8_t cell = 0; cell < snapshot.expected_cells; cell++) {
     if (cell) {
-      json += ',';
+      json += ",";
     }
     if (snapshot.cell_valid(cell)) {
       json += snapshot.hours[cell];
