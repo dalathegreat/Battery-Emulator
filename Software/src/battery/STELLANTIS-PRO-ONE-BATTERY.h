@@ -25,9 +25,8 @@ class StellantisProOneBattery : public UdsCanBattery {
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
-  static const uint8_t CONTACTORS_OFF = 0;
-  static const uint8_t CONTACTORS_PRECHARGE = 1;
-  static const uint8_t CONTACTORS_ON = 2;
+  static const uint8_t CONTACTORS_OFF = 8;
+  static const uint8_t CONTACTORS_ON = 10;
 
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
