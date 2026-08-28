@@ -1073,6 +1073,19 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
   }
 
+  if (var == "VWISOMEAS") {
+    return settings.getBool("VWISOMEAS") ? "checked" : "";
+  }
+
+  if (var == "VWDCDC") {
+    return settings.getBool("VWDCDC") ? "checked" : "";
+  }
+
+  // Stored in mV, entered and shown in volts.
+  if (var == "VWDCDCV") {
+    return String(static_cast<float>(settings.getUInt("VWDCDCV", 13300)) / 1000.0f, 3);
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1382,6 +1395,30 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
           if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
+          /* The HIA4V1 circuit and the VW DC-DC converter both precharge the HV link, so only one of
+             them may be in charge of it. Whichever is ticked greys out the other. A ticked box is never
+             disabled, so a conflict stored by an older firmware can still be resolved by the user, and a
+             disabled box is always unticked - which is what gets submitted for it. */
+          (function() {
+            var dcdc = document.querySelector("input[name='VWDCDC']");
+            var extpre = document.querySelector("input[name='EXTPRECHARGE']");
+            var dcdcv = document.querySelector("input[name='VWDCDCV']");
+            var batt = document.querySelector("select[name='battery']");
+            if (!dcdc || !extpre) { return; }
+            function syncPrecharge() {
+              /* offsetParent is null while the DC-DC option is hidden (non-VW battery selected); it
+                 must not block external precharge then. */
+              var dcdcOn = dcdc.checked && dcdc.offsetParent !== null;
+              extpre.disabled = dcdcOn && !extpre.checked;
+              dcdc.disabled = extpre.checked && !dcdc.checked;
+              /* The 12V setpoint only reaches the converter when there is one. */
+              if (dcdcv) { dcdcv.disabled = !dcdc.checked; }
+            }
+            dcdc.addEventListener('change', syncPrecharge);
+            extpre.addEventListener('change', syncPrecharge);
+            if (batt) { batt.addEventListener('change', syncPrecharge); }
+            syncPrecharge();
+          })();
     </script>
 )rawliteral"
 
@@ -1471,6 +1508,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-nissan { display: none; }
     form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
+    form .if-vw { display: none; }
+    form[data-battery="19"] .if-vw, form[data-battery="55"] .if-vw {
       display: contents;
     }
 
@@ -1835,6 +1877,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           if (sel) { sel.dataset.initial = sel.value; }
         })();
         </script>
+        <div class="if-vw">
+            <label for='vwisomeas'>Isolation measurement: </label>
+            <input type='checkbox' name='VWISOMEAS' id='vwisomeas' value='on' %VWISOMEAS%
+            title="Periodic BMS measurements of the HV isolation resistance. Some inverters don't like it." />
+
+            <label for='vwdcdc'>DC-DC voltage converter: </label>
+            <input type='checkbox' name='VWDCDC' id='vwdcdc' value='on' %VWDCDC%
+            title="Enable if a VW DC-DC converter is present on the bus. It then performs the HV precharge and supplies the 12V rail. When disabled, the emulator's own precharge circuit is used instead." />
+
+            <label for='vwdcdcv'>DC-DC Low voltage setting (V): </label>
+            <input name='VWDCDCV' id='vwdcdcv' type='number' min='10.6' max='14.5' step='0.025' value='%VWDCDCV%'
+            title="Output voltage the DC-DC converter on the 12V rail while it is charging. Range 10.6 - 14.5 V" />
+        </div>
 
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>

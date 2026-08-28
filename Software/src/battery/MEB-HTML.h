@@ -149,6 +149,10 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       }
       content += " &deg;C</h4>";
     }
+    add_h4(content, "DC-DC temperature", String(datalayer_extended.meb.DCDC_temperature_dC / 10.f, 1) + " &deg;C");
+    add_h4(content, "DC-DC HV voltage", String(datalayer_extended.meb.DCDC_HV_voltage_dV / 10.f, 1) + " V");
+    add_h4(content, "DC-DC LV voltage", String(datalayer_extended.meb.DCDC_LV_voltage_dV / 10.f, 2) + " V");
+    add_h4(content, "DC-DC LV current", String(datalayer_extended.meb.DCDC_LV_current_A / 1.f, 1) + " A");
     add_h4(content, "Total charged", String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh");
     add_h4(content, "Total discharged",
            String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) + " kWh");
