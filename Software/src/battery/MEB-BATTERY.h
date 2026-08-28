@@ -6,6 +6,10 @@
 // Uncomment the next line to enable some debug logging.
 //#define MEB_DEBUG
 
+extern bool user_selected_VW_iso_measurement;
+extern bool user_selected_VW_dcdc_converter;
+extern uint16_t user_selected_VW_dcdc_lv_setpoint_mV;
+
 // VW Group platform battery types.
 enum class VAGPlatform : uint8_t {
   MEB = 1,
@@ -59,6 +63,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void handle_bms_reset(unsigned long currentMillis);
   /* drive the HV bring-up coordinator (sequences the external DCDC + BMS) — called every 100 ms */
   void high_voltage_coordinator(unsigned long currentMillis);
+  /* HV bring-up without a DC-DC converter, using the emulator's own precharge — called every 100 ms */
+  void high_voltage_coordinator_legacy(unsigned long currentMillis);
   /* IsoTp override: send a raw CAN frame */
   void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
@@ -252,6 +258,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int DC_HYB_02 = 0x3AF;
   static const int DCDC_01 = 0x2AE;
   static const int DCDC_02 = 0x3F4;
+  static const int DCDC_03 = 0x5CD;
   static const int DCDC_04 = 0xF7;
   static const int Motor_EV_01 = 0x187;
   static const int Airbag_01 = 0x40;
@@ -376,13 +383,22 @@ class MebBattery : public CanBattery, public IsoTp {
   static constexpr unsigned long HV_STEP_STALL_MS = 3000;    // log if a step stalls this long
   static constexpr int PRECHARGE_VOLTAGE_MATCH_DV = 100;     // DCDC HV vs pack match window (10 V)
 
+  // Isolation measurement request sent in HVK_01 (bits 50-52): 15 seconds of
+  // measurement alternating with 15 seconds idle, only while KL15 is on.
+  static constexpr unsigned long ISO_MEASUREMENT_PERIOD_MS = 15000;
+  bool iso_measurement_active = false;   // true = request measurement, false = no measurement
+  unsigned long iso_measurement_ms = 0;  // start of the current 15 seconds phase
+
   // DCDC converter state, decoded from the received DCDC_01/02/04 messages.
   uint8_t dcdc_actual_mode = DCDC_MODE_STANDBY;  // DC mode from DCDC_04
   bool dcdc_precharge_complete = false;          // DC precharge status from DCDC_04
   int32_t dcdc_hv_voltage_dV = 0;                // DCDC_01 HV voltage measured
   int16_t dcdc_hv_current_dA = 0;                // DCDC_01 HV current measured
+  uint8_t dcdc_lv_voltage_dV = 0;                // DCDC_01 LV voltage measured
+  int16_t dcdc_lv_current_A = 0;                 // DCDC_01 LV current measured
   uint16_t dcdc_consumption = 0;                 // DCDC_02 DC power consumption
   uint8_t dcdc_utilization_pct = 0;              // DCDC_02 DC utilization percentage
+  int8_t dcdc_temperature = 0;                   // DCDC_03 module temperature
 
   uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
   bool nof_cells_determined = false;
