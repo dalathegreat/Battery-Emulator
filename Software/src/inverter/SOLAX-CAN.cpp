@@ -212,8 +212,7 @@ void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half,
   serial[0] = '6';
   serial[1] = 'S';
 
-  uint32_t seed = ((uint32_t)mac[0] << 24) | ((uint32_t)mac[1] << 16) | ((uint32_t)mac[2] << 8) |
-                  (uint32_t)mac[3];
+  uint32_t seed = ((uint32_t)mac[0] << 24) | ((uint32_t)mac[1] << 16) | ((uint32_t)mac[2] << 8) | (uint32_t)mac[3];
   seed ^= (((uint32_t)mac[4] << 8) | (uint32_t)mac[5]);
   seed += (uint32_t)slot * 7919u;
 
