@@ -116,7 +116,7 @@ void AkasolBattery::setup() {
 
   // Do not allow contactor closing / current flow until the state machine
   // below has taken the battery through Init -> Standby -> Operational.
- datalayer.battery.status.real_bms_status = BMS_STANDBY;
+  datalayer.battery.status.real_bms_status = BMS_STANDBY;
 
   akasol_state = AkasolState::INIT_HW;
   state_entry_time = millis();
@@ -130,22 +130,22 @@ void AkasolBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case AKASOL_BMM01_STATE: {
       uint8_t b0 = rx_frame.data.u8[0];
-      stat_init = (b0 & 0x01) != 0;          // bit 0
-      stat_standby = (b0 & 0x02) != 0;       // bit 1
-      stat_precharge = (b0 & 0x04) != 0;     // bit 2
-      stat_operational = (b0 & 0x08) != 0;   // bit 3
-      stat_disabling = (b0 & 0x10) != 0;     // bit 4
-      stat_error = (b0 & 0x40) != 0;         // bit 6
+      stat_init = (b0 & 0x01) != 0;         // bit 0
+      stat_standby = (b0 & 0x02) != 0;      // bit 1
+      stat_precharge = (b0 & 0x04) != 0;    // bit 2
+      stat_operational = (b0 & 0x08) != 0;  // bit 3
+      stat_disabling = (b0 & 0x10) != 0;    // bit 4
+      stat_error = (b0 & 0x40) != 0;        // bit 6
 
       uint8_t b1 = rx_frame.data.u8[1];
       flag_drive = (b1 & 0x01) != 0;   // bit 8
       flag_charge = (b1 & 0x02) != 0;  // bit 9
 
       uint8_t b2 = rx_frame.data.u8[2];
-      flag_wake = (b2 & 0x01) != 0;         // bit 16
-      flag_isodisable = (b2 & 0x02) != 0;   // bit 17
-      contactor_pos = (b2 & 0x08) != 0;     // bit 19 -> byte2 bit3
-      contactor_neg = (b2 & 0x10) != 0;     // bit 20 -> byte2 bit4
+      flag_wake = (b2 & 0x01) != 0;              // bit 16
+      flag_isodisable = (b2 & 0x02) != 0;        // bit 17
+      contactor_pos = (b2 & 0x08) != 0;          // bit 19 -> byte2 bit3
+      contactor_neg = (b2 & 0x10) != 0;          // bit 20 -> byte2 bit4
       flag_contactor_precha = (b2 & 0x20) != 0;  // bit 21
       flag_chargecomplete = (b2 & 0x40) != 0;    // bit 22
       flag_extshutdownreq = (b2 & 0x80) != 0;    // bit 23
@@ -159,10 +159,10 @@ void AkasolBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       flag_estoploopclosed = (b3 & 0x80) == 0;   // bit 31 - e-stop/safety loop (0 = closed, 1 = open per DBC)
 
       uint8_t b4 = rx_frame.data.u8[4];
-      flag_warning = (b4 & 0x01) != 0;  // bit 32
-      flag_alarm = (b4 & 0x02) != 0;    // bit 33
-      flag_auxcont = (b4 & 0x04) != 0;  // bit 34
-      flag_firerisk = (b4 & 0x80) != 0; // bit 39
+      flag_warning = (b4 & 0x01) != 0;   // bit 32
+      flag_alarm = (b4 & 0x02) != 0;     // bit 33
+      flag_auxcont = (b4 & 0x04) != 0;   // bit 34
+      flag_firerisk = (b4 & 0x80) != 0;  // bit 39
 
       bmm_alive_counter_mirror = rx_frame.data.u8[7];  // byte 56-63
 
@@ -234,13 +234,13 @@ void AkasolBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
     case AKASOL_BMM01_ERROR_INFO: {
       const uint8_t* d = rx_frame.data.u8;
-      errinfo_value = (int16_t)(d[0] | (d[1] << 8));                  // bits 0-15, signed
-      uint32_t bits16_31 = d[2] | (d[3] << 8);                        // bits 16-31 packed
-      errinfo_srccompnr = bits16_31 & 0x7FF;                          // bits 16-26 (11 bits)
-      errinfo_srcsubcompclass = (uint8_t)((bits16_31 >> 11) & 0x3);   // bits 27-28 (2 bits)
-      errinfo_srccompclass = (uint8_t)((bits16_31 >> 13) & 0x7);      // bits 29-31 (3 bits)
-      errinfo_errornumber = d[4] | (d[5] << 8);                       // bits 32-47
-      errinfo_detectdevice = d[6];                                    // bits 48-55
+      errinfo_value = (int16_t)(d[0] | (d[1] << 8));                 // bits 0-15, signed
+      uint32_t bits16_31 = d[2] | (d[3] << 8);                       // bits 16-31 packed
+      errinfo_srccompnr = bits16_31 & 0x7FF;                         // bits 16-26 (11 bits)
+      errinfo_srcsubcompclass = (uint8_t)((bits16_31 >> 11) & 0x3);  // bits 27-28 (2 bits)
+      errinfo_srccompclass = (uint8_t)((bits16_31 >> 13) & 0x7);     // bits 29-31 (3 bits)
+      errinfo_errornumber = d[4] | (d[5] << 8);                      // bits 32-47
+      errinfo_detectdevice = d[6];                                   // bits 48-55
       break;
     }
     default:
@@ -287,21 +287,21 @@ void AkasolBattery::update_values() {
   uint32_t charge_current_dA = lim_charge_curr_A_x10;
   uint32_t discharge_current_dA = lim_discharge_curr_A_x10;
 
-  // SECOND BUG, found from Solax's own compatibility page
-  // (kb.solaxpower.com/solution/detail/2c9fa4148ceddee5018e94039f8026a0):
-  // the X1/X3 Hybrid G4 battery PORT has a hardware ceiling of "Max. charge /
-  // Discharge current [A]: 30" - identical for both models, regardless of how
-  // many kWh of battery is behind it. AKASOL's own BMM01_limits1 message
-  // reports what the 50Ah AKASOL pack itself can do, which is on a totally
-  // different scale (seen on the bus: ~137A charge / ~180A discharge - normal
-  // for a pack this size, has nothing to do with what Solax's port hardware
-  // can swallow). Forwarding that raw AKASOL number unclamped (which is
-  // exactly what the *first* current_dA fix did) tells the inverter "charge/
-  // discharge me at 137-180A", 4-6x past its own declared port limit - a
-  // second, opposite-extreme way to feed it an invalid current value
-  // (first bug: always 0A/too low; this one: uncapped/way too high). Clamp to
-  // the inverter's real hardware limit before it ever reaches the datalayer.
-  #define AKASOL_SOLAX_PORT_MAX_CURRENT_DA 300  // 30.0A, per SolaX's own spec
+// SECOND BUG, found from Solax's own compatibility page
+// (kb.solaxpower.com/solution/detail/2c9fa4148ceddee5018e94039f8026a0):
+// the X1/X3 Hybrid G4 battery PORT has a hardware ceiling of "Max. charge /
+// Discharge current [A]: 30" - identical for both models, regardless of how
+// many kWh of battery is behind it. AKASOL's own BMM01_limits1 message
+// reports what the 50Ah AKASOL pack itself can do, which is on a totally
+// different scale (seen on the bus: ~137A charge / ~180A discharge - normal
+// for a pack this size, has nothing to do with what Solax's port hardware
+// can swallow). Forwarding that raw AKASOL number unclamped (which is
+// exactly what the *first* current_dA fix did) tells the inverter "charge/
+// discharge me at 137-180A", 4-6x past its own declared port limit - a
+// second, opposite-extreme way to feed it an invalid current value
+// (first bug: always 0A/too low; this one: uncapped/way too high). Clamp to
+// the inverter's real hardware limit before it ever reaches the datalayer.
+#define AKASOL_SOLAX_PORT_MAX_CURRENT_DA 300  // 30.0A, per SolaX's own spec
   if (charge_current_dA > AKASOL_SOLAX_PORT_MAX_CURRENT_DA) {
     charge_current_dA = AKASOL_SOLAX_PORT_MAX_CURRENT_DA;
   }
@@ -327,8 +327,7 @@ void AkasolBattery::update_values() {
   datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_current_dA;
   datalayer.battery.status.max_discharge_current_dA = (uint16_t)discharge_current_dA;
 
-  datalayer.battery.status.max_charge_power_W =
-      (uint32_t)((uint64_t)charge_current_dA * battery_voltage_dV / 100);
+  datalayer.battery.status.max_charge_power_W = (uint32_t)((uint64_t)charge_current_dA * battery_voltage_dV / 100);
   datalayer.battery.status.max_discharge_power_W =
       (uint32_t)((uint64_t)discharge_current_dA * battery_voltage_dV / 100);
 
@@ -354,7 +353,6 @@ void AkasolBattery::update_values() {
     datalayer.battery.status.real_bms_status = BMS_STANDBY;
   }
 }
-
 
 void AkasolBattery::transmit_can(unsigned long currentMillis) {
   static unsigned long last_tx = 0;
@@ -414,11 +412,8 @@ void AkasolBattery::transmit_can(unsigned long currentMillis) {
 
   bool request_use = (akasol_state == AkasolState::RUNNING) && !stat_error;
 
-  CAN_frame AKASOL_VCU_frame = {.FD = false,
-                                 .ext_ID = true,
-                                 .DLC = 8,
-                                 .ID = AKASOL_VCU1_TO_BMM01,
-                                 .data = {0, 0, 0, 0, 0, 0, 0, 0}};
+  CAN_frame AKASOL_VCU_frame = {
+      .FD = false, .ext_ID = true, .DLC = 8, .ID = AKASOL_VCU1_TO_BMM01, .data = {0, 0, 0, 0, 0, 0, 0, 0}};
 
   uint8_t byte0 = 0;
   if (request_use) {
@@ -593,8 +588,9 @@ String AkasolBattery::get_status_html() {
   flag_row("Charge complete", flag_chargecomplete);
   flag_row("Aux contactor", flag_auxcont);
 
-  content += "<p style='margin:12px 0 4px;color:#ccc;'>BMM01 mirrored alive counter: " +
-             String(bmm_alive_counter_mirror) + "</p>";
+  content +=
+      "<p style='margin:12px 0 4px;color:#ccc;'>BMM01 mirrored alive counter: " + String(bmm_alive_counter_mirror) +
+      "</p>";
   content += "<p style='margin:4px 0;color:#ccc;'>Our VCU alive counter (last sent): " +
              String((int)(vcu_alive_counter - 1) & 0xFF) + "</p>";
 
@@ -638,12 +634,10 @@ String AkasolBattery::get_status_html() {
   content += "</table>";
 
   // Raw BMM01_Error_info fields. All zero means no error is being reported.
-  content += "<p style='margin:10px 0 2px;color:#ccc;font-size:0.9em;'>Error info: value=" +
-             String(errinfo_value) + ", errornumber=" + String(errinfo_errornumber) +
-             ", srcCompClass=" + String(errinfo_srccompclass) +
-             ", srcSubcompClass=" + String(errinfo_srcsubcompclass) +
-             ", srcCompNr=" + String(errinfo_srccompnr) + ", detectDevice=" +
-             String(errinfo_detectdevice) + "</p>";
+  content += "<p style='margin:10px 0 2px;color:#ccc;font-size:0.9em;'>Error info: value=" + String(errinfo_value) +
+             ", errornumber=" + String(errinfo_errornumber) + ", srcCompClass=" + String(errinfo_srccompclass) +
+             ", srcSubcompClass=" + String(errinfo_srcsubcompclass) + ", srcCompNr=" + String(errinfo_srccompnr) +
+             ", detectDevice=" + String(errinfo_detectdevice) + "</p>";
 
   return content;
 }

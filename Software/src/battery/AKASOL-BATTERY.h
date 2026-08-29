@@ -2,8 +2,8 @@
 #define AKASOL_BATTERY_H
 
 #include <Arduino.h>
-#include "CanBattery.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
+#include "CanBattery.h"
 
 /* ============================================================================
  * AKASOL AKASYSTEM (15 OEM 50 PRC) battery driver
@@ -35,9 +35,9 @@
 // assert, common LilyGo GND is the SSR's "-" reference) - pins restored so
 // the driver's bounce-free timed state machine (KL30_safe -> settle -> KL30
 // -> settle -> Wake, see transmit_can()) actually drives the real signals.
-#define AKASOL_PIN_KL30 16        // Expansion header IO16 - drives KL30 SSR
-#define AKASOL_PIN_KL15_WAKE 47   // Expansion header IO47 - drives Battery Wake SSR
-#define AKASOL_PIN_KL30_SAFE 15   // Expansion header IO15 - drives KL30_safe / eStop loop SSR
+#define AKASOL_PIN_KL30 16       // Expansion header IO16 - drives KL30 SSR
+#define AKASOL_PIN_KL15_WAKE 47  // Expansion header IO47 - drives Battery Wake SSR
+#define AKASOL_PIN_KL30_SAFE 15  // Expansion header IO15 - drives KL30_safe / eStop loop SSR
 // If AKASOL_PIN_x is left at -1, the driver will NOT attempt to drive that
 // pin - useful again if you ever need to fall back to CAN-only bench testing.
 
@@ -114,8 +114,8 @@ class AkasolBattery : public CanBattery, public BatteryHtmlRenderer {
   static const uint32_t AKASOL_BMM01_CELLVOLTAGES = 0x18FF1100UL | AKASOL_BMU_ADDR;
   static const uint32_t AKASOL_BMM01_CELLTEMPERATURES = 0x18FF1200UL | AKASOL_BMU_ADDR;
   static const uint32_t AKASOL_BMM01_ELECTRICS = 0x18FF1400UL | AKASOL_BMU_ADDR;
-  static const uint32_t AKASOL_BMM01_LIMITS1 = 0x0CFF1A00UL | AKASOL_BMU_ADDR;  // charge/discharge current limits
-  static const uint32_t AKASOL_BMM01_LIMITS2 = 0x0CFF1B00UL | AKASOL_BMU_ADDR;  // voltage/power limits
+  static const uint32_t AKASOL_BMM01_LIMITS1 = 0x0CFF1A00UL | AKASOL_BMU_ADDR;   // charge/discharge current limits
+  static const uint32_t AKASOL_BMM01_LIMITS2 = 0x0CFF1B00UL | AKASOL_BMU_ADDR;   // voltage/power limits
   static const uint32_t AKASOL_BMM01_CAPACITY = 0x18FCEA00UL | AKASOL_BMU_ADDR;  // SOC (Ah based), Ah capacity
   static const uint32_t AKASOL_BMM01_SOH = 0x18FF1C00UL | AKASOL_BMU_ADDR;
 
@@ -135,23 +135,23 @@ class AkasolBattery : public CanBattery, public BatteryHtmlRenderer {
   // seen condition even though Wake/CAN comms came up fine), THEN KL30,
   // THEN (after ~1s) Wake.
   enum class AkasolState {
-    INIT_HW,      // driving GPIOs low, nothing started yet
-    KL30_SAFE_ON, // KL30_safe asserted alone, settling before KL30
-    KL30_ON,      // KL30_safe + KL30 asserted, settling before Wake
-    REQUEST_USE,  // Wake also asserted; waiting for Standby, then sending req_batuse=1
-    RUNNING       // battery reported Operational at least once
+    INIT_HW,       // driving GPIOs low, nothing started yet
+    KL30_SAFE_ON,  // KL30_safe asserted alone, settling before KL30
+    KL30_ON,       // KL30_safe + KL30 asserted, settling before Wake
+    REQUEST_USE,   // Wake also asserted; waiting for Standby, then sending req_batuse=1
+    RUNNING        // battery reported Operational at least once
   };
   AkasolState akasol_state = AkasolState::INIT_HW;
   unsigned long state_entry_time = 0;
 
   // --- Parsed raw values from CAN --------------------------------------
-  int16_t battery_current_dA = 0;      // 0.1A resolution, already matches Battery-Emulator unit
-  int16_t battery_voltage_dV = 0;      // 0.1V resolution
+  int16_t battery_current_dA = 0;  // 0.1A resolution, already matches Battery-Emulator unit
+  int16_t battery_voltage_dV = 0;  // 0.1V resolution
   uint16_t cell_voltage_max_mV = 0;
   uint16_t cell_voltage_min_mV = 0;
   int16_t cell_temperature_max_dC = 0;  // 0.1 degC
   int16_t cell_temperature_min_dC = 0;
-  uint16_t soc_pptt = 0;               // 0.01% resolution (basis points)
+  uint16_t soc_pptt = 0;  // 0.01% resolution (basis points)
   uint16_t soh_pptt = 0;
   uint16_t max_avail_capacity_Ah_x10 = 0;
   uint16_t lim_charge_curr_A_x10 = 0;
