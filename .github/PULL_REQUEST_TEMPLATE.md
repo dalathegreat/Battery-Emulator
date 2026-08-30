@@ -18,7 +18,7 @@ How does it do it?
 
 - fixes <link to issue>
 
-### Pull request in [Battery Emulator Wiki](https://github.com/dalathegreat/Battery-Emulator-Wiki) updating documentation (if applicable):**
+### Pull request in [Battery Emulator Wiki](https://github.com/dalathegreat/Battery-Emulator-Wiki) updating documentation (if applicable):
 
 - wiki PR <link to PR>
 
