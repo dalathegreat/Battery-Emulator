@@ -22,9 +22,9 @@ How does it do it?
 
 - wiki PR <link to PR>
 
-## Checklist:
+### Checklist:
 
   - [ ] The code change is tested and works locally.
 
 > [!TIP]
-> [You can help test this PR with this guide](https://github.com/dalathegreat/Battery-Emulator/blob/main/CONTRIBUTING.md#downloading-a-pull-request-build-to-test-locally-)
+> [You can help test this PR with this guide](https://dalathegreat.github.io/Battery-Emulator-Wiki/setup/contributing/contributing/#downloading-a-pull-request-build-to-test-locally)
