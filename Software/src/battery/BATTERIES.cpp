@@ -6,6 +6,7 @@
 #include "RS485Battery.h"
 
 #include "../shunt/BMW-SBOX.h"
+#include "AKASOL-BATTERY.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"
@@ -100,6 +101,8 @@ const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
+    case BatteryType::Akasol:
+      return AkasolBattery::Name;
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
     case BatteryType::BmwIX:
@@ -225,10 +228,35 @@ BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
 bool user_selected_triple_battery = false;
 
+static BydAttoBattery* byd_battery_at(uint8_t index) {
+  if (user_selected_battery_type != BatteryType::BydAtto3 || index > 1 ||
+      (index == 1 && !user_selected_second_battery)) {
+    return nullptr;
+  }
+  Battery* target = index == 0 ? battery : battery2;
+  return target ? static_cast<BydAttoBattery*>(target) : nullptr;
+}
+
+bool byd_cell_balance_times_available(uint8_t index) {
+  return byd_battery_at(index) != nullptr;
+}
+
+bool request_byd_cell_balance_times(uint8_t index) {
+  BydAttoBattery* target = byd_battery_at(index);
+  return target && target->request_cell_balance_times();
+}
+
+String byd_cell_balance_times_json(uint8_t index) {
+  BydAttoBattery* target = byd_battery_at(index);
+  return target ? target->cell_balance_times_json() : String();
+}
+
 Battery* create_battery(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return nullptr;
+    case BatteryType::Akasol:
+      return new AkasolBattery();
     case BatteryType::BmwI3:
       return new BmwI3Battery();
     case BatteryType::BmwIX:

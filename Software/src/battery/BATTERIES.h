@@ -23,6 +23,10 @@ Battery* create_battery(BatteryType type);
 bool battery_supports_double(BatteryType type);
 bool battery_supports_triple(BatteryType type);
 
+bool byd_cell_balance_times_available(uint8_t index);
+bool request_byd_cell_balance_times(uint8_t index);
+String byd_cell_balance_times_json(uint8_t index);
+
 extern uint16_t user_selected_max_pack_voltage_dV;
 extern uint16_t user_selected_min_pack_voltage_dV;
 extern uint16_t user_selected_max_cell_voltage_mV;
