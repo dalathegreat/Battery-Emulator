@@ -5,6 +5,7 @@
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
+#include "../utils/ota_confirm_gate.h"
 
 static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
@@ -655,6 +656,15 @@ void graceful_restart() {
   // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
 
   set_event(EVENT_RESTARTING, 0);
+
+  /* An intentional restart must not throw away a fresh update. The board was
+     well enough to be asked for one, which is the health this needs; without
+     this, restarting inside the 42 s window - the very thing a user does after
+     an update - would silently revert it. Armed at the REQUEST rather than at
+     the reboot, because the pause below buys 5-10 s, which is what lets the
+     write happen where every other runtime flash write happens instead of from
+     the 1 ms tick. */
+  ota_confirm_request();
 
   // Stop charge/discharge so we don't damage the contactors
   setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
