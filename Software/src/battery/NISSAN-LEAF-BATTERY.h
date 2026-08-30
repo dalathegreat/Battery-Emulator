@@ -46,6 +46,10 @@ class NissanLeafBattery : public CanBattery {
   }
   bool supports_insulation_resistance() { return true; }
 
+  /* This driver publishes battery_allows_contactor_closing as a real permission derived from the
+     LBC's own signals, so handle_contactors() may use it as a precondition. See update_values(). */
+  bool gates_contactor_closing() { return true; }
+
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
     return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
@@ -84,6 +88,11 @@ class NissanLeafBattery : public CanBattery {
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
+
+  // Last value published there: -1 not decided yet, 0 withheld, 1 granted. Only used to log the
+  // transition, so a pack that refuses to permit closing says so once instead of silently or
+  // every cycle.
+  int8_t contactor_permission_state = -1;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis40 = 0;   // will store last time a 40ms CAN Message was send

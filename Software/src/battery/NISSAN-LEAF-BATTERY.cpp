@@ -3,6 +3,7 @@
 #include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"  //For contactor_control_enabled
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
 #include "../devboard/utils/common_functions.h"  //For CRC table
@@ -87,9 +88,37 @@ void NissanLeafBattery::
 
   datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
 
-  //Allow contactors to close
-  if (battery_can_alive && allows_contactor_closing) {
-    *allows_contactor_closing = true;
+  /* Allow contactors to close.
+     293A0NDS25 5.1.1 step 3) "Confirmation of CAN signal reception": before any relay is commanded
+     on, the controller confirms the pack is willing. Table 7 lists LB_FRLYON = 1, LB_FAIL = 0,
+     LB_STATUS = 0 and LB_INTERLOC = 1, and states that step 4) is not entered until they match.
+     Two deliberate departures from that list, both documented rather than silent:
+     - LB_STATUS is not required to be 0. On a vehicle the pack is mid-SOC at key-on, but in
+       stationary storage 010b "Charging Mode Stop Request" (full) and, on ZE0, 001b "Normal Stop
+       Request" (empty) are ordinary resting states. Requiring 0 would leave a full or empty pack
+       unable to close after a reboot or an equipment stop. The genuinely abnormal LB_STATUS codes
+       (5, 6, 7) already raise error events further down, which the fault path acts on.
+     - LB_INTERLOCK is only required when the user has asked for it, keeping the existing
+       "Interlock required:" setting the single place that decides whether a seated interlock is
+       mandatory. Its meaning is unchanged; it now prevents the close instead of only faulting
+       after it. */
+  if (allows_contactor_closing) {
+    bool pack_permits = battery_can_alive && battery_MainRelayOn_flag &&  //LB_FRLYON = 1
+                        (battery_Relay_Cut_Request == 0) &&               //LB_FAIL = 0
+                        (!user_selected_LEAF_interlock_mandatory || battery_Interlock);
+    *allows_contactor_closing = pack_permits;
+
+    //Logged on the transition only. A pack that never grants permission would otherwise be a
+    //silent no-close, so name the signal that is holding it.
+    if (pack_permits != (contactor_permission_state == 1)) {
+      contactor_permission_state = pack_permits ? 1 : 0;
+      if (pack_permits) {
+        logging.printf("LEAF: pack permits contactor closing\n");
+      } else {
+        logging.printf("LEAF: contactor close held. FRLYON:%u FAIL:%u interlock:%u\n", battery_MainRelayOn_flag,
+                       battery_Relay_Cut_Request, battery_Interlock);
+      }
+    }
   }
 
   /*Extra safety functions below*/
@@ -932,24 +961,45 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
 
-      switch (mprun10) {
-        case 0:
-          LEAF_1D4.data.u8[4] = 0x07;
-          LEAF_1D4.data.u8[7] = 0x12;
-          break;
-        case 1:
-          LEAF_1D4.data.u8[4] = 0x47;
-          LEAF_1D4.data.u8[7] = 0xD5;
-          break;
-        case 2:
-          LEAF_1D4.data.u8[4] = 0x87;
-          LEAF_1D4.data.u8[7] = 0x19;
-          break;
-        case 3:
-          LEAF_1D4.data.u8[4] = 0xC7;
-          LEAF_1D4.data.u8[7] = 0xDE;
-          break;
+      /* 0x1D4 carries the controller's declaration of what it has done with the high voltage
+         relays: BTONFN (byte 4 bit 2, StatusOfHighVoltagePowerSupply) and RLYP (byte 5 bit 6,
+         Relay_Plus_Output_Status), per the pack CAN databooks. 293A0NDS25 pairs each with the
+         matching relay command - Table 7 sends RLYP = 1 once PRE CHARGE RLY is on, BTONFN = 1 once
+         MAIN RLY1 (+) and MAIN RLY2 (-) are on, and Status 6/8 clears both as the relays open again.
+         Status 2 "Waiting for permission of Relay ON" is the resting state with both at 0.
+         Both bits were previously hardcoded to 1 in the frame initialiser and never cleared, so the
+         pack was told high voltage was supplied and the plus relay commanded from the first frame
+         after boot and for the whole time the contactors were open - during precharge, after an
+         equipment stop, and while latched open by a fault.
+         The pack cannot measure the relays itself, so this changes no electrical behaviour; it stops
+         the declaration contradicting the commanded state, and gives the LBC the resting state the
+         specification expects it to be parked in.
+         contactors_engaged is only written when GPIO contactor control is enabled. Without it the
+         relays are outside this firmware's knowledge, so the previous constant 1/1 is kept. */
+      bool relay_plus_commanded = true;
+      bool high_voltage_supplied = true;
+      if (contactor_control_enabled) {
+        //1 = closed and economized, 3 = closing ladder in progress, 0 = open, 2 = latched open
+        uint8_t engaged = datalayer.system.status.contactors_engaged;
+        relay_plus_commanded = (engaged == 1 || engaged == 3);
+        high_voltage_supplied = (engaged == 1);
       }
+      //PRUN, byte 4 bits 7-6. Bits 1-0 of that byte come from the frame initialiser and stay put.
+      LEAF_1D4.data.u8[4] = (LEAF_1D4.data.u8[4] & ~0xC0) | (mprun10 << 6);
+      if (high_voltage_supplied) {
+        LEAF_1D4.data.u8[4] |= 0x04;
+      } else {
+        LEAF_1D4.data.u8[4] &= ~0x04;
+      }
+      if (relay_plus_commanded) {
+        LEAF_1D4.data.u8[5] |= 0x40;
+      } else {
+        LEAF_1D4.data.u8[5] &= ~0x40;
+      }
+      /* Byte 7 was a lookup of four constants that only held for the fixed payload. With two bits
+         now variable the CRC has to be computed; for BTONFN = RLYP = 1 it reproduces the previous
+         0x12 / 0xD5 / 0x19 / 0xDE exactly, so a build without contactor control is bit-identical. */
+      LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {

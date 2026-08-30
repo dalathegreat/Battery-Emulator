@@ -149,6 +149,13 @@ class Battery {
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
 
+  /* True for drivers that maintain datalayer.system.status.battery_allows_contactor_closing as a
+     real permission, i.e. that are capable of withholding it. handle_contactors() then treats the
+     flag as a precondition for starting the closing ladder, rather than as status only.
+     Opt-in on purpose: most drivers assign the flag true unconditionally, and a couple never touch
+     it at all, so making the gate apply everywhere would stop those packs from ever closing. */
+  virtual bool gates_contactor_closing() { return false; }
+
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
 
