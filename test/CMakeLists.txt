@@ -118,6 +118,7 @@ add_executable(tests
     ../Software/src/shunt/BMW-SBOX.cpp
     ../Software/src/battery/BOLT-AMPERA-BATTERY.cpp
     ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
+    ../Software/src/battery/BYD-BATTERY-BOX-BATTERY.cpp
     ../Software/src/battery/CanBattery.cpp
     ../Software/src/battery/CELLPOWER-BMS.cpp
     ../Software/src/battery/CHARGEBYTE-CCS.cpp
