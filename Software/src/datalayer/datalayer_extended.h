@@ -844,6 +844,8 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** Battery info, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[15];
   uint8_t BatteryPartNumber[7];
+  /** Second identity string, if one of the identity probes answered. Empty otherwise. */
+  uint8_t BatteryFirmwareSecondary[7];
 };
 
 struct DATALAYER_INFO_MEB {
