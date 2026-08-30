@@ -37,6 +37,7 @@
 #include "MG-5-BATTERY.h"
 #include "MG-GEN1-BATTERY.h"
 #include "NISSAN-LEAF-BATTERY.h"
+#include "OMODA-E5-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"
 #include "RANGE-ROVER-PHEV-BATTERY.h"
@@ -159,6 +160,8 @@ const char* name_for_battery_type(BatteryType type) {
       return MgGen1Battery::Name;
     case BatteryType::NissanLeaf:
       return NissanLeafBattery::Name;
+    case BatteryType::OmodaE5:
+      return OmodaE5Battery::Name;
     case BatteryType::Pylon:
       return PylonBattery::Name;
     case BatteryType::DalyBms:
@@ -309,6 +312,8 @@ Battery* create_battery(BatteryType type) {
       return new MgGen1Battery();
     case BatteryType::NissanLeaf:
       return new NissanLeafBattery();
+    case BatteryType::OmodaE5:
+      return new OmodaE5Battery();
     case BatteryType::Pylon:
       return new PylonBattery();
     case BatteryType::DalyBms:

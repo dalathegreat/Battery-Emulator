@@ -7,12 +7,15 @@
 
 // Extend this class to add UDS features to a battery integration.
 //
-// 1. Call `setup_uds(uint16_t uds_address, uint16_t uds_response_address)` in
-//    your battery's setup() function to initialize UDS handling.
+// 1. Call `setup_uds(uint16_t uds_address, uint16_t uds_response_address,
+//    UdsCanBatteryOptions options = {})` in your battery's setup() function to
+//    initialize UDS handling.
 //     - uds_address (the CAN ID of the ECU to query, e.g. 0x7DF for generic
 //       requests)
 //     - uds_response_address (the CAN ID that UDS responses must come from, or
 //       0 to auto-detect)
+//     - options (optional): toggle UDS-specific behavior, e.g.
+//       UdsCanBatteryOptions{.fd = true} to transmit the UDS frames as CAN FD.
 //
 // 2. Call `set_pid_scan_list(const uint16_t* pids, uint16_t length)` to set the
 //    list of PIDs to query, in scan order (e.g. {0xF18A, 0xF120, ...}). The
@@ -75,6 +78,15 @@ class UdsBatteryHtmlRenderer : public BatteryHtmlRenderer {
 
  private:
   UdsCanBattery& battery;
+};
+
+// Options for setup_uds(), passed as an optional third argument.
+struct UdsCanBatteryOptions {
+  // Send the UDS request frames as CAN FD (sets the FD flag on the wire
+  // frames, so they are transmitted as FD frames on CAN-FD capable
+  // interfaces). On classic-CAN-only interfaces the frames still go out as
+  // classic CAN.
+  bool fd = false;
 };
 
 class UdsCanBattery : public CanBattery, public IsoTp {
@@ -152,7 +164,8 @@ class UdsCanBattery : public CanBattery, public IsoTp {
 
  protected:
   // Initializes the UDS layer. Must be called by subclasses in their setup() function.
-  void setup_uds(uint16_t uds_address, uint16_t uds_response_address);
+  void setup_uds(uint16_t uds_address, uint16_t uds_response_address,
+                 UdsCanBatteryOptions options = UdsCanBatteryOptions{});
   // Set (or change) the list of PIDs to scan, in order. The list is cycled
   // repeatedly - the scan restarts from the beginning of the new list.
   void set_pid_scan_list(const uint16_t* pid_list, uint16_t length);
@@ -207,6 +220,8 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   uint16_t uds_response_address = 0;
   // The address we are currently receiving a UDS response from.
   uint16_t uds_current_response_address = 0;
+  // Set by the setup_uds() options: transmit UDS frames as CAN FD.
+  bool uds_uses_fd = false;
 
  private:
   // True if the current pause blocks new sends of the given priority.
