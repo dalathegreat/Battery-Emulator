@@ -81,28 +81,56 @@
 // any reasonable alive-counter timeout.
 #define AKASOL_TX_INTERVAL_MS 100
 
+// The three setters are no-ops on a board whose HAL leaves the pin at
+// GPIO_NUM_NC, so the driver still runs CAN-only on such hardware.
 void AkasolBattery::set_kl30(bool state) {
-#if AKASOL_PIN_KL30 >= 0
-  pinMode(AKASOL_PIN_KL30, OUTPUT);
-  digitalWrite(AKASOL_PIN_KL30, state ? HIGH : LOW);
-#endif
+  if (pin_kl30 != GPIO_NUM_NC) {
+    digitalWrite(pin_kl30, state ? HIGH : LOW);
+  }
 }
 
 void AkasolBattery::set_kl15_wake(bool state) {
-#if AKASOL_PIN_KL15_WAKE >= 0
-  pinMode(AKASOL_PIN_KL15_WAKE, OUTPUT);
-  digitalWrite(AKASOL_PIN_KL15_WAKE, state ? HIGH : LOW);
-#endif
+  if (pin_kl15_wake != GPIO_NUM_NC) {
+    digitalWrite(pin_kl15_wake, state ? HIGH : LOW);
+  }
 }
 
 void AkasolBattery::set_kl30_safe(bool state) {
-#if AKASOL_PIN_KL30_SAFE >= 0
-  pinMode(AKASOL_PIN_KL30_SAFE, OUTPUT);
-  digitalWrite(AKASOL_PIN_KL30_SAFE, state ? HIGH : LOW);
-#endif
+  if (pin_kl30_safe != GPIO_NUM_NC) {
+    digitalWrite(pin_kl30_safe, state ? HIGH : LOW);
+  }
 }
 
 void AkasolBattery::setup() {
+  // Reuse the HAL's contactor pins for the battery's three discrete control
+  // signals (see the mapping in AKASOL-BATTERY.h). Claim them up front so a
+  // clash with GPIO contactor control is reported rather than silently
+  // fighting over the same outputs.
+  pin_kl30 = esp32hal->PRECHARGE_PIN();
+  pin_kl30_safe = esp32hal->NEGATIVE_CONTACTOR_PIN();
+  pin_kl15_wake = esp32hal->POSITIVE_CONTACTOR_PIN();
+
+  // ignore_unused, not plain alloc_pins: a board whose HAL leaves any of these
+  // at GPIO_NUM_NC should still come up CAN-only rather than refusing to start.
+  if (!esp32hal->alloc_pins_ignore_unused(Name, pin_kl30_safe, pin_kl30, pin_kl15_wake)) {
+    return;
+  }
+
+  // Drive everything low before anything else, so the start-up sequence always
+  // begins from a known state.
+  if (pin_kl30_safe != GPIO_NUM_NC) {
+    pinMode(pin_kl30_safe, OUTPUT);
+    digitalWrite(pin_kl30_safe, LOW);
+  }
+  if (pin_kl30 != GPIO_NUM_NC) {
+    pinMode(pin_kl30, OUTPUT);
+    digitalWrite(pin_kl30, LOW);
+  }
+  if (pin_kl15_wake != GPIO_NUM_NC) {
+    pinMode(pin_kl15_wake, OUTPUT);
+    digitalWrite(pin_kl15_wake, LOW);
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
 
   datalayer.battery.info.chemistry = battery_chemistry_enum::NMC;

@@ -2,6 +2,7 @@
 #define AKASOL_BATTERY_H
 
 #include <Arduino.h>
+#include "../devboard/hal/hal.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 #include "CanBattery.h"
 
@@ -18,28 +19,40 @@
  * for anything that touches contactors or high voltage.
  * ========================================================================= */
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// GPIO CONFIGURATION - PLACEHOLDER PINS, YOU MUST ADJUST THESE FOR YOUR BOARD
-// The Akasol battery needs three discrete 12V/24V signals in addition to CAN:
+// ---------------------------------------------------------------------------
+// GPIO CONFIGURATION
+//
+// Besides CAN, the Akasol battery needs three discrete 12V/24V control signals,
+// normally driven through a relay/SSR/MOSFET:
+//   - KL30_safe  : safety-loop supply. Must be stable BEFORE req_batuse=1,
+//                  otherwise the battery stays stuck in Init mode.
 //   - KL30       : permanent LV supply to the BMU (24V)
 //   - KL15/Wake  : "Battery Wake" - wakes the BMU CPUs and starts CAN
-//   - KL30_safe  : safety-loop supply (must be bounce-free BEFORE req_batuse=1,
-//                  otherwise the battery gets stuck in Init mode)
-// These are normally driven through a relay/MOSFET from a free GPIO on your
-// board (Stark/LilyGo/etc). Pick pins that are free on your hardware.
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// >>> SSR WIRING LIVE <<<
-// -1 test build ruled out (no functional difference vs 16/47/15, as expected
-// since nothing was physically wired to the GPIOs at the time). SSRs are now
-// soldered and confirmed wired to IO16/IO47/IO15 (GPIO sources +3.3V on
-// assert, common LilyGo GND is the SSR's "-" reference) - pins restored so
-// the driver's bounce-free timed state machine (KL30_safe -> settle -> KL30
-// -> settle -> Wake, see transmit_can()) actually drives the real signals.
-#define AKASOL_PIN_KL30 16       // Expansion header IO16 - drives KL30 SSR
-#define AKASOL_PIN_KL15_WAKE 47  // Expansion header IO47 - drives Battery Wake SSR
-#define AKASOL_PIN_KL30_SAFE 15  // Expansion header IO15 - drives KL30_safe / eStop loop SSR
-// If AKASOL_PIN_x is left at -1, the driver will NOT attempt to drive that
-// pin - useful again if you ever need to fall back to CAN-only bench testing.
+//
+// Rather than hardcoding pin numbers for one specific board, the driver reuses
+// the three contactor control pins that the HAL already defines for every
+// Battery-Emulator board:
+//
+//   PRECHARGE_PIN()          -> KL30
+//   NEGATIVE_CONTACTOR_PIN() -> KL30_safe
+//   POSITIVE_CONTACTOR_PIN() -> KL15 / Battery Wake
+//
+// The mapping is deliberate rather than alphabetical. Losing KL30 drops the
+// BMU's supply, and losing KL30_safe is an eStop that latches an Error the
+// battery only clears through a full restart sequence - so both want to sit on
+// pins that can be held across a firmware-initiated reboot (see the HAL's
+// reset_hold_pins()). Dropping Wake for a moment is by far the mildest of the
+// three, so it gets whichever pin is left. On the LilyGo T-2CAN this puts KL30
+// and KL30_safe on RTC-capable GPIOs and Wake on the one that is not; on other
+// boards the split may differ, but the ordering of harm does not.
+//
+// Note: GPIO contactor control must be left disabled when using this driver -
+// the two cannot both allocate the same pins. That is not a limitation in
+// practice, since the Akasol closes its own HV contactors over CAN.
+//
+// A board whose HAL leaves these pins at GPIO_NUM_NC simply will not drive the
+// signals; the driver still runs CAN-only, which is useful for bench testing.
+// ---------------------------------------------------------------------------
 
 // Also implements BatteryHtmlRenderer directly (instead of a separate helper
 // class) so get_status_html() can read the private state below without any
@@ -211,6 +224,11 @@ class AkasolBattery : public CanBattery, public BatteryHtmlRenderer {
 
   // --- Our TX alive counter ---
   uint8_t vcu_alive_counter = 0;
+
+  // --- Discrete control signals, resolved from the HAL in setup() ---
+  gpio_num_t pin_kl30 = GPIO_NUM_NC;
+  gpio_num_t pin_kl15_wake = GPIO_NUM_NC;
+  gpio_num_t pin_kl30_safe = GPIO_NUM_NC;
 
   // --- Helper: drive the three discrete GPIO signals ---
   void set_kl30(bool state);
