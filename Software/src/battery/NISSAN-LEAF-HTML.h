@@ -37,8 +37,6 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber, sizeof(nissan_dl->BatterySerialNumber));
     readableSerialNumber[15] = '\0';  // Null terminate the string
     content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
-    //The LBC reports its software level as the five character suffix of a Nissan part number. The
-    //two bytes that follow it in group 0x83 are a separate field, so they are not shown here.
     char readableFirmware[6];  // One extra space for null terminator
     memcpy(readableFirmware, nissan_dl->BatteryPartNumber, 5);
     readableFirmware[5] = '\0';  // Null terminate the string
