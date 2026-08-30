@@ -23,6 +23,18 @@ bool NissanLeafBattery::supports_reset_SOH() {
   return LEAF_battery_Type != ZE1_BATTERY;
 }
 
+void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
+  if (new_status == datalayer_battery->status.balancing_status) {
+    return;
+  }
+  if (new_status == BALANCING_STATUS_ACTIVE) {
+    set_event_latched(EVENT_BALANCING_START, 0);
+  } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
+    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+  }
+  datalayer_battery->status.balancing_status = new_status;
+}
+
 void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
@@ -49,10 +61,13 @@ void NissanLeafBattery::
     datalayer_battery->status.temperature_max_dC = (battery_AverageTemperature * 10);  //Increase range from C to C+1
   } else if (LEAF_battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    datalayer_battery->status.temperature_min_dC =
-        (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    datalayer_battery->status.temperature_max_dC =
-        (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    //Only update when both values have been read from the muxed message
+    if ((battery_HistData_Temperature_MIN != 86) && (battery_HistData_Temperature_MAX != 86)) {
+      datalayer_battery->status.temperature_min_dC =
+          (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+      datalayer_battery->status.temperature_max_dC =
+          (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    }
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
     if (battery_temp_raw_min != 0)  //We have a polled value available
     {
@@ -80,29 +95,29 @@ void NissanLeafBattery::
   /*Extra safety functions below*/
   if (battery_GIDS < 10)  //700Wh left in battery!
   {                       //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
-    set_event(EVENT_BATTERY_EMPTY, 0);
+    set_event(EVENT_BATTERY_EMPTY, 0, battery_index);
     datalayer_battery->status.real_soc = 0;
     datalayer_battery->status.max_discharge_power_W = 0;
   }
 
   if (battery_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
-    set_event(EVENT_BATTERY_FULL, 0);
+    set_event(EVENT_BATTERY_FULL, 0, battery_index);
     datalayer_battery->status.max_charge_power_W = 0;
   } else {
-    clear_event(EVENT_BATTERY_FULL);
+    clear_event(EVENT_BATTERY_FULL, battery_index);
   }
 
   if (battery_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
-    set_event(EVENT_BATTERY_EMPTY, 0);
+    set_event(EVENT_BATTERY_EMPTY, 0, battery_index);
     datalayer_battery->status.max_discharge_power_W = 0;
   } else {
-    clear_event(EVENT_BATTERY_EMPTY);
+    clear_event(EVENT_BATTERY_EMPTY, battery_index);
   }
 
   if (battery_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
-    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0, battery_index);
   } else {
-    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_index);
   }
 
   if (battery_Relay_Cut_Request) {  //battery_FAIL, BMS requesting shutdown and contactors to be opened
@@ -128,27 +143,27 @@ void NissanLeafBattery::
         break;
       case (4):
         //Caution Lamp Request
-        set_event(EVENT_BATTERY_CAUTION, 0);
+        set_event(EVENT_BATTERY_CAUTION, 0, battery_index);
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
-        set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
+        set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0, battery_index);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
-        set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
+        set_event(EVENT_BATTERY_CHG_STOP_REQ, 0, battery_index);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
+        set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0, battery_index);
         break;
       default:
         break;
     }
   } else {  //battery_Failsafe_Status == 0
-    clear_event(EVENT_BATTERY_DISCHG_STOP_REQ);
-    clear_event(EVENT_BATTERY_CHG_STOP_REQ);
-    clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
+    clear_event(EVENT_BATTERY_DISCHG_STOP_REQ, battery_index);
+    clear_event(EVENT_BATTERY_CHG_STOP_REQ, battery_index);
+    clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, battery_index);
   }
 
   if (user_selected_LEAF_interlock_mandatory) {
@@ -169,10 +184,94 @@ void NissanLeafBattery::
 
   if (battery_HeatExist) {
     if (battery_Heating_Stop) {
-      set_event(EVENT_BATTERY_WARMED_UP, 0);
+      set_event(EVENT_BATTERY_WARMED_UP, 0, battery_index);
     }
     if (battery_Heating_Start) {
-      set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
+      set_event(EVENT_BATTERY_REQUESTS_HEAT, 0, battery_index);
+    }
+  }
+
+  // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on
+  // its own does not mean the pack is balancing: the LBC flags a set of cells and can hold it for a
+  // day at a time while it waits for the pack to settle, at one point flagging every shunt it has and
+  // holding that perfectly static for 20 hours. During a real balance it duty-cycles the shunts,
+  // bleeding cells and re-deciding the set after each measurement. How *many* shunts move per read is
+  // a poor measure of that, because it climbs steadily as the balance proceeds and the flagged set
+  // shrinks. How *often* a read comes back completely unchanged is far more stable: across four
+  // balancing sessions of a 2017 30 kWh pack it stayed at 12% of reads whatever the pack state, while
+  // every pending phase sat at 82-100%. So count unchanged reads over a sliding window and compare
+  // that against a pair of thresholds, holding the previous status in between so the state does not
+  // chatter at the boundary.
+  // Evaluated only on a complete group 0x06 response (~70s apart), never on the 1s update tick.
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    balancing_bitmap_valid = false;  //LBC is being power cycled, the previous classification is void
+    balancing_unchanged_window = 0;
+    balancing_window_fill = 0;
+    balancing_low_reads = 0;
+    set_balancing_status(BALANCING_STATUS_UNKNOWN);
+  }
+
+  if (balancing_data_fresh) {
+    balancing_data_fresh = false;
+
+    uint32_t balancing_bitmap[3] = {0, 0, 0};
+    uint8_t balancing_active_cells = 0;
+    for (uint8_t i = 0; i < 96; i++) {
+      if (battery_balancing_shunts[i]) {
+        balancing_bitmap[i / 32] |= (1UL << (i % 32));
+        balancing_active_cells++;
+      }
+    }
+
+    if (balancing_active_cells < BALANCING_READY_BELOW_CELLS) {
+      //Nothing flagged. Wait for this to repeat before believing it: an incomplete group 0x06 response
+      //reads as all-clear for a single poll, which would otherwise end the phase early.
+      if (balancing_low_reads < BALANCING_READY_DEBOUNCE_READS) {
+        balancing_low_reads++;
+      }
+      if (balancing_low_reads >= BALANCING_READY_DEBOUNCE_READS) {
+        balancing_bitmap_valid = false;  //Phase is over, start clean if balancing ever comes back
+        balancing_unchanged_window = 0;
+        balancing_window_fill = 0;
+        set_balancing_status(BALANCING_STATUS_READY);
+      }
+    } else {
+      //Compare against the previous read. Skip the read that follows a low-count one, since the
+      //bitmap it would be compared against is the suspect all-clear sample.
+      bool comparison_valid = balancing_bitmap_valid && (balancing_low_reads == 0);
+      balancing_low_reads = 0;
+
+      if (comparison_valid) {
+        bool unchanged = (memcmp(balancing_bitmap, balancing_bitmap_prev, sizeof(balancing_bitmap)) == 0);
+
+        //Shift the window along, recording whether this read came back unchanged
+        balancing_unchanged_window = (uint16_t)(balancing_unchanged_window << 1) | (unchanged ? 1 : 0);
+        balancing_unchanged_window &= (uint16_t)((1UL << BALANCING_WINDOW_READS) - 1);
+
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          balancing_window_fill++;
+        }
+
+        uint8_t unchanged_reads = 0;
+        for (uint16_t bits = balancing_unchanged_window; bits; bits &= bits - 1) {
+          unchanged_reads++;
+        }
+
+        //A partly filled window cannot be told apart from a busy one: both report few unchanged reads.
+        //Decide nothing until it is full, so the status stays UNKNOWN after a boot or a BMS reset
+        //rather than reporting a balance that has not been observed yet.
+        if (balancing_window_fill < BALANCING_WINDOW_READS) {
+          //Not enough history yet, hold the current status
+        } else if (unchanged_reads >= BALANCING_UNCHANGED_FOR_IDLE) {
+          set_balancing_status(BALANCING_STATUS_BLOCKED);  //Holding a set: flagged, but not yet at rest
+        } else if (unchanged_reads <= BALANCING_UNCHANGED_FOR_ACTIVE) {
+          set_balancing_status(BALANCING_STATUS_ACTIVE);  //Re-deciding the set steadily: really balancing
+        }
+        //else: between the thresholds, hold the current status
+      }
+
+      memcpy(balancing_bitmap_prev, balancing_bitmap, sizeof(balancing_bitmap));
+      balancing_bitmap_valid = true;
     }
   }
 
@@ -180,8 +279,13 @@ void NissanLeafBattery::
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
     memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
-    memcpy(datalayer_nissan->BMSIDcode, BMSIDcode, sizeof(BMSIDcode));
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
+    if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
+      //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
+      static_assert(Name[sizeof("Nissan LEAF ") - 1] == 'b', "Name must start with \"Nissan LEAF \"");
+      static const char LEAF_gen_name[3][5] = {"ZE0", "AZE0", "ZE1"};
+      strcpy(datalayer.system.info.battery_protocol + sizeof("Nissan LEAF ") - 1, LEAF_gen_name[LEAF_battery_Type]);
+    }
     datalayer_nissan->GIDS = battery_GIDS;
     datalayer_nissan->ChargePowerLimit = battery_Charge_Power_Limit;
     datalayer_nissan->MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
@@ -196,7 +300,9 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
-    datalayer_nissan->battery_HX = battery_HX;
+    datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
+    datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
+    datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
     datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature2 = ((Temp_fromRAW_to_F(battery_temp_raw_2) - 320) * 5) / 9;  //Convert from F to C
     datalayer_nissan->temperature3 = ((Temp_fromRAW_to_F(battery_temp_raw_3) - 320) * 5) / 9;  //Convert from F to C
@@ -210,9 +316,9 @@ void NissanLeafBattery::
     datalayer_nissan->challengeFailed = challengeFailed;
 
     // Update requests from webserver datalayer
-    if (datalayer_nissan->UserRequestSOHreset) {
+    if (UserRequestSOHreset) {
       stateMachineClearSOH = 0;  //Start the statemachine
-      datalayer_nissan->UserRequestSOHreset = false;
+      UserRequestSOHreset = false;
     }
 
 #endif
@@ -327,6 +433,31 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7BB:
 
+      // Any traffic here means the LBC is mid-response. Recorded before any handling below, so a
+      // pending DTC request holds off until the channel has been quiet for DTC_BUS_IDLE_MS.
+      last_7bb_millis = millis();
+
+      // Follow the ISO-TP framing of whatever answer is arriving, regardless of which service it
+      // belongs to, so we know when the LBC has finished replying and is ready for a new request.
+      if (uds_busy) {
+        uint8_t rx_pci = rx_frame.data.u8[0] & 0xF0;
+        if (rx_pci == 0x00) {  //Single frame: the whole answer, complete on arrival
+          uds_busy = false;
+        } else if (rx_pci == 0x10) {  //First frame: six payload bytes here, rest in the follow-ups
+          uint16_t announced = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          uds_rx_remaining = (announced > 6) ? (announced - 6) : 0;
+          if (uds_rx_remaining == 0) {
+            uds_busy = false;
+          }
+        } else if (rx_pci == 0x20) {      //Consecutive frame: up to seven more payload bytes
+          uds_request_millis = millis();  //Still answering, so restart the no-answer timer
+          uds_rx_remaining = (uds_rx_remaining > 7) ? (uds_rx_remaining - 7) : 0;
+          if (uds_rx_remaining == 0) {
+            uds_busy = false;
+          }
+        }
+      }
+
 #ifndef SMALL_FLASH_DEVICE
       // This section checks if we are doing a SOH reset towards BMS. If we do, all 7BB handling is halted
       if (stateMachineClearSOH < 255) {
@@ -344,6 +475,84 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 #endif
 
+      // ClearDiagnosticInformation is acknowledged with a single-frame 54. Only then are the stored
+      // codes known to be gone. The read timestamp is reset too, so the page goes back to
+      // "not read yet": an erase says nothing about what the LBC will report from here on.
+      if (dtc_clear_in_progress && rx_frame.data.u8[0] == 0x01 && rx_frame.data.u8[1] == 0x54) {
+        dtc_clear_in_progress = false;
+        datalayer_battery->dtc.dtc_count = 0;
+        datalayer_battery->dtc.dtc_reported_count = 0;
+        datalayer_battery->dtc.dtc_read_failed = false;
+        datalayer_battery->dtc.dtc_last_read_millis = 0;
+        break;
+      }
+
+      // A DTC readout answers on 0x7BB just like the group polling below, and its first frame would
+      // otherwise be mistaken for group 0x02 (cell voltages). Intercept it while a read is in
+      // flight. The 0x59 service reply byte is what tells the two apart: a group reply carries 0x61.
+      if (dtc_read_in_progress) {
+        uint8_t pci = rx_frame.data.u8[0] & 0xF0;
+
+        if (pci == 0x00 && rx_frame.data.u8[1] == 0x59) {  //Single frame: reply fits in one message
+          dtc_rx_len = rx_frame.data.u8[0] & 0x0F;
+          if (dtc_rx_len > 7) {
+            dtc_rx_len = 7;
+          }
+          dtc_rx_total = dtc_rx_len;  //A single frame is the whole answer
+          for (uint8_t i = 0; i < dtc_rx_len; i++) {
+            dtc_buffer[i] = rx_frame.data.u8[1 + i];
+          }
+          parseDTCResponse();
+          break;
+        }
+
+        if (pci == 0x10 && rx_frame.data.u8[2] == 0x59) {  //First frame of a multi-frame reply
+          dtc_rx_total = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+          dtc_rx_seen = 0;
+          dtc_rx_len = 0;
+          dtc_rx_active = true;
+          for (uint8_t i = 2; i < 8 && dtc_rx_seen < dtc_rx_total; i++) {
+            if (dtc_rx_len < DTC_BUFFER_SIZE) {
+              dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+            }
+            dtc_rx_seen++;
+          }
+          if (dtc_rx_seen >= dtc_rx_total) {
+            parseDTCResponse();
+          } else {
+            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Flow control, ask for the rest
+          }
+          break;
+        }
+
+        if (dtc_rx_active && pci == 0x20) {  //Consecutive frame
+          // Keep acknowledging frames right to the end even once the buffer is full. Falling silent
+          // mid-transfer leaves the LBC waiting on a flow control that never comes, and it will not
+          // take another request until that has timed out on its side.
+          for (uint8_t i = 1; i < 8 && dtc_rx_seen < dtc_rx_total; i++) {
+            if (dtc_rx_len < DTC_BUFFER_SIZE) {
+              dtc_buffer[dtc_rx_len++] = rx_frame.data.u8[i];
+            }
+            dtc_rx_seen++;
+          }
+          dtc_request_millis = millis();  //Progress, so the readout timeout measures silence
+          if (dtc_rx_seen >= dtc_rx_total) {
+            parseDTCResponse();
+          } else {
+            transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);
+          }
+          break;
+        }
+
+        if (rx_frame.data.u8[1] == 0x7F && rx_frame.data.u8[2] == 0x19) {  //Request rejected by LBC
+          dtc_read_in_progress = false;
+          dtc_rx_active = false;
+          datalayer_battery->dtc.dtc_read_failed = true;
+          datalayer_battery->dtc.dtc_last_read_millis = millis();
+          break;
+        }
+      }
+
       if (stop_battery_query) {  //Leafspy is active, stop our own polling
         break;
       }
@@ -351,6 +560,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
+        //Remember how long the reply is. The group 1 layout differs between LEAF generations, and
+        //the announced length is what identifies which one the LBC just sent.
+        group_7bb_length = rx_frame.data.u8[1];
       }
 
       transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
@@ -366,10 +578,26 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
           battery_insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          if (battery_insulation > 0) {
+            datalayer_battery->status.insulation_resistance_kOhm = battery_insulation;
+            datalayer_battery->status.insulation_resistance_available = true;
+          }
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          battery_HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+          // Hx sits at a different payload offset and uses a different scale depending on which
+          // layout the LBC answered with, so the reply length decides how to read it:
+          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27], already in hundredths of a %
+          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29], raw / 102.4 = percent
+          // This frame carries payload[25..31] in u8[1..7]. Any other length is a layout we do not
+          // know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
+          if (group_7bb_length == 0x35) {  //ZE1
+            uint16_t battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            //raw / 102.4 * 100 == raw * 125 / 128, rounded to nearest
+            battery_HX_pptt = (uint16_t)(((uint32_t)battery_HX_raw * 125u + 64u) / 128u);
+          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
+            battery_HX_pptt = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          }
         }
       }
 
@@ -476,6 +704,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (group_7bb == 0x06)  //Balancing resistor status
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 1A 61 06 [14 55 55 51])
+          balancing_frames_seen = 0x01;     //Start of a new response
           for (int i = 0; i < 8; i++) {
             // Byte 4 - 7 (bits 0-31)
             for (int byte_i = 0; byte_i < 4; byte_i++) {
@@ -484,6 +713,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
         if (rx_frame.data.u8[0] == 0x21) {  // Second frame (21 [50 55 41 2B 56 54 15])
+          balancing_frames_seen |= 0x02;
           for (int i = 0; i < 8; i++) {
             // Byte 1 to 7 (bits 32-87)
             for (int byte_i = 0; byte_i < 7; byte_i++) {
@@ -492,14 +722,36 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
         if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 51 FF FF FF FF FF FF)
+          balancing_frames_seen |= 0x04;
           for (int i = 0; i < 8; i++) {
             // Byte 1 (bits 88-95)
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
-          memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+          //Only publish once all three frames of this response arrived. A dropped frame would otherwise
+          //leave part of the array holding the previous response, which reads as a spurious change.
+          if (balancing_frames_seen == 0x07) {
+            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            balancing_data_fresh = true;
+          }
+          balancing_frames_seen = 0;
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)
+        }
+      }
+
+      if (group_7bb == 0x62) {              //Lifetime charge counters
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 76 61 62 08 00 01 5A)
+          //Both counters are carried in the first frame, no need to walk the rest of the reply:
+          //payload[0..1] holds the L1/L2 (AC) charges, payload[2..3] the quick (CHAdeMO) charges.
+          //A counter the LBC has no value for reads back as 0xFFFF. A used pack always has AC
+          //charges, so a zero L1/L2 count means "not read yet" and keeps the group in the rotation.
+          uint16_t count_l1l2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          uint16_t count_qc = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          if (count_l1l2 != 0xFFFF && count_qc != 0xFFFF) {
+            battery_charge_count_l1l2 = count_l1l2;
+            battery_charge_count_qc = count_qc;
+          }
         }
       }
 
@@ -548,34 +800,129 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (group_7bb == 0x90) {              //BMSIDcode
-        if (rx_frame.data.u8[0] == 0x10) {  //First frame (100A619044434131)
-          BMSIDcode[0] = rx_frame.data.u8[4];
-          BMSIDcode[1] = rx_frame.data.u8[5];
-          BMSIDcode[2] = rx_frame.data.u8[6];
-          BMSIDcode[3] = rx_frame.data.u8[7];
-        }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (2130303535FFFFFF)
-          BMSIDcode[4] = rx_frame.data.u8[1];
-          BMSIDcode[5] = rx_frame.data.u8[2];
-          BMSIDcode[6] = rx_frame.data.u8[3];
-          BMSIDcode[7] = rx_frame.data.u8[4];
-        }
-      }
-
       break;
     default:
       break;
   }
 }
 
+// Parses a reassembled UDS ReadDTCInformation reply out of dtc_buffer: a 3-byte header
+// (59 02 <statusAvailabilityMask>) followed by 4 bytes per DTC, being a 3-byte code plus one status
+// byte. Only the raw codes are stored here; the web renderer formats them into the 5-character
+// Nissan strings (P33D7, U1000) and looks their descriptions up in nissan_leaf_dtc.json.
+void NissanLeafBattery::parseDTCResponse() {
+  const uint16_t DTC_HEADER_LEN = 3;
+
+  dtc_read_in_progress = false;
+  dtc_rx_active = false;
+  datalayer_battery->dtc.dtc_last_read_millis = millis();
+
+  if (dtc_rx_len < DTC_HEADER_LEN || dtc_buffer[0] != 0x59 || dtc_buffer[1] != 0x02) {
+    datalayer_battery->dtc.dtc_read_failed = true;
+    return;
+  }
+
+  // What the battery actually reported, which can be more than we have slots for.
+  uint16_t reported = (dtc_rx_total > DTC_HEADER_LEN) ? ((dtc_rx_total - DTC_HEADER_LEN) / 4) : 0;
+
+  uint16_t count = (dtc_rx_len - DTC_HEADER_LEN) / 4;
+  if (count > DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT) {
+    count = DATALAYER_BATTERY_DTC_TYPE::MAX_DTC_COUNT;
+  }
+
+  for (uint16_t i = 0; i < count; i++) {
+    uint16_t offset = DTC_HEADER_LEN + (i * 4);
+    datalayer_battery->dtc.dtc_codes[i] = ((uint32_t)dtc_buffer[offset] << 16) |
+                                          ((uint32_t)dtc_buffer[offset + 1] << 8) | (uint32_t)dtc_buffer[offset + 2];
+    datalayer_battery->dtc.dtc_status[i] = dtc_buffer[offset + 3];
+  }
+
+  datalayer_battery->dtc.dtc_count = count;
+  datalayer_battery->dtc.dtc_reported_count = reported;
+  datalayer_battery->dtc.dtc_read_failed = false;
+}
+
+// Sends any pending DTC request and times out the ones that get no answer. Kept out of
+// update_values() so the transmission can be held back until the diagnostic channel is free: the
+// LBC drops a request that lands while it is still sending a group poll response, which loses the
+// readout silently.
+void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
+  // Stop waiting on an answer the LBC is never going to send, otherwise one lost reply would block
+  // the channel for good.
+  if (uds_busy && (currentMillis - uds_request_millis > UDS_RESPONSE_TIMEOUT_MS)) {
+    uds_busy = false;
+  }
+
+  // Free to transmit only when our own previous request has been fully answered (uds_busy) and
+  // nothing else is talking on the channel either, which is what catches a third party such as
+  // LeafSpy polling the same LBC.
+  bool channel_idle = !uds_busy && (currentMillis - last_7bb_millis) > DTC_BUS_IDLE_MS;
+  // The SOH clear runs its own multi-step exchange over the same request/response pair, so a DTC
+  // request must not be slipped in between its steps either.
+  bool soh_clear_running = stateMachineClearSOH < 255;
+  bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
+
+  if (UserRequestDTCreadout && !busy && channel_idle) {
+    UserRequestDTCreadout = false;
+    dtc_read_in_progress = true;
+    dtc_rx_active = false;
+    dtc_rx_len = 0;
+    dtc_rx_total = 0;
+    dtc_rx_seen = 0;
+    dtc_request_millis = currentMillis;
+    datalayer_battery->dtc.dtc_read_failed = false;
+    uds_busy = true;
+    uds_request_millis = currentMillis;
+    transmit_can_frame(&LEAF_READ_DTC);
+    return;
+  }
+
+  if (UserRequestDTCreset && !busy && channel_idle) {
+    UserRequestDTCreset = false;
+    dtc_clear_in_progress = true;
+    dtc_clear_millis = currentMillis;
+    uds_busy = true;
+    uds_request_millis = currentMillis;
+    transmit_can_frame(&LEAF_CLEAR_DTC);
+    return;
+  }
+
+  // A readout that goes unanswered is retried before being reported as failed. A request lost to a
+  // busy channel is the expected cause, and by the time the timeout expires that channel is free.
+  if (dtc_read_in_progress && (currentMillis - dtc_request_millis > DTC_TIMEOUT_MS)) {
+    dtc_read_in_progress = false;
+    dtc_rx_active = false;
+    if (dtc_read_retries < DTC_MAX_RETRIES) {
+      dtc_read_retries++;
+      UserRequestDTCreadout = true;
+    } else {
+      datalayer_battery->dtc.dtc_read_failed = true;
+      datalayer_battery->dtc.dtc_last_read_millis = currentMillis;
+    }
+  }
+
+  // Give up waiting for the erase acknowledgement. The previously read list is deliberately left
+  // untouched here: an unconfirmed erase is not evidence that the codes are gone.
+  if (dtc_clear_in_progress && (currentMillis - dtc_clear_millis > DTC_TIMEOUT_MS)) {
+    dtc_clear_in_progress = false;
+  }
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
+
+  handle_DTC_requests(currentMillis);
 
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
     previousMillis10s = currentMillis;
+    /* The LBC comes back from the power cycle with a fresh session, so the groups that are asked
+       for only until they answer are armed to be read again, at the same burst rate used at boot.
+       Held rather than edge triggered: the reset ends on whichever loop first sees IDLE again, and
+       both are cleared from the polling code once the pass has actually been sent. */
+    repoll_static_groups = true;
+    poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
     return;
   }
 
@@ -609,6 +956,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&LEAF_1D4);
       }
 
+      //The low nibble of byte 7 is the Nissan nibble checksum over the rest of the message. The
+      //constants below are the ones for CHG_STA_RQ=00b; the selected request is applied, checksum
+      //included, right after the switch.
       switch (mprun10r) {
         case (0):
           LEAF_1F2.data.u8[3] = 0xB0;
@@ -698,6 +1048,15 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
+      /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
+         Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
+         other nibble in the message: the request adds 0x00, 0x20 or 0x40 to byte 2, i.e. 0, 2 or
+         4 to that sum, so the constants above are corrected by twice the selected value rather
+         than recomputing the whole checksum on every message. */
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (user_selected_LEAF_chg_sta_rq << 5);
+      LEAF_1F2.data.u8[7] =
+          (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
+
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
@@ -784,16 +1143,43 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     }
 
     //Send 10s CAN messages
-    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
+    //The first pass through the group list runs at the faster burst interval, so the battery info
+    //page is populated within seconds of startup rather than over the following minute.
+    if (currentMillis - previousMillis10s >=
+        (poll_burst_remaining ? POLL_BURST_INTERVAL_MS : (unsigned long)INTERVAL_10_S)) {
       previousMillis10s = currentMillis;
 
-      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
-      if (!stop_battery_query) {
+      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
+      //and don't start a group transfer while a DTC operation is pending or in flight: the two share
+      //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC.
+      bool dtc_operation_pending =
+          UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
+      if (!stop_battery_query && !dtc_operation_pending) {
 
-        // Move to the next group
-        PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]
+        // Move to the next group, skipping the static ones that already answered. The charge
+        // counters and the two identity strings cannot change while the pack is powered, so each
+        // is asked for only until its data is in, after which the recurring groups come round
+        // faster. Testing the data itself rather than a "seen" flag means a reply that arrived
+        // while another tool was polling the bus counts just as well.
+        // After a BMS reset the skipping is suspended for one pass, so the new session answers
+        // them once more. Previous values stay on display until the fresh reply overwrites them.
+        do {
+          PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
+        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
+                                           (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
+                                           (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0)));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
+        if (poll_burst_remaining) {
+          poll_burst_remaining--;
+          // Nothing is skipped while re-polling, so the burst counter running out means every
+          // group has been asked for exactly once. The static ones drop out of the rotation again.
+          if (poll_burst_remaining == 0) {
+            repoll_static_groups = false;
+          }
+        }
+        uds_busy = true;
+        uds_request_millis = currentMillis;
         transmit_can_frame(&LEAF_GROUP_REQUEST);
       }
 

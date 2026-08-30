@@ -447,22 +447,9 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
-  // Calculate charge power limit based on multiple factors, taking the lowest value
+  // Calculate charge power limit based User set value and temperature
 
-  // Factor 1: SOC-based limiting (linear ramp from user_set_rampdown_SOC (Defined in webserver) to 100%)
-  int max_charge_power_soc = datalayer.battery.status.override_charge_power_W;
-  if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
-    // When real SOC is above RAMPDOWN_SOC, ramp the value linearly down to 0W at 100%
-    max_charge_power_soc =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-    // Ensure we never go negative (in case SOC exceeds 100%)
-    if (max_charge_power_soc < 0) {
-      max_charge_power_soc = 0;
-    }
-  }
-
-  // Factor 2: Temperature-based limiting (ramp from 0W at -10°C to RAMPDOWN_TEMP_POWER_W at 5°C)
+  // Temperature-based limiting (ramp from 0W at -10°C to RAMPDOWN_TEMP_POWER_W at 5°C)
   int max_charge_power_temp = datalayer.battery.status.override_charge_power_W;
 
   if (datalayer.battery.status.temperature_min_dC <= RAMPDOWN_TEMP_MIN_dC) {
@@ -476,8 +463,8 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   }
   // Above 5°C: no temperature limitation
 
-  // Take the lowest of all limiting factors
-  datalayer.battery.status.max_charge_power_W = min(max_charge_power_soc, max_charge_power_temp);
+  //Write actual allowed power to datalayer
+  datalayer.battery.status.max_charge_power_W = max_charge_power_temp;
 
   //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
   bool isMinCellVoltageStale =
@@ -720,7 +707,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 ||
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
           logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
-          //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
+          //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis()), battery_index); //Eventually need new Info level event type
           transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET);
         } else {  //Only ingest values if they are not the 10V Error state
           min_cell_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
@@ -840,6 +827,10 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
     if (!contactor_control_enabled) {
       HandleBmwIxCloseContactorsRequest(counter_10ms);
       HandleBmwIxOpenContactorsRequest(counter_10ms);
+      // CAN mode: ContactorState tracks completion of the close/open command sequences.
+      // Note this is command-completion, not pack feedback - if the pack ignored the sequence
+      // we report live anyway, which matches pre-dc_bus_live behaviour (never STANDBY-locks).
+      datalayer.system.status.dc_bus_live = (ContactorState.closed && !ContactorState.open);
     }
     counter_10ms++;
 

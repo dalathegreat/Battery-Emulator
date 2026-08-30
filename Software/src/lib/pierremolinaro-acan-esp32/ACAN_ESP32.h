@@ -140,6 +140,7 @@ class ACAN_ESP32 {
   //  Bit 3 : reset mode
 
   public: uint32_t statusFlags (void) const ;
+  public: inline uint32_t statusRegister (void) const { return TWAI_STATUS_REG () ; }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Recover from Bus-Off

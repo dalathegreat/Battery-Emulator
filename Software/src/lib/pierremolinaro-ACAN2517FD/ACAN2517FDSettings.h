@@ -22,6 +22,7 @@ class ACAN2517FDSettings {
 //······················································································································
 
   public: typedef enum : uint8_t {
+    OSC_AUTODETECT,
     OSC_4MHz,
     OSC_4MHz_DIVIDED_BY_2,
     OSC_4MHz10xPLL,

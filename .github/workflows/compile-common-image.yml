@@ -1,80 +1,237 @@
 name: 🔋 Compile Common Images
 
 on:
-  # The workflow is run when a commit is pushed or for a
-  # Pull Request.
-  - push
-  - pull_request
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+    inputs:
+      release_version:
+        description: "Release version in the format v1.2.3"
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 # This is the list of jobs that will be run concurrently.
 jobs:
-  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
-  skip-duplicate-actions:
-    runs-on: ubuntu-latest
-    # Map a step output to a job output
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5
-        with:
-          concurrent_skipping: 'never'
-          skip_after_successful_duplicate: 'true'
-          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
-
   build:
-    needs: skip-duplicate-actions
-    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - board_name: "LilygoT-CAN485"
+          - board_name: "Lilygo T-CAN485"
             pio_env: "lilygo_330"
-            artifact_name: "battery-emulator-lilygo-t-can485"
           - board_name: "Stark CMR"
             pio_env: "stark_330"
-            artifact_name: "battery-emulator-stark"
-          - board_name: "LilygoT-2CAN"
+          - board_name: "Lilygo T-2CAN"
             pio_env: "lilygo_2CAN_330"
-            artifact_name: "battery-emulator-lilygo-t-2can"
           - board_name: "ESP32 DevKit V1"
             pio_env: "esp32devkit_330"
-            artifact_name: "battery-emulator-esp32devkit"
-          - board_name: "BECom"
+          - board_name: "BECom ES32S3"
             pio_env: "BECom_330"
-            artifact_name: "battery-emulator-becom"
           - board_name: "Waveshare ESP32S3RS485CAN"
             pio_env: "waveshare_330"
-            artifact_name: "battery-emulator-waveshareRS485CAN"
-          - board_name: "Compiler warning check"
-            pio_env: "compiler_warning_check"
-            artifact_name: "battery-dummy-check"
+          - board_name: "DFRobot Edge101"
+            pio_env: "dfrobot_edge101_330"
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       name: Checkout code
+      with:
+        fetch-depth: 0 # To be able to determine the ancestor tag
 
-    - uses: actions/cache@v5
+    - name: "Fetch upstream tags" # for forks
+      run: git fetch https://github.com/dalathegreat/Battery-Emulator.git --tags --no-recurse-submodules
+
+    # The env cache should contain the PlatformIO installation, as well as our
+    # previously built custom sdkconfig image. We can avoid redownloading
+    # PlatformIO, reinstalling it and all the extra required tools, and
+    # rebuilding the custom sdkconfig image.
+    #
+    # NOTE: if you change the key/paths, make sure to update the corresponding
+    # save step below!
+    
+    - name: Try env cache
+      id: env-cache
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/packages
+          ~/.platformio/platforms
+          ~/.platformio/.cache
+          sdkconfig.defaults
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+
+    # The env cache will miss if platformio.ini or the custom sdkconfig has
+    # changed. In that case, we can use a fallback cache which just avoids
+    # redownloading all the PlatformIO packages.
+    #
+    # NOTE: if you change the key/paths, make sure to update the corresponding
+    # save step below!
+    
+    - name: Try fallback cache
+      id: fallback-cache
+      if: steps.env-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@v6
       with:
         path: |
           ~/.cache/pip
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
 
-    - uses: actions/setup-python@v6
+    # PlatformIO uses several heuristics to determine whether the custom
+    # sdkconfig needs rebuilding. One of these is the mtime of the custom
+    # sdkconfig, which we need to pin to a fixed value (since git doesn't
+    # preserve mtimes).
+    - name: Pin sdkconfig mtime
+      run: |
+        # Fix the mtimes of the sdkconfig.be_size.defaults file to avoid unnecessary rebuilds.
+        touch -m -d2026-01-01 sdkconfig.be_size.defaults
+        # Check that the mtime is set correctly (in seconds since epoch).
+        ls -l sdkconfig.be_size.defaults
+        ls -l --time-style=+"%s" sdkconfig.be_size.defaults
+
+    - uses: actions/setup-python@v7
       with:
-        python-version: '3.11'
+        python-version: '3.13'
 
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
-    - name: Build image for ${{ matrix.board_name }}
-      run: pio run -e ${{ matrix.pio_env }}
+    # Add a line to print out the hash check values, to help debug why
+    # PlatformIO might trigger a rebuild.
+    - name: Insert cache check debugging
+      run: |
+        sed -i "/if line\.split.*expected_hash:/i \                print('Hash check, sdkconfig has:', line.split(\"__\")[1].strip(), 'was expecting:', expected_hash, 'data is:', repr(custom_options.strip() + mcu))" ~/.platformio/platforms/espressif32/builder/frameworks/arduino.py || echo "sed failed"
 
-    - name: Upload artifact for ${{ matrix.board_name }}
+    - name: Build image for ${{ matrix.board_name }}
+      shell: bash
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_PR: ${{ github.event.pull_request.number }}
+        GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        set -o pipefail
+        pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt
+
+    - name: Capture size report for ${{ matrix.board_name }}
+      run: |
+        cat checkprogsize.txt | python .github/scripts/parse_size.py \
+          --pio-env "${{ matrix.pio_env }}" \
+          --board-name "${{ matrix.board_name }}" \
+          --sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+          --pio-system-info "$(pio system info --json-output)" \
+          --platform-json "$(cat "$HOME"/.platformio/platforms/espressif32*/platform.json)"
+
+    - name: Compute artifact prefix
+      id: name
+      uses: actions/github-script@v9
+      env:
+        RELEASE_VERSION: ${{ inputs.release_version }}
+        BOARD_NAME: ${{ matrix.board_name }}
+      with:
+        script: |
+          const releaseVersion = process.env.RELEASE_VERSION || '';
+          const board = process.env.BOARD_NAME.replace(/\s+/g, '');
+
+          const sanitize = (s) => s.replace(/[":<>|*?\\/\r\n]/g, '-');
+
+          let context_seg;
+          if (releaseVersion) {
+            context_seg = releaseVersion;
+          } else if (context.eventName === 'pull_request') {
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            context_seg = `pr${context.payload.pull_request.number}-${sha}`;
+          } else { // push
+            const sha = context.sha.slice(0, 7);
+            context_seg = `${sanitize(process.env.GITHUB_REF_NAME)}-${sha}`;
+          }
+
+          core.setOutput('prefix', `BE_${context_seg}_${board}`);
+
+    - name: Rename release artifacts for ${{ matrix.board_name }}
+      env:
+        PREFIX: ${{ steps.name.outputs.prefix }}
+        PIO_ENV: ${{ matrix.pio_env }}
+      run: |
+        mv "${PIO_ENV}.size.json"                       "${PREFIX}.size.json"
+        mv ".pio/build/${PIO_ENV}/firmware.factory.bin" "${PREFIX}.factory.bin"
+        mv ".pio/build/${PIO_ENV}/firmware.bin"         "${PREFIX}.ota.bin"
+
+    - name: Upload factory image for ${{ matrix.board_name }}
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ matrix.artifact_name }}.bin
-        path: .pio/build/${{ matrix.pio_env }}/firmware.bin
+        path: ${{ steps.name.outputs.prefix }}.factory.bin
+        archive: false
+        if-no-files-found: error
+
+    - name: Upload OTA image for ${{ matrix.board_name }}
+      uses: actions/upload-artifact@v7
+      with:
+        path: ${{ steps.name.outputs.prefix }}.ota.bin
+        archive: false
+        if-no-files-found: error
+
+    - name: Upload size report for ${{ matrix.board_name }}
+      uses: actions/upload-artifact@v7
+      with:
+        path: ${{ steps.name.outputs.prefix }}.size.json
+        archive: false
+        if-no-files-found: error
+
+    # Each architecture we don't need bundles about 160mb of unnecessary
+    # libraries, which we can delete to keep them out of the caches.
+    - name: Reduce size of cache
+      run: |
+        # Remove libs we don't use to keep the caches smaller
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c3
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c5
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c6
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32h2
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32p4
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32p4_es
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32s2
+        # Check sdkconfig mtimes for debugging purposes
+        ls -l sdkconfig.* || echo "ls failed"
+
+    # Only save env cache if it was a miss.
+    - name: Save env cache
+      if: steps.env-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/packages
+          ~/.platformio/platforms
+          ~/.platformio/.cache
+          sdkconfig.defaults
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+    
+    # Only save fallback cache if it was a miss. The always() means we'll still
+    # save the fallback cache even if the build failed, since we want to avoid
+    # hammering PlatformIO's download servers.
+    - name: Save fallback cache
+      if: always() && steps.fallback-cache.conclusion != 'skipped' && steps.fallback-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+
+  measure-size:
+    needs: build
+    if: always() && github.event_name == 'pull_request' # Continue on compile failures
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/measure-firmware-size.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref:  ${{ github.event.pull_request.base.ref }}
+      base_sha:  ${{ github.event.pull_request.base.sha }}

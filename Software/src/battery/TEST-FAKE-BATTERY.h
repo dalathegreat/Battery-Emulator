@@ -33,6 +33,12 @@ class TestFakeBattery : public CanBattery {
   bool* allows_contactor_closing;
 
   static const int MAX_CELL_DEVIATION_MV = 9999;
+
+  static const int NUMBER_OF_CELLS = 96;
+  // Random spread applied on top of the evenly divided pack voltage, per cell
+  static const int CELL_SPREAD_MV = 20;
+  // Simulated balancing starts once the calculated SOC is above this level
+  static const uint16_t BALANCING_START_SOC_PPTT = 8500;  // 85.00%
 };
 
 #endif

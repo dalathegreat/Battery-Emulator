@@ -59,19 +59,12 @@ void GeelySeaBattery::
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  //The allowed charge power is not available. We estimate this value for now
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else if (datalayer.battery.status.real_soc >
-             user_set_rampdown_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        datalayer.battery.status.override_charge_power_W *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
-  }
+  //The allowed charge power is not available. We use user set value for now
+  // Gets ramped down by inverter function on the webserver
+  datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
   //The allowed discharge power is not available. We use user set value for now
+  // Gets ramped down by inverter function on the webserver
   datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
   if (datalayer.battery.info.chemistry == LFP) {  //If configured LFP in use (or we autodetected it), switch to it
@@ -364,4 +357,5 @@ void GeelySeaBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_extended.GeelySEA.Interlock = 255;  //Set all interlock bits to 1 (open) at startup
 }

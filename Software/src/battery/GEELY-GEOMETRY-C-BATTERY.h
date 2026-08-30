@@ -28,11 +28,16 @@ class GeelyGeometryCBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
  private:
   GeelyGeometryCHtmlRenderer renderer;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_GEELY_GEOMETRY_C* datalayer_geometryc;
+
+  bool UserRequestDTCreset = false;
 
   static const int POLL_SOC = 0x4B35;
   static const int POLL_CC2_VOLTAGE = 0x4BCF;
@@ -193,6 +198,11 @@ class GeelyGeometryCBattery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x7E2,
                          .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame GEELY_CLEAR_DTC = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x7E2,
+                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
   uint16_t poll_pid = POLL_SOC;
   uint16_t incoming_poll = 0;
   uint8_t counter_10ms = 0;

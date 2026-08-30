@@ -7,6 +7,9 @@
 /*TODO once testing starts:
 - Map more optional content into all message
 - Add OBD2 responses for 79B /7BB polls
+- Populate onboard-charger power limit (0x1DC byte2 low nibble + byte3 top 6 bits, "chargelimit"
+in leafbms.cpp). This currently stays at 0 and needs a real value once we know what the VCU
+expects here, since leafbms.cpp maps it (in Amps) straight into Param::BMS_ChargeLim.
 -*/
 
 static uint8_t calculate_CRC_Nissan(CAN_frame* frame) {
@@ -19,24 +22,59 @@ static uint8_t calculate_CRC_Nissan(CAN_frame* frame) {
 
 void VCUInverter::update_values() {  //Called every 1s
 
-  LEAF_1DC.data.u8[0] = ((datalayer.battery.status.max_discharge_power_W / 4) << 2);
-  LEAF_1DC.data.u8[1] = ((datalayer.battery.status.max_discharge_power_W / 4) << 6);
-  LEAF_1DC.data.u8[1] = (LEAF_1DC.data.u8[1] || (((datalayer.battery.status.max_charge_power_W / 4) >> 4) & 0x3F));
-  LEAF_1DC.data.u8[2] = ((datalayer.battery.status.max_charge_power_W / 4) << 4);
+  //Fake that we have inverter alive, to avoid fault event (-1 to not trigger detected successfully message)
+  datalayer.system.status.CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
 
-  LEAF_55B.data.u8[0] = ((datalayer.battery.status.real_soc / 10) << 2);
-  LEAF_55B.data.u8[1] = ((datalayer.battery.status.real_soc / 10) << 6);
+  // ---- 0x1DC: Discharge / charge power limits ----
+  // leafbms.cpp decodes these as 10-bit fields in units of 0.25kW:
+  // dislimit = ((byte0<<2) + (byte1>>6)) * 0.25
+  // chglimit = (((byte1&0x3F)<<4) + (byte2>>4)) * 0.25
+  // so the raw value = power_in_watts / 250.
+  uint16_t dislimit_raw = static_cast<uint16_t>(datalayer.battery.status.max_discharge_power_W / 250) & 0x3FF;
+  uint16_t chglimit_raw = static_cast<uint16_t>(datalayer.battery.status.max_charge_power_W / 250) & 0x3FF;
 
-  LEAF_1DB.data.u8[0] =
-      ((datalayer.battery.status.current_dA / 10) / 2) >> 3;  //TODO: This is most likely handled wrong
-  LEAF_1DB.data.u8[1] = ((((datalayer.battery.status.current_dA / 10) / 2) & 0x07) << 5);
-  LEAF_1DB.data.u8[2] = ((datalayer.battery.status.voltage_dV / 10) / 2) >> 2;
-  LEAF_1DB.data.u8[3] = (((datalayer.battery.status.voltage_dV / 10) / 2) << 6) | 0x2B;  //Lots of status flags here
+  LEAF_1DC.data.u8[0] = (dislimit_raw >> 2) & 0xFF;
+  LEAF_1DC.data.u8[1] = static_cast<uint8_t>(((dislimit_raw & 0x03) << 6) | ((chglimit_raw >> 4) & 0x3F));
+  LEAF_1DC.data.u8[2] = static_cast<uint8_t>((chglimit_raw & 0x0F) << 4);
+  //Note: low nibble of byte2 + top 6 bits of byte3 are the onboard-charger power limit field
+  //("chargelimit" in leafbms.cpp -> Param::BMS_ChargeLim). Left at 0 for now, see TODO above.
 
-  remining_gids = (datalayer.battery.status.real_soc / 10000.0) * 281;  //0-281 for 24kWh
-  LEAF_5BC.data.u8[0] = remining_gids << 2;
-  LEAF_5BC.data.u8[1] = remining_gids << 6;
-  LEAF_5BC.data.u8[4] = (datalayer.battery.status.soh_pptt / 100) << 1;
+  // ---- 0x55B: State of charge ----
+  // leafbms.cpp decodes: soc = ((byte0<<2) + (byte1>>6)) * 0.1
+  // real_soc is stored as integer-percent x100 (9550 = 95.50%), so /10 gives 0.1%-per-bit units.
+  uint16_t soc_raw = static_cast<uint16_t>(datalayer.battery.status.real_soc / 10) & 0x3FF;
+
+  LEAF_55B.data.u8[0] = (soc_raw >> 2) & 0xFF;
+  LEAF_55B.data.u8[1] = static_cast<uint8_t>((soc_raw & 0x03) << 6);
+
+  // ---- 0x1DB: Pack current & voltage ----
+  // leafbms.cpp decodes:
+  // cur = (byte0<<3) + (byte1>>5); if (cur>1023) cur -= 2047; BattCur = cur/2
+  // udc = (byte2<<2) + (byte3>>6); BattVoltage = udc/2
+  // i.e. raw units are 0.5A/bit and 0.5V/bit, with current using an 11-bit field
+  // biased by 2047 (not 2048) for negative values - this matches genuine Nissan LEAF traffic.
+  int32_t current_raw = (static_cast<int32_t>(datalayer.battery.status.current_dA) * 2) / 10;
+  if (current_raw < 0) {
+    current_raw += 2047;
+  }
+  current_raw &= 0x7FF;
+
+  uint16_t voltage_raw =
+      static_cast<uint16_t>((static_cast<uint32_t>(datalayer.battery.status.voltage_dV) * 2) / 10) & 0x3FF;
+
+  LEAF_1DB.data.u8[0] = (current_raw >> 3) & 0xFF;
+  LEAF_1DB.data.u8[1] = static_cast<uint8_t>((current_raw & 0x07) << 5);
+  LEAF_1DB.data.u8[2] = (voltage_raw >> 2) & 0xFF;
+  LEAF_1DB.data.u8[3] = static_cast<uint8_t>(((voltage_raw & 0x03) << 6) | 0x2B);  //Lower 6 bits: status flags
+
+  // ---- 0x5BC: Remaining GIDs & SOH ----
+  // Not currently consumed by leafbms.cpp (SOH/GIDs decoding is commented out there),
+  // but fixed here for correctness / future compatibility.
+  uint16_t remaining_gids =
+      static_cast<uint16_t>((datalayer.battery.status.real_soc / 10000.0) * 281);  //0-281 for 24kWh
+  LEAF_5BC.data.u8[0] = (remaining_gids >> 2) & 0xFF;
+  LEAF_5BC.data.u8[1] = static_cast<uint8_t>((remaining_gids & 0x03) << 6);
+  LEAF_5BC.data.u8[4] = static_cast<uint8_t>((datalayer.battery.status.soh_pptt / 100) << 1);
 }
 
 void VCUInverter::map_can_frame_to_variable(CAN_frame rx_frame) {

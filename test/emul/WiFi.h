@@ -1,11 +1,7 @@
-#ifndef WIFI_H
-#define WIFI_H
+#pragma once
 
-#include <stdint.h>
-
+// Host-side stub for the arduino-esp32 IPAddress only to satisfy the compiler
 class IPAddress {
  public:
-  IPAddress(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {}
+  bool fromString(const char*) { return false; }
 };
-
-#endif

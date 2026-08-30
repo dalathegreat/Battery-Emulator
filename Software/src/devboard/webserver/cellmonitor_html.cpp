@@ -3,6 +3,12 @@
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 
+//Legend label for the cyan bars. A BMS can flag cells for balancing long before it actually bleeds
+//them, so when the aggregate status reports that waiting state, label the bars as pending instead.
+static const char* balancing_legend_label(balancing_status_enum status) {
+  return (status == BALANCING_STATUS_BLOCKED) ? "Pending" : "Balancing";
+}
+
 String cellmonitor_processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -71,7 +77,9 @@ String cellmonitor_processor(const String& var) {
     if (battery_balancing) {
       content +=
           "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-          "4px; margin-right: 15px;'>Balancing</span>";
+          "4px; margin-right: 15px;'>";
+      content += balancing_legend_label(datalayer.battery.status.balancing_status);
+      content += "</span>";
     }
     // Also check overall balancing status enum (for batteries without per-cell data)
     else if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
@@ -112,7 +120,9 @@ String cellmonitor_processor(const String& var) {
       if (battery2_balancing) {
         content +=
             "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-            "4px; margin-right: 15px;'>Balancing</span>";
+            "4px; margin-right: 15px;'>";
+        content += balancing_legend_label(datalayer.battery2.status.balancing_status);
+        content += "</span>";
       }
       content +=
           "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
@@ -148,7 +158,9 @@ String cellmonitor_processor(const String& var) {
       if (battery3_balancing) {
         content +=
             "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-            "4px; margin-right: 15px;'>Balancing</span>";
+            "4px; margin-right: 15px;'>";
+        content += balancing_legend_label(datalayer.battery3.status.balancing_status);
+        content += "</span>";
       }
       content +=
           "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "

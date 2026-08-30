@@ -1,23 +1,62 @@
 #ifndef KIA_64_FD_BATTERY_H
 #define KIA_64_FD_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
+#include "KIA-64FD-HTML.h"
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
 class Kia64FDBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery. This integration is CAN-FD and
+  // is limited to double battery, see battery_supports_triple() in BATTERIES.cpp.
+  // allows_contactor_closing is deliberately left null: it is an output of the
+  // main battery only. For battery 2, parallel_safety.cpp owns
+  // battery2_allowed_contactor_closing and this integration must not write it.
+  Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIA64FD* extended_ptr, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended_ptr) {
+    datalayer_battery = datalayer_ptr;
+    datalayer_battery_extended = extended_ptr;
+    allows_contactor_closing = nullptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  Kia64FDBattery() : renderer(&datalayer_extended.Kia64FD) {
+    datalayer_battery = &datalayer.battery;
+    datalayer_battery_extended = &datalayer_extended.Kia64FD;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+  }
+
+  bool mandatory_charge_taper() { return true; }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia 64kWh FD battery";
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { UserRequestDTCreset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  Kia64FDHtmlRenderer renderer;
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_KIA64FD* datalayer_battery_extended;
+
+  // Output, main battery only. Null for battery 2, whose
+  // battery2_allowed_contactor_closing is owned by parallel_safety.cpp.
+  bool* allows_contactor_closing;
+
+  bool UserRequestDTCreset = false;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
   uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
+  void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell);
 
   static const int MAX_PACK_VOLTAGE_DV = 4032;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
@@ -605,6 +644,11 @@ class Kia64FDBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x7E4,
       .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
+  CAN_frame KIA64FD_CLEAR_DTC = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x7E4,
+                                 .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 };
 
 #endif

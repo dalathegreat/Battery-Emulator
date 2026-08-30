@@ -299,6 +299,11 @@ void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     transmit_can_frame(&KIA_523);
+
+    if (UserRequestDTCreset) {
+      UserRequestDTCreset = false;
+      transmit_can_frame(&KIA_CLEAR_DTC);
+    }
   }
 
   // Send 1000ms CAN Message

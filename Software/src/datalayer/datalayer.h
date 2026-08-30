@@ -6,6 +6,27 @@
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
+// Per-battery DTC storage to allow common display code
+struct DATALAYER_BATTERY_DTC_TYPE {
+  static constexpr int MAX_DTC_COUNT = 32;
+  // Raw 3-byte DTC codes packed into a uint32, one per slot. Can either
+  // rendered in the standard SAE format, or as a raw 6-digit hex code.
+  uint32_t dtc_codes[MAX_DTC_COUNT];
+  // Status for each DTC
+  uint8_t dtc_status[MAX_DTC_COUNT];
+  // Number of DTCs stored
+  uint8_t dtc_count;
+  // Number of DTCs the battery reported in its last answer. Equals dtc_count in the normal case,
+  // and exceeds it when the answer held more codes than MAX_DTC_COUNT slots, so the display can say
+  // that the list is truncated rather than silently showing the first few. Placed here because the
+  // uint16 fits in the padding after dtc_count and costs no extra bytes.
+  uint16_t dtc_reported_count;
+  // Last successful read (0 = never read)
+  unsigned long dtc_last_read_millis;
+  // Indicates that the last read failed
+  bool dtc_read_failed = false;
+};
+
 struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint32_t */
   /** Total energy capacity in Watt-hours 
@@ -85,6 +106,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
   uint16_t CAN_error_counter;
+  /** Insulation/isolation resistance between the HV pack and chassis, in kOhm.
+   * Not available for all battery types. Only valid once
+   * insulation_resistance_available has been set by the battery integration.
+   */
+  uint16_t insulation_resistance_kOhm = 0;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
@@ -98,10 +124,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 
   /** uint8_t */
   /** A counter set each time a new message comes from battery.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the battery as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the battery as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the battery as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the battery or not.
    */
-  uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_battery_still_alive = (CAN_STILL_ALIVE - 1);
 
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
@@ -109,6 +136,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
+
+  /** True once the battery integration has decoded a valid
+   * insulation_resistance_kOhm sample. Not available for all battery types.
+   */
+  bool insulation_resistance_available = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -124,9 +156,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Last time a remote set command was received to enable timeout of settings */
-  unsigned long remote_set_timestamp = 0;
+  uint32_t remote_set_timestamp = 0;
   /** Timeout time for remote limits */
-  unsigned long remote_set_timeout = 0;
+  uint32_t remote_set_timeout = 0;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_max_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;      //For keeping track when balancing started
@@ -152,8 +184,9 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = 3000;
-  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
-  uint16_t user_set_bms_reset_duration_ms = 30000;
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset.
+   * 32-bit because the setting accepts up to 600 s, which does not fit in a uint16_t */
+  uint32_t user_set_bms_reset_duration_ms = 30000;
   /* Max cell voltage during forced balancing */
   uint16_t balancing_max_cell_voltage_mV = 3650;
   /* Max cell deviation allowed during forced balancing */
@@ -200,6 +233,7 @@ typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
   DATALAYER_BATTERY_SETTINGS_TYPE settings;
+  DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
 struct DATALAYER_CHARGER_TYPE {
@@ -223,10 +257,11 @@ struct DATALAYER_CHARGER_TYPE {
   float charger_stat_LVvol = 0;
   /** uint8_t */
   /** A counter set each time a new message comes from charger.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the battery as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the battery as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the charger as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the charger or not.
    */
-  uint8_t CAN_charger_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_charger_still_alive = (CAN_STILL_ALIVE - 1);
   /** True if charger is enabled */
   bool charger_HV_enabled = false;
   /** True if the 12V DC/DC output is enabled */
@@ -268,8 +303,12 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   char inverter_brand[8] = {0};
 
   size_t logged_can_messages_offset = 0;
-  /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
+  /** ESP32 main CPU temperature, for displaying on webserver */
   float CPU_temperature = 0;
+  /** bool, determines if CPU temperature should be measured */
+  bool CPU_measurement_enabled = false;
+  /** int, determines the CPU temperature calibration offset. Some ESP32 chips report wildly inaccurate temperatures */
+  int CPU_temperature_calibration_offset = 0;
   /** ESP32 free heap amount, for displaying on webserver and for safeties */
   uint32_t CPU_free_heap = 0;
 
@@ -278,6 +317,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, indicates if a webserver CAN stream is active */
+  bool can_streaming_active = false;
   /** bool, determines if USB serial logging should occur */
   bool CAN_usb_logging_active = false;
   /** bool, determines if USB serial logging should occur */
@@ -288,14 +329,26 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool web_logging_active = false;
   /** bool, determines if general logging to SD card should be active */
   bool SD_logging_active = false;
+  /** bool, determines if general logging to a remote syslog server is active */
+  bool syslog_logging_active = false;
   /** bool, determines if CAN replay should loop or not */
   bool loop_playback = false;
   /** bool, Native CAN failed to send flag */
   bool can_native_send_fail = false;
+  /** bool, Native CAN experienced repeated tx/rx errors flag */
+  bool can_native_bus_error = false;
   /** bool, MCP2515 CAN failed to send flag */
   bool can_2515_send_fail = false;
+  /** bool, MCP2515 CAN experienced repeated tx/rx errors flag */
+  bool can_2515_bus_error = false;
   /** bool, MCP2518 CANFD failed to send flag */
   bool can_2518_send_fail = false;
+  /** bool, MCP2518 CANFD experienced repeated tx/rx errors flag */
+  bool can_2518_bus_error = false;
+  /** bool, MCP2518 CANFD 2nd interface failed to send flag */
+  bool can_2518_2_send_fail = false;
+  /** bool, MCP2518 CANFD 2nd interface experienced repeated tx/rx errors flag */
+  bool can_2518_2_bus_error = false;
   /** bool, determines if detailed performance measurement should be shown on webserver */
   bool performance_measurement_active = false;
   bool equipment_stop_active = false;  //Has user enabled equipment stop?
@@ -338,12 +391,21 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
 
   /** uint8_t */
   /** A counter set each time a new message comes from inverter.
-   * This value then gets decremented every second. Incase we reach 0
-   * we report the inverter as missing entirely on the CAN bus.
+   * This value then gets decremented every second. Incase we reach 0 we report the inverter as missing entirely on the CAN bus.
+   * Set to CAN_STILL_ALIVE - 1 at startup to allow some time for the first messages to come in before we report the inverter as missing
+   * The -1 is important, since the safety code will check if we ever reach full CAN_STILL_ALIVE value to detect if we have ever seen the inverter or not.
    */
-  uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
+   *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
+   *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
+   *  Each contactor topology sets it authoritatively; defaults true so direct-wired setups that never
+   *  gate the DC bus keep today's behaviour. Battery-side setters must be guarded with
+   *  !contactor_control_enabled so the GPIO contactor state machine (which writes every 10 ms when
+   *  enabled) stays the single writer in GPIO setups. */
+  bool dc_bus_live = true;
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
   /** True if the primary battery allows for the contactors to close */

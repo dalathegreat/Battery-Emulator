@@ -35,6 +35,7 @@ class Mg5Battery : public CanBattery {
   static const int TOTAL_BATTERY_CAPACITY_WH = 52500;  // 52.5 kWh
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
+  unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;
   unsigned long previousMillis1000 = 0;
@@ -49,12 +50,13 @@ class Mg5Battery : public CanBattery {
 
   uint16_t soc = 0;
   uint16_t cell_id = 0;
-  uint16_t v = 0;
   uint16_t cellVoltageValidTime = 0;
   static const uint8_t CELL_VOLTAGE_TIMEOUT = 10;  // in seconds
 
   uint8_t transmitIndex = 0;  //For polling switchcase
   uint8_t previousState = 0;
+  uint8_t eightAcycle = 0;
+  uint8_t warmupCounter = 0;
 
   const int MaxChargePower = 11000;  // Maximum allowable charge power for the battery cells, excluding the taper,
   const int StartChargeTaper = 90;   // Battery percentage above which the charge power will taper to zero
@@ -66,6 +68,8 @@ class Mg5Battery : public CanBattery {
   const int MinSoC = 10;                   // Minimum SoC allowed
   const int StartDischargeTaper = 10;      // Battery percentage below which the discharge power will taper to zero
   const float DischargeTaperExponent = 1;  // Shape of discharge power taper to zero. 1 is linear. >1 red
+
+  uint16_t uds_address = 0x7DF;
 
   // poll counters
   int uds_slow_req_id_counter = -1;
@@ -257,7 +261,7 @@ class Mg5Battery : public CanBattery {
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x1F1,
-                       .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                       .data = {0x0E, 0x00, 0x00, 0x00, 0x08, 0x72, 0x00, 0x00}};
 
   //Setup Fast UDS values to poll for
   //CAN_frame* UDS_REQUESTS_FAST[0] = {};
