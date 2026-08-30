@@ -7,6 +7,38 @@
 #include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
+#include <atomic>
+
+enum class BydCellBalanceTimeState : uint8_t {
+  NOT_READ = 0,
+  QUEUED,
+  READING,
+  COMPLETE,
+  PARTIAL,
+  FAILED,
+};
+
+// Lifetime balancer on-time in whole hours.
+struct BydCellBalanceTimeData {
+  // Matches the datalayer so larger BYD packs are read in full rather than silently truncated.
+  static_assert(MAX_AMOUNT_CELLS <= 255, "cell cursors are uint8_t");
+  static constexpr uint8_t MAX_CELLS = MAX_AMOUNT_CELLS;
+  static constexpr uint8_t VALID_BYTES = (MAX_CELLS + 7) / 8;
+
+  BydCellBalanceTimeState state = BydCellBalanceTimeState::NOT_READ;
+  uint8_t expected_cells = 0;
+  uint8_t received_cells = 0;
+  uint16_t charge_cycles = 0;
+  bool charge_cycles_valid = false;
+  uint32_t scan_id = 0;
+  uint16_t hours[MAX_CELLS] = {0};
+  uint8_t valid[VALID_BYTES] = {0};
+
+  bool cell_valid(uint8_t cell) const {
+    return cell < MAX_CELLS && (valid[cell / 8] & static_cast<uint8_t>(1U << (cell % 8)));
+  }
+};
+
 class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
@@ -44,6 +76,9 @@ class BydAttoBattery : public CanBattery {
   bool supports_reset_DTC() { return true; }
   bool supports_insulation_resistance() { return true; }
   void reset_DTC() { datalayer_bydatto->UserRequestDTCreset = true; }
+  bool request_cell_balance_times();
+  const BydCellBalanceTimeData& cell_balance_times() const { return cell_balance_time_data; }
+  String cell_balance_times_json() const;
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -209,6 +244,30 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMC_SOC_current_calibration = 0;
   uint16_t seed = 0;
   uint16_t solvedKey = 0;
+
+  static const uint16_t CELL_BALANCE_TIME_DID_BASE = 0x003F;
+  static const uint16_t CELL_BALANCE_TIME_TIMEOUT_MS = 600;
+  // 126 cells take about 27s, so the cap needs headroom for the largest packs on a slow bus.
+  static const uint32_t CELL_BALANCE_TIME_SCAN_TIMEOUT_MS = 90000;
+  static const uint8_t CELL_BALANCE_TIME_RETRIES = 1;
+  BydCellBalanceTimeData cell_balance_time_data;
+  unsigned long cell_balance_time_scan_millis = 0;
+  unsigned long cell_balance_time_request_millis = 0;
+  uint8_t cell_balance_time_cell = 0;
+  uint8_t cell_balance_time_retries = 0;
+  bool cell_balance_time_queued = false;
+  bool cell_balance_time_active = false;
+  bool cell_balance_time_waiting = false;
+  std::atomic<bool> cell_balance_time_requested{false};
+  bool BMS_times_full_power_valid = false;
+
+  bool awaiting_cell_balance_reply() const { return cell_balance_time_active && cell_balance_time_waiting; }
+  bool diagnostics_idle() const;
+  void begin_cell_balance_time_scan(unsigned long currentMillis);
+  bool handle_cell_balance_time_reply(const CAN_frame& frame);
+  void advance_cell_balance_time_cell();
+  void handle_cell_balance_time_poll(unsigned long currentMillis);
+  void finish_cell_balance_time_scan();
 
   int16_t battery_temperature_ambient = 0;
   int16_t battery_calc_min_temperature = 0;

@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include <vector>
 #include "../../battery/BATTERIES.h"
+#include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
@@ -251,6 +252,39 @@ void init_webserver() {
   // Route for going to advanced battery info web page
   def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/html", index_html, advanced_battery_processor);
+  });
+
+  // Served pre-compressed from flash rather than the template processor, so it never competes
+  // for heap and costs a third of the space the plain HTML would.
+  def_route_with_auth("/bydbalance", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "text/html", BYD_BALANCE_PAGE_GZ, sizeof(BYD_BALANCE_PAGE_GZ));
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  });
+
+  def_route_with_auth("/bydCellBalanceTimes", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!byd_cell_balance_times_available(index)) {
+      request->send(404, "text/plain", "BYD battery not available");
+    } else if (!request_byd_cell_balance_times(index)) {
+      request->send(409, "text/plain", "A scan is active or the cell count is not available yet");
+    } else {
+      request->send(202, "text/plain", "Queued");
+    }
+  });
+
+  def_route_with_auth("/bydCellBalanceTimes", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!byd_cell_balance_times_available(index)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "application/json", byd_cell_balance_times_json(index));
+    response->addHeader("Cache-Control", "no-store");
+    request->send(response);
   });
 
   // Route for going to CAN logging web page

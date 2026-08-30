@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 #include "../../Software/src/datalayer/datalayer_extended.h"
@@ -23,6 +24,10 @@ CAN_frame byd_frame(uint32_t id, std::initializer_list<uint8_t> bytes) {
     frame.data.u8[i++] = b;
   }
   return frame;
+}
+
+CAN_frame uds_reply(std::initializer_list<uint8_t> bytes) {
+  return byd_frame(0x7EF, bytes);
 }
 
 // Builds a frame from the first 7 bytes, computing byte 7 the way the BMS does.
@@ -77,6 +82,27 @@ CAN_frame contactor_feedback_frame(uint8_t mode) {
 }
 
 }  // namespace
+
+TEST(BydAtto3BalanceApiTests, RejectsUnconfiguredBatteryIndices) {
+  user_selected_battery_type = BatteryType::BydAtto3;
+  battery = new BydAttoBattery();
+  battery2 = new BydAttoBattery();
+
+  EXPECT_TRUE(byd_cell_balance_times_available(0));
+  EXPECT_FALSE(byd_cell_balance_times_available(1));
+  EXPECT_FALSE(byd_cell_balance_times_available(2));
+
+  user_selected_second_battery = true;
+  EXPECT_TRUE(byd_cell_balance_times_available(1));
+
+  delete battery;
+  battery = nullptr;
+  delete battery2;
+  battery2 = nullptr;
+  // These are process-wide globals; leaving them set would leak into every later test.
+  user_selected_second_battery = false;
+  user_selected_battery_type = BatteryType::None;
+}
 
 TEST(BydAtto3Tests, ShouldDecode0x345PowerLimitsAndRejectBadChecksum) {
   reset_byd_state();
@@ -250,4 +276,150 @@ TEST(BydAtto3Tests, ShouldReDisableIsolationMonitorWhenItRearmsWithoutABmsRestar
   battery->handle_incoming_can_frame(iso_measurement_frame(true));
   battery->update_values();
   EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 1);
+}
+
+class BydAtto3BalanceTimeTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    reset_byd_state();
+    datalayer.battery.info.number_of_cells = 0;
+    battery = new BydAttoBattery();
+    battery->setup();
+  }
+
+  void TearDown() override { delete battery; }
+
+  BydAttoBattery* battery = nullptr;
+};
+
+TEST_F(BydAtto3BalanceTimeTest, RejectsScanUntilCellCountIsKnown) {
+  EXPECT_FALSE(battery->request_cell_balance_times());
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::NOT_READ);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, ReadsMatchingDidsAndKeepsZeroDistinctFromUnread) {
+  datalayer.battery.info.number_of_cells = 2;
+
+  // DID 0x0004 (completed charges), not 0x000B (sessions entered).
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x7B, 0x00, 0xAA, 0xAA}));
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::NOT_READ);
+  EXPECT_NE(battery->cell_balance_times_json().str().find("\"s\":1"), std::string::npos);
+
+  battery->transmit_can(200);  // Cell 1, DID 0x0040.
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::READING);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xFF, 0x7F, 0xAA, 0xAA}));
+  EXPECT_EQ(battery->cell_balance_times().received_cells, 0);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0xA4, 0x01, 0xAA, 0xAA}));
+  EXPECT_EQ(battery->cell_balance_times().hours[0], 420);
+  EXPECT_TRUE(battery->cell_balance_times().cell_valid(0));
+
+  battery->transmit_can(400);  // Cell 2, DID 0x0041.
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0x00, 0x00, 0xAA, 0xAA}));
+
+  const BydCellBalanceTimeData& result = battery->cell_balance_times();
+  EXPECT_EQ(result.state, BydCellBalanceTimeState::COMPLETE);
+  EXPECT_EQ(result.received_cells, 2);
+  EXPECT_EQ(result.hours[1], 0);
+  EXPECT_TRUE(result.cell_valid(1));
+  EXPECT_EQ(result.charge_cycles, 123);
+  EXPECT_TRUE(result.charge_cycles_valid);
+  EXPECT_EQ(result.scan_id, 1u);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, CountsCompletedChargesNotSessionsEntered) {
+  datalayer.battery.info.number_of_cells = 1;
+
+  // 0x000B counts every session entered, so it must not reach the scan result.
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x0B, 0xC7, 0x00, 0xAA, 0xAA}));
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0xA4, 0x01, 0xAA, 0xAA}));
+
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::COMPLETE);
+  EXPECT_FALSE(battery->cell_balance_times().charge_cycles_valid);
+  EXPECT_EQ(battery->cell_balance_times().charge_cycles, 0);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, NegativeReplyProducesUsefulPartialResult) {
+  datalayer.battery.info.number_of_cells = 2;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(200);
+
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x7F, 0x22, 0x31, 0x00, 0x00, 0x00, 0x00}));
+  battery->transmit_can(400);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xDD, 0x01, 0xAA, 0xAA}));
+
+  const BydCellBalanceTimeData& result = battery->cell_balance_times();
+  EXPECT_EQ(result.state, BydCellBalanceTimeState::PARTIAL);
+  EXPECT_EQ(result.received_cells, 1);
+  EXPECT_FALSE(result.cell_valid(0));
+  EXPECT_TRUE(result.cell_valid(1));
+  EXPECT_EQ(result.hours[1], 477);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, ResponsePendingDoesNotAdvanceTheCellCursor) {
+  datalayer.battery.info.number_of_cells = 1;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(200);
+
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x7F, 0x22, 0x78, 0x00, 0x00, 0x00, 0x00}));
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::READING);
+  EXPECT_EQ(battery->cell_balance_times().received_cells, 0);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0xA4, 0x01, 0xAA, 0xAA}));
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::COMPLETE);
+  EXPECT_EQ(battery->cell_balance_times().hours[0], 420);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, ResponsePendingCannotHoldTheScanOpen) {
+  datalayer.battery.info.number_of_cells = 1;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(200);
+
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x7F, 0x22, 0x78, 0x00, 0x00, 0x00, 0x00}));
+  // Must be past CELL_BALANCE_TIME_SCAN_TIMEOUT_MS, otherwise the scan is still legitimately open.
+  battery->transmit_can(90200);
+
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::FAILED);
+  EXPECT_EQ(battery->cell_balance_times().scan_id, 1u);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, DefersResetAndOtherDiagnosticsUntilTheBatteryTaskStartsTheScan) {
+  datalayer.battery.info.number_of_cells = 1;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0xA4, 0x01, 0xAA, 0xAA}));
+  ASSERT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::COMPLETE);
+
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::COMPLETE);
+  EXPECT_EQ(battery->cell_balance_times().hours[0], 420);
+  EXPECT_NE(battery->cell_balance_times_json().str().find("\"s\":1"), std::string::npos);
+
+  datalayer_extended.bydAtto3.UserRequestIsoRoutineDisable = true;
+  battery->update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.UserRequestIsoRoutineDisable);
+
+  battery->transmit_can(400);
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::READING);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0xA5, 0x01, 0xAA, 0xAA}));
+  battery->update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.UserRequestIsoRoutineDisable);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, TimesOutAfterOneRetry) {
+  datalayer.battery.info.number_of_cells = 1;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(200);
+  battery->transmit_can(800);
+  battery->transmit_can(1400);
+
+  const BydCellBalanceTimeData& result = battery->cell_balance_times();
+  EXPECT_EQ(result.state, BydCellBalanceTimeState::FAILED);
+  EXPECT_EQ(result.expected_cells, 1);
+  EXPECT_EQ(result.received_cells, 0);
+  EXPECT_EQ(result.scan_id, 1u);
 }

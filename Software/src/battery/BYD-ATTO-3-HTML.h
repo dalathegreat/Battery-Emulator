@@ -14,6 +14,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
+    content.reserve(9000);
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
@@ -651,6 +652,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "</script>";
 
+    append_balance_time_html(content);
+
     auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
     content += BatteryHtmlRenderer::render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
 
@@ -658,6 +661,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
   }
 
  private:
+  void append_balance_time_html(String& out) const {
+    out +=
+        "<h4 style='margin-top:18px'><button onclick=\"window.location.href='/bydbalance'\">"
+        "&#9889; Cell Balance Timers</button></h4>";
+  }
+
   DATALAYER_INFO_BYDATTO3* byd_datalayer;
   String s;
 };
