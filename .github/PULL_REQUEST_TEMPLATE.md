@@ -27,6 +27,6 @@ How does it do it?
   - [ ] The code change is tested and works locally.
 
 > [!TIP]
-> Don't worry if you haven't submitted the Wiki docs PR yet! You can still submit this PR, but please contribute tho the [docs](https://github.com/dalathegreat/Battery-Emulator-Wiki) as the next step. Then, come back here and edit this description with the link of the PR you just created there.
+> Don't worry if you haven't submitted the Wiki docs PR yet! You can still submit this PR, but please don't forget to also document your changes in the [docs](https://github.com/dalathegreat/Battery-Emulator-Wiki) as the next step. Then, come back here and edit this description with the link of the PR you just created there.
 > 
 > [You can help test this PR using these steps](https://dalathegreat.github.io/Battery-Emulator-Wiki/setup/contributing/contributing/#downloading-a-pull-request-build-to-test-locally)
