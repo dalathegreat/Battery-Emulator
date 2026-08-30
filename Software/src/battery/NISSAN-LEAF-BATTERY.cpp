@@ -279,6 +279,8 @@ void NissanLeafBattery::
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
     memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
+    memcpy(datalayer_nissan->BatteryFirmwareSecondary, BatteryFirmwareSecondary,
+           sizeof(BatteryFirmwareSecondary));
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
     if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
       //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
@@ -566,6 +568,44 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
+
+      /* Identity probe replies. Service 0x21 answers 61 85 / 61 86, the UDS DIDs answer
+         62 F1 94 / 62 F1 95, either as a single frame or as a first frame. A negative reply
+         (7F 21 ..) matches neither, so an identifier the LBC does not implement is ignored.
+         Only the first probe that returns text is kept, so a later reply cannot overwrite it. */
+      {
+        uint8_t probe_payload_start = 0;
+        bool probe_header_frame = false;
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame of a multi frame reply
+          probe_header_frame = true;
+          if (rx_frame.data.u8[2] == 0x61 && (rx_frame.data.u8[3] == 0x85 || rx_frame.data.u8[3] == 0x86)) {
+            probe_payload_start = 4;
+          } else if (rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xF1 &&
+                     (rx_frame.data.u8[4] == 0x94 || rx_frame.data.u8[4] == 0x95)) {
+            probe_payload_start = 5;
+          }
+        } else if (rx_frame.data.u8[0] >= 0x01 && rx_frame.data.u8[0] <= 0x07) {  //Single frame reply
+          probe_header_frame = true;
+          if (rx_frame.data.u8[1] == 0x61 && (rx_frame.data.u8[2] == 0x85 || rx_frame.data.u8[2] == 0x86)) {
+            probe_payload_start = 3;
+          } else if (rx_frame.data.u8[1] == 0x62 && rx_frame.data.u8[2] == 0xF1 &&
+                     (rx_frame.data.u8[3] == 0x94 || rx_frame.data.u8[3] == 0x95)) {
+            probe_payload_start = 4;
+          }
+        }
+        if (probe_header_frame) {
+          probe_reply_streaming = (probe_payload_start != 0 && BatteryFirmwareSecondary[0] == 0);
+          probe_chars_collected = 0;
+        }
+        if (probe_reply_streaming) {
+          uint8_t first_byte = probe_header_frame ? probe_payload_start : 1;
+          if (probe_header_frame || (rx_frame.data.u8[0] >= 0x21 && rx_frame.data.u8[0] <= 0x2F)) {
+            for (uint8_t i = first_byte; i < 8; i++) {
+              collect_probe_char(rx_frame.data.u8[i]);
+            }
+          }
+        }
+      }
 
       if (group_7bb == 0x01)  //High precision SOC, Current, voltages etc.
       {
@@ -908,6 +948,39 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   }
 }
 
+/* Appends one byte of an identity probe reply. Stops at the first byte that is not printable
+   ASCII, since anything else is not a version string, and when the buffer is full. */
+void NissanLeafBattery::collect_probe_char(uint8_t value) {
+  if (!probe_reply_streaming) {
+    return;
+  }
+  if (probe_chars_collected >= sizeof(BatteryFirmwareSecondary) || value < 0x20 || value > 0x7E) {
+    probe_reply_streaming = false;
+    return;
+  }
+  BatteryFirmwareSecondary[probe_chars_collected++] = value;
+}
+
+/* Sends the next unasked identity probe, one per call, and reports whether it sent anything.
+   Returns false once the list is exhausted, which hands the 10s slot back to the group rotation. */
+bool NissanLeafBattery::send_identity_probe(unsigned long currentMillis) {
+  if (identity_probe_index >= (sizeof(identity_probes) / sizeof(identity_probes[0]))) {
+    return false;
+  }
+  IdentityProbe probe = identity_probes[identity_probe_index++];
+  uds_busy = true;
+  uds_request_millis = currentMillis;
+  if (probe.service == 0x22) {
+    LEAF_DID_REQUEST.data.u8[2] = (uint8_t)(probe.identifier >> 8);
+    LEAF_DID_REQUEST.data.u8[3] = (uint8_t)(probe.identifier & 0xFF);
+    transmit_can_frame(&LEAF_DID_REQUEST);
+  } else {
+    LEAF_GROUP_REQUEST.data.u8[2] = (uint8_t)(probe.identifier & 0xFF);
+    transmit_can_frame(&LEAF_GROUP_REQUEST);
+  }
+  return true;
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   handle_DTC_requests(currentMillis);
@@ -923,6 +996,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
        both are cleared from the polling code once the pass has actually been sent. */
     repoll_static_groups = true;
     poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
+    //The identity probes belong to the old session too, so ask them again on the new one.
+    identity_probe_index = 0;
+    memset(BatteryFirmwareSecondary, 0, sizeof(BatteryFirmwareSecondary));
     return;
   }
 
@@ -1154,7 +1230,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC.
       bool dtc_operation_pending =
           UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
-      if (!stop_battery_query && !dtc_operation_pending) {
+      //The identity probes get the first 10s slots of a session, before the group rotation starts.
+      if (!stop_battery_query && !dtc_operation_pending && !send_identity_probe(currentMillis)) {
 
         // Move to the next group, skipping the static ones that already answered. The charge
         // counters and the two identity strings cannot change while the pack is powered, so each
