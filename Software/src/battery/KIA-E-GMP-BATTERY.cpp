@@ -167,30 +167,34 @@ void KiaEGmpBattery::update_values() {
   }
 }
 
-// Getter implementations for HTML renderer
-int KiaEGmpBattery::get_battery_12V() const {
-  return leadAcidBatteryVoltage;
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
 }
-int KiaEGmpBattery::get_waterleakageSensor() const {
-  return waterleakageSensor;
-}
-int KiaEGmpBattery::get_temperature_water_inlet() const {
-  return temperature_water_inlet;
-}
-int KiaEGmpBattery::get_powerRelayTemperature() const {
-  return powerRelayTemperature;
-}
-int KiaEGmpBattery::get_batteryManagementMode() const {
-  return batteryManagementMode;
-}
-int KiaEGmpBattery::get_BMS_ign() const {
-  return BMS_ign;
-}
-int KiaEGmpBattery::get_batRelay() const {
-  return batteryRelay;
+
+String KiaEGmpBattery::get_uds_info_html() {
+  String content;
+  content.reserve(1600);
+
+  // clang-format off
+  content << "<h4>Cells: " << String(datalayer.battery.info.number_of_cells) << "</h4>"
+              "<h4>12V voltage: " << String(leadAcidBatteryVoltage / 10.0f, 1) << "</h4>"
+              "<h4>Waterleakage: " << String(waterleakageSensor)  << "</h4>"
+              "<h4>Temperature, water inlet: " << String(temperature_water_inlet)  << "</h4>"
+              "<h4>Batterymanagement mode: " << String(batteryManagementMode)  << "</h4>"
+              "<h4>BMS ignition: " << String(BMS_ign)  << "</h4>";
+
+  return content;
 }
 
 void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+
+  // UDS frames (0x7EC PID/DTC replies) are handled by the superclass.
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
@@ -245,7 +249,21 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:
-      switch (rx_frame.data.u8[0]) {
+      //Handled in UDS Superclass
+      break;
+    default:
+      break;
+  }
+}
+
+uint16_t KiaEGmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+      case POLL_GROUP_1:
+      /*
+            switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           poll_data_pid = rx_frame.data.u8[4];
           transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS
@@ -411,11 +429,12 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
           }
           break;
-      }
+      }*/
       break;
-    default:
+    default:  //Unknown pid
       break;
   }
+  return 0;  //Continue scanning the PID list in order
 }
 
 void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
@@ -440,30 +459,8 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
       messageIndex = 0;
     }
 
-    //Send 200ms CANFD message
-    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-      previousMillis200ms = currentMillis;
-
-      EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
-
-      if (UserRequestDTCreset) {
-        transmit_can_frame(&EGMP_DTCreset);
-        UserRequestDTCreset = false;
-      } else if (ok_start_polling_battery) {
-        transmit_can_frame(&EGMP_7E4);
-      }
-
-      KIA_7E4_COUNTER++;
-      if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
-        KIA_7E4_COUNTER = 0x01;
-      }
-    }
-    //Send 10s CANFD message
-    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
-      previousMillis10s = currentMillis;
-
-      ok_start_polling_battery = true;
-    }
+    // UDS PID polling and DTC handling
+    transmit_uds_can(currentMillis);
   }
 }
 
@@ -477,4 +474,22 @@ void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+    // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC.
+  setup_uds(0x7E4, 0x7EC);
+  static const uint16_t pid_scan_list[] = {
+      POLL_GROUP_1,
+      POLL_GROUP_2,
+      POLL_GROUP_3,
+      POLL_GROUP_4,
+      POLL_GROUP_5,
+      POLL_GROUP_6,
+      POLL_GROUP_7,
+      POLL_GROUP_8,
+      POLL_GROUP_9,
+      POLL_GROUP_A,
+      POLL_GROUP_B,
+      POLL_GROUP_C,
+      POLL_GROUP_D,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }

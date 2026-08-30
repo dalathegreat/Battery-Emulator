@@ -1,35 +1,27 @@
 #ifndef KIA_E_GMP_BATTERY_H
 #define KIA_E_GMP_BATTERY_H
-#include "CanBattery.h"
-#include "KIA-E-GMP-HTML.h"
+#include "UdsCanBattery.h"
 
 extern bool user_selected_use_estimated_SOC;
 
-class KiaEGmpBattery : public CanBattery {
+class KiaEGmpBattery : public UdsCanBattery {
  public:
   bool mandatory_charge_taper() { return true; }
-  KiaEGmpBattery() : renderer(*this) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia/Hyundai EGMP platform";
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
-  // Getter implementations for HTML renderer
-  int get_battery_12V() const;
-  int get_waterleakageSensor() const;
-  int get_temperature_water_inlet() const;
-  int get_powerRelayTemperature() const;
-  int get_batteryManagementMode() const;
-  int get_BMS_ign() const;
-  int get_batRelay() const;
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
+  String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "kia_egmp_dtc.json"; }
+
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
-  bool UserRequestDTCreset = false;
-  KiaEGMPHtmlRenderer renderer;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
@@ -46,9 +38,6 @@ class KiaEGmpBattery : public CanBattery {
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
   static const int PACK_INTERNAL_RESISTANCE_MOHM = 200;  // 200 milliohms for the whole pack
-
-  unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-  unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
 
   uint16_t inverterVoltageFrameHigh = 0;
   uint16_t inverterVoltage = 0;
@@ -75,11 +64,7 @@ class KiaEGmpBattery : public CanBattery {
   uint8_t batteryRelay = 0;
   uint8_t waterleakageSensor = 164;
   bool startedUp = false;
-  bool ok_start_polling_battery = false;
-  uint8_t counter_200 = 0;
-  uint8_t KIA_7E4_COUNTER = 0x01;
   int8_t temperature_water_inlet = 20;
-  int8_t powerRelayTemperature = 10;
   int8_t heatertemp = 20;
   bool set_voltage_limits = false;
 
@@ -558,24 +543,20 @@ class KiaEGmpBattery : public CanBattery {
       &message_41, &message_42, &message_43, &message_44, &message_45, &message_46, &message_47, &message_48,
       &message_49, &message_50, &message_51, &message_52, &message_53, &message_54, &message_55, &message_56,
       &message_57, &message_58, &message_59, &message_60, &message_61, &message_62, &message_63};
-  /* PID polling messages */
-  CAN_frame EGMP_7E4 = {.FD = true,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x7E4,
-                        .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
-  static constexpr CAN_frame EGMP_7E4_ack = {
-      .FD = true,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x7E4,
-      .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
-  static constexpr CAN_frame EGMP_DTCreset = {
-      .FD = true,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x7DF,
-      .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //DTC reset frame
+
+  static const int POLL_GROUP_1 = 0x0101;
+  static const int POLL_GROUP_2 = 0x0102;
+  static const int POLL_GROUP_3 = 0x0103;
+  static const int POLL_GROUP_4 = 0x0104;
+  static const int POLL_GROUP_5 = 0x0105;
+  static const int POLL_GROUP_6 = 0x0106;
+  static const int POLL_GROUP_7 = 0x0107;
+  static const int POLL_GROUP_8 = 0x0108;
+  static const int POLL_GROUP_9 = 0x0109;
+  static const int POLL_GROUP_A = 0x010A;
+  static const int POLL_GROUP_B = 0x010B;
+  static const int POLL_GROUP_C = 0x010C;
+  static const int POLL_GROUP_D = 0x010D;
 };
 
 #endif
