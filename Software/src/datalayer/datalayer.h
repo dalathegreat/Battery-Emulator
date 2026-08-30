@@ -266,6 +266,27 @@ struct DATALAYER_CHARGER_TYPE {
   bool charger_HV_enabled = false;
   /** True if the 12V DC/DC output is enabled */
   bool charger_aux12V_enabled = false;
+  /* UUGP EV-side measurements */
+  uint16_t uugp_ev_voltage_V = 0;
+  uint16_t uugp_ev_current_A = 0;
+  uint16_t uugp_power_factor = 0;
+  uint16_t uugp_max_output_voltage_V = 0;
+  uint16_t uugp_max_output_current_A = 0;
+  uint16_t uugp_rated_power_W = 0;
+
+  /* UUGP DC-side measurements */
+  float uugp_dc_voltage_V = 0;
+  float uugp_dc_current_A = 0;
+  float uugp_dc_power_derating_kW = 0;
+
+  /* UUGP charging information */
+  uint16_t uugp_control_mode = 0;
+  uint16_t uugp_charging_voltage_V = 0;
+  uint16_t uugp_charging_current_A = 0;
+  uint16_t uugp_active_power_W = 0;
+  uint16_t uugp_vehicle_soc = 0;
+
+  bool uugp_communication_ok = false;
 };
 
 struct DATALAYER_SHUNT_TYPE {
