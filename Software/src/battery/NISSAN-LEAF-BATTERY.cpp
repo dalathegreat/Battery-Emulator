@@ -585,18 +585,21 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          // Hx sits at a different payload offset and uses a different scale depending on which
-          // layout the LBC answered with, so the reply length decides how to read it:
-          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27], already in hundredths of a %
-          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29], raw / 102.4 = percent
+          // Hx sits at a different payload offset depending on which layout the LBC answered with,
+          // so the reply length decides where to read it. The unit is the same for all of them:
+          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27]
+          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29]
           // This frame carries payload[25..31] in u8[1..7]. Any other length is a layout we do not
           // know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
+          uint16_t battery_HX_raw = 0;
           if (group_7bb_length == 0x35) {  //ZE1
-            uint16_t battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
+            battery_HX_raw = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          }
+          if (battery_HX_raw > 0) {
             //raw / 102.4 * 100 == raw * 125 / 128, rounded to nearest
             battery_HX_pptt = (uint16_t)(((uint32_t)battery_HX_raw * 125u + 64u) / 128u);
-          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
-            battery_HX_pptt = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
           }
         }
       }
