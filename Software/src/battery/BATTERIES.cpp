@@ -225,6 +225,29 @@ BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
 bool user_selected_triple_battery = false;
 
+static BydAttoBattery* byd_battery_at(uint8_t index) {
+  if (user_selected_battery_type != BatteryType::BydAtto3 || index > 1 ||
+      (index == 1 && !user_selected_second_battery)) {
+    return nullptr;
+  }
+  Battery* target = index == 0 ? battery : battery2;
+  return target ? static_cast<BydAttoBattery*>(target) : nullptr;
+}
+
+bool byd_cell_balance_times_available(uint8_t index) {
+  return byd_battery_at(index) != nullptr;
+}
+
+bool request_byd_cell_balance_times(uint8_t index) {
+  BydAttoBattery* target = byd_battery_at(index);
+  return target && target->request_cell_balance_times();
+}
+
+String byd_cell_balance_times_json(uint8_t index) {
+  BydAttoBattery* target = byd_battery_at(index);
+  return target ? target->cell_balance_times_json() : String();
+}
+
 Battery* create_battery(BatteryType type) {
   switch (type) {
     case BatteryType::None:

@@ -220,6 +220,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY2_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY3_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BYD_AUTO_SOC_CALIBRATION].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CHARGE_TERMINATED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BYD_CONTACTOR_MISMATCH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BYD_CONTACTOR_FORCE_OPEN].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BYD_CONTACTOR_OPEN_REQ].level = EVENT_LEVEL_INFO;
@@ -253,6 +254,7 @@ void init_events(void) {
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_OTA_ROLLBACK].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_RESTARTING].level = EVENT_LEVEL_UPDATE;  // Stops Fronius erroring out during restarts
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
@@ -549,9 +551,11 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
     case EVENT_BYD_AUTO_SOC_CALIBRATION:
       return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
+    case EVENT_BYD_CHARGE_TERMINATED:
+      return "Battery ended the charge itself and recalibrated SOC. Data column shows cell spread in tens of mV.";
     case EVENT_BYD_CONTACTOR_MISMATCH:
       return "Battery did not confirm the contactor command in time. Data: 2 = open not confirmed, 3 = close not "
-             "confirmed.";
+             "confirmed, 4 = close retries exhausted, pack left open.";
     case EVENT_BYD_CONTACTOR_FORCE_OPEN:
       return "Contactors force-opened: pack current was not confirmed safe before the timeout. Data: 0 = current "
              "stayed high, 1 = no fresh current reading. Check the inverter ramped down.";
@@ -641,6 +645,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "OTA update started!";
     case EVENT_OTA_UPDATE_TIMEOUT:
       return "OTA update timed out!";
+    case EVENT_OTA_ROLLBACK:
+      return "A firmware update did not start up and was rolled back. This board is running the previous firmware; "
+             "the log line names which version failed.";
     case EVENT_RECOVERY_START:
       return "CAUTION! Emergency low charge recovery started! Make sure battery cells do not overheat!";
     case EVENT_RECOVERY_END:
