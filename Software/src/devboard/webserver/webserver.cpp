@@ -734,6 +734,19 @@ void init_webserver() {
     request->send(200, "text/plain", "OK");
   });
 
+  // Save native BMS termination enabled flag to RAM + NVM
+  def_route_with_auth("/editBydAtto3NativeTermination", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3.native_termination_enabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDNATTERM", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
   // Route for editing AH Calibration BYD
   update_string_setting("/editCalTargetAH", [](String value) {
     datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());

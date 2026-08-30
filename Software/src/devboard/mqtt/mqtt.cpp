@@ -232,13 +232,21 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"limiting_factor", "Limiting Factor", "", "", always},
     {"dc_dc_current", "DC-DC Current", "A", "current", supports_tesla_dcdc_metrics},
     {"dc_dc_voltage", "DC-DC Voltage", "V", "voltage", supports_tesla_dcdc_metrics},
-    {"autocal_taper", "BYD Auto-cal: In Taper", "", "", supports_byd_autocal_metrics},
+    {"autocal_taper", "BYD Auto-cal: Taper Complete", "", "", supports_byd_autocal_metrics},
     {"autocal_dwell_s", "BYD Auto-cal: Dwell Time", "s", "duration", supports_byd_autocal_metrics},
     {"autocal_cooldown_ready", "BYD Auto-cal: Cooldown Ready", "", "", supports_byd_autocal_metrics},
-    {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "battery", supports_byd_autocal_metrics},
+    {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "", supports_byd_autocal_metrics},
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
     {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
-    {"leaf_hx", "Hx", "%", "", supports_leaf_metrics}};
+    {"leaf_hx", "Hx", "%", "", supports_leaf_metrics},
+    {"charge_session", "BYD Charge: Session", "", "", supports_byd_autocal_metrics},
+    {"charge_grant", "BYD Charge: Grant From Battery", "", "", supports_byd_autocal_metrics},
+    {"charge_bms_mode", "BYD Charge: Battery Mode", "", "", supports_byd_autocal_metrics},
+    {"charge_term_cell_max", "BYD Charge: Termination Cell Max", "mV", "voltage", supports_byd_autocal_metrics},
+    {"charge_term_cell_min", "BYD Charge: Termination Cell Min", "mV", "voltage", supports_byd_autocal_metrics},
+    {"charge_term_cell_delta", "BYD Charge: Termination Cell Spread", "mV", "voltage", supports_byd_autocal_metrics},
+    {"charge_term_cell_max_num", "BYD Charge: Termination High Cell #", "", "", supports_byd_autocal_metrics},
+    {"charge_term_cell_min_num", "BYD Charge: Termination Low Cell #", "", "", supports_byd_autocal_metrics}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -438,6 +446,18 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["autocal_dwell_s"] = byd.autocal_dwell_accumulated_ms / 1000u;
     doc["autocal_cooldown_ready"] = byd.autocal_crit_cooldown_ready;
     doc["autocal_soc_drift"] = byd.autocal_drift_percent;
+    static const char* const charge_session_text[] = {"Idle",     "Requesting", "Ready",
+                                                      "Charging", "Finishing",  "Resting"};
+    doc["charge_session"] = charge_session_text[byd.charge_session_state < 6 ? byd.charge_session_state : 0];
+    doc["charge_grant"] = byd.charge_grant;
+    char bms_mode[5];
+    snprintf(bms_mode, sizeof(bms_mode), "0x%02X", byd.contactor_feedback);
+    doc["charge_bms_mode"] = bms_mode;
+    doc["charge_term_cell_max"] = byd.termination_cell_max_mV;
+    doc["charge_term_cell_min"] = byd.termination_cell_min_mV;
+    doc["charge_term_cell_delta"] = byd.termination_cell_delta_mV;
+    doc["charge_term_cell_max_num"] = byd.termination_cell_max_number;
+    doc["charge_term_cell_min_num"] = byd.termination_cell_min_number;
   }
   if (supports_byd_metrics(::battery)) {
     const DATALAYER_INFO_BYDATTO3& byd =
