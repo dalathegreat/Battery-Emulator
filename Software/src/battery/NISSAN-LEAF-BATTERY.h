@@ -68,8 +68,6 @@ class NissanLeafBattery : public CanBattery {
 
   // Sends pending DTC requests once the diagnostic channel is idle, and times out unanswered ones.
   void handle_DTC_requests(unsigned long currentMillis);
-  bool send_identity_probe(unsigned long currentMillis);
-  void collect_probe_char(uint8_t value);
   static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -164,21 +162,6 @@ class NissanLeafBattery : public CanBattery {
                                   .DLC = 8,
                                   .ID = 0x79B,
                                   .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
-  //Read only probes looking for a second firmware/identity string next to the one group 0x83
-  //already returns. 0x85 and 0x86 are Nissan local identifiers read with service 0x21, 0xF194 and
-  //0xF195 are the UDS supplier software number/version DIDs read with service 0x22. Each is asked
-  //once per session; an identifier the LBC does not implement answers 7F and is simply ignored.
-  struct IdentityProbe {
-    uint8_t service;      //0x21 for a one byte local identifier, 0x22 for a two byte DID
-    uint16_t identifier;  //Low byte only for service 0x21
-  };
-  IdentityProbe identity_probes[4] = {{0x21, 0x0085}, {0x21, 0x0086}, {0x22, 0xF194}, {0x22, 0xF195}};
-  uint8_t identity_probe_index = 0;
-  CAN_frame LEAF_DID_REQUEST = {.FD = false,
-                                .ext_ID = false,
-                                .DLC = 8,
-                                .ID = 0x79B,
-                                .data = {3, 0x22, 0xF1, 0x95, 0, 0, 0, 0}};
   CAN_frame LEAF_NEXT_LINE_REQUEST = {.FD = false,
                                       .ext_ID = false,
                                       .DLC = 8,
@@ -336,10 +319,6 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_temp_polled_min = 0;
   uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
-  //Filled by the first identity probe that answers with text. Stays empty when none of them does.
-  uint8_t BatteryFirmwareSecondary[7] = {0};  // Stores raw HEX values for ASCII chars
-  uint8_t probe_chars_collected = 0;
-  bool probe_reply_streaming = false;
   uint8_t stateMachineClearSOH = 0xFF;
 
 #ifndef SMALL_FLASH_DEVICE

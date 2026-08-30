@@ -37,24 +37,12 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber, sizeof(nissan_dl->BatterySerialNumber));
     readableSerialNumber[15] = '\0';  // Null terminate the string
     content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
-    /* The LBC reports its software level as the five character suffix of a Nissan part number.
-       The two bytes that follow it in group 0x83 are a separate field, so they are not part of
-       the version and are left out here. A second string appears only when one of the identity
-       probes answered with one. */
+    //The LBC reports its software level as the five character suffix of a Nissan part number. The
+    //two bytes that follow it in group 0x83 are a separate field, so they are not shown here.
     char readableFirmware[6];  // One extra space for null terminator
     memcpy(readableFirmware, nissan_dl->BatteryPartNumber, 5);
-    readableFirmware[5] = '\0';         // Null terminate the string
-    char readableFirmwareSecondary[8];  // One extra space for null terminator
-    memcpy(readableFirmwareSecondary, nissan_dl->BatteryFirmwareSecondary, sizeof(nissan_dl->BatteryFirmwareSecondary));
-    readableFirmwareSecondary[7] = '\0';  // Null terminate the string
-    for (int i = 6; i >= 0 && readableFirmwareSecondary[i] == ' '; i--) {
-      readableFirmwareSecondary[i] = '\0';  // Trim the padding some identifiers come with
-    }
-    content += "<h4>Firmware: " + String(readableFirmware);
-    if (readableFirmwareSecondary[0] != '\0') {
-      content += " / " + String(readableFirmwareSecondary);
-    }
-    content += "</h4>";
+    readableFirmware[5] = '\0';  // Null terminate the string
+    content += "<h4>Firmware: " + String(readableFirmware) + "</h4>";
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
     content +=
         "<h4>Hx: " +
