@@ -279,8 +279,7 @@ void NissanLeafBattery::
   if (datalayer_nissan) {
     memcpy(datalayer_nissan->BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
     memcpy(datalayer_nissan->BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
-    memcpy(datalayer_nissan->BatteryFirmwareSecondary, BatteryFirmwareSecondary,
-           sizeof(BatteryFirmwareSecondary));
+    memcpy(datalayer_nissan->BatteryFirmwareSecondary, BatteryFirmwareSecondary, sizeof(BatteryFirmwareSecondary));
     datalayer_nissan->LEAF_gen = LEAF_battery_Type;
     if (allows_contactor_closing) {  //Only the main battery names the protocol shown on the status page
       //setup() already wrote Name, so only the "battery" part gets replaced by the detected generation
