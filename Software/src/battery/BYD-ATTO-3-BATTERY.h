@@ -199,6 +199,7 @@ class BydAttoBattery : public CanBattery {
   // keep_iso_disabled enforcement: re-send disable after each BMS start (monitor re-enables on power-up)
   bool bms_was_alive = false;
   bool iso_reassert_needed = false;
+  bool iso_measurement_was_active = false;
   unsigned long bms_alive_since_ms = 0;
   unsigned long iso_reassert_attempt_ms = 0;
 

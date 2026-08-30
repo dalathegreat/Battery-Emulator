@@ -346,6 +346,12 @@ void BydAttoBattery::
       }
     }
     bms_was_alive = bms_alive;
+    // Also re-arms ~30s after a contactor open, which is no BMS start: catch it on the 0x35E edge.
+    if (battery_iso_measurement_active && !iso_measurement_was_active && datalayer_bydatto->keep_iso_disabled) {
+      iso_reassert_needed = true;
+      iso_reassert_attempt_ms = 0;
+    }
+    iso_measurement_was_active = battery_iso_measurement_active;
     if (!datalayer_bydatto->keep_iso_disabled) {
       iso_reassert_needed = false;
     }
