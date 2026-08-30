@@ -313,6 +313,8 @@ void init_stored_settings() {
   // Native termination is primary-battery only: inverter charge limits come from battery 1 alone,
   // so a secondary termination could not stop a parallel bank.
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
+  datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
+  datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
 }
 
 void clear_wifi_sta_settings() {
@@ -381,4 +383,6 @@ void store_settings() {
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
+  settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
+  settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
 }
