@@ -216,6 +216,14 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t termination_cell_delta_mV;
   uint8_t termination_cell_max_number;
   uint8_t termination_cell_min_number;
+  /** Cycle the contactors open after a native termination, then close again */
+  bool balancing_enabled;
+  /** How long to hold the pack open for */
+  uint16_t balancing_hold_minutes;
+  /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
+  uint8_t balancing_state;
+  /** Minutes left of the hold */
+  uint16_t balancing_remaining_min;
 
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
@@ -1082,6 +1090,8 @@ class DataLayerExtended {
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
       data.native_termination_enabled = true;
+      data.balancing_enabled = false;
+      data.balancing_hold_minutes = 30;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);

@@ -226,9 +226,17 @@ void BydAttoBattery::
   // Lift the cell rails only once the BMS has actually granted the charge (and through the
   // terminated rest), so it can reach its own 3742-3753mV termination band. Everywhere else,
   // including a session still waiting for a grant, the stock limits are in force.
-  const bool session_owns_top = chargeSessionState == CHG_SESSION_CHARGING ||
-                                chargeSessionState == CHG_SESSION_FINISHING ||
-                                (chargeSessionState == CHG_SESSION_HOLD && chargeSessionTerminated);
+  // Rails follow the pack, not the session: an open leaves the cells where the BMS left them.
+  const uint16_t rails_cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
+  const uint16_t rails_cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
+  if (chargeTerminatedRails && rails_cell_min_mV > 0 && rails_cell_max_mV <= MAX_CELL_VOLTAGE_MV &&
+      (rails_cell_max_mV - rails_cell_min_mV) <= MAX_CELL_DEVIATION_MV) {
+    chargeTerminatedRails = false;
+  }
+  const bool rails_owned = chargeSessionState == CHG_SESSION_CHARGING || chargeSessionState == CHG_SESSION_FINISHING ||
+                           (chargeSessionState == CHG_SESSION_HOLD && chargeSessionTerminated) || chargeTerminatedRails;
+  // Turning native termination off restores the stock limits immediately.
+  const bool session_owns_top = rails_owned && datalayer_bydatto && datalayer_bydatto->native_termination_enabled;
   datalayer_battery->info.max_cell_voltage_mV = session_owns_top ? SESSION_CELL_CLAMP_MV : MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV =
       session_owns_top ? SESSION_DELTA_LIMIT_MV : MAX_CELL_DEVIATION_MV;
@@ -930,6 +938,11 @@ void BydAttoBattery::confirm_charge_termination() {
     datalayer_bydatto->termination_cell_delta_mV = spread_mV;
     datalayer_bydatto->termination_cell_max_number = BMS_max_cell_voltage_number;
     datalayer_bydatto->termination_cell_min_number = BMS_min_cell_voltage_number;
+    chargeTerminatedRails = true;
+    if (datalayer_bydatto->balancing_enabled && datalayer_battery == &datalayer.battery && !balancingCycleDone) {
+      balancingState = BALANCING_ARMED;
+      balancingStateMillis = millis();
+    }
   }
   set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10));
   DEBUG_PRINTF("[BYD] Battery ended the charge at %umV, cell spread %umV\n", cell_max_mV, spread_mV);
@@ -1114,6 +1127,117 @@ void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
   }
 }
 
+// Cycle the contactors after a termination, holding the pack open for the configured time.
+void BydAttoBattery::handle_balancing(unsigned long currentMillis) {
+  if (!datalayer_bydatto) {
+    return;
+  }
+  const bool enabled = datalayer_bydatto->balancing_enabled && datalayer_battery == &datalayer.battery;
+  const bool pack_closed = (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) != 0;
+  // Still closed only because the open has not finished yet, which is not the same as closed.
+  const bool open_in_flight = contactorState == CONTACTORS_AWAIT_ZERO_CURRENT || contactorState == CONTACTORS_OPENING ||
+                              contactorState == CONTACTORS_OPEN_REQUESTED || contactorState == CONTACTORS_OPEN_SETTLE;
+  const uint32_t hold_ms = (uint32_t)datalayer_bydatto->balancing_hold_minutes * 60000UL;
+
+  // One cycle per real discharge, so a day of solar top-ups cannot cycle the contactors repeatedly.
+  if (datalayer_battery->status.current_dA <= SESSION_REARM_DISCHARGE_dA) {
+    if (balancingDischargeSinceMillis == 0) {
+      balancingDischargeSinceMillis = currentMillis;
+    } else if (currentMillis - balancingDischargeSinceMillis >= SESSION_REARM_DWELL_MS) {
+      balancingCycleDone = false;
+    }
+  } else {
+    balancingDischargeSinceMillis = 0;
+  }
+
+  if (datalayer.system.info.equipment_stop_active) {
+    balancingState = BALANCING_IDLE;  // the stop owns the contactors
+  } else if (!enabled && balancingState != BALANCING_IDLE && balancingState != BALANCING_CLOSING) {
+    // Turned off mid-cycle: close the pack back up rather than leaving it open indefinitely. Once
+    // this has handed over to CLOSING, the bounded retry below owns it - re-running would reset it.
+    const bool give_up = balancingState == BALANCING_ARMED || balancingState == BALANCING_CLOSE_FAILED;
+    if (balancingState == BALANCING_OPENING) {
+      request_close_contactors();  // cancels the wind-down outright if it has not shut down yet
+    }
+    balancingState = give_up ? BALANCING_IDLE : BALANCING_CLOSING;
+    balancingStateMillis = currentMillis;
+    balancingCloseAttempts = 0;
+  }
+
+  switch (balancingState) {
+    case BALANCING_ARMED:
+      // The charge-flag fallback can take 30s, so wait for the session to be genuinely at rest.
+      if (currentMillis - balancingStateMillis >= BALANCING_MOVE_TIMEOUT_MS) {
+        balancingState = BALANCING_IDLE;  // never got there, leave the pack alone
+      } else if (chargeSessionState == CHG_SESSION_HOLD && chargeSessionTerminated &&
+                 currentMillis - balancingStateMillis >= BALANCING_SETTLE_MS && !cell_balance_time_active) {
+        request_open_contactors_optional();
+        balancingCycleDone = true;
+        balancingState = BALANCING_OPENING;
+        balancingStateMillis = currentMillis;
+      }
+      break;
+    case BALANCING_OPENING:
+      if (!pack_closed) {
+        balancingState = BALANCING_WAITING;
+        balancingStateMillis = currentMillis;
+      } else if (contactorState == CONTACTORS_ACTIVE && currentMillis - balancingStateMillis >= 1000) {
+        balancingState = BALANCING_IDLE;  // abandoned under load, the pack stayed closed
+      } else if (currentMillis - balancingStateMillis >= BALANCING_MOVE_TIMEOUT_MS) {
+        // Reverse it rather than walking away with the contactor machine still mid-open.
+        request_close_contactors();
+        balancingCloseAttempts = 1;
+        balancingState = BALANCING_CLOSING;
+        balancingStateMillis = currentMillis;
+      }
+      break;
+    case BALANCING_WAITING:
+      if (pack_closed) {
+        balancingState = BALANCING_IDLE;  // closed by something else, do not fight it
+      } else if (currentMillis - balancingStateMillis >= hold_ms) {
+        balancingState = BALANCING_CLOSING;
+        balancingStateMillis = currentMillis;
+        balancingCloseAttempts = 0;
+      }
+      break;
+    case BALANCING_CLOSING:
+      // A close is ignored during the ~1.5s shutdown hold, so retry from standby, but only a few
+      // times and with a backoff (measured from the request, so ~30s idle after a failed confirm) -
+      // a pack that will not come back needs a person, not more attempts.
+      if (pack_closed && !open_in_flight) {
+        balancingState = BALANCING_IDLE;
+      } else if (contactorState == CONTACTORS_STANDBY &&
+                 (balancingCloseAttempts == 0 || currentMillis - balancingStateMillis >= BALANCING_CLOSE_BACKOFF_MS)) {
+        if (balancingCloseAttempts > BALANCING_CLOSE_RETRIES) {
+          set_event(EVENT_BYD_CONTACTOR_MISMATCH, 4);
+          balancingState = BALANCING_CLOSE_FAILED;
+        } else {
+          request_close_contactors();
+          balancingCloseAttempts++;
+          balancingStateMillis = currentMillis;
+        }
+      }
+      break;
+    case BALANCING_CLOSE_FAILED:
+      if (pack_closed) {
+        balancingState = BALANCING_IDLE;  // closed by hand, carry on
+      }
+      break;
+    default:
+      break;
+  }
+
+  datalayer_bydatto->balancing_state = balancingState;
+  uint16_t remaining = 0;
+  if (balancingState == BALANCING_WAITING) {
+    const uint32_t elapsed = currentMillis - balancingStateMillis;
+    if (elapsed < hold_ms) {
+      remaining = (uint16_t)((hold_ms - elapsed + 59999UL) / 60000UL);
+    }
+  }
+  datalayer_bydatto->balancing_remaining_min = remaining;
+}
+
 void BydAttoBattery::transmit_charge_session(unsigned long currentMillis) {
   if (chargeSessionState == CHG_SESSION_IDLE) {
     return;
@@ -1205,6 +1329,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
   if (contactorsAllowedClosed != previousContactorsAllowedClosed) {
     previousContactorsAllowedClosed = contactorsAllowedClosed;
     if (!contactorsAllowedClosed) {
+      contactorOpenOptional = false;  // a fault, stop or withdrawn permission always opens
       requestContactorOpen = true;
     } else {
       requestContactorClose = true;
@@ -1230,8 +1355,8 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
 
   if (requestContactorClose) {
     requestContactorClose = false;
-    if (datalayer.system.info.equipment_stop_active) {
-      // Don't close while the stop is active - releasing the stop is what asks to close
+    if (!contactorsAllowedClosed) {
+      // A fault, the equipment stop or the inverter withdrawing permission all hold the pack open
     } else if (contactorState == CONTACTORS_AWAIT_ZERO_CURRENT) {
       // Cancel the pending open (shutdown not sent yet). If the pack already closed, resume the
       // drive-ready hold; if it was still precharging, resume the close so it finishes properly
@@ -1277,8 +1402,14 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       if ((int32_t)(lastCurrentSampleMillis - contactorStateEntryMillis) >= (int32_t)ZERO_CURRENT_MIN_WAIT_MS &&
           battery_current_dA > -OPEN_MAX_CURRENT_dA && battery_current_dA < OPEN_MAX_CURRENT_dA) {
         set_12D_payload(0xA0, 0x28, 0x02, 0x60, 0x04, 0x31);  // Shutdown pattern
+        contactorOpenOptional = false;
         contactorState = CONTACTORS_OPENING;
         contactorStateEntryMillis = currentMillis;
+      } else if (currentMillis - contactorStateEntryMillis >= ZERO_CURRENT_TIMEOUT_MS && contactorOpenOptional) {
+        // Optional open: current never settled, so stay closed rather than breaking contact under load
+        set_12D_payload(0xA0, 0x28, 0x00, 0x22, 0x0C, 0x31);  // Drive-ready pattern
+        contactorState = CONTACTORS_ACTIVE;
+        contactorOpenOptional = false;
       } else if (currentMillis - contactorStateEntryMillis >= ZERO_CURRENT_TIMEOUT_MS) {
         // Timed out - open anyway. Flag whether a fresh reading stayed high (0) or none arrived (1)
         bool had_fresh_sample =
@@ -1526,6 +1657,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 
     handle_contactor_control(currentMillis);
     handle_charge_session(currentMillis);
+    handle_balancing(currentMillis);
 
     // Byte 6 = rolling counter (high nibble counts up, low nibble 0xF), byte 7 = checksum
     frame6_counter = (frame6_counter + 1) & 0x0F;

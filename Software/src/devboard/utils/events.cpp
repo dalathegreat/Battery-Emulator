@@ -555,7 +555,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Battery ended the charge itself and recalibrated SOC. Data column shows cell spread in tens of mV.";
     case EVENT_BYD_CONTACTOR_MISMATCH:
       return "Battery did not confirm the contactor command in time. Data: 2 = open not confirmed, 3 = close not "
-             "confirmed.";
+             "confirmed, 4 = close retries exhausted, pack left open.";
     case EVENT_BYD_CONTACTOR_FORCE_OPEN:
       return "Contactors force-opened: pack current was not confirmed safe before the timeout. Data: 0 = current "
              "stayed high, 1 = no fresh current reading. Check the inverter ramped down.";

@@ -209,7 +209,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     if (s.length() > 0) {
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration &amp; charge termination</h4>";
+      content +=
+          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
       content +=
           "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Not available on the second battery: "
           "the inverter charge limit follows battery 1, so a termination here could not stop the "
@@ -248,11 +249,13 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration &amp; charge termination</h4>";
       content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>The battery ends the charge itself and "
-          "recalibrates its own SOC to 100&percnt; and SOH, as it would in the car, then rests full with discharge "
-          "still available.</div>";
+          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
+      content +=
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Native termination lets the battery "
+          "finish charging and recalibrate its own SOC and SOH, as it does in the car. Without balancing, the "
+          "pack remains closed and available for discharge. With balancing enabled, the contactors open for the "
+          "selected hold time before closing again &mdash; a cycle that appears to trigger balancing.</div>";
       content += panel_table;
 
       content += "<tr>";
@@ -264,6 +267,63 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += " onchange='toggleNativeTermination" + s + "()'>";
       content += "<span style='font-weight:normal;color:#8b949e'> default on</span>";
       content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Balancing enabled:</td>";
+      content += value_td;
+      content += "<input type='checkbox' id='balancingEnabled' ";
+      content += (byd_datalayer->balancing_enabled ? "checked" : "");
+      content += " onchange='toggleBalancingEnabled()'>";
+      content += "<span style='font-weight:normal;color:#8b949e'> open/reclose after charge</span>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Hold for:</td>";
+      content += value_td;
+      content +=
+          "<input type='number' style='width:4.5em;margin:0;padding:1px 4px;vertical-align:middle' "
+          "id='balancingMinutes' value='";
+      content += String(byd_datalayer->balancing_hold_minutes);
+      content +=
+          "' min='1' max='1440'> min <button style='margin:0 0 0 8px;padding:2px 12px;vertical-align:middle' "
+          "onclick='setBalancingMinutes()'>Save</button>";
+      content += "</td></tr>";
+
+      if (byd_datalayer->balancing_state != 0) {
+        const char* hold_text = "Idle";
+        switch (byd_datalayer->balancing_state) {
+          case 1:
+            hold_text = "Armed";
+            break;
+          case 2:
+            hold_text = "Opening";
+            break;
+          case 3:
+            hold_text = "Holding open";
+            break;
+          case 4:
+            hold_text = "Closing";
+            break;
+          case 5:
+            hold_text = "Close failed - pack left open";
+            break;
+          default:
+            break;
+        }
+        content += "<tr>";
+        content += label_td;
+        content += "Hold state:</td>";
+        content += value_td;
+        content +=
+            (byd_datalayer->balancing_state == 5) ? "<span style='color:#d29922'>" : "<span style='color:white'>";
+        content += hold_text;
+        if (byd_datalayer->balancing_state == 3) {
+          content += " (" + String(byd_datalayer->balancing_remaining_min) + " min left)";
+        }
+        content += "</span></td></tr>";
+      }
 
       content += "<tr>";
       content += label_td;
@@ -612,6 +672,22 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "  xhr.onload=editComplete;";
       content += "  xhr.onerror=editError;";
       content += "  xhr.open('GET','/editBydAtto3NativeTermination?value='+enabled,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function toggleBalancingEnabled(){";
+      content += "  var enabled = document.getElementById('balancingEnabled').checked ? 1 : 0;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/editBydAtto3BalancingEnabled?value='+enabled,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function setBalancingMinutes(){";
+      content += "  var v = document.getElementById('balancingMinutes').value;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/editBydAtto3BalancingMinutes?value='+v,true);";
       content += "  xhr.send();";
       content += "}";
     }

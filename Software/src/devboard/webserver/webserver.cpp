@@ -781,6 +781,34 @@ void init_webserver() {
     request->send(200, "text/plain", "OK");
   });
 
+  // Save balancing enabled flag to RAM + NVM
+  def_route_with_auth("/editBydAtto3BalancingEnabled", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3.balancing_enabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDBALEN", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  // Save balancing hold duration to RAM + NVM
+  def_route_with_auth("/editBydAtto3BalancingMinutes", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      int value = request->getParam("value")->value().toInt();
+      if (value >= 1 && value <= 1440) {
+        datalayer_extended.bydAtto3.balancing_hold_minutes = (uint16_t)value;
+        Preferences prefs;
+        prefs.begin("batterySettings", false);
+        prefs.putUInt("BYDBALMIN", (uint16_t)value);
+        prefs.end();
+      }
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
   // Route for editing AH Calibration BYD
   update_string_setting("/editCalTargetAH", [](String value) {
     datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());

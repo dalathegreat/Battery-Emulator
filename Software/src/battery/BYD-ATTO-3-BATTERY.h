@@ -69,7 +69,15 @@ class BydAttoBattery : public CanBattery {
   bool supports_calibrate_SOC() { return true; }
   void reset_SOC() { datalayer_bydatto->UserRequestCalibrateSOC = true; }
   bool supports_contactor_close() { return true; }
-  void request_open_contactors() { requestContactorOpen = true; }
+  void request_open_contactors() {
+    contactorOpenOptional = false;
+    requestContactorOpen = true;
+  }
+  // An open that is worth abandoning rather than breaking contact under load for.
+  void request_open_contactors_optional() {
+    contactorOpenOptional = true;
+    requestContactorOpen = true;
+  }
   void request_close_contactors() { requestContactorClose = true; }
   bool supports_read_DTC() { return true; }
   void read_DTC() { datalayer_bydatto->UserRequestDTCreadout = true; }
@@ -218,6 +226,18 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t CHG_SESSION_CHARGING = 3;   // 0x24A=88, 0x47E b2=0C, BMS granted
   static const uint8_t CHG_SESSION_FINISHING = 4;  // grant withdrawn, acknowledging the end
   static const uint8_t CHG_SESSION_HOLD = 5;       // resting at 0x84, keepalive only
+
+  // Balancing enabled: cycle the contactors after a termination. Opt-in, off by default.
+  static const uint8_t BALANCING_IDLE = 0;
+  static const uint8_t BALANCING_ARMED = 1;         // terminated, letting the session settle first
+  static const uint8_t BALANCING_OPENING = 2;       // open asked for, waiting for the pack to go
+  static const uint8_t BALANCING_WAITING = 3;       // open, running the configured hold
+  static const uint8_t BALANCING_CLOSING = 4;       // close asked for, waiting for the pack to come back
+  static const uint8_t BALANCING_CLOSE_FAILED = 5;  // pack would not close, left open for a person
+  static const uint8_t BALANCING_CLOSE_RETRIES = 2;
+  static const uint32_t BALANCING_CLOSE_BACKOFF_MS = 45000;
+  static const uint32_t BALANCING_SETTLE_MS = 10000;         // session reaches rest ~5s after termination
+  static const uint32_t BALANCING_MOVE_TIMEOUT_MS = 120000;  // give up if the pack will not move
 
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
@@ -375,7 +395,14 @@ class BydAttoBattery : public CanBattery {
   void handle_contactor_control(unsigned long currentMillis);
 
   uint8_t chargeSessionState = CHG_SESSION_IDLE;
+  uint8_t balancingState = BALANCING_IDLE;
+  unsigned long balancingStateMillis = 0;
+  uint8_t balancingCloseAttempts = 0;
+  bool contactorOpenOptional = false;
+  bool balancingCycleDone = false;  // one cycle per real discharge, like the session re-arm
+  unsigned long balancingDischargeSinceMillis = 0;
   bool chargeSessionTerminated = false;  // last session ended on a grant edge, not an interruption
+  bool chargeTerminatedRails = false;    // rails stay lifted after the session ends, until cells relax
   bool chargeSessionHeartbeat = false;
   bool chargeRampDone = false;
   bool chargeDonePending = false;  // grant edge confirmed, stop offering current
@@ -395,6 +422,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long chargeBackoffStartMillis = 0;
 
   void handle_charge_session(unsigned long currentMillis);
+  void handle_balancing(unsigned long currentMillis);
   void handle_charge_grant(uint8_t grant);
   void confirm_charge_termination();
   void start_charge_session(unsigned long currentMillis);
