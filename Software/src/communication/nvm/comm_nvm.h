@@ -94,6 +94,10 @@ class BatteryEmulatorSettingsStore {
 
   bool settingExists(const char* name) { return settings.isKey(name); }
 
+  // The type tag NVS stored the entry under. Preferences enforces it on read, so this is
+  // what decides whether a typed getter returns the stored value or silently defaults.
+  PreferenceType getType(const char* name) { return settings.getType(name); }
+
   void removeKey(const char* name) {
     if (settings.isKey(name)) {
       settings.remove(name);

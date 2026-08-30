@@ -4,6 +4,20 @@
 #include <WString.h>
 #include <stdint.h>
 
+typedef enum {
+  PT_I8,
+  PT_U8,
+  PT_I16,
+  PT_U16,
+  PT_I32,
+  PT_U32,
+  PT_I64,
+  PT_U64,
+  PT_STR,
+  PT_BLOB,
+  PT_INVALID
+} PreferenceType;
+
 class Preferences {
 
  public:
@@ -20,6 +34,7 @@ class Preferences {
   size_t putString(const char* key, String value) { return 0; }
 
   bool isKey(const char* key) { return false; }
+  PreferenceType getType(const char* key) { return PT_INVALID; }
   bool remove(const char* key) { return true; }
 
   int32_t getInt(const char* key, int32_t defaultValue = 0) { return 0; }
