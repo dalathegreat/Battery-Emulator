@@ -109,6 +109,7 @@ add_executable(tests
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
+    ../Software/src/battery/AKASOL-BATTERY.cpp
     ../Software/src/battery/BMW-I3-BATTERY.cpp
     ../Software/src/battery/BMW-I3-HTML.cpp
     ../Software/src/battery/BMW-IX-BATTERY.cpp
