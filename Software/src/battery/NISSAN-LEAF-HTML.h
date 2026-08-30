@@ -43,10 +43,9 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
        probes answered with one. */
     char readableFirmware[6];  // One extra space for null terminator
     memcpy(readableFirmware, nissan_dl->BatteryPartNumber, 5);
-    readableFirmware[5] = '\0';  // Null terminate the string
+    readableFirmware[5] = '\0';         // Null terminate the string
     char readableFirmwareSecondary[8];  // One extra space for null terminator
-    memcpy(readableFirmwareSecondary, nissan_dl->BatteryFirmwareSecondary,
-           sizeof(nissan_dl->BatteryFirmwareSecondary));
+    memcpy(readableFirmwareSecondary, nissan_dl->BatteryFirmwareSecondary, sizeof(nissan_dl->BatteryFirmwareSecondary));
     readableFirmwareSecondary[7] = '\0';  // Null terminate the string
     for (int i = 6; i >= 0 && readableFirmwareSecondary[i] == ' '; i--) {
       readableFirmwareSecondary[i] = '\0';  // Trim the padding some identifiers come with
