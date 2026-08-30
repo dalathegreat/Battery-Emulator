@@ -6,6 +6,7 @@
 #include "RS485Battery.h"
 
 #include "../shunt/BMW-SBOX.h"
+#include "AKASOL-BATTERY.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"
@@ -99,6 +100,8 @@ const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
+    case BatteryType::Akasol:
+      return AkasolBattery::Name;
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
     case BatteryType::BmwIX:
@@ -249,6 +252,8 @@ Battery* create_battery(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return nullptr;
+    case BatteryType::Akasol:
+      return new AkasolBattery();
     case BatteryType::BmwI3:
       return new BmwI3Battery();
     case BatteryType::BmwIX:
