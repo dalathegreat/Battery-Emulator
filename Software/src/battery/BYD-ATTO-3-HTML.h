@@ -14,7 +14,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
-    content.reserve(9000);
+    content.reserve(16000);
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
