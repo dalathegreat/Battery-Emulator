@@ -319,6 +319,12 @@ void NissanLeafBattery::
     datalayer_nissan->Interlock = battery_Interlock;
     datalayer_nissan->Insulation = battery_insulation;
     datalayer_nissan->CapacityCAh = battery_capacity_cAh;
+    if (battery_capacity_cAh != 0) {
+      //Hundredths of an Ah times deciVolts gives milliWatt-hours, so divide by a thousand.
+      const uint16_t nominal_dV =
+          (LEAF_battery_Type == ZE1_BATTERY) ? NOMINAL_VOLTAGE_DV_ZE1 : NOMINAL_VOLTAGE_DV_ZE0_AZE0;
+      datalayer_nissan->CapacityWh = ((uint32_t)battery_capacity_cAh * nominal_dV) / 1000u;
+    }
     datalayer_nissan->VBAT_mV = battery_vbat_mV;
     datalayer_nissan->RelayCutRequest = battery_Relay_Cut_Request;
     datalayer_nissan->FailsafeStatus = battery_Failsafe_Status;

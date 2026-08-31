@@ -68,6 +68,11 @@ class NissanLeafBattery : public CanBattery {
 
   // Sends pending DTC requests once the diagnostic channel is idle, and times out unanswered ones.
   void handle_DTC_requests(unsigned long currentMillis);
+  //Nominal pack voltage in deciVolts, used to turn the capacity the LBC reports in Ah into an
+  //energy figure. 96 cells at 3.75 V on ZE0/AZE0, at 3.65 V on ZE1. Deliberately not the live
+  //pack voltage, which would make a nameplate-style number swing with SoC.
+  static const uint16_t NOMINAL_VOLTAGE_DV_ZE0_AZE0 = 3600;
+  static const uint16_t NOMINAL_VOLTAGE_DV_ZE1 = 3504;
   //12 V supply level below which the accessory battery can no longer be trusted to hold the
   //contactors in. Cleared again only once it has recovered past the threshold plus the hysteresis,
   //so a supply sitting right on the limit does not toggle the event on every update.

@@ -240,6 +240,8 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
     {"leaf_hx", "Hx", "%", "", supports_leaf_metrics},
     {"leaf_vbat", "VBAT level", "V", "voltage", supports_leaf_metrics},
+    {"leaf_capacity_ah", "Actual capacity (Ah)", "Ah", "", supports_leaf_metrics},
+    {"leaf_capacity", "Actual capacity", "kWh", "energy_storage", supports_leaf_metrics},
     {"charge_session", "BYD Charge: Session", "", "", supports_byd_autocal_metrics},
     {"charge_grant", "BYD Charge: Grant From Battery", "", "", supports_byd_autocal_metrics},
     {"charge_bms_mode", "BYD Charge: Battery Mode", "", "", supports_byd_autocal_metrics},
@@ -484,6 +486,14 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     if (leaf.VBAT_mV != 0u) {
       doc["leaf_vbat"] = ((float)leaf.VBAT_mV) / 1000.0f;
     }
+    // Pack capacity as reported, and the same figure as energy at the pack's nominal voltage,
+    // which differs by generation. Both omitted until a capacity has been read.
+    if (leaf.CapacityCAh != 0u) {
+      const float capacity_Ah = ((float)leaf.CapacityCAh) / 100.0f;
+      const float nominal_V = (leaf.LEAF_gen == 2) ? 350.4f : 360.0f;
+      doc["leaf_capacity_ah"] = capacity_Ah;
+      doc["leaf_capacity"] = (capacity_Ah * nominal_V) / 1000.0f;
+    }
   }
 }
 
@@ -505,6 +515,11 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     }
     if (strcmp(entity_id, "leaf_hx") == 0) {
       return "mdi:battery-heart-variant";
+    }
+    // Amp-hours have no device_class, so this one would fall back to Home Assistant's generic
+    // icon next to its kWh sibling, which does get one from "energy_storage".
+    if (strcmp(entity_id, "leaf_capacity_ah") == 0) {
+      return "mdi:battery-charging-100";
     }
     if (strcmp(entity_id, "charging_state") == 0) {
       return "mdi:home-battery";
@@ -625,6 +640,15 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   // The 12 V level is a small voltage where the second decimal carries the information, so it
   // gets the same treatment as the cell voltages above rather than the pack-voltage default.
   if (strcmp(config.entity_id, "leaf_vbat") == 0) {
+    doc["suggested_display_precision"] = 2;
+  }
+  // Amp-hours have no matching device_class in Home Assistant, so the capacity in Ah misses the
+  // state_class assignment above. Both capacity sensors are shown to two decimals: degradation
+  // moves them slowly enough that the second decimal is the interesting part.
+  if (strcmp(config.entity_id, "leaf_capacity_ah") == 0) {
+    doc["state_class"] = "measurement";
+  }
+  if (strcmp(config.entity_id, "leaf_capacity_ah") == 0 || strcmp(config.entity_id, "leaf_capacity") == 0) {
     doc["suggested_display_precision"] = 2;
   }
   // Battery current, CPU temp and both SOC sensors: show 1 decimal in HA.

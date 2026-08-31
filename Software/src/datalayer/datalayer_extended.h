@@ -793,6 +793,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+  /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
+   * Derived in the driver rather than at each display site so the per-generation nominal
+   * voltage is stated once.
+   */
+  uint32_t CapacityWh;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
