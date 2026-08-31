@@ -139,7 +139,6 @@ add_executable(tests
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
     ../Software/src/battery/JAGUAR-IPACE-BATTERY.cpp
     ../Software/src/battery/KIA-E-GMP-BATTERY.cpp
-    ../Software/src/battery/KIA-E-GMP-HTML.cpp
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
