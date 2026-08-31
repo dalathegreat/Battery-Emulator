@@ -13,14 +13,10 @@ class FoxessEpCanInverter : public CanInverterProtocol {
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "FoxESS EP-Series battery";
 
-  private:
-  void transmit_cell_voltage_frame(
-      uint32_t frame_id,
-      uint16_t first_cell_index);
+ private:
+  void transmit_cell_voltage_frame(uint32_t frame_id, uint16_t first_cell_index);
 
-  void transmit_temperature_frame(
-      uint32_t frame_id,
-      uint8_t first_virtual_sensor_index);
+  void transmit_temperature_frame(uint32_t frame_id, uint8_t first_virtual_sensor_index);
 
   // EP controller and single virtual-unit identity.
   static const int FIRMWARE_VERSION_MAIN_BMS = 0x0C;
@@ -40,19 +36,19 @@ class FoxessEpCanInverter : public CanInverterProtocol {
   uint8_t temperature_min_per_pack = 0;
   uint8_t current_pack_info = 0;
   // Installation energy accounting measured by Battery-Emulator.
-// Charged and discharged counters are the authoritative paired totals.
-// The throughput counter remains temporarily for 0x1878 compatibility.
-uint64_t foxess_throughput_energy_Wh = 0ULL;
-uint64_t foxess_installation_charged_energy_Wh = 0ULL;
-uint64_t foxess_installation_discharged_energy_Wh = 0ULL;
-uint64_t foxess_charged_energy_remainder = 0;
-uint64_t foxess_discharged_energy_remainder = 0;
-uint64_t foxess_charged_capacity_dAh = 0ULL;
-uint64_t foxess_discharged_capacity_dAh = 0ULL;
-uint64_t foxess_charged_capacity_remainder_dAms = 0ULL;
-uint64_t foxess_discharged_capacity_remainder_dAms = 0ULL;
-unsigned long foxess_previous_energy_millis = 0;
-bool foxess_energy_counter_initialised = false;
+  // Charged and discharged counters are the authoritative paired totals.
+  // The throughput counter remains temporarily for 0x1878 compatibility.
+  uint64_t foxess_throughput_energy_Wh = 0ULL;
+  uint64_t foxess_installation_charged_energy_Wh = 0ULL;
+  uint64_t foxess_installation_discharged_energy_Wh = 0ULL;
+  uint64_t foxess_charged_energy_remainder = 0;
+  uint64_t foxess_discharged_energy_remainder = 0;
+  uint64_t foxess_charged_capacity_dAh = 0ULL;
+  uint64_t foxess_discharged_capacity_dAh = 0ULL;
+  uint64_t foxess_charged_capacity_remainder_dAms = 0ULL;
+  uint64_t foxess_discharged_capacity_remainder_dAms = 0ULL;
+  unsigned long foxess_previous_energy_millis = 0;
+  bool foxess_energy_counter_initialised = false;
 
   // Batch send of CAN message variables
   const uint8_t delay_between_batches_ms = 10;
@@ -112,90 +108,87 @@ bool foxess_energy_counter_initialised = false;
                            .ID = 0x1879,
                            .data = {0x00, 0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Reserved EP field
   // Charged and discharged installation energy - 0x187A.
-    CAN_frame FOXESS_187A = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x187A,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FOXESS_187A = {.FD = false,
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x187A,
+                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame FOXESS_187B = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
                            .ID = 0x187B,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //BMS_ExtendedData
-                           CAN_frame FOXESS_187F = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x187F,
-    .data = {0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}};
-    CAN_frame FOXESS_1900 = {.FD = false,
-                         .ext_ID = true,
-                         .DLC = 8,
-                         .ID = 0x1900,
-                         .data = {0x2C, 0x01, 0xA0, 0x0F, 0x00, 0x00, 0x3C, 0x46}};
-                         CAN_frame FOXESS_1901 = {
-                        .FD = false,
-                        .ext_ID = true,
-                        .DLC = 8,
-                        .ID = 0x1901,
-                        .data = {0xF0, 0x0F, 0x00, 0x00, 0x40, 0x00, 0x33, 0x42}};
-    CAN_frame FOXESS_1902 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1902,
-    .data = {0},
-};
-CAN_frame FOXESS_1903 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1903,
-    .data = {0},
-};
-CAN_frame FOXESS_1904 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1904,
-    .data = {0},
-};
-CAN_frame FOXESS_1905 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1905,
-    .data = {0},
-};
-CAN_frame FOXESS_1906 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1906,
-    .data = {0x51, 0x00, 0x00, 0x00, 0xCA, 0x03, 0x00, 0x00},
-};
-CAN_frame FOXESS_1907 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1907,
-    .data = {0},
-};
-CAN_frame FOXESS_1908 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1908,
-    .data = {0},
-};
-CAN_frame FOXESS_1909 = {
-    .FD = false,
-    .ext_ID = true,
-    .DLC = 8,
-    .ID = 0x1909,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-};
+  CAN_frame FOXESS_187F = {.FD = false,
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x187F,
+                           .data = {0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame FOXESS_1900 = {.FD = false,
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x1900,
+                           .data = {0x2C, 0x01, 0xA0, 0x0F, 0x00, 0x00, 0x3C, 0x46}};
+  CAN_frame FOXESS_1901 = {.FD = false,
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x1901,
+                           .data = {0xF0, 0x0F, 0x00, 0x00, 0x40, 0x00, 0x33, 0x42}};
+  CAN_frame FOXESS_1902 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1902,
+      .data = {0},
+  };
+  CAN_frame FOXESS_1903 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1903,
+      .data = {0},
+  };
+  CAN_frame FOXESS_1904 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1904,
+      .data = {0},
+  };
+  CAN_frame FOXESS_1905 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1905,
+      .data = {0},
+  };
+  CAN_frame FOXESS_1906 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1906,
+      .data = {0x51, 0x00, 0x00, 0x00, 0xCA, 0x03, 0x00, 0x00},
+  };
+  CAN_frame FOXESS_1907 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1907,
+      .data = {0},
+  };
+  CAN_frame FOXESS_1908 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1908,
+      .data = {0},
+  };
+  CAN_frame FOXESS_1909 = {
+      .FD = false,
+      .ext_ID = true,
+      .DLC = 8,
+      .ID = 0x1909,
+      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+  };
   CAN_frame FOXESS_1881 = {.FD = false,
                            .ext_ID = true,
                            .DLC = 8,
