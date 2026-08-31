@@ -45,12 +45,12 @@ struct CapturedWrite {
 // followed by the standby/active pair it sends at +7.2/+7.7 s to a battery
 // that has power-cycled. Values are identical across four captured cold starts.
 const CapturedWrite kBootWrites[] = {
-    {1102, 4100},  // discharge DC-bus rail, 0.1 V
-    {1103, 4200},  // charge DC-bus rail, 0.1 V
-    {1104, 350},   {1106, 350}, {1109, 7000},  // peak discharge nameplate, W
-    {1109, 5000},                              // continuous nameplate, W
-    {1101, 1},                                 // standby
-    {1101, 3},                                 // active
+    {1102, 4100},                             // discharge DC-bus rail, 0.1 V
+    {1103, 4200},                             // charge DC-bus rail, 0.1 V
+    {1104, 350},  {1106, 350}, {1109, 7000},  // peak discharge nameplate, W
+    {1109, 5000},                             // continuous nameplate, W
+    {1101, 1},                                // standby
+    {1101, 3},                                // active
 };
 
 }  // namespace
@@ -62,8 +62,7 @@ TEST(ModbusFc06, ResponseEchoesAddressAndValue) {
   ModbusMessage response = inverter.FC06(request);
 
   const std::vector<uint8_t> expected = {0x0F, 0x06, 0x04, 0x4E, 0x10, 0x04};
-  EXPECT_EQ(bytes_of(response), expected)
-      << "FC06 must echo the request: [id][06][addrHi][addrLo][valHi][valLo]";
+  EXPECT_EQ(bytes_of(response), expected) << "FC06 must echo the request: [id][06][addrHi][addrLo][valHi][valLo]";
   EXPECT_EQ(response.size(), 6u) << "a 4-byte response means the address was omitted";
 }
 
