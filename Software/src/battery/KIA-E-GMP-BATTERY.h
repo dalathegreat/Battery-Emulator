@@ -7,6 +7,8 @@ extern bool user_selected_use_estimated_SOC;
 class KiaEGmpBattery : public UdsCanBattery {
  public:
   bool mandatory_charge_taper() { return true; }
+  // Use the default constructor to create the first or single battery.
+  KiaEGmpBattery() { dtc = &datalayer_battery->dtc; }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -22,6 +24,8 @@ class KiaEGmpBattery : public UdsCanBattery {
   uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
@@ -44,8 +48,6 @@ class KiaEGmpBattery : public UdsCanBattery {
   uint16_t soc_calculated = 500;
   uint16_t SOC_BMS = 500;
   uint16_t SOC_Display = 500;
-  uint16_t SOC_estimated_lowest = 0;
-  uint16_t SOC_estimated_highest = 0;
   uint16_t batterySOH = 1000;
   uint16_t CellVoltMax_mV = 3700;
   uint16_t CellVoltMin_mV = 3700;

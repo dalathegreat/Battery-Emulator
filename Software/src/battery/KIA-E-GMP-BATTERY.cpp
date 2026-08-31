@@ -120,10 +120,6 @@ void KiaEGmpBattery::update_values() {
     // Use the simplified pack-based SOC estimation with proper compensation
     datalayer.battery.status.real_soc =
         estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
-
-    // For comparison or fallback, we can still calculate from min/max cell voltages
-    SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
-    SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
   } else {
     datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
   }
@@ -172,7 +168,6 @@ inline String& operator<<(String& str, const T& value) {
   str += value;
   return str;
 }
-
 String KiaEGmpBattery::get_uds_info_html() {
   String content;
   content.reserve(1600);
