@@ -3,6 +3,9 @@
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 
+#include <vector>
+
+#include "../../Software/src/datalayer/datalayer_extended.h"
 #include "Arduino.h"
 
 namespace {
@@ -43,7 +46,167 @@ NissanLeafBattery* battery_awaiting_dtc_reply() {
   return battery;
 }
 
+// Group replies are only decoded once the driver is polling for itself, which needs a live
+// battery and one pass of the 10 s tick to clear the initial "someone else may be on the bus" hold.
+NissanLeafBattery* battery_polling() {
+  set_millis64(50000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  // 0x5BC marks the battery alive. Byte 0 gives a plausible GID count so the empty-battery
+  // safety path stays out of the way; byte 4 is left at zero so no broadcast SOH is reported.
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->transmit_can(50000);
+  return battery;
+}
+
+// Feeds a complete group 0x02 reply carrying the 96 given cell values. The LBC pads the block past
+// the last cell, and the driver keys the end of the transfer off that padding.
+void feed_cell_voltage_reply(NissanLeafBattery* battery, const uint16_t (&cells)[96]) {
+  std::vector<uint8_t> payload = {0x61, 0x02};
+  for (uint16_t cell : cells) {
+    payload.push_back((uint8_t)(cell >> 8));
+    payload.push_back((uint8_t)(cell & 0xFF));
+  }
+  payload.insert(payload.end(), 8, 0xFF);  // trailing padding, no cell data
+
+  std::initializer_list<uint8_t> unused = {};
+  (void)unused;
+
+  CAN_frame first = leaf_7bb_frame({});
+  first.data.u8[0] = (uint8_t)(0x10 | ((payload.size() >> 8) & 0x0F));
+  first.data.u8[1] = (uint8_t)(payload.size() & 0xFF);
+  for (size_t i = 0; i < 6; i++) {
+    first.data.u8[2 + i] = payload[i];
+  }
+  battery->handle_incoming_can_frame(first);
+
+  size_t offset = 6;
+  uint8_t sequence = 1;
+  while (offset < payload.size()) {
+    CAN_frame consecutive = leaf_7bb_frame({});
+    consecutive.data.u8[0] = (uint8_t)(0x20 | (sequence & 0x0F));
+    for (size_t i = 0; i < 7; i++) {
+      consecutive.data.u8[1 + i] = (offset + i < payload.size()) ? payload[offset + i] : 0xFF;
+    }
+    battery->handle_incoming_can_frame(consecutive);
+    offset += 7;
+    sequence++;
+  }
+}
+
 }  // namespace
+
+// The health block is the only group reply longer than 255 bytes, so its first frame announces
+// itself as 1L LL. An equality test against 0x10 would never latch the group at all.
+TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
+  auto battery = battery_polling();
+
+  // 11 4B 61 61 | Hx 0x2AF8 = 110.00 % | SOH 0x2710 = 100.00 %
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000u);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+}
+
+// Hx above 100 % is a normal reading on a healthy pack and must survive intact.
+TEST(NissanLeafHealthTests, ShouldNotClampHxAboveOneHundredPercent) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x30, 0xD4, 0x25, 0x8A}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 12500u);  // 0x30D4
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9610u);               // 0x258A
+}
+
+// Nothing has been read from the pack yet, so no state of health is invented.
+TEST(NissanLeafHealthTests, ShouldReportStateOfHealthUnknownBeforeAnyReading) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->update_values();
+
+  EXPECT_FALSE(datalayer.battery.status.soh_available);
+}
+
+// The broadcast value in 0x5BC stands in at whole-percent resolution until the health block
+// answers, and is then superseded by it.
+TEST(NissanLeafHealthTests, ShouldPreferPolledStateOfHealthOverBroadcast) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0xBE, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9500u);  // 0xBE >> 1 = 95 %
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x25, 0x2C}));
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9516u);  // 0x252C = 95.16 %
+}
+
+// A rejected request is a single frame, not group data. Letting it through would leave the
+// previously latched group decoding it, which for cell voltages means writing garbage into
+// the array.
+TEST(NissanLeafHealthTests, ShouldIgnoreNegativeResponse) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+  ASSERT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+
+  // requestOutOfRange for service 0x21
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x03, 0x7F, 0x21, 0x31, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+}
+
+// 0xFFFF is the LBC saying it has no reading for that cell, which is not a measurement of zero
+// and must not be treated as 65.535 V either.
+TEST(NissanLeafCellTests, ShouldTreatSentinelCellsAsUnknown) {
+  auto battery = battery_polling();
+
+  uint16_t cells[96];
+  for (uint16_t& cell : cells) {
+    cell = 3800;
+  }
+  cells[0] = 0xFFFF;  // no reading
+  cells[5] = 3700;    // genuine minimum
+  cells[9] = 3900;    // genuine maximum
+
+  feed_cell_voltage_reply(battery, cells);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[1], 3800u);
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3700u);
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3900u);
+}
+
+// A pack answering with nothing but sentinels, as a bench BMS with no HV stack does, leaves the
+// min/max alone rather than publishing a 0 mV minimum.
+TEST(NissanLeafCellTests, ShouldKeepPreviousMinMaxWhenNoCellReports) {
+  auto battery = battery_polling();
+
+  uint16_t good[96];
+  for (uint16_t& cell : good) {
+    cell = 3800;
+  }
+  good[0] = 3600;
+  feed_cell_voltage_reply(battery, good);
+
+  uint16_t none[96];
+  for (uint16_t& cell : none) {
+    cell = 0xFFFF;
+  }
+  feed_cell_voltage_reply(battery, none);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3600u);
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3800u);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
+}
 
 TEST(NissanLeafTests, ShouldReportVoltage) {
   auto battery = new NissanLeafBattery();

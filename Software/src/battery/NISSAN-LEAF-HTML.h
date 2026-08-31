@@ -41,6 +41,20 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     memcpy(readablePartNumber, nissan_dl->BatteryPartNumber, sizeof(nissan_dl->BatteryPartNumber));
     readablePartNumber[7] = '\0';  // Null terminate the string
     content += "<h4>Part number: " + String(readablePartNumber) + "</h4>";
+    //Pack capacity as the LBC reports it, and the energy that works out to at the pack's nominal
+    //voltage. The nominal differs by generation (96 cells at 3.75 V on ZE0/AZE0, 3.65 V on ZE1),
+    //so this is a nameplate-style figure and deliberately not derived from the live pack voltage,
+    //which would make it swing with SoC. It is not the same number as the GID-derived capacity the
+    //inverter is told about, which tracks usable energy.
+    if (nissan_dl->CapacityCAh) {
+      const float capacity_Ah = nissan_dl->CapacityCAh / 100.0f;
+      const float nominal_V = (nissan_dl->LEAF_gen == 2) ? 350.4f : 360.0f;
+      content += "<h4>Capacity: " + String(capacity_Ah, 2) + " Ah</h4>";
+      content += "<h4>Calculated capacity: " + String((capacity_Ah * nominal_V) / 1000.0f, 2) + " kWh</h4>";
+    } else {
+      content += String("<h4>Capacity: Unknown</h4>");
+      content += String("<h4>Calculated capacity: Unknown</h4>");
+    }
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
     content +=
         "<h4>Hx: " +
@@ -61,6 +75,9 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
     content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
+    content +=
+        "<h4>VBAT level: " + (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) +
+        "</h4>";
     content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
     content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
     content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";

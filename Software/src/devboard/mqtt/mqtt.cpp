@@ -382,7 +382,11 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
                             bool battery_supports_charged) {
   doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
   doc["SOC_real"] = ((float)battery_data.status.real_soc) / 100.0f;
-  doc["state_of_health"] = ((float)battery_data.status.soh_pptt) / 100.0f;
+  // Omit until the integration has decoded a real state of health, so HA shows "unknown"
+  // instead of the soh_pptt default presented as if it had been read from the pack.
+  if (battery_data.status.soh_available) {
+    doc["state_of_health"] = ((float)battery_data.status.soh_pptt) / 100.0f;
+  }
   doc["temperature_min"] = ((float)((int16_t)battery_data.status.temperature_min_dC)) / 10.0f;
   doc["temperature_max"] = ((float)((int16_t)battery_data.status.temperature_max_dC)) / 10.0f;
   doc["stat_batt_power"] = ((float)((int32_t)battery_data.status.active_power_W));
@@ -775,8 +779,15 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
         logging.println("Cell data MQTT msg too large for buffer");
         return true;  // skip this payload, don't abort the publish cycle
       }
-      len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%.3f", (i != 0u) ? "," : "",
-                      ((float)battery_data.status.cell_voltages_mV[i]) / 1000.0f);
+      // A zero here means the BMS returned no reading for that cell, which is not the same as
+      // 0.000 V. Sent as JSON null so the per-cell HA entity goes unknown and a chart drawn from
+      // this array leaves a gap rather than a spike to the bottom of the scale.
+      if (battery_data.status.cell_voltages_mV[i] == 0u) {
+        len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%snull", (i != 0u) ? "," : "");
+      } else {
+        len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%.3f", (i != 0u) ? "," : "",
+                        ((float)battery_data.status.cell_voltages_mV[i]) / 1000.0f);
+      }
     }
     len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "],");
   }
