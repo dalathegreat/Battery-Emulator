@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../../Software/src/datalayer/datalayer_extended.h"
+#include "../../Software/src/devboard/utils/events.h"
 #include "Arduino.h"
 
 namespace {
@@ -164,6 +165,126 @@ TEST(NissanLeafHealthTests, ShouldIgnoreNegativeResponse) {
 
 // 0xFFFF is the LBC saying it has no reading for that cell, which is not a measurement of zero
 // and must not be treated as 65.535 V either.
+// Feeds a group 0x01 reply far enough to deliver the 12 V level. The announced length selects the
+// layout: 0x29 is ZE0, 0x2B is AZE0, 0x35 is ZE1.
+void feed_12v_reading(NissanLeafBattery* battery, uint16_t millivolts, uint8_t layout_length = 0x29) {
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, layout_length, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  // Fourth frame carries payload[20..26]; the 12 V level sits at payload[22..23].
+  battery->handle_incoming_can_frame(
+      leaf_7bb_frame({0x23, 0x00, 0x00, (uint8_t)(millivolts >> 8), (uint8_t)(millivolts & 0xFF), 0x00, 0x00, 0x00}));
+}
+
+TEST(NissanLeafHealthTests, ShouldDecodeTwelveVoltLevel) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 12480);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 12480u);
+}
+
+// The field is only documented on ZE0/AZE0, but it is read at the same offset on ZE1 too.
+TEST(NissanLeafHealthTests, ShouldDecodeTwelveVoltLevelOnZe1Layout) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 12480, 0x35);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 12480u);
+}
+
+// A layout nothing here recognises is left alone rather than guessed at.
+TEST(NissanLeafHealthTests, ShouldIgnoreTwelveVoltLevelOnUnknownLayout) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 12480, 0x2C);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 0u);
+}
+
+// Whatever sits at that offset on a layout that does not carry the 12 V level is very unlikely to
+// look like one, and is rejected rather than reported.
+TEST(NissanLeafHealthTests, ShouldRejectImplausibleTwelveVoltLevel) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 41000, 0x35);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 0u);
+}
+
+TEST(NissanLeafHealthTests, ShouldRaiseLowTwelveVoltEventBelowThreshold) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  feed_12v_reading(battery, 10800);
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+
+  // Just above the threshold is still inside the hysteresis band, so the warning stands.
+  feed_12v_reading(battery, 11100);
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+
+  // Recovered past the band.
+  feed_12v_reading(battery, 12400);
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+// With no reported level and no cell reply yet, nothing is claimed either way.
+TEST(NissanLeafHealthTests, ShouldNotJudgeTwelveVoltLevelBeforeItIsRead) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  battery->update_values();
+
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+// On a pack that never reports a level, a cell reply with nothing readable in it stands in - the
+// same condition the previous cell-voltage test was detecting.
+TEST(NissanLeafHealthTests, ShouldFallBackToUnreadableCellsWhenNoLevelIsReported) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  uint16_t none[96];
+  for (uint16_t& cell : none) {
+    cell = 0xFFFF;
+  }
+  feed_cell_voltage_reply(battery, none);
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+
+  uint16_t good[96];
+  for (uint16_t& cell : good) {
+    cell = 3800;
+  }
+  feed_cell_voltage_reply(battery, good);
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+// A reported level wins over the fallback, so unreadable cells on a bench with a healthy supply
+// do not raise the warning.
+TEST(NissanLeafHealthTests, ShouldPreferReportedLevelOverUnreadableCells) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  feed_12v_reading(battery, 12600);
+  uint16_t none[96];
+  for (uint16_t& cell : none) {
+    cell = 0xFFFF;
+  }
+  feed_cell_voltage_reply(battery, none);
+  battery->update_values();
+
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
 TEST(NissanLeafCellTests, ShouldTreatSentinelCellsAsUnknown) {
   auto battery = battery_polling();
 

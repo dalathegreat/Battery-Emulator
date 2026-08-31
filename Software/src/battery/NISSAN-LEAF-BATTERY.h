@@ -68,6 +68,11 @@ class NissanLeafBattery : public CanBattery {
 
   // Sends pending DTC requests once the diagnostic channel is idle, and times out unanswered ones.
   void handle_DTC_requests(unsigned long currentMillis);
+  //12 V supply level below which the accessory battery can no longer be trusted to hold the
+  //contactors in. Cleared again only once it has recovered past the threshold plus the hysteresis,
+  //so a supply sitting right on the limit does not toggle the event on every update.
+  static const uint16_t LOW_12V_THRESHOLD_MV = 11000;
+  static const uint16_t LOW_12V_HYSTERESIS_MV = 200;
   static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
   static const int MAX_CELL_DEVIATION_MV = 150;
@@ -319,8 +324,11 @@ class NissanLeafBattery : public CanBattery {
   //it is available, rather than the two sources overwriting each other in polling order.
   uint16_t battery_HX_pptt_g61 = 0;
   uint16_t battery_SOH_pptt_g61 = 0;
-  uint16_t battery_capacity_cAh = 0;       //Pack capacity in hundredths of an Ah, 0 until read
-  uint16_t battery_vbat_mV = 0;            //12 V accessory battery level in mV, 0 until read
+  uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read
+  uint16_t battery_vbat_mV = 0;       //12 V accessory battery level in mV, 0 until read
+  //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
+  //level on any pack that never reports one.
+  bool battery_cells_unreadable = false;
   uint16_t battery_insulation = 0;         //Insulation resistance
   uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
   uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges

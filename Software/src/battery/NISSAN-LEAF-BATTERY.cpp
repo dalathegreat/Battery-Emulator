@@ -192,9 +192,19 @@ void NissanLeafBattery::
     }
   }
 
-  if (datalayer_battery->status.cell_max_voltage_mV > 60000 || datalayer_battery->status.cell_min_voltage_mV > 60000) {
+  //Low 12 V supply. The level the pack reports is used whenever one has been read, on any
+  //generation. Failing that the older indirect indicator stands in: a cell reply in which nothing
+  //came back readable means the LBC is returning unusable data, and a sagging 12 V supply is the
+  //usual reason. That is the same condition the previous cell-voltage test was detecting, restated
+  //so it still works now that the unreadable-cell sentinel is filtered out of the cell array.
+  if (battery_vbat_mV > 0) {
+    if (battery_vbat_mV < LOW_12V_THRESHOLD_MV) {
+      set_event(EVENT_12V_LOW, (int16_t)battery_vbat_mV);
+    } else if (battery_vbat_mV > (LOW_12V_THRESHOLD_MV + LOW_12V_HYSTERESIS_MV)) {
+      clear_event(EVENT_12V_LOW);
+    }
+  } else if (battery_cells_unreadable) {
     set_event(EVENT_12V_LOW, 0);
-    //This is a bit of a hack, but we don't have a dedicated event for "12V low" and this is the first indicator of low 12V
   } else {
     clear_event(EVENT_12V_LOW);
   }
@@ -617,9 +627,14 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             datalayer_battery->status.insulation_resistance_kOhm = battery_insulation;
             datalayer_battery->status.insulation_resistance_available = true;
           }
-          //12 V accessory battery level at payload[22..23], in mV. Only mapped on the ZE0/AZE0
-          //layout, so the reply length gates it the same way the Hx decode below is gated.
-          if ((group_7bb_length == 0x29) || (group_7bb_length == 0x2B)) {
+          //12 V accessory battery level at payload[22..23], in mV. Documented on the ZE0/AZE0
+          //layout only, and read at the same offset on ZE1 on the chance that its layout carries
+          //it in the same place - if it does not, whatever sits there is very unlikely to look
+          //like a 12 V reading and the plausibility band below rejects it, leaving the level
+          //unknown and the fallback indicator in charge. Gated on the three layouts whose length
+          //is recognised: a ZE1 answers 0x2C shortly after wakeup with a layout nothing here
+          //knows, and that one is left alone.
+          if ((group_7bb_length == 0x29) || (group_7bb_length == 0x2B) || (group_7bb_length == 0x35)) {
             uint16_t vbat = (uint16_t)((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
             if ((vbat > 6000u) && (vbat < 20000u)) {  //Anything outside 6-20 V is not a 12 V battery
               battery_vbat_mV = vbat;
@@ -716,6 +731,12 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if (battery_min_max_voltage[1] < cell_mV)
               battery_min_max_voltage[1] = cell_mV;
           }
+
+          //A reply in which not one cell came back readable is the signal the older low 12 V
+          //indicator was built on: the LBC returns unusable cell data when its supply sags. Kept
+          //as a flag here because the sentinel filtering above means it can no longer be
+          //recognised further downstream by an implausibly high cell voltage.
+          battery_cells_unreadable = (battery_min_max_voltage[1] == 0);
 
           //Only publish once at least one cell actually reported, so a pack that answers with
           //nothing but sentinels leaves the previous min/max in place instead of overwriting it.

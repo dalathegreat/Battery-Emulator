@@ -239,6 +239,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
     {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
     {"leaf_hx", "Hx", "%", "", supports_leaf_metrics},
+    {"leaf_vbat", "VBAT level", "V", "voltage", supports_leaf_metrics},
     {"charge_session", "BYD Charge: Session", "", "", supports_byd_autocal_metrics},
     {"charge_grant", "BYD Charge: Grant From Battery", "", "", supports_byd_autocal_metrics},
     {"charge_bms_mode", "BYD Charge: Battery Mode", "", "", supports_byd_autocal_metrics},
@@ -478,6 +479,11 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     if (leaf.battery_HX_pptt != 0u) {
       doc["leaf_hx"] = ((float)leaf.battery_HX_pptt) / 100.0f;
     }
+    // Same treatment for the 12 V level: omitted until the pack has reported one, and on
+    // generations where the field is not mapped it never appears at all.
+    if (leaf.VBAT_mV != 0u) {
+      doc["leaf_vbat"] = ((float)leaf.VBAT_mV) / 1000.0f;
+    }
   }
 }
 
@@ -615,6 +621,11 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   // handled centrally below.)
   if (strcmp(config.entity_id, "cell_max_voltage") == 0 || strcmp(config.entity_id, "cell_min_voltage") == 0) {
     doc["suggested_display_precision"] = 3;
+  }
+  // The 12 V level is a small voltage where the second decimal carries the information, so it
+  // gets the same treatment as the cell voltages above rather than the pack-voltage default.
+  if (strcmp(config.entity_id, "leaf_vbat") == 0) {
+    doc["suggested_display_precision"] = 2;
   }
   // Battery current, CPU temp and both SOC sensors: show 1 decimal in HA.
   if (strcmp(config.entity_id, "battery_current") == 0 || strcmp(config.entity_id, "cpu_temp") == 0 ||
