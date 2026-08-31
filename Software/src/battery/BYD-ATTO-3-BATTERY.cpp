@@ -551,6 +551,11 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       contactor_feedback = rx_frame.data.u8[0];
       lastContactorFeedbackMillis = millis();
+      if ((rx_frame.data.u8[1] & 0x40) && !(contactor_feedback_state & 0x40)) {
+        prechargeRampStartMillis = millis();  // BMS started precharging
+        prechargeEdgeSeen = true;
+      }
+      contactor_feedback_state = rx_frame.data.u8[1];
       discharge_status = (rx_frame.data.u8[1] & 0x0F);
       break;
     case 0x345:
@@ -1677,16 +1682,46 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     if (counter_100ms > 3) {
       // Bytes 4-5 = link voltage; matched to the pack it's the precharge-done signal that closes
       // the contactors. Report the low floating link while open, else we hold close while opening.
-      bool report_link_voltage_low = !BMS_voltage_available || contactorState == CONTACTORS_OPEN_SETTLE ||
-                                     contactorState == CONTACTORS_STANDBY || contactorState == CONTACTORS_BOOT_ESTOP;
+      const bool pack_open = contactorState == CONTACTORS_OPEN_SETTLE || contactorState == CONTACTORS_STANDBY ||
+                             contactorState == CONTACTORS_BOOT_ESTOP;
+      // byte 1 is 0x00 only while open: 0x40 on the close, 0x44 precharging, 0x41 running
+      if (!prechargeInitialised) {
+        prechargeInitialised = true;
+        prechargeWaitStartMillis = currentMillis;  // boot-default close: time out from here, not from uptime 0
+      }
+      if (pack_open) {
+        prechargeState = PRECHARGE_WAIT;  // next close ramps from the floating link again
+        prechargeEdgeSeen = false;
+        prechargeWaitStartMillis = currentMillis;
+      } else if (prechargeState == PRECHARGE_WAIT) {
+        if (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) {
+          prechargeState = PRECHARGE_DONE;  // booted into a closed pack, never fake a ramp
+        } else if (prechargeEdgeSeen) {
+          prechargeState = PRECHARGE_RAMP;
+        } else if (currentMillis - prechargeWaitStartMillis >= PRECHARGE_WAIT_MAX_MS) {
+          prechargeState = PRECHARGE_DONE;  // BMS never moved, report the link rather than stall
+        }
+      } else if (prechargeState == PRECHARGE_RAMP && currentMillis - prechargeRampStartMillis >= PRECHARGE_RAMP_MS) {
+        prechargeState = PRECHARGE_DONE;
+      }
+      // Pack voltage before the BMS has precharged reads as a stuck contactor - P1A3400
+      bool report_link_voltage_low = !BMS_voltage_available || pack_open || prechargeState == PRECHARGE_WAIT;
+      uint16_t link_voltage = battery_voltage ? (uint16_t)(battery_voltage - 1) : 0;
+      if (prechargeState == PRECHARGE_RAMP && !report_link_voltage_low && battery_voltage > 12) {
+        const uint32_t since = currentMillis - prechargeRampStartMillis;
+        uint32_t pct = (since < 100)   ? (62 * since) / 100
+                       : (since < 400) ? 62 + (33 * (since - 100)) / 300
+                                       : 95 + (5 * (since - 400)) / 500;
+        link_voltage = (uint16_t)(12 + ((uint32_t)(link_voltage - 12) * pct) / 100);
+      }
       if (report_link_voltage_low) {
         ATTO_3_441.data.u8[4] = 0x0C;
         ATTO_3_441.data.u8[5] = 0x00;
         ATTO_3_441.data.u8[6] = 0xFF;
         ATTO_3_441.data.u8[7] = 0x87;
       } else {
-        ATTO_3_441.data.u8[4] = (uint8_t)(battery_voltage - 1);
-        ATTO_3_441.data.u8[5] = ((battery_voltage - 1) >> 8);
+        ATTO_3_441.data.u8[4] = (uint8_t)link_voltage;
+        ATTO_3_441.data.u8[5] = (link_voltage >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
         ATTO_3_441.data.u8[7] = computeBydChecksum(ATTO_3_441.data.u8);
       }
