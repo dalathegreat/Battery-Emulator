@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../system_settings.h"
 #include "CanBattery.h"
+#include "utils/cell_soc_estimator.h"
 
 class RelionBattery : public CanBattery {
  public:
@@ -32,7 +33,6 @@ class RelionBattery : public CanBattery {
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   uint16_t estimateSOC();
-  uint16_t estimateSOCfromCellvoltage(uint16_t cellVoltage);
 
   bool* allows_contactor_closing;
 
@@ -41,34 +41,10 @@ class RelionBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 300;
   static const int MAX_CELL_VOLTAGE_MV = 3750;
   static const int MIN_CELL_VOLTAGE_MV = 2800;
+  static constexpr battery_chemistry_enum CHEMISTRY = battery_chemistry_enum::LFP;
 
   unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was sent
 
-  const uint16_t SOC[101] = {10000, 9900, 9800, 9700, 9600, 9500, 9400, 9300, 9200, 9100, 9000, 8900, 8800, 8700, 8600,
-                             8500,  8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7500, 7400, 7300, 7200, 7100,
-                             7000,  6900, 6800, 6700, 6600, 6500, 6400, 6300, 6200, 6100, 6000, 5900, 5800, 5700, 5600,
-                             5500,  5400, 5300, 5200, 5100, 5000, 4900, 4800, 4700, 4600, 4500, 4400, 4300, 4200, 4100,
-                             4000,  3900, 3800, 3700, 3600, 3500, 3400, 3300, 3200, 3100, 3000, 2900, 2800, 2700, 2600,
-                             2500,  2400, 2300, 2200, 2100, 2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100,
-                             1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,  0};
-  // Define the data points for %SOC depending on cell voltage
-  const uint8_t numPoints = 100;
-  // LFP cell voltage lookup table (2900mV - 3600mV) with flat middle section at 3.1V-3.3V
-  const uint16_t cellVoltageLookup[101] = {
-      3600, 3570, 3540, 3510, 3490, 3470, 3450, 3430, 3410, 3390,  // 100%-91% - Steep drop from full
-      3370, 3350, 3330, 3320, 3315, 3310, 3305, 3300, 3295, 3290,  // 90%-81% - Transition to flat zone
-      // Flat region - typical LFP working range (80%-20%) - 3.3V to 3.1V
-      3285, 3280, 3275, 3270, 3265, 3260, 3255, 3250, 3245, 3240,  // 80%-71%
-      3235, 3230, 3225, 3220, 3215, 3210, 3205, 3200, 3195, 3190,  // 70%-61%
-      3185, 3180, 3175, 3170, 3165, 3160, 3155, 3150, 3145, 3140,  // 60%-51%
-      3135, 3130, 3125, 3120, 3115, 3110, 3105, 3100, 3095, 3090,  // 50%-41%
-      3085, 3080, 3075, 3070, 3065, 3060, 3055, 3050, 3045, 3040,  // 40%-31%
-      3035, 3030, 3025, 3020, 3015, 3010, 3005, 3000, 2995, 2990,  // 30%-21%
-      // End of flat region, steep drop to empty
-      2980, 2960, 2940, 2920, 2910, 2905, 2902, 2901, 2900, 2890,  // 20%-11%
-      2880, 2870, 2860, 2850, 2840, 2830, 2820, 2810, 2805, 2803,  // 10%-1%
-      2800                                                         // 0%
-  };
   uint16_t SOC_from_max_cell_voltage = 0;
   uint16_t SOC_from_min_cell_voltage = 0;
   uint16_t battery_total_voltage = 500;

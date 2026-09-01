@@ -8,25 +8,9 @@ BPS:250kbps
 Data Length: 8
 Data Encoded Format:Motorola*/
 
-uint16_t RelionBattery::estimateSOCfromCellvoltage(uint16_t cellVoltage) {
-  for (int i = 1; i < numPoints; ++i) {
-    if (cellVoltage >= cellVoltageLookup[i]) {
-      // Cast to float for proper division
-      float t = (float)(cellVoltage - cellVoltageLookup[i]) / (float)(cellVoltageLookup[i - 1] - cellVoltageLookup[i]);
-
-      // Calculate interpolated SOC value
-      uint16_t socDiff = SOC[i - 1] - SOC[i];
-      uint16_t interpolatedValue = SOC[i] + (uint16_t)(t * socDiff);
-
-      return interpolatedValue;
-    }
-  }
-  return 0;  // Default return for safety, should never reach here
-}
-
 uint16_t RelionBattery::estimateSOC() {
 
-  if (max_cell_voltage >= cellVoltageLookup[0]) {
+  if (max_cell_voltage >= cell_voltage_table_max_mV(CHEMISTRY)) {
     return 10000;  //One cell is in overvoltage, report 100.00% SOC
   }
 
@@ -36,7 +20,7 @@ uint16_t RelionBattery::estimateSOC() {
     }
   }
 
-  if (min_cell_voltage <= cellVoltageLookup[numPoints - 1]) {
+  if (min_cell_voltage <= cell_voltage_table_min_mV(CHEMISTRY)) {
     return 0;  //Cell overvoltage, report 0% SOC
   }
 
@@ -46,8 +30,8 @@ uint16_t RelionBattery::estimateSOC() {
     }
   }
 
-  SOC_from_max_cell_voltage = estimateSOCfromCellvoltage(max_cell_voltage);
-  SOC_from_min_cell_voltage = estimateSOCfromCellvoltage(min_cell_voltage);
+  SOC_from_max_cell_voltage = soc_from_cell_voltage(max_cell_voltage, CHEMISTRY);
+  SOC_from_min_cell_voltage = soc_from_cell_voltage(min_cell_voltage, CHEMISTRY);
 
   if (max_cell_voltage > 3380) {  // We are in the higher end of SOC, use SOC% based on highest cell reading
     return SOC_from_max_cell_voltage;

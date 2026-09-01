@@ -4,9 +4,28 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 
+uint16_t RjxzsBms::estimateSOC() {
+  return soc_from_min_max_cell_voltage(minimum_cell_voltage, maximum_cell_voltage, datalayer.battery.info.chemistry);
+}
+
 void RjxzsBms::update_values() {
 
-  datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
+  // Short-circuits: skips the chemistry/voltage-range check entirely while estimated SOC is off.
+  if (user_selected_use_estimated_SOC &&
+      cell_voltage_range_matches_chemistry(datalayer.battery.info.min_cell_voltage_mV,
+                                           datalayer.battery.info.max_cell_voltage_mV,
+                                           datalayer.battery.info.chemistry)) {
+    // BMS-reported SOC drifts when its current sensor is inaccurate. Estimate SOC from cell
+    // voltages instead, which does not depend on the current sensor.
+    datalayer.battery.status.real_soc = estimateSOC();
+    clear_event(EVENT_ESTIMATED_SOC_MISCONFIGURED);
+  } else {
+    datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
+    if (user_selected_use_estimated_SOC) {
+      set_event(EVENT_ESTIMATED_SOC_MISCONFIGURED, 0);
+    }
+  }
+
   if (battery_capacity_percentage == 0) {
     //SOC% not available. Raise warning event if we go too long without SOC
     timespent_without_soc++;

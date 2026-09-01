@@ -1510,6 +1510,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
+    form[data-battery="24"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
     form[data-battery="41"] .if-socestimated,
     form[data-battery="42"] .if-socestimated {
@@ -1689,10 +1690,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     document.querySelector('input[name="HTTPPASS"]').type = fieldType;
     document.querySelector('input[name="HTTPPASSCONFIRM"]').type = fieldType;
   }
+
+  function validateSocEstimatedChemistry() {
+    const form = document.querySelector('input[name="SOCESTIMATED"]').closest('form');
+    if (form.dataset.battery === '24' && form.dataset.socestimated === 'true') {
+      const chem = document.querySelector('select[name="BATTCHEM"]').selectedOptions[0].text;
+      return confirm('RJXZS estimated SOC uses the "Battery chemistry" setting (' + chem +
+        '). Make sure it matches your cells, or SOC will be wrong.\n\nContinue?');
+    }
+    return true;
+  }
   </script>
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && confirmBmsRestart()'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && validateSocEstimatedChemistry() && confirmBmsRestart()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
