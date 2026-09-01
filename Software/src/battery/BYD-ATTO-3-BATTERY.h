@@ -370,6 +370,13 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
 
+  // Car ramps the link to pack over ~900ms: ~62% at 100ms, ~95% at 400ms
+  static const uint32_t PRECHARGE_RAMP_MS = 900;
+  // BMS never moved - report the link anyway rather than hold the pack open waiting on ourselves
+  static const uint32_t PRECHARGE_WAIT_MAX_MS = 3000;
+  static const uint8_t PRECHARGE_WAIT = 0;                 // closed, BMS hasn't started precharging
+  static const uint8_t PRECHARGE_RAMP = 1;                 // BMS moved, walking the link up to pack
+  static const uint8_t PRECHARGE_DONE = 2;                 // link at pack voltage, latched until the pack opens
   static const int16_t OPEN_MAX_CURRENT_dA = 25;           // Open only below 2.5A
   static const uint32_t ZERO_CURRENT_MIN_WAIT_MS = 5000;   // Let the inverter settle before trusting current
   static const uint32_t ZERO_CURRENT_TIMEOUT_MS = 10000;   // Force the open if current never drops
@@ -380,6 +387,12 @@ class BydAttoBattery : public CanBattery {
 
   uint8_t contactorState = CONTACTORS_CLOSING;  // Boot default: close right away, as before
   uint8_t contactor_feedback = 0;               // Raw 0x344 byte 0
+  uint8_t contactor_feedback_state = 0;         // 0x344 byte 1; 0x00 while open, bit 0x40 once the BMS moves
+  uint8_t prechargeState = PRECHARGE_WAIT;
+  bool prechargeEdgeSeen = false;
+  bool prechargeInitialised = false;
+  unsigned long prechargeRampStartMillis = 0;
+  unsigned long prechargeWaitStartMillis = 0;
   unsigned long contactorStateEntryMillis = 0;
   unsigned long closeConfirmStartMillis = 0;
   unsigned long lastCurrentSampleMillis = 0;
