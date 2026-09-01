@@ -470,8 +470,11 @@ void update_calculated_values(uint32_t currentMillis) {
 
     datalayer.battery.status.reported_soc = scaled_soc;
 
-    // If battery info is valid
-    if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+    // If battery info is valid. Capacity is not scaled when min_percentage is negative, since the
+    // usable window then extends below the battery's real 0%, which would inflate the reported capacity
+    // beyond what is physically stored.
+    if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0 &&
+        datalayer.battery.settings.min_percentage >= 0) {
       // Scale total usable capacity
       scaled_total_capacity = (datalayer.battery.info.total_capacity_Wh * delta_pct) / 10000;
       datalayer.battery.info.reported_total_capacity_Wh = scaled_total_capacity;
@@ -487,7 +490,8 @@ void update_calculated_values(uint32_t currentMillis) {
 
     if (battery2) {
       // If battery info is valid
-      if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+      if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0 &&
+          datalayer.battery.settings.min_percentage >= 0) {
 
         datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
         // Scale remaining capacity based on scaled SOC
