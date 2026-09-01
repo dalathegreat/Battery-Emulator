@@ -11,6 +11,33 @@
 #define Contactor_Open_Payload __builtin_bswap64(0x0200010000000000)
 #define Contactor_Close_Payload __builtin_bswap64(0x0200010001000000)
 
+// ---------------------------------------------------------------------------------------
+// SolaX assumes a fixed number of cells per configured module. Derived from the published
+// type table, not guessed: the type-131 row for 4 modules reads 179.2 / 204.8 / 233.6 V
+// (min / nominal / max). Per module that is 44.8 / 51.2 / 58.4 V, and per 16 cells it lands
+// on exactly 2.800 / 3.200 / 3.650 V - the textbook LFP figures. No other cell count gives
+// round numbers. The HS25/HS36 stacks confirm it independently: SolaX lists them as 3-13
+// modules spanning 153.6-665.6 V nominal, which is 51.2 V per module either way.
+#define SOLAX_CELLS_PER_MODULE 16
+
+// ---------------------------------------------------------------------------------------
+// Express cell voltages in terms of the cell count SolaX infers from the module setting,
+// rather than the pack's real cell count.
+//
+// This is not cosmetic. SolaX believes it is talking to LFP cells with a 3.65 V ceiling. An
+// AKASOL pack has 180 NMC cells rated to 4.2 V, while type 89 with 13 modules makes SolaX
+// assume 208 cells. Sending the real per-cell figure works at low state of charge and then
+// fails higher up: the real cells cross 3.65 V at a pack voltage of only 657 V, and reach
+// 4.2 V at the pack's 756 V maximum - reported to an inverter that treats anything above
+// 3.65 V as a cell overvoltage.
+//
+// Dividing the reported pack voltage by SolaX's own assumed cell count keeps the per-cell
+// figure inside the window it expects across the whole range, while the real measured spread
+// between highest and lowest cell is preserved. Set to 0 only if the battery's real cell
+// count and chemistry match what the configured type implies.
+#define SOLAX_REMAP_CELLS_TO_MODULE_COUNT 1
+// ---------------------------------------------------------------------------------------
+
 void SolaxInverter::update_values() {
   // If not receiving any communication from the inverter, open contactors and
   // return to battery announce state
@@ -45,8 +72,13 @@ void SolaxInverter::update_values() {
   SOLAX_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
-  SOLAX_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
+  // Remaining energy is expressed in 0.1 kWh, matching frame 0x1878 below. Confirmed against
+  // a real capture that reads 419 here alongside a total of 944 - 41.9 kWh of 94.4 kWh.
+  // Upstream divides by 10 (raw Wh/10), which for a 33 kWh pack transmits 1650 where the
+  // inverter reads 165 kWh remaining out of 33 kWh total. Remaining larger than total.
+  uint16_t remaining_0p1kWh = (uint16_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 100);
+  SOLAX_1873.data.u8[6] = (uint8_t)remaining_0p1kWh;
+  SOLAX_1873.data.u8[7] = (remaining_0p1kWh >> 8);
 
   //BMS_CellData
   SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -65,13 +97,26 @@ void SolaxInverter::update_values() {
     cell_min_voltage_mV = 3300;
   }
 
-  // Rescale to the range 3.0->3.5V
-  cell_max_voltage_mV =
-      3000 + ((cell_max_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
-                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
-  cell_min_voltage_mV =
-      3000 + ((cell_min_voltage_mV - datalayer.battery.info.min_cell_voltage_mV) * (3500 - 3000)) /
-                 (datalayer.battery.info.max_cell_voltage_mV - datalayer.battery.info.min_cell_voltage_mV);
+  // The upstream 3.0->3.5 V rescale is gone. A real capture of a working system shows this
+  // frame carrying the ACTUAL cell voltage in 0.1 V units (41 = 4.1 V, 40 = 4.0 V) with no
+  // compression, and frame 0x1876 below already sent the real value - so the two frames
+  // disagreed about the same cells.
+
+#if SOLAX_REMAP_CELLS_TO_MODULE_COUNT
+  // SolaX derives an expected average cell voltage from pack voltage / (modules x cells per
+  // module). With 13 modules it assumes 208 cells while an AKASOL pack really has 180, so the
+  // raw per-cell figure sits well above the average the inverter computes. Re-express the
+  // cell voltages against its own cell count, keeping the real measured spread intact.
+  {
+    uint16_t assumed_cells = (uint16_t)configured_number_of_modules * SOLAX_CELLS_PER_MODULE;
+    if (assumed_cells > 0 && datalayer.battery.status.voltage_dV > 100) {
+      int32_t real_spread_mV = cell_max_voltage_mV - cell_min_voltage_mV;
+      int32_t implied_avg_mV = ((int32_t)datalayer.battery.status.voltage_dV * 100) / assumed_cells;
+      cell_max_voltage_mV = implied_avg_mV + (real_spread_mV / 2);
+      cell_min_voltage_mV = implied_avg_mV - (real_spread_mV / 2);
+    }
+  }
+#endif
 
   uint16_t cell_max_voltage_dV = cell_max_voltage_mV / 100;
   uint16_t cell_min_voltage_dV = cell_min_voltage_mV / 100;
@@ -90,28 +135,49 @@ void SolaxInverter::update_values() {
   //BMS_PackTemps (strange name, since it has voltages?)
   SOLAX_1876.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
   SOLAX_1876.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SOLAX_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
-  SOLAX_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  // Reads the same locals as 0x1874 above, so the two frames always agree about the cells.
+  SOLAX_1876.data.u8[2] = (uint8_t)cell_max_voltage_mV;
+  SOLAX_1876.data.u8[3] = (cell_max_voltage_mV >> 8);
 
   SOLAX_1876.data.u8[4] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1876.data.u8[5] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1876.data.u8[6] = (uint8_t)datalayer.battery.status.cell_min_voltage_mV;
-  SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SOLAX_1876.data.u8[6] = (uint8_t)cell_min_voltage_mV;
+  SOLAX_1876.data.u8[7] = (cell_min_voltage_mV >> 8);
 
-  //Unknown
-  SOLAX_1877.data.u8[4] = (uint8_t)configured_battery_type;  // Battery type (Default 0x50)
-  SOLAX_1877.data.u8[6] = (uint8_t)0x22;                     // Firmware version?
-  SOLAX_1877.data.u8[7] =
-      (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
+  // Byte 1 is the BMS ALARM REGISTER. Mapped bit by bit against a live X3-Hybrid G4; twelve
+  // data points, no exceptions, and the last two were predicted before being measured:
+  //     bit 0 -> BE09 CellImbalance      bit 4 -> BE13 BMS_VolSen
+  //     bit 1 -> BE10 BMS hardware       bit 5 -> BE14 BMS temp sen
+  //     bit 2 -> BE11 BMS circuit        bit 6 -> BE15 BMS cur sen
+  //     bit 3 -> BE12 BMS iso fault      bit 7 -> BE16 BMS relay
+  // The display shows the LOWEST set bit (0x50 = bits 6+4 shows BE13; 0xFF shows BE09).
+  // Anything written here is reported by the inverter as a battery fault, so it stays zero
+  // unless real alarms are ever forwarded. Bytes 0, 2 and 3 are blank in both known-good
+  // captures. Bytes 6/7 are fixed constants 0x1D/0x10 in both of them; upstream sends
+  // 0x22/0x02, which came from a comment that guessed "Firmware version?" with a question mark.
+  SOLAX_1877.data.u8[0] = 0;
+  SOLAX_1877.data.u8[1] = 0;
+  SOLAX_1877.data.u8[2] = 0;
+  SOLAX_1877.data.u8[3] = 0;
+  SOLAX_1877.data.u8[4] = (uint8_t)configured_battery_type;
+  SOLAX_1877.data.u8[5] = 0;
+  SOLAX_1877.data.u8[6] = (uint8_t)0x1D;
+  SOLAX_1877.data.u8[7] = (uint8_t)0x10;
 
   //BMS_PackStats
   SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
   SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)datalayer.battery.info.reported_total_capacity_Wh;
-  SOLAX_1878.data.u8[5] = (datalayer.battery.info.reported_total_capacity_Wh >> 8);
-  SOLAX_1878.data.u8[6] = (datalayer.battery.info.reported_total_capacity_Wh >> 16);
-  SOLAX_1878.data.u8[7] = (datalayer.battery.info.reported_total_capacity_Wh >> 24);
+  // Both known-good captures put total capacity in bytes 4-5 only, as 16 bits of 0.1 kWh,
+  // with byte 6 a constant 4 and byte 7 zero:
+  //     capture A: B0 03 04 00 -> 944 = 94.4 kWh      capture B: B0 00 04 00 -> 176 = 17.6 kWh
+  // Upstream spreads raw Wh across bytes 4-7 as a 32-bit value, which for a 33 kWh pack sends
+  // 33000 where 330 is expected, and overwrites byte 6 with zero.
+  uint16_t capacity_0p1kWh = (uint16_t)(datalayer.battery.info.reported_total_capacity_Wh / 100);
+  SOLAX_1878.data.u8[4] = (uint8_t)capacity_0p1kWh;
+  SOLAX_1878.data.u8[5] = (capacity_0p1kWh >> 8);
+  SOLAX_1878.data.u8[6] = 4;
+  SOLAX_1878.data.u8[7] = 0;
 
   // BMS_Answer
   SOLAX_1801.data.u8[0] = 2;
@@ -131,18 +197,36 @@ void SolaxInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-// Write 7 uppercase hex ASCII chars (D2..D8) from eFuse MAC, slot index, and frame half (0=1881, 1=1882).
+// Build the battery serial reported in frames 0x1881 / 0x1882.
+//
+// The X3-Hybrid G4 manual shows the LCD line as "BatBrand: BAK 6S012345012345", i.e. brand
+// plus a 14 character serial that begins "6S". The upstream comments show the same shape from
+// a real capture: 0x1881 "6SBMSFA", 0x1882 "23AB052".
+//
+// The previous generator emitted pure hex derived from the eFuse MAC, which can never produce
+// that prefix - 'S' is not a hex digit - so the serial was unparseable and BatBrand read "NA".
+// Now: "6S" plus 12 digits from the MAC, so it is well formed, stable across reboots and
+// unique per board. 0x1881 carries characters 1-7 and 0x1882 characters 8-14.
 void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half, uint8_t out[7]) {
-  static const char hex[] = "0123456789ABCDEF";
-  uint8_t mix[4] = {
-      (uint8_t)(mac[0] ^ slot ^ (half * 0x11u)),
-      (uint8_t)(mac[1] ^ slot ^ (half * 0x22u)),
-      (uint8_t)(mac[2] ^ slot ^ (half * 0x33u)),
-      (uint8_t)(mac[3] ^ slot ^ (half * 0x44u)),
-  };
+  char serial[14];
+  serial[0] = '6';
+  serial[1] = 'S';
+
+  uint32_t seed = ((uint32_t)mac[0] << 24) | ((uint32_t)mac[1] << 16) | ((uint32_t)mac[2] << 8) | (uint32_t)mac[3];
+  seed ^= (((uint32_t)mac[4] << 8) | (uint32_t)mac[5]);
+  seed += (uint32_t)slot * 7919u;
+
+  for (int i = 2; i < 14; i++) {
+    if (seed == 0) {
+      seed = 2166136261u + (uint32_t)mac[i % 6] * 16777619u + (uint32_t)slot + (uint32_t)i;
+    }
+    serial[i] = (char)('0' + (char)(seed % 10u));
+    seed /= 10u;
+  }
+
+  const int base = half ? 7 : 0;
   for (int i = 0; i < 7; i++) {
-    uint8_t b = mix[i >> 1];
-    out[i] = hex[(b >> ((1 - (i & 1)) * 4)) & 0x0F];
+    out[i] = (uint8_t)serial[base + i];
   }
 }
 
