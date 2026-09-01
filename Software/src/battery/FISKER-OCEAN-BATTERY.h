@@ -1,259 +1,66 @@
 #ifndef FISKER_OCEAN_BATTERY_H
 #define FISKER_OCEAN_BATTERY_H
 
-#include "CanBattery.h"
+#include "FISKER-OCEAN-HTML.h"
+#include "UdsCanBattery.h"
 
-class FiskerOceanBattery : public CanBattery {
+class FiskerOceanBattery : public UdsCanBattery {
  public:
-  virtual void setup(void);
-  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
-  virtual void update_values();
-  virtual void transmit_can(unsigned long currentMillis);
+  FiskerOceanBattery() : renderer(&datalayer_extended.fiskerOcean) { dtc = &datalayer.battery.dtc; }
+
+  void setup() override;
+  void handle_incoming_can_frame(CAN_frame rx_frame) override;
+  void update_values() override;
+  void transmit_can(unsigned long currentMillis) override;
   static constexpr const char* Name = "Fisker Ocean 113/106kWh battery";
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
+  bool supports_contactor_close() override { return true; }
+  void request_open_contactors() override { datalayer_extended.fiskerOcean.wake_transmit_active = false; }
+  void request_close_contactors() override { datalayer_extended.fiskerOcean.wake_transmit_active = true; }
+  BatteryHtmlRenderer& get_status_renderer() override { return renderer; }
+
+ protected:
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
-  bool UserRequestDTCreset = true;       //Default on to always clear DTC once on startup
-  unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was send
-  unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
+  FiskerOceanHtmlRenderer renderer;
+  unsigned long previousMillis093 = 0;
+  unsigned long previousMillis333 = 0;
 
-  const uint16_t CELLVOLTAGE_FRAME_START = 0x6B0;
-  const uint16_t CELLVOLTAGE_FRAME_END = 0x6C9;  // last frame, only 2 valid cells
-  const uint16_t NUM_CELLS = 102;
+  static constexpr uint16_t CELLVOLTAGE_FRAME_START = 0x6B0;
+  static constexpr uint16_t NUM_CELLS = 102;
 
-  //113 kWh
-  static const int MAX_PACK_VOLTAGE_113S_DV = 5000;  //TODO
-  static const int MIN_PACK_VOLTAGE_113S_DV = 2500;  //TODO
-  static const int MAX_CAPACITY_113S_WH = 113000;
-  //106 kWh
-  static const int MAX_PACK_VOLTAGE_106S_DV = 5000;  //TODO
-  static const int MIN_PACK_VOLTAGE_106S_DV = 2500;  //TODO
-  static const int MAX_CAPACITY_106S_WH = 106000;
-  //Common
-  static const int MAX_CELL_DEVIATION_MV = 250;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;
-  static const int MIN_CELL_VOLTAGE_MV = 2900;
+  static constexpr int MAX_PACK_VOLTAGE_113S_DV = 5000;
+  static constexpr int MIN_PACK_VOLTAGE_106S_DV = 2500;
+  static constexpr int MAX_CELL_DEVIATION_MV = 250;
+  static constexpr int MAX_CELL_VOLTAGE_MV = 4250;
+  static constexpr int MIN_CELL_VOLTAGE_MV = 2900;
 
   int16_t cell_temperature_max_C = 0;
   int16_t cell_temperature_min_C = 0;
   uint16_t pack_voltage = 37000;
 
-  static const uint16_t PID_BATTERY_SUM_VOLTAGE = 0x2003;
-  static const uint16_t PID_BATTERY_CURRENT = 0x2004;
-  static const uint16_t PID_BATTERY_CURRENT_VALID = 0x2005;
-  static const uint16_t PID_DISCHARGE_CURR_LIMIT = 0x2008;
-  static const uint16_t PID_CHARGE_CURR_LIMIT = 0x2009;
-  static const uint16_t PID_CHARGE_OVER_CURR_LIMIT = 0x2011;
-  static const uint16_t PID_HALL_SAMPLE_CURRENT = 0x2016;
-  static const uint16_t PID_CSU_SAMPLE_CURRENT = 0x2019;
-  static const uint16_t PID_CSU_CURRENT_STATE = 0x2024;
-  static const uint16_t PID_INLET_WATER_TEMP = 0x2026;
-  static const uint16_t PID_OUTLET_WATER_TEMP = 0x2027;
-  static const uint16_t PID_MAX_BALANCE_CIRCUIT_TEMP = 0x2031;
-  static const uint16_t PID_SA_LVMD_BAL_TEMP_VALID = 0x2032;
-  static const uint16_t PID_MAX_CHIP_TEMP = 0x2033;
-  static const uint16_t PID_SA_LVMD_CHIP_INSIDE_TEMP_VALID = 0x2034;
-  static const uint16_t PID_AVG_MODULE_TEMP = 0x2038;
-  static const uint16_t PID_MAX_MODULE_TEMP = 0x2039;
-  static const uint16_t PID_MIN_MODULE_TEMP = 0x2040;
-  static const uint16_t PID_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN = 0x2041;
-  static const uint16_t PID_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN = 0x2042;
-  static const uint16_t PID_MODULE_TEMP_VALID = 0x2043;
-  static const uint16_t PID_MAX_VOLT_CELL_SOC_PERCENT = 0x2047;
-  static const uint16_t PID_MIN_VOLT_CELL_SOC_PERCENT = 0x2048;
-  static const uint16_t PID_AVG_VOLT_CELL_SOC_PERCENT = 0x2049;
-  static const uint16_t PID_PACK_DISPLAY_SOC_PERCENT = 0x2050;
-  static const uint16_t PID_UNEXPECTED_POWER_DOWN_FAULT = 0x2053;
-  static const uint16_t PID_MODULE_TEMP_DAISYCHAIN_UPDATED = 0x2054;
-  static const uint16_t PID_CELL_VOLT_DAISYCHAIN_UPDATED = 0x2055;
-  static const uint16_t PID_CMC_RESET_ERR_FLAG = 0x2056;
-  static const uint16_t PID_VCU_CRASH_MESSAGE_STATUS = 0x2057;
-  static const uint16_t PID_HARDWARE_SIG_PWM_PERIOD = 0x2058;
-  static const uint16_t PID_HARDWARE_PWM_DUTY_CYCLE = 0x2059;
-  static const uint16_t PID_FORCE_FORBIDDEN_ISO_DETECT_CMD = 0x2060;
-  static const uint16_t PID_ISOLATION_MEAS_STATUS = 0x2061;
-  static const uint16_t PID_ISOLATION_MEAS_STATE = 0x2062;
-  static const uint16_t PID_POS_ISO_MEAS_VOLT_RAW = 0x2063;
-  static const uint16_t PID_NEG_ISO_MEAS_VOLT_RAW = 0x2064;
-  static const uint16_t PID_ISO_MEAS_POS_RES_KOHM = 0x2069;
-  static const uint16_t PID_ISO_MEAS_NEG_RES_KOHM = 0x2070;
-  static const uint16_t PID_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN = 0x2078;
-  static const uint16_t PID_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN = 0x2079;
-  static const uint16_t PID_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN = 0x2080;
-  static const uint16_t PID_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN = 0x2081;
-  static const uint16_t PID_VOLT_OR_CURR_CH0_HIGH_VOLT_MV = 0x2089;
-  static const uint16_t PID_VOLT_OR_CURR_CH1_HIGH_VOLT_MV = 0x2090;
-  static const uint16_t PID_BATTERY_TO_G0_VOLT = 0x2107;
-  static const uint16_t PID_PV_POS_TO_G0_VOLT = 0x2108;
-  static const uint16_t PID_MAIN_POS_TO_G0_VOLT = 0x2109;
-  static const uint16_t PID_MAIN_POS_TO_G1_VOLT = 0x2117;
-  static const uint16_t PID_KL30C_VOLTAGE = 0x2130;
-  static const uint16_t PID_MAX_CELL_VOLT_CMC_AND_POINT_PSTN = 0x2133;
-  static const uint16_t PID_MIN_CELL_VOLT_CMC_AND_POINT_PSTN = 0x2134;
-  static const uint16_t PID_AVG_CELL_VOLTAGE = 0x2136;
-  static const uint16_t PID_MAX_CELL_VOLTAGE = 0x2137;
-  static const uint16_t PID_MIN_CELL_VOLTAGE = 0x2138;
-  static const uint16_t PID_CELL_VOLT_VALID = 0x2143;
-  static const uint16_t PID_PV_POS_CONTACTOR_AGING = 0x2144;
-  static const uint16_t PID_PR_NEG_CONTACTOR_AGING = 0x2145;
-  static const uint16_t PID_TIME_STAMP = 0xEEF6;
-  static const uint16_t PID_VEHICLE_SPEED = 0xEEF7;
-  static const uint16_t PID_ST_MIN = 0xEFFE;
-  static const uint16_t PID_APPLICATION_SOFTWARE_FINGERPRINT = 0xF184;
-  static const uint16_t PID_VEHICLE_IDENTIFICATION_NUMBER = 0xF190;
+  static constexpr uint16_t poll_commands[DATALAYER_INFO_FISKER_OCEAN::DID_COUNT] = {
+      0x2003, 0x2004, 0x2005, 0x2008, 0x2009, 0x2011, 0x2016, 0x2019, 0x2024, 0x2026, 0x2027, 0x2031,
+      0x2032, 0x2033, 0x2034, 0x2038, 0x2039, 0x2040, 0x2041, 0x2042, 0x2043, 0x2047, 0x2048, 0x2049,
+      0x2050, 0x2053, 0x2054, 0x2055, 0x2056, 0x2057, 0x2058, 0x2059, 0x2060, 0x2061, 0x2062, 0x2063,
+      0x2064, 0x2069, 0x2070, 0x2078, 0x2079, 0x2080, 0x2081, 0x2089, 0x2090, 0x2091, 0x2092, 0x2093,
+      0x2094, 0x2107, 0x2108, 0x2109, 0x2117, 0x2130, 0x2133, 0x2134, 0x2136, 0x2137, 0x2138, 0x2143,
+      0x2144, 0x2145, 0xEFF6, 0xEFF7, 0xEFF8, 0xEFF9, 0xEFFE, 0xF040, 0xF055, 0xF060, 0xF184, 0xF190};
 
-  uint16_t POLL_BATTERY_SUM_VOLTAGE = 0;
-  int32_t POLL_BATTERY_CURRENT = 0;
-  bool POLL_BATTERY_CURRENT_VALID = 0;
-  uint16_t POLL_DISCHARGE_CURR_LIMIT = 0;
-  uint16_t POLL_CHARGE_CURR_LIMIT = 0;
-  uint16_t POLL_CHARGE_OVER_CURR_LIMIT = 0;
-  uint16_t POLL_HALL_SAMPLE_CURRENT = 0;
-  uint16_t POLL_CSU_SAMPLE_CURRENT = 0;
-  uint16_t POLL_CSU_CURRENT_STATE = 0;
-  uint16_t POLL_INLET_WATER_TEMP = 0;
-  uint16_t POLL_OUTLET_WATER_TEMP = 0;
-  uint16_t POLL_MAX_BALANCE_CIRCUIT_TEMP = 0;
-  uint64_t POLL_SA_LVMD_BAL_TEMP_VALID = 0;
-  int16_t POLL_MAX_CHIP_TEMP = 0;
-  uint64_t POLL_SA_LVMD_CHIP_INSIDE_TEMP_VALID = 0;
-  int16_t POLL_AVG_MODULE_TEMP = 0;
-  int16_t POLL_MAX_MODULE_TEMP = 0;
-  int16_t POLL_MIN_MODULE_TEMP = 0;
-  uint64_t POLL_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN = 0;
-  uint64_t POLL_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN = 0;
-  uint16_t POLL_MAX_VOLT_CELL_SOC_PERCENT = 0;
-  uint16_t POLL_MIN_VOLT_CELL_SOC_PERCENT = 0;
-  uint16_t POLL_AVG_VOLT_CELL_SOC_PERCENT = 0;
-  uint16_t POLL_PACK_DISPLAY_SOC_PERCENT = 0;
-  uint8_t POLL_UNEXPECTED_POWER_DOWN_FAULT = 0;
-  uint16_t POLL_MODULE_TEMP_DAISYCHAIN_UPDATED = 0;
-  uint16_t POLL_CELL_VOLT_DAISYCHAIN_UPDATED = 0;
-  uint16_t POLL_CMC_RESET_ERR_FLAG = 0;
-  uint16_t POLL_VCU_CRASH_MESSAGE_STATUS = 0;
-  uint16_t POLL_HARDWARE_SIG_PWM_PERIOD = 0;
-  uint16_t POLL_HARDWARE_PWM_DUTY_CYCLE = 0;
-  uint8_t POLL_FORCE_FORBIDDEN_ISO_DETECT_CMD = 0;
-  uint8_t POLL_ISOLATION_MEAS_STATUS = 0;
-  uint8_t POLL_ISOLATION_MEAS_STATE = 0;
-  uint16_t POLL_POS_ISO_MEAS_VOLT_RAW = 0;
-  uint16_t POLL_NEG_ISO_MEAS_VOLT_RAW = 0;
-  uint16_t POLL_ISO_MEAS_POS_RES_KOHM = 0;
-  uint16_t POLL_ISO_MEAS_NEG_RES_KOHM = 0;
-  uint16_t POLL_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN = 0;
-  uint16_t POLL_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN = 0;
-  uint16_t POLL_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN = 0;
-  uint16_t POLL_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN = 0;
-  uint16_t POLL_VOLT_OR_CURR_CH0_HIGH_VOLT_MV = 0;
-  uint16_t POLL_VOLT_OR_CURR_CH1_HIGH_VOLT_MV = 0;
-  uint16_t POLL_BATTERY_TO_G0_VOLT = 0;
-  uint16_t POLL_PV_POS_TO_G0_VOLT = 0;
-  uint16_t POLL_MAIN_POS_TO_G0_VOLT = 0;
-  uint16_t POLL_MAIN_POS_TO_G1_VOLT = 0;
-  uint16_t POLL_KL30C_VOLTAGE = 0;
-  uint16_t POLL_MAX_CELL_VOLT_CMC_AND_POINT_PSTN = 0;
-  uint16_t POLL_MIN_CELL_VOLT_CMC_AND_POINT_PSTN = 0;
-  uint16_t POLL_AVG_CELL_VOLTAGE = 0;
-  uint16_t POLL_MAX_CELL_VOLTAGE = 0;
-  uint16_t POLL_MIN_CELL_VOLTAGE = 0;
-  bool POLL_CELL_VOLT_VALID = 0;
-  uint16_t POLL_PV_POS_CONTACTOR_AGING = 0;
-  uint16_t POLL_PR_NEG_CONTACTOR_AGING = 0;
-  uint16_t POLL_TIME_STAMP = 0;
-  uint16_t POLL_VEHICLE_SPEED = 0;
-  uint16_t POLL_ST_MIN = 0;
-  uint16_t POLL_APPLICATION_SOFTWARE_FINGERPRINT = 0;
-  uint16_t POLL_VEHICLE_IDENTIFICATION_NUMBER = 0;
-
-  CAN_frame FISKER_PID_REQUEST = {.FD = false,
-                                  .ext_ID = false,
-                                  .DLC = 8,
-                                  .ID = 0x7E1,
-                                  .data = {0x03, 0x22, 0x20, 0x03, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FISKER_PID_ACK = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7E1,
-                              .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FISKER_DTC_RESET = {.FD = false,
+  CAN_frame FISKER_READY_093 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 16,
+      .ID = 0x093,
+      .data = {0x8A, 0xE0, 0x11, 0xFF, 0x22, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
+  CAN_frame FISKER_READY_333 = {.FD = true,
                                 .ext_ID = false,
                                 .DLC = 8,
-                                .ID = 0x7E1,
-                                .data = {0x04, 0x14, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FISKER_EXTENDED_DIAG_SESSION = {.FD = false,
-                                            .ext_ID = false,
-                                            .DLC = 8,
-                                            .ID = 0x7E1,
-                                            .data = {0x02, 0x10, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+                                .ID = 0x333,
+                                .data = {0x03, 0xD0, 0x55, 0xAD, 0x96, 0xFF, 0xFF, 0xFF}};
 
-  uint16_t currentpoll = PID_BATTERY_SUM_VOLTAGE;
-  uint16_t incoming_poll = 0;
-  uint8_t poll_index = 0;
-  const uint16_t poll_commands[63] = {PID_BATTERY_SUM_VOLTAGE,
-                                      PID_BATTERY_CURRENT,
-                                      PID_BATTERY_CURRENT_VALID,
-                                      PID_DISCHARGE_CURR_LIMIT,
-                                      PID_CHARGE_CURR_LIMIT,
-                                      PID_CHARGE_OVER_CURR_LIMIT,
-                                      PID_HALL_SAMPLE_CURRENT,
-                                      PID_CSU_SAMPLE_CURRENT,
-                                      PID_CSU_CURRENT_STATE,
-                                      PID_INLET_WATER_TEMP,
-                                      PID_OUTLET_WATER_TEMP,
-                                      PID_MAX_BALANCE_CIRCUIT_TEMP,
-                                      PID_SA_LVMD_BAL_TEMP_VALID,
-                                      PID_MAX_CHIP_TEMP,
-                                      PID_SA_LVMD_CHIP_INSIDE_TEMP_VALID,
-                                      PID_AVG_MODULE_TEMP,
-                                      PID_MAX_MODULE_TEMP,
-                                      PID_MIN_MODULE_TEMP,
-                                      PID_MAX_MODULE_TEMP_CMC_AND_POINT_PSTN,
-                                      PID_MIN_MODULE_TEMP_CMC_AND_POINT_PSTN,
-                                      PID_MODULE_TEMP_VALID,
-                                      PID_MAX_VOLT_CELL_SOC_PERCENT,
-                                      PID_MIN_VOLT_CELL_SOC_PERCENT,
-                                      PID_AVG_VOLT_CELL_SOC_PERCENT,
-                                      PID_PACK_DISPLAY_SOC_PERCENT,
-                                      PID_UNEXPECTED_POWER_DOWN_FAULT,
-                                      PID_MODULE_TEMP_DAISYCHAIN_UPDATED,
-                                      PID_CELL_VOLT_DAISYCHAIN_UPDATED,
-                                      PID_CMC_RESET_ERR_FLAG,
-                                      PID_VCU_CRASH_MESSAGE_STATUS,
-                                      PID_HARDWARE_SIG_PWM_PERIOD,
-                                      PID_HARDWARE_PWM_DUTY_CYCLE,
-                                      PID_FORCE_FORBIDDEN_ISO_DETECT_CMD,
-                                      PID_ISOLATION_MEAS_STATUS,
-                                      PID_ISOLATION_MEAS_STATE,
-                                      PID_POS_ISO_MEAS_VOLT_RAW,
-                                      PID_NEG_ISO_MEAS_VOLT_RAW,
-                                      PID_ISO_MEAS_POS_RES_KOHM,
-                                      PID_ISO_MEAS_NEG_RES_KOHM,
-                                      PID_BAL_CIRCUIT_OPEN_ERR_CMC_PSTN,
-                                      PID_BAL_CIRCUIT_OPEN_ERR_CELL_PSTN,
-                                      PID_BAL_CIRCUIT_SHORT_ERR_CMC_PSTN,
-                                      PID_BAL_CIRCUIT_SHORT_ERR_CELL_PSTN,
-                                      PID_VOLT_OR_CURR_CH0_HIGH_VOLT_MV,
-                                      PID_VOLT_OR_CURR_CH1_HIGH_VOLT_MV,
-                                      PID_BATTERY_TO_G0_VOLT,
-                                      PID_PV_POS_TO_G0_VOLT,
-                                      PID_MAIN_POS_TO_G0_VOLT,
-                                      PID_MAIN_POS_TO_G1_VOLT,
-                                      PID_KL30C_VOLTAGE,
-                                      PID_MAX_CELL_VOLT_CMC_AND_POINT_PSTN,
-                                      PID_MIN_CELL_VOLT_CMC_AND_POINT_PSTN,
-                                      PID_AVG_CELL_VOLTAGE,
-                                      PID_MAX_CELL_VOLTAGE,
-                                      PID_MIN_CELL_VOLTAGE,
-                                      PID_CELL_VOLT_VALID,
-                                      PID_PV_POS_CONTACTOR_AGING,
-                                      PID_PR_NEG_CONTACTOR_AGING,
-                                      PID_TIME_STAMP,
-                                      PID_VEHICLE_SPEED,
-                                      PID_ST_MIN,
-                                      PID_APPLICATION_SOFTWARE_FINGERPRINT,
-                                      PID_VEHICLE_IDENTIFICATION_NUMBER};
+  void transmit_ready_frame(CAN_frame* frame, uint8_t& counter, uint8_t high_nibble, uint8_t xor_out);
 };
 
 #endif
