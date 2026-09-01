@@ -110,6 +110,7 @@ add_executable(tests
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
+    ../Software/src/battery/AKASOL-BATTERY.cpp
     ../Software/src/battery/BMW-I3-BATTERY.cpp
     ../Software/src/battery/BMW-I3-HTML.cpp
     ../Software/src/battery/BMW-IX-BATTERY.cpp
@@ -176,6 +177,7 @@ add_executable(tests
     ../Software/src/inverter/BYD-MODBUS.cpp
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
+    ../Software/src/inverter/FOXESS-EP-CAN.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp
