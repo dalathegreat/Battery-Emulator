@@ -58,13 +58,41 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   static const int GROUP6_BALANCING = 0x07;            // Balancing status bits
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis1000_69f = 0;
   uint8_t counter_423 = 0;
+  uint8_t zoe_19F_counter = 0;
+  uint16_t zoe_436_counter = 0xAAEA;
 
   CAN_frame ZOE_423 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x423,
                        .data = {0x07, 0x1d, 0x00, 0x02, 0x5d, 0x80, 0x5d, 0xc8}};
+
+  // Cyclic Broadcast Frames for Zoe Gen1 Powertrain (Eliminates U1000 / D000 CAN Loss Faults)
+  CAN_frame ZOE_19F_INVERTER = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x19F,
+                                .data = {0x00, 0x00, 0x7D, 0x04, 0x00, 0x6A, 0x90, 0xFE}};
+
+  CAN_frame ZOE_426_POWER_MUX = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x426,
+                                 .data = {0x00, 0x60, 0x01, 0x00, 0x4B, 0xC8, 0x00, 0x40}};
+
+  CAN_frame ZOE_436_VEHICLE_STATUS = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 6,
+                                      .ID = 0x436,
+                                      .data = {0x86, 0x14, 0xAA, 0xEA, 0xFF, 0xDC}};
+
+  CAN_frame ZOE_69F_BCM_GATEWAY = {.FD = false,
+                                   .ext_ID = false,
+                                   .DLC = 4,
+                                   .ID = 0x69F,
+                                   .data = {0x71, 0x30, 0x28, 0x2F}};
 
   uint16_t LB_SOC = 50;
   uint16_t LB_Display_SOC = 50;
