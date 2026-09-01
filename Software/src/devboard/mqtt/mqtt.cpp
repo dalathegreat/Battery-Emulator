@@ -519,7 +519,7 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     // Amp-hours have no device_class, so this one would fall back to Home Assistant's generic
     // icon next to its kWh sibling, which does get one from "energy_storage".
     if (strcmp(entity_id, "leaf_capacity_ah") == 0) {
-      return "mdi:battery-charging-100";
+      return "mdi:car-battery";
     }
     if (strcmp(entity_id, "charging_state") == 0) {
       return "mdi:home-battery";
