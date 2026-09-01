@@ -2,7 +2,6 @@
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
 
@@ -46,7 +45,11 @@ void RenaultZoeGen2Battery::update_values() {
     datalayer_battery->status.real_soc = 0;
   }
 
-  datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
+  if (battery_pack_voltage_periodic_dV < 5000) {  //If periodic value is available, use it!
+    datalayer_battery->status.voltage_dV = battery_pack_voltage_periodic_dV;
+  } else {  //Fallback on polled value if periodic value is not available. This is a workaround for some batteries that do not send periodic voltage updates
+    datalayer_battery->status.voltage_dV = battery_pack_voltage_polled_dV;
+  }
 
   datalayer_battery->status.current_dA = ((battery_current - 32640) * 0.3125f);
 
@@ -100,48 +103,68 @@ void RenaultZoeGen2Battery::update_values() {
   } else {
     clear_event(EVENT_BATTERY_CAUTION, battery_index);
   }*/
+}
 
-  // Update webserver datalayer
-  datalayer_extended.zoePH2.battery_soc = battery_soc;
-  datalayer_extended.zoePH2.battery_usable_soc = battery_usable_soc;
-  datalayer_extended.zoePH2.battery_soh = battery_soh;
-  datalayer_extended.zoePH2.battery_pack_voltage = battery_pack_voltage_polled_dV;
-  datalayer_extended.zoePH2.battery_max_cell_voltage = battery_max_cell_voltage_polled;
-  datalayer_extended.zoePH2.battery_min_cell_voltage = battery_min_cell_voltage_polled;
-  datalayer_extended.zoePH2.battery_12v = battery_12v;
-  datalayer_extended.zoePH2.battery_avg_temp = battery_avg_temp;
-  datalayer_extended.zoePH2.battery_min_temp = battery_min_temp;
-  datalayer_extended.zoePH2.battery_max_temp = battery_max_temp;
-  datalayer_extended.zoePH2.battery_max_power = battery_max_power;
-  datalayer_extended.zoePH2.battery_interlock = battery_interlock_polled;
-  datalayer_extended.zoePH2.battery_kwh = battery_kwh;
-  datalayer_extended.zoePH2.battery_current = battery_current;
-  datalayer_extended.zoePH2.battery_current_offset = battery_current_offset;
-  datalayer_extended.zoePH2.battery_max_generated = battery_max_generated;
-  datalayer_extended.zoePH2.battery_max_available = battery_max_available;
-  datalayer_extended.zoePH2.battery_current_voltage = battery_current_voltage;
-  datalayer_extended.zoePH2.battery_charging_status = battery_charging_status;
-  datalayer_extended.zoePH2.battery_remaining_charge = battery_remaining_charge;
-  datalayer_extended.zoePH2.battery_balance_capacity_total = battery_balance_capacity_total;
-  datalayer_extended.zoePH2.battery_balance_time_total = battery_balance_time_total;
-  datalayer_extended.zoePH2.battery_balance_capacity_sleep = battery_balance_capacity_sleep;
-  datalayer_extended.zoePH2.battery_balance_time_sleep = battery_balance_time_sleep;
-  datalayer_extended.zoePH2.battery_balance_capacity_wake = battery_balance_capacity_wake;
-  datalayer_extended.zoePH2.battery_balance_time_wake = battery_balance_time_wake;
-  datalayer_extended.zoePH2.battery_bms_state = battery_bms_state;
-  datalayer_extended.zoePH2.battery_energy_complete = battery_energy_complete;
-  datalayer_extended.zoePH2.battery_energy_partial = battery_energy_partial;
-  datalayer_extended.zoePH2.battery_slave_failures = battery_slave_failures;
-  datalayer_extended.zoePH2.battery_mileage = battery_mileage;
-  datalayer_extended.zoePH2.battery_fan_speed = battery_fan_speed;
-  datalayer_extended.zoePH2.battery_fan_period = battery_fan_period;
-  datalayer_extended.zoePH2.battery_fan_control = battery_fan_control;
-  datalayer_extended.zoePH2.battery_fan_duty = battery_fan_duty;
-  datalayer_extended.zoePH2.battery_temporisation = battery_temporisation;
-  datalayer_extended.zoePH2.battery_time = battery_time;
-  datalayer_extended.zoePH2.battery_pack_time = battery_pack_time;
-  datalayer_extended.zoePH2.battery_soc_min = battery_soc_min;
-  datalayer_extended.zoePH2.battery_soc_max = battery_soc_max;
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
+
+String RenaultZoeGen2Battery::get_uds_info_html() {
+  String content;
+  content.reserve(1600);
+
+  // clang-format off
+  content << "<h4>SoC: "                    << battery_soc                    << " pptt</h4>"
+             "<h4>usable SoC: "             << battery_usable_soc             << " pptt</h4>"
+             "<h4>SoH: "                    << battery_soh                    << " pptt</h4>"
+             "<h4>Pack voltage: "           << battery_pack_voltage_polled_dV << " dV</h4>"
+             "<h4>Max cell voltage: "       << battery_max_cell_voltage_polled<< " mV</h4>"
+             "<h4>Min cell voltage: "       << battery_min_cell_voltage_polled<< " mV</h4>"
+             "<h4>12v: "                    << battery_12v                    << " mV</h4>"
+             "<h4>Avg temp: "               << battery_avg_temp               << "</h4>"
+             "<h4>Min temp: "               << battery_min_temp               << "</h4>"
+             "<h4>Max temp: "               << battery_max_temp               << "</h4>"
+             "<h4>Max power: "              << battery_max_power              << "</h4>"
+             "<h4>Interlock: "              << battery_interlock              << "</h4>"
+             "<h4>kWh: "                    << battery_kwh                    << "</h4>"
+             "<h4>Current: "               << battery_current                << "</h4>"
+             "<h4>Current offset: "         << battery_current_offset         << "</h4>"
+             "<h4>Max generated: "          << battery_max_generated          << "</h4>"
+             "<h4>Max available: "          << battery_max_available          << "</h4>"
+             "<h4>Current voltage: "        << battery_current_voltage        << "</h4>"
+             "<h4>Charging status: "        << battery_charging_status        << "</h4>"
+             "<h4>Remaining charge: "       << battery_remaining_charge       << "</h4>"
+             "<h4>Balance capacity total: " << battery_balance_capacity_total << "</h4>"
+             "<h4>Balance time total: "     << battery_balance_time_total     << "</h4>"
+             "<h4>Balance capacity sleep: " << battery_balance_capacity_sleep << "</h4>"
+             "<h4>Balance time sleep: "     << battery_balance_time_sleep     << "</h4>"
+             "<h4>Balance capacity wake: "  << battery_balance_capacity_wake  << "</h4>"
+             "<h4>Balance time wake: "      << battery_balance_time_wake      << "</h4>"
+             "<h4>BMS state: "              << battery_bms_state              << "</h4>"
+             "<h4>Energy complete: "        << battery_energy_complete        << "</h4>"
+             "<h4>Energy partial: "         << battery_energy_partial         << "</h4>"
+             "<h4>Slave failures: "         << battery_slave_failures         << "</h4>"
+             "<h4>Mileage: "                << battery_mileage                << "</h4>"
+             "<h4>Fan speed: "              << battery_fan_speed              << "</h4>"
+             "<h4>Fan period: "             << battery_fan_period             << "</h4>"
+             "<h4>Fan control: "            << battery_fan_control            << "</h4>"
+             "<h4>Fan duty: "               << battery_fan_duty               << "</h4>"
+             "<h4>Time: "                   << battery_time                   << "</h4>"
+             "<h4>Pack time: "              << battery_pack_time              << "</h4>"
+             "<h4>SoC min: "                << battery_soc_min                << "</h4>"
+             "<h4>SoC max: "                << battery_soc_max                << "</h4>";
+
+  content << "<h4>Temporisation: ";
+  if      (battery_temporisation == 255) content << "Not read yet";
+  else if (battery_temporisation == 0)   content << "0 Activated!";
+  else if (battery_temporisation == 1)   content << "1 Disabled!";
+  else                                     content << battery_temporisation;
+  content << "</h4>";
+  // clang-format on
+
+  return content;
 }
 
 void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -219,109 +242,113 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x612:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-
     case 0x18DAF1DB:  // LBC Reply from active polling
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // Hand the reply to the UDS superclass: ISO-TP reassembly, then handle_pid()
+      // for PID scan responses and the DTC handlers for the rest.
+      handle_incoming_uds_can_frame(rx_frame);
+      break;
+    default:
+      break;
+  }
+}
 
-      if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group
-        transmit_can_frame(&ZOE_POLL_FLOW_CONTROL);
-        //frame 2 & 3 contains which PID is sent
-        reply_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+uint16_t RenaultZoeGen2Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+    case POLL_SOC:
+      battery_soc = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_USABLE_SOC:
+      battery_usable_soc = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_SOH:
+      battery_soh = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_PACK_VOLTAGE:
+      battery_pack_voltage_polled_dV = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_MAX_CELL_VOLTAGE:
+      temporary_variable = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      if (temporary_variable > 500) {          //Disregard messages with value unavailable
+        battery_max_cell_voltage_polled = temporary_variable;
       }
-
-      if (rx_frame.data.u8[0] < 0x10) {  //One line responses
-        reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      break;
+    case POLL_MIN_CELL_VOLTAGE:
+      temporary_variable = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      if (temporary_variable > 500) {          //Disregard messages with value unavailable
+        battery_min_cell_voltage_polled = temporary_variable;
       }
-
-      switch (reply_poll) {
-        case POLL_SOC:
-          battery_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_USABLE_SOC:
-          battery_usable_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_SOH:
-          battery_soh = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_PACK_VOLTAGE:
-          battery_pack_voltage_polled_dV = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_CELL_VOLTAGE:
-          temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          if (temporary_variable > 500) {  //Disregard messages with value unavailable
-            battery_max_cell_voltage_polled = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          }
-          break;
-        case POLL_MIN_CELL_VOLTAGE:
-          temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          if (temporary_variable > 500) {  //Disregard messages with value unavailable
-            battery_min_cell_voltage_polled = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          }
-          break;
-        case POLL_12V:
-          battery_12v = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 350;  //350, calibration from testing
-          break;
-        case POLL_AVG_TEMP:
-          battery_avg_temp = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MIN_TEMP:
-          battery_min_temp = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_TEMP:
-          battery_max_temp = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_POWER:
-          battery_max_power = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_INTERLOCK:
-          battery_interlock_polled = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_KWH:
-          battery_kwh = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CURRENT:
-          battery_current = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CURRENT_OFFSET:
-          battery_current_offset = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_GENERATED:
-          battery_max_generated = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_AVAILABLE:
-          battery_max_available = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CURRENT_VOLTAGE:
-          battery_current_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CHARGING_STATUS:
-          battery_charging_status = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_REMAINING_CHARGE:
-          battery_remaining_charge = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_CAPACITY_TOTAL:
-          battery_balance_capacity_total = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_TIME_TOTAL:
-          battery_balance_time_total = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_CAPACITY_SLEEP:
-          battery_balance_capacity_sleep = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_TIME_SLEEP:
-          battery_balance_time_sleep = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_CAPACITY_WAKE:
-          battery_balance_capacity_wake = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_TIME_WAKE:
-          battery_balance_time_wake = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BMS_STATE:
-          battery_bms_state = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_BALANCE_SWITCHES:
+      break;
+    case POLL_12V:
+      battery_12v = ((uint16_t)(value)) +
+                    350;  //((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 350;  //350, calibration from testing
+      break;
+    case POLL_AVG_TEMP:
+      battery_avg_temp = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_MIN_TEMP:
+      battery_min_temp = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_MAX_TEMP:
+      battery_max_temp = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_MAX_POWER:
+      battery_max_power = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_INTERLOCK:
+      battery_interlock_polled = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_KWH:
+      battery_kwh = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_CURRENT:
+      battery_current = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_CURRENT_OFFSET:
+      battery_current_offset = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_MAX_GENERATED:
+      battery_max_generated = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_MAX_AVAILABLE:
+      battery_max_available = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_CURRENT_VOLTAGE:
+      battery_current_voltage = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_CHARGING_STATUS:
+      battery_charging_status = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_REMAINING_CHARGE:
+      battery_remaining_charge = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_CAPACITY_TOTAL:
+      battery_balance_capacity_total = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_TIME_TOTAL:
+      battery_balance_time_total = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_CAPACITY_SLEEP:
+      battery_balance_capacity_sleep = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_TIME_SLEEP:
+      battery_balance_time_sleep = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_CAPACITY_WAKE:
+      battery_balance_capacity_wake = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_TIME_WAKE:
+      battery_balance_time_wake = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BMS_STATE:
+      battery_bms_state = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_BALANCE_SWITCHES:
+      // TODO: HOW TO HANDLE THIS?
+      /*
           if (rx_frame.data.u8[0] == 0x23) {
             for (int i = 0; i < 32; i++) {
               balancing_status_cell[i] = (rx_frame.data.u8[4 + (i / 8)] >> (7 - (i % 8))) & 0x01;
@@ -337,76 +364,72 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
               balancing_status_cell[88 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
             }
           }
-          break;
-        case POLL_ENERGY_COMPLETE:
-          battery_energy_complete = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_ENERGY_PARTIAL:
-          battery_energy_partial = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_SLAVE_FAILURES:
-          battery_slave_failures = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                    (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
-          break;
-        case POLL_MILEAGE:
-          battery_mileage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_FAN_SPEED:
-          battery_fan_speed = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_FAN_PERIOD:
-          battery_fan_period = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_FAN_CONTROL:
-          battery_fan_control = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_FAN_DUTY:
-          battery_fan_duty = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_TEMPORISATION:
-          battery_temporisation = rx_frame.data.u8[4] >> 7;
-          break;
-        case POLL_TIME:
-          battery_time = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_PACK_TIME:
-          battery_pack_time = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_SOC_MIN:
-          battery_soc_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_SOC_MAX:
-          battery_soc_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        default:
-          // Handle cell voltages
-          if (reply_poll >= POLL_CELL_0 && reply_poll <= POLL_CELL_95) {
-            int cell_index = reply_poll - POLL_CELL_0;
-
-            // Three offsets are skipped in the polling sequence, account for that.
-            if (reply_poll > POLL_CELL_30) {
-              cell_index -= 1;  // Account for missing 0x9040
-            }
-            if (reply_poll > POLL_CELL_61) {
-              cell_index -= 1;  // Account for missing 0x9060
-            }
-            if (reply_poll > POLL_CELL_92) {
-              cell_index -= 1;  // Account for missing 0x9080
-            }
-
-            datalayer_battery->status.cell_voltages_mV[cell_index] =
-                (uint16_t)(((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.976563);
-          }
-          break;
-      }
+            */
+      break;
+    case POLL_ENERGY_COMPLETE:
+      battery_energy_complete = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_ENERGY_PARTIAL:
+      battery_energy_partial = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_SLAVE_FAILURES:
+      battery_slave_failures = value;
+      break;
+    case POLL_MILEAGE:
+      battery_mileage = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_FAN_SPEED:
+      battery_fan_speed = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_FAN_PERIOD:
+      battery_fan_period = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_FAN_CONTROL:
+      battery_fan_control = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_FAN_DUTY:
+      battery_fan_duty = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_TEMPORISATION:
+      battery_temporisation = (bool)(value);  //rx_frame.data.u8[4] >> 7;
+      break;
+    case POLL_TIME:
+      battery_time = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_PACK_TIME:
+      battery_pack_time = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_SOC_MIN:
+      battery_soc_min = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      break;
+    case POLL_SOC_MAX:
+      battery_soc_max = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     default:
+      // Handle cell voltages
+      if (pid >= POLL_CELL_0 && pid <= POLL_CELL_95) {
+        int cell_index = pid - POLL_CELL_0;
+
+        // Three offsets are skipped in the polling sequence, account for that.
+        if (pid > POLL_CELL_30) {
+          cell_index -= 1;  // Account for missing 0x9040
+        }
+        if (pid > POLL_CELL_61) {
+          cell_index -= 1;  // Account for missing 0x9060
+        }
+        if (pid > POLL_CELL_92) {
+          cell_index -= 1;  // Account for missing 0x9080
+        }
+
+        datalayer_battery->status.cell_voltages_mV[cell_index] = (uint16_t)((value) * 0.976563);
+      }
       break;
   }
+  return 0;  //Continue scanning the PID list in order
 }
 
 void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
-  if (datalayer_extended.zoePH2.UserRequestNVROLReset) {
+  if (UserRequestNVROLReset) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
   }
@@ -443,24 +466,6 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame_376();      //HEVC Time and Date
   }
 
-  // Send 200ms polling CAN Message (Only if not NVROL in progress)
-  if ((currentMillis - previousMillis200 >= INTERVAL_200_MS) && !datalayer_extended.zoePH2.UserRequestNVROLReset) {
-    previousMillis200 = currentMillis;
-
-    // Update current poll from the array
-    currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 163;
-
-    ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
-    ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
-
-    if (UserRequestedDTCReset == true) {
-      UserRequestedDTCReset = false;
-      transmit_can_frame(&ZOE_CLEAR_DTC);  //Send DTC reset command
-    }
-    transmit_can_frame(&ZOE_POLL_18DADBF1);
-  }
-
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
@@ -470,12 +475,16 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ZOE_5F8);  //Vehicle ID
     transmit_can_frame(&ZOE_6BF);  //Total Boost Time
   }
+
+  if (!UserRequestNVROLReset) {
+    // UDS PID polling and DTC handling (Only if not NVROL reset in progress)
+    transmit_uds_can(currentMillis);
+  }
 }
 
 void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer_battery->info.number_of_cells = 96;
   datalayer_battery->info.total_capacity_Wh = 52000;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -484,6 +493,175 @@ void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+
+  // UDS: send requests to 0x18DADBF1, accept replies from the BMS on 0x18DAF1DB.
+  setup_uds(0x18DADBF1, 0x18DAF1DB);
+  static const uint16_t pid_scan_list[] = {
+      POLL_SOC,
+      POLL_USABLE_SOC,
+      POLL_SOH,
+      POLL_PACK_VOLTAGE,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_MAX_CELL_VOLTAGE,
+      POLL_MIN_CELL_VOLTAGE,
+      POLL_12V,
+      POLL_AVG_TEMP,
+      POLL_MIN_TEMP,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_MAX_TEMP,
+      POLL_MAX_POWER,
+      POLL_INTERLOCK,
+      POLL_KWH,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CURRENT_OFFSET,
+      POLL_MAX_GENERATED,
+      POLL_MAX_AVAILABLE,
+      POLL_CURRENT_VOLTAGE,
+      POLL_CHARGING_STATUS,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_REMAINING_CHARGE,
+      POLL_BALANCE_CAPACITY_TOTAL,
+      POLL_BALANCE_TIME_TOTAL,
+      POLL_BALANCE_CAPACITY_SLEEP,
+      POLL_BALANCE_TIME_SLEEP,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_BALANCE_CAPACITY_WAKE,
+      POLL_BALANCE_TIME_WAKE,
+      POLL_BMS_STATE,
+      POLL_BALANCE_SWITCHES,
+      POLL_ENERGY_COMPLETE,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_ENERGY_PARTIAL,
+      POLL_SLAVE_FAILURES,
+      POLL_MILEAGE,
+      POLL_FAN_SPEED,
+      POLL_FAN_PERIOD,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_FAN_CONTROL,
+      POLL_FAN_DUTY,
+      POLL_TEMPORISATION,
+      POLL_TIME,
+      POLL_PACK_TIME,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_SOC_MIN,
+      POLL_SOC_MAX,
+      POLL_CELL_0,
+      POLL_CELL_1,
+      POLL_CELL_2,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_3,
+      POLL_CELL_4,
+      POLL_CELL_5,
+      POLL_CELL_6,
+      POLL_CELL_7,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_8,
+      POLL_CELL_9,
+      POLL_CELL_10,
+      POLL_CELL_11,
+      POLL_CELL_12,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_13,
+      POLL_CELL_14,
+      POLL_CELL_15,
+      POLL_CELL_16,
+      POLL_CELL_17,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_18,
+      POLL_CELL_19,
+      POLL_CELL_20,
+      POLL_CELL_21,
+      POLL_CELL_22,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_23,
+      POLL_CELL_24,
+      POLL_CELL_25,
+      POLL_CELL_26,
+      POLL_CELL_27,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_28,
+      POLL_CELL_29,
+      POLL_CELL_30,
+      POLL_CELL_31,
+      POLL_CELL_32,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_33,
+      POLL_CELL_34,
+      POLL_CELL_35,
+      POLL_CELL_36,
+      POLL_CELL_37,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_38,
+      POLL_CELL_39,
+      POLL_CELL_40,
+      POLL_CELL_41,
+      POLL_CELL_42,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_43,
+      POLL_CELL_44,
+      POLL_CELL_45,
+      POLL_CELL_46,
+      POLL_CELL_47,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_48,
+      POLL_CELL_49,
+      POLL_CELL_50,
+      POLL_CELL_51,
+      POLL_CELL_52,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_53,
+      POLL_CELL_54,
+      POLL_CELL_55,
+      POLL_CELL_56,
+      POLL_CELL_57,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_58,
+      POLL_CELL_59,
+      POLL_CELL_60,
+      POLL_CELL_61,
+      POLL_CELL_62,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_63,
+      POLL_CELL_64,
+      POLL_CELL_65,
+      POLL_CELL_66,
+      POLL_CELL_67,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_68,
+      POLL_CELL_69,
+      POLL_CELL_70,
+      POLL_CELL_71,
+      POLL_CELL_72,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_73,
+      POLL_CELL_74,
+      POLL_CELL_75,
+      POLL_CELL_76,
+      POLL_CELL_77,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_78,
+      POLL_CELL_79,
+      POLL_CELL_80,
+      POLL_CELL_81,
+      POLL_CELL_82,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_83,
+      POLL_CELL_84,
+      POLL_CELL_85,
+      POLL_CELL_86,
+      POLL_CELL_87,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_88,
+      POLL_CELL_89,
+      POLL_CELL_90,
+      POLL_CELL_91,
+      POLL_CELL_92,
+      POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
+      POLL_CELL_93,
+      POLL_CELL_94,
+      POLL_CELL_95,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
 
 void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
@@ -512,15 +690,15 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
     case 0:
       startTimeNVROL = millis();
       // NVROL reset, part 1: send 0x021003AAAAAAAAAA
-      ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-      transmit_can_frame(&ZOE_POLL_18DADBF1);
+      ZOE_UDS_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+      transmit_can_frame(&ZOE_UDS_18DADBF1);
       NVROLstateMachine = 1;
       break;
     case 1:  // wait 100 ms
       if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
         // NVROL reset, part 2: send 0x043101B00900AAAA
-        ZOE_POLL_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1);
+        ZOE_UDS_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
+        transmit_can_frame(&ZOE_UDS_18DADBF1);
         startTimeNVROL = millis();  //Reset time start, so we can check time for next step
         NVROLstateMachine = 2;
       }
@@ -528,8 +706,8 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
     case 2:  // wait 1 s
       if ((millis() - startTimeNVROL) > INTERVAL_1_S) {
         // Enable temporisation before sleep, part 1: send 0x021003AAAAAAAAAA
-        ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1);
+        ZOE_UDS_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+        transmit_can_frame(&ZOE_UDS_18DADBF1);
         startTimeNVROL = millis();  //Reset time start, so we can check time for next step
         NVROLstateMachine = 3;
       }
@@ -537,11 +715,8 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
     case 3:  //Wait 100ms
       if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
         // Enable temporisation before sleep, part 2: send 0x042E928101AAAAAA
-        ZOE_POLL_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
-        transmit_can_frame(&ZOE_POLL_18DADBF1);
-        // Set data back to init values, we are done with the ZOE_POLL_18DADBF1 frame
-        ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
-        poll_index = 0;
+        ZOE_UDS_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
+        transmit_can_frame(&ZOE_UDS_18DADBF1);
         NVROLstateMachine = 4;
       }
       break;
@@ -550,7 +725,7 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       ZOE_373.data.u8[0] = 0x01;
       if ((millis() - startTimeNVROL) > INTERVAL_30_S) {
         // after sleeping, set the nvrol reset flag to false, to continue normal operation of sending CAN messages
-        datalayer_extended.zoePH2.UserRequestNVROLReset = false;
+        UserRequestNVROLReset = false;
         // Wake battery back up
         ZOE_373.data.u8[0] = 0xC1;
         // reset state machine, we are done!

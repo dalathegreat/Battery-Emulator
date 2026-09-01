@@ -485,7 +485,7 @@ void setup_battery() {
           battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::RenaultZoe2:
-          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::TestFake:
           battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);

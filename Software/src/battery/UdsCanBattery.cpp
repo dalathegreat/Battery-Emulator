@@ -205,6 +205,11 @@ void UdsCanBattery::on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, ui
   // This is called by isotp_poll() from transmit_uds_can(..)
   CAN_frame frame = {};
   frame.ID = uds_address;  // Ignore the can_id from the ISO-TP layer, use our own.
+  if (can_id > 0x7FF) {
+    frame.ext_ID = true;
+  } else {
+    frame.ext_ID = false;
+  }
   frame.DLC = can_dlc;
   memcpy(frame.data.u8, can_data, can_dlc);
   transmit_can_frame(&frame);
@@ -491,7 +496,7 @@ void UdsCanBattery::uds_send(SID service_id, const uint8_t* data, uint16_t lengt
   uds_transaction_timeout = timeout;
 }
 
-void UdsCanBattery::setup_uds(uint16_t uds_address, uint16_t uds_response_address) {
+void UdsCanBattery::setup_uds(uint32_t uds_address, uint32_t uds_response_address) {
   this->uds_address = uds_address;
   isotp_init(uds_address);
   this->uds_response_address = uds_response_address;
