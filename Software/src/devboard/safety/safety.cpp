@@ -364,8 +364,7 @@ void update_machineryprotection() {
     // check would raise a permanent error and the FAULT state would zero the power limits.
     if (battery->interface_type() == BatteryInterfaceType::Can) {
       check_can_component_alive(datalayer.battery.status.CAN_battery_still_alive, battery_detected,
-                                EVENT_CAN_BATTERY_DETECTED, EVENT_CAN_BATTERY_MISSING,
-                                can_config.battery);
+                                EVENT_CAN_BATTERY_DETECTED, EVENT_CAN_BATTERY_MISSING, can_config.battery);
     }
   }
 
