@@ -30,6 +30,7 @@ class PylonBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::Pylon;
   static constexpr const char* Name = "Pylon /Dyness compatible battery";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }

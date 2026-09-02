@@ -12,6 +12,7 @@ class BydCanInverter : public CanInverterProtocol {
   void update_values();
   bool provides_shunt() { return true; }
   void enable_shunt();
+  static constexpr InverterProtocolType TYPE = InverterProtocolType::BydCan;
   static constexpr const char* Name = "BYD Battery-Box Premium HVS over CAN Bus";
 
  private:

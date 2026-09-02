@@ -19,20 +19,22 @@ class DataLayerResetListener : public ::testing::EmptyTestEventListener {
     reset_all_events();
 
     // Every instance holds pointers into the datalayer we just replaced, so
-    // destroy them all.
-    delete battery;
+    // drop them all. The driver base classes have protected destructors -
+    // nothing deletes a driver through a base pointer, in the emulator or
+    // here - so these are abandoned rather than freed. The instances leak for
+    // the lifetime of the test binary, which is bounded and deliberate; the
+    // point of the reset is that no live pointer outlives the datalayer.
     battery = nullptr;
-    delete battery2;
     battery2 = nullptr;
-    delete battery3;
     battery3 = nullptr;
     delete charger;
     charger = nullptr;
     /* The inverter is the same kind of instance and was the one omission here.
        It also decides behaviour by TYPE - needs_can_startup_grace() is true for
        the SMA family and false for the rest - so a test inheriting the previous
-       test's inverter silently runs against the wrong protocol. */
-    delete inverter;
+       test's inverter silently runs against the wrong protocol. Abandoned
+       rather than freed, like the batteries above - the protected destructor
+       forbids deleting through the base pointer. */
     inverter = nullptr;
 
     // Selection globals must be owned by each test's own fixture.
