@@ -185,7 +185,7 @@ TEST(NissanLeafHealthTests, ShouldDecodeTwelveVoltLevel) {
   EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 12480u);
 }
 
-// The field is only documented on ZE0/AZE0, but it is read at the same offset on ZE1 too.
+// Same offset on ZE1 as on ZE0/AZE0, confirmed on the bench.
 TEST(NissanLeafHealthTests, ShouldDecodeTwelveVoltLevelOnZe1Layout) {
   auto battery = battery_polling();
 
@@ -205,8 +205,7 @@ TEST(NissanLeafHealthTests, ShouldIgnoreTwelveVoltLevelOnUnknownLayout) {
   EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 0u);
 }
 
-// Whatever sits at that offset on a layout that does not carry the 12 V level is very unlikely to
-// look like one, and is rejected rather than reported.
+// A garbled or partial frame cannot put a value outside the range of a 12 V battery on the page.
 TEST(NissanLeafHealthTests, ShouldRejectImplausibleTwelveVoltLevel) {
   auto battery = battery_polling();
 

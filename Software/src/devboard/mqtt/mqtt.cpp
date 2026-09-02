@@ -481,8 +481,8 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     if (leaf.battery_HX_pptt != 0u) {
       doc["leaf_hx"] = ((float)leaf.battery_HX_pptt) / 100.0f;
     }
-    // Same treatment for the 12 V level: omitted until the pack has reported one, and on
-    // generations where the field is not mapped it never appears at all.
+    // Same treatment for the 12 V level: omitted until the pack has reported one, so it reads
+    // unknown rather than 0.00 V until the first group 1 reply comes back.
     if (leaf.VBAT_mV != 0u) {
       doc["leaf_vbat"] = ((float)leaf.VBAT_mV) / 1000.0f;
     }

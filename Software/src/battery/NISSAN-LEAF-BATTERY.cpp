@@ -633,16 +633,15 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             datalayer_battery->status.insulation_resistance_kOhm = battery_insulation;
             datalayer_battery->status.insulation_resistance_available = true;
           }
-          //12 V accessory battery level at payload[22..23], in mV. Documented on the ZE0/AZE0
-          //layout only, and read at the same offset on ZE1 on the chance that its layout carries
-          //it in the same place - if it does not, whatever sits there is very unlikely to look
-          //like a 12 V reading and the plausibility band below rejects it, leaving the level
-          //unknown and the fallback indicator in charge. Gated on the three layouts whose length
-          //is recognised: a ZE1 answers 0x2C shortly after wakeup with a layout nothing here
-          //knows, and that one is left alone.
+          //12 V accessory battery level at payload[22..23], in mV. Unlike Hx below, this sits at
+          //the same offset on every layout the driver recognises - ZE1 confirmed on the bench -
+          //so no generation branch is needed. Only 0x2C is left out, the layout a ZE1 answers
+          //with shortly after wakeup, which nothing here has mapped.
+          //The range check is a guard against a garbled or partial frame, not against the layout:
+          //nothing outside 6-20 V is a reading from a 12 V battery.
           if ((group_7bb_length == 0x29) || (group_7bb_length == 0x2B) || (group_7bb_length == 0x35)) {
             uint16_t vbat = (uint16_t)((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
-            if ((vbat > 6000u) && (vbat < 20000u)) {  //Anything outside 6-20 V is not a 12 V battery
+            if ((vbat > 6000u) && (vbat < 20000u)) {
               battery_vbat_mV = vbat;
             }
           }
