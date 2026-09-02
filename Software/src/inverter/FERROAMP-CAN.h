@@ -59,16 +59,8 @@ Change the following only if your inverter is generating fault codes about volta
                              .DLC = 8,
                              .ID = 0x8231,
                              .data = {0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame FERROAMP_8251 = {.FD = false,
-                             .ext_ID = true,
-                             .DLC = 1,
-                             .ID = 0x8251,
-                             .data = {0xAA}};
-  CAN_frame FERROAMP_8271 = {.FD = false,
-                             .ext_ID = true,
-                             .DLC = 1,
-                             .ID = 0x8271,
-                             .data = {0xAA}};
+  CAN_frame FERROAMP_8251 = {.FD = false, .ext_ID = true, .DLC = 1, .ID = 0x8251, .data = {0xAA}};
+  CAN_frame FERROAMP_8271 = {.FD = false, .ext_ID = true, .DLC = 1, .ID = 0x8271, .data = {0xAA}};
 
   CAN_frame FERROAMP_4211 = {.FD = false,
                              .ext_ID = true,

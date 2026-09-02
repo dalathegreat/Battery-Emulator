@@ -15,16 +15,8 @@ static uint16_t estimate_pylon_lfp_cell_voltage_mV(uint8_t soc_percent) {
   //Used for non-LFP donor batteries so reported cell min/max voltages stay in a range
   //that Ferroamp expects from a Pylontech/LFP battery.
   static const SocVoltagePoint curve[] = {
-      {0, 3000},
-      {5, 3150},
-      {10, 3210},
-      {20, 3260},
-      {35, 3290},
-      {50, 3310},
-      {65, 3330},
-      {80, 3360},
-      {90, 3380},
-      {100, 3420},
+      {0, 3000},  {5, 3150},  {10, 3210}, {20, 3260}, {35, 3290},
+      {50, 3310}, {65, 3330}, {80, 3360}, {90, 3380}, {100, 3420},
   };
 
   if (soc_percent <= curve[0].soc) {
@@ -37,8 +29,7 @@ static uint16_t estimate_pylon_lfp_cell_voltage_mV(uint8_t soc_percent) {
       const SocVoltagePoint lower = curve[i - 1];
       const SocVoltagePoint upper = curve[i];
       return lower.voltage_mV +
-             ((uint32_t)(soc_percent - lower.soc) * (upper.voltage_mV - lower.voltage_mV)) /
-                 (upper.soc - lower.soc);
+             ((uint32_t)(soc_percent - lower.soc) * (upper.voltage_mV - lower.voltage_mV)) / (upper.soc - lower.soc);
     }
   }
 
