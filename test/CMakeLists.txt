@@ -94,6 +94,8 @@ add_executable(tests
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/types.cpp
+    ../Software/src/devboard/i18n/i18n_util.cpp
+    ../Software/src/devboard/i18n/i18n_store.cpp
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
