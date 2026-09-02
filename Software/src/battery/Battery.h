@@ -75,6 +75,12 @@ extern bool user_selected_triple_battery;
 
 extern battery_chemistry_enum user_selected_battery_chemistry;
 
+/* Contactor state as REPORTED by the battery's own BMS, for the parallel-join
+ * arbiter. Tri-state on purpose: Unknown means the driver cannot report (no
+ * parse for it, or the signal currently reads SNA) - unknown is never mapped
+ * onto a definite state, the consumer decides the fallback. */
+enum class ContactorState : uint8_t { Unknown, Open, Closed };
+
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
 class Battery {
@@ -149,6 +155,11 @@ class Battery {
 
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
+
+  // The contactor state the battery's own BMS reports, where the driver can
+  // parse it. Used by the parallel-join gate; Unknown falls back to the
+  // BE-commanded state.
+  virtual ContactorState reported_contactor_state() { return ContactorState::Unknown; }
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
