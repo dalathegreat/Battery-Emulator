@@ -360,8 +360,13 @@ void update_machineryprotection() {
 
     // Check that the BMS has been seen and is still sending CAN messages.
     // If we go 60s without messages we raise an error
-    check_can_component_alive(datalayer.battery.status.CAN_battery_still_alive, battery_detected,
-                              EVENT_CAN_BATTERY_DETECTED, EVENT_CAN_BATTERY_MISSING, can_config.battery);
+    // Only for batteries on CAN -- other interfaces never refresh this counter, so the
+    // check would raise a permanent error and the FAULT state would zero the power limits.
+    if (battery->interface_type() == BatteryInterfaceType::Can) {
+      check_can_component_alive(datalayer.battery.status.CAN_battery_still_alive, battery_detected,
+                                EVENT_CAN_BATTERY_DETECTED, EVENT_CAN_BATTERY_MISSING,
+                                can_config.battery);
+    }
   }
 
   if (inverter && inverter->interface_type() == InverterInterfaceType::Can) {

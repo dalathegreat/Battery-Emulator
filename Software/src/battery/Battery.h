@@ -75,6 +75,9 @@ extern bool user_selected_triple_battery;
 
 extern battery_chemistry_enum user_selected_battery_chemistry;
 
+// The type of comm interface the battery is using. Mirrors InverterInterfaceType.
+enum class BatteryInterfaceType { Can, Rs485, Modbus };
+
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
 class Battery {
@@ -84,6 +87,9 @@ class Battery {
 
   // The name of the comm interface the battery is using.
   virtual const char* interface_name() = 0;
+
+  // The type of the comm interface. Defaults to CAN; override in batteries that use another.
+  virtual BatteryInterfaceType interface_type() { return BatteryInterfaceType::Can; }
 
   // These are commands from external I/O (UI, MQTT etc.)
   // Override in battery if it supports them. Otherwise they are NOP.
