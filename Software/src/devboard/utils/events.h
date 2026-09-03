@@ -10,12 +10,18 @@
 #define GENERATE_STRING(STRING) #STRING,
 
 /* NOTE ON THE PER-BATTERY EVENTS BELOW
-   Every EVENT_BATTERY<n>_* event exists once per pack. The three variants of an event MUST stay
-   contiguous and in 1,2,3 order: set_event(event, data, battery) resolves the concrete event by
-   adding (battery - 1) to the EVENT_BATTERY1_* variant. Inserting anything between them, or
-   reordering them, silently misdirects events -- the static_asserts in events.cpp fail the build
-   if that happens. Keep EVENT_BATTERY1_EMPTY first and EVENT_BATTERY3_TEMP_DEVIATION_HIGH last;
-   set_event() uses both as range bounds. */
+   Every battery specific event exists once per pack. Pack 1 carries no digit and packs 2 and 3
+   are suffixed, matching EVENT_CANFD_BUFFER_FULL / EVENT_CANFD_2_BUFFER_FULL and
+   EVENT_VOLTAGE_DIFFERENCE_BAT2 elsewhere in this enum. So EVENT_BATTERY_OVERHEAT means battery
+   1 specifically, not "some battery" -- these names are published verbatim over MQTT, ESP-NOW
+   and the events page, and single battery installations are the overwhelmingly common case, so
+   keeping pack 1 unsuffixed keeps existing integrations working.
+
+   The three variants of an event MUST stay contiguous and in 1,2,3 order: set_event(event, data,
+   battery) resolves the concrete event by adding (battery - 1) to the unsuffixed variant.
+   Inserting anything between them, or reordering them, silently misdirects events -- the
+   static_asserts in events.cpp fail the build if that happens. Keep EVENT_BATTERY_EMPTY first and
+   EVENT_BATTERY3_TEMP_DEVIATION_HIGH last; set_event() uses both as range bounds. */
 #define EVENTS_ENUM_TYPE(XX)             \
   XX(EVENT_CANMCP2518FD_INIT_FAILURE)    \
   XX(EVENT_CANMCP2515_INIT_FAILURE)      \
@@ -50,64 +56,65 @@
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)       \
   XX(EVENT_BALANCING_START)              \
   XX(EVENT_BALANCING_END)                \
-  XX(EVENT_BATTERY1_EMPTY)               \
+  XX(EVENT_BATTERY_EMPTY)                \
   XX(EVENT_BATTERY2_EMPTY)               \
   XX(EVENT_BATTERY3_EMPTY)               \
-  XX(EVENT_BATTERY1_FULL)                \
+  XX(EVENT_BATTERY_FULL)                 \
   XX(EVENT_BATTERY2_FULL)                \
   XX(EVENT_BATTERY3_FULL)                \
-  XX(EVENT_BATTERY1_FUSE)                \
+  XX(EVENT_BATTERY_FUSE)                 \
   XX(EVENT_BATTERY2_FUSE)                \
   XX(EVENT_BATTERY3_FUSE)                \
-  XX(EVENT_BATTERY1_FROZEN)              \
+  XX(EVENT_BATTERY_FROZEN)               \
   XX(EVENT_BATTERY2_FROZEN)              \
   XX(EVENT_BATTERY3_FROZEN)              \
-  XX(EVENT_BATTERY1_CAUTION)             \
+  XX(EVENT_BATTERY_CAUTION)              \
   XX(EVENT_BATTERY2_CAUTION)             \
   XX(EVENT_BATTERY3_CAUTION)             \
-  XX(EVENT_BATTERY1_CHG_STOP_REQ)        \
+  XX(EVENT_BATTERY_CHG_STOP_REQ)         \
   XX(EVENT_BATTERY2_CHG_STOP_REQ)        \
   XX(EVENT_BATTERY3_CHG_STOP_REQ)        \
-  XX(EVENT_BATTERY1_DISCHG_STOP_REQ)     \
+  XX(EVENT_BATTERY_DISCHG_STOP_REQ)      \
   XX(EVENT_BATTERY2_DISCHG_STOP_REQ)     \
   XX(EVENT_BATTERY3_DISCHG_STOP_REQ)     \
-  XX(EVENT_BATTERY1_CHG_DISCHG_STOP_REQ) \
+  XX(EVENT_BATTERY_CHG_DISCHG_STOP_REQ)  \
   XX(EVENT_BATTERY2_CHG_DISCHG_STOP_REQ) \
   XX(EVENT_BATTERY3_CHG_DISCHG_STOP_REQ) \
-  XX(EVENT_BATTERY1_OVERHEAT)            \
+  XX(EVENT_BATTERY_OVERHEAT)             \
   XX(EVENT_BATTERY2_OVERHEAT)            \
   XX(EVENT_BATTERY3_OVERHEAT)            \
-  XX(EVENT_BATTERY1_OVERVOLTAGE)         \
+  XX(EVENT_BATTERY_OVERVOLTAGE)          \
   XX(EVENT_BATTERY2_OVERVOLTAGE)         \
   XX(EVENT_BATTERY3_OVERVOLTAGE)         \
-  XX(EVENT_BATTERY1_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY_UNDERVOLTAGE)         \
   XX(EVENT_BATTERY2_UNDERVOLTAGE)        \
   XX(EVENT_BATTERY3_UNDERVOLTAGE)        \
-  XX(EVENT_BATTERY1_VALUE_UNAVAILABLE)   \
+  XX(EVENT_BATTERY_VALUE_UNAVAILABLE)    \
   XX(EVENT_BATTERY2_VALUE_UNAVAILABLE)   \
   XX(EVENT_BATTERY3_VALUE_UNAVAILABLE)   \
-  XX(EVENT_BATTERY1_ISOLATION)           \
+  XX(EVENT_BATTERY_ISOLATION)            \
   XX(EVENT_BATTERY2_ISOLATION)           \
   XX(EVENT_BATTERY3_ISOLATION)           \
-  XX(EVENT_BATTERY1_REQUESTS_HEAT)       \
+  XX(EVENT_BATTERY_REQUESTS_HEAT)        \
   XX(EVENT_BATTERY2_REQUESTS_HEAT)       \
   XX(EVENT_BATTERY3_REQUESTS_HEAT)       \
-  XX(EVENT_BATTERY1_WARMED_UP)           \
+  XX(EVENT_BATTERY_WARMED_UP)            \
   XX(EVENT_BATTERY2_WARMED_UP)           \
   XX(EVENT_BATTERY3_WARMED_UP)           \
-  XX(EVENT_BATTERY1_SOC_RECALIBRATION)   \
+  XX(EVENT_BATTERY_SOC_RECALIBRATION)    \
   XX(EVENT_BATTERY2_SOC_RECALIBRATION)   \
   XX(EVENT_BATTERY3_SOC_RECALIBRATION)   \
-  XX(EVENT_BATTERY1_SOC_RESET_SUCCESS)   \
+  XX(EVENT_BATTERY_SOC_RESET_SUCCESS)    \
   XX(EVENT_BATTERY2_SOC_RESET_SUCCESS)   \
   XX(EVENT_BATTERY3_SOC_RESET_SUCCESS)   \
-  XX(EVENT_BATTERY1_SOC_RESET_FAIL)      \
+  XX(EVENT_BATTERY_SOC_RESET_FAIL)       \
   XX(EVENT_BATTERY2_SOC_RESET_FAIL)      \
   XX(EVENT_BATTERY3_SOC_RESET_FAIL)      \
-  XX(EVENT_BATTERY1_TEMP_DEVIATION_HIGH) \
+  XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)  \
   XX(EVENT_BATTERY2_TEMP_DEVIATION_HIGH) \
   XX(EVENT_BATTERY3_TEMP_DEVIATION_HIGH) \
   XX(EVENT_BYD_AUTO_SOC_CALIBRATION)     \
+  XX(EVENT_BYD_CHARGE_TERMINATED)        \
   XX(EVENT_BYD_CONTACTOR_MISMATCH)       \
   XX(EVENT_BYD_CONTACTOR_FORCE_OPEN)     \
   XX(EVENT_BYD_CONTACTOR_OPEN_REQ)       \
@@ -134,6 +141,7 @@
   XX(EVENT_UNKNOWN_EVENT_SET)            \
   XX(EVENT_OTA_UPDATE)                   \
   XX(EVENT_OTA_UPDATE_TIMEOUT)           \
+  XX(EVENT_OTA_ROLLBACK)                 \
   XX(EVENT_RESTARTING)                   \
   XX(EVENT_DUMMY_INFO)                   \
   XX(EVENT_DUMMY_DEBUG)                  \
@@ -184,6 +192,7 @@
   XX(EVENT_BMS_RESET_REQ_FAIL)           \
   XX(EVENT_GPIO_NOT_DEFINED)             \
   XX(EVENT_GPIO_CONFLICT)                \
+  XX(EVENT_INVERTER_REBOOT_DECLINED)     \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -244,10 +253,10 @@ void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data);
 void set_event(EVENTS_ENUM_TYPE event, int16_t data);
 // Battery-aware variant. battery is 1/2/3, or 0 when the event is not tied to one specific pack.
 // A non-zero value appends " (Battery N)" to the event message everywhere it is rendered.
-/* Raise a battery specific event for pack 1, 2 or 3. Pass the EVENT_BATTERY1_* variant as
+/* Raise a battery specific event for pack 1, 2 or 3. Pass the unsuffixed EVENT_BATTERY_* variant as
    `event` and the pack number as `battery`; the concrete event is resolved from the two.
    A driver instance passes its own battery_index, so the same driver code serves every pack.
-   Out of range arguments raise EVENT_BATTERY1_VALUE_UNAVAILABLE rather than corrupting an
+   Out of range arguments raise EVENT_BATTERY_VALUE_UNAVAILABLE rather than corrupting an
    unrelated event, since the resolution is index arithmetic over the enum. */
 void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
 void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);

@@ -5,6 +5,7 @@
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
+#include "../utils/ota_confirm_gate.h"
 
 static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
@@ -83,24 +84,24 @@ static void check_battery_temperatures(void) {
 
     // Battery is overheated!
     if (max_dC > BATTERY_MAXTEMPERATURE) {
-      set_event(EVENT_BATTERY1_OVERHEAT, max_dC, number);
+      set_event(EVENT_BATTERY_OVERHEAT, max_dC, number);
     } else {
-      clear_event(EVENT_BATTERY1_OVERHEAT, number);
+      clear_event(EVENT_BATTERY_OVERHEAT, number);
     }
 
     // Battery is too cold to operate optimally
     if (min_dC < BATTERY_MINTEMPERATURE) {
-      set_event(EVENT_BATTERY1_FROZEN, min_dC, number);
+      set_event(EVENT_BATTERY_FROZEN, min_dC, number);
     } else {
-      clear_event(EVENT_BATTERY1_FROZEN, number);
+      clear_event(EVENT_BATTERY_FROZEN, number);
     }
 
     /* Not latched: the else branch below could never release a latched event, since
        clear_event() only acts on EVENT_STATE_ACTIVE. The warning now follows the pack. */
     if (deviation_dC > BATTERY_MAX_TEMPERATURE_DEVIATION) {
-      set_event(EVENT_BATTERY1_TEMP_DEVIATION_HIGH, deviation_dC, number);
+      set_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH, deviation_dC, number);
     } else {
-      clear_event(EVENT_BATTERY1_TEMP_DEVIATION_HIGH, number);
+      clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH, number);
     }
   }
 }
@@ -197,18 +198,18 @@ void update_machineryprotection() {
 
     // Battery voltage is over designed max voltage!
     if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-      set_event(EVENT_BATTERY1_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
+      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY1_OVERVOLTAGE, 1);
+      clear_event(EVENT_BATTERY_OVERVOLTAGE, 1);
     }
 
     // Battery voltage is under designed min voltage!
     if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      set_event(EVENT_BATTERY1_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
+      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
       datalayer.battery.status.max_discharge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY1_UNDERVOLTAGE, 1);
+      clear_event(EVENT_BATTERY_UNDERVOLTAGE, 1);
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
@@ -273,12 +274,12 @@ void update_machineryprotection() {
         datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
       if (!battery_full_event_fired) {
-        set_event(EVENT_BATTERY1_FULL, 0, 1);
+        set_event(EVENT_BATTERY_FULL, 0, 1);
         battery_full_event_fired = true;
       }
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY1_FULL, 1);
+      clear_event(EVENT_BATTERY_FULL, 1);
       battery_full_event_fired = false;
     }
 
@@ -288,12 +289,12 @@ void update_machineryprotection() {
       if (datalayer.battery.status.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {
-          set_event(EVENT_BATTERY1_EMPTY, 0, 1);
+          set_event(EVENT_BATTERY_EMPTY, 0, 1);
           battery_empty_event_fired = true;
         }
         datalayer.battery.status.max_discharge_power_W = 0;
       } else {
-        clear_event(EVENT_BATTERY1_EMPTY, 1);
+        clear_event(EVENT_BATTERY_EMPTY, 1);
         battery_empty_event_fired = false;
       }
     }
@@ -655,6 +656,15 @@ void graceful_restart() {
   // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
 
   set_event(EVENT_RESTARTING, 0);
+
+  /* An intentional restart must not throw away a fresh update. The board was
+     well enough to be asked for one, which is the health this needs; without
+     this, restarting inside the 42 s window - the very thing a user does after
+     an update - would silently revert it. Armed at the REQUEST rather than at
+     the reboot, because the pause below buys 5-10 s, which is what lets the
+     write happen where every other runtime flash write happens instead of from
+     the 1 ms tick. */
+  ota_confirm_request();
 
   // Stop charge/discharge so we don't damage the contactors
   setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);

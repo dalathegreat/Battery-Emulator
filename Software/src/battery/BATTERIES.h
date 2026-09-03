@@ -23,6 +23,10 @@ Battery* create_battery(BatteryType type);
 bool battery_supports_double(BatteryType type);
 bool battery_supports_triple(BatteryType type);
 
+bool byd_cell_balance_times_available(uint8_t index);
+bool request_byd_cell_balance_times(uint8_t index);
+String byd_cell_balance_times_json(uint8_t index);
+
 extern uint16_t user_selected_max_pack_voltage_dV;
 extern uint16_t user_selected_min_pack_voltage_dV;
 extern uint16_t user_selected_max_cell_voltage_mV;
@@ -30,6 +34,7 @@ extern uint16_t user_selected_min_cell_voltage_mV;
 extern bool user_selected_use_estimated_SOC;
 extern bool user_selected_use_estimated_charge_limits;
 extern bool user_selected_LEAF_interlock_mandatory;
+extern uint8_t user_selected_LEAF_chg_sta_rq;
 extern bool user_selected_tesla_digital_HVIL;
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;

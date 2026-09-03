@@ -73,6 +73,10 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 # CONFIGURE_DEPENDS re-globs at build time, so a newly added file is picked up
 # without re-running cmake by hand. The filter drops the leftovers of an
 # in-source `cmake -B build` inside test/, which are not sources.
+# Some firmware sources include headers as "src/...", which PlatformIO resolves
+# from its src_dir (Software/). Give the test build the same root.
+include_directories(../Software)
+
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
 
@@ -85,6 +89,7 @@ add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
+    ../Software/src/communication/precharge_control/precharge_control.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
@@ -92,6 +97,7 @@ add_executable(tests
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
+    ../Software/src/devboard/utils/ota_confirm_gate.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
@@ -104,6 +110,7 @@ add_executable(tests
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
+    ../Software/src/battery/AKASOL-BATTERY.cpp
     ../Software/src/battery/BMW-I3-BATTERY.cpp
     ../Software/src/battery/BMW-I3-HTML.cpp
     ../Software/src/battery/BMW-IX-BATTERY.cpp
@@ -171,6 +178,7 @@ add_executable(tests
     ../Software/src/inverter/BYD-MODBUS.cpp
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
+    ../Software/src/inverter/FOXESS-EP-CAN.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp

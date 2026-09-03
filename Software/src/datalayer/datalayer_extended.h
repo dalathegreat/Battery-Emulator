@@ -200,6 +200,31 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_cooldown_ready;
   bool autocal_crit_contactors;
 
+  // Native BMS termination: let the battery end the charge and recalibrate SOC itself, by running a
+  // real charge session on an already closed pack. Needs the pack not reporting an insulation fault
+  // (the isolation-monitor-disable setting, on by default, normally keeps that clear).
+  bool native_termination_enabled;
+  /** Session state: 0 off, 1 requesting, 2 ready, 3 charging, 4 finishing, 5 resting */
+  uint8_t charge_session_state;
+  /** Charge grant the battery gives the charger (0x347), zero means stop */
+  uint8_t charge_grant;
+  /** Seconds spent in the current session state, so the post-charge rest can be timed */
+  uint32_t charge_session_seconds;
+  /** Highest cell and cell spread at the moment the battery ended the last charge */
+  uint16_t termination_cell_max_mV;
+  uint16_t termination_cell_min_mV;
+  uint16_t termination_cell_delta_mV;
+  uint8_t termination_cell_max_number;
+  uint8_t termination_cell_min_number;
+  /** Cycle the contactors open after a native termination, then close again */
+  bool balancing_enabled;
+  /** How long to hold the pack open for */
+  uint16_t balancing_hold_minutes;
+  /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
+  uint8_t balancing_state;
+  /** Minutes left of the hold */
+  uint16_t balancing_remaining_min;
+
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI
@@ -488,6 +513,42 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
 
   uint8_t ecu_serial_number[16];
   uint8_t ecu_version_number[16];
+};
+
+struct DATALAYER_INFO_KIA64FD {
+  /** SOC reported by the BMS, 1000 = 100.0% */
+  uint16_t SOC_BMS;
+  /** SOC shown on the vehicle display, 1000 = 100.0% */
+  uint16_t SOC_Display;
+  /** SOC estimated from the lowest cell voltage, 10000 = 100.00% */
+  uint16_t SOC_estimated_lowest;
+  /** SOC estimated from the highest cell voltage, 10000 = 100.00% */
+  uint16_t SOC_estimated_highest;
+  /** State of health reported by the BMS, 1000 = 100.0% */
+  uint16_t batterySOH;
+  /** Voltage measured on the inverter side of the contactors, in V */
+  uint16_t inverterVoltage;
+
+  /** Charge power the BMS permits, in kW*100 */
+  int16_t allowedChargePower;
+  /** Discharge power the BMS permits, in kW*100 */
+  int16_t allowedDischargePower;
+  /** 12V auxiliary battery voltage, 120 = 12.0V */
+  int16_t leadAcidBatteryVoltage;
+
+  /** Coolant temperature at the pack inlet, in degrees C */
+  int8_t temperature_water_inlet;
+  /** Battery heater temperature, in degrees C */
+  int8_t heatertemp;
+
+  /** Index of the cell holding the highest voltage */
+  uint8_t CellVmaxNo;
+  /** Index of the cell holding the lowest voltage */
+  uint8_t CellVminNo;
+  /** BMS operating mode */
+  uint8_t batteryManagementMode;
+  /** BMS ignition signal state */
+  uint8_t BMS_ign;
 };
 
 struct DATALAYER_INFO_RIVIAN {
@@ -1013,6 +1074,10 @@ class DataLayerExtended {
     DATALAYER_INFO_FISKER_OCEAN fiskerOcean;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
     struct {
+      DATALAYER_INFO_KIA64FD Kia64FD;
+      DATALAYER_INFO_KIA64FD Kia64FD_2;
+    };
+    struct {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
@@ -1045,6 +1110,9 @@ class DataLayerExtended {
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
+      data.native_termination_enabled = true;
+      data.balancing_enabled = false;
+      data.balancing_hold_minutes = 30;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);
