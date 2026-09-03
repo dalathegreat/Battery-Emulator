@@ -59,17 +59,22 @@ class GrowattLvBattery : public CanBattery {
   unsigned long previousMillis1000 = 0;
 
   // --- Outgoing (PCS -> BMS) ---
-  // Payload taken from the example in Growatt's protocol document. Its
-  // semantics are undocumented; a real capture showed it static across an
-  // entire session (idle, discharge, charge, cold boot) with no counter or
-  // checksum, and a real Growatt inverter sending it unchanged is what gets
-  // a real GBLI6532 to enable within seconds - see growatt2solis's own
-  // README for the full commissioning writeup this port is based on.
+  // Real payload captured off a genuine Growatt SPH6000. Its semantics are
+  // undocumented; static across an entire session (idle, discharge, charge,
+  // cold boot) with no counter or checksum, and a real Growatt inverter
+  // sending it unchanged is what gets a real GBLI6532 to enable within
+  // seconds - see growatt2solis's own README/CLAUDE.md for the full
+  // commissioning writeup this port is based on. NOTE: growatt2solis itself
+  // shipped the protocol doc's *example* placeholder here
+  // (0x11 0x22 0x33 0x44 0x55 0x66 0x77 0x88) instead of this real value
+  // for its entire history until 2026-09-03, which was the actual root
+  // cause of an ~594s enable-then-disable bug there - see growatt2solis
+  // CLAUDE.md open question 8 if this ever needs re-deriving.
   CAN_frame BMS_301 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x301,
-                       .data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}};
+                       .data = {0x0B, 0x16, 0x21, 0x2C, 0x37, 0x42, 0x4D, 0x58}};
 
   // --- Parsed battery state ---
   uint16_t cvl_dV = 0;
