@@ -22,8 +22,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
 
     float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
     float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4f;
-    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
-    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.146484f;
+    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.01f;
+    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.1f;
     float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     float nominal_full_pack_energy =
         static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy) * 0.1f;
@@ -47,8 +47,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh) * 0.001f;
     float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh) * 0.001f;
     float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
-    float platformMaxBusVoltage =
-        static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1f + 375;
+    float platformMaxBusVoltage = static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage);
     float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.BMS_min_voltage) * 0.01f * 2;
     float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.BMS_max_voltage) * 0.01f * 2;
     float max_charge_current = static_cast<float>(datalayer_extended.tesla.battery_max_charge_current);

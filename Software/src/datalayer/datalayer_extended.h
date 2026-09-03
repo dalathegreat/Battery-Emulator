@@ -593,7 +593,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_info_subUsageId;
   uint16_t battery_dcdcLvBusVolt;
   uint16_t battery_dcdcHvBusVolt;
-  uint16_t battery_dcdcLvOutputCurrent;
+  int16_t battery_dcdcLvOutputCurrent;
   uint16_t battery_nominal_full_pack_energy;
   uint16_t battery_nominal_full_pack_energy_m0;
   uint16_t battery_nominal_energy_remaining;

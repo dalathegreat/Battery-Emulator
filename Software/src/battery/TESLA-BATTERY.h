@@ -548,9 +548,10 @@ class TeslaBattery : public CanBattery {
   uint16_t BMS_max_voltage = 0;
   uint16_t BMS_min_voltage = 0;
   //0x2b4: 692 PCS_dcdcRailStatus
-  uint16_t battery_dcdcHvBusVolt = 0;        // Change name from battery_high_voltage to battery_dcdcHvBusVolt
-  uint16_t battery_dcdcLvBusVolt = 0;        // Change name from battery_low_voltage to battery_dcdcLvBusVolt
-  uint16_t battery_dcdcLvOutputCurrent = 0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
+  bool older_firmware = false;              // DLC 5 frame seen: firmware up to 2023.2.12
+  uint16_t battery_dcdcHvBusVolt = 0;       // 0.1 V
+  uint16_t battery_dcdcLvBusVolt = 0;       // 10 mV
+  int16_t battery_dcdcLvOutputCurrent = 0;  // 0.1 A
   //0x292: 658 BMS_socStatus
   uint16_t battery_beginning_of_life = 0;  // kWh
   uint16_t battery_soc_min = 0;
@@ -560,7 +561,7 @@ class TeslaBattery : public CanBattery {
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
   uint32_t battery_packMass = 0;
-  uint32_t battery_platformMaxBusVoltage = 0;
+  uint32_t battery_platformMaxBusVoltage = 0;  // raw, scaled in update_values
   uint32_t battery_packConfigMultiplexer = 0;
   uint32_t battery_moduleType = 0;
   uint32_t battery_reservedConfig = 0;
