@@ -67,9 +67,8 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
-    content +=
-        "<h4>+12V BAT level: " + (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) +
-        "</h4>";
+    content += "<h4>+12V BAT level: " +
+               (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) + "</h4>";
     content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
     content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
     if (nissan_dl->LEAF_gen == 0) {
