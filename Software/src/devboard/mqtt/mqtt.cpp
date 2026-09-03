@@ -239,7 +239,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
     {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
     {"leaf_hx", "Hx", "%", "", supports_leaf_metrics},
-    {"leaf_vbat", "VBAT level", "V", "voltage", supports_leaf_metrics},
+    {"leaf_vbat", "VBAT +12 level", "V", "voltage", supports_leaf_metrics},
     {"leaf_capacity_ah", "Actual capacity (Ah)", "Ah", "", supports_leaf_metrics},
     {"leaf_capacity", "Actual capacity", "kWh", "energy_storage", supports_leaf_metrics},
     {"charge_session", "BYD Charge: Session", "", "", supports_byd_autocal_metrics},
