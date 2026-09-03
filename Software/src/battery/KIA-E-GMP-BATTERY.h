@@ -8,7 +8,10 @@ class KiaEGmpBattery : public UdsCanBattery {
  public:
   bool mandatory_charge_taper() { return true; }
   // Use the default constructor to create the first or single battery.
-  KiaEGmpBattery() { dtc = &datalayer_battery->dtc; }
+  KiaEGmpBattery() : UdsCanBattery() {
+    datalayer_battery = &datalayer.battery;
+    dtc = &datalayer_battery->dtc;
+  }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
