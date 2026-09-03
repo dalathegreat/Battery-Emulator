@@ -609,7 +609,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMax;
   uint16_t battery_BrickVoltageMin;
   uint16_t HVP_hvp1v5Ref;
-  uint16_t HVP_shuntCurrentDebug;
+  int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
   int16_t PCS_ambientTemp;
   int16_t PCS_chgPhATemp;
@@ -727,7 +727,6 @@ struct DATALAYER_INFO_TESLA {
   uint8_t HVP_info_pcbaId;
   uint8_t HVP_info_assemblyId;
   uint8_t HVP_info_bootUdsProtoVersion;
-  uint8_t HVP_shuntHwMia;
   uint8_t HVP_shuntAuxCurrentStatus;
   uint8_t HVP_shuntBarTempStatus;
   uint8_t HVP_shuntAsicTempStatus;
@@ -764,19 +763,15 @@ struct DATALAYER_INFO_TESLA {
   bool HVP_gpioPyroPor;
   bool HVP_gpioShuntEn;
   bool HVP_gpioHvpVerEn;
-  bool HVP_gpioPackCoontPosFlywheel;
+  bool HVP_gpioFcContFlywheelEnable;
   bool HVP_gpioCpLatchEnable;
-  bool HVP_gpioPcsEnable;
-  bool HVP_gpioPcsDcdcPwmEnable;
-  bool HVP_gpioPcsChargePwmEnable;
   bool HVP_gpioFcContPowerEnable;
   bool HVP_gpioHvilEnable;
-  bool HVP_gpioSecDrdy;
+  bool HVP_gpioPortSelSpiRdy;
+  bool HVP_gpioPyroUnlock;
   bool HVP_packCurrentMia;
   bool HVP_auxCurrentMia;
   bool HVP_currentSenseMia;
-  bool HVP_shuntRefVoltageMismatch;
-  bool HVP_shuntThermistorMia;
 
   uint8_t BMS_partNumber[12];        //stores raw HEX values for ASCII chars
   uint8_t battery_serialNumber[15];  //stores raw HEX values for ASCII chars

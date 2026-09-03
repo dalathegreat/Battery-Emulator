@@ -797,22 +797,17 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_gpioPyroPor = HVP_gpioPyroPor;
   datalayer_extended.tesla.HVP_gpioShuntEn = HVP_gpioShuntEn;
   datalayer_extended.tesla.HVP_gpioHvpVerEn = HVP_gpioHvpVerEn;
-  datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel = HVP_gpioPackCoontPosFlywheel;
+  datalayer_extended.tesla.HVP_gpioFcContFlywheelEnable = HVP_gpioFcContFlywheelEnable;
   datalayer_extended.tesla.HVP_gpioCpLatchEnable = HVP_gpioCpLatchEnable;
-  datalayer_extended.tesla.HVP_gpioPcsEnable = HVP_gpioPcsEnable;
-  datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable = HVP_gpioPcsDcdcPwmEnable;
-  datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable = HVP_gpioPcsChargePwmEnable;
   datalayer_extended.tesla.HVP_gpioFcContPowerEnable = HVP_gpioFcContPowerEnable;
   datalayer_extended.tesla.HVP_gpioHvilEnable = HVP_gpioHvilEnable;
-  datalayer_extended.tesla.HVP_gpioSecDrdy = HVP_gpioSecDrdy;
+  datalayer_extended.tesla.HVP_gpioPortSelSpiRdy = HVP_gpioPortSelSpiRdy;
+  datalayer_extended.tesla.HVP_gpioPyroUnlock = HVP_gpioPyroUnlock;
   datalayer_extended.tesla.HVP_hvp1v5Ref = HVP_hvp1v5Ref;
   datalayer_extended.tesla.HVP_shuntCurrentDebug = HVP_shuntCurrentDebug;
   datalayer_extended.tesla.HVP_packCurrentMia = HVP_packCurrentMia;
   datalayer_extended.tesla.HVP_auxCurrentMia = HVP_auxCurrentMia;
   datalayer_extended.tesla.HVP_currentSenseMia = HVP_currentSenseMia;
-  datalayer_extended.tesla.HVP_shuntRefVoltageMismatch = HVP_shuntRefVoltageMismatch;
-  datalayer_extended.tesla.HVP_shuntThermistorMia = HVP_shuntThermistorMia;
-  datalayer_extended.tesla.HVP_shuntHwMia = HVP_shuntHwMia;
   datalayer_extended.tesla.HVP_dcLinkVoltage = HVP_dcLinkVoltage;
   datalayer_extended.tesla.HVP_packVoltage = HVP_packVoltage;
   datalayer_extended.tesla.HVP_fcLinkVoltage = HVP_fcLinkVoltage;
@@ -1421,9 +1416,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         {
           uint8_t num_at_bit2 = (rx_frame.data.u8[0] >> 2) & 0x0F;  //2|4@1+ NumTMax (old) / NumTMin (new)
           uint8_t num_at_bit8 = rx_frame.data.u8[1] & 0x0F;         //8|4@1+ NumTMin (old) / NumTMax (new)
-          bool has_tavg = rx_frame.data.u8[4] >= rx_frame.data.u8[3] && rx_frame.data.u8[4] <= rx_frame.data.u8[2];
-          battery_BrickTempMaxNum = has_tavg ? num_at_bit8 : num_at_bit2;
-          battery_BrickTempMinNum = has_tavg ? num_at_bit2 : num_at_bit8;
+          newer_firmware = rx_frame.data.u8[4] >= rx_frame.data.u8[3] && rx_frame.data.u8[4] <= rx_frame.data.u8[2];
+          battery_BrickTempMaxNum = newer_firmware ? num_at_bit8 : num_at_bit2;
+          battery_BrickTempMinNum = newer_firmware ? num_at_bit2 : num_at_bit8;
         }
         //BattBrickModelTMax m0 : 32|8@1+ (0.5,-40) [0|0] "C" (_d[4] & (0xFFU));
         battery_BrickModelTMax = (rx_frame.data.u8[4] & (0xFFU));  //to datalayer_extended
@@ -1656,24 +1651,22 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         HVP_gpioPyroPor = ((rx_frame.data.u8[2] >> 1) & (0x01U));               //: 17|1@1+ (1,0) [0|1] ""  Receiver
         HVP_gpioShuntEn = ((rx_frame.data.u8[2] >> 2) & (0x01U));               //: 18|1@1+ (1,0) [0|1] ""  Receiver
         HVP_gpioHvpVerEn = ((rx_frame.data.u8[2] >> 3) & (0x01U));              //: 19|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPackCoontPosFlywheel = ((rx_frame.data.u8[2] >> 4) & (0x01U));  //: 20|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioFcContFlywheelEnable = ((rx_frame.data.u8[2] >> 4) & (0x01U));  //: 20|1@1+ (1,0) [0|1] ""  Receiver
         HVP_gpioCpLatchEnable = ((rx_frame.data.u8[2] >> 5) & (0x01U));         //: 21|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPcsEnable = ((rx_frame.data.u8[2] >> 6) & (0x01U));             //: 22|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPcsDcdcPwmEnable = ((rx_frame.data.u8[2] >> 7) & (0x01U));      //: 23|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPcsChargePwmEnable = (rx_frame.data.u8[3] & (0x01U));           //: 24|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioFcContPowerEnable = ((rx_frame.data.u8[3] >> 1) & (0x01U));     //: 25|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioHvilEnable = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //: 26|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioSecDrdy = ((rx_frame.data.u8[3] >> 3) & (0x01U));               //: 27|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_hvp1v5Ref = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
-                        ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|3] "V"  Receiver
-        HVP_shuntCurrentDebug = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                                (rx_frame.data.u8[5] & (0xFFU));     //: 40|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
-        HVP_packCurrentMia = (rx_frame.data.u8[7] & (0x01U));        //: 56|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_auxCurrentMia = ((rx_frame.data.u8[7] >> 1) & (0x01U));  //: 57|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_currentSenseMia = ((rx_frame.data.u8[7] >> 2) & (0x03U));          //: 58|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_shuntRefVoltageMismatch = ((rx_frame.data.u8[7] >> 3) & (0x01U));  //: 59|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_shuntThermistorMia = ((rx_frame.data.u8[7] >> 4) & (0x01U));       //: 60|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_shuntHwMia = ((rx_frame.data.u8[7] >> 5) & (0x01U));               //: 61|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioFcContPowerEnable = ((rx_frame.data.u8[2] >> 6) & (0x01U));     //: 22|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioHvilEnable = ((rx_frame.data.u8[2] >> 7) & (0x01U));            //: 23|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioPortSelSpiRdy = (rx_frame.data.u8[3] & (0x01U));                //: 24|1@1+ (1,0) [0|1] ""  Receiver
+        {
+          //Up to firmware 2023.7.30: hvp1v5Ref 25|12, MIA flags from bit 37. From 2023.12.1 gpioPyroUnlock
+          //takes bit 25 and everything behind it moves up one bit.
+          uint8_t shift = newer_firmware ? 1 : 0;
+          HVP_gpioPyroUnlock = newer_firmware && (rx_frame.data.u8[3] & 0x02);
+          HVP_hvp1v5Ref = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) >> (1 + shift)) & 0x0FFF;  //(0.1,0) "V"
+          uint16_t mia = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) >> (5 + shift);
+          HVP_packCurrentMia = mia & 0x01;
+          HVP_auxCurrentMia = (mia >> 1) & 0x01;
+          HVP_currentSenseMia = (mia >> 2) & 0x01;
+        }
       }
       if (mux == 1) {
         HVP_dcLinkVoltage = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
@@ -1731,6 +1724,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         HVP_shuntAuxCurrentStatus = (rx_frame.data.u8[7] & (0x03U));       //: 56|2@1+ (1,0) [0|3] ""  Receiver
         HVP_shuntBarTempStatus = ((rx_frame.data.u8[7] >> 2) & (0x03U));   //: 58|2@1+ (1,0) [0|3] ""  Receiver
         HVP_shuntAsicTempStatus = ((rx_frame.data.u8[7] >> 4) & (0x03U));  //: 60|2@1+ (1,0) [0|3] ""  Receiver
+      }
+      if (mux == 7) {
+        HVP_shuntCurrentDebug = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3];  //: 24|16@1- (0.1,0) "A"
       }
       break;
     /* We ignore 0x3AA for now, as on later software/firmware this is a muxed frame so values aren't correct.
