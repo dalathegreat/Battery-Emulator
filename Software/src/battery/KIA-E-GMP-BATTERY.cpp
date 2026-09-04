@@ -178,6 +178,9 @@ String KiaEGmpBattery::get_uds_info_html() {
               "<h4>Waterleakage: " << String(waterleakageSensor)  << "</h4>"
               "<h4>Temperature, water inlet: " << String(temperature_water_inlet)  << "</h4>"
               "<h4>Batterymanagement mode: " << String(batteryManagementMode)  << "</h4>"
+              "<h4>Cumulative Charge Energy: " << String(cumulativeChargeEnergy)  << " Wh</h4>"
+              "<h4>Cumulative Discharge Energy: " << String(cumulativeDischargeEnergy)  << " Wh</h4>"
+              "<h4>Operation Time: " << String(opTime)  << " s</h4>"
               "<h4>BMS ignition: " << String(BMS_ign)  << "</h4>";
 
   return content;
@@ -256,13 +259,47 @@ uint16_t KiaEGmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t*
   // the big-endian PID value (up to 4 bytes), `data` points at the raw value
   // bytes (without the SID/DID header). Return 0 to continue the scan list.
   switch (pid) {
-      case POLL_GROUP_1:
+      case POLL_GROUP_1: //59 bytes
+      // Frame 10 (ef fb e7)
+      //data[0-2] We are not sure what these are.
+
+      // Frame 21 (ef 56 00 00 00 00 00) data3-9
+      SOC_BMS = data[4] * 5; //56
+      allowedChargePower = ((data[5] << 8) + data[6]); //00 00 (apparently not working)
+      allowedDischargePower = ((data[7] << 8) + data[8]); //00 00 (apparently not working)
+
+      //Frame 22 (00 3c 1a cd 17 16 16) data10-16
+      batteryAmps = (data[10] << 8) + data[11];
+      batteryVoltage = (data[12] << 8) + data[13];
+      temperatureMax = data[14];
+      temperatureMin = data[15];
+      //temperatureAvg = data[16]; Not required
+      
+      // Frame 23 (16 15 15 15 00 7f b3) data17-23
+      temperature_water_inlet = data[22];
+      CellVoltMax_mV = (data[23] * 20);
+    
+      // Frame 24 (b8 b2 37 00 00 77 00) data24-30
+      CellVmaxNo = data[24];
+      CellVoltMin_mV = (data[25] * 20);
+      CellVminNo = data[26];
+      leadAcidBatteryVoltage = data[29];
+      // Frame 25 (01 ec a6 00 01 e9 af) data31-37
+      cumulativeChargeEnergy = data[31] << 16 | data[32] << 8 | data[33];
+      cumulativeDischargeEnergy = data[35] << 16 | data[36] << 8 | data[37];
+
+      //Frame 26 (00 01 74 0f 00 01 66) data38-44
+      cumulativeChargeEnergy2 = data[39] << 16 | data[40] << 8 | data[41];
+      cumulativeDischargeEnergy2 = data[43] << 16 | data[44] << 8 | data[45]; //Flow over
+
+      //Frame 27 (a8 01 03 f3 0f 00 02) data45-51
+      opTime = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49]; 
+      BMS_ign = data[50];
+      inverterVoltage = ((data[51] << 8) + data[52]); //Flow over
+      //Frame 28 (c9 00 00 00 00 0b b8) data52-58
+
+      break;
       /*
-            switch (rx_frame.data.u8[0]) {
-        case 0x10:  //"PID Header"
-          poll_data_pid = rx_frame.data.u8[4];
-          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS
-          break;
         case 0x21:  //First frame in PID group
           if (poll_data_pid == 1) {
             allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
@@ -480,11 +517,9 @@ void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
       POLL_GROUP_6,
       POLL_GROUP_7,
       POLL_GROUP_8,
-      POLL_GROUP_9,
       POLL_GROUP_A,
       POLL_GROUP_B,
       POLL_GROUP_C,
-      POLL_GROUP_D,
   };
   set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }

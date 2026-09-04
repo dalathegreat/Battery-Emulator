@@ -46,7 +46,11 @@ class KiaEGmpBattery : public UdsCanBattery {
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
   static const int PACK_INTERNAL_RESISTANCE_MOHM = 200;  // 200 milliohms for the whole pack
 
-  uint16_t inverterVoltageFrameHigh = 0;
+  uint32_t opTime = 0;
+  uint32_t cumulativeChargeEnergy = 0;
+  uint32_t cumulativeDischargeEnergy = 0;
+  uint32_t cumulativeChargeEnergy2 = 0;
+  uint32_t cumulativeDischargeEnergy2 = 0;
   uint16_t inverterVoltage = 0;
   uint16_t soc_calculated = 500;
   uint16_t SOC_BMS = 500;
@@ -61,7 +65,6 @@ class KiaEGmpBattery : public UdsCanBattery {
   int16_t temperatureMin = 20;
   int16_t allowedDischargePower = 0;
   int16_t allowedChargePower = 0;
-  int16_t poll_data_pid = 0;
   uint8_t CellVmaxNo = 0;
   uint8_t CellVminNo = 0;
   uint8_t batteryManagementMode = 0;
@@ -557,11 +560,11 @@ class KiaEGmpBattery : public UdsCanBattery {
   static const int POLL_GROUP_6 = 0x0106;
   static const int POLL_GROUP_7 = 0x0107;
   static const int POLL_GROUP_8 = 0x0108;
-  static const int POLL_GROUP_9 = 0x0109;
+  //static const int POLL_GROUP_9 = 0x0109; Does not exist
   static const int POLL_GROUP_A = 0x010A;
   static const int POLL_GROUP_B = 0x010B;
   static const int POLL_GROUP_C = 0x010C;
-  static const int POLL_GROUP_D = 0x010D;
+  //static const int POLL_GROUP_D = 0x010D; Does not exist
 };
 
 #endif
