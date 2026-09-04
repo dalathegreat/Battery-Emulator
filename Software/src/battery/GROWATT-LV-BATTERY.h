@@ -87,6 +87,10 @@ class GrowattLvBattery : public CanBattery {
   uint8_t pack_count = 1;
   bool have_312 = false;
 
+  uint16_t remaining_cAh = 0;  // 0.01Ah units
+  uint16_t full_cAh = 0;       // 0.01Ah units
+  bool have_314 = false;
+
   int16_t pack_v_cV = 0;   // 0.01V units
   int16_t current_dA = 0;  // 0.1A, + = charging
   int16_t temp_dC = 0;     // 0.1 degC

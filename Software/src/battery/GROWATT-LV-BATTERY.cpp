@@ -71,8 +71,11 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     }
 
-    case 0x314:  // Remaining/full capacity, delta-V, cycle count - logging only for now
+    case 0x314:  // Remaining/full capacity (0.01Ah), delta-V, cycle count
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      remaining_cAh = read_u16_be(rx_frame, 0);
+      full_cAh = read_u16_be(rx_frame, 2);
+      have_314 = true;
       break;
 
     case 0x319:  // Force-charge request + fallback enable bits
@@ -144,6 +147,26 @@ void GrowattLvBattery::update_values() {
   const uint16_t ceiling_dA = (uint16_t)(MAX_CURRENT_PER_PACK_dA * (uint16_t)pack_count);
   datalayer.battery.status.max_charge_current_dA = charge_en ? (ccl_dA > ceiling_dA ? ceiling_dA : ccl_dA) : 0;
   datalayer.battery.status.max_discharge_current_dA = discharge_en ? (dcl_dA > ceiling_dA ? ceiling_dA : dcl_dA) : 0;
+
+  // Power fields are separate from the current fields above and not derived
+  // from them automatically - the generic safety layer (safety.cpp) zeroes
+  // the *current* fields right back to 0 whenever the *power* fields read 0,
+  // so leaving these unset silently discarded every current value computed
+  // above on every cycle. Every other CAN battery driver in this codebase
+  // sets these the same way (current * voltage).
+  datalayer.battery.status.max_charge_power_W =
+      (int32_t)datalayer.battery.status.max_charge_current_dA * datalayer.battery.status.voltage_dV / 100;
+  datalayer.battery.status.max_discharge_power_W =
+      (int32_t)datalayer.battery.status.max_discharge_current_dA * datalayer.battery.status.voltage_dV / 100;
+
+  // Wh = Ah * V. remaining_cAh/full_cAh are 0.01Ah, pack_v_cV is 0.01V, so
+  // dividing the product by 10000 gives Wh directly. Without this, both
+  // fields silently stay at the datalayer's generic 30kWh/0Wh defaults,
+  // which have nothing to do with this pack's actual real capacity.
+  if (have_314 && have_313) {
+    datalayer.battery.info.total_capacity_Wh = ((uint32_t)full_cAh * (uint32_t)pack_v_cV) / 10000;
+    datalayer.battery.status.remaining_capacity_Wh = ((uint32_t)remaining_cAh * (uint32_t)pack_v_cV) / 10000;
+  }
 
   if (have_311) {
     uint16_t cvl = cvl_dV;
