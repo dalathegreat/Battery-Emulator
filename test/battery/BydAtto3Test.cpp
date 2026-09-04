@@ -4,6 +4,7 @@
 #include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 #include "../../Software/src/datalayer/datalayer_extended.h"
+#include "../../Software/src/devboard/utils/events.h"
 
 #include "Arduino.h"
 
@@ -434,6 +435,16 @@ const uint16_t kPackVolts = 426;  // 0x441 reports pack - 1
 const uint16_t kLowLink = 12;     // bytes 4-5 = 0x0C 0x00, the floating link
 const uint16_t kNo441 = 0xFFFF;
 
+const CAN_frame* last_transmitted_frame(uint32_t id) {
+  const std::vector<CAN_frame>& frames = get_transmitted_frames();
+  for (size_t i = frames.size(); i > 0; i--) {
+    if (frames[i - 1].ID == id) {
+      return &frames[i - 1];
+    }
+  }
+  return nullptr;
+}
+
 // 0x344 b0 = contactor feedback, b1 = BMS precharge state: 0x00 open, 0x40 moving, 0x41 running.
 CAN_frame contactor_state_frame(uint8_t b0, uint8_t b1) {
   return byd_frame(0x344, {b0, b1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
@@ -446,6 +457,7 @@ CAN_frame pack_voltage_frame() {
 }
 
 void byd_precharge_setup() {
+  reset_all_events();
   reset_byd_state();
   clear_transmitted_frames();
   datalayer.system.status.system_status = ACTIVE;
@@ -463,13 +475,8 @@ uint16_t link_on_tick(BydAttoBattery* battery, uint32_t ms) {
   clear_transmitted_frames();
   set_millis64(ms);
   battery->transmit_can(ms);
-  const std::vector<CAN_frame>& frames = get_transmitted_frames();
-  for (size_t i = frames.size(); i > 0; i--) {
-    if (frames[i - 1].ID == 0x441) {
-      return (uint16_t)((frames[i - 1].data.u8[5] << 8) | frames[i - 1].data.u8[4]);
-    }
-  }
-  return kNo441;
+  const CAN_frame* frame = last_transmitted_frame(0x441);
+  return frame ? (uint16_t)((frame->data.u8[5] << 8) | frame->data.u8[4]) : kNo441;
 }
 
 // 0x441 is only computed once counter_100ms > 3, so run six 100ms ticks before asserting anything.
@@ -498,8 +505,7 @@ TEST(BydAtto3PrechargeTests, BootIntoAClosedPackReportsPackVoltageWithoutRamping
   delete battery;
 }
 
-// Boot with the pack open is also CONTACTORS_CLOSING, so the wait timer starts when this block first
-// runs. Timed from uptime 0 instead, a boot slower than 3s times out at once and reports full pack.
+// Boot with the pack open is also CONTACTORS_CLOSING. Uptime alone must never make the reported link live.
 TEST(BydAtto3PrechargeTests, BootWithThePackOpenHoldsTheLowLinkThroughASlowBoot) {
   byd_precharge_setup();
   auto battery = new BydAttoBattery();
@@ -507,6 +513,68 @@ TEST(BydAtto3PrechargeTests, BootWithThePackOpenHoldsTheLowLinkThroughASlowBoot)
 
   EXPECT_EQ(warmup(battery, 0x00, 0x00, 4000), kLowLink);
   EXPECT_EQ(link_on_tick(battery, 6000), kLowLink);
+
+  delete battery;
+}
+
+TEST(BydAtto3PrechargeTests, BootCloseTimeoutStartsAfterFirstContactorFeedback) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  clear_transmitted_frames();
+  set_millis64(20000);
+  battery->transmit_can(20000);
+  ASSERT_NE(last_transmitted_frame(0x12D), nullptr);
+  EXPECT_EQ(last_transmitted_frame(0x12D)->data.u8[0], 0xA0);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_MISMATCH)->state, EVENT_STATE_INACTIVE);
+
+  rx_at(battery, contactor_state_frame(0x00, 0x00), 20000);
+  battery->transmit_can(20050);
+  battery->transmit_can(35000);
+  EXPECT_EQ(last_transmitted_frame(0x12D)->data.u8[0], 0xA0);
+
+  clear_transmitted_frames();
+  set_millis64(35050);
+  battery->transmit_can(35050);
+  const CAN_frame* standby = last_transmitted_frame(0x12D);
+  ASSERT_NE(standby, nullptr);
+  EXPECT_EQ(standby->data.u8[0], 0x50);
+  EXPECT_EQ(standby->data.u8[1], 0x14);
+  EXPECT_EQ(standby->data.u8[2], 0x02);
+  EXPECT_EQ(standby->data.u8[3], 0x10);
+  EXPECT_EQ(standby->data.u8[4], 0x04);
+  EXPECT_EQ(standby->data.u8[5], 0x31);
+
+  delete battery;
+}
+
+TEST(BydAtto3ContactorTests, ReportsBlockedCloseReason) {
+  byd_precharge_setup();
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  battery->request_close_contactors();
+  battery->transmit_can(50);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->data, 2);
+
+  datalayer.system.status.inverter_allows_contactor_closing = true;
+  battery->transmit_can(100);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->state, EVENT_STATE_INACTIVE);
+
+  datalayer.system.info.equipment_stop_active = true;
+  battery->request_close_contactors();
+  battery->transmit_can(150);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->data, 1);
+
+  datalayer.system.info.equipment_stop_active = false;
+  battery->transmit_can(200);
+  set_event(EVENT_DUMMY_ERROR, 0);
+  battery->request_close_contactors();
+  battery->transmit_can(250);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->data, 4);
+  clear_event(EVENT_DUMMY_ERROR);
 
   delete battery;
 }
@@ -523,26 +591,42 @@ TEST(BydAtto3PrechargeTests, RampsTheLinkOnlyAfterTheBmsStartsPrecharging) {
   rx_at(battery, contactor_state_frame(0x00, 0x40), 600);
   EXPECT_EQ(link_on_tick(battery, 600), kLowLink);
   EXPECT_EQ(link_on_tick(battery, 700), 268);
+  rx_at(battery, contactor_state_frame(0x40, 0x44), 700);
   EXPECT_EQ(link_on_tick(battery, 1000), 404);
   EXPECT_EQ(link_on_tick(battery, 1500), kPackVolts - 1);
 
   delete battery;
 }
 
-// If the BMS never moves we report the link rather than stall the close, and that has to latch. A late
-// b1 edge dropping 0x441 back to 12V is its own plausibility fault.
-TEST(BydAtto3PrechargeTests, ALateBmsResponseCannotReverseTheReportedLink) {
+TEST(BydAtto3PrechargeTests, AcceptsPackModeAsPrechargeStart) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
+
+  rx_at(battery, contactor_state_frame(0x40, 0x00), 600);
+  EXPECT_EQ(link_on_tick(battery, 600), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 700), 268);
+
+  delete battery;
+}
+
+// A slow BMS must still see the real floating link. Its eventual edge starts the normal ramp.
+TEST(BydAtto3PrechargeTests, WaitsForALateBmsResponseBeforeRamping) {
   byd_precharge_setup();
   auto battery = new BydAttoBattery();
   battery->setup();
 
   EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
   EXPECT_EQ(link_on_tick(battery, 3300), kLowLink);
-  EXPECT_EQ(link_on_tick(battery, 3500), kPackVolts - 1);
+  EXPECT_EQ(link_on_tick(battery, 3500), kLowLink);
 
   rx_at(battery, contactor_state_frame(0x00, 0x40), 3600);
-  EXPECT_EQ(link_on_tick(battery, 3700), kPackVolts - 1);
-  EXPECT_EQ(link_on_tick(battery, 4000), kPackVolts - 1);
+  EXPECT_EQ(link_on_tick(battery, 3600), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 3700), 268);
+  EXPECT_EQ(link_on_tick(battery, 4000), 404);
+  EXPECT_EQ(link_on_tick(battery, 4500), kPackVolts - 1);
 
   delete battery;
 }

@@ -225,6 +225,7 @@ void init_events(void) {
   events.entries[EVENT_BYD_CONTACTOR_FORCE_OPEN].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BYD_CONTACTOR_OPEN_REQ].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BYD_CONTACTOR_CLOSE_REQ].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CONTACTOR_CLOSE_BLOCKED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY2_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY3_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
@@ -565,6 +566,8 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BYD_CONTACTOR_CLOSE_REQ:
       return "Contactor close commanded. The battery precharges and closes its contactors. Data: 1 = cancelled a "
              "pending open.";
+    case EVENT_BYD_CONTACTOR_CLOSE_BLOCKED:
+      return "Contactor close blocked. Data bits: 1 = equipment stop, 2 = inverter denied, 4 = system fault.";
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
     case EVENT_BATTERY2_SOC_RESET_SUCCESS:
     case EVENT_BATTERY3_SOC_RESET_SUCCESS:
