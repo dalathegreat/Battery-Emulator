@@ -463,9 +463,9 @@ void setup_battery() {
           battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
-          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                             &datalayer.system.status.battery2_allowed_contactor_closing,
-                                             can_config.battery_double);
+          battery2 =
+              new KiaHyundai64Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                      can_config.battery_double);
           break;
         case BatteryType::MgGen1:
           battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
