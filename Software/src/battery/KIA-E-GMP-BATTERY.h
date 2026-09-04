@@ -33,7 +33,8 @@ class KiaEGmpBattery : public UdsCanBattery {
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
   uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
-  void set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell);
+  void set_cell_voltages(uint8_t reading, uint8_t cellNumber);
+  void process_cell_voltage_group(const uint8_t* data, uint8_t baseCell);
   void set_voltage_minmax_limits();
 
   static const int MAX_PACK_VOLTAGE_DV = 8064;  //5000 = 500.0V
@@ -553,17 +554,17 @@ class KiaEGmpBattery : public UdsCanBattery {
       &message_57, &message_58, &message_59, &message_60, &message_61, &message_62, &message_63};
 
   static const int POLL_GROUP_1 = 0x0101;
-  static const int POLL_GROUP_2 = 0x0102;
-  static const int POLL_GROUP_3 = 0x0103;
-  static const int POLL_GROUP_4 = 0x0104;
+  static const int POLL_GROUP_2 = 0x0102;  //Cellvoltages 1-32
+  static const int POLL_GROUP_3 = 0x0103;  //Cellvoltages 33-64
+  static const int POLL_GROUP_4 = 0x0104;  //Cellvoltages 65-96
   static const int POLL_GROUP_5 = 0x0105;
   static const int POLL_GROUP_6 = 0x0106;
   static const int POLL_GROUP_7 = 0x0107;
   static const int POLL_GROUP_8 = 0x0108;
   //static const int POLL_GROUP_9 = 0x0109; Does not exist
-  static const int POLL_GROUP_A = 0x010A;
-  static const int POLL_GROUP_B = 0x010B;
-  static const int POLL_GROUP_C = 0x010C;
+  static const int POLL_GROUP_A = 0x010A;  //Cellvoltages 97-128
+  static const int POLL_GROUP_B = 0x010B;  //Cellvoltages 129-160
+  static const int POLL_GROUP_C = 0x010C;  //Cellvoltages 161-192
   //static const int POLL_GROUP_D = 0x010D; Does not exist
 };
 

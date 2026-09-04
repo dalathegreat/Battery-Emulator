@@ -72,11 +72,15 @@ uint16_t KiaEGmpBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
 }
 
-void KiaEGmpBattery::set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
-  for (size_t i = 0; i < length; i++) {
-    if ((rx_frame.data.u8[start + i] * 20) > 2600) {
-      datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
-    }
+void KiaEGmpBattery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
+  if ((reading * 20) > 2600) {
+    datalayer.battery.status.cell_voltages_mV[cellNumber] = (reading * 20);
+  }
+}
+
+void KiaEGmpBattery::process_cell_voltage_group(const uint8_t* data, uint8_t baseCell) {
+  for (int i = 0; i < 32; i++) {
+    set_cell_voltages(data[4 + i], baseCell + i);
   }
 }
 
@@ -297,172 +301,41 @@ uint16_t KiaEGmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t*
       BMS_ign = data[50];
       inverterVoltage = ((data[51] << 8) + data[52]); //Flow over
       //Frame 28 (c9 00 00 00 00 0b b8) data52-58
-
       break;
-      /*
-        case 0x21:  //First frame in PID group
-          if (poll_data_pid == 1) {
-            allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
-            allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
-            SOC_BMS = rx_frame.data.u8[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
-
-          } else if (poll_data_pid == 2) {
-            // set cell voltages data, start bite, data length from start, start cell
-            set_cell_voltages(rx_frame, 2, 6, 0);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 2, 6, 32);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 2, 6, 64);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 2, 6, 96);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 2, 6, 128);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 2, 6, 160);
-          }
-          break;
-        case 0x22:  //Second datarow in PID group
-          if (poll_data_pid == 1) {
-            batteryVoltage = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4];
-            batteryAmps = (rx_frame.data.u8[1] << 8) + rx_frame.data.u8[2];
-            temperatureMax = rx_frame.data.u8[5];
-            temperatureMin = rx_frame.data.u8[6];
-            // temp1 = rx_frame.data.u8[7];
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 6);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 38);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 70);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 102);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 134);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 166);
-          } else if (poll_data_pid == 6) {
-            batteryManagementMode = rx_frame.data.u8[5];
-          }
-          break;
-        case 0x23:  //Third datarow in PID group
-          if (poll_data_pid == 1) {
-            temperature_water_inlet = rx_frame.data.u8[6];
-            CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
-            // temp2 = rx_frame.data.u8[1];
-            // temp3 = rx_frame.data.u8[2];
-            // temp4 = rx_frame.data.u8[3];
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 13);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 45);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 77);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 109);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 141);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 173);
-          } else if (poll_data_pid == 5) {
-            // ac = rx_frame.data.u8[3];
-            // Vdiff = rx_frame.data.u8[4];
-
-            // airbag = rx_frame.data.u8[6];
-            heatertemp = rx_frame.data.u8[7];
-          }
-          break;
-        case 0x24:  //Fourth datarow in PID group
-          if (poll_data_pid == 1) {
-            CellVmaxNo = rx_frame.data.u8[1];
-            CellVoltMin_mV = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
-            CellVminNo = rx_frame.data.u8[3];
-            // fanMod = rx_frame.data.u8[4];
-            // fanSpeed = rx_frame.data.u8[5];
-            leadAcidBatteryVoltage = rx_frame.data.u8[6];  //12v Battery Volts
-            //cumulative_charge_current[0] = rx_frame.data.u8[7];
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 20);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 52);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 84);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 116);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 148);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 180);
-          } else if (poll_data_pid == 5) {
-            batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
-            // maxDetCell = rx_frame.data.u8[4];
-            // minDet = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6];
-            // minDetCell = rx_frame.data.u8[7];
-          }
-          break;
-        case 0x25:  //Fifth datarow in PID group
-          if (poll_data_pid == 1) {
-            //cumulative_charge_current[1] = rx_frame.data.u8[1];
-            //cumulative_charge_current[2] = rx_frame.data.u8[2];
-            //cumulative_charge_current[3] = rx_frame.data.u8[3];
-            //cumulative_discharge_current[0] = rx_frame.data.u8[4];
-            //cumulative_discharge_current[1] = rx_frame.data.u8[5];
-            //cumulative_discharge_current[2] = rx_frame.data.u8[6];
-            //cumulative_discharge_current[3] = rx_frame.data.u8[7];
-            //set_cumulative_charge_current();
-            //set_cumulative_discharge_current();
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 5, 27);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 5, 59);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 5, 91);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 5, 123);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 5, 155);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 5, 187);
-            //set_cell_count();
-          } else if (poll_data_pid == 5) {
-            // datalayer.battery.info.number_of_cells = 98;
-            SOC_Display = rx_frame.data.u8[1] * 5;
-          }
-          break;
-        case 0x26:  //Sixth datarow in PID group
-          if (poll_data_pid == 1) {
-            //cumulative_energy_charged[0] = rx_frame.data.u8[1];
-            // cumulative_energy_charged[1] = rx_frame.data.u8[2];
-            //cumulative_energy_charged[2] = rx_frame.data.u8[3];
-            //cumulative_energy_charged[3] = rx_frame.data.u8[4];
-            //cumulative_energy_discharged[0] = rx_frame.data.u8[5];
-            //cumulative_energy_discharged[1] = rx_frame.data.u8[6];
-            //cumulative_energy_discharged[2] = rx_frame.data.u8[7];
-            // set_cumulative_energy_charged();
-          }
-          break;
-        case 0x27:  //Seventh datarow in PID group
-          if (poll_data_pid == 1) {
-            //cumulative_energy_discharged[3] = rx_frame.data.u8[1];
-
-            //opTimeBytes[0] = rx_frame.data.u8[2];
-            //opTimeBytes[1] = rx_frame.data.u8[3];
-            //opTimeBytes[2] = rx_frame.data.u8[4];
-            //opTimeBytes[3] = rx_frame.data.u8[5];
-
-            BMS_ign = rx_frame.data.u8[6];
-            inverterVoltageFrameHigh = rx_frame.data.u8[7];  // BMS Capacitoir
-
-            // set_cumulative_energy_discharged();
-            // set_opTime();
-          }
-          break;
-        case 0x28:  //Eighth datarow in PID group
-          if (poll_data_pid == 1) {
-            inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
-          }
-          break;
-      }*/
-      break;
+case POLL_GROUP_2: //Cellvoltages (Cell 1-32)
+    process_cell_voltage_group(data, 0);
+    break;
+case POLL_GROUP_3: //Cellvoltages (Cell 33-64)
+    process_cell_voltage_group(data, 32);
+    break;
+case POLL_GROUP_4: //Cellvoltages (Cell 65-96)
+    process_cell_voltage_group(data, 64);
+    break;
+case POLL_GROUP_A: //Cellvoltages (Cell 97-128)
+    process_cell_voltage_group(data, 96);
+    break;
+case POLL_GROUP_B: //Cellvoltages (Cell 129-160)
+    process_cell_voltage_group(data, 128);
+    break;
+case POLL_GROUP_C: //Cellvoltages (Cell 161-192)
+    process_cell_voltage_group(data, 160);
+    break;
+case POLL_GROUP_5:
+//Frame 0 (10 2e 62 01 05 ff fb 74) //data0-2
+//Frame21 0f 01 2c 01 01 2c 15 //data3-9
+//Frame22 15 15 15 15 15 15 6c //data10-16
+//Frame23 34 6c 34 00 00 64 1e //data17-23
+heatertemp = data[23];
+//Frame24 00 03 e8 39 38 c6 00 //data24-30
+    batterySOH = (data[25] << 8) | data[26];
+    //amountOfCells = data[29];
+//Frame25 53 00 00 00 00 00 00 //data33-39
+SOC_Display = data[33] * 5;
+//Frame26 00 15 15 15 16 aa aa //data40-46
+break;
+case POLL_GROUP_6:
+batteryManagementMode = data[14];
+break;
     default:  //Unknown pid
       break;
   }
