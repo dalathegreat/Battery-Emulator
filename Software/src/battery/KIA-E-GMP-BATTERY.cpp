@@ -178,6 +178,8 @@ String KiaEGmpBattery::get_uds_info_html() {
 
   // clang-format off
   content << "<h4>Cells: " << String(datalayer.battery.info.number_of_cells) << "</h4>"
+              "<h4>SOC (BMS): " << String(SOC_BMS) << "</h4>"
+              "<h4>SOC (Display): " << String(SOC_Display) << "</h4>"
               "<h4>12V voltage: " << String(leadAcidBatteryVoltage / 10.0f, 1) << "</h4>"
               "<h4>Waterleakage: " << String(waterleakageSensor)  << "</h4>"
               "<h4>Temperature, water inlet: " << String(temperature_water_inlet)  << "</h4>"
@@ -329,9 +331,9 @@ heatertemp = data[23];
 //Frame24 00 03 e8 39 38 c6 00 //data24-30
     batterySOH = (data[25] << 8) | data[26];
     //amountOfCells = data[29];
-//Frame25 53 00 00 00 00 00 00 //data33-39
-SOC_Display = data[33] * 5;
-//Frame26 00 15 15 15 16 aa aa //data40-46
+//Frame25 53 00 00 00 00 00 00 //data31-37
+SOC_Display = data[31] * 5;
+//Frame26 00 15 15 15 16 aa aa //data38-44
 break;
 case POLL_GROUP_6:
 batteryManagementMode = data[14];
