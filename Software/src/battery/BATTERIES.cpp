@@ -12,6 +12,7 @@
 #include "BMW-PHEV-BATTERY.h"
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
+#include "BYD-BATTERY-BOX-BATTERY.h"
 #include "CELLPOWER-BMS.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-CT.h"
@@ -112,6 +113,8 @@ const char* name_for_battery_type(BatteryType type) {
       return BoltAmperaBattery::Name;
     case BatteryType::BydAtto3:
       return BydAttoBattery::Name;
+    case BatteryType::BYDBatteryBoxPremium:
+      return BYDBatteryBoxBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
     case BatteryType::Chademo:
@@ -264,6 +267,8 @@ Battery* create_battery(BatteryType type) {
       return new BoltAmperaBattery();
     case BatteryType::BydAtto3:
       return new BydAttoBattery();
+    case BatteryType::BYDBatteryBoxPremium:
+      return new BYDBatteryBoxBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
     case BatteryType::Chademo:

@@ -61,6 +61,7 @@ enum class BatteryType {
   ChargebyteCCSBattery = 54,
   VAGMqbEvo = 55,
   Akasol = 56,
+  BYDBatteryBoxPremium = 57,
   Highest
 };
 
