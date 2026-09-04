@@ -444,7 +444,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
       battery_data.settings.user_settings_limit_charge, battery_data.settings.user_settings_limit_discharge));
   if (battery_index == 1 && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
-    doc["dc_dc_voltage"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
+    doc["dc_dc_voltage"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.01f;
   }
   if (supports_byd_autocal_metrics(::battery)) {
     const DATALAYER_INFO_BYDATTO3& byd =

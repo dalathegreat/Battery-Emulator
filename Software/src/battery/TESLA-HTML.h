@@ -22,8 +22,8 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
 
     float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
     float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4f;
-    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625f;
-    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.146484f;
+    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.01f;
+    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.1f;
     float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     float nominal_full_pack_energy =
         static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy) * 0.1f;
@@ -47,8 +47,7 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh) * 0.001f;
     float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh) * 0.001f;
     float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
-    float platformMaxBusVoltage =
-        static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1f + 375;
+    float platformMaxBusVoltage = static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage);
     float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.BMS_min_voltage) * 0.01f * 2;
     float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.BMS_max_voltage) * 0.01f * 2;
     float max_charge_current = static_cast<float>(datalayer_extended.tesla.battery_max_charge_current);
@@ -412,24 +411,16 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
     appendFault(content, "HVP_gpioPyroPor", datalayer_extended.tesla.HVP_gpioPyroPor);
     appendFault(content, "HVP_gpioShuntEn", datalayer_extended.tesla.HVP_gpioShuntEn);
     appendFault(content, "HVP_gpioHvpVerEn", datalayer_extended.tesla.HVP_gpioHvpVerEn);
-    appendFault(content, "HVP_gpioPackCoontPosFlywheel", datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel);
+    appendFault(content, "HVP_gpioFcContFlywheelEnable", datalayer_extended.tesla.HVP_gpioFcContFlywheelEnable);
     appendFault(content, "HVP_gpioCpLatchEnable", datalayer_extended.tesla.HVP_gpioCpLatchEnable);
-    appendFault(content, "HVP_gpioPcsEnable", datalayer_extended.tesla.HVP_gpioPcsEnable);
-    appendFault(content, "HVP_gpioPcsDcdcPwmEnable", datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable);
-    appendFault(content, "HVP_gpioPcsChargePwmEnable", datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable);
     appendFault(content, "HVP_gpioFcContPowerEnable", datalayer_extended.tesla.HVP_gpioFcContPowerEnable);
     appendFault(content, "HVP_gpioHvilEnable", datalayer_extended.tesla.HVP_gpioHvilEnable);
-    appendFault(content, "HVP_gpioSecDrdy", datalayer_extended.tesla.HVP_gpioSecDrdy);
+    appendFault(content, "HVP_gpioPortSelSpiRdy", datalayer_extended.tesla.HVP_gpioPortSelSpiRdy);
+    appendFault(content, "HVP_gpioPyroUnlock", datalayer_extended.tesla.HVP_gpioPyroUnlock);
     content += "<h4>HVP_shuntCurrentDebug: " + String(HVP_shuntCurrentDebug) + " A</h4>";
     content += "<h4>HVP_packCurrentMia: " + String(noYes[datalayer_extended.tesla.HVP_packCurrentMia]) + "</h4>";
     content += "<h4>HVP_auxCurrentMia: " + String(noYes[datalayer_extended.tesla.HVP_auxCurrentMia]) + "</h4>";
     content += "<h4>HVP_currentSenseMia: " + String(noYes[datalayer_extended.tesla.HVP_currentSenseMia]) + "</h4>";
-    content +=
-        "<h4>HVP_shuntRefVoltageMismatch: " + String(noYes[datalayer_extended.tesla.HVP_shuntRefVoltageMismatch]) +
-        "</h4>";
-    content +=
-        "<h4>HVP_shuntThermistorMia: " + String(noYes[datalayer_extended.tesla.HVP_shuntThermistorMia]) + "</h4>";
-    content += "<h4>HVP_shuntHwMia: " + String(noYes[datalayer_extended.tesla.HVP_shuntHwMia]) + "</h4>";
     //content += "<h4>HVP_fcLinkVoltage: " + String(HVP_fcLinkVoltage) + " V</h4>"; // Not giving useable data
     //content += "<h4>HVP_packNegativeV: " + String(HVP_packNegativeV) + " V</h4>"; // Not giving useable data
     //content += "<h4>HVP_packPositiveV: " + String(HVP_packPositiveV) + " V</h4>"; // Not giving useable data

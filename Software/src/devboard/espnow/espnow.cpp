@@ -457,13 +457,9 @@ static void send_battery_frame(uint8_t index) {
 
     if (index == 0 && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                        user_selected_battery_type == BatteryType::TeslaModelSX)) {
-      put_i16_field(ESPNOW_KEY_DCDC_CURRENT_DA,
-                    static_cast<int16_t>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent));
-      // Raw unit is 0.0390625 V; 1/0.0390625 == 25.6, so *1000/25.6 == *125/3.2. Scaled
-      // with integer maths to millivolts to keep floats out of the send path.
-      put_u16_field(
-          ESPNOW_KEY_DCDC_VOLTAGE_MV,
-          static_cast<uint16_t>((static_cast<uint32_t>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 625u) / 16u));
+      put_i16_field(ESPNOW_KEY_DCDC_CURRENT_DA, datalayer_extended.tesla.battery_dcdcLvOutputCurrent);
+      const uint32_t dcdc_mv = datalayer_extended.tesla.battery_dcdcLvBusVolt * 10u;
+      put_u16_field(ESPNOW_KEY_DCDC_VOLTAGE_MV, static_cast<uint16_t>(dcdc_mv > 0xFFFF ? 0xFFFF : dcdc_mv));
     }
     if (user_selected_battery_type == BatteryType::BydAtto3) {
       const DATALAYER_INFO_BYDATTO3& byd = (index == 1) ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
