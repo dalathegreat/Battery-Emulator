@@ -59,9 +59,10 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000_69f = 0;
+  unsigned long previousMillis60000_436 = 0;
   uint8_t counter_423 = 0;
   uint8_t zoe_19F_counter = 0;
-  uint16_t zoe_436_counter = 0xAAEA;
+  uint16_t zoe_436_counter = 1;
 
   CAN_frame ZOE_423 = {.FD = false,
                        .ext_ID = false,
@@ -86,7 +87,7 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
                                       .ext_ID = false,
                                       .DLC = 6,
                                       .ID = 0x436,
-                                      .data = {0x86, 0x14, 0xAA, 0xEA, 0xFF, 0xDC}};
+                                      .data = {0x86, 0x14, 0x00, 0x01, 0xFF, 0xDC}};
 
   CAN_frame ZOE_69F_BCM_GATEWAY = {.FD = false,
                                    .ext_ID = false,
