@@ -48,6 +48,8 @@ class KiaHyundai64Battery : public UdsCanBattery {
   bool* contactor_closing_allowed;
 
   void update_number_of_cells();
+  void set_cell_voltages(uint8_t reading, uint8_t cellNumber);
+  void process_cell_voltage_group(const uint8_t* data, uint8_t baseCell);
 
   static const int MAX_PACK_VOLTAGE_98S_DV = 4110;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_98S_DV = 2800;

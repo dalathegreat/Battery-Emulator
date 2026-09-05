@@ -57,6 +57,18 @@ void KiaHyundai64Battery::update_number_of_cells() {
   }
 }
 
+void KiaHyundai64Battery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
+  if (reading > 4) {
+    datalayer.battery.status.cell_voltages_mV[cellNumber] = (reading * 20);
+  }
+}
+
+void KiaHyundai64Battery::process_cell_voltage_group(const uint8_t* data, uint8_t baseCell) {
+  for (int i = 0; i < 32; i++) {
+    set_cell_voltages(data[4 + i], baseCell + i);
+  }
+}
+
 template <typename T>
 inline String& operator<<(String& str, const T& value) {
   str += value;
@@ -287,64 +299,80 @@ uint16_t KiaHyundai64Battery::handle_pid(uint16_t pid, uint32_t value, const uin
       }
       break;
     case POLL_GROUP_1:  //59 bytes
-      // Frame 10 (ef fb e7)
-      //data[0-2] We are not sure what these are.
-
-      // Frame 21 (ef 56 00 00 00 00 00) data3-9
-      SOC_BMS = data[4] * 5;                               //56
-      allowedChargePower = ((data[5] << 8) + data[6]);     //00 00 (apparently not working)
-      allowedDischargePower = ((data[7] << 8) + data[8]);  //00 00 (apparently not working)
-
-      //Frame 22 (00 3c 1a cd 17 16 16) data10-16
-      batteryAmps = (data[10] << 8) + data[11];
-      batteryVoltage = (data[12] << 8) + data[13];
+      // Frame 10 (ff f7 e7)//data[0-2] Most likely unused
+      // Frame 21 (ff 32 00 00 00 00 07) data3-9
+      //SOC_BMS = data[4] * 5;                               //56
+      //allowedChargePower = ((data[5] << 8) + data[6]);     //00 00 (apparently not working)
+      //allowedDischargePower = ((data[7] << 8) + data[8]);  //00 00 (apparently not working)
+      //Frame 22 (ff c1 0d b5 16 14 14) data10-16
+      //batteryAmps = (data[10] << 8) + data[11];
+      //batteryVoltage = (data[12] << 8) + data[13];
       //temperatureMax = data[14]; Not required, we read from constantly sent CAN
       //temperatureMin = data[15]; Not required, we read from constantly sent CAN
       //temperatureAvg = data[16]; Not required
-
-      // Frame 23 (16 15 15 15 00 7f b3) data17-23
+      // Frame 23 (14 15 15 00 00 15 b3) data17-23
       temperature_water_inlet = data[22];
       CellVoltMax_mV = (data[23] * 20);
-
-      // Frame 24 (b8 b2 37 00 00 77 00) data24-30
+      // Frame 24 (2c b2 01 00 00 78 00) data24-30
       CellVmaxNo = data[24];
       CellVoltMin_mV = (data[25] * 20);
       CellVminNo = data[26];
       leadAcidBatteryVoltage = data[29];
-      // Frame 25 (01 ec a6 00 01 e9 af) data31-37
+      // Frame 25 (01 98 c7 00 01 97 7e) data31-37
       //cumulativeChargeEnergy = data[31] << 16 | data[32] << 8 | data[33];
       //cumulativeDischargeEnergy = data[35] << 16 | data[36] << 8 | data[37];
-
-      //Frame 26 (00 01 74 0f 00 01 66) data38-44
+      //Frame 26 (00 00 95 ec 00 00 90) data38-44
       //cumulativeChargeEnergy2 = data[39] << 16 | data[40] << 8 | data[41];
       //cumulativeDischargeEnergy2 = data[43] << 16 | data[44] << 8 | data[45]; //Flow over
-
-      //Frame 27 (a8 01 03 f3 0f 00 02) data45-51
-      //opTime = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49];
+      //Frame 27 (8b 01 02 1d 12 09 01) data45-51
+      powered_on_total_time = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49];
       BMS_ign = data[50];
       inverterVoltage = ((data[51] << 8) + data[52]);  //Flow over
-      //Frame 28 (c9 00 00 00 00 0b b8) data52-58
+      //Frame 28 (5e 7f ff 7f ff 00 00) data52-58
+      break;
+    case POLL_GROUP_2:  //Cellvoltages, Cells 1-32
+      process_cell_voltage_group(data, 0);
+      break;
+    case POLL_GROUP_3:  //Cellvoltages, Cells 33-64
+      process_cell_voltage_group(data, 32);
+      break;
+    case POLL_GROUP_4:  //Cellvoltages, Cells 65-96 (Some batteries have only 90 cells)
+      process_cell_voltage_group(data, 64);
       break;
     case POLL_GROUP_5:
-      //Frame 0 (10 2e 62 01 05 ff fb 74) //data0-2
-      //Frame21 0f 01 2c 01 01 2c 15 //data3-9
-      //Frame22 15 15 15 15 15 15 6c //data10-16
-      //Frame23 34 6c 34 00 00 64 1e //data17-23
+      //Frame 0 (10 2e 62 01 05 00 3f ff) //data0-2
+      //Frame21 90 00 00 00 00 00 00 //data3-9
+      //Frame22 00 00 15 78 5e 01 21 //data10-16
+      //Frame23 34 1f 0e 00 01 64 1e //data17-23
       heatertemp = data[23];
-      //Frame24 00 03 e8 39 38 c6 00 //data24-30
+      //Frame24 33 03 b6 00 00 5b 00 //data24-30
       batterySOH = (data[25] << 8) | data[26];
       //amountOfCells = data[29];
-      //Frame25 53 00 00 00 00 00 00 //data31-37
+      //Frame25 33 00 00 b3 b3 01 00 //data31-37
+      if (data[34] > 4) {  //Only valid on 98S
+        cellvoltages_mv[96] = data[34] * 20;
+      }
+      if (data[35] > 4) {  //Only valid on 98S
+        cellvoltages_mv[97] = data[35] * 20;
+      }
       //SOC_Display = data[31] * 5; Not required, we read from constantly sent CAN
-      //Frame26 00 15 15 15 16 aa aa //data38-44
+      //Frame26 1e 00 00 00 00 aa aa //data38-44
       break;
     case POLL_GROUP_6:
+      //Frame 0 (ff ff ff) //data0-2
+      //Frame21 ff 15 00 d0 00 00 00 //data3-9
+      //Frame22 00 00 00 00 04 00 00 //data10-16
       batteryManagementMode = data[14];
+      //Frame23 00 00 08 0f 31 ea 00 //data17-23
       break;
     case POLL_GROUP_11:
+      //Frame 0 (f8 00 00) //data0-2
+      //Frame21 00 00 00 00 38 00 00 //data3-9
       number_of_standard_charging_sessions = ((data[6] << 8) | data[7]);
+      //Frame22 00 27 00 00 03 b5 00 //data10-16
       number_of_fastcharging_sessions = ((data[10] << 8) | data[11]);
       accumulated_normal_charging_energy_kWh = ((data[14] << 8) | data[15]);
+      //Frame23 00 05 94 0d 69 aa aa //data17-23
       accumulated_fastcharging_energy_kWh = ((data[18] << 8) | data[19]);
       break;
     default:  //Unknown pid
