@@ -61,6 +61,7 @@ enum class BatteryType {
   ChargebyteCCSBattery = 54,
   VAGMqbEvo = 55,
   Akasol = 56,
+  FiskerOcean = 57,
   Highest
 };
 

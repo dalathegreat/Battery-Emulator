@@ -305,6 +305,26 @@ struct DATALAYER_INFO_CELLPOWER {
   bool warning_Charger_not_responding;
 };
 
+struct DATALAYER_INFO_FISKER_OCEAN {
+  static constexpr uint8_t DID_COUNT = 72;
+  static constexpr uint8_t MAX_DID_PAYLOAD = 40;
+
+  struct DID_RESULT {
+    uint16_t did;
+    uint8_t payload[MAX_DID_PAYLOAD];
+    uint8_t payload_length;
+    uint32_t last_update_ms;
+    bool valid;
+  };
+
+  DID_RESULT did_results[DID_COUNT];
+  bool wake_transmit_active;
+  uint8_t wake_093_counter;
+  uint8_t wake_333_counter;
+  uint8_t broadcast_soc_percent;
+  bool broadcast_soc_valid;
+};
+
 struct DATALAYER_INFO_CHADEMO {
   uint8_t CHADEMO_Status;
   uint8_t ControlProtocolNumberEV;
@@ -1046,6 +1066,7 @@ class DataLayerExtended {
     DATALAYER_INFO_CHADEMO chademo;
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
+    DATALAYER_INFO_FISKER_OCEAN fiskerOcean;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
     struct {
       DATALAYER_INFO_KIA64FD Kia64FD;
