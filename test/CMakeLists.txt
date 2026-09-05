@@ -88,6 +88,7 @@ list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
 add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
+    ../Software/src/communication/can/mcp2517fd_clko.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
     ../Software/src/communication/precharge_control/precharge_control.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp

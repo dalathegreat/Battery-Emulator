@@ -29,7 +29,8 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_9; }
   virtual uint32_t MCP2517_FREQ2() { return 40000000; }
 
-  // Value for first MCP2517 CLKODIV register (divide by 1)
+  // Value for first MCP2517 CLKODIV register (divide by 1): the 2nd chip is
+  // clocked from the 1st chip's CLKO output, so it must carry the full 40 MHz
   virtual int MCP2517_CLKODIV() { return 0b00; }
 
   // Contactor handling
