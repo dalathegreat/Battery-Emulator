@@ -50,7 +50,15 @@ void PylonLvInverter::update_values() {
   PYLON_359.data.u8[6] = 0x4E;  //N
 
   // ERRORS
-  if (datalayer.battery.status.reported_current_dA >= (datalayer.battery.status.max_discharge_current_dA + 10))
+  // reported_current_dA follows the datalayer's "+ = charging" convention, so
+  // discharge current is negative and charge current is positive - the two
+  // over-current checks below must compare against opposite signs of their
+  // own limit, not the same sign. (Previously both compared as if positive
+  // current meant discharge, which made a charge-current check trigger on
+  // ordinary discharge instead - most visible as a false "charge over
+  // current" error the instant max_charge_current_dA reaches 0, e.g. a full
+  // battery discharging normally.)
+  if (datalayer.battery.status.reported_current_dA <= -1 * (datalayer.battery.status.max_discharge_current_dA + 10))
     PYLON_359.data.u8[0] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x10;
@@ -60,12 +68,12 @@ void PylonLvInverter::update_values() {
     PYLON_359.data.u8[0] |= 0x04;
   if (datalayer.system.status.system_status == FAULT)
     PYLON_359.data.u8[1] |= 0x80;
-  if (datalayer.battery.status.reported_current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
+  if (datalayer.battery.status.reported_current_dA >= datalayer.battery.status.max_charge_current_dA)
     PYLON_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)
-  if (datalayer.battery.status.reported_current_dA >=
-      datalayer.battery.status.max_discharge_current_dA * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.reported_current_dA <=
+      -1 * (datalayer.battery.status.max_discharge_current_dA * WARNINGS_PERCENT / 100))
     PYLON_359.data.u8[2] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <=
       warning_threshold_of_min(BATTERY_MINTEMPERATURE, BATTERY_MAXTEMPERATURE))
@@ -76,8 +84,8 @@ void PylonLvInverter::update_values() {
                                                                       datalayer.battery.info.max_design_voltage_dV))
     PYLON_359.data.u8[2] |= 0x04;
   // we never set PYLON_359.data.u8[3] |= 0x80 called "BMS internal"
-  if (datalayer.battery.status.reported_current_dA <=
-      -1 * datalayer.battery.status.max_charge_current_dA * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.reported_current_dA >=
+      datalayer.battery.status.max_charge_current_dA * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[3] |= 0x01;
 
   PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
