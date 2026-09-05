@@ -9,6 +9,14 @@
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
+#ifdef ETHERNET
+#define EVENT_ETHERNET_CONNECT_ROW(XX) XX(EVENT_ETHERNET_CONNECT)
+#define EVENT_ETHERNET_DISCONNECT_ROW(XX) XX(EVENT_ETHERNET_DISCONNECT)
+#else
+#define EVENT_ETHERNET_CONNECT_ROW(XX)
+#define EVENT_ETHERNET_DISCONNECT_ROW(XX)
+#endif
+
 /* NOTE ON THE PER-BATTERY EVENTS BELOW
    Every battery specific event exists once per pack. Pack 1 carries no digit and packs 2 and 3
    are suffixed, matching EVENT_CANFD_BUFFER_FULL / EVENT_CANFD_2_BUFFER_FULL and
@@ -181,6 +189,8 @@
   XX(EVENT_WIFI_DISCONNECT)              \
   XX(EVENT_WIFI_AP_PASSWORD_DEFAULT)     \
   XX(EVENT_WIFI_AP_PROVISION_TIMEOUT)    \
+  EVENT_ETHERNET_CONNECT_ROW(XX)         \
+  EVENT_ETHERNET_DISCONNECT_ROW(XX)      \
   XX(EVENT_MQTT_CONNECT)                 \
   XX(EVENT_MQTT_DISCONNECT)              \
   XX(EVENT_EQUIPMENT_STOP)               \
@@ -243,6 +253,53 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 String get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level);
+
+#ifdef ETHERNET
+// EVENT_ETHERNET_CONNECT stores link speed + duplex in its uint8_t data byte
+union EthLinkData {
+  uint8_t raw;
+  struct {
+    uint8_t speed_code : 3;
+    uint8_t full_duplex : 1;
+  } fields;
+};
+
+// Map the standardized IEEE 802.3 link speeds
+constexpr uint16_t eth_speed_code_to_mbps(uint8_t code) {
+  switch (code) {
+    case 1:
+      return 10;
+    case 2:
+      return 100;
+    case 3:
+      return 1000;
+    default:
+      return 0;  // unknown
+  }
+}
+constexpr uint8_t eth_mbps_to_speed_code(uint16_t mbps) {
+  switch (mbps) {
+    case 10:
+      return 1;
+    case 100:
+      return 2;
+    case 1000:
+      return 3;
+    default:
+      return 0;  // unknown
+  }
+}
+
+constexpr uint8_t eth_encode_link(uint16_t mbps, bool full_duplex) {
+  return EthLinkData{.fields = {eth_mbps_to_speed_code(mbps), (uint8_t)(full_duplex ? 1 : 0)}}.raw;
+}
+constexpr uint16_t eth_link_mbps(uint8_t data) {
+  return eth_speed_code_to_mbps(EthLinkData{.raw = data}.fields.speed_code);
+}
+constexpr bool eth_link_full_duplex(uint8_t data) {
+  return EthLinkData{.raw = data}.fields.full_duplex;
+}
+#endif  // ETHERNET
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 EMULATOR_STATUS get_emulator_status();

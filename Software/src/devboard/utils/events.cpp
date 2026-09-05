@@ -292,6 +292,10 @@ void init_events(void) {
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_AP_PASSWORD_DEFAULT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_AP_PROVISION_TIMEOUT].level = EVENT_LEVEL_INFO;
+#ifdef ETHERNET
+  events.entries[EVENT_ETHERNET_CONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_ETHERNET_DISCONNECT].level = EVENT_LEVEL_INFO;
+#endif
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
@@ -704,6 +708,16 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_WIFI_AP_PROVISION_TIMEOUT:
       return "Wi-Fi AP disabled due to cybersecurity concern. Change default password to keep AP "
              "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
+#ifdef ETHERNET
+    case EVENT_ETHERNET_CONNECT: {
+      // Speed/duplex encoded into the data byte by the ETH_CONNECTED handler.
+      const uint8_t d = events.entries[EVENT_ETHERNET_CONNECT].data;
+      return "Ethernet link up: " + String(eth_link_mbps(d)) + " Mbps, " + (eth_link_full_duplex(d) ? "full" : "half") +
+             " duplex";
+    }
+    case EVENT_ETHERNET_DISCONNECT:
+      return "Ethernet disconnected.";
+#endif
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
