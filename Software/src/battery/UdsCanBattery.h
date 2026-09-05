@@ -7,7 +7,7 @@
 
 // Extend this class to add UDS features to a battery integration.
 //
-// 1. Call `setup_uds(uint16_t uds_address, uint16_t uds_response_address)` in
+// 1. Call `setup_uds(uint32_t uds_address, uint32_t uds_response_address)` in
 //    your battery's setup() function to initialize UDS handling.
 //     - uds_address (the CAN ID of the ECU to query, e.g. 0x7DF for generic
 //       requests)
@@ -151,8 +151,8 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   DATALAYER_BATTERY_DTC_TYPE* dtc = nullptr;
 
  protected:
-  // Initializes the UDS layer. Must be called by subclasses in their setup() function.
-  void setup_uds(uint16_t uds_address, uint16_t uds_response_address);
+  // Initializes the UDS layer. Must be called by subclasses in their setup() function. Has optional isFD overload
+  void setup_uds(uint32_t uds_address, uint32_t uds_response_address, bool isFD = false);
   // Set (or change) the list of PIDs to scan, in order. The list is cycled
   // repeatedly - the scan restarts from the beginning of the new list.
   void set_pid_scan_list(const uint16_t* pid_list, uint16_t length);
@@ -200,13 +200,13 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   virtual void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   virtual void on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype tatype) override;
 
-  // The address we'll send UDS requests to.
-  uint16_t uds_address = 0x7DF;
+  // The address we'll send UDS requests to. Any ID over 0x7FF is counted as extended CAN and will be sent with the extended flag set.
+  uint32_t uds_address = 0x7DF;
   // The address we require UDS responses to come from, or 0 to accept from any
   // address in the valid range.
-  uint16_t uds_response_address = 0;
+  uint32_t uds_response_address = 0;
   // The address we are currently receiving a UDS response from.
-  uint16_t uds_current_response_address = 0;
+  uint32_t uds_current_response_address = 0;
 
  private:
   // True if the current pause blocks new sends of the given priority.
@@ -284,6 +284,8 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   // How many ticks left for the current request to complete, before it is
   // retried (or given up).
   int32_t uds_transaction_timeout = 0;
+  // Should the PID message be sent with CAN-FD flag enabled?
+  bool send_messages_asFD = false;
 
   UdsBatteryHtmlRenderer uds_renderer;
 };
