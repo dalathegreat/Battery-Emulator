@@ -8,6 +8,11 @@
 #define BATTERY_MAXTEMPERATURE 500
 #define BATTERY_MINTEMPERATURE -250
 #define MAX_CHARGE_DISCHARGE_LIMIT_FAILURES 5
+#define CELL_CRITICAL_MV 100   // If cells go this much outside design voltage, shut battery down!
+#define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
+#define HYSTERESIS_OFFSET_DV 20  // Release a user-set voltage limit only once the pack is this far back inside it
+#define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  // Below this, emergency recovery charge is refused
+#define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50               // Ceiling on the current recovery charge may allow
 
 //battery pause status begin
 enum battery_pause_status { NORMAL = 0, PAUSING = 1, PAUSED = 2, RESUMING = 3 };
