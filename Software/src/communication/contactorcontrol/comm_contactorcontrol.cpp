@@ -234,7 +234,23 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
+      /* A standing FAULT has to stop the ladder from starting, not just unwind it afterwards.
+         The latch above is a tick counter, so a fault that is already present at boot only trips it
+         about 10 s after it is raised - by which time the 10 s startup inhibit below has expired and
+         the ladder has run all the way to COMPLETED. The visible effect was that "Interlock
+         required:" with an open interlock closed negative, precharge and positive and only then
+         latched everything open again, instead of never closing. */
+      bool no_standing_fault = (datalayer.system.status.system_status != FAULT);
+
+      /* The pack's own permission, checked before any relay is commanded on rather than after.
+         293A0NDS25 5.1.1 step 3) has the controller confirm the pack is willing (LB_FRLYON = 1,
+         LB_FAIL = 0) and only then proceed to step 4), the relay ON sequence. Only drivers that can
+         genuinely withhold the flag opt in, see Battery::gates_contactor_closing(). */
+      bool battery_permits =
+          !battery || !battery->gates_contactor_closing() || datalayer.system.status.battery_allows_contactor_closing;
+
+      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+          no_standing_fault && battery_permits) {
         contactorStatus = START_PRECHARGE;
       }
     }

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
+#include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
 
 #include "Arduino.h"
@@ -354,4 +355,145 @@ TEST(NissanLeafDtcTests, ShouldRenderReadStateWhenNoTableIsShown) {
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
   EXPECT_NE(renderer.get_status_html().str().find("No DTCs present"), std::string::npos);
+}
+
+// --- 293A0NDS25 contactor permission and relay signalling -------------------
+
+// Defined by the emulated CAN layer in test/emul/can.cpp. Declared at namespace scope so they
+// keep external linkage.
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
+
+namespace {
+
+// 0x5BC is what marks the pack as talking (battery_can_alive), which every other path depends on.
+CAN_frame leaf_5bc() {
+  return leaf_frame(0x5BC, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+}
+
+// 0x1DB with the fields the closing gate reads. frlyon is LB_FRLYON (byte 3 bit 5), fail is
+// LB_FAIL (byte 1 bits 4-3), interlock is LB_INTERLOCK (byte 3 bit 3). CRC is filled by the caller,
+// since only the driver instance can compute it.
+CAN_frame leaf_1db(bool frlyon, uint8_t fail, bool interlock) {
+  CAN_frame frame = leaf_frame(0x1DB, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  frame.data.u8[1] = (uint8_t)((fail & 0x03) << 3);
+  frame.data.u8[3] = (uint8_t)((frlyon ? 0x20 : 0x00) | (interlock ? 0x08 : 0x00));
+  return frame;
+}
+
+// Runs the driver far enough to have published a contactor permission.
+void feed(NissanLeafBattery* battery, CAN_frame frame) {
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  battery->handle_incoming_can_frame(frame);
+}
+
+const CAN_frame* find_frame(uint32_t id) {
+  for (const CAN_frame& frame : get_transmitted_frames()) {
+    if (frame.ID == id) {
+      return &frame;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+// 293A0NDS25 5.1.1 step 3): no relay is commanded on until the pack has said it is willing.
+TEST(NissanLeafContactorTests, WithholdsPermissionUntilTheLbcGrantsIt) {
+  datalayer = DataLayer();
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  battery->handle_incoming_can_frame(leaf_5bc());
+  feed(battery, leaf_1db(false, 0, true));  // LB_FRLYON = 0, No-Permission
+  battery->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+
+  feed(battery, leaf_1db(true, 0, true));
+  battery->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+// LB_FAIL is the pack asking for the main relays to be opened. It must also withdraw permission.
+TEST(NissanLeafContactorTests, WithdrawsPermissionOnRelayCutRequest) {
+  datalayer = DataLayer();
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  battery->handle_incoming_can_frame(leaf_5bc());
+  feed(battery, leaf_1db(true, 0, true));
+  battery->update_values();
+  ASSERT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+
+  feed(battery, leaf_1db(true, 1, true));  // LB_FAIL = 01b, Main Relay OFF Request
+  battery->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+// 293A0NDS25 Status 2 / Status 6 / Status 8: with the relays open, BTONFN and RLYP are 0. They are
+// only asserted alongside the relay commands themselves.
+TEST(NissanLeafContactorTests, ClearsRelayBitsIn1D4WhileContactorsAreOpen) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  datalayer.system.status.contactors_engaged = 0;  // Open
+
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  const CAN_frame* frame = find_frame(0x1D4);
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(frame->data.u8[4] & 0x04, 0) << "BTONFN asserted with the contactors open";
+  EXPECT_EQ(frame->data.u8[5] & 0x40, 0) << "RLYP asserted with the contactors open";
+
+  CAN_frame copy = *frame;
+  EXPECT_EQ(copy.data.u8[7], battery->calculate_crc(copy)) << "CRC does not match the payload";
+
+  contactor_control_enabled = false;
+}
+
+// Closed and economized is the one state where the pack may be told high voltage is supplied.
+TEST(NissanLeafContactorTests, AssertsRelayBitsIn1D4OnceContactorsAreClosed) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  datalayer.system.status.contactors_engaged = 1;  // Closed and economized
+
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  const CAN_frame* frame = find_frame(0x1D4);
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(frame->data.u8[4] & 0x04, 0x04);
+  EXPECT_EQ(frame->data.u8[5] & 0x40, 0x40);
+  // The four CRCs that used to be hardcoded, reproduced by computation.
+  EXPECT_EQ(frame->data.u8[7], 0x12);
+
+  contactor_control_enabled = false;
+}
+
+// Without GPIO contactor control the relay states are unknown to this firmware, so the previous
+// always-on declaration is kept rather than guessed at.
+TEST(NissanLeafContactorTests, KeepsRelayBitsSetWhenContactorControlIsDisabled) {
+  datalayer = DataLayer();
+  contactor_control_enabled = false;
+  datalayer.system.status.contactors_engaged = 0;
+
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  const CAN_frame* frame = find_frame(0x1D4);
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(frame->data.u8[4] & 0x04, 0x04);
+  EXPECT_EQ(frame->data.u8[5] & 0x40, 0x40);
 }
