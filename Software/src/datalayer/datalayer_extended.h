@@ -467,34 +467,6 @@ struct DATALAYER_INFO_GEELY_GEOMETRY_C {
   uint16_t unknown8;
 };
 
-struct DATALAYER_INFO_KIAHYUNDAI64 {
-  uint32_t cumulative_charge_current_ah;
-  uint32_t cumulative_discharge_current_ah;
-  uint32_t cumulative_energy_charged_kWh;
-  uint32_t cumulative_energy_discharged_kWh;
-  uint32_t powered_on_total_time;
-
-  uint16_t inverterVoltage;
-  uint16_t isolation_resistance_kOhm;
-  uint16_t number_of_standard_charging_sessions;
-  uint16_t number_of_fastcharging_sessions;
-  uint16_t accumulated_normal_charging_energy_kWh;
-  uint16_t accumulated_fastcharging_energy_kWh;
-  uint16_t battery_12V;
-
-  int8_t temperature_water_inlet;
-  int8_t powerRelayTemperature;
-
-  uint8_t total_cell_count;
-  uint8_t waterleakageSensor;
-  uint8_t batteryManagementMode;
-  uint8_t BMS_ign;
-  uint8_t batteryRelay;
-
-  uint8_t ecu_serial_number[16];
-  uint8_t ecu_version_number[16];
-};
-
 struct DATALAYER_INFO_KIA64FD {
   /** SOC reported by the BMS, 1000 = 100.0% */
   uint16_t SOC_BMS;
@@ -1050,10 +1022,6 @@ class DataLayerExtended {
     struct {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
-    };
-    struct {
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
     struct {

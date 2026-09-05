@@ -1,28 +1,26 @@
 #ifndef KIA_HYUNDAI_64_BATTERY_H
 #define KIA_HYUNDAI_64_BATTERY_H
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
-#include "CanBattery.h"
-#include "KIA-HYUNDAI-64-HTML.h"
+#include "UdsCanBattery.h"
 
-class KiaHyundai64Battery : public CanBattery {
+class KiaHyundai64Battery : public UdsCanBattery {
  public:
   // Use this constructor for the second battery.
-  KiaHyundai64Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIAHYUNDAI64* extended_ptr,
-                      bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
-      : CanBattery(targetCan), renderer(extended_ptr) {
+  KiaHyundai64Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr,
+                      CAN_Interface targetCan)
+      : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
-    datalayer_battery_extended = extended_ptr;
+    dtc = &datalayer_battery->dtc;
   }
 
   // Use the default constructor to create the first or single battery.
-  KiaHyundai64Battery() : renderer(&datalayer_extended.KiaHyundai64) {
+  KiaHyundai64Battery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
-    datalayer_battery_extended = &datalayer_extended.KiaHyundai64;
+    dtc = &datalayer_battery->dtc;
   }
 
   virtual void setup(void);
@@ -31,19 +29,17 @@ class KiaHyundai64Battery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia/Hyundai 64/40kWh battery";
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "kia_hyundai64_dtc.json"; }
 
-  bool supports_reset_DTC() { return true; }
   bool supports_insulation_resistance() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
+
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
-  KiaHyundai64HtmlRenderer renderer;
-
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_KIAHYUNDAI64* datalayer_battery_extended;
-
-  bool UserRequestDTCreset = false;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
@@ -52,6 +48,8 @@ class KiaHyundai64Battery : public CanBattery {
   bool* contactor_closing_allowed;
 
   void update_number_of_cells();
+  void set_cell_voltages(uint8_t reading, uint8_t cellNumber);
+  void process_cell_voltage_group(const uint8_t* data, uint8_t baseCell);
 
   static const int MAX_PACK_VOLTAGE_98S_DV = 4110;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_98S_DV = 2800;
@@ -147,29 +145,13 @@ class KiaHyundai64Battery : public CanBattery {
                                                  .DLC = 8,
                                                  .ID = 0x7E4,
                                                  .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame KIA64_7E4_poll = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7E4,
-                              .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame KIA64_7E4_ack = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x7E4,
-      .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
-  CAN_frame KIA64_CLEAR_DTC = {.FD = false,
-                               .ext_ID = false,
-                               .DLC = 8,
-                               .ID = 0x7E4,
-                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
   static const int POLL_GROUP_1 = 0x0101;
-  static const int POLL_GROUP_2 = 0x0102;
-  static const int POLL_GROUP_3 = 0x0103;
-  static const int POLL_GROUP_4 = 0x0104;
-  static const int POLL_GROUP_5 = 0x0105;
+  static const int POLL_GROUP_2 = 0x0102;  //Cellvoltages 1-32
+  static const int POLL_GROUP_3 = 0x0103;  //Cellvoltages 33-64
+  static const int POLL_GROUP_4 = 0x0104;  //Cellvoltages 65-96 (Only to 90S on 40kWh battery)
+  static const int POLL_GROUP_5 = 0x0105;  //Cellvoltages 97-98 + more
   static const int POLL_GROUP_6 = 0x0106;
-  static const int POLL_GROUP_11 = 0x0111;
+  static const int POLL_GROUP_11 = 0x0111;  //Charging statistics
   static const int POLL_ECU_SERIAL = 0xF18C;
   static const int POLL_ECU_VERSION = 0xF191;
 };
