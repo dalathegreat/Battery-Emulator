@@ -68,12 +68,19 @@ void PylonLvInverter::update_values() {
     PYLON_359.data.u8[0] |= 0x04;
   if (datalayer.system.status.system_status == FAULT)
     PYLON_359.data.u8[1] |= 0x80;
-  if (datalayer.battery.status.reported_current_dA >= datalayer.battery.status.max_charge_current_dA)
+  // +10 margin matches the discharge-side check above - without it, a fully
+  // charged battery sitting idle (current=0, max_charge_current_dA=0 since
+  // it's full) trips this on the exact "0 >= 0" boundary, which is a more
+  // common state than actively overcurrent-charging.
+  if (datalayer.battery.status.reported_current_dA >= (datalayer.battery.status.max_charge_current_dA + 10))
     PYLON_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)
+  // +10 margin for the same "0 >= 0 at idle" reason as the charge checks -
+  // discharge can legitimately be 0 too (e.g. a real fault disabling it),
+  // and idle current shouldn't trip a warning on its own.
   if (datalayer.battery.status.reported_current_dA <=
-      -1 * (datalayer.battery.status.max_discharge_current_dA * WARNINGS_PERCENT / 100))
+      -1 * (datalayer.battery.status.max_discharge_current_dA * WARNINGS_PERCENT / 100 + 10))
     PYLON_359.data.u8[2] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <=
       warning_threshold_of_min(BATTERY_MINTEMPERATURE, BATTERY_MAXTEMPERATURE))
@@ -84,8 +91,10 @@ void PylonLvInverter::update_values() {
                                                                       datalayer.battery.info.max_design_voltage_dV))
     PYLON_359.data.u8[2] |= 0x04;
   // we never set PYLON_359.data.u8[3] |= 0x80 called "BMS internal"
+  // +10 margin for the same reason as the error check above - avoids firing
+  // at the "0 >= 0" boundary when the battery is full and idle.
   if (datalayer.battery.status.reported_current_dA >=
-      datalayer.battery.status.max_charge_current_dA * WARNINGS_PERCENT / 100)
+      (datalayer.battery.status.max_charge_current_dA * WARNINGS_PERCENT / 100 + 10))
     PYLON_359.data.u8[3] |= 0x01;
 
   PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
