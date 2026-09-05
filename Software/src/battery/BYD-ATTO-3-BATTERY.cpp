@@ -1944,6 +1944,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = false;
+  }
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
   datalayer_battery->info.max_design_voltage_dV = 6500;  //Startup in extremes
   datalayer_battery->info.min_design_voltage_dV = 2000;  //We later determine range based on amount of cells
