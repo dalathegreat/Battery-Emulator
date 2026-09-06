@@ -41,8 +41,7 @@ void StellantisProOneBattery::
     datalayer.battery.status.soh_pptt =
         (uint16_t)((uint32_t)pack_capacity_ah_tenths * 10000u / NOMINAL_CAPACITY_AH_TENTHS);
     //Energy = capacity x nominal pack voltage. (tenths/10) Ah x (centivolt/100) V = tenths * cV / 1000
-    datalayer.battery.info.total_capacity_Wh =
-        (uint32_t)pack_capacity_ah_tenths * NOMINAL_PACK_VOLTAGE_CV / 1000u;
+    datalayer.battery.info.total_capacity_Wh = (uint32_t)pack_capacity_ah_tenths * NOMINAL_PACK_VOLTAGE_CV / 1000u;
     datalayer.battery.status.remaining_capacity_Wh =
         (uint32_t)((uint64_t)datalayer.battery.status.real_soc * datalayer.battery.info.total_capacity_Wh / 10000u);
   }
