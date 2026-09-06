@@ -13,7 +13,6 @@ bool wifiap_enabled = true;
 bool espnow_enabled = true;         //If true, allows battery emulator to send battery status by using ESPNow messages
 std::string espnow_peer_macs = "";  //Empty = broadcast, otherwise a list of receiver MAC addresses
 uint16_t wifi_channel = 0;
-extern const char* version_number;
 
 std::string ssid;
 std::string password;
@@ -384,15 +383,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
 
-  // One-shot boot notice — fires once per boot, not on every reconnect.
-  static bool boot_logged = false;
-  if (!boot_logged) {
-    boot_logged = true;
-    LOG_SET_NEXT_SEVERITY(5);  // RFC 5424 severity 5 = Notice
-    logging.printf("Bootup complete, running version %s\n", version_number);
-  }
-
-  network_bring_services_up(WiFi.localIP());  // log IP + syslog_start() + init_mDNS()
+  network_bring_services_up(WiFi.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
 }
 
 // Event handler for Wi-Fi disconnection
