@@ -49,7 +49,8 @@ void KiaHyundai64Battery::update_number_of_cells() {
     datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;
     datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_98S_DV;
     datalayer_battery->info.total_capacity_Wh = 64000;
-  } else {
+  } else if ((datalayer_battery->status.cell_voltages_mV[89] > 2000) &&
+             (datalayer_battery->status.cell_voltages_mV[89] < 4500)) {
     datalayer_battery->info.number_of_cells = 90;
     datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
     datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
@@ -59,7 +60,7 @@ void KiaHyundai64Battery::update_number_of_cells() {
 
 void KiaHyundai64Battery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
   if (reading > 4) {
-    datalayer.battery.status.cell_voltages_mV[cellNumber] = (reading * 20);
+    datalayer_battery->status.cell_voltages_mV[cellNumber] = (reading * 20);
   }
 }
 
@@ -350,11 +351,12 @@ uint16_t KiaHyundai64Battery::handle_pid(uint16_t pid, uint32_t value, const uin
       //amountOfCells = data[29];
       //Frame25 33 00 00 b3 b3 01 00 //data31-37
       if (data[34] > 4) {  //Only valid on 98S
-        cellvoltages_mv[96] = data[34] * 20;
+        set_cell_voltages(data[34], 96);
       }
       if (data[35] > 4) {  //Only valid on 98S
-        cellvoltages_mv[97] = data[35] * 20;
+        set_cell_voltages(data[35], 97);
       }
+      update_number_of_cells();
       //SOC_Display = data[31] * 5; Not required, we read from constantly sent CAN
       //Frame26 1e 00 00 00 00 aa aa //data38-44
       break;
