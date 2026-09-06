@@ -14,13 +14,13 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
-    content.reserve(12000);
+    content.reserve(15000);
     content += "<h4>State of charge: ";
     content += fisker->broadcast_soc_valid ? String(fisker->broadcast_soc_percent) + "%" : "Not available";
     content += "</h4>";
 
     content +=
-        "<div style='overflow-x:auto'><table><thead><tr><th>PID</th><th>CAN response</th>"
+        "<div style='overflow-x:auto'><table><thead><tr><th>PID</th><th>Decoded value</th><th>CAN response</th>"
         "</tr></thead><tbody>";
     for (uint8_t i = 0; i < DATALAYER_INFO_FISKER_OCEAN::DID_COUNT; i++) {
       const auto& result = fisker->did_results[i];
@@ -38,8 +38,83 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
     char did[7];
     snprintf(did, sizeof(did), "0x%04X", result.did);
     content += "<tr><td style='text-align:left'><strong>" + String(did_name(result.did)) + "</strong><br><code>" +
-               String(did) + "</code></td><td>";
+               String(did) + "</code></td><td>" + decoded_value(result) + "</td><td>";
     content += "<code>" + can_response(result) + "</code></td></tr>";
+  }
+
+  static uint16_t uint16_be(const uint8_t* data) { return (static_cast<uint16_t>(data[0]) << 8) | data[1]; }
+
+  static uint32_t uint32_be(const uint8_t* data) {
+    return (static_cast<uint32_t>(data[0]) << 24) | (static_cast<uint32_t>(data[1]) << 16) |
+           (static_cast<uint32_t>(data[2]) << 8) | data[3];
+  }
+
+  static String decoded_value(const DATALAYER_INFO_FISKER_OCEAN::DID_RESULT& result) {
+    if (!result.valid)
+      return "-";
+
+    const uint8_t* data = result.payload;
+    switch (result.did) {
+      case 0x2003:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 10.0f, 1) + " V";
+        break;
+      case 0x2004:
+        if (result.payload_length >= 4) {
+          const uint32_t raw = uint32_be(data);
+          if (raw == 20000)
+            return "0 A (raw 20000)";
+          return "Raw " + String(raw);
+        }
+        break;
+      case 0x2005:
+        if (result.payload_length >= 1)
+          return data[0] == 1 ? "Valid" : "Invalid";
+        break;
+      case 0x2026:
+      case 0x2027:
+      case 0x2031:
+      case 0x2033:
+      case 0x2038:
+      case 0x2039:
+      case 0x2040:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 2.0f - 40.0f, 1) + " &deg;C";
+        break;
+      case 0x2047:
+      case 0x2048:
+      case 0x2049:
+      case 0x2050:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 10.0f, 1) + " %";
+        break;
+      case 0x2089:
+      case 0x2090:
+      case 0x2091:
+      case 0x2092:
+      case 0x2093:
+      case 0x2094:
+      case 0x2136:
+      case 0x2137:
+      case 0x2138:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data)) + " mV";
+        break;
+      case 0x2107:
+      case 0x2108:
+      case 0x2109:
+      case 0x2117:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 10.0f, 1) + " V";
+        break;
+      case 0x2130:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 1000.0f, 3) + " V";
+        break;
+      default:
+        break;
+    }
+    return "-";
   }
 
   static String can_response(const DATALAYER_INFO_FISKER_OCEAN::DID_RESULT& result) {

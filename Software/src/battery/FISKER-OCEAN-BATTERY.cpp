@@ -109,6 +109,14 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x0F2:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.DLC >= 6) {
+        const uint16_t cell_max_mV = ((static_cast<uint16_t>(rx_frame.data.u8[0]) << 8) | rx_frame.data.u8[1]) / 10;
+        const uint16_t cell_min_mV = ((static_cast<uint16_t>(rx_frame.data.u8[2]) << 8) | rx_frame.data.u8[3]) / 10;
+        if (cell_max_mV > 0 && cell_min_mV > 0) {
+          datalayer.battery.status.cell_max_voltage_mV = cell_max_mV;
+          datalayer.battery.status.cell_min_voltage_mV = cell_min_mV;
+        }
+      }
       break;
     case 0x215:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -223,7 +231,7 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       for (uint8_t i = 0; i < 4; i++) {
         uint16_t raw = (rx_frame.data.u8[i * 2] << 8) | rx_frame.data.u8[i * 2 + 1];
 
-        if (raw == 0xFFFF) {
+        if (raw == 0 || raw == 0xFFFF) {
           // Padding, no cell present in this slot (covers 6C9's 2nd half
           // and all of 6CA..6CD)
           continue;
@@ -234,6 +242,20 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (cell_index < NUM_CELLS) {
           datalayer.battery.status.cell_voltages_mV[cell_index] = raw / 10;
         }
+      }
+
+      uint16_t cell_min_mV = UINT16_MAX;
+      uint16_t cell_max_mV = 0;
+      for (uint8_t i = 0; i < NUM_CELLS; i++) {
+        const uint16_t cell_mV = datalayer.battery.status.cell_voltages_mV[i];
+        if (cell_mV == 0)
+          continue;
+        cell_min_mV = min(cell_min_mV, cell_mV);
+        cell_max_mV = max(cell_max_mV, cell_mV);
+      }
+      if (cell_max_mV > 0) {
+        datalayer.battery.status.cell_min_voltage_mV = cell_min_mV;
+        datalayer.battery.status.cell_max_voltage_mV = cell_max_mV;
       }
       break;
     }
@@ -351,6 +373,7 @@ uint16_t FiskerOceanBattery::handle_pid(uint16_t pid, uint32_t value, const uint
     result.valid = true;
     break;
   }
+
   return 0;
 }
 
