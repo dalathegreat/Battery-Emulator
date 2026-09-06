@@ -393,7 +393,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
 
-  network_bring_services_up(WiFi.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
+  network_bring_services_up(WiFi.localIP(), "WiFi");  // boot notice + log IP + syslog_start() + init_mDNS()
 #ifdef ETHERNET
   network_update_default_interface();
 #endif

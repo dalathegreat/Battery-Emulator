@@ -57,7 +57,7 @@ void onEthConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Ethernet acquiring an IP address
 void onEthGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
-  network_bring_services_up(ETH.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
+  network_bring_services_up(ETH.localIP(), "Ethernet");  // boot notice + log IP + syslog_start() + init_mDNS()
   network_update_default_interface();
 }
 

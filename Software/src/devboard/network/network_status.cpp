@@ -30,7 +30,7 @@ IPAddress network_localIP() {
   return WiFi.localIP();
 }
 
-void network_bring_services_up(const IPAddress& ip) {
+void network_bring_services_up(const IPAddress& ip, const char* iface) {
   // One-shot boot notice — fires once per boot, not on every reconnect.
   static bool boot_logged = false;
   if (!boot_logged) {
@@ -40,7 +40,7 @@ void network_bring_services_up(const IPAddress& ip) {
   }
 
   LOG_SET_NEXT_SEVERITY(5);  // notice
-  logging.printf("Got IP address: %s\n", ip.toString().c_str());
+  logging.printf("Got %s IP address: %s\n", iface, ip.toString().c_str());
   syslog_start();  // safe to call more than once
 #ifndef SMALL_FLASH_DEVICE
   init_mDNS();
