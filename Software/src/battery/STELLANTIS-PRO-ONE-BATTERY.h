@@ -26,6 +26,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
   static const uint8_t CONTACTORS_OFF = 8;
+  static const uint8_t CONTACTORS_PRECHARGE = 9;
   static const uint8_t CONTACTORS_ON = 10;
 
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
@@ -300,6 +301,8 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_224 = 0xF806;
 
   uint8_t contactor_status = 0;
+  bool battery_ready = false;
+  uint16_t soc_real_pptt = 5000;
   uint16_t pack_voltage = 3700;
   int16_t battery_current = 0;
   int8_t celltemperatures[30] = {0};
@@ -320,6 +323,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint16_t unknown_285_2 = 0;
   uint16_t unknown_281_0 = 0;
   uint16_t unknown_281_1 = 0;
+  uint16_t unknown_281_2 = 0;
   uint16_t cellvoltage_average_mV = 3700;
   uint16_t cellvoltage_max_mV = 3700;
   uint16_t cellvoltage_min_mV = 3700;
