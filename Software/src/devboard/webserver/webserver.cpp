@@ -2,8 +2,8 @@
 #include <Preferences.h>
 #include <vector>
 #include "../../battery/BATTERIES.h"
+#include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
-#include "../../battery/Shunt.h"
 #include "../../charger/CHARGERS.h"
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
@@ -14,6 +14,7 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../../shunt/Shunt.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
@@ -253,6 +254,39 @@ void init_webserver() {
     request->send(200, "text/html", index_html, advanced_battery_processor);
   });
 
+  // Served pre-compressed from flash rather than the template processor, so it never competes
+  // for heap and costs a third of the space the plain HTML would.
+  def_route_with_auth("/bydbalance", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "text/html", BYD_BALANCE_PAGE_GZ, sizeof(BYD_BALANCE_PAGE_GZ));
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
+  });
+
+  def_route_with_auth("/bydCellBalanceTimes", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!byd_cell_balance_times_available(index)) {
+      request->send(404, "text/plain", "BYD battery not available");
+    } else if (!request_byd_cell_balance_times(index)) {
+      request->send(409, "text/plain", "A scan is active or the cell count is not available yet");
+    } else {
+      request->send(202, "text/plain", "Queued");
+    }
+  });
+
+  def_route_with_auth("/bydCellBalanceTimes", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!byd_cell_balance_times_available(index)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "application/json", byd_cell_balance_times_json(index));
+    response->addHeader("Cache-Control", "no-store");
+    request->send(response);
+  });
+
   // Route for going to CAN logging web page
   def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_logger_processor()));
@@ -432,6 +466,7 @@ void init_webserver() {
       "PYLONOFFSET",  "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",
       "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
       "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
+      "INVACCREB",
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
@@ -511,6 +546,17 @@ void init_webserver() {
                 } else if (p->name() == "charger") {
                   auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
                   settings.saveUInt("CHGTYPE", (int)type);
+                } else if (p->name() == "CHGSTARQ") {
+                  // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
+                  // is not offered, so anything else falls back to "no request".
+                  uint8_t request = atoi(p->value().c_str());
+                  if (request > 2) {
+                    request = 0;
+                  }
+                  settings.saveUInt("CHGSTARQ", request);
+                  // Unlike the other settings this one is taken into use without a reboot, so the
+                  // reset offered below sends the newly chosen request rather than the old one.
+                  user_selected_LEAF_chg_sta_rq = request;
                 } else if (p->name() == "CHGCOMM") {
                   auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
                   settings.saveUInt("CHGCOMM", (int)type);
@@ -576,7 +622,16 @@ void init_webserver() {
 
               for (auto& boolSetting : boolSettingNames) {
                 auto p = request->getParam(boolSetting, true);
-                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                // The comparison default must match what the firmware boots with when the
+                // key is unset, or saving that state writes nothing and the page keeps
+                // disagreeing with the firmware. Only two bools boot true: WIFIAPENABLED
+                // and GTWRHD (whose boot fallback is the driver global).
+                bool default_value = false;
+                if (std::string(boolSetting) == std::string("WIFIAPENABLED")) {
+                  default_value = true;
+                } else if (std::string(boolSetting) == std::string("GTWRHD")) {
+                  default_value = user_selected_tesla_GTW_rightHandDrive;
+                }
                 const bool value = p != nullptr && p->value() == "on";
                 if (settings.getBool(boolSetting, default_value) != value) {
                   settings.saveBool(boolSetting, value);
@@ -592,6 +647,23 @@ void init_webserver() {
               }
               if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
                 settings.saveBool("TRIBTR", false);
+              }
+
+              // The page offers a BMS reset when the starting sequence request was changed, since
+              // the LBC only reads that signal while it powers up. Done after every setting is
+              // stored so the reset runs against the saved configuration.
+              auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
+              if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
+                if (periodic_bms_reset || remote_bms_reset) {
+                  LOG_SET_NEXT_SEVERITY(5);  // notice
+                  logging.println("BMS reset requested from the settings page.");
+                  start_bms_reset();
+                } else {
+                  LOG_SET_NEXT_SEVERITY(4);  // warning
+                  logging.println(
+                      "BMS reset requested from the settings page, but no BMS reset method is enabled. "
+                      "The new setting applies at the next BMS power cycle.");
+                }
               }
 
               settingsUpdated = settings.were_settings_updated();
@@ -690,6 +762,47 @@ void init_webserver() {
         Preferences prefs;
         prefs.begin("batterySettings", false);
         prefs.putUInt("BYDAUTOCALDRIFT", (uint8_t)value);
+        prefs.end();
+      }
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  // Save native BMS termination enabled flag to RAM + NVM
+  def_route_with_auth("/editBydAtto3NativeTermination", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3.native_termination_enabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDNATTERM", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  // Save balancing enabled flag to RAM + NVM
+  def_route_with_auth("/editBydAtto3BalancingEnabled", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      bool enabled = request->getParam("value")->value().toInt() != 0;
+      datalayer_extended.bydAtto3.balancing_enabled = enabled;
+      Preferences prefs;
+      prefs.begin("batterySettings", false);
+      prefs.putBool("BYDBALEN", enabled);
+      prefs.end();
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  // Save balancing hold duration to RAM + NVM
+  def_route_with_auth("/editBydAtto3BalancingMinutes", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      int value = request->getParam("value")->value().toInt();
+      if (value >= 1 && value <= 1440) {
+        datalayer_extended.bydAtto3.balancing_hold_minutes = (uint16_t)value;
+        Preferences prefs;
+        prefs.begin("batterySettings", false);
+        prefs.putUInt("BYDBALMIN", (uint16_t)value);
         prefs.end();
       }
     }

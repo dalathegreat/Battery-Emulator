@@ -7,6 +7,9 @@
 #include "NISSAN-LEAF-HTML.h"
 
 extern bool user_selected_LEAF_interlock_mandatory;
+//CHG_STA_RQ value transmitted in 0x1F2 as the BMS starts up: 0 = 00b (no request), 1 = 01b
+//(normal charge), 2 = 10b (quick charge). Only ever holds one of those three.
+extern uint8_t user_selected_LEAF_chg_sta_rq;
 
 class NissanLeafBattery : public CanBattery {
  public:
@@ -102,6 +105,9 @@ class NissanLeafBattery : public CanBattery {
   static const uint8_t ZE1_BATTERY = 2;
 
   // These CAN messages need to be sent towards the battery to keep it alive
+  //Byte 2 carries CHG_STA_RQ (Charge_StatusTransitionRequest) in bits 6-5, left at 00b here and
+  //overwritten from the user setting on every transmission. The low nibble of byte 7 is the
+  //message checksum, so the constants in this file are the ones that go with 00b.
   CAN_frame LEAF_1F2 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -148,6 +154,9 @@ class NissanLeafBattery : public CanBattery {
   //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
+  //Set while a BMS reset is running. It suspends the "already answered, skip it" rule for one
+  //full pass through the list, so the static groups are asked again on the LBC's new session.
+  bool repoll_static_groups = false;
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
                                   .DLC = 8,

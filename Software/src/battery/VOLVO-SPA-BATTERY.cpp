@@ -57,7 +57,7 @@ void VolvoSpaBattery::
   if (BECMsupplyVoltage < 10700) {  //10.7V,
     //If 12V voltage goes under this, latch battery OFF to prevent contactors from swinging between on/off
     set_event(EVENT_12V_LOW, (BECMsupplyVoltage / 100));
-    set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
+    set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0, battery_index);
   }
 
   // Update diagnostic requests from webserver

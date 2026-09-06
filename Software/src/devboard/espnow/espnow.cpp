@@ -457,13 +457,9 @@ static void send_battery_frame(uint8_t index) {
 
     if (index == 0 && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                        user_selected_battery_type == BatteryType::TeslaModelSX)) {
-      put_i16_field(ESPNOW_KEY_DCDC_CURRENT_DA,
-                    static_cast<int16_t>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent));
-      // Raw unit is 0.0390625 V; 1/0.0390625 == 25.6, so *1000/25.6 == *125/3.2. Scaled
-      // with integer maths to millivolts to keep floats out of the send path.
-      put_u16_field(
-          ESPNOW_KEY_DCDC_VOLTAGE_MV,
-          static_cast<uint16_t>((static_cast<uint32_t>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 625u) / 16u));
+      put_i16_field(ESPNOW_KEY_DCDC_CURRENT_DA, datalayer_extended.tesla.battery_dcdcLvOutputCurrent);
+      const uint32_t dcdc_mv = datalayer_extended.tesla.battery_dcdcLvBusVolt * 10u;
+      put_u16_field(ESPNOW_KEY_DCDC_VOLTAGE_MV, static_cast<uint16_t>(dcdc_mv > 0xFFFF ? 0xFFFF : dcdc_mv));
     }
     if (user_selected_battery_type == BatteryType::BydAtto3) {
       const DATALAYER_INFO_BYDATTO3& byd = (index == 1) ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
@@ -565,7 +561,7 @@ static void send_event_frame(EVENTS_ENUM_TYPE handle, const EVENTS_STRUCT_TYPE* 
   put_enum_field(ESPNOW_KEY_EVENT_SEVERITY, static_cast<uint8_t>(ev->level));
   put_enum_field(ESPNOW_KEY_EVENT_STATE, static_cast<uint8_t>(ev->state));
   put_u8_field(ESPNOW_KEY_EVENT_COUNT, ev->occurences);
-  put_u8_field(ESPNOW_KEY_EVENT_DATA, ev->data);
+  put_i16_field(ESPNOW_KEY_EVENT_DATA_I16, ev->data);
   put_int(ESPNOW_KEY_EVENT_MILLIS, ESPNOW_TYPE_UINT, ev->timestamp, 8);
   put_str_field(ESPNOW_KEY_EVENT_MESSAGE, get_event_message_string(handle).c_str());
 

@@ -96,9 +96,9 @@ void RenaultZoeGen2Battery::update_values() {
 
   /* Removed until we have a way to clear failures
   if (battery_slave_failures > 0) {
-    set_event(EVENT_BATTERY_CAUTION, 0);
+    set_event(EVENT_BATTERY_CAUTION, 0, battery_index);
   } else {
-    clear_event(EVENT_BATTERY_CAUTION);
+    clear_event(EVENT_BATTERY_CAUTION, battery_index);
   }*/
 
   // Update webserver datalayer

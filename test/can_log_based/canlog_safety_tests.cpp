@@ -252,13 +252,13 @@ class PidDemuxTest : public CanLogTestFixture {
     }
     EXPECT_EQ(datalayer.battery.status.voltage_dV, 3552);
 
-    // 0x07 balancing group: one bit per cell, MSB first within each byte.
+    // 0x07 balancing group: one bit per cell, LSB first within each byte.
     // The log uses a pattern that spans every ISO-TP frame of the reply and
     // both edges of the first/last byte, so re-decode it here to check the
     // demuxed bits land on the right cells.
     const uint8_t balancing_bytes[] = {0xA5, 0x3C, 0x00, 0xFF, 0x81, 0x10, 0x42, 0x80, 0x01, 0x55, 0xAA, 0x0F};
     for (int i = 0; i < 96; i++) {
-      bool expected = (balancing_bytes[i / 8] >> (7 - (i % 8))) & 1;
+      bool expected = (balancing_bytes[i / 8] >> (i % 8)) & 1;
       EXPECT_EQ(datalayer.battery.status.cell_balancing_status[i], expected) << "cell " << i;
     }
 

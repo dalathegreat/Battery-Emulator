@@ -5,6 +5,7 @@
 #include "BYD-MODBUS.h"
 #include "FERROAMP-CAN.h"
 #include "FOXESS-CAN.h"
+#include "FOXESS-EP-CAN.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
 #include "GROWATT-WIT-CAN.h"
@@ -59,6 +60,11 @@ uint16_t charge_taper_band_pptt =
 uint16_t charge_taper_floor_W =
     0;  //Minimum charge power in W held during tapering until 100.00% scaled SOC. 0 = disabled, taper goes linearly to 0W
 
+uint32_t inverter_modbus_watchdog_timeout_s = MODBUS_INV_WATCHDOG_DEFAULT_S;
+bool inverter_modbus_watchdog_changed = false;
+bool user_selected_accept_inverter_reboot = false;
+uint64_t inverter_modbus_utc_epoch_s = 0;
+
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
 
@@ -88,6 +94,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::Foxess:
       return FoxessCanInverter::Name;
+
+    case InverterProtocolType::FoxessEp:
+      return FoxessEpCanInverter::Name;
 
     case InverterProtocolType::GrowattHv:
       return GrowattHvInverter::Name;
@@ -173,6 +182,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Foxess:
       inverter = new FoxessCanInverter();
+      break;
+
+    case InverterProtocolType::FoxessEp:
+      inverter = new FoxessEpCanInverter();
       break;
 
     case InverterProtocolType::GrowattHv:

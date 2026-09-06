@@ -5,10 +5,11 @@
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
+#include "../shunt/BMW-SBOX.h"
+#include "AKASOL-BATTERY.h"
 #include "BMW-I3-BATTERY.h"
 #include "BMW-IX-BATTERY.h"
 #include "BMW-PHEV-BATTERY.h"
-#include "BMW-SBOX.h"
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
@@ -26,6 +27,7 @@
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "GEELY-SEA-BATTERY.h"
 #include "GROWATT-HV-ARK-BATTERY.h"
+#include "GROWATT-LV-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -100,6 +102,8 @@ const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
+    case BatteryType::Akasol:
+      return AkasolBattery::Name;
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
     case BatteryType::BmwIX:
@@ -128,6 +132,8 @@ const char* name_for_battery_type(BatteryType type) {
       return GeelyGeometryCBattery::Name;
     case BatteryType::GrowattHvArk:
       return GrowattHvArkBattery::Name;
+    case BatteryType::GrowattLv:
+      return GrowattLvBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -225,10 +231,35 @@ BatteryType user_selected_battery_type = BatteryType::None;
 bool user_selected_second_battery = false;
 bool user_selected_triple_battery = false;
 
+static BydAttoBattery* byd_battery_at(uint8_t index) {
+  if (user_selected_battery_type != BatteryType::BydAtto3 || index > 1 ||
+      (index == 1 && !user_selected_second_battery)) {
+    return nullptr;
+  }
+  Battery* target = index == 0 ? battery : battery2;
+  return target ? static_cast<BydAttoBattery*>(target) : nullptr;
+}
+
+bool byd_cell_balance_times_available(uint8_t index) {
+  return byd_battery_at(index) != nullptr;
+}
+
+bool request_byd_cell_balance_times(uint8_t index) {
+  BydAttoBattery* target = byd_battery_at(index);
+  return target && target->request_cell_balance_times();
+}
+
+String byd_cell_balance_times_json(uint8_t index) {
+  BydAttoBattery* target = byd_battery_at(index);
+  return target ? target->cell_balance_times_json() : String();
+}
+
 Battery* create_battery(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return nullptr;
+    case BatteryType::Akasol:
+      return new AkasolBattery();
     case BatteryType::BmwI3:
       return new BmwI3Battery();
     case BatteryType::BmwIX:
@@ -257,6 +288,8 @@ Battery* create_battery(BatteryType type) {
       return new GeelyGeometryCBattery();
     case BatteryType::GrowattHvArk:
       return new GrowattHvArkBattery();
+    case BatteryType::GrowattLv:
+      return new GrowattLvBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
@@ -356,6 +389,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
+    case BatteryType::Kia64FD:
     case BatteryType::KiaHyundai64:
     case BatteryType::MgGen1:
     case BatteryType::Pylon:
@@ -428,10 +462,15 @@ void setup_battery() {
           battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::CmpSmartCar:
-          battery2 = new CmpSmartCarBattery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 = new CmpSmartCarBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::StellantisEcmp:
           battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          break;
+        // Double only: needs a CAN-FD bus of its own, and only two exist.
+        // See the comment on battery_supports_triple() above.
+        case BatteryType::Kia64FD:
+          battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
           battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
@@ -471,6 +510,7 @@ void setup_battery() {
     }
 
     if (battery2) {
+      battery2->battery_index = 2;
       battery2->setup();
     }
   }
@@ -486,6 +526,9 @@ void setup_battery() {
           break;
         case BatteryType::CmfaEv:
           battery3 = new CmfaEvBattery(&datalayer.battery3, can_config.battery_triple);
+          break;
+        case BatteryType::CmpSmartCar:
+          battery3 = new CmpSmartCarBattery(&datalayer.battery3, can_config.battery_triple);
           break;
         case BatteryType::StellantisEcmp:
           battery3 = new EcmpBattery(&datalayer.battery3, can_config.battery_triple);
@@ -503,6 +546,7 @@ void setup_battery() {
     }
 
     if (battery3) {
+      battery3->battery_index = 3;
       battery3->setup();
     }
   }
@@ -510,6 +554,7 @@ void setup_battery() {
 
 /* User-selected Nissan LEAF settings */
 bool user_selected_LEAF_interlock_mandatory = false;
+uint8_t user_selected_LEAF_chg_sta_rq = 0;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
 uint16_t user_selected_tesla_GTW_country = 17477;

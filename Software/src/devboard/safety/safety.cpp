@@ -5,6 +5,7 @@
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
+#include "../utils/ota_confirm_gate.h"
 
 static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
@@ -55,6 +56,53 @@ static void check_can_component_alive(uint8_t& still_alive_counter, bool& detect
   } else {
     --still_alive_counter;
     clear_event(missing_event);
+  }
+}
+
+/* Temperature limits are global, and so are the three events they raise. Every configured
+   battery therefore has to be evaluated in one pass: a per-battery set/clear pair would let a
+   healthy pack clear the event another pack just raised (same reasoning as the
+   EVENT_CAN_CORRUPTED_WARNING block further down). The worst offender is the one reported.
+   The battery number is only attached when more than one battery is configured, so
+   single-battery systems keep their existing event text. */
+static void check_battery_temperatures(void) {
+  /* Each pack owns its own set of events now, so this is a plain per-pack set/clear with no
+     cross-pack reasoning: battery 1 and battery 2 can be overheating at the same time and both
+     are reported. That was impossible while the three events were shared. */
+  const DATALAYER_BATTERY_TYPE* packs[3] = {battery ? &datalayer.battery : nullptr,
+                                            battery2 ? &datalayer.battery2 : nullptr,
+                                            battery3 ? &datalayer.battery3 : nullptr};
+
+  for (uint8_t i = 0; i < 3; i++) {
+    if (!packs[i]) {
+      continue;  // Pack not configured
+    }
+    const uint8_t number = i + 1;
+    const int16_t max_dC = packs[i]->status.temperature_max_dC;
+    const int16_t min_dC = packs[i]->status.temperature_min_dC;
+    const int16_t deviation_dC = (int16_t)labs((long)max_dC - (long)min_dC);
+
+    // Battery is overheated!
+    if (max_dC > BATTERY_MAXTEMPERATURE) {
+      set_event(EVENT_BATTERY_OVERHEAT, max_dC, number);
+    } else {
+      clear_event(EVENT_BATTERY_OVERHEAT, number);
+    }
+
+    // Battery is too cold to operate optimally
+    if (min_dC < BATTERY_MINTEMPERATURE) {
+      set_event(EVENT_BATTERY_FROZEN, min_dC, number);
+    } else {
+      clear_event(EVENT_BATTERY_FROZEN, number);
+    }
+
+    /* Not latched: the else branch below could never release a latched event, since
+       clear_event() only acts on EVENT_STATE_ACTIVE. The warning now follows the pack. */
+    if (deviation_dC > BATTERY_MAX_TEMPERATURE_DEVIATION) {
+      set_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH, deviation_dC, number);
+    } else {
+      clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH, number);
+    }
   }
 }
 
@@ -145,42 +193,23 @@ void update_machineryprotection() {
       datalayer.battery.status.max_charge_power_W = 0;
     }
 
-    // Battery is overheated!
-    if (datalayer.battery.status.temperature_max_dC > BATTERY_MAXTEMPERATURE) {
-      set_event(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
-    } else {
-      clear_event(EVENT_BATTERY_OVERHEAT);
-    }
-
-    // Battery is frozen!
-    if (datalayer.battery.status.temperature_min_dC < BATTERY_MINTEMPERATURE) {
-      set_event(EVENT_BATTERY_FROZEN, datalayer.battery.status.temperature_min_dC);
-    } else {
-      clear_event(EVENT_BATTERY_FROZEN);
-    }
-
-    if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) >
-        BATTERY_MAX_TEMPERATURE_DEVIATION) {
-      set_event_latched(EVENT_BATTERY_TEMP_DEVIATION_HIGH,
-                        datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
-    } else {
-      clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH);
-    }
+    // Temperature checks for every configured battery are done together in
+    // check_battery_temperatures(), called further down.
 
     // Battery voltage is over designed max voltage!
     if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_OVERVOLTAGE);
+      clear_event(EVENT_BATTERY_OVERVOLTAGE, 1);
     }
 
     // Battery voltage is under designed min voltage!
     if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
+      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
       datalayer.battery.status.max_discharge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_UNDERVOLTAGE);
+      clear_event(EVENT_BATTERY_UNDERVOLTAGE, 1);
     }
 
     // Cell overvoltage, further charging not possible. Battery might be imbalanced.
@@ -245,12 +274,12 @@ void update_machineryprotection() {
         datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
       if (!battery_full_event_fired) {
-        set_event(EVENT_BATTERY_FULL, 0);
+        set_event(EVENT_BATTERY_FULL, 0, 1);
         battery_full_event_fired = true;
       }
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_FULL);
+      clear_event(EVENT_BATTERY_FULL, 1);
       battery_full_event_fired = false;
     }
 
@@ -260,12 +289,12 @@ void update_machineryprotection() {
       if (datalayer.battery.status.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {
-          set_event(EVENT_BATTERY_EMPTY, 0);
+          set_event(EVENT_BATTERY_EMPTY, 0, 1);
           battery_empty_event_fired = true;
         }
         datalayer.battery.status.max_discharge_power_W = 0;
       } else {
-        clear_event(EVENT_BATTERY_EMPTY);
+        clear_event(EVENT_BATTERY_EMPTY, 1);
         battery_empty_event_fired = false;
       }
     }
@@ -290,29 +319,40 @@ void update_machineryprotection() {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
 
-    // Inverter is charging with more power than battery wants!
-    if (datalayer.battery.status.active_power_W > 0) {  // Charging
-      if (datalayer.battery.status.active_power_W > (datalayer.battery.status.max_charge_power_W + 2000)) {
+    /* Check that the inverter respects the charge/discharge limits we hand it.
+       Skipped entirely while a pause is requested or a fault is active: those zero the
+       limits above instantly, but the inverter only reads the new values on its next
+       poll and then still needs time to ramp down, so comparing during that window
+       blames it for a limit it cannot have seen yet. Counters and events are reset on
+       the way in, so the pause never leaves a stale alert behind.
+       The limits are unsigned, so cast before comparing against the signed power. */
+    if (emulator_pause_request_ON || emulator_pause_status != NORMAL ||
+        datalayer.system.status.system_status == FAULT) {
+      charge_limit_failures = 0;
+      discharge_limit_failures = 0;
+      clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
+      clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
+    } else {
+      // Inverter is charging with more power than battery wants!
+      if (datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
         if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
           charge_limit_failures++;
         }
-      } else {
+      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
         clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
         charge_limit_failures = 0;
       }
-    }
 
-    // Inverter is pulling too much power from battery!
-    if (datalayer.battery.status.active_power_W < 0) {  // Discharging
-      if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_discharge_power_W + 2000)) {
+      // Inverter is pulling too much power from battery!
+      if (-datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
         if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
           discharge_limit_failures++;
         }
-      } else {
+      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
         clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
         discharge_limit_failures = 0;
       }
@@ -348,11 +388,13 @@ void update_machineryprotection() {
       // Inverter frames received recently - clear any previously raised missing-event
       // regardless of which timeout mode is active
       clear_event(EVENT_CAN_INVERTER_MISSING);
-      // If the inverter is a slow starter, only decrement the counter every 2 seconds to give it more time to start up before we report it as missing
+      // If the inverter is a slow starter, only decrement the counter every third second,
+      // tripling the timeout (60 s -> 180 s) to give it more time to start up before we
+      // report it as missing
       if (user_selected_inverter_long_CAN_timeout) {
         static uint8_t slow_start_counter = 0;
         slow_start_counter++;
-        if (slow_start_counter > 2) {  // Only decrement every 2 seconds
+        if (slow_start_counter > 2) {  // Counts 1, 2, 3: the decrement runs on every third pass
           datalayer.system.status.CAN_inverter_still_alive--;
           slow_start_counter = 0;
         }
@@ -470,6 +512,9 @@ void update_machineryprotection() {
     }
   }
 
+  // Temperature limits are shared by all batteries, so all of them are checked in one pass
+  check_battery_temperatures();
+
   // Too many malformed CAN messages received! EVENT_CAN_CORRUPTED_WARNING is shared by
   // all batteries; evaluate them together so one battery's clean state can no longer
   // clear another battery's active warning. Event data = first offending channel.
@@ -558,7 +603,7 @@ void update_machineryprotection() {
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
-  DEBUG_PRINTF("Battery pause begin %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
+  DEBUG_PRINTF("Battery pause sequence %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
 
   // First handle equipment stop / resume
   if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
@@ -611,6 +656,15 @@ void graceful_restart() {
   // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
 
   set_event(EVENT_RESTARTING, 0);
+
+  /* An intentional restart must not throw away a fresh update. The board was
+     well enough to be asked for one, which is the health this needs; without
+     this, restarting inside the 42 s window - the very thing a user does after
+     an update - would silently revert it. Armed at the REQUEST rather than at
+     the reboot, because the pause below buys 5-10 s, which is what lets the
+     write happen where every other runtime flash write happens instead of from
+     the 1 ms tick. */
+  ota_confirm_request();
 
   // Stop charge/discharge so we don't damage the contactors
   setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);

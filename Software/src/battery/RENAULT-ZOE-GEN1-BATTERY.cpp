@@ -60,9 +60,10 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
         }
         // Cell 47 measurement is inbetween pack halves. If low, fuse blown
         if (datalayer_battery->status.cell_voltages_mV[47] < 100) {
-          set_event(EVENT_BATTERY_FUSE, datalayer_battery->status.cell_voltages_mV[47]);
+          set_event(EVENT_BATTERY_FUSE, datalayer_battery->status.cell_voltages_mV[47], battery_index);
+
         } else {
-          clear_event(EVENT_BATTERY_FUSE);
+          clear_event(EVENT_BATTERY_FUSE, battery_index);
         }
       }
       break;
@@ -79,14 +80,21 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
         kWh_from_beginning_of_battery_life = (data[15] << 8) | data[16];
       }
       break;
-    case GROUP6_BALANCING:  // 0x07, one bit per cell, MSB first within each byte
+    case GROUP6_BALANCING: {  // 0x07, 18 bytes payload, 1 bit per cell (LSB-first bit order)
+      bool any_balancing = false;
       for (uint8_t cell = 0; cell < 96; cell++) {
         if ((cell >> 3) >= length) {
           break;
         }
-        datalayer_battery->status.cell_balancing_status[cell] = (data[cell >> 3] >> (7 - (cell & 7))) & 0x01;
+        bool is_balancing = (data[cell >> 3] >> (cell & 7)) & 0x01;
+        datalayer_battery->status.cell_balancing_status[cell] = is_balancing;
+        if (is_balancing) {
+          any_balancing = true;
+        }
       }
+      datalayer_battery->status.balancing_status = any_balancing ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
       break;
+    }
     default:  //Unknown PID, ignore
       break;
   }
@@ -171,6 +179,29 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
       ZOE_423.data.u8[6] = 0x5D;
     }
     counter_423 = (counter_423 + 1) % 10;
+
+    // Broadcast 100ms vehicle frames (PEB Inverter 0x19F, EVC Power Mux 0x426, EVC Status 0x436)
+    // Rolling 4-bit sequence counter (cycles 0-15)
+    ZOE_19F_INVERTER.data.u8[3] = (zoe_19F_counter++ & 0x0F);
+    transmit_can_frame(&ZOE_19F_INVERTER);
+
+    transmit_can_frame(&ZOE_426_POWER_MUX);
+
+    transmit_can_frame(&ZOE_436_VEHICLE_STATUS);
+  }
+
+  // Update EVC 0x436 vehicle runtime clock every 60s
+  if (currentMillis - previousMillis60000_436 >= INTERVAL_60_S) {
+    previousMillis60000_436 = currentMillis;
+    zoe_436_counter++;
+    ZOE_436_VEHICLE_STATUS.data.u8[2] = (zoe_436_counter >> 8) & 0xFF;
+    ZOE_436_VEHICLE_STATUS.data.u8[3] = zoe_436_counter & 0xFF;
+  }
+
+  // Broadcast 1000ms BCM Gateway alive token
+  if (currentMillis - previousMillis1000_69f >= INTERVAL_1_S) {
+    previousMillis1000_69f = currentMillis;
+    transmit_can_frame(&ZOE_69F_BCM_GATEWAY);
   }
 
   // UDS PID polling and DTC handling

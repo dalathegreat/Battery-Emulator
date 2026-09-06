@@ -200,6 +200,31 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_cooldown_ready;
   bool autocal_crit_contactors;
 
+  // Native BMS termination: let the battery end the charge and recalibrate SOC itself, by running a
+  // real charge session on an already closed pack. Needs the pack not reporting an insulation fault
+  // (the isolation-monitor-disable setting, on by default, normally keeps that clear).
+  bool native_termination_enabled;
+  /** Session state: 0 off, 1 requesting, 2 ready, 3 charging, 4 finishing, 5 resting */
+  uint8_t charge_session_state;
+  /** Charge grant the battery gives the charger (0x347), zero means stop */
+  uint8_t charge_grant;
+  /** Seconds spent in the current session state, so the post-charge rest can be timed */
+  uint32_t charge_session_seconds;
+  /** Highest cell and cell spread at the moment the battery ended the last charge */
+  uint16_t termination_cell_max_mV;
+  uint16_t termination_cell_min_mV;
+  uint16_t termination_cell_delta_mV;
+  uint8_t termination_cell_max_number;
+  uint8_t termination_cell_min_number;
+  /** Cycle the contactors open after a native termination, then close again */
+  bool balancing_enabled;
+  /** How long to hold the pack open for */
+  uint16_t balancing_hold_minutes;
+  /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
+  uint8_t balancing_state;
+  /** Minutes left of the hold */
+  uint16_t balancing_remaining_min;
+
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI
@@ -290,31 +315,6 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryCurrentDeviation;
   bool FaultBatteryUnderVoltage;
   bool FaultBatteryOverVoltage;
-};
-
-struct DATALAYER_INFO_CMPSMART {
-  uint8_t battery_negative_contactor_state;
-  uint8_t battery_precharge_contactor_state;
-  uint8_t battery_positive_contactor_state;
-  uint8_t battery_state;
-  uint8_t eplug_status;
-  uint8_t HVIL_status;
-  uint8_t ev_warning;
-  uint8_t insulation_fault;
-  uint8_t insulation_circuit_status;
-  uint8_t hardware_fault_status;
-  uint8_t l3_fault;
-  uint8_t plausibility_error;
-  uint8_t battery_charging_status;
-  uint8_t battery_fault;
-  uint8_t hvbat_wakeup_state;
-  uint8_t active_DTC_code;
-  uint8_t alert_frame3;
-  uint8_t alert_frame4;
-  bool rcd_line_active;
-  bool power_auth;
-  bool battery_balancing_active;
-  bool UserRequestDTCreset; /** User requesting DTC reset via WebUI*/
 };
 
 struct DATALAYER_INFO_ECMP {
@@ -495,6 +495,42 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
   uint8_t ecu_version_number[16];
 };
 
+struct DATALAYER_INFO_KIA64FD {
+  /** SOC reported by the BMS, 1000 = 100.0% */
+  uint16_t SOC_BMS;
+  /** SOC shown on the vehicle display, 1000 = 100.0% */
+  uint16_t SOC_Display;
+  /** SOC estimated from the lowest cell voltage, 10000 = 100.00% */
+  uint16_t SOC_estimated_lowest;
+  /** SOC estimated from the highest cell voltage, 10000 = 100.00% */
+  uint16_t SOC_estimated_highest;
+  /** State of health reported by the BMS, 1000 = 100.0% */
+  uint16_t batterySOH;
+  /** Voltage measured on the inverter side of the contactors, in V */
+  uint16_t inverterVoltage;
+
+  /** Charge power the BMS permits, in kW*100 */
+  int16_t allowedChargePower;
+  /** Discharge power the BMS permits, in kW*100 */
+  int16_t allowedDischargePower;
+  /** 12V auxiliary battery voltage, 120 = 12.0V */
+  int16_t leadAcidBatteryVoltage;
+
+  /** Coolant temperature at the pack inlet, in degrees C */
+  int8_t temperature_water_inlet;
+  /** Battery heater temperature, in degrees C */
+  int8_t heatertemp;
+
+  /** Index of the cell holding the highest voltage */
+  uint8_t CellVmaxNo;
+  /** Index of the cell holding the lowest voltage */
+  uint8_t CellVminNo;
+  /** BMS operating mode */
+  uint8_t batteryManagementMode;
+  /** BMS ignition signal state */
+  uint8_t BMS_ign;
+};
+
 struct DATALAYER_INFO_RIVIAN {
   uint16_t pre_contactor_voltage;
   uint16_t main_contactor_voltage;
@@ -557,7 +593,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_info_subUsageId;
   uint16_t battery_dcdcLvBusVolt;
   uint16_t battery_dcdcHvBusVolt;
-  uint16_t battery_dcdcLvOutputCurrent;
+  int16_t battery_dcdcLvOutputCurrent;
   uint16_t battery_nominal_full_pack_energy;
   uint16_t battery_nominal_full_pack_energy_m0;
   uint16_t battery_nominal_energy_remaining;
@@ -573,7 +609,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMax;
   uint16_t battery_BrickVoltageMin;
   uint16_t HVP_hvp1v5Ref;
-  uint16_t HVP_shuntCurrentDebug;
+  int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
   int16_t PCS_ambientTemp;
   int16_t PCS_chgPhATemp;
@@ -691,7 +727,6 @@ struct DATALAYER_INFO_TESLA {
   uint8_t HVP_info_pcbaId;
   uint8_t HVP_info_assemblyId;
   uint8_t HVP_info_bootUdsProtoVersion;
-  uint8_t HVP_shuntHwMia;
   uint8_t HVP_shuntAuxCurrentStatus;
   uint8_t HVP_shuntBarTempStatus;
   uint8_t HVP_shuntAsicTempStatus;
@@ -728,19 +763,15 @@ struct DATALAYER_INFO_TESLA {
   bool HVP_gpioPyroPor;
   bool HVP_gpioShuntEn;
   bool HVP_gpioHvpVerEn;
-  bool HVP_gpioPackCoontPosFlywheel;
+  bool HVP_gpioFcContFlywheelEnable;
   bool HVP_gpioCpLatchEnable;
-  bool HVP_gpioPcsEnable;
-  bool HVP_gpioPcsDcdcPwmEnable;
-  bool HVP_gpioPcsChargePwmEnable;
   bool HVP_gpioFcContPowerEnable;
   bool HVP_gpioHvilEnable;
-  bool HVP_gpioSecDrdy;
+  bool HVP_gpioPortSelSpiRdy;
+  bool HVP_gpioPyroUnlock;
   bool HVP_packCurrentMia;
   bool HVP_auxCurrentMia;
   bool HVP_currentSenseMia;
-  bool HVP_shuntRefVoltageMismatch;
-  bool HVP_shuntThermistorMia;
 
   uint8_t BMS_partNumber[12];        //stores raw HEX values for ASCII chars
   uint8_t battery_serialNumber[15];  //stores raw HEX values for ASCII chars
@@ -1013,10 +1044,13 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_CMPSMART stellantisCMPsmart;
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
+    struct {
+      DATALAYER_INFO_KIA64FD Kia64FD;
+      DATALAYER_INFO_KIA64FD Kia64FD_2;
+    };
     struct {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
@@ -1050,6 +1084,9 @@ class DataLayerExtended {
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
+      data.native_termination_enabled = true;
+      data.balancing_enabled = false;
+      data.balancing_hold_minutes = 30;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);

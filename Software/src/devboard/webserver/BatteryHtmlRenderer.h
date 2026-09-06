@@ -27,9 +27,10 @@ class BatteryHtmlRenderer {
 
     // Reserve enough space to avoid reallocs
     content.reserve(3300 + dtc.dtc_count * 320);
+    // Underline hugs the title instead of spanning the page
     content +=
-        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
-        "Diagnostic Trouble Codes</h4>";
+        "<h4 style='margin:20px auto 0;width:fit-content;color:#27b06c;border-bottom:2px solid #27b06c;"
+        "padding-bottom:5px;'>&#128295; Diagnostic Trouble Codes</h4>";
     if (dtc.dtc_last_read_millis == 0) {
       content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
     } else if (dtc.dtc_read_failed) {
