@@ -146,6 +146,19 @@ void init_WiFi() {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
 
+#ifdef ETHERNET
+  // Lower the STA route priority below Ethernet's (ETH default is 50). ESP-IDF's
+  // automatic default-interface selection picks the highest route_prio among the
+  // interfaces that are *up* — regardless of whether they hold an IP — and the STA
+  // netif goes "up" the moment a (possibly failing) connection attempt starts. With
+  // the stock STA prio of 100 > ETH 50, every WiFi retry would transiently steal the
+  // default interface, and with CONFIG_ESP_NETIF_SET_DNS_PER_DEFAULT_NETIF the global
+  // resolver with it, pointing DNS at an interface that has no IP yet. Making STA the
+  // lowest keeps a working Ethernet link the default; onWifiGotIP() still explicitly
+  // pins WiFi via network_update_default_interface() when it genuinely connects.
+  WiFi.STA.setRoutePrio(10);
+#endif
+
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
 
@@ -374,6 +387,13 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
   current_check_interval = WIFI_CHECK_INTERVAL;                         // Reset the full reconnect interval
   clear_event(EVENT_WIFI_CONNECT);
+#ifdef ETHERNET
+  // STA_CONNECTED brings the STA netif "up" but it has NO IP yet (DHCP still to
+  // come). ESP-IDF would let this IP-less netif become the default by route_prio;
+  // re-assert the default here so a working Ethernet link keeps the route and DNS
+  // resolver until WiFi actually gets an IP (onWifiGotIP re-pins again then).
+  network_update_default_interface();
+#endif
 }
 
 static void log_ap_sta_event(const char* verb, const uint8_t* mac) {
