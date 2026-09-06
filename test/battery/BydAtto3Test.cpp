@@ -457,6 +457,7 @@ CAN_frame pack_voltage_frame() {
 }
 
 void byd_precharge_setup() {
+  init_events();
   reset_all_events();
   reset_byd_state();
   clear_transmitted_frames();
