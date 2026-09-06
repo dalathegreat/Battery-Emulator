@@ -16,29 +16,17 @@ static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame, uint8_t length) {
   return crc ^ 0xFF;  // final XOR 0xFF
 }
 
-uint16_t estimate_SOC_based_on_v(uint16_t voltage) {
-  // Voltage ranges between 3780dV when full, and 2880dV when empty
-  // Range = 3780 - 2880 = 900dV → represents 100% SOC
-
-  if (voltage <= 2880)
-    return 0;
-  if (voltage >= 3780)
-    return 10000;
-
-  return (uint32_t)(voltage - 2880) * 10000 / 900;
-}
-
 void StellantisProOneBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.voltage_dV = pack_voltage;
 
-  datalayer.battery.status.real_soc =
-      estimate_SOC_based_on_v(datalayer.battery.status.voltage_dV);  //TODO, locate real SOC and don't estimate!
+  datalayer.battery.status.real_soc = soc_real_pptt;
 
   datalayer.battery.status.current_dA = battery_current;
 
-  if (contactor_status == CONTACTORS_OFF) {
+  //No power while the contactors are open or still precharging
+  if (contactor_status == CONTACTORS_OFF || contactor_status == CONTACTORS_PRECHARGE) {
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
@@ -118,7 +106,9 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
               "<h4>281_1: " << unknown_281_0 << "</h4>"
               "<h4>281_2: " << unknown_281_1 << "</h4>"
-              "<h4>Contactor state: " << contactor_status << " (8off,10on)</h4>"
+              "<h4>281_3: " << unknown_281_2 << "</h4>"
+              "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
+              "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
@@ -151,6 +141,12 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (expectedCRC == rx_frame.data.u8[7]) {
         //Message is valid, process it
         battery_current = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) - 15000;
+        //Bytes 2-3 are pack voltage, 0.1V per bit with a +100V offset.
+        //Zero means the HV measurement module is not reporting - not 100.0V - so keep the last value.
+        uint16_t raw_pack_voltage = (uint16_t)(rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        if (raw_pack_voltage != 0) {
+          pack_voltage = raw_pack_voltage + 1000;  //dV
+        }
         //counter_095 = (rx_frame.data.u8[6] & 0xF0) >> 4;
       } else {
         //CRC error, ignore message
@@ -169,7 +165,8 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (expectedCRC == rx_frame.data.u8[7]) {
         //Message is valid, process it
         contactor_status = (rx_frame.data.u8[5] & 0x0F);
-        if (contactor_status == CONTACTORS_OFF) {
+        battery_ready = (rx_frame.data.u8[3] & 0x40) != 0;
+        if (contactor_status == CONTACTORS_OFF || contactor_status == CONTACTORS_PRECHARGE) {
           datalayer.battery.status.max_charge_power_W = 0;
           datalayer.battery.status.max_discharge_power_W = 0;
         }
@@ -183,15 +180,17 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x220:  //Cellvoltages avg/min/max
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      cellvoltage_average_mV = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-      cellvoltage_max_mV = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      cellvoltage_min_mV = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
+      //These are full 16-bit values. Cells pass 4095mV near full charge, where a 12-bit
+      //mask silently drops the top bit (4096mV would decode as 0mV).
+      cellvoltage_average_mV = (uint16_t)(rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
+      cellvoltage_max_mV = (uint16_t)(rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      cellvoltage_min_mV = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     case 0x281:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       unknown_281_0 = rx_frame.data.u8[1];
       unknown_281_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      pack_voltage = (uint16_t)((((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) * 1.25);
+      unknown_281_2 = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     case 0x285:  //Allowed Charge/Discharge?
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -201,6 +200,11 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Byte 4 is pack SOC, byte 5 tracks the weakest cell. Full scale 255 = 100%.
+      //Zero is only seen before the BMS has populated it, so keep the last value.
+      if (rx_frame.data.u8[4] != 0) {
+        soc_real_pptt = (uint16_t)((uint32_t)rx_frame.data.u8[4] * 10000u / 255u);
+      }
       unknown_306_0 = rx_frame.data.u8[4];
       unknown_306_1 = rx_frame.data.u8[5];
       unknown_306_2 = (uint16_t)((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
