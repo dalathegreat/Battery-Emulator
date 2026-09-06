@@ -29,6 +29,11 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint8_t CONTACTORS_PRECHARGE = 9;
   static const uint8_t CONTACTORS_ON = 10;
 
+  //Nominal figures from the cell datasheet, not read from the bus. Used only to turn the
+  //capacity the BMS reports into a percentage and an energy figure.
+  static const uint16_t NOMINAL_CAPACITY_AH_TENTHS = 3340;  //334.0Ah cell, 90S1P
+  static const uint16_t NOMINAL_PACK_VOLTAGE_CV = 33120;    //90 x 3.68V = 331.2V, in centivolt
+
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 250;
@@ -302,6 +307,7 @@ class StellantisProOneBattery : public UdsCanBattery {
 
   uint8_t contactor_status = 0;
   bool battery_ready = false;
+  uint16_t pack_capacity_ah_tenths = 0;
   uint16_t soc_real_pptt = 5000;
   uint16_t pack_voltage = 3700;
   int16_t battery_current = 0;
