@@ -1276,9 +1276,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN% />
 
         <div class='if-syslogen'>
-        <label>Syslog server IP: </label>
-        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%" pattern="%IPPATTERN%"
-              inputmode="decimal" />
+        <label>Syslog server: </label>
+        <input type='text' name='SYSLOGIP' value="%SYSLOGIP%"
+        pattern="[A-Za-z0-9.\-]+"
+        title="Hostname (letters, numbers, '.', '-')" />
         <label>Syslog UDP port: </label>
         <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
               min="1" max="65535" step="1" />
