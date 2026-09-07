@@ -12,6 +12,7 @@
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+#include "src/communication/modbus_gateway/modbus_gateway.h"
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
@@ -651,6 +652,7 @@ void core_loop(void*) {
     if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S && loopPhase == 1) {
       previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
       START_TIME_MEASUREMENT(values);
+      modbus_gateway_loop();  // Bind Modbus-TCP gateway once WiFi is up (no-op otherwise)
       update_pause_state();  // Check if we are OK to send CAN or need to pause
 
       // Fetch battery values
@@ -780,6 +782,11 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
+
+  // Optional Modbus gateway (build-gated). Must run after setup_inverter() so the
+  // free-RS485 gate can read the active inverter interface type. No-op if the bus
+  // is busy or the feature is compiled out.
+  modbus_gateway_init();
 
   /* Some battery types mandate the SOC-based charge power taper. Enforce at
      runtime regardless of stored settings, and restrict the start SOC to
