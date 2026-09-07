@@ -1062,7 +1062,11 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_ECMP stellantisECMP;
+    struct {
+      DATALAYER_INFO_ECMP stellantisECMP;
+      DATALAYER_INFO_ECMP stellantisECMP_2;
+      DATALAYER_INFO_ECMP stellantisECMP_3;
+    };
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
     struct {

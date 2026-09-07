@@ -47,6 +47,10 @@
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)        \
   XX(EVENT_CONTACTOR_WELDED)             \
   XX(EVENT_CONTACTOR_OPEN)               \
+  XX(EVENT_CONTACTOR2_OPEN)              \
+  XX(EVENT_CONTACTOR3_OPEN)              \
+  XX(EVENT_BMS_CONTACTOR_INTERLOCK)      \
+  XX(EVENT_BMS_CONTACTOR_OPEN_SHUTDOWN)  \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)     \
   XX(EVENT_WATER_INGRESS)                \
   XX(EVENT_12V_LOW)                      \
@@ -262,6 +266,9 @@ void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
 void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
 void clear_event(EVENTS_ENUM_TYPE event, uint8_t battery);
 void clear_event(EVENTS_ENUM_TYPE event);
+// Clear an event and also wipe its history so it no longer shows on the events page at all.
+// For transient conditions that are not worth keeping a record of.
+void reset_event(EVENTS_ENUM_TYPE event);
 // Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
 void reset_all_events();

@@ -10,6 +10,13 @@ extern bool contactor_control_inverted_logic;
 extern bool contactor_control_enabled_double_battery;
 extern bool contactor_control_enabled_triple_battery;
 extern bool pwm_contactor_control;
+#ifndef SMALL_FLASH_DEVICE
+// When true, the GPIO contactor sequence is not allowed to start unless every battery that
+// reports a real BMS contactor status has it CLOSED. Does not force contactors open once
+// engaged - that stays with the FAULT/equipment-stop logic. Default off. Stellantis eCMP only;
+// not built for flash-limited boards.
+extern bool require_bms_contactors_closed;
+#endif  // SMALL_FLASH_DEVICE
 extern bool periodic_bms_reset;
 // Interval between periodic BMS resets, in hours. Only 24 and 48 are offered in the UI.
 extern uint16_t periodic_bms_reset_interval_h;
