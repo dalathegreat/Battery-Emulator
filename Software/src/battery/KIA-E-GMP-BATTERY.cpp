@@ -162,6 +162,138 @@ uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t
   return crc;
 }
 
+uint16_t KiaEGmpBattery::calculate_transmit_checksum(const CAN_frame& frame) {
+  uint16_t crc = 0;
+  for (uint8_t index = 2; index < frame.DLC; index++) {
+    crc ^= static_cast<uint16_t>(frame.data.u8[index]) << 8;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      crc = (crc & 0x8000) ? static_cast<uint16_t>((crc << 1) ^ 0x1021) : static_cast<uint16_t>(crc << 1);
+    }
+  }
+
+  for (uint8_t value : {static_cast<uint8_t>(frame.ID), static_cast<uint8_t>(0)}) {
+    crc ^= static_cast<uint16_t>(value) << 8;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      crc = (crc & 0x8000) ? static_cast<uint16_t>((crc << 1) ^ 0x1021) : static_cast<uint16_t>(crc << 1);
+    }
+  }
+
+  return crc ^ transmit_checksum_xor(frame.ID);
+}
+
+uint16_t KiaEGmpBattery::transmit_checksum_xor(uint16_t can_id) const {
+  switch (can_id) {
+    case 0x10A:
+    case 0x120:
+    case 0x19A:
+      return 0x8F7A;
+    case 0x2B5:
+    case 0x2C0:
+    case 0x2D5:
+    case 0x2E0:
+    case 0x2E5:
+    case 0x2EA:
+      return 0xBF19;
+    case 0x306:
+      return 0xADAC;
+    case 0x308:
+      return 0x1768;
+    case 0x30A:
+    case 0x320:
+    case 0x33A:
+    case 0x350:
+    case 0x3B5:
+      return 0xAF38;
+    default:
+      return 0x9F5B;
+  }
+}
+
+void KiaEGmpBattery::request_startup_sequence() {
+  startupSequenceRequested = true;
+  startupSequenceComplete = false;
+}
+
+void KiaEGmpBattery::transmit_startup_message(uint8_t message_index) {
+  CAN_frame frame = *messages[message_index];
+  if (has_transmit_counter(frame.ID)) {
+    last_transmit_counter_valid[frame.ID] = true;
+    last_transmit_counter[frame.ID] = frame.data.u8[2];
+  }
+  uint16_t checksum = calculate_transmit_checksum(frame);
+  frame.data.u8[0] = static_cast<uint8_t>(checksum);
+  frame.data.u8[1] = static_cast<uint8_t>(checksum >> 8);
+  transmit_can_frame(&frame);
+}
+
+bool KiaEGmpBattery::has_transmit_counter(uint16_t can_id) const {
+  switch (can_id) {
+    case 0x10A:
+    case 0x120:
+    case 0x19A:
+    case 0x2B5:
+    case 0x2C0:
+    case 0x2D5:
+    case 0x2E0:
+    case 0x2E5:
+    case 0x2EA:
+    case 0x308:
+    case 0x30A:
+    case 0x320:
+    case 0x33A:
+    case 0x350:
+    case 0x3B5:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
+  uint8_t selected_message = 0;
+  bool found_message = false;
+  for (uint8_t index = 0; index < sizeof(messages) / sizeof(messages[0]); index++) {
+    if (messages[index]->ID == can_id) {
+      selected_message = index;
+      found_message = true;
+      if (can_id == 0x30A && (message_count & 1) != 0) {
+        continue;
+      }
+      break;
+    }
+  }
+
+  if (can_id == 0x30A && (message_count & 1) != 0) {
+    for (uint8_t index = selected_message + 1; index < sizeof(messages) / sizeof(messages[0]); index++) {
+      if (messages[index]->ID == can_id) {
+        selected_message = index;
+        break;
+      }
+    }
+  }
+
+  if (!found_message) {
+    return;
+  }
+
+  CAN_frame frame = *messages[selected_message];
+  if (has_transmit_counter(frame.ID)) {
+    uint8_t next_counter = frame.data.u8[2];
+    if (last_transmit_counter_valid[frame.ID]) {
+      next_counter = static_cast<uint8_t>(last_transmit_counter[frame.ID] + 1u);
+    } else {
+      next_counter = static_cast<uint8_t>(frame.data.u8[2]);
+      last_transmit_counter_valid[frame.ID] = true;
+    }
+    last_transmit_counter[frame.ID] = next_counter;
+    frame.data.u8[2] = next_counter;
+  }
+  uint16_t checksum = calculate_transmit_checksum(frame);
+  frame.data.u8[0] = static_cast<uint8_t>(checksum);
+  frame.data.u8[1] = static_cast<uint8_t>(checksum >> 8);
+  transmit_can_frame(&frame);
+}
+
 void KiaEGmpBattery::update_values() {
 
   if (user_selected_use_estimated_SOC) {
@@ -391,24 +523,63 @@ break;
 
 void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
   if (startedUp) {
-    //Send Contactor closing message loop
-    // Check if we still have messages to send
-    if (messageIndex < sizeof(messageDelays) / sizeof(messageDelays[0])) {
+    if (startupSequenceRequested || (!startupSequenceComplete && !startupSequenceActive)) {
+      startupSequenceRequested = false;
+      startupSequenceActive = true;
+      startupMessageIndex = 0;
+      startupStartMillis = currentMillis;
+      transmitScheduleStarted = false;
+      transmit10msCount = 0;
+    }
 
-      // Check if it's time to send the next message
-      if (currentMillis - startMillis >= messageDelays[messageIndex]) {
+    if (startupSequenceActive) {
+      while (startupMessageIndex < sizeof(messages) / sizeof(messages[0]) &&
+             currentMillis - startupStartMillis >= startupMessageDelays[startupMessageIndex]) {
+        transmit_startup_message(startupMessageIndex);
+        startupMessageIndex++;
+      }
 
-        // Transmit the current message
-        transmit_can_frame(messages[messageIndex]);
-
-        // Move to the next message
-        messageIndex++;
+      if (startupMessageIndex >= sizeof(messages) / sizeof(messages[0])) {
+        startupSequenceActive = false;
+        startupSequenceComplete = true;
+        lastTransmitMillis = currentMillis;
+        transmitScheduleStarted = true;
       }
     }
 
-    if (messageIndex >= 63) {
-      startMillis = currentMillis;  // Start over!
-      messageIndex = 0;
+    if (!startupSequenceActive) {
+    if (!transmitScheduleStarted) {
+      lastTransmitMillis = currentMillis;
+      transmitScheduleStarted = true;
+    }
+
+    while (currentMillis - lastTransmitMillis >= 10) {
+      lastTransmitMillis += 10;
+      transmit_message(0x10A, transmit10msCount);
+      transmit_message(0x120, transmit10msCount);
+      transmit_message(0x19A, transmit10msCount);
+
+      if ((transmit10msCount % 10) == 0) {
+        transmit_message(0x2B5, transmit10msCount / 10);
+        transmit_message(0x2E0, transmit10msCount / 10);
+        transmit_message(0x33A, transmit10msCount / 10);
+        transmit_message(0x350, transmit10msCount / 10);
+        transmit_message(0x2E5, transmit10msCount / 10);
+        transmit_message(0x30A, transmit10msCount / 10);
+        transmit_message(0x320, transmit10msCount / 10);
+      }
+
+      if ((transmit10msCount % 20) == 0) {
+        transmit_message(0x2C0, transmit10msCount / 20);
+        transmit_message(0x2D5, transmit10msCount / 20);
+        transmit_message(0x2EA, transmit10msCount / 20);
+        transmit_message(0x306, transmit10msCount / 20);
+        transmit_message(0x308, transmit10msCount / 20);
+        transmit_message(0x3B5, transmit10msCount / 20);
+      }
+
+      transmit10msCount++;
+    }
     }
 
     // UDS PID polling and DTC handling
