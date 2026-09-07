@@ -653,7 +653,7 @@ void core_loop(void*) {
       previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
       START_TIME_MEASUREMENT(values);
       modbus_gateway_loop();  // Bind Modbus-TCP gateway once WiFi is up (no-op otherwise)
-      update_pause_state();  // Check if we are OK to send CAN or need to pause
+      update_pause_state();   // Check if we are OK to send CAN or need to pause
 
       // Fetch battery values
       if (battery) {

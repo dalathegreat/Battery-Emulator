@@ -94,12 +94,14 @@ static std::vector<uint8_t> parse_slave_ids(const String& csv) {
   int start = 0;
   while (start < (int)csv.length()) {
     int comma = csv.indexOf(',', start);
-    if (comma < 0) comma = csv.length();
+    if (comma < 0)
+      comma = csv.length();
     String tok = csv.substring(start, comma);
     tok.trim();
     if (tok.length()) {
       int v = tok.toInt();
-      if (v >= 1 && v <= 247) ids.push_back((uint8_t)v);
+      if (v >= 1 && v <= 247)
+        ids.push_back((uint8_t)v);
     }
     start = comma + 1;
   }
@@ -107,7 +109,8 @@ static std::vector<uint8_t> parse_slave_ids(const String& csv) {
 }
 
 static bool ip_allowed(const String& ip) {
-  if (g_cfg.ip_allow.length() == 0) return true;  // empty allowlist = allow all
+  if (g_cfg.ip_allow.length() == 0)
+    return true;  // empty allowlist = allow all
   String csv = g_cfg.ip_allow;
   csv.replace(" ", "");
   return ("," + csv + ",").indexOf("," + ip + ",") >= 0;
@@ -248,11 +251,15 @@ void modbus_gateway_register_routes(AsyncWebServer& server) {
   // Anti-replay: nonce must strictly exceed the last accepted nonce (kept in NVS).
   server.on("/modbus/write", HTTP_POST, [](AsyncWebServerRequest* request) {
     auto getp = [&](const char* n) -> String {
-      if (request->hasParam(n, true)) return request->getParam(n, true)->value();
-      if (request->hasParam(n)) return request->getParam(n)->value();
+      if (request->hasParam(n, true))
+        return request->getParam(n, true)->value();
+      if (request->hasParam(n))
+        return request->getParam(n)->value();
       return String();
     };
-    auto has = [&](const char* n) -> bool { return request->hasParam(n, true) || request->hasParam(n); };
+    auto has = [&](const char* n) -> bool {
+      return request->hasParam(n, true) || request->hasParam(n);
+    };
     String ip = request->client() ? request->client()->remoteIP().toString() : String("?");
     auto deny = [&](int code, const char* txt, uint8_t id, uint16_t addr, uint16_t val) {
       audit_add(ip, id, addr, val, code);
@@ -322,8 +329,10 @@ void modbus_gateway_register_routes(AsyncWebServer& server) {
     for (int k = 0; k < GW_AUDIT_N; k++) {
       int idx = (g_audit_head - 1 - k + 2 * GW_AUDIT_N) % GW_AUDIT_N;  // newest first
       const AuditEntry& e = g_audit[idx];
-      if (e.ms == 0) continue;
-      if (!first) j += ",";
+      if (e.ms == 0)
+        continue;
+      if (!first)
+        j += ",";
       first = false;
       j += "{\"ms\":" + String(e.ms) + ",\"ip\":\"" + json_escape(e.ip) + "\",\"id\":" + String(e.id) +
            ",\"addr\":" + String(e.addr) + ",\"val\":" + String(e.val) + ",\"code\":" + String(e.code) + "}";

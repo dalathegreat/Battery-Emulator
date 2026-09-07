@@ -472,7 +472,7 @@ void init_webserver() {
       "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
       "INVACCREB",
 #ifndef SMALL_FLASH_DEVICE
-      "GWENAB", "GWWRITE",
+      "GWENAB",       "GWWRITE",
 #endif
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
@@ -489,15 +489,15 @@ void init_webserver() {
       "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
       "SYSLOGFAC",  "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "GWPORT", "GWBAUD",
+      "GWPORT",     "GWBAUD",
 #endif
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
-                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
-                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS",
+  const char* stringSettingNames[] = {
+      "APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
+      "LOCALIP",    "GATEWAY",  "SUBNET",     "DNS",      "HADISCTOPIC",  "SYSLOGIP", "ESPNOWMACS",
 #ifndef SMALL_FLASH_DEVICE
-                                      "GWSLAVES", "GWSECRET", "GWIPALLOW",
+      "GWSLAVES",   "GWSECRET", "GWIPALLOW",
 #endif
   };
 
