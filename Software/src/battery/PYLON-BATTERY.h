@@ -55,6 +55,9 @@ class PylonBattery : public CanBattery {
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
   unsigned long previousMillis5000 = 0;  // will store last time a 5s CAN Message was sent
 
+  bool pylon_LV_battery_detected =
+      false;  // True if the LV messages are detected, false if the HV messages are detected
+
   //Actual content messages
   CAN_frame PYLON_3010 = {.FD = false,
                           .ext_ID = true,
@@ -88,6 +91,12 @@ class PylonBattery : public CanBattery {
                                            .DLC = 1,
                                            .ID = 0x19B50300,
                                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  // Pylon LV only needs to see 0x305 Inverter Keepalive message
+  CAN_frame PYLON_LV_305 = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x305,
+                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
   int16_t celltemperature_max_dC = 0;
   int16_t celltemperature_min_dC = 0;
@@ -99,6 +108,7 @@ class PylonBattery : public CanBattery {
   uint16_t cellvoltage_min_mV = 3300;
   uint16_t charge_cutoff_voltage = 0;
   uint16_t discharge_cutoff_voltage = 0;
+  uint16_t charge_voltage_limit_dV = 0;
   int16_t max_charge_current_dA = 0;
   int16_t max_discharge_current_dA = 0;
   int16_t BMS_temperature_dC = 0;
@@ -118,7 +128,8 @@ class PylonBattery : public CanBattery {
   uint8_t hardware_version_R = 0;
   uint8_t software_version_major = 0;
   uint8_t software_version_minor = 0;
-  uint8_t actual_cell_count = 0;  // Actual number of cells detected from EMUS
+  uint8_t actual_cell_count = 0;                   // Actual number of cells detected from EMUS
+  uint8_t allowed_charge_discharge_bitmask = 255;  // Bitmask indicating allowed charge/discharge states for LV
 };
 
 #endif
