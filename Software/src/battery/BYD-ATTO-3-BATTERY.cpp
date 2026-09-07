@@ -75,7 +75,7 @@ void BydAttoBattery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = BMS_allowed_discharge_power * 100;
+  datalayer_battery->status.max_discharge_power_W = 50000;
 
   datalayer_battery->status.max_charge_power_W = BMS_allowed_charge_power * 100;
 
@@ -252,7 +252,7 @@ void BydAttoBattery::
   if (!(contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) ||
       (contactorState != CONTACTORS_CLOSING && contactorState != CONTACTORS_ACTIVE)) {
     datalayer_battery->status.max_charge_power_W = 0;
-    datalayer_battery->status.max_discharge_power_W = 0;
+    //datalayer_battery->status.max_discharge_power_W = 0;
   }
 
   // Pack-internal contactors: DC bus is live once the pack confirms the main contactor
