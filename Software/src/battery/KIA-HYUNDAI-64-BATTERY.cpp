@@ -215,32 +215,7 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
   // UDS PID polling and DTC handling
   transmit_uds_can(currentMillis);
 
-  //Send 100ms message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
-
-    static const uint8_t counter_592_table[4] = {0x05, 0x45, 0x85, 0xC5};
-    KIA64_592.data.u8[7] = counter_592_table[counter_100ms];
-    counter_100ms = (counter_100ms + 1) & 0x03;
-
-    transmit_can_frame(&KIA64_553);
-    transmit_can_frame(&KIA64_57F);
-    transmit_can_frame(&KIA64_2A1);
-    transmit_can_frame(&KIA64_4E4);
-    transmit_can_frame(&KIA64_570);
-    transmit_can_frame(&KIA64_58F);
-    transmit_can_frame(&KIA64_590);
-    transmit_can_frame(&KIA64_592);
-    transmit_can_frame(&KIA64_45B);
-    transmit_can_frame(&KIA64_540);
-    transmit_can_frame(&KIA64_549);
-    transmit_can_frame(&KIA64_579);
-    transmit_can_frame(&KIA64_57A);
-    transmit_can_frame(&KIA64_57B);
-    transmit_can_frame(&KIA64_5D9);
-  }
-
-  // Send 10ms CAN Message
+  // Send 10ms CAN messages and interleaved 100ms frames
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
@@ -248,6 +223,7 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
     static const uint8_t counter_201_table[4] = {0x11, 0x51, 0x91, 0xD1};
     static const uint8_t byte0_202_table[4] = {0x00, 0x20, 0x40, 0x60};
     static const uint8_t byte7_202_table[4] = {0x10, 0x30, 0x50, 0x70};
+    static const uint8_t counter_592_table[4] = {0x05, 0x45, 0x85, 0xC5};
 
     KIA64_109.data.u8[7] = counter_109_table[counter_10ms];
     KIA64_201.data.u8[0] = counter_201_table[counter_10ms];
@@ -309,6 +285,49 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&KIA64_202);
     transmit_can_frame(&KIA64_291);
     transmit_can_frame(&KIA64_333);
+
+    // Interleave 100ms frames across 10ms sub-ticks to prevent TWAI queue congestion
+    switch (subtick_100ms) {
+      case 0:
+        transmit_can_frame(&KIA64_553);
+        transmit_can_frame(&KIA64_57F);
+        break;
+      case 1:
+        transmit_can_frame(&KIA64_2A1);
+        transmit_can_frame(&KIA64_4E4);
+        break;
+      case 2:
+        transmit_can_frame(&KIA64_570);
+        transmit_can_frame(&KIA64_58F);
+        break;
+      case 3:
+        KIA64_592.data.u8[7] = counter_592_table[counter_100ms];
+        counter_100ms = (counter_100ms + 1) & 0x03;
+        transmit_can_frame(&KIA64_590);
+        transmit_can_frame(&KIA64_592);
+        break;
+      case 4:
+        transmit_can_frame(&KIA64_45B);
+        transmit_can_frame(&KIA64_540);
+        break;
+      case 5:
+        transmit_can_frame(&KIA64_549);
+        transmit_can_frame(&KIA64_579);
+        break;
+      case 6:
+        transmit_can_frame(&KIA64_57A);
+        transmit_can_frame(&KIA64_57B);
+        break;
+      case 7:
+        transmit_can_frame(&KIA64_5D9);
+        break;
+      default:
+        break;
+    }
+
+    if (++subtick_100ms >= 10) {
+      subtick_100ms = 0;
+    }
   }
 }
 
@@ -430,6 +449,7 @@ void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   counter_10ms = 0;
   counter_100ms = 0;
+  subtick_100ms = 0;
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }

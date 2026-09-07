@@ -59,10 +59,10 @@ class KiaHyundai64Battery : public UdsCanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery is put into emergency stop if one cell goes below this value
 
-  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
+  unsigned long previousMillis10 = 0;  // will store last time a 10ms CAN Message was sent
   uint8_t counter_10ms = 0;
   uint8_t counter_100ms = 0;
+  uint8_t subtick_100ms = 0;
 
   uint16_t soc_calculated = 0;
   uint16_t SOC_BMS = 0;
