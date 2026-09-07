@@ -54,7 +54,10 @@ void SolArkLvInverter::update_values() {
   SOLARK_359.data.u8[7] = 0x00;  //Unused, should be 00
 
   // Protection Byte 1 Bitfield: (If a bit is set, one of these caused batt self-protection mode)
-  if (datalayer.battery.status.reported_current_dA >= (datalayer.battery.status.max_discharge_current_dA + 50))
+  // reported_current_dA is positive while charging and negative while discharging, so the discharge
+  // over-current check has to compare against the negated discharge limit. Comparing against the
+  // positive limit tested a charging current against the discharge limit instead.
+  if (datalayer.battery.status.reported_current_dA <= -1 * (datalayer.battery.status.max_discharge_current_dA + 50))
     SOLARK_359.data.u8[0] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
     SOLARK_359.data.u8[0] |= 0x10;
@@ -64,7 +67,11 @@ void SolArkLvInverter::update_values() {
     SOLARK_359.data.u8[0] |= 0x04;
   if (datalayer.system.status.system_status == FAULT)
     SOLARK_359.data.u8[1] |= 0x80;
-  if (datalayer.battery.status.reported_current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
+  // Charge current is the positive direction, so this one compares against the plain charge limit.
+  // The +50 margin matches the discharge check above: without it a full pack, which reports
+  // max_charge_current_dA 0, sat on the 0 >= 0 boundary and flagged charge over-current while idle
+  // or while discharging normally.
+  if (datalayer.battery.status.reported_current_dA >= (datalayer.battery.status.max_charge_current_dA + 50))
     SOLARK_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)
