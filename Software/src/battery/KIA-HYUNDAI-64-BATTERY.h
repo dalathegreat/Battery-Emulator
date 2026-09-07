@@ -61,6 +61,8 @@ class KiaHyundai64Battery : public UdsCanBattery {
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
+  uint8_t counter_10ms = 0;
+  uint8_t counter_100ms = 0;
 
   uint16_t soc_calculated = 0;
   uint16_t SOC_BMS = 0;
@@ -140,6 +142,108 @@ class KiaHyundai64Battery : public UdsCanBattery {
                          .DLC = 8,
                          .ID = 0x2A1,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //4E4 EWP_BMS (Battery Coolant Pump) 100ms
+  CAN_frame KIA64_4E4 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x4E4,
+                         .data = {0x00, 0x00, 0x85, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //570 EWP_ER (Electronics / Radiator Coolant Pump) 100ms
+  CAN_frame KIA64_570 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x570,
+                         .data = {0x00, 0x00, 0x85, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //109 VCU Primary Heartbeat (10ms)
+  CAN_frame KIA64_109 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x109,
+                         .data = {0x00, 0x01, 0x00, 0xFF, 0xFF, 0xFF, 0x0F, 0x0A}};
+  //201 MCU Motor Feedback (10ms)
+  CAN_frame KIA64_201 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x201,
+                         .data = {0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11}};
+  //202 MCU Motor Status (10ms)
+  CAN_frame KIA64_202 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x202,
+                         .data = {0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x10}};
+  //291 MCU Motor Speed (10ms)
+  CAN_frame KIA64_291 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x291,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //333 VCU Status (10ms)
+  CAN_frame KIA64_333 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x333,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //45B VCU Drive Mode (100ms)
+  CAN_frame KIA64_45B = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x45B,
+                         .data = {0xBD, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //540 VCU Torque Actual (100ms)
+  CAN_frame KIA64_540 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x540,
+                         .data = {0x40, 0x33, 0x00, 0x00, 0xBA, 0x00, 0x00, 0x00}};
+  //549 VCU/12V Battery Status (100ms)
+  CAN_frame KIA64_549 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x549,
+                         .data = {0x7E, 0xFF, 0x6B, 0x98, 0xA1, 0x7F, 0x7F, 0x00}};
+  //579 VCU Powertrain Supervision (100ms)
+  CAN_frame KIA64_579 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x579,
+                         .data = {0xFC, 0xFF, 0x03, 0xA0, 0x04, 0x09, 0x00, 0xFE}};
+  //57A VCU Powertrain Supervision (100ms)
+  CAN_frame KIA64_57A = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x57A,
+                         .data = {0x1F, 0x14, 0xFF, 0x01, 0xFE, 0xFF, 0x07, 0x00}};
+  //57B VCU Powertrain Supervision (100ms)
+  CAN_frame KIA64_57B = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x57B,
+                         .data = {0x01, 0x01, 0x00, 0x00, 0x00, 0x46, 0x64, 0xA0}};
+  //58F VCU Management (100ms)
+  CAN_frame KIA64_58F = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x58F,
+                         .data = {0x04, 0x81, 0x79, 0x00, 0x00, 0x02, 0x00, 0x00}};
+  //590 VCU Battery Target (100ms)
+  CAN_frame KIA64_590 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x590,
+                         .data = {0x13, 0x00, 0x00, 0x00, 0x79, 0x00, 0x00, 0x85}};
+  //592 VCU Supervision (100ms)
+  CAN_frame KIA64_592 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x592,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05}};
+  //5D9 VCU Charging State (100ms)
+  CAN_frame KIA64_5D9 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x5D9,
+                         .data = {0x00, 0x00, 0x00, 0x80, 0x74, 0x0D, 0x01, 0x00}};
   CAN_frame KIA64_7E4_OPEN_CONTACTOR_SEQUENCE = {.FD = false,
                                                  .ext_ID = false,
                                                  .DLC = 8,

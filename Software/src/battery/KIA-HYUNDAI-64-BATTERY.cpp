@@ -219,21 +219,46 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
-        datalayer.system.status.inverter_allows_contactor_closing) {
-      transmit_can_frame(&KIA64_553);
-      transmit_can_frame(&KIA64_57F);
-      transmit_can_frame(&KIA64_2A1);
-    }
+    static const uint8_t counter_592_table[4] = {0x05, 0x45, 0x85, 0xC5};
+    KIA64_592.data.u8[7] = counter_592_table[counter_100ms];
+    counter_100ms = (counter_100ms + 1) & 0x03;
+
+    transmit_can_frame(&KIA64_553);
+    transmit_can_frame(&KIA64_57F);
+    transmit_can_frame(&KIA64_2A1);
+    transmit_can_frame(&KIA64_4E4);
+    transmit_can_frame(&KIA64_570);
+    transmit_can_frame(&KIA64_58F);
+    transmit_can_frame(&KIA64_590);
+    transmit_can_frame(&KIA64_592);
+    transmit_can_frame(&KIA64_45B);
+    transmit_can_frame(&KIA64_540);
+    transmit_can_frame(&KIA64_549);
+    transmit_can_frame(&KIA64_579);
+    transmit_can_frame(&KIA64_57A);
+    transmit_can_frame(&KIA64_57B);
+    transmit_can_frame(&KIA64_5D9);
   }
 
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
+    static const uint8_t counter_109_table[4] = {0x0A, 0x1B, 0x2C, 0x3D};
+    static const uint8_t counter_201_table[4] = {0x11, 0x51, 0x91, 0xD1};
+    static const uint8_t byte0_202_table[4] = {0x00, 0x20, 0x40, 0x60};
+    static const uint8_t byte7_202_table[4] = {0x10, 0x30, 0x50, 0x70};
+
+    KIA64_109.data.u8[7] = counter_109_table[counter_10ms];
+    KIA64_201.data.u8[0] = counter_201_table[counter_10ms];
+    KIA64_201.data.u8[7] = counter_201_table[counter_10ms];
+    KIA64_202.data.u8[0] = byte0_202_table[counter_10ms];
+    KIA64_202.data.u8[7] = byte7_202_table[counter_10ms];
+
+    counter_10ms = (counter_10ms + 1) & 0x03;
+
     if ((contactor_closing_allowed == nullptr || *contactor_closing_allowed) &&
         datalayer.system.status.inverter_allows_contactor_closing) {
-
       switch (counter_200) {
         case 0:
           KIA_HYUNDAI_200.data.u8[5] = 0x17;
@@ -278,6 +303,12 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&KIA_HYUNDAI_523);
       transmit_can_frame(&KIA_HYUNDAI_524);
     }
+
+    transmit_can_frame(&KIA64_109);
+    transmit_can_frame(&KIA64_201);
+    transmit_can_frame(&KIA64_202);
+    transmit_can_frame(&KIA64_291);
+    transmit_can_frame(&KIA64_333);
   }
 }
 
@@ -397,6 +428,8 @@ void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  counter_10ms = 0;
+  counter_100ms = 0;
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
