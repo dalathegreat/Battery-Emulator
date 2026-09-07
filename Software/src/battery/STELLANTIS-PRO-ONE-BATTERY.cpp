@@ -36,9 +36,16 @@ void StellantisProOneBattery::
         datalayer.battery.status.override_discharge_power_W;  //TODO: locate
   }
 
-  //datalayer.battery.status.soh_pptt; //TODO: locate
+  if (pack_capacity_ah_tenths > 0) {
+    //SOH against the cell nominal. 3340 = 334.0Ah = 100.00%
+    datalayer.battery.status.soh_pptt =
+        (uint16_t)((uint32_t)pack_capacity_ah_tenths * 10000u / NOMINAL_CAPACITY_AH_TENTHS);
+    //Energy = capacity x nominal pack voltage. (tenths/10) Ah x (centivolt/100) V = tenths * cV / 1000
+    datalayer.battery.info.total_capacity_Wh = (uint32_t)pack_capacity_ah_tenths * NOMINAL_PACK_VOLTAGE_CV / 1000u;
+    datalayer.battery.status.remaining_capacity_Wh =
+        (uint32_t)((uint64_t)datalayer.battery.status.real_soc * datalayer.battery.info.total_capacity_Wh / 10000u);
+  }
 
-  //datalayer.battery.status.remaining_capacity_Wh; //TODO: locate
   //datalayer.battery.status.max_discharge_power_W; //TODO: locate
   //datalayer.battery.status.max_charge_power_W; //TODO: locate
 
@@ -223,6 +230,9 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x359:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Bytes 2-3 are the pack capacity in 0.1Ah. Constant within a session and different per pack:
+      //observed 3340/3339 (two packs at nominal), 3235 and 3052 (two aged packs).
+      pack_capacity_ah_tenths = (uint16_t)(rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       break;
     case 0x3E8:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
