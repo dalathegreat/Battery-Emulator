@@ -126,8 +126,13 @@ String KiaHyundai64Battery::get_uds_info_html() {
 
 void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   // UDS frames (0x7EC PID/DTC replies) are handled by the superclass.
-  if (handle_incoming_uds_can_frame(rx_frame)) {
-    return;
+  //Only handle when we are not in fault mode, since we rely on a UDS sequence to open the contactors in fault mode.
+  if (datalayer.system.status.system_status == FAULT) {
+    //Do nothing
+  } else {
+    if (handle_incoming_uds_can_frame(rx_frame)) {
+      return;
+    }
   }
 
   startedUp = true;
