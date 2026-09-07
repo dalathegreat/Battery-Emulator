@@ -98,7 +98,7 @@ String KiaHyundai64Battery::get_uds_info_html() {
   
   if (waterleakageSensor == 0) {
     content << "LEAK DETECTED</h4>";
-  } else if (waterleakageSensor == 164) {
+  } else if (waterleakageSensor >= 100) {
     content << "No leakage</h4>";
   } else {
     content << String(waterleakageSensor) << "</h4>";
@@ -159,6 +159,9 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       temperatureMax = rx_frame.data.u8[7];          //Highest temp in battery
       break;
     case 0x598:
+      break;
+    case 0x5A3:
+      batteryRelay = (rx_frame.data.u8[0] & 0x40) ? 1 : 0;
       break;
     case 0x5D5:
       waterleakageSensor = rx_frame.data.u8[3];  //Water sensor inside pack, value 164 is no water --> 0 is short
@@ -284,19 +287,17 @@ uint16_t KiaHyundai64Battery::handle_pid(uint16_t pid, uint32_t value, const uin
   // bytes (without the SID/DID header). Return 0 to continue the scan list.
   switch (pid) {
     case POLL_ECU_SERIAL:
-      if (length >= 15) {
-        //Loop thru the 15 bytes of the serial number, and store them in the ecu_serial_number array
-        for (int i = 0; i < 15; i++) {
-          ecu_serial_number[i] = data[i];
-        }
+      if (length > 0) {
+        memset(ecu_serial_number, 0, sizeof(ecu_serial_number));
+        memcpy(ecu_serial_number, data,
+               (length < sizeof(ecu_serial_number) - 1) ? length : (sizeof(ecu_serial_number) - 1));
       }
       break;
     case POLL_ECU_VERSION:
-      if (length >= 15) {
-        //Loop thru the 15 bytes of the version number, and store them in the ecu_version_number array
-        for (int i = 0; i < 15; i++) {
-          ecu_version_number[i] = data[i];
-        }
+      if (length > 0) {
+        memset(ecu_version_number, 0, sizeof(ecu_version_number));
+        memcpy(ecu_version_number, data,
+               (length < sizeof(ecu_version_number) - 1) ? length : (sizeof(ecu_version_number) - 1));
       }
       break;
     case POLL_GROUP_1:  //59 bytes
@@ -305,6 +306,7 @@ uint16_t KiaHyundai64Battery::handle_pid(uint16_t pid, uint32_t value, const uin
       //SOC_BMS = data[4] * 5;                               //56
       //allowedChargePower = ((data[5] << 8) + data[6]);     //00 00 (apparently not working)
       //allowedDischargePower = ((data[7] << 8) + data[8]);  //00 00 (apparently not working)
+      batteryRelay = data[9] & 0x03;
       //Frame 22 (ff c1 0d b5 16 14 14) data10-16
       //batteryAmps = (data[10] << 8) + data[11];
       //batteryVoltage = (data[12] << 8) + data[13];
@@ -319,17 +321,21 @@ uint16_t KiaHyundai64Battery::handle_pid(uint16_t pid, uint32_t value, const uin
       CellVoltMin_mV = (data[25] * 20);
       CellVminNo = data[26];
       leadAcidBatteryVoltage = data[29];
-      // Frame 25 (01 98 c7 00 01 97 7e) data31-37
-      //cumulativeChargeEnergy = data[31] << 16 | data[32] << 8 | data[33];
-      //cumulativeDischargeEnergy = data[35] << 16 | data[36] << 8 | data[37];
-      //Frame 26 (00 00 95 ec 00 00 90) data38-44
-      //cumulativeChargeEnergy2 = data[39] << 16 | data[40] << 8 | data[41];
-      //cumulativeDischargeEnergy2 = data[43] << 16 | data[44] << 8 | data[45]; //Flow over
+      // Cumulative counters (big-endian 32-bit)
+      cumulative_charge_current_ah =
+          ((uint32_t)data[30] << 24) | ((uint32_t)data[31] << 16) | ((uint32_t)data[32] << 8) | data[33];
+      cumulative_discharge_current_ah =
+          ((uint32_t)data[34] << 24) | ((uint32_t)data[35] << 16) | ((uint32_t)data[36] << 8) | data[37];
+      cumulative_energy_charged_kWh =
+          ((uint32_t)data[38] << 24) | ((uint32_t)data[39] << 16) | ((uint32_t)data[40] << 8) | data[41];
+      cumulative_energy_discharged_kWh =
+          ((uint32_t)data[42] << 24) | ((uint32_t)data[43] << 16) | ((uint32_t)data[44] << 8) | data[45];
       //Frame 27 (8b 01 02 1d 12 09 01) data45-51
       powered_on_total_time = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49];
       BMS_ign = data[50];
       inverterVoltage = ((data[51] << 8) + data[52]);  //Flow over
-      //Frame 28 (5e 7f ff 7f ff 00 00) data52-58
+      // Isolation resistance (kOhm, big-endian 16-bit, valid when contactors closed)
+      isolation_resistance_kOhm = ((uint16_t)data[57] << 8) | data[58];
       break;
     case POLL_GROUP_2:  //Cellvoltages, Cells 1-32
       process_cell_voltage_group(data, 0);

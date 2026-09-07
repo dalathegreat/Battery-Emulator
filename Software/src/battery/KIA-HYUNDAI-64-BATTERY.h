@@ -152,7 +152,7 @@ class KiaHyundai64Battery : public UdsCanBattery {
   static const int POLL_GROUP_5 = 0x0105;  //Cellvoltages 97-98 + more
   static const int POLL_GROUP_6 = 0x0106;
   static const int POLL_GROUP_11 = 0x0111;  //Charging statistics
-  static const int POLL_ECU_SERIAL = 0xF18C;
+  static const int POLL_ECU_SERIAL = 0xF190;
   static const int POLL_ECU_VERSION = 0xF191;
 };
 
