@@ -1,0 +1,207 @@
+[
+  {
+    "dtc": "P00B112",
+    "l_dsc": "Radiator Coolant Temperature Sensor Circuit",
+    "s_dsc": "Short to Battery / Open"
+  },
+  {
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low (12V Auxiliary Supply)",
+    "s_dsc": "12V Battery Under-voltage"
+  },
+  {
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High (12V Auxiliary Supply)",
+    "s_dsc": "12V Battery Over-voltage"
+  },
+  {
+    "dtc": "P0A0A12",
+    "l_dsc": "High Voltage System Interlock Circuit (HVIL)",
+    "s_dsc": "Short to Battery / Open Loop"
+  },
+  {
+    "dtc": "P0A0D00",
+    "l_dsc": "High Voltage System Interlock Circuit High",
+    "s_dsc": "HVIL Circuit High Voltage"
+  },
+  {
+    "dtc": "P0A0E00",
+    "l_dsc": "High Voltage System Interlock Circuit Low",
+    "s_dsc": "HVIL Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0A1000",
+    "l_dsc": "DC/DC Converter Status Circuit High",
+    "s_dsc": "LDC Status High"
+  },
+  {
+    "dtc": "P0A1F00",
+    "l_dsc": "Battery Management System Internal Fault",
+    "s_dsc": "BMS ECU Internal Malfunction"
+  },
+  {
+    "dtc": "P0A7E00",
+    "l_dsc": "Hybrid/EV Battery Pack Over Temperature",
+    "s_dsc": "Battery Module Overheating"
+  },
+  {
+    "dtc": "P0A7F00",
+    "l_dsc": "Hybrid/EV Battery Pack Deterioration",
+    "s_dsc": "State of Health Degradation Exceeded"
+  },
+  {
+    "dtc": "P0AA100",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Stuck Closed",
+    "s_dsc": "Main Relay (+) Welded"
+  },
+  {
+    "dtc": "P0AA200",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Stuck Open",
+    "s_dsc": "Main Relay (+) Open Circuit"
+  },
+  {
+    "dtc": "P0AA400",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Stuck Closed",
+    "s_dsc": "Main Relay (-) Welded"
+  },
+  {
+    "dtc": "P0AA500",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Stuck Open",
+    "s_dsc": "Main Relay (-) Open Circuit"
+  },
+  {
+    "dtc": "P0AA600",
+    "l_dsc": "Hybrid/EV Battery Voltage System Isolation Fault",
+    "s_dsc": "High Voltage Insulation Breakdown (< 500 kOhm)"
+  },
+  {
+    "dtc": "P0AE900",
+    "l_dsc": "Hybrid/EV Battery Precharge Contactor Stuck Closed",
+    "s_dsc": "Precharge Relay Welded"
+  },
+  {
+    "dtc": "P0AEA00",
+    "l_dsc": "Hybrid/EV Battery Precharge Contactor Stuck Open",
+    "s_dsc": "Precharge Relay Open Circuit"
+  },
+  {
+    "dtc": "P0AF800",
+    "l_dsc": "Hybrid/EV Battery System Voltage Deviation",
+    "s_dsc": "Total Pack Voltage Discrepancy"
+  },
+  {
+    "dtc": "P0B3C00",
+    "l_dsc": "High Voltage Battery Voltage Sensor Circuit",
+    "s_dsc": "Battery Pack Voltage Sensor Malfunction"
+  },
+  {
+    "dtc": "P0C4212",
+    "l_dsc": "Hybrid/EV Battery Pack Coolant Temperature Sensor Circuit",
+    "s_dsc": "Coolant Temp Sensor Out of Range"
+  },
+  {
+    "dtc": "P0C7800",
+    "l_dsc": "Hybrid/EV Battery System Precharge Time Too Long",
+    "s_dsc": "Precharge Voltage Rise Timeout"
+  },
+  {
+    "dtc": "P1A9096",
+    "l_dsc": "DC/DC Converter Input Voltage Sensor Fault",
+    "s_dsc": "LDC Input Voltage Sensor Out of Range"
+  },
+  {
+    "dtc": "P1AA800",
+    "l_dsc": "Hybrid/EV Battery Insulation Resistance Critical Breakdown",
+    "s_dsc": "Critical Isolation Fault (< 100 kOhm)"
+  },
+  {
+    "dtc": "P1B7000",
+    "l_dsc": "High Voltage Battery Cell Voltage Deviation Exceeded",
+    "s_dsc": "Cell Imbalance Limit Reached"
+  },
+  {
+    "dtc": "P1B7400",
+    "l_dsc": "High Voltage Battery Main Relay Circuit Malfunction",
+    "s_dsc": "Relay Coil Driver Fault"
+  },
+  {
+    "dtc": "P1B7700",
+    "l_dsc": "High Voltage Battery Over-Discharge Warning",
+    "s_dsc": "Pack Under-voltage Threshold Tripped"
+  },
+  {
+    "dtc": "P1B8000",
+    "l_dsc": "Hybrid/EV Battery Cell Circuit High Voltage",
+    "s_dsc": "Cell Overvoltage Detected"
+  },
+  {
+    "dtc": "P1BA000",
+    "l_dsc": "High Voltage Battery Cell Overcharge Warning",
+    "s_dsc": "Pack Overcharge Cutoff Tripped"
+  },
+  {
+    "dtc": "P1B9400",
+    "l_dsc": "Battery Pack Coolant Heater Relay 1 Circuit Malfunction",
+    "s_dsc": "Heater Relay 1 Driver Fault"
+  },
+  {
+    "dtc": "P1B9500",
+    "l_dsc": "Battery Pack Coolant Heater Relay 2 Circuit Malfunction",
+    "s_dsc": "Heater Relay 2 Driver Fault"
+  },
+  {
+    "dtc": "U000100",
+    "l_dsc": "High Speed CAN Communication Bus Malfunction",
+    "s_dsc": "CAN Controller Bus-Off / Mute"
+  },
+  {
+    "dtc": "U010000",
+    "l_dsc": "Lost Communication with Engine / Powertrain Control Module (ECM/PCM)",
+    "s_dsc": "No CAN Timeout from ECM"
+  },
+  {
+    "dtc": "U011000",
+    "l_dsc": "Lost Communication with Drive Motor Control Module (MCU)",
+    "s_dsc": "No CAN Timeout from MCU"
+  },
+  {
+    "dtc": "U011100",
+    "l_dsc": "Lost Communication with Battery Energy Control Module",
+    "s_dsc": "Internal Sub-BMS Timeout"
+  },
+  {
+    "dtc": "U012900",
+    "l_dsc": "Lost Communication with Brake System Control Module (IEB)",
+    "s_dsc": "No CAN Timeout from IEB"
+  },
+  {
+    "dtc": "U029300",
+    "l_dsc": "Lost Communication with Hybrid/EV Powertrain Control Module (VCU)",
+    "s_dsc": "No CAN Timeout from Vehicle Control Unit"
+  },
+  {
+    "dtc": "U111800",
+    "l_dsc": "Lost Communication with On-Board Charger (OBC)",
+    "s_dsc": "No CAN Timeout from OBC"
+  },
+  {
+    "dtc": "U111900",
+    "l_dsc": "Lost Communication with Electric A/C Compressor",
+    "s_dsc": "No CAN Timeout from High-Voltage Compressor"
+  },
+  {
+    "dtc": "U112800",
+    "l_dsc": "Lost Communication with Battery Electronic Coolant Valve A",
+    "s_dsc": "LIN / CAN Timeout Valve A"
+  },
+  {
+    "dtc": "U113800",
+    "l_dsc": "Lost Communication with Battery Electronic Coolant Valve B",
+    "s_dsc": "LIN / CAN Timeout Valve B"
+  },
+  {
+    "dtc": "U130E87",
+    "l_dsc": "Internal BMS Module Communication Bus Fault",
+    "s_dsc": "Internal Cell Monitoring ASIC Bus Error"
+  }
+]
