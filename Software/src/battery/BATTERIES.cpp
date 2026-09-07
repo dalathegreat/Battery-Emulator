@@ -27,6 +27,7 @@
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "GEELY-SEA-BATTERY.h"
 #include "GROWATT-HV-ARK-BATTERY.h"
+#include "GROWATT-LV-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -130,6 +131,8 @@ const char* name_for_battery_type(BatteryType type) {
       return GeelyGeometryCBattery::Name;
     case BatteryType::GrowattHvArk:
       return GrowattHvArkBattery::Name;
+    case BatteryType::GrowattLv:
+      return GrowattLvBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -282,6 +285,8 @@ Battery* create_battery(BatteryType type) {
       return new GeelyGeometryCBattery();
     case BatteryType::GrowattHvArk:
       return new GrowattHvArkBattery();
+    case BatteryType::GrowattLv:
+      return new GrowattLvBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:

@@ -46,6 +46,30 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Hx: " +
         (nissan_dl->battery_HX_pptt ? String(nissan_dl->battery_HX_pptt / 100.0f, 2) + " %" : String("Unknown")) +
         "</h4>";
+    //Pack capacity as the LBC reports it, with the energy that works out to at the pack's nominal
+    //voltage alongside it. The nominal differs by generation (96 cells at 3.75 V on ZE0/AZE0,
+    //3.65 V on ZE1), so this is a nameplate-style figure and deliberately not derived from the live
+    //pack voltage, which would make it swing with SoC. It is not the same number as the GID-derived
+    //capacity the inverter is told about, which tracks usable energy.
+    if (nissan_dl->CapacityCAh) {
+      const float capacity_Ah = nissan_dl->CapacityCAh / 100.0f;
+      const float nominal_V = (nissan_dl->LEAF_gen == 2) ? 350.4f : 360.0f;
+      content += "<h4>Actual capacity: " + String(capacity_Ah, 2) + " Ah (" +
+                 String((capacity_Ah * nominal_V) / 1000.0f, 2) + " kWh)</h4>";
+    } else {
+      content += String("<h4>Actual capacity: Unknown</h4>");
+    }
+    //The unfiltered state of health, with the two status bits that sit beside it in the same
+    //block. Both bits come back clear on a pack whose degradation has just been reset and set on
+    //one with history, so they are shown raw rather than interpreted.
+    if (nissan_dl->battery_SOHraw_pptt) {
+      char soh_flags[8];
+      snprintf(soh_flags, sizeof(soh_flags), "0x%02X", nissan_dl->battery_SOH_flags);
+      content +=
+          "<h4>SOH raw: " + String(nissan_dl->battery_SOHraw_pptt / 100.0f, 2) + " (" + String(soh_flags) + ")</h4>";
+    } else {
+      content += String("<h4>SOH raw: Unknown</h4>");
+    }
     //A used pack always has AC charges on it, so a zero L1/L2 count means the group was not read yet.
     content +=
         "<h4>QC charge count: " + (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountQC) : String("Unknown")) +
@@ -54,6 +78,8 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
+    content += "<h4>+12V BAT level: " +
+               (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) + "</h4>";
     content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
     content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
     if (nissan_dl->LEAF_gen == 0) {
