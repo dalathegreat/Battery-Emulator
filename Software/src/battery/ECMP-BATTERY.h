@@ -1,24 +1,22 @@
 #ifndef STELLANTIS_ECMP_BATTERY_H
 #define STELLANTIS_ECMP_BATTERY_H
-#include "../datalayer/datalayer_extended.h"
-#include "CanBattery.h"
-#include "ECMP-HTML.h"
+#include "UdsCanBattery.h"
 
 //#define SIMULATE_ENTIRE_VEHICLE_ECMP
 //Enable this to simulate the whole car (useful for when using external diagnostic tools)
 
-class EcmpBattery : public CanBattery {
+class EcmpBattery : public UdsCanBattery {
  public:
   // Use this constructor for the second/third battery.
-  EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+  EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    datalayer_ecmp = NULL;
+    dtc = &datalayer_battery->dtc;
   }
 
   // Use the default constructor to create the first or single battery.
-  EcmpBattery() {
+  EcmpBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
-    datalayer_ecmp = &datalayer_extended.stellantisECMP;
+    dtc = &datalayer_battery->dtc;
   }
 
   virtual void setup(void);
@@ -31,24 +29,18 @@ class EcmpBattery : public CanBattery {
   bool supports_insulation_resistance() { return true; }
   void clear_isolation() { UserRequestIsolationReset = true; }
 
-  bool supports_factory_mode_method() { return true; }
-  void set_factory_mode() { UserRequestDisableIsoMonitoring = true; }
-
   bool supports_reset_crash() { return true; }
   void reset_crash() { UserRequestCollisionReset = true; }
 
   bool supports_contactor_reset() { return true; }
   void reset_contactor() { UserRequestContactorReset = true; }
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
-
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "stellantis_ecmp_dtc.json"; }
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_ECMP* datalayer_ecmp;
-  EcmpHtmlRenderer renderer;
+
   static const int MAX_PACK_VOLTAGE_DV = 4546;
   static const int MIN_PACK_VOLTAGE_DV = 3580;
   static const int MAX_CELL_DEVIATION_MV = 100;
@@ -217,11 +209,6 @@ class EcmpBattery : public CanBattery {
                                                  .DLC = 3,
                                                  .ID = 0x6B4,
                                                  .data = {0x02, 0x3E, 0x00}};
-  static constexpr CAN_frame ECMP_CLEAR_DTC = {.FD = false,
-                                               .ext_ID = false,
-                                               .DLC = 5,
-                                               .ID = 0x6B4,
-                                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
 
 #ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
   static constexpr CAN_frame ECMP_0AE = {.FD = false,
@@ -513,7 +500,6 @@ class EcmpBattery : public CanBattery {
   int8_t BMS_PROBETEMP[7] = {0};
   int8_t TEMPERATURE_MINIMUM_C = 0;
 
-  bool HighPrecisionCurrentSampling = 1;
   bool CMD_RESET_MIL = false;
   bool REQ_BLINK_STOP_AND_SERVICE_LAMP = false;
   bool REQ_MIL_LAMP_CONTINOUS = false;
@@ -530,11 +516,9 @@ class EcmpBattery : public CanBattery {
   bool ALERT_CELL_POOR_CONSIST, ALERT_OVERCHARGE, ALERT_BATT, ALERT_LOW_SOC, ALERT_HIGH_SOC, ALERT_SOC_JUMP,
       ALERT_TEMP_DIFF, ALERT_HIGH_TEMP, ALERT_OVERVOLTAGE, ALERT_CELL_OVERVOLTAGE, ALERT_CELL_UNDERVOLTAGE = false;
 
-  bool UserRequestDTCreset = false;
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
   bool UserRequestIsolationReset = false;
-  bool UserRequestDisableIsoMonitoring = false;
 
   uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
   uint8_t data_3A2_CRC[16] = {0x0C, 0x1B, 0x2A, 0x39, 0x48, 0x57,
