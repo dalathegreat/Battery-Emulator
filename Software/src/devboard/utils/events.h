@@ -253,6 +253,8 @@
   XX(EVENT_GPIO_NOT_DEFINED)                 \
   XX(EVENT_GPIO_CONFLICT)                    \
   XX(EVENT_INVERTER_REBOOT_DECLINED)         \
+  XX(EVENT_BMS_CONTACTOR_INTERLOCK)        \
+  XX(EVENT_BMS_CONTACTOR_OPEN_SHUTDOWN)     \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -322,6 +324,9 @@ void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
 void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery);
 void clear_event(EVENTS_ENUM_TYPE event, uint8_t battery);
 void clear_event(EVENTS_ENUM_TYPE event);
+// Clear an event and also wipe its history so it no longer shows on the events page at all.
+// For transient conditions that are not worth keeping a record of.
+void reset_event(EVENTS_ENUM_TYPE event);
 // Suppress a CAN interface's buffer-full / bus-error events for duration_ms from now.
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms);
 void reset_all_events();
