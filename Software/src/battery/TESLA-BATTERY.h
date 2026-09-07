@@ -49,6 +49,37 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  // Value space of BMS_contactorState (0x212 BMS_status parse)
+  // clang-format off
+  enum class BmsContactorState : uint8_t {
+    Sna     = 0,
+    Open    = 1,
+    Opening = 2,
+    Closing = 3,
+    Closed  = 4,
+    Welded  = 5,
+    Blocked = 6,
+  };
+  // clang-format on
+
+  ContactorState reported_contactor_state() {
+    // Closing and Welded count as Closed - the link is, or is becoming, live.
+    // SNA stays Unknown (never reinterpret SNA as a definite state)
+    switch (static_cast<BmsContactorState>(BMS_contactorState)) {
+      case BmsContactorState::Closing:
+      case BmsContactorState::Closed:
+      case BmsContactorState::Welded:
+        return ContactorState::Closed;
+      case BmsContactorState::Open:
+      case BmsContactorState::Opening:
+      case BmsContactorState::Blocked:
+        return ContactorState::Open;
+      case BmsContactorState::Sna:
+      default:
+        return ContactorState::Unknown;
+    }
+  }
+
   static constexpr const char* NameSX = "Tesla Model S/X";
   static constexpr const char* Name3Y = "Tesla Model 3/Y";
 

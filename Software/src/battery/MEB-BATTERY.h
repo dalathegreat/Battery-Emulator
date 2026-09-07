@@ -44,6 +44,36 @@ class MebBattery : public CanBattery, public IsoTp {
   void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
   static constexpr const char* Name = "VW Group MEB platform via CAN-FD";
 
+  // Value space of BMS_mode, shared between the commanded and the reported
+  // side. Balancing and Error exist only on the report side.
+  // clang-format off
+  enum class MebBmsMode : uint8_t {
+    HvOff         = 0,
+    HvOn          = 1,
+    Balancing     = 2,
+    AcChargingExt = 3,
+    AcCharging    = 4,
+    Error         = 5,
+    DcCharging    = 6,
+    Init          = 7,
+  };
+  // clang-format on
+
+  ContactorState reported_contactor_state() {
+    // The Closed set matches the dc_bus_live expression (HS contactors closed)
+    switch (static_cast<MebBmsMode>(BMS_mode)) {
+      case MebBmsMode::HvOn:
+      case MebBmsMode::AcChargingExt:
+      case MebBmsMode::AcCharging:
+      case MebBmsMode::DcCharging:
+        return ContactorState::Closed;
+      case MebBmsMode::Error:
+        return ContactorState::Unknown;
+      default:
+        return ContactorState::Open;
+    }
+  }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  protected:

@@ -9,20 +9,7 @@ class VoltageSyncTest : public ::testing::Test {
  protected:
   void SetUp() override {
     init_events();
-    // The drift counters in check_parallel_battery_safety() are function-local
-    // statics, so a preceding run of the timeout tests leaves them latched at
-    // 10 and the next run in the same process starts mid-fault - a plain
-    // --gtest_repeat=2 fails without this. They are not reachable from a
-    // fixture; one in-sync pass through the public API is the reset (the
-    // <=1.5V branch zeroes the counter). 3750 dodges the 3700-startup-default
-    // guard, which returns before touching the counter.
-    battery2_detected = true;
-    battery3_detected = true;
-    datalayer.battery.status.voltage_dV = 3750;
-    datalayer.battery2.status.voltage_dV = 3750;
-    datalayer.battery3.status.voltage_dV = 3750;
-    check_parallel_battery_safety(2);
-    check_parallel_battery_safety(3);
+    reset_parallel_safety_state();  // Latch and drift counters start from boot state, not from the previous case
     // Reset datalayer to known state
     datalayer.battery.status.voltage_dV = 3700;   // 370.0V
     datalayer.battery2.status.voltage_dV = 3700;  // 370.0V
@@ -127,4 +114,33 @@ TEST_F(VoltageSyncTest, ZeroVoltageSkipsCheck) {
   check_parallel_battery_safety(2);
   // Should remain unchanged — early return
   EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+}
+
+/* The 3700 dV sentinel means "no voltage decoded yet", but it is also a
+ * perfectly ordinary reading for a 370.0 V pack. Treating it as a continuous
+ * skip condition means a joined pair that drifts apart while ONE pack happens
+ * to read exactly 3700 never reaches the disengage, because the skip returns
+ * before the code that manages the contactor permission. Once both packs have
+ * been seen with real values, the check must never be skipped again.
+ *
+ * Note these tests share the latch, which is function-local static state: the
+ * fixture below deliberately drives it to the latched position first rather
+ * than assuming a starting point. */
+TEST_F(VoltageSyncTest, Battery2DisengagesWhenMainSitsAtTheSentinelVoltage) {
+  // Latch: one pass with both packs reporting real, in-sync voltages
+  datalayer.battery.status.voltage_dV = 3750;
+  datalayer.battery2.status.voltage_dV = 3750;
+  check_parallel_battery_safety(2);
+  ASSERT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+
+  // Now the main pack genuinely reads 370.0 V while battery2 drifts far away
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery2.status.voltage_dV = 3500;  // 20 V apart, way over 1.5 V
+
+  for (int i = 0; i < 10; i++) {
+    check_parallel_battery_safety(2);
+  }
+  check_parallel_battery_safety(2);
+  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing)
+      << "A pack sitting at exactly 370.0 V must not suspend the drift check";
 }

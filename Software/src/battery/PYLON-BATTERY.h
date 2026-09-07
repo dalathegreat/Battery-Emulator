@@ -23,7 +23,9 @@ class PylonBattery : public CanBattery {
       : CanBattery(user_selected_pylon_baudrate == 500 ? CAN_Speed::CAN_SPEED_500KBPS : CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    contactor_closing_allowed = nullptr;
+    // The symmetric parallel-join gate: the main pack must not command its
+    // contactors closed onto a link another pack holds live
+    contactor_closing_allowed = &datalayer.system.status.battery1_allowed_contactor_closing;
   }
 
   virtual void setup(void);
