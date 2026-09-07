@@ -30,7 +30,11 @@ void KiaHyundai64Battery::
 
   datalayer_battery->status.cell_max_voltage_mV = CellVoltMax_mV;
 
-  datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
+  if (cell_voltage_deviation_available && cell_voltage_deviation_mV <= CellVoltMax_mV) {
+    datalayer_battery->status.cell_min_voltage_mV = CellVoltMax_mV - cell_voltage_deviation_mV;
+  } else {
+    datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
+  }
 
   if (waterleakageSensor == 0) {
     set_event(EVENT_WATER_INGRESS, 0);
@@ -401,6 +405,8 @@ uint16_t KiaHyundai64Battery::handle_pid(uint16_t pid, uint32_t value, const uin
       //Frame21 90 00 00 00 00 00 00 //data3-9
       //Frame22 00 00 15 78 5e 01 21 //data10-16
       //Frame23 34 1f 0e 00 01 64 1e //data17-23
+      cell_voltage_deviation_mV = (data[20] * 20);
+      cell_voltage_deviation_available = true;
       heatertemp = data[23];
       //Frame24 33 03 b6 00 00 5b 00 //data24-30
       batterySOH = (data[25] << 8) | data[26];

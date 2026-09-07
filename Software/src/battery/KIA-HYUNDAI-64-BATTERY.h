@@ -104,6 +104,8 @@ class KiaHyundai64Battery : public UdsCanBattery {
   uint32_t cumulative_energy_discharged_kWh = 0;
   uint32_t powered_on_total_time = 0;
   uint16_t isolation_resistance_kOhm = 0;
+  uint16_t cell_voltage_deviation_mV = 0;
+  bool cell_voltage_deviation_available = false;
   uint16_t number_of_standard_charging_sessions = 0;
   uint16_t number_of_fastcharging_sessions = 0;
   uint16_t accumulated_normal_charging_energy_kWh = 0;
