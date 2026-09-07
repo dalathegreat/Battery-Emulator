@@ -181,10 +181,10 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cell_temperature_max_C =
           rx_frame.data.u8[4] -
-          40;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the max temperature
+          50;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the max temperature
       cell_temperature_min_C =
           rx_frame.data.u8[5] -
-          40;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the min temperature
+          50;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the min temperature
       break;
     case 0x3A0:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

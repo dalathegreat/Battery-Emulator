@@ -79,7 +79,7 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
       case 0x2039:
       case 0x2040:
         if (result.payload_length >= 2)
-          return String(uint16_be(data) / 2.0f - 40.0f, 1) + " &deg;C";
+          return String(uint16_be(data) / 2.0f - 50.0f, 1) + " &deg;C";
         break;
       case 0x2047:
       case 0x2048:
