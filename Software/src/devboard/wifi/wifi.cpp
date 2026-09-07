@@ -350,7 +350,11 @@ void FullReconnectToWiFi() {
 }
 
 bool wifi_connected() {
-  return WiFi.status() == WL_CONNECTED;
+  // hasIP() reads the core's HAS_IP_BIT | HAS_STATIC_IP_BIT — true only with a
+  // usable IP, cleared on LOST_IP, and set for static-IP configs too. This mirrors
+  // ethernet_connected()==ETH.hasIP() so network_update_default_interface() treats
+  // both interfaces by the same "has a usable IP" rule.
+  return WiFi.STA.hasIP();
 }
 
 // Function to handle Wi-Fi connection
