@@ -196,51 +196,6 @@ void update_machineryprotection() {
     // Temperature checks for every configured battery are done together in
     // check_battery_temperatures(), called further down.
 
-    // Battery voltage is over designed max voltage!
-    if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
-      datalayer.battery.status.max_charge_power_W = 0;
-    } else {
-      clear_event(EVENT_BATTERY_OVERVOLTAGE, 1);
-    }
-
-    // Battery voltage is under designed min voltage!
-    if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
-      datalayer.battery.status.max_discharge_power_W = 0;
-    } else {
-      clear_event(EVENT_BATTERY_UNDERVOLTAGE, 1);
-    }
-
-    // Cell overvoltage, further charging not possible. Battery might be imbalanced.
-    static bool cell_overvoltage_charge_blocked = false;
-    if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      cell_overvoltage_charge_blocked = true;  // Latch at the ceiling
-    } else if (datalayer.battery.status.cell_max_voltage_mV <
-               (datalayer.battery.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
-      cell_overvoltage_charge_blocked = false;  // Release only once well below the ceiling
-    }
-    if (cell_overvoltage_charge_blocked) {
-      datalayer.battery.status.max_charge_power_W = 0;
-    }
-    // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
-    if (datalayer.battery.status.cell_max_voltage_mV >=
-        (datalayer.battery.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
-      set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0);
-    }
-
-    // Cell undervoltage. Further discharge not possible. Battery might be imbalanced.
-    if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      datalayer.battery.status.max_discharge_power_W = 0;
-    }
-    //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
-    if (datalayer.battery.status.cell_min_voltage_mV <=
-        (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
-      set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
-    }
-
     //If user is requesting charge to stop at a specific voltage
     static bool charge_blocked = false;
     static bool discharge_blocked = false;
@@ -308,15 +263,6 @@ void update_machineryprotection() {
 
     if (battery && !battery->soc_plausible()) {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
-    }
-
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
 
     /* Check that the inverter respects the charge/discharge limits we hand it.
