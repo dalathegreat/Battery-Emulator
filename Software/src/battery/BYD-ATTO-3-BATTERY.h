@@ -191,6 +191,9 @@ class BydAttoBattery : public CanBattery {
   //Max 0x438-vs-0x444 disagreement before 0x438 is treated as not carrying pack voltage
   static const uint16_t VOLTAGE_CROSSCHECK_TOLERANCE_DV = 50;
 
+  //Capability announced while the pack waits for the inverter to permit closing, ~5A at pack voltage
+  static const uint16_t ANNOUNCE_OPEN_POWER_W = 2000;
+
   /* Native BMS termination (on by default, see handle_charge_session). Runs a real AC charge session on
   the pack bus so the BMS ends the charge itself and recalibrates SOC to 100%, instead of BE stopping the
   charge at its own cell clamp. An insulation fault keeps the BMS out of the charge context; the
