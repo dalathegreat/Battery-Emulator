@@ -110,14 +110,6 @@ void KiaEGmpBattery::set_voltage_minmax_limits() {
   }
 }
 
-uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
-  uint8_t crc = initial_value;
-  for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
-    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
-  }
-  return crc;
-}
-
 void KiaEGmpBattery::update_values() {
 
   if (user_selected_use_estimated_SOC) {
@@ -187,7 +179,10 @@ String KiaEGmpBattery::get_uds_info_html() {
               "<h4>Cumulative Charge Energy: " << String(cumulativeChargeEnergy)  << " Wh</h4>"
               "<h4>Cumulative Discharge Energy: " << String(cumulativeDischargeEnergy)  << " Wh</h4>"
               "<h4>Operation Time: " << String(opTime)  << " s</h4>"
-              "<h4>BMS ignition: " << String(BMS_ign)  << "</h4>";
+              "<h4>BMS ignition: " << String(BMS_ign)  << "</h4>"
+              "<h4>Vehicle emulation groups (EGMPGROUPS bitmask): " << String(user_selected_egmp_frame_groups) << "</h4>"
+              "<h4>Emulated vehicle frames/s: " << String(emulated_frames_per_second) << "</h4>"
+              "<h4>CAN-FD send failures: " << String(datalayer.system.info.can_2518_send_fail ? "yes" : "no") << "</h4>";
 
   return content;
 }
@@ -346,28 +341,48 @@ break;
 
 void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
   if (startedUp) {
-    //Send Contactor closing message loop
-    // Check if we still have messages to send
-    if (messageIndex < sizeof(messageDelays) / sizeof(messageDelays[0])) {
-
-      // Check if it's time to send the next message
-      if (currentMillis - startMillis >= messageDelays[messageIndex]) {
-
-        // Transmit the current message
-        transmit_can_frame(messages[messageIndex]);
-
-        // Move to the next message
-        messageIndex++;
-      }
-    }
-
-    if (messageIndex >= 63) {
-      startMillis = currentMillis;  // Start over!
-      messageIndex = 0;
-    }
+    // Emulate the vehicle side of the powertrain bus (VCU, MCU, ICCU, thermal nodes)
+    transmit_emulated_frames(currentMillis);
 
     // UDS PID polling and DTC handling
     transmit_uds_can(currentMillis);
+  }
+}
+
+void KiaEGmpBattery::transmit_emulated_frames(unsigned long currentMillis) {
+  uint8_t sent_this_tick = 0;
+
+  for (auto& emulated : emulated_frames) {
+    if (!(user_selected_egmp_frame_groups & (1 << emulated.group))) {
+      continue;  // Group disabled by the user
+    }
+    if (currentMillis - emulated.last_tx_ms < emulated.period_ms) {
+      continue;  // Not due yet
+    }
+    if (sent_this_tick >= MAX_FRAMES_PER_TICK) {
+      break;  // Spread the burst over the next loop iterations, the remaining frames stay due
+    }
+    emulated.last_tx_ms = currentMillis;
+
+    if (emulated.has_crc) {
+      // Byte 2 is an 8-bit alive counter, bytes 0-1 hold the CRC16 over the rest of the frame + CAN ID
+      emulated.counter++;
+      emulated.frame.data.u8[2] = emulated.counter;
+      uint16_t crc = crc16_hyundai_canfd(emulated.frame.data.u8, emulated.frame.DLC, emulated.frame.ID);
+      emulated.frame.data.u8[0] = crc & 0xFF;
+      emulated.frame.data.u8[1] = crc >> 8;
+    }
+
+    transmit_can_frame(&emulated.frame);
+    sent_this_tick++;
+    emulated_frames_sent_in_window++;
+  }
+
+  // Frames per second statistic for the advanced battery page
+  if (currentMillis - emulated_frames_window_start >= INTERVAL_1_S) {
+    emulated_frames_window_start = currentMillis;
+    emulated_frames_per_second = emulated_frames_sent_in_window;
+    emulated_frames_sent_in_window = 0;
   }
 }
 

@@ -540,6 +540,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CHGESTIMATED") ? "checked" : "";
   }
 
+  if (var == "EGMPGROUPS") {
+    return String(settings.getUInt("EGMPGROUPS", 7));
+  }
+
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
@@ -1508,6 +1512,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-egmp { display: none; } /* Kia/Hyundai E-GMP vehicle emulation options */
+    form[data-battery="16"] .if-egmp {
+      display: contents;
+    }
+
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
@@ -1887,6 +1896,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Use estimated SOC: </label>
         <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% 
         title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
+        </div>
+
+        <div class="if-egmp">
+        <label>E-GMP vehicle emulation groups: </label>
+        <input type='number' name='EGMPGROUPS' value="%EGMPGROUPS%" 
+        min="0" max="63" step="1"
+        title="Bitmask of emulated vehicle CAN frame groups sent to the BMS. 1=VCU/MCU core (contactor closing), 2=ICCU candidates (DTC U111800), 4=compressor/coolant valve candidates (DTC U111900/U112800), 8=extra VCU/MCU, 16=chassis 10ms frames (high bus load), 32=VIN broadcast. Default 7 (core+ICCU+thermal). Takes effect after reboot." />
         </div>
 
         <div class="if-chgestimated">

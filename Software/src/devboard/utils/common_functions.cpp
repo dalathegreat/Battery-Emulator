@@ -70,3 +70,38 @@ uint8_t Crc_CalculateCRC8H2F(const uint8_t* data, uint16_t length, uint8_t initi
 
   return crc ^ final_xor_value;
 }
+
+uint16_t crc16_hyundai_canfd(const uint8_t* data, uint8_t dlc, uint32_t can_id) {
+  // CRC-16 poly 0x1021, init 0, over data[2..dlc-1] then CAN ID low/high byte, length dependent final XOR
+  uint16_t crc = 0;
+
+  auto feed = [&crc](uint8_t byte) {
+    crc ^= static_cast<uint16_t>(byte) << 8;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      if (crc & 0x8000) {
+        crc = (crc << 1) ^ 0x1021;
+      } else {
+        crc <<= 1;
+      }
+    }
+  };
+
+  for (uint8_t i = 2; i < dlc; i++) {
+    feed(data[i]);
+  }
+  feed(static_cast<uint8_t>(can_id & 0xFF));
+  feed(static_cast<uint8_t>((can_id >> 8) & 0xFF));
+
+  switch (dlc) {
+    case 8:
+      return crc ^ 0x5F29;
+    case 16:
+      return crc ^ 0x041D;
+    case 24:
+      return crc ^ 0x819D;
+    case 32:
+      return crc ^ 0x9F5B;
+    default:
+      return crc;
+  }
+}

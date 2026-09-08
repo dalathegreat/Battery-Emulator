@@ -33,6 +33,7 @@ extern uint16_t user_selected_max_cell_voltage_mV;
 extern uint16_t user_selected_min_cell_voltage_mV;
 extern bool user_selected_use_estimated_SOC;
 extern bool user_selected_use_estimated_charge_limits;
+extern uint8_t user_selected_egmp_frame_groups;
 extern bool user_selected_LEAF_interlock_mandatory;
 extern uint8_t user_selected_LEAF_chg_sta_rq;
 extern bool user_selected_tesla_digital_HVIL;

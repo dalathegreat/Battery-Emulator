@@ -566,6 +566,7 @@ int user_selected_daly_power_at_0_degree_C = 800;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
 bool user_selected_use_estimated_charge_limits = false;
+uint8_t user_selected_egmp_frame_groups = 0x07;  // E-GMP emulated frame groups, one bit per group
 uint16_t user_selected_pylon_baudrate = 500;
 // Use 0V for user selected cell/pack voltage defaults (On boot will be replaced with saved values from NVM)
 uint16_t user_selected_max_pack_voltage_dV = 0;
