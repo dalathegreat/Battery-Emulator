@@ -80,7 +80,7 @@ class NissanLeafBattery : public CanBattery {
   static const uint16_t LOW_12V_HYSTERESIS_MV = 200;
   static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
-  static const int MAX_CELL_DEVIATION_MV = 350;
+  static const int MAX_CELL_DEVIATION_MV = 400;
   static const int MAX_CELL_VOLTAGE_MV = 4224;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2500;  //Battery is put into emergency stop if one cell goes below this value
 
