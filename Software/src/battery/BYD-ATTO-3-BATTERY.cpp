@@ -261,8 +261,8 @@ void BydAttoBattery::
                                   lastContactorFeedbackMillis != 0 &&
                                   !datalayer.system.status.inverter_allows_contactor_closing;
   if (!(contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) &&
-      (waiting_permission || contactorState == CONTACTORS_CLOSING) &&
-      !datalayer.system.info.equipment_stop_active && datalayer.system.status.system_status != FAULT) {
+      (waiting_permission || contactorState == CONTACTORS_CLOSING) && !datalayer.system.info.equipment_stop_active &&
+      datalayer.system.status.system_status != FAULT) {
     datalayer_battery->status.max_charge_power_W = ANNOUNCE_OPEN_POWER_W;
     datalayer_battery->status.max_discharge_power_W = ANNOUNCE_OPEN_POWER_W;
   }
