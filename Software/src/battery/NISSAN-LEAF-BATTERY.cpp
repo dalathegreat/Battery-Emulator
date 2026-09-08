@@ -79,12 +79,26 @@ void NissanLeafBattery::
     datalayer_battery->info.total_capacity_Wh = battery_capacity_Wh;
 
     if (capacity_as_new_Wh != 0) {
-      datalayer_battery->status.soh_pptt = (uint16_t)(((uint64_t)battery_capacity_Wh * 10000ull) / capacity_as_new_Wh);
+      //Capped at 100%. Anything above that is not a pack in better than new condition, it is the
+      //two capacities being measured differently: a GID counts usable energy, while the capacity
+      //the LBC reports is the pack's gross charge capacity, so the ratio sits above unity on a
+      //healthy pack. Reporting more than 100% would also put a figure on the wire that several
+      //inverter protocols have no room for.
+      const uint32_t soh_pptt = (uint32_t)(((uint64_t)battery_capacity_Wh * 10000ull) / capacity_as_new_Wh);
+      datalayer_battery->status.soh_pptt = (uint16_t)((soh_pptt > 10000u) ? 10000u : soh_pptt);
       datalayer_battery->status.soh_available = true;
     }
-  }
 
-  datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
+    //Remaining energy has to be measured against the same capacity as the total above, or the two
+    //contradict each other. The GID count the LBC broadcasts is derived from its own capacity
+    //figure, and a degradation reset puts that back to nameplate, so on a reset pack the GIDs
+    //claim more energy left than the pack is able to hold.
+    datalayer_battery->status.remaining_capacity_Wh =
+        (uint32_t)(((uint64_t)battery_capacity_Wh * datalayer_battery->status.real_soc) / 10000u);
+  } else {
+    //No measured capacity yet, so the GID count is all there is to go on.
+    datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
+  }
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_battery_Type == ZE0_BATTERY) {
@@ -349,7 +363,6 @@ void NissanLeafBattery::
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
     datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
     datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
-    datalayer_nissan->battery_SOH_flags = battery_SOH_flags;
     datalayer_nissan->battery_HX_pptt = (battery_HX_pptt_g61 != 0) ? battery_HX_pptt_g61 : battery_HX_pptt;
     datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
     datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
@@ -885,17 +898,16 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //  payload[7..8]  SOH_raw        the unfiltered state of health
           //  payload[9..10] SOH_Internal   the filtered figure, same value the pack publishes
           //  payload[11]    two status bits, in the low two bits of the byte
-          //Only the two that carry something the pack does not already report are read. Bench
-          //captures put BarCount_SOH at 0xFF on both a degraded and a freshly reset pack, so it
-          //is not populated with the pack off a car, and SOH_Internal came back bit-identical to
-          //the SOH above it on both.
+          //Only SOH_raw carries something the pack does not already report. Bench captures put
+          //BarCount_SOH at 0xFF on both a degraded and a freshly reset pack, so it is not
+          //populated with the pack off a car; SOH_Internal came back bit-identical to the SOH
+          //above it on both; and the status bits said nothing that the figures themselves do not.
           //Same hundredths scale as that SOH: a pack with its degradation just reset reports
           //exactly 10000 here, which is the firmware's own 100.00 %.
           uint16_t soh_raw = (uint16_t)((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
           if ((soh_raw > 0u) && (soh_raw <= 10000u)) {
             battery_SOHraw_pptt = soh_raw;
           }
-          battery_SOH_flags = (uint8_t)(rx_frame.data.u8[6] & 0x03);
         }
 
         if (group_7bb_frame == 2) {  //Third frame, payload[13..19] in u8[1..7]

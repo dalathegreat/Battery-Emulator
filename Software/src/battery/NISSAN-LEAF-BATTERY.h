@@ -331,7 +331,6 @@ class NissanLeafBattery : public CanBattery {
   //that group has answered. Kept apart from the group 0x01 Hx so the health block always wins when
   //it is available, rather than the two sources overwriting each other in polling order.
   uint16_t battery_SOHraw_pptt = 0;  //Unfiltered SOH from the health block, 0 until read
-  uint8_t battery_SOH_flags = 0;     //Two status bits the health block carries after the SOH figures
   uint16_t battery_HX_pptt_g61 = 0;
   uint16_t battery_SOH_pptt_g61 = 0;
   uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read

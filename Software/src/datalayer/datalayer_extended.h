@@ -792,10 +792,6 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t CapacityCAh;
   /** 12 V accessory battery level in mV, 0 until read from the battery */
   uint16_t VBAT_mV;
-  /** Two status bits the health block carries after the SOH figures. Both clear on a pack that
-   * has just had its degradation reset, both set on one with history.
-   */
-  uint8_t battery_SOH_flags;
   /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
   uint16_t ChargeCountQC;
   /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
