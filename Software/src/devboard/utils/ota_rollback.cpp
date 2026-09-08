@@ -92,8 +92,7 @@ void mark_ota_image_valid(void) {
   }
   if (esp_ota_mark_app_valid_cancel_rollback() == ESP_OK) {
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Firmware %s started cleanly and is now confirmed; rollback window closed\n",
-                   version_number);
+    logging.printf("Firmware %s started cleanly and is now confirmed; rollback window closed\n", version_number);
   } else {
     /* Nothing to do about it here, but say so: the image stays pending, so the
      * next reset - however ordinary - will roll it back, and that is otherwise
