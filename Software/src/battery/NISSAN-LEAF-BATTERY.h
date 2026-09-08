@@ -157,12 +157,15 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
-  //Ordered so the values that identify an unknown pack come out first. The three static groups
-  //(0x62 charge counters, 0x84 serial number, 0x83 part number) are read once and then skipped,
-  //leaving 0x04/0x01/0x02/0x06/0x61 as the recurring rotation. Group 0x61 is the LBC's health
-  //block and is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11
-  //rather than 0x10 - see the masked first-frame test in handle_incoming_can_frame().
-  uint8_t PIDgroups[8] = {0x62, 0x84, 0x04, 0x01, 0x02, 0x06, 0x61, 0x83};
+  //Ordered so the pack capacity comes out first: it is what the reported capacity and the derived
+  //state of health are built from, and neither is published until it has been read. It sits in
+  //group 0x01 on ZE0/AZE0 and in the health block 0x61 on ZE1, so both lead the rotation and the
+  //generation in use gets its answer on the first or second poll rather than most of a minute in.
+  //The three static groups (0x62 charge counters, 0x84 serial number, 0x83 part number) are read
+  //once and then skipped, leaving 0x01/0x61/0x04/0x02/0x06 as the recurring rotation. Group 0x61
+  //is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11 rather than
+  //0x10 - see the masked first-frame test in handle_incoming_can_frame().
+  uint8_t PIDgroups[8] = {0x01, 0x61, 0x62, 0x84, 0x04, 0x02, 0x06, 0x83};
   //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
@@ -332,7 +335,12 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_HX_pptt_g61 = 0;
   uint16_t battery_SOH_pptt_g61 = 0;
   uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read
-  uint16_t battery_vbat_mV = 0;       //12 V accessory battery level in mV, 0 until read
+  uint32_t battery_capacity_Wh = 0;   //Energy equivalent of the above at nominal voltage, 0 until read
+  //The state of health the LBC publishes, health block first and the 0x5BC broadcast otherwise, in
+  //hundredths of a percent. Shown on the info page beside the raw figure; the SOH the rest of the
+  //system uses is derived from the capacities instead, since this one is erased by a reset.
+  uint16_t battery_SOH_avg_pptt = 0;
+  uint16_t battery_vbat_mV = 0;  //12 V accessory battery level in mV, 0 until read
   //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
   //level on any pack that never reports one.
   bool battery_cells_unreadable = false;

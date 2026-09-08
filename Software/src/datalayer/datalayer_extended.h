@@ -765,6 +765,10 @@ struct DATALAYER_INFO_NISSAN_LEAF {
    * voltage is stated once.
    */
   uint32_t CapacityWh;
+  /** Nameplate energy of this pack size, max GIDs times WH_PER_GID, in Wh. Fixed per pack rather
+   * than tracking wear, so it serves as the reference CapacityWh is compared against.
+   */
+  uint32_t CapacityAsNewWh;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
@@ -777,6 +781,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
    * pack is relearning after a degradation reset.
    */
   uint16_t battery_SOHraw_pptt;
+  /** State of health as the LBC itself publishes it, in hundredths of a percent. 0 until read.
+   * Erased along with the degradation data, so it reads 100% on a pack that has had a reset no
+   * matter what the pack still holds. Shown for reference only.
+   */
+  uint16_t battery_SOHavg_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
   /** Pack capacity in hundredths of an Ah (11544 = 115.44 Ah), 0 until read from the battery */

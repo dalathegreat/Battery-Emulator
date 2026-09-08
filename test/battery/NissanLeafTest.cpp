@@ -107,8 +107,10 @@ TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
   battery->update_values();
 
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000u);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  //The SOH the block carries is kept for display, and does not by itself make a state of health
+  //available: that is derived from the capacities.
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);
+  EXPECT_FALSE(datalayer.battery.status.soh_available);
 }
 
 // The LBC's PID 0x61 handler writes BarCount_SOH, SOH_raw, SOH_Internal and two status bits
@@ -127,7 +129,7 @@ TEST(NissanLeafHealthTests, ShouldDecodeTrailingHealthBlockFields) {
 
   // The fields ahead of them are untouched by the second frame.
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);
 }
 
 // Only the low two bits of that byte are defined by the handler.
@@ -149,7 +151,7 @@ TEST(NissanLeafHealthTests, ShouldDecodeResetPackHealthBlock) {
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0xFF, 0x27, 0x10, 0x27, 0x10, 0x00, 0x00}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHraw_pptt, 10000u);
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOH_flags, 0x00u);
 }
@@ -161,8 +163,70 @@ TEST(NissanLeafHealthTests, ShouldNotClampHxAboveOneHundredPercent) {
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x30, 0xD4, 0x25, 0x8A}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 12500u);  // 0x30D4
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9610u);               // 0x258A
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 12500u);     // 0x30D4
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9610u);  // 0x258A
+}
+
+// Feeds a group 0x01 reply far enough to deliver the pack capacity, which sits in the sixth frame
+// at payload[34..37] as a u32 in ten-thousandths of an Ah. 0x29 is the ZE0 layout, 0x2B the AZE0.
+void feed_pack_capacity(NissanLeafBattery* battery, uint32_t ten_thousandths_Ah, uint8_t layout_length = 0x2B) {
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, layout_length, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00}));
+  for (uint8_t frame = 0x21; frame <= 0x24; frame++) {
+    battery->handle_incoming_can_frame(leaf_7bb_frame({frame, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  }
+  battery->handle_incoming_can_frame(
+      leaf_7bb_frame({0x25, (uint8_t)(ten_thousandths_Ah >> 24), (uint8_t)(ten_thousandths_Ah >> 16),
+                      (uint8_t)(ten_thousandths_Ah >> 8), (uint8_t)ten_thousandths_Ah, 0x00, 0x00, 0x00}));
+}
+
+// The measured capacity at the pack's nominal voltage is what the rest of the system is told the
+// battery holds, in place of the GID count scaled by a state of health the pack can have had erased.
+TEST(NissanLeafHealthTests, ShouldReportTotalCapacityFromMeasuredPackCapacity) {
+  auto battery = battery_polling();
+
+  feed_pack_capacity(battery, 662500);  // 66.25 Ah
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityCAh, 6625u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityWh, 23850u);  // 66.25 Ah at 360.0 V
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 23850u);
+}
+
+// Capacity as new comes from the max GID count, which stays put as the pack ages. Nothing in
+// battery_polling() sets the max mux in 0x5BC, so the pack is on the 24 kWh startup default of 273.
+TEST(NissanLeafHealthTests, ShouldDeriveStateOfHealthFromCapacityRatio) {
+  auto battery = battery_polling();
+
+  feed_pack_capacity(battery, 331250);  // 33.125 Ah, half of a new 24 kWh pack
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 21021u);  // 273 GIDs at 77 Wh
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // 11923 Wh of 21021 Wh
+}
+
+// The whole point of the change: a pack whose degradation has been reset publishes 100 %, while
+// the capacity it measures is untouched and still shows what it holds.
+TEST(NissanLeafHealthTests, ShouldIgnorePublishedStateOfHealthOnResetPack) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x27, 0x10}));
+  feed_pack_capacity(battery, 331250);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);  // What the pack claims
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);                   // What it actually holds
+}
+
+// The max GID count is broadcast with the mux bit set, and only by the 30/40/62 kWh packs.
+TEST(NissanLeafHealthTests, ShouldTakeCapacityAsNewFromBroadcastMaxGids) {
+  auto battery = battery_polling();
+
+  // Byte 5 bit 4 marks the max GID mux; 356 GIDs is a 30 kWh pack.
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x59, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 27412u);  // 356 GIDs at 77 Wh
 }
 
 // Nothing has been read from the pack yet, so no state of health is invented.
@@ -175,18 +239,18 @@ TEST(NissanLeafHealthTests, ShouldReportStateOfHealthUnknownBeforeAnyReading) {
 }
 
 // The broadcast value in 0x5BC stands in at whole-percent resolution until the health block
-// answers, and is then superseded by it.
+// answers, and is then superseded by it. This is the figure the pack publishes for itself, shown
+// on the info page beside the raw one; what the system reports as SOH comes from the capacities.
 TEST(NissanLeafHealthTests, ShouldPreferPolledStateOfHealthOverBroadcast) {
   auto battery = battery_polling();
 
   battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0xBE, 0x00, 0x00, 0x00}));
   battery->update_values();
-  EXPECT_TRUE(datalayer.battery.status.soh_available);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9500u);  // 0xBE >> 1 = 95 %
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9500u);  // 0xBE >> 1 = 95 %
 
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x25, 0x2C}));
   battery->update_values();
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9516u);  // 0x252C = 95.16 %
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9516u);  // 0x252C = 95.16 %
 }
 
 // A rejected request is a single frame, not group data. Letting it through would leave the

@@ -39,17 +39,16 @@ void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
-  //State of health comes from the polled health block when the LBC has answered it, since that
-  //carries hundredths of a percent. Until then the broadcast value in 0x5BC stands in, at whole
-  //percent. Before either has arrived nothing is published: soh_pptt keeps its safe default for
-  //the inverter and safety paths, and soh_available stays false so the info page and MQTT say
-  //"unknown" rather than showing a 99% that was never read from the pack.
+  //The state of health the LBC itself publishes: the polled health block when it has answered,
+  //since that carries hundredths of a percent, otherwise the broadcast value in 0x5BC at whole
+  //percent. This figure is erased along with the degradation data, so a pack that has had its
+  //degradation reset publishes 100% regardless of what it still holds. It is therefore kept for
+  //display next to the raw figure only, and no longer feeds soh_pptt - see the capacity block
+  //below for what does.
   if (battery_SOH_pptt_g61 != 0) {
-    datalayer_battery->status.soh_pptt = battery_SOH_pptt_g61;
-    datalayer_battery->status.soh_available = true;
+    battery_SOH_avg_pptt = battery_SOH_pptt_g61;
   } else if (battery_StateOfHealth != 0) {
-    datalayer_battery->status.soh_pptt = (battery_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
-    datalayer_battery->status.soh_available = true;
+    battery_SOH_avg_pptt = (battery_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
   }
 
   datalayer_battery->status.real_soc = (battery_SOC * 10);
@@ -60,12 +59,29 @@ void NissanLeafBattery::
   datalayer_battery->status.current_dA =
       (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  //Held at the last known value until an SOH is available, rather than collapsing to zero for the
-  //first seconds after boot. Now scaled from soh_pptt, so a polled SOH feeds through at its full
-  //hundredths-of-a-percent resolution instead of being rounded to whole percent first.
-  if (datalayer_battery->status.soh_available) {
-    datalayer_battery->info.total_capacity_Wh =
-        (uint32_t)(((uint32_t)battery_Max_GIDS * WH_PER_GID * datalayer_battery->status.soh_pptt) / 10000u);
+  //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
+  //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
+  //kWh packs) rather than something that tracks wear, which is what makes it usable as the
+  //reference the measured capacity is judged against.
+  const uint32_t capacity_as_new_Wh = (uint32_t)battery_Max_GIDS * WH_PER_GID;
+
+  //Actual capacity, and the state of health that follows from it. The capacity the LBC measures
+  //survives a degradation reset, so a pack that has had one still reports what it actually holds
+  //here even though the SOH it publishes has gone back to 100%. Comparing the two capacities is
+  //therefore the only figure that stays truthful on a reset pack.
+  //Held at the last known value until a capacity has been read, rather than collapsing to zero for
+  //the first seconds after boot.
+  if (battery_capacity_cAh != 0) {
+    //Hundredths of an Ah times deciVolts gives milliWatt-hours, so divide by a thousand.
+    const uint16_t nominal_dV =
+        (LEAF_battery_Type == ZE1_BATTERY) ? NOMINAL_VOLTAGE_DV_ZE1 : NOMINAL_VOLTAGE_DV_ZE0_AZE0;
+    battery_capacity_Wh = ((uint32_t)battery_capacity_cAh * nominal_dV) / 1000u;
+    datalayer_battery->info.total_capacity_Wh = battery_capacity_Wh;
+
+    if (capacity_as_new_Wh != 0) {
+      datalayer_battery->status.soh_pptt = (uint16_t)(((uint64_t)battery_capacity_Wh * 10000ull) / capacity_as_new_Wh);
+      datalayer_battery->status.soh_available = true;
+    }
   }
 
   datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
@@ -319,12 +335,8 @@ void NissanLeafBattery::
     datalayer_nissan->Interlock = battery_Interlock;
     datalayer_nissan->Insulation = battery_insulation;
     datalayer_nissan->CapacityCAh = battery_capacity_cAh;
-    if (battery_capacity_cAh != 0) {
-      //Hundredths of an Ah times deciVolts gives milliWatt-hours, so divide by a thousand.
-      const uint16_t nominal_dV =
-          (LEAF_battery_Type == ZE1_BATTERY) ? NOMINAL_VOLTAGE_DV_ZE1 : NOMINAL_VOLTAGE_DV_ZE0_AZE0;
-      datalayer_nissan->CapacityWh = ((uint32_t)battery_capacity_cAh * nominal_dV) / 1000u;
-    }
+    datalayer_nissan->CapacityWh = battery_capacity_Wh;
+    datalayer_nissan->CapacityAsNewWh = capacity_as_new_Wh;
     datalayer_nissan->VBAT_mV = battery_vbat_mV;
     datalayer_nissan->RelayCutRequest = battery_Relay_Cut_Request;
     datalayer_nissan->FailsafeStatus = battery_Failsafe_Status;
@@ -336,6 +348,7 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
     datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
+    datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
     datalayer_nissan->battery_SOH_flags = battery_SOH_flags;
     datalayer_nissan->battery_HX_pptt = (battery_HX_pptt_g61 != 0) ? battery_HX_pptt_g61 : battery_HX_pptt;
     datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
