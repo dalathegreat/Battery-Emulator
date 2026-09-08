@@ -267,6 +267,9 @@ void BydAttoBattery::
 
   datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;
   datalayer_battery->status.total_charged_battery_Wh = BMS_total_charged_kwh * 1000;
+  // Native uint16_t whole-Ah totals: promote before converting to 0.1 Ah.
+  datalayer_battery->status.total_charged_battery_dAh = static_cast<uint32_t>(BMS_total_charged_ah) * 10U;
+  datalayer_battery->status.total_discharged_battery_dAh = static_cast<uint32_t>(BMS_total_discharged_ah) * 10U;
 
   // Count detected cells based on which cell voltage readings are nonzero, up to the max supported by datalayer
   for (uint8_t cell_num = 0; cell_num < MAX_AMOUNT_CELLS; cell_num++) {

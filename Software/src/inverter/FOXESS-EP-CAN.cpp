@@ -136,83 +136,12 @@ void FoxessEpCanInverter::
   const bool foxess_ep_discharging_active =
       foxess_ep_power_path_active && foxess_ep_activity_current_dA <= -FOXESS_EP_ACTIVITY_DEADBAND_dA;
 
-  // Integrate battery power into separate charged and discharged
-  // energy counters. voltage_dV is volts x10 and current_dA is
-  // amps x10, so voltage_dV x current_dA is watts x100.
-  unsigned long foxess_now_millis = millis();
-
-  if (!foxess_energy_counter_initialised || !foxess_ep_power_path_active) {
-    foxess_previous_energy_millis = foxess_now_millis;
-    foxess_energy_counter_initialised = true;
-  } else {
-    unsigned long elapsed_ms = foxess_now_millis - foxess_previous_energy_millis;
-    foxess_previous_energy_millis = foxess_now_millis;
-
-    int32_t signed_current_dA = (int32_t)datalayer.battery.status.reported_current_dA;
-
-    int32_t absolute_current_dA = signed_current_dA;
-
-    if (absolute_current_dA < 0) {
-      absolute_current_dA = -absolute_current_dA;
-    }
-
-    uint64_t energy_increment =
-        (uint64_t)datalayer.battery.status.voltage_dV * (uint64_t)absolute_current_dA * (uint64_t)elapsed_ms;
-
-    // dV x dA x milliseconds:
-    // divide by 100 to obtain watts,
-    // then by 3,600,000 to obtain Wh.
-    static const uint64_t FOXESS_WH_DIVISOR = 360000000ULL;
-    static const uint64_t FOXESS_DAH_DIVISOR_dAms = 3600000ULL;
-
-    if (signed_current_dA > 0) {
-      foxess_charged_energy_remainder += energy_increment;
-
-      uint64_t completed_Wh = foxess_charged_energy_remainder / FOXESS_WH_DIVISOR;
-
-      if (completed_Wh > 0ULL) {
-        foxess_installation_charged_energy_Wh += completed_Wh;
-
-        foxess_throughput_energy_Wh += completed_Wh;
-
-        foxess_charged_energy_remainder %= FOXESS_WH_DIVISOR;
-      }
-
-      foxess_charged_capacity_remainder_dAms +=
-          static_cast<uint64_t>(signed_current_dA) * static_cast<uint64_t>(elapsed_ms);
-
-      const uint64_t completed_charged_dAh = foxess_charged_capacity_remainder_dAms / FOXESS_DAH_DIVISOR_dAms;
-
-      if (completed_charged_dAh > 0ULL) {
-        foxess_charged_capacity_dAh += completed_charged_dAh;
-
-        foxess_charged_capacity_remainder_dAms %= FOXESS_DAH_DIVISOR_dAms;
-      }
-    } else if (signed_current_dA < 0) {
-      foxess_discharged_energy_remainder += energy_increment;
-
-      uint64_t completed_Wh = foxess_discharged_energy_remainder / FOXESS_WH_DIVISOR;
-
-      if (completed_Wh > 0ULL) {
-        foxess_installation_discharged_energy_Wh += completed_Wh;
-
-        foxess_throughput_energy_Wh += completed_Wh;
-
-        foxess_discharged_energy_remainder %= FOXESS_WH_DIVISOR;
-      }
-
-      foxess_discharged_capacity_remainder_dAms +=
-          static_cast<uint64_t>(absolute_current_dA) * static_cast<uint64_t>(elapsed_ms);
-
-      const uint64_t completed_discharged_dAh = foxess_discharged_capacity_remainder_dAms / FOXESS_DAH_DIVISOR_dAms;
-
-      if (completed_discharged_dAh > 0ULL) {
-        foxess_discharged_capacity_dAh += completed_discharged_dAh;
-
-        foxess_discharged_capacity_remainder_dAms %= FOXESS_DAH_DIVISOR_dAms;
-      }
-    }
-  }
+  // Generic lifetime totals; reject negative native Wh before unsigned mapping.
+  const uint64_t charged_energy_Wh =
+      datalayer.battery.status.total_charged_battery_Wh > 0 ? datalayer.battery.status.total_charged_battery_Wh : 0;
+  const uint64_t discharged_energy_Wh = datalayer.battery.status.total_discharged_battery_Wh > 0
+                                            ? datalayer.battery.status.total_discharged_battery_Wh
+                                            : 0;
   //Put the values into the CAN messages
   //BMS_Limits
   uint16_t foxess_ep_max_charge_current_dA = 0U;
@@ -390,9 +319,9 @@ void FoxessEpCanInverter::
   FOXESS_1875.data.u8[4] = datalayer.system.status.contactors_engaged ? 0x01 : 0x00;
   FOXESS_1875.data.u8[5] = (uint8_t)0;  //0 Confirmed Unused in Battery Details page
 
-  const uint64_t foxess_cycle_charged_energy_Wh = foxess_installation_charged_energy_Wh;
+  const uint64_t foxess_cycle_charged_energy_Wh = charged_energy_Wh;
 
-  const uint64_t foxess_cycle_discharged_energy_Wh = foxess_installation_discharged_energy_Wh;
+  const uint64_t foxess_cycle_discharged_energy_Wh = discharged_energy_Wh;
 
   const uint64_t foxess_cycle_throughput_Wh = foxess_cycle_charged_energy_Wh + foxess_cycle_discharged_energy_Wh;
 
@@ -810,8 +739,7 @@ void FoxessEpCanInverter::
   FOXESS_1878.data.u8[2] = 0x00;
   FOXESS_1878.data.u8[3] = 0x00;
 
-  const uint64_t foxess_ep_absolute_throughput_Wh =
-      foxess_installation_charged_energy_Wh + foxess_installation_discharged_energy_Wh;
+  const uint64_t foxess_ep_absolute_throughput_Wh = charged_energy_Wh + discharged_energy_Wh;
 
   const uint32_t foxess_ep_absolute_throughput_Wh_wire = foxess_ep_absolute_throughput_Wh > UINT32_MAX
                                                              ? UINT32_MAX
@@ -830,11 +758,9 @@ void FoxessEpCanInverter::
   // Bytes 0-3: charged capacity, 0.1 Ah/count.
   // Bytes 4-7: discharged capacity, 0.1 Ah/count.
 
-  const uint32_t foxess_ep_charged_capacity_dAh_wire =
-      foxess_charged_capacity_dAh > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(foxess_charged_capacity_dAh);
+  const uint32_t foxess_ep_charged_capacity_dAh_wire = datalayer.battery.status.total_charged_battery_dAh;
 
-  const uint32_t foxess_ep_discharged_capacity_dAh_wire =
-      foxess_discharged_capacity_dAh > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(foxess_discharged_capacity_dAh);
+  const uint32_t foxess_ep_discharged_capacity_dAh_wire = datalayer.battery.status.total_discharged_battery_dAh;
 
   FOXESS_1879.data.u8[0] = static_cast<uint8_t>(foxess_ep_charged_capacity_dAh_wire);
 
@@ -853,14 +779,14 @@ void FoxessEpCanInverter::
   FOXESS_1879.data.u8[7] = static_cast<uint8_t>(foxess_ep_discharged_capacity_dAh_wire >> 24);
   // Charged energy - 0x187A
   // Bytes 0-3: accumulated charged energy in 0.1 kWh units.
-  const uint64_t foxess_ep_charged_energy_100Wh_raw = foxess_installation_charged_energy_Wh / 100ULL;
+  const uint64_t foxess_ep_charged_energy_100Wh_raw = charged_energy_Wh / 100ULL;
 
   const uint32_t foxess_ep_charged_energy_100Wh = foxess_ep_charged_energy_100Wh_raw > UINT32_MAX
                                                       ? UINT32_MAX
                                                       : static_cast<uint32_t>(foxess_ep_charged_energy_100Wh_raw);
 
   // Bytes 4-7: accumulated discharged energy in 0.1 kWh units.
-  const uint64_t foxess_ep_discharged_energy_100Wh_raw = foxess_installation_discharged_energy_Wh / 100ULL;
+  const uint64_t foxess_ep_discharged_energy_100Wh_raw = discharged_energy_Wh / 100ULL;
 
   const uint32_t foxess_ep_discharged_energy_100Wh = foxess_ep_discharged_energy_100Wh_raw > UINT32_MAX
                                                          ? UINT32_MAX

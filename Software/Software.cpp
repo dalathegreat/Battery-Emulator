@@ -16,6 +16,7 @@
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
+#include "src/datalayer/energy_counter.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
@@ -642,6 +643,7 @@ void core_loop(void*) {
       if (battery) {
         battery->handle_precharge();
       }
+      update_energy_counters(currentMillis);
       END_TIME_MEASUREMENT_MAX(10ms, datalayer.system.status.time_10ms_us);
     }
 
@@ -680,6 +682,7 @@ void core_loop(void*) {
       }
 
       update_restart_progress();  // Check if we need to restart the ESP32
+      store_energy_counters(currentMillis);
 
       END_TIME_MEASUREMENT_MAX(values, datalayer.system.status.time_values_us);
     }
@@ -782,6 +785,7 @@ void setup() {
   setup_charger();
   setup_inverter();
   setup_battery();
+  init_energy_counters(millis());
 
   /* Some battery types mandate the SOC-based charge power taper. Enforce at
      runtime regardless of stored settings, and restrict the start SOC to
