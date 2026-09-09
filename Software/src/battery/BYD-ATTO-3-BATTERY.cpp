@@ -318,19 +318,9 @@ void BydAttoBattery::
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
     datalayer_bydatto->iso_measurement_active = battery_iso_measurement_active;
-    datalayer_bydatto->battery_temperatures[0] = battery_daughterboard_temperatures[0];
-    datalayer_bydatto->battery_temperatures[1] = battery_daughterboard_temperatures[1];
-    datalayer_bydatto->battery_temperatures[2] = battery_daughterboard_temperatures[2];
-    datalayer_bydatto->battery_temperatures[3] = battery_daughterboard_temperatures[3];
-    datalayer_bydatto->battery_temperatures[4] = battery_daughterboard_temperatures[4];
-    datalayer_bydatto->battery_temperatures[5] = battery_daughterboard_temperatures[5];
-    datalayer_bydatto->battery_temperatures[6] = battery_daughterboard_temperatures[6];
-    datalayer_bydatto->battery_temperatures[7] = battery_daughterboard_temperatures[7];
-    datalayer_bydatto->battery_temperatures[8] = battery_daughterboard_temperatures[8];
-    datalayer_bydatto->battery_temperatures[9] = battery_daughterboard_temperatures[9];
-    datalayer_bydatto->battery_temperatures[10] = battery_daughterboard_temperatures[10];
-    datalayer_bydatto->battery_temperatures[11] = battery_daughterboard_temperatures[11];
-    datalayer_bydatto->battery_temperatures[12] = battery_daughterboard_temperatures[12];
+    memcpy(datalayer_bydatto->battery_temperatures, battery_daughterboard_temperatures,
+           sizeof(battery_daughterboard_temperatures));
+
     datalayer_bydatto->BMS_capacity_original_calibration = BMS_capacity_original_calibration;
     datalayer_bydatto->BMC_SOC_original_calibration = BMC_SOC_original_calibration;
     datalayer_bydatto->BMS_capacity_current_calibration = BMS_capacity_current_calibration;
