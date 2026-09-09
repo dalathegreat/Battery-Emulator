@@ -466,7 +466,6 @@ class BydAttoBattery : public CanBattery {
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
   uint16_t battery_external_dc_voltage_dV = 0;  // Deci-volts from 0x35E, bytes 3-4 (little-endian)
 
-
   bool calibrationAH_seeded = false;
 
   int16_t battery_daughterboard_temperatures[12] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};

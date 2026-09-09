@@ -110,8 +110,6 @@ TEST(BydAtto3Tests, DecodesCapturedExternalDcVoltagesAndZero) {
   }
 }
 
-
-
 // External DC voltage is published and displayed for each valid sample,
 // including zero volts.
 TEST(BydAtto3Tests, PublishesAndDisplaysExternalDcVoltage) {
@@ -208,9 +206,9 @@ TEST(BydAtto3Tests, KeepsExternalDcVoltageIndependentAcrossBatteriesAndMillisWra
   EXPECT_TRUE(datalayer_extended.bydAtto3_2.external_dc_voltage_valid);
   EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, 96);
   EXPECT_EQ(datalayer_extended.bydAtto3_2.external_dc_voltage_dV, 4192);
-  EXPECT_NE(std::string(second.get_status_renderer().get_status_html().c_str())
-                .find("External DC voltage: 419.2 V</h4>"),
-            std::string::npos);
+  EXPECT_NE(
+      std::string(second.get_status_renderer().get_status_html().c_str()).find("External DC voltage: 419.2 V</h4>"),
+      std::string::npos);
   set_millis64(0);
 }
 
