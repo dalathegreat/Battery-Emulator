@@ -12,9 +12,23 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
   bool renders_own_battery_data() { return true; }
 
+  bool html_render_failed() const override { return render_failed; }
+
+  String get_dtc_html() override {
+    auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
+    String content = render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
+    render_failed = content.isEmpty();
+    return content;
+  }
+
   String get_status_html() {
-    String content;
-    content.reserve(16000);
+    render_failed = false;
+    CheckedHtml content;
+    const bool reserved = content.reserve(16000);
+    if (!reserved) {
+      render_failed = true;
+      return String();
+    }
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
@@ -730,14 +744,14 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
     append_balance_time_html(content);
 
-    auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
-    content += BatteryHtmlRenderer::render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
-
-    return content;
+    render_failed = !content.good();
+    return content.take();
   }
 
  private:
-  void append_balance_time_html(String& out) const {
+  bool render_failed = false;
+
+  void append_balance_time_html(CheckedHtml& out) const {
     out +=
         "<h4 style='margin-top:18px'><button onclick=\"window.location.href='/bydbalance'\">"
         "&#9889; Cell Balance Timers</button></h4>";
