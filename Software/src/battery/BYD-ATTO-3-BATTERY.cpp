@@ -229,7 +229,10 @@ void BydAttoBattery::
   // Rails follow the pack, not the session: an open leaves the cells where the BMS left them.
   const uint16_t rails_cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
   const uint16_t rails_cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
-  if (chargeTerminatedRails && rails_cell_min_mV > 0 && rails_cell_max_mV <= MAX_CELL_VOLTAGE_MV &&
+  // Release with margin: handing the rails back exactly at the stock limit lets safety.cpp raise
+  // CELL_OVER_VOLTAGE (>= max_cell_voltage_mV) on the very pass the rail drops.
+  const uint16_t rails_release_max_mV = MAX_CELL_VOLTAGE_MV - SESSION_RAILS_MARGIN_MV;
+  if (chargeTerminatedRails && rails_cell_min_mV > 0 && rails_cell_max_mV < rails_release_max_mV &&
       (rails_cell_max_mV - rails_cell_min_mV) <= MAX_CELL_DEVIATION_MV) {
     chargeTerminatedRails = false;
   }
