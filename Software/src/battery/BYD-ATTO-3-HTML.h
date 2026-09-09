@@ -135,7 +135,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       if (byd_datalayer->battery_temperatures[i] == 215) {
         break;
       }
-      content += "<h4>Temperature sensor " + String(i + 1) + ": " + String(byd_datalayer->battery_temperatures[i]) + " &deg;C</h4>";
+      content += "<h4>Temperature sensor " + String(i + 1) + ": " + String(byd_datalayer->battery_temperatures[i]) +
+                 " &deg;C</h4>";
     }
 
     content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";

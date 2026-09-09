@@ -318,7 +318,8 @@ void BydAttoBattery::
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
     datalayer_bydatto->iso_measurement_active = battery_iso_measurement_active;
-    memcpy(datalayer_bydatto->battery_temperatures, battery_daughterboard_temperatures, sizeof(battery_daughterboard_temperatures));
+    memcpy(datalayer_bydatto->battery_temperatures, battery_daughterboard_temperatures,
+           sizeof(battery_daughterboard_temperatures));
 
     datalayer_bydatto->BMS_capacity_original_calibration = BMS_capacity_original_calibration;
     datalayer_bydatto->BMC_SOC_original_calibration = BMC_SOC_original_calibration;
