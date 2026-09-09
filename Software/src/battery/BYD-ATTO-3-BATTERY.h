@@ -466,7 +466,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
   bool calibrationAH_seeded = false;
 
-  int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
+  int16_t battery_daughterboard_temperatures[12] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
   uint16_t battery_cellvoltages[MAX_AMOUNT_CELLS] = {0};
 
   /* Extra CAN info 
