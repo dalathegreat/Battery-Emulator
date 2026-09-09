@@ -169,16 +169,22 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
   // receives this wakeup frame)
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
-    transmit_can_frame(&ZOE_423);
-
-    if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
-      ZOE_423.data.u8[4] = 0xB2;
-      ZOE_423.data.u8[6] = 0xB2;
+    if (quiet_balancing_mode) {
+      // Mute 0x423 so the LBC can sleep and balance. Keep partner frames and
+      // the liveness counter so the safety layer does not trip.
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     } else {
-      ZOE_423.data.u8[4] = 0x5D;
-      ZOE_423.data.u8[6] = 0x5D;
+      transmit_can_frame(&ZOE_423);
+
+      if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
+        ZOE_423.data.u8[4] = 0xB2;
+        ZOE_423.data.u8[6] = 0xB2;
+      } else {
+        ZOE_423.data.u8[4] = 0x5D;
+        ZOE_423.data.u8[6] = 0x5D;
+      }
+      counter_423 = (counter_423 + 1) % 10;
     }
-    counter_423 = (counter_423 + 1) % 10;
 
     // Broadcast 100ms vehicle frames (PEB Inverter 0x19F, EVC Power Mux 0x426, EVC Status 0x436)
     // Rolling 4-bit sequence counter (cycles 0-15)
@@ -205,7 +211,9 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
   }
 
   // UDS PID polling and DTC handling
-  transmit_uds_can(currentMillis);
+  if (!quiet_balancing_mode) {
+    transmit_uds_can(currentMillis);
+  }
 }
 
 template <typename T>

@@ -27,6 +27,14 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Renault Zoe Gen1 22/40kWh";
 
+  bool supports_balancing() { return true; }
+  bool is_balancing_active() { return quiet_balancing_mode; }
+  void initiate_balancing() {
+    quiet_balancing_mode = true;
+    datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  }
+  void end_balancing() { quiet_balancing_mode = false; }
+
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "renault_zoe_gen1_dtc.json"; }
   bool get_dtc_standard_code_string() override { return false; }
@@ -61,6 +69,7 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   unsigned long previousMillis1000_69f = 0;
   unsigned long previousMillis60000_436 = 0;
   uint8_t counter_423 = 0;
+  bool quiet_balancing_mode = false;
   uint8_t zoe_19F_counter = 0;
   uint16_t zoe_436_counter = 1;
 
