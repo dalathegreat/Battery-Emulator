@@ -40,4 +40,6 @@ void ota_confirm_service(void);
 // run is the whole defect this exists to fix.
 void mark_ota_image_valid(void);
 
+extern const char* version_number;  // The current software version
+
 #endif  // OTA_ROLLBACK_H
