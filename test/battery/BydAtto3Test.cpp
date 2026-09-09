@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <limits>
 
 #include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
@@ -82,6 +83,136 @@ CAN_frame contactor_feedback_frame(uint8_t mode) {
 }
 
 }  // namespace
+
+// Captured open/precharge/closed samples decode in tenths of a volt, including the low byte.
+TEST(BydAtto3Tests, DecodesCapturedExternalDcVoltagesAndZero) {
+  reset_byd_state();
+  set_millis64(1000);
+  BydAttoBattery battery;
+  battery.setup();
+  const struct {
+    CAN_frame frame;
+    uint16_t expected_dV;
+  } samples[] = {
+      {byd_frame(0x35E, {0x01, 0x00, 0xB8, 0x40, 0x00, 0x00, 0x00, 0x06}), 64},
+      {byd_frame(0x35E, {0x01, 0x00, 0x5C, 0x97, 0x00, 0x00, 0x00, 0x0B}), 151},
+      {byd_frame(0x35E, {0x01, 0x00, 0x60, 0x3C, 0x06, 0x00, 0x00, 0x5C}), 1596},
+      {byd_frame(0x35E, {0x01, 0x00, 0x60, 0x35, 0x10, 0x00, 0x00, 0x59}), 4149},
+      {byd_frame(0x35E, {0x01, 0x00, 0x60, 0xAD, 0x10, 0x00, 0x00, 0xE1}), 4269},
+      {byd_checksummed_frame(0x35E, {0x01, 0, 0, 0, 0, 0, 0}), 0},
+  };
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(sample.expected_dV);
+    battery.handle_incoming_can_frame(sample.frame);
+    battery.update_values();
+    EXPECT_TRUE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+    EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, sample.expected_dV);
+  }
+}
+
+
+
+// External DC voltage is published and displayed for each valid sample,
+// including zero volts.
+TEST(BydAtto3Tests, PublishesAndDisplaysExternalDcVoltage) {
+  reset_byd_state();
+  set_millis64(0);
+  BydAttoBattery battery;
+  battery.setup();
+  battery.handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xA2, 0x01, 0x88, 0x13, 0x64, 0x50, 0x00}));
+  battery.update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+  EXPECT_NE(std::string(battery.get_status_renderer().get_status_html().c_str())
+                .find("External DC voltage: Unavailable (no recent data)</h4>"),
+            std::string::npos);
+
+  const struct {
+    uint8_t low;
+    uint8_t high;
+    uint16_t expected_dV;
+    const char* expected_display;
+  } samples[] = {
+      {0x00, 0x00, 0, "0.0 V"},      {0x60, 0x00, 96, "9.6 V"},     {0x2B, 0x07, 1835, "183.5 V"},
+      {0x01, 0x10, 4097, "409.7 V"}, {0x60, 0x10, 4192, "419.2 V"},
+  };
+  uint32_t now = 1;
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(sample.expected_dV);
+    set_millis64(now);
+    battery.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, sample.low, sample.high, 0, 0}));
+    battery.update_values();
+    EXPECT_TRUE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+    EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, sample.expected_dV);
+    EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4180);
+    const std::string expected = std::string("External DC voltage: ") + sample.expected_display + "</h4>";
+    EXPECT_NE(std::string(battery.get_status_renderer().get_status_html().c_str()).find(expected), std::string::npos);
+    now += 100;
+  }
+  set_millis64(0);
+}
+
+// Invalid frames neither overwrite a reading nor keep stale voltage visible on the advanced page.
+TEST(BydAtto3Tests, ExpiresExternalDcVoltageWithoutValidFramesAndRecovers) {
+  reset_byd_state();
+  set_millis64(1000);
+  BydAttoBattery battery;
+  battery.setup();
+  battery.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x60, 0x10, 0, 0}));
+
+  set_millis64(3999);
+  battery.handle_incoming_can_frame(byd_corrupt_frame(0x35E, {0x01, 0, 0x60, 0x60, 0, 0, 0}));
+  battery.update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, 4192);
+
+  set_millis64(4000);
+  battery.handle_incoming_can_frame(byd_corrupt_frame(0x35E, {0x01, 0, 0x60, 0x60, 0, 0, 0}));
+  battery.update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, 4192);
+  EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 2);
+  EXPECT_NE(std::string(battery.get_status_renderer().get_status_html().c_str())
+                .find("External DC voltage: Unavailable (no recent data)</h4>"),
+            std::string::npos);
+
+  set_millis64(4100);
+  battery.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x2B, 0x07, 0, 0}));
+  battery.update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, 1835);
+  set_millis64(0);
+}
+
+// Separate battery instances retain their own readings and freshness when the 32-bit clock wraps.
+TEST(BydAtto3Tests, KeepsExternalDcVoltageIndependentAcrossBatteriesAndMillisWrap) {
+  reset_byd_state();
+  datalayer_extended.bydAtto3_2 = DATALAYER_INFO_BYDATTO3{};
+  BydAttoBattery first;
+  BydAttoBattery second(&datalayer.battery2, &datalayer_extended.bydAtto3_2, CAN_ADDON_MCP2515);
+  first.setup();
+  second.setup();
+  const uint64_t start = std::numeric_limits<uint32_t>::max() - 1000;
+  set_millis64(start);
+  first.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x60, 0, 0, 0}));
+  first.update_values();
+  second.update_values();
+  EXPECT_TRUE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+  EXPECT_FALSE(datalayer_extended.bydAtto3_2.external_dc_voltage_valid);
+
+  set_millis64(start + 200);
+  second.handle_incoming_can_frame(byd_checksummed_frame(0x35E, {0x01, 0, 0x60, 0x60, 0x10, 0, 0}));
+  set_millis64(start + 3000);
+  first.update_values();
+  second.update_values();
+  EXPECT_FALSE(datalayer_extended.bydAtto3.external_dc_voltage_valid);
+  EXPECT_TRUE(datalayer_extended.bydAtto3_2.external_dc_voltage_valid);
+  EXPECT_EQ(datalayer_extended.bydAtto3.external_dc_voltage_dV, 96);
+  EXPECT_EQ(datalayer_extended.bydAtto3_2.external_dc_voltage_dV, 4192);
+  EXPECT_NE(std::string(second.get_status_renderer().get_status_html().c_str())
+                .find("External DC voltage: 419.2 V</h4>"),
+            std::string::npos);
+  set_millis64(0);
+}
 
 TEST(BydAtto3BalanceApiTests, RejectsUnconfiguredBatteryIndices) {
   user_selected_battery_type = BatteryType::BydAtto3;
