@@ -23,9 +23,18 @@ void RenaultZoeGen1Battery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = LB_Discharge_allowed_W;
-
-  datalayer_battery->status.max_charge_power_W = LB_Regen_allowed_W;
+  if (quiet_balancing_mode) {
+    // Park the inverter while 0x423 is muted (i3-style). GPIO contactors stay
+    // as they are; the LBC may still drop pack HV if it sleeps.
+    datalayer_battery->status.max_discharge_power_W = 0;
+    datalayer_battery->status.max_charge_power_W = 0;
+    if (datalayer.system.status.system_status != FAULT) {
+      datalayer.system.status.system_status = STANDBY;
+    }
+  } else {
+    datalayer_battery->status.max_discharge_power_W = LB_Discharge_allowed_W;
+    datalayer_battery->status.max_charge_power_W = LB_Regen_allowed_W;
+  }
 
   datalayer_battery->status.temperature_min_dC = LB_Cell_minimum_temperature * 10;
   datalayer_battery->status.temperature_max_dC = LB_Cell_maximum_temperature * 10;

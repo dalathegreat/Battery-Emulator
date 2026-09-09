@@ -32,8 +32,18 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   void initiate_balancing() {
     quiet_balancing_mode = true;
     datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    datalayer_battery->status.max_discharge_power_W = 0;
+    datalayer_battery->status.max_charge_power_W = 0;
+    if (datalayer.system.status.system_status != FAULT) {
+      datalayer.system.status.system_status = STANDBY;
+    }
   }
-  void end_balancing() { quiet_balancing_mode = false; }
+  void end_balancing() {
+    quiet_balancing_mode = false;
+    if (datalayer.system.status.system_status == STANDBY) {
+      datalayer.system.status.system_status = ACTIVE;
+    }
+  }
 
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "renault_zoe_gen1_dtc.json"; }
