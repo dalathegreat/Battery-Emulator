@@ -108,6 +108,7 @@ class NissanLeafBattery : public CanBattery {
   uint8_t mprun10 = 0;      //counter 0-3
   uint8_t mprun100 = 0;     //counter 0-3
   uint8_t counter_3B8 = 0;  //counter 0-14
+  uint8_t mprun10_1DA = 0;  //counter 0-3, EXPERIMENT ONLY (see LEAF_EXPERIMENT_TX_1DA)
   bool flip_3B8 = false;
 
   static const uint8_t ZE0_BATTERY = 0;
@@ -138,6 +139,15 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x1D4,
                         .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+  /* EXPERIMENT ONLY, enabled by LEAF_EXPERIMENT_TX_1DA in the .cpp. 0x1DA is the traction
+     inverter's frame. In a car the LBC hears it every 10ms; in a stationary setup nothing
+     sends it. Payload is deliberately inert: zero torque, zero rpm, MG_InputVoltage mirrored
+     from the pack's own reported voltage, Nissan CRC in byte 7. */
+  CAN_frame LEAF_1DA = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x1DA,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,

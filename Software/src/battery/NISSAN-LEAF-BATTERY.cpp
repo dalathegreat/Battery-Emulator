@@ -9,6 +9,14 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+/* BENCH EXPERIMENT, NOT FOR MERGE.
+   Synthesises the traction inverter's 0x1DA towards the LBC, to find out whether the pack's
+   U1000 supervision is waiting for a frame that simply does not exist outside a car. Comment
+   the line out to go back to stock behaviour. If this does turn out to clear U1000, the signal
+   layout below has to be validated against the pack CAN databook before it becomes a feature,
+   and it wants to be a user setting rather than a compile-time define. */
+#define LEAF_EXPERIMENT_TX_1DA
+
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
@@ -1113,6 +1121,24 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
         transmit_can_frame(&LEAF_1D4);
       }
+
+#ifdef LEAF_EXPERIMENT_TX_1DA
+      /* MG_InputVoltage is assumed here to be the same 10-bit, 0.5V/bit encoding the LBC uses
+         for LB_Total_Voltage in 0x1DB, starting at byte 0. That is an assumption from logs, not
+         from a spec: check the 0x1DA row on the Rx sheet of the pack CAN databook (NISSAN byte
+         position / start bit / data length) and move the two lines below if it disagrees.
+         battery_Total_Voltage2 is the raw value straight off the LBC, so what the inverter
+         "measures" tracks what the pack itself reports, which is what a real car looks like. */
+      if (battery_Total_Voltage2 != 0x3FF) {  //0x3FF is the pack's "measurement unavailable" code
+        LEAF_1DA.data.u8[0] = (battery_Total_Voltage2 >> 2) & 0xFF;
+        LEAF_1DA.data.u8[1] = (LEAF_1DA.data.u8[1] & 0x3F) | ((battery_Total_Voltage2 & 0x03) << 6);
+      }
+      //2-bit rolling counter. Byte position is a guess as well, same caveat as above.
+      LEAF_1DA.data.u8[6] = (LEAF_1DA.data.u8[6] & 0xFC) | mprun10_1DA;
+      LEAF_1DA.data.u8[7] = calculate_crc(LEAF_1DA);
+      transmit_can_frame(&LEAF_1DA);
+      mprun10_1DA = (mprun10_1DA + 1) % 4;
+#endif
 
       //The low nibble of byte 7 is the Nissan nibble checksum over the rest of the message. The
       //constants below are the ones for CHG_STA_RQ=00b; the selected request is applied, checksum
