@@ -176,7 +176,7 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
       switch (stage) {
         case Stage::Start:
           fragment = page_start;
-          stage = Stage::Tabs;
+          stage = (battery2 || battery3) ? Stage::Tabs : Stage::Heading;
           return true;
         case Stage::Tabs:
           while (tab < 3) {
