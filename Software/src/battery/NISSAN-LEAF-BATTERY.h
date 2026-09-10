@@ -158,7 +158,7 @@ class NissanLeafBattery : public CanBattery {
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
   //Ordered so the values that identify an unknown pack come out first. The three static groups
-  //(0x62 charge counters, 0x84 serial number, 0x83 part number) are read once and then skipped,
+  //(0x62 charge counters/histograms, 0x84 serial number, 0x83 part number) are read once and then skipped,
   //leaving 0x04/0x01/0x02/0x06/0x61 as the recurring rotation. Group 0x61 is the LBC's health
   //block and is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11
   //rather than 0x10 - see the masked first-frame test in handle_incoming_can_frame().
@@ -336,6 +336,8 @@ class NissanLeafBattery : public CanBattery {
   //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
   //level on any pack that never reports one.
   bool battery_cells_unreadable = false;
+  //Set once the group 0x62 reply has arrived as far as its last usage histogram byte
+  bool battery_usage_histograms_read = false;
   uint16_t battery_insulation = 0;         //Insulation resistance
   uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
   uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges

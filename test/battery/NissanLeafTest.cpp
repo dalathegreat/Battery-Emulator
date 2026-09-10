@@ -9,6 +9,10 @@
 #include "../../Software/src/devboard/utils/events.h"
 #include "Arduino.h"
 
+// Recorder for everything the emulated CAN interface transmits (test/emul/can.cpp).
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
+
 namespace {
 
 // Builds a frame on the given ID from up to 8 raw bytes.
@@ -93,6 +97,79 @@ void feed_cell_voltage_reply(NissanLeafBattery* battery, const uint16_t (&cells)
     offset += 7;
     sequence++;
   }
+}
+
+// Feeds a group reply framed the way the LBC sends it: the first frame carries payload[0..5], the
+// 0x61 service byte first, then each consecutive frame seven more bytes, padded with 0xFF. A reply
+// cut short is modelled by stopping after the given number of consecutive frames.
+void feed_group_reply(NissanLeafBattery* battery, const std::vector<uint8_t>& payload,
+                      size_t consecutive_frames = SIZE_MAX) {
+  CAN_frame first = leaf_7bb_frame({});
+  first.data.u8[0] = (uint8_t)(0x10 | ((payload.size() >> 8) & 0x0F));
+  first.data.u8[1] = (uint8_t)(payload.size() & 0xFF);
+  for (size_t i = 0; i < 6; i++) {
+    first.data.u8[2 + i] = payload[i];
+  }
+  battery->handle_incoming_can_frame(first);
+
+  size_t offset = 6;
+  for (size_t frame = 1; offset < payload.size() && frame <= consecutive_frames; frame++) {
+    CAN_frame consecutive = leaf_7bb_frame({});
+    consecutive.data.u8[0] = (uint8_t)(0x20 | (frame & 0x0F));
+    for (size_t i = 0; i < 7; i++) {
+      consecutive.data.u8[1 + i] = (offset + i < payload.size()) ? payload[offset + i] : 0xFF;
+    }
+    battery->handle_incoming_can_frame(consecutive);
+    offset += 7;
+  }
+}
+
+// Value of bin b in table t of the replies below. Distinct everywhere, and most need both bytes.
+uint16_t histogram_count(uint8_t table, uint8_t bin) {
+  return (uint16_t)((table + 1) * 100 + bin);
+}
+
+// A group 0x62 reply: the counters that head it, then seven tables of eight big-endian counts.
+std::vector<uint8_t> usage_history_reply(std::initializer_list<uint16_t> counters) {
+  std::vector<uint8_t> payload = {0x61, 0x62};
+  for (uint16_t counter : counters) {
+    payload.push_back((uint8_t)(counter >> 8));
+    payload.push_back((uint8_t)(counter & 0xFF));
+  }
+  for (uint8_t table = 0; table < 7; table++) {
+    for (uint8_t bin = 0; bin < 8; bin++) {
+      payload.push_back((uint8_t)(histogram_count(table, bin) >> 8));
+      payload.push_back((uint8_t)(histogram_count(table, bin) & 0xFF));
+    }
+  }
+  return payload;
+}
+
+// The counts of the six charted tables as the page hands them to its script, in LBC table order.
+std::string charted_histogram_counts() {
+  std::string counts = "([";
+  for (uint8_t table = 0; table < 6; table++) {
+    for (uint8_t bin = 0; bin < 8; bin++) {
+      counts += std::to_string(histogram_count(table, bin)) + ",";
+    }
+  }
+  return counts + "])";
+}
+
+// Ticks the scheduler until the next group request goes out, and returns the group it asks for.
+uint8_t next_polled_group(NissanLeafBattery* battery, unsigned long& t) {
+  for (int i = 0; i < 30; i++) {
+    t += 1000;
+    set_millis64(t);
+    clear_transmitted_frames();
+    battery->transmit_can(t);
+    for (const CAN_frame& frame : get_transmitted_frames()) {
+      if (frame.ID == 0x79B && frame.data.u8[0] == 0x02 && frame.data.u8[1] == 0x21) {
+        return frame.data.u8[2];
+      }
+    }
+  }
+  return 0;
 }
 
 }  // namespace
@@ -680,4 +757,74 @@ TEST(NissanLeafDtcTests, ShouldRenderReadStateWhenNoTableIsShown) {
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
   EXPECT_NE(renderer.get_status_html().str().find("No DTCs present"), std::string::npos);
+}
+
+// Group 0x62 carries the lifetime usage histograms after its charge counters. On ZE0/AZE0 the tables
+// follow the two counters directly, and the page hands their counts to its script in table order.
+TEST(NissanLeafUsageHistogramTests, ShouldPublishHistogramsFromAze0Reply) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto battery = battery_polling();
+
+  // 10 76 61 62 | AC 0x0800 | QC 0x015A, the counters of the capture this group was decoded from
+  std::vector<uint8_t> reply = usage_history_reply({0x0800, 0x015A});
+  ASSERT_EQ(reply.size(), 0x76u);
+  feed_group_reply(battery, reply);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 0x0800u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountQC, 0x015Au);
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find(charted_histogram_counts()), std::string::npos);
+  // The charts go above the DTC section
+  ASSERT_NE(html.find("<style>.hg"), std::string::npos);
+  EXPECT_LT(html.find("<style>.hg"), html.find("Diagnostic Trouble Codes"));
+}
+
+// ZE1 has a third counter ahead of the tables, which moves them along by one count. The generation
+// is applied when the page is drawn, so it does not matter whether it was known when the reply came.
+TEST(NissanLeafUsageHistogramTests, ShouldApplyZe1TableOffset) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto battery = battery_polling();
+
+  // Counts A, B and C of a ZE1 capture: 61 62 01 6E 00 01 00 01
+  std::vector<uint8_t> reply = usage_history_reply({0x016E, 0x0001, 0x0001});
+  ASSERT_EQ(reply.size(), 0x78u);
+  feed_group_reply(battery, reply);
+  battery->handle_incoming_can_frame(leaf_frame(0x5EB, {0, 0, 0, 0, 0, 0, 0, 0}));  //ZE1-only broadcast
+  battery->update_values();
+
+  ASSERT_EQ(datalayer_extended.nissanleaf.LEAF_gen, 2);
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 366u);
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_NE(renderer.get_status_html().str().find(charted_histogram_counts()), std::string::npos);
+}
+
+// Until group 0x62 has answered there is nothing to draw, so the charts are left out altogether.
+TEST(NissanLeafUsageHistogramTests, ShouldNotDrawChartsBeforeGroupIsRead) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_EQ(renderer.get_status_html().str().find("<style>.hg"), std::string::npos);
+}
+
+// The counters are all in the first frame, so they do not show that the histograms arrived. A reply
+// cut short keeps the group in the rotation, while a complete one takes it out as before.
+TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
+  for (bool complete : {false, true}) {
+    datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+    auto battery = battery_polling();
+    unsigned long t = 50000;
+
+    ASSERT_EQ(next_polled_group(battery, t), 0x62);
+    feed_group_reply(battery, usage_history_reply({0x0800, 0x015A}), complete ? SIZE_MAX : 5);
+
+    // The rest of the first pass. None of these get an answer, so none drop out.
+    for (uint8_t group : {0x84, 0x04, 0x01, 0x02, 0x06, 0x61, 0x83}) {
+      ASSERT_EQ(next_polled_group(battery, t), group);
+    }
+    EXPECT_EQ(next_polled_group(battery, t), complete ? 0x84 : 0x62) << (complete ? "complete" : "cut short");
+  }
 }

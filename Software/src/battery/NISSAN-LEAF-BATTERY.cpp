@@ -898,18 +898,25 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (group_7bb == 0x62) {              //Lifetime charge counters
+      if (group_7bb == 0x62) {              //Lifetime charge counters and usage histograms
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 76 61 62 08 00 01 5A)
-          //Both counters are carried in the first frame, no need to walk the rest of the reply:
-          //payload[0..1] holds the L1/L2 (AC) charges, payload[2..3] the quick (CHAdeMO) charges.
-          //A counter the LBC has no value for reads back as 0xFFFF. A used pack always has AC
-          //charges, so a zero L1/L2 count means "not read yet" and keeps the group in the rotation.
+          //Both counters are carried in the first frame: payload[2..3] holds the L1/L2 (AC)
+          //charges, payload[4..5] the quick (CHAdeMO) charges. A counter the LBC has no value for
+          //reads back as 0xFFFF. A used pack always has AC charges, so a zero L1/L2 count means
+          //"not read yet".
           uint16_t count_l1l2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           uint16_t count_qc = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
           if (count_l1l2 != 0xFFFF && count_qc != 0xFFFF) {
             battery_charge_count_l1l2 = count_l1l2;
             battery_charge_count_qc = count_qc;
           }
+        } else if (datalayer_nissan && (uint8_t)(group_7bb_frame - 1) < 14) {
+          //Consecutive frames 1-14 carry payload[6..103], seven bytes each. That span holds the six
+          //usage histograms on either layout, so it is stored raw and the page applies the
+          //generation's offset. Only a reply that got as far as frame 14 takes the group out of
+          //the rotation; one cut short is asked for again.
+          memcpy(&datalayer_nissan->UsageHistograms[(group_7bb_frame - 1) * 7], &rx_frame.data.u8[1], 7);
+          battery_usage_histograms_read = (group_7bb_frame == 14);
         }
       }
 
@@ -1315,15 +1322,17 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       if (!stop_battery_query && !dtc_operation_pending) {
 
         // Move to the next group, skipping the static ones that already answered. The charge
-        // counters and the two identity strings cannot change while the pack is powered, so each
-        // is asked for only until its data is in, after which the recurring groups come round
-        // faster. Testing the data itself rather than a "seen" flag means a reply that arrived
-        // while another tool was polling the bus counts just as well.
+        // counters with the usage histograms and the two identity strings cannot change while the
+        // pack is powered, so each is asked for only until its data is in, after which the
+        // recurring groups come round faster. Testing the data itself rather than a "seen" flag
+        // means a reply that arrived while another tool was polling the bus counts just as well.
+        // For group 0x62 that is the reply having reached its last histogram byte, since the
+        // counters in its first frame say nothing about the frames after it.
         // After a BMS reset the skipping is suspended for one pass, so the new session answers
         // them once more. Previous values stay on display until the fresh reply overwrites them.
         do {
           PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
-        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
+        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_usage_histograms_read) ||
                                            (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
                                            (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0)));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];

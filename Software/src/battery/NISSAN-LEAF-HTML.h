@@ -110,6 +110,68 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                "</h4>";
     content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
 
+    //Lifetime usage histograms. They arrive in the same group 0x62 reply as the charge counts, so
+    //they are drawn once those are known. The page carries only the 48 counts; the browser draws
+    //the six charts from them in the cell monitor's bar style. ZE1 carries one more counter ahead
+    //of the tables, which moves them along by one count.
+    if (nissan_dl->ChargeCountL1L2) {
+      const uint8_t* bins = nissan_dl->UsageHistograms + ((nissan_dl->LEAF_gen == 2) ? 2 : 0);
+      // The style and script below are MINIFIED to save flash. Edit the readable source here,
+      // re-minify, and replace the literal.
+      /*
+      <style>
+        .hg, .hb, .ha { display: flex }
+        .hg { flex-wrap: wrap }                            two columns, one on a narrow screen
+        .hg>div { flex: 300px; margin: 5px }
+        .hb { align-items: flex-end; height: 130px; padding-top: 20px;
+              border: 1px solid #ccc }                    bar area, as the cell monitor graph
+        .hb div { flex: 1; background: blue; border: 1px solid #fff; position: relative }
+        .hb b { position: absolute; bottom: 100%; left: 0; right: 0 }   count above its bar
+        .ha span { flex: 1 }                               bin labels under the bars
+        .hb, .ha, .hg p { font-size: 12px }
+        .hg p { margin: 0; text-align: right }             total under each chart
+      </style>
+      <script>
+      (d => {  // 48 counts, 8 per table, in the LBC's table order (see UsageHistograms)
+        let h = '<div class=hg>';
+        // Peak temperatures first, then start temperatures, then SOC
+        [2, 3, 0, 1, 4, 5].map((t, k) => {
+          // Upper edge of bin j = 1..7: 35..65 degC in steps of 5, or SOC 20..70 % in steps of 10, then 85 %
+          let f = j => k < 4 ? 30 + 5 * j : j < 7 ? 10 * j + 10 : 85,
+              v = d.slice(t * 8, t * 8 + 8), m = Math.max(...v) || 1, n = 0, b = '', x = '';
+          v.map((c, i) => {
+            n += c;
+            b += `<div style=height:${c * 100 / m}%><b>${c || ''}</b></div>`;
+            x += `<span>${i ? f(i) + (i < 7 ? '-' + f(i + 1) : '+') : '&lt;' + f(1)}</span>`;
+          });
+          h += `<div><h4>${k & 1 ? 'Charge' : 'Drive'}` +
+               `${k < 4 ? ` temperature (${k < 2 ? 'peak' : 'start'})` : ' start SOC'}</h4>` +
+               `<div class=hb>${b}</div><div class=ha>${x}</div><p>n = ${n}</p></div>`;
+        });
+        // Replace this script with the charts, so each battery's copy stays in its own section
+        document.currentScript.outerHTML = h + '</div>';
+      })([...48 counts...]);
+      </script>
+      */
+      content +=
+          "<style>.hg,.hb,.ha{display:flex}.hg{flex-wrap:wrap}.hg>div{flex:300px;margin:5px}.hb{align-items:flex-end;"
+          "height:130px;padding-top:20px;border:1px solid #ccc}.hb div{flex:1;background:blue;border:1px solid "
+          "#fff;position:relative}.hb b{position:absolute;bottom:100%;left:0;right:0}.ha span{flex:1}.hb,.ha,.hg "
+          "p{font-size:12px}.hg p{margin:0;text-align:right}</style><script>(d=>{let h='<div "
+          "class=hg>';[2,3,0,1,4,5].map((t,k)=>{let "
+          "f=j=>k<4?30+5*j:j<7?10*j+10:85,v=d.slice(t*8,t*8+8),m=Math.max(...v)||1,n=0,b='',x='';v.map((c,i)=>{n+=c;b+="
+          "`<div "
+          "style=height:${c*100/m}%><b>${c||''}</b></div>`;x+=`<span>${i?f(i)+(i<7?'-'+f(i+1):'+'):'&lt;'+f(1)}</"
+          "span>`});h+=`<div><h4>${k&1?'Charge':'Drive'}${k<4?` temperature (${k<2?'peak':'start'})`:' start "
+          "SOC'}</h4><div class=hb>${b}</div><div class=ha>${x}</div><p>n = "
+          "${n}</p></div>`});document.currentScript.outerHTML=h+'</div>'})([";
+      for (uint8_t i = 0; i < 96; i += 2) {
+        content += (bins[i] << 8) | bins[i + 1];
+        content += ",";
+      }
+      content += "])</script>";
+    }
+
     if (battery_dl) {
       content += render_dtc_section(battery_dl->dtc);
     }
