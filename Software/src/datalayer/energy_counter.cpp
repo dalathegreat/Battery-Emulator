@@ -10,6 +10,7 @@ namespace {
 constexpr uint32_t CHECKPOINT_MS = 24UL * 60 * 60 * 1000;
 constexpr uint64_t WH_DIVISOR = 360000000ULL;  // dV * dA * ms per Wh
 constexpr uint64_t DAH_DIVISOR = 3600000ULL;   // dA * ms per 0.1 Ah
+constexpr int32_t CALCULATED_COUNTER_CURRENT_DEADBAND_dA = 5;
 
 struct CounterState {
   uint64_t charged_Wh_remainder = 0;
@@ -70,6 +71,9 @@ void update_energy_counters(uint32_t now_ms) {
   // Promote before negation, including INT16_MIN. All products fit in uint64_t
   // even for a full uint32_t elapsed interval and maximum voltage/current.
   const int32_t current_dA = status.reported_current_dA;
+  if (current_dA >= -CALCULATED_COUNTER_CURRENT_DEADBAND_dA && current_dA <= CALCULATED_COUNTER_CURRENT_DEADBAND_dA) {
+    return;
+  }
   const uint64_t current_ms = static_cast<uint64_t>(current_dA < 0 ? -current_dA : current_dA) * elapsed_ms;
   if (!battery->supports_charged_energy()) {
     auto& total = current_dA >= 0 ? status.total_charged_battery_Wh : status.total_discharged_battery_Wh;

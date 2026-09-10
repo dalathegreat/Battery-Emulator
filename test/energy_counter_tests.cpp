@@ -93,6 +93,62 @@ TEST_F(EnergyCounterTest, ChargedAndDischargedFractionsAreIndependent) {
   expect(1, 1);
 }
 
+TEST_F(EnergyCounterTest, CalculatedCountersIgnoreDeadbandAndCountFullCurrentAboveIt) {
+  step(0, 720000);
+  step(5, 720000);
+  step(-5, 720000);
+  expect(0, 0);
+
+  step(6, 600000);
+  expect(1, 0);
+  step(-6, 600000);
+  expect(1, 1);
+
+  // LEAF current is reported in 5 dA steps, so +/-10 dA is its first
+  // representable magnitude above the deadband.
+  step(10, 360000);
+  step(-10, 360000);
+  expect(2, 2);
+}
+
+TEST_F(EnergyCounterTest, DeadbandPreservesChargedAndDischargedFractionalRemainders) {
+  step(6, 300000);
+  step(-6, 300000);
+  expect(0, 0);
+
+  step(5, 720000);
+  step(-5, 720000);
+  expect(0, 0);
+
+  step(6, 300000);
+  expect(1, 0);
+  step(-6, 300000);
+  expect(1, 1);
+}
+
+TEST_F(EnergyCounterTest, DeadbandLeavesNativeAndCalculatedCapabilitiesIndependent) {
+  for (bool native_wh : {false, true}) {
+    for (bool native_ah : {false, true}) {
+      SCOPED_TRACE(testing::Message() << "native Wh=" << native_wh << " Ah=" << native_ah);
+      Preferences::reset();
+      status.total_charged_battery_Wh = native_wh ? 101 : 0;
+      status.total_discharged_battery_Wh = native_wh ? 102 : 0;
+      status.total_charged_battery_dAh = native_ah ? 103 : 0;
+      status.total_discharged_battery_dAh = native_ah ? 104 : 0;
+      select(native_wh, native_ah);
+      ready();
+
+      step(5, 720000);
+      EXPECT_EQ(status.total_charged_battery_Wh, native_wh ? 101 : 0);
+      EXPECT_EQ(status.total_charged_battery_dAh, native_ah ? 103 : 0);
+
+      step(10, 360000);
+      EXPECT_EQ(status.total_charged_battery_Wh, native_wh ? 101 : 1);
+      EXPECT_EQ(status.total_charged_battery_dAh, native_ah ? 103 : 1);
+    }
+  }
+}
+
 TEST_F(EnergyCounterTest, WhUsesVoltageWithoutEarlyRoundingAndAhDoesNot) {
   status.voltage_dV = 4001;
   step(100, 3600000);
