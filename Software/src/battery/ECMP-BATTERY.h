@@ -38,6 +38,10 @@ class EcmpBattery : public UdsCanBattery {
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "stellantis_ecmp_dtc.json"; }
 
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
+
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
@@ -292,21 +296,20 @@ class EcmpBattery : public UdsCanBattery {
   uint32_t pid_energy_capacity = NOT_SAMPLED_YET;
   uint32_t pid_insulation_res = NOT_SAMPLED_YET;
   uint32_t pid_crash_counter = NOT_SAMPLED_YET;
-  uint32_t pid_history_data = NOT_SAMPLED_YET;
   uint32_t pid_last_can_failure_detail = NOT_SAMPLED_YET;
-  uint32_t pid_hw_version_num = NOT_SAMPLED_YET;
-  uint32_t pid_sw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_vehicle_speed = NOT_SAMPLED_YET;
   uint32_t pid_time_spent_over_55c = NOT_SAMPLED_YET;
   uint32_t pid_contactor_closing_counter = NOT_SAMPLED_YET;
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
-  uint32_t pid_current_time = NOT_SAMPLED_YET;
+  uint64_t pid_current_time = NOT_SAMPLED_YET;
   uint32_t pid_time_sent_by_car = NOT_SAMPLED_YET;
-
   int32_t pid_current = NOT_SAMPLED_YET;
+  uint8_t pid_hw_version_num[17] = {NOT_SAMPLED_YET};
+  uint8_t pid_sw_version_num[17] = {NOT_SAMPLED_YET};
 
   static const uint8_t NOT_SAMPLED_YET = 255;
   static const uint8_t COMPLETED_STATE = 0;
+
   static const uint16_t PID_WELD_CHECK = 0xD814;
   static const uint16_t PID_CONT_REASON_OPEN = 0xD812;
   static const uint16_t PID_CONTACTOR_STATUS = 0xD813;
@@ -352,10 +355,10 @@ class EcmpBattery : public UdsCanBattery {
   static const uint16_t PID_WIRE_CRASH = 0xD87F;
   static const uint16_t PID_CAN_CRASH = 0xD48D;
   static const uint16_t PID_HISTORY_DATA = 0xD465;
-  static const uint16_t PID_LOWSOC_COUNTER = 0xD492;           //Not supported on all batteris
-  static const uint16_t PID_LAST_CAN_FAILURE_DETAIL = 0xD89E;  //Not supported on all batteris
-  static const uint16_t PID_HW_VERSION_NUM = 0xF193;           //Not supported on all batteris
-  static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteris
+  static const uint16_t PID_LOWSOC_COUNTER = 0xD492;           //Not supported on all batteries
+  static const uint16_t PID_LAST_CAN_FAILURE_DETAIL = 0xD89E;  //Not supported on all batteries
+  static const uint16_t PID_HW_VERSION_NUM = 0xF193;           //Not supported on all batteries Multiframe
+  static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteries Multiframe
   static const uint16_t PID_FACTORY_MODE_CONTROL = 0xD900;
   static const uint16_t PID_BATTERY_SERIAL = 0xD901;
   static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;

@@ -41,7 +41,7 @@ void EcmpBattery::update_values() {
     // If High Precision Curent is avilable, use it
     if (pid_current != NOT_SAMPLED_YET && datalayer.system.status.system_status != FAULT) {
       datalayer_battery->status.current_dA = (int16_t)(pid_current / 100);
-    } else {
+    } else {  //Low precision
       datalayer_battery->status.current_dA = -(battery_current * 10);
     }
 
@@ -433,9 +433,9 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.insulation_resistance_kOhm = battery_insulationResistanceKOhm;
       datalayer_battery->status.insulation_resistance_available = true;
       break;
-    case 0x6D1:
+    case 0x6D1:  //Temperatures? (39 39 39 39 39 39 39 39)
       break;
-    case 0x6D2:
+    case 0x6D2:  //Temperatures? (39 39 39 39 39 39 39 39)
       break;
     case 0x6D3:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -450,7 +450,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[6] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[7] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
-    case 0x6E0:
+    case 0x6E0:  //Temperatures? (39 39 39 39 39 39 00 00)
       break;
     case 0x6E1:
       cellvoltages[8] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
@@ -464,13 +464,13 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[14] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[15] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
-    case 0x6E3:
+    case 0x6E3:  //Temperatures? (39 3a 39 39 39 39 39 39)
       break;
-    case 0x6E4:
+    case 0x6E4:  //Temperatures? (3a 3a 3a 39 39 39 39 39)
       break;
-    case 0x6E5:
+    case 0x6E5:  //Temperatures? (3a 39 39 3a 39 39 39 39)
       break;
-    case 0x6E6:
+    case 0x6E6:  //Temperatures? (3a 39 39 3a 39 3b 3d 3a)
       break;
     case 0x6E7:
       cellvoltages[16] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
@@ -497,7 +497,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[31] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6EC:
-      //Not available on e-C4
+      //Not available on e-C4, neither on Opel CorsaE 50kWh, neither on Vivaro 75kWh
       break;
     case 0x6ED:
       cellvoltages[32] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
@@ -679,6 +679,234 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
   }
+}
+
+uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+    case PID_WELD_CHECK:
+      pid_welding_detection = value;  //00 all good
+      break;
+    case PID_CONT_REASON_OPEN:
+      pid_reason_open = value;
+      break;
+    case PID_CONTACTOR_STATUS:
+      pid_contactor_status = value;
+      break;
+    case PID_NEG_CONT_CONTROL:
+      pid_negative_contactor_control = value;
+      break;
+    case PID_NEG_CONT_STATUS:
+      pid_negative_contactor_status = value;
+      break;
+    case PID_POS_CONT_CONTROL:
+      pid_positive_contactor_control = value;
+      break;
+    case PID_POS_CONT_STATUS:
+      pid_positive_contactor_status = value;
+      break;
+    case PID_CONTACTOR_NEGATIVE:
+      pid_contactor_negative = value;
+      break;
+    case PID_CONTACTOR_POSITIVE:
+      pid_contactor_positive = value;
+      break;
+    case PID_PRECHARGE_RELAY_CONTROL:
+      pid_precharge_relay_control = value;
+      break;
+    case PID_PRECHARGE_RELAY_STATUS:
+      pid_precharge_relay_status = value;
+      break;
+    case PID_RECHARGE_STATUS:
+      pid_recharge_status = value;
+      break;
+    case PID_DELTA_TEMPERATURE:
+      pid_delta_temperature = value;
+      break;
+    case PID_COLDEST_MODULE:
+      pid_coldest_module = value;
+      break;
+    case PID_LOWEST_TEMPERATURE:
+      pid_lowest_temperature = value;
+      break;
+    case PID_AVERAGE_TEMPERATURE:
+      pid_average_temperature = value;
+      break;
+    case PID_HIGHEST_TEMPERATURE:
+      pid_highest_temperature = value;
+      break;
+    case PID_HOTTEST_MODULE:
+      pid_hottest_module = value;
+      break;
+    case PID_AVG_CELL_VOLTAGE:
+      pid_avg_cell_voltage = value;
+      break;
+    case PID_CURRENT:
+      pid_current = -(((value)-76800) * 155) / 10;
+      break;
+    case PID_INSULATION_NEG:
+      pid_insulation_res_neg = value;
+      break;
+    case PID_INSULATION_POS:
+      pid_insulation_res_pos = value;
+      break;
+    case PID_MAX_CURRENT_10S:
+      pid_max_current_10s = value;
+      break;
+    case PID_MAX_DISCHARGE_10S:
+      pid_max_discharge_10s = value;
+      break;
+    case PID_MAX_DISCHARGE_30S:
+      pid_max_discharge_30s = value;
+      break;
+    case PID_MAX_CHARGE_10S:
+      pid_max_charge_10s = value;
+      break;
+    case PID_MAX_CHARGE_30S:
+      pid_max_charge_30s = value;
+      break;
+    case PID_ENERGY_CAPACITY:
+      pid_energy_capacity = value;
+      break;
+    case PID_HIGH_CELL_NUM:
+      pid_highest_cell_voltage_num = value;
+      break;
+    case PID_LOW_CELL_NUM:
+      pid_lowest_cell_voltage_num = value;
+      break;
+    case PID_SUM_OF_CELLS:
+      pid_sum_of_cells = value / 2;
+      break;
+    case PID_CELL_MIN_CAPACITY:
+      pid_cell_min_capacity = value;
+      break;
+    case PID_CELL_VOLTAGE_MEAS_STATUS:
+      pid_cell_voltage_measurement_status = value;
+      break;
+    case PID_INSULATION_RES:
+      pid_insulation_res = value;
+      break;
+    case PID_PACK_VOLTAGE:
+      pid_pack_voltage = value;
+      break;
+    case PID_HIGH_CELL_VOLTAGE:
+      pid_high_cell_voltage = value;
+      break;
+    case PID_ALL_CELL_VOLTAGES:  //Multiframe (No need to poll this, we can get it from constantly sent CAN)
+      break;
+    case PID_LOW_CELL_VOLTAGE:
+      pid_low_cell_voltage = value;
+      break;
+    case PID_BATTERY_ENERGY:
+      pid_battery_energy = value;
+      break;
+    case PID_CELLBALANCE_STATUS:  //Multiframe 20 bytes
+      // All values appear 0x00 in every single log
+      break;
+    case PID_CELLBALANCE_HWERR_MASK:  //Multiframe
+      // All values appear 0x00 in every single log
+      break;
+    case PID_CRASH_COUNTER:
+      pid_crash_counter = value;
+      break;
+    case PID_WIRE_CRASH:
+      pid_wire_crash = value;
+      break;
+    case PID_CAN_CRASH:
+      //pid_can_crash = value;
+      break;
+    case PID_HISTORY_DATA:  //Multiframe
+                            //Extremely long reply. Not worth it for us to store this data
+      break;
+    case PID_LOWSOC_COUNTER:
+      pid_lowsoc_counter = value;
+      break;
+    case PID_LAST_CAN_FAILURE_DETAIL:
+      pid_last_can_failure_detail = value;
+      break;
+    case PID_HW_VERSION_NUM:  //Not available on all batteries - Multiframe
+      if (length >= 17) {
+        memcpy(pid_hw_version_num, data, 17);
+      }
+      break;
+    case PID_SW_VERSION_NUM:  //Not available on all batteries - Multiframe
+      if (length >= 17) {
+        memcpy(pid_sw_version_num, data, 17);
+      }
+      break;
+    case PID_FACTORY_MODE_CONTROL:
+      pid_factory_mode_control = value;
+      break;
+    case PID_BATTERY_SERIAL:  //Multiframe
+      if (length >= 14) {
+        memcpy(pid_battery_serial, data, 14);
+      }
+      break;
+    case PID_ALL_CELL_SOH:  //Multiframe
+      pid_SOH_cell_1 = data[0] << 8 | data[1];
+      //No need for us to read all 108 cells, we can just read the first one and assume the rest are similar
+      break;
+    case PID_AUX_FUSE_STATE:
+      pid_aux_fuse_state = value;
+      break;
+    case PID_BATTERY_STATE:
+      pid_battery_state = value;
+      break;
+    case PID_PRECHARGE_SHORT_CIRCUIT:
+      pid_precharge_short_circuit = value;
+      break;
+    case PID_ESERVICE_PLUG_STATE:
+      pid_eservice_plug_state = value;
+      break;
+    case PID_MAINFUSE_STATE:
+      pid_mainfuse_state = value;
+      break;
+    case PID_MOST_CRITICAL_FAULT:
+      pid_most_critical_fault = value;
+      break;
+    case PID_CURRENT_TIME:  //Multiframe
+                            // 6 bytes long (10 01 01 00 1A 2C) Unclear how to map this
+      //pid_current_time = (((data[0]) << 38) | ((data[1]) << 32) | ((data[2]) << 24) | ((data[3]) << 16) | ((data[4]) << 8) | (data[5]);
+      break;
+    case PID_TIME_SENT_BY_CAR:  //(0b c8 d3 2c)
+      pid_time_sent_by_car = value;
+      break;
+    case PID_12V:
+      pid_12v = value;
+      break;
+    case PID_12V_ABNORMAL:
+      pid_12v_abnormal = value;
+      break;
+    case PID_HVIL_IN_VOLTAGE:
+      pid_hvil_in_voltage = value;
+      break;
+    case PID_HVIL_OUT_VOLTAGE:
+      pid_hvil_out_voltage = value;
+      break;
+    case PID_HVIL_STATE:
+      pid_hvil_state = value;
+      break;
+    case PID_BMS_STATE:
+      pid_bms_state = value;
+      break;
+    case PID_VEHICLE_SPEED:
+      pid_vehicle_speed = value;
+      break;
+    case PID_TIME_SPENT_OVER_55C:
+      pid_time_spent_over_55c = value;
+      break;
+    case PID_CONTACTOR_CLOSING_COUNTER:
+      pid_contactor_closing_counter = value;
+      break;
+    case PID_DATE_OF_MANUFACTURE:  //Raw hex value is day/month/year (e.g. 09 08 22)
+      pid_date_of_manufacture = value;
+      break;
+    default:
+      break;
+  }
+  return 0;  // Continue scanning
 }
 
 uint8_t checksum_calc(uint8_t counter, CAN_frame rx_frame) {
@@ -1105,7 +1333,7 @@ void EcmpBattery::setup(void) {  // Performs one time setup at startup
       PID_CURRENT,
       PID_HIGH_CELL_VOLTAGE,
       PID_CURRENT,
-      PID_ALL_CELL_VOLTAGES,
+      //PID_ALL_CELL_VOLTAGES, No need to poll this, we can get it from constantly sent CAN
       PID_CURRENT,
       PID_LOW_CELL_VOLTAGE,
       PID_CURRENT,
@@ -1121,7 +1349,7 @@ void EcmpBattery::setup(void) {  // Performs one time setup at startup
       PID_CURRENT,
       PID_CAN_CRASH,
       PID_CURRENT,
-      PID_HISTORY_DATA,
+      //PID_HISTORY_DATA, Insanely long reply. Not worth it for us to store this data
       PID_CURRENT,
       PID_LOWSOC_COUNTER,
       PID_CURRENT,
