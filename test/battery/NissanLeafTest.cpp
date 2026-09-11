@@ -1078,3 +1078,54 @@ TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
   EXPECT_EQ(count("<div"), count("</div>"));
   EXPECT_LT(status.find("</div>"), status.find("<div"));
 }
+
+// The ten values from the status broadcasts are Unknown until the broadcast carrying them has
+// arrived since boot. After that the true/false flags show as a tick or a cross, and the two wider
+// fields, failsafe status and relay cut request, as their numbers.
+TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
+  auto battery = battery_polling();
+  battery->update_values();
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+  for (const char* label :
+       {"Fully charged", "Battery empty", "Failsafe status", "Interlock", "Main relay ON", "Relay cut request",
+        "Heater present", "Heating requested", "Heating started", "Heating stopped"}) {
+    EXPECT_NE(html.find(std::string("<h4>") + label + ": Unknown</h4>"), std::string::npos) << label;
+  }
+}
+
+TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
+  auto battery = battery_polling();
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+
+  // 0x1DB at 360 V: failsafe status 2 (charging mode stop request), no relay cut request, main
+  // relay permitted, not fully charged, interlock closed
+  CAN_frame status = leaf_frame(0x1DB, {0x00, 0x02, 0xB4, 0x28, 0x00, 0x00, 0x00, 0x00});
+  status.data.u8[7] = battery->calculate_crc(status);
+  battery->handle_incoming_can_frame(status);
+  battery->update_values();
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("<h4>Main relay ON: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Interlock: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Fully charged: &#10007;</h4>"), std::string::npos);
+  // The wider fields stay numbers, even at 0 or 1
+  EXPECT_NE(html.find("<h4>Relay cut request: 0</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Failsafe status: 2</h4>"), std::string::npos);
+  // The other two broadcasts have not come yet
+  EXPECT_NE(html.find("<h4>Battery empty: Unknown</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heater present: Unknown</h4>"), std::string::npos);
+
+  // 0x55B, not empty, and 0x5C0 with a heater present and idle
+  CAN_frame soc = leaf_frame(0x55B, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  soc.data.u8[7] = battery->calculate_crc(soc);
+  battery->handle_incoming_can_frame(soc);
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("<h4>Battery empty: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heater present: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heating requested: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heating started: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heating stopped: &#10007;</h4>"), std::string::npos);
+}

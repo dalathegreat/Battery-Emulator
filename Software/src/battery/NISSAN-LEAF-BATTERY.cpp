@@ -361,6 +361,7 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+    datalayer_nissan->StatusSeen = battery_status_seen;
     datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
     datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
     datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
@@ -412,6 +413,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
+      battery_status_seen |= 0x01;
       break;
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
@@ -432,6 +434,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_SOC = battery_TEMP;
       }
       battery_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      battery_status_seen |= 0x02;
       break;
     case 0x5BC:
       battery_can_alive = true;
@@ -473,6 +476,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
       battery_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
       battery_Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
+      battery_status_seen |= 0x04;
 
       break;
     case 0x59E:

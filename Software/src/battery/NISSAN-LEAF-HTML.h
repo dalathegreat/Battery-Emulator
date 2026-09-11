@@ -83,16 +83,19 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
     content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
-    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
-    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
-    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
-    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
-    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
-    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
-    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
-    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
-    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
-    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
+    //The flags from the LBC's status broadcasts, each unknown until the broadcast carrying it has
+    //arrived since boot (bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0, see StatusSeen)
+    const uint8_t seen = nissan_dl->StatusSeen;
+    status_row(content, "Fully charged", nissan_dl->Full, seen & 0x01);
+    status_row(content, "Battery empty", nissan_dl->Empty, seen & 0x02);
+    status_row(content, "Failsafe status", nissan_dl->FailsafeStatus, seen & 0x01, true);  //0-7
+    status_row(content, "Interlock", nissan_dl->Interlock, seen & 0x01);
+    status_row(content, "Main relay ON", nissan_dl->MainRelayOn, seen & 0x01);
+    status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01, true);  //0-3
+    status_row(content, "Heater present", nissan_dl->HeatExist, seen & 0x04);
+    status_row(content, "Heating requested", nissan_dl->HeaterSendRequest, seen & 0x04);
+    status_row(content, "Heating started", nissan_dl->HeatingStart, seen & 0x04);
+    status_row(content, "Heating stopped", nissan_dl->HeatingStop, seen & 0x04);
     content += "</div>";
 
     new_panel(content, "Health and lifetime usage");
@@ -230,6 +233,23 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
   }
 
  private:
+  //One status row, Unknown until the broadcast carrying it has arrived. A true/false flag shows as
+  //a tick or a cross; a wider field, like failsafe status (3 bits) or relay cut request (2 bits),
+  //shows as the number itself.
+  static void status_row(String& content, const char* label, uint8_t value, bool known, bool as_number = false) {
+    content += "<h4>";
+    content += label;
+    content += ": ";
+    if (!known) {
+      content += "Unknown";
+    } else if (as_number) {
+      content += (int)value;
+    } else {
+      content += value ? "&#10003;" : "&#10007;";
+    }
+    content += "</h4>";
+  }
+
   //The page streams all of this inside a battery-panel div of its own and closes the last one after
   //the command buttons. Closing the current panel and opening the next is all it takes to split the
   //Leaf's information into several, each under a title of its own.

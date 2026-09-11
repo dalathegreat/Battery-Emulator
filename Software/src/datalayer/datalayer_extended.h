@@ -828,6 +828,10 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart;
   /** Heat request sent*/
   bool HeaterSendRequest;
+  /** Which of the LBC's status broadcasts have arrived since boot, as the flags above mean nothing
+   * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
+   * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */
+  uint8_t StatusSeen;
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
 

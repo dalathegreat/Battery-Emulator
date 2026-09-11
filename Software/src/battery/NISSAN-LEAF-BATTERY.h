@@ -274,6 +274,9 @@ class NissanLeafBattery : public CanBattery {
   bool battery_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
   bool battery_Heating_Start = false;  //When transitioning from 1->0, signals a START heat request
   bool battery_Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+  //Which status broadcasts have arrived since boot: bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0. Until
+  //then the flags above are only their initial values, so the page shows them as unknown.
+  uint8_t battery_status_seen = 0;
 
   // Nissan LEAF battery data from polled CAN messages
   uint8_t battery_request_idx = 0;
