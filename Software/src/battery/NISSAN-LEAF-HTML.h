@@ -88,14 +88,28 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     const uint8_t seen = nissan_dl->StatusSeen;
     status_row(content, "Fully charged", nissan_dl->Full, seen & 0x01);
     status_row(content, "Battery empty", nissan_dl->Empty, seen & 0x02);
-    status_row(content, "Failsafe status", nissan_dl->FailsafeStatus, seen & 0x01, true);  //0-7
     status_row(content, "Interlock", nissan_dl->Interlock, seen & 0x01);
     status_row(content, "Main relay ON", nissan_dl->MainRelayOn, seen & 0x01);
-    status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01, true);  //0-3
     status_row(content, "Heater present", nissan_dl->HeatExist, seen & 0x04);
     status_row(content, "Heating requested", nissan_dl->HeaterSendRequest, seen & 0x04);
     status_row(content, "Heating started", nissan_dl->HeatingStart, seen & 0x04);
     status_row(content, "Heating stopped", nissan_dl->HeatingStop, seen & 0x04);
+    //The two wider fields of 0x1DB, named as in the Leaf CAN database (dalathegreat/leaf_can_bus_messages:
+    //LB_Failsafe_Status, LB_Relay_Cut_Request). Failsafe status is three request bits: bit 0 normal
+    //stop, which the driver reads as a discharge stop, bit 1 charging mode stop, bit 2 caution lamp.
+    //Every non-zero relay cut request is a main relay off request.
+    static const char* const failsafe_names[8] = {"Normal",
+                                                  "Discharge stop",
+                                                  "Charge stop",
+                                                  "Discharge + charge stop",
+                                                  "Caution lamp",
+                                                  "Caution lamp, discharge stop",
+                                                  "Caution lamp, charge stop",
+                                                  "Caution lamp, discharge + charge stop"};
+    status_row(content, "Failsafe status", nissan_dl->FailsafeStatus, seen & 0x01,
+               failsafe_names[nissan_dl->FailsafeStatus & 7]);
+    status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01,
+               nissan_dl->RelayCutRequest ? "Main relay off" : "None");
     content += "</div>";
 
     new_panel(content, "Health and lifetime usage");
@@ -234,18 +248,23 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
 
  private:
   //One status row, Unknown until the broadcast carrying it has arrived. A true/false flag shows as
-  //a tick or a cross; a wider field, like failsafe status (3 bits) or relay cut request (2 bits),
-  //shows as the number itself.
-  static void status_row(String& content, const char* label, uint8_t value, bool known, bool as_number = false) {
+  //a tick or a cross. A wider field is given the name of its state instead, shown with the raw
+  //value in brackets unless that is 0, so a reading can still be matched against a CAN log.
+  static void status_row(String& content, const char* label, uint8_t value, bool known, const char* name = nullptr) {
     content += "<h4>";
     content += label;
     content += ": ";
     if (!known) {
       content += "Unknown";
-    } else if (as_number) {
-      content += (int)value;
-    } else {
+    } else if (!name) {
       content += value ? "&#10003;" : "&#10007;";
+    } else {
+      content += name;
+      if (value) {
+        content += " (";
+        content += (int)value;
+        content += ")";
+      }
     }
     content += "</h4>";
   }

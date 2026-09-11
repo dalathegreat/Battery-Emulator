@@ -1005,6 +1005,8 @@ TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
                             "Temperature 4",
                             "Insulation",
                             "Heating stopped",
+                            "Failsafe status",
+                            "Relay cut request",
                             "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
                             "Capacity as new",
                             "Actual capacity",
@@ -1081,7 +1083,7 @@ TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
 
 // The ten values from the status broadcasts are Unknown until the broadcast carrying them has
 // arrived since boot. After that the true/false flags show as a tick or a cross, and the two wider
-// fields, failsafe status and relay cut request, as their numbers.
+// fields, failsafe status and relay cut request, by the names of their states.
 TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
   auto battery = battery_polling();
   battery->update_values();
@@ -1109,9 +1111,9 @@ TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   EXPECT_NE(html.find("<h4>Main relay ON: &#10003;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Interlock: &#10003;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Fully charged: &#10007;</h4>"), std::string::npos);
-  // The wider fields stay numbers, even at 0 or 1
-  EXPECT_NE(html.find("<h4>Relay cut request: 0</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Failsafe status: 2</h4>"), std::string::npos);
+  // The wider fields by name, with the raw value unless it is 0
+  EXPECT_NE(html.find("<h4>Relay cut request: None</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Failsafe status: Charge stop (2)</h4>"), std::string::npos);
   // The other two broadcasts have not come yet
   EXPECT_NE(html.find("<h4>Battery empty: Unknown</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heater present: Unknown</h4>"), std::string::npos);
@@ -1144,4 +1146,38 @@ TEST(NissanLeafIdentityTests, ShouldReadWholeSerialNumber) {
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   EXPECT_NE(renderer.get_status_html().str().find("<h4>Serial number: 230UK1192E001482</h4>"), std::string::npos);
+}
+
+// Failsafe status is three request bits and relay cut request two, named as in the Leaf CAN
+// database. They come last in the status list, failsafe status first.
+TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto& leaf = datalayer_extended.nissanleaf;
+  leaf.StatusSeen = 0x01;  //0x1DB has arrived
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
+
+  const char* failsafe[] = {"Normal",
+                            "Discharge stop (1)",
+                            "Charge stop (2)",
+                            "Discharge + charge stop (3)",
+                            "Caution lamp (4)",
+                            "Caution lamp, discharge stop (5)",
+                            "Caution lamp, charge stop (6)",
+                            "Caution lamp, discharge + charge stop (7)"};
+  for (uint8_t value = 0; value < 8; value++) {
+    leaf.FailsafeStatus = value;
+    std::string row = std::string("<h4>Failsafe status: ") + failsafe[value] + "</h4>";
+    EXPECT_NE(renderer.get_status_html().str().find(row), std::string::npos) << (int)value;
+  }
+  const char* relay_cut[] = {"None", "Main relay off (1)", "Main relay off (2)", "Main relay off (3)"};
+  for (uint8_t value = 0; value < 4; value++) {
+    leaf.RelayCutRequest = value;
+    std::string row = std::string("<h4>Relay cut request: ") + relay_cut[value] + "</h4>";
+    EXPECT_NE(renderer.get_status_html().str().find(row), std::string::npos) << (int)value;
+  }
+
+  // Last in the status list, straight before it closes
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
+  EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4></div>"), std::string::npos);
 }
