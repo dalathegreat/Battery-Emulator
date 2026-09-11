@@ -193,7 +193,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                             : '&lt;' + f(1)}</span>`;
           });
           h += `<div><h4>${k & 1 ? 'Charge' : 'Drive'}` +
-               `${k < 4 ? ` temperature (${k < 2 ? 'peak' : 'start'})` : ' start SOC'}</h4>` +
+               `${k < 4 ? ` temperature (${k < 2 ? 'peak' : 'start'})` : ' start SOC'}:</h4>` +
                `<div class=hb>${b}</div><div class=ha>${x}</div><p>n = ${n}</p></div>`;
         });
         // Replace this script with the charts, so each battery's copy stays in its own section
@@ -208,7 +208,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
           "style=height:${c*100/m}%><b>${c||''}</b></"
           "div>`;x+=`<span>${i?f(i)+(i<7?'-'+f(i+1):'+&nbsp;'+(k<4?'&deg;C':'%')):'&lt;'+f(1)}</"
           "span>`});h+=`<div><h4>${k&1?'Charge':'Drive'}${k<4?` temperature (${k<2?'peak':'start'})`:' start "
-          "SOC'}</h4><div class=hb>${b}</div><div class=ha>${x}</div><p>n = "
+          "SOC'}:</h4><div class=hb>${b}</div><div class=ha>${x}</div><p>n = "
           "${n}</p></div>`});document.currentScript.outerHTML=h+'</div>'})([";
       for (uint8_t i = 0; i < 96; i += 2) {
         content += (history[i] << 8) | history[i + 1];
