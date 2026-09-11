@@ -363,7 +363,7 @@ void NissanLeafBattery::
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
     datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
     datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
-    datalayer_nissan->battery_HX_pptt = (battery_HX_pptt_g61 != 0) ? battery_HX_pptt_g61 : battery_HX_pptt;
+    datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
     datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
     datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
     datalayer_nissan->temperature1 = ((Temp_fromRAW_to_F(battery_temp_raw_1) - 320) * 5) / 9;  //Convert from F to C
@@ -675,18 +675,14 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
         }
 
-        if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          // Hx sits at a different payload offset and uses a different scale depending on which
-          // layout the LBC answered with, so the reply length decides how to read it:
-          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27], already in hundredths of a %
-          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29], raw / 102.4 = percent
-          // This frame carries payload[25..31] in u8[1..7]. Any other length is a layout we do not
-          // know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
-          if (group_7bb_length == 0x35) {  //ZE1
-            uint16_t battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            //raw / 102.4 * 100 == raw * 125 / 128, rounded to nearest
-            battery_HX_pptt = (uint16_t)(((uint32_t)battery_HX_raw * 125u + 64u) / 128u);
-          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
+        if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame, payload[27..33] in u8[1..7]
+          //Hx, on the ZE0 (0x29) and AZE0 (0x2B) layouts only: payload[28..29], a u16 in hundredths
+          //of a percent, so the firmware's 100 % is 10000 and a healthy pack reads above it. This is
+          //where the LBC history guide takes the ZE0/AZE0 Hx from. ZE1 (0x35) has its Hx in the
+          //health block instead (group 0x61, same scale), so nothing in this layout is read as Hx,
+          //and no divide by 1024 is involved on either. Any other length is a layout we do not
+          //know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
+          if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {
             battery_HX_pptt = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
           }
         }
@@ -876,17 +872,17 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (group_7bb == 0x61) {  //Health block: Hx, SOH and, on ZE1, pack capacity
+      if (group_7bb == 0x61) {  //Health block: SOH and, on ZE1, Hx and the pack capacity
         //Percentages here are stored as hundredths, so the firmware's 100% is 10000. Hx above
         //100% is normal on a healthy pack and is deliberately not clamped; the range checks below
         //only reject values that cannot be a reading at all.
         if (group_7bb_frame == 0) {  //First frame, payload[0..5] in u8[2..7]
           uint16_t hx_raw = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);   //payload[2..3]
           uint16_t soh_raw = (uint16_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);  //payload[4..5]
-          //ZE1 keeps the Hx it already decodes from group 0x01, on its own scale. Only ZE0/AZE0
-          //take Hx from here.
-          if ((LEAF_battery_Type != ZE1_BATTERY) && (hx_raw > 0u) && (hx_raw <= 20000u)) {
-            battery_HX_pptt_g61 = hx_raw;
+          //Only ZE1 takes its Hx from here, as the LBC history guide lays out; ZE0/AZE0 read theirs
+          //from group 0x01. The capture in the guide, 61 61 2A F8, is 11000: 110.00 %.
+          if ((LEAF_battery_Type == ZE1_BATTERY) && (hx_raw > 0u) && (hx_raw <= 20000u)) {
+            battery_HX_pptt = hx_raw;
           }
           if ((soh_raw > 0u) && (soh_raw <= 10000u)) {
             battery_SOH_pptt_g61 = soh_raw;
@@ -935,13 +931,17 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             battery_charge_count_l1l2 = count_l1l2;
             battery_charge_count_qc = count_qc;
           }
-        } else if (datalayer_nissan && (uint8_t)(group_7bb_frame - 1) < 14) {
-          //Consecutive frames 1-14 carry payload[6..103], seven bytes each. That span holds the six
-          //usage histograms on either layout, so it is stored raw and the page applies the
-          //generation's offset. Only a reply that got as far as frame 14 takes the group out of
-          //the rotation; one cut short is asked for again.
-          memcpy(&datalayer_nissan->UsageHistograms[(group_7bb_frame - 1) * 7], &rx_frame.data.u8[1], 7);
-          battery_usage_histograms_read = (group_7bb_frame == 14);
+        } else {
+          //Consecutive frames 1-17 carry payload[6..124], seven bytes each. That span holds all
+          //seven usage tables on either layout, the six histograms and the charge-to-full table
+          //after them, so it is stored raw and the page applies the generation's offset.
+          if (datalayer_nissan && (uint8_t)(group_7bb_frame - 1) < 17) {
+            memcpy(&datalayer_nissan->UsageHistograms[(group_7bb_frame - 1) * 7], &rx_frame.data.u8[1], 7);
+          }
+          //A reply of L bytes ends on consecutive frame L / 7: frame 16 on ZE0/AZE0 (0x76), 17 on
+          //ZE1 (0x78). Only a reply that got that far takes the group out of the rotation; one
+          //cut short is asked for again.
+          battery_usage_history_read = (group_7bb_frame == group_7bb_length / 7);
         }
       }
 
@@ -1351,13 +1351,13 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         // pack is powered, so each is asked for only until its data is in, after which the
         // recurring groups come round faster. Testing the data itself rather than a "seen" flag
         // means a reply that arrived while another tool was polling the bus counts just as well.
-        // For group 0x62 that is the reply having reached its last histogram byte, since the
-        // counters in its first frame say nothing about the frames after it.
+        // For group 0x62 that is the whole reply having arrived, since the counters in its first
+        // frame say nothing about the frames after it.
         // After a BMS reset the skipping is suspended for one pass, so the new session answers
         // them once more. Previous values stay on display until the fresh reply overwrites them.
         do {
           PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
-        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_usage_histograms_read) ||
+        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_usage_history_read) ||
                                            (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
                                            (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0)));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];

@@ -83,6 +83,19 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         "</h4>";
     content += "<h4>AC charge count: " +
                (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
+    //The usage tables from the rest of the same reply. They start at [0] on ZE0/AZE0 and at [2] on
+    //ZE1, whose extra counter ahead of them moves them along by one count.
+    const uint8_t* history = nissan_dl->UsageHistograms + ((nissan_dl->LEAF_gen == 2) ? 2 : 0);
+    //The last table is not a plain histogram: its top bin counts charges to 100 % and the one below
+    //it the times the pack was run down to turtle. Provisional, per the LBC history guide, and on
+    //ZE1 read from the matching table by its parallel with ZE0.
+    if (nissan_dl->ChargeCountL1L2) {
+      content += "<h4>Charge to full count: ";
+      content += (history[110] << 8) | history[111];
+      content += "</h4><h4>Turtle count: ";
+      content += (history[108] << 8) | history[109];
+      content += "</h4>";
+    }
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
     content += "<h4>+12V BAT level: " +
@@ -117,12 +130,10 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                "</h4>";
     content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
 
-    //Lifetime usage histograms. They arrive in the same group 0x62 reply as the charge counts, so
-    //they are drawn once those are known. The page carries only the 48 counts; the browser draws
-    //the six charts from them in the cell monitor's bar style. ZE1 carries one more counter ahead
-    //of the tables, which moves them along by one count.
+    //Lifetime usage histograms, the first six of those tables. They are drawn once the charge
+    //counts are known; the page carries only the 48 counts, and the browser draws the six charts
+    //from them in the cell monitor's bar style.
     if (nissan_dl->ChargeCountL1L2) {
-      const uint8_t* bins = nissan_dl->UsageHistograms + ((nissan_dl->LEAF_gen == 2) ? 2 : 0);
       // The style and script below are MINIFIED to save flash. Edit the readable source here,
       // re-minify, and replace the literal.
       /*
@@ -173,7 +184,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
           "SOC'}</h4><div class=hb>${b}</div><div class=ha>${x}</div><p>n = "
           "${n}</p></div>`});document.currentScript.outerHTML=h+'</div>'})([";
       for (uint8_t i = 0; i < 96; i += 2) {
-        content += (bins[i] << 8) | bins[i + 1];
+        content += (history[i] << 8) | history[i + 1];
         content += ",";
       }
       content += "])</script>";

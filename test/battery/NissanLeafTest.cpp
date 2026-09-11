@@ -172,12 +172,29 @@ uint8_t next_polled_group(NissanLeafBattery* battery, unsigned long& t) {
   return 0;
 }
 
+// A polling battery that has seen a ZE1-only broadcast, so it decodes as a ZE1.
+NissanLeafBattery* ze1_battery_polling() {
+  auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x5EB, {0, 0, 0, 0, 0, 0, 0, 0}));
+  return battery;
+}
+
+// Feeds a group 0x01 reply of the given layout up to its fifth frame, which carries payload[27..33].
+void feed_group01_to_fifth_frame(NissanLeafBattery* battery, uint8_t layout_length,
+                                 std::initializer_list<uint8_t> fifth_frame) {
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, layout_length, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00}));
+  for (uint8_t frame = 0x21; frame <= 0x23; frame++) {
+    battery->handle_incoming_can_frame(leaf_7bb_frame({frame, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  }
+  battery->handle_incoming_can_frame(leaf_7bb_frame(fifth_frame));
+}
+
 }  // namespace
 
 // The health block is the only group reply longer than 255 bytes, so its first frame announces
 // itself as 1L LL. An equality test against 0x10 would never latch the group at all.
 TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   // 11 4B 61 61 | Hx 0x2AF8 = 110.00 % | SOH 0x2710 = 100.00 %
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
@@ -193,7 +210,7 @@ TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
 // The LBC's PID 0x61 handler writes BarCount_SOH, SOH_raw, SOH_Internal and two status bits
 // straight after Hx and SOH, so they land in the second frame of the reply.
 TEST(NissanLeafHealthTests, ShouldDecodeTrailingHealthBlockFields) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   // 11 4B 61 61 | Hx 0x2AF8 | SOH 0x2710
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
@@ -222,13 +239,41 @@ TEST(NissanLeafHealthTests, ShouldDecodeResetPackHealthBlock) {
 
 // Hx above 100 % is a normal reading on a healthy pack and must survive intact.
 TEST(NissanLeafHealthTests, ShouldNotClampHxAboveOneHundredPercent) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x30, 0xD4, 0x25, 0x8A}));
   battery->update_values();
 
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 12500u);     // 0x30D4
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9610u);  // 0x258A
+}
+
+// Hx comes from one place per generation, as the LBC history guide lays out: group 0x01 on ZE0/AZE0,
+// the health block on ZE1, both in hundredths of a percent. Neither takes the other's.
+TEST(NissanLeafHealthTests, ShouldReadZe0HxFromGroup01Only) {
+  auto battery = battery_polling();
+
+  // AZE0 layout; the fifth frame carries payload[27..33], with Hx 0x2328 at payload[28..29]
+  feed_group01_to_fifth_frame(battery, 0x2B, {0x24, 0x00, 0x23, 0x28, 0x00, 0x00, 0x00, 0x00});
+  // A health block with an Hx of its own, which ZE0/AZE0 leave alone
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 9000u);  // 90.00 %
+}
+
+TEST(NissanLeafHealthTests, ShouldReadZe1HxFromHealthBlockOnly) {
+  auto battery = ze1_battery_polling();
+
+  // ZE1 layout: nothing in its group 0x01 reply is read as Hx
+  feed_group01_to_fifth_frame(battery, 0x35, {0x24, 0x00, 0x23, 0x28, 0x2A, 0xF8, 0x00, 0x00});
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 0u);
+
+  // The guide's ZE1 capture, 61 61 2A F8: 11000, i.e. 110.00 %, with no divide by 1024
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
 }
 
 // Feeds a group 0x01 reply far enough to deliver the pack capacity, which sits in the sixth frame
@@ -367,7 +412,7 @@ TEST(NissanLeafHealthTests, ShouldPreferPolledStateOfHealthOverBroadcast) {
 // previously latched group decoding it, which for cell voltages means writing garbage into
 // the array.
 TEST(NissanLeafHealthTests, ShouldIgnoreNegativeResponse) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
   battery->update_values();
@@ -874,6 +919,9 @@ TEST(NissanLeafUsageHistogramTests, ShouldPublishHistogramsFromAze0Reply) {
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
   EXPECT_NE(html.find(charted_histogram_counts()), std::string::npos);
+  // The last table's bins 7 and 6, straight under the AC charge count
+  EXPECT_NE(html.find("AC charge count: 2048</h4><h4>Charge to full count: 707</h4><h4>Turtle count: 706</h4>"),
+            std::string::npos);
   // The charts go above the DTC section
   ASSERT_NE(html.find("<style>.hg"), std::string::npos);
   EXPECT_LT(html.find("<style>.hg"), html.find("Diagnostic Trouble Codes"));
@@ -896,7 +944,11 @@ TEST(NissanLeafUsageHistogramTests, ShouldApplyZe1TableOffset) {
   EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 366u);
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_NE(renderer.get_status_html().str().find(charted_histogram_counts()), std::string::npos);
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find(charted_histogram_counts()), std::string::npos);
+  // ZE1's last table sits in the reply's seventeenth frame, past where the ZE0/AZE0 reply ends
+  EXPECT_NE(html.find("AC charge count: 366</h4><h4>Charge to full count: 707</h4><h4>Turtle count: 706</h4>"),
+            std::string::npos);
 }
 
 // Until group 0x62 has answered there is nothing to draw, so the charts are left out altogether.
@@ -904,15 +956,19 @@ TEST(NissanLeafUsageHistogramTests, ShouldNotDrawChartsBeforeGroupIsRead) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_EQ(renderer.get_status_html().str().find("<style>.hg"), std::string::npos);
+  std::string html = renderer.get_status_html().str();
+  EXPECT_EQ(html.find("<style>.hg"), std::string::npos);
+  EXPECT_EQ(html.find("Charge to full count"), std::string::npos);
 }
 
-// The counters are all in the first frame, so they do not show that the histograms arrived. A reply
-// cut short keeps the group in the rotation, while a complete one takes it out as before. Nothing
-// here depends on where 0x62 sits in PIDgroups.
+// The counters are all in the first frame, so they do not show that the rest arrived. A reply cut
+// short, in the histograms or in the charge-to-full table after them, keeps the group in the
+// rotation; a complete one takes it out as before. Nothing here depends on where 0x62 sits in
+// PIDgroups.
 TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
   const size_t rotation = 8;  //Entries in PIDgroups, so the most one pass can take
-  for (bool complete : {false, true}) {
+  for (size_t frames : {(size_t)5, (size_t)15, SIZE_MAX}) {
+    const bool complete = (frames == SIZE_MAX);
     datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
     auto battery = battery_polling();
     unsigned long t = 50000;
@@ -921,7 +977,7 @@ TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
     while (next_polled_group(battery, t) != 0x62) {
       ASSERT_LT(++polls, rotation) << "group 0x62 never asked for";
     }
-    feed_group_reply(battery, usage_history_reply({0x0800, 0x015A}), complete ? SIZE_MAX : 5);
+    feed_group_reply(battery, usage_history_reply({0x0800, 0x015A}), frames);
 
     // No other group gets an answer, so none of them drop out: a full pass follows, and it
     // includes 0x62 only if its reply is still owed
@@ -929,6 +985,6 @@ TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
     for (size_t i = 0; i < rotation; i++) {
       asked_again |= (next_polled_group(battery, t) == 0x62);
     }
-    EXPECT_EQ(asked_again, !complete) << (complete ? "complete" : "cut short");
+    EXPECT_EQ(asked_again, !complete) << "consecutive frames fed: " << (complete ? 16 : frames);
   }
 }

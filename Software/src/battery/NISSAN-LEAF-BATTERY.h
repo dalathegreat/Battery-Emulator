@@ -326,12 +326,14 @@ class NissanLeafBattery : public CanBattery {
   void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2] = {0};  //contains cell min[0] and max[1] values in mV
-  uint16_t battery_HX_pptt = 0;               //Pack conductance estimate (Hx), in hundredths of a percent
-  //Hx and SOH as read from the health block (group 0x61), both in hundredths of a percent, 0 until
-  //that group has answered. Kept apart from the group 0x01 Hx so the health block always wins when
-  //it is available, rather than the two sources overwriting each other in polling order.
+  //Pack conductance estimate (Hx), in hundredths of a percent, 0 until read. Where it comes from
+  //depends on the generation, as the LBC history guide lays out: group 0x01 on ZE0/AZE0, the health
+  //block (group 0x61) on ZE1. Each ignores the other's source, so the two never compete.
+  uint16_t battery_HX_pptt = 0;
+  //SOH as read from the health block (group 0x61), in hundredths of a percent, 0 until that group
+  //has answered. Kept apart from the 0x5BC broadcast figure so the health block always wins when
+  //it is available.
   uint16_t battery_SOHraw_pptt = 0;  //Unfiltered SOH from the health block, 0 until read
-  uint16_t battery_HX_pptt_g61 = 0;
   uint16_t battery_SOH_pptt_g61 = 0;
   uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read
   uint32_t battery_capacity_Wh = 0;   //Energy equivalent of the above at nominal voltage, 0 until read
@@ -343,8 +345,8 @@ class NissanLeafBattery : public CanBattery {
   //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
   //level on any pack that never reports one.
   bool battery_cells_unreadable = false;
-  //Set once the group 0x62 reply has arrived as far as its last usage histogram byte
-  bool battery_usage_histograms_read = false;
+  //Set once the group 0x62 reply has arrived in full, down to its last frame
+  bool battery_usage_history_read = false;
   uint16_t battery_insulation = 0;         //Insulation resistance
   uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
   uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges

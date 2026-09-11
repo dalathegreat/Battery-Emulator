@@ -834,12 +834,13 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** Battery info, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[15];
   uint8_t BatteryPartNumber[7];
-  /** Lifetime usage histograms from group 0x62, stored as the raw reply bytes payload[6..103]:
-   * six tables of eight big-endian u16 counts. They start at [0] on ZE0/AZE0 and at [2] on ZE1,
-   * which carries one more counter ahead of them. Table order: temperature at drive start, at
-   * charge start, peak while driving, peak while charging, then SOC at drive start, at charge start.
+  /** Lifetime usage tables from group 0x62, stored as the raw reply bytes payload[6..124]: seven
+   * tables of eight big-endian u16 counts. They start at [0] on ZE0/AZE0 and at [2] on ZE1, which
+   * carries one more counter ahead of them. Table order: temperature at drive start, at charge
+   * start, peak while driving, peak while charging, then SOC at drive start, at charge start, and
+   * last the charge-to-full table, whose bin 7 counts charges to 100 % and bin 6 turtle events.
    */
-  uint8_t UsageHistograms[98];
+  uint8_t UsageHistograms[119];
 };
 
 struct DATALAYER_INFO_MEB {
