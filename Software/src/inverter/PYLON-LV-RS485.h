@@ -10,6 +10,7 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   bool setup() override;
   void receive();
   void update_values();
+  static constexpr InverterProtocolType TYPE = InverterProtocolType::PylonLV485;
   static constexpr const char* Name = "Pylon low voltage via RS485";
 
  private:

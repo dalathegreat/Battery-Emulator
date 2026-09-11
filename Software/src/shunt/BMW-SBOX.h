@@ -12,6 +12,7 @@ class BmwSbox : public CanShunt {
   void setup();
   void transmit_can(unsigned long currentMillis);
   void handle_incoming_can_frame(CAN_frame rx_frame);
+  static constexpr ShuntType TYPE = ShuntType::BmwSbox;
   static constexpr const char* Name = "BMW SBOX";
 
  private:

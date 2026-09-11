@@ -18,6 +18,7 @@ class HyundaiIoniq28Battery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr BatteryType TYPE = BatteryType::HyundaiIoniq28;
   static constexpr const char* Name = "Hyundai Ioniq Electric 28kWh";
 
   // Getter methods for HTML renderer

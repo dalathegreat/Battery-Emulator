@@ -10,6 +10,7 @@ class SmaSBSBydHvsInverter : public SmaInverterBase {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr InverterProtocolType TYPE = InverterProtocolType::SmaSBSByd;
   static constexpr const char* Name = "SMA SBS compatible BYD Battery-Box HVS";
 
   virtual bool controls_contactor() { return true; }

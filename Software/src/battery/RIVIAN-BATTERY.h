@@ -9,6 +9,7 @@ class RivianBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::RivianBattery;
   static constexpr const char* Name = "Rivian R1T large 135kWh battery";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }

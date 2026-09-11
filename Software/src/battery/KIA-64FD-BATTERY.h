@@ -34,6 +34,7 @@ class Kia64FDBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::Kia64FD;
   static constexpr const char* Name = "Kia 64kWh FD battery";
 
   bool supports_reset_DTC() { return true; }

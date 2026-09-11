@@ -9,6 +9,7 @@ class DalyBms : public RS485Battery {
   void update_values();
   void transmit_rs485(unsigned long currentMillis);
   void receive();
+  static constexpr BatteryType TYPE = BatteryType::DalyBms;
   static constexpr const char* Name = "DALY RS485";
 
  private:

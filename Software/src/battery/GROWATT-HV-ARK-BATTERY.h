@@ -26,6 +26,7 @@ class GrowattHvArkBattery : public CanBattery {
   void update_values() override;
   void transmit_can(unsigned long currentMillis) override;
 
+  static constexpr BatteryType TYPE = BatteryType::GrowattHvArk;
   static constexpr const char* Name = "Growatt HV ARK battery (battery-facing CAN)";
 
  private:

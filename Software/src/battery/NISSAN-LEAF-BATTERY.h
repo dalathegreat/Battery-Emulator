@@ -53,6 +53,7 @@ class NissanLeafBattery : public CanBattery {
   }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  static constexpr BatteryType TYPE = BatteryType::NissanLeaf;
   static constexpr const char* Name = "Nissan LEAF battery";
 
   uint8_t calculate_crc(CAN_frame& frame);

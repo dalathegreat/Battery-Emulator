@@ -14,6 +14,7 @@ class ChargebyteCCSBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::ChargebyteCCSBattery;
   static constexpr const char* Name = "Chargebyte CCS V2X";
 
  private:

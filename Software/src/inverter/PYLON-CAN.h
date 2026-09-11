@@ -10,6 +10,7 @@ class PylonInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr InverterProtocolType TYPE = InverterProtocolType::Pylon;
   static constexpr const char* Name = "Pylontech HV battery over CAN bus";
 
  private:

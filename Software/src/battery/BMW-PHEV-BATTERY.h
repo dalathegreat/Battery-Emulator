@@ -11,6 +11,7 @@ class BmwPhevBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr BatteryType TYPE = BatteryType::BmwPhev;
   static constexpr const char* Name = "BMW PHEV Battery";
 
   bool supports_reset_DTC() { return true; }
