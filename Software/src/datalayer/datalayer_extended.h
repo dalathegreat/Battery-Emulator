@@ -835,8 +835,9 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
 
-  /** Battery info, stores raw HEX values for ASCII chars */
-  uint8_t BatterySerialNumber[15];
+  /** Battery info, stores raw HEX values for ASCII chars. The serial number is 16 characters, not
+   * null-terminated. */
+  uint8_t BatterySerialNumber[16];
   uint8_t BatteryPartNumber[7];
   /** Lifetime usage tables from group 0x62, stored as the raw reply bytes payload[6..124]: seven
    * tables of eight big-endian u16 counts. They start at [0] on ZE0/AZE0 and at [2] on ZE1, which

@@ -362,7 +362,7 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_temp_raw_min = 0;
   int16_t battery_temp_polled_max = 0;
   int16_t battery_temp_polled_min = 0;
-  uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
+  uint8_t BatterySerialNumber[16] = {0};  // 16 ASCII characters, not null-terminated
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
   uint8_t stateMachineClearSOH = 0xFF;
 

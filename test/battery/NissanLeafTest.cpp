@@ -1129,3 +1129,19 @@ TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   EXPECT_NE(html.find("<h4>Heating started: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heating stopped: &#10007;</h4>"), std::string::npos);
 }
+
+// The serial number is the 16 characters straight after the 61 84 header, starting in the first
+// frame. This is the capture the decoder's comment quotes.
+TEST(NissanLeafIdentityTests, ShouldReadWholeSerialNumber) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, 0x16, 0x61, 0x84, 0x32, 0x33, 0x30, 0x55}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x4B, 0x31, 0x31, 0x39, 0x32, 0x45, 0x30}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x22, 0x30, 0x31, 0x34, 0x38, 0x32, 0x20, 0xA0}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_NE(renderer.get_status_html().str().find("<h4>Serial number: 230UK1192E001482</h4>"), std::string::npos);
+}

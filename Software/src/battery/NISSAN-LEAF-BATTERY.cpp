@@ -968,29 +968,18 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23000000000080FF)
         }
       }
-      if (group_7bb == 0x84) {              //BatterySerialNumber
-        if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 16 61 84 32 33 30 55)
-          BatterySerialNumber[0] = rx_frame.data.u8[7];
+      //BatterySerialNumber: 16 ASCII characters at payload[2..17], straight after the 61 84 header.
+      //The capture 10 16 61 84 32 33 30 55 | 21 4B 31 31 39 32 45 30 | 22 30 31 34 38 32 20 A0 reads
+      //230UK1192E001482; the space and 0xA0 after it are not part of the serial.
+      if (group_7bb == 0x84) {
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame, payload[0..5] in u8[2..7]
+          memcpy(&BatterySerialNumber[0], &rx_frame.data.u8[4], 4);
         }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (21 4B 31 31 39 32 45 30)
-          BatterySerialNumber[1] = rx_frame.data.u8[1];
-          BatterySerialNumber[2] = rx_frame.data.u8[2];
-          BatterySerialNumber[3] = rx_frame.data.u8[3];
-          BatterySerialNumber[4] = rx_frame.data.u8[4];
-          BatterySerialNumber[5] = rx_frame.data.u8[5];
-          BatterySerialNumber[6] = rx_frame.data.u8[6];
-          BatterySerialNumber[7] = rx_frame.data.u8[7];
+        if (rx_frame.data.u8[0] == 0x21) {  //Second frame, payload[6..12] in u8[1..7]
+          memcpy(&BatterySerialNumber[4], &rx_frame.data.u8[1], 7);
         }
-        if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 30 31 34 38 32 20 A0)
-          BatterySerialNumber[8] = rx_frame.data.u8[1];
-          BatterySerialNumber[9] = rx_frame.data.u8[2];
-          BatterySerialNumber[10] = rx_frame.data.u8[3];
-          BatterySerialNumber[11] = rx_frame.data.u8[4];
-          BatterySerialNumber[12] = rx_frame.data.u8[5];
-          BatterySerialNumber[13] = rx_frame.data.u8[6];
-          BatterySerialNumber[14] = rx_frame.data.u8[7];
-        }
-        if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 00 00 00 00 00 00 00)
+        if (rx_frame.data.u8[0] == 0x22) {  //Third frame, payload[13..19]: the serial ends at [17]
+          memcpy(&BatterySerialNumber[11], &rx_frame.data.u8[1], 5);
         }
       }
 

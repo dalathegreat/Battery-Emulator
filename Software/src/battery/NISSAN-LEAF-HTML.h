@@ -60,9 +60,9 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
-    char readableSerialNumber[16];  // One extra space for null terminator
+    char readableSerialNumber[sizeof(nissan_dl->BatterySerialNumber) + 1];  // One extra space for null terminator
     memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber, sizeof(nissan_dl->BatterySerialNumber));
-    readableSerialNumber[15] = '\0';  // Null terminate the string
+    readableSerialNumber[sizeof(nissan_dl->BatterySerialNumber)] = '\0';  // Null terminate the string
     content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
     char readableFirmware[6];  // One extra space for null terminator
     memcpy(readableFirmware, nissan_dl->BatteryPartNumber, 5);
