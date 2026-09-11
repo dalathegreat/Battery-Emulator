@@ -171,7 +171,9 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
           v.map((c, i) => {
             n += c;
             b += `<div style=height:${c * 100 / m}%><b>${c || ''}</b></div>`;
-            x += `<span>${i ? f(i) + (i < 7 ? '-' + f(i + 1) : '+') : '&lt;' + f(1)}</span>`;
+            // The top bin carries the unit: 65+ degC or 85+ %, kept on one line by the no-break space
+            x += `<span>${i ? f(i) + (i < 7 ? '-' + f(i + 1) : '+&nbsp;' + (k < 4 ? '&deg;C' : '%'))
+                            : '&lt;' + f(1)}</span>`;
           });
           h += `<div><h4>${k & 1 ? 'Charge' : 'Drive'}` +
                `${k < 4 ? ` temperature (${k < 2 ? 'peak' : 'start'})` : ' start SOC'}</h4>` +
@@ -186,7 +188,8 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
           "<script>(d=>{let h='<div class=hg>';[2,3,0,1,4,5].map((t,k)=>{let "
           "f=j=>k<4?30+5*j:j<7?10*j+10:85,v=d.slice(t*8,t*8+8),m=Math.max(...v)||1,n=0,b='',x='';v.map((c,i)=>{n+=c;b+="
           "`<div "
-          "style=height:${c*100/m}%><b>${c||''}</b></div>`;x+=`<span>${i?f(i)+(i<7?'-'+f(i+1):'+'):'&lt;'+f(1)}</"
+          "style=height:${c*100/m}%><b>${c||''}</b></"
+          "div>`;x+=`<span>${i?f(i)+(i<7?'-'+f(i+1):'+&nbsp;'+(k<4?'&deg;C':'%')):'&lt;'+f(1)}</"
           "span>`});h+=`<div><h4>${k&1?'Charge':'Drive'}${k<4?` temperature (${k<2?'peak':'start'})`:' start "
           "SOC'}</h4><div class=hb>${b}</div><div class=ha>${x}</div><p>n = "
           "${n}</p></div>`});document.currentScript.outerHTML=h+'</div>'})([";
