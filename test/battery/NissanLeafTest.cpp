@@ -908,20 +908,27 @@ TEST(NissanLeafUsageHistogramTests, ShouldNotDrawChartsBeforeGroupIsRead) {
 }
 
 // The counters are all in the first frame, so they do not show that the histograms arrived. A reply
-// cut short keeps the group in the rotation, while a complete one takes it out as before.
+// cut short keeps the group in the rotation, while a complete one takes it out as before. Nothing
+// here depends on where 0x62 sits in PIDgroups.
 TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
+  const size_t rotation = 8;  //Entries in PIDgroups, so the most one pass can take
   for (bool complete : {false, true}) {
     datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
     auto battery = battery_polling();
     unsigned long t = 50000;
 
-    ASSERT_EQ(next_polled_group(battery, t), 0x62);
+    size_t polls = 0;
+    while (next_polled_group(battery, t) != 0x62) {
+      ASSERT_LT(++polls, rotation) << "group 0x62 never asked for";
+    }
     feed_group_reply(battery, usage_history_reply({0x0800, 0x015A}), complete ? SIZE_MAX : 5);
 
-    // The rest of the first pass. None of these get an answer, so none drop out.
-    for (uint8_t group : {0x84, 0x04, 0x01, 0x02, 0x06, 0x61, 0x83}) {
-      ASSERT_EQ(next_polled_group(battery, t), group);
+    // No other group gets an answer, so none of them drop out: a full pass follows, and it
+    // includes 0x62 only if its reply is still owed
+    bool asked_again = false;
+    for (size_t i = 0; i < rotation; i++) {
+      asked_again |= (next_polled_group(battery, t) == 0x62);
     }
-    EXPECT_EQ(next_polled_group(battery, t), complete ? 0x84 : 0x62) << (complete ? "complete" : "cut short");
+    EXPECT_EQ(asked_again, !complete) << (complete ? "complete" : "cut short");
   }
 }
