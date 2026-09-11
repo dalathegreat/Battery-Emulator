@@ -844,7 +844,7 @@ TEST(NissanLeafDtcTests, ShouldDrainReplyLargerThanStorage) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 149);
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_NE(renderer.get_status_html().str().find("32 codes shown of 149 reported"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("32 codes shown of 149 reported"), std::string::npos);
 }
 
 // When everything fits, the page must not clutter the line with a redundant "of N reported".
@@ -857,7 +857,7 @@ TEST(NissanLeafDtcTests, ShouldNotClaimTruncationWhenEverythingFits) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 1);
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_EQ(renderer.get_status_html().str().find("reported"), std::string::npos);
+  EXPECT_EQ(renderer.get_dtc_html().str().find("reported"), std::string::npos);
 }
 
 // nissan_leaf_dtc.json is keyed by the 5-character short form, so that is what has to end up in the
@@ -874,7 +874,7 @@ TEST(NissanLeafDtcTests, ShouldRenderShortNissanCodeAsLookupKey) {
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  std::string html = renderer.get_status_html().str();
+  std::string html = renderer.get_dtc_html().str();
 
   EXPECT_NE(html.find("data-dtc-code='P33D7'"), std::string::npos);
   EXPECT_NE(html.find("data-dtc-code='U1000'"), std::string::npos);
@@ -889,16 +889,16 @@ TEST(NissanLeafDtcTests, ShouldRenderReadStateWhenNoTableIsShown) {
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
 
   reset_dtc_state();  // Never read
-  EXPECT_NE(renderer.get_status_html().str().find("Not read yet"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("Not read yet"), std::string::npos);
 
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
   datalayer.battery.dtc.dtc_read_failed = true;
-  EXPECT_NE(renderer.get_status_html().str().find("failed or timed out"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("failed or timed out"), std::string::npos);
 
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
-  EXPECT_NE(renderer.get_status_html().str().find("No DTCs present"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("No DTCs present"), std::string::npos);
 }
 
 // Group 0x62 carries the lifetime usage histograms after its charge counters. On ZE0/AZE0 the tables
@@ -922,9 +922,9 @@ TEST(NissanLeafUsageHistogramTests, ShouldPublishHistogramsFromAze0Reply) {
   // The last table's bins 7 and 6, straight under the AC charge count
   EXPECT_NE(html.find("AC charge count: 2048</h4><h4>Charge to full count: 707</h4><h4>Turtle count: 706</h4>"),
             std::string::npos);
-  // The charts go above the DTC section
-  ASSERT_NE(html.find("<style>.hg"), std::string::npos);
-  EXPECT_LT(html.find("<style>.hg"), html.find("Diagnostic Trouble Codes"));
+  // The charts go in the health and lifetime usage panel, after its list
+  ASSERT_NE(html.find("<script>(d=>"), std::string::npos);
+  EXPECT_LT(html.find("<h3>Health and lifetime usage</h3>"), html.find("<script>(d=>"));
 }
 
 // ZE1 has a third counter ahead of the tables, which moves them along by one count. The generation
@@ -957,7 +957,7 @@ TEST(NissanLeafUsageHistogramTests, ShouldNotDrawChartsBeforeGroupIsRead) {
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
-  EXPECT_EQ(html.find("<style>.hg"), std::string::npos);
+  EXPECT_EQ(html.find("<script>(d=>"), std::string::npos);
   EXPECT_EQ(html.find("Charge to full count"), std::string::npos);
 }
 
@@ -987,4 +987,94 @@ TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
     }
     EXPECT_EQ(asked_again, !complete) << "consecutive frames fed: " << (complete ? 16 : frames);
   }
+}
+
+// The page streams the status, diagnostics and buttons inside one panel of its own. The Leaf closes
+// it and opens the next to split its information into panels: identity under the page's battery
+// heading, then Status, Health and lifetime usage, the trouble codes and the degradation reset.
+TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+
+  const char* in_order[] = {"LEAF generation",
+                            "Firmware",
+                            "</div><div class='battery-panel'><h3>Status</h3>",
+                            "+12V BAT level",
+                            "GIDS",
+                            "Temperature 4",
+                            "Insulation",
+                            "Heating stopped",
+                            "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
+                            "Capacity as new",
+                            "Actual capacity",
+                            "SOH raw",
+                            "Hx:",
+                            "QC charge count",
+                            "AC charge count"};
+  size_t last = 0;
+  for (const char* part : in_order) {
+    size_t at = html.find(part);
+    ASSERT_NE(at, std::string::npos) << part;
+    EXPECT_GE(at, last) << part;
+    last = at;
+  }
+  // Those go in panels of their own, from the other hooks
+  EXPECT_EQ(html.find("Diagnostic Trouble Codes"), std::string::npos);
+  EXPECT_EQ(html.find("CryptoChallenge"), std::string::npos);
+}
+
+// The two lists are rows that wrap, like the chart grid: two columns, one on a narrow screen.
+TEST(NissanLeafPageLayoutTests, ShouldListStatusAndHealthInWrappingColumns) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+
+  EXPECT_NE(html.find(".hg>*{flex:300px;margin:5px}"), std::string::npos);
+  EXPECT_NE(html.find("<h3>Status</h3><div class=hg><h4>+12V BAT level"), std::string::npos);
+  EXPECT_NE(html.find("<h3>Health and lifetime usage</h3><div class=hg><h4>Capacity as new"), std::string::npos);
+}
+
+// The trouble codes open their own panel, under the page's title style rather than their own.
+TEST(NissanLeafPageLayoutTests, ShouldPutTroubleCodesInTheirOwnPanel) {
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_dtc_html().str();
+
+  EXPECT_EQ(html.find("</div><div class='battery-panel'><h3>Diagnostic Trouble Codes</h3>"), 0u);
+  EXPECT_EQ(html.find("&#128295;"), std::string::npos);
+}
+
+// The degradation reset opens the last panel just before its button, with the challenge values
+// above it. No other command gets anything in front of its button.
+TEST(NissanLeafPageLayoutTests, ShouldOpenDegradationResetPanelBeforeItsButton) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  datalayer_extended.nissanleaf.CryptoChallenge = 0xFFFFFFFF;
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+
+  std::string html = renderer.get_command_prefix_html("resetSOH").str();
+  EXPECT_EQ(html.find("</div><div class='battery-panel'><h3>Reset degradation data</h3>"), 0u);
+  EXPECT_LT(html.find("CryptoChallenge: Not run"), html.find("SolvedChallenge: Not run"));
+  EXPECT_LT(html.find("SolvedChallenge: Not run"), html.find("Challenge failed: 0"));
+
+  EXPECT_TRUE(renderer.get_command_prefix_html("readDTC").str().empty());
+  EXPECT_TRUE(renderer.get_command_prefix_html("resetDTC").str().empty());
+}
+
+// Every panel the Leaf opens is closed again: the first close is the page's own panel, and the page
+// closes the last one after the buttons.
+TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string status = renderer.get_status_html().str();
+  std::string all = status + renderer.get_dtc_html().str() + renderer.get_command_prefix_html("resetSOH").str();
+
+  auto count = [&all](const std::string& tag) {
+    size_t n = 0;
+    for (size_t at = all.find(tag); at != std::string::npos; at = all.find(tag, at + 1)) {
+      n++;
+    }
+    return n;
+  };
+  EXPECT_EQ(count("<div"), count("</div>"));
+  EXPECT_LT(status.find("</div>"), status.find("<div"));
 }
