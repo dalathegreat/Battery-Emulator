@@ -50,6 +50,14 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   /** uint8_t */
   /** Total number of cells in the pack */
   uint8_t number_of_cells = 0;
+  /** Cell-monitor grid layout: number of columns to render the cell grid with.
+   * 0 = geometry unknown, in which case the cell monitor falls back to a
+   * responsive flow-wrap layout. When >0, the cell monitor renders a fixed
+   * grid this many columns wide; the number of rows is derived as
+   * ceil(number_of_cells / cells_per_row).
+   * Example: Renault Zoe Gen2 is 12x 8s2p -> 96 cells, cells_per_row = 8 -> 8 columns x 12 rows.
+   */
+  uint8_t cells_per_row = 0;
 
   /** Other */
   /** Chemistry of the pack. Autodetect, or force specific chemistry */
