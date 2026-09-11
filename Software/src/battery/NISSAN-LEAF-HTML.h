@@ -34,13 +34,16 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       .ha span { flex: 1 }                               bin labels under the bars
       .hb, .ha, .hg p { font-size: 12px }
       .hg p { margin: 0; text-align: right }             total under each chart
+      h3 { margin-top: 3px }                             panel titles, the only h3s on the page: as
+                                                         far below the top as content ends above the
+                                                         bottom, not the browser's ~19 px
     </style>
     */
     content +=
         "<style>.hg,.hb,.ha{display:flex}.hg{flex-wrap:wrap}.hg>*{flex:300px;margin:5px}.hb{align-items:flex-end;"
         "height:130px;padding-top:20px;border:1px solid #ccc}.hb div{flex:1;background:blue;border:1px solid "
         "#fff;position:relative}.hb b{position:absolute;bottom:100%;left:0;right:0}.ha span{flex:1}.hb,.ha,.hg "
-        "p{font-size:12px}.hg p{margin:0;text-align:right}</style>";
+        "p{font-size:12px}.hg p{margin:0;text-align:right}h3{margin-top:3px}</style>";
 
     //Identity, in the page's own first panel under the battery heading
     content += "<h4>LEAF generation: ";
