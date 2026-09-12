@@ -444,8 +444,16 @@ void update_machineryprotection() {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
 
+    /* 9900 pptt is the init default, so a pack whose SOH is genuinely 99.00%
+       silently loses this check for as long as it reports that value. Latch
+       on the first pair of off-sentinel readings, same shape as the voltage
+       sentinel in parallel_safety.cpp. */
+    static bool soh_seen_battery2 = false;
+    if (!soh_seen_battery2 && datalayer.battery.status.soh_pptt != 9900 && datalayer.battery2.status.soh_pptt != 9900) {
+      soh_seen_battery2 = true;
+    }
     // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
+    if (soh_seen_battery2) {
       // Both values available, check diff
       uint16_t soh_diff_pptt;
       if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
@@ -494,8 +502,16 @@ void update_machineryprotection() {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
 
+    /* 9900 pptt is the init default, so a pack whose SOH is genuinely 99.00%
+       silently loses this check for as long as it reports that value. Latch
+       on the first pair of off-sentinel readings, same shape as the voltage
+       sentinel in parallel_safety.cpp. */
+    static bool soh_seen_battery3 = false;
+    if (!soh_seen_battery3 && datalayer.battery.status.soh_pptt != 9900 && datalayer.battery3.status.soh_pptt != 9900) {
+      soh_seen_battery3 = true;
+    }
     // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
+    if (soh_seen_battery3) {
       // Both values available, check diff
       uint16_t soh_diff_pptt;
       if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
