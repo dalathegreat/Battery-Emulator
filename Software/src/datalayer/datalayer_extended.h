@@ -828,12 +828,24 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart;
   /** Heat request sent*/
   bool HeaterSendRequest;
+  /** Which of the LBC's status broadcasts have arrived since boot, as the flags above mean nothing
+   * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
+   * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */
+  uint8_t StatusSeen;
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
 
-  /** Battery info, stores raw HEX values for ASCII chars */
-  uint8_t BatterySerialNumber[15];
+  /** Battery info, stores raw HEX values for ASCII chars. The serial number is 16 characters, not
+   * null-terminated. */
+  uint8_t BatterySerialNumber[16];
   uint8_t BatteryPartNumber[7];
+  /** Lifetime usage tables from group 0x62, stored as the raw reply bytes payload[6..124]: seven
+   * tables of eight big-endian u16 counts. They start at [0] on ZE0/AZE0 and at [2] on ZE1, which
+   * carries one more counter ahead of them. Table order: temperature at drive start, at charge
+   * start, peak while driving, peak while charging, then SOC at drive start, at charge start, and
+   * last the charge-to-full table, whose bin 7 counts charges to 100 % and bin 6 turtle events.
+   */
+  uint8_t UsageHistograms[119];
 };
 
 struct DATALAYER_INFO_MEB {

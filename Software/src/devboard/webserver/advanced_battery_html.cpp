@@ -58,7 +58,7 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
     {"contactorOpen", "Open Contactors", "a contactor open request?",
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
-    {"resetSOH", "Reset degradation data", "reset degradation data?",
+    {"resetSOH", "Perform degradation reset", "reset degradation data?",
      [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
     {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
      [](Battery* b) { return b && b->supports_factory_mode_method(); }, [](Battery* b) { b->set_factory_mode(); }},
@@ -223,7 +223,7 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
           while (!failed && command < battery_commands.size()) {
             const auto& cmd = battery_commands[command++];
             if (cmd.condition(batt)) {
-              section = command_html(cmd);
+              section = command_html(cmd, batt->get_status_renderer().get_command_prefix_html(cmd.identifier));
               if (section.isEmpty()) {
                 failed = true;
                 fragment = render_error;
@@ -245,9 +245,12 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
     }
   }
 
-  String command_html(const BatteryCommand& cmd) const {
+  // The renderer's prefix goes ahead of the button, in the same checked buffer, so a prefix that
+  // failed to build fails the page rather than silently leaving the button out of its section.
+  String command_html(const BatteryCommand& cmd, const String& prefix) const {
     CheckedHtml html;
-    html.reserve(1024);
+    html.reserve(1024 + prefix.length());
+    html += prefix;
     html += "<button onclick='ask" + String(cmd.identifier) + "(" + String(selected) + ")'>" + cmd.title +
             "</button><script>function ask" + cmd.identifier + "(batteryNum){";
     if (cmd.prompt) {

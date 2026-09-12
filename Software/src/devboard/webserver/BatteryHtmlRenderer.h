@@ -16,6 +16,11 @@ class BatteryHtmlRenderer {
   // Optional diagnostics, rendered after the status buffer is released.
   // Empty means none unless html_render_failed() reports a failure.
   virtual String get_dtc_html() { return String(); }
+  // Optional HTML streamed just before the button of the given battery command (the identifier
+  // from battery_commands), for example to start a section of the page around that button. The
+  // page keeps the status, diagnostics and buttons inside one battery-panel div, so closing it and
+  // opening another is how a renderer splits its information into panels. Empty means nothing.
+  virtual String get_command_prefix_html(const char* identifier) { return String(); }
   // Reports failure of the most recent status or diagnostics render.
   virtual bool html_render_failed() const { return false; }
 
