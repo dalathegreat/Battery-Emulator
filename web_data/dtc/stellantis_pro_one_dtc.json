@@ -1,0 +1,450 @@
+[
+  {
+    "dtc": "P0AA100",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK CLOSED"
+  },
+  {
+    "dtc": "P0AA200",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK OPEN"
+  },
+  {
+    "dtc": "P0AA400",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK CLOSED"
+  },
+  {
+    "dtc": "P0AA500",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK OPEN"
+  },
+  {
+    "dtc": "P0AD900",
+    "l_dsc": "HYBRID BATTERY POSITIVE CONTACTOR CONTROL CIRCUIT/OPEN"
+  },
+  {
+    "dtc": "P0ADB00",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0ADC00",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0ADD00",
+    "l_dsc": "HYBRID BATTERY NEGATIVE CONTACTOR CONTROL CIRCUIT/OPEN"
+  },
+  {
+    "dtc": "P0ADF00",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0AE000",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0AE300",
+    "l_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CIRCUIT STUCK OPEN"
+  },
+  {
+    "dtc": "P0AE600",
+    "l_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CONTROL CIRCUIT A LOW"
+  },
+  {
+    "dtc": "P0AE700",
+    "l_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CONTROL CIRCUIT A HIGH"
+  },
+  {
+    "dtc": "P0C7700",
+    "l_dsc": "HV BATTERY SYSTEM PRECHARGE TIME TOO SHORT"
+  },
+  {
+    "dtc": "P0C7800",
+    "l_dsc": "HYBRID/EV BATTERY SYSTEM PRECHARGE A TIME TOO LONG"
+  },
+  {
+    "dtc": "P0D0800",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK CLOSED"
+  },
+  {
+    "dtc": "P0D0900",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK OPEN"
+  },
+  {
+    "dtc": "P0D0A00",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT OPEN"
+  },
+  {
+    "dtc": "P0D0C00",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0D0D00",
+    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0D0F00",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK CLOSED"
+  },
+  {
+    "dtc": "P0D1000",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK OPEN"
+  },
+  {
+    "dtc": "P0D1100",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT/OPEN"
+  },
+  {
+    "dtc": "P0D1300",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0D1400",
+    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0E6D00",
+    "l_dsc": "BATTERY CHARGING SYSTEM PRECHARGE CONTACTOR CONTROL CIRCUIT/OPEN"
+  },
+  {
+    "dtc": "P1A2000",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE HYBRID BATTERY SYSTEM PRECHARGE TIME TOO LONG"
+  },
+  {
+    "dtc": "P1A2100",
+    "l_dsc": "HV BATTERY CONTACTOR CONTROL SEQUENCE INCORRECT"
+  },
+  {
+    "dtc": "P2C8900",
+    "l_dsc": "HYBRID/EV BATTERY SYSTEM PRECHARGE A CURRENT TOO HIGH"
+  },
+  {
+    "dtc": "P2C9400",
+    "l_dsc": "HYBRID/EV BATTERY CONTACTOR CONTROL SUPPLY CIRCUIT LOW"
+  },
+  {
+    "dtc": "P2C9500",
+    "l_dsc": "HYBRID/EV BATTERY CONTACTOR CONTROL SUPPLY CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0A7F00",
+    "l_dsc": "HYBRID/EV BATTERY PACK DETERIORATION"
+  },
+  {
+    "dtc": "P0BBD00",
+    "l_dsc": "HYBRID BATTERY PACK VOLTAGE VARIATION EXCEEDED LIMIT"
+  },
+  {
+    "dtc": "P0BBE00",
+    "l_dsc": "HYBRID BATTERY PACK VOLTAGE VARIATION"
+  },
+  {
+    "dtc": "P0DAF00",
+    "l_dsc": "HYBRID/EV BATTERY CELL BALANCING CIRCUIT A RANGE/PERFORMANCE"
+  },
+  {
+    "dtc": "P0DE600",
+    "l_dsc": "HYBRID/EV BATTERY PACK CELL VOLTAGE LOW"
+  },
+  {
+    "dtc": "P0DE700",
+    "l_dsc": "HYBRID/EV BATTERY PACK CELL VOLTAGE HIGH"
+  },
+  {
+    "dtc": "P1A2900",
+    "l_dsc": "CELL SUPERVISORY CIRCUIT A FAILURE"
+  },
+  {
+    "dtc": "P29FF00",
+    "l_dsc": "HYBRID/EV BATTERY THERMAL RUNAWAY DETECTED"
+  },
+  {
+    "dtc": "P0AC000",
+    "l_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT PERFORMANCE"
+  },
+  {
+    "dtc": "P0AC100",
+    "l_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0AC200",
+    "l_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0B0F00",
+    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT PERFORMANCE"
+  },
+  {
+    "dtc": "P0B1000",
+    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0B1100",
+    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0B1300",
+    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 1/2 CORRELATION"
+  },
+  {
+    "dtc": "P0ABA00",
+    "l_dsc": "HYBRID/EV BATTERY PACK VOLTAGE SENSE A CIRCUIT"
+  },
+  {
+    "dtc": "P0B1400",
+    "l_dsc": "HYBRID/EV BATTERY PACK VOLTAGE SENSE B CIRCUIT"
+  },
+  {
+    "dtc": "P0B3D00",
+    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0B3E00",
+    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0C6E00",
+    "l_dsc": "HYBRID BATTERY TEMPERATURE SENSOR A/B CORRELATION"
+  },
+  {
+    "dtc": "P0ECA00",
+    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR SYSTEM-MULTIPLE SENSOR CORRELATION"
+  },
+  {
+    "dtc": "P0ECB00",
+    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSOR SYSTEM-MULTIPLE SENSOR CORRELATION"
+  },
+  {
+    "dtc": "P1C0000",
+    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 OUT OF RANGE LOW"
+  },
+  {
+    "dtc": "P1C0100",
+    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 OUT OF RANGE HIGH"
+  },
+  {
+    "dtc": "P1E1500",
+    "l_dsc": "BATTERY CURRENT SENSOR"
+  },
+  {
+    "dtc": "P0CA600",
+    "l_dsc": "HYBRID/EV BATTERY CHARGING CURRENT HIGH"
+  },
+  {
+    "dtc": "P0CA700",
+    "l_dsc": "HYBRID/EV BATTERY DISCHARGING CURRENT HIGH"
+  },
+  {
+    "dtc": "P0D3500",
+    "l_dsc": "HYBRID/EV BATTERY SYSTEM CURRENT UNSTABLE"
+  },
+  {
+    "dtc": "P0A0A00",
+    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A"
+  },
+  {
+    "dtc": "P0A0B00",
+    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A PERFORMANCE"
+  },
+  {
+    "dtc": "P0A0C00",
+    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A LOW"
+  },
+  {
+    "dtc": "P0A0D00",
+    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A HIGH"
+  },
+  {
+    "dtc": "P0A9500",
+    "l_dsc": "HIGH VOLTAGE FUSE A"
+  },
+  {
+    "dtc": "P0E2F00",
+    "l_dsc": "HIGH VOLTAGE FUSE B"
+  },
+  {
+    "dtc": "P0E3000",
+    "l_dsc": "HIGH VOLTAGE FUSE C"
+  },
+  {
+    "dtc": "P0AA600",
+    "l_dsc": "HYBRID BATTERY VOLTAGE SYSTEM ISOLATION FAULT"
+  },
+  {
+    "dtc": "P0AA700",
+    "l_dsc": "HYBRID/EV BATTERY VOLTAGE ISOLATION SENSOR CIRCUIT"
+  },
+  {
+    "dtc": "P0AA800",
+    "l_dsc": "HYBRID/EV BATTERY PACK A VOLTAGE ISOLATION SENSOR CIRCUIT RANGE/PERFORMANCE"
+  },
+  {
+    "dtc": "P0B3300",
+    "l_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT"
+  },
+  {
+    "dtc": "P0B3500",
+    "l_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0B3600",
+    "l_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P1AE200",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT"
+  },
+  {
+    "dtc": "P1AE300",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT LOW"
+  },
+  {
+    "dtc": "P1AE400",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P1E1B00",
+    "l_dsc": "HYBRID/EV BATTERY SIDE VOLTAGE SYSTEM ISOLATION"
+  },
+  {
+    "dtc": "P066800",
+    "l_dsc": "CONTROL MODULE INTERNAL TEMPERATURE SENSOR 1 CIRCUIT LOW"
+  },
+  {
+    "dtc": "P063400",
+    "l_dsc": "CONTROL MODULE INTERNAL TEMPERATURE 1 TOO HIGH"
+  },
+  {
+    "dtc": "P0A7E00",
+    "l_dsc": "HYBRID/EV BATTERY PACK A OVER TEMPERATURE"
+  },
+  {
+    "dtc": "P0A9B00",
+    "l_dsc": "HYBRID BATTERY TEMPERATURE SENSOR A CIRCUIT"
+  },
+  {
+    "dtc": "P0A9D00",
+    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0A9E00",
+    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0C4400",
+    "l_dsc": "HYBRID BATTERY PACK COOLANT INLET TEMPERATURE SENSOR CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0C4500",
+    "l_dsc": "HYBRID BATTERY PACK COOLANT INLET TEMPERATURE SENSOR CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P0CD700",
+    "l_dsc": "HYBRID BATTERY PACK COOLANT OUTLET TEMPERATURE SENSOR CIRCUIT LOW"
+  },
+  {
+    "dtc": "P0CD800",
+    "l_dsc": "HYBRID BATTERY PACK COOLANT OUTLET TEMPERATURE SENSOR CIRCUIT HIGH"
+  },
+  {
+    "dtc": "P1A9A00",
+    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 OUT OF RANGE LOW"
+  },
+  {
+    "dtc": "P1A9B00",
+    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 OUT OF RANGE HIGH"
+  },
+  {
+    "dtc": "B1CE900",
+    "l_dsc": "DIGITAL CRASH OUTPUT CONTROL CIRCUIT PERFORMANCE"
+  },
+  {
+    "dtc": "B273C00",
+    "l_dsc": "DIGITAL CRASH INPUT"
+  },
+  {
+    "dtc": "P0A1F00",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE A INTERNAL PERFORMANCE"
+  },
+  {
+    "dtc": "P161400",
+    "l_dsc": "ECU RESET/RECOVERY OCCURRED"
+  },
+  {
+    "dtc": "P167B00",
+    "l_dsc": "CONTROLLED SYSTEM SHUTDOWN"
+  },
+  {
+    "dtc": "P1A0100",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE EEPROM FAILURE"
+  },
+  {
+    "dtc": "P1A0600",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE READ ONLY MEMORY (ROM)"
+  },
+  {
+    "dtc": "P1A0C00",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE SYSTEM VOLTAGE LOW"
+  },
+  {
+    "dtc": "P1A0D00",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE SYSTEM VOLTAGE HIGH"
+  },
+  {
+    "dtc": "P1DAF00",
+    "l_dsc": "INCOMPATIBLE LIMP IN ACTION REQUESTED"
+  },
+  {
+    "dtc": "P1E1A00",
+    "l_dsc": "HYBRID/EV BATTERY CONTROL BOARD HARDWARE PERFORMANCE"
+  },
+  {
+    "dtc": "P1E2500",
+    "l_dsc": "HYBRID/EV BATTERY FAILURE LEVEL 2"
+  },
+  {
+    "dtc": "P2D3A00",
+    "l_dsc": "FORCED HYBRID/EV SYSTEM SHUTDOWN"
+  },
+  {
+    "dtc": "U007400",
+    "l_dsc": "DEDICATED POWERTRAIN-D-PT-CAN BUS OFF"
+  },
+  {
+    "dtc": "U007700",
+    "l_dsc": "CONTROL MODULE COMMUNICATION BUS OFF"
+  },
+  {
+    "dtc": "U015100",
+    "l_dsc": "LOST COMMUNICATION WITH OCCUPANT RESTRAINT CONTROLLER (ORC)"
+  },
+  {
+    "dtc": "U029300",
+    "l_dsc": "LOST COMMUNICATION WITH HYBRID CONTROL MODULE"
+  },
+  {
+    "dtc": "U029400",
+    "l_dsc": "LOST COMMUNICATION WITH POWERTRAIN CONTROL MONITOR MODULE"
+  },
+  {
+    "dtc": "U02AE00",
+    "l_dsc": "LOST COMMUNICATIONS WITH HYBRID/EV BATTERY COOLANT PUMP"
+  },
+  {
+    "dtc": "U059400",
+    "l_dsc": "IMPLAUSIBLE DATA RECEIVED FROM HYBRID CONTROL MODULE"
+  },
+  {
+    "dtc": "U059500",
+    "l_dsc": "INVALID DATA RECEIVED FROM POWERTRAIN CONTROL MONITOR MODULE"
+  },
+  {
+    "dtc": "U069E00",
+    "l_dsc": "LOST COMMUNICATION WITH COOLANT HEATER B"
+  },
+  {
+    "dtc": "U100800",
+    "l_dsc": "LIN 1 BUS"
+  },
+  {
+    "dtc": "U301700",
+    "l_dsc": "CONTROL MODULE TIMER/CLOCK PERFORMANCE"
+  }
+]
