@@ -586,8 +586,6 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 16600;
     }
-    // Definitely works fine with slower ticks
-    fastTick = false;
   } else if (batteryType == BATTERY_TYPE_MG_ZS) {
     logging.println("[MG] Detected MG ZS EV battery (108s)");
     maxChargePowerW = 14000;
@@ -596,20 +594,16 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 44500;
     }
-    //} else if (batteryType == BATTERY_TYPE_MG5_61_NMC) {
-    //   logging.println("[MG] Detected MG5 61kWh NMC (96s)");
-    //   datalayer_battery->info.number_of_cells = 96;
-    //   if(datalayer_battery->info.total_capacity_Wh == 0) {
-    //     datalayer_battery->info.total_capacity_Wh = 61000;
-    //   }
   } else if (vehicleHardwareNumber == 0x11054259) {
     // The 50.3kWh LFP and 61kWh NMC MG5 batteries have the same battery type
     // code (the obviously fake 00010203), so we need to distinguish by
     // something else. The vehicle hardware number seems a good candidate.
 
+    // Seen values:
     // 50.3kWh LFP:  11 05 42 59 01
     // 52kWh NMC x2: 10 95 22 20 01
-    // 61kWh NMC:    11 01 61 90 01 (detected as ZS above anyway)
+    // 61kWh NMC:    11 01 61 90 01
+    // 61kWh NMC:    11 06 01 58 ..
 
     logging.println("[MG] Detected MG5 50kWh LFP (120s)");
     batteryType = BATTERY_TYPE_MG5_50_LFP;
@@ -623,8 +617,6 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     if (datalayer_battery->info.total_capacity_Wh == 0) {
       datalayer_battery->info.total_capacity_Wh = 50300;
     }
-    // Needs fast tick or contactors don't close and it emits strange frames
-    fastTick = true;
   } else {
     logging.printf("[MG] Assuming MG5 battery (96s)\n");
     batteryType = BATTERY_TYPE_MG5;
@@ -632,10 +624,9 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     maxDischargePowerW = 14000;
     datalayer_battery->info.number_of_cells = 96;
     if (datalayer_battery->info.total_capacity_Wh == 0) {
+      // It might also be the 61kWh NMC, but the user can override if needed.
       datalayer_battery->info.total_capacity_Wh = 52500;
     }
-    // Seems to work fine with slower ticks
-    fastTick = false;
   }
 
   datalayer_battery->info.max_design_voltage_dV =
@@ -745,9 +736,8 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     send_phase = 0;
   }
 
-  // Send 10ms CAN Message (or 100ms if we're non-fast-tick)
-  const unsigned long TICK_PERIOD_10 = fastTick ? INTERVAL_10_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis10 >= TICK_PERIOD_10 && send_phase == 0) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && send_phase == 0) {
     previousMillis10 = currentMillis;
 
     tx_count++;
@@ -806,7 +796,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       if (warmupCounter < 1100) {
         // Keep the 1 asserted for 1.1s
         MG_HS_8A.data.u8[6] = 0x10 | eightAcycle;
-        warmupCounter += TICK_PERIOD_10;
+        warmupCounter += INTERVAL_10_MS;
       } else {
         // After that we go to the 3
         MG_HS_8A.data.u8[6] = 0x30 | eightAcycle;
@@ -830,8 +820,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  const unsigned long TICK_PERIOD_20 = fastTick ? INTERVAL_20_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis20 >= TICK_PERIOD_20 && send_phase == 1) {
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS && send_phase == 1) {
     previousMillis20 = currentMillis;
 
     transmit_can_frame(&MG_HS_1F1);
