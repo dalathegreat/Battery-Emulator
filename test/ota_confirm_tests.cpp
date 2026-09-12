@@ -235,6 +235,42 @@ TEST(OtaConfirmPlacement, SetupDoesNotConfirmTheImage) {
       << "setup() performs the confirmation write - it belongs in runtime cadence";
 }
 
+/* THE ROLLBACK REPORT NEEDS A LOG SINK, and setup() is where it gets one.
+ *
+ * `report_ota_rollback()` used to run before `init_stored_settings()`. That call
+ * is what switches web, USB, syslog and SD logging on from stored settings, so
+ * the warning line went to no sink a user can read - while the OTA_ROLLBACK
+ * event, which does survive, tells them to go and read it. A rolled-back update
+ * therefore left the reason nowhere, which is the v12.5.0 field report.
+ *
+ * Held by ORDER rather than by presence, because presence was never the
+ * problem: both calls were there, in the wrong sequence. Read off the source,
+ * like its two neighbours, because Software.cpp's setup() is not in this
+ * binary.
+ */
+TEST(OtaConfirmPlacement, TheRollbackReportRunsOnceLoggingIsConfigured) {
+  const std::string setup = function_body(read_source("../Software/Software.cpp"), "void setup() {");
+  ASSERT_FALSE(setup.empty());
+
+  const size_t settings = setup.find("init_stored_settings(");
+  const size_t report = setup.find("report_ota_rollback(");
+  ASSERT_NE(settings, std::string::npos) << "setup() no longer reads stored settings";
+  ASSERT_NE(report, std::string::npos)
+      << "setup() no longer reports a rollback at all - a rolled-back update would say nothing";
+
+  EXPECT_LT(settings, report)
+      << "report_ota_rollback() runs before init_stored_settings(), so the log sinks are off and its "
+         "warning line reaches nobody - while the OTA_ROLLBACK event survives and points the user at it";
+
+  /* ...and it still comes before the things that can fail, which is what the
+     original early placement was for. `init_events()` is the one call it must
+     follow (it needs the event machinery) and the driver/CAN setup below is
+     what it must precede. */
+  const size_t events = setup.find("init_events(");
+  ASSERT_NE(events, std::string::npos);
+  EXPECT_LT(events, report) << "the report runs before init_events(), so its event has nowhere to go";
+}
+
 /* The check has to be unconditional inside the core tick. Inside the 10 ms or
  * 1 s sub-task it would still fire, but it would then be witnessing that ONE
  * sub-task ran, which is a weaker statement than the tick itself coming round.
