@@ -46,6 +46,37 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Hx: " +
         (nissan_dl->battery_HX_pptt ? String(nissan_dl->battery_HX_pptt / 100.0f, 2) + " %" : String("Unknown")) +
         "</h4>";
+    //What the pack held when new, from the GID count the LBC reports at full charge. Constant per
+    //pack size rather than something that tracks wear, which is what makes it the reference the
+    //measured capacity below is judged against.
+    content +=
+        "<h4>Capacity as new: " +
+        (nissan_dl->CapacityAsNewWh ? String(nissan_dl->CapacityAsNewWh / 1000.0f, 2) + " kWh" : String("Unknown")) +
+        "</h4>";
+    //Pack capacity as the LBC measures it, with the energy that works out to at the pack's nominal
+    //voltage alongside it. The nominal differs by generation (96 cells at 3.75 V on ZE0/AZE0,
+    //3.65 V on ZE1), so this is a nameplate-style figure and deliberately not derived from the live
+    //pack voltage, which would make it swing with SoC. The bracketed energy is the total capacity
+    //the rest of the system works from, and the ratio of it to the line above is the reported SOH.
+    if (nissan_dl->CapacityCAh) {
+      content += "<h4>Actual capacity: " + String(nissan_dl->CapacityCAh / 100.0f, 2) + " Ah (" +
+                 String(nissan_dl->CapacityWh / 1000.0f, 2) + " kWh)</h4>";
+    } else {
+      content += String("<h4>Actual capacity: Unknown</h4>");
+    }
+    //The two state of health figures the LBC publishes for itself: the unfiltered one, and the
+    //filtered figure it settles onto, which is the value the pack reports as its SOH. The raw one
+    //moves first while a pack relearns after a degradation reset, so seeing the pair side by side
+    //shows that relearning happening. Neither is the SOH shown on the status page - both are
+    //erased by a degradation reset, so that one is derived from the capacities above instead.
+    if (nissan_dl->battery_SOHraw_pptt) {
+      content += "<h4>SOH raw: " + String(nissan_dl->battery_SOHraw_pptt / 100.0f, 2) + "% (avg " +
+                 (nissan_dl->battery_SOHavg_pptt ? String(nissan_dl->battery_SOHavg_pptt / 100.0f, 2) + "%"
+                                                 : String("Unknown")) +
+                 ")</h4>";
+    } else {
+      content += String("<h4>SOH raw: Unknown</h4>");
+    }
     //A used pack always has AC charges on it, so a zero L1/L2 count means the group was not read yet.
     content +=
         "<h4>QC charge count: " + (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountQC) : String("Unknown")) +
@@ -54,6 +85,8 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
     content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
+    content += "<h4>+12V BAT level: " +
+               (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) + "</h4>";
     content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
     content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
     if (nissan_dl->LEAF_gen == 0) {

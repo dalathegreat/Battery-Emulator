@@ -151,7 +151,7 @@ struct DATALAYER_INFO_BYDATTO3 {
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[13];
+  int16_t battery_temperatures[12];
 
   uint8_t discharge_status;
   uint8_t BMS_min_cell_voltage_number;
@@ -467,34 +467,6 @@ struct DATALAYER_INFO_GEELY_GEOMETRY_C {
   uint16_t unknown8;
 };
 
-struct DATALAYER_INFO_KIAHYUNDAI64 {
-  uint32_t cumulative_charge_current_ah;
-  uint32_t cumulative_discharge_current_ah;
-  uint32_t cumulative_energy_charged_kWh;
-  uint32_t cumulative_energy_discharged_kWh;
-  uint32_t powered_on_total_time;
-
-  uint16_t inverterVoltage;
-  uint16_t isolation_resistance_kOhm;
-  uint16_t number_of_standard_charging_sessions;
-  uint16_t number_of_fastcharging_sessions;
-  uint16_t accumulated_normal_charging_energy_kWh;
-  uint16_t accumulated_fastcharging_energy_kWh;
-  uint16_t battery_12V;
-
-  int8_t temperature_water_inlet;
-  int8_t powerRelayTemperature;
-
-  uint8_t total_cell_count;
-  uint8_t waterleakageSensor;
-  uint8_t batteryManagementMode;
-  uint8_t BMS_ign;
-  uint8_t batteryRelay;
-
-  uint8_t ecu_serial_number[16];
-  uint8_t ecu_version_number[16];
-};
-
 struct DATALAYER_INFO_KIA64FD {
   /** SOC reported by the BMS, 1000 = 100.0% */
   uint16_t SOC_BMS;
@@ -593,7 +565,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_info_subUsageId;
   uint16_t battery_dcdcLvBusVolt;
   uint16_t battery_dcdcHvBusVolt;
-  uint16_t battery_dcdcLvOutputCurrent;
+  int16_t battery_dcdcLvOutputCurrent;
   uint16_t battery_nominal_full_pack_energy;
   uint16_t battery_nominal_full_pack_energy_m0;
   uint16_t battery_nominal_energy_remaining;
@@ -609,7 +581,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMax;
   uint16_t battery_BrickVoltageMin;
   uint16_t HVP_hvp1v5Ref;
-  uint16_t HVP_shuntCurrentDebug;
+  int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
   int16_t PCS_ambientTemp;
   int16_t PCS_chgPhATemp;
@@ -727,7 +699,6 @@ struct DATALAYER_INFO_TESLA {
   uint8_t HVP_info_pcbaId;
   uint8_t HVP_info_assemblyId;
   uint8_t HVP_info_bootUdsProtoVersion;
-  uint8_t HVP_shuntHwMia;
   uint8_t HVP_shuntAuxCurrentStatus;
   uint8_t HVP_shuntBarTempStatus;
   uint8_t HVP_shuntAsicTempStatus;
@@ -764,19 +735,15 @@ struct DATALAYER_INFO_TESLA {
   bool HVP_gpioPyroPor;
   bool HVP_gpioShuntEn;
   bool HVP_gpioHvpVerEn;
-  bool HVP_gpioPackCoontPosFlywheel;
+  bool HVP_gpioFcContFlywheelEnable;
   bool HVP_gpioCpLatchEnable;
-  bool HVP_gpioPcsEnable;
-  bool HVP_gpioPcsDcdcPwmEnable;
-  bool HVP_gpioPcsChargePwmEnable;
   bool HVP_gpioFcContPowerEnable;
   bool HVP_gpioHvilEnable;
-  bool HVP_gpioSecDrdy;
+  bool HVP_gpioPortSelSpiRdy;
+  bool HVP_gpioPyroUnlock;
   bool HVP_packCurrentMia;
   bool HVP_auxCurrentMia;
   bool HVP_currentSenseMia;
-  bool HVP_shuntRefVoltageMismatch;
-  bool HVP_shuntThermistorMia;
 
   uint8_t BMS_partNumber[12];        //stores raw HEX values for ASCII chars
   uint8_t battery_serialNumber[15];  //stores raw HEX values for ASCII chars
@@ -793,6 +760,15 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+  /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
+   * Derived in the driver rather than at each display site so the per-generation nominal
+   * voltage is stated once.
+   */
+  uint32_t CapacityWh;
+  /** Nameplate energy of this pack size, max GIDs times WH_PER_GID, in Wh. Fixed per pack rather
+   * than tracking wear, so it serves as the reference CapacityWh is compared against.
+   */
+  uint32_t CapacityAsNewWh;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
@@ -800,8 +776,22 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;
+  /** Unfiltered state of health from the health block, in hundredths of a percent. 0 until read.
+   * The filtered figure the pack publishes settles onto this one, so it moves first while a
+   * pack is relearning after a degradation reset.
+   */
+  uint16_t battery_SOHraw_pptt;
+  /** State of health as the LBC itself publishes it, in hundredths of a percent. 0 until read.
+   * Erased along with the degradation data, so it reads 100% on a pack that has had a reset no
+   * matter what the pack still holds. Shown for reference only.
+   */
+  uint16_t battery_SOHavg_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
+  /** Pack capacity in hundredths of an Ah (11544 = 115.44 Ah), 0 until read from the battery */
+  uint16_t CapacityCAh;
+  /** 12 V accessory battery level in mV, 0 until read from the battery */
+  uint16_t VBAT_mV;
   /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
   uint16_t ChargeCountQC;
   /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
@@ -1055,10 +1045,6 @@ class DataLayerExtended {
     struct {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
-    };
-    struct {
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
     struct {

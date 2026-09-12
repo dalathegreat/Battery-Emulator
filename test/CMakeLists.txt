@@ -134,12 +134,12 @@ add_executable(tests
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
     ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
+    ../Software/src/battery/GROWATT-LV-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
     ../Software/src/battery/JAGUAR-IPACE-BATTERY.cpp
     ../Software/src/battery/KIA-E-GMP-BATTERY.cpp
-    ../Software/src/battery/KIA-E-GMP-HTML.cpp
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp

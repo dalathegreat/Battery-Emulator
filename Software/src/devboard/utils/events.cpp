@@ -40,6 +40,7 @@ static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latche
  * nothing about which events belong here. */
 static const EVENTS_ENUM_TYPE OFFGRID_DOWNGRADED_EVENTS[] = {
     EVENT_CAN_INVERTER_MISSING,
+    EVENT_MODBUS_INVERTER_MISSING,
 };
 
 static EVENTS_LEVEL_TYPE effective_level(EVENTS_ENUM_TYPE event) {

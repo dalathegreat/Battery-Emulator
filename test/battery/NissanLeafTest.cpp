@@ -3,6 +3,10 @@
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 
+#include <vector>
+
+#include "../../Software/src/datalayer/datalayer_extended.h"
+#include "../../Software/src/devboard/utils/events.h"
 #include "Arduino.h"
 
 namespace {
@@ -43,7 +47,426 @@ NissanLeafBattery* battery_awaiting_dtc_reply() {
   return battery;
 }
 
+// Group replies are only decoded once the driver is polling for itself, which needs a live
+// battery and one pass of the 10 s tick to clear the initial "someone else may be on the bus" hold.
+NissanLeafBattery* battery_polling() {
+  set_millis64(50000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  // 0x5BC marks the battery alive. Byte 0 gives a plausible GID count so the empty-battery
+  // safety path stays out of the way; byte 4 is left at zero so no broadcast SOH is reported.
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->transmit_can(50000);
+  return battery;
+}
+
+// Feeds a complete group 0x02 reply carrying the 96 given cell values. The LBC pads the block past
+// the last cell, and the driver keys the end of the transfer off that padding.
+void feed_cell_voltage_reply(NissanLeafBattery* battery, const uint16_t (&cells)[96]) {
+  std::vector<uint8_t> payload = {0x61, 0x02};
+  for (uint16_t cell : cells) {
+    payload.push_back((uint8_t)(cell >> 8));
+    payload.push_back((uint8_t)(cell & 0xFF));
+  }
+  payload.insert(payload.end(), 8, 0xFF);  // trailing padding, no cell data
+
+  std::initializer_list<uint8_t> unused = {};
+  (void)unused;
+
+  CAN_frame first = leaf_7bb_frame({});
+  first.data.u8[0] = (uint8_t)(0x10 | ((payload.size() >> 8) & 0x0F));
+  first.data.u8[1] = (uint8_t)(payload.size() & 0xFF);
+  for (size_t i = 0; i < 6; i++) {
+    first.data.u8[2 + i] = payload[i];
+  }
+  battery->handle_incoming_can_frame(first);
+
+  size_t offset = 6;
+  uint8_t sequence = 1;
+  while (offset < payload.size()) {
+    CAN_frame consecutive = leaf_7bb_frame({});
+    consecutive.data.u8[0] = (uint8_t)(0x20 | (sequence & 0x0F));
+    for (size_t i = 0; i < 7; i++) {
+      consecutive.data.u8[1 + i] = (offset + i < payload.size()) ? payload[offset + i] : 0xFF;
+    }
+    battery->handle_incoming_can_frame(consecutive);
+    offset += 7;
+    sequence++;
+  }
+}
+
 }  // namespace
+
+// The health block is the only group reply longer than 255 bytes, so its first frame announces
+// itself as 1L LL. An equality test against 0x10 would never latch the group at all.
+TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
+  auto battery = battery_polling();
+
+  // 11 4B 61 61 | Hx 0x2AF8 = 110.00 % | SOH 0x2710 = 100.00 %
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+  //The SOH the block carries is kept for display, and does not by itself make a state of health
+  //available: that is derived from the capacities.
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);
+  EXPECT_FALSE(datalayer.battery.status.soh_available);
+}
+
+// The LBC's PID 0x61 handler writes BarCount_SOH, SOH_raw, SOH_Internal and two status bits
+// straight after Hx and SOH, so they land in the second frame of the reply.
+TEST(NissanLeafHealthTests, ShouldDecodeTrailingHealthBlockFields) {
+  auto battery = battery_polling();
+
+  // 11 4B 61 61 | Hx 0x2AF8 | SOH 0x2710
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  // 21 | bars 0x0C | SOH_raw 0x2648 | SOH_Internal 0x25E4 | flags 0x03 | payload[12]
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x26, 0x48, 0x25, 0xE4, 0x03, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHraw_pptt, 9800u);
+
+  // The fields ahead of them are untouched by the second frame.
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);
+}
+
+// A freshly reset pack reports exactly 10000 in both SOH fields, the firmware's own 100.00 %.
+TEST(NissanLeafHealthTests, ShouldDecodeResetPackHealthBlock) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x27, 0x10}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0xFF, 0x27, 0x10, 0x27, 0x10, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHraw_pptt, 10000u);
+}
+
+// Hx above 100 % is a normal reading on a healthy pack and must survive intact.
+TEST(NissanLeafHealthTests, ShouldNotClampHxAboveOneHundredPercent) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x30, 0xD4, 0x25, 0x8A}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 12500u);     // 0x30D4
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9610u);  // 0x258A
+}
+
+// Feeds a group 0x01 reply far enough to deliver the pack capacity, which sits in the sixth frame
+// at payload[34..37] as a u32 in ten-thousandths of an Ah. 0x29 is the ZE0 layout, 0x2B the AZE0.
+void feed_pack_capacity(NissanLeafBattery* battery, uint32_t ten_thousandths_Ah, uint8_t layout_length = 0x2B) {
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, layout_length, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00}));
+  for (uint8_t frame = 0x21; frame <= 0x24; frame++) {
+    battery->handle_incoming_can_frame(leaf_7bb_frame({frame, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  }
+  battery->handle_incoming_can_frame(
+      leaf_7bb_frame({0x25, (uint8_t)(ten_thousandths_Ah >> 24), (uint8_t)(ten_thousandths_Ah >> 16),
+                      (uint8_t)(ten_thousandths_Ah >> 8), (uint8_t)ten_thousandths_Ah, 0x00, 0x00, 0x00}));
+}
+
+// The measured capacity at the pack's nominal voltage is what the rest of the system is told the
+// battery holds, in place of the GID count scaled by a state of health the pack can have had erased.
+TEST(NissanLeafHealthTests, ShouldReportTotalCapacityFromMeasuredPackCapacity) {
+  auto battery = battery_polling();
+
+  feed_pack_capacity(battery, 662500);  // 66.25 Ah
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityCAh, 6625u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityWh, 23850u);  // 66.25 Ah at 360.0 V
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 23850u);
+}
+
+// Capacity as new comes from the max GID count, which stays put as the pack ages. Nothing in
+// battery_polling() sets the max mux in 0x5BC, so the pack is on the 24 kWh startup default of 273.
+TEST(NissanLeafHealthTests, ShouldDeriveStateOfHealthFromCapacityRatio) {
+  auto battery = battery_polling();
+
+  feed_pack_capacity(battery, 331250);  // 33.125 Ah, half of a new 24 kWh pack
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 21021u);  // 273 GIDs at 77 Wh
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // 11923 Wh of 21021 Wh
+}
+
+// The whole point of the change: a pack whose degradation has been reset publishes 100 %, while
+// the capacity it measures is untouched and still shows what it holds.
+TEST(NissanLeafHealthTests, ShouldIgnorePublishedStateOfHealthOnResetPack) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x27, 0x10}));
+  feed_pack_capacity(battery, 331250);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);  // What the pack claims
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);                   // What it actually holds
+}
+
+// Builds a 0x55B carrying the given state of charge in tenths of a percent, signed with the CRC
+// the driver checks before it will read anything out of the frame.
+void feed_state_of_charge(NissanLeafBattery* battery, uint16_t tenths_percent) {
+  CAN_frame frame = leaf_frame(0x55B, {(uint8_t)(tenths_percent >> 2), (uint8_t)((tenths_percent & 0x03) << 6), 0x00,
+                                       0x00, 0x00, 0x00, 0x00, 0x00});
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  battery->handle_incoming_can_frame(frame);
+}
+
+// Above 100% is the two capacities being measured on different bases, not a pack in better than
+// new condition, and several inverter protocols have no room for it either.
+TEST(NissanLeafHealthTests, ShouldCapDerivedStateOfHealthAtOneHundredPercent) {
+  auto battery = battery_polling();
+
+  feed_pack_capacity(battery, 662500);  // 66.25 Ah is 23850 Wh against a 21021 Wh reference
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 23850u);  // Not capped, it is a measurement
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000u);
+}
+
+// Remaining energy comes off the measured capacity, not the GID count. A degradation reset puts
+// the LBC's own capacity figure back to nameplate and the GIDs with it, so on a reset pack the
+// broadcast count claims more energy left than the pack can physically hold.
+TEST(NissanLeafHealthTests, ShouldDeriveRemainingCapacityFromMeasuredCapacity) {
+  auto battery = battery_polling();
+
+  feed_state_of_charge(battery, 950);   // 95.0 %
+  feed_pack_capacity(battery, 331250);  // 33.12 Ah, 11923 Wh
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.real_soc, 9500u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 11326u);  // 95 % of 11923 Wh
+  EXPECT_LE(datalayer.battery.status.remaining_capacity_Wh, datalayer.battery.info.total_capacity_Wh);
+}
+
+// Until a capacity has been read there is nothing else to go on, so the GID count still stands in.
+TEST(NissanLeafHealthTests, ShouldFallBackToGidsForRemainingCapacityBeforeCapacityIsRead) {
+  auto battery = battery_polling();
+
+  battery->update_values();
+
+  // battery_polling() broadcasts 320 GIDs in 0x5BC.
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 24640u);  // 320 GIDs at 77 Wh
+}
+
+// The max GID count is broadcast with the mux bit set, and only by the 30/40/62 kWh packs.
+TEST(NissanLeafHealthTests, ShouldTakeCapacityAsNewFromBroadcastMaxGids) {
+  auto battery = battery_polling();
+
+  // Byte 5 bit 4 marks the max GID mux; 356 GIDs is a 30 kWh pack.
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x59, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 27412u);  // 356 GIDs at 77 Wh
+}
+
+// Nothing has been read from the pack yet, so no state of health is invented.
+TEST(NissanLeafHealthTests, ShouldReportStateOfHealthUnknownBeforeAnyReading) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->update_values();
+
+  EXPECT_FALSE(datalayer.battery.status.soh_available);
+}
+
+// The broadcast value in 0x5BC stands in at whole-percent resolution until the health block
+// answers, and is then superseded by it. This is the figure the pack publishes for itself, shown
+// on the info page beside the raw one; what the system reports as SOH comes from the capacities.
+TEST(NissanLeafHealthTests, ShouldPreferPolledStateOfHealthOverBroadcast) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0xBE, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9500u);  // 0xBE >> 1 = 95 %
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x25, 0x2C}));
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9516u);  // 0x252C = 95.16 %
+}
+
+// A rejected request is a single frame, not group data. Letting it through would leave the
+// previously latched group decoding it, which for cell voltages means writing garbage into
+// the array.
+TEST(NissanLeafHealthTests, ShouldIgnoreNegativeResponse) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+  ASSERT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+
+  // requestOutOfRange for service 0x21
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x03, 0x7F, 0x21, 0x31, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
+}
+
+// 0xFFFF is the LBC saying it has no reading for that cell, which is not a measurement of zero
+// and must not be treated as 65.535 V either.
+// Feeds a group 0x01 reply far enough to deliver the 12 V level. The announced length selects the
+// layout: 0x29 is ZE0, 0x2B is AZE0, 0x35 is ZE1.
+void feed_12v_reading(NissanLeafBattery* battery, uint16_t millivolts, uint8_t layout_length = 0x29) {
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, layout_length, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  // Fourth frame carries payload[20..26]; the 12 V level sits at payload[22..23].
+  battery->handle_incoming_can_frame(
+      leaf_7bb_frame({0x23, 0x00, 0x00, (uint8_t)(millivolts >> 8), (uint8_t)(millivolts & 0xFF), 0x00, 0x00, 0x00}));
+}
+
+TEST(NissanLeafHealthTests, ShouldDecodeTwelveVoltLevel) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 12480);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 12480u);
+}
+
+// Same offset on ZE1 as on ZE0/AZE0, confirmed on the bench.
+TEST(NissanLeafHealthTests, ShouldDecodeTwelveVoltLevelOnZe1Layout) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 12480, 0x35);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 12480u);
+}
+
+// A layout nothing here recognises is left alone rather than guessed at.
+TEST(NissanLeafHealthTests, ShouldIgnoreTwelveVoltLevelOnUnknownLayout) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 12480, 0x2C);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 0u);
+}
+
+// A garbled or partial frame cannot put a value outside the range of a 12 V battery on the page.
+TEST(NissanLeafHealthTests, ShouldRejectImplausibleTwelveVoltLevel) {
+  auto battery = battery_polling();
+
+  feed_12v_reading(battery, 41000, 0x35);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.VBAT_mV, 0u);
+}
+
+TEST(NissanLeafHealthTests, ShouldRaiseLowTwelveVoltEventBelowThreshold) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  feed_12v_reading(battery, 10800);
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+
+  // Just above the threshold is still inside the hysteresis band, so the warning stands.
+  feed_12v_reading(battery, 11100);
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+
+  // Recovered past the band.
+  feed_12v_reading(battery, 12400);
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+// With no reported level and no cell reply yet, nothing is claimed either way.
+TEST(NissanLeafHealthTests, ShouldNotJudgeTwelveVoltLevelBeforeItIsRead) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  battery->update_values();
+
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+// On a pack that never reports a level, a cell reply with nothing readable in it stands in - the
+// same condition the previous cell-voltage test was detecting.
+TEST(NissanLeafHealthTests, ShouldFallBackToUnreadableCellsWhenNoLevelIsReported) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  uint16_t none[96];
+  for (uint16_t& cell : none) {
+    cell = 0xFFFF;
+  }
+  feed_cell_voltage_reply(battery, none);
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+
+  uint16_t good[96];
+  for (uint16_t& cell : good) {
+    cell = 3800;
+  }
+  feed_cell_voltage_reply(battery, good);
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+// A reported level wins over the fallback, so unreadable cells on a bench with a healthy supply
+// do not raise the warning.
+TEST(NissanLeafHealthTests, ShouldPreferReportedLevelOverUnreadableCells) {
+  auto battery = battery_polling();
+  clear_event(EVENT_12V_LOW);
+
+  feed_12v_reading(battery, 12600);
+  uint16_t none[96];
+  for (uint16_t& cell : none) {
+    cell = 0xFFFF;
+  }
+  feed_cell_voltage_reply(battery, none);
+  battery->update_values();
+
+  EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
+}
+
+TEST(NissanLeafCellTests, ShouldTreatSentinelCellsAsUnknown) {
+  auto battery = battery_polling();
+
+  uint16_t cells[96];
+  for (uint16_t& cell : cells) {
+    cell = 3800;
+  }
+  cells[0] = 0xFFFF;  // no reading
+  cells[5] = 3700;    // genuine minimum
+  cells[9] = 3900;    // genuine maximum
+
+  feed_cell_voltage_reply(battery, cells);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[1], 3800u);
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3700u);
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3900u);
+}
+
+// A pack answering with nothing but sentinels, as a bench BMS with no HV stack does, leaves the
+// min/max alone rather than publishing a 0 mV minimum.
+TEST(NissanLeafCellTests, ShouldKeepPreviousMinMaxWhenNoCellReports) {
+  auto battery = battery_polling();
+
+  uint16_t good[96];
+  for (uint16_t& cell : good) {
+    cell = 3800;
+  }
+  good[0] = 3600;
+  feed_cell_voltage_reply(battery, good);
+
+  uint16_t none[96];
+  for (uint16_t& cell : none) {
+    cell = 0xFFFF;
+  }
+  feed_cell_voltage_reply(battery, none);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3600u);
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3800u);
+  EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
+}
 
 TEST(NissanLeafTests, ShouldReportVoltage) {
   auto battery = new NissanLeafBattery();

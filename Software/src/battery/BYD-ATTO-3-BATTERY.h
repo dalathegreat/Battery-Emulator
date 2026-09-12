@@ -201,6 +201,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t SESSION_CELL_CLAMP_MV =
       3780;  // backstop above full+overshoot; applies only while a session owns the top
   static const uint16_t SESSION_DELTA_LIMIT_MV = 400;     // real cars run 250-360mV of spread at the top
+  static const uint16_t SESSION_RAILS_MARGIN_MV = 20;     // rails release only once cells clear the stock limit
   static const uint32_t SESSION_OBC_CAP_W = 7000;         // donor OBC maximum offer (0x47E b4 = 0x47)
   static const int16_t SESSION_ARM_CURRENT_dA = 20;       // arm on 2.0A of charge current...
   static const uint32_t SESSION_ARM_DWELL_MS = 30000;     // ...sustained this long
@@ -461,7 +462,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
   bool calibrationAH_seeded = false;
 
-  int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
+  int16_t battery_daughterboard_temperatures[12] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
   uint16_t battery_cellvoltages[MAX_AMOUNT_CELLS] = {0};
 
   /* Extra CAN info 
