@@ -168,6 +168,12 @@ void init_events(void) {
   events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR2_OPEN].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR3_OPEN].level = EVENT_LEVEL_WARNING;
+#ifndef SMALL_FLASH_DEVICE
+  events.entries[EVENT_BMS_CONTACTOR_INTERLOCK].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BMS_CONTACTOR_OPEN_SHUTDOWN].level = EVENT_LEVEL_WARNING;
+#endif  // SMALL_FLASH_DEVICE
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
@@ -392,6 +398,21 @@ void clear_event(EVENTS_ENUM_TYPE event) {
   }
 }
 
+/* Clear an event AND wipe its history (occurrence count, timestamp, data), so it disappears from
+   the events page entirely instead of lingering as an inactive row. For transient "waiting"
+   conditions that fire and clear on their own every boot and are not worth logging. Idempotent -
+   cheap no-op once the entry is already blank. */
+void reset_event(EVENTS_ENUM_TYPE event) {
+  if (events.entries[event].occurences == 0 && events.entries[event].state == EVENT_STATE_INACTIVE) {
+    return;
+  }
+  clear_event(event);
+  events.entries[event].occurences = 0;
+  events.entries[event].timestamp = 0;
+  events.entries[event].data = 0;
+  events.entries[event].MQTTpublished = false;
+}
+
 void ignore_can_errors_for(CAN_Interface interface, uint32_t duration_ms) {
   // Suppress the buffer-full / bus-error events of a single CAN interface for a while.
   if ((uint8_t)interface >= NO_CAN_INTERFACE) {
@@ -462,6 +483,19 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CONTACTOR_OPEN:
       return "Battery decided to open contactors. Inspect battery!";
+    case EVENT_CONTACTOR2_OPEN:
+      return "Battery 2 decided to open contactors. Inspect battery 2!";
+    case EVENT_CONTACTOR3_OPEN:
+      return "Battery 3 decided to open contactors. Inspect battery 3!";
+#ifndef SMALL_FLASH_DEVICE
+    case EVENT_BMS_CONTACTOR_INTERLOCK:
+      return "GPIO contactor closing held until every battery BMS reports its contactors closed "
+             "and has stayed closed for a few seconds. Event data: battery number not closed, or "
+             "0 = all closed, settling. See the BMS contactors line on the main page.";
+    case EVENT_BMS_CONTACTOR_OPEN_SHUTDOWN:
+      return "A battery opened its BMS contactors while running. Paused and opened the GPIO "
+             "contactors. Event data is the battery number. Recovers once every battery is closed again.";
+#endif  // SMALL_FLASH_DEVICE
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:

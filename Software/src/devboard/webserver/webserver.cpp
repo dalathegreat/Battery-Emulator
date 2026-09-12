@@ -466,6 +466,9 @@ void init_webserver() {
       "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
       "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
       "INVACCREB",
+#ifndef SMALL_FLASH_DEVICE
+      "REQBMSCONT",
+#endif  // SMALL_FLASH_DEVICE
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
@@ -1049,6 +1052,98 @@ String get_firmware_info_processor(const String& var) {
   return String();
 }
 
+// --- Per-battery main-page display helpers ---------------------------------------------------
+// Display only. These never write the datalayer and have no effect on inverter or contactor
+// control. They let each battery card show ITS OWN scaled values instead of battery 1 / the
+// aggregate. The formulas mirror update_calculated_values() in Software.cpp; only the inputs
+// differ (each pack's own real SOC / real capacity, one shared SOC window from settings).
+
+// Scaled SOC in pptt (0..10000) for one pack from its own real SOC.
+static int32_t dashboard_scaled_soc_pptt(int32_t real_soc_pptt) {
+  const int32_t min_pct = datalayer.battery.settings.min_percentage;
+  const int32_t max_pct = datalayer.battery.settings.max_percentage;
+  const int32_t delta = max_pct - min_pct;
+  if (delta <= 0) {
+    return 0;
+  }
+  int32_t clamped = real_soc_pptt;
+  if (clamped < min_pct) {
+    clamped = min_pct;
+  }
+  if (clamped > max_pct) {
+    clamped = max_pct;
+  }
+  return (10000 * (clamped - min_pct)) / delta;
+}
+
+// Scaled usable total capacity in Wh for one pack from its own real total capacity.
+static uint32_t dashboard_scaled_total_capacity_Wh(uint32_t real_total_capacity_Wh) {
+  const int32_t delta =
+      (int32_t)datalayer.battery.settings.max_percentage - (int32_t)datalayer.battery.settings.min_percentage;
+  if (delta <= 0 || real_total_capacity_Wh == 0) {
+    return real_total_capacity_Wh;
+  }
+  return (uint32_t)(((uint64_t)real_total_capacity_Wh * (uint32_t)delta) / 10000);
+}
+
+// Scaled remaining capacity in Wh for one pack from its own scaled total capacity and scaled SOC.
+static uint32_t dashboard_scaled_remaining_capacity_Wh(uint32_t scaled_total_capacity_Wh, int32_t scaled_soc_pptt) {
+  return (uint32_t)(((uint64_t)scaled_total_capacity_Wh * (uint32_t)scaled_soc_pptt) / 10000);
+}
+
+// Configured (user Settings) charge/discharge limits, formatted for a battery card. Shows the
+// raw user setting (max_user_set_charge_dA / max_user_set_discharge_dA, deci-amps) as amps, plus
+// an approximate power using the same A->W conversion the rest of the firmware uses (live pack
+// voltage, or design max voltage as fallback). Display only.
+static String battery_configured_limits_html() {
+  const float chargeA = datalayer.battery.settings.max_user_set_charge_dA / 10.0f;
+  const float dischargeA = datalayer.battery.settings.max_user_set_discharge_dA / 10.0f;
+  uint16_t conv_dV = datalayer.battery.status.voltage_dV;
+  if (conv_dV <= 10) {
+    conv_dV = datalayer.battery.info.max_design_voltage_dV;
+  }
+  String out;
+  out += "<h4 style='color: white;'>Configured max charge: " + String(chargeA, 1) + " A";
+  if (conv_dV > 10) {
+    out += " (" +
+           formatPowerValue((uint32_t)(((uint32_t)datalayer.battery.settings.max_user_set_charge_dA * conv_dV) / 100),
+                            "", 1) +
+           ")";
+  }
+  out += "</h4>";
+  out += "<h4 style='color: white;'>Configured max discharge: " + String(dischargeA, 1) + " A";
+  if (conv_dV > 10) {
+    out += " (" +
+           formatPowerValue(
+               (uint32_t)(((uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * conv_dV) / 100), "", 1) +
+           ")";
+  }
+  out += "</h4>";
+  return out;
+}
+
+// "CLOSED" / "OPEN" / "UNKNOWN" from a battery instance's real BMS contactor feedback.
+// When OPEN and the battery reports an opening-reason code, it is appended as " (reason: N)".
+static String dashboard_contactor_text(Battery* b) {
+  if (!b) {
+    return String("UNKNOWN");
+  }
+  switch (b->contactor_status()) {
+    case Battery::ContactorStatus::CLOSED:
+      return String("CLOSED");
+    case Battery::ContactorStatus::OPEN: {
+      String s = "OPEN";
+      const int16_t reason = b->contactor_open_reason();
+      if (reason >= 0) {
+        s += " (reason: " + String(reason) + ")";
+      }
+      return s;
+    }
+    default:
+      return String("UNKNOWN");
+  }
+}
+
 String processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -1256,8 +1351,10 @@ String processor(const String& var) {
       // Display battery statistics within this block
       float socRealFloat =
           static_cast<float>(datalayer.battery.status.real_soc) / 100.0f;  // Convert to float and divide by 100
-      float socScaledFloat =
-          static_cast<float>(datalayer.battery.status.reported_soc) / 100.0f;  // Convert to float and divide by 100
+      // Per-card scaled SOC: computed from THIS pack's own real SOC (not battery.reported_soc,
+      // which for multi-battery is the aggregate/extreme-pack value the inverter sees).
+      int32_t scaledSocPptt = dashboard_scaled_soc_pptt(datalayer.battery.status.real_soc);
+      float socScaledFloat = static_cast<float>(scaledSocPptt) / 100.0f;
       float sohFloat =
           static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
       float voltageFloat =
@@ -1285,16 +1382,22 @@ String processor(const String& var) {
                  " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
       content += formatPowerValue("Power", powerFloat, "", 1);
 
+      // Per-card scaled capacity: computed from THIS pack's own real capacity, so battery 1 shows
+      // its own ~42.5 kWh and not battery.info.reported_total_capacity_Wh (the aggregate the
+      // inverter is fed). The aggregate datalayer value is left untouched.
+      uint32_t scaledTotalCapacityWh = dashboard_scaled_total_capacity_Wh(datalayer.battery.info.total_capacity_Wh);
+      uint32_t scaledRemainingCapacityWh = dashboard_scaled_remaining_capacity_Wh(scaledTotalCapacityWh, scaledSocPptt);
+
       if (datalayer.battery.settings.soc_scaling_active)
-        content += "<h4 style='color: white;'>Scaled total capacity: " +
-                   formatPowerValue(datalayer.battery.info.reported_total_capacity_Wh, "h", 1) +
-                   " (real: " + formatPowerValue(datalayer.battery.info.total_capacity_Wh, "h", 1) + ")</h4>";
+        content +=
+            "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(scaledTotalCapacityWh, "h", 1) +
+            " (real: " + formatPowerValue(datalayer.battery.info.total_capacity_Wh, "h", 1) + ")</h4>";
       else
         content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
 
       if (datalayer.battery.settings.soc_scaling_active)
         content += "<h4 style='color: white;'>Scaled remaining capacity: " +
-                   formatPowerValue(datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1) +
+                   formatPowerValue(scaledRemainingCapacityWh, "h", 1) +
                    " (real: " + formatPowerValue(datalayer.battery.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
       else
         content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
@@ -1390,6 +1493,14 @@ String processor(const String& var) {
       }
       content += "</h4>";
 
+      // Configured (user Settings) charge/discharge limits + real BMS contactor feedback.
+      // Same "Configured" values on every card (one system-wide setting), shown verbatim
+      // regardless of BMS/taper/FAULT. Display only, not a control value.
+      content += battery_configured_limits_html();
+      if (battery->reports_contactor_status()) {
+        content += "<h4>BMS contactors: " + String(dashboard_contactor_text(battery)) + "</h4>";
+      }
+
       // Close the block
       content += "</div>";
 
@@ -1412,7 +1523,11 @@ String processor(const String& var) {
         // Display battery statistics within this block
         socRealFloat =
             static_cast<float>(datalayer.battery2.status.real_soc) / 100.0f;  // Convert to float and divide by 100
-        //socScaledFloat; // Same value used for bat2
+        // Per-card scaled values from battery 2's OWN real SOC / real capacity.
+        scaledSocPptt = dashboard_scaled_soc_pptt(datalayer.battery2.status.real_soc);
+        socScaledFloat = static_cast<float>(scaledSocPptt) / 100.0f;
+        scaledTotalCapacityWh = dashboard_scaled_total_capacity_Wh(datalayer.battery2.info.total_capacity_Wh);
+        scaledRemainingCapacityWh = dashboard_scaled_remaining_capacity_Wh(scaledTotalCapacityWh, scaledSocPptt);
         sohFloat =
             static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
         voltageFloat =
@@ -1436,15 +1551,15 @@ String processor(const String& var) {
         content += formatPowerValue("Power", powerFloat, "", 1);
 
         if (datalayer.battery.settings.soc_scaling_active)
-          content += "<h4 style='color: white;'>Scaled total capacity: " +
-                     formatPowerValue(datalayer.battery2.info.reported_total_capacity_Wh, "h", 1) +
-                     " (real: " + formatPowerValue(datalayer.battery2.info.total_capacity_Wh, "h", 1) + ")</h4>";
+          content +=
+              "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(scaledTotalCapacityWh, "h", 1) +
+              " (real: " + formatPowerValue(datalayer.battery2.info.total_capacity_Wh, "h", 1) + ")</h4>";
         else
           content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 1);
 
         if (datalayer.battery.settings.soc_scaling_active)
           content += "<h4 style='color: white;'>Scaled remaining capacity: " +
-                     formatPowerValue(datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1) +
+                     formatPowerValue(scaledRemainingCapacityWh, "h", 1) +
                      " (real: " + formatPowerValue(datalayer.battery2.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
         else
           content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
@@ -1480,6 +1595,10 @@ String processor(const String& var) {
         } else {  // > 0
           content += "<h4>Battery charging!</h4>";
         }
+        content += battery_configured_limits_html();
+        if (battery2->reports_contactor_status()) {
+          content += "<h4>BMS contactors: " + String(dashboard_contactor_text(battery2)) + "</h4>";
+        }
         content += "</div>";
         if (battery3) {
           content += "<div style='flex: 1; background-color: ";
@@ -1500,7 +1619,11 @@ String processor(const String& var) {
           // Display battery statistics within this block
           socRealFloat =
               static_cast<float>(datalayer.battery3.status.real_soc) / 100.0f;  // Convert to float and divide by 100
-          //socScaledFloat; // Same value used for bat2
+          // Per-card scaled values from battery 3's OWN real SOC / real capacity.
+          scaledSocPptt = dashboard_scaled_soc_pptt(datalayer.battery3.status.real_soc);
+          socScaledFloat = static_cast<float>(scaledSocPptt) / 100.0f;
+          scaledTotalCapacityWh = dashboard_scaled_total_capacity_Wh(datalayer.battery3.info.total_capacity_Wh);
+          scaledRemainingCapacityWh = dashboard_scaled_remaining_capacity_Wh(scaledTotalCapacityWh, scaledSocPptt);
           sohFloat =
               static_cast<float>(datalayer.battery3.status.soh_pptt) / 100.0f;  // Convert to float and divide by 100
           voltageFloat =
@@ -1524,15 +1647,15 @@ String processor(const String& var) {
           content += formatPowerValue("Power", powerFloat, "", 1);
 
           if (datalayer.battery.settings.soc_scaling_active)
-            content += "<h4 style='color: white;'>Scaled total capacity: " +
-                       formatPowerValue(datalayer.battery3.info.reported_total_capacity_Wh, "h", 1) +
-                       " (real: " + formatPowerValue(datalayer.battery3.info.total_capacity_Wh, "h", 1) + ")</h4>";
+            content +=
+                "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(scaledTotalCapacityWh, "h", 1) +
+                " (real: " + formatPowerValue(datalayer.battery3.info.total_capacity_Wh, "h", 1) + ")</h4>";
           else
             content += formatPowerValue("Total capacity", datalayer.battery3.info.total_capacity_Wh, "h", 1);
 
           if (datalayer.battery.settings.soc_scaling_active)
             content += "<h4 style='color: white;'>Scaled remaining capacity: " +
-                       formatPowerValue(datalayer.battery3.status.reported_remaining_capacity_Wh, "h", 1) +
+                       formatPowerValue(scaledRemainingCapacityWh, "h", 1) +
                        " (real: " + formatPowerValue(datalayer.battery3.status.remaining_capacity_Wh, "h", 1) +
                        ")</h4>";
           else
@@ -1568,6 +1691,10 @@ String processor(const String& var) {
             content += "<h4>Battery discharging!</h4>";
           } else {  // > 0
             content += "<h4>Battery charging!</h4>";
+          }
+          content += battery_configured_limits_html();
+          if (battery3->reports_contactor_status()) {
+            content += "<h4>BMS contactors: " + String(dashboard_contactor_text(battery3)) + "</h4>";
           }
           content += "</div>";
           content += "</div>";

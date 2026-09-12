@@ -506,6 +506,27 @@ void update_calculated_values(uint32_t currentMillis) {
           datalayer.battery2.status.reported_remaining_capacity_Wh;
     }
 
+    if (battery3) {
+      // If battery info is valid
+      if (datalayer.battery3.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+
+        datalayer.battery3.info.reported_total_capacity_Wh = scaled_total_capacity;
+        // Scale remaining capacity based on scaled SOC
+        datalayer.battery3.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
+
+      } else {
+        // Fallback if scaling cannot be performed
+        datalayer.battery3.info.reported_total_capacity_Wh = datalayer.battery3.info.total_capacity_Wh;
+        datalayer.battery3.status.reported_remaining_capacity_Wh = datalayer.battery3.status.remaining_capacity_Wh;
+      }
+
+      //Triple battery: fold battery3 into the battery1 aggregate too, so the inverter sees all
+      //three packs as one large battery (matches the soc_scaling_active == false path below).
+      datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery3.info.reported_total_capacity_Wh;
+      datalayer.battery.status.reported_remaining_capacity_Wh +=
+          datalayer.battery3.status.reported_remaining_capacity_Wh;
+    }
+
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled SOC & capacity to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
 

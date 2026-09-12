@@ -160,6 +160,22 @@ class Battery {
 
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 
+  // Real contactor state as reported by the BMS for THIS pack (not a commanded
+  // state and not the emulator's own contactor output). Display only - used by
+  // the main web page to show "Contactors: CLOSED/OPEN/UNKNOWN" per battery.
+  // Base returns UNKNOWN; a driver overrides it once it decodes real feedback.
+  enum class ContactorStatus : uint8_t { UNKNOWN = 0, OPEN, CLOSED };
+  virtual ContactorStatus contactor_status() { return ContactorStatus::UNKNOWN; }
+
+  // True for batteries whose contactor_status() reflects a real decoded BMS feedback signal
+  // (not the UNKNOWN default). The optional "require BMS contactors closed" GPIO interlock only
+  // considers batteries for which this is true, so other integrations are unaffected.
+  virtual bool reports_contactor_status() { return false; }
+
+  // BMS-reported reason code for the contactors being open, or -1 when the battery does not
+  // report one / it is not applicable. Raw code, shown next to an OPEN status on the main page.
+  virtual int16_t contactor_open_reason() { return -1; }
+
   /* Which pack this instance drives: 1, 2 or 3. The same driver code serves every pack, so a
      driver cannot name its own battery in an event without this. Assigned centrally in
      setup_battery() and passed to set_event() as the third argument. */

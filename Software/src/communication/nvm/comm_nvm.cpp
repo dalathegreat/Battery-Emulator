@@ -203,6 +203,9 @@ void init_stored_settings() {
   contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
   contactor_control_enabled_triple_battery = settings.getBool("CNTCTRLTRI", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
+#ifndef SMALL_FLASH_DEVICE
+  require_bms_contactors_closed = settings.getBool("REQBMSCONT", false);
+#endif  // SMALL_FLASH_DEVICE
   pwm_frequency = settings.getUInt("PWMFREQ", 20000);
   pwm_hold_duty = settings.getUInt("PWMHOLD", 250);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);

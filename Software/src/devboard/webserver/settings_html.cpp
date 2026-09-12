@@ -603,6 +603,12 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PWMCNTCTRL") ? "checked" : "";
   }
 
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "REQBMSCONT") {
+    return settings.getBool("REQBMSCONT") ? "checked" : "";
+  }
+#endif  // SMALL_FLASH_DEVICE
+
   if (var == "PERBMSRESET") {
     return settings.getBool("PERBMSRESET") ? "checked" : "";
   }
@@ -1257,6 +1263,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
   )rawliteral"
 
+// Stellantis eCMP only, and not built for flash-limited boards.
+#ifndef SMALL_FLASH_DEVICE
+#define REQBMSCONT_SETTING_HTML \
+  R"rawliteral(
+            <div class="if-ecmp">
+                <label>Require battery BMS contactors closed: </label>
+                <input type='checkbox' name='REQBMSCONT' value='on' %REQBMSCONT%
+                title="Hold GPIO contactor closing until every Stellantis eCMP battery reports its BMS contactors CLOSED and settled. Does not force contactors open once engaged." />
+            </div>
+  )rawliteral"
+#else
+#define REQBMSCONT_SETTING_HTML ""
+#endif  // SMALL_FLASH_DEVICE
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
@@ -1474,6 +1494,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-daly { display: none; }
     form[data-battery="23"] .if-daly {
+      display: contents;
+    }
+
+    form .if-ecmp { display: none; }
+    form[data-battery="13"] .if-ecmp {
       display: contents;
     }
 
@@ -2195,11 +2220,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             title="Frequency in Hz used for PWM" />
 
             <label>PWM Hold 1-1023: </label>
-            <input type='number' name='PWMHOLD' value="%PWMHOLD%" 
+            <input type='number' name='PWMHOLD' value="%PWMHOLD%"
             min="1" max="1023" step="1"
             title="1-1023 , lower value = lower power consumption" />
               </div>
-
+  )rawliteral" REQBMSCONT_SETTING_HTML R"rawliteral(
         </div>
 
         <label>Periodic BMS reset: </label>

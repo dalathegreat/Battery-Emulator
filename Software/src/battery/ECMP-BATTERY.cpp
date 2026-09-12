@@ -225,11 +225,72 @@ void EcmpBattery::update_values() {
     clear_event(EVENT_12V_LOW);
   }
 
-  if (pid_reason_open == 7) {  //Invalid status
-    set_event(EVENT_CONTACTOR_OPEN, 0);
-  } else {
-    clear_event(EVENT_CONTACTOR_OPEN);
+  // Route the contactor-open event to the variant for this pack so the events page and MQTT
+  // show which of the up to three batteries opened. Detection condition is unchanged.
+  EVENTS_ENUM_TYPE contactor_open_event = EVENT_CONTACTOR_OPEN;
+  if (battery_index == 2) {
+    contactor_open_event = EVENT_CONTACTOR2_OPEN;
+  } else if (battery_index == 3) {
+    contactor_open_event = EVENT_CONTACTOR3_OPEN;
   }
+  if (pid_reason_open == 7) {  //Invalid status
+    set_event(contactor_open_event, 0);
+  } else {
+    clear_event(contactor_open_event);
+  }
+}
+
+Battery::ContactorStatus EcmpBattery::contactor_status() {
+  // Display-only helper for the main web page. Reads this instance's own extended-data struct,
+  // never the globals, so battery 2/3 report their own contactors.
+  //
+  // Source: the polled "Contactor positive" / "Contactor negative" feedback PIDs (0xD44D / 0xD44C),
+  // stored raw as received. On-vehicle testing on this system: 1 = CLOSED, 0 = OPEN, 255 = not
+  // sampled yet (NOT_SAMPLED_YET). These are the two fields that actually track contactor state on
+  // this battery; MainConnectorState (CAN 0x125) and the "power switch status" PIDs (0xD452/0xD453,
+  // which report 3 here) do not, so they are deliberately not used.
+  //
+  // CLOSED only when BOTH report closed. If either truly reports open the result is OPEN. Missing
+  // CAN, an unsampled value or any value that is not a clean 0/1 yields UNKNOWN - never CLOSED.
+  if (!datalayer_ecmp || !datalayer_battery) {
+    return ContactorStatus::UNKNOWN;
+  }
+  if (datalayer_battery->status.CAN_battery_still_alive == 0) {
+    return ContactorStatus::UNKNOWN;  // BMS silent -> feedback would be stale
+  }
+  // The contactor-feedback PIDs are only refreshed by the diagnostic poll, which transmit_can()
+  // stops while system_status == FAULT - exactly when the BMS is most likely to have just opened
+  // the contactors. If the last answer is old, report UNKNOWN rather than a stale CLOSED/OPEN.
+  // The full PID sweep takes ~30 s, so the contactor PIDs are answered about every 30 s in normal
+  // running. 45 s tolerates one missed cycle without flapping to UNKNOWN, yet ages the value out
+  // within a minute of a FAULT that stops the poll.
+  const unsigned long CONTACTOR_FEEDBACK_MAX_AGE_MS = 45000;
+  if (pid_contactor_feedback_millis == 0 ||
+      (millis() - pid_contactor_feedback_millis) > CONTACTOR_FEEDBACK_MAX_AGE_MS) {
+    return ContactorStatus::UNKNOWN;
+  }
+
+  const uint8_t pos = datalayer_ecmp->pid_contactor_positive;  // PID 0xD44D
+  const uint8_t neg = datalayer_ecmp->pid_contactor_negative;  // PID 0xD44C
+  const bool pos_valid = (pos == 0 || pos == 1);
+  const bool neg_valid = (neg == 0 || neg == 1);
+  if (!pos_valid || !neg_valid) {
+    return ContactorStatus::UNKNOWN;  // not sampled (255) or unexpected raw value
+  }
+  if (pos == 1 && neg == 1) {
+    return ContactorStatus::CLOSED;
+  }
+  return ContactorStatus::OPEN;  // at least one contactor confirmed open
+}
+
+int16_t EcmpBattery::contactor_open_reason() {
+  // Raw "Contactor opening reason" PID (0xD812). 255 = not sampled / not applicable.
+  // Same value shown as "Contactor opening reason" on the More Battery Info page.
+  if (!datalayer_ecmp) {
+    return -1;
+  }
+  const uint8_t r = datalayer_ecmp->pid_reason_open;
+  return (r == NOT_SAMPLED_YET) ? -1 : (int16_t)r;
 }
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -828,9 +889,11 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               break;
             case PID_CONTACTOR_NEGATIVE:
               pid_contactor_negative = (rx_frame.data.u8[4]);
+              pid_contactor_feedback_millis = millis();
               break;
             case PID_CONTACTOR_POSITIVE:
               pid_contactor_positive = (rx_frame.data.u8[4]);
+              pid_contactor_feedback_millis = millis();
               break;
             case PID_PRECHARGE_RELAY_CONTROL:
               pid_precharge_relay_control = (rx_frame.data.u8[4]);
@@ -1294,7 +1357,26 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {  //Normal PID polling goes here
 
-      if (datalayer.system.status.system_status != FAULT) {  //Stop PID polling if we are in FAULT mode
+      if (datalayer.system.status.system_status == FAULT) {
+        // The full diagnostic sweep is suspended in FAULT, but keep a minimal rotation of just the
+        // contactor-feedback PIDs alive so the main page still shows which pack opened its
+        // contactors and why while faulted. Passive ReadDataByIdentifier reads only - no command,
+        // no effect on contactor control. One PID per 250 ms tick, so a full cycle every 750 ms.
+        uint16_t fault_pid;
+        if (fault_contactor_poll_state == 0) {
+          fault_pid = PID_CONTACTOR_POSITIVE;
+          fault_contactor_poll_state = 1;
+        } else if (fault_contactor_poll_state == 1) {
+          fault_pid = PID_CONTACTOR_NEGATIVE;
+          fault_contactor_poll_state = 2;
+        } else {
+          fault_pid = PID_CONT_REASON_OPEN;
+          fault_contactor_poll_state = 0;
+        }
+        ECMP_POLL.data.u8[2] = (uint8_t)((fault_pid & 0xFF00) >> 8);
+        ECMP_POLL.data.u8[3] = (uint8_t)(fault_pid & 0x00FF);
+        transmit_can_frame(&ECMP_POLL);
+      } else {  //Not in FAULT - run the normal full PID poll
 
         // Sample High Precison Current every other time
         if (HighPrecisionCurrentSampling) {

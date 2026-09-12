@@ -460,7 +460,8 @@ void setup_battery() {
           battery2 = new CmpSmartCarBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::StellantisEcmp:
-          battery2 = new EcmpBattery(&datalayer.battery2, can_config.battery_double);
+          battery2 =
+              new EcmpBattery(&datalayer.battery2, &datalayer_extended.stellantisECMP_2, can_config.battery_double);
           break;
         // Double only: needs a CAN-FD bus of its own, and only two exist.
         // See the comment on battery_supports_triple() above.
@@ -526,7 +527,8 @@ void setup_battery() {
           battery3 = new CmpSmartCarBattery(&datalayer.battery3, can_config.battery_triple);
           break;
         case BatteryType::StellantisEcmp:
-          battery3 = new EcmpBattery(&datalayer.battery3, can_config.battery_triple);
+          battery3 =
+              new EcmpBattery(&datalayer.battery3, &datalayer_extended.stellantisECMP_3, can_config.battery_triple);
           break;
         case BatteryType::RelionBattery:
           battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,

@@ -15,6 +15,10 @@ bool contactor_control_enabled = false;         //Should GPIO contactor control 
 bool contactor_control_inverted_logic = false;  //Should we control NC contactors? Extremely rare option
 uint16_t precharge_time_ms = 100;               //Precharge time in ms. Adjust depending on capacitance in inverter
 bool pwm_contactor_control = false;             //Should the contactors be economized via PWM after they are engaged?
+#ifndef SMALL_FLASH_DEVICE
+bool require_bms_contactors_closed =
+    false;  //Hold GPIO contactor closing until every reporting battery's BMS contactors are CLOSED
+#endif      // SMALL_FLASH_DEVICE
 bool contactor_control_enabled_double_battery = false;  //Should a contactor for the secondary battery be operated?
 bool contactor_control_enabled_triple_battery = false;  //Should a contactor for the third battery be operated?
 bool remote_bms_reset = false;                          //Is it possible to actuate BMS reset via MQTT?
@@ -172,6 +176,99 @@ static void dbg_contactors(const char* state) {
   logging.println(state);
 }
 
+// The Stellantis eCMP multi-battery "Require BMS contactors closed" interlock is not built for
+// flash-limited boards - they cannot run three CAN buses, so triple-battery is unavailable there
+// anyway. On SMALL_FLASH_DEVICE the two probe functions below become no-ops that fold away.
+#ifndef SMALL_FLASH_DEVICE
+
+/* "Require BMS contactors closed" interlock (Minimal variant): only gates the DISCONNECTED ->
+   START_PRECHARGE transition. Returns 0 when the interlock is satisfied (feature disabled, or
+   every battery that reports a real contactor status has it CLOSED). Otherwise returns the pack
+   number (1/2/3) of the first battery holding it back, for the event data. Batteries that do not
+   report a contactor status (reports_contactor_status() == false) are ignored, so integrations
+   without this feedback are unaffected. */
+// millis() when every reporting battery first read CLOSED together, 0 when at least one is not.
+static uint32_t bms_all_closed_since_ms = 0;
+// After all packs report closed, wait this long (continuously closed) before allowing precharge.
+// A cold 3-pack start otherwise fires precharge the instant the BMS contactors click in, before
+// the pack voltages have settled, and trips straight back off.
+#define BMS_INTERLOCK_SETTLE_MS 8000
+// Sentinel returned by bms_contactor_interlock_blocker() for "all closed, still settling".
+#define BMS_INTERLOCK_SETTLING 0xFF
+
+static uint8_t bms_contactor_interlock_blocker() {
+  if (!require_bms_contactors_closed) {
+    return 0;
+  }
+  Battery* packs[3] = {battery, battery2, battery3};
+  bool any_reporting = false;
+  for (uint8_t i = 0; i < 3; i++) {
+    Battery* b = packs[i];
+    if (b && b->reports_contactor_status()) {
+      any_reporting = true;
+      if (b->contactor_status() != Battery::ContactorStatus::CLOSED) {
+        bms_all_closed_since_ms = 0;  // restart the settle timer
+        return (uint8_t)(i + 1);
+      }
+    }
+  }
+  if (!any_reporting) {
+    // No configured battery reports a real contactor status (e.g. the setting is left on but
+    // the battery type was changed away from eCMP). The interlock, including the settle wait,
+    // does nothing.
+    bms_all_closed_since_ms = 0;
+    return 0;
+  }
+  // Every reporting pack is closed - hold precharge until they have stayed closed for the
+  // settle period.
+  if (bms_all_closed_since_ms == 0) {
+    bms_all_closed_since_ms = millis();
+  }
+  if ((millis() - bms_all_closed_since_ms) < BMS_INTERLOCK_SETTLE_MS) {
+    return BMS_INTERLOCK_SETTLING;
+  }
+  return 0;
+}
+
+/* Same feature, running side: returns the pack number (1/2/3) of the first battery that has
+   CONFIRMED-open BMS contactors (ContactorStatus::OPEN, not UNKNOWN) while the GPIO contactors
+   are closed, or 0. UNKNOWN is deliberately ignored here so a brief diagnostic-poll gap cannot
+   trigger a shutdown; a real open reports OPEN from the polled per-switch feedback. Gated on the
+   same opt-in setting and only considers batteries that report a real contactor status. */
+static uint8_t running_battery_bms_open() {
+  if (!require_bms_contactors_closed) {
+    return 0;
+  }
+  Battery* packs[3] = {battery, battery2, battery3};
+  for (uint8_t i = 0; i < 3; i++) {
+    Battery* b = packs[i];
+    if (b && b->reports_contactor_status() && b->contactor_status() == Battery::ContactorStatus::OPEN) {
+      return (uint8_t)(i + 1);
+    }
+  }
+  return 0;
+}
+
+// Debounce for running_battery_bms_open(): millis() when a battery first read OPEN while running,
+// 0 when none is. A confirmed open needs BMS_CONTACTOR_OPEN_DEBOUNCE_MS of continuous OPEN so a
+// single spurious poll frame cannot drop the HV bus.
+static uint32_t bms_contactor_open_since_ms = 0;
+#define BMS_CONTACTOR_OPEN_DEBOUNCE_MS 2000
+// True while the battery pause below was issued by the BMS-open handler, so it (and only it) is
+// lifted again once every battery reads closed.
+static bool bms_open_pause_issued = false;
+
+#else  // SMALL_FLASH_DEVICE - interlock compiled out
+
+static inline uint8_t bms_contactor_interlock_blocker() {
+  return 0;
+}
+static inline uint8_t running_battery_bms_open() {
+  return 0;
+}
+
+#endif  // SMALL_FLASH_DEVICE
+
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
 void handle_contactors() {
   if (inverter && inverter->controls_contactor()) {
@@ -234,10 +331,65 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
+      // Optional interlock (eCMP, not built for SMALL_FLASH_DEVICE): hold here until every
+      // reporting battery's BMS contactors are CLOSED and have settled.
+#ifndef SMALL_FLASH_DEVICE
+      const uint8_t interlock_blocker = bms_contactor_interlock_blocker();
+      if (interlock_blocker) {
+        // Event data: 1/2/3 = that pack is not closed; 0 = all closed, still in the settle wait.
+        const int16_t ev_data = (interlock_blocker == BMS_INTERLOCK_SETTLING) ? 0 : (int16_t)interlock_blocker;
+        // Edge-triggered: this branch runs every tick while blocked, so only (re)raise the event
+        // when it is not already active or the reason changed - keeps the occurrence count sane.
+        const EVENTS_STRUCT_TYPE* e = get_event_pointer(EVENT_BMS_CONTACTOR_INTERLOCK);
+        if (e->state != EVENT_STATE_ACTIVE || e->data != ev_data) {
+          set_event(EVENT_BMS_CONTACTOR_INTERLOCK, ev_data);
+        }
+      } else {
+        // Transient "waiting for BMS contactors" state - wipe it so it does not linger in history.
+        reset_event(EVENT_BMS_CONTACTOR_INTERLOCK);
+      }
+#else
+      const uint8_t interlock_blocker = 0;
+#endif  // SMALL_FLASH_DEVICE
+
+      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+          !interlock_blocker) {
+#ifndef SMALL_FLASH_DEVICE
+        bms_all_closed_since_ms = 0;  // require a fresh settle wait on any later re-close
+#endif
         contactorStatus = START_PRECHARGE;
       }
     }
+
+    // A battery that opened its own BMS contactors while running (eCMP, opt-in, not on
+    // SMALL_FLASH_DEVICE). Debounced so a brief poll gap does not count. Handled the same way as an
+    // equipment stop below: pause first, let the current fall, then open the GPIO contactors.
+    // Recoverable - once every battery reads CLOSED again the normal precharge sequence brings the
+    // bus back.
+#ifndef SMALL_FLASH_DEVICE
+    uint8_t bms_open_pack = running_battery_bms_open();
+    if (bms_open_pack) {
+      if (bms_contactor_open_since_ms == 0) {
+        bms_contactor_open_since_ms = millis();
+      }
+      if ((millis() - bms_contactor_open_since_ms) < BMS_CONTACTOR_OPEN_DEBOUNCE_MS) {
+        bms_open_pack = 0;  // not confirmed yet
+      }
+    } else {
+      // Every reporting battery reads closed again. If the BMS-open handler issued the pause and
+      // nothing else still needs it, lift it so the DISCONNECTED -> precharge sequence can bring
+      // the bus back.
+      if (bms_open_pause_issued && !datalayer.system.info.equipment_stop_active &&
+          datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
+        setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
+      }
+      bms_open_pause_issued = false;
+      bms_contactor_open_since_ms = 0;
+      clear_event(EVENT_BMS_CONTACTOR_OPEN_SHUTDOWN);
+    }
+#else
+    const uint8_t bms_open_pack = 0;
+#endif  // SMALL_FLASH_DEVICE
 
     // In case the inverter or the equipment stop requests contactors to open, jump to Disconnected (recoverable)
     if (contactorStatus == COMPLETED) {
@@ -245,7 +397,7 @@ void handle_contactors() {
         // Inverter-commanded opening stays immediate: the inverter has already
         // stopped power transfer before revoking its permission
         contactorStatus = DISCONNECTED;
-      } else if (datalayer.system.info.equipment_stop_active) {
+      } else if (datalayer.system.info.equipment_stop_active || bms_open_pack) {
         // Equipment stop: every e-stop entry point also issues a battery pause,
         // so hold the contactors until the pause state machine reports PAUSED
         // (current below 1.8 A) - opening under load risks arcing/welding.
@@ -254,13 +406,21 @@ void handle_contactors() {
         uint32_t now = millis();
         if (estop_open_wait_start_ms == 0) {
           estop_open_wait_start_ms = now;
+#ifndef SMALL_FLASH_DEVICE
+          if (bms_open_pack && !datalayer.system.info.equipment_stop_active) {
+            // Equipment stop issues its own pause; only pause here for the BMS-open trigger.
+            setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
+            bms_open_pause_issued = true;
+            set_event(EVENT_BMS_CONTACTOR_OPEN_SHUTDOWN, bms_open_pack);
+          }
+#endif  // SMALL_FLASH_DEVICE
         }
         bool paused = (emulator_pause_status == PAUSED);
         bool timed_out = (now - estop_open_wait_start_ms) > ESTOP_OPEN_TIMEOUT_MS;
         if (paused || timed_out) {
           if (timed_out) {
             LOG_SET_NEXT_SEVERITY(4);  // warning
-            logging.printf("Contactors: Equipment stop wait timed out, opening under load\n");
+            logging.printf("Contactors: open wait timed out, opening under load\n");
             set_event(EVENT_ERROR_OPEN_CONTACTOR, 1);
           }
           estop_open_wait_start_ms = 0;
