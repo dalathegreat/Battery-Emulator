@@ -241,6 +241,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"autocal_soc_drift", "BYD Auto-cal: SOC Drift", "%", "", supports_byd_autocal_metrics},
     {"min_cell_number", "Min Cell Number", "", "", supports_byd_metrics},
     {"max_cell_number", "Max Cell Number", "", "", supports_byd_metrics},
+    {"external_dc_voltage", "External DC Voltage", "V", "voltage", supports_byd_metrics},
     {"leaf_hx", "Hx", "%", "", supports_leaf_metrics},
     {"leaf_soh_raw", "State of Health (raw)", "%", "", supports_leaf_metrics},
     {"leaf_vbat", "VBAT +12 level", "V", "voltage", supports_leaf_metrics},
@@ -475,6 +476,10 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
         (battery_index == 2) ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
     doc["min_cell_number"] = byd.BMS_min_cell_voltage_number;
     doc["max_cell_number"] = byd.BMS_max_cell_voltage_number;
+    // Omit missing or stale readings so HA shows unknown; zero volts is valid.
+    if (byd.external_dc_voltage_valid) {
+      doc["external_dc_voltage"] = static_cast<float>(byd.external_dc_voltage_dV) / 10.0f;
+    }
   }
   if (supports_leaf_metrics(::battery)) {
     const DATALAYER_INFO_NISSAN_LEAF& leaf = (battery_index == 3)   ? datalayer_extended.nissanleaf_3

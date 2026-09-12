@@ -142,6 +142,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
+    content += "<h4>External DC voltage: ";
+    if (byd_datalayer->external_dc_voltage_valid) {
+      content += String(byd_datalayer->external_dc_voltage_dV / 10.0f, 1) + " V</h4>";
+    } else {
+      content += "Unavailable (no recent data)</h4>";
+    }
 
     static const size_t TEMPERATURE_SENSOR_COUNT =
         sizeof(byd_datalayer->battery_temperatures) / sizeof(byd_datalayer->battery_temperatures[0]);

@@ -317,6 +317,9 @@ void BydAttoBattery::
     datalayer_bydatto->SOC_polled = BMS_SOC;
     //Resolved voltage, not raw 0x438, so the page matches the main view when 0x438 is rejected
     datalayer_bydatto->pack_voltage_dV = datalayer_battery->status.voltage_dV;
+    datalayer_bydatto->external_dc_voltage_dV = battery_external_dc_voltage_dV;
+    datalayer_bydatto->external_dc_voltage_valid =
+        last_35E_ms != 0 && static_cast<uint32_t>(millis() - last_35E_ms) < 3000;
     datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
@@ -575,6 +578,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // b0 bit 0x80 = isolation measurement active (set = running, clear = disabled/idle)
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         battery_iso_measurement_active = (rx_frame.data.u8[0] & 0x80) != 0;
+        battery_external_dc_voltage_dV = rx_frame.data.u8[3] | (static_cast<uint16_t>(rx_frame.data.u8[4]) << 8);
         last_35E_ms = millis();
       } else {
         datalayer_battery->status.CAN_error_counter++;
