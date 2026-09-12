@@ -258,6 +258,18 @@ void BydAttoBattery::
     datalayer_battery->status.max_discharge_power_W = 0;
   }
 
+  // ...unless only the inverter's permission is missing. Some inverters won't command the close for
+  // a pack reporting 0A both ways, so zeroing here deadlocks.
+  const bool waiting_permission = (contactorState == CONTACTORS_STANDBY || contactorState == CONTACTORS_BOOT_ESTOP) &&
+                                  lastContactorFeedbackMillis != 0 &&
+                                  !datalayer.system.status.inverter_allows_contactor_closing;
+  if (!(contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) &&
+      (waiting_permission || contactorState == CONTACTORS_CLOSING) && !datalayer.system.info.equipment_stop_active &&
+      datalayer.system.status.system_status != FAULT) {
+    datalayer_battery->status.max_charge_power_W = ANNOUNCE_OPEN_POWER_W;
+    datalayer_battery->status.max_discharge_power_W = ANNOUNCE_OPEN_POWER_W;
+  }
+
   // Pack-internal contactors: DC bus is live once the pack confirms the main contactor
   // closed (same 0x344 bit7 feedback used to gate power above). Guarded so the GPIO
   // contactor state machine stays authoritative when enabled.
