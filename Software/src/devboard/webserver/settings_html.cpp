@@ -745,6 +745,30 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SYSLOGFAC") {
     return String(settings.getUInt("SYSLOGFAC", 1));
   }
+#ifndef SMALL_FLASH_DEVICE
+  // Inverter Modbus gateway
+  if (var == "GWENAB") {
+    return settings.getBool("GWENAB") ? "checked" : "";
+  }
+  if (var == "GWWRITE") {
+    return settings.getBool("GWWRITE") ? "checked" : "";
+  }
+  if (var == "GWPORT") {
+    return String(settings.getUInt("GWPORT", 502));
+  }
+  if (var == "GWBAUD") {
+    return String(settings.getUInt("GWBAUD", 9600));
+  }
+  if (var == "GWSLAVES") {
+    return settings.getString("GWSLAVES", "247,1");
+  }
+  if (var == "GWSECRET") {
+    return settings.getString("GWSECRET");
+  }
+  if (var == "GWIPALLOW") {
+    return settings.getString("GWIPALLOW");
+  }
+#endif  // !SMALL_FLASH_DEVICE
   if (var == "ESPNOWENABLED") {
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
   }
@@ -1256,6 +1280,41 @@ const char* getCANInterfaceName(CAN_Interface interface) {
               title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
         </div>
   )rawliteral"
+
+// Inverter Modbus gateway — its own settings card (proper 2-col grid).
+// Compiled out unless the feature is enabled, so the settings page costs
+// nothing on SMALL_FLASH_DEVICE (4 MB) boards.
+#ifndef SMALL_FLASH_DEVICE
+#define GATEWAY_SETTING_HTML \
+  R"rawliteral(
+        <div class="settings-card">
+        <h3>Inverter Modbus gateway</h3>
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
+        <label>Enable gateway: </label>
+        <input type='checkbox' name='GWENAB' value='on' %GWENAB%
+              title="Expose the inverter over Modbus-TCP via the free RS485 port. Only activates when the inverter link is CAN (RS485 idle)." />
+        <label>Allow writes (HMAC-signed): </label>
+        <input type='checkbox' name='GWWRITE' value='on' %GWWRITE%
+              title="Permit authenticated register writes via POST /modbus/write. The raw Modbus-TCP port stays read-only." />
+        <label>Modbus-TCP port: </label>
+        <input type='number' name='GWPORT' value="%GWPORT%" min="1" max="65535" step="1" title="Default 502" />
+        <label>RS485 baud: </label>
+        <input type='number' name='GWBAUD' value="%GWBAUD%" min="1200" max="115200" step="1"
+              title="GoodWe/DEYE default 9600 (8N1)" />
+        <label>Slave IDs (CSV): </label>
+        <input type='text' name='GWSLAVES' value="%GWSLAVES%" title="RTU slave IDs exposed for reads, e.g. 247,1" />
+        <label>Passphrase (HMAC secret): </label>
+        <input type='text' name='GWSECRET' value="%GWSECRET%"
+              title="Shared secret used to sign writes. Auto-generated on first boot; edit to rotate." />
+        <label>Write IP allowlist (CSV, empty = any): </label>
+        <input type='text' name='GWIPALLOW' value="%GWIPALLOW%"
+              title="Only these client IPs may write. Empty = allow all." />
+        </div>
+        </div>
+  )rawliteral"
+#else
+#define GATEWAY_SETTING_HTML ""
+#endif  // !SMALL_FLASH_DEVICE
 
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
@@ -2323,6 +2382,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
         </div>
+
+        )rawliteral" GATEWAY_SETTING_HTML R"rawliteral(
 
         <div class="settings-card">
         <h3>Debug options</h3>
