@@ -22,6 +22,25 @@
 #define DEFAULT_MCP2517_BUS HSPI
 #endif
 
+#ifdef ETHERNET
+// Ethernet PHY / clock-mode kinds — project-local integer tags decoupled from
+// <ETH.h>'s enums. Board HAL headers return these; ethernet.cpp maps them to
+// eth_phy_type_t / eth_clock_mode_t at the call site. This keeps <ETH.h> (and
+// its extern "C" ESP-IDF headers) out of the HAL headers, which matters
+// because hal.cpp #includes the selected board HAL header from *inside* the
+// init_hal() function body.
+// Only kinds actually used by a supported board are listed
+enum EthPhyKind {
+  ETH_PHY_KIND_NONE = -1,
+  ETH_PHY_KIND_IP101 = 1,
+};
+
+enum EthClkKind {
+  ETH_CLK_KIND_NONE = -1,
+  ETH_CLK_KIND_GPIO0_IN = 0,
+};
+#endif  // ETHERNET
+
 // Hardware Abstraction Layer base class.
 // Derive a class to define board-specific parameters such as GPIO pin numbers
 // This base class implements a mechanism for allocating GPIOs.
@@ -217,6 +236,16 @@ class Esp32Hal {
 
   // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP. Usually the BOOT button on GPIO0.
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_NC; }
+
+  // Ethernet (RMII PHY). Boards with an on-board Ethernet PHY override these
+#ifdef ETHERNET
+  virtual int ETH_PHY_TYPE_ID() { return ETH_PHY_KIND_NONE; }
+  virtual int ETH_PHY_ADDR_NUM() { return -1; }
+  virtual gpio_num_t ETH_PHY_MDC_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t ETH_PHY_MDIO_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t ETH_PHY_POWER_PIN() { return GPIO_NUM_NC; }
+  virtual int ETH_CLK_MODE_ID() { return ETH_CLK_KIND_NONE; }
+#endif  // ETHERNET
 
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;

@@ -18,6 +18,7 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
+#include "src/devboard/ethernet/ethernet.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -94,6 +95,12 @@ void init_serial() {
 
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
+
+#ifdef ETHERNET
+  // Bring up Ethernet before WiFi
+  init_Ethernet();
+#endif
+
   // Init wifi
   init_WiFi();
 
