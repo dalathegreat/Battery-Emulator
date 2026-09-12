@@ -9,6 +9,10 @@
 #include "../../Software/src/devboard/utils/events.h"
 #include "Arduino.h"
 
+// Recorder for everything the emulated CAN interface transmits (test/emul/can.cpp).
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
+
 namespace {
 
 // Builds a frame on the given ID from up to 8 raw bytes.
@@ -95,12 +99,102 @@ void feed_cell_voltage_reply(NissanLeafBattery* battery, const uint16_t (&cells)
   }
 }
 
+// Feeds a group reply framed the way the LBC sends it: the first frame carries payload[0..5], the
+// 0x61 service byte first, then each consecutive frame seven more bytes, padded with 0xFF. A reply
+// cut short is modelled by stopping after the given number of consecutive frames.
+void feed_group_reply(NissanLeafBattery* battery, const std::vector<uint8_t>& payload,
+                      size_t consecutive_frames = SIZE_MAX) {
+  CAN_frame first = leaf_7bb_frame({});
+  first.data.u8[0] = (uint8_t)(0x10 | ((payload.size() >> 8) & 0x0F));
+  first.data.u8[1] = (uint8_t)(payload.size() & 0xFF);
+  for (size_t i = 0; i < 6; i++) {
+    first.data.u8[2 + i] = payload[i];
+  }
+  battery->handle_incoming_can_frame(first);
+
+  size_t offset = 6;
+  for (size_t frame = 1; offset < payload.size() && frame <= consecutive_frames; frame++) {
+    CAN_frame consecutive = leaf_7bb_frame({});
+    consecutive.data.u8[0] = (uint8_t)(0x20 | (frame & 0x0F));
+    for (size_t i = 0; i < 7; i++) {
+      consecutive.data.u8[1 + i] = (offset + i < payload.size()) ? payload[offset + i] : 0xFF;
+    }
+    battery->handle_incoming_can_frame(consecutive);
+    offset += 7;
+  }
+}
+
+// Value of bin b in table t of the replies below. Distinct everywhere, and most need both bytes.
+uint16_t histogram_count(uint8_t table, uint8_t bin) {
+  return (uint16_t)((table + 1) * 100 + bin);
+}
+
+// A group 0x62 reply: the counters that head it, then seven tables of eight big-endian counts.
+std::vector<uint8_t> usage_history_reply(std::initializer_list<uint16_t> counters) {
+  std::vector<uint8_t> payload = {0x61, 0x62};
+  for (uint16_t counter : counters) {
+    payload.push_back((uint8_t)(counter >> 8));
+    payload.push_back((uint8_t)(counter & 0xFF));
+  }
+  for (uint8_t table = 0; table < 7; table++) {
+    for (uint8_t bin = 0; bin < 8; bin++) {
+      payload.push_back((uint8_t)(histogram_count(table, bin) >> 8));
+      payload.push_back((uint8_t)(histogram_count(table, bin) & 0xFF));
+    }
+  }
+  return payload;
+}
+
+// The counts of the six charted tables as the page hands them to its script, in LBC table order.
+std::string charted_histogram_counts() {
+  std::string counts = "([";
+  for (uint8_t table = 0; table < 6; table++) {
+    for (uint8_t bin = 0; bin < 8; bin++) {
+      counts += std::to_string(histogram_count(table, bin)) + ",";
+    }
+  }
+  return counts + "])";
+}
+
+// Ticks the scheduler until the next group request goes out, and returns the group it asks for.
+uint8_t next_polled_group(NissanLeafBattery* battery, unsigned long& t) {
+  for (int i = 0; i < 30; i++) {
+    t += 1000;
+    set_millis64(t);
+    clear_transmitted_frames();
+    battery->transmit_can(t);
+    for (const CAN_frame& frame : get_transmitted_frames()) {
+      if (frame.ID == 0x79B && frame.data.u8[0] == 0x02 && frame.data.u8[1] == 0x21) {
+        return frame.data.u8[2];
+      }
+    }
+  }
+  return 0;
+}
+
+// A polling battery that has seen a ZE1-only broadcast, so it decodes as a ZE1.
+NissanLeafBattery* ze1_battery_polling() {
+  auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x5EB, {0, 0, 0, 0, 0, 0, 0, 0}));
+  return battery;
+}
+
+// Feeds a group 0x01 reply of the given layout up to its fifth frame, which carries payload[27..33].
+void feed_group01_to_fifth_frame(NissanLeafBattery* battery, uint8_t layout_length,
+                                 std::initializer_list<uint8_t> fifth_frame) {
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, layout_length, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00}));
+  for (uint8_t frame = 0x21; frame <= 0x23; frame++) {
+    battery->handle_incoming_can_frame(leaf_7bb_frame({frame, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  }
+  battery->handle_incoming_can_frame(leaf_7bb_frame(fifth_frame));
+}
+
 }  // namespace
 
 // The health block is the only group reply longer than 255 bytes, so its first frame announces
 // itself as 1L LL. An equality test against 0x10 would never latch the group at all.
 TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   // 11 4B 61 61 | Hx 0x2AF8 = 110.00 % | SOH 0x2710 = 100.00 %
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
@@ -116,7 +210,7 @@ TEST(NissanLeafHealthTests, ShouldDecodeHealthBlockFromLongFirstFrame) {
 // The LBC's PID 0x61 handler writes BarCount_SOH, SOH_raw, SOH_Internal and two status bits
 // straight after Hx and SOH, so they land in the second frame of the reply.
 TEST(NissanLeafHealthTests, ShouldDecodeTrailingHealthBlockFields) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   // 11 4B 61 61 | Hx 0x2AF8 | SOH 0x2710
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
@@ -145,13 +239,41 @@ TEST(NissanLeafHealthTests, ShouldDecodeResetPackHealthBlock) {
 
 // Hx above 100 % is a normal reading on a healthy pack and must survive intact.
 TEST(NissanLeafHealthTests, ShouldNotClampHxAboveOneHundredPercent) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x30, 0xD4, 0x25, 0x8A}));
   battery->update_values();
 
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 12500u);     // 0x30D4
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 9610u);  // 0x258A
+}
+
+// Hx comes from one place per generation, as the LBC history guide lays out: group 0x01 on ZE0/AZE0,
+// the health block on ZE1, both in hundredths of a percent. Neither takes the other's.
+TEST(NissanLeafHealthTests, ShouldReadZe0HxFromGroup01Only) {
+  auto battery = battery_polling();
+
+  // AZE0 layout; the fifth frame carries payload[27..33], with Hx 0x2328 at payload[28..29]
+  feed_group01_to_fifth_frame(battery, 0x2B, {0x24, 0x00, 0x23, 0x28, 0x00, 0x00, 0x00, 0x00});
+  // A health block with an Hx of its own, which ZE0/AZE0 leave alone
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 9000u);  // 90.00 %
+}
+
+TEST(NissanLeafHealthTests, ShouldReadZe1HxFromHealthBlockOnly) {
+  auto battery = ze1_battery_polling();
+
+  // ZE1 layout: nothing in its group 0x01 reply is read as Hx
+  feed_group01_to_fifth_frame(battery, 0x35, {0x24, 0x00, 0x23, 0x28, 0x2A, 0xF8, 0x00, 0x00});
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 0u);
+
+  // The guide's ZE1 capture, 61 61 2A F8: 11000, i.e. 110.00 %, with no divide by 1024
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_HX_pptt, 11000u);
 }
 
 // Feeds a group 0x01 reply far enough to deliver the pack capacity, which sits in the sixth frame
@@ -290,7 +412,7 @@ TEST(NissanLeafHealthTests, ShouldPreferPolledStateOfHealthOverBroadcast) {
 // previously latched group decoding it, which for cell voltages means writing garbage into
 // the array.
 TEST(NissanLeafHealthTests, ShouldIgnoreNegativeResponse) {
-  auto battery = battery_polling();
+  auto battery = ze1_battery_polling();  //The block's Hx is read on ZE1
 
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x2A, 0xF8, 0x27, 0x10}));
   battery->update_values();
@@ -722,7 +844,7 @@ TEST(NissanLeafDtcTests, ShouldDrainReplyLargerThanStorage) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 149);
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_NE(renderer.get_status_html().str().find("32 codes shown of 149 reported"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("32 codes shown of 149 reported"), std::string::npos);
 }
 
 // When everything fits, the page must not clutter the line with a redundant "of N reported".
@@ -735,7 +857,7 @@ TEST(NissanLeafDtcTests, ShouldNotClaimTruncationWhenEverythingFits) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_reported_count, 1);
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  EXPECT_EQ(renderer.get_status_html().str().find("reported"), std::string::npos);
+  EXPECT_EQ(renderer.get_dtc_html().str().find("reported"), std::string::npos);
 }
 
 // nissan_leaf_dtc.json is keyed by the 5-character short form, so that is what has to end up in the
@@ -752,7 +874,7 @@ TEST(NissanLeafDtcTests, ShouldRenderShortNissanCodeAsLookupKey) {
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
-  std::string html = renderer.get_status_html().str();
+  std::string html = renderer.get_dtc_html().str();
 
   EXPECT_NE(html.find("data-dtc-code='P33D7'"), std::string::npos);
   EXPECT_NE(html.find("data-dtc-code='U1000'"), std::string::npos);
@@ -767,14 +889,295 @@ TEST(NissanLeafDtcTests, ShouldRenderReadStateWhenNoTableIsShown) {
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
 
   reset_dtc_state();  // Never read
-  EXPECT_NE(renderer.get_status_html().str().find("Not read yet"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("Not read yet"), std::string::npos);
 
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
   datalayer.battery.dtc.dtc_read_failed = true;
-  EXPECT_NE(renderer.get_status_html().str().find("failed or timed out"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("failed or timed out"), std::string::npos);
 
   reset_dtc_state();
   datalayer.battery.dtc.dtc_last_read_millis = 50000;
-  EXPECT_NE(renderer.get_status_html().str().find("No DTCs present"), std::string::npos);
+  EXPECT_NE(renderer.get_dtc_html().str().find("No DTCs present"), std::string::npos);
+}
+
+// Group 0x62 carries the lifetime usage histograms after its charge counters. On ZE0/AZE0 the tables
+// follow the two counters directly, and the page hands their counts to its script in table order.
+TEST(NissanLeafUsageHistogramTests, ShouldPublishHistogramsFromAze0Reply) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto battery = battery_polling();
+
+  // 10 76 61 62 | AC 0x0800 | QC 0x015A, the counters of the capture this group was decoded from
+  std::vector<uint8_t> reply = usage_history_reply({0x0800, 0x015A});
+  ASSERT_EQ(reply.size(), 0x76u);
+  feed_group_reply(battery, reply);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 0x0800u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountQC, 0x015Au);
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find(charted_histogram_counts()), std::string::npos);
+  // The last table's bins 7 and 6, straight under the AC charge count
+  EXPECT_NE(html.find("AC charge count: 2048</h4><h4>Charge to full count: 707</h4><h4>Turtle count: 706</h4>"),
+            std::string::npos);
+  // The charts go in the health and lifetime usage panel, after its list
+  ASSERT_NE(html.find("<script>(d=>"), std::string::npos);
+  EXPECT_LT(html.find("<h3>Health and lifetime usage</h3>"), html.find("<script>(d=>"));
+}
+
+// ZE1 has a third counter ahead of the tables, which moves them along by one count. The generation
+// is applied when the page is drawn, so it does not matter whether it was known when the reply came.
+TEST(NissanLeafUsageHistogramTests, ShouldApplyZe1TableOffset) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto battery = battery_polling();
+
+  // Counts A, B and C of a ZE1 capture: 61 62 01 6E 00 01 00 01
+  std::vector<uint8_t> reply = usage_history_reply({0x016E, 0x0001, 0x0001});
+  ASSERT_EQ(reply.size(), 0x78u);
+  feed_group_reply(battery, reply);
+  battery->handle_incoming_can_frame(leaf_frame(0x5EB, {0, 0, 0, 0, 0, 0, 0, 0}));  //ZE1-only broadcast
+  battery->update_values();
+
+  ASSERT_EQ(datalayer_extended.nissanleaf.LEAF_gen, 2);
+  EXPECT_EQ(datalayer_extended.nissanleaf.ChargeCountL1L2, 366u);
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find(charted_histogram_counts()), std::string::npos);
+  // ZE1's last table sits in the reply's seventeenth frame, past where the ZE0/AZE0 reply ends
+  EXPECT_NE(html.find("AC charge count: 366</h4><h4>Charge to full count: 707</h4><h4>Turtle count: 706</h4>"),
+            std::string::npos);
+}
+
+// Until group 0x62 has answered there is nothing to draw, so the charts are left out altogether.
+TEST(NissanLeafUsageHistogramTests, ShouldNotDrawChartsBeforeGroupIsRead) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+  EXPECT_EQ(html.find("<script>(d=>"), std::string::npos);
+  EXPECT_EQ(html.find("Charge to full count"), std::string::npos);
+}
+
+// The counters are all in the first frame, so they do not show that the rest arrived. A reply cut
+// short, in the histograms or in the charge-to-full table after them, keeps the group in the
+// rotation; a complete one takes it out as before. Nothing here depends on where 0x62 sits in
+// PIDgroups.
+TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
+  const size_t rotation = 8;  //Entries in PIDgroups, so the most one pass can take
+  for (size_t frames : {(size_t)5, (size_t)15, SIZE_MAX}) {
+    const bool complete = (frames == SIZE_MAX);
+    datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+    auto battery = battery_polling();
+    unsigned long t = 50000;
+
+    size_t polls = 0;
+    while (next_polled_group(battery, t) != 0x62) {
+      ASSERT_LT(++polls, rotation) << "group 0x62 never asked for";
+    }
+    feed_group_reply(battery, usage_history_reply({0x0800, 0x015A}), frames);
+
+    // No other group gets an answer, so none of them drop out: a full pass follows, and it
+    // includes 0x62 only if its reply is still owed
+    bool asked_again = false;
+    for (size_t i = 0; i < rotation; i++) {
+      asked_again |= (next_polled_group(battery, t) == 0x62);
+    }
+    EXPECT_EQ(asked_again, !complete) << "consecutive frames fed: " << (complete ? 16 : frames);
+  }
+}
+
+// The page streams the status, diagnostics and buttons inside one panel of its own. The Leaf closes
+// it and opens the next to split its information into panels: identity under the page's battery
+// heading, then Status, Health and lifetime usage, the trouble codes and the degradation reset.
+TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+
+  const char* in_order[] = {"LEAF generation",
+                            "Firmware",
+                            "</div><div class='battery-panel'><h3>Status</h3>",
+                            "+12V BAT level",
+                            "GIDS",
+                            "Temperature 4",
+                            "Insulation",
+                            "Heating stopped",
+                            "Failsafe status",
+                            "Relay cut request",
+                            "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
+                            "Capacity as new",
+                            "Actual capacity",
+                            "SOH raw",
+                            "Hx:",
+                            "QC charge count",
+                            "AC charge count"};
+  size_t last = 0;
+  for (const char* part : in_order) {
+    size_t at = html.find(part);
+    ASSERT_NE(at, std::string::npos) << part;
+    EXPECT_GE(at, last) << part;
+    last = at;
+  }
+  // Those go in panels of their own, from the other hooks
+  EXPECT_EQ(html.find("Diagnostic Trouble Codes"), std::string::npos);
+  EXPECT_EQ(html.find("CryptoChallenge"), std::string::npos);
+}
+
+// The two lists are rows that wrap, like the chart grid: two columns, one on a narrow screen.
+TEST(NissanLeafPageLayoutTests, ShouldListStatusAndHealthInWrappingColumns) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+
+  EXPECT_NE(html.find(".hg>*{flex:300px;margin:5px}"), std::string::npos);
+  EXPECT_NE(html.find("<h3>Status</h3><div class=hg><h4>+12V BAT level"), std::string::npos);
+  EXPECT_NE(html.find("<h3>Health and lifetime usage</h3><div class=hg><h4>Capacity as new"), std::string::npos);
+}
+
+// The trouble codes open their own panel, under the page's title style rather than their own.
+TEST(NissanLeafPageLayoutTests, ShouldPutTroubleCodesInTheirOwnPanel) {
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_dtc_html().str();
+
+  EXPECT_EQ(html.find("</div><div class='battery-panel'><h3>Diagnostic Trouble Codes</h3>"), 0u);
+  EXPECT_EQ(html.find("&#128295;"), std::string::npos);
+}
+
+// The degradation reset opens the last panel just before its button, with the challenge values
+// above it. No other command gets anything in front of its button.
+TEST(NissanLeafPageLayoutTests, ShouldOpenDegradationResetPanelBeforeItsButton) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  datalayer_extended.nissanleaf.CryptoChallenge = 0xFFFFFFFF;
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+
+  std::string html = renderer.get_command_prefix_html("resetSOH").str();
+  EXPECT_EQ(html.find("</div><div class='battery-panel'><h3>Reset degradation data</h3>"), 0u);
+  EXPECT_LT(html.find("CryptoChallenge: Not run"), html.find("SolvedChallenge: Not run"));
+  EXPECT_LT(html.find("SolvedChallenge: Not run"), html.find("Challenge failed: 0"));
+
+  EXPECT_TRUE(renderer.get_command_prefix_html("readDTC").str().empty());
+  EXPECT_TRUE(renderer.get_command_prefix_html("resetDTC").str().empty());
+}
+
+// Every panel the Leaf opens is closed again: the first close is the page's own panel, and the page
+// closes the last one after the buttons.
+TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string status = renderer.get_status_html().str();
+  std::string all = status + renderer.get_dtc_html().str() + renderer.get_command_prefix_html("resetSOH").str();
+
+  auto count = [&all](const std::string& tag) {
+    size_t n = 0;
+    for (size_t at = all.find(tag); at != std::string::npos; at = all.find(tag, at + 1)) {
+      n++;
+    }
+    return n;
+  };
+  EXPECT_EQ(count("<div"), count("</div>"));
+  EXPECT_LT(status.find("</div>"), status.find("<div"));
+}
+
+// The ten values from the status broadcasts are Unknown until the broadcast carrying them has
+// arrived since boot. After that the true/false flags show as a tick or a cross, and the two wider
+// fields, failsafe status and relay cut request, by the names of their states.
+TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
+  auto battery = battery_polling();
+  battery->update_values();
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  std::string html = renderer.get_status_html().str();
+  for (const char* label :
+       {"Fully charged", "Battery empty", "Failsafe status", "Interlock", "Main relay ON", "Relay cut request",
+        "Heater present", "Heating requested", "Heating started", "Heating stopped"}) {
+    EXPECT_NE(html.find(std::string("<h4>") + label + ": Unknown</h4>"), std::string::npos) << label;
+  }
+}
+
+TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
+  auto battery = battery_polling();
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+
+  // 0x1DB at 360 V: failsafe status 2 (charging mode stop request), no relay cut request, main
+  // relay permitted, not fully charged, interlock closed
+  CAN_frame status = leaf_frame(0x1DB, {0x00, 0x02, 0xB4, 0x28, 0x00, 0x00, 0x00, 0x00});
+  status.data.u8[7] = battery->calculate_crc(status);
+  battery->handle_incoming_can_frame(status);
+  battery->update_values();
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("<h4>Main relay ON: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Interlock: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Fully charged: &#10007;</h4>"), std::string::npos);
+  // The wider fields by name, with the raw value unless it is 0
+  EXPECT_NE(html.find("<h4>Relay cut request: None</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Failsafe status: Charge stop (2)</h4>"), std::string::npos);
+  // The other two broadcasts have not come yet
+  EXPECT_NE(html.find("<h4>Battery empty: Unknown</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heater present: Unknown</h4>"), std::string::npos);
+
+  // 0x55B, not empty, and 0x5C0 with a heater present and idle
+  CAN_frame soc = leaf_frame(0x55B, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  soc.data.u8[7] = battery->calculate_crc(soc);
+  battery->handle_incoming_can_frame(soc);
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("<h4>Battery empty: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heater present: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heating requested: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heating started: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Heating stopped: &#10007;</h4>"), std::string::npos);
+}
+
+// The serial number is the 16 characters straight after the 61 84 header, starting in the first
+// frame. This is the capture the decoder's comment quotes.
+TEST(NissanLeafIdentityTests, ShouldReadWholeSerialNumber) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x10, 0x16, 0x61, 0x84, 0x32, 0x33, 0x30, 0x55}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x4B, 0x31, 0x31, 0x39, 0x32, 0x45, 0x30}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x22, 0x30, 0x31, 0x34, 0x38, 0x32, 0x20, 0xA0}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_NE(renderer.get_status_html().str().find("<h4>Serial number: 230UK1192E001482</h4>"), std::string::npos);
+}
+
+// Failsafe status is three request bits and relay cut request two, named as in the Leaf CAN
+// database. They come last in the status list, failsafe status first.
+TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto& leaf = datalayer_extended.nissanleaf;
+  leaf.StatusSeen = 0x01;  //0x1DB has arrived
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
+
+  const char* failsafe[] = {"Normal",
+                            "Discharge stop (1)",
+                            "Charge stop (2)",
+                            "Discharge + charge stop (3)",
+                            "Caution lamp (4)",
+                            "Caution lamp, discharge stop (5)",
+                            "Caution lamp, charge stop (6)",
+                            "Caution lamp, discharge + charge stop (7)"};
+  for (uint8_t value = 0; value < 8; value++) {
+    leaf.FailsafeStatus = value;
+    std::string row = std::string("<h4>Failsafe status: ") + failsafe[value] + "</h4>";
+    EXPECT_NE(renderer.get_status_html().str().find(row), std::string::npos) << (int)value;
+  }
+  const char* relay_cut[] = {"None", "Main relay off (1)", "Main relay off (2)", "Main relay off (3)"};
+  for (uint8_t value = 0; value < 4; value++) {
+    leaf.RelayCutRequest = value;
+    std::string row = std::string("<h4>Relay cut request: ") + relay_cut[value] + "</h4>";
+    EXPECT_NE(renderer.get_status_html().str().find(row), std::string::npos) << (int)value;
+  }
+
+  // Last in the status list, straight before it closes
+  std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
+  EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4></div>"), std::string::npos);
 }

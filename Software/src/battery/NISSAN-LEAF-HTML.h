@@ -19,6 +19,33 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       return content;
     }
 
+    //Styles shared by the two-column lists and the usage charts: rows that wrap, two 300 px columns
+    //side by side and one on a narrow screen, like the chart grid.
+    // MINIFIED to save flash. Edit the readable source here, re-minify, and replace the literal.
+    /*
+    <style>
+      .hg, .hb, .ha { display: flex }
+      .hg { flex-wrap: wrap }                            two columns, one on a narrow screen
+      .hg>* { flex: 300px; margin: 5px }                 a list entry or a chart, each
+      .hb { align-items: flex-end; height: 130px; padding-top: 20px;
+            border: 1px solid #ccc }                    bar area, as the cell monitor graph
+      .hb div { flex: 1; background: blue; border: 1px solid #fff; position: relative }
+      .hb b { position: absolute; bottom: 100%; left: 0; right: 0 }   count above its bar
+      .ha span { flex: 1 }                               bin labels under the bars
+      .hb, .ha, .hg p { font-size: 12px }
+      .hg p { margin: 0; text-align: right }             total under each chart
+      h3 { margin-top: 3px }                             panel titles, the only h3s on the page: as
+                                                         far below the top as content ends above the
+                                                         bottom, not the browser's ~19 px
+    </style>
+    */
+    content +=
+        "<style>.hg,.hb,.ha{display:flex}.hg{flex-wrap:wrap}.hg>*{flex:300px;margin:5px}.hb{align-items:flex-end;"
+        "height:130px;padding-top:20px;border:1px solid #ccc}.hb div{flex:1;background:blue;border:1px solid "
+        "#fff;position:relative}.hb b{position:absolute;bottom:100%;left:0;right:0}.ha span{flex:1}.hb,.ha,.hg "
+        "p{font-size:12px}.hg p{margin:0;text-align:right}h3{margin-top:3px}</style>";
+
+    //Identity, in the page's own first panel under the battery heading
     content += "<h4>LEAF generation: ";
     switch (nissan_dl->LEAF_gen) {
       case 0:
@@ -33,19 +60,60 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       default:
         content += String("Unknown</h4>");
     }
-    char readableSerialNumber[16];  // One extra space for null terminator
+    char readableSerialNumber[sizeof(nissan_dl->BatterySerialNumber) + 1];  // One extra space for null terminator
     memcpy(readableSerialNumber, nissan_dl->BatterySerialNumber, sizeof(nissan_dl->BatterySerialNumber));
-    readableSerialNumber[15] = '\0';  // Null terminate the string
+    readableSerialNumber[sizeof(nissan_dl->BatterySerialNumber)] = '\0';  // Null terminate the string
     content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
     char readableFirmware[6];  // One extra space for null terminator
     memcpy(readableFirmware, nissan_dl->BatteryPartNumber, 5);
     readableFirmware[5] = '\0';  // Null terminate the string
     content += "<h4>Firmware: " + String(readableFirmware) + "</h4>";
+
+    new_panel(content, "Status");
+    content += "<div class=hg>";
+    content += "<h4>+12V BAT level: " +
+               (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) + "</h4>";
+    content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
+    content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
     content += "<h4>GIDS: " + String(nissan_dl->GIDS) + "</h4>";
-    content +=
-        "<h4>Hx: " +
-        (nissan_dl->battery_HX_pptt ? String(nissan_dl->battery_HX_pptt / 100.0f, 2) + " %" : String("Unknown")) +
-        "</h4>";
+    content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
+    content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
+    if (nissan_dl->LEAF_gen == 0) {
+      content += "<h4>Temperature 3: " + String(nissan_dl->temperature3 / 10.0) + " &deg;C</h4>";
+    }
+    content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
+    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
+    //The flags from the LBC's status broadcasts, each unknown until the broadcast carrying it has
+    //arrived since boot (bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0, see StatusSeen)
+    const uint8_t seen = nissan_dl->StatusSeen;
+    status_row(content, "Fully charged", nissan_dl->Full, seen & 0x01);
+    status_row(content, "Battery empty", nissan_dl->Empty, seen & 0x02);
+    status_row(content, "Interlock", nissan_dl->Interlock, seen & 0x01);
+    status_row(content, "Main relay ON", nissan_dl->MainRelayOn, seen & 0x01);
+    status_row(content, "Heater present", nissan_dl->HeatExist, seen & 0x04);
+    status_row(content, "Heating requested", nissan_dl->HeaterSendRequest, seen & 0x04);
+    status_row(content, "Heating started", nissan_dl->HeatingStart, seen & 0x04);
+    status_row(content, "Heating stopped", nissan_dl->HeatingStop, seen & 0x04);
+    //The two wider fields of 0x1DB, named as in the Leaf CAN database (dalathegreat/leaf_can_bus_messages:
+    //LB_Failsafe_Status, LB_Relay_Cut_Request). Failsafe status is three request bits: bit 0 normal
+    //stop, which the driver reads as a discharge stop, bit 1 charging mode stop, bit 2 caution lamp.
+    //Every non-zero relay cut request is a main relay off request.
+    static const char* const failsafe_names[8] = {"Normal",
+                                                  "Discharge stop",
+                                                  "Charge stop",
+                                                  "Discharge + charge stop",
+                                                  "Caution lamp",
+                                                  "Caution lamp, discharge stop",
+                                                  "Caution lamp, charge stop",
+                                                  "Caution lamp, discharge + charge stop"};
+    status_row(content, "Failsafe status", nissan_dl->FailsafeStatus, seen & 0x01,
+               failsafe_names[nissan_dl->FailsafeStatus & 7]);
+    status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01,
+               nissan_dl->RelayCutRequest ? "Main relay off" : "None");
+    content += "</div>";
+
+    new_panel(content, "Health and lifetime usage");
+    content += "<div class=hg>";
     //What the pack held when new, from the GID count the LBC reports at full charge. Constant per
     //pack size rather than something that tracks wear, which is what makes it the reference the
     //measured capacity below is judged against.
@@ -77,54 +145,139 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += String("<h4>SOH raw: Unknown</h4>");
     }
+    content +=
+        "<h4>Hx: " +
+        (nissan_dl->battery_HX_pptt ? String(nissan_dl->battery_HX_pptt / 100.0f, 2) + " %" : String("Unknown")) +
+        "</h4>";
     //A used pack always has AC charges on it, so a zero L1/L2 count means the group was not read yet.
     content +=
         "<h4>QC charge count: " + (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountQC) : String("Unknown")) +
         "</h4>";
     content += "<h4>AC charge count: " +
                (nissan_dl->ChargeCountL1L2 ? String(nissan_dl->ChargeCountL1L2) : String("Unknown")) + "</h4>";
-    content += "<h4>Regen kW: " + String(nissan_dl->ChargePowerLimit) + "</h4>";
-    content += "<h4>Charge kW: " + String(nissan_dl->MaxPowerForCharger) + "</h4>";
-    content += "<h4>+12V BAT level: " +
-               (nissan_dl->VBAT_mV ? String(nissan_dl->VBAT_mV / 1000.0f, 2) + " V" : String("Unknown")) + "</h4>";
-    content += "<h4>Temperature 1: " + String(nissan_dl->temperature1 / 10.0) + " &deg;C</h4>";
-    content += "<h4>Temperature 2: " + String(nissan_dl->temperature2 / 10.0) + " &deg;C</h4>";
-    if (nissan_dl->LEAF_gen == 0) {
-      content += "<h4>Temperature 3: " + String(nissan_dl->temperature3 / 10.0) + " &deg;C</h4>";
+    //The usage tables from the rest of the same reply. They start at [0] on ZE0/AZE0 and at [2] on
+    //ZE1, whose extra counter ahead of them moves them along by one count.
+    const uint8_t* history = nissan_dl->UsageHistograms + ((nissan_dl->LEAF_gen == 2) ? 2 : 0);
+    //The last table is not a plain histogram: its top bin counts charges to 100 % and the one below
+    //it the times the pack was run down to turtle. Provisional, per the LBC history guide, and on
+    //ZE1 read from the matching table by its parallel with ZE0.
+    if (nissan_dl->ChargeCountL1L2) {
+      content += "<h4>Charge to full count: ";
+      content += (history[110] << 8) | history[111];
+      content += "</h4><h4>Turtle count: ";
+      content += (history[108] << 8) | history[109];
+      content += "</h4>";
     }
-    content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
-    content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
-    content += "<h4>Fully charged: " + String(nissan_dl->Full) + "</h4>";
-    content += "<h4>Battery empty: " + String(nissan_dl->Empty) + "</h4>";
-    content += "<h4>Failsafe status: " + String(nissan_dl->FailsafeStatus) + "</h4>";
-    content += "<h4>Interlock: " + String(nissan_dl->Interlock) + "</h4>";
-    content += "<h4>Main relay ON: " + String(nissan_dl->MainRelayOn) + "</h4>";
-    content += "<h4>Relay cut request: " + String(nissan_dl->RelayCutRequest) + "</h4>";
-    content += "<h4>Heater present: " + String(nissan_dl->HeatExist) + "</h4>";
-    content += "<h4>Heating requested: " + String(nissan_dl->HeaterSendRequest) + "</h4>";
-    content += "<h4>Heating started: " + String(nissan_dl->HeatingStart) + "</h4>";
-    content += "<h4>Heating stopped: " + String(nissan_dl->HeatingStop) + "</h4>";
-    //Both challenge values only ever get filled by the Reset degradation data sequence. Until that
-    //has run, incomingChallenge still holds its 0xFFFFFFFF default and the solved halves are zero,
-    //so say so rather than printing placeholder numbers that look like readings.
-    content += "<h4>CryptoChallenge: " +
-               (nissan_dl->CryptoChallenge != 0xFFFFFFFF ? String(nissan_dl->CryptoChallenge) : String("Not run")) +
-               "</h4>";
-    content += "<h4>SolvedChallenge: " +
-               ((nissan_dl->SolvedChallengeMSB || nissan_dl->SolvedChallengeLSB)
-                    ? String(nissan_dl->SolvedChallengeMSB) + "-" + String(nissan_dl->SolvedChallengeLSB)
-                    : String("Not run")) +
-               "</h4>";
-    content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
+    content += "</div>";
 
-    if (battery_dl) {
-      content += render_dtc_section(battery_dl->dtc);
+    //Lifetime usage histograms, the first six of those tables. They are drawn once the charge
+    //counts are known; the page carries only the 48 counts, and the browser draws the six charts
+    //from them in the cell monitor's bar style.
+    if (nissan_dl->ChargeCountL1L2) {
+      // The script below is MINIFIED to save flash. Edit the readable source here,
+      // re-minify, and replace the literal.
+      /*
+      <script>
+      (d => {  // 48 counts, 8 per table, in the LBC's table order (see UsageHistograms)
+        let h = '<div class=hg>';
+        // Peak temperatures first, then start temperatures, then SOC
+        [2, 3, 0, 1, 4, 5].map((t, k) => {
+          // Upper edge of bin j = 1..7: 35..65 degC in steps of 5, or SOC 20..70 % in steps of 10, then 85 %
+          let f = j => k < 4 ? 30 + 5 * j : j < 7 ? 10 * j + 10 : 85,
+              v = d.slice(t * 8, t * 8 + 8), m = Math.max(...v) || 1, n = 0, b = '', x = '';
+          v.map((c, i) => {
+            n += c;
+            b += `<div style=height:${c * 100 / m}%><b>${c || ''}</b></div>`;
+            // The top bin carries the unit: 65+ degC or 85+ %, kept on one line by the no-break space
+            x += `<span>${i ? f(i) + (i < 7 ? '-' + f(i + 1) : '+&nbsp;' + (k < 4 ? '&deg;C' : '%'))
+                            : '&lt;' + f(1)}</span>`;
+          });
+          h += `<div><h4>${k & 1 ? 'Charge' : 'Drive'}` +
+               `${k < 4 ? ` temperature (${k < 2 ? 'peak' : 'start'})` : ' start SOC'}:</h4>` +
+               `<div class=hb>${b}</div><div class=ha>${x}</div><p>n = ${n}</p></div>`;
+        });
+        // Replace this script with the charts, so each battery's copy stays in its own section
+        document.currentScript.outerHTML = h + '</div>';
+      })([...48 counts...]);
+      </script>
+      */
+      content +=
+          "<script>(d=>{let h='<div class=hg>';[2,3,0,1,4,5].map((t,k)=>{let "
+          "f=j=>k<4?30+5*j:j<7?10*j+10:85,v=d.slice(t*8,t*8+8),m=Math.max(...v)||1,n=0,b='',x='';v.map((c,i)=>{n+=c;b+="
+          "`<div "
+          "style=height:${c*100/m}%><b>${c||''}</b></"
+          "div>`;x+=`<span>${i?f(i)+(i<7?'-'+f(i+1):'+&nbsp;'+(k<4?'&deg;C':'%')):'&lt;'+f(1)}</"
+          "span>`});h+=`<div><h4>${k&1?'Charge':'Drive'}${k<4?` temperature (${k<2?'peak':'start'})`:' start "
+          "SOC'}:</h4><div class=hb>${b}</div><div class=ha>${x}</div><p>n = "
+          "${n}</p></div>`});document.currentScript.outerHTML=h+'</div>'})([";
+      for (uint8_t i = 0; i < 96; i += 2) {
+        content += (history[i] << 8) | history[i + 1];
+        content += ",";
+      }
+      content += "])</script>";
     }
 
     return content;
   }
 
+  //The trouble codes, in a panel of their own after the status ones. The Read and Erase DTC
+  //buttons the page adds next land in the same panel.
+  String get_dtc_html() { return battery_dl ? render_dtc_section(battery_dl->dtc) : String(); }
+
+  //The degradation reset gets a panel of its own: the challenge values its sequence fills in, above
+  //the button that starts it.
+  String get_command_prefix_html(const char* identifier) {
+    String content;
+    if (nissan_dl && strcmp(identifier, "resetSOH") == 0) {
+      new_panel(content, "Reset degradation data");
+      //Both challenge values only ever get filled by the Reset degradation data sequence. Until that
+      //has run, incomingChallenge still holds its 0xFFFFFFFF default and the solved halves are zero,
+      //so say so rather than printing placeholder numbers that look like readings.
+      content += "<h4>CryptoChallenge: " +
+                 (nissan_dl->CryptoChallenge != 0xFFFFFFFF ? String(nissan_dl->CryptoChallenge) : String("Not run")) +
+                 "</h4>";
+      content += "<h4>SolvedChallenge: " +
+                 ((nissan_dl->SolvedChallengeMSB || nissan_dl->SolvedChallengeLSB)
+                      ? String(nissan_dl->SolvedChallengeMSB) + "-" + String(nissan_dl->SolvedChallengeLSB)
+                      : String("Not run")) +
+                 "</h4>";
+      content += "<h4>Challenge failed: " + String(nissan_dl->challengeFailed) + "</h4>";
+    }
+    return content;
+  }
+
  private:
+  //One status row, Unknown until the broadcast carrying it has arrived. A true/false flag shows as
+  //a tick or a cross. A wider field is given the name of its state instead, shown with the raw
+  //value in brackets unless that is 0, so a reading can still be matched against a CAN log.
+  static void status_row(String& content, const char* label, uint8_t value, bool known, const char* name = nullptr) {
+    content += "<h4>";
+    content += label;
+    content += ": ";
+    if (!known) {
+      content += "Unknown";
+    } else if (!name) {
+      content += value ? "&#10003;" : "&#10007;";
+    } else {
+      content += name;
+      if (value) {
+        content += " (";
+        content += (int)value;
+        content += ")";
+      }
+    }
+    content += "</h4>";
+  }
+
+  //The page streams all of this inside a battery-panel div of its own and closes the last one after
+  //the command buttons. Closing the current panel and opening the next is all it takes to split the
+  //Leaf's information into several, each under a title of its own.
+  static void new_panel(String& content, const char* title) {
+    content += "</div><div class='battery-panel'><h3>";
+    content += title;
+    content += "</h3>";
+  }
+
   // The LBC reports standard 3-byte DTCs, but Nissan service data, LeafSpy and nissan_leaf_dtc.json
   // all use the 5-character short form (P33D7, U1000) built from the first two bytes only. That is
   // therefore what goes into data-dtc-code for the JSON loader to match on. The third byte is the
@@ -134,9 +287,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     String content;
     content.reserve(3300 + dtc.dtc_count * 200);
 
-    content +=
-        "<h4 style='margin-top:20px;color:#27b06c;border-bottom:2px solid #27b06c;padding-bottom:5px;'>&#128295; "
-        "Diagnostic Trouble Codes</h4>";
+    new_panel(content, "Diagnostic Trouble Codes");
 
     if (dtc.dtc_last_read_millis == 0) {
       content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
