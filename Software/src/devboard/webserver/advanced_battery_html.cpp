@@ -150,7 +150,7 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
   }
 
  private:
-  enum class Stage { Start, Tabs, Heading, Status, Dtc, Commands, End, Done };
+  enum class Stage { Start, Tabs, Panel, Status, Dtc, Commands, End, Done };
   Stage stage = Stage::Start;
   unsigned selected;
   unsigned tab = 0;
@@ -176,7 +176,7 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
       switch (stage) {
         case Stage::Start:
           fragment = page_start;
-          stage = (battery2 || battery3) ? Stage::Tabs : Stage::Heading;
+          stage = (battery2 || battery3) ? Stage::Tabs : Stage::Panel;
           return true;
         case Stage::Tabs:
           while (tab < 3) {
@@ -188,11 +188,10 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
               return true;
             }
           }
-          stage = Stage::Heading;
+          stage = Stage::Panel;
           break;
-        case Stage::Heading:
-          snprintf(small, sizeof(small), "</nav><div class='battery-panel'><h3>Battery %u</h3>", selected + 1);
-          fragment = small;
+        case Stage::Panel:
+          fragment = "</nav><div class='battery-panel'>";
           stage = Stage::Status;
           return true;
         case Stage::Status: {

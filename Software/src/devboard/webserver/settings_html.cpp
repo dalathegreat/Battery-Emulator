@@ -234,8 +234,8 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 #endif
 
 // Special unicode characters
-const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
-const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; ✓
+const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; ✗
 
 // Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
 // only for the battery integrations that actually implement parallel batteries.
@@ -1934,7 +1934,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Enable this option if you intend to run two batteries in parallel" />
 
         <div class="if-dblbtr">
-            <label>Battery 2 interface: </label>
+            <label>2ⁿᵈ interface: </label>
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
@@ -1945,7 +1945,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Enable this option if you intend to run three batteries in parallel" />
 
         <div class="if-tribtr">
-        <label>Battery 3 interface: </label>
+        <label>3ʳᵈ interface: </label>
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
@@ -2163,15 +2163,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %EQSTOP%  
         </select>
 
-        <div class="if-dblbtr">
-            <label>Double-Battery Contactor control via GPIO: </label>
-            <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
-            <div class="if-tribtr">
-                <label>Triple-Battery Contactor control via GPIO: </label>
-                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
-            </div>
-        </div>
-
         <label>Contactor control via GPIO: </label>
         <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
 
@@ -2199,7 +2190,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             min="1" max="1023" step="1"
             title="1-1023 , lower value = lower power consumption" />
               </div>
+        </div>
 
+        <div class="if-dblbtr">
+            <label>2ⁿᵈ battery contactor control via GPIO: </label>
+            <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <div class="if-tribtr">
+                <label>3ʳᵈ battery contactor control via GPIO: </label>
+                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            </div>
         </div>
 
         <label>Periodic BMS reset: </label>
