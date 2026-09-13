@@ -9,6 +9,8 @@ class RenaultZoeGen2HtmlRenderer : public BatteryHtmlRenderer {
  public:
   RenaultZoeGen2HtmlRenderer(DATALAYER_INFO_ZOE_PH2* dl) : zoePH2(dl) {}
 
+  bool renders_own_battery_data() { return true; }
+
   String get_status_html() {
     String content;
 
