@@ -1366,30 +1366,6 @@ String processor(const String& var) {
                                                  datalayer.battery.settings.user_settings_limit_discharge)) +
                  "</h4>";
 
-      content += "<h4>System status: ";
-      switch (datalayer.system.status.system_status) {
-        case ACTIVE:
-          content += String("OK");
-          break;
-        case UPDATING:
-          content += String("UPDATING");
-          break;
-        case FAULT:
-          content += String("FAULT ");
-          content += "<button onclick='Events()'>Inspect reason</button> ";
-          break;
-        case INACTIVE:
-          content += String("INACTIVE");
-          break;
-        case STANDBY:
-          content += String("STANDBY");
-          break;
-        default:
-          content += String("??");
-          break;
-      }
-      content += "</h4>";
-
       // Close the block
       content += "</div>";
 
@@ -1579,6 +1555,30 @@ String processor(const String& var) {
     // Start a new block with gray background color
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+    content += "<h4>System status: ";
+    switch (datalayer.system.status.system_status) {
+      case ACTIVE:
+        content += String("OK");
+        break;
+      case UPDATING:
+        content += String("UPDATING");
+        break;
+      case FAULT:
+        content += String("FAULT ");
+        content += "<button onclick='Events()'>Inspect reason</button> ";
+        break;
+      case INACTIVE:
+        content += String("INACTIVE");
+        break;
+      case STANDBY:
+        content += String("STANDBY");
+        break;
+      default:
+        content += String("Unknown");
+        break;
+    }
+    content += "</h4>";
+    
     if (emulator_pause_status == NORMAL) {
       content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     } else {
