@@ -56,13 +56,11 @@ void StellantisProOneBattery::
     //triple, so it is the one safe to sustain. Zero means the frame has nothing to report rather than
     //"no power allowed" - 0x285 reads zero above roughly 97% SOC while charging is still in progress -
     //so a zero drops out of the comparison instead of forcing the result to zero.
-    datalayer.battery.status.max_charge_power_W =
-        limit_to_power_W(smallest_limit_dA(charge_limit_dA[2], obc_charge_limit_dA),
-                         datalayer.battery.status.override_charge_power_W);
+    datalayer.battery.status.max_charge_power_W = limit_to_power_W(
+        smallest_limit_dA(charge_limit_dA[2], obc_charge_limit_dA), datalayer.battery.status.override_charge_power_W);
 
-    datalayer.battery.status.max_discharge_power_W =
-        limit_to_power_W(smallest_limit_dA(discharge_limit_dA[2], 0),
-                         datalayer.battery.status.override_discharge_power_W);
+    datalayer.battery.status.max_discharge_power_W = limit_to_power_W(
+        smallest_limit_dA(discharge_limit_dA[2], 0), datalayer.battery.status.override_discharge_power_W);
   }
 
   if (pack_capacity_ah_tenths > 0) {
