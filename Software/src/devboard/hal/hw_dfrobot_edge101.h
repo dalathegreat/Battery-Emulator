@@ -39,6 +39,19 @@ class DFRobotEdge101Hal : public Esp32Hal {
   // User button — GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_38; }
 
+  // On-board IP101GRI Ethernet PHY (RMII). Data/clock pins (GPIO 0, 21, 22,
+  // 25, 26, 27) are fixed by the ESP32 EMAC hardware and do not go through
+  // the HAL pin allocator. GPIO 0 is repurposed as the RMII 50 MHz clock input,
+  // which is why ETH_CLK_MODE is ETH_CLOCK_GPIO0_IN.
+#ifdef ETHERNET
+  virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_KIND_IP101; }
+  virtual int ETH_PHY_ADDR_NUM() override { return 1; }
+  virtual gpio_num_t ETH_PHY_MDC_PIN() override { return GPIO_NUM_4; }
+  virtual gpio_num_t ETH_PHY_MDIO_PIN() override { return GPIO_NUM_13; }
+  virtual gpio_num_t ETH_PHY_POWER_PIN() override { return GPIO_NUM_2; }
+  virtual int ETH_CLK_MODE_ID() override { return ETH_CLK_KIND_GPIO0_IN; }
+#endif  // ETHERNET
+
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative};
   }
