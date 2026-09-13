@@ -1578,7 +1578,7 @@ String processor(const String& var) {
         break;
     }
     content += "</h4>";
-    
+
     if (emulator_pause_status == NORMAL) {
       content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     } else {
