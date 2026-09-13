@@ -234,8 +234,8 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 #endif
 
 // Special unicode characters
-const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
-const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; ✓
+const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; ✗
 
 // Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
 // only for the battery integrations that actually implement parallel batteries.
