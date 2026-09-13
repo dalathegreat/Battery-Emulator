@@ -40,8 +40,10 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 250;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV =
+      4200;  //Battery stops charging if one cell goes over this value (DTC set at 4.25V)
+  static const int MIN_CELL_VOLTAGE_MV =
+      2900;  //Battery stops discharging if one cell goes below this (DTC set at 2.8V)
 
   CAN_frame ONE_15A = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x15A, .data = {0x00, 0x00, 0x00, 0x00}};
   CAN_frame ONE_1D7 = {.FD = false,
