@@ -16,6 +16,28 @@ static uint8_t CalculateCRC8SAEJ1850(CAN_frame rx_frame, uint8_t length) {
   return crc ^ 0xFF;  // final XOR 0xFF
 }
 
+//Returns the smaller of two 0.1A limits, discarding any that is zero or implausibly large.
+//Zero means "not reported" on this pack rather than "no power allowed", so it must not win.
+uint16_t StellantisProOneBattery::smallest_limit_dA(uint16_t a, uint16_t b) {
+  if (a > LIMIT_MAX_DA)
+    a = 0;
+  if (b > LIMIT_MAX_DA)
+    b = 0;
+  if (a == 0)
+    return b;
+  if (b == 0)
+    return a;
+  return (a < b) ? a : b;
+}
+
+//0.1A x 0.1V = 0.01W, so the product needs dividing by 100. Falls back to the user override while the
+//battery is not reporting a usable limit.
+uint32_t StellantisProOneBattery::limit_to_power_W(uint16_t limit_dA, uint32_t fallback_W) {
+  if (limit_dA == 0 || pack_voltage == 0)
+    return fallback_W;
+  return (uint32_t)limit_dA * (uint32_t)pack_voltage / 100u;
+}
+
 void StellantisProOneBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -30,10 +52,17 @@ void StellantisProOneBattery::
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;  //TODO: locate
+    //Take the lowest limit the battery is currently reporting. Index 2 is the long-term field of each
+    //triple, so it is the one safe to sustain. Zero means the frame has nothing to report rather than
+    //"no power allowed" - 0x285 reads zero above roughly 97% SOC while charging is still in progress -
+    //so a zero drops out of the comparison instead of forcing the result to zero.
+    datalayer.battery.status.max_charge_power_W =
+        limit_to_power_W(smallest_limit_dA(charge_limit_dA[2], obc_charge_limit_dA),
+                         datalayer.battery.status.override_charge_power_W);
 
     datalayer.battery.status.max_discharge_power_W =
-        datalayer.battery.status.override_discharge_power_W;  //TODO: locate
+        limit_to_power_W(smallest_limit_dA(discharge_limit_dA[2], 0),
+                         datalayer.battery.status.override_discharge_power_W);
   }
 
   if (pack_capacity_ah_tenths > 0) {
@@ -45,9 +74,6 @@ void StellantisProOneBattery::
     datalayer.battery.status.remaining_capacity_Wh =
         (uint32_t)((uint64_t)datalayer.battery.status.real_soc * datalayer.battery.info.total_capacity_Wh / 10000u);
   }
-
-  //datalayer.battery.status.max_discharge_power_W; //TODO: locate
-  //datalayer.battery.status.max_charge_power_W; //TODO: locate
 
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
@@ -108,12 +134,13 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>306_1: " << unknown_306_0 << "</h4>"
               "<h4>306_2: " << unknown_306_1 << "</h4>"
               "<h4>306_3: " << unknown_306_2 << "</h4>"
-              "<h4>285_1chg?: " << unknown_285_0 << "</h4>"
-              "<h4>285_2chg?: " << unknown_285_1 << "</h4>"
-              "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
-              "<h4>281_1: " << unknown_281_0 << "</h4>"
-              "<h4>281_2: " << unknown_281_1 << "</h4>"
-              "<h4>281_3: " << unknown_281_2 << "</h4>"
+              "<h4>Charge limit 0x285 (0.1A, short/long/long): " << charge_limit_dA[0] << " / "
+                                                                   << charge_limit_dA[1] << " / "
+                                                                   << charge_limit_dA[2] << "</h4>"
+              "<h4>Discharge limit 0x281 (0.1A, short/long/long): " << discharge_limit_dA[0] << " / "
+                                                                     << discharge_limit_dA[1] << " / "
+                                                                     << discharge_limit_dA[2] << "</h4>"
+              "<h4>OBC charge limit 0x359 (0.1A): " << obc_charge_limit_dA << "</h4>"
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
               "<h4>Temperature sensors: </h4>"
@@ -195,15 +222,19 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x281:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      unknown_281_0 = rx_frame.data.u8[1];
-      unknown_281_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      unknown_281_2 = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      //Three 16-bit discharge currents in 0.1A. Bytes 6-7 are always zero.
+      for (uint8_t i = 0; i < 3; i++) {
+        uint16_t v = (uint16_t)(rx_frame.data.u8[i * 2] << 8) | rx_frame.data.u8[i * 2 + 1];
+        discharge_limit_dA[i] = (v == LIMIT_INVALID) ? 0 : v;
+      }
       break;
     case 0x285:  //Allowed Charge/Discharge?
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      unknown_285_0 = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-      unknown_285_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      unknown_285_2 = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
+      //Three 16-bit charge currents in 0.1A, same layout as 0x281.
+      for (uint8_t i = 0; i < 3; i++) {
+        uint16_t v = (uint16_t)(rx_frame.data.u8[i * 2] << 8) | rx_frame.data.u8[i * 2 + 1];
+        charge_limit_dA[i] = (v == LIMIT_INVALID) ? 0 : v;
+      }
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -230,6 +261,9 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x359:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Bytes 0-1 are the charge current limit the onboard charger obeys, in 0.1A. Zero until the car
+      //asks for a charge session on 0x2A5, which is why a bench never sees one.
+      obc_charge_limit_dA = (uint16_t)(rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       //Bytes 2-3 are the pack capacity in 0.1Ah. Constant within a session and different per pack:
       //observed 3340/3339 (two packs at nominal), 3235 and 3052 (two aged packs).
       pack_capacity_ah_tenths = (uint16_t)(rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];

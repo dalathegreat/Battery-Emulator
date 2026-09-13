@@ -37,6 +37,16 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t NOMINAL_CAPACITY_AH_TENTHS = 3340;  //334.0Ah cell, 90S1P
   static const uint16_t NOMINAL_PACK_VOLTAGE_CV = 33120;    //90 x 3.68V = 331.2V, in centivolt
 
+  //0x281/0x285 report 0x1FFF when they have nothing to say. The fields are 13 bits wide, so they must
+  //not be masked to 12 - 0x285 has been observed at 4760, which a 12-bit mask renders as 664.
+  static const uint16_t LIMIT_INVALID = 0x1FFF;
+  //Sanity ceiling on anything derived from those frames. The decode is a hypothesis, so a bad read
+  //must not be able to ask for more than the pack could plausibly deliver.
+  static const uint16_t LIMIT_MAX_DA = 6000;  //600.0A
+
+  uint16_t smallest_limit_dA(uint16_t a, uint16_t b);
+  uint32_t limit_to_power_W(uint16_t limit_dA, uint32_t fallback_W);
+
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 250;
@@ -327,12 +337,13 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint16_t unknown_306_0 = 0;
   uint16_t unknown_306_1 = 0;
   uint16_t unknown_306_2 = 0;
-  uint16_t unknown_285_0 = 0;
-  uint16_t unknown_285_1 = 0;
-  uint16_t unknown_285_2 = 0;
-  uint16_t unknown_281_0 = 0;
-  uint16_t unknown_281_1 = 0;
-  uint16_t unknown_281_2 = 0;
+  //0x285 and 0x281 each carry three 16-bit currents in 0.1A. Index 0 is the highest and clamps last,
+  //index 2 the lowest: one short-window allowance plus two long-term ones. See the LIMIT_* notes above.
+  uint16_t charge_limit_dA[3] = {0, 0, 0};
+  uint16_t discharge_limit_dA[3] = {0, 0, 0};
+  //0x359 bytes 0-1. Only non-zero once the car asks via 0x2A5, and it is the limit the onboard
+  //charger actually obeys.
+  uint16_t obc_charge_limit_dA = 0;
   uint16_t cellvoltage_average_mV = 3700;
   uint16_t cellvoltage_max_mV = 3700;
   uint16_t cellvoltage_min_mV = 3700;
