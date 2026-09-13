@@ -1624,9 +1624,9 @@ String processor(const String& var) {
           "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
       content += "</div>";
     } else {  //contactor_control_enabled TRUE
-      content += "<div class=\"tooltip\"><h4>Contactors control - state: ";
+      content += "<div class=\"tooltip\"><h4>Contactors control — state: ";
       if (datalayer.system.status.contactors_engaged == 0) {
-        content += "<span style='color: red;'>OFF (DISCONNECTED)</span>";
+        content += "<span style='color: red;'>OFF<br>(DISCONNECTED)</span>";
       } else if (datalayer.system.status.contactors_engaged == 1) {
         if (pwm_contactor_control) {
           content += "<span style='color: green;'>Economized</span>";
@@ -1634,7 +1634,7 @@ String processor(const String& var) {
           content += "<span style='color: green;'>ON</span>";
         }
       } else if (datalayer.system.status.contactors_engaged == 2) {
-        content += "<span style='color: red;'>OFF (FAULT)</span>";
+        content += "<span style='color: red;'>OFF<br>(FAULT)</span>";
         content += "<span class=\"tooltip-icon\"> [!]</span>";
         content +=
             "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
@@ -1644,7 +1644,7 @@ String processor(const String& var) {
       }
       content += "</h4></div>";
       if (contactor_control_enabled_double_battery && battery2) {
-        content += "<h4>Contactor for 2ⁿᵈ - state: ";
+        content += "<h4>Contactor for 2ⁿᵈ — state: ";
         if (pwm_contactor_control) {
           if (datalayer.system.status.contactors_battery2_engaged) {
             content += "<span style='color: green;'>Economized</span>";
@@ -1663,7 +1663,7 @@ String processor(const String& var) {
         content += "</h4>";
       }
       if (contactor_control_enabled_triple_battery && battery3) {
-        content += "<h4>Contactor for 3ʳᵈ - state: ";
+        content += "<h4>Contactor for 3ʳᵈ — state: ";
         if (pwm_contactor_control) {
           if (datalayer.system.status.contactors_battery3_engaged) {
             content += "<span style='color: green;'>Economized</span>";
