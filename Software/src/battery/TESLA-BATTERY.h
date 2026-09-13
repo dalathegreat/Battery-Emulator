@@ -1,6 +1,7 @@
 #ifndef TESLA_BATTERY_H
 #define TESLA_BATTERY_H
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
@@ -17,16 +18,19 @@ class TeslaBattery : public CanBattery {
  public:
   bool mandatory_charge_taper() { return true; }
   // Use the default constructor to create the first or single battery.
-  TeslaBattery() {
+  TeslaBattery() : renderer(&datalayer_extended.tesla, &datalayer.battery) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     previous_max_percentage = datalayer.battery.settings.max_percentage;
+    datalayer_tesla = &datalayer_extended.tesla;
   }
-  // Use this constructor for the second or third battery.
-  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+  // Use this constructor for the second battery.
+  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_TESLA* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended, datalayer_ptr) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     previous_max_percentage = datalayer_ptr->settings.max_percentage;
+    datalayer_tesla = extended;
   }
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -54,6 +58,11 @@ class TeslaBattery : public CanBattery {
 
  private:
   TeslaHtmlRenderer renderer;
+
+  // Per-instance extended data for the "More Battery Info" webserver page.
+  // Points at datalayer_extended.tesla for the main battery, or datalayer_extended.tesla_2
+  // for the second battery, so double-battery setups no longer share one struct.
+  DATALAYER_INFO_TESLA* datalayer_tesla;
 
  protected:
   /* Do not change anything below this line! */
