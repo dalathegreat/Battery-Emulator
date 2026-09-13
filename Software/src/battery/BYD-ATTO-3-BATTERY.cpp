@@ -229,7 +229,10 @@ void BydAttoBattery::
   // Rails follow the pack, not the session: an open leaves the cells where the BMS left them.
   const uint16_t rails_cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
   const uint16_t rails_cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
-  if (chargeTerminatedRails && rails_cell_min_mV > 0 && rails_cell_max_mV <= MAX_CELL_VOLTAGE_MV &&
+  // Release with margin: handing the rails back exactly at the stock limit lets safety.cpp raise
+  // CELL_OVER_VOLTAGE (>= max_cell_voltage_mV) on the very pass the rail drops.
+  const uint16_t rails_release_max_mV = MAX_CELL_VOLTAGE_MV - SESSION_RAILS_MARGIN_MV;
+  if (chargeTerminatedRails && rails_cell_min_mV > 0 && rails_cell_max_mV < rails_release_max_mV &&
       (rails_cell_max_mV - rails_cell_min_mV) <= MAX_CELL_DEVIATION_MV) {
     chargeTerminatedRails = false;
   }
@@ -318,19 +321,9 @@ void BydAttoBattery::
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
     datalayer_bydatto->iso_measurement_active = battery_iso_measurement_active;
-    datalayer_bydatto->battery_temperatures[0] = battery_daughterboard_temperatures[0];
-    datalayer_bydatto->battery_temperatures[1] = battery_daughterboard_temperatures[1];
-    datalayer_bydatto->battery_temperatures[2] = battery_daughterboard_temperatures[2];
-    datalayer_bydatto->battery_temperatures[3] = battery_daughterboard_temperatures[3];
-    datalayer_bydatto->battery_temperatures[4] = battery_daughterboard_temperatures[4];
-    datalayer_bydatto->battery_temperatures[5] = battery_daughterboard_temperatures[5];
-    datalayer_bydatto->battery_temperatures[6] = battery_daughterboard_temperatures[6];
-    datalayer_bydatto->battery_temperatures[7] = battery_daughterboard_temperatures[7];
-    datalayer_bydatto->battery_temperatures[8] = battery_daughterboard_temperatures[8];
-    datalayer_bydatto->battery_temperatures[9] = battery_daughterboard_temperatures[9];
-    datalayer_bydatto->battery_temperatures[10] = battery_daughterboard_temperatures[10];
-    datalayer_bydatto->battery_temperatures[11] = battery_daughterboard_temperatures[11];
-    datalayer_bydatto->battery_temperatures[12] = battery_daughterboard_temperatures[12];
+    memcpy(datalayer_bydatto->battery_temperatures, battery_daughterboard_temperatures,
+           sizeof(battery_daughterboard_temperatures));
+
     datalayer_bydatto->BMS_capacity_original_calibration = BMS_capacity_original_calibration;
     datalayer_bydatto->BMC_SOC_original_calibration = BMC_SOC_original_calibration;
     datalayer_bydatto->BMS_capacity_current_calibration = BMS_capacity_current_calibration;
@@ -549,13 +542,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x344:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      contactor_feedback = rx_frame.data.u8[0];
       lastContactorFeedbackMillis = millis();
-      if ((rx_frame.data.u8[1] & 0x40) && !(contactor_feedback_state & 0x40)) {
+      // b0 reports pack mode; b1 bit 0x40 reports closing/precharge/running
+      if (!prechargeEdgeSeen && ((rx_frame.data.u8[0] & BMS_FEEDBACK_PRECHARGING) || (rx_frame.data.u8[1] & 0x40))) {
         prechargeRampStartMillis = millis();  // BMS started precharging
         prechargeEdgeSeen = true;
       }
-      contactor_feedback_state = rx_frame.data.u8[1];
+      contactor_feedback = rx_frame.data.u8[0];
       discharge_status = (rx_frame.data.u8[1] & 0x0F);
       break;
     case 0x345:
@@ -1337,6 +1330,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       contactorOpenOptional = false;  // a fault, stop or withdrawn permission always opens
       requestContactorOpen = true;
     } else {
+      clear_event(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED);
       requestContactorClose = true;
     }
   }
@@ -1361,7 +1355,10 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
   if (requestContactorClose) {
     requestContactorClose = false;
     if (!contactorsAllowedClosed) {
-      // A fault, the equipment stop or the inverter withdrawing permission all hold the pack open
+      uint8_t reason = (datalayer.system.info.equipment_stop_active ? 1 : 0) |
+                       (!datalayer.system.status.inverter_allows_contactor_closing ? 2 : 0) |
+                       (datalayer.system.status.system_status == FAULT ? 4 : 0);
+      set_event(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED, reason);
     } else if (contactorState == CONTACTORS_AWAIT_ZERO_CURRENT) {
       // Cancel the pending open (shutdown not sent yet). If the pack already closed, resume the
       // drive-ready hold; if it was still precharging, resume the close so it finishes properly
@@ -1474,6 +1471,11 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       break;
   }
 
+  if (!closeConfirmPending && contactorState == CONTACTORS_CLOSING && lastContactorFeedbackMillis != 0 &&
+      !(contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED)) {
+    closeConfirmPending = true;
+    closeConfirmStartMillis = currentMillis;
+  }
   if (closeConfirmPending) {
     // Require a frame received since the close was commanded, not a stale closed reading
     if ((int32_t)(lastContactorFeedbackMillis - closeConfirmStartMillis) >= 0 &&
@@ -1684,22 +1686,14 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       // the contactors. Report the low floating link while open, else we hold close while opening.
       const bool pack_open = contactorState == CONTACTORS_OPEN_SETTLE || contactorState == CONTACTORS_STANDBY ||
                              contactorState == CONTACTORS_BOOT_ESTOP;
-      // byte 1 is 0x00 only while open: 0x40 on the close, 0x44 precharging, 0x41 running
-      if (!prechargeInitialised) {
-        prechargeInitialised = true;
-        prechargeWaitStartMillis = currentMillis;  // boot-default close: time out from here, not from uptime 0
-      }
       if (pack_open) {
         prechargeState = PRECHARGE_WAIT;  // next close ramps from the floating link again
         prechargeEdgeSeen = false;
-        prechargeWaitStartMillis = currentMillis;
       } else if (prechargeState == PRECHARGE_WAIT) {
         if (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) {
           prechargeState = PRECHARGE_DONE;  // booted into a closed pack, never fake a ramp
         } else if (prechargeEdgeSeen) {
           prechargeState = PRECHARGE_RAMP;
-        } else if (currentMillis - prechargeWaitStartMillis >= PRECHARGE_WAIT_MAX_MS) {
-          prechargeState = PRECHARGE_DONE;  // BMS never moved, report the link rather than stall
         }
       } else if (prechargeState == PRECHARGE_RAMP && currentMillis - prechargeRampStartMillis >= PRECHARGE_RAMP_MS) {
         prechargeState = PRECHARGE_DONE;
@@ -1943,6 +1937,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  if (!contactor_control_enabled) {
+    datalayer.system.status.dc_bus_live = false;
+  }
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
   datalayer_battery->info.max_design_voltage_dV = 6500;  //Startup in extremes
   datalayer_battery->info.min_design_voltage_dV = 2000;  //We later determine range based on amount of cells

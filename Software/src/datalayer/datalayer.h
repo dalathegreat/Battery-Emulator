@@ -142,6 +142,15 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    */
   bool insulation_resistance_available = false;
 
+  /** False while the integration has not yet decoded a real state of health, so the
+   * webserver and MQTT can report it as unknown instead of showing the soh_pptt default
+   * as if it were a reading. Defaults to true: integrations that always have an SOH to
+   * report, or that deliberately publish a fixed one, need no change.
+   * Note that soh_pptt itself keeps a safe default either way. It feeds the inverter
+   * protocols and the safety layer, neither of which has an "unknown" to fall back on.
+   */
+  bool soh_available = true;
+
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
    */

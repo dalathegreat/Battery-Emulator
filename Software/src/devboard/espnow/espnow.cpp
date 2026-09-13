@@ -21,6 +21,7 @@
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "../utils/millis64.h"
+#include "../webserver/webserver.h"
 #include "../wifi/wifi.h"
 #include "Arduino.h"
 
@@ -626,7 +627,7 @@ void init_espnow() {
 }
 
 void update_espnow() {
-  if (!espnow_initialized) {
+  if (!espnow_initialized || ota_active) {
     return;
   }
 

@@ -250,9 +250,8 @@ void init_webserver() {
   });
 
   // Route for going to advanced battery info web page
-  def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, advanced_battery_processor);
-  });
+  def_route_with_auth("/advanced", server, HTTP_GET,
+                      [](AsyncWebServerRequest* request) { send_advanced_battery_page(request); });
 
   // Served pre-compressed from flash rather than the template processor, so it never competes
   // for heap and costs a third of the space the plain HTML would.

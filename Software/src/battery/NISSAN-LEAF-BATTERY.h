@@ -68,9 +68,19 @@ class NissanLeafBattery : public CanBattery {
 
   // Sends pending DTC requests once the diagnostic channel is idle, and times out unanswered ones.
   void handle_DTC_requests(unsigned long currentMillis);
+  //Nominal pack voltage in deciVolts, used to turn the capacity the LBC reports in Ah into an
+  //energy figure. 96 cells at 3.75 V on ZE0/AZE0, at 3.65 V on ZE1. Deliberately not the live
+  //pack voltage, which would make a nameplate-style number swing with SoC.
+  static const uint16_t NOMINAL_VOLTAGE_DV_ZE0_AZE0 = 3600;
+  static const uint16_t NOMINAL_VOLTAGE_DV_ZE1 = 3504;
+  //12 V supply level below which the accessory battery can no longer be trusted to hold the
+  //contactors in. Cleared again only once it has recovered past the threshold plus the hysteresis,
+  //so a supply sitting right on the limit does not toggle the event on every update.
+  static const uint16_t LOW_12V_THRESHOLD_MV = 11000;
+  static const uint16_t LOW_12V_HYSTERESIS_MV = 200;
   static const int MAX_PACK_VOLTAGE_DV = 4055;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2400;
-  static const int MAX_CELL_DEVIATION_MV = 150;
+  static const int MAX_CELL_DEVIATION_MV = 400;
   static const int MAX_CELL_VOLTAGE_MV = 4224;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2500;  //Battery is put into emergency stop if one cell goes below this value
 
@@ -147,10 +157,15 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
   // Active polling messages
-  //Ordered so the values that identify an unknown pack come out first. The three static groups
-  //(0x62 charge counters, 0x84 serial number, 0x83 part number) are read once and then skipped,
-  //leaving 0x04/0x01/0x02/0x06 as the recurring rotation.
-  uint8_t PIDgroups[7] = {0x62, 0x84, 0x04, 0x01, 0x02, 0x06, 0x83};
+  //Ordered so the pack capacity comes out first: it is what the reported capacity and the derived
+  //state of health are built from, and neither is published until it has been read. It sits in
+  //group 0x01 on ZE0/AZE0 and in the health block 0x61 on ZE1, so both lead the rotation and the
+  //generation in use gets its answer on the first or second poll rather than most of a minute in.
+  //The three static groups (0x62 charge counters, 0x84 serial number, 0x83 part number) are read
+  //once and then skipped, leaving 0x01/0x61/0x04/0x02/0x06 as the recurring rotation. Group 0x61
+  //is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11 rather than
+  //0x10 - see the masked first-frame test in handle_incoming_can_frame().
+  uint8_t PIDgroups[8] = {0x01, 0x61, 0x62, 0x84, 0x04, 0x02, 0x06, 0x83};
   //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
@@ -239,8 +254,10 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
   uint16_t battery_GIDS = 273;                 //Startup in 24kWh mode
   uint16_t battery_MAX = 0;
-  uint16_t battery_Max_GIDS = 273;                //Startup in 24kWh mode
-  uint16_t battery_StateOfHealth = 99;            //State of health %
+  uint16_t battery_Max_GIDS = 273;  //Startup in 24kWh mode
+  //State of health in whole percent from broadcast 0x5BC, 0 until the pack has reported one.
+  //No value is invented at boot: an SOH that has not been read is reported as unknown instead.
+  uint16_t battery_StateOfHealth = 0;
   uint16_t battery_Total_Voltage2 = 740;          //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
   int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
   int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C
@@ -257,13 +274,21 @@ class NissanLeafBattery : public CanBattery {
   bool battery_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
   bool battery_Heating_Start = false;  //When transitioning from 1->0, signals a START heat request
   bool battery_Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+  //Which status broadcasts have arrived since boot: bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0. Until
+  //then the flags above are only their initial values, so the page shows them as unknown.
+  uint8_t battery_status_seen = 0;
 
   // Nissan LEAF battery data from polled CAN messages
   uint8_t battery_request_idx = 0;
   uint8_t group_7bb = 0;
-  //ISO-TP payload length of the group reply currently being received. Leaf group replies are all
-  //shorter than 256 bytes, so the low length byte of the first frame is enough to hold it.
-  uint8_t group_7bb_length = 0;
+  //ISO-TP payload length of the group reply currently being received, taken from the full 12-bit
+  //length field. Group 0x61 is longer than 255 bytes, so the low byte alone is not enough.
+  uint16_t group_7bb_length = 0;
+  //How many consecutive frames of the current group reply have arrived, counted from 0 at the
+  //first frame. The ISO-TP sequence number in the PCI byte wraps every 16 frames, so on a reply
+  //as long as group 0x61 the same PCI value comes round several times and cannot be used to
+  //identify a payload offset. This counter can.
+  uint8_t group_7bb_frame = 0;
   bool stop_battery_query = true;
   //Counted down once per 10s tick, and polling only starts on the tick after it reaches zero,
   //the first group request goes out 0 seconds after startup.
@@ -304,10 +329,30 @@ class NissanLeafBattery : public CanBattery {
   void set_balancing_status(balancing_status_enum new_status);
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2] = {0};  //contains cell min[0] and max[1] values in mV
-  uint16_t battery_HX_pptt = 0;               //Pack conductance estimate (Hx), in hundredths of a percent
-  uint16_t battery_insulation = 0;            //Insulation resistance
-  uint16_t battery_charge_count_qc = 0;       //Lifetime number of quick (CHAdeMO) charges
-  uint16_t battery_charge_count_l1l2 = 0;     //Lifetime number of L1/L2 (AC) charges
+  //Pack conductance estimate (Hx), in hundredths of a percent, 0 until read. Where it comes from
+  //depends on the generation, as the LBC history guide lays out: group 0x01 on ZE0/AZE0, the health
+  //block (group 0x61) on ZE1. Each ignores the other's source, so the two never compete.
+  uint16_t battery_HX_pptt = 0;
+  //SOH as read from the health block (group 0x61), in hundredths of a percent, 0 until that group
+  //has answered. Kept apart from the 0x5BC broadcast figure so the health block always wins when
+  //it is available.
+  uint16_t battery_SOHraw_pptt = 0;  //Unfiltered SOH from the health block, 0 until read
+  uint16_t battery_SOH_pptt_g61 = 0;
+  uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read
+  uint32_t battery_capacity_Wh = 0;   //Energy equivalent of the above at nominal voltage, 0 until read
+  //The state of health the LBC publishes, health block first and the 0x5BC broadcast otherwise, in
+  //hundredths of a percent. Shown on the info page beside the raw figure; the SOH the rest of the
+  //system uses is derived from the capacities instead, since this one is erased by a reset.
+  uint16_t battery_SOH_avg_pptt = 0;
+  uint16_t battery_vbat_mV = 0;  //12 V accessory battery level in mV, 0 until read
+  //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
+  //level on any pack that never reports one.
+  bool battery_cells_unreadable = false;
+  //Set once the group 0x62 reply has arrived in full, down to its last frame
+  bool battery_usage_history_read = false;
+  uint16_t battery_insulation = 0;         //Insulation resistance
+  uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
+  uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges
   uint16_t battery_temp_raw_1 = 718;
   uint8_t battery_temp_raw_2_highnibble = 0;
   uint16_t battery_temp_raw_2 = 718;
@@ -317,7 +362,7 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_temp_raw_min = 0;
   int16_t battery_temp_polled_max = 0;
   int16_t battery_temp_polled_min = 0;
-  uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
+  uint8_t BatterySerialNumber[16] = {0};  // 16 ASCII characters, not null-terminated
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
   uint8_t stateMachineClearSOH = 0xFF;
 

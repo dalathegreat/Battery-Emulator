@@ -151,7 +151,7 @@ struct DATALAYER_INFO_BYDATTO3 {
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[13];
+  int16_t battery_temperatures[12];
 
   uint8_t discharge_status;
   uint8_t BMS_min_cell_voltage_number;
@@ -467,34 +467,6 @@ struct DATALAYER_INFO_GEELY_GEOMETRY_C {
   uint16_t unknown8;
 };
 
-struct DATALAYER_INFO_KIAHYUNDAI64 {
-  uint32_t cumulative_charge_current_ah;
-  uint32_t cumulative_discharge_current_ah;
-  uint32_t cumulative_energy_charged_kWh;
-  uint32_t cumulative_energy_discharged_kWh;
-  uint32_t powered_on_total_time;
-
-  uint16_t inverterVoltage;
-  uint16_t isolation_resistance_kOhm;
-  uint16_t number_of_standard_charging_sessions;
-  uint16_t number_of_fastcharging_sessions;
-  uint16_t accumulated_normal_charging_energy_kWh;
-  uint16_t accumulated_fastcharging_energy_kWh;
-  uint16_t battery_12V;
-
-  int8_t temperature_water_inlet;
-  int8_t powerRelayTemperature;
-
-  uint8_t total_cell_count;
-  uint8_t waterleakageSensor;
-  uint8_t batteryManagementMode;
-  uint8_t BMS_ign;
-  uint8_t batteryRelay;
-
-  uint8_t ecu_serial_number[16];
-  uint8_t ecu_version_number[16];
-};
-
 struct DATALAYER_INFO_KIA64FD {
   /** SOC reported by the BMS, 1000 = 100.0% */
   uint16_t SOC_BMS;
@@ -788,6 +760,15 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+  /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
+   * Derived in the driver rather than at each display site so the per-generation nominal
+   * voltage is stated once.
+   */
+  uint32_t CapacityWh;
+  /** Nameplate energy of this pack size, max GIDs times WH_PER_GID, in Wh. Fixed per pack rather
+   * than tracking wear, so it serves as the reference CapacityWh is compared against.
+   */
+  uint32_t CapacityAsNewWh;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
@@ -795,8 +776,22 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;
+  /** Unfiltered state of health from the health block, in hundredths of a percent. 0 until read.
+   * The filtered figure the pack publishes settles onto this one, so it moves first while a
+   * pack is relearning after a degradation reset.
+   */
+  uint16_t battery_SOHraw_pptt;
+  /** State of health as the LBC itself publishes it, in hundredths of a percent. 0 until read.
+   * Erased along with the degradation data, so it reads 100% on a pack that has had a reset no
+   * matter what the pack still holds. Shown for reference only.
+   */
+  uint16_t battery_SOHavg_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
+  /** Pack capacity in hundredths of an Ah (11544 = 115.44 Ah), 0 until read from the battery */
+  uint16_t CapacityCAh;
+  /** 12 V accessory battery level in mV, 0 until read from the battery */
+  uint16_t VBAT_mV;
   /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
   uint16_t ChargeCountQC;
   /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
@@ -833,12 +828,24 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart;
   /** Heat request sent*/
   bool HeaterSendRequest;
+  /** Which of the LBC's status broadcasts have arrived since boot, as the flags above mean nothing
+   * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
+   * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */
+  uint8_t StatusSeen;
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
 
-  /** Battery info, stores raw HEX values for ASCII chars */
-  uint8_t BatterySerialNumber[15];
+  /** Battery info, stores raw HEX values for ASCII chars. The serial number is 16 characters, not
+   * null-terminated. */
+  uint8_t BatterySerialNumber[16];
   uint8_t BatteryPartNumber[7];
+  /** Lifetime usage tables from group 0x62, stored as the raw reply bytes payload[6..124]: seven
+   * tables of eight big-endian u16 counts. They start at [0] on ZE0/AZE0 and at [2] on ZE1, which
+   * carries one more counter ahead of them. Table order: temperature at drive start, at charge
+   * start, peak while driving, peak while charging, then SOC at drive start, at charge start, and
+   * last the charge-to-full table, whose bin 7 counts charges to 100 % and bin 6 turtle events.
+   */
+  uint8_t UsageHistograms[119];
 };
 
 struct DATALAYER_INFO_MEB {
@@ -1050,10 +1057,6 @@ class DataLayerExtended {
     struct {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
-    };
-    struct {
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
     };
     DATALAYER_INFO_TESLA tesla;
     struct {
