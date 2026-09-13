@@ -23,7 +23,7 @@ void StellantisProOneBattery::
 
   datalayer.battery.status.real_soc = soc_real_pptt;
 
-  datalayer.battery.status.current_dA = battery_current;
+  datalayer.battery.status.current_dA = -battery_current;
 
   //No power while the contactors are open or still precharging
   if (contactor_status == CONTACTORS_OFF || contactor_status == CONTACTORS_PRECHARGE) {
