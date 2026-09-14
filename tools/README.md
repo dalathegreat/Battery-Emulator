@@ -23,7 +23,8 @@ additive checksum candidates. Counter and checksum findings are candidates for
 reverse engineering, not protocol declarations; validate them across more than
 one capture before implementing transmit logic.
 
-Run the parser tests with:
+The tooling tests are included in the project's CTest suite and require Python 3.
+To run only the tooling tests directly:
 
 ```sh
 python3 -m unittest discover -s tools/tests -v

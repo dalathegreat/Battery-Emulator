@@ -17,9 +17,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v7
 
-    - name: Run Python tooling tests
-      run: python3 -m unittest discover -s tools/tests -v
-
     - name: Configure and build with CMake
       run: |
         cd test
