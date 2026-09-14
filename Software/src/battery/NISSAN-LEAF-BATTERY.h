@@ -347,6 +347,12 @@ class NissanLeafBattery : public CanBattery {
   //Scratch for the high 16 bits of Pack_AH3: that dword straddles two ISO-TP frames, so the
   //high half (D16-17) is stashed here in health-block frame 2 and combined with D18-19 in frame 3.
   uint16_t battery_capacity_AH3_high = 0;
+  //Health-block (group 0x61) logging state. The length line fires once per battery; the field line
+  //fires on change so a running system is not flooded. 0xFFFF forces the first field line to print.
+  bool battery_g61_len_logged = false;
+  uint16_t battery_g61_log_last_soh = 0xFFFF;
+  uint16_t battery_g61_log_last_ah = 0xFFFF;
+  uint16_t battery_g61_log_last_ah3 = 0xFFFF;
   uint32_t battery_capacity_Wh = 0;  //Energy equivalent of the above at nominal voltage, 0 until read
   //The state of health the LBC publishes, health block first and the 0x5BC broadcast otherwise, in
   //hundredths of a percent. Shown on the info page beside the raw figure; the SOH the rest of the

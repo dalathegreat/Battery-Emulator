@@ -881,6 +881,15 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         //100% is normal on a healthy pack and is deliberately not clamped; the range checks below
         //only reject values that cannot be a reading at all.
         if (group_7bb_frame == 0) {  //First frame, payload[0..5] in u8[2..7]
+          //Diagnostic, once per battery: the announced health-block length and first four record
+          //bytes. On a non-ZE1 pack this shows whether group 0x61 matches the ZE1 field map before
+          //any offset below is trusted. A ZE1 answers length 0x14B.
+          if (!battery_g61_len_logged) {
+            battery_g61_len_logged = true;
+            DEBUG_PRINTF("[LEAF %s] group 0x61 length=0x%X D0-3=%02X %02X %02X %02X\n", interface_name(),
+                         group_7bb_length, rx_frame.data.u8[4], rx_frame.data.u8[5], rx_frame.data.u8[6],
+                         rx_frame.data.u8[7]);
+          }
           uint16_t hx_raw = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);   //payload[2..3]
           uint16_t soh_raw = (uint16_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);  //payload[4..5]
           //Only ZE1 takes its Hx from here, as the LBC history guide lays out; ZE0/AZE0 read theirs
@@ -914,9 +923,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
 
         if (group_7bb_frame == 2) {  //Third frame, payload[13..19] in u8[1..7]
-          //ZE1 carries Pack_AH (design/nameplate) at payload[14..17] (D12-15), a u32 in
-          //ten-thousandths of an Ah. Pack_AH3 (learned/current, D16-19) begins here too: its high
-          //two bytes are payload[18..19] = u8[6..7], and it is completed in the next frame.
+          //Pack_AH (design/nameplate) at payload[14..17] (D12-15), a u32 in ten-thousandths of an Ah.
+          //Only used as the capacity SOURCE on ZE1; ZE0/AZE0 take capacity from group 0x01, so this
+          //write stays ZE1-gated to avoid clobbering the group 0x01 value with a ZE1-offset read.
           if (LEAF_battery_Type == ZE1_BATTERY) {
             uint32_t capacity_raw = ((uint32_t)rx_frame.data.u8[2] << 24) | ((uint32_t)rx_frame.data.u8[3] << 16) |
                                     ((uint32_t)rx_frame.data.u8[4] << 8) | (uint32_t)rx_frame.data.u8[5];
@@ -924,22 +933,30 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if ((capacity_cAh > 100u) && (capacity_cAh <= 40000u)) {
               battery_capacity_cAh = (uint16_t)capacity_cAh;
             }
-            battery_capacity_AH3_high = (uint16_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
           }
+          //Pack_AH3 (learned/current, D16-19) begins here: high two bytes are payload[18..19] =
+          //u8[6..7], completed in the next frame. Captured for every generation so AZE0 can be
+          //inspected; the ZE1 offsets are assumed - cross-check against the frame-0 length line.
+          battery_capacity_AH3_high = (uint16_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
         }
 
         if (group_7bb_frame == 3) {  //Fourth frame, payload[20..26] in u8[1..7]
           //Complete Pack_AH3 (D16-19): the low two bytes (D18-19) are payload[20..21] = u8[1..2],
           //joined with the high half stashed in frame 2. Same u32 x10000-Ah encoding as Pack_AH.
-          if (LEAF_battery_Type == ZE1_BATTERY) {
-            uint32_t ah3_raw = ((uint32_t)battery_capacity_AH3_high << 16) | ((uint32_t)rx_frame.data.u8[1] << 8) |
-                               (uint32_t)rx_frame.data.u8[2];
-            uint32_t ah3_cAh = ah3_raw / 100u;
-            if ((ah3_cAh > 100u) && (ah3_cAh <= 40000u)) {  //1-400 Ah, the LBC's own clamp
-              battery_capacity_AH3_cAh = (uint16_t)ah3_cAh;
-            }
-            //One consolidated health-block line per configured battery. interface_name() is the
-            //per-instance discriminator, so a double-battery setup logs one line for each pack.
+          uint32_t ah3_raw = ((uint32_t)battery_capacity_AH3_high << 16) | ((uint32_t)rx_frame.data.u8[1] << 8) |
+                             (uint32_t)rx_frame.data.u8[2];
+          uint32_t ah3_cAh = ah3_raw / 100u;
+          if ((ah3_cAh > 100u) && (ah3_cAh <= 40000u)) {  //1-400 Ah, the LBC's own clamp
+            battery_capacity_AH3_cAh = (uint16_t)ah3_cAh;
+          }
+          //Consolidated health-block line per configured battery, every generation. On ZE0/AZE0 the
+          //capacity fields use the assumed ZE1 offsets - treat them as unverified until cross-checked.
+          //Logged on change to avoid flooding; interface_name() keeps a double-battery setup apart.
+          if ((battery_SOH_pptt_g61 != battery_g61_log_last_soh) || (battery_capacity_cAh != battery_g61_log_last_ah) ||
+              (battery_capacity_AH3_cAh != battery_g61_log_last_ah3)) {
+            battery_g61_log_last_soh = battery_SOH_pptt_g61;
+            battery_g61_log_last_ah = battery_capacity_cAh;
+            battery_g61_log_last_ah3 = battery_capacity_AH3_cAh;
             DEBUG_PRINTF(
                 "[LEAF %s] health block: Hx=%u.%02u%% SOH=%u.%02u%% BarCount_SOH=0x%02X "
                 "Pack_AH(design)=%u.%02uAh Pack_AH3(learned)=%u.%02uAh\n",
