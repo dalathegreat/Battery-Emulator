@@ -908,10 +908,15 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if ((soh_raw > 0u) && (soh_raw <= 10000u)) {
             battery_SOHraw_pptt = soh_raw;
           }
+          //BarCount_SOH (payload[6], D4): the dash capacity-bar count. Stored raw - off a car it is
+          //typically 0xFF/0xF0 and carries no health data, but read and logged here on request.
+          battery_BarCount_SOH = rx_frame.data.u8[1];
         }
 
         if (group_7bb_frame == 2) {  //Third frame, payload[13..19] in u8[1..7]
-          //ZE1 carries the pack capacity at payload[14..17], a u32 in ten-thousandths of an Ah.
+          //ZE1 carries Pack_AH (design/nameplate) at payload[14..17] (D12-15), a u32 in
+          //ten-thousandths of an Ah. Pack_AH3 (learned/current, D16-19) begins here too: its high
+          //two bytes are payload[18..19] = u8[6..7], and it is completed in the next frame.
           if (LEAF_battery_Type == ZE1_BATTERY) {
             uint32_t capacity_raw = ((uint32_t)rx_frame.data.u8[2] << 24) | ((uint32_t)rx_frame.data.u8[3] << 16) |
                                     ((uint32_t)rx_frame.data.u8[4] << 8) | (uint32_t)rx_frame.data.u8[5];
@@ -919,6 +924,28 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if ((capacity_cAh > 100u) && (capacity_cAh <= 40000u)) {
               battery_capacity_cAh = (uint16_t)capacity_cAh;
             }
+            battery_capacity_AH3_high = (uint16_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+          }
+        }
+
+        if (group_7bb_frame == 3) {  //Fourth frame, payload[20..26] in u8[1..7]
+          //Complete Pack_AH3 (D16-19): the low two bytes (D18-19) are payload[20..21] = u8[1..2],
+          //joined with the high half stashed in frame 2. Same u32 x10000-Ah encoding as Pack_AH.
+          if (LEAF_battery_Type == ZE1_BATTERY) {
+            uint32_t ah3_raw = ((uint32_t)battery_capacity_AH3_high << 16) |
+                               ((uint32_t)rx_frame.data.u8[1] << 8) | (uint32_t)rx_frame.data.u8[2];
+            uint32_t ah3_cAh = ah3_raw / 100u;
+            if ((ah3_cAh > 100u) && (ah3_cAh <= 40000u)) {  //1-400 Ah, the LBC's own clamp
+              battery_capacity_AH3_cAh = (uint16_t)ah3_cAh;
+            }
+            //One consolidated health-block line per configured battery. interface_name() is the
+            //per-instance discriminator, so a double-battery setup logs one line for each pack.
+            DEBUG_PRINTF(
+                "[LEAF %s] health block: Hx=%u.%02u%% SOH=%u.%02u%% BarCount_SOH=0x%02X "
+                "Pack_AH(design)=%u.%02uAh Pack_AH3(learned)=%u.%02uAh\n",
+                interface_name(), battery_HX_pptt / 100u, battery_HX_pptt % 100u, battery_SOH_pptt_g61 / 100u,
+                battery_SOH_pptt_g61 % 100u, battery_BarCount_SOH, battery_capacity_cAh / 100u,
+                battery_capacity_cAh % 100u, battery_capacity_AH3_cAh / 100u, battery_capacity_AH3_cAh % 100u);
           }
         }
       }
