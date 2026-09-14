@@ -687,9 +687,14 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
 String get_event_message_string(EVENTS_ENUM_TYPE event) {
   String message = get_event_base_message(event);
   /* The three variants of a battery event share one message string, so name the pack here
-     rather than storing 57 near-identical literals in flash. 0 = not battery specific. */
+     rather than storing three near-identical literals each in flash. 0 = not battery specific.
+
+     The pack is only named when there is more than one to tell apart: on a single battery
+     install, which is the common case, "(Battery 1)" on every message is noise. Packs 2 and 3
+     always name themselves - their events cannot fire unless that pack exists - so only the
+     pack 1 suffix is conditional. */
   const uint8_t battery = event_battery_number(event);
-  if (battery) {
+  if (battery > 1 || (battery == 1 && datalayer.system.info.configured_batteries > 1)) {
     // Built into a plain buffer and appended as const char*. The native unit-test build
     // (test/emul/WString.h) only provides String::operator+=(const String&/std::string/const char*),
     // and has no F() macro, so the Arduino-only integer and char overloads cannot be used here.

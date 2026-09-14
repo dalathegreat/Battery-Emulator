@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
 
 /* The events a battery driver raises are now per-pack triplets, because driver code is
@@ -41,9 +42,17 @@ const EVENTS_ENUM_TYPE kDriverEventBases[] = {
 class PerBatteryEventsTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    // Explicit, and restored in TearDown: the suite is also run shuffled in one process, so a
+    // test that inherited this from another one would pass or fail depending on order.
+    saved_pack_count = datalayer.system.info.configured_batteries;
+    datalayer.system.info.configured_batteries = 3;
     init_events();
     reset_all_events();
   }
+
+  void TearDown() override { datalayer.system.info.configured_batteries = saved_pack_count; }
+
+  uint8_t saved_pack_count = 1;
 
   static EVENTS_STATE_TYPE state_of(int event) {
     return get_event_pointer(static_cast<EVENTS_ENUM_TYPE>(event))->state;
@@ -82,6 +91,21 @@ TEST_F(PerBatteryEventsTest, ClearingOnePackLeavesTheOthersActive) {
     EXPECT_EQ(state_of(base), EVENT_STATE_ACTIVE) << get_event_enum_string(base) << " for pack 1 was cleared by pack 3";
     EXPECT_EQ(state_of(base + 2), EVENT_STATE_INACTIVE);
   }
+}
+
+/* A single battery install has nothing to disambiguate, so pack 1 messages carry no suffix
+   there. Packs 2 and 3 are unaffected - their events cannot fire without a second pack. */
+TEST_F(PerBatteryEventsTest, SinglePackInstallIsNotSuffixed) {
+  datalayer.system.info.configured_batteries = 1;
+  for (EVENTS_ENUM_TYPE base : kDriverEventBases) {
+    const std::string msg = get_event_message_string(base).c_str();
+    EXPECT_EQ(msg.find("(Battery"), std::string::npos) << get_event_enum_string(base) << ": " << msg;
+    EXPECT_FALSE(msg.empty()) << get_event_enum_string(base) << " has no message text";
+  }
+  // Two packs configured: pack 1 is named again.
+  datalayer.system.info.configured_batteries = 2;
+  const std::string msg = get_event_message_string(EVENT_12V_LOW).c_str();
+  EXPECT_NE(msg.find("(Battery 1)"), std::string::npos) << msg;
 }
 
 // The three variants share one message string; only the pack suffix differs.
