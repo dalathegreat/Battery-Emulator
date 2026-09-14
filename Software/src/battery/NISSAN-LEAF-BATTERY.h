@@ -347,7 +347,7 @@ class NissanLeafBattery : public CanBattery {
   //Scratch for the high 16 bits of Pack_AH3: that dword straddles two ISO-TP frames, so the
   //high half (D16-17) is stashed here in health-block frame 2 and combined with D18-19 in frame 3.
   uint16_t battery_capacity_AH3_high = 0;
-  uint32_t battery_capacity_Wh = 0;   //Energy equivalent of the above at nominal voltage, 0 until read
+  uint32_t battery_capacity_Wh = 0;  //Energy equivalent of the above at nominal voltage, 0 until read
   //The state of health the LBC publishes, health block first and the 0x5BC broadcast otherwise, in
   //hundredths of a percent. Shown on the info page beside the raw figure; the SOH the rest of the
   //system uses is derived from the capacities instead, since this one is erased by a reset.

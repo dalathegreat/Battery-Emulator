@@ -932,8 +932,8 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //Complete Pack_AH3 (D16-19): the low two bytes (D18-19) are payload[20..21] = u8[1..2],
           //joined with the high half stashed in frame 2. Same u32 x10000-Ah encoding as Pack_AH.
           if (LEAF_battery_Type == ZE1_BATTERY) {
-            uint32_t ah3_raw = ((uint32_t)battery_capacity_AH3_high << 16) |
-                               ((uint32_t)rx_frame.data.u8[1] << 8) | (uint32_t)rx_frame.data.u8[2];
+            uint32_t ah3_raw = ((uint32_t)battery_capacity_AH3_high << 16) | ((uint32_t)rx_frame.data.u8[1] << 8) |
+                               (uint32_t)rx_frame.data.u8[2];
             uint32_t ah3_cAh = ah3_raw / 100u;
             if ((ah3_cAh > 100u) && (ah3_cAh <= 40000u)) {  //1-400 Ah, the LBC's own clamp
               battery_capacity_AH3_cAh = (uint16_t)ah3_cAh;
