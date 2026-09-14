@@ -28,6 +28,7 @@ enum class InverterProtocolType {
   VCU = 22,
   PylonLV485 = 23,
   SmaSBSByd = 24,
+  FoxessEp = 25,
   Highest
 };
 

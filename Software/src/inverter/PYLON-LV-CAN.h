@@ -21,7 +21,11 @@ class PylonLvInverter : public CanInverterProtocol {
   // 80 means after reaching 80% of a nominal value a warning is produced (e.g. 80% of max current)
   static const int WARNINGS_PERCENT = 80;
 
-  static constexpr const char* MANUFACTURER_NAME = "BatEmuLV";
+  // Some inverters (e.g. Solis on the PYLON_LV battery profile) validate this
+  // string strictly and reject anything that isn't literally "PYLON" -
+  // confirmed against a real Solis S6-EH1P8K-L-PLUS in growatt2solis, the
+  // project this Growatt LV battery driver was ported from.
+  static constexpr const char* MANUFACTURER_NAME = "PYLON   ";
 
   unsigned long previousMillis1000ms = 0;
 

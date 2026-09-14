@@ -60,6 +60,8 @@ enum class BatteryType {
   StellantisSmallWide4x4 = 53,
   ChargebyteCCSBattery = 54,
   VAGMqbEvo = 55,
+  Akasol = 56,
+  GrowattLv = 57,
   Highest
 };
 

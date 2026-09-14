@@ -200,6 +200,31 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_cooldown_ready;
   bool autocal_crit_contactors;
 
+  // Native BMS termination: let the battery end the charge and recalibrate SOC itself, by running a
+  // real charge session on an already closed pack. Needs the pack not reporting an insulation fault
+  // (the isolation-monitor-disable setting, on by default, normally keeps that clear).
+  bool native_termination_enabled;
+  /** Session state: 0 off, 1 requesting, 2 ready, 3 charging, 4 finishing, 5 resting */
+  uint8_t charge_session_state;
+  /** Charge grant the battery gives the charger (0x347), zero means stop */
+  uint8_t charge_grant;
+  /** Seconds spent in the current session state, so the post-charge rest can be timed */
+  uint32_t charge_session_seconds;
+  /** Highest cell and cell spread at the moment the battery ended the last charge */
+  uint16_t termination_cell_max_mV;
+  uint16_t termination_cell_min_mV;
+  uint16_t termination_cell_delta_mV;
+  uint8_t termination_cell_max_number;
+  uint8_t termination_cell_min_number;
+  /** Cycle the contactors open after a native termination, then close again */
+  bool balancing_enabled;
+  /** How long to hold the pack open for */
+  uint16_t balancing_hold_minutes;
+  /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
+  uint8_t balancing_state;
+  /** Minutes left of the hold */
+  uint16_t balancing_remaining_min;
+
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
   bool UserRequestDTCreadout;  // User requesting DTC readout via WebUI
@@ -568,7 +593,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_info_subUsageId;
   uint16_t battery_dcdcLvBusVolt;
   uint16_t battery_dcdcHvBusVolt;
-  uint16_t battery_dcdcLvOutputCurrent;
+  int16_t battery_dcdcLvOutputCurrent;
   uint16_t battery_nominal_full_pack_energy;
   uint16_t battery_nominal_full_pack_energy_m0;
   uint16_t battery_nominal_energy_remaining;
@@ -584,7 +609,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMax;
   uint16_t battery_BrickVoltageMin;
   uint16_t HVP_hvp1v5Ref;
-  uint16_t HVP_shuntCurrentDebug;
+  int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
   int16_t PCS_ambientTemp;
   int16_t PCS_chgPhATemp;
@@ -702,7 +727,6 @@ struct DATALAYER_INFO_TESLA {
   uint8_t HVP_info_pcbaId;
   uint8_t HVP_info_assemblyId;
   uint8_t HVP_info_bootUdsProtoVersion;
-  uint8_t HVP_shuntHwMia;
   uint8_t HVP_shuntAuxCurrentStatus;
   uint8_t HVP_shuntBarTempStatus;
   uint8_t HVP_shuntAsicTempStatus;
@@ -739,19 +763,15 @@ struct DATALAYER_INFO_TESLA {
   bool HVP_gpioPyroPor;
   bool HVP_gpioShuntEn;
   bool HVP_gpioHvpVerEn;
-  bool HVP_gpioPackCoontPosFlywheel;
+  bool HVP_gpioFcContFlywheelEnable;
   bool HVP_gpioCpLatchEnable;
-  bool HVP_gpioPcsEnable;
-  bool HVP_gpioPcsDcdcPwmEnable;
-  bool HVP_gpioPcsChargePwmEnable;
   bool HVP_gpioFcContPowerEnable;
   bool HVP_gpioHvilEnable;
-  bool HVP_gpioSecDrdy;
+  bool HVP_gpioPortSelSpiRdy;
+  bool HVP_gpioPyroUnlock;
   bool HVP_packCurrentMia;
   bool HVP_auxCurrentMia;
   bool HVP_currentSenseMia;
-  bool HVP_shuntRefVoltageMismatch;
-  bool HVP_shuntThermistorMia;
 
   uint8_t BMS_partNumber[12];        //stores raw HEX values for ASCII chars
   uint8_t battery_serialNumber[15];  //stores raw HEX values for ASCII chars
@@ -768,6 +788,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+  /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
+   * Derived in the driver rather than at each display site so the per-generation nominal
+   * voltage is stated once.
+   */
+  uint32_t CapacityWh;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
@@ -775,8 +800,21 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;
+  /** Unfiltered state of health from the health block, in hundredths of a percent. 0 until read.
+   * The filtered figure the pack publishes settles onto this one, so it moves first while a
+   * pack is relearning after a degradation reset.
+   */
+  uint16_t battery_SOHraw_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
+  /** Pack capacity in hundredths of an Ah (11544 = 115.44 Ah), 0 until read from the battery */
+  uint16_t CapacityCAh;
+  /** 12 V accessory battery level in mV, 0 until read from the battery */
+  uint16_t VBAT_mV;
+  /** Two status bits the health block carries after the SOH figures. Both clear on a pack that
+   * has just had its degradation reset, both set on one with history.
+   */
+  uint8_t battery_SOH_flags;
   /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
   uint16_t ChargeCountQC;
   /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
@@ -1064,6 +1102,9 @@ class DataLayerExtended {
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
+      data.native_termination_enabled = true;
+      data.balancing_enabled = false;
+      data.balancing_hold_minutes = 30;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);

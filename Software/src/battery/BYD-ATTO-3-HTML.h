@@ -14,6 +14,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
+    content.reserve(16000);
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
@@ -191,15 +192,201 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
 
-    content += "<h4>Auto-calibrate SOC to 100&percnt; when full: <input type='checkbox' id='autoCalEnabled" + s + "' ";
-    content += (byd_datalayer->auto_calibrate_soc_enabled ? "checked" : "");
-    content += " onchange='toggleAutoCalSOCEnabled" + s + "()'> (default ON)</h4>";
-    content += "<h4>Auto-calibrate trigger drift: <input type='number' id='driftPercent" + s + "' value='";
-    content += String(byd_datalayer->auto_calibrate_soc_drift_percent);
-    content += "' min='1' max='20'> &percnt; <button onclick='setAutoCalDriftPercent" + s +
-               "()'>Save Drift &percnt;</button></h4>";
+    // Shared geometry for the three calibration panels below, so they line up with each other.
+    // Percent widths are written as &percnt; so no literal '%' reaches the template engine, which would
+    // otherwise treat pairs of '%' as placeholder markers and delete the content between them.
+    const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4;width:50&percnt;;text-align:right'>";
+    const char* value_td = "<td style='padding:3px 0;color:white;font-weight:bold;text-align:left'>";
+    const char* panel_table =
+        "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white;"
+        "width:100&percnt;;max-width:460px;table-layout:fixed'>";
 
-    // Auto-calibration live status panel
+    // Native BMS termination. On by default. The battery only enters a charge session when it is not
+    // reporting an insulation fault; the isolation-monitor-disable option (also on by default) normally
+    // keeps that clear, so a pack out of a car does not need its case isolated from earth for this.
+    // Primary battery only - the inverter charge limit follows battery 1, so a session on a second
+    // battery could not stop the bank when it terminates.
+    if (s.length() > 0) {
+      content += "<hr>";
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      content +=
+          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
+      content +=
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Not available on the second battery: "
+          "the inverter charge limit follows battery 1, so a termination here could not stop the "
+          "charge.</div>";
+      content += "</div>";
+      content += "<hr>";
+    } else {
+      const char* session_text = "Idle";
+      const char* session_colour = "#8b949e";  // grey while nothing is running
+      bool show_elapsed = false;
+      switch (byd_datalayer->charge_session_state) {
+        case 1:
+          session_text = "Requesting charge";
+          session_colour = "#d29922";
+          break;
+        case 2:
+          session_text = "Ready, waiting for battery";
+          session_colour = "#d29922";
+          break;
+        case 3:
+          session_text = "Charging";
+          session_colour = "#3fb950";
+          break;
+        case 4:
+          session_text = "Finishing";
+          session_colour = "#d29922";
+          break;
+        case 5:
+          session_text = "Resting";
+          session_colour = "white";
+          show_elapsed = true;  // rest time is the interesting quantity in this state
+          break;
+        default:
+          break;
+      }
+
+      content += "<hr>";
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      content +=
+          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
+      content +=
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Native termination lets the battery "
+          "finish charging and recalibrate its own SOC and SOH, as it does in the car. Without balancing, the "
+          "pack remains closed and available for discharge. With balancing enabled, the contactors open for the "
+          "selected hold time before closing again &mdash; a cycle that appears to trigger balancing.</div>";
+      content += panel_table;
+
+      content += "<tr>";
+      content += label_td;
+      content += "Enabled:</td>";
+      content += value_td;
+      content += "<input type='checkbox' id='nativeTerm" + s + "' ";
+      content += (byd_datalayer->native_termination_enabled ? "checked" : "");
+      content += " onchange='toggleNativeTermination" + s + "()'>";
+      content += "<span style='font-weight:normal;color:#8b949e'> default on</span>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Balancing enabled:</td>";
+      content += value_td;
+      content += "<input type='checkbox' id='balancingEnabled' ";
+      content += (byd_datalayer->balancing_enabled ? "checked" : "");
+      content += " onchange='toggleBalancingEnabled()'>";
+      content += "<span style='font-weight:normal;color:#8b949e'> open/reclose after charge</span>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Hold for:</td>";
+      content += value_td;
+      content +=
+          "<input type='number' style='width:4.5em;margin:0;padding:1px 4px;vertical-align:middle' "
+          "id='balancingMinutes' value='";
+      content += String(byd_datalayer->balancing_hold_minutes);
+      content +=
+          "' min='1' max='1440'> min <button style='margin:0 0 0 8px;padding:2px 12px;vertical-align:middle' "
+          "onclick='setBalancingMinutes()'>Save</button>";
+      content += "</td></tr>";
+
+      if (byd_datalayer->balancing_state != 0) {
+        const char* hold_text = "Idle";
+        switch (byd_datalayer->balancing_state) {
+          case 1:
+            hold_text = "Armed";
+            break;
+          case 2:
+            hold_text = "Opening";
+            break;
+          case 3:
+            hold_text = "Holding open";
+            break;
+          case 4:
+            hold_text = "Closing";
+            break;
+          case 5:
+            hold_text = "Close failed - pack left open";
+            break;
+          default:
+            break;
+        }
+        content += "<tr>";
+        content += label_td;
+        content += "Hold state:</td>";
+        content += value_td;
+        content +=
+            (byd_datalayer->balancing_state == 5) ? "<span style='color:#d29922'>" : "<span style='color:white'>";
+        content += hold_text;
+        if (byd_datalayer->balancing_state == 3) {
+          content += " (" + String(byd_datalayer->balancing_remaining_min) + " min left)";
+        }
+        content += "</span></td></tr>";
+      }
+
+      content += "<tr>";
+      content += label_td;
+      content += "Charge session:</td>";
+      content += value_td;
+      content += "<span style='color:";
+      content += session_colour;
+      content += "'>";
+      content += session_text;
+      content += "</span>";
+      if (show_elapsed) {
+        uint32_t rest_min = byd_datalayer->charge_session_seconds / 60;
+        content += "<span style='font-weight:normal;color:#8b949e'> (";
+        if (rest_min >= 60) {
+          content += String(rest_min / 60) + "h " + String(rest_min % 60) + "m";
+        } else {
+          content += String(rest_min) + "m";
+        }
+        content += ")</span>";
+      }
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Grant from battery:</td>";
+      content += value_td;
+      // Only zero versus non-zero is decoded, so lead with that. The raw value is kept for
+      // diagnostics but means nothing on its own: it ramps and sawtooths without the charger
+      // ever following it.
+      if (byd_datalayer->charge_session_state == 0) {
+        content += "<span style='color:#8b949e'>&mdash;</span>";
+      } else if (byd_datalayer->charge_grant > 0) {
+        content += "<span style='color:#3fb950'>Granted</span>";
+        content +=
+            "<span style='font-weight:normal;color:#8b949e'> (" + String(byd_datalayer->charge_grant) + ")</span>";
+      } else {
+        content += "<span style='color:#d29922'>Not granted</span>";
+      }
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Last termination:</td>";
+      content += value_td;
+      if (byd_datalayer->termination_cell_max_mV > 0) {
+        content += String(byd_datalayer->termination_cell_max_mV) + " mV top cell, " +
+                   String(byd_datalayer->termination_cell_delta_mV) + " mV spread";
+      } else {
+        content += "<span style='color:#8b949e'>None yet</span>";
+      }
+      content += "</td></tr>";
+
+      content += "</table>";
+      content +=
+          "<div style='margin:10px auto 0;font-size:0.9em;color:#8b949e'>The battery will not enter a "
+          "charge session while it reports an insulation fault. The isolation-monitor-disable option "
+          "(on by default) normally keeps that clear; otherwise the pack case must be isolated from "
+          "earth.</div>";
+      content += "</div>";
+      content += "<hr>";
+    }
+
+    // Artificial SOC auto-calibration: settings and the live trigger criteria
     {
       uint32_t dwell_sec = byd_datalayer->autocal_dwell_accumulated_ms / 1000;
       uint32_t dwell_min = dwell_sec / 60;
@@ -213,12 +400,42 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         current_direction = "charge";
       }
       bool dwell_done = byd_datalayer->autocal_crit_dwell;
-      const char* label_td = "<td style='padding:3px 14px 3px 0;color:#d8dee4'>";
-      const char* value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
 
-      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Auto-calibration status</h4>";
-      content += "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white'>";
+      // Dimmed while native calibration owns the job, so the panel reads as inactive at a glance
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white";
+      content += byd_datalayer->native_termination_enabled ? ";opacity:0.45'>" : "'>";
+      content += "<h4 style='margin:0 0 8px 0;color:white'>Artificial SOC auto-calibration</h4>";
+      content +=
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Battery Emulator decides the pack is full "
+          "and writes 100&percnt; SOC to the battery over UDS.</div>";
+      content += panel_table;
+
+      content += "<tr>";
+      content += label_td;
+      content += "Enabled:</td>";
+      content += value_td;
+      content += "<input type='checkbox' style='margin:0;vertical-align:middle' id='autoCalEnabled" + s + "' ";
+      content += (byd_datalayer->auto_calibrate_soc_enabled ? "checked" : "");
+      content += " onchange='toggleAutoCalSOCEnabled" + s + "()'>";
+      content += "<span style='font-weight:normal;color:#8b949e'> default on, UDS write</span>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Trigger drift:</td>";
+      content += value_td;
+      content +=
+          "<input type='number' style='width:3.5em;margin:0;padding:1px 4px;vertical-align:middle' "
+          "id='driftPercent" +
+          s + "' value='";
+      content += String(byd_datalayer->auto_calibrate_soc_drift_percent);
+      content +=
+          "' min='1' max='20'> &percnt; <button style='margin:0 0 0 8px;padding:2px 12px;vertical-align:middle' "
+          "onclick='setAutoCalDriftPercent" +
+          s + "()'>Save</button>";
+      content += "</td></tr>";
+
+      content += "<tr><td colspan='2' style='height:10px'></td></tr>";  // settings above, live criteria below
 
       content += "<tr>";
       content += label_td;
@@ -286,12 +503,51 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "</table>";
       content += "</div>";
+      // Outside the dimmed container, so the reason the panel is dimmed stays readable
+      if (byd_datalayer->native_termination_enabled) {
+        content +=
+            "<div style='max-width:560px;margin:-6px auto 16px;text-align:center;font-size:0.9em;color:#d8dee4'>"
+            "Overridden while native SOC calibration is enabled &mdash; the battery does it itself.</div>";
+      }
     }
 
-    content += "<h4>Calibration target SOC: " + String(byd_datalayer->calibrationTargetSOC) +
-               "&percnt; <button onclick='editCalTargetSOC" + s + "()'>Edit</button></h4>";
-    content += "<h4>Calibration target capacity: " + String(byd_datalayer->calibrationTargetAH) +
-               " AH <button onclick='editCalTargetAH" + s + "()'>Edit</button></h4>";
+    // Values the manual Calibrate SOC command writes to the battery
+    {
+      const char* value_span = "<span style='display:inline-block;width:70px'>";
+      const char* edit_button = "<button style='margin:0;padding:2px 12px;vertical-align:middle' onclick='";
+
+      content += "<hr>";
+      content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      content += "<h4 style='margin:0 0 8px 0;color:white'>Manual SOC &amp; capacity calibration</h4>";
+      content +=
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Values used by the Calibrate SOC button "
+          "below. Automatic calibration overwrites them when it runs.</div>";
+      content += panel_table;
+
+      content += "<tr>";
+      content += label_td;
+      content += "Target SOC:</td>";
+      content += value_td;
+      content += value_span;  // fixed width so both Edit buttons line up
+      content += String(byd_datalayer->calibrationTargetSOC) + "&percnt;</span>";
+      content += edit_button;
+      content += "editCalTargetSOC" + s + "()'>Edit</button>";
+      content += "</td></tr>";
+
+      content += "<tr>";
+      content += label_td;
+      content += "Target capacity:</td>";
+      content += value_td;
+      content += value_span;
+      content += String(byd_datalayer->calibrationTargetAH) + " AH</span>";
+      content += edit_button;
+      content += "editCalTargetAH" + s + "()'>Edit</button>";
+      content += "</td></tr>";
+
+      content += "</table>";
+      content += "</div>";
+      content += "<hr>";
+    }
 
     // Isolation monitor. Status is per battery; the controls are shown once and apply to both.
     {
@@ -409,6 +665,32 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "    }";
     content += "  }";
     content += "}";
+    if (s.length() == 0) {  // native termination is primary-battery only
+      content += "function toggleNativeTermination(){";
+      content += "  var enabled = document.getElementById('nativeTerm').checked ? 1 : 0;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/editBydAtto3NativeTermination?value='+enabled,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function toggleBalancingEnabled(){";
+      content += "  var enabled = document.getElementById('balancingEnabled').checked ? 1 : 0;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/editBydAtto3BalancingEnabled?value='+enabled,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function setBalancingMinutes(){";
+      content += "  var v = document.getElementById('balancingMinutes').value;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/editBydAtto3BalancingMinutes?value='+v,true);";
+      content += "  xhr.send();";
+      content += "}";
+    }
     content += "function toggleAutoCalSOCEnabled" + s + "(){";
     content += "  var enabled = document.getElementById('autoCalEnabled" + s + "').checked ? 1 : 0;";
     content += "  var xhr=new XMLHttpRequest();";
@@ -446,6 +728,8 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "</script>";
 
+    append_balance_time_html(content);
+
     auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
     content += BatteryHtmlRenderer::render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
 
@@ -453,6 +737,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
   }
 
  private:
+  void append_balance_time_html(String& out) const {
+    out +=
+        "<h4 style='margin-top:18px'><button onclick=\"window.location.href='/bydbalance'\">"
+        "&#9889; Cell Balance Timers</button></h4>";
+  }
+
   DATALAYER_INFO_BYDATTO3* byd_datalayer;
   String s;
 };
