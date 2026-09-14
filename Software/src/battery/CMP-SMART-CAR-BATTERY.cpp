@@ -51,7 +51,7 @@ void CmpSmartCarBattery::update_values() {
   datalayer_battery->status.total_charged_battery_Wh = lifetime_kWh_charged;
 
   if (thermal_runaway == 0x01) {
-    set_event(EVENT_THERMAL_RUNAWAY, 0);
+    set_event(EVENT_THERMAL_RUNAWAY, 0, battery_index);
   }
 }
 

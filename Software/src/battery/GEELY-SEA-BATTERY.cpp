@@ -87,9 +87,9 @@ void GeelySeaBattery::
   /* Check safeties */
   if (datalayer_extended.GeelySEA.BECMsupplyVoltage > 0) {
     if (datalayer_extended.GeelySEA.BECMsupplyVoltage < 11800) {  // 11.8 V
-      set_event(EVENT_12V_LOW, (datalayer_extended.GeelySEA.BECMsupplyVoltage / 10));
+      set_event(EVENT_12V_LOW, (datalayer_extended.GeelySEA.BECMsupplyVoltage / 10), battery_index);
     } else {
-      clear_event(EVENT_12V_LOW);
+      clear_event(EVENT_12V_LOW, battery_index);
     }
   }
 }

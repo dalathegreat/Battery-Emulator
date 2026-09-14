@@ -59,7 +59,7 @@ void CmfaEvBattery::
   datalayer_battery->status.cell_max_voltage_mV = highest_cell_voltage_mv;
 
   if (lead_acid_voltage < 11000) {  //11.000V
-    set_event(EVENT_12V_LOW, lead_acid_voltage);
+    set_event(EVENT_12V_LOW, lead_acid_voltage, battery_index);
   }
 }
 
