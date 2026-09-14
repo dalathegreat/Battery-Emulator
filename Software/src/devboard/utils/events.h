@@ -21,7 +21,11 @@
    battery) resolves the concrete event by adding (battery - 1) to the unsuffixed variant.
    Inserting anything between them, or reordering them, silently misdirects events -- the
    static_asserts in events.cpp fail the build if that happens. Keep EVENT_BATTERY_EMPTY first and
-   EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3 last; set_event() uses both as range bounds.
+   EVENT_CAN_BATTERY3_MISSING last; set_event() uses both as range bounds.
+
+   The three variants do not have to share a level: EVENT_CAN_BATTERY_MISSING is an error while
+   its 2/3 variants are warnings, because losing the main pack stops the system and losing a
+   secondary one does not. Only the position in this block has to follow the 1,2,3 rule.
 
    Events whose name already carries the subject (EVENT_BATTERY_*) take the digit on that noun.
    The rest take a _BAT2/_BAT3 suffix, matching EVENT_VOLTAGE_DIFFERENCE_BAT2 above, because
@@ -38,12 +42,6 @@
   XX(EVENT_CANFD_2_BUFFER_FULL)              \
   XX(EVENT_CANMCP2515_BUFFER_FULL)           \
   XX(EVENT_CAN_CORRUPTED_WARNING)            \
-  XX(EVENT_CAN_BATTERY_DETECTED)             \
-  XX(EVENT_CAN_BATTERY2_DETECTED)            \
-  XX(EVENT_CAN_BATTERY3_DETECTED)            \
-  XX(EVENT_CAN_BATTERY_MISSING)              \
-  XX(EVENT_CAN_BATTERY2_MISSING)             \
-  XX(EVENT_CAN_BATTERY3_MISSING)             \
   XX(EVENT_CAN_CHARGER_DETECTED)             \
   XX(EVENT_CAN_CHARGER_MISSING)              \
   XX(EVENT_CAN_INVERTER_DETECTED)            \
@@ -182,6 +180,12 @@
   XX(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)      \
   XX(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT2) \
   XX(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3) \
+  XX(EVENT_CAN_BATTERY_DETECTED)             \
+  XX(EVENT_CAN_BATTERY2_DETECTED)            \
+  XX(EVENT_CAN_BATTERY3_DETECTED)            \
+  XX(EVENT_CAN_BATTERY_MISSING)              \
+  XX(EVENT_CAN_BATTERY2_MISSING)             \
+  XX(EVENT_CAN_BATTERY3_MISSING)             \
   XX(EVENT_VOLTAGE_DIFFERENCE_BAT2)          \
   XX(EVENT_VOLTAGE_DIFFERENCE_BAT3)          \
   XX(EVENT_SOH_DIFFERENCE)                   \

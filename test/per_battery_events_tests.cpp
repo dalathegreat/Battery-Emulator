@@ -100,6 +100,21 @@ TEST_F(PerBatteryEventsTest, MessageNamesThePack) {
   }
 }
 
+/* The CAN detected/missing events are in the block too, so they take the suffix rather than
+   carrying hand written "2nd battery" text. Their levels deliberately differ across the
+   triplet, which the block allows - only the 1,2,3 position is fixed. */
+TEST_F(PerBatteryEventsTest, CanAliveEventsShareOneMessageAndKeepTheirLevels) {
+  for (EVENTS_ENUM_TYPE base : {EVENT_CAN_BATTERY_DETECTED, EVENT_CAN_BATTERY_MISSING}) {
+    const std::string pack1 = get_event_message_string(base).c_str();
+    const std::string pack2 = get_event_message_string(static_cast<EVENTS_ENUM_TYPE>(base + 1)).c_str();
+    EXPECT_EQ(pack1.substr(0, pack1.find(" (Battery")), pack2.substr(0, pack2.find(" (Battery")));
+    EXPECT_NE(pack2.find("(Battery 2)"), std::string::npos);
+  }
+  EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY_MISSING), "ERROR");
+  EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY2_MISSING), "WARNING");
+  EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY3_MISSING), "WARNING");
+}
+
 // An out of range pack number must not land on an unrelated event.
 TEST_F(PerBatteryEventsTest, InvalidPackNumberIsRejected) {
   set_event(EVENT_12V_LOW, 0, 0);

@@ -166,6 +166,8 @@ void init_events(void) {
   events.entries[EVENT_CANMCP2515_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_2_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  /* Not set_battery_event_level(): losing the main pack stops the system, losing a secondary
+     one does not, so EVENT_CAN_BATTERY_MISSING is an error and its 2/3 variants are warnings. */
   events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY2_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY3_DETECTED].level = EVENT_LEVEL_INFO;
@@ -306,7 +308,7 @@ static_assert(EVENT_BATTERY2_OVERHEAT == EVENT_BATTERY_OVERHEAT + 1 &&
 static_assert(EVENT_BATTERY2_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION_HIGH + 1 &&
                   EVENT_BATTERY3_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION_HIGH + 2,
               "Per-battery event variants must stay contiguous and in 1,2,3 order");
-static_assert((EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3 - EVENT_BATTERY_EMPTY + 1) % 3 == 0,
+static_assert((EVENT_CAN_BATTERY3_MISSING - EVENT_BATTERY_EMPTY + 1) % 3 == 0,
               "The per-battery event block must consist of whole 1,2,3 triplets");
 static_assert(EVENT_BALANCING_START_BAT2 == EVENT_BALANCING_START + 1 &&
                   EVENT_BALANCING_START_BAT3 == EVENT_BALANCING_START + 2,
@@ -314,11 +316,14 @@ static_assert(EVENT_BALANCING_START_BAT2 == EVENT_BALANCING_START + 1 &&
 static_assert(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT2 == EVENT_BYD_CONTACTOR_CLOSE_BLOCKED + 1 &&
                   EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3 == EVENT_BYD_CONTACTOR_CLOSE_BLOCKED + 2,
               "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert(EVENT_CAN_BATTERY2_MISSING == EVENT_CAN_BATTERY_MISSING + 1 &&
+                  EVENT_CAN_BATTERY3_MISSING == EVENT_CAN_BATTERY_MISSING + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
 
 /* Returns the pack a battery specific event belongs to (1/2/3), or 0 when the event is not
    battery specific. Derived from the enum, so it cannot disagree with the event that was set. */
 static uint8_t event_battery_number(EVENTS_ENUM_TYPE event) {
-  if (event < EVENT_BATTERY_EMPTY || event > EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3) {
+  if (event < EVENT_BATTERY_EMPTY || event > EVENT_CAN_BATTERY3_MISSING) {
     return 0;
   }
   return static_cast<uint8_t>((event - EVENT_BATTERY_EMPTY) % 3 + 1);
@@ -327,7 +332,7 @@ static uint8_t event_battery_number(EVENTS_ENUM_TYPE event) {
 /* Map any per-battery variant back to its pack 1 base, so callers that only care about what
    the event means (the message text) handle one case label per event instead of three. */
 static EVENTS_ENUM_TYPE battery_event_base(EVENTS_ENUM_TYPE event) {
-  if (event < EVENT_BATTERY_EMPTY || event > EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3) {
+  if (event < EVENT_BATTERY_EMPTY || event > EVENT_CAN_BATTERY3_MISSING) {
     return event;
   }
   return static_cast<EVENTS_ENUM_TYPE>(event - (event - EVENT_BATTERY_EMPTY) % 3);
@@ -338,8 +343,8 @@ static EVENTS_ENUM_TYPE battery_event_base(EVENTS_ENUM_TYPE event) {
    unrelated event. Anything that is not a EVENT_BATTERY_* base with a pack number of 1..3
    returns EVENT_NOF_EVENTS, which callers report rather than acting on. */
 static EVENTS_ENUM_TYPE resolve_battery_event(EVENTS_ENUM_TYPE event, uint8_t battery) {
-  const bool valid_base = (event >= EVENT_BATTERY_EMPTY && event <= EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3 &&
-                           (event - EVENT_BATTERY_EMPTY) % 3 == 0);
+  const bool valid_base =
+      (event >= EVENT_BATTERY_EMPTY && event <= EVENT_CAN_BATTERY3_MISSING && (event - EVENT_BATTERY_EMPTY) % 3 == 0);
   if (!valid_base || battery < 1 || battery > 3) {
     DEBUG_PRINTF("Bad battery event %d for battery %u\n", (int)event, (unsigned)battery);
     return EVENT_NOF_EVENTS;
@@ -431,16 +436,8 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Multiple CAN TX/RX errors. Check wiring!";
     case EVENT_CAN_BATTERY_DETECTED:
       return "Successfully communicating with battery. Battery detected!";
-    case EVENT_CAN_BATTERY2_DETECTED:
-      return "Successfully communicating with 2ⁿᵈ battery. 2ⁿᵈ battery detected!";
-    case EVENT_CAN_BATTERY3_DETECTED:
-      return "Successfully communicating with 3ʳᵈ battery. 3ʳᵈ battery detected!";
     case EVENT_CAN_BATTERY_MISSING:
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
-    case EVENT_CAN_BATTERY2_MISSING:
-      return "2ⁿᵈ battery not sending messages via CAN for the last 60 seconds. Check wiring!";
-    case EVENT_CAN_BATTERY3_MISSING:
-      return "3ʳᵈ battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_CHARGER_DETECTED:
       return "Successfully communicating with charger. Charger detected!";
     case EVENT_CAN_CHARGER_MISSING:
