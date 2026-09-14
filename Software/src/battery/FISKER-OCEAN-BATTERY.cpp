@@ -1,5 +1,6 @@
 #include "FISKER-OCEAN-BATTERY.h"
 #include <cstring>
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 
@@ -46,6 +47,17 @@ void FiskerOceanBattery::update_values() {
   */
 
   datalayer.battery.status.voltage_dV = pack_voltage / 10;
+
+  // Until the BMS broadcast current limits are decoded, use the operator caps
+  // from the standard settings page as the inverter-facing limits.
+  datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+  datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+  datalayer.battery.status.max_charge_power_W =
+      (static_cast<uint32_t>(datalayer.battery.status.max_charge_current_dA) * datalayer.battery.status.voltage_dV) /
+      100;
+  datalayer.battery.status.max_discharge_power_W =
+      (static_cast<uint32_t>(datalayer.battery.status.max_discharge_current_dA) * datalayer.battery.status.voltage_dV) /
+      100;
 
   if (datalayer_extended.fiskerOcean.broadcast_soc_valid) {
     datalayer.battery.status.real_soc = datalayer_extended.fiskerOcean.broadcast_soc_percent * 100;
@@ -209,6 +221,10 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x5A7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.DLC >= 4) {
+        memcpy(datalayer_extended.fiskerOcean.last_5a7_payload, rx_frame.data.u8, 4);
+        datalayer_extended.fiskerOcean.last_5a7_valid = true;
+      }
       break;
     case 0x63A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -326,18 +342,51 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
   auto& fisker = datalayer_extended.fiskerOcean;
 
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    // Match batteries such as Nissan Leaf: do not transmit wake or diagnostic
+    // traffic while the shared hardware BMS power-cycle is in progress.
+    previousMillis093 = currentMillis;
+    previousMillis333 = currentMillis;
+    for (auto& candidate : ready_candidates) {
+      candidate.previous_millis = currentMillis;
+    }
+    return;
+  }
+
   if (fisker.wake_transmit_active) {
-    if (currentMillis - previousMillis093 >= 16) {
+    if (currentMillis - previousMillis093 >= INTERVAL_20_MS) {
       previousMillis093 = currentMillis;
       transmit_ready_frame(&FISKER_READY_093, fisker.wake_093_counter, 0xE0, 0xBB);
     }
-    if (currentMillis - previousMillis333 >= 48) {
+    if (currentMillis - previousMillis333 >= INTERVAL_50_MS) {
       previousMillis333 = currentMillis;
       transmit_ready_frame(&FISKER_READY_333, fisker.wake_333_counter, 0xD0, 0x34);
     }
+    transmit_optional_ready_frames(currentMillis);
   }
 
   transmit_uds_can(currentMillis);
+}
+
+void FiskerOceanBattery::transmit_optional_ready_frames(unsigned long currentMillis) {
+  const uint16_t enabled_mask = datalayer_extended.fiskerOcean.ready_candidate_enable_mask;
+  for (uint8_t index = 0; index < DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT; index++) {
+    ReadyCandidate& candidate = ready_candidates[index];
+    if ((enabled_mask & (1U << index)) == 0 || currentMillis - candidate.previous_millis < candidate.period_ms) {
+      continue;
+    }
+
+    candidate.previous_millis = currentMillis;
+    if (candidate.protected_frame) {
+      transmit_ready_frame(&candidate.frame, candidate.counter, candidate.counter_high_nibble, candidate.crc_xor_out);
+    } else {
+      transmit_can_frame(&candidate.frame);
+    }
+  }
+}
+
+void FiskerOceanBattery::reset_BMS() {
+  start_bms_reset();
 }
 
 void FiskerOceanBattery::setup() {
@@ -351,6 +400,7 @@ void FiskerOceanBattery::setup() {
   datalayer.system.status.battery_allows_contactor_closing = true;
 
   auto& fisker = datalayer_extended.fiskerOcean;
+  fisker.wake_transmit_active = !datalayer.system.info.equipment_stop_active;
   for (uint8_t i = 0; i < DATALAYER_INFO_FISKER_OCEAN::DID_COUNT; i++) {
     fisker.did_results[i].did = poll_commands[i];
   }

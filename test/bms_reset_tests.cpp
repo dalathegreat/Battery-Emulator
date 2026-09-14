@@ -2,12 +2,51 @@
 
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
+#include "../Software/src/devboard/hal/hal.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
 
 #include "Arduino.h"
 
 const unsigned long bmsWarmupDuration = 3000;
+
+namespace {
+
+class AlwaysEnabledBmsPowerHal : public Esp32Hal {
+ public:
+  const char* name() override { return "Always-enabled BMS power test HAL"; }
+  bool always_enable_bms_power() override { return true; }
+  gpio_num_t BMS_POWER() override { return GPIO_NUM_23; }
+  std::vector<comm_interface> available_interfaces() override { return {}; }
+};
+
+}  // namespace
+
+// Stark always drives its dedicated BMS power output, even when periodic and
+// MQTT reset settings are disabled. A manual request must therefore be allowed
+// to enter and progress through the shared power-cycle state machine.
+TEST(BmsResetTests, ManualResetWorksWithAlwaysEnabledBmsPowerHardware) {
+  Esp32Hal* configured_hal = esp32hal;
+  AlwaysEnabledBmsPowerHal always_enabled_hal;
+  esp32hal = &always_enabled_hal;
+
+  remote_bms_reset = false;
+  periodic_bms_reset = false;
+  contactor_control_enabled = false;
+  datalayer.system.info.equipment_stop_active = false;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  datalayer.battery.status.current_dA = 0;
+  set_millis64(1000);
+
+  start_bms_reset();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_WAITING_FOR_PAUSE);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
+  esp32hal = configured_hal;
+}
 
 // Test a BMS reqest sequence from end to end. This is for the case where the
 // contactors are powered directly by BE, so the reset doesn't need to wait for

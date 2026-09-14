@@ -308,6 +308,8 @@ struct DATALAYER_INFO_CELLPOWER {
 struct DATALAYER_INFO_FISKER_OCEAN {
   static constexpr uint8_t DID_COUNT = 72;
   static constexpr uint8_t MAX_DID_PAYLOAD = 40;
+  static constexpr uint8_t READY_CANDIDATE_COUNT = 15;
+  static constexpr uint16_t READY_CANDIDATE_ALL_ENABLED = (1U << READY_CANDIDATE_COUNT) - 1;
 
   struct DID_RESULT {
     uint16_t did;
@@ -321,8 +323,11 @@ struct DATALAYER_INFO_FISKER_OCEAN {
   bool wake_transmit_active;
   uint8_t wake_093_counter;
   uint8_t wake_333_counter;
+  uint16_t ready_candidate_enable_mask;
   uint8_t broadcast_soc_percent;
   bool broadcast_soc_valid;
+  uint8_t last_5a7_payload[4];
+  bool last_5a7_valid;
 };
 
 struct DATALAYER_INFO_CHADEMO {

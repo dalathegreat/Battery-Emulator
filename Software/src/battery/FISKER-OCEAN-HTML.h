@@ -2,6 +2,7 @@
 #define FISKER_OCEAN_HTML_H
 
 #include <Arduino.h>
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
@@ -18,6 +19,7 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>State of charge: ";
     content += fisker->broadcast_soc_valid ? String(fisker->broadcast_soc_percent) + "%" : "Not available";
     content += "</h4>";
+    content += vehicle_state_html();
 
     content +=
         "<div style='overflow-x:auto'><table><thead><tr><th>PID</th><th>Decoded value</th><th>CAN response</th>"
@@ -27,12 +29,73 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
       add_did_row(content, result);
     }
     content += "</tbody></table></div>";
+    content += ready_candidate_controls_html();
     content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, "fisker_ocean_dtc.json", true);
     return content;
   }
 
  private:
   DATALAYER_INFO_FISKER_OCEAN* fisker;
+
+  String vehicle_state_html() const {
+    String content =
+        "<div style='overflow-x:auto'><table><thead><tr><th>State evidence</th><th>CAN message</th>"
+        "<th>Interpretation</th></tr></thead><tbody>";
+    content +=
+        "<tr><td>Vehicle-origin 0x214 (counter 0 example)</td><td><code>0x214 [16] B0 30 51 41 00 03 00 02 "
+        "00 00 00 00 FF FF FF FF</code></td><td><strong>READY</strong></td></tr>";
+    content +=
+        "<tr><td>Vehicle-origin 0x214 (counter 0 example)</td><td><code>0x214 [16] B0 22 51 41 00 01 00 02 "
+        "00 00 00 00 FF FF FF FF</code></td><td><strong>INACTIVE</strong></td></tr>";
+    content += "<tr><td>Latest BMS-origin 0x5A7</td><td><code>";
+    if (!fisker->last_5a7_valid) {
+      content += "No message received</code></td><td>Unknown";
+    } else {
+      char payload[12];
+      snprintf(payload, sizeof(payload), "%02X %02X %02X %02X", fisker->last_5a7_payload[0],
+               fisker->last_5a7_payload[1], fisker->last_5a7_payload[2], fisker->last_5a7_payload[3]);
+      content += String("0x5A7 [4] ") + payload + "</code></td><td>";
+      if (memcmp(fisker->last_5a7_payload, "\x0F\xFF\xFF\xFF", 4) == 0) {
+        content += "<strong>READY signature observed</strong>";
+      } else if (memcmp(fisker->last_5a7_payload, "\x00\x00\x00\x00", 4) == 0) {
+        content += "<strong>INACTIVE signature observed</strong>";
+      } else {
+        content += "Unknown BMS state signature";
+      }
+    }
+    content += "</td></tr></tbody></table></div>";
+    return content;
+  }
+
+  String ready_candidate_controls_html() {
+    static constexpr uint16_t candidate_ids[DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT] = {
+        0x150, 0x151, 0x1B6, 0x214, 0x236, 0x260, 0x311, 0x318, 0x354, 0x355, 0x358, 0x365, 0x366, 0x507, 0x511};
+    const uint16_t enabled_mask = fisker->ready_candidate_enable_mask;
+    String content = "<fieldset style='margin:18px auto 8px;max-width:900px;text-align:left;padding:10px;'>";
+    content += "<legend>Optional READY-mode CAN-FD candidates</legend>";
+    content += candidate_checkbox(-1, "All optional candidates",
+                                  enabled_mask == DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_ALL_ENABLED);
+    content += "<hr>";
+    for (uint8_t index = 0; index < DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT; index++) {
+      char label[8];
+      snprintf(label, sizeof(label), "0x%03X", candidate_ids[index]);
+      content += candidate_checkbox(index, label, (enabled_mask & (1U << index)) != 0);
+    }
+    content += "</fieldset>";
+    content +=
+        "<script>function setFiskerCandidate(i,e){fetch('/setFiskerReadyCandidate?index='+i+'&enabled='+(e?1:0))"
+        ".then(function(){if(i<0)setTimeout(function(){location.reload();},250);});}</script>";
+    return content;
+  }
+
+  static String candidate_checkbox(int index, const String& label, bool checked) {
+    String content = "<label style='display:inline-block;margin:5px 10px;white-space:nowrap;'><input type='checkbox' ";
+    if (checked) {
+      content += "checked ";
+    }
+    content += "onchange='setFiskerCandidate(" + String(index) + ",this.checked)'> " + label + "</label>";
+    return content;
+  }
 
   static void add_did_row(String& content, const DATALAYER_INFO_FISKER_OCEAN::DID_RESULT& result) {
     char did[7];

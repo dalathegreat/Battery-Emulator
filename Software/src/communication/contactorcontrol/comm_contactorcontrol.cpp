@@ -358,10 +358,11 @@ void handle_contactors_battery3() {
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
 The user can optionally defer the reset while SOC is low, and skip a single period while balancing.
 REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
+Battery integrations may also start the same sequence from their advanced battery page.
 
 This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
-Feature is only used if user has enabled PERIODIC_BMS_RESET */
+The state machine runs whenever the selected hardware actively controls BMS power. */
 
 void bms_power_off() {
   digitalWrite(esp32hal->BMS_POWER(), LOW);
@@ -471,7 +472,7 @@ void handle_BMSpower() {
     return;
   }
 
-  if (periodic_bms_reset || remote_bms_reset) {
+  if (bms_power_is_active()) {
     currentTime = millis();
 
     if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
@@ -567,7 +568,7 @@ void handle_BMSpower() {
 }
 
 void start_bms_reset() {
-  if (periodic_bms_reset || remote_bms_reset) {
+  if (bms_power_is_active()) {
     if (datalayer.system.status.bms_reset_status == BMS_RESET_IDLE) {
       // Record when we started the BMS reset process
       lastPowerRemovalTime = millis();
