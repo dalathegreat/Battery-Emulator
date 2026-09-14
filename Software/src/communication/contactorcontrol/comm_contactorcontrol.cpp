@@ -404,7 +404,7 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
       *reason = "real SOC below 15 percent";
       return PeriodicResetVerdict::Defer;
     }
-    if (datalayer.battery.status.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
+    if (datalayer.aggregate.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
       *reason = "scaled SOC below 15 percent";
       return PeriodicResetVerdict::Defer;
     }

@@ -106,15 +106,14 @@ bool KostalInverterProtocol::check_kostal_frame_crc(int len) {
 
 void KostalInverterProtocol::update_values() {
 
-  average_temperature_dC =
-      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
-  if (datalayer.battery.status.temperature_min_dC < 0) {
+  average_temperature_dC = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
+  if (datalayer.aggregate.temperature_min_dC < 0) {
     average_temperature_dC = 0;
   }
 
   if (datalayer.system.status.battery_allows_contactor_closing &
       datalayer.system.status.inverter_allows_contactor_closing) {
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
+    float2frame(CYCLIC_DATA, (float)datalayer.aggregate.voltage_dV / 10, 6);  // Confirmed OK mapping
   } else {
     float2frame(CYCLIC_DATA, 0.0, 6);
   }
@@ -141,9 +140,9 @@ void KostalInverterProtocol::update_values() {
 
     if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged) {
       CYCLIC_DATA[56] = 1;
-      float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10,
+      float2frame(CYCLIC_DATA, (float)datalayer.aggregate.max_discharge_current_dA / 10,
                   26);  // Maximum discharge current
-      float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10,
+      float2frame(CYCLIC_DATA, (float)datalayer.aggregate.max_charge_current_dA / 10,
                   34);  // Maximum charge current
     } else {
       CYCLIC_DATA[56] = 0;
@@ -151,8 +150,8 @@ void KostalInverterProtocol::update_values() {
       float2frame(CYCLIC_DATA, 0.0, 34);
     }
   } else {
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.reported_current_dA / 10, 18);  // Last current
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.reported_current_dA / 10,
+    float2frame(CYCLIC_DATA, (float)datalayer.aggregate.current_dA / 10, 18);  // Last current
+    float2frame(CYCLIC_DATA, (float)datalayer.aggregate.current_dA / 10,
                 22);  // Should be Avg current(1s)
 
     // Close contactors after 7 battery info frames requested
@@ -170,26 +169,26 @@ void KostalInverterProtocol::update_values() {
     }
   }
 
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
+  float2frame(CYCLIC_DATA, (float)datalayer.aggregate.max_discharge_current_dA / 10, 26);
 
   // When SoC is 100%, drop down allowed charge current.
-  if ((datalayer.battery.status.reported_soc / 100) < 100) {
-    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);
+  if ((datalayer.aggregate.reported_soc / 100) < 100) {
+    float2frame(CYCLIC_DATA, (float)datalayer.aggregate.max_charge_current_dA / 10, 34);
   } else {
     float2frame(CYCLIC_DATA, 0.0, 34);
   }
 
   if (nominal_voltage_dV > 0) {
-    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.reported_total_capacity_Wh / nominal_voltage_dV * 10),
+    float2frame(CYCLIC_DATA, (float)(datalayer.aggregate.reported_total_capacity_Wh / nominal_voltage_dV * 10),
                 30);  // Battery capacity Ah
   }
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
+  float2frame(CYCLIC_DATA, (float)datalayer.aggregate.temperature_max_dC / 10, 38);
+  float2frame(CYCLIC_DATA, (float)datalayer.aggregate.temperature_min_dC / 10, 42);
 
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
-  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
+  float2frame(CYCLIC_DATA, (float)datalayer.aggregate.cell_max_voltage_mV / 1000, 46);
+  float2frame(CYCLIC_DATA, (float)datalayer.aggregate.cell_min_voltage_mV / 1000, 50);
 
-  CYCLIC_DATA[58] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
+  CYCLIC_DATA[58] = (uint8_t)(datalayer.aggregate.reported_soc / 100);
 
   register_content_ok = true;
 

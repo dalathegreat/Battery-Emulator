@@ -22,12 +22,12 @@ void GrowattWitInverter::update_values() {
 
   // Byte 0-1: Max Charge Current (0.1A, 0-10000 = 0-1000A)
   // Little Endian: low byte first
-  GROWATT_1AC3.data.u8[0] = (datalayer.battery.status.max_charge_current_dA & 0xFF);
-  GROWATT_1AC3.data.u8[1] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  GROWATT_1AC3.data.u8[0] = (datalayer.aggregate.max_charge_current_dA & 0xFF);
+  GROWATT_1AC3.data.u8[1] = (datalayer.aggregate.max_charge_current_dA >> 8);
 
   // Byte 2-3: Max Discharge Current (0.1A, 0-10000)
-  GROWATT_1AC3.data.u8[2] = (datalayer.battery.status.max_discharge_current_dA & 0xFF);
-  GROWATT_1AC3.data.u8[3] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  GROWATT_1AC3.data.u8[2] = (datalayer.aggregate.max_discharge_current_dA & 0xFF);
+  GROWATT_1AC3.data.u8[3] = (datalayer.aggregate.max_discharge_current_dA >> 8);
 
   // Byte 4-5: Max Charge Voltage (0.1V, 0-15000)
   uint16_t max_charge_voltage_dV;
@@ -79,9 +79,9 @@ void GrowattWitInverter::update_values() {
   // 0=Init, 1=Standby, 2=Charging, 3=Discharging, 4=Shutdown, 5=Fault, 6=Upgrade
   if (datalayer.system.status.system_status == FAULT) {
     GROWATT_1AC5.data.u8[0] = 5;  // Fault
-  } else if (datalayer.battery.status.current_dA > 5) {
+  } else if (datalayer.aggregate.current_dA > 5) {
     GROWATT_1AC5.data.u8[0] = 2;  // Charging (current > 0.5A)
-  } else if (datalayer.battery.status.current_dA < -5) {
+  } else if (datalayer.aggregate.current_dA < -5) {
     GROWATT_1AC5.data.u8[0] = 3;  // Discharging (current < -0.5A)
   } else {
     GROWATT_1AC5.data.u8[0] = 1;  // Standby
@@ -91,7 +91,7 @@ void GrowattWitInverter::update_values() {
   // Bit 0: 0=Allow charge, 1=Prohibit charge
   // Bit 1: 0=Force charge OFF, 1=Force charge ON
   uint8_t charge_flag = 0x00;
-  if (datalayer.battery.status.max_charge_current_dA == 0 || datalayer.battery.status.reported_soc >= 10000 ||  // 100%
+  if (datalayer.aggregate.max_charge_current_dA == 0 || datalayer.aggregate.reported_soc >= 10000 ||  // 100%
       datalayer.system.status.system_status == FAULT) {
     charge_flag |= 0x01;  // Prohibit charge
   }
@@ -102,7 +102,7 @@ void GrowattWitInverter::update_values() {
   // Bit 1: 0=Force discharge OFF, 1=Force discharge ON
   // Bit 3: 0=Normal, 1=Soft starting
   uint8_t discharge_flag = 0x00;
-  if (datalayer.battery.status.max_discharge_current_dA == 0 || datalayer.battery.status.reported_soc == 0 ||
+  if (datalayer.aggregate.max_discharge_current_dA == 0 || datalayer.aggregate.reported_soc == 0 ||
       datalayer.system.status.system_status == FAULT) {
     discharge_flag |= 0x01;  // Prohibit discharge
   }
@@ -120,10 +120,10 @@ void GrowattWitInverter::update_values() {
    * ============================================================ */
 
   // Byte 0: SOC (0-100%)
-  GROWATT_1AC6.data.u8[0] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
+  GROWATT_1AC6.data.u8[0] = (uint8_t)(datalayer.aggregate.reported_soc / 100);
 
   // Byte 1: SOH (0-100%, bit7 = scrap warning if 1)
-  uint8_t soh = (uint8_t)(datalayer.battery.status.soh_pptt / 100);
+  uint8_t soh = (uint8_t)(datalayer.aggregate.soh_pptt / 100);
   if (soh < 50) {
     soh |= 0x80;  // Set scrap warning bit if SOH < 50%
   }
@@ -132,11 +132,10 @@ void GrowattWitInverter::update_values() {
   // Byte 2-3: Rated Capacity (0.1Ah, 0-50000)
   // Convert Wh to Ah: Ah = Wh / V
   uint16_t rated_capacity_dAh = 0;
-  if (datalayer.battery.status.voltage_dV > 0) {
+  if (datalayer.aggregate.voltage_dV > 0) {
     // total_capacity_Wh / (voltage_dV / 10) = capacity_Ah
     // capacity_dAh = capacity_Ah * 10 = total_capacity_Wh * 100 / voltage_dV
-    uint32_t capacity_calc =
-        (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / datalayer.battery.status.voltage_dV;
+    uint32_t capacity_calc = (datalayer.aggregate.reported_total_capacity_Wh * 100UL) / datalayer.aggregate.voltage_dV;
     // Clamp to uint16_t max (50000 per protocol, but allow up to 65535)
     rated_capacity_dAh = (capacity_calc > 50000) ? 50000 : (uint16_t)capacity_calc;
   }
@@ -158,12 +157,12 @@ void GrowattWitInverter::update_values() {
   GROWATT_1AC7.data.u8[1] = 0x00;
 
   // Byte 2-3: Battery Voltage (0.1V, 0-15000)
-  GROWATT_1AC7.data.u8[2] = (datalayer.battery.status.voltage_dV & 0xFF);
-  GROWATT_1AC7.data.u8[3] = (datalayer.battery.status.voltage_dV >> 8);
+  GROWATT_1AC7.data.u8[2] = (datalayer.aggregate.voltage_dV & 0xFF);
+  GROWATT_1AC7.data.u8[3] = (datalayer.aggregate.voltage_dV >> 8);
 
   // Byte 4-5: Battery Current (0.1A, offset -1000A)
   // Raw = (Actual + 1000) * 10 = Actual_dA + 10000
-  int16_t current_dA = datalayer.battery.status.current_dA;
+  int16_t current_dA = datalayer.aggregate.current_dA;
   uint16_t current_raw = (uint16_t)(current_dA + GROWATT_CURRENT_OFFSET_DA);
   GROWATT_1AC7.data.u8[4] = (current_raw & 0xFF);
   GROWATT_1AC7.data.u8[5] = (current_raw >> 8);
@@ -197,7 +196,7 @@ void GrowattWitInverter::update_values() {
   // Byte 4-5: Module Rated Voltage (0.01V)
   // Use pack voltage as module voltage for single module setup
   // Clamp to prevent overflow: max 6553.5V (65535 cV)
-  uint32_t voltage_cV_calc = (uint32_t)datalayer.battery.status.voltage_dV * 10;
+  uint32_t voltage_cV_calc = (uint32_t)datalayer.aggregate.voltage_dV * 10;
   uint16_t module_voltage_cV = (voltage_cV_calc > 65535) ? 65535 : (uint16_t)voltage_cV_calc;
   GROWATT_1AC0.data.u8[4] = (module_voltage_cV & 0xFF);
   GROWATT_1AC0.data.u8[5] = (module_voltage_cV >> 8);
@@ -312,7 +311,7 @@ void GrowattWitInverter::update_values() {
   // Byte 4-5: Max Cell Temp (0.1°C, offset -40°C)
   // Raw = (Actual + 40) * 10 = Actual_dC + 400
   // Clamp to valid range: -40°C to 125°C (-400 to 1250 dC, raw 0 to 1650)
-  int16_t temp_max_dC = datalayer.battery.status.temperature_max_dC;
+  int16_t temp_max_dC = datalayer.aggregate.temperature_max_dC;
   int32_t temp_max_calc = temp_max_dC + TEMP_OFFSET_DC;
   uint16_t temp_max_raw = (temp_max_calc < 0) ? 0 : (temp_max_calc > 1650) ? 1650 : (uint16_t)temp_max_calc;
   GROWATT_1ACC.data.u8[4] = (temp_max_raw & 0xFF);
@@ -320,7 +319,7 @@ void GrowattWitInverter::update_values() {
 
   // Byte 6-7: Avg Cell Temp (0.1°C, offset -40°C)
   // Use average of min and max
-  int16_t temp_avg_dC = (datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2;
+  int16_t temp_avg_dC = (datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2;
   int32_t temp_avg_calc = temp_avg_dC + TEMP_OFFSET_DC;
   uint16_t temp_avg_raw = (temp_avg_calc < 0) ? 0 : (temp_avg_calc > 1650) ? 1650 : (uint16_t)temp_avg_calc;
   GROWATT_1ACC.data.u8[6] = (temp_avg_raw & 0xFF);
@@ -338,7 +337,7 @@ void GrowattWitInverter::update_values() {
 
   // Byte 4-5: Min Cell Temp (0.1°C, offset -40°C)
   // Clamp to valid range: -40°C to 125°C
-  int16_t temp_min_dC = datalayer.battery.status.temperature_min_dC;
+  int16_t temp_min_dC = datalayer.aggregate.temperature_min_dC;
   int32_t temp_min_calc = temp_min_dC + TEMP_OFFSET_DC;
   uint16_t temp_min_raw = (temp_min_calc < 0) ? 0 : (temp_min_calc > 1650) ? 1650 : (uint16_t)temp_min_calc;
   GROWATT_1ACD.data.u8[4] = (temp_min_raw & 0xFF);
@@ -359,13 +358,12 @@ void GrowattWitInverter::update_values() {
   GROWATT_1ACE.data.u8[3] = 1;
 
   // Byte 4-5: Max Cell Voltage (1mV, 0-5000)
-  uint16_t cell_max_mV = datalayer.battery.status.cell_max_voltage_mV;
+  uint16_t cell_max_mV = datalayer.aggregate.cell_max_voltage_mV;
   GROWATT_1ACE.data.u8[4] = (cell_max_mV & 0xFF);
   GROWATT_1ACE.data.u8[5] = (cell_max_mV >> 8);
 
   // Byte 6-7: Avg Cell Voltage (1mV, 0-5000)
-  uint16_t cell_avg_mV =
-      (datalayer.battery.status.cell_max_voltage_mV + datalayer.battery.status.cell_min_voltage_mV) / 2;
+  uint16_t cell_avg_mV = (datalayer.aggregate.cell_max_voltage_mV + datalayer.aggregate.cell_min_voltage_mV) / 2;
   GROWATT_1ACE.data.u8[6] = (cell_avg_mV & 0xFF);
   GROWATT_1ACE.data.u8[7] = (cell_avg_mV >> 8);
 
@@ -380,7 +378,7 @@ void GrowattWitInverter::update_values() {
   GROWATT_1ACF.data.u8[3] = 2;
 
   // Byte 4-5: Min Cell Voltage (1mV, 0-5000)
-  uint16_t cell_min_mV = datalayer.battery.status.cell_min_voltage_mV;
+  uint16_t cell_min_mV = datalayer.aggregate.cell_min_voltage_mV;
   GROWATT_1ACF.data.u8[4] = (cell_min_mV & 0xFF);
   GROWATT_1ACF.data.u8[5] = (cell_min_mV >> 8);
 
@@ -392,7 +390,7 @@ void GrowattWitInverter::update_values() {
    * 1AD0: Cluster SOC Info (1000ms cycle)
    * ============================================================ */
 
-  uint8_t soc_percent = (uint8_t)(datalayer.battery.status.reported_soc / 100);
+  uint8_t soc_percent = (uint8_t)(datalayer.aggregate.reported_soc / 100);
 
   // Byte 0-1: Max SOC Stack/Cluster
   GROWATT_1AD0.data.u8[0] = 1;
@@ -421,8 +419,8 @@ void GrowattWitInverter::update_values() {
   // Byte 0-2: Accumulated Charge (0.1kWh, U24)
   // Convert Wh to 0.1kWh: value = Wh / 100
   uint32_t acc_charge_01kWh = 0;
-  if (datalayer.battery.status.total_charged_battery_Wh > 0) {
-    acc_charge_01kWh = (uint32_t)(datalayer.battery.status.total_charged_battery_Wh / 100);
+  if (datalayer.aggregate.total_charged_battery_Wh > 0) {
+    acc_charge_01kWh = (uint32_t)(datalayer.aggregate.total_charged_battery_Wh / 100);
   }
   GROWATT_1AD1.data.u8[0] = (acc_charge_01kWh & 0xFF);
   GROWATT_1AD1.data.u8[1] = ((acc_charge_01kWh >> 8) & 0xFF);
@@ -430,8 +428,8 @@ void GrowattWitInverter::update_values() {
 
   // Byte 3-5: Accumulated Discharge (0.1kWh, U24)
   uint32_t acc_discharge_01kWh = 0;
-  if (datalayer.battery.status.total_discharged_battery_Wh > 0) {
-    acc_discharge_01kWh = (uint32_t)(datalayer.battery.status.total_discharged_battery_Wh / 100);
+  if (datalayer.aggregate.total_discharged_battery_Wh > 0) {
+    acc_discharge_01kWh = (uint32_t)(datalayer.aggregate.total_discharged_battery_Wh / 100);
   }
   GROWATT_1AD1.data.u8[3] = (acc_discharge_01kWh & 0xFF);
   GROWATT_1AD1.data.u8[4] = ((acc_discharge_01kWh >> 8) & 0xFF);
@@ -439,7 +437,7 @@ void GrowattWitInverter::update_values() {
 
   // Byte 6-7: Charge/Discharge Power (1W, offset -32000W)
   // Raw = Power_W + 32000, valid range 0-65535 (represents -32000W to +33535W)
-  int32_t power_W = datalayer.battery.status.active_power_W;
+  int32_t power_W = datalayer.aggregate.active_power_W;
   int32_t power_calc = power_W + 32000;
   uint16_t power_raw;
   if (power_calc < 0) {
@@ -470,25 +468,25 @@ void GrowattWitInverter::update_values() {
   }
 
   // Check cell voltage limits
-  if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
+  if (datalayer.aggregate.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
     charge_alarm |= 0x01;       // Cell overvoltage alarm
     charge_protection |= 0x01;  // Cell overvoltage protection
   }
-  if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
+  if (datalayer.aggregate.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
     discharge_alarm |= 0x01;       // Cell undervoltage alarm
     discharge_protection |= 0x01;  // Cell undervoltage protection
   }
 
   // Check temperature limits (assuming reasonable limits)
-  if (datalayer.battery.status.temperature_max_dC > 550) {  // > 55°C
-    charge_alarm |= 0x10;                                   // Charging temp too high
-    discharge_alarm |= 0x10;                                // Discharge temp too high
+  if (datalayer.aggregate.temperature_max_dC > 550) {  // > 55°C
+    charge_alarm |= 0x10;                              // Charging temp too high
+    discharge_alarm |= 0x10;                           // Discharge temp too high
     charge_protection |= 0x10;
     discharge_protection |= 0x10;
   }
-  if (datalayer.battery.status.temperature_min_dC < 0) {  // < 0°C
-    charge_alarm |= 0x08;                                 // Charging temp too low
-    charge_protection |= 0x08;                            // Low charging temp protection
+  if (datalayer.aggregate.temperature_min_dC < 0) {  // < 0°C
+    charge_alarm |= 0x08;                            // Charging temp too low
+    charge_protection |= 0x08;                       // Low charging temp protection
   }
 
   // Check SOC limits
@@ -528,14 +526,14 @@ void GrowattWitInverter::update_values() {
   }
 
   // Check cell voltage deviation
-  uint16_t cell_deviation = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
+  uint16_t cell_deviation = datalayer.aggregate.cell_max_voltage_mV - datalayer.aggregate.cell_min_voltage_mV;
   if (cell_deviation > datalayer.battery.info.max_cell_voltage_deviation_mV) {
     generic_alarm |= 0x01;       // Cell voltage difference excessive
     generic_protection |= 0x01;  // Cell voltage difference protection
   }
 
   // Check temperature difference
-  int16_t temp_diff = datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC;
+  int16_t temp_diff = datalayer.aggregate.temperature_max_dC - datalayer.aggregate.temperature_min_dC;
   if (temp_diff > 150) {    // > 15°C difference
     generic_alarm |= 0x40;  // Cell temp difference too high
   }

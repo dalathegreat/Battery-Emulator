@@ -157,10 +157,10 @@ bool SungrowInverter::setup() {
 void SungrowInverter::update_values() {
   // Per-cycle telemetry only. Static / config-only frames are built once in setup() (see the
   // convention note there); some constant frames live entirely in the header .data{} initialiser.
-  current_dA = datalayer.battery.status.reported_current_dA;
+  current_dA = datalayer.aggregate.current_dA;
 
   // 0x500 - BMS init message: b0-6 are static unknown values -> header .data{}. Only b7 (live SoC) here.
-  SUNGROW_500.data.u8[7] = (datalayer.battery.status.reported_soc / 100);  // Battery SoC, integer %
+  SUNGROW_500.data.u8[7] = (datalayer.aggregate.reported_soc / 100);  // Battery SoC, integer %
 
   // Max voltage (eg 400.0V = 4000 , 16bits long)
   SUNGROW_701.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
@@ -169,75 +169,75 @@ void SungrowInverter::update_values() {
   SUNGROW_701.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   SUNGROW_701.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   // Max Charging Current
-  SUNGROW_701.data.u8[4] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
-  SUNGROW_701.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SUNGROW_701.data.u8[4] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
+  SUNGROW_701.data.u8[5] = (datalayer.aggregate.max_charge_current_dA >> 8);
   // Max Discharging Current
-  SUNGROW_701.data.u8[6] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
-  SUNGROW_701.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SUNGROW_701.data.u8[6] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
+  SUNGROW_701.data.u8[7] = (datalayer.aggregate.max_discharge_current_dA >> 8);
 
   // SOC (100.0%)
-  SUNGROW_702.data.u8[0] = (datalayer.battery.status.reported_soc & 0x00FF);
-  SUNGROW_702.data.u8[1] = (datalayer.battery.status.reported_soc >> 8);
+  SUNGROW_702.data.u8[0] = (datalayer.aggregate.reported_soc & 0x00FF);
+  SUNGROW_702.data.u8[1] = (datalayer.aggregate.reported_soc >> 8);
   // SOH (100.00%)
-  SUNGROW_702.data.u8[2] = (datalayer.battery.status.soh_pptt & 0x00FF);
-  SUNGROW_702.data.u8[3] = (datalayer.battery.status.soh_pptt >> 8);
+  SUNGROW_702.data.u8[2] = (datalayer.aggregate.soh_pptt & 0x00FF);
+  SUNGROW_702.data.u8[3] = (datalayer.aggregate.soh_pptt >> 8);
   // Energy Remaining (Wh), clamped to 16-bit to avoid overflow on large packs
-  remaining_wh = datalayer.battery.status.reported_remaining_capacity_Wh;
+  remaining_wh = datalayer.aggregate.reported_remaining_capacity_Wh;
   if (remaining_wh > 0xFFFFu)
     remaining_wh = 0xFFFFu;
   SUNGROW_702.data.u8[4] = (remaining_wh & 0x00FF);
   SUNGROW_702.data.u8[5] = (remaining_wh >> 8);
   // Capacity max (Wh), clamped to 16-bit to avoid overflow on large packs
-  capacity_wh = datalayer.battery.info.reported_total_capacity_Wh;
+  capacity_wh = datalayer.aggregate.reported_total_capacity_Wh;
   if (capacity_wh > 0xFFFFu)
     capacity_wh = 0xFFFFu;
   SUNGROW_702.data.u8[6] = (capacity_wh & 0x00FF);
   SUNGROW_702.data.u8[7] = (capacity_wh >> 8);
 
   // Energy total charged (Wh)
-  SUNGROW_703.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF);
-  SUNGROW_703.data.u8[1] = ((datalayer.battery.status.total_charged_battery_Wh >> 8) & 0x00FF);
-  SUNGROW_703.data.u8[2] = ((datalayer.battery.status.total_charged_battery_Wh >> 16) & 0x00FF);
-  SUNGROW_703.data.u8[3] = ((datalayer.battery.status.total_charged_battery_Wh >> 24) & 0x00FF);
+  SUNGROW_703.data.u8[0] = (datalayer.aggregate.total_charged_battery_Wh & 0x00FF);
+  SUNGROW_703.data.u8[1] = ((datalayer.aggregate.total_charged_battery_Wh >> 8) & 0x00FF);
+  SUNGROW_703.data.u8[2] = ((datalayer.aggregate.total_charged_battery_Wh >> 16) & 0x00FF);
+  SUNGROW_703.data.u8[3] = ((datalayer.aggregate.total_charged_battery_Wh >> 24) & 0x00FF);
   // Energy total discharged (Wh)
-  SUNGROW_703.data.u8[4] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF);
-  SUNGROW_703.data.u8[5] = ((datalayer.battery.status.total_discharged_battery_Wh >> 8) & 0x00FF);
-  SUNGROW_703.data.u8[6] = ((datalayer.battery.status.total_discharged_battery_Wh >> 16) & 0x00FF);
-  SUNGROW_703.data.u8[7] = ((datalayer.battery.status.total_discharged_battery_Wh >> 24) & 0x00FF);
+  SUNGROW_703.data.u8[4] = (datalayer.aggregate.total_discharged_battery_Wh & 0x00FF);
+  SUNGROW_703.data.u8[5] = ((datalayer.aggregate.total_discharged_battery_Wh >> 8) & 0x00FF);
+  SUNGROW_703.data.u8[6] = ((datalayer.aggregate.total_discharged_battery_Wh >> 16) & 0x00FF);
+  SUNGROW_703.data.u8[7] = ((datalayer.aggregate.total_discharged_battery_Wh >> 24) & 0x00FF);
 
   // Vbat (eg 400.0V = 4000 , 16bits long)
-  SUNGROW_704.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
-  SUNGROW_704.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+  SUNGROW_704.data.u8[0] = (datalayer.aggregate.voltage_dV & 0x00FF);
+  SUNGROW_704.data.u8[1] = (datalayer.aggregate.voltage_dV >> 8);
   // Current
   SUNGROW_704.data.u8[2] = (current_dA & 0xFF);
   SUNGROW_704.data.u8[3] = ((current_dA >> 8) & 0xFF);
   // Another voltage. Different but similar
-  SUNGROW_704.data.u8[4] = (datalayer.battery.status.voltage_dV & 0x00FF);
-  SUNGROW_704.data.u8[5] = (datalayer.battery.status.voltage_dV >> 8);
+  SUNGROW_704.data.u8[4] = (datalayer.aggregate.voltage_dV & 0x00FF);
+  SUNGROW_704.data.u8[5] = (datalayer.aggregate.voltage_dV >> 8);
   // Temperature (signed int16_t in 0.1°C units)
-  SUNGROW_704.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_704.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  SUNGROW_704.data.u8[6] = (datalayer.aggregate.temperature_max_dC & 0xFF);
+  SUNGROW_704.data.u8[7] = ((datalayer.aggregate.temperature_max_dC >> 8) & 0xFF);
 
   // 0x705 - b0-2 and b7 (padding) are static -> header .data{}. Model id (b3-4) + voltage (b5-6) below.
   uint16_t battery_model_id = 8420 + battery_config.module_count;  // SBR064=8422, SBR096=8423, etc.
   SUNGROW_705.data.u8[3] = (battery_model_id & 0xFF);
   SUNGROW_705.data.u8[4] = (battery_model_id >> 8);
   // Vbat, again (eg 400.0V = 4000 , 16bits long)
-  SUNGROW_705.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
-  SUNGROW_705.data.u8[6] = (datalayer.battery.status.voltage_dV >> 8);
+  SUNGROW_705.data.u8[5] = (datalayer.aggregate.voltage_dV & 0x00FF);
+  SUNGROW_705.data.u8[6] = (datalayer.aggregate.voltage_dV >> 8);
 
   // Temperature Max (signed int16_t in 0.1°C units)
-  SUNGROW_706.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_706.data.u8[1] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  SUNGROW_706.data.u8[0] = (datalayer.aggregate.temperature_max_dC & 0xFF);
+  SUNGROW_706.data.u8[1] = ((datalayer.aggregate.temperature_max_dC >> 8) & 0xFF);
   // Temperature Min (signed int16_t in 0.1°C units)
-  SUNGROW_706.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
-  SUNGROW_706.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  SUNGROW_706.data.u8[2] = (datalayer.aggregate.temperature_min_dC & 0xFF);
+  SUNGROW_706.data.u8[3] = ((datalayer.aggregate.temperature_min_dC >> 8) & 0xFF);
   // Cell voltage max
-  SUNGROW_706.data.u8[4] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  SUNGROW_706.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SUNGROW_706.data.u8[4] = (datalayer.aggregate.cell_max_voltage_mV & 0x00FF);
+  SUNGROW_706.data.u8[5] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
   // Cell voltage min
-  SUNGROW_706.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SUNGROW_706.data.u8[6] = (datalayer.aggregate.cell_min_voltage_mV & 0x00FF);
+  SUNGROW_706.data.u8[7] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
 
   // Populate 0x70F_05/06/07 with module SOC based on module_count
   // 0x70F_05: modules 1-3, 0x70F_06: modules 4-6, 0x70F_07: modules 7-8
@@ -246,29 +246,29 @@ void SungrowInverter::update_values() {
     for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
       uint8_t frame_idx = m / 3;         // 0-2->0, 3-5->1, 6-7->2
       uint8_t offset = (m % 3) * 2 + 2;  // 0->2, 1->4, 2->6
-      soc_frames[frame_idx]->data.u8[offset] = (datalayer.battery.status.real_soc & 0xFF);
-      soc_frames[frame_idx]->data.u8[offset + 1] = (datalayer.battery.status.real_soc >> 8);
+      soc_frames[frame_idx]->data.u8[offset] = (datalayer.aggregate.real_soc & 0xFF);
+      soc_frames[frame_idx]->data.u8[offset + 1] = (datalayer.aggregate.real_soc >> 8);
     }
   }
 
   // 0x713 - Cell/module locations are static (header). Min/max cell temperatures here (int16_t, 0.1C):
-  SUNGROW_713.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
-  SUNGROW_713.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
-  SUNGROW_713.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
-  SUNGROW_713.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  SUNGROW_713.data.u8[2] = (datalayer.aggregate.temperature_min_dC & 0xFF);
+  SUNGROW_713.data.u8[3] = ((datalayer.aggregate.temperature_min_dC >> 8) & 0xFF);
+  SUNGROW_713.data.u8[6] = (datalayer.aggregate.temperature_max_dC & 0xFF);
+  SUNGROW_713.data.u8[7] = ((datalayer.aggregate.temperature_max_dC >> 8) & 0xFF);
 
   // 0x714 - Cell/module locations are static (header, max-first). Max/min cell voltages here (0.1 mV = mV*10):
-  SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
-  SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
-  SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
-  SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
+  SUNGROW_714.data.u8[2] = ((datalayer.aggregate.cell_max_voltage_mV * 10) & 0x00FF);
+  SUNGROW_714.data.u8[3] = ((datalayer.aggregate.cell_max_voltage_mV * 10) >> 8);
+  SUNGROW_714.data.u8[6] = ((datalayer.aggregate.cell_min_voltage_mV * 10) & 0x00FF);
+  SUNGROW_714.data.u8[7] = ((datalayer.aggregate.cell_min_voltage_mV * 10) >> 8);
 
   // 0x715-0x718 - Module Cell Voltage Overview (min/max per module)
   // Each frame holds 2 modules: [min1, max1, min2, max2] in 0.1mV units
   // 0x715: modules 1+2, 0x716: modules 3+4, 0x717: modules 5+6, 0x718: modules 7+8
   {
-    const uint16_t cell_min_01mV = datalayer.battery.status.cell_min_voltage_mV * 10;
-    const uint16_t cell_max_01mV = datalayer.battery.status.cell_max_voltage_mV * 10;
+    const uint16_t cell_min_01mV = datalayer.aggregate.cell_min_voltage_mV * 10;
+    const uint16_t cell_max_01mV = datalayer.aggregate.cell_max_voltage_mV * 10;
     CAN_frame* voltage_frames[4] = {&SUNGROW_715, &SUNGROW_716, &SUNGROW_717, &SUNGROW_718};
 
     for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
@@ -332,9 +332,9 @@ void SungrowInverter::update_values() {
   // Full is limit-driven, since a real pack reads 0 A charge limit throughout. Empty is not - a
   // real pack still advertises ~30 A while reporting it - so that end tracks the SoC floor.
   uint8_t end_stop = END_STOP_NORMAL;
-  if (datalayer.battery.status.max_charge_current_dA == 0) {
+  if (datalayer.aggregate.max_charge_current_dA == 0) {
     end_stop = END_STOP_FULL;
-  } else if (datalayer.battery.status.reported_soc == 0) {
+  } else if (datalayer.aggregate.reported_soc == 0) {
     end_stop = END_STOP_EMPTY;
   }
   SUNGROW_005.data.u8[1] = end_stop;

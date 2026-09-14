@@ -10,13 +10,11 @@
 void SmaSBSBydHvsInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   // Update values
-  temperature_average =
-      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    ampere_hours_remaining =
-        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
-         100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+  if (datalayer.aggregate.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+    ampere_hours_remaining = ((datalayer.aggregate.reported_remaining_capacity_Wh / datalayer.aggregate.voltage_dV) *
+                              100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
 
   //Map values to CAN messages
@@ -28,28 +26,28 @@ void SmaSBSBydHvsInverter::
   SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
-  SMA_358.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
-  SMA_358.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  SMA_358.data.u8[4] = (datalayer.aggregate.max_discharge_current_dA >> 8);
+  SMA_358.data.u8[5] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
   //Charge limited current, 125 =12.5A (0.1, A)
-  SMA_358.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  SMA_358.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  SMA_358.data.u8[6] = (datalayer.aggregate.max_charge_current_dA >> 8);
+  SMA_358.data.u8[7] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
 
   //SOC (100.00%)
-  SMA_3D8.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
-  SMA_3D8.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
+  SMA_3D8.data.u8[0] = (datalayer.aggregate.reported_soc >> 8);
+  SMA_3D8.data.u8[1] = (datalayer.aggregate.reported_soc & 0x00FF);
   //StateOfHealth (100.00%)
-  SMA_3D8.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
-  SMA_3D8.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
+  SMA_3D8.data.u8[2] = (datalayer.aggregate.soh_pptt >> 8);
+  SMA_3D8.data.u8[3] = (datalayer.aggregate.soh_pptt & 0x00FF);
   //State of charge (AH, 0.1)
   SMA_3D8.data.u8[4] = (ampere_hours_remaining >> 8);
   SMA_3D8.data.u8[5] = (ampere_hours_remaining & 0x00FF);
 
   //Voltage (370.0)
-  SMA_4D8.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
-  SMA_4D8.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SMA_4D8.data.u8[0] = (datalayer.aggregate.voltage_dV >> 8);
+  SMA_4D8.data.u8[1] = (datalayer.aggregate.voltage_dV & 0x00FF);
   //Current (TODO: signed OK?)
-  SMA_4D8.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  SMA_4D8.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  SMA_4D8.data.u8[2] = (datalayer.aggregate.current_dA >> 8);
+  SMA_4D8.data.u8[3] = (datalayer.aggregate.current_dA & 0x00FF);
   //Temperature average
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);
@@ -61,28 +59,28 @@ void SmaSBSBydHvsInverter::
   }
 
   //Highest battery temperature
-  SMA_518.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SMA_518.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  SMA_518.data.u8[0] = (datalayer.aggregate.temperature_max_dC >> 8);
+  SMA_518.data.u8[1] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
   //Lowest battery temperature
-  SMA_518.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SMA_518.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  SMA_518.data.u8[2] = (datalayer.aggregate.temperature_min_dC >> 8);
+  SMA_518.data.u8[3] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
   //Sum of all cellvoltages
-  SMA_518.data.u8[4] = (datalayer.battery.status.voltage_dV >> 8);
-  SMA_518.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SMA_518.data.u8[4] = (datalayer.aggregate.voltage_dV >> 8);
+  SMA_518.data.u8[5] = (datalayer.aggregate.voltage_dV & 0x00FF);
   //Cell min/max voltage (mV / 25)
-  SMA_518.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV / 25);
-  SMA_518.data.u8[7] = (datalayer.battery.status.cell_max_voltage_mV / 25);
+  SMA_518.data.u8[6] = (datalayer.aggregate.cell_min_voltage_mV / 25);
+  SMA_518.data.u8[7] = (datalayer.aggregate.cell_max_voltage_mV / 25);
 
   //Lifetime charged energy amount
-  SMA_458.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0xFF000000) >> 24;
-  SMA_458.data.u8[1] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF0000) >> 16;
-  SMA_458.data.u8[2] = (datalayer.battery.status.total_charged_battery_Wh & 0x0000FF00) >> 8;
-  SMA_458.data.u8[3] = (datalayer.battery.status.total_charged_battery_Wh & 0x000000FF);
+  SMA_458.data.u8[0] = (datalayer.aggregate.total_charged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[1] = (datalayer.aggregate.total_charged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[2] = (datalayer.aggregate.total_charged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[3] = (datalayer.aggregate.total_charged_battery_Wh & 0x000000FF);
   //Lifetime discharged energy amount
-  SMA_458.data.u8[4] = (datalayer.battery.status.total_discharged_battery_Wh & 0xFF000000) >> 24;
-  SMA_458.data.u8[5] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF0000) >> 16;
-  SMA_458.data.u8[6] = (datalayer.battery.status.total_discharged_battery_Wh & 0x0000FF00) >> 8;
-  SMA_458.data.u8[7] = (datalayer.battery.status.total_discharged_battery_Wh & 0x000000FF);
+  SMA_458.data.u8[4] = (datalayer.aggregate.total_discharged_battery_Wh & 0xFF000000) >> 24;
+  SMA_458.data.u8[5] = (datalayer.aggregate.total_discharged_battery_Wh & 0x00FF0000) >> 16;
+  SMA_458.data.u8[6] = (datalayer.aggregate.total_discharged_battery_Wh & 0x0000FF00) >> 8;
+  SMA_458.data.u8[7] = (datalayer.aggregate.total_discharged_battery_Wh & 0x000000FF);
 
   //Error bits
   if (datalayer.system.status.battery_allows_contactor_closing) {

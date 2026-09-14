@@ -19,15 +19,14 @@ void SchneiderInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   /* Calculate temperature */
-  temperature_average =
-      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
   /* Calculate capacity, Amp hours(Ah) = Watt hours (Wh) / Voltage (V)*/
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+  if (datalayer.aggregate.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     remaining_capacity_ah =
-        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+        ((datalayer.aggregate.reported_remaining_capacity_Wh / datalayer.aggregate.voltage_dV) * 100);
     fully_charged_capacity_ah =
-        ((datalayer.battery.info.reported_total_capacity_Wh / datalayer.battery.status.voltage_dV) * 100);
+        ((datalayer.aggregate.reported_total_capacity_Wh / datalayer.aggregate.voltage_dV) * 100);
   }
   /* Set active commands/warnings/faults/state*/
   if (datalayer.system.status.system_status == FAULT) {
@@ -38,10 +37,10 @@ void SchneiderInverter::
     state = STATE_ONLINE;
     warnings = 0;
     faults = 0;
-    if (datalayer.battery.status.reported_soc == 10000) {
+    if (datalayer.aggregate.reported_soc == 10000) {
       //Battery full. Only allow discharge
       commands = COMMAND_ONLY_DISCHARGE_ALLOWED;
-    } else if (datalayer.battery.status.reported_soc == 0) {
+    } else if (datalayer.aggregate.reported_soc == 0) {
       //Battery empty. Only allow charge
       commands = COMMAND_ONLY_CHARGE_ALLOWED;
     } else {  //SOC is somewhere between 0.1% and 99.9%. Allow both charge and discharge
@@ -62,33 +61,33 @@ void SchneiderInverter::
   SE_321.data.u8[7] = ((datalayer.battery.info.min_design_voltage_dV * 10) & 0x000000FF);
 
   //Maximum charge current+2 (eg 10000.00A = 1000000) TODO: Note s32 bit, which direction?
-  SE_322.data.u8[0] = ((datalayer.battery.status.max_charge_current_dA * 10) >> 24);
-  SE_322.data.u8[1] = (((datalayer.battery.status.max_charge_current_dA * 10) & 0x00FF0000) >> 16);
-  SE_322.data.u8[2] = (((datalayer.battery.status.max_charge_current_dA * 10) & 0x0000FF00) >> 8);
-  SE_322.data.u8[3] = ((datalayer.battery.status.max_charge_current_dA * 10) & 0x000000FF);
+  SE_322.data.u8[0] = ((datalayer.aggregate.max_charge_current_dA * 10) >> 24);
+  SE_322.data.u8[1] = (((datalayer.aggregate.max_charge_current_dA * 10) & 0x00FF0000) >> 16);
+  SE_322.data.u8[2] = (((datalayer.aggregate.max_charge_current_dA * 10) & 0x0000FF00) >> 8);
+  SE_322.data.u8[3] = ((datalayer.aggregate.max_charge_current_dA * 10) & 0x000000FF);
   //Maximum discharge current+2 (eg 10000.00A = 1000000) TODO: Note s32 bit, which direction?
-  SE_322.data.u8[4] = ((datalayer.battery.status.max_discharge_current_dA * 10) >> 24);
-  SE_322.data.u8[5] = (((datalayer.battery.status.max_discharge_current_dA * 10) & 0x00FF0000) >> 16);
-  SE_322.data.u8[6] = (((datalayer.battery.status.max_discharge_current_dA * 10) & 0x0000FF00) >> 8);
-  SE_322.data.u8[7] = ((datalayer.battery.status.max_discharge_current_dA * 10) & 0x000000FF);
+  SE_322.data.u8[4] = ((datalayer.aggregate.max_discharge_current_dA * 10) >> 24);
+  SE_322.data.u8[5] = (((datalayer.aggregate.max_discharge_current_dA * 10) & 0x00FF0000) >> 16);
+  SE_322.data.u8[6] = (((datalayer.aggregate.max_discharge_current_dA * 10) & 0x0000FF00) >> 8);
+  SE_322.data.u8[7] = ((datalayer.aggregate.max_discharge_current_dA * 10) & 0x000000FF);
 
   //Voltage (ex 370.00 = 37000, 32bits long)
-  SE_323.data.u8[0] = ((datalayer.battery.status.voltage_dV * 10) >> 24);
-  SE_323.data.u8[1] = (((datalayer.battery.status.voltage_dV * 10) & 0x00FF0000) >> 16);
-  SE_323.data.u8[2] = (((datalayer.battery.status.voltage_dV * 10) & 0x0000FF00) >> 8);
-  SE_323.data.u8[3] = ((datalayer.battery.status.voltage_dV * 10) & 0x000000FF);
+  SE_323.data.u8[0] = ((datalayer.aggregate.voltage_dV * 10) >> 24);
+  SE_323.data.u8[1] = (((datalayer.aggregate.voltage_dV * 10) & 0x00FF0000) >> 16);
+  SE_323.data.u8[2] = (((datalayer.aggregate.voltage_dV * 10) & 0x0000FF00) >> 8);
+  SE_323.data.u8[3] = ((datalayer.aggregate.voltage_dV * 10) & 0x000000FF);
   //Current (ex 81.00A = 8100) TODO: Note s32 bit, which direction?
-  SE_323.data.u8[4] = ((datalayer.battery.status.reported_current_dA * 10) >> 24);
-  SE_323.data.u8[5] = (((datalayer.battery.status.reported_current_dA * 10) & 0x00FF0000) >> 16);
-  SE_323.data.u8[6] = (((datalayer.battery.status.reported_current_dA * 10) & 0x0000FF00) >> 8);
-  SE_323.data.u8[7] = ((datalayer.battery.status.reported_current_dA * 10) & 0x000000FF);
+  SE_323.data.u8[4] = ((datalayer.aggregate.current_dA * 10) >> 24);
+  SE_323.data.u8[5] = (((datalayer.aggregate.current_dA * 10) & 0x00FF0000) >> 16);
+  SE_323.data.u8[6] = (((datalayer.aggregate.current_dA * 10) & 0x0000FF00) >> 8);
+  SE_323.data.u8[7] = ((datalayer.aggregate.current_dA * 10) & 0x000000FF);
 
   //Temperature average
   SE_324.data.u8[0] = (temperature_average >> 8);
   SE_324.data.u8[1] = (temperature_average & 0x00FF);
   //SOC (100.0%)
-  SE_324.data.u8[2] = ((datalayer.battery.status.reported_soc / 10) >> 8);
-  SE_324.data.u8[3] = ((datalayer.battery.status.reported_soc / 10) & 0x00FF);
+  SE_324.data.u8[2] = ((datalayer.aggregate.reported_soc / 10) >> 8);
+  SE_324.data.u8[3] = ((datalayer.aggregate.reported_soc / 10) & 0x00FF);
   //Commands (enum)
   SE_325.data.u8[0] = (commands >> 8);
   SE_325.data.u8[1] = (commands & 0x00FF);
@@ -106,24 +105,24 @@ void SchneiderInverter::
   //SE_326.data.u8[2] = Cycle count not tracked by emulator
   //SE_326.data.u8[3] = Cycle count not tracked by emulator
   //StateOfHealth (OPTIONAL 0-100%)
-  SE_326.data.u8[4] = (datalayer.battery.status.soh_pptt / 100 >> 8);
-  SE_326.data.u8[5] = (datalayer.battery.status.soh_pptt / 100 & 0x00FF);
+  SE_326.data.u8[4] = (datalayer.aggregate.soh_pptt / 100 >> 8);
+  SE_326.data.u8[5] = (datalayer.aggregate.soh_pptt / 100 & 0x00FF);
   //Capacity (OPTIONAL, full charge) AH+1
   SE_326.data.u8[6] = (fully_charged_capacity_ah >> 8);
   SE_326.data.u8[7] = (fully_charged_capacity_ah & 0x00FF);
 
   //Cell temp max (OPTIONAL dC)
-  SE_327.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SE_327.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  SE_327.data.u8[0] = (datalayer.aggregate.temperature_max_dC >> 8);
+  SE_327.data.u8[1] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
   //Cell temp min (OPTIONAL dC)
-  SE_327.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SE_327.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  SE_327.data.u8[2] = (datalayer.aggregate.temperature_min_dC >> 8);
+  SE_327.data.u8[3] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
   //Cell max volt (OPTIONAL 4.000V)
-  SE_327.data.u8[4] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  SE_327.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  SE_327.data.u8[4] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
+  SE_327.data.u8[5] = (datalayer.aggregate.cell_max_voltage_mV & 0x00FF);
   //Cell min volt (OPTIONAL 4.000V)
-  SE_327.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  SE_327.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  SE_327.data.u8[6] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
+  SE_327.data.u8[7] = (datalayer.aggregate.cell_min_voltage_mV & 0x00FF);
 
   //Lifetime Charge Energy (OPTIONAL, WH, UINT32)
   //SE_328.data.u8[0] = Lifetime energy not tracked by emulator

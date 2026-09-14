@@ -270,7 +270,7 @@ void update_machineryprotection() {
 
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.battery.status.reported_soc == 10000 ||
+    if (datalayer.aggregate.reported_soc == 10000 ||
         datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
       if (!battery_full_event_fired) {
@@ -286,7 +286,7 @@ void update_machineryprotection() {
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
     if (datalayer.system.status.system_status == ACTIVE) {
-      if (datalayer.battery.status.reported_soc == 0 ||
+      if (datalayer.aggregate.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {
           set_event(EVENT_BATTERY_EMPTY, 0, 1);

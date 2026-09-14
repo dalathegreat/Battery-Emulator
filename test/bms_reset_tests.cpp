@@ -177,7 +177,7 @@ static void setup_periodic_reset_test(uint16_t interval_h) {
   periodic_bms_reset_skip_balancing = false;
 
   datalayer.battery.status.real_soc = 5000;
-  datalayer.battery.status.reported_soc = 5000;
+  datalayer.aggregate.reported_soc = 5000;
   datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
   datalayer.battery2.status.balancing_status = BALANCING_STATUS_UNKNOWN;
   datalayer.battery3.status.balancing_status = BALANCING_STATUS_UNKNOWN;
@@ -250,11 +250,11 @@ TEST(BmsResetTests, PeriodicBmsResetDeferLowScaledSoc) {
   periodic_bms_reset_defer_low_soc = true;
 
   set_millis64(25 * ONE_HOUR_MS);
-  datalayer.battery.status.reported_soc = 500;
+  datalayer.aggregate.reported_soc = 500;
   handle_BMSpower();
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
 
-  datalayer.battery.status.reported_soc = 5000;
+  datalayer.aggregate.reported_soc = 5000;
   handle_BMSpower();
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
 
@@ -268,7 +268,7 @@ TEST(BmsResetTests, PeriodicBmsResetDeferSocThreshold) {
 
   set_millis64(25 * ONE_HOUR_MS);
   datalayer.battery.status.real_soc = 1500;
-  datalayer.battery.status.reported_soc = 1500;
+  datalayer.aggregate.reported_soc = 1500;
   handle_BMSpower();
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
 
@@ -367,7 +367,7 @@ TEST(BmsResetTests, PeriodicBmsResetGuardsDisabled) {
   set_millis64(25 * ONE_HOUR_MS);
   datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
   datalayer.battery.status.real_soc = 100;
-  datalayer.battery.status.reported_soc = 100;
+  datalayer.aggregate.reported_soc = 100;
   handle_BMSpower();
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
 
