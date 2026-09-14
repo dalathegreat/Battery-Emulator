@@ -317,107 +317,6 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryOverVoltage;
 };
 
-struct DATALAYER_INFO_ECMP {
-
-  uint32_t pid_insulation_res_neg;
-  uint32_t pid_insulation_res_pos;
-  uint32_t pid_max_current_10s;
-  uint32_t pid_max_discharge_10s;
-  uint32_t pid_max_discharge_30s;
-  uint32_t pid_max_charge_10s;
-  uint32_t pid_max_charge_30s;
-  uint32_t pid_energy_capacity;
-  uint32_t pid_insulation_res;
-  uint32_t pid_crash_counter;
-  uint32_t pid_history_data;
-  uint32_t pid_last_can_failure_detail;
-  uint32_t pid_hw_version_num;
-  uint32_t pid_sw_version_num;
-  uint32_t pid_current_time;
-  uint32_t pid_time_sent_by_car;
-  uint32_t pid_vehicle_speed;
-  uint32_t pid_time_spent_over_55c;
-  uint32_t pid_contactor_closing_counter;
-  uint32_t pid_date_of_manufacture;
-
-  int32_t pid_current;
-
-  uint16_t pid_most_critical_fault;
-  uint16_t HV_BATT_FC_INSU_MINUS_RES;     //mysteryvan parameters
-  uint16_t HV_BATT_FC_INSU_PLUS_RES;      //mysteryvan parameters
-  uint16_t HV_BATT_FC_VHL_INSU_PLUS_RES;  //mysteryvan parameters
-  uint16_t HV_BATT_ONLY_INSU_MINUS_RES;   //mysteryvan parameters
-  uint16_t InsulationResistance;
-  uint16_t pid_avg_cell_voltage;
-  uint16_t pid_lowsoc_counter;
-  uint16_t pid_sum_of_cells;
-  uint16_t pid_cell_min_capacity;
-  uint16_t pid_pack_voltage;
-  uint16_t pid_high_cell_voltage;
-  uint16_t pid_low_cell_voltage;
-  uint16_t pid_SOH_cell_1;
-  uint16_t pid_12v;
-  uint16_t pid_hvil_in_voltage;
-  uint16_t pid_hvil_out_voltage;
-
-  uint8_t pid_bms_state;
-  uint8_t pid_hvil_state;
-  uint8_t pid_mainfuse_state;
-  uint8_t pid_precharge_short_circuit;
-  uint8_t pid_eservice_plug_state;
-  uint8_t pid_battery_state;
-  uint8_t pid_aux_fuse_state;
-  uint8_t pid_12v_abnormal;
-  uint8_t InsulationDiag;
-  uint8_t MainConnectorState;
-  uint8_t CONTACTOR_OPENING_REASON;  //mysteryvan parameters
-  uint8_t TBMU_FAULT_TYPE;           //mysteryvan parameters
-  uint8_t CONTACTORS_STATE;          //mysteryvan parameters
-  uint8_t pid_factory_mode_control;
-  uint8_t pid_welding_detection;
-  uint8_t pid_reason_open;
-  uint8_t pid_contactor_status;
-  uint8_t pid_negative_contactor_control;
-  uint8_t pid_negative_contactor_status;
-  uint8_t pid_positive_contactor_control;
-  uint8_t pid_positive_contactor_status;
-  uint8_t pid_contactor_negative;
-  uint8_t pid_contactor_positive;
-  uint8_t pid_precharge_relay_control;
-  uint8_t pid_precharge_relay_status;
-  uint8_t pid_recharge_status;
-  uint8_t pid_coldest_module;
-  uint8_t pid_hottest_module;
-  uint8_t pid_battery_energy;
-  uint8_t pid_wire_crash;
-  uint8_t pid_CAN_crash;
-  uint8_t pid_highest_cell_voltage_num;
-  uint8_t pid_lowest_cell_voltage_num;
-  uint8_t pid_cell_voltage_measurement_status;
-
-  int8_t pid_delta_temperature;
-  int8_t pid_lowest_temperature;
-  int8_t pid_average_temperature;
-  int8_t pid_highest_temperature;
-
-  bool MysteryVan;      //mysteryvan parameters
-  bool CrashMemorized;  //mysteryvan parameters
-  bool InterlockOpen;
-  bool ALERT_CELL_POOR_CONSIST;  //mysteryvan parameters
-  bool ALERT_OVERCHARGE;         //mysteryvan parameters
-  bool ALERT_BATT;               //mysteryvan parameters
-  bool ALERT_LOW_SOC;            //mysteryvan parameters
-  bool ALERT_HIGH_SOC;           //mysteryvan parameters
-  bool ALERT_SOC_JUMP;           //mysteryvan parameters
-  bool ALERT_TEMP_DIFF;          //mysteryvan parameters
-  bool ALERT_HIGH_TEMP;          //mysteryvan parameters
-  bool ALERT_OVERVOLTAGE;        //mysteryvan parameters
-  bool ALERT_CELL_OVERVOLTAGE;   //mysteryvan parameters
-  bool ALERT_CELL_UNDERVOLTAGE;  //mysteryvan parameters
-
-  uint8_t pid_battery_serial[13];
-};
-
 struct DATALAYER_INFO_FORD_MACH_E {
   int16_t pid_hvb_temp;
   uint32_t pid_hvb_soc;
@@ -1051,7 +950,6 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
     struct {

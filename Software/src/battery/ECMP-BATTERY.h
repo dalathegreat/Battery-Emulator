@@ -1,24 +1,22 @@
 #ifndef STELLANTIS_ECMP_BATTERY_H
 #define STELLANTIS_ECMP_BATTERY_H
-#include "../datalayer/datalayer_extended.h"
-#include "CanBattery.h"
-#include "ECMP-HTML.h"
+#include "UdsCanBattery.h"
 
 //#define SIMULATE_ENTIRE_VEHICLE_ECMP
 //Enable this to simulate the whole car (useful for when using external diagnostic tools)
 
-class EcmpBattery : public CanBattery {
+class EcmpBattery : public UdsCanBattery {
  public:
   // Use this constructor for the second/third battery.
-  EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+  EcmpBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    datalayer_ecmp = NULL;
+    dtc = &datalayer_battery->dtc;
   }
 
   // Use the default constructor to create the first or single battery.
-  EcmpBattery() {
+  EcmpBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
-    datalayer_ecmp = &datalayer_extended.stellantisECMP;
+    dtc = &datalayer_battery->dtc;
   }
 
   virtual void setup(void);
@@ -31,24 +29,22 @@ class EcmpBattery : public CanBattery {
   bool supports_insulation_resistance() { return true; }
   void clear_isolation() { UserRequestIsolationReset = true; }
 
-  bool supports_factory_mode_method() { return true; }
-  void set_factory_mode() { UserRequestDisableIsoMonitoring = true; }
-
   bool supports_reset_crash() { return true; }
   void reset_crash() { UserRequestCollisionReset = true; }
 
   bool supports_contactor_reset() { return true; }
   void reset_contactor() { UserRequestContactorReset = true; }
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
+  String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "stellantis_ecmp_dtc.json"; }
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_ECMP* datalayer_ecmp;
-  EcmpHtmlRenderer renderer;
+
   static const int MAX_PACK_VOLTAGE_DV = 4546;
   static const int MIN_PACK_VOLTAGE_DV = 3580;
   static const int MAX_CELL_DEVIATION_MV = 100;
@@ -217,11 +213,6 @@ class EcmpBattery : public CanBattery {
                                                  .DLC = 3,
                                                  .ID = 0x6B4,
                                                  .data = {0x02, 0x3E, 0x00}};
-  static constexpr CAN_frame ECMP_CLEAR_DTC = {.FD = false,
-                                               .ext_ID = false,
-                                               .DLC = 5,
-                                               .ID = 0x6B4,
-                                               .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
 
 #ifdef SIMULATE_ENTIRE_VEHICLE_ECMP
   static constexpr CAN_frame ECMP_0AE = {.FD = false,
@@ -305,21 +296,20 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_energy_capacity = NOT_SAMPLED_YET;
   uint32_t pid_insulation_res = NOT_SAMPLED_YET;
   uint32_t pid_crash_counter = NOT_SAMPLED_YET;
-  uint32_t pid_history_data = NOT_SAMPLED_YET;
   uint32_t pid_last_can_failure_detail = NOT_SAMPLED_YET;
-  uint32_t pid_hw_version_num = NOT_SAMPLED_YET;
-  uint32_t pid_sw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_vehicle_speed = NOT_SAMPLED_YET;
   uint32_t pid_time_spent_over_55c = NOT_SAMPLED_YET;
   uint32_t pid_contactor_closing_counter = NOT_SAMPLED_YET;
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
-  uint32_t pid_current_time = NOT_SAMPLED_YET;
+  uint64_t pid_current_time = NOT_SAMPLED_YET;
   uint32_t pid_time_sent_by_car = NOT_SAMPLED_YET;
-
   int32_t pid_current = NOT_SAMPLED_YET;
+  uint8_t pid_hw_version_num[17] = {NOT_SAMPLED_YET};
+  uint8_t pid_sw_version_num[17] = {NOT_SAMPLED_YET};
 
   static const uint8_t NOT_SAMPLED_YET = 255;
   static const uint8_t COMPLETED_STATE = 0;
+
   static const uint16_t PID_WELD_CHECK = 0xD814;
   static const uint16_t PID_CONT_REASON_OPEN = 0xD812;
   static const uint16_t PID_CONTACTOR_STATUS = 0xD813;
@@ -365,10 +355,10 @@ class EcmpBattery : public CanBattery {
   static const uint16_t PID_WIRE_CRASH = 0xD87F;
   static const uint16_t PID_CAN_CRASH = 0xD48D;
   static const uint16_t PID_HISTORY_DATA = 0xD465;
-  static const uint16_t PID_LOWSOC_COUNTER = 0xD492;           //Not supported on all batteris
-  static const uint16_t PID_LAST_CAN_FAILURE_DETAIL = 0xD89E;  //Not supported on all batteris
-  static const uint16_t PID_HW_VERSION_NUM = 0xF193;           //Not supported on all batteris
-  static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteris
+  static const uint16_t PID_LOWSOC_COUNTER = 0xD492;           //Not supported on all batteries
+  static const uint16_t PID_LAST_CAN_FAILURE_DETAIL = 0xD89E;  //Not supported on all batteries
+  static const uint16_t PID_HW_VERSION_NUM = 0xF193;           //Not supported on all batteries Multiframe
+  static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteries Multiframe
   static const uint16_t PID_FACTORY_MODE_CONTROL = 0xD900;
   static const uint16_t PID_BATTERY_SERIAL = 0xD901;
   static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;
@@ -513,7 +503,6 @@ class EcmpBattery : public CanBattery {
   int8_t BMS_PROBETEMP[7] = {0};
   int8_t TEMPERATURE_MINIMUM_C = 0;
 
-  bool HighPrecisionCurrentSampling = 1;
   bool CMD_RESET_MIL = false;
   bool REQ_BLINK_STOP_AND_SERVICE_LAMP = false;
   bool REQ_MIL_LAMP_CONTINOUS = false;
@@ -530,11 +519,9 @@ class EcmpBattery : public CanBattery {
   bool ALERT_CELL_POOR_CONSIST, ALERT_OVERCHARGE, ALERT_BATT, ALERT_LOW_SOC, ALERT_HIGH_SOC, ALERT_SOC_JUMP,
       ALERT_TEMP_DIFF, ALERT_HIGH_TEMP, ALERT_OVERVOLTAGE, ALERT_CELL_OVERVOLTAGE, ALERT_CELL_UNDERVOLTAGE = false;
 
-  bool UserRequestDTCreset = false;
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
   bool UserRequestIsolationReset = false;
-  bool UserRequestDisableIsoMonitoring = false;
 
   uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
   uint8_t data_3A2_CRC[16] = {0x0C, 0x1B, 0x2A, 0x39, 0x48, 0x57,
