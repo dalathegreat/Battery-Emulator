@@ -36,6 +36,7 @@ class KiaEGmpBattery : public UdsCanBattery {
   uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
   uint16_t calculate_transmit_checksum(const CAN_frame& frame);
   uint16_t transmit_checksum_xor(uint16_t can_id) const;
+  static uint8_t find_transmit_counter_index(uint16_t can_id);
   bool has_transmit_counter(uint16_t can_id) const;
   void transmit_startup_message(uint8_t message_index);
   void transmit_message(uint16_t can_id, uint32_t message_count);
@@ -112,10 +113,16 @@ class KiaEGmpBattery : public UdsCanBattery {
   bool startupSequenceActive = false;
   bool startupSequenceComplete = false;
   bool startupSequenceRequested = false;
-  // Keep the last observed counter for repeated startup/work IDs so the work loop continues from the
-  // startup phase instead of resetting to the template-base value when the same ID reappears.
-  uint8_t last_transmit_counter[0x400] = {};
-  bool last_transmit_counter_valid[0x400] = {};
+  // Keep the last observed counter for repeated startup/work IDs while tracking only the IDs that
+  // actually carry a transmit counter. This preserves counter continuity without allocating a dense
+  // 0x400 lookup table.
+  static constexpr uint16_t transmit_counter_ids[] = {
+      0x10A, 0x120, 0x19A, 0x2B5, 0x2C0, 0x2D5, 0x2E0, 0x2E5, 0x2EA,
+      0x308, 0x30A, 0x320, 0x33A, 0x350, 0x3B5};
+  static constexpr uint8_t transmit_counter_id_count = sizeof(transmit_counter_ids) / sizeof(transmit_counter_ids[0]);
+  static constexpr uint8_t invalid_transmit_counter_index = 0xFF;
+  uint8_t last_transmit_counter[transmit_counter_id_count] = {};
+  bool last_transmit_counter_valid[transmit_counter_id_count] = {};
   uint8_t startupMessageDelays[63] = {0,   0,   5,   10,  10,  15,  19,  19,  20,  20,  25,  30,  30,  35,  40,  40,
                                       45,  49,  49,  50,  50,  52,  53,  53,  54,  55,  60,  60,  65,  67,  67,  70,
                                       70,  75,  77,  77,  80,  80,  85,  90,  90,  95,  100, 100, 105, 110, 110, 115,
