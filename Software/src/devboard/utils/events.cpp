@@ -507,7 +507,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BATTERY_ISOLATION:
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_BATTERY_SOC_RECALIBRATION:
-      return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
+      return "The BMS updated the HV battery State of Charge (SOC) by more than 3% based on SocByOcv.";
     case EVENT_BYD_AUTO_SOC_CALIBRATION:
       return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
     case EVENT_BYD_CHARGE_TERMINATED:
@@ -531,9 +531,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BATTERY_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT2:
-      return "Too large voltage diff between battery packs. Battery 2 cannot join the DC-link.";
+      return "Too large voltage diff between battery packs. Battery 2 join to DC bus deferred.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT3:
-      return "Too large voltage diff between battery packs. Battery 3 cannot join the DC-link.";
+      return "Too large voltage diff between battery packs. Battery 3 join to DC bus deferred.";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
