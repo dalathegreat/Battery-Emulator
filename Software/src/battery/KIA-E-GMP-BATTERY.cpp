@@ -170,11 +170,21 @@ void KiaEGmpBattery::request_startup_sequence() {
   startupSequenceComplete = false;
 }
 
+uint8_t KiaEGmpBattery::find_transmit_counter_index(uint16_t can_id) {
+  for (uint8_t i = 0; i < transmit_counter_id_count; i++) {
+    if (transmit_counter_ids[i] == can_id) {
+      return i;
+    }
+  }
+  return invalid_transmit_counter_index;
+}
+
 void KiaEGmpBattery::transmit_startup_message(uint8_t message_index) {
   CAN_frame frame = *messages[message_index];
-  if (has_transmit_counter(frame.ID)) {
-    last_transmit_counter_valid[frame.ID] = true;
-    last_transmit_counter[frame.ID] = frame.data.u8[2];
+  const uint8_t counter_index = find_transmit_counter_index(frame.ID);
+  if (counter_index != invalid_transmit_counter_index) {
+    last_transmit_counter_valid[counter_index] = true;
+    last_transmit_counter[counter_index] = frame.data.u8[2];
   }
   uint16_t checksum = calculate_transmit_checksum(frame);
   frame.data.u8[0] = static_cast<uint8_t>(checksum);
@@ -183,26 +193,7 @@ void KiaEGmpBattery::transmit_startup_message(uint8_t message_index) {
 }
 
 bool KiaEGmpBattery::has_transmit_counter(uint16_t can_id) const {
-  switch (can_id) {
-    case 0x10A:
-    case 0x120:
-    case 0x19A:
-    case 0x2B5:
-    case 0x2C0:
-    case 0x2D5:
-    case 0x2E0:
-    case 0x2E5:
-    case 0x2EA:
-    case 0x308:
-    case 0x30A:
-    case 0x320:
-    case 0x33A:
-    case 0x350:
-    case 0x3B5:
-      return true;
-    default:
-      return false;
-  }
+  return find_transmit_counter_index(can_id) != invalid_transmit_counter_index;
 }
 
 void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
@@ -233,15 +224,16 @@ void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
   }
 
   CAN_frame frame = *messages[selected_message];
-  if (has_transmit_counter(frame.ID)) {
+  const uint8_t counter_index = find_transmit_counter_index(frame.ID);
+  if (counter_index != invalid_transmit_counter_index) {
     uint8_t next_counter = frame.data.u8[2];
-    if (last_transmit_counter_valid[frame.ID]) {
-      next_counter = static_cast<uint8_t>(last_transmit_counter[frame.ID] + 1u);
+    if (last_transmit_counter_valid[counter_index]) {
+      next_counter = static_cast<uint8_t>(last_transmit_counter[counter_index] + 1u);
     } else {
       next_counter = static_cast<uint8_t>(frame.data.u8[2]);
-      last_transmit_counter_valid[frame.ID] = true;
+      last_transmit_counter_valid[counter_index] = true;
     }
-    last_transmit_counter[frame.ID] = next_counter;
+    last_transmit_counter[counter_index] = next_counter;
     frame.data.u8[2] = next_counter;
   }
   uint16_t checksum = calculate_transmit_checksum(frame);
