@@ -527,9 +527,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BATTERY_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT2:
-      return "Too large voltage diff between the batteries. 2ⁿᵈ battery cannot join the DC-link";
+      return "Too large voltage diff between battery packs. Battery 2 cannot join the DC-link.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT3:
-      return "Too large voltage diff between the batteries. 3ʳᵈ battery cannot join the DC-link";
+      return "Too large voltage diff between battery packs. Battery 3 cannot join the DC-link.";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
