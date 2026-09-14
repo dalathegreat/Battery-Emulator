@@ -166,6 +166,10 @@ void init_events(void) {
   events.entries[EVENT_CANMCP2515_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_2_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  /* Use set_battery_event_level() when all battery variants have the same severity.
+     Use events.entries[] directly when the severity differs between battery 1/2/3,
+     or when the event has no per-battery variants. */
+
   /* Not set_battery_event_level(): losing the main pack stops the system, losing a secondary
      one does not, so EVENT_CAN_BATTERY_MISSING is an error and its 2/3 variants are warnings. */
   events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
