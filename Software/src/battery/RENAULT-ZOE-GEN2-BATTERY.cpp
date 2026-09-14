@@ -102,46 +102,46 @@ void RenaultZoeGen2Battery::update_values() {
   }*/
 
   // Update webserver datalayer
-  datalayer_extended.zoePH2.battery_soc = battery_soc;
-  datalayer_extended.zoePH2.battery_usable_soc = battery_usable_soc;
-  datalayer_extended.zoePH2.battery_soh = battery_soh;
-  datalayer_extended.zoePH2.battery_pack_voltage = battery_pack_voltage_polled_dV;
-  datalayer_extended.zoePH2.battery_max_cell_voltage = battery_max_cell_voltage_polled;
-  datalayer_extended.zoePH2.battery_min_cell_voltage = battery_min_cell_voltage_polled;
-  datalayer_extended.zoePH2.battery_12v = battery_12v;
-  datalayer_extended.zoePH2.battery_avg_temp = battery_avg_temp;
-  datalayer_extended.zoePH2.battery_min_temp = battery_min_temp;
-  datalayer_extended.zoePH2.battery_max_temp = battery_max_temp;
-  datalayer_extended.zoePH2.battery_max_power = battery_max_power;
-  datalayer_extended.zoePH2.battery_interlock = battery_interlock_polled;
-  datalayer_extended.zoePH2.battery_kwh = battery_kwh;
-  datalayer_extended.zoePH2.battery_current = battery_current;
-  datalayer_extended.zoePH2.battery_current_offset = battery_current_offset;
-  datalayer_extended.zoePH2.battery_max_generated = battery_max_generated;
-  datalayer_extended.zoePH2.battery_max_available = battery_max_available;
-  datalayer_extended.zoePH2.battery_current_voltage = battery_current_voltage;
-  datalayer_extended.zoePH2.battery_charging_status = battery_charging_status;
-  datalayer_extended.zoePH2.battery_remaining_charge = battery_remaining_charge;
-  datalayer_extended.zoePH2.battery_balance_capacity_total = battery_balance_capacity_total;
-  datalayer_extended.zoePH2.battery_balance_time_total = battery_balance_time_total;
-  datalayer_extended.zoePH2.battery_balance_capacity_sleep = battery_balance_capacity_sleep;
-  datalayer_extended.zoePH2.battery_balance_time_sleep = battery_balance_time_sleep;
-  datalayer_extended.zoePH2.battery_balance_capacity_wake = battery_balance_capacity_wake;
-  datalayer_extended.zoePH2.battery_balance_time_wake = battery_balance_time_wake;
-  datalayer_extended.zoePH2.battery_bms_state = battery_bms_state;
-  datalayer_extended.zoePH2.battery_energy_complete = battery_energy_complete;
-  datalayer_extended.zoePH2.battery_energy_partial = battery_energy_partial;
-  datalayer_extended.zoePH2.battery_slave_failures = battery_slave_failures;
-  datalayer_extended.zoePH2.battery_mileage = battery_mileage;
-  datalayer_extended.zoePH2.battery_fan_speed = battery_fan_speed;
-  datalayer_extended.zoePH2.battery_fan_period = battery_fan_period;
-  datalayer_extended.zoePH2.battery_fan_control = battery_fan_control;
-  datalayer_extended.zoePH2.battery_fan_duty = battery_fan_duty;
-  datalayer_extended.zoePH2.battery_temporisation = battery_temporisation;
-  datalayer_extended.zoePH2.battery_time = battery_time;
-  datalayer_extended.zoePH2.battery_pack_time = battery_pack_time;
-  datalayer_extended.zoePH2.battery_soc_min = battery_soc_min;
-  datalayer_extended.zoePH2.battery_soc_max = battery_soc_max;
+  datalayer_zoePH2->battery_soc = battery_soc;
+  datalayer_zoePH2->battery_usable_soc = battery_usable_soc;
+  datalayer_zoePH2->battery_soh = battery_soh;
+  datalayer_zoePH2->battery_pack_voltage = battery_pack_voltage_polled_dV;
+  datalayer_zoePH2->battery_max_cell_voltage = battery_max_cell_voltage_polled;
+  datalayer_zoePH2->battery_min_cell_voltage = battery_min_cell_voltage_polled;
+  datalayer_zoePH2->battery_12v = battery_12v;
+  datalayer_zoePH2->battery_avg_temp = battery_avg_temp;
+  datalayer_zoePH2->battery_min_temp = battery_min_temp;
+  datalayer_zoePH2->battery_max_temp = battery_max_temp;
+  datalayer_zoePH2->battery_max_power = battery_max_power;
+  datalayer_zoePH2->battery_interlock = battery_interlock_polled;
+  datalayer_zoePH2->battery_kwh = battery_kwh;
+  datalayer_zoePH2->battery_current = battery_current;
+  datalayer_zoePH2->battery_current_offset = battery_current_offset;
+  datalayer_zoePH2->battery_max_generated = battery_max_generated;
+  datalayer_zoePH2->battery_max_available = battery_max_available;
+  datalayer_zoePH2->battery_current_voltage = battery_current_voltage;
+  datalayer_zoePH2->battery_charging_status = battery_charging_status;
+  datalayer_zoePH2->battery_remaining_charge = battery_remaining_charge;
+  datalayer_zoePH2->battery_balance_capacity_total = battery_balance_capacity_total;
+  datalayer_zoePH2->battery_balance_time_total = battery_balance_time_total;
+  datalayer_zoePH2->battery_balance_capacity_sleep = battery_balance_capacity_sleep;
+  datalayer_zoePH2->battery_balance_time_sleep = battery_balance_time_sleep;
+  datalayer_zoePH2->battery_balance_capacity_wake = battery_balance_capacity_wake;
+  datalayer_zoePH2->battery_balance_time_wake = battery_balance_time_wake;
+  datalayer_zoePH2->battery_bms_state = battery_bms_state;
+  datalayer_zoePH2->battery_energy_complete = battery_energy_complete;
+  datalayer_zoePH2->battery_energy_partial = battery_energy_partial;
+  datalayer_zoePH2->battery_slave_failures = battery_slave_failures;
+  datalayer_zoePH2->battery_mileage = battery_mileage;
+  datalayer_zoePH2->battery_fan_speed = battery_fan_speed;
+  datalayer_zoePH2->battery_fan_period = battery_fan_period;
+  datalayer_zoePH2->battery_fan_control = battery_fan_control;
+  datalayer_zoePH2->battery_fan_duty = battery_fan_duty;
+  datalayer_zoePH2->battery_temporisation = battery_temporisation;
+  datalayer_zoePH2->battery_time = battery_time;
+  datalayer_zoePH2->battery_pack_time = battery_pack_time;
+  datalayer_zoePH2->battery_soc_min = battery_soc_min;
+  datalayer_zoePH2->battery_soc_max = battery_soc_max;
 }
 
 void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -406,7 +406,7 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
-  if (datalayer_extended.zoePH2.UserRequestNVROLReset) {
+  if (datalayer_zoePH2->UserRequestNVROLReset) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
   }
@@ -444,7 +444,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
   }
 
   // Send 200ms polling CAN Message (Only if not NVROL in progress)
-  if ((currentMillis - previousMillis200 >= INTERVAL_200_MS) && !datalayer_extended.zoePH2.UserRequestNVROLReset) {
+  if ((currentMillis - previousMillis200 >= INTERVAL_200_MS) && !datalayer_zoePH2->UserRequestNVROLReset) {
     previousMillis200 = currentMillis;
 
     // Update current poll from the array
@@ -550,7 +550,7 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       ZOE_373.data.u8[0] = 0x01;
       if ((millis() - startTimeNVROL) > INTERVAL_30_S) {
         // after sleeping, set the nvrol reset flag to false, to continue normal operation of sending CAN messages
-        datalayer_extended.zoePH2.UserRequestNVROLReset = false;
+        datalayer_zoePH2->UserRequestNVROLReset = false;
         // Wake battery back up
         ZOE_373.data.u8[0] = 0xC1;
         // reset state machine, we are done!

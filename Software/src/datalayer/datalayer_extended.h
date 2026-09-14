@@ -1075,6 +1075,7 @@ class DataLayerExtended {
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_GEELY_SEA GeelySEA;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
+  DATALAYER_INFO_ZOE_PH2 zoePH2_2;
 
   DataLayerExtended() {
     memset(this, 0, sizeof(DataLayerExtended));
