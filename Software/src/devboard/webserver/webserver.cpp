@@ -9,6 +9,7 @@
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../communication/nvm/comm_nvm.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/safety/safety.h"
@@ -1078,15 +1079,21 @@ static void fill_card_view(BatteryCardView& v, const DATALAYER_BATTERY_TYPE& pac
   v.reported_total_capacity_Wh = pack.info.reported_total_capacity_Wh;
   v.remaining_capacity_Wh = pack.status.remaining_capacity_Wh;
   v.reported_remaining_capacity_Wh = pack.status.reported_remaining_capacity_Wh;
-  v.max_charge_power_W = pack.status.max_charge_power_W;
-  v.max_discharge_power_W = pack.status.max_discharge_power_W;
+  /* What this pack's BMS asked for, not what the system settled on. Only the system limits
+     are ever converted to a current, so derive this pack's from its own voltage. */
+  v.max_charge_power_W = pack.status.bms_max_charge_power_W;
+  v.max_discharge_power_W = pack.status.bms_max_discharge_power_W;
+  v.max_charge_current_dA = 0;
+  v.max_discharge_current_dA = 0;
+  if (pack.status.voltage_dV > 10) {
+    v.max_charge_current_dA = power_W_to_current_dA(v.max_charge_power_W, pack.status.voltage_dV);
+    v.max_discharge_current_dA = power_W_to_current_dA(v.max_discharge_power_W, pack.status.voltage_dV);
+  }
   v.active_power_W = pack.status.active_power_W;
   v.real_soc = pack.status.real_soc;
   v.reported_soc = pack.status.reported_soc;
   v.soh_pptt = pack.status.soh_pptt;
   v.voltage_dV = pack.status.voltage_dV;
-  v.max_charge_current_dA = pack.status.max_charge_current_dA;
-  v.max_discharge_current_dA = pack.status.max_discharge_current_dA;
   v.cell_max_voltage_mV = pack.status.cell_max_voltage_mV;
   v.cell_min_voltage_mV = pack.status.cell_min_voltage_mV;
   v.max_cell_voltage_deviation_mV = pack.info.max_cell_voltage_deviation_mV;
@@ -1136,34 +1143,39 @@ static String system_status_color() {
   return (datalayer.system.status.system_status == FAULT) ? "#A70107;" : "#2D3F2F;";
 }
 
+/* A pack that does not report a limit shows a dash. A zero here would read as "not allowed to
+   charge", which is a different thing entirely from "this integration never tells us". */
+static String formatPackPower(const String& label, uint32_t value_W) {
+  if (value_W == 0) {
+    return "<h4 style='color: white;'>" + label + ": &mdash;</h4>";
+  }
+  return formatPowerValue(label, value_W, "", 1);
+}
+
+static String formatPackCurrent(const String& label, uint16_t value_dA) {
+  if (value_dA == 0) {
+    return "<h4 style='color: white;'>" + label + ": &mdash;</h4>";
+  }
+  return "<h4 style='color: white;'>" + label + ": " + String(value_dA / 10.0f, 1) + " A</h4>";
+}
+
 /* Render one battery card. pack_index 0 is the combined installation, 1-3 are the packs.
-   The combined card - or the single pack card when only one battery is configured - is the one
-   that owns the system-wide rows: the limit source labels and the charging status text. A pack
-   card in a multi-battery setup shows nothing but its own pack. */
+
+   The combined card - or the single pack card when only one battery is configured - carries
+   exactly what leaves for the inverter: the scaled SOC and capacity, the limits the inverter is
+   actually given along with what is setting them, and the charging status.
+
+   A pack card in a multi-battery setup carries only that pack: real SOC and capacity with no
+   scaling, since the SOC window is a system-wide setting that only the inverter ever sees, and
+   the power limits its own BMS asked for rather than the ones the system settled on. */
 static void render_battery_card(String& content, const String& style, const BatteryCardView& v, uint8_t pack_index) {
   const bool multi = (datalayer.system.info.configured_batteries > 1);
   const bool system_card = (pack_index == 0) || !multi;
+  const bool scaled = system_card && datalayer.battery.settings.soc_scaling_active;
 
   content += "<div style='" + style + "'>";
 
-  if (multi) {
-    switch (pack_index) {
-      case 0:
-        content += "<h4 style='color: white;'>Combined pack</h4>";
-        break;
-      case 1:
-        content += "<h4 style='color: white;'>1&#x02E2;&#x1D57; battery</h4>";
-        break;
-      case 2:
-        content += "<h4 style='color: white;'>2&#x207F;&#x1D48; battery</h4>";
-        break;
-      default:
-        content += "<h4 style='color: white;'>3&#x02B3;&#x1D48; battery</h4>";
-        break;
-    }
-  }
-
-  if (datalayer.battery.settings.soc_scaling_active) {
+  if (scaled) {
     content += "<h4 style='color: white;'>Scaled SOC: " + String(v.reported_soc / 100.0f, 2) +
                "&percnt; (real: " + String(v.real_soc / 100.0f, 2) + "&percnt;)</h4>";
   } else {
@@ -1175,7 +1187,7 @@ static void render_battery_card(String& content, const String& style, const Batt
              " V &nbsp; Current: " + String(v.current_dA / 10.0f, 1) + " A</h4>";
   content += formatPowerValue("Power", (float)v.active_power_W, "", 1);
 
-  if (datalayer.battery.settings.soc_scaling_active) {
+  if (scaled) {
     content +=
         "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(v.reported_total_capacity_Wh, "h", 1) +
         " (real: " + formatPowerValue(v.total_capacity_Wh, "h", 1) + ")</h4>";
@@ -1187,33 +1199,40 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += formatPowerValue("Remaining capacity", v.remaining_capacity_Wh, "h", 1);
   }
 
-  const bool stopped = system_card && datalayer.system.info.equipment_stop_active;
-  const String limit_color = stopped ? "red" : "white";
-  content += formatPowerValue("Max discharge power", v.max_discharge_power_W, "", 1, limit_color);
-  content += formatPowerValue("Max charge power", v.max_charge_power_W, "", 1, limit_color);
-  content += "<h4 style='color: " + limit_color +
-             ";'>Max discharge current: " + String(v.max_discharge_current_dA / 10.0f, 1) + " A";
-  if (system_card && !stopped) {
-    if (datalayer.battery.settings.remote_settings_limit_discharge) {
-      content += " (Remote)";
-    } else if (datalayer.battery.settings.user_settings_limit_discharge) {
-      content += " (Manual)";
-    } else {
-      content += " (BMS)";
+  if (system_card) {
+    const bool stopped = datalayer.system.info.equipment_stop_active;
+    const String limit_color = stopped ? "red" : "white";
+    content += formatPowerValue("Max discharge power", v.max_discharge_power_W, "", 1, limit_color);
+    content += formatPowerValue("Max charge power", v.max_charge_power_W, "", 1, limit_color);
+    content += "<h4 style='color: " + limit_color +
+               ";'>Max discharge current: " + String(v.max_discharge_current_dA / 10.0f, 1) + " A";
+    if (!stopped) {
+      if (datalayer.battery.settings.remote_settings_limit_discharge) {
+        content += " (Remote)";
+      } else if (datalayer.battery.settings.user_settings_limit_discharge) {
+        content += " (Manual)";
+      } else {
+        content += " (BMS)";
+      }
     }
-  }
-  content += "</h4><h4 style='color: " + limit_color +
-             ";'>Max charge current: " + String(v.max_charge_current_dA / 10.0f, 1) + " A";
-  if (system_card && !stopped) {
-    if (datalayer.battery.settings.remote_settings_limit_charge) {
-      content += " (Remote)";
-    } else if (datalayer.battery.settings.user_settings_limit_charge) {
-      content += " (Manual)";
-    } else {
-      content += " (BMS)";
+    content += "</h4><h4 style='color: " + limit_color +
+               ";'>Max charge current: " + String(v.max_charge_current_dA / 10.0f, 1) + " A";
+    if (!stopped) {
+      if (datalayer.battery.settings.remote_settings_limit_charge) {
+        content += " (Remote)";
+      } else if (datalayer.battery.settings.user_settings_limit_charge) {
+        content += " (Manual)";
+      } else {
+        content += " (BMS)";
+      }
     }
+    content += "</h4>";
+  } else {
+    content += formatPackPower("Max discharge power", v.max_discharge_power_W);
+    content += formatPackPower("Max charge power", v.max_charge_power_W);
+    content += formatPackCurrent("Max discharge current", v.max_discharge_current_dA);
+    content += formatPackCurrent("Max charge current", v.max_charge_current_dA);
   }
-  content += "</h4>";
 
   content +=
       "<h4>Cell min/max: " + String(v.cell_min_voltage_mV) + " mV / " + String(v.cell_max_voltage_mV) + " mV</h4>";
@@ -1443,41 +1462,35 @@ String processor(const String& var) {
     }
 
     if (battery) {
-      const bool multi = (datalayer.system.info.configured_batteries > 1);
       BatteryCardView view;
 
-      if (multi) {
-        /* The whole installation on top, stuck to the pack cards below it: no bottom margin,
-           and only the top corners rounded so the two read as one block. */
+      if (datalayer.system.info.configured_batteries > 1) {
+        /* The whole installation on top, then the packs. Every card keeps all four corners
+           rounded so the shapes stay readable, and the gaps are kept thin so the group still
+           reads as one block. */
         fill_card_view_aggregate(view);
-        render_battery_card(content,
-                            "background-color: " + emulator_status_color() +
-                                " padding: 10px; margin-bottom: 0px; border-radius: 50px 50px 0 0;",
-                            view, 0);
-
-        content += "<div style='display: flex; width: 100%; gap: 4px;'>";
-        fill_card_view(view, datalayer.battery);
-        render_battery_card(content,
-                            "flex: 1; background-color: " + system_status_color() +
-                                " padding: 10px; margin-bottom: 10px; border-radius: 0 0 0 50px;",
-                            view, 1);
-        fill_card_view(view, datalayer.battery2);
         render_battery_card(
             content,
-            "flex: 1; background-color: " + system_status_color() +
-                " padding: 10px; margin-bottom: 10px; border-radius: " + (battery3 ? "0;" : "0 0 50px 0;"),
-            view, 2);
+            "background-color: " + emulator_status_color() + " padding: 10px; margin-bottom: 4px; border-radius: 50px;",
+            view, 0);
+
+        content += "<div style='display: flex; width: 100%; gap: 4px;'>";
+        const String pack_style = "flex: 1; background-color: " + system_status_color() +
+                                  " padding: 10px; margin-bottom: 10px; border-radius: 50px;";
+        fill_card_view(view, datalayer.battery);
+        render_battery_card(content, pack_style, view, 1);
+        fill_card_view(view, datalayer.battery2);
+        render_battery_card(content, pack_style, view, 2);
         if (battery3) {
           fill_card_view(view, datalayer.battery3);
-          render_battery_card(content,
-                              "flex: 1; background-color: " + system_status_color() +
-                                  " padding: 10px; margin-bottom: 10px; border-radius: 0 0 50px 0;",
-                              view, 3);
+          render_battery_card(content, pack_style, view, 3);
         }
         content += "</div>";
       } else {
-        // Single battery. One card, holding that battery's own data - which is all there is.
-        fill_card_view(view, datalayer.battery);
+        /* Single battery. The pack and the installation are the same thing, so read the
+           aggregate: it is what the inverter is given, and it already holds this pack's
+           scaled figures. */
+        fill_card_view_aggregate(view);
         render_battery_card(content,
                             "background-color: " + emulator_status_color() +
                                 " padding: 10px; margin-bottom: 10px; border-radius: 50px;",

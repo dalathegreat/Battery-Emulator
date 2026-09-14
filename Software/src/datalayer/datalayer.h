@@ -69,6 +69,13 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint32_t max_discharge_power_W = 0;
   /** Maximum allowed battery charge power in Watts. Set by battery */
   uint32_t max_charge_power_W = 0;
+  /** Discharge power the pack's own BMS asked for, in Watts. Snapshotted once per cycle before
+   * the safety layer and the inverter filters rewrite max_discharge_power_W, so a per-pack card
+   * can show what that pack reported rather than what the system decided. 0 means the
+   * integration does not report one */
+  uint32_t bms_max_discharge_power_W = 0;
+  /** Charge power the pack's own BMS asked for, in Watts. See bms_max_discharge_power_W */
+  uint32_t bms_max_charge_power_W = 0;
   /* Some early integrations do not support reading allowed charge power from battery
   On these integrations we need to have the user specify what limits the battery can take */
   /** Overriden allowed battery discharge power in Watts. Set by user */

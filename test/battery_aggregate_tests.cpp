@@ -103,28 +103,117 @@ TEST_F(BatteryAggregateTest, EnergySumsAcrossPacksWithoutTouchingThem) {
   EXPECT_EQ(datalayer.battery3.info.total_capacity_Wh, 10000u);
 }
 
-// Every pack scales into its own reported_ fields, instead of pack 2 and 3 carrying pack 1's.
-TEST_F(BatteryAggregateTest, EachPackScalesItsOwnCapacity) {
+// The SOC window belongs to the installation. With more than one pack the per-pack structs
+// report what they would with scaling switched off - which is what MQTT and ESP-NOW carry -
+// and the window is applied once, to the aggregate.
+TEST_F(BatteryAggregateTest, PacksStayUnscaledAndOnlyTheAggregateGetsTheWindow) {
   add_second_pack();
   battery2_detected = true;
   datalayer.battery.settings.soc_scaling_active = true;
-  datalayer.battery.settings.min_percentage = 1000;  // 10.00%
-  datalayer.battery.settings.max_percentage = 9000;  // 90.00%
+  datalayer.battery.settings.min_percentage = 1200;  // 12.00%
+  datalayer.battery.settings.max_percentage = 8200;  // 82.00%
 
-  datalayer.battery.info.total_capacity_Wh = 30000;
-  datalayer.battery.status.real_soc = 5000;
-  datalayer.battery2.info.total_capacity_Wh = 10000;
-  datalayer.battery2.status.real_soc = 5000;
+  datalayer.battery.info.total_capacity_Wh = 21800;
+  datalayer.battery.status.real_soc = 4100;
+  datalayer.battery.status.remaining_capacity_Wh = 8938;
+  datalayer.battery2.info.total_capacity_Wh = 17900;
+  datalayer.battery2.status.real_soc = 3930;
+  datalayer.battery2.status.remaining_capacity_Wh = 7034;
 
   scale_all();
 
-  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 24000u);  // 30000 * 80%
-  EXPECT_EQ(datalayer.battery2.info.reported_total_capacity_Wh, 8000u);  // 10000 * 80%
-  EXPECT_EQ(datalayer.battery.status.reported_soc, 5000);                // midpoint of the window
-  EXPECT_EQ(datalayer.battery2.status.reported_soc, 5000);
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 4100);
+  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 21800u);
+  EXPECT_EQ(datalayer.battery.status.reported_remaining_capacity_Wh, 8938u);
+  EXPECT_EQ(datalayer.battery2.status.reported_soc, 3930);
+  EXPECT_EQ(datalayer.battery2.info.reported_total_capacity_Wh, 17900u);
 
   update_aggregate_values();
-  EXPECT_EQ(datalayer.aggregate.reported_total_capacity_Wh, 32000u);
+
+  // 39.7 kWh across a 70 point window
+  EXPECT_EQ(datalayer.aggregate.total_capacity_Wh, 39700u);
+  EXPECT_EQ(datalayer.aggregate.reported_total_capacity_Wh, 27790u);
+  // The reported energy and the reported SOC now agree: 27790 * reported_soc / 10000
+  EXPECT_EQ(datalayer.aggregate.reported_remaining_capacity_Wh,
+            (uint32_t)(27790ull * datalayer.aggregate.reported_soc) / 10000u);
+}
+
+// A single battery is the installation, so it keeps its scaled reported_ fields and MQTT,
+// ESP-NOW and the display see exactly what they always did.
+TEST_F(BatteryAggregateTest, SingleBatteryKeepsItsScaledFields) {
+  datalayer.battery.settings.soc_scaling_active = true;
+  datalayer.battery.settings.min_percentage = 1000;
+  datalayer.battery.settings.max_percentage = 9000;
+  datalayer.battery.info.total_capacity_Wh = 30000;
+  datalayer.battery.status.real_soc = 5000;
+
+  scale_all();
+
+  EXPECT_EQ(datalayer.battery.status.reported_soc, 5000);  // midpoint of the window
+  EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 24000u);
+}
+
+// SOC is weighted by the capacity each pack brings, not taken from pack 1.
+TEST_F(BatteryAggregateTest, SocIsCapacityWeighted) {
+  add_second_pack();
+  battery2_detected = true;
+
+  datalayer.battery.info.total_capacity_Wh = 21800;
+  datalayer.battery.status.real_soc = 4100;
+  datalayer.battery2.info.total_capacity_Wh = 17900;
+  datalayer.battery2.status.real_soc = 3930;
+
+  scale_all();
+  update_aggregate_values();
+
+  // (4100 * 21800 + 3930 * 17900) / 39700
+  EXPECT_EQ(datalayer.aggregate.real_soc, 4023);
+}
+
+// State of health is the mean across the packs that are talking.
+TEST_F(BatteryAggregateTest, SohIsAveraged) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.battery.status.soh_pptt = 7560;
+  datalayer.battery2.status.soh_pptt = 6209;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 6884);
+}
+
+// Any pack at an extreme takes the reported SOC over, pack 1 included. Weighting makes this
+// load bearing: a full pack next to a half empty one averages out to something comfortable.
+TEST_F(BatteryAggregateTest, FirstPackAtAnExtremeStillHandsOver) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.battery.info.total_capacity_Wh = 20000;
+  datalayer.battery.status.real_soc = 10000;  // full
+  datalayer.battery2.info.total_capacity_Wh = 20000;
+  datalayer.battery2.status.real_soc = 5000;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.real_soc, 7500);       // the honest weighted average
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 10000);  // but the inverter is told to stop
+}
+
+// A 19.0 A ceiling has to survive the trip out through Watts and back.
+TEST_F(BatteryAggregateTest, UserCurrentLimitSurvivesTheRoundTrip) {
+  datalayer.battery.status.voltage_dV = 3525;
+  datalayer.battery.settings.max_user_set_charge_dA = 190;
+  datalayer.battery.settings.max_user_set_discharge_dA = 190;
+  // What filter_inverter_limits() derives from a 19.0 A ceiling at 352.5 V
+  datalayer.battery.status.max_charge_power_W = 6697;
+  datalayer.battery.status.max_discharge_power_W = 6697;
+
+  update_aggregate_values();
+  update_aggregate_limits();
+
+  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 190);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 190);
 }
 
 // A pack that is configured but has not joined the link yet still counts towards the energy,
@@ -143,17 +232,23 @@ TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCountsForEnergy) {
   EXPECT_EQ(datalayer.aggregate.total_capacity_Wh, 60000u);
 }
 
-// ...but it does not get to hand over the SOC until it has joined.
+// A pack that has not joined yet still counts towards the weighted SOC, for the same reason it
+// counts towards the energy - otherwise the SOC and the capacity the inverter is given would
+// describe two different installations. What it does not get is the hand-over: only a joined
+// pack sitting at an extreme can force the whole installation to stop.
 TEST_F(BatteryAggregateTest, SocHandoverNeedsAJoinedPack) {
   add_second_pack();
   battery2_detected = true;
+  datalayer.battery.info.total_capacity_Wh = 30000;
   datalayer.battery.status.real_soc = 5000;
+  datalayer.battery2.info.total_capacity_Wh = 30000;
   datalayer.battery2.status.real_soc = 10000;  // full
 
   datalayer.system.status.battery2_allowed_contactor_closing = false;
   scale_all();
   update_aggregate_values();
-  EXPECT_EQ(datalayer.aggregate.reported_soc, 5000);
+  EXPECT_EQ(datalayer.aggregate.real_soc, 7500);
+  EXPECT_EQ(datalayer.aggregate.reported_soc, 7500);
 
   datalayer.system.status.battery2_allowed_contactor_closing = true;
   update_aggregate_values();
@@ -188,7 +283,7 @@ TEST_F(BatteryAggregateTest, SilentPackDoesNotDragTheExtremes) {
 
   EXPECT_EQ(datalayer.aggregate.cell_min_voltage_mV, 3950);
   EXPECT_EQ(datalayer.aggregate.temperature_min_dC, 50);
-  EXPECT_EQ(datalayer.aggregate.soh_pptt, 9000);
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 9250);  // mean of 9500 and 9000
 }
 
 // The limits the inverter is told about are the weakest pack's, and a pack 2 fault that the
@@ -238,6 +333,40 @@ TEST_F(BatteryAggregateTest, UserCurrentLimitCapsTheAggregate) {
 
   EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 100);
   EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 270);
+}
+
+// The per-pack card shows what that pack's BMS asked for. The safety layer and the filters
+// rewrite max_charge_power_W in place, so without the snapshot pack 1's card would show the
+// system's decision while pack 2's showed the raw BMS figure - which is what it used to do.
+TEST_F(BatteryAggregateTest, BmsLimitsSurviveTheSafetyLayer) {
+  add_second_pack();
+  battery2_detected = true;
+
+  datalayer.battery.status.max_charge_power_W = 70000;
+  datalayer.battery.status.max_discharge_power_W = 110000;
+  datalayer.battery2.status.max_charge_power_W = 70000;
+  datalayer.battery2.status.max_discharge_power_W = 110000;
+
+  snapshot_bms_limits(datalayer.battery);
+  snapshot_bms_limits(datalayer.battery2);
+
+  // Everything downstream now has its way with pack 1
+  datalayer.battery.status.max_charge_power_W = 6700;
+  datalayer.battery.status.max_discharge_power_W = 6700;
+
+  EXPECT_EQ(datalayer.battery.status.bms_max_charge_power_W, 70000u);
+  EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 110000u);
+  EXPECT_EQ(datalayer.battery2.status.bms_max_charge_power_W, 70000u);
+}
+
+// An integration that never reports a limit leaves the snapshot at zero, which the card turns
+// into a dash rather than a misleading "0 W".
+TEST_F(BatteryAggregateTest, UnreportedBmsLimitStaysZero) {
+  datalayer.battery.status.max_charge_power_W = 0;
+  datalayer.battery.status.max_discharge_power_W = 0;
+  snapshot_bms_limits(datalayer.battery);
+  EXPECT_EQ(datalayer.battery.status.bms_max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 0u);
 }
 
 }  // namespace

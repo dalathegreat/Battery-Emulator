@@ -307,8 +307,8 @@ static void filter_inverter_limits(void) {
     conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   }
   if (conversion_voltage_dV > 10) {
-    uint32_t charge_dA_from_power = (charge_power_W_filtered * 100) / conversion_voltage_dV;
-    uint32_t discharge_dA_from_power = (discharge_power_W_filtered * 100) / conversion_voltage_dV;
+    uint32_t charge_dA_from_power = power_W_to_current_dA(charge_power_W_filtered, conversion_voltage_dV);
+    uint32_t discharge_dA_from_power = power_W_to_current_dA(discharge_power_W_filtered, conversion_voltage_dV);
     if (charge_dA_from_power < datalayer.battery.status.max_charge_current_dA) {
       datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_dA_from_power;
     }
@@ -319,6 +319,17 @@ static void filter_inverter_limits(void) {
 }
 
 void update_calculated_values(uint32_t currentMillis) {
+  /* The drivers have just run, so the power limits still hold what each BMS asked for. Keep a
+     copy before the safety layer and the filters rewrite them - it is what the per-pack cards
+     show, and nothing else preserves it. */
+  snapshot_bms_limits(datalayer.battery);
+  if (battery2) {
+    snapshot_bms_limits(datalayer.battery2);
+  }
+  if (battery3) {
+    snapshot_bms_limits(datalayer.battery3);
+  }
+
   /* Update CPU temperature*/
   union {
     float temp;
@@ -346,9 +357,9 @@ void update_calculated_values(uint32_t currentMillis) {
   }
   if (conversion_voltage_dV > 10) {
     datalayer.battery.status.max_charge_current_dA =
-        ((datalayer.battery.status.max_charge_power_W * 100) / conversion_voltage_dV);
+        power_W_to_current_dA(datalayer.battery.status.max_charge_power_W, conversion_voltage_dV);
     datalayer.battery.status.max_discharge_current_dA =
-        ((datalayer.battery.status.max_discharge_power_W * 100) / conversion_voltage_dV);
+        power_W_to_current_dA(datalayer.battery.status.max_discharge_power_W, conversion_voltage_dV);
   }
 
   /* Apply remote restrictions if set*/
