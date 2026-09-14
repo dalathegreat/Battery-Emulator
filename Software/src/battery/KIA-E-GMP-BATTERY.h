@@ -114,9 +114,8 @@ class KiaEGmpBattery : public UdsCanBattery {
   // Keep the last observed counter for repeated startup/work IDs while tracking only the IDs that
   // actually carry a transmit counter. This preserves counter continuity without allocating a dense
   // 0x400 lookup table.
-  static constexpr uint16_t transmit_counter_ids[] = {
-      0x10A, 0x120, 0x19A, 0x2B5, 0x2C0, 0x2D5, 0x2E0, 0x2E5, 0x2EA,
-      0x308, 0x30A, 0x320, 0x33A, 0x350, 0x3B5};
+  static constexpr uint16_t transmit_counter_ids[] = {0x10A, 0x120, 0x19A, 0x2B5, 0x2C0, 0x2D5, 0x2E0, 0x2E5,
+                                                      0x2EA, 0x308, 0x30A, 0x320, 0x33A, 0x350, 0x3B5};
   static constexpr uint8_t transmit_counter_id_count = sizeof(transmit_counter_ids) / sizeof(transmit_counter_ids[0]);
   static constexpr uint8_t invalid_transmit_counter_index = 0xFF;
   uint8_t last_transmit_counter[transmit_counter_id_count] = {};
