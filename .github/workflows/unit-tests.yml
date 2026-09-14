@@ -3,7 +3,7 @@ name: ⚙️ Run Unit Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/tesla-charge-mode-injector-clean]
   pull_request:
 
 permissions:
@@ -16,6 +16,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
+
+    - name: Run Python tooling tests
+      run: python3 -m unittest discover -s tools/tests -v
 
     - name: Configure and build with CMake
       run: |
