@@ -145,18 +145,20 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
   mbPV[310] = datalayer.aggregate.voltage_dV;                            // DC inner voltage, UDC_internal uint16
   mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309], PDC_internal int16
-  mbPV[312] = datalayer.aggregate.temperature_min_dC;  //TCellMin
-  mbPV[313] = datalayer.aggregate.temperature_max_dC;  //TCellMax
+  mbPV[312] = reported_temperature_min_dC;  //TCellMin
+  mbPV[313] = reported_temperature_max_dC;  //TCellMax
   // U64 for total charged/discharged Wh (314-317 and 318-321), but datalayer uses only 32-bit.
   mbPV[316] = datalayer.aggregate.total_charged_battery_Wh >> 16;
   mbPV[317] = datalayer.aggregate.total_charged_battery_Wh & 0xFFFF;
   mbPV[320] = datalayer.aggregate.total_discharged_battery_Wh >> 16;
   mbPV[321] = datalayer.aggregate.total_discharged_battery_Wh & 0xFFFF;
-  mbPV[322] = datalayer.aggregate.temperature_max_dC;  //Ambient temperature, max temp used since we don't have ambient
-  mbPV[323] = datalayer.aggregate.soh_pptt;            //SOH
+  mbPV[322] = reported_temperature_max_dC;   //Ambient temperature, max temp used since we don't have ambient
+  mbPV[323] = datalayer.aggregate.soh_pptt;  //SOH
 }
 
 void BydModbusInverter::verify_temperature() {
+  reported_temperature_min_dC = datalayer.aggregate.temperature_min_dC;
+  reported_temperature_max_dC = datalayer.aggregate.temperature_max_dC;
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     return;  // Skip the following section
   }
@@ -164,18 +166,18 @@ void BydModbusInverter::verify_temperature() {
   // The Fronius Gen24 (and other Fronius inverters also affected), will stop charge/discharge if the battery gets colder than -10°C.
   // This is due to the original battery pack (BYD HVM), is a lithium iron phosphate battery, that cannot be charged in cold weather.
   // When using EV packs with NCM/LMO/NCA chemsitry, this is not a problem, since these chemistries are OK for outdoor cold use.
-  if (datalayer.aggregate.temperature_min_dC < 0) {
-    if (datalayer.aggregate.temperature_min_dC < -90 &&
-        datalayer.aggregate.temperature_min_dC > -200) {  // Between -9.0 and -20.0C degrees
-      datalayer.aggregate.temperature_min_dC = -90;       //Cap value to -9.0C
-    }
+  // The cap is applied to the registers this inverter writes, not to the datalayer. Clamping the
+  // shared value in place would hand the web page, MQTT, ESP-NOW and every other inverter a
+  // temperature the packs never reported.
+  reported_temperature_min_dC = clamp_cold_temperature(datalayer.aggregate.temperature_min_dC);
+  reported_temperature_max_dC = clamp_cold_temperature(datalayer.aggregate.temperature_max_dC);
+}
+
+int16_t BydModbusInverter::clamp_cold_temperature(int16_t temperature_dC) {
+  if (temperature_dC < -90 && temperature_dC > -200) {  // Between -9.0 and -20.0C degrees
+    return -90;                                         //Cap value to -9.0C
   }
-  if (datalayer.aggregate.temperature_max_dC < 0) {  // Signed value on negative side
-    if (datalayer.aggregate.temperature_max_dC < -90 &&
-        datalayer.aggregate.temperature_max_dC > -200) {  // Between -9.0 and -20.0C degrees
-      datalayer.aggregate.temperature_max_dC = -90;       //Cap value to -9.0C
-    }
-  }
+  return temperature_dC;
 }
 
 void BydModbusInverter::verify_inverter_modbus() {

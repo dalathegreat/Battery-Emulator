@@ -479,8 +479,8 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   // several batteries the window is applied to datalayer.aggregate and published on its own
   // topic, and these keys would just repeat the real ones - so they are left out entirely
   // rather than published as duplicates. See single_pack().
-  const bool publish_scaled = (datalayer.system.info.configured_batteries < 2);
-  if (publish_scaled) {
+  const bool pack_is_the_installation = (datalayer.system.info.configured_batteries < 2);
+  if (pack_is_the_installation) {
     doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
   }
   doc["SOC_real"] = ((float)battery_data.status.real_soc) / 100.0f;
@@ -507,11 +507,21 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["total_capacity"] = ((float)battery_data.info.total_capacity_Wh);
   }
   doc["remaining_capacity_real"] = ((float)battery_data.status.remaining_capacity_Wh);
-  if (publish_scaled) {
+  if (pack_is_the_installation) {
     doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
   }
-  doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
-  doc["max_charge_power"] = ((float)battery_data.status.max_charge_power_W);
+  // max_charge_power_W on a pack is not that pack's own figure: the safety layer, the SOC taper
+  // and the inverter filter all rewrite it in place, and for pack 1 that makes it the whole
+  // installation's decision. With several packs publish what each BMS actually asked for, so
+  // the three topics mean the same thing; the installation's limits are on the aggregate topic.
+  // A single pack is the installation, so it keeps reporting the final limit as it always has.
+  if (pack_is_the_installation) {
+    doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
+    doc["max_charge_power"] = ((float)battery_data.status.max_charge_power_W);
+  } else {
+    doc["max_discharge_power"] = ((float)battery_data.status.bms_max_discharge_power_W);
+    doc["max_charge_power"] = ((float)battery_data.status.bms_max_charge_power_W);
+  }
   // Omit until the integration has decoded a valid sample so HA shows "unknown"
   // instead of a false 0 kOhm at boot.
   if (battery_data.status.insulation_resistance_available) {

@@ -10,10 +10,12 @@
 //    unaligned struct access.
 
 #include "espnow.h"
+
 #include <WiFi.h>
 #include <esp_now.h>
 #include <string.h>
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../hal/hal.h"
@@ -455,10 +457,27 @@ static void send_battery_frame(uint8_t index) {
     put_i32_field(ESPNOW_KEY_ACTIVE_POWER_W, d->status.active_power_W);
     put_u32_field(ESPNOW_KEY_REMAINING_CAPACITY_WH, d->status.remaining_capacity_Wh);
     put_u32_field(ESPNOW_KEY_REPORTED_REMAIN_WH, d->status.reported_remaining_capacity_Wh);
-    put_u32_field(ESPNOW_KEY_MAX_CHARGE_POWER_W, d->status.max_charge_power_W);
-    put_u32_field(ESPNOW_KEY_MAX_DISCHARGE_POWER_W, d->status.max_discharge_power_W);
-    put_u16_field(ESPNOW_KEY_MAX_CHARGE_CURRENT_DA, d->status.max_charge_current_dA);
-    put_u16_field(ESPNOW_KEY_MAX_DISCHARGE_CURRENT_DA, d->status.max_discharge_current_dA);
+    /* A pack's max_charge_power_W is rewritten in place by the safety layer, the SOC taper and
+       the inverter filter, which for pack 1 turns it into the whole installation's decision.
+       With several packs send what each BMS asked for instead, so every pack frame means the
+       same thing - the installation's limits ride in ESPNOW_FRAME_AGGREGATE. The per-pack
+       current limits are only ever computed for the system, so derive them from the pack's own
+       voltage rather than sending the 0 that packs 2 and 3 carry. */
+    if (num_batteries > 1) {
+      put_u32_field(ESPNOW_KEY_MAX_CHARGE_POWER_W, d->status.bms_max_charge_power_W);
+      put_u32_field(ESPNOW_KEY_MAX_DISCHARGE_POWER_W, d->status.bms_max_discharge_power_W);
+      if (d->status.voltage_dV > 10) {
+        put_u16_field(ESPNOW_KEY_MAX_CHARGE_CURRENT_DA,
+                      power_W_to_current_dA(d->status.bms_max_charge_power_W, d->status.voltage_dV));
+        put_u16_field(ESPNOW_KEY_MAX_DISCHARGE_CURRENT_DA,
+                      power_W_to_current_dA(d->status.bms_max_discharge_power_W, d->status.voltage_dV));
+      }
+    } else {
+      put_u32_field(ESPNOW_KEY_MAX_CHARGE_POWER_W, d->status.max_charge_power_W);
+      put_u32_field(ESPNOW_KEY_MAX_DISCHARGE_POWER_W, d->status.max_discharge_power_W);
+      put_u16_field(ESPNOW_KEY_MAX_CHARGE_CURRENT_DA, d->status.max_charge_current_dA);
+      put_u16_field(ESPNOW_KEY_MAX_DISCHARGE_CURRENT_DA, d->status.max_discharge_current_dA);
+    }
     put_u32_field(ESPNOW_KEY_OVERRIDE_CHARGE_W, d->status.override_charge_power_W);
     put_u32_field(ESPNOW_KEY_OVERRIDE_DISCHARGE_W, d->status.override_discharge_power_W);
     put_i16_field(ESPNOW_KEY_TEMPERATURE_MAX_DC, d->status.temperature_max_dC);
