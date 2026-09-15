@@ -182,6 +182,13 @@ struct SensorConfig {
 static bool always(Battery* b) {
   return true;
 }
+
+// The SOC window is a property of the installation, not of a pack: with several batteries the
+// packs carry what they would with scaling switched off, so a per-pack "scaled" entity would
+// only duplicate its "real" twin. The scaled figures live on the aggregate topic instead.
+static bool single_pack(Battery* b) {
+  return datalayer.system.info.configured_batteries < 2;
+}
 static bool supports_charged(Battery* b) {
   return b->supports_charged_energy();
 }
@@ -207,7 +214,7 @@ static bool heap_metrics_enabled(Battery* b) {
 }
 
 static const SensorConfig batterySensorConfigTemplate[] = {
-    {"SOC", "SoC (scaled)", "%", "battery", always},
+    {"SOC", "SoC (scaled)", "%", "battery", single_pack},
     {"SOC_real", "SoC (real)", "%", "battery", always},
     // No device_class: "battery" would file this next to the state of charge in Home Assistant
     // and take its icon, which is misleading for a health figure. state_class and the unit are
@@ -222,7 +229,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"cell_voltage_delta", "Cell Voltage Delta", "mV", "voltage", always},
     {"battery_voltage", "Battery Voltage", "V", "voltage", always},
     {"total_capacity", "Total Capacity", "Wh", "energy", always},
-    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", always},
+    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", single_pack},
     {"remaining_capacity_real", "Remaining Capacity (real)", "Wh", "energy", always},
     {"max_discharge_power", "Max Discharge Power", "W", "power", always},
     {"max_charge_power", "Max Charge Power", "W", "power", always},
@@ -442,7 +449,14 @@ static void set_aggregate_attributes(JsonDocument& doc) {
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
                             bool battery_supports_charged) {
-  doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
+  // Scaled figures are only a pack's own where that pack is the whole installation. With
+  // several batteries the window is applied to datalayer.aggregate and published on its own
+  // topic, and these keys would just repeat the real ones - so they are left out entirely
+  // rather than published as duplicates. See single_pack().
+  const bool publish_scaled = (datalayer.system.info.configured_batteries < 2);
+  if (publish_scaled) {
+    doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
+  }
   doc["SOC_real"] = ((float)battery_data.status.real_soc) / 100.0f;
   // Omit until the integration has decoded a real state of health, so HA shows "unknown"
   // instead of the soh_pptt default presented as if it had been read from the pack.
@@ -467,7 +481,9 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["total_capacity"] = ((float)battery_data.info.total_capacity_Wh);
   }
   doc["remaining_capacity_real"] = ((float)battery_data.status.remaining_capacity_Wh);
-  doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
+  if (publish_scaled) {
+    doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
+  }
   doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
   doc["max_charge_power"] = ((float)battery_data.status.max_charge_power_W);
   // Omit until the integration has decoded a valid sample so HA shows "unknown"
