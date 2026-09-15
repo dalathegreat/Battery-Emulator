@@ -159,11 +159,11 @@ void KiaEGmpBattery::update_values() {
   }
 
   if (waterleakageSensor == 0) {
-    set_event(EVENT_WATER_INGRESS, 0);
+    set_event(EVENT_WATER_INGRESS, 0, battery_index);
   }
 
   if (leadAcidBatteryVoltage < 110) {
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
   }
 }
 

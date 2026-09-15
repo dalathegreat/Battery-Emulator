@@ -75,13 +75,13 @@ void RenaultZoeGen2Battery::update_values() {
   }
 
   if (battery_12v < 11000) {  //11.000V
-    set_event(EVENT_12V_LOW, battery_12v);
+    set_event(EVENT_12V_LOW, battery_12v, battery_index);
   }
 
   if (battery_interlock != 0xFFFE) {
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   for (int i = 0; i < 96; i++) {
@@ -89,7 +89,7 @@ void RenaultZoeGen2Battery::update_values() {
     //Due to this we need to invert the index when writing to datalayer_battery->status.cell_balancing_status
     datalayer_battery->status.cell_balancing_status[95 - i] = balancing_status_cell[i];
     if (balancing_status_cell[i]) {
-      set_event_latched(EVENT_BALANCING_START, (95 - i));
+      set_event_latched(EVENT_BALANCING_START, (95 - i), battery_index);
       datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
     }
   }

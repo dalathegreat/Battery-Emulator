@@ -129,7 +129,7 @@ void Kia64FDBattery::update_values() {
   datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
 
   if (leadAcidBatteryVoltage < 110) {
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
   }
 }
 
