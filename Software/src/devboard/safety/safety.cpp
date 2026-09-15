@@ -337,13 +337,7 @@ void update_machineryprotection() {
          the comparison below ever sees them, so ask the pack for the extremes of its own
          window instead. The default implementation returns that pack's published current,
          which is what this check used before, so nothing changes for drivers that do not
-         override it.
-         Deliberately pack 1 only, as this check has always been: both sides of the
-         comparison then come from the same pack whether max_charge_power_W holds that
-         pack's own limit or the installation's. Weighing the worst pack's current against
-         pack 1's limit would be wrong in both directions once those two stop being the
-         same number. Packs 2 and 3 want their own comparison against their own limits,
-         which needs per-pack failure counters and is a separate change. */
+         override it. */
       int16_t peak_charge_dA = 0;
       int16_t peak_discharge_dA = 0;
       if (battery) {
