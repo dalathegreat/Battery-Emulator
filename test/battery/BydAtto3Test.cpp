@@ -49,7 +49,7 @@ CAN_frame byd_corrupt_frame(uint32_t id, std::initializer_list<uint8_t> first7by
 // Clears the shared global datalayer between tests, so none sees values left by another.
 void reset_byd_state() {
   datalayer.battery.status = DATALAYER_BATTERY_STATUS_TYPE{};
-  datalayer.battery.settings.max_user_set_charge_dA = 300;
+  datalayer.battery_settings.max_user_set_charge_dA = 300;
   datalayer_extended.bydAtto3.chargePower = 0;
   datalayer_extended.bydAtto3.dischargePower = 0;
   datalayer_extended.bydAtto3.SOC_polled = 0;

@@ -62,13 +62,20 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint32_t remaining_capacity_Wh = 0;
   /** The remaining capacity reported to the inverter based on min percentage setting, in Watt-hours 
    * This value will either be scaled or not scaled depending on the value of
-   * battery.settings.soc_scaling_active
+   * battery_settings.soc_scaling_active
    */
   uint32_t reported_remaining_capacity_Wh;
   /** Maximum allowed battery discharge power in Watts. Set by battery */
   uint32_t max_discharge_power_W = 0;
   /** Maximum allowed battery charge power in Watts. Set by battery */
   uint32_t max_charge_power_W = 0;
+  /** Discharge power the pack's own BMS asked for, in Watts. Snapshotted once per cycle before
+   * the safety layer and the inverter filters rewrite max_discharge_power_W, so a per-pack card
+   * can show what that pack reported rather than what the system decided. 0 means the
+   * integration does not report one */
+  uint32_t bms_max_discharge_power_W = 0;
+  /** Charge power the pack's own BMS asked for, in Watts. See bms_max_discharge_power_W */
+  uint32_t bms_max_charge_power_W = 0;
   /* Some early integrations do not support reading allowed charge power from battery
   On these integrations we need to have the user specify what limits the battery can take */
   /** Overriden allowed battery discharge power in Watts. Set by user */
@@ -101,7 +108,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t real_soc;
   /** The SOC reported to the inverter, in integer-percent x 100. 9550 = 95.50%.
    * This value will either be scaled or not scaled depending on the value of
-   * battery.settings.soc_scaling_active
+   * battery_settings.soc_scaling_active
    */
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
@@ -241,7 +248,6 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
-  DATALAYER_BATTERY_SETTINGS_TYPE settings;
   DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
@@ -323,6 +329,12 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
+
+  /** uint8_t, how many battery packs are actually running: 1, 2 or 3. Set by setup_battery()
+      once the pack objects exist, so it reflects what was created rather than what was ticked
+      in the settings - a type that does not support parallel packs leaves this at 1. Read by
+      events.cpp to decide whether an event message needs to name its pack. */
+  uint8_t configured_batteries = 1;
 
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
@@ -434,6 +446,80 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   system_status_enum system_status = ACTIVE;
 };
 
+/** The whole installation seen as one pack.
+ *
+ * With a single battery every field is a straight copy of datalayer.battery, so the inverter
+ * protocols can read this unconditionally without caring how many packs are configured. With
+ * two or three packs the energy figures are summed, the cell and temperature figures are the
+ * extremes across the packs that are talking, and the power limits are capped to the weakest
+ * pack - the same rule update_calculated_values() used to apply on top of datalayer.battery.
+ *
+ * Keeping it separate is the point: datalayer.battery, .battery2 and .battery3 now only ever
+ * hold the data of their own pack, so the per-pack cards, MQTT topics and ESP-NOW frames stop
+ * reporting pack 1 as if it were the whole system.
+ *
+ * Filled once per second by update_aggregate_values() in Software.cpp, except for the four
+ * limit fields, which update_aggregate_limits() fills after the safety layer, the SOC taper
+ * and the low pass filter have had their say.
+ */
+struct DATALAYER_AGGREGATE_TYPE {
+  /** uint32_t */
+  /** Sum of every pack's total energy capacity, in Watt-hours */
+  uint32_t total_capacity_Wh = 0;
+  /** Sum of every pack's SOC-window-scaled total capacity, in Watt-hours */
+  uint32_t reported_total_capacity_Wh = 0;
+  /** Sum of every pack's remaining energy, in Watt-hours */
+  uint32_t remaining_capacity_Wh = 0;
+  /** Sum of every pack's SOC-window-scaled remaining energy, in Watt-hours */
+  uint32_t reported_remaining_capacity_Wh = 0;
+  /** Discharge power the inverter is allowed to pull from the installation, in Watts */
+  uint32_t max_discharge_power_W = 0;
+  /** Charge power the inverter is allowed to push into the installation, in Watts */
+  uint32_t max_charge_power_W = 0;
+
+  /** int32_t */
+  /** Sum of every pack's instantaneous power, in Watts. Positive = charging */
+  int32_t active_power_W = 0;
+  /** Sum of every pack's lifetime charged energy, in Watt-hours */
+  int32_t total_charged_battery_Wh = 0;
+  /** Sum of every pack's lifetime discharged energy, in Watt-hours */
+  int32_t total_discharged_battery_Wh = 0;
+
+  /** uint16_t */
+  /** DC link voltage in deciVolt. Packs sit in parallel, so this is pack 1's measurement */
+  uint16_t voltage_dV = 3700;
+  /** Highest voltage the installation may be charged to, in deciVolt. The lowest ceiling any
+   * pack reports, so a weaker pack is never pushed past what it will tolerate */
+  uint16_t max_design_voltage_dV = 5000;
+  /** Lowest voltage the installation may be discharged to, in deciVolt. The highest floor any
+   * pack reports */
+  uint16_t min_design_voltage_dV = 2500;
+  /** Charge current the inverter is allowed to push, in deciAmpere */
+  uint16_t max_charge_current_dA = 0;
+  /** Discharge current the inverter is allowed to pull, in deciAmpere */
+  uint16_t max_discharge_current_dA = 0;
+  /** Real SOC of the installation, in integer-percent x 100 */
+  uint16_t real_soc = 0;
+  /** SOC reported to the inverter, in integer-percent x 100. A pack sitting at an extreme
+   * takes this over, so the whole installation stops charging or discharging with it */
+  uint16_t reported_soc = 0;
+  /** Lowest state of health any pack reports, in integer-percent x 100. Packs reporting zero
+   * have not decoded one yet and do not count */
+  uint16_t soh_pptt = 9900;
+  /** Highest cell voltage found in any pack, in milliVolt */
+  uint16_t cell_max_voltage_mV = 3700;
+  /** Lowest cell voltage found in any pack, in milliVolt */
+  uint16_t cell_min_voltage_mV = 3700;
+
+  /** int16_t */
+  /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A */
+  int16_t current_dA = 0;
+  /** Highest temperature found in any pack, in d°C */
+  int16_t temperature_max_dC = 0;
+  /** Lowest temperature found in any pack, in d°C */
+  int16_t temperature_min_dC = 0;
+};
+
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
@@ -444,6 +530,17 @@ class DataLayer {
   DATALAYER_BATTERY_TYPE battery;
   DATALAYER_BATTERY_TYPE battery2;
   DATALAYER_BATTERY_TYPE battery3;
+
+  /** Every configured pack rolled into one. What the inverter protocols read */
+  DATALAYER_AGGREGATE_TYPE aggregate;
+
+  /** Settings for the battery subsystem. Deliberately not inside DATALAYER_BATTERY_TYPE: every
+   * field here describes the installation, not a pack - the SOC window, the user and remote
+   * ceilings, the balancing and BMS reset parameters, which limit is currently binding. Held
+   * per pack it was stored in triplicate, two of which nothing ever read, and any integration
+   * reaching it through its own datalayer_battery pointer silently got those dead defaults
+   * whenever it ran as the second or third pack */
+  DATALAYER_BATTERY_SETTINGS_TYPE battery_settings;
   DATALAYER_SHUNT_TYPE shunt;
   DATALAYER_CHARGER_TYPE charger;
   DATALAYER_SYSTEM_TYPE system;

@@ -33,11 +33,11 @@ void KiaHyundai64Battery::
   datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
 
   if (waterleakageSensor == 0) {
-    set_event(EVENT_WATER_INGRESS, 0);
+    set_event(EVENT_WATER_INGRESS, 0, battery_index);
   }
 
   if (leadAcidBatteryVoltage < 110) {
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
   }
 }
 
@@ -199,7 +199,7 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           open_state = 0;
         }
         transmit_can_frame(&KIA64_7E4_OPEN_CONTACTOR_SEQUENCE);
-        set_event(EVENT_CONTACTOR_OPEN, 0);
+        set_event(EVENT_CONTACTOR_OPEN, 0, battery_index);
       }
 
       break;
