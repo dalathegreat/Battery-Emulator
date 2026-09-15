@@ -1,5 +1,6 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
+#include "../../battery/NISSAN-LEAF-BATTERY.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
@@ -333,8 +334,20 @@ void update_machineryprotection() {
       clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
       clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
     } else {
+      // Nissan LEAF normal telemetry uses a 1 s mean current, but the safety
+      // comparison must not average away short current excursions. For LEAF,
+      // replace the mean-derived active power with peak-current-derived power
+      // for this protection check only. All other batteries retain the existing
+      // active_power_W behavior.
+      int32_t safety_active_power_W = datalayer.battery.status.active_power_W;
+      if (auto* leaf = dynamic_cast<NissanLeafBattery*>(battery)) {
+        const int16_t peak_current_dA = leaf->current_peak_dA();
+        safety_active_power_W =
+            (int32_t)peak_current_dA * (datalayer.battery.status.voltage_dV / 100);
+      }
+
       // Inverter is charging with more power than battery wants!
-      if (datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
+      if (safety_active_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
         if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
@@ -346,7 +359,7 @@ void update_machineryprotection() {
       }
 
       // Inverter is pulling too much power from battery!
-      if (-datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
+      if (-safety_active_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
         if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {

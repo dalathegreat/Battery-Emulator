@@ -56,8 +56,24 @@ void NissanLeafBattery::
   datalayer_battery->status.voltage_dV =
       (battery_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
+  // Publish the mean current seen on the 0x1DB CAN stream since the previous
+  // update_values() call. The raw accumulator is fed from every received frame,
+  // so this remains representative even though the normal datalayer update is 1 Hz.
+  if (battery_Current2_sample_count > 0) {
+    battery_Current2 = (int16_t)(battery_Current2_sum_raw / battery_Current2_sample_count);
+  }
   datalayer_battery->status.current_dA =
       (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+
+  // Publish the peak captured over the same window for safety checks. Keep it
+  // separate from current_dA so short excursions are not hidden by averaging.
+  battery_Current2_peak_published_dA = battery_Current2_peak_raw * 5;
+
+  // Start the next accumulation window. update_machineryprotection() runs later
+  // in the same core loop and therefore consumes peak_published above.
+  battery_Current2_sum_raw = 0;
+  battery_Current2_sample_count = 0;
+  battery_Current2_peak_raw = 0;
 
   //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
   //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
@@ -401,6 +417,19 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // negative so extend the sign bit
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
+
+      // Accumulate every 0x1DB sample for the 1 s published mean. Also keep the
+      // signed peak by magnitude so either a charge or discharge spike is preserved
+      // for the safety path.
+      battery_Current2_sum_raw += battery_Current2;
+      battery_Current2_sample_count++;
+      const int32_t current_abs =
+          (battery_Current2 < 0) ? -(int32_t)battery_Current2 : (int32_t)battery_Current2;
+      const int32_t peak_abs =
+          (battery_Current2_peak_raw < 0) ? -(int32_t)battery_Current2_peak_raw : (int32_t)battery_Current2_peak_raw;
+      if (current_abs > peak_abs) {
+        battery_Current2_peak_raw = battery_Current2;
+      }
 
       battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
       if (battery_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.

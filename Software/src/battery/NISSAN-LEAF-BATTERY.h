@@ -57,10 +57,21 @@ class NissanLeafBattery : public CanBattery {
 
   uint8_t calculate_crc(CAN_frame& frame);
 
+  // Signed peak current seen since the last update_values() publication window.
+  // This is kept separate from the averaged current used for normal telemetry.
+  int16_t current_peak_dA() const { return battery_Current2_peak_published_dA; }
+
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
   bool UserRequestSOHreset = false;
+
+  // Current is sampled from every 0x1DB frame. Accumulate the samples for the
+  // 1 s datalayer update, while retaining the worst signed peak for safety.
+  int64_t battery_Current2_sum_raw = 0;
+  uint32_t battery_Current2_sample_count = 0;
+  int16_t battery_Current2_peak_raw = 0;
+  int16_t battery_Current2_peak_published_dA = 0;
 
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.
