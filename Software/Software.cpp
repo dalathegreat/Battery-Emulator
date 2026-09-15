@@ -426,18 +426,18 @@ void update_calculated_values(uint32_t currentMillis) {
     }
   }
 
-  /* Calculate active power based on voltage and current*/
+  /* Calculate active power based on voltage and current, dividing once at the end. The old form
+     divided the voltage down to whole Volts first, so a 386.0 V pack was spent as 380 V and
+     every pack under-reported its power by about 1.5%. */
   datalayer.battery.status.active_power_W =
-      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+      current_dA_to_power_W(datalayer.battery.status.current_dA, datalayer.battery.status.voltage_dV);
   if (battery2) {
-    /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery2.status.active_power_W =
-        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+        current_dA_to_power_W(datalayer.battery2.status.current_dA, datalayer.battery2.status.voltage_dV);
   }
   if (battery3) {
-    /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery3.status.active_power_W =
-        (datalayer.battery3.status.current_dA * (datalayer.battery3.status.voltage_dV / 100));
+        current_dA_to_power_W(datalayer.battery3.status.current_dA, datalayer.battery3.status.voltage_dV);
   }
 
   /* Every configured pack scales its own SOC and capacity into its own reported_ fields, so a

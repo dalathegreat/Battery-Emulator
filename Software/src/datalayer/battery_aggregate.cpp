@@ -166,11 +166,10 @@ void update_aggregate_values() {
     }
   }
 
-  /* Power from the summed current and the shared bus voltage, dividing once at the end. Summing
-     each pack's own active_power_W loses most of a volt per pack: that figure is calculated as
-     current_dA * (voltage_dV / 100), and the integer division there throws away everything
-     below a whole Volt - 352.5 V is spent as 350 V, three times over in a triple setup. */
-  agg.active_power_W = ((int32_t)agg.voltage_dV * (int32_t)agg.current_dA) / 100;
+  /* Power from the summed current against the shared bus voltage. Now that the per-pack figures
+     divide last too, this agrees with their sum exactly rather than running a percent or two
+     above it. */
+  agg.active_power_W = current_dA_to_power_W(agg.current_dA, agg.voltage_dV);
 
   /* SOC follows the emptiest pack, which is what protects the weakest one on discharge. Once
      the fullest pack climbs into the top tenth, blend towards it so the installation arrives at
