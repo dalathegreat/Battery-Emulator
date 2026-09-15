@@ -21,7 +21,7 @@ void StellantisProOneBattery::
 
   datalayer.battery.status.voltage_dV = pack_voltage;
 
-  datalayer.battery.status.real_soc = (soc_real_pptt / 4095) * 10000;
+  datalayer.battery.status.real_soc = soc_real_pptt;
 
   datalayer.battery.status.current_dA = -battery_current;
 
@@ -204,9 +204,15 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Byte 4 is pack SOC in low res (0-255)
-      //Byte 6-7 has higher precision SOC
-      soc_real_pptt = (uint16_t)((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
+      //Byte 4 is pack SOC in low res (0-255). The low 12 bits of bytes 6-7 carry the same figure
+      //16x finer, full scale 4080 = 255 x 16.
+      //Zero is only seen before the BMS has populated it, so keep the last value.
+      {
+        uint16_t soc_fine = (uint16_t)((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
+        if (soc_fine != 0) {
+          soc_real_pptt = (uint16_t)((uint32_t)soc_fine * 10000u / SOC_FINE_FULL_SCALE);
+        }
+      }
       break;
     case 0x307:  //Could be temperatures?
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
