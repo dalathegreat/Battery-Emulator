@@ -255,6 +255,32 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"charge_term_cell_max_num", "BYD Charge: Termination High Cell #", "", "", supports_byd_autocal_metrics},
     {"charge_term_cell_min_num", "BYD Charge: Termination Low Cell #", "", "", supports_byd_autocal_metrics}};
 
+// The installation as the inverter sees it, published on its own topic when more than one
+// battery is configured. Entity ids get "_agr" and names get " aggregated", the same way
+// batteries 2 and 3 get "_2" / " 2". With a single pack this is never published: it would only
+// repeat battery #1.
+static const SensorConfig aggregateSensorConfigTemplate[] = {
+    {"SOC", "SoC (scaled)", "%", "battery", always},
+    {"SOC_real", "SoC (real)", "%", "battery", always},
+    {"state_of_health", "State of Health", "%", "", always},
+    {"battery_voltage", "Battery Voltage", "V", "voltage", always},
+    {"battery_current", "Battery Current", "A", "current", always},
+    {"stat_batt_power", "Battery Power", "W", "power", always},
+    {"total_capacity", "Total Capacity (real)", "Wh", "energy", always},
+    {"total_capacity_scaled", "Total Capacity (scaled)", "Wh", "energy", always},
+    {"remaining_capacity_real", "Remaining Capacity (real)", "Wh", "energy", always},
+    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", always},
+    {"max_charge_power", "Max Charge Power", "W", "power", always},
+    {"max_discharge_power", "Max Discharge Power", "W", "power", always},
+    {"max_charge_current", "Max Charge Current", "A", "current", always},
+    {"max_discharge_current", "Max Discharge Current", "A", "current", always},
+    {"cell_max_voltage", "Cell Max Voltage", "V", "voltage", always},
+    {"cell_min_voltage", "Cell Min Voltage", "V", "voltage", always},
+    {"temperature_max", "Temperature Max", "°C", "temperature", always},
+    {"temperature_min", "Temperature Min", "°C", "temperature", always},
+    {"charged_energy", "Battery Charged Energy", "Wh", "energy", always},
+    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", always}};
+
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
     {"pause_status", "Pause Status", "", "", always},
@@ -293,6 +319,9 @@ static const BatteryTarget battery_targets[] = {
 // instead of growing with the battery count, and lets ArduinoJson store all keys as
 // zero-copy const char* literals.
 static String info_topics[3];
+
+// "<name>/info_agr", following the "<name>/info_2" pattern. Only used with several batteries.
+static String aggregate_topic;
 
 static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
                                              {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
@@ -385,6 +414,32 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
 // const char* literals: ArduinoJson stores those by pointer (zero copy), whereas the old
 // "key" + suffix String keys were each heap-allocated and then copied into the document
 // pool — on every publish cycle, for every battery.
+// Fills the document with datalayer.aggregate: the installation, not a pack. Keys match the
+// per-battery ones where the meaning is the same, so a value_template reads the same either way.
+static void set_aggregate_attributes(JsonDocument& doc) {
+  const DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
+  doc["SOC"] = ((float)a.reported_soc) / 100.0f;
+  doc["SOC_real"] = ((float)a.real_soc) / 100.0f;
+  doc["state_of_health"] = ((float)a.soh_pptt) / 100.0f;
+  doc["battery_voltage"] = ((float)a.voltage_dV) / 10.0f;
+  doc["battery_current"] = ((float)a.current_dA) / 10.0f;
+  doc["stat_batt_power"] = ((float)a.active_power_W);
+  doc["total_capacity"] = ((float)a.total_capacity_Wh);
+  doc["total_capacity_scaled"] = ((float)a.reported_total_capacity_Wh);
+  doc["remaining_capacity_real"] = ((float)a.remaining_capacity_Wh);
+  doc["remaining_capacity"] = ((float)a.reported_remaining_capacity_Wh);
+  doc["max_charge_power"] = ((float)a.max_charge_power_W);
+  doc["max_discharge_power"] = ((float)a.max_discharge_power_W);
+  doc["max_charge_current"] = ((float)a.max_charge_current_dA) / 10.0f;
+  doc["max_discharge_current"] = ((float)a.max_discharge_current_dA) / 10.0f;
+  doc["cell_max_voltage"] = ((float)a.cell_max_voltage_mV) / 1000.0f;
+  doc["cell_min_voltage"] = ((float)a.cell_min_voltage_mV) / 1000.0f;
+  doc["temperature_max"] = ((float)a.temperature_max_dC) / 10.0f;
+  doc["temperature_min"] = ((float)a.temperature_min_dC) / 10.0f;
+  doc["charged_energy"] = ((float)a.total_charged_battery_Wh);
+  doc["discharged_energy"] = ((float)a.total_discharged_battery_Wh);
+}
+
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
                             bool battery_supports_charged) {
   doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
@@ -706,6 +761,14 @@ static bool publish_common_info(void) {
         }
       }
     }
+    // The installation-level entities, only where there is an installation to speak of.
+    if (datalayer.system.info.configured_batteries > 1) {
+      for (const auto& config : aggregateSensorConfigTemplate) {
+        if (!publish_sensor_discovery(config, "_agr", " aggregated", aggregate_topic)) {
+          return false;
+        }
+      }
+    }
     // Global (emulator-level) sensors stay on battery #1's "/info" topic. They all describe
     // the emulator rather than the battery, so they are published as diagnostic entities.
     for (const auto& config : globalSensorConfigTemplate) {
@@ -769,6 +832,17 @@ static bool publish_common_info(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Common info");
+        return false;
+      }
+    }
+
+    // The installation on "/info_agr". Nothing to aggregate with a single pack.
+    if (datalayer.system.info.configured_batteries > 1) {
+      DocClearGuard guard(shared_doc);
+      set_aggregate_attributes(shared_doc);
+      serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+      if (mqtt_publish(aggregate_topic.c_str(), mqtt_msg, false) == false) {
+        log_publish_failure("Aggregate info");
         return false;
       }
     }
@@ -1181,6 +1255,7 @@ bool init_mqtt(void) {
   for (const auto& target : battery_targets) {
     info_topics[target.index - 1] = topic_name + "/info" + target.id_suffix;
   }
+  aggregate_topic = topic_name + "/info_agr";
   for (int i = 0; i < BTN_COUNT; i++) {
     button_command_topics[i] = generateButtonTopic(button_commands[i]);
   }

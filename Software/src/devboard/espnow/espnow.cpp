@@ -71,7 +71,7 @@ static uint16_t emulator_id = 0;
 static uint8_t num_batteries = 1;
 
 // Send schedule state
-enum send_phase_t { PHASE_IDLE, PHASE_SYSTEM, PHASE_BATTERY, PHASE_CELLS, PHASE_EVENTS };
+enum send_phase_t { PHASE_IDLE, PHASE_SYSTEM, PHASE_AGGREGATE, PHASE_BATTERY, PHASE_CELLS, PHASE_EVENTS };
 static send_phase_t phase = PHASE_IDLE;
 static uint32_t cycle_start_ms = 0;
 static uint32_t last_frame_ms = 0;
@@ -378,6 +378,37 @@ static void send_system_frame() {
   end_frame();
 }
 
+/* The whole installation: what the inverter is given, as opposed to any one pack. Skipped
+   entirely with a single battery, where it would repeat the battery frame verbatim. */
+static void send_aggregate_frame() {
+  const DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
+
+  begin_frame(ESPNOW_FRAME_AGGREGATE, 0, 0);
+
+  put_u16_field(ESPNOW_KEY_AGG_SOC_PPTT, a.reported_soc);
+  put_u16_field(ESPNOW_KEY_AGG_SOC_REAL_PPTT, a.real_soc);
+  put_u16_field(ESPNOW_KEY_AGG_SOH_PPTT, a.soh_pptt);
+  put_u16_field(ESPNOW_KEY_AGG_VOLTAGE_DV, a.voltage_dV);
+  put_i16_field(ESPNOW_KEY_AGG_CURRENT_DA, a.current_dA);
+  put_i32_field(ESPNOW_KEY_AGG_ACTIVE_POWER_W, a.active_power_W);
+  put_u32_field(ESPNOW_KEY_AGG_TOTAL_CAPACITY_WH, a.total_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_REPORTED_CAPACITY_WH, a.reported_total_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_REMAINING_CAPACITY_WH, a.remaining_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_REPORTED_REMAIN_WH, a.reported_remaining_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_MAX_CHARGE_POWER_W, a.max_charge_power_W);
+  put_u32_field(ESPNOW_KEY_AGG_MAX_DISCHARGE_POWER_W, a.max_discharge_power_W);
+  put_u16_field(ESPNOW_KEY_AGG_MAX_CHARGE_CURRENT_DA, a.max_charge_current_dA);
+  put_u16_field(ESPNOW_KEY_AGG_MAX_DISCHARGE_CURRENT_DA, a.max_discharge_current_dA);
+  put_u16_field(ESPNOW_KEY_AGG_CELL_MAX_MV, a.cell_max_voltage_mV);
+  put_u16_field(ESPNOW_KEY_AGG_CELL_MIN_MV, a.cell_min_voltage_mV);
+  put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC, a.temperature_max_dC);
+  put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC, a.temperature_min_dC);
+  put_i32_field(ESPNOW_KEY_AGG_TOTAL_CHARGED_WH, a.total_charged_battery_Wh);
+  put_i32_field(ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH, a.total_discharged_battery_Wh);
+
+  end_frame();
+}
+
 static void send_battery_frame(uint8_t index) {
   const DATALAYER_BATTERY_TYPE* d = battery_data(index);
   Battery* bat = battery_instance(index);
@@ -661,6 +692,11 @@ void update_espnow() {
   switch (phase) {
     case PHASE_SYSTEM:
       send_system_frame();
+      phase = (num_batteries > 1) ? PHASE_AGGREGATE : PHASE_BATTERY;
+      break;
+
+    case PHASE_AGGREGATE:
+      send_aggregate_frame();
       phase = PHASE_BATTERY;
       break;
 
