@@ -407,7 +407,7 @@ void NissanLeafBattery::
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x1DB:
+    case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
@@ -443,6 +443,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       battery_status_seen |= 0x01;
       break;
+    }
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
