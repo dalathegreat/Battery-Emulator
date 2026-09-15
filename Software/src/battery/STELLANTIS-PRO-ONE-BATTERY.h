@@ -37,6 +37,11 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t NOMINAL_CAPACITY_AH_TENTHS = 3340;  //334.0Ah cell, 90S1P
   static const uint16_t NOMINAL_PACK_VOLTAGE_CV = 33120;    //90 x 3.68V = 331.2V, in centivolt
 
+  //0x306 bytes 6-7 (low 12 bits) are the fine SOC. 4080 = 255 x 16 = 100.00%. Measured, not assumed:
+  //a capture at half charge reads exactly 2040, and 4034 has been observed, which a 250-based scale
+  //could not produce without exceeding 100%.
+  static const uint16_t SOC_FINE_FULL_SCALE = 4080;
+
   static const int MAX_PACK_VOLTAGE_DV = 3780;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2880;
   static const int MAX_CELL_DEVIATION_MV = 250;
