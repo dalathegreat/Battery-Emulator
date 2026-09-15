@@ -21,7 +21,7 @@ void StellantisProOneBattery::
 
   datalayer.battery.status.voltage_dV = pack_voltage;
 
-  datalayer.battery.status.real_soc = soc_real_pptt;
+  datalayer.battery.status.real_soc = (soc_real_pptt / 4095) * 10000;
 
   datalayer.battery.status.current_dA = -battery_current;
 
@@ -105,9 +105,6 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>PID DA77: " << pid_unknown_180 << "</h4>"
               "<h4>PID DA78: " << pid_unknown_181 << "</h4>"
               "<h4>PID DA79: " << pid_unknown_182 << "</h4>"
-              "<h4>306_1: " << unknown_306_0 << "</h4>"
-              "<h4>306_2: " << unknown_306_1 << "</h4>"
-              "<h4>306_3: " << unknown_306_2 << "</h4>"
               "<h4>285_1chg?: " << unknown_285_0 << "</h4>"
               "<h4>285_2chg?: " << unknown_285_1 << "</h4>"
               "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
@@ -207,14 +204,9 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Byte 4 is pack SOC, byte 5 tracks the weakest cell. Full scale 255 = 100%.
-      //Zero is only seen before the BMS has populated it, so keep the last value.
-      if (rx_frame.data.u8[4] != 0) {
-        soc_real_pptt = (uint16_t)((uint32_t)rx_frame.data.u8[4] * 10000u / 255u);
-      }
-      unknown_306_0 = rx_frame.data.u8[4];
-      unknown_306_1 = rx_frame.data.u8[5];
-      unknown_306_2 = (uint16_t)((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
+      //Byte 4 is pack SOC in low res (0-255)
+      //Byte 6-7 has higher precision SOC
+      soc_real_pptt = (uint16_t)((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[7];
       break;
     case 0x307:  //Could be temperatures?
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
