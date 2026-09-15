@@ -206,50 +206,46 @@ class TeslaBattery : public CanBattery {
   // immediately before and after Ext. Module's successful latch movement. They
   // are selected only during the zero-line release phase so normal charging
   // and drive-mode behavior remain unchanged.
-  static constexpr CAN_frame TESLA_CHARGE_RELEASE_207 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x207,
-      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x28, 0x00}};
-  static constexpr CAN_frame TESLA_CHARGE_RELEASE_241 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 7,
-      .ID = 0x241,
-      .data = {0x50, 0x50, 0x0C, 0x14, 0x14, 0x53, 0x00}};
-  static constexpr CAN_frame TESLA_CHARGE_RELEASED_241 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 7,
-      .ID = 0x241,
-      .data = {0x3C, 0x3C, 0x16, 0x0F, 0x8F, 0x55, 0x00}};
-  static constexpr CAN_frame TESLA_CHARGE_RELEASE_247 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x247,
-      .data = {0x28, 0x0F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame TESLA_CHARGE_247 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x247,
-      .data = {0x32, 0x0F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame TESLA_CHARGE_RELEASE_284 = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x284,
-      .data = {0x10, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00}};
-  static constexpr CAN_frame TESLA_CHARGE_RELEASE_500 = {
-      .FD = false, .ext_ID = false, .DLC = 2, .ID = 0x500, .data = {0x01, 0x01}};
-  static constexpr CAN_frame TESLA_CHARGE_RELEASE_55A = {
-      .FD = false,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x55A,
-      .data = {0x01, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_207 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x207,
+                                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x28, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_241 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 7,
+                                                         .ID = 0x241,
+                                                         .data = {0x50, 0x50, 0x0C, 0x14, 0x14, 0x53, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASED_241 = {.FD = false,
+                                                          .ext_ID = false,
+                                                          .DLC = 7,
+                                                          .ID = 0x241,
+                                                          .data = {0x3C, 0x3C, 0x16, 0x0F, 0x8F, 0x55, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_247 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x247,
+                                                         .data = {0x28, 0x0F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_247 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x247,
+                                                 .data = {0x32, 0x0F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_284 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x284,
+                                                         .data = {0x10, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_500 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 2,
+                                                         .ID = 0x500,
+                                                         .data = {0x01, 0x01}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_55A = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x55A,
+                                                         .data = {0x01, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00}};
 
   CAN_frame TESLA_CHARGE_055 = {.FD = false,
                                 .ext_ID = false,

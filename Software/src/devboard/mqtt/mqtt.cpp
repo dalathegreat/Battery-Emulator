@@ -329,8 +329,7 @@ static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
 }
 
 static String generateCommonBinarySensorAutoConfigTopic(const char* entity_id) {
-  return String(ha_autodiscovery_topic.c_str()) + "/binary_sensor/" + topic_name + "/" + String(entity_id) +
-         "/config";
+  return String(ha_autodiscovery_topic.c_str()) + "/binary_sensor/" + topic_name + "/" + String(entity_id) + "/config";
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number, String battery_suffix) {

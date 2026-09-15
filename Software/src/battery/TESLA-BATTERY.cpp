@@ -1197,7 +1197,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // from immediately cancelling Charge Mode after the hatch opens.
         if (charge_mode_active && charge_port_connector_observed && !charge_handle_press_observed) {
           logging.println(
-              "WARNING: Tesla connector changed from inserted to removed without a sampled handle transition; inferring the missed physical button press");
+              "WARNING: Tesla connector changed from inserted to removed without a sampled handle transition; "
+              "inferring the missed physical button press");
           observe_charge_handle_press();
         }
         observe_charge_port_unplug(millis());
@@ -1214,8 +1215,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       const uint8_t latchControlState = rx_frame.data.u8[2] & 0x07;
       const uint8_t latch2ControlState = (rx_frame.data.u8[2] >> 3) & 0x07;
       const bool latchReleaseMovement =
-          (latchControlState >= 2 && latchControlState <= 4) ||
-          (latch2ControlState >= 2 && latch2ControlState <= 4);
+          (latchControlState >= 2 && latchControlState <= 4) || (latch2ControlState >= 2 && latch2ControlState <= 4);
       if (latchReleaseMovement) {
         observe_charge_port_release(millis());
       }
@@ -2518,7 +2518,8 @@ void TeslaBattery::finish_charge_mode_stop() {
   TESLA_118.data.u8[7] = 0x00;
   generateMuxFrameCounterChecksum(TESLA_118, TESLA_118.data.u8[1] & 0x0F, 8, 4, 0, 8);
   logging.println(
-      "INFO: Tesla connector removed; charge profile handed off to normal inverter operation with contactors requested closed");
+      "INFO: Tesla connector removed; charge profile handed off to normal inverter operation with contactors requested "
+      "closed");
 }
 
 void TeslaBattery::observe_charge_handle_press() {
@@ -2539,7 +2540,8 @@ void TeslaBattery::observe_charge_handle_press() {
   }
 
   charge_handle_press_observed = true;
-  logging.println("INFO: Tesla physical charge-handle button automatically prepared unplug; waiting for latch movement");
+  logging.println(
+      "INFO: Tesla physical charge-handle button automatically prepared unplug; waiting for latch movement");
 }
 
 void TeslaBattery::observe_charge_port_release(unsigned long currentMillis) {
@@ -2576,10 +2578,9 @@ void TeslaBattery::update_charge_mode_stop_sequence(unsigned long currentMillis)
     return;
   }
 
-  const bool chargeLineFresh = charge_line_frame_received &&
-                               currentMillis - last_charge_line_frame_millis <= CHARGE_LINE_RX_TIMEOUT_MS;
-  const bool freshChargeLineIsZero = chargeLineFresh &&
-                                     charge_line_voltage_V <= CHARGE_STOP_ZERO_VOLTAGE_V &&
+  const bool chargeLineFresh =
+      charge_line_frame_received && currentMillis - last_charge_line_frame_millis <= CHARGE_LINE_RX_TIMEOUT_MS;
+  const bool freshChargeLineIsZero = chargeLineFresh && charge_line_voltage_V <= CHARGE_STOP_ZERO_VOLTAGE_V &&
                                      charge_line_current_A <= CHARGE_STOP_ZERO_CURRENT_A &&
                                      charge_line_power_W <= CHARGE_STOP_ZERO_POWER_W;
   // A physically removed connector is also safe once the PCS charge-line
@@ -2602,7 +2603,8 @@ void TeslaBattery::update_charge_mode_stop_sequence(unsigned long currentMillis)
   } else if (!charge_mode_handoff_wait_logged) {
     charge_mode_handoff_wait_logged = true;
     logging.println(
-        "WARNING: Tesla connector is removed, but charge mode remains active until zero AC line and normal inverter contactor permission are both confirmed");
+        "WARNING: Tesla connector is removed, but charge mode remains active until zero AC line and normal inverter "
+        "contactor permission are both confirmed");
   }
 }
 
@@ -2827,8 +2829,8 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
       // when charge mode starts. Prepare to Unplug clears bit 0 and therefore
       // cannot be confused with this cover command.
       const unsigned long chargeElapsed = currentMillis - charge_mode_started_millis;
-      const bool requestDoorOpen = !charge_mode_stop_requested && chargeElapsed < CHARGE_PORT_DOOR_SEQUENCE_MS &&
-                                   (chargeElapsed % 500) < 200;
+      const bool requestDoorOpen =
+          !charge_mode_stop_requested && chargeElapsed < CHARGE_PORT_DOOR_SEQUENCE_MS && (chargeElapsed % 500) < 200;
       if (requestDoorOpen) {
         TESLA_333.data.u8[0] |= 0x01;
       } else {
@@ -2854,8 +2856,8 @@ void TeslaBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&TESLA_229);
     //0x241 VCFRONT_coolant, static
     transmit_can_frame(charge_port_release_observed ? &TESLA_CHARGE_RELEASED_241
-                                                    : charge_port_release_active ? &TESLA_CHARGE_RELEASE_241
-                                                                                 : &TESLA_241);
+                       : charge_port_release_active ? &TESLA_CHARGE_RELEASE_241
+                                                    : &TESLA_241);
     if (charge_mode_active) {
       transmit_can_frame(charge_port_release_observed ? &TESLA_CHARGE_RELEASE_247 : &TESLA_CHARGE_247);
     }
