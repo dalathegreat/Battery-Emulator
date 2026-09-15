@@ -66,10 +66,15 @@ class NissanLeafBattery : public CanBattery {
   bool UserRequestDTCreadout = false;
   bool UserRequestSOHreset = false;
 
-  // Current is sampled from every 0x1DB frame. Accumulate the samples for the
-  // 1 s datalayer update, while retaining the worst signed peak for safety.
-  int64_t battery_Current2_sum_raw = 0;
-  uint32_t battery_Current2_sample_count = 0;
+  /* Current is sampled from every 0x1DB frame. Accumulate the samples for the 1 s datalayer
+     update, while retaining the worst signed peak for safety. 32 bits is ample for the sum:
+     one second of 10 ms frames at the signal's full scale reaches about 102,000, four orders
+     of magnitude below the type, and it keeps the division out of the 64 bit helpers. Both
+     the sum and the count are signed on purpose - mixing a signed sum with an unsigned count
+     promotes the rounding arithmetic in update_values() to unsigned, which turns every
+     negative (discharge) window into a large positive current. */
+  int32_t battery_Current2_sum_raw = 0;
+  int32_t battery_Current2_sample_count = 0;
   int16_t battery_Current2_peak_raw = 0;
   int16_t battery_Current2_peak_published_dA = 0;
 

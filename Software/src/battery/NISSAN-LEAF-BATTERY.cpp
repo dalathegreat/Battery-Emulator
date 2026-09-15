@@ -62,7 +62,7 @@ void NissanLeafBattery::
   if (battery_Current2_sample_count > 0) {
     // Calculate the mean directly in dA before publishing so the fractional
     // part of the raw 0.5 A samples is preserved. Round symmetrically around zero.
-    const int64_t current_dA_sum = battery_Current2_sum_raw * 5;
+    const int32_t current_dA_sum = battery_Current2_sum_raw * 5;
     if (current_dA_sum >= 0) {
       datalayer_battery->status.current_dA =
           (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) / battery_Current2_sample_count);
