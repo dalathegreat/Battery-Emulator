@@ -8,6 +8,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+#include "../../communication/modbus_gateway/modbus_gateway.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
@@ -201,6 +202,9 @@ void init_webserver() {
     web_auth_middleware.setAuthType(AsyncAuthType::AUTH_BASIC);
     server.addMiddleware(&web_auth_middleware);
   }
+
+  // Optional Modbus gateway write endpoint (build-gated; no-op if disabled).
+  modbus_gateway_register_routes(server);
 
   server
       .on("/logout", HTTP_GET,
@@ -466,6 +470,9 @@ void init_webserver() {
       "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
       "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
       "INVACCREB",
+#ifndef SMALL_FLASH_DEVICE
+      "GWENAB",       "GWWRITE",
+#endif
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
@@ -480,11 +487,18 @@ void init_webserver() {
       "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
       "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
       "SYSLOGFAC",  "PERBMSRESETH",
+#ifndef SMALL_FLASH_DEVICE
+      "GWPORT",     "GWBAUD",
+#endif
   };
 
-  const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
-                                      "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
-                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
+  const char* stringSettingNames[] = {
+      "APPASSWORD", "HOSTNAME", "MQTTSERVER", "MQTTUSER", "MQTTPASSWORD", "HTTPUSER", "HTTPPASS",
+      "LOCALIP",    "GATEWAY",  "SUBNET",     "DNS",      "HADISCTOPIC",  "SYSLOGIP", "ESPNOWMACS",
+#ifndef SMALL_FLASH_DEVICE
+      "GWSLAVES",   "GWSECRET", "GWIPALLOW",
+#endif
+  };
 
   // Handles the form POST from UI to save settings of the common image
   server.on("/saveSettings", HTTP_POST,
