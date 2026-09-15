@@ -57,10 +57,33 @@ class NissanLeafBattery : public CanBattery {
 
   uint8_t calculate_crc(CAN_frame& frame);
 
+  /* The current published to the datalayer is a mean over the whole window, so the safety
+     layer is handed the two extremes seen inside it instead. Kept as a max/min pair rather
+     than a single worst-magnitude sample so a window holding both a charge and a discharge
+     excursion reports both. See update_values(). */
+  void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA) override {
+    max_dA = battery_Current2_peak_max_published_dA;
+    min_dA = battery_Current2_peak_min_published_dA;
+  }
+
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
   bool UserRequestSOHreset = false;
+
+  /* Current is sampled from every 0x1DB frame. Accumulate the samples for the 1 s datalayer
+     update, while retaining the extremes of the window for safety. 32 bits is ample for the
+     sum: one second of 10 ms frames at the signal's full scale reaches about 102,000, four
+     orders of magnitude below the type, and it keeps the division out of the 64 bit helpers.
+     Both the sum and the count are signed on purpose - mixing a signed sum with an unsigned
+     count promotes the rounding arithmetic in update_values() to unsigned, which turns every
+     negative (discharge) window into a large positive current. */
+  int32_t battery_Current2_sum_raw = 0;
+  int32_t battery_Current2_sample_count = 0;
+  int16_t battery_Current2_peak_max_raw = 0;
+  int16_t battery_Current2_peak_min_raw = 0;
+  int16_t battery_Current2_peak_max_published_dA = 0;
+  int16_t battery_Current2_peak_min_published_dA = 0;
 
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.

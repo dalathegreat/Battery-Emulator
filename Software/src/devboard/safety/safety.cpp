@@ -333,8 +333,21 @@ void update_machineryprotection() {
       clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
       clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
     } else {
+      /* A driver that publishes a mean current would average short excursions away before
+         the comparison below ever sees them, so ask the pack for the extremes of its own
+         window instead. The default implementation returns that pack's published current,
+         which is what this check used before, so nothing changes for drivers that do not
+         override it. */
+      int16_t peak_charge_dA = 0;
+      int16_t peak_discharge_dA = 0;
+      if (battery) {
+        battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
+      }
+      const int32_t charge_power_W = (int32_t)peak_charge_dA * (datalayer.battery.status.voltage_dV / 100);
+      const int32_t discharge_power_W = (int32_t)peak_discharge_dA * (datalayer.battery.status.voltage_dV / 100);
+
       // Inverter is charging with more power than battery wants!
-      if (datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
+      if (charge_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
         if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
@@ -346,7 +359,7 @@ void update_machineryprotection() {
       }
 
       // Inverter is pulling too much power from battery!
-      if (-datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
+      if (-discharge_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
         if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
