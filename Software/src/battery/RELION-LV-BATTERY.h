@@ -27,6 +27,7 @@ class RelionBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::RelionBattery;
   static constexpr const char* Name = "Relion LV protocol via 250kbps CAN";
 
  private:

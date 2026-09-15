@@ -33,6 +33,7 @@ class ChademoBattery : public CanBattery {
   void chademo_stop() { datalayer_extended.chademo.UserRequestStop = true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  static constexpr BatteryType TYPE = BatteryType::Chademo;
   static constexpr const char* Name = "Chademo V2X mode";
 
  private:

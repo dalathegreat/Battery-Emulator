@@ -42,6 +42,7 @@ class MebBattery : public CanBattery, public IsoTp {
   void reset_crash() { datalayer_extended.meb.UserRequestCrashReset = true; }
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
+  static constexpr BatteryType TYPE = BatteryType::Meb;
   static constexpr const char* Name = "VW Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
@@ -692,6 +693,8 @@ class MqbEvoBattery : public MebBattery {
   MqbEvoBattery() = default;
   MqbEvoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_MEB* extended, CAN_Interface targetCan)
       : MebBattery(datalayer_ptr, extended, targetCan) {}
+  // Without its own TYPE it would inherit MebBattery's and identify as Meb.
+  static constexpr BatteryType TYPE = BatteryType::VAGMqbEvo;
   static constexpr const char* Name = "VW Group MQB Evo 2024+ via CAN-FD";
   void setup(void) override;
 };

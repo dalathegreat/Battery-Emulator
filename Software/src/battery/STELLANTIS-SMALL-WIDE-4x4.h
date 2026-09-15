@@ -25,6 +25,7 @@ class StellantisSmallWide4x4Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::StellantisSmallWide4x4;
   static constexpr const char* Name = "Stellantis FCA Small Wide 4x4";
 
  private:
