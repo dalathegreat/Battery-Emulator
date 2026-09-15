@@ -403,8 +403,15 @@ static void send_aggregate_frame() {
   put_u16_field(ESPNOW_KEY_AGG_CELL_MIN_MV, a.cell_min_voltage_mV);
   put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC, a.temperature_max_dC);
   put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC, a.temperature_min_dC);
-  put_i32_field(ESPNOW_KEY_AGG_TOTAL_CHARGED_WH, a.total_charged_battery_Wh);
-  put_i32_field(ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH, a.total_discharged_battery_Wh);
+  // Only where some pack counts them. The per-pack frame gates the same way.
+  for (uint8_t i = 0; i < num_batteries; i++) {
+    Battery* bat = battery_instance(i);
+    if (bat != nullptr && bat->supports_charged_energy()) {
+      put_i32_field(ESPNOW_KEY_AGG_TOTAL_CHARGED_WH, a.total_charged_battery_Wh);
+      put_i32_field(ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH, a.total_discharged_battery_Wh);
+      break;
+    }
+  }
 
   end_frame();
 }

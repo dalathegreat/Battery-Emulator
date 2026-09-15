@@ -192,6 +192,17 @@ static bool single_pack(Battery* b) {
 static bool supports_charged(Battery* b) {
   return b->supports_charged_energy();
 }
+
+// For the installation-level entities, which have no single Battery to ask. A Leaf reports no
+// lifetime energy counters, so on an all-Leaf install these would be two entities pinned at 0.
+static bool any_pack_supports_charged(Battery* unused) {
+  for (Battery* bat : {battery, battery2, battery3}) {
+    if (bat != nullptr && bat->supports_charged_energy()) {
+      return true;
+    }
+  }
+  return false;
+}
 static bool supports_tesla_dcdc_metrics(Battery* b) {
   return b != nullptr && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                           user_selected_battery_type == BatteryType::TeslaModelSX);
@@ -285,8 +296,8 @@ static const SensorConfig aggregateSensorConfigTemplate[] = {
     {"cell_min_voltage", "Cell Min Voltage", "V", "voltage", always},
     {"temperature_max", "Temperature Max", "°C", "temperature", always},
     {"temperature_min", "Temperature Min", "°C", "temperature", always},
-    {"charged_energy", "Battery Charged Energy", "Wh", "energy", always},
-    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", always}};
+    {"charged_energy", "Battery Charged Energy", "Wh", "energy", any_pack_supports_charged},
+    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", any_pack_supports_charged}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -454,8 +465,12 @@ static void set_aggregate_attributes(JsonDocument& doc) {
   doc["cell_min_voltage"] = ((float)a.cell_min_voltage_mV) / 1000.0f;
   doc["temperature_max"] = ((float)a.temperature_max_dC) / 10.0f;
   doc["temperature_min"] = ((float)a.temperature_min_dC) / 10.0f;
-  doc["charged_energy"] = ((float)a.total_charged_battery_Wh);
-  doc["discharged_energy"] = ((float)a.total_discharged_battery_Wh);
+  // Omitted unless some pack actually counts them, so Home Assistant shows "unknown" rather
+  // than a lifetime total of 0 Wh that will never move.
+  if (any_pack_supports_charged(nullptr)) {
+    doc["charged_energy"] = ((float)a.total_charged_battery_Wh);
+    doc["discharged_energy"] = ((float)a.total_discharged_battery_Wh);
+  }
 }
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
@@ -792,6 +807,11 @@ static bool publish_common_info(void) {
     // The installation-level entities, only where there is an installation to speak of.
     if (datalayer.system.info.configured_batteries > 1) {
       for (const auto& config : aggregateSensorConfigTemplate) {
+        // No single Battery to ask about an installation-wide entity; the conditions here take
+        // nullptr and look at the configured packs themselves.
+        if (!config.condition(nullptr)) {
+          continue;
+        }
         if (!publish_sensor_discovery(config, "_agr", " aggregated", aggregate_topic)) {
           return false;
         }
