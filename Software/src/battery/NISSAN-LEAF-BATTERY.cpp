@@ -60,10 +60,19 @@ void NissanLeafBattery::
   // update_values() call. The raw accumulator is fed from every received frame,
   // so this remains representative even though the normal datalayer update is 1 Hz.
   if (battery_Current2_sample_count > 0) {
-    battery_Current2 = (int16_t)(battery_Current2_sum_raw / battery_Current2_sample_count);
+    // Calculate the mean directly in dA before publishing so the fractional
+    // part of the raw 0.5 A samples is preserved. Round symmetrically around zero.
+    const int64_t current_dA_sum = battery_Current2_sum_raw * 5;
+    if (current_dA_sum >= 0) {
+      datalayer_battery->status.current_dA =
+          (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) /
+                    battery_Current2_sample_count);
+    } else {
+      datalayer_battery->status.current_dA =
+          (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) /
+                    battery_Current2_sample_count);
+    }
   }
-  datalayer_battery->status.current_dA =
-      (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
   // Publish the peak captured over the same window for safety checks. Keep it
   // separate from current_dA so short excursions are not hidden by averaging.
