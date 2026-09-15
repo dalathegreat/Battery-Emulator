@@ -314,6 +314,17 @@ struct BatteryTarget {
   const char* name_suffix;             // suffix for display names ("", " 2", " 3")
 };
 
+// Display-name suffix for a pack. Battery #1 is normally un-suffixed, but once there is more
+// than one pack an unqualified "SoC" sitting next to "SoC 2" reads as the installation's rather
+// than the first pack's, so it gets " 1" too. Entity ids and unique ids are deliberately left
+// alone: renaming those would orphan every existing Home Assistant entity and break history.
+static const char* display_name_suffix(const BatteryTarget& target) {
+  if (target.index == 1 && datalayer.system.info.configured_batteries > 1) {
+    return " 1";
+  }
+  return target.name_suffix;
+}
+
 static const BatteryTarget battery_targets[] = {
     {&battery, &datalayer.battery, &battery_detected, 1, "", ""},
     {&battery2, &datalayer.battery2, &battery2_detected, 2, "_2", " 2"},
@@ -772,7 +783,8 @@ static bool publish_common_info(void) {
         if (!config.condition(bat)) {
           continue;
         }
-        if (!publish_sensor_discovery(config, target.id_suffix, target.name_suffix, info_topics[target.index - 1])) {
+        if (!publish_sensor_discovery(config, target.id_suffix, display_name_suffix(target),
+                                      info_topics[target.index - 1])) {
           return false;
         }
       }
@@ -984,7 +996,9 @@ static bool publish_cell_voltages(void) {
     DocClearGuard guard(shared_doc);
     bool all_ready = true;
 
-    if (!publish_cell_voltage_discovery(datalayer.battery, state_topic, default_entity_id_prefix, "", "", all_ready)) {
+    const String first_pack_name_suffix = (datalayer.system.info.configured_batteries > 1) ? " 1" : "";
+    if (!publish_cell_voltage_discovery(datalayer.battery, state_topic, default_entity_id_prefix,
+                                        first_pack_name_suffix, "", all_ready)) {
       return false;
     }
     if (battery2) {
