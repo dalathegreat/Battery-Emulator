@@ -503,7 +503,8 @@ struct DATALAYER_AGGREGATE_TYPE {
   /** SOC reported to the inverter, in integer-percent x 100. A pack sitting at an extreme
    * takes this over, so the whole installation stops charging or discharging with it */
   uint16_t reported_soc = 0;
-  /** Lowest state of health of any pack, in integer-percent x 100 */
+  /** Lowest state of health any pack reports, in integer-percent x 100. Packs reporting zero
+   * have not decoded one yet and do not count */
   uint16_t soh_pptt = 9900;
   /** Highest cell voltage found in any pack, in milliVolt */
   uint16_t cell_max_voltage_mV = 3700;

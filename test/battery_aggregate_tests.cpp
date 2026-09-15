@@ -247,8 +247,8 @@ TEST_F(BatteryAggregateTest, PowerKeepsTheFractionalVolts) {
   EXPECT_EQ(datalayer.aggregate.active_power_W, -705);  // not the -700 a per-pack sum gives
 }
 
-// State of health is the mean across the packs that are talking.
-TEST_F(BatteryAggregateTest, SohIsAveraged) {
+// State of health follows the weakest pack, like every other limit here.
+TEST_F(BatteryAggregateTest, SohIsTheWeakestPack) {
   add_second_pack();
   battery2_detected = true;
   datalayer.battery.status.soh_pptt = 7560;
@@ -257,7 +257,21 @@ TEST_F(BatteryAggregateTest, SohIsAveraged) {
   scale_all();
   update_aggregate_values();
 
-  EXPECT_EQ(datalayer.aggregate.soh_pptt, 6884);
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 6209);
+}
+
+// A pack that has not decoded a state of health reports zero, which must not become the
+// installation's.
+TEST_F(BatteryAggregateTest, UndecodedSohIsIgnored) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.battery.status.soh_pptt = 7560;
+  datalayer.battery2.status.soh_pptt = 0;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 7560);
 }
 
 // A 19.0 A ceiling has to survive the trip out through Watts and back.
@@ -325,7 +339,7 @@ TEST_F(BatteryAggregateTest, SilentPackDoesNotDragTheExtremes) {
 
   EXPECT_EQ(datalayer.aggregate.cell_min_voltage_mV, 3950);
   EXPECT_EQ(datalayer.aggregate.temperature_min_dC, 50);
-  EXPECT_EQ(datalayer.aggregate.soh_pptt, 9250);  // mean of 9500 and 9000
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 9000);  // now the weaker of the two
 }
 
 // The limits the inverter is told about are the weakest pack's, and a pack 2 fault that the

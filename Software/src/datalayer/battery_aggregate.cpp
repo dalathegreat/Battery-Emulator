@@ -110,6 +110,7 @@ void update_aggregate_values() {
   agg.cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
   agg.temperature_max_dC = datalayer.battery.status.temperature_max_dC;
   agg.temperature_min_dC = datalayer.battery.status.temperature_min_dC;
+  agg.soh_pptt = datalayer.battery.status.soh_pptt;
   agg.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   agg.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   agg.total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
@@ -119,8 +120,6 @@ void update_aggregate_values() {
 
   uint16_t lowest_soc = datalayer.battery.status.real_soc;
   uint16_t highest_soc = datalayer.battery.status.real_soc;
-  uint32_t soh_sum = datalayer.battery.status.soh_pptt;
-  uint8_t soh_packs = 1;
 
   if (datalayer.system.info.configured_batteries > 1) {
     const DATALAYER_BATTERY_TYPE* extra_pack[2] = {battery2 ? &datalayer.battery2 : nullptr,
@@ -148,8 +147,11 @@ void update_aggregate_values() {
       agg.temperature_min_dC = MIN(agg.temperature_min_dC, pack->status.temperature_min_dC);
       lowest_soc = MIN(lowest_soc, pack->status.real_soc);
       highest_soc = MAX(highest_soc, pack->status.real_soc);
-      soh_sum += pack->status.soh_pptt;
-      soh_packs++;
+      /* Health follows the weakest pack, like every other limit here. A pack reporting zero
+         has not decoded one yet and is skipped rather than zeroing the installation. */
+      if (pack->status.soh_pptt > 0) {
+        agg.soh_pptt = MIN(agg.soh_pptt, pack->status.soh_pptt);
+      }
 
       /* The installation may only be charged as high as the lowest ceiling any pack reports,
          and only discharged as low as the highest floor, or a mismatched pack gets pushed past
@@ -183,8 +185,6 @@ void update_aggregate_values() {
   } else {
     agg.real_soc = lowest_soc;
   }
-
-  agg.soh_pptt = soh_sum / soh_packs;
 
   apply_soc_window(agg);
 }
