@@ -65,12 +65,10 @@ void NissanLeafBattery::
     const int64_t current_dA_sum = battery_Current2_sum_raw * 5;
     if (current_dA_sum >= 0) {
       datalayer_battery->status.current_dA =
-          (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) /
-                    battery_Current2_sample_count);
+          (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) / battery_Current2_sample_count);
     } else {
       datalayer_battery->status.current_dA =
-          (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) /
-                    battery_Current2_sample_count);
+          (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) / battery_Current2_sample_count);
     }
   }
 
