@@ -423,8 +423,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // for the safety path.
       battery_Current2_sum_raw += battery_Current2;
       battery_Current2_sample_count++;
-      const int32_t current_abs =
-          (battery_Current2 < 0) ? -(int32_t)battery_Current2 : (int32_t)battery_Current2;
+      const int32_t current_abs = (battery_Current2 < 0) ? -(int32_t)battery_Current2 : (int32_t)battery_Current2;
       const int32_t peak_abs =
           (battery_Current2_peak_raw < 0) ? -(int32_t)battery_Current2_peak_raw : (int32_t)battery_Current2_peak_raw;
       if (current_abs > peak_abs) {

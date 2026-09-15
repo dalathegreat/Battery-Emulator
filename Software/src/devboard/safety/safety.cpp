@@ -342,8 +342,7 @@ void update_machineryprotection() {
       int32_t safety_active_power_W = datalayer.battery.status.active_power_W;
       if (auto* leaf = dynamic_cast<NissanLeafBattery*>(battery)) {
         const int16_t peak_current_dA = leaf->current_peak_dA();
-        safety_active_power_W =
-            (int32_t)peak_current_dA * (datalayer.battery.status.voltage_dV / 100);
+        safety_active_power_W = (int32_t)peak_current_dA * (datalayer.battery.status.voltage_dV / 100);
       }
 
       // Inverter is charging with more power than battery wants!
