@@ -334,28 +334,20 @@ void update_machineryprotection() {
       clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
     } else {
       /* A driver that publishes a mean current would average short excursions away before
-         the comparison below ever sees them, so ask each pack for the extremes of its own
+         the comparison below ever sees them, so ask the pack for the extremes of its own
          window instead. The default implementation returns that pack's published current,
          which is what this check used before, so nothing changes for drivers that do not
-         override it. The limits on the other side of the comparison are already the
-         system-wide minimum across every configured pack, so the worst excursion of any
-         pack is the right thing to weigh against them. */
+         override it.
+         Deliberately pack 1 only, as this check has always been: both sides of the
+         comparison then come from the same pack whether max_charge_power_W holds that
+         pack's own limit or the installation's. Weighing the worst pack's current against
+         pack 1's limit would be wrong in both directions once those two stop being the
+         same number. Packs 2 and 3 want their own comparison against their own limits,
+         which needs per-pack failure counters and is a separate change. */
       int16_t peak_charge_dA = 0;
       int16_t peak_discharge_dA = 0;
-      Battery* const packs[] = {battery, battery2, battery3};
-      for (Battery* pack : packs) {
-        if (!pack) {
-          continue;
-        }
-        int16_t pack_max_dA = 0;
-        int16_t pack_min_dA = 0;
-        pack->safety_current_range_dA(pack_max_dA, pack_min_dA);
-        if (pack_max_dA > peak_charge_dA) {
-          peak_charge_dA = pack_max_dA;
-        }
-        if (pack_min_dA < peak_discharge_dA) {
-          peak_discharge_dA = pack_min_dA;
-        }
+      if (battery) {
+        battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
       }
       const int32_t charge_power_W = (int32_t)peak_charge_dA * (datalayer.battery.status.voltage_dV / 100);
       const int32_t discharge_power_W = (int32_t)peak_discharge_dA * (datalayer.battery.status.voltage_dV / 100);
