@@ -250,7 +250,9 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Cells", "", "", always},
     {"balancing_status", "Balancing Status", "", "", always},
     {"charging_state", "Charging State", "", "", always},
-    {"limiting_factor", "Limiting Factor", "", "", always},
+    // What is limiting the inverter is one answer for the whole installation, not a pack's. With
+    // several packs it lives on the aggregate topic instead of being repeated on every pack.
+    {"limiting_factor", "Limiting Factor", "", "", single_pack},
     {"dc_dc_current", "DC-DC Current", "A", "current", supports_tesla_dcdc_metrics},
     {"dc_dc_voltage", "DC-DC Voltage", "V", "voltage", supports_tesla_dcdc_metrics},
     {"autocal_taper", "BYD Auto-cal: Taper Complete", "", "", supports_byd_autocal_metrics},
@@ -297,7 +299,9 @@ static const SensorConfig aggregateSensorConfigTemplate[] = {
     {"temperature_max", "Temperature Max", "°C", "temperature", always},
     {"temperature_min", "Temperature Min", "°C", "temperature", always},
     {"charged_energy", "Battery Charged Energy", "Wh", "energy", any_pack_supports_charged},
-    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", any_pack_supports_charged}};
+    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", any_pack_supports_charged},
+    {"charging_state", "Charging State", "", "", always},
+    {"limiting_factor", "Limiting Factor", "", "", always}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -471,6 +475,12 @@ static void set_aggregate_attributes(JsonDocument& doc) {
     doc["charged_energy"] = ((float)a.total_charged_battery_Wh);
     doc["discharged_energy"] = ((float)a.total_discharged_battery_Wh);
   }
+  const ChargingState charging_state = get_charging_state(a.current_dA);
+  doc["charging_state"] = charging_state_to_text(charging_state);
+  doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
+      charging_state, datalayer.battery_settings.inverter_limits_charge,
+      datalayer.battery_settings.inverter_limits_discharge, datalayer.battery_settings.user_settings_limit_charge,
+      datalayer.battery_settings.user_settings_limit_discharge));
 }
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
@@ -548,12 +558,18 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells"] = active_cells;
   doc["balancing_status"] = get_balancing_status_text(battery_data.status.balancing_status);
+  // Direction is genuinely this pack's: parallel packs at different SOC push current into each
+  // other. What is limiting the inverter is not - that is one answer for the installation, so
+  // with several packs it is published once on the aggregate topic instead of the same answer
+  // appearing on every pack.
   ChargingState charging_state = get_charging_state(battery_data.status.current_dA);
   doc["charging_state"] = charging_state_to_text(charging_state);
-  doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
-      charging_state, datalayer.battery_settings.inverter_limits_charge,
-      datalayer.battery_settings.inverter_limits_discharge, datalayer.battery_settings.user_settings_limit_charge,
-      datalayer.battery_settings.user_settings_limit_discharge));
+  if (pack_is_the_installation) {
+    doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
+        charging_state, datalayer.battery_settings.inverter_limits_charge,
+        datalayer.battery_settings.inverter_limits_discharge, datalayer.battery_settings.user_settings_limit_charge,
+        datalayer.battery_settings.user_settings_limit_discharge));
+  }
   if (battery_index == 1 && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.01f;

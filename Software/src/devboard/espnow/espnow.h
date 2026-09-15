@@ -219,7 +219,9 @@ enum espnow_key_t {
   ESPNOW_KEY_BALANCING_STATUS = 0x66,         /* UINT8  balancing_status_enum (types.h) */
   ESPNOW_KEY_BALANCING_ACTIVE_CELLS = 0x67,   /* UINT16 count of shunts currently on */
   ESPNOW_KEY_CHARGING_STATE = 0x68,           /* UINT8  ChargingState (types.h) */
-  ESPNOW_KEY_LIMITING_FACTOR = 0x69,          /* UINT8  LimitingFactor (types.h) */
+  ESPNOW_KEY_LIMITING_FACTOR = 0x69,          /* UINT8  LimitingFactor (types.h). Omitted when
+                                                 several packs are configured - see
+                                                 ESPNOW_KEY_AGG_LIMITING_FACTOR */
   ESPNOW_KEY_REAL_BMS_STATUS = 0x6A,          /* UINT8  real_bms_status_enum (types.h) */
   ESPNOW_KEY_CAN_ALIVE = 0x6B,                /* UINT8  battery keepalive countdown */
   ESPNOW_KEY_CAN_ERROR_COUNTER = 0x6C,        /* UINT16 CAN CRC error count */
@@ -278,7 +280,14 @@ enum espnow_key_t {
   ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC = 0xC0,       /* INT16  0.1 degrees C */
   ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC = 0xC1,       /* INT16  0.1 degrees C */
   ESPNOW_KEY_AGG_TOTAL_CHARGED_WH = 0xC2,         /* INT32  Wh lifetime, every pack summed */
-  ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH = 0xC3       /* INT32  Wh lifetime, every pack summed */
+  ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH = 0xC3,      /* INT32  Wh lifetime, every pack summed */
+  ESPNOW_KEY_AGG_CHARGING_STATE = 0xC4,           /* UINT8  ChargingState (types.h), from the
+                                                     summed current */
+  ESPNOW_KEY_AGG_LIMITING_FACTOR = 0xC5           /* UINT8  LimitingFactor (types.h). Describes
+                                                     why the inverter's limit is what it is, so
+                                                     it belongs to the installation, not a pack.
+                                                     ESPNOW_KEY_LIMITING_FACTOR is only sent in
+                                                     a pack frame when there is a single pack */
 };
 
 void init_espnow();

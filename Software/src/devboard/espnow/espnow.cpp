@@ -405,6 +405,15 @@ static void send_aggregate_frame() {
   put_u16_field(ESPNOW_KEY_AGG_CELL_MIN_MV, a.cell_min_voltage_mV);
   put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC, a.temperature_max_dC);
   put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC, a.temperature_min_dC);
+  const ChargingState agg_charging_state = get_charging_state(a.current_dA);
+  put_enum_field(ESPNOW_KEY_AGG_CHARGING_STATE, static_cast<uint8_t>(agg_charging_state));
+  put_enum_field(
+      ESPNOW_KEY_AGG_LIMITING_FACTOR,
+      static_cast<uint8_t>(get_limiting_factor(agg_charging_state, datalayer.battery_settings.inverter_limits_charge,
+                                               datalayer.battery_settings.inverter_limits_discharge,
+                                               datalayer.battery_settings.user_settings_limit_charge,
+                                               datalayer.battery_settings.user_settings_limit_discharge)));
+
   // Only where some pack counts them. The per-pack frame gates the same way.
   for (uint8_t i = 0; i < num_batteries; i++) {
     Battery* bat = battery_instance(i);
@@ -506,13 +515,18 @@ static void send_battery_frame(uint8_t index) {
     put_u16_field(ESPNOW_KEY_BALANCING_ACTIVE_CELLS, active_cells);
     put_enum_field(ESPNOW_KEY_BALANCING_STATUS, static_cast<uint8_t>(d->status.balancing_status));
 
+    /* Direction is genuinely this pack's: parallel packs at different SOC push current into each
+       other. What is limiting the inverter is not - that is one answer for the installation, and
+       it rides in ESPNOW_FRAME_AGGREGATE once there is more than one pack. */
     const ChargingState charging_state = get_charging_state(d->status.current_dA);
     put_enum_field(ESPNOW_KEY_CHARGING_STATE, static_cast<uint8_t>(charging_state));
-    put_enum_field(ESPNOW_KEY_LIMITING_FACTOR, static_cast<uint8_t>(get_limiting_factor(
-                                                   charging_state, datalayer.battery_settings.inverter_limits_charge,
-                                                   datalayer.battery_settings.inverter_limits_discharge,
-                                                   datalayer.battery_settings.user_settings_limit_charge,
-                                                   datalayer.battery_settings.user_settings_limit_discharge)));
+    if (num_batteries == 1) {
+      put_enum_field(ESPNOW_KEY_LIMITING_FACTOR, static_cast<uint8_t>(get_limiting_factor(
+                                                     charging_state, datalayer.battery_settings.inverter_limits_charge,
+                                                     datalayer.battery_settings.inverter_limits_discharge,
+                                                     datalayer.battery_settings.user_settings_limit_charge,
+                                                     datalayer.battery_settings.user_settings_limit_discharge)));
+    }
 
     if (index == 0 && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                        user_selected_battery_type == BatteryType::TeslaModelSX)) {

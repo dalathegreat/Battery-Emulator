@@ -29,7 +29,9 @@ TEST(EspNowAggregateKeys, KeyIdsAreUniqueAndOutsideThePerPackRange) {
                                     ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC,
                                     ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC,
                                     ESPNOW_KEY_AGG_TOTAL_CHARGED_WH,
-                                    ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH};
+                                    ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH,
+                                    ESPNOW_KEY_AGG_CHARGING_STATE,
+                                    ESPNOW_KEY_AGG_LIMITING_FACTOR};
 
   std::set<uint8_t> seen;
   for (uint8_t key : aggregate_keys) {
@@ -39,6 +41,13 @@ TEST(EspNowAggregateKeys, KeyIdsAreUniqueAndOutsideThePerPackRange) {
     EXPECT_GE(key, 0xB0);
   }
   EXPECT_EQ(seen.size(), sizeof(aggregate_keys));
+}
+
+// The pack frame's limiting factor and the installation's must stay distinct keys: a receiver
+// that saw the same id in both frames could not tell whose answer it was holding.
+TEST(EspNowAggregateKeys, LimitingFactorKeysDoNotCollide) {
+  EXPECT_NE(ESPNOW_KEY_AGG_LIMITING_FACTOR, ESPNOW_KEY_LIMITING_FACTOR);
+  EXPECT_NE(ESPNOW_KEY_AGG_CHARGING_STATE, ESPNOW_KEY_CHARGING_STATE);
 }
 
 TEST(EspNowAggregateKeys, AggregateIsItsOwnFrameType) {
