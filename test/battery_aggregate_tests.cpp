@@ -19,7 +19,7 @@ class BatteryAggregateTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // The global DataLayerResetListener has already reset datalayer and deleted the packs.
-    datalayer.battery.settings.soc_scaling_active = false;
+    datalayer.battery_settings.soc_scaling_active = false;
     datalayer.system.info.configured_batteries = 1;
     battery2_detected = false;
     battery3_detected = false;
@@ -109,9 +109,9 @@ TEST_F(BatteryAggregateTest, EnergySumsAcrossPacksWithoutTouchingThem) {
 TEST_F(BatteryAggregateTest, PacksStayUnscaledAndOnlyTheAggregateGetsTheWindow) {
   add_second_pack();
   battery2_detected = true;
-  datalayer.battery.settings.soc_scaling_active = true;
-  datalayer.battery.settings.min_percentage = 1200;  // 12.00%
-  datalayer.battery.settings.max_percentage = 8200;  // 82.00%
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 1200;  // 12.00%
+  datalayer.battery_settings.max_percentage = 8200;  // 82.00%
 
   datalayer.battery.info.total_capacity_Wh = 21800;
   datalayer.battery.status.real_soc = 4100;
@@ -141,9 +141,9 @@ TEST_F(BatteryAggregateTest, PacksStayUnscaledAndOnlyTheAggregateGetsTheWindow) 
 // A single battery is the installation, so it keeps its scaled reported_ fields and MQTT,
 // ESP-NOW and the display see exactly what they always did.
 TEST_F(BatteryAggregateTest, SingleBatteryKeepsItsScaledFields) {
-  datalayer.battery.settings.soc_scaling_active = true;
-  datalayer.battery.settings.min_percentage = 1000;
-  datalayer.battery.settings.max_percentage = 9000;
+  datalayer.battery_settings.soc_scaling_active = true;
+  datalayer.battery_settings.min_percentage = 1000;
+  datalayer.battery_settings.max_percentage = 9000;
   datalayer.battery.info.total_capacity_Wh = 30000;
   datalayer.battery.status.real_soc = 5000;
 
@@ -263,8 +263,8 @@ TEST_F(BatteryAggregateTest, SohIsAveraged) {
 // A 19.0 A ceiling has to survive the trip out through Watts and back.
 TEST_F(BatteryAggregateTest, UserCurrentLimitSurvivesTheRoundTrip) {
   datalayer.battery.status.voltage_dV = 3525;
-  datalayer.battery.settings.max_user_set_charge_dA = 190;
-  datalayer.battery.settings.max_user_set_discharge_dA = 190;
+  datalayer.battery_settings.max_user_set_charge_dA = 190;
+  datalayer.battery_settings.max_user_set_discharge_dA = 190;
   // What filter_inverter_limits() derives from a 19.0 A ceiling at 352.5 V
   datalayer.battery.status.max_charge_power_W = 6697;
   datalayer.battery.status.max_discharge_power_W = 6697;
@@ -334,8 +334,8 @@ TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
   add_second_pack();
   battery2_detected = true;
   datalayer.battery.status.voltage_dV = 3700;
-  datalayer.battery.settings.max_user_set_charge_dA = 3000;
-  datalayer.battery.settings.max_user_set_discharge_dA = 3000;
+  datalayer.battery_settings.max_user_set_charge_dA = 3000;
+  datalayer.battery_settings.max_user_set_discharge_dA = 3000;
 
   datalayer.battery.status.max_charge_power_W = 10000;
   datalayer.battery.status.max_discharge_power_W = 10000;
@@ -367,8 +367,8 @@ TEST_F(BatteryAggregateTest, UserCurrentLimitCapsTheAggregate) {
   datalayer.battery.status.voltage_dV = 3700;
   datalayer.battery.status.max_charge_power_W = 10000;  // would be 270 dA
   datalayer.battery.status.max_discharge_power_W = 10000;
-  datalayer.battery.settings.max_user_set_charge_dA = 100;
-  datalayer.battery.settings.max_user_set_discharge_dA = 3000;
+  datalayer.battery_settings.max_user_set_charge_dA = 100;
+  datalayer.battery_settings.max_user_set_discharge_dA = 3000;
 
   update_aggregate_values();
   update_aggregate_limits();

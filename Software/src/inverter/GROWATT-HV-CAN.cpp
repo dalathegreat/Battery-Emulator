@@ -66,10 +66,10 @@ void GrowattHvInverter::
 
   //Map values to CAN messages
   //Battery operating parameters and status information
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
     //User specified charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 0, MAX 1000V)
-    GROWATT_3110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
-    GROWATT_3110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
+    GROWATT_3110.data.u8[0] = (datalayer.battery_settings.max_user_set_charge_voltage_dV >> 8);
+    GROWATT_3110.data.u8[1] = (datalayer.battery_settings.max_user_set_charge_voltage_dV & 0x00FF);
   } else {
     //Battery max voltage used as charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 0, MAX 1000V)
     GROWATT_3110.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV >> 8);
@@ -146,10 +146,10 @@ void GrowattHvInverter::
   GROWATT_3140.data.u8[7] = 0;
 
   //Battery working parameters and module number information
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
     //Use user specified voltage as Discharge cutoff voltage (0.1V) [0-1000V]
-    GROWATT_3150.data.u8[0] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
-    GROWATT_3150.data.u8[1] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
+    GROWATT_3150.data.u8[0] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV >> 8);
+    GROWATT_3150.data.u8[1] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV & 0x00FF);
   } else {
     //Use battery min design voltage as Discharge cutoff voltage (0.1V) [0-1000V]
     GROWATT_3150.data.u8[0] = (datalayer.aggregate.min_design_voltage_dV >> 8);

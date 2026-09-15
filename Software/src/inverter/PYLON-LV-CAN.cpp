@@ -15,8 +15,8 @@ void PylonLvInverter::update_values() {
 
   // Set "battery charge voltage" to volts + 1 or user supplied value
   uint16_t charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
-  if (datalayer.battery.settings.user_set_voltage_limits_active)
-    charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active)
+    charge_voltage_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
   if (charge_voltage_dV > datalayer.aggregate.max_design_voltage_dV)
     charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   PYLON_351.data.u8[0] = charge_voltage_dV & 0xff;
@@ -103,15 +103,15 @@ void PylonLvInverter::update_values() {
     PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
   else if (datalayer.aggregate.voltage_dV >= datalayer.aggregate.max_design_voltage_dV)
     PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
-  else if (datalayer.battery.settings.user_set_voltage_limits_active &&
-           datalayer.aggregate.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV)
+  else if (datalayer.battery_settings.user_set_voltage_limits_active &&
+           datalayer.aggregate.voltage_dV >= datalayer.battery_settings.max_user_set_charge_voltage_dV)
     PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
-  else if (datalayer.battery.settings.user_set_voltage_limits_active &&
-           datalayer.aggregate.voltage_dV < datalayer.battery.settings.max_user_set_discharge_voltage_dV)
+  else if (datalayer.battery_settings.user_set_voltage_limits_active &&
+           datalayer.aggregate.voltage_dV < datalayer.battery_settings.max_user_set_discharge_voltage_dV)
     PYLON_35C.data.u8[0] = 0x80;  // enable charing
-  else if (datalayer.aggregate.real_soc <= datalayer.battery.settings.min_percentage)
+  else if (datalayer.aggregate.real_soc <= datalayer.battery_settings.min_percentage)
     PYLON_35C.data.u8[0] = 0x80;  // enable charing
-  else if (datalayer.aggregate.real_soc >= datalayer.battery.settings.max_percentage)
+  else if (datalayer.aggregate.real_soc >= datalayer.battery_settings.max_percentage)
     PYLON_35C.data.u8[0] = 0x40;  // enable discharging only
 
   if ((PYLON_35C.data.u8[0] & 0x80) == 0) {

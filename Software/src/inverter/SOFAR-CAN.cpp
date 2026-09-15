@@ -106,14 +106,14 @@ void SofarInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       const uint8_t sub_k = is705 ? rx_frame.data.u8[3] : rx_frame.data.u8[2];
 
       // Respond ONLY if addressed to my PACK ID
-      if (target_m != datalayer.battery.settings.sofar_user_specified_battery_id) {
+      if (target_m != datalayer.battery_settings.sofar_user_specified_battery_id) {
         break;  // not my address → no reply
       }
 
       // Helper to stamp identifiers into payload (m/k/n) – easy to replace with real fields later
       auto stamp_ids = [&](CAN_frame& f) {
         memset(f.data.u8, 0, 8);
-        f.data.u8[0] = datalayer.battery.settings.sofar_user_specified_battery_id;  // PACK ID
+        f.data.u8[0] = datalayer.battery_settings.sofar_user_specified_battery_id;  // PACK ID
         f.data.u8[1] = sub_k;                                                       // Module/Sub-target (k) if applies
         f.data.u8[2] = record_n;  // Record Num (n) – only used for 0x705
       };
@@ -249,7 +249,7 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
 
 bool SofarInverter::setup() {  // Performs one time setup at startup over CAN bus
   // Dynamically set CAN ID according to which battery index we are on
-  uint16_t base_offset = (datalayer.battery.settings.sofar_user_specified_battery_id << 12);
+  uint16_t base_offset = (datalayer.battery_settings.sofar_user_specified_battery_id << 12);
 
   auto init_frame = [&](CAN_frame& frame, uint16_t base_id) {
     frame.FD = false;

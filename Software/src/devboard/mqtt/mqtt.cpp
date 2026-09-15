@@ -444,8 +444,9 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   ChargingState charging_state = get_charging_state(battery_data.status.current_dA);
   doc["charging_state"] = charging_state_to_text(charging_state);
   doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
-      charging_state, battery_data.settings.inverter_limits_charge, battery_data.settings.inverter_limits_discharge,
-      battery_data.settings.user_settings_limit_charge, battery_data.settings.user_settings_limit_discharge));
+      charging_state, datalayer.battery_settings.inverter_limits_charge,
+      datalayer.battery_settings.inverter_limits_discharge, datalayer.battery_settings.user_settings_limit_charge,
+      datalayer.battery_settings.user_settings_limit_discharge));
   if (battery_index == 1 && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.01f;
@@ -1085,28 +1086,28 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     deserializeJson(doc, data_str);
 
     if (doc["max_charge"].is<int>()) {
-      datalayer.battery.settings.max_remote_set_charge_dA = doc["max_charge"];
-      datalayer.battery.settings.remote_settings_limit_charge = true;
+      datalayer.battery_settings.max_remote_set_charge_dA = doc["max_charge"];
+      datalayer.battery_settings.remote_settings_limit_charge = true;
     } else {
-      datalayer.battery.settings.max_remote_set_charge_dA = 0;
-      datalayer.battery.settings.remote_settings_limit_charge = false;
+      datalayer.battery_settings.max_remote_set_charge_dA = 0;
+      datalayer.battery_settings.remote_settings_limit_charge = false;
     }
 
     if (doc["max_discharge"].is<int>()) {
-      datalayer.battery.settings.max_remote_set_discharge_dA = doc["max_discharge"];
-      datalayer.battery.settings.remote_settings_limit_discharge = true;
+      datalayer.battery_settings.max_remote_set_discharge_dA = doc["max_discharge"];
+      datalayer.battery_settings.remote_settings_limit_discharge = true;
     } else {
-      datalayer.battery.settings.max_remote_set_discharge_dA = 0;
-      datalayer.battery.settings.remote_settings_limit_discharge = false;
+      datalayer.battery_settings.max_remote_set_discharge_dA = 0;
+      datalayer.battery_settings.remote_settings_limit_discharge = false;
     }
 
     if (doc["timeout"].is<int>()) {
-      datalayer.battery.settings.remote_set_timeout = doc["timeout"].as<int>() * 1000;
+      datalayer.battery_settings.remote_set_timeout = doc["timeout"].as<int>() * 1000;
     } else {
-      datalayer.battery.settings.remote_set_timeout = 30000;
+      datalayer.battery_settings.remote_set_timeout = 30000;
     }
 
-    datalayer.battery.settings.remote_set_timestamp = millis();
+    datalayer.battery_settings.remote_set_timestamp = millis();
 
     free(data_str);
   }

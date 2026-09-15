@@ -31,8 +31,8 @@ void GrowattWitInverter::update_values() {
 
   // Byte 4-5: Max Charge Voltage (0.1V, 0-15000)
   uint16_t max_charge_voltage_dV;
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {
-    max_charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {
+    max_charge_voltage_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
   } else {
     max_charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   }
@@ -41,8 +41,8 @@ void GrowattWitInverter::update_values() {
 
   // Byte 6-7: Min Discharge Voltage (0.1V, 0-15000)
   uint16_t min_discharge_voltage_dV;
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {
-    min_discharge_voltage_dV = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {
+    min_discharge_voltage_dV = datalayer.battery_settings.max_user_set_discharge_voltage_dV;
   } else {
     min_discharge_voltage_dV = datalayer.aggregate.min_design_voltage_dV;
   }

@@ -27,13 +27,13 @@ void BydCanInverter::
   }
 
   //Map values to CAN messages
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
     //Target charge voltage (eg 400.0V = 4000 , 16bits long)
-    BYD_110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
-    BYD_110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
+    BYD_110.data.u8[0] = (datalayer.battery_settings.max_user_set_charge_voltage_dV >> 8);
+    BYD_110.data.u8[1] = (datalayer.battery_settings.max_user_set_charge_voltage_dV & 0x00FF);
     //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
-    BYD_110.data.u8[2] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
-    BYD_110.data.u8[3] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
+    BYD_110.data.u8[2] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV >> 8);
+    BYD_110.data.u8[3] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV & 0x00FF);
   } else {  //Use the voltage based on battery reported design voltage +- offset to avoid triggering events
     //Target charge voltage (eg 400.0V = 4000 , 16bits long)
     BYD_110.data.u8[0] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);

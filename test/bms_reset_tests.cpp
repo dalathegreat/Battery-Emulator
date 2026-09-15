@@ -16,7 +16,7 @@ TEST(BmsResetTests, BmsResetSequenceDirectSuccess) {
   set_millis64(0x100000000ULL - 10);  // Start just below the 32-bit millis() wrap to test overflow handling
   remote_bms_reset = true;
   contactor_control_enabled = true;
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
 
   for (int i = 0; i < 10; i++)
     handle_BMSpower();
@@ -80,7 +80,7 @@ TEST(BmsResetTests, BmsResetSequenceWaitSuccess) {
   set_millis64(0x100000000ULL - 10);  // Start just below the 32-bit millis() wrap
   remote_bms_reset = true;
   contactor_control_enabled = false;
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
   datalayer.battery.status.current_dA = -50;                          // Simulate battery under load
 
   for (int i = 0; i < 10; i++)
@@ -379,7 +379,7 @@ TEST(BmsResetTests, PeriodicBmsResetGuardsDisabled) {
    EVENT_CAN_BATTERY_MISSING partway through every reset. */
 TEST(BmsResetTests, LongBmsResetHoldsCanAlive) {
   setup_periodic_reset_test(24);
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 600000;  // 600 seconds, the new maximum
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 600000;  // 600 seconds, the new maximum
 
   set_millis64(25 * ONE_HOUR_MS);
   handle_BMSpower();
@@ -416,7 +416,7 @@ TEST(BmsResetTests, LongBmsResetHoldsCanAlive) {
   handle_BMSpower();
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
 
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
   teardown_periodic_reset_test();
 }
 
@@ -424,7 +424,7 @@ TEST(BmsResetTests, LongBmsResetHoldsCanAlive) {
 // alive counter is left alone so a genuinely missing BMS is still detected.
 TEST(BmsResetTests, ShortBmsResetLeavesCanAliveAlone) {
   setup_periodic_reset_test(24);
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;  // 30 seconds
 
   set_millis64(25 * ONE_HOUR_MS);
   handle_BMSpower();

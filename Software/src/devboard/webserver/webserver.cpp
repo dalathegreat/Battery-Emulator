@@ -708,15 +708,15 @@ void init_webserver() {
   update_int_setting("/updateBatterySize", [](int value) { datalayer.battery.info.total_capacity_Wh = value; });
 
   // Route for editing USE_SCALED_SOC
-  update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery.settings.soc_scaling_active = value; });
+  update_int_setting("/updateUseScaledSOC", [](int value) { datalayer.battery_settings.soc_scaling_active = value; });
 
   // Route for enabling recovery mode charging
   update_int_setting("/enableRecoveryMode",
-                     [](int value) { datalayer.battery.settings.user_requests_forced_charging_recovery_mode = value; });
+                     [](int value) { datalayer.battery_settings.user_requests_forced_charging_recovery_mode = value; });
 
   // Route for editing SOCMax
   update_string_setting("/updateSocMax", [](String value) {
-    datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
+    datalayer.battery_settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
 
   // Route for editing CAN ID cutoff filter
@@ -875,17 +875,17 @@ void init_webserver() {
 
   // Route for editing SOCMin
   update_string_setting("/updateSocMin", [](String value) {
-    datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
+    datalayer.battery_settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
 
   // Route for editing MaxChargeA
   update_string_setting("/updateMaxChargeA", [](String value) {
-    datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+    datalayer.battery_settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing MaxDischargeA
   update_string_setting("/updateMaxDischargeA", [](String value) {
-    datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+    datalayer.battery_settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   for (const auto& cmd : battery_commands) {
@@ -921,52 +921,52 @@ void init_webserver() {
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
   update_int_setting("/updateUseVoltageLimit",
-                     [](int value) { datalayer.battery.settings.user_set_voltage_limits_active = value; });
+                     [](int value) { datalayer.battery_settings.user_set_voltage_limits_active = value; });
 
   // Route for editing MaxChargeVoltage
   update_string_setting("/updateMaxChargeVoltage", [](String value) {
-    datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+    datalayer.battery_settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing MaxDischargeVoltage
   update_string_setting("/updateMaxDischargeVoltage", [](String value) {
-    datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+    datalayer.battery_settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing BMSresetDuration
   update_string_setting("/updateBMSresetDuration", [](String value) {
-    datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
+    datalayer.battery_settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
   });
 
   // Route for editing FakeBatteryVoltage
   update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
 
   // Route for editing balancing enabled
-  update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
+  update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery_settings.user_requests_balancing = value; });
 
   // Route for editing balancing max time
   update_string_setting("/BalTime", [](String value) {
-    datalayer.battery.settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+    datalayer.battery_settings.balancing_max_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
   });
 
   // Route for editing balancing max power
   update_string_setting("/BalFloatPower", [](String value) {
-    datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
+    datalayer.battery_settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
   });
 
   // Route for editing balancing max pack voltage
   update_string_setting("/BalMaxPackV", [](String value) {
-    datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+    datalayer.battery_settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
   });
 
   // Route for editing balancing max cell voltage
   update_string_setting("/BalMaxCellV", [](String value) {
-    datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+    datalayer.battery_settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
   // Route for editing balancing max cell voltage deviation
   update_string_setting("/BalMaxDevCellV", [](String value) {
-    datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+    datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
   if (charger) {
@@ -983,7 +983,7 @@ void init_webserver() {
         "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
         [](String value) {
           float val = value.toFloat();
-          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery.settings.max_user_set_charge_dA) &&
+          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery_settings.max_user_set_charge_dA) &&
                  (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
         });
 
@@ -1171,7 +1171,7 @@ static String formatPackCurrent(const String& label, uint16_t value_dA) {
 static void render_battery_card(String& content, const String& style, const BatteryCardView& v, uint8_t pack_index) {
   const bool multi = (datalayer.system.info.configured_batteries > 1);
   const bool system_card = (pack_index == 0) || !multi;
-  const bool scaled = system_card && datalayer.battery.settings.soc_scaling_active;
+  const bool scaled = system_card && datalayer.battery_settings.soc_scaling_active;
 
   content += "<div style='" + style + "'>";
 
@@ -1207,9 +1207,9 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += "<h4 style='color: " + limit_color +
                ";'>Max discharge current: " + String(v.max_discharge_current_dA / 10.0f, 1) + " A";
     if (!stopped) {
-      if (datalayer.battery.settings.remote_settings_limit_discharge) {
+      if (datalayer.battery_settings.remote_settings_limit_discharge) {
         content += " (Remote)";
-      } else if (datalayer.battery.settings.user_settings_limit_discharge) {
+      } else if (datalayer.battery_settings.user_settings_limit_discharge) {
         content += " (Manual)";
       } else {
         content += " (BMS)";
@@ -1218,9 +1218,9 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += "</h4><h4 style='color: " + limit_color +
                ";'>Max charge current: " + String(v.max_charge_current_dA / 10.0f, 1) + " A";
     if (!stopped) {
-      if (datalayer.battery.settings.remote_settings_limit_charge) {
+      if (datalayer.battery_settings.remote_settings_limit_charge) {
         content += " (Remote)";
-      } else if (datalayer.battery.settings.user_settings_limit_charge) {
+      } else if (datalayer.battery_settings.user_settings_limit_charge) {
         content += " (Manual)";
       } else {
         content += " (BMS)";
@@ -1234,16 +1234,21 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += formatPackCurrent("Max charge current", v.max_charge_current_dA);
   }
 
-  content +=
-      "<h4>Cell min/max: " + String(v.cell_min_voltage_mV) + " mV / " + String(v.cell_max_voltage_mV) + " mV</h4>";
-  uint16_t cell_delta_mv = v.cell_max_voltage_mV - v.cell_min_voltage_mV;
-  if (cell_delta_mv > v.max_cell_voltage_deviation_mV) {
-    content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
-  } else {
-    content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+  /* Cells and temperatures are a property of a pack, not of the installation: the combined card
+     would only be repeating the extremes already visible on the cards right below it. The
+     aggregate still carries them, because the inverter is told them. */
+  if (pack_index != 0) {
+    content +=
+        "<h4>Cell min/max: " + String(v.cell_min_voltage_mV) + " mV / " + String(v.cell_max_voltage_mV) + " mV</h4>";
+    uint16_t cell_delta_mv = v.cell_max_voltage_mV - v.cell_min_voltage_mV;
+    if (cell_delta_mv > v.max_cell_voltage_deviation_mV) {
+      content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    } else {
+      content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    }
+    content += "<h4>Temperature min/max: " + String(v.temperature_min_dC / 10.0f, 1) + " &deg;C / " +
+               String(v.temperature_max_dC / 10.0f, 1) + " &deg;C</h4>";
   }
-  content += "<h4>Temperature min/max: " + String(v.temperature_min_dC / 10.0f, 1) + " &deg;C / " +
-             String(v.temperature_max_dC / 10.0f, 1) + " &deg;C</h4>";
 
   if ((pack_index == 1) && battery && battery->supports_real_BMS_status()) {
     content += "<h4>Battery BMS status: ";
@@ -1269,10 +1274,10 @@ static void render_battery_card(String& content, const String& style, const Batt
 
   if (system_card) {
     content += "<h4>" +
-               String(get_charging_status_text(v.current_dA, datalayer.battery.settings.inverter_limits_charge,
-                                               datalayer.battery.settings.inverter_limits_discharge,
-                                               datalayer.battery.settings.user_settings_limit_charge,
-                                               datalayer.battery.settings.user_settings_limit_discharge)) +
+               String(get_charging_status_text(v.current_dA, datalayer.battery_settings.inverter_limits_charge,
+                                               datalayer.battery_settings.inverter_limits_discharge,
+                                               datalayer.battery_settings.user_settings_limit_charge,
+                                               datalayer.battery_settings.user_settings_limit_discharge)) +
                "</h4>";
   } else if (v.current_dA == 0) {
     content += "<h4>Battery idle</h4>";

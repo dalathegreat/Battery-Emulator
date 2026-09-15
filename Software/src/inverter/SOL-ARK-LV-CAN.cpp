@@ -15,8 +15,8 @@ void SolArkLvInverter::update_values() {
 
   // Set "Charge voltage limit" to battery max value OR user supplied value
   uint16_t charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
-  if (datalayer.battery.settings.user_set_voltage_limits_active)
-    charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active)
+    charge_voltage_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
   if (charge_voltage_dV > datalayer.aggregate.max_design_voltage_dV)
     charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   SOLARK_351.data.u8[0] = charge_voltage_dV & 0xff;
@@ -79,15 +79,15 @@ void SolArkLvInverter::update_values() {
   SOLARK_35C.data.u8[0] = 0xC0;  // enable charging and discharging
   if (datalayer.system.status.system_status == FAULT)
     SOLARK_35C.data.u8[0] = 0x00;  // disable all
-  else if (datalayer.battery.settings.user_set_voltage_limits_active &&
-           datalayer.aggregate.voltage_dV > datalayer.battery.settings.max_user_set_charge_voltage_dV)
+  else if (datalayer.battery_settings.user_set_voltage_limits_active &&
+           datalayer.aggregate.voltage_dV > datalayer.battery_settings.max_user_set_charge_voltage_dV)
     SOLARK_35C.data.u8[0] = 0x40;  // only allow discharging
-  else if (datalayer.battery.settings.user_set_voltage_limits_active &&
-           datalayer.aggregate.voltage_dV < datalayer.battery.settings.max_user_set_discharge_voltage_dV)
+  else if (datalayer.battery_settings.user_set_voltage_limits_active &&
+           datalayer.aggregate.voltage_dV < datalayer.battery_settings.max_user_set_discharge_voltage_dV)
     SOLARK_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
-  else if (datalayer.aggregate.real_soc <= datalayer.battery.settings.min_percentage)
+  else if (datalayer.aggregate.real_soc <= datalayer.battery_settings.min_percentage)
     SOLARK_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
-  else if (datalayer.aggregate.real_soc >= datalayer.battery.settings.max_percentage)
+  else if (datalayer.aggregate.real_soc >= datalayer.battery_settings.max_percentage)
     SOLARK_35C.data.u8[0] = 0x40;  // enable discharging only
 
   // SOLARK_35E is pre-filled with the manufacturer name (BAT-EMU)

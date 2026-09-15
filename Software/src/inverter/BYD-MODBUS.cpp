@@ -100,13 +100,13 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   }
   // Convert max discharge Amp value to max Watt
   user_configured_max_discharge_W =
-      ((datalayer.battery.settings.max_user_set_discharge_dA * datalayer.aggregate.voltage_dV) / 100);
+      ((datalayer.battery_settings.max_user_set_discharge_dA * datalayer.aggregate.voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_discharge_W = std::min(datalayer.aggregate.max_discharge_power_W, user_configured_max_discharge_W);
 
   // Convert max charge Amp value to max Watt
   user_configured_max_charge_W =
-      ((datalayer.battery.settings.max_user_set_charge_dA * datalayer.aggregate.voltage_dV) / 100);
+      ((datalayer.battery_settings.max_user_set_charge_dA * datalayer.aggregate.voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.aggregate.max_charge_power_W, user_configured_max_charge_W);
 

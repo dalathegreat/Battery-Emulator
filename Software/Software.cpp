@@ -195,9 +195,9 @@ static void filter_charge_taper_soc(void) {
       voltage_dV = datalayer.battery.info.max_design_voltage_dV;
     }
     if (voltage_dV > 10) {
-      uint16_t cap_dA = datalayer.battery.settings.remote_settings_limit_charge
-                            ? datalayer.battery.settings.max_remote_set_charge_dA
-                            : datalayer.battery.settings.max_user_set_charge_dA;
+      uint16_t cap_dA = datalayer.battery_settings.remote_settings_limit_charge
+                            ? datalayer.battery_settings.max_remote_set_charge_dA
+                            : datalayer.battery_settings.max_user_set_charge_dA;
       uint32_t cap_W = ((uint32_t)cap_dA * voltage_dV) / 100;
       if (charge_W > cap_W) {
         charge_W = cap_W;
@@ -268,9 +268,9 @@ static void filter_inverter_limits(void) {
     cap_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   }
   if (cap_voltage_dV > 10) {
-    uint32_t user_charge_cap_W = ((uint32_t)datalayer.battery.settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
+    uint32_t user_charge_cap_W = ((uint32_t)datalayer.battery_settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
     uint32_t user_discharge_cap_W =
-        ((uint32_t)datalayer.battery.settings.max_user_set_discharge_dA * cap_voltage_dV) / 100;
+        ((uint32_t)datalayer.battery_settings.max_user_set_discharge_dA * cap_voltage_dV) / 100;
     if (charge_in > user_charge_cap_W) {
       charge_in = user_charge_cap_W;
     }
@@ -363,32 +363,32 @@ void update_calculated_values(uint32_t currentMillis) {
   }
 
   /* Apply remote restrictions if set*/
-  if (datalayer.battery.settings.remote_settings_limit_charge) {
-    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_remote_set_charge_dA) {
-      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_remote_set_charge_dA;
+  if (datalayer.battery_settings.remote_settings_limit_charge) {
+    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery_settings.max_remote_set_charge_dA) {
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery_settings.max_remote_set_charge_dA;
     }
   } else {
     /* Restrict values from user settings if needed*/
-    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
-      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
-      datalayer.battery.settings.user_settings_limit_charge = true;
+    if (datalayer.battery.status.max_charge_current_dA > datalayer.battery_settings.max_user_set_charge_dA) {
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery_settings.max_user_set_charge_dA;
+      datalayer.battery_settings.user_settings_limit_charge = true;
     } else {
-      datalayer.battery.settings.user_settings_limit_charge = false;
+      datalayer.battery_settings.user_settings_limit_charge = false;
     }
   }
 
   /* Apply remote restrictions if set*/
-  if (datalayer.battery.settings.remote_settings_limit_discharge) {
-    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_remote_set_discharge_dA) {
-      datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_remote_set_discharge_dA;
+  if (datalayer.battery_settings.remote_settings_limit_discharge) {
+    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery_settings.max_remote_set_discharge_dA) {
+      datalayer.battery.status.max_discharge_current_dA = datalayer.battery_settings.max_remote_set_discharge_dA;
     }
   } else {
     /* Restrict values from user settings if needed*/
-    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
-      datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
-      datalayer.battery.settings.user_settings_limit_discharge = true;
+    if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery_settings.max_user_set_discharge_dA) {
+      datalayer.battery.status.max_discharge_current_dA = datalayer.battery_settings.max_user_set_discharge_dA;
+      datalayer.battery_settings.user_settings_limit_discharge = true;
     } else {
-      datalayer.battery.settings.user_settings_limit_discharge = false;
+      datalayer.battery_settings.user_settings_limit_discharge = false;
     }
   }
 
@@ -401,28 +401,28 @@ void update_calculated_values(uint32_t currentMillis) {
   if (datalayer.battery.status.current_dA == 0) {  //Battery idle
     if (datalayer.battery.status.max_discharge_current_dA > 0) {
       //We allow discharge, but inverter does nothing. Inverter is limiting
-      datalayer.battery.settings.inverter_limits_discharge = true;
+      datalayer.battery_settings.inverter_limits_discharge = true;
     } else {
-      datalayer.battery.settings.inverter_limits_discharge = false;
+      datalayer.battery_settings.inverter_limits_discharge = false;
     }
     if (datalayer.battery.status.max_charge_current_dA > 0) {
       //We allow charge, but inverter does nothing. Inverter is limiting
-      datalayer.battery.settings.inverter_limits_charge = true;
+      datalayer.battery_settings.inverter_limits_charge = true;
     } else {
-      datalayer.battery.settings.inverter_limits_charge = false;
+      datalayer.battery_settings.inverter_limits_charge = false;
     }
   } else if (datalayer.battery.status.current_dA < 0) {  //Battery discharging
     if (-datalayer.battery.status.current_dA < datalayer.battery.status.max_discharge_current_dA) {
-      datalayer.battery.settings.inverter_limits_discharge = true;
+      datalayer.battery_settings.inverter_limits_discharge = true;
     } else {
-      datalayer.battery.settings.inverter_limits_discharge = false;
+      datalayer.battery_settings.inverter_limits_discharge = false;
     }
   } else {  // > 0 Battery charging
     //If actual current is smaller than max we allow, inverter is limiting factor
     if (datalayer.battery.status.current_dA < datalayer.battery.status.max_charge_current_dA) {
-      datalayer.battery.settings.inverter_limits_charge = true;
+      datalayer.battery_settings.inverter_limits_charge = true;
     } else {
-      datalayer.battery.settings.inverter_limits_charge = false;
+      datalayer.battery_settings.inverter_limits_charge = false;
     }
   }
 

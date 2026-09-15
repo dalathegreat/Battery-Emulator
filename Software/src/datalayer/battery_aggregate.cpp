@@ -27,7 +27,7 @@ void snapshot_bms_limits(DATALAYER_BATTERY_TYPE& pack) {
    fields and nothing downstream of it sees any change. */
 void scale_pack_values(DATALAYER_BATTERY_TYPE& pack) {
   const bool window_applies =
-      datalayer.battery.settings.soc_scaling_active && (datalayer.system.info.configured_batteries < 2);
+      datalayer.battery_settings.soc_scaling_active && (datalayer.system.info.configured_batteries < 2);
 
   if (!window_applies) {
     pack.status.reported_soc = pack.status.real_soc;
@@ -36,12 +36,12 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack) {
     return;
   }
 
-  int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
-  int32_t clamped_soc = CONSTRAIN(pack.status.real_soc, datalayer.battery.settings.min_percentage,
-                                  datalayer.battery.settings.max_percentage);
+  int32_t delta_pct = datalayer.battery_settings.max_percentage - datalayer.battery_settings.min_percentage;
+  int32_t clamped_soc = CONSTRAIN(pack.status.real_soc, datalayer.battery_settings.min_percentage,
+                                  datalayer.battery_settings.max_percentage);
   int32_t scaled_soc = 0;
   if (delta_pct != 0) {  //Safeguard against division by 0
-    scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
+    scaled_soc = 10000 * (clamped_soc - datalayer.battery_settings.min_percentage) / delta_pct;
   }
   pack.status.reported_soc = scaled_soc;
 
@@ -59,19 +59,19 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack) {
 /* Apply the SOC window to the installation. Same arithmetic scale_pack_values() uses, run once
    on the summed figures, so the reported SOC and the reported energy agree with each other. */
 static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
-  if (!datalayer.battery.settings.soc_scaling_active) {
+  if (!datalayer.battery_settings.soc_scaling_active) {
     agg.reported_soc = agg.real_soc;
     agg.reported_total_capacity_Wh = agg.total_capacity_Wh;
     agg.reported_remaining_capacity_Wh = agg.remaining_capacity_Wh;
     return;
   }
 
-  int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
+  int32_t delta_pct = datalayer.battery_settings.max_percentage - datalayer.battery_settings.min_percentage;
   int32_t clamped_soc =
-      CONSTRAIN(agg.real_soc, datalayer.battery.settings.min_percentage, datalayer.battery.settings.max_percentage);
+      CONSTRAIN(agg.real_soc, datalayer.battery_settings.min_percentage, datalayer.battery_settings.max_percentage);
   int32_t scaled_soc = 0;
   if (delta_pct != 0) {  //Safeguard against division by 0
-    scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
+    scaled_soc = 10000 * (clamped_soc - datalayer.battery_settings.min_percentage) / delta_pct;
   }
   agg.reported_soc = scaled_soc;
 
@@ -226,15 +226,15 @@ void update_aggregate_limits() {
   }
 
   /* Apply the remote restrictions if set, otherwise the user settings */
-  uint16_t charge_cap_dA = datalayer.battery.settings.remote_settings_limit_charge
-                               ? datalayer.battery.settings.max_remote_set_charge_dA
-                               : datalayer.battery.settings.max_user_set_charge_dA;
+  uint16_t charge_cap_dA = datalayer.battery_settings.remote_settings_limit_charge
+                               ? datalayer.battery_settings.max_remote_set_charge_dA
+                               : datalayer.battery_settings.max_user_set_charge_dA;
   if (agg.max_charge_current_dA > charge_cap_dA) {
     agg.max_charge_current_dA = charge_cap_dA;
   }
-  uint16_t discharge_cap_dA = datalayer.battery.settings.remote_settings_limit_discharge
-                                  ? datalayer.battery.settings.max_remote_set_discharge_dA
-                                  : datalayer.battery.settings.max_user_set_discharge_dA;
+  uint16_t discharge_cap_dA = datalayer.battery_settings.remote_settings_limit_discharge
+                                  ? datalayer.battery_settings.max_remote_set_discharge_dA
+                                  : datalayer.battery_settings.max_user_set_discharge_dA;
   if (agg.max_discharge_current_dA > discharge_cap_dA) {
     agg.max_discharge_current_dA = discharge_cap_dA;
   }

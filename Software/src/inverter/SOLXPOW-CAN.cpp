@@ -10,9 +10,9 @@ void SolxpowInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Check what discharge and charge cutoff voltages to send
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
-    discharge_cutoff_voltage_dV = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
-    charge_cutoff_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+    discharge_cutoff_voltage_dV = datalayer.battery_settings.max_user_set_discharge_voltage_dV;
+    charge_cutoff_voltage_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
   } else {
     discharge_cutoff_voltage_dV = (datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV);
     charge_cutoff_voltage_dV = (datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV);

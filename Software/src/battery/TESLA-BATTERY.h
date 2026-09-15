@@ -20,13 +20,13 @@ class TeslaBattery : public CanBattery {
   TeslaBattery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    previous_max_percentage = datalayer.battery.settings.max_percentage;
+    previous_max_percentage = datalayer.battery_settings.max_percentage;
   }
   // Use this constructor for the second or third battery.
   TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
-    previous_max_percentage = datalayer_ptr->settings.max_percentage;
+    previous_max_percentage = datalayer.battery_settings.max_percentage;
   }
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -35,13 +35,13 @@ class TeslaBattery : public CanBattery {
 
   bool supports_clear_isolation() { return true; }
   bool supports_insulation_resistance() { return true; }
-  void clear_isolation() { datalayer_battery->settings.user_requests_tesla_isolation_clear = true; }
+  void clear_isolation() { datalayer.battery_settings.user_requests_tesla_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }
-  void reset_BMS() { datalayer_battery->settings.user_requests_tesla_bms_reset = true; }
+  void reset_BMS() { datalayer.battery_settings.user_requests_tesla_bms_reset = true; }
 
   bool supports_reset_SOC() { return true; }
-  void reset_SOC() { datalayer_battery->settings.user_requests_tesla_soc_reset = true; }
+  void reset_SOC() { datalayer.battery_settings.user_requests_tesla_soc_reset = true; }
 
   bool supports_charged_energy() { return true; }
 

@@ -451,10 +451,11 @@ static void send_battery_frame(uint8_t index) {
 
     const ChargingState charging_state = get_charging_state(d->status.current_dA);
     put_enum_field(ESPNOW_KEY_CHARGING_STATE, static_cast<uint8_t>(charging_state));
-    put_enum_field(ESPNOW_KEY_LIMITING_FACTOR,
-                   static_cast<uint8_t>(get_limiting_factor(
-                       charging_state, d->settings.inverter_limits_charge, d->settings.inverter_limits_discharge,
-                       d->settings.user_settings_limit_charge, d->settings.user_settings_limit_discharge)));
+    put_enum_field(ESPNOW_KEY_LIMITING_FACTOR, static_cast<uint8_t>(get_limiting_factor(
+                                                   charging_state, datalayer.battery_settings.inverter_limits_charge,
+                                                   datalayer.battery_settings.inverter_limits_discharge,
+                                                   datalayer.battery_settings.user_settings_limit_charge,
+                                                   datalayer.battery_settings.user_settings_limit_discharge)));
 
     if (index == 0 && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                        user_selected_battery_type == BatteryType::TeslaModelSX)) {

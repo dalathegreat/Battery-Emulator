@@ -62,7 +62,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint32_t remaining_capacity_Wh = 0;
   /** The remaining capacity reported to the inverter based on min percentage setting, in Watt-hours 
    * This value will either be scaled or not scaled depending on the value of
-   * battery.settings.soc_scaling_active
+   * battery_settings.soc_scaling_active
    */
   uint32_t reported_remaining_capacity_Wh;
   /** Maximum allowed battery discharge power in Watts. Set by battery */
@@ -108,7 +108,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t real_soc;
   /** The SOC reported to the inverter, in integer-percent x 100. 9550 = 95.50%.
    * This value will either be scaled or not scaled depending on the value of
-   * battery.settings.soc_scaling_active
+   * battery_settings.soc_scaling_active
    */
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
@@ -248,7 +248,6 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
 typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
-  DATALAYER_BATTERY_SETTINGS_TYPE settings;
   DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
@@ -533,6 +532,14 @@ class DataLayer {
 
   /** Every configured pack rolled into one. What the inverter protocols read */
   DATALAYER_AGGREGATE_TYPE aggregate;
+
+  /** Settings for the battery subsystem. Deliberately not inside DATALAYER_BATTERY_TYPE: every
+   * field here describes the installation, not a pack - the SOC window, the user and remote
+   * ceilings, the balancing and BMS reset parameters, which limit is currently binding. Held
+   * per pack it was stored in triplicate, two of which nothing ever read, and any integration
+   * reaching it through its own datalayer_battery pointer silently got those dead defaults
+   * whenever it ran as the second or third pack */
+  DATALAYER_BATTERY_SETTINGS_TYPE battery_settings;
   DATALAYER_SHUNT_TYPE shunt;
   DATALAYER_CHARGER_TYPE charger;
   DATALAYER_SYSTEM_TYPE system;
