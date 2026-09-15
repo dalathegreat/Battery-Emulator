@@ -72,15 +72,19 @@ void NissanLeafBattery::
     }
   }
 
-  // Publish the peak captured over the same window for safety checks. Keep it
-  // separate from current_dA so short excursions are not hidden by averaging.
-  battery_Current2_peak_published_dA = battery_Current2_peak_raw * 5;
+  // Publish the extremes captured over the same window for safety checks. Kept separate
+  // from current_dA so short excursions are not hidden by averaging. Both accumulators
+  // start at zero, so a window with current in one direction only reports zero for the
+  // other, which is the neutral value for both comparisons.
+  battery_Current2_peak_max_published_dA = battery_Current2_peak_max_raw * 5;
+  battery_Current2_peak_min_published_dA = battery_Current2_peak_min_raw * 5;
 
   // Start the next accumulation window. update_machineryprotection() runs later
-  // in the same core loop and therefore consumes peak_published above.
+  // in the same core loop and therefore consumes the values published above.
   battery_Current2_sum_raw = 0;
   battery_Current2_sample_count = 0;
-  battery_Current2_peak_raw = 0;
+  battery_Current2_peak_max_raw = 0;
+  battery_Current2_peak_min_raw = 0;
 
   //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
   //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
@@ -425,16 +429,16 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      // Accumulate every 0x1DB sample for the 1 s published mean. Also keep the
-      // signed peak by magnitude so either a charge or discharge spike is preserved
-      // for the safety path.
+      // Accumulate every 0x1DB sample for the 1 s published mean, and track the highest
+      // and lowest sample separately so a charge and a discharge excursion inside the same
+      // window both reach the safety path.
       battery_Current2_sum_raw += battery_Current2;
       battery_Current2_sample_count++;
-      const int32_t current_abs = (battery_Current2 < 0) ? -(int32_t)battery_Current2 : (int32_t)battery_Current2;
-      const int32_t peak_abs =
-          (battery_Current2_peak_raw < 0) ? -(int32_t)battery_Current2_peak_raw : (int32_t)battery_Current2_peak_raw;
-      if (current_abs > peak_abs) {
-        battery_Current2_peak_raw = battery_Current2;
+      if (battery_Current2 > battery_Current2_peak_max_raw) {
+        battery_Current2_peak_max_raw = battery_Current2;
+      }
+      if (battery_Current2 < battery_Current2_peak_min_raw) {
+        battery_Current2_peak_min_raw = battery_Current2;
       }
 
       battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
