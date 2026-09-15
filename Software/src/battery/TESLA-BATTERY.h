@@ -47,6 +47,18 @@ class TeslaBattery : public CanBattery {
 
   bool supports_manual_balancing() { return true; }
 
+  bool supports_charge_mode() { return charge_mode_supported; }
+  bool is_charge_mode_active() { return charge_mode_active; }
+  bool can_prepare_to_unplug() { return charge_mode_active && charge_port_connector_observed; }
+  bool supports_charge_line_measurements() { return charge_line_measurements_supported; }
+  bool is_charge_line_data_valid();
+  float get_charge_line_voltage_V() { return charge_line_voltage_V; }
+  float get_charge_line_current_A() { return charge_line_current_A; }
+  float get_charge_line_power_W() { return charge_line_power_W; }
+  float get_charge_line_current_limit_A() { return charge_line_current_limit_A; }
+  void start_charge_mode();
+  void stop_charge_mode();
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
   static constexpr const char* NameSX = "Tesla Model S/X";
@@ -127,6 +139,182 @@ class TeslaBattery : public CanBattery {
   //Max percentage charge tracker
   uint16_t previous_max_percentage = 0;
 
+  // Experimental Model 3/Y charge-port emulation, derived from an Ext. Module
+  // capture. Charge mode replaces the overlapping VC/DI frames instead of
+  // adding a second producer for the same CAN IDs.
+  bool charge_mode_supported = false;
+  bool charge_mode_active = false;
+  bool charge_mode_stop_requested = false;
+  bool charge_port_release_active = false;
+  bool charge_line_measurements_supported = false;
+  bool charge_line_frame_received = false;
+  unsigned long last_charge_line_frame_millis = 0;
+  float charge_line_voltage_V = 0.0f;
+  float charge_line_current_A = 0.0f;
+  float charge_line_power_W = 0.0f;
+  float charge_line_current_limit_A = 0.0f;
+  unsigned long charge_mode_started_millis = 0;
+  bool charge_port_connector_observed = false;
+  bool charge_handle_press_observed = false;
+  bool charge_port_release_observed = false;
+  bool charge_port_unplug_observed = false;
+  unsigned long charge_port_unplug_observed_millis = 0;
+  bool charge_mode_handoff_wait_logged = false;
+  unsigned long last_received_056_millis = 0;
+  bool send_charge_053_on_next_tick = true;
+  uint8_t charge_055_fast_counter = 0;
+  uint8_t charge_055_slow_counter = 0;
+  uint8_t charge_056_counter = 0;
+
+  static const unsigned long CHARGE_INITIAL_STAGE_MS = 140;
+  static const unsigned long CHARGE_STEADY_STAGE_MS = 3140;
+  static const unsigned long CHARGE_056_RX_TIMEOUT_MS = 250;
+  static const unsigned long CHARGE_LINE_RX_TIMEOUT_MS = 2000;
+  // OPEN_CHARGE_PORT_COVER.trc repeats about 200 ms ON / 300 ms OFF for the
+  // first 6.5 seconds. Keep this separate from connector-latch handling.
+  static const unsigned long CHARGE_PORT_DOOR_SEQUENCE_MS = 6500;
+  static constexpr float CHARGE_STOP_ZERO_VOLTAGE_V = 5.0f;
+  static constexpr float CHARGE_STOP_ZERO_CURRENT_A = 0.5f;
+  static constexpr float CHARGE_STOP_ZERO_POWER_W = 100.0f;
+
+  void update_charge_mode_stop_sequence(unsigned long currentMillis);
+  void finish_charge_mode_stop();
+  void observe_charge_handle_press();
+  void observe_charge_port_release(unsigned long currentMillis);
+  void observe_charge_port_unplug(unsigned long currentMillis);
+
+  // Static 100 ms frame present throughout the successful Ext. Module capture.
+  // The current public Model 3/Y DBC does not identify this frame, so preserve
+  // the measured payload exactly while the experimental charge profile runs.
+  static constexpr CAN_frame TESLA_CHARGE_052 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x052,
+                                                 .data = {0x85, 0x9B, 0xE4, 0x27, 0x65, 0x28, 0x30, 0x00}};
+
+  // VCSEC_authentication from the successful Ext. Module latch-release capture.
+  // It advertises PASSIVE_BLE_UNLOCKED and explicitly marks the charge-port
+  // lock as UNLOCKED. Without this 100 ms frame the charge port reports VCSEC
+  // MIA and will not honor the physical charge-handle release button.
+  static constexpr CAN_frame TESLA_CHARGE_339 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x339,
+                                                 .data = {0x41, 0x44, 0xF8, 0x00, 0x00, 0x03, 0x80, 0x00}};
+
+  // Remaining static members of the 100 ms/500 ms transmit groups captured
+  // immediately before and after Ext. Module's successful latch movement. They
+  // are selected only during the zero-line release phase so normal charging
+  // and drive-mode behavior remain unchanged.
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_207 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x207,
+                                                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x28, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_241 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 7,
+                                                         .ID = 0x241,
+                                                         .data = {0x50, 0x50, 0x0C, 0x14, 0x14, 0x53, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASED_241 = {.FD = false,
+                                                          .ext_ID = false,
+                                                          .DLC = 7,
+                                                          .ID = 0x241,
+                                                          .data = {0x3C, 0x3C, 0x16, 0x0F, 0x8F, 0x55, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_247 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x247,
+                                                         .data = {0x28, 0x0F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_247 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x247,
+                                                 .data = {0x32, 0x0F, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_284 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x284,
+                                                         .data = {0x10, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_500 = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 2,
+                                                         .ID = 0x500,
+                                                         .data = {0x01, 0x01}};
+  static constexpr CAN_frame TESLA_CHARGE_RELEASE_55A = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x55A,
+                                                         .data = {0x01, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00}};
+
+  CAN_frame TESLA_CHARGE_055 = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x055,
+                                .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55}};
+  CAN_frame TESLA_CHARGE_056 = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x056,
+                                .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56}};
+
+  static constexpr CAN_frame TESLA_CHARGE_053_INITIAL = {.FD = false,
+                                                         .ext_ID = false,
+                                                         .DLC = 8,
+                                                         .ID = 0x053,
+                                                         .data = {0x54, 0x30, 0x84, 0xC3, 0x8F, 0x28, 0x46, 0x0D}};
+  static constexpr CAN_frame TESLA_CHARGE_053_STARTING = {.FD = false,
+                                                          .ext_ID = false,
+                                                          .DLC = 8,
+                                                          .ID = 0x053,
+                                                          .data = {0xD4, 0x30, 0x84, 0xC3, 0x8F, 0x28, 0x46, 0x0D}};
+  static constexpr CAN_frame TESLA_CHARGE_053_STEADY = {.FD = false,
+                                                        .ext_ID = false,
+                                                        .DLC = 8,
+                                                        .ID = 0x053,
+                                                        .data = {0xD4, 0x30, 0x84, 0xCB, 0x8F, 0x28, 0x46, 0x0D}};
+
+  CAN_frame TESLA_CHARGE_221_Mux0 = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 8,
+                                     .ID = 0x221,
+                                     .data = {0x00, 0x55, 0x55, 0x15, 0x54, 0x51, 0x01, 0x88}};
+  CAN_frame TESLA_CHARGE_221_Mux1 = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 8,
+                                     .ID = 0x221,
+                                     .data = {0x01, 0x05, 0x55, 0x05, 0x00, 0x00, 0x00, 0x83}};
+
+  CAN_frame TESLA_CHARGE_3A1_Mux0 = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 8,
+                                     .ID = 0x3A1,
+                                     .data = {0x88, 0x42, 0x0B, 0xC8, 0x00, 0x10, 0x02, 0xBA}};
+  CAN_frame TESLA_CHARGE_3A1_Mux1 = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 8,
+                                     .ID = 0x3A1,
+                                     .data = {0x03, 0x00, 0x98, 0x6E, 0xBE, 0x00, 0x10, 0xE2}};
+
+  // 0x3A1 does not use the additive checksum used by 0x221. These are the
+  // exact counter/checksum pairs observed over a complete 16-frame Ext. Module
+  // charge cycle. Even counters are mux 0 and odd counters are mux 1.
+  uint8_t charge_frame6_3A1[16] = {0x02, 0x10, 0x22, 0x30, 0x42, 0x50, 0x62, 0x70,
+                                   0x82, 0x90, 0xA2, 0xB0, 0xC2, 0xD0, 0xE2, 0xF0};
+  uint8_t charge_frame7_3A1[16] = {0xBA, 0xE2, 0xDA, 0x02, 0xFA, 0x22, 0x1A, 0x42,
+                                   0x3A, 0x62, 0x5A, 0x82, 0x7A, 0xA2, 0x9A, 0xC2};
+
+  static constexpr CAN_frame TESLA_CHARGE_3C2_Mux0 = {.FD = false,
+                                                      .ext_ID = false,
+                                                      .DLC = 8,
+                                                      .ID = 0x3C2,
+                                                      .data = {0x10, 0x55, 0x55, 0x55, 0x00, 0x00, 0x5D, 0x19}};
+  static constexpr CAN_frame TESLA_CHARGE_3C2_Mux1 = {.FD = false,
+                                                      .ext_ID = false,
+                                                      .DLC = 8,
+                                                      .ID = 0x3C2,
+                                                      .data = {0x01, 0x55, 0x15, 0x15, 0x00, 0x00, 0x55, 0x09}};
+
   //0x082 UI_tripPlanning: "cycle_time" 1000ms
   static constexpr CAN_frame TESLA_082 = {.FD = false,
                                           .ext_ID = false,
@@ -147,6 +335,20 @@ class TeslaBattery : public CanBattery {
                                           .DLC = 8,
                                           .ID = 0x103,
                                           .data = {0x22, 0x33, 0x00, 0x00, 0x30, 0xF2, 0x20, 0x02}};
+
+  // Exact VCLEFT/VCRIGHT state advertised throughout the successful Ext. Module
+  // charge-port latch-release capture. These are selected only while the
+  // experimental charge profile is active.
+  static constexpr CAN_frame TESLA_CHARGE_102 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x102,
+                                                 .data = {0x22, 0xB3, 0x48, 0x04, 0x00, 0x00, 0xA0, 0x09}};
+  static constexpr CAN_frame TESLA_CHARGE_103 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x103,
+                                                 .data = {0x22, 0xB3, 0x88, 0x44, 0x00, 0x00, 0x20, 0x32}};
 
   //0x118 DI_systemStatus: "cycle_time" 50ms, DI_systemStatusChecksum/DI_systemStatusCounter generated via generateFrameCounterChecksum
   CAN_frame TESLA_118 = {.FD = false,
@@ -350,9 +552,9 @@ class TeslaBattery : public CanBattery {
       .ID = 0x321,
       .data = {0xEC, 0x71, 0xA7, 0x6E, 0x02, 0x6C, 0x00, 0x04}};  // Last 2 bytes are counter and checksum
 
-  //0x333 UI_chargeRequest: "cycle_time" 500ms, UI_chargeTerminationPct value = 900 [bit 16, width 10, scale 0.1, min 25, max 100]
+  //0x333 UI_chargeRequest: charge mode uses the captured 100 ms cadence; UI_chargeTerminationPct value = 900 [bit 16, width 10, scale 0.1, min 25, max 100]
   //Ref tesla-m3-pack-findings (fw 2019.20.4.2): 0x333 UI_chargeRequest DLC 4 (this frame uses DLC 5; likely firmware drift)
-  CAN_frame TESLA_333 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x333, .data = {0x84, 0x30, 0x84, 0x07, 0x02}};
+  CAN_frame TESLA_333 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x333, .data = {0x00, 0x30, 0x84, 0x07, 0x02}};
 
   //0x334 UI request: "cycle_time" 500ms, initial frame car sends
   //Ref tesla-m3-pack-findings (fw 2019.20.4.2): CAN 0x334 = UI_powertrainControl on that firmware
@@ -360,14 +562,17 @@ class TeslaBattery : public CanBattery {
                                                   .ext_ID = false,
                                                   .DLC = 8,
                                                   .ID = 0x334,
-                                                  .data = {0x3F, 0x3F, 0xC8, 0x00, 0xE2, 0x3F, 0x80, 0x1E}};
+                                                  .data = {0x3F, 0x7F, 0xC8, 0x00, 0xE2, 0x3F, 0x80, 0x5E}};
 
   //0x334 UI request: "cycle_time" 500ms, generated via generateFrameCounterChecksum
   CAN_frame TESLA_334 = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
                          .ID = 0x334,
-                         .data = {0x3F, 0x3F, 0x00, 0x0F, 0xE2, 0x3F, 0x90, 0x75}};
+                         // UI_closureConfirmed (bits 14-15) = 1 matches the
+                         // working Ext. Module charge-port release trace. Keep
+                         // all other UI powertrain controls unchanged.
+                         .data = {0x3F, 0x7F, 0x00, 0x0F, 0xE2, 0x3F, 0x90, 0xB5}};
 
   //0x3B3 UI_vehicleControl2: "cycle_time" 500ms
   //Ref tesla-m3-pack-findings (fw 2019.20.4.2): 0x3B3 UI_vehicleControl2 DLC 2 (this frame uses DLC 8; likely firmware drift)
@@ -376,6 +581,11 @@ class TeslaBattery : public CanBattery {
                                           .DLC = 8,
                                           .ID = 0x3B3,
                                           .data = {0x90, 0x80, 0x05, 0x08, 0x00, 0x00, 0x00, 0x01}};
+  static constexpr CAN_frame TESLA_CHARGE_3B3 = {.FD = false,
+                                                 .ext_ID = false,
+                                                 .DLC = 8,
+                                                 .ID = 0x3B3,
+                                                 .data = {0x90, 0x80, 0x05, 0x22, 0x80, 0x00, 0x98, 0x25}};
 
   //0x39D IBST_status: "cycle_time" 50ms, IBST_statusChecksum/IBST_statusCounter generated via generateFrameCounterChecksum
   CAN_frame TESLA_39D = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x39D, .data = {0xE1, 0x59, 0xC1, 0x27, 0x00}};
