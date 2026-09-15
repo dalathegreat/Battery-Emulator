@@ -153,21 +153,98 @@ TEST_F(BatteryAggregateTest, SingleBatteryKeepsItsScaledFields) {
   EXPECT_EQ(datalayer.battery.info.reported_total_capacity_Wh, 24000u);
 }
 
-// SOC is weighted by the capacity each pack brings, not taken from pack 1.
-TEST_F(BatteryAggregateTest, SocIsCapacityWeighted) {
+// SOC follows the emptiest pack: that is what protects the weakest one on discharge.
+TEST_F(BatteryAggregateTest, SocFollowsTheEmptiestPack) {
   add_second_pack();
+  add_third_pack();
   battery2_detected = true;
+  battery3_detected = true;
 
-  datalayer.battery.info.total_capacity_Wh = 21800;
   datalayer.battery.status.real_soc = 4100;
-  datalayer.battery2.info.total_capacity_Wh = 17900;
   datalayer.battery2.status.real_soc = 3930;
+  datalayer.battery3.status.real_soc = 5500;
 
   scale_all();
   update_aggregate_values();
 
-  // (4100 * 21800 + 3930 * 17900) / 39700
-  EXPECT_EQ(datalayer.aggregate.real_soc, 4023);
+  EXPECT_EQ(datalayer.aggregate.real_soc, 3930);
+}
+
+// Once the fullest pack climbs into the top tenth the reported SOC blends towards it, so the
+// installation arrives at 100% smoothly rather than stepping there the moment one pack tops out.
+TEST_F(BatteryAggregateTest, SocBlendsTowardsTheFullestPackNearTheTop) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.battery.status.real_soc = 5000;  // half empty
+
+  // Below the blend window the emptiest pack still has it alone
+  datalayer.battery2.status.real_soc = 8900;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.real_soc, 5000);
+
+  // Halfway into the window, halfway across the spread
+  datalayer.battery2.status.real_soc = 9500;
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.real_soc, 7250);  // 5000 + (9500 - 5000) * 500 / 1000
+
+  // A full pack hands over completely, so charging actually stops
+  datalayer.battery2.status.real_soc = 10000;
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.real_soc, 10000);
+}
+
+// The installation may only be charged as high as the lowest ceiling any pack reports, and
+// discharged as low as the highest floor.
+TEST_F(BatteryAggregateTest, DesignVoltagesTakeTheTighterBound) {
+  add_second_pack();
+  battery2_detected = true;
+
+  datalayer.battery.info.max_design_voltage_dV = 4030;
+  datalayer.battery.info.min_design_voltage_dV = 3100;
+  datalayer.battery2.info.max_design_voltage_dV = 3950;
+  datalayer.battery2.info.min_design_voltage_dV = 3250;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.max_design_voltage_dV, 3950);
+  EXPECT_EQ(datalayer.aggregate.min_design_voltage_dV, 3250);
+}
+
+// An integration that has not decoded its design voltages yet must not set the limit for
+// everyone else.
+TEST_F(BatteryAggregateTest, UndecodedDesignVoltagesAreIgnored) {
+  add_second_pack();
+  battery2_detected = true;
+
+  datalayer.battery.info.max_design_voltage_dV = 4030;
+  datalayer.battery.info.min_design_voltage_dV = 3100;
+  datalayer.battery2.info.max_design_voltage_dV = 0;
+  datalayer.battery2.info.min_design_voltage_dV = 0;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.max_design_voltage_dV, 4030);
+  EXPECT_EQ(datalayer.aggregate.min_design_voltage_dV, 3100);
+}
+
+// Power is the summed current against the shared bus voltage, divided once. Summing each pack's
+// own active_power_W spends 352.5 V as 350 V, once per pack.
+TEST_F(BatteryAggregateTest, PowerKeepsTheFractionalVolts) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.battery.status.voltage_dV = 3525;
+  datalayer.battery.status.current_dA = -10;
+  datalayer.battery2.status.current_dA = -10;
+  datalayer.battery.status.reported_current_dA = -20;  // Software.cpp sums these
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.current_dA, -20);
+  EXPECT_EQ(datalayer.aggregate.active_power_W, -705);  // not the -700 a per-pack sum gives
 }
 
 // State of health is the mean across the packs that are talking.
@@ -181,23 +258,6 @@ TEST_F(BatteryAggregateTest, SohIsAveraged) {
   update_aggregate_values();
 
   EXPECT_EQ(datalayer.aggregate.soh_pptt, 6884);
-}
-
-// Any pack at an extreme takes the reported SOC over, pack 1 included. Weighting makes this
-// load bearing: a full pack next to a half empty one averages out to something comfortable.
-TEST_F(BatteryAggregateTest, FirstPackAtAnExtremeStillHandsOver) {
-  add_second_pack();
-  battery2_detected = true;
-  datalayer.battery.info.total_capacity_Wh = 20000;
-  datalayer.battery.status.real_soc = 10000;  // full
-  datalayer.battery2.info.total_capacity_Wh = 20000;
-  datalayer.battery2.status.real_soc = 5000;
-
-  scale_all();
-  update_aggregate_values();
-
-  EXPECT_EQ(datalayer.aggregate.real_soc, 7500);       // the honest weighted average
-  EXPECT_EQ(datalayer.aggregate.reported_soc, 10000);  // but the inverter is told to stop
 }
 
 // A 19.0 A ceiling has to survive the trip out through Watts and back.
@@ -216,43 +276,25 @@ TEST_F(BatteryAggregateTest, UserCurrentLimitSurvivesTheRoundTrip) {
   EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 190);
 }
 
-// A pack that is configured but has not joined the link yet still counts towards the energy,
-// so the inverter's picture of the installation does not jump when the contactors close.
-TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCountsForEnergy) {
+// A pack that has not joined the DC link yet still counts towards the energy, so the inverter's
+// picture does not jump when the contactors close. It is detected, so it counts towards the SOC
+// too - reporting capacity for a pack while pretending its charge state does not exist would
+// describe two different installations.
+TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCounts) {
   add_second_pack();
   battery2_detected = true;
   datalayer.system.status.battery2_allowed_contactor_closing = false;
 
   datalayer.battery.info.total_capacity_Wh = 30000;
+  datalayer.battery.status.real_soc = 5000;
   datalayer.battery2.info.total_capacity_Wh = 30000;
+  datalayer.battery2.status.real_soc = 3000;
 
   scale_all();
   update_aggregate_values();
 
   EXPECT_EQ(datalayer.aggregate.total_capacity_Wh, 60000u);
-}
-
-// A pack that has not joined yet still counts towards the weighted SOC, for the same reason it
-// counts towards the energy - otherwise the SOC and the capacity the inverter is given would
-// describe two different installations. What it does not get is the hand-over: only a joined
-// pack sitting at an extreme can force the whole installation to stop.
-TEST_F(BatteryAggregateTest, SocHandoverNeedsAJoinedPack) {
-  add_second_pack();
-  battery2_detected = true;
-  datalayer.battery.info.total_capacity_Wh = 30000;
-  datalayer.battery.status.real_soc = 5000;
-  datalayer.battery2.info.total_capacity_Wh = 30000;
-  datalayer.battery2.status.real_soc = 10000;  // full
-
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
-  scale_all();
-  update_aggregate_values();
-  EXPECT_EQ(datalayer.aggregate.real_soc, 7500);
-  EXPECT_EQ(datalayer.aggregate.reported_soc, 7500);
-
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
-  update_aggregate_values();
-  EXPECT_EQ(datalayer.aggregate.reported_soc, 10000);
+  EXPECT_EQ(datalayer.aggregate.real_soc, 3000);
 }
 
 // A configured pack that has never been seen on the bus holds its power-on defaults. Those are

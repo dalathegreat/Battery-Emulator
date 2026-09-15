@@ -34,7 +34,7 @@ void GrowattWitInverter::update_values() {
   if (datalayer.battery.settings.user_set_voltage_limits_active) {
     max_charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
   } else {
-    max_charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+    max_charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   }
   GROWATT_1AC3.data.u8[4] = (max_charge_voltage_dV & 0xFF);
   GROWATT_1AC3.data.u8[5] = (max_charge_voltage_dV >> 8);
@@ -44,7 +44,7 @@ void GrowattWitInverter::update_values() {
   if (datalayer.battery.settings.user_set_voltage_limits_active) {
     min_discharge_voltage_dV = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
   } else {
-    min_discharge_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+    min_discharge_voltage_dV = datalayer.aggregate.min_design_voltage_dV;
   }
   GROWATT_1AC3.data.u8[6] = (min_discharge_voltage_dV & 0xFF);
   GROWATT_1AC3.data.u8[7] = (min_discharge_voltage_dV >> 8);

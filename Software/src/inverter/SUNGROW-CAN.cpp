@@ -163,11 +163,11 @@ void SungrowInverter::update_values() {
   SUNGROW_500.data.u8[7] = (datalayer.aggregate.reported_soc / 100);  // Battery SoC, integer %
 
   // Max voltage (eg 400.0V = 4000 , 16bits long)
-  SUNGROW_701.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  SUNGROW_701.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SUNGROW_701.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
+  SUNGROW_701.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
   // Min voltage (eg 300.0V = 3000 , 16bits long)
-  SUNGROW_701.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  SUNGROW_701.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  SUNGROW_701.data.u8[2] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
+  SUNGROW_701.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
   // Max Charging Current
   SUNGROW_701.data.u8[4] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
   SUNGROW_701.data.u8[5] = (datalayer.aggregate.max_charge_current_dA >> 8);

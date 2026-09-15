@@ -53,10 +53,10 @@ void AforeCanInverter::
   AFORE_352.data.u8[1] = (datalayer.aggregate.max_charge_current_dA >> 8);
   AFORE_352.data.u8[2] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
   AFORE_352.data.u8[3] = (datalayer.aggregate.max_discharge_current_dA >> 8);
-  AFORE_352.data.u8[4] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  AFORE_352.data.u8[5] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  AFORE_352.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  AFORE_352.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  AFORE_352.data.u8[4] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
+  AFORE_352.data.u8[5] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+  AFORE_352.data.u8[6] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
+  AFORE_352.data.u8[7] = (datalayer.aggregate.min_design_voltage_dV >> 8);
 
   /*0x353 - Fault information*/
   /* Fault H, bit, definitions

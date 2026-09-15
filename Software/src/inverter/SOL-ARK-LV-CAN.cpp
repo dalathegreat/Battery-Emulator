@@ -14,11 +14,11 @@ correctly receives data, it will respond with CAN ID 0x305 containing “00 00 0
 void SolArkLvInverter::update_values() {
 
   // Set "Charge voltage limit" to battery max value OR user supplied value
-  uint16_t charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  uint16_t charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   if (datalayer.battery.settings.user_set_voltage_limits_active)
     charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
-  if (charge_voltage_dV > datalayer.battery.info.max_design_voltage_dV)
-    charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  if (charge_voltage_dV > datalayer.aggregate.max_design_voltage_dV)
+    charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   SOLARK_351.data.u8[0] = charge_voltage_dV & 0xff;
   SOLARK_351.data.u8[1] = charge_voltage_dV >> 8;
   //Rest of setpoints in deci-units
@@ -26,8 +26,8 @@ void SolArkLvInverter::update_values() {
   SOLARK_351.data.u8[3] = datalayer.aggregate.max_charge_current_dA >> 8;
   SOLARK_351.data.u8[4] = datalayer.aggregate.max_discharge_current_dA & 0xff;
   SOLARK_351.data.u8[5] = datalayer.aggregate.max_discharge_current_dA >> 8;
-  SOLARK_351.data.u8[6] = datalayer.battery.info.min_design_voltage_dV & 0xff;
-  SOLARK_351.data.u8[7] = datalayer.battery.info.min_design_voltage_dV >> 8;
+  SOLARK_351.data.u8[6] = datalayer.aggregate.min_design_voltage_dV & 0xff;
+  SOLARK_351.data.u8[7] = datalayer.aggregate.min_design_voltage_dV >> 8;
 
   SOLARK_355.data.u8[0] = (datalayer.aggregate.reported_soc / 100) & 0xff;
   SOLARK_355.data.u8[1] = (datalayer.aggregate.reported_soc / 100) >> 8;
@@ -62,7 +62,7 @@ void SolArkLvInverter::update_values() {
     SOLARK_359.data.u8[0] |= 0x10;
   if (datalayer.aggregate.temperature_max_dC >= BATTERY_MAXTEMPERATURE)
     SOLARK_359.data.u8[0] |= 0x0C;
-  if (datalayer.aggregate.voltage_dV <= datalayer.battery.info.min_design_voltage_dV)
+  if (datalayer.aggregate.voltage_dV <= datalayer.aggregate.min_design_voltage_dV)
     SOLARK_359.data.u8[0] |= 0x04;
   if (datalayer.system.status.system_status == FAULT)
     SOLARK_359.data.u8[1] |= 0x80;

@@ -72,8 +72,8 @@ void GrowattHvInverter::
     GROWATT_3110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
   } else {
     //Battery max voltage used as charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 0, MAX 1000V)
-    GROWATT_3110.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-    GROWATT_3110.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+    GROWATT_3110.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+    GROWATT_3110.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
   }
   //Charge limited current, 125 =12.5A (0.1, A) (Min 0, Max 300A)
   GROWATT_3110.data.u8[2] = (datalayer.aggregate.max_charge_current_dA >> 8);
@@ -152,8 +152,8 @@ void GrowattHvInverter::
     GROWATT_3150.data.u8[1] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
   } else {
     //Use battery min design voltage as Discharge cutoff voltage (0.1V) [0-1000V]
-    GROWATT_3150.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-    GROWATT_3150.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+    GROWATT_3150.data.u8[0] = (datalayer.aggregate.min_design_voltage_dV >> 8);
+    GROWATT_3150.data.u8[1] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
   }
   //Main control unit temperature (0.1C) [-40 to 120*C]
   GROWATT_3150.data.u8[2] = (datalayer.aggregate.temperature_max_dC >> 8);

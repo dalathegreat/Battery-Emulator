@@ -15,9 +15,9 @@ void SmaLvInverter::
   //Map values to CAN messages
 
   //Battery charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 41V, MAX 63V, default 54V)
-  SMA_351.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
-  SMA_351.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
-  if (datalayer.battery.info.max_design_voltage_dV > MAX_VOLTAGE_DV) {
+  SMA_351.data.u8[0] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
+  SMA_351.data.u8[1] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
+  if (datalayer.aggregate.max_design_voltage_dV > MAX_VOLTAGE_DV) {
     //If the battery is designed for more than 63.0V, cap the value
     SMA_351.data.u8[0] = (MAX_VOLTAGE_DV >> 8);
     SMA_351.data.u8[1] = (MAX_VOLTAGE_DV & 0x00FF);
@@ -30,9 +30,9 @@ void SmaLvInverter::
   SMA_351.data.u8[4] = (datalayer.aggregate.max_charge_current_dA >> 8);
   SMA_351.data.u8[5] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
   //Discharge voltage (eg 300.0V = 3000 , 16bits long) (MIN 41V, MAX 48V, default 41V)
-  SMA_351.data.u8[6] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
-  SMA_351.data.u8[7] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
-  if (datalayer.battery.info.min_design_voltage_dV < MIN_VOLTAGE_DV) {
+  SMA_351.data.u8[6] = ((datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
+  SMA_351.data.u8[7] = ((datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
+  if (datalayer.aggregate.min_design_voltage_dV < MIN_VOLTAGE_DV) {
     //If the battery is designed for discharge voltage below 41.0V, cap the value
     SMA_351.data.u8[6] = (MIN_VOLTAGE_DV >> 8);
     SMA_351.data.u8[7] = (MIN_VOLTAGE_DV & 0x00FF);

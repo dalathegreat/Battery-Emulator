@@ -222,10 +222,10 @@ void FoxessEpCanInverter::
 
     foxess_ep_max_discharge_current_dA = datalayer.aggregate.max_discharge_current_dA;
   }
-  FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
-  FOXESS_1872.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  FOXESS_1872.data.u8[2] = (uint8_t)datalayer.battery.info.min_design_voltage_dV;
-  FOXESS_1872.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  FOXESS_1872.data.u8[0] = (uint8_t)datalayer.aggregate.max_design_voltage_dV;
+  FOXESS_1872.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+  FOXESS_1872.data.u8[2] = (uint8_t)datalayer.aggregate.min_design_voltage_dV;
+  FOXESS_1872.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
   FOXESS_1872.data.u8[4] = static_cast<uint8_t>(foxess_ep_max_charge_current_dA);
   FOXESS_1872.data.u8[5] = static_cast<uint8_t>(foxess_ep_max_charge_current_dA >> 8);
   FOXESS_1872.data.u8[6] = static_cast<uint8_t>(foxess_ep_max_discharge_current_dA);
@@ -475,9 +475,9 @@ void FoxessEpCanInverter::
   // Use the generic design-voltage range to estimate a stable
   // nominal pack voltage. Battery-Emulator does not currently
   // provide a dedicated generic nominal-voltage field.
-  const uint32_t foxess_min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  const uint32_t foxess_min_design_voltage_dV = datalayer.aggregate.min_design_voltage_dV;
 
-  const uint32_t foxess_max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  const uint32_t foxess_max_design_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
 
   uint32_t foxess_nominal_voltage_dV = 0U;
 

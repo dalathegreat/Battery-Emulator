@@ -118,12 +118,12 @@ void FerroampCanInverter::
   FERROAMP_4211.data.u8[5] = ((datalayer.aggregate.temperature_max_dC + TEMPERATURE_OFFSET_dC) >> 8);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  FERROAMP_4221.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  FERROAMP_4221.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  FERROAMP_4221.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
+  FERROAMP_4221.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
 
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  FERROAMP_4221.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  FERROAMP_4221.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  FERROAMP_4221.data.u8[2] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
+  FERROAMP_4221.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
 
   //Max ChargeCurrent
   FERROAMP_4221.data.u8[4] = ((datalayer.aggregate.max_charge_current_dA + 30000) & 0x00FF);
@@ -184,10 +184,10 @@ void FerroampCanInverter::
   FERROAMP_42C1.data.u8[1] = (bms_temperature_offset_dC >> 8);
   FERROAMP_42C1.data.u8[2] = 0;
   FERROAMP_42C1.data.u8[3] = 0;
-  FERROAMP_42C1.data.u8[4] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  FERROAMP_42C1.data.u8[5] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  FERROAMP_42C1.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  FERROAMP_42C1.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  FERROAMP_42C1.data.u8[4] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
+  FERROAMP_42C1.data.u8[5] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+  FERROAMP_42C1.data.u8[6] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
+  FERROAMP_42C1.data.u8[7] = (datalayer.aggregate.min_design_voltage_dV >> 8);
 
   //42D1 current limits, signed and without +30000 offset.
   int16_t ferroamp_max_charge_current_dA = datalayer.aggregate.max_charge_current_dA;

@@ -14,11 +14,11 @@ void PylonLvInverter::update_values() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
   // Set "battery charge voltage" to volts + 1 or user supplied value
-  uint16_t charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  uint16_t charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   if (datalayer.battery.settings.user_set_voltage_limits_active)
     charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
-  if (charge_voltage_dV > datalayer.battery.info.max_design_voltage_dV)
-    charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  if (charge_voltage_dV > datalayer.aggregate.max_design_voltage_dV)
+    charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   PYLON_351.data.u8[0] = charge_voltage_dV & 0xff;
   PYLON_351.data.u8[1] = charge_voltage_dV >> 8;
   PYLON_351.data.u8[2] = datalayer.aggregate.max_charge_current_dA & 0xff;
@@ -64,7 +64,7 @@ void PylonLvInverter::update_values() {
     PYLON_359.data.u8[0] |= 0x10;
   if (datalayer.aggregate.temperature_max_dC >= BATTERY_MAXTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x0C;
-  if (datalayer.aggregate.voltage_dV <= datalayer.battery.info.min_design_voltage_dV)
+  if (datalayer.aggregate.voltage_dV <= datalayer.aggregate.min_design_voltage_dV)
     PYLON_359.data.u8[0] |= 0x04;
   if (datalayer.system.status.system_status == FAULT)
     PYLON_359.data.u8[1] |= 0x80;
@@ -87,8 +87,8 @@ void PylonLvInverter::update_values() {
     PYLON_359.data.u8[2] |= 0x10;
   if (datalayer.aggregate.temperature_max_dC >= BATTERY_MAXTEMPERATURE * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x0C;
-  if (datalayer.aggregate.voltage_dV <= warning_threshold_of_min(datalayer.battery.info.min_design_voltage_dV,
-                                                                 datalayer.battery.info.max_design_voltage_dV))
+  if (datalayer.aggregate.voltage_dV <=
+      warning_threshold_of_min(datalayer.aggregate.min_design_voltage_dV, datalayer.aggregate.max_design_voltage_dV))
     PYLON_359.data.u8[2] |= 0x04;
   // we never set PYLON_359.data.u8[3] |= 0x80 called "BMS internal"
   // +10 margin for the same reason as the error check above - avoids firing
@@ -99,9 +99,9 @@ void PylonLvInverter::update_values() {
   PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
   if (datalayer.system.status.system_status == FAULT)
     PYLON_35C.data.u8[0] = 0x00;  // disable all
-  else if (datalayer.aggregate.voltage_dV < datalayer.battery.info.min_design_voltage_dV)
+  else if (datalayer.aggregate.voltage_dV < datalayer.aggregate.min_design_voltage_dV)
     PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
-  else if (datalayer.aggregate.voltage_dV >= datalayer.battery.info.max_design_voltage_dV)
+  else if (datalayer.aggregate.voltage_dV >= datalayer.aggregate.max_design_voltage_dV)
     PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.aggregate.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV)

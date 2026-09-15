@@ -33,9 +33,9 @@ void PylonLV485InverterProtocol::update_values() {
 
   min_cell_v = datalayer.aggregate.cell_min_voltage_mV;
 
-  max_charge_v_mv = datalayer.battery.info.max_design_voltage_dV * 100;
+  max_charge_v_mv = datalayer.aggregate.max_design_voltage_dV * 100;
 
-  min_discharge_v_mv = datalayer.battery.info.min_design_voltage_dV * 100;
+  min_discharge_v_mv = datalayer.aggregate.min_design_voltage_dV * 100;
 
   max_charge_i_dA = datalayer.aggregate.max_charge_current_dA;
 

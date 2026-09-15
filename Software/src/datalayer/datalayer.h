@@ -489,6 +489,12 @@ struct DATALAYER_AGGREGATE_TYPE {
   /** uint16_t */
   /** DC link voltage in deciVolt. Packs sit in parallel, so this is pack 1's measurement */
   uint16_t voltage_dV = 3700;
+  /** Highest voltage the installation may be charged to, in deciVolt. The lowest ceiling any
+   * pack reports, so a weaker pack is never pushed past what it will tolerate */
+  uint16_t max_design_voltage_dV = 5000;
+  /** Lowest voltage the installation may be discharged to, in deciVolt. The highest floor any
+   * pack reports */
+  uint16_t min_design_voltage_dV = 2500;
   /** Charge current the inverter is allowed to push, in deciAmpere */
   uint16_t max_charge_current_dA = 0;
   /** Discharge current the inverter is allowed to pull, in deciAmpere */

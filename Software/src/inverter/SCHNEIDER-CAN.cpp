@@ -50,15 +50,15 @@ void SchneiderInverter::
 
   //Map values to CAN messages
   //Max charge voltage+2 (eg 10000.00V = 1000000 , 32bits long)
-  SE_321.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV * 10) >> 24);
-  SE_321.data.u8[1] = (((datalayer.battery.info.max_design_voltage_dV * 10) & 0x00FF0000) >> 16);
-  SE_321.data.u8[2] = (((datalayer.battery.info.max_design_voltage_dV * 10) & 0x0000FF00) >> 8);
-  SE_321.data.u8[3] = ((datalayer.battery.info.max_design_voltage_dV * 10) & 0x000000FF);
+  SE_321.data.u8[0] = ((datalayer.aggregate.max_design_voltage_dV * 10) >> 24);
+  SE_321.data.u8[1] = (((datalayer.aggregate.max_design_voltage_dV * 10) & 0x00FF0000) >> 16);
+  SE_321.data.u8[2] = (((datalayer.aggregate.max_design_voltage_dV * 10) & 0x0000FF00) >> 8);
+  SE_321.data.u8[3] = ((datalayer.aggregate.max_design_voltage_dV * 10) & 0x000000FF);
   //Minimum discharge voltage+2 (eg 10000.00V = 1000000 , 32bits long)
-  SE_321.data.u8[4] = ((datalayer.battery.info.min_design_voltage_dV * 10) >> 24);
-  SE_321.data.u8[5] = (((datalayer.battery.info.min_design_voltage_dV * 10) & 0x00FF0000) >> 16);
-  SE_321.data.u8[6] = (((datalayer.battery.info.min_design_voltage_dV * 10) & 0x0000FF00) >> 8);
-  SE_321.data.u8[7] = ((datalayer.battery.info.min_design_voltage_dV * 10) & 0x000000FF);
+  SE_321.data.u8[4] = ((datalayer.aggregate.min_design_voltage_dV * 10) >> 24);
+  SE_321.data.u8[5] = (((datalayer.aggregate.min_design_voltage_dV * 10) & 0x00FF0000) >> 16);
+  SE_321.data.u8[6] = (((datalayer.aggregate.min_design_voltage_dV * 10) & 0x0000FF00) >> 8);
+  SE_321.data.u8[7] = ((datalayer.aggregate.min_design_voltage_dV * 10) & 0x000000FF);
 
   //Maximum charge current+2 (eg 10000.00A = 1000000) TODO: Note s32 bit, which direction?
   SE_322.data.u8[0] = ((datalayer.aggregate.max_charge_current_dA * 10) >> 24);

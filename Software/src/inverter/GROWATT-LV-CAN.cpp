@@ -23,8 +23,8 @@ void GrowattLvInverter::
   //Map values to CAN messages
 
   //Battery charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 41V, MAX 63V, default 54V)
-  GROWATT_311.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
-  GROWATT_311.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
+  GROWATT_311.data.u8[0] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
+  GROWATT_311.data.u8[1] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
   //Charge limited current, 125 =12.5A (0.1, A)
   GROWATT_311.data.u8[2] = (datalayer.aggregate.max_charge_current_dA >> 8);
   GROWATT_311.data.u8[3] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);

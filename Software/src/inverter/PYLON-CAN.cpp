@@ -25,8 +25,8 @@ void PylonInverter::
     discharge_cutoff_voltage_dV = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
     charge_cutoff_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
   } else {
-    discharge_cutoff_voltage_dV = (datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV);
-    charge_cutoff_voltage_dV = (datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV);
+    discharge_cutoff_voltage_dV = (datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV);
+    charge_cutoff_voltage_dV = (datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV);
   }
 
   //There are more mappings that could be added, but this should be enough to use as a starting point

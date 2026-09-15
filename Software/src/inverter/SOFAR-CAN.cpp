@@ -13,15 +13,15 @@ void SofarInverter::
 
   // ----- Frame 0x351 – limits/voltages -----
   // Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
-  SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
   SOFAR_351.data.u8[2] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
   SOFAR_351.data.u8[3] = (datalayer.aggregate.max_charge_current_dA >> 8);
   SOFAR_351.data.u8[4] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
   SOFAR_351.data.u8[5] = (datalayer.aggregate.max_discharge_current_dA >> 8);
   // Minvoltage (eg 300.0V = 3000 , 16bits long) Discharge Cutoff Voltage
-  SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[6] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[7] = (datalayer.aggregate.min_design_voltage_dV >> 8);
 
   // ----- Frame 0x355 – SoC / SoH -----
   // SoC deception only to CAN (we do not touch datalayer)
@@ -59,9 +59,9 @@ void SofarInverter::
   // Byte0: Battery type (0x01 = Li-ion), Byte1..3: BMS version (vendor-defined),
   // Byte4..5: Nominal capacity (Ah, uint16), Byte6..7: Manufacturer ID (optional)
   // Capacity calculation (approx): Wh / (Vmax * 0.1)
-  if (datalayer.battery.info.max_design_voltage_dV > 20) {  //div0 protection
+  if (datalayer.aggregate.max_design_voltage_dV > 20) {  //div0 protection
     calculated_capacity_AH =
-        (datalayer.aggregate.reported_total_capacity_Wh / (datalayer.battery.info.max_design_voltage_dV * 0.1));
+        (datalayer.aggregate.reported_total_capacity_Wh / (datalayer.aggregate.max_design_voltage_dV * 0.1));
   }
   // Set type + a simple version triplet 1.0.0 (can be adjusted)
   SOFAR_35F.data.u8[0] = 0x01;  // Li-ion

@@ -5,6 +5,10 @@
 #include "../devboard/utils/value_mapping.h"
 #include "datalayer.h"
 
+/* SOC at which the aggregate starts blending from the emptiest pack towards the fullest one,
+   in integer-percent x 100. Below this the emptiest pack has it alone. */
+static constexpr uint16_t SOC_BLEND_START_PPTT = 9000;
+
 /* The safety layer, the SOC taper and the low pass filter all rewrite a pack's power limits in
    place, so by the time the web page renders, what the BMS actually asked for is gone. Keep a
    copy while it is still the driver's own number. */
@@ -71,7 +75,7 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
   }
   agg.reported_soc = scaled_soc;
 
-  if (agg.total_capacity_Wh > 0 && agg.real_soc > 0) {
+  if (agg.total_capacity_Wh > 0) {
     agg.reported_total_capacity_Wh = ((uint64_t)agg.total_capacity_Wh * delta_pct) / 10000;
     agg.reported_remaining_capacity_Wh = ((uint64_t)agg.reported_total_capacity_Wh * scaled_soc) / 10000;
   } else {
@@ -85,12 +89,15 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
  * With one battery this is a plain copy of datalayer.battery, so a single-pack system ends up
  * with exactly the numbers it had before this struct existed.
  *
- * Packs that are configured but have not joined the DC link yet are counted for energy exactly
- * as they were before, so the inverter's picture of the installation does not jump when the
- * contactors finally close. Their cell and temperature extremes, and their state of health, are
- * only folded in once the pack is actually talking: a configured but silent pack still holds
- * its power-on defaults (3700 mV cells, 0 dC, 99.00%), which would otherwise drag the aggregate
- * somewhere the real installation never went.
+ * Three different gates decide whether a pack counts, and they are not interchangeable:
+ *
+ *   configured - the pack object exists. Energy counts on this one, whether or not the pack has
+ *                joined the DC link yet, so the inverter's picture of the installation does not
+ *                jump when the contactors finally close.
+ *   detected   - the pack has spoken on the bus. Everything measured needs this: a configured
+ *                but silent pack still holds its power-on defaults (3700 mV cells, 0 dC, 0% SOC,
+ *                99.00% SOH), which are not measurements and would drag the aggregate somewhere
+ *                the installation never went.
  *
  * The limit fields are deliberately not touched here - see update_aggregate_limits().
  */
@@ -99,41 +106,26 @@ void update_aggregate_values() {
 
   agg.voltage_dV = datalayer.battery.status.voltage_dV;
   agg.current_dA = datalayer.battery.status.reported_current_dA;  // Already the sum of every pack
-  agg.active_power_W = datalayer.battery.status.active_power_W;
-  agg.real_soc = datalayer.battery.status.real_soc;
   agg.cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
   agg.cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
   agg.temperature_max_dC = datalayer.battery.status.temperature_max_dC;
   agg.temperature_min_dC = datalayer.battery.status.temperature_min_dC;
+  agg.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  agg.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   agg.total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
   agg.remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
   agg.total_charged_battery_Wh = datalayer.battery.status.total_charged_battery_Wh;
   agg.total_discharged_battery_Wh = datalayer.battery.status.total_discharged_battery_Wh;
 
-  /* SOC is weighted by the capacity each pack brings: a small pack sitting at 39% cannot move
-     the installation as far as a large one at 41%. 64 bit on the way in - three packs at
-     10000 pptt times a six figure capacity walks straight off the end of 32. */
-  uint64_t soc_weighted = (uint64_t)datalayer.battery.status.real_soc * datalayer.battery.info.total_capacity_Wh;
+  uint16_t lowest_soc = datalayer.battery.status.real_soc;
+  uint16_t highest_soc = datalayer.battery.status.real_soc;
   uint32_t soh_sum = datalayer.battery.status.soh_pptt;
   uint8_t soh_packs = 1;
-
-  /* A pack sitting at an extreme takes the reported SOC over, so the inverter and the safety
-     layer stop charging or discharging the whole installation with it. Weighting makes this
-     load bearing rather than cosmetic: a full pack beside a half empty one averages out to
-     something comfortable, and without the hand-over nothing would stop the charge. Pack 1 is
-     checked too, for the same reason. */
-  uint16_t soc_override = 0;
-  bool soc_overridden = (datalayer.battery.status.real_soc < 100) || (datalayer.battery.status.real_soc > 9900);
-  if (soc_overridden) {
-    soc_override = datalayer.battery.status.real_soc;
-  }
 
   if (datalayer.system.info.configured_batteries > 1) {
     const DATALAYER_BATTERY_TYPE* extra_pack[2] = {battery2 ? &datalayer.battery2 : nullptr,
                                                    battery3 ? &datalayer.battery3 : nullptr};
     const bool pack_detected[2] = {battery2_detected, battery3_detected};
-    const bool pack_joined[2] = {datalayer.system.status.battery2_allowed_contactor_closing,
-                                 datalayer.system.status.battery3_allowed_contactor_closing};
 
     for (uint8_t i = 0; i < 2; i++) {
       const DATALAYER_BATTERY_TYPE* pack = extra_pack[i];
@@ -143,10 +135,8 @@ void update_aggregate_values() {
 
       agg.total_capacity_Wh += pack->info.total_capacity_Wh;
       agg.remaining_capacity_Wh += pack->status.remaining_capacity_Wh;
-      agg.active_power_W += pack->status.active_power_W;
       agg.total_charged_battery_Wh += pack->status.total_charged_battery_Wh;
       agg.total_discharged_battery_Wh += pack->status.total_discharged_battery_Wh;
-      soc_weighted += (uint64_t)pack->status.real_soc * pack->info.total_capacity_Wh;
 
       if (!pack_detected[i]) {
         continue;  // Never seen on the bus, its defaults are not measurements
@@ -156,27 +146,47 @@ void update_aggregate_values() {
       agg.cell_min_voltage_mV = MIN(agg.cell_min_voltage_mV, pack->status.cell_min_voltage_mV);
       agg.temperature_max_dC = MAX(agg.temperature_max_dC, pack->status.temperature_max_dC);
       agg.temperature_min_dC = MIN(agg.temperature_min_dC, pack->status.temperature_min_dC);
+      lowest_soc = MIN(lowest_soc, pack->status.real_soc);
+      highest_soc = MAX(highest_soc, pack->status.real_soc);
       soh_sum += pack->status.soh_pptt;
       soh_packs++;
 
-      if (pack_joined[i] && ((pack->status.real_soc < 100) || (pack->status.real_soc > 9900))) {
-        soc_override = pack->status.real_soc;
-        soc_overridden = true;
+      /* The installation may only be charged as high as the lowest ceiling any pack reports,
+         and only discharged as low as the highest floor, or a mismatched pack gets pushed past
+         what it will tolerate. Zeroes are skipped: an integration that has not decoded these
+         yet must not set the limit for everyone. */
+      if (pack->info.max_design_voltage_dV > 0) {
+        agg.max_design_voltage_dV = MIN(agg.max_design_voltage_dV, pack->info.max_design_voltage_dV);
+      }
+      if (pack->info.min_design_voltage_dV > 0) {
+        agg.min_design_voltage_dV = MAX(agg.min_design_voltage_dV, pack->info.min_design_voltage_dV);
       }
     }
   }
 
-  if (agg.total_capacity_Wh > 0) {
-    agg.real_soc = (uint16_t)(soc_weighted / agg.total_capacity_Wh);
+  /* Power from the summed current and the shared bus voltage, dividing once at the end. Summing
+     each pack's own active_power_W loses most of a volt per pack: that figure is calculated as
+     current_dA * (voltage_dV / 100), and the integer division there throws away everything
+     below a whole Volt - 352.5 V is spent as 350 V, three times over in a triple setup. */
+  agg.active_power_W = ((int32_t)agg.voltage_dV * (int32_t)agg.current_dA) / 100;
+
+  /* SOC follows the emptiest pack, which is what protects the weakest one on discharge. Once
+     the fullest pack climbs into the top tenth, blend towards it so the installation arrives at
+     100% smoothly instead of stepping there the moment one pack tops out - and so that charging
+     does stop, which reporting the emptiest pack alone would never do. At 100% on the fullest
+     pack the blend has handed over completely. A single pack has lowest == highest, so this is
+     its own SOC either way. */
+  if (highest_soc >= SOC_BLEND_START_PPTT) {
+    uint32_t blend = (uint32_t)(highest_soc - SOC_BLEND_START_PPTT);
+    uint32_t spread = (highest_soc > lowest_soc) ? (uint32_t)(highest_soc - lowest_soc) : 0u;
+    agg.real_soc = (uint16_t)(lowest_soc + (spread * blend) / (10000u - SOC_BLEND_START_PPTT));
+  } else {
+    agg.real_soc = lowest_soc;
   }
+
   agg.soh_pptt = soh_sum / soh_packs;
 
   apply_soc_window(agg);
-
-  if (soc_overridden) {
-    agg.reported_soc = soc_override;
-    agg.reported_remaining_capacity_Wh = ((uint64_t)agg.reported_total_capacity_Wh * agg.reported_soc) / 10000;
-  }
 }
 
 /* The limits the inverter is finally told about.
@@ -208,7 +218,7 @@ void update_aggregate_limits() {
   agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
   uint16_t conversion_voltage_dV = agg.voltage_dV;
   if (conversion_voltage_dV <= 10) {
-    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+    conversion_voltage_dV = agg.max_design_voltage_dV;
   }
   if (conversion_voltage_dV > 10) {
     agg.max_charge_current_dA = power_W_to_current_dA(agg.max_charge_power_W, conversion_voltage_dV);
