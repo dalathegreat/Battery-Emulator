@@ -468,9 +468,9 @@ void setup_battery() {
           battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
-          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                             &datalayer.system.status.battery2_allowed_contactor_closing,
-                                             can_config.battery_double);
+          battery2 =
+              new KiaHyundai64Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                      can_config.battery_double);
           break;
         case BatteryType::MgGen1:
           battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
@@ -490,7 +490,8 @@ void setup_battery() {
           battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::RenaultZoe2:
-          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 =
+              new RenaultZoeGen2Battery(&datalayer.battery2, &datalayer_extended.zoePH2_2, can_config.battery_double);
           break;
         case BatteryType::TestFake:
           battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
@@ -545,6 +546,11 @@ void setup_battery() {
       battery3->setup();
     }
   }
+
+  /* Count what actually got created, not what the user ticked: a type that does not support
+     parallel packs leaves battery2/battery3 null above. events.cpp reads this to decide whether
+     an event message has to name its pack. */
+  datalayer.system.info.configured_batteries = 1 + (battery2 != nullptr) + (battery3 != nullptr);
 }
 
 /* User-selected Nissan LEAF settings */

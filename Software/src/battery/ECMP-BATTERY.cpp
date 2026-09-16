@@ -117,21 +117,21 @@ void EcmpBattery::update_values() {
   }
 
   if (battery_InterlockOpen) {
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   if (pid_12v < 11000) {
-    set_event(EVENT_12V_LOW, 11);
+    set_event(EVENT_12V_LOW, 11, battery_index);
   } else {
-    clear_event(EVENT_12V_LOW);
+    clear_event(EVENT_12V_LOW, battery_index);
   }
 
   if (pid_reason_open == 7) {  //Invalid status
-    set_event(EVENT_CONTACTOR_OPEN, 0);
+    set_event(EVENT_CONTACTOR_OPEN, 0, battery_index);
   } else {
-    clear_event(EVENT_CONTACTOR_OPEN);
+    clear_event(EVENT_CONTACTOR_OPEN, battery_index);
   }
 }
 
@@ -617,7 +617,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x694:  // Poll reply
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-      // Handle user requested functionality (if requested)
+      // Handle user requested functionality first if ongoing
       if (UserRequestContactorReset) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,

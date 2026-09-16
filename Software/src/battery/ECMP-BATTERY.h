@@ -440,8 +440,6 @@ class EcmpBattery : public UdsCanBattery {
   uint8_t ContactorResetStatemachine = 0;
   uint8_t CollisionResetStatemachine = 0;
   uint8_t IsolationResetStatemachine = 0;
-  uint8_t DisableIsoMonitoringStatemachine = 0;
-  uint8_t timeSpentDisableIsoMonitoring = 0;
   uint8_t timeSpentContactorReset = 0;
   uint8_t timeSpentCollisionReset = 0;
   uint8_t timeSpentIsolationReset = 0;

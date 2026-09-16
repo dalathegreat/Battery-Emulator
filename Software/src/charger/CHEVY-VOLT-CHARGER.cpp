@@ -77,11 +77,8 @@ void ChevyVoltCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
 }
 
 void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
-  uint16_t Vol_temp = 0;
-
   uint16_t setpoint_HV_VDC = floor(datalayer.charger.charger_setpoint_HV_VDC);
   uint16_t setpoint_HV_IDC = floor(datalayer.charger.charger_setpoint_HV_IDC);
-  uint16_t setpoint_HV_IDC_END = floor(datalayer.charger.charger_setpoint_HV_IDC_END);
   uint8_t charger_mode = MODE_DISABLED;
 
   /* Send keepalive with mode every 30ms */
@@ -133,24 +130,11 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
 
     /* current setting */
     charger_set_targets.data.u8[1] = setpoint_HV_IDC * 20;
-    Vol_temp = setpoint_HV_VDC * 2;
 
-    /* first 2 bits are MSB of the voltage command */
-    charger_set_targets.data.u8[2] = highByte(Vol_temp);
-
-    /* LSB of the voltage command. Then MSB LSB is divided by 2 */
-    charger_set_targets.data.u8[3] = lowByte(Vol_temp);
+    /* voltage command */
+    charger_set_targets.data.u8[2] = ((uint8_t)((setpoint_HV_VDC * 2) >> 8));
+    charger_set_targets.data.u8[3] = ((uint8_t)((setpoint_HV_VDC * 2) & 0xff));
 
     transmit_can_frame(&charger_set_targets);
-  }
-
-  /* Serial echo every 5s of charger stats */
-  if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
-    previousMillis5000ms = currentMillis;
-    logging.printf("Charger AC in IAC=%fA VAC=%fV\n", (double)AC_input_current(), (double)AC_input_voltage());
-    logging.printf("Charger HV out IDC=%fA VDC=%fV\n", (double)HVDC_output_current(), (double)HVDC_output_voltage());
-    logging.printf("Charger LV out IDC=%fA VDC=%fV\n", (double)LVDC_output_current(), (double)LVDC_output_voltage());
-    logging.printf("Charger mode=%s\n", (charger_mode > MODE_DISABLED) ? "Enabled" : "Disabled");
-    logging.printf("Charger HVset=%uV,%uA finishCurrent=%uA\n", setpoint_HV_VDC, setpoint_HV_IDC, setpoint_HV_IDC_END);
   }
 }
