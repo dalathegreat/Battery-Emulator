@@ -991,7 +991,7 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
       pid_avg_cell_voltage = value;
       break;
     case PID_CURRENT:
-      pid_current = -(((value)-76800) * 155) / 10;
+      pid_current = -(((value - 76800) * 155) / 10);
       break;
     case PID_INSULATION_NEG:
       pid_insulation_res_neg = value;
