@@ -58,8 +58,10 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
     {"contactorOpen", "Open Contactors", "a contactor open request?",
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
+#ifndef SMALL_FLASH_DEVICE
     {"resetSOH", "Perform degradation reset", "reset degradation data?",
      [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
+#endif
     {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
      [](Battery* b) { return b && b->supports_factory_mode_method(); }, [](Battery* b) { b->set_factory_mode(); }},
     {"toggleSOC", "Toggle SOC method",

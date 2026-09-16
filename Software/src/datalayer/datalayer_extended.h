@@ -754,12 +754,14 @@ struct DATALAYER_INFO_TESLA {
 };
 
 struct DATALAYER_INFO_NISSAN_LEAF {
+#ifndef SMALL_FLASH_DEVICE
   /** Cryptographic challenge to be solved */
   uint32_t CryptoChallenge;
   /** Solution for crypto challenge, MSBs */
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+#endif
   /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
    * Derived in the driver rather than at each display site so the per-generation nominal
    * voltage is stated once.
@@ -832,8 +834,10 @@ struct DATALAYER_INFO_NISSAN_LEAF {
    * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
    * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */
   uint8_t StatusSeen;
+#ifndef SMALL_FLASH_DEVICE
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
+#endif
 
   /** Battery info, stores raw HEX values for ASCII chars. The serial number is 16 characters, not
    * null-terminated. */
