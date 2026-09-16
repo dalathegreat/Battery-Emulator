@@ -224,6 +224,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
   //buttons the page adds next land in the same panel.
   String get_dtc_html() { return battery_dl ? render_dtc_section(battery_dl->dtc) : String(); }
 
+#ifndef SMALL_FLASH_DEVICE
   //The degradation reset gets a panel of its own: the challenge values its sequence fills in, above
   //the button that starts it.
   String get_command_prefix_html(const char* identifier) {
@@ -245,6 +246,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     return content;
   }
+#endif
 
  private:
   //One status row, Unknown until the broadcast carrying it has arrived. A true/false flag shows as
