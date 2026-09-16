@@ -35,8 +35,16 @@ class NissanLeafBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+#ifndef SMALL_FLASH_DEVICE
   bool supports_reset_SOH();
-  void reset_SOH() { UserRequestSOHreset = true; }
+  //Checked again here rather than trusting the caller: the web route runs the command without
+  //asking whether the page would have offered it.
+  void reset_SOH() {
+    if (supports_reset_SOH()) {
+      UserRequestSOHreset = true;
+    }
+  }
+#endif
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
@@ -60,7 +68,9 @@ class NissanLeafBattery : public CanBattery {
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
+#ifndef SMALL_FLASH_DEVICE
   bool UserRequestSOHreset = false;
+#endif
 
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.
@@ -87,7 +97,9 @@ class NissanLeafBattery : public CanBattery {
   NissanLeafHtmlRenderer renderer;
 
   bool is_message_corrupt(CAN_frame rx_frame);
+#ifndef SMALL_FLASH_DEVICE
   void clearSOH(void);
+#endif
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;
@@ -364,12 +376,12 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_temp_polled_min = 0;
   uint8_t BatterySerialNumber[16] = {0};  // 16 ASCII characters, not null-terminated
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
-  uint8_t stateMachineClearSOH = 0xFF;
 
 #ifndef SMALL_FLASH_DEVICE
 
   // Clear SOH values
 
+  uint8_t stateMachineClearSOH = 0xFF;
   uint32_t incomingChallenge = 0xFFFFFFFF;
   uint8_t solvedChallenge[8] = {0};
   bool challengeFailed = false;
