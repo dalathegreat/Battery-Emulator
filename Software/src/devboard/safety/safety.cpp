@@ -343,8 +343,8 @@ void update_machineryprotection() {
       if (battery) {
         battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
       }
-      const int32_t charge_power_W = (int32_t)peak_charge_dA * (datalayer.battery.status.voltage_dV / 100);
-      const int32_t discharge_power_W = (int32_t)peak_discharge_dA * (datalayer.battery.status.voltage_dV / 100);
+      const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, datalayer.battery.status.voltage_dV);
+      const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, datalayer.battery.status.voltage_dV);
 
       // Inverter is charging with more power than battery wants!
       if (charge_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
