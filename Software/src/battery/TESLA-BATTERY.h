@@ -47,6 +47,13 @@ class TeslaBattery : public CanBattery {
 
   bool supports_manual_balancing() { return true; }
 
+  bool supports_charge_line_measurements() { return charge_line_measurements_supported; }
+  bool is_charge_line_data_valid();
+  float get_charge_line_voltage_V() { return charge_line_voltage_V; }
+  float get_charge_line_current_A() { return charge_line_current_A; }
+  float get_charge_line_power_W() { return charge_line_power_W; }
+  float get_charge_line_current_limit_A() { return charge_line_current_limit_A; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
   static constexpr const char* NameSX = "Tesla Model S/X";
@@ -126,6 +133,15 @@ class TeslaBattery : public CanBattery {
   uint8_t muxNumber_TESLA_7FF = 0;
   //Max percentage charge tracker
   uint16_t previous_max_percentage = 0;
+
+  bool charge_line_measurements_supported = false;
+  bool charge_line_frame_received = false;
+  unsigned long last_charge_line_frame_millis = 0;
+  float charge_line_voltage_V = 0.0f;
+  float charge_line_current_A = 0.0f;
+  float charge_line_power_W = 0.0f;
+  float charge_line_current_limit_A = 0.0f;
+  static const unsigned long CHARGE_LINE_RX_TIMEOUT_MS = 2000;
 
   //0x082 UI_tripPlanning: "cycle_time" 1000ms
   static constexpr CAN_frame TESLA_082 = {.FD = false,
