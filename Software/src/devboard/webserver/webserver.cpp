@@ -49,6 +49,7 @@ static MyTimer ota_progress_timer = MyTimer(1000);
 #include "can_logging_html.h"
 #include "can_replay_html.h"
 #include "cellmonitor_html.h"
+#include "checked_html.h"
 #include "debug_logging_html.h"
 #include "events_html.h"
 #include "index_html.h"
@@ -1290,9 +1291,37 @@ static void render_battery_card(String& content, const String& style, const Batt
   content += "</div>";
 }
 
+/* The main page is a little over 12 kB with two packs, and it used to be assembled by two
+   hundred appends onto an empty String. Arduino's String grows by reallocating, so that is two
+   hundred chances to ask a heap that has been up for weeks for an ever larger contiguous block -
+   and when one of those fails, concat() drops the append and returns silently. The page then
+   arrives truncated at whatever point the heap gave out, which is why it sometimes renders with
+   elements missing. Reserving up front turns two hundred chances to fail into one, and that one
+   is checked, at a size that leaves the largest free block mostly intact: three packs come to
+   about 13.6 kB, so this is headroom rather than a land grab. Note that it lowers the peak
+   rather than raising it - a realloc holds the old buffer and the new one at the same time, so
+   growing to 12 kB by halves was already touching 25 kB at the moment it crossed over.
+
+   The proper fix is the one send_advanced_battery_page() uses: an AsyncAbstractResponse that
+   emits the page in stages so it is never held whole. That is a rewrite of this function and
+   the three others like it, and worth doing separately. */
+static constexpr size_t MAIN_PAGE_RESERVE_BYTES = 16384;
+
+static String low_memory_page(const char* title) {
+  return String("<h2>") + title +
+         "</h2><h4 style='color: #F5CC00;'>Not enough free memory to render this page right now. "
+         "Retrying in a few seconds.</h4>"
+         "<script>setTimeout(function(){location.reload(true);},5000);</script>";
+}
+
 String processor(const String& var) {
   if (var == "X") {
-    String content = "";
+    CheckedHtml content;
+    if (!content.reserve(MAIN_PAGE_RESERVE_BYTES)) {
+      /* Say so and come back for another try, rather than serving half a page that looks like
+         the emulator has lost half its hardware. */
+      return low_memory_page("Battery Emulator");
+    }
     content += "<style>";
     content += "body { background-color: black; color: white; }";
     content +=
@@ -1785,7 +1814,11 @@ String processor(const String& var) {
     content += "})();";
     content += "</script>";
 
-    return content;
+    if (!content.good()) {
+      // An append failed somewhere above. Serving what we have would look like missing hardware.
+      return low_memory_page("Battery Emulator");
+    }
+    return content.take();
   }
   return String();
 }
