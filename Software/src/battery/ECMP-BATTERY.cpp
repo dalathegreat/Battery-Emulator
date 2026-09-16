@@ -500,113 +500,32 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //Not available on e-C4, neither on Opel CorsaE 50kWh, neither on Vivaro 75kWh
       break;
     case 0x6ED:
-      cellvoltages[32] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[33] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[34] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[35] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6EE:
-      cellvoltages[36] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[37] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[38] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[39] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6EF:
-      cellvoltages[40] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[41] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[42] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[43] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F0:
-      cellvoltages[44] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[45] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[46] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[47] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F1:
-      cellvoltages[48] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[49] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[50] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[51] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F2:
-      cellvoltages[52] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[53] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[54] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[55] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F3:
-      cellvoltages[56] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[57] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[58] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[59] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F4:
-      cellvoltages[60] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[61] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[62] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[63] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F5:
-      cellvoltages[64] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[65] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[66] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[67] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F6:
-      cellvoltages[68] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[69] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[70] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[71] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F7:
-      cellvoltages[72] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[73] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[74] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[75] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F8:
-      cellvoltages[76] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[77] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[78] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[79] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6F9:
-      cellvoltages[80] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[81] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[82] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[83] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6FA:
-      cellvoltages[84] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[85] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[86] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[87] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6FB:
-      cellvoltages[88] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[89] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[91] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6FC:
-      cellvoltages[92] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[93] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[94] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[95] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
     case 0x6FD:
-      cellvoltages[96] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[97] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[98] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[99] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+    case 0x6FE: {  //Cellvoltages between 32 - 103
+      // Calculate starting index: each ID increments by 1, each group is 4 cells
+      int start_index = 32 + (rx_frame.ID - 0x6ED) * 4;
+
+      cellvoltages[start_index + 0] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
+      cellvoltages[start_index + 1] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      cellvoltages[start_index + 2] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      cellvoltages[start_index + 3] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
-    case 0x6FE:
-      cellvoltages[100] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellvoltages[101] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cellvoltages[102] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cellvoltages[103] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
+    }
     case 0x6FF:
       cellvoltages[104] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[105] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
