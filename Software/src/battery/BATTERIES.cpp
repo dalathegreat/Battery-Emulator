@@ -546,6 +546,11 @@ void setup_battery() {
       battery3->setup();
     }
   }
+
+  /* Count what actually got created, not what the user ticked: a type that does not support
+     parallel packs leaves battery2/battery3 null above. events.cpp reads this to decide whether
+     an event message has to name its pack. */
+  datalayer.system.info.configured_batteries = 1 + (battery2 != nullptr) + (battery3 != nullptr);
 }
 
 /* User-selected Nissan LEAF settings */

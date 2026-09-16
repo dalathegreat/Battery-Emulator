@@ -87,9 +87,9 @@ void JaguarIpaceBattery::update_values() {
       HVBattChargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
 
   if (HVBattHVILError) {  // Alert user incase the high voltage interlock is not OK
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   if (HVILBattIsolationError) {  // Alert user incase battery reports isolation error
