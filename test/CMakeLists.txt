@@ -7,6 +7,7 @@ project(UnitTests)
 # Enable ExternalProject CMake module
 include(ExternalProject)
 include(GoogleTest)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # specify the C++ standard
 # At least 17 is required by Gtest
@@ -214,3 +215,8 @@ target_compile_definitions(tests PRIVATE
 )
 
 gtest_discover_tests(tests)
+
+add_test(NAME PythonTools
+    COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${CMAKE_CURRENT_SOURCE_DIR}/../tools/tests" -v
+)
