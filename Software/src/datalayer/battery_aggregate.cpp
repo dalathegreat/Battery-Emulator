@@ -166,9 +166,11 @@ void update_aggregate_values() {
     }
   }
 
-  /* Power from the summed current against the shared bus voltage, through the shared helper in
-     datalayer.h so this agrees with the per-pack figures rather than rounding differently. */
-  agg.active_power_W = current_dA_to_power_W(agg.current_dA, agg.voltage_dV);
+  /* Power from the summed current against the shared bus voltage, dividing once at the end so
+     the fractional Volt survives: 386.0 V spent as 380 V costs about 1.5%. Written out rather
+     than calling current_dA_to_power_W() from datalayer.h, so this branch does not touch a line
+     #2978 also touches - switch to the helper once that has merged. */
+  agg.active_power_W = ((int32_t)agg.voltage_dV * (int32_t)agg.current_dA) / 100;
 
   /* SOC follows the emptiest pack, which is what protects the weakest one on discharge. Once
      the fullest pack climbs into the top tenth, blend towards it so the installation arrives at

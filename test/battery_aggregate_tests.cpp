@@ -230,9 +230,9 @@ TEST_F(BatteryAggregateTest, UndecodedDesignVoltagesAreIgnored) {
   EXPECT_EQ(datalayer.aggregate.min_design_voltage_dV, 3100);
 }
 
-// The aggregate converts current to power through the shared helper in datalayer.h, so it
-// rounds the same way the per-pack figures do rather than a percent or two away from them.
-TEST_F(BatteryAggregateTest, PowerUsesTheSharedConversion) {
+// Power divides once at the end, so the fractional Volt survives: the obvious
+// current_dA * (voltage_dV / 100) spends 386.0 V as 380 V and loses about 1.5%.
+TEST_F(BatteryAggregateTest, PowerKeepsTheFractionalVolts) {
   add_second_pack();
   battery2_detected = true;
   datalayer.battery.status.voltage_dV = 3860;
@@ -245,7 +245,7 @@ TEST_F(BatteryAggregateTest, PowerUsesTheSharedConversion) {
   update_aggregate_values();
 
   EXPECT_EQ(datalayer.aggregate.current_dA, 30);
-  EXPECT_EQ(datalayer.aggregate.active_power_W, current_dA_to_power_W(30, 3860));
+  EXPECT_EQ(datalayer.aggregate.active_power_W, 1158);  // 386.0 V x 3.0 A, not 380 V x 3.0 A
 }
 
 // State of health follows the weakest pack, like every other limit here.
