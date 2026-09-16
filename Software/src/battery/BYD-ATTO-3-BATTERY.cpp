@@ -507,7 +507,7 @@ void BydAttoBattery::handle_auto_soc_calibration(bool crit_taper, uint32_t dt_ms
       stateMachineCalibrateSOC == NOT_RUNNING && crit_contactors && crit_taper && crit_low_current && crit_dwell &&
       crit_drift && crit_cooldown) {
 
-    set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)((1000 - battery_highprecision_SOC) / 10));
+    set_event(EVENT_BYD_AUTO_SOC_CALIBRATION, (uint8_t)((1000 - battery_highprecision_SOC) / 10), battery_index);
 
     datalayer_bydatto->calibrationTargetSOC = 100;
     if (BMS_capacity_current_calibration > 0) {  // guard against startup zero
@@ -942,7 +942,7 @@ void BydAttoBattery::confirm_charge_termination() {
       balancingStateMillis = millis();
     }
   }
-  set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10));
+  set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10), battery_index);
   DEBUG_PRINTF("[BYD] Battery ended the charge at %umV, cell spread %umV\n", cell_max_mV, spread_mV);
 }
 
@@ -1207,7 +1207,7 @@ void BydAttoBattery::handle_balancing(unsigned long currentMillis) {
       } else if (contactorState == CONTACTORS_STANDBY &&
                  (balancingCloseAttempts == 0 || currentMillis - balancingStateMillis >= BALANCING_CLOSE_BACKOFF_MS)) {
         if (balancingCloseAttempts > BALANCING_CLOSE_RETRIES) {
-          set_event(EVENT_BYD_CONTACTOR_MISMATCH, 4);
+          set_event(EVENT_BYD_CONTACTOR_MISMATCH, 4, battery_index);
           balancingState = BALANCING_CLOSE_FAILED;
         } else {
           request_close_contactors();
@@ -1330,7 +1330,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       contactorOpenOptional = false;  // a fault, stop or withdrawn permission always opens
       requestContactorOpen = true;
     } else {
-      clear_event(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED);
+      clear_event(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED, battery_index);
       requestContactorClose = true;
     }
   }
@@ -1339,7 +1339,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
     requestContactorOpen = false;
     closeConfirmPending = false;
     if (contactorState == CONTACTORS_CLOSING || contactorState == CONTACTORS_ACTIVE) {
-      set_event(EVENT_BYD_CONTACTOR_OPEN_REQ, 0);
+      set_event(EVENT_BYD_CONTACTOR_OPEN_REQ, 0, battery_index);
       if (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) {
         // Pack is closed - power is already zeroed (update_values) so the inverter winds down while we wait
         contactorState = CONTACTORS_AWAIT_ZERO_CURRENT;
@@ -1358,11 +1358,11 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       uint8_t reason = (datalayer.system.info.equipment_stop_active ? 1 : 0) |
                        (!datalayer.system.status.inverter_allows_contactor_closing ? 2 : 0) |
                        (datalayer.system.status.system_status == FAULT ? 4 : 0);
-      set_event(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED, reason);
+      set_event(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED, reason, battery_index);
     } else if (contactorState == CONTACTORS_AWAIT_ZERO_CURRENT) {
       // Cancel the pending open (shutdown not sent yet). If the pack already closed, resume the
       // drive-ready hold; if it was still precharging, resume the close so it finishes properly
-      set_event(EVENT_BYD_CONTACTOR_CLOSE_REQ, 1);
+      set_event(EVENT_BYD_CONTACTOR_CLOSE_REQ, 1, battery_index);
       if (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) {
         set_12D_payload(0xA0, 0x28, 0x00, 0x22, 0x0C, 0x31);  // Drive-ready pattern
         contactorState = CONTACTORS_ACTIVE;
@@ -1376,7 +1376,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
     } else if (contactorState == CONTACTORS_STANDBY || contactorState == CONTACTORS_OPEN_REQUESTED ||
                contactorState == CONTACTORS_OPEN_SETTLE || contactorState == CONTACTORS_BOOT_ESTOP) {
       // Car re-closes straight from the active-ack frame, so allow close from any open state
-      set_event(EVENT_BYD_CONTACTOR_CLOSE_REQ, 0);
+      set_event(EVENT_BYD_CONTACTOR_CLOSE_REQ, 0, battery_index);
       set_12D_payload(0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71);  // Close/active pattern
       counter_50ms = 0;                                     // Re-run the drive-ready transition
       contactorState = CONTACTORS_CLOSING;
@@ -1416,7 +1416,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
         // Timed out - open anyway. Flag whether a fresh reading stayed high (0) or none arrived (1)
         bool had_fresh_sample =
             (int32_t)(lastCurrentSampleMillis - contactorStateEntryMillis) >= (int32_t)ZERO_CURRENT_MIN_WAIT_MS;
-        set_event(EVENT_BYD_CONTACTOR_FORCE_OPEN, had_fresh_sample ? 0 : 1);
+        set_event(EVENT_BYD_CONTACTOR_FORCE_OPEN, had_fresh_sample ? 0 : 1, battery_index);
         set_12D_payload(0xA0, 0x28, 0x02, 0x60, 0x04, 0x31);  // Shutdown pattern
         contactorState = CONTACTORS_OPENING;
         contactorStateEntryMillis = currentMillis;
@@ -1436,11 +1436,11 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       // frame received since we started holding, so a stale reading can't confirm the open
       if ((int32_t)(lastContactorFeedbackMillis - contactorStateEntryMillis) >= 0 &&
           (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) == 0) {
-        clear_event(EVENT_BYD_CONTACTOR_MISMATCH);
+        clear_event(EVENT_BYD_CONTACTOR_MISMATCH, battery_index);
         contactorState = CONTACTORS_OPEN_SETTLE;
         contactorStateEntryMillis = currentMillis;
       } else if (!openTimeoutEventSent && currentMillis - contactorStateEntryMillis >= OPEN_CONFIRM_TIMEOUT_MS) {
-        set_event(EVENT_BYD_CONTACTOR_MISMATCH, 2);  // Flag the delay but keep holding
+        set_event(EVENT_BYD_CONTACTOR_MISMATCH, 2, battery_index);  // Flag the delay but keep holding
         openTimeoutEventSent = true;
       }
       break;
@@ -1458,7 +1458,7 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
       // open -> standby, still closed -> run the full open sequence
       if (lastContactorFeedbackMillis != 0) {
         if (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) {
-          set_event(EVENT_BYD_CONTACTOR_OPEN_REQ, 1);
+          set_event(EVENT_BYD_CONTACTOR_OPEN_REQ, 1, battery_index);
           contactorState = CONTACTORS_AWAIT_ZERO_CURRENT;
           contactorStateEntryMillis = currentMillis;
         } else {
@@ -1480,11 +1480,11 @@ void BydAttoBattery::handle_contactor_control(unsigned long currentMillis) {
     // Require a frame received since the close was commanded, not a stale closed reading
     if ((int32_t)(lastContactorFeedbackMillis - closeConfirmStartMillis) >= 0 &&
         (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED)) {
-      clear_event(EVENT_BYD_CONTACTOR_MISMATCH);
+      clear_event(EVENT_BYD_CONTACTOR_MISMATCH, battery_index);
       closeConfirmPending = false;
     } else if (currentMillis - closeConfirmStartMillis >= CLOSE_CONFIRM_TIMEOUT_MS) {
       // Never confirmed closed - fall back to standby (open, no power) instead of sitting active
-      set_event(EVENT_BYD_CONTACTOR_MISMATCH, 3);
+      set_event(EVENT_BYD_CONTACTOR_MISMATCH, 3, battery_index);
       set_12D_payload(0x50, 0x14, 0x02, 0x10, 0x04, 0x31);  // Standby pattern
       contactorState = CONTACTORS_STANDBY;
       closeConfirmPending = false;

@@ -324,6 +324,12 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
 
+  /** uint8_t, how many battery packs are actually running: 1, 2 or 3. Set by setup_battery()
+      once the pack objects exist, so it reflects what was created rather than what was ticked
+      in the settings - a type that does not support parallel packs leaves this at 1. Read by
+      events.cpp to decide whether an event message needs to name its pack. */
+  uint8_t configured_batteries = 1;
+
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
   /** bool, indicates if a webserver CAN stream is active */

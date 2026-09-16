@@ -1063,6 +1063,80 @@ TEST(NissanLeafPageLayoutTests, ShouldOpenDegradationResetPanelBeforeItsButton) 
   EXPECT_TRUE(renderer.get_command_prefix_html("resetDTC").str().empty());
 }
 
+// Resetting degradation data is for ZE0/AZE0 packs only, and only once the pack has been heard from.
+// The generation reads ZE0 before anything has arrived and the alive counter is already non-zero at
+// power-on, so neither of those on its own may let the reset be offered.
+TEST(NissanLeafDegradationResetTests, ShouldOnlyOfferResetForZe0OrAze0PackThatIsTalking) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE - 1;  // As it is at power-on
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  EXPECT_FALSE(battery->supports_reset_SOH());
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  EXPECT_TRUE(battery->supports_reset_SOH());  // ZE0
+
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {0, 0, 0, 0, 0, 0, 0, 0}));
+  EXPECT_TRUE(battery->supports_reset_SOH());  // AZE0
+
+  datalayer.battery.status.CAN_battery_still_alive = 0;  // Silent for a minute
+  EXPECT_FALSE(battery->supports_reset_SOH());
+}
+
+TEST(NissanLeafDegradationResetTests, ShouldNotOfferResetForZe1Pack) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE - 1;
+  auto battery = ze1_battery_polling();
+  EXPECT_FALSE(battery->supports_reset_SOH());
+}
+
+// True once the SOH clear sequence has put its first request (10 C0) on the wire.
+static bool soh_clear_sent(NissanLeafBattery* battery, unsigned long t) {
+  for (int i = 0; i < 5; i++) {
+    t += 100;
+    set_millis64(t);
+    clear_transmitted_frames();
+    battery->transmit_can(t);
+    for (const CAN_frame& frame : get_transmitted_frames()) {
+      if (frame.ID == 0x79B && frame.data.u8[0] == 0x02 && frame.data.u8[1] == 0x10 && frame.data.u8[2] == 0xC0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+TEST(NissanLeafDegradationResetTests, ShouldStartResetForAze0Pack) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE - 1;
+  auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {0, 0, 0, 0, 0, 0, 0, 0}));
+
+  battery->reset_SOH();
+  battery->update_values();
+  EXPECT_TRUE(soh_clear_sent(battery, 50000));
+}
+
+// The web route runs the command without asking whether the page would have offered it, so the
+// driver has to refuse a request for a pack the reset is not meant for.
+TEST(NissanLeafDegradationResetTests, ShouldIgnoreResetRequestForZe1Pack) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE - 1;
+  auto battery = ze1_battery_polling();
+
+  battery->reset_SOH();
+  battery->update_values();
+  EXPECT_FALSE(soh_clear_sent(battery, 50000));
+}
+
+// Accepted while the pack still read as ZE0, but a ZE1-only broadcast arrived before update_values()
+// got round to starting the sequence.
+TEST(NissanLeafDegradationResetTests, ShouldDropAcceptedRequestOncePackTurnsOutToBeZe1) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE - 1;
+  auto battery = battery_polling();
+
+  battery->reset_SOH();
+  battery->handle_incoming_can_frame(leaf_frame(0x1ED, {0, 0, 0, 0, 0, 0, 0, 0}));
+  battery->update_values();
+  EXPECT_FALSE(soh_clear_sent(battery, 50000));
+}
+
 // Every panel the Leaf opens is closed again: the first close is the page's own panel, and the page
 // closes the last one after the buttons.
 TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {

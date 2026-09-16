@@ -579,14 +579,16 @@ void update_machineryprotection() {
     }
   }
 
-  //Decrement the forced balancing timer incase user requested it
+  /* Decrement the forced balancing timer incase user requested it. User requested balancing is
+     driven from datalayer.battery.settings, which is pack 1 only, so the events are raised
+     against pack 1. Driver reported balancing names its own pack via battery_index. */
   if (datalayer.battery.settings.user_requests_balancing) {
     // If this is the start of the balancing period, capture the current time
     if (datalayer.battery.settings.balancing_start_time_ms == 0) {
       datalayer.battery.settings.balancing_start_time_ms = millis();
-      set_event(EVENT_BALANCING_START, 0);
+      set_event(EVENT_BALANCING_START, 0, 1);
     } else {
-      clear_event(EVENT_BALANCING_START);
+      clear_event(EVENT_BALANCING_START, 1);
     }
 
     // Check if the elapsed time exceeds the balancing time
@@ -594,9 +596,9 @@ void update_machineryprotection() {
         datalayer.battery.settings.balancing_max_time_ms) {
       datalayer.battery.settings.user_requests_balancing = false;
       datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
-      set_event(EVENT_BALANCING_END, 0);
+      set_event(EVENT_BALANCING_END, 0, 1);
     } else {
-      clear_event(EVENT_BALANCING_END);
+      clear_event(EVENT_BALANCING_END, 1);
     }
   }
 }

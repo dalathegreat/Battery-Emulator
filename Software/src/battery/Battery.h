@@ -101,7 +101,9 @@ class Battery {
   virtual bool supports_reset_NVROL() { return false; }
   virtual bool supports_reset_DTC() { return false; }
   virtual bool supports_read_DTC() { return false; }
+#ifndef SMALL_FLASH_DEVICE
   virtual bool supports_reset_SOH() { return false; }
+#endif
   virtual bool supports_reset_BECM() { return false; }
   virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
@@ -132,7 +134,9 @@ class Battery {
   virtual void reset_NVROL() {}
   virtual void reset_DTC() {}
   virtual void read_DTC() {}
+#ifndef SMALL_FLASH_DEVICE
   virtual void reset_SOH() {}
+#endif
   virtual void reset_BECM() {}
   virtual void request_open_contactors() {}
   virtual void request_close_contactors() {}

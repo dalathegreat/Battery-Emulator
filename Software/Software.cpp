@@ -745,12 +745,17 @@ void setup() {
 
   init_events();
 
-  /* Before anything that can itself fail: if the previous update never got
-     through setup(), this boot is the bootloader's doing and the user should be
-     told so even if this boot also goes badly. */
-  report_ota_rollback();
-
   init_stored_settings();
+
+  /* AFTER init_stored_settings(), because that is what turns the log sinks on.
+     Reported earlier, the warning line went nowhere: web, USB, syslog and SD
+     logging are all switched on from stored settings, so a rollback report made
+     before that call reached no sink a user can read - and the OTA_ROLLBACK
+     event, which DOES survive, sends them looking for exactly the line that was
+     dropped (v12.5.0 field report). Still before anything that can itself fail,
+     which is what the placement was for: reading settings is the one step that
+     has to come first. */
+  report_ota_rollback();
 
   // AP-button recovery must always run
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
