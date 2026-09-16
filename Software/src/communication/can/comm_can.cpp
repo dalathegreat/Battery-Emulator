@@ -4,6 +4,7 @@
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "CanReceiver.h"
 #include "comm_can.h"
+#include "mcp2517fd_clko.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/hal/hal.h"
 #include "src/devboard/safety/safety.h"
@@ -242,6 +243,18 @@ bool init_CAN() {
       }
 
       SPI2517_2->begin(sck_pin, sdo_pin, sdi_pin);
+    }
+
+    // Boards that clock the 2nd chip from the 1st chip's CLKO output normally get
+    // the divider programmed when the 1st interface starts. Running the 2nd alone
+    // leaves the 1st chip at its divide-by-10 default, so program it here.
+    bool fd1_in_use = fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end();
+    if (mcp2517fd_clko_kick_needed(fd1_in_use, esp32hal->MCP2517_CLKODIV())) {
+      auto cs1_pin = esp32hal->MCP2517_CS();
+      if (!esp32hal->alloc_pins("CANFD", cs1_pin)) {
+        return false;
+      }
+      mcp2517fd_program_clko(*SPI2517, cs1_pin, esp32hal->MCP2517_CLKODIV());
     }
 
     canfd_2 = new ACAN2517FD(cs_pin, *SPI2517_2, int_pin);
