@@ -3,7 +3,7 @@ name: ⚙️ Run Unit Tests
 
 on:
   push:
-    branches: [main, feature/tesla-charge-mode-injector-clean]
+    branches: [main]
   pull_request:
 
 permissions:
