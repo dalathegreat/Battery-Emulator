@@ -514,8 +514,17 @@ class EcmpBattery : public UdsCanBattery {
   bool TBCU_48V_WAKEUP = false;
   bool REQ_CLEAR_DTC_TBMU = false;
   bool HV_BATT_DISCONT_WARNING_OPEN = false;
-  bool ALERT_CELL_POOR_CONSIST, ALERT_OVERCHARGE, ALERT_BATT, ALERT_LOW_SOC, ALERT_HIGH_SOC, ALERT_SOC_JUMP,
-      ALERT_TEMP_DIFF, ALERT_HIGH_TEMP, ALERT_OVERVOLTAGE, ALERT_CELL_OVERVOLTAGE, ALERT_CELL_UNDERVOLTAGE = false;
+  bool ALERT_CELL_POOR_CONSIST = false;
+  bool ALERT_OVERCHARGE = false;
+  bool ALERT_BATT = false;
+  bool ALERT_LOW_SOC = false;
+  bool ALERT_HIGH_SOC = false;
+  bool ALERT_SOC_JUMP = false;
+  bool ALERT_TEMP_DIFF = false;
+  bool ALERT_HIGH_TEMP = false;
+  bool ALERT_OVERVOLTAGE = false;
+  bool ALERT_CELL_OVERVOLTAGE = false;
+  bool ALERT_CELL_UNDERVOLTAGE = false;
 
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
