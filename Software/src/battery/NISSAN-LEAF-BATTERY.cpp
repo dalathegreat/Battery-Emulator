@@ -28,9 +28,10 @@ void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
     return;
   }
   if (new_status == BALANCING_STATUS_ACTIVE) {
-    set_event_latched(EVENT_BALANCING_START, 0);
+    set_event_latched(EVENT_BALANCING_START, 0, battery_index);
   } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+    set_event(EVENT_BALANCING_END, 0,
+              battery_index);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
   }
   datalayer_battery->status.balancing_status = new_status;
 }
@@ -243,9 +244,9 @@ void NissanLeafBattery::
   if (user_selected_LEAF_interlock_mandatory) {
     //If user requires both large 80kW and small 6kW interlock to be seated for operation
     if (!battery_Interlock) {
-      set_event(EVENT_HVIL_FAILURE, 0);
+      set_event(EVENT_HVIL_FAILURE, 0, battery_index);
     } else {
-      clear_event(EVENT_HVIL_FAILURE);
+      clear_event(EVENT_HVIL_FAILURE, battery_index);
     }
   }
 
@@ -256,14 +257,14 @@ void NissanLeafBattery::
   //so it still works now that the unreadable-cell sentinel is filtered out of the cell array.
   if (battery_vbat_mV > 0) {
     if (battery_vbat_mV < LOW_12V_THRESHOLD_MV) {
-      set_event(EVENT_12V_LOW, (int16_t)battery_vbat_mV);
+      set_event(EVENT_12V_LOW, (int16_t)battery_vbat_mV, battery_index);
     } else if (battery_vbat_mV > (LOW_12V_THRESHOLD_MV + LOW_12V_HYSTERESIS_MV)) {
-      clear_event(EVENT_12V_LOW);
+      clear_event(EVENT_12V_LOW, battery_index);
     }
   } else if (battery_cells_unreadable) {
-    set_event(EVENT_12V_LOW, 0);
+    set_event(EVENT_12V_LOW, 0, battery_index);
   } else {
-    clear_event(EVENT_12V_LOW);
+    clear_event(EVENT_12V_LOW, battery_index);
   }
 
   if (battery_HeatExist) {

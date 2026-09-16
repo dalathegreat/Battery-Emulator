@@ -374,7 +374,7 @@ void AkasolBattery::update_values() {
 
   if (stat_error) {
     datalayer.battery.status.real_bms_status = BMS_FAULT;
-    set_event(EVENT_BATTERY_CAUTION, 0);
+    set_event(EVENT_BATTERY_CAUTION, 0, battery_index);
   } else if (stat_operational) {
     datalayer.battery.status.real_bms_status = BMS_ACTIVE;
   } else {
