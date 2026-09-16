@@ -11,6 +11,7 @@ class EnnoidBms : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr BatteryType TYPE = BatteryType::EnnoidBMS;
   static constexpr const char* Name = "ENNOID BMS via VESC, DIY battery";
 
  private:

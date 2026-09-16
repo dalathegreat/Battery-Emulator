@@ -26,6 +26,7 @@ class CmfaEvBattery : public UdsCanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr BatteryType TYPE = BatteryType::CmfaEv;
   static constexpr const char* Name = "CMFA platform, 27 kWh battery";
 
   String get_uds_info_html() override;

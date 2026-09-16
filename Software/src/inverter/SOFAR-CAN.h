@@ -9,6 +9,7 @@ class SofarInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr InverterProtocolType TYPE = InverterProtocolType::Sofar;
   static constexpr const char* Name = "Sofar BMS (Extended) via CAN, Battery ID";
   bool supports_battery_id() { return true; }
 

@@ -67,15 +67,8 @@ bool IsValidCanBattery(BatteryType type) {
     return false;
   }
 
-  auto* as_can_battery = dynamic_cast<CanBattery*>(tmp_battery);
-  if (as_can_battery == nullptr) {
-    // Failed to cast to CanBattery, so it's not a CAN battery
-    delete tmp_battery;
-    return false;
-  }
-  delete tmp_battery;
-
-  return true;
+  // Instances are intentionally abandoned, not deleted (protected dtor)
+  return dynamic_cast<CanBattery*>(tmp_battery) != nullptr;
 }
 
 void RegisterStillAliveTests() {
