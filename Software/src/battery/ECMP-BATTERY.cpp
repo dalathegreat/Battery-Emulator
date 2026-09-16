@@ -142,13 +142,341 @@ inline String& operator<<(String& str, const T& value) {
 }
 String EcmpBattery::get_uds_info_html() {
   String content;
-  content.reserve(3600);
+  content.reserve(8000);
+
+  // Helper macros to reduce repetition for common patterns
+#define H4_COND(label, val, na_val, unit) \
+  content << "<h4>" << label << ": " << (val == na_val ? "N/A" : String(val)) << unit << "</h4>"
+
+#define H4_STR(label, val) content << "<h4>" << label << ": " << val << "</h4>"
+
+#define H4_BOOL(label, flag) content << "<h4>" << label << ": " << (flag ? "Yes" : "No") << "</h4>"
+
+#define H4_ARRAY(label, arr) content << "<h4>" << label << ": " << String((const char*)arr) << "</h4>"
 
   // clang-format off
-  content << "<h4>Cells: " << String(datalayer_battery->info.number_of_cells) << " S</h4>";
-  // clang-format on
+ // Main Connector State
+    content << "<h4>Main Connector State: ";
+    switch (battery_MainConnectorState) {
+      case 0:   content << "Contactors open"; break;
+      case 0x01: content << "Precharged"; break;
+      default:  content << "Invalid";
+    }
+    content << "</h4>";
 
-  return content;
+    // Interlock
+    content << "<h4>Interlock:  " 
+            << (battery_InterlockOpen ? "BROKEN!" : "Seated OK")
+            << "</h4>";
+
+    // Insulation Diag
+    H4_COND("Insulation Resistance", 
+            battery_insulationResistanceKOhm, 255, "kOhm");
+    content << "<h4>Insulation Diag: ";
+    switch (battery_insulation_failure_diag) {
+      case 0: content << "No failure"; break;
+      case 1: content << "Symmetric failure"; break;
+      default: content << "N/A";
+    }
+    content << "</h4>";
+
+     // Contactor weld check
+    content << "<h4>Contactor weld check: ";
+    switch (pid_welding_detection) {
+      case 0:   content << "OK"; break;
+      case 255: content << "N/A"; break;
+      default:  content << "WELDED!" << String(pid_welding_detection);
+    }
+    content << "</h4>";
+
+    // Contactor opening reason
+    content << "<h4>Contactor opening reason: ";
+    switch (pid_reason_open) {
+      case 7:   content << "Invalid Status"; break;
+      case 255: content << "N/A"; break;
+      default:  content << "Unknown" << String(pid_reason_open);
+    }
+    content << "</h4>";
+
+    // Contactor/Switch states
+    H4_COND("Status of power switch", 
+            pid_contactor_status, 255, "");
+    H4_COND("Negative power switch control", 
+            pid_negative_contactor_control, 255, "");
+    H4_COND("Negative power switch status", 
+            pid_negative_contactor_status, 255, "");
+    H4_COND("Positive power switch control", 
+            pid_positive_contactor_control, 255, "");
+    H4_COND("Positive power switch status", 
+            pid_positive_contactor_status, 255, "");
+    H4_COND("Contactor negative", 
+            pid_contactor_negative, 255, "");
+    H4_COND("Contactor positive", 
+            pid_contactor_positive, 255, "");
+    H4_COND("Precharge control", 
+            pid_precharge_relay_control, 255, "");
+    H4_COND("Precharge status", 
+            pid_precharge_relay_status, 255, "");
+    H4_COND("Recharge Status", 
+            pid_recharge_status, 255, "");
+
+    // Temperature readings
+    H4_COND("Delta temperature", 
+            pid_delta_temperature, 127, "&deg;C");
+    H4_COND("Lowest temperature", 
+            pid_lowest_temperature, 127, "&deg;C");
+    H4_COND("Average temperature", 
+            pid_average_temperature, 127, "&deg;C");
+    H4_COND("Highest temperature", 
+            pid_highest_temperature, 127, "&deg;C");
+    H4_COND("Coldest module", 
+            pid_coldest_module, 255, "");
+    H4_COND("Hottest module", 
+            pid_hottest_module, 255, "");
+
+    // Voltage and current
+    H4_COND("Average cell voltage", 
+            pid_avg_cell_voltage, 255, " mV");
+    H4_COND("High precision current", 
+            pid_current, 255, " mA");
+
+    // Insulation resistance
+    H4_COND("Insulation resistance neg-gnd", 
+            pid_insulation_res_neg, 255, " kOhm");
+    H4_COND("Insulation resistance pos-gnd", 
+            pid_insulation_res_pos, 255, " kOhm");
+
+    // Power limits
+    H4_COND("Max current 10s", 
+            pid_max_current_10s, 255, "");
+    H4_COND("Max discharge power 10s", 
+            pid_max_discharge_10s, 255, "");
+    H4_COND("Max discharge power 30s", 
+            pid_max_discharge_30s, 255, "");
+    H4_COND("Max charge power 10s", 
+            pid_max_charge_10s, 255, "");
+    H4_COND("Max charge power 30s", 
+            pid_max_charge_30s, 255, "");
+
+    // Energy and capacity info
+    H4_COND("Energy capacity", 
+            pid_energy_capacity, 255, "");
+    H4_COND("Highest cell number", 
+            pid_highest_cell_voltage_num, 255, "");
+    H4_COND("Lowest cell voltage number", 
+            pid_lowest_cell_voltage_num, 255, "");
+    H4_COND("Sum of all cell voltages", 
+            pid_sum_of_cells, 255, " dV");
+    H4_COND("Cell min capacity", 
+            pid_cell_min_capacity, 255, "");
+    H4_COND("Cell voltage measurement status", 
+            pid_cell_voltage_measurement_status, 255, "");
+
+    // Battery resistance and voltage
+    H4_COND("Battery Insulation Resistance", 
+            pid_insulation_res, 255, " kOhm");
+    H4_COND("Pack voltage", 
+            pid_pack_voltage, 255, " dV");
+    H4_COND("Highest cell voltage", 
+            pid_high_cell_voltage, 255, " mV");
+    H4_COND("Lowest cell voltage", 
+            pid_low_cell_voltage, 255, " mV");
+
+    // Battery energy and crash data
+    H4_COND("Battery Energy", 
+            pid_battery_energy, 255, "");
+    H4_COND("Collision information Counter", 
+            pid_crash_counter, 255, "");
+    H4_COND("Collision Counter received by Wire", 
+            pid_wire_crash, 255, "");
+    H4_COND("Collision data sent from car to battery", 
+            pid_CAN_crash, 255, "");
+
+    // History and counters
+    H4_COND("Low SOC counter", 
+            pid_lowsoc_counter, 255, "");
+    H4_COND("Last CAN failure detail", 
+            pid_last_can_failure_detail, 255, "");
+
+    // Version and configuration
+    H4_ARRAY("HW version number", pid_hw_version_num);
+    H4_ARRAY("SW version number", pid_sw_version_num);
+    H4_COND("Factory mode", 
+            pid_factory_mode_control, 255, "");
+
+    // Serial number and date
+    {
+      char readableSerialNumber[14];  // One extra space for null terminator
+      memcpy(readableSerialNumber, pid_battery_serial,
+             sizeof(pid_battery_serial));
+      readableSerialNumber[13] = '\0';  // Null terminate the string
+      H4_STR("Battery serial", String(readableSerialNumber));
+    }
+
+    // Date of manufacture
+    {
+      uint8_t day = (pid_date_of_manufacture >> 16) & 0xFF;
+      uint8_t month = (pid_date_of_manufacture >> 8) & 0xFF;
+      uint8_t year = pid_date_of_manufacture & 0xFF;
+      content << "<h4>Date of manufacture: " << String(day) << "/" 
+              << String(month) << "/" << String(year) << "</h4>";
+    }
+
+    // Fuses and safety states
+    H4_COND("Aux fuse state", 
+            pid_aux_fuse_state, 255, "");
+    H4_COND("Battery state", 
+            pid_battery_state, 255, "");
+    H4_COND("Precharge short circuit", 
+            pid_precharge_short_circuit, 255, "");
+    H4_COND("Service plug state", 
+            pid_eservice_plug_state, 255, "");
+    H4_COND("Main fuse state", 
+            pid_mainfuse_state, 255, "");
+    H4_COND("Most critical fault", 
+            pid_most_critical_fault, 255, "");
+
+    // Timing
+    H4_COND("Current time", 
+            pid_current_time, 255, " ticks");
+    H4_COND("Time sent by car", 
+            pid_time_sent_by_car, 255, " ticks");
+
+    // Supply voltage
+    H4_COND("12V", 
+            pid_12v, 255, "");
+
+    // 12V abnormal status
+    content << "<h4>12V abnormal: ";
+    if (pid_12v_abnormal == 255) {
+      content << "N/A";
+    } else if (pid_12v_abnormal == 0) {
+      content << "No";
+    } else {
+      content << "Yes";
+    }
+    content << "</h4>";
+
+    // HVIL voltages
+    H4_COND("HVIL IN Voltage", 
+            pid_hvil_in_voltage, 255, "mV");
+    H4_COND("HVIL output voltage", 
+            pid_hvil_out_voltage, 255, "mV");
+
+    // HVIL State
+    content << "<h4>HVIL State: ";
+    if (pid_hvil_state == 255) {
+      content << "N/A";
+    } else if (pid_hvil_state == 0) {
+      content << "OK";
+    } else {
+      content << String(pid_hvil_state);
+    }
+    content << "</h4>";
+
+    // BMS State
+    content << "<h4>BMS State: ";
+    if (pid_bms_state == 255) {
+      content << "N/A";
+    } else if (pid_bms_state == 0) {
+      content << "OK";
+    } else {
+      content << String(pid_bms_state);
+    }
+    content << "</h4>";
+
+    // Vehicle and operational data
+    H4_COND("Vehicle speed", 
+            pid_vehicle_speed, 255, " km/h");
+    H4_COND("Time spent over 55c", 
+            pid_time_spent_over_55c, 255, " minutes");
+    H4_COND("Contactor lifetime closing counter", 
+            pid_contactor_closing_counter, 255, " cycles");
+    H4_COND("State of Health Cell-1", 
+            pid_SOH_cell_1, 255, "");
+
+    // ============================================================================
+    // MysteryVan platform section (All parameters in ALLCAPS)
+    // ============================================================================
+    if (MysteryVan) {
+      content << "<h3>MysteryVan platform detected!</h3>";
+
+      // Contactor State
+      content << "<h4>Contactor State: ";
+      switch (CONTACTORS_STATE) {
+        case 0: content << "Open"; break;
+        case 1: content << "Precharge"; break;
+        case 2: content << "Closed"; break;
+        default: content << "Unknown";
+      }
+      content << "</h4>";
+
+      // Crash Memorized
+      H4_BOOL("Crash Memorized", HV_BATT_CRASH_MEMORIZED);
+
+      // Contactor Opening Reason
+      content << "<h4>Contactor Opening Reason: ";
+      switch (CONTACTOR_OPENING_REASON) {
+        case 0: content << "No error"; break;
+        case 1: content << "Crash!"; break;
+        case 2: content << "12V supply source undervoltage"; break;
+        case 3: content << "12V supply source overvoltage"; break;
+        case 4: content << "Battery temperature"; break;
+        case 5: content << "Interlock line open"; break;
+        case 6: content << "e-Service plug disconnected"; break;
+        default: content << "Unknown";
+      }
+      content << "</h4>";
+
+      // Battery fault type
+      content << "<h4>Battery fault type: ";
+      switch (TBMU_FAULT_TYPE) {
+        case 0: content << "No fault"; break;
+        case 1: content << "FirstLevelFault: Warning Lamp"; break;
+        case 2: content << "SecondLevelFault: Stop Lamp"; break;
+        case 3: content << "ThirdLevelFault: Stop Lamp + contactor opening (EPS shutdown)"; break;
+        case 4: content << "FourthLevelFault: Stop Lamp + Active Discharge"; break;
+        case 5: content << "Inhibition of powertrain activation"; break;
+        case 6: content << "Reserved"; break;
+        default: content << "Unknown";
+      }
+      content << "</h4>";
+
+      // FC insulation resistance values
+      H4_COND("FC insulation minus resistance", 
+              HV_BATT_FC_INSU_MINUS_RES, 0, " kOhm");
+      H4_COND("FC insulation plus resistance", 
+              HV_BATT_FC_INSU_PLUS_RES, 0, " kOhm");
+      H4_COND("FC vehicle insulation plus resistance", 
+              HV_BATT_FC_VHL_INSU_PLUS_RES, 0, " kOhm");
+      H4_COND("FC vehicle insulation minus resistance", 
+              HV_BATT_ONLY_INSU_MINUS_RES, 0, " kOhm");
+    }
+
+    // ============================================================================
+    // Alert flags section
+    // ============================================================================
+    H4_BOOL("Alert Battery", ALERT_BATT);
+    H4_BOOL("Alert Low SOC", ALERT_LOW_SOC);
+    H4_BOOL("Alert High SOC", ALERT_HIGH_SOC);
+    H4_BOOL("Alert SOC Jump", ALERT_SOC_JUMP);
+    H4_BOOL("Alert Overcharge", ALERT_OVERCHARGE);
+    H4_BOOL("Alert Temp Diff", ALERT_TEMP_DIFF);
+    H4_BOOL("Alert Temp High", ALERT_HIGH_TEMP);
+    H4_BOOL("Alert Overvoltage", ALERT_OVERVOLTAGE);
+    H4_BOOL("Alert Cell Overvoltage", ALERT_CELL_OVERVOLTAGE);
+    H4_BOOL("Alert Cell Undervoltage", ALERT_CELL_UNDERVOLTAGE);
+    H4_BOOL("Alert Cell Poor Consistency", ALERT_CELL_POOR_CONSIST);
+
+    // Footer message
+    content << "<h4>Remember to press Open Contactors from main menu before running the diagnostic commands below:</h4>";
+
+    // Clean up macros
+    #undef H4_COND
+    #undef H4_STR
+    #undef H4_BOOL
+
+    return content;
 }
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
