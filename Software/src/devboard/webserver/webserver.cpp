@@ -1160,6 +1160,20 @@ static String formatPackCurrent(const String& label, uint16_t value_dA) {
   return "<h4 style='color: white;'>" + label + ": " + String(value_dA / 10.0f, 1) + " A</h4>";
 }
 
+/* The combined card describes the installation, not a battery, so "Battery charging!" drops its
+   first word and the next one takes the capital. A "(Battery limiting)" that follows names the
+   limiting factor rather than the subject, and stays as it is. */
+static String installation_status_text(const char* status) {
+  String text(status);
+  if (text.startsWith("Battery ")) {
+    text.remove(0, 8);
+    if (text.length() > 0 && text[0] >= 'a' && text[0] <= 'z') {
+      text.setCharAt(0, text[0] - ('a' - 'A'));
+    }
+  }
+  return text;
+}
+
 /* Render one battery card. pack_index 0 is the combined installation, 1-3 are the packs.
 
    The combined card - or the single pack card when only one battery is configured - carries
@@ -1274,12 +1288,12 @@ static void render_battery_card(String& content, const String& style, const Batt
   }
 
   if (system_card) {
-    content += "<h4>" +
-               String(get_charging_status_text(v.current_dA, datalayer.battery_settings.inverter_limits_charge,
-                                               datalayer.battery_settings.inverter_limits_discharge,
-                                               datalayer.battery_settings.user_settings_limit_charge,
-                                               datalayer.battery_settings.user_settings_limit_discharge)) +
-               "</h4>";
+    const char* status = get_charging_status_text(v.current_dA, datalayer.battery_settings.inverter_limits_charge,
+                                                  datalayer.battery_settings.inverter_limits_discharge,
+                                                  datalayer.battery_settings.user_settings_limit_charge,
+                                                  datalayer.battery_settings.user_settings_limit_discharge);
+    // Only the combined card, which is the installation. A single pack keeps its own wording.
+    content += "<h4>" + (pack_index == 0 ? installation_status_text(status) : String(status)) + "</h4>";
   } else if (v.current_dA == 0) {
     content += "<h4>Battery idle</h4>";
   } else if (v.current_dA < 0) {
