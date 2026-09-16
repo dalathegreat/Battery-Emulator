@@ -250,9 +250,8 @@ void init_webserver() {
   });
 
   // Route for going to advanced battery info web page
-  def_route_with_auth("/advanced", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, advanced_battery_processor);
-  });
+  def_route_with_auth("/advanced", server, HTTP_GET,
+                      [](AsyncWebServerRequest* request) { send_advanced_battery_page(request); });
 
   // Served pre-compressed from flash rather than the template processor, so it never competes
   // for heap and costs a third of the space the plain HTML would.
@@ -1200,9 +1199,9 @@ String processor(const String& var) {
         content += "<h4 style='color: white;'>Battery protocol: ";
         content += datalayer.system.info.battery_protocol;
         if (battery3) {
-          content += " (Triple battery)";
+          content += " ③";
         } else if (battery2) {
-          content += " (Double battery)";
+          content += " ②";
         }
         if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
           content += " (LFP)";
@@ -1366,30 +1365,6 @@ String processor(const String& var) {
                                                  datalayer.battery.settings.user_settings_limit_charge,
                                                  datalayer.battery.settings.user_settings_limit_discharge)) +
                  "</h4>";
-
-      content += "<h4>System status: ";
-      switch (datalayer.system.status.system_status) {
-        case ACTIVE:
-          content += String("OK");
-          break;
-        case UPDATING:
-          content += String("UPDATING");
-          break;
-        case FAULT:
-          content += String("FAULT ");
-          content += "<button onclick='Events()'>Inspect reason</button> ";
-          break;
-        case INACTIVE:
-          content += String("INACTIVE");
-          break;
-        case STANDBY:
-          content += String("STANDBY");
-          break;
-        default:
-          content += String("??");
-          break;
-      }
-      content += "</h4>";
 
       // Close the block
       content += "</div>";
@@ -1580,6 +1555,30 @@ String processor(const String& var) {
     // Start a new block with gray background color
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+    content += "<h4>System status: ";
+    switch (datalayer.system.status.system_status) {
+      case ACTIVE:
+        content += String("OK");
+        break;
+      case UPDATING:
+        content += String("UPDATING");
+        break;
+      case FAULT:
+        content += String("FAULT ");
+        content += "<button onclick='Events()'>Inspect reason</button> ";
+        break;
+      case INACTIVE:
+        content += String("INACTIVE");
+        break;
+      case STANDBY:
+        content += String("STANDBY");
+        break;
+      default:
+        content += String("Unknown");
+        break;
+    }
+    content += "</h4>";
+
     if (emulator_pause_status == NORMAL) {
       content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     } else {
@@ -1588,31 +1587,33 @@ String processor(const String& var) {
 
     content += "<h4>Emulator allows contactor closing: ";
     if (datalayer.system.status.system_status == FAULT) {
-      content += "<span style='color: red;'>&#10005;</span>";
+      content += "<span style='color: red;'>✗</span>";
     } else {
-      content += "<span>&#10003;</span>";
+      content += "<span>✓</span>";
     }
-    content += " Inverter allows contactor closing: ";
+    content += "<br>Inverter allows contactor closing: ";
     if (datalayer.system.status.inverter_allows_contactor_closing == true) {
-      content += "<span>&#10003;</span></h4>";
+      content += "<span>✓</span></h4>";
     } else {
-      content += "<span style='color: red;'>&#10005;</span></h4>";
+      content += "<span style='color: red;'>✗</span></h4>";
     }
     if (battery2) {
-      content += "<h4>Secondary battery allowed to join ";
+      content += "<h4>2ⁿᵈ battery allowed to join: ";
       if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
-        content += "<span>&#10003;</span>";
+        content += "<span>✓</span>";
       } else {
-        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+        content += "<span style='color: red;'>✗<br>(voltage mismatch)</span>";
       }
+      content += "</h4>";
     }
     if (battery3) {
-      content += "<h4>Third battery allowed to join ";
+      content += "<h4>3ʳᵈ battery allowed to join: ";
       if (datalayer.system.status.battery3_allowed_contactor_closing == true) {
-        content += "<span>&#10003;</span>";
+        content += "<span>✓</span>";
       } else {
-        content += "<span style='color: red;'>&#10005; (voltage mismatch)</span>";
+        content += "<span style='color: red;'>✗<br>(voltage mismatch)</span>";
       }
+      content += "</h4>";
     }
 
     if (!contactor_control_enabled) {
@@ -1623,13 +1624,17 @@ String processor(const String& var) {
           "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
       content += "</div>";
     } else {  //contactor_control_enabled TRUE
-      content += "<div class=\"tooltip\"><h4>Contactors controlled by emulator, state: ";
+      content += "<div class=\"tooltip\"><h4>Contactors control — state: ";
       if (datalayer.system.status.contactors_engaged == 0) {
-        content += "<span style='color: red;'>OFF (DISCONNECTED)</span>";
+        content += "<span style='color: red;'>OFF<br>(DISCONNECTED)</span>";
       } else if (datalayer.system.status.contactors_engaged == 1) {
-        content += "<span style='color: green;'>ON</span>";
+        if (pwm_contactor_control) {
+          content += "<span style='color: green;'>Economized</span>";
+        } else {
+          content += "<span style='color: green;'>ON</span>";
+        }
       } else if (datalayer.system.status.contactors_engaged == 2) {
-        content += "<span style='color: red;'>OFF (FAULT)</span>";
+        content += "<span style='color: red;'>OFF<br>(FAULT)</span>";
         content += "<span class=\"tooltip-icon\"> [!]</span>";
         content +=
             "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
@@ -1639,7 +1644,7 @@ String processor(const String& var) {
       }
       content += "</h4></div>";
       if (contactor_control_enabled_double_battery && battery2) {
-        content += "<h4>Secondary battery contactor, state: ";
+        content += "<h4>Contactor for 2ⁿᵈ — state: ";
         if (pwm_contactor_control) {
           if (datalayer.system.status.contactors_battery2_engaged) {
             content += "<span style='color: green;'>Economized</span>";
@@ -1658,7 +1663,7 @@ String processor(const String& var) {
         content += "</h4>";
       }
       if (contactor_control_enabled_triple_battery && battery3) {
-        content += "<h4>Third battery contactor, state: ";
+        content += "<h4>Contactor for 3ʳᵈ — state: ";
         if (pwm_contactor_control) {
           if (datalayer.system.status.contactors_battery3_engaged) {
             content += "<span style='color: green;'>Economized</span>";
@@ -1687,17 +1692,17 @@ String processor(const String& var) {
 
       content += "<h4>Charger HV Enabled: ";
       if (datalayer.charger.charger_HV_enabled) {
-        content += "<span>&#10003;</span>";
+        content += "<span>✓</span>";
       } else {
-        content += "<span style='color: red;'>&#10005;</span>";
+        content += "<span style='color: red;'>✗</span>";
       }
       content += "</h4>";
 
       content += "<h4>Charger Aux12v Enabled: ";
       if (datalayer.charger.charger_aux12V_enabled) {
-        content += "<span>&#10003;</span>";
+        content += "<span>✓</span>";
       } else {
-        content += "<span style='color: red;'>&#10005;</span>";
+        content += "<span style='color: red;'>✗</span>";
       }
       content += "</h4>";
 

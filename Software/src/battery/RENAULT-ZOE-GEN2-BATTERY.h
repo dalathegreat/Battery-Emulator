@@ -9,7 +9,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   // Use this constructor for the second battery.
   RenaultZoeGen2Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_ZOE_PH2* extended,
                         CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+      : CanBattery(targetCan), renderer(extended) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_zoePH2 = extended;
@@ -18,7 +18,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   }
 
   // Use the default constructor to create the first or single battery.
-  RenaultZoeGen2Battery() {
+  RenaultZoeGen2Battery() : renderer(&datalayer_extended.zoePH2) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     datalayer_zoePH2 = &datalayer_extended.zoePH2;
@@ -30,7 +30,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
 
   bool supports_reset_NVROL() { return true; }
-  void reset_NVROL() { datalayer_extended.zoePH2.UserRequestNVROLReset = true; }
+  void reset_NVROL() { datalayer_zoePH2->UserRequestNVROLReset = true; }
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestedDTCReset = true; }
 

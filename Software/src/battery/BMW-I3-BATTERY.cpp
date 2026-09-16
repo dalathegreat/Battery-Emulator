@@ -38,7 +38,7 @@ void BmwI3Battery::end_balancing() {
   BMW_12F.data.u8[3] = BMW_12F_BYTE3_ACTIVE;  // Restore active state
   cmdState = SOC;
   battery_info_available = false;
-  set_event(EVENT_BALANCING_END, 0);
+  set_event(EVENT_BALANCING_END, 0, battery_index);
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -119,14 +119,14 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
 
   // Perform other safety checks
   if (battery_status_error_locking == 2) {  // HVIL seated?
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
   if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
-    set_event(EVENT_CONTACTOR_WELDED, 0);
+    set_event(EVENT_CONTACTOR_WELDED, 0, battery_index);
   } else {
-    clear_event(EVENT_CONTACTOR_WELDED);
+    clear_event(EVENT_CONTACTOR_WELDED, battery_index);
   }
 
   // Map BMW I3 DC switch status to system datalayer
@@ -389,7 +389,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     }
     if (UserRequestBalancing == STARTING && elapsed_time >= INTERVAL_30_S) {
       UserRequestBalancing = EXECUTING;
-      set_event(EVENT_BALANCING_START, 0);
+      set_event(EVENT_BALANCING_START, 0, battery_index);
     }
 
     // Stop all CAN communication after ~96s (battery sleeps), ~42s after contactors open
