@@ -276,8 +276,9 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"charge_term_cell_min_num", "BYD Charge: Termination Low Cell #", "", "", supports_byd_autocal_metrics}};
 
 // The installation as the inverter sees it, published on its own topic when more than one
-// battery is configured. Entity ids get "_agr" and names get " aggregated", the same way
-// batteries 2 and 3 get "_2" / " 2". With a single pack this is never published: it would only
+// battery is configured. Entity ids get "_multi" where batteries 1, 2 and 3 get "", "_2" and
+// "_3"; the names carry no suffix at all, because the unqualified "SoC" sitting beside "SoC 1"
+// and "SoC 2" is the installation. With a single pack this is never published: it would only
 // repeat battery #1.
 static const SensorConfig aggregateSensorConfigTemplate[] = {
     {"SOC", "SoC (scaled)", "%", "battery", always},
@@ -353,7 +354,7 @@ static const BatteryTarget battery_targets[] = {
 // zero-copy const char* literals.
 static String info_topics[3];
 
-// "<name>/info_agr", following the "<name>/info_2" pattern. Only used with several batteries.
+// "<name>/info_multi", following the "<name>/info_2" pattern. Only used with several batteries.
 static String aggregate_topic;
 
 static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
@@ -838,7 +839,7 @@ static bool publish_common_info(void) {
         if (!config.condition(nullptr)) {
           continue;
         }
-        if (!publish_sensor_discovery(config, "_agr", " aggregated", aggregate_topic)) {
+        if (!publish_sensor_discovery(config, "_multi", "", aggregate_topic)) {
           return false;
         }
       }
@@ -910,7 +911,7 @@ static bool publish_common_info(void) {
       }
     }
 
-    // The installation on "/info_agr". Nothing to aggregate with a single pack.
+    // The installation on "/info_multi". Nothing to aggregate with a single pack.
     if (datalayer.system.info.configured_batteries > 1) {
       DocClearGuard guard(shared_doc);
       set_aggregate_attributes(shared_doc);
@@ -1331,7 +1332,7 @@ bool init_mqtt(void) {
   for (const auto& target : battery_targets) {
     info_topics[target.index - 1] = topic_name + "/info" + target.id_suffix;
   }
-  aggregate_topic = topic_name + "/info_agr";
+  aggregate_topic = topic_name + "/info_multi";
   for (int i = 0; i < BTN_COUNT; i++) {
     button_command_topics[i] = generateButtonTopic(button_commands[i]);
   }
