@@ -270,23 +270,6 @@ static const SensorConfig globalSensorConfigTemplate[] = {
     {"heap_min_free", "Heap Min Free", "B", "data_size", heap_metrics_enabled},
     {"heap_fragmentation", "Heap Fragmentation", "%", "", heap_metrics_enabled}};
 
-struct ChargeLineSensorConfig {
-  const char* entity_id;
-  const char* json_key;
-  const char* name;
-  const char* unit;
-  const char* device_class;
-  uint8_t display_precision;
-};
-
-// Discovery object IDs deliberately say "charge_port_ac" while the compact
-// MQTT JSON contract keeps its specified charge_line_* keys.
-static const ChargeLineSensorConfig chargeLineSensorConfigTemplate[] = {
-    {"charge_port_ac_voltage", "charge_line_voltage", "Charge Port AC Voltage", "V", "voltage", 1},
-    {"charge_port_ac_current", "charge_line_current", "Charge Port AC Current", "A", "current", 1},
-    {"charge_port_ac_power", "charge_line_power", "Charge Port AC Power", "W", "power", 0},
-    {"charge_port_ac_current_limit", "charge_line_current_limit", "Charge Port AC Current Limit", "A", "current", 1}};
-
 // The battery instances the MQTT module publishes for. Battery #1 keeps the historical
 // un-suffixed topic ("<name>/info") and entity ids, so single-battery setups see no change.
 struct BatteryTarget {
@@ -328,10 +311,6 @@ static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
   return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/" + String(entity_id) + "/config";
 }
 
-static String generateCommonBinarySensorAutoConfigTopic(const char* entity_id) {
-  return String(ha_autodiscovery_topic.c_str()) + "/binary_sensor/" + topic_name + "/" + String(entity_id) + "/config";
-}
-
 static String generateCellVoltageAutoConfigTopic(int cell_number, String battery_suffix) {
   return String(ha_autodiscovery_topic.c_str()) + "/sensor/" + topic_name + "/cell_voltage" + battery_suffix +
          String(cell_number) + "/config";
@@ -347,10 +326,6 @@ static String generateButtonAutoConfigTopic(const char* subtype) {
 
 static String generateSensorDefaultEntityId(const String& object_id) {
   return "sensor." + object_id;
-}
-
-static String generateBinarySensorDefaultEntityId(const String& object_id) {
-  return "binary_sensor." + object_id;
 }
 
 void set_common_discovery_attributes(JsonDocument& doc) {
@@ -411,7 +386,7 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
 // "key" + suffix String keys were each heap-allocated and then copied into the document
 // pool — on every publish cycle, for every battery.
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
-                            Battery* battery_instance) {
+                            bool battery_supports_charged) {
   doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
   doc["SOC_real"] = ((float)battery_data.status.real_soc) / 100.0f;
   // Omit until the integration has decoded a real state of health, so HA shows "unknown"
@@ -446,7 +421,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["insulation_resistance"] = battery_data.status.insulation_resistance_kOhm;
   }
 
-  if (battery_instance != nullptr && battery_instance->supports_charged_energy()) {
+  if (battery_supports_charged) {
     // Note: reads the charged/discharged totals of THIS battery. The previous implementation
     // always read battery #1's totals, so batteries 2/3 reported battery #1's energy counters.
     if (battery_data.status.total_charged_battery_Wh != 0 && battery_data.status.total_discharged_battery_Wh != 0) {
@@ -468,19 +443,6 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["balancing_status"] = get_balancing_status_text(battery_data.status.balancing_status);
   ChargingState charging_state = get_charging_state(battery_data.status.current_dA);
   doc["charging_state"] = charging_state_to_text(charging_state);
-  if (battery_instance != nullptr && battery_instance->supports_charge_mode()) {
-    doc["charge_port_mode_active"] = battery_instance->is_charge_mode_active();
-  }
-  if (battery_instance != nullptr && battery_instance->supports_charge_line_measurements()) {
-    // Keep the last decoded measurements even when stale. Consumers must use
-    // charge_line_data_valid to distinguish a fresh PCS sample; replacing a
-    // stale value with zero would create false power/energy transitions.
-    doc["charge_line_data_valid"] = battery_instance->is_charge_line_data_valid();
-    doc["charge_line_voltage"] = battery_instance->get_charge_line_voltage_V();
-    doc["charge_line_current"] = battery_instance->get_charge_line_current_A();
-    doc["charge_line_power"] = battery_instance->get_charge_line_power_W();
-    doc["charge_line_current_limit"] = battery_instance->get_charge_line_current_limit_A();
-  }
   doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
       charging_state, battery_data.settings.inverter_limits_charge, battery_data.settings.inverter_limits_discharge,
       battery_data.settings.user_settings_limit_charge, battery_data.settings.user_settings_limit_discharge));
@@ -620,17 +582,14 @@ static const char* button_discovery_icon(const char* command) {
 // than the battery it is talking to. Home Assistant then files them under the device's
 // Diagnostic section instead of the main sensor list.
 static bool publish_sensor_discovery(const SensorConfig& config, const char* id_suffix, const char* name_suffix,
-                                     const String& state_topic, bool diagnostic = false,
-                                     bool require_charge_line_valid = false, const char* json_key = nullptr,
-                                     int display_precision = -1) {
+                                     const String& state_topic, bool diagnostic = false) {
   char entity_id[64];
   char name_buf[64];
   char value_template[96];
   snprintf(entity_id, sizeof(entity_id), "%s%s", config.entity_id, id_suffix);
   snprintf(name_buf, sizeof(name_buf), "%s%s", config.name, name_suffix);
   // The state topics are per-battery, so the value_template key is the base id for every battery
-  snprintf(value_template, sizeof(value_template), "{{ value_json.%s | default(none) }}",
-           json_key != nullptr ? json_key : config.entity_id);
+  snprintf(value_template, sizeof(value_template), "{{ value_json.%s | default(none) }}", config.entity_id);
 
   JsonDocument& doc = shared_doc;
   doc["name"] = name_buf;
@@ -709,9 +668,6 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
       strncmp(config.entity_id, "SOC", strlen("SOC")) == 0) {
     doc["suggested_display_precision"] = 1;
   }
-  if (display_precision >= 0) {
-    doc["suggested_display_precision"] = display_precision;
-  }
   // Entity icons (centralized): status sensors by entity id, all voltage/current sensors
   // by device_class. This also covers the balancing and cell min/max entities above.
   {
@@ -724,82 +680,10 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
     doc["entity_category"] = "diagnostic";
   }
   set_common_discovery_attributes(doc);
-  if (require_charge_line_valid) {
-    // Home Assistant considers the entity available only when the emulator is
-    // online AND the PCS frame is fresh. The state value itself remains the
-    // last measurement rather than being rewritten to zero on timeout.
-    doc["availability"][1]["topic"] = state_topic;
-    doc["availability"][1]["value_template"] =
-        "{{ 'online' if value_json.charge_line_data_valid | default(false) else 'offline' }}";
-    doc["availability"][1]["payload_available"] = "online";
-    doc["availability"][1]["payload_not_available"] = "offline";
-    doc["availability_mode"] = "all";
-  }
   serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
   doc.clear();
   return ok;
-}
-
-// Charge mode is an operating-state flag rather than a measurement. Publish it as a
-// Home Assistant binary sensor while keeping its state in the same per-battery JSON
-// payload as battery power, so source-attribution templates consume one coherent sample.
-static bool publish_charge_mode_discovery(const char* id_suffix, const char* name_suffix, const String& state_topic) {
-  char entity_id[64];
-  char name_buf[64];
-  snprintf(entity_id, sizeof(entity_id), "charge_port_mode_active%s", id_suffix);
-  snprintf(name_buf, sizeof(name_buf), "Charge Port Mode Active%s", name_suffix);
-
-  JsonDocument& doc = shared_doc;
-  doc["name"] = name_buf;
-  doc["state_topic"] = state_topic;
-  doc["unique_id"] = topic_name + "_" + String(entity_id);
-  doc["default_entity_id"] = generateBinarySensorDefaultEntityId(default_entity_id_prefix + String(entity_id));
-  doc["value_template"] = "{{ 'ON' if value_json.charge_port_mode_active else 'OFF' }}";
-  doc["payload_on"] = "ON";
-  doc["payload_off"] = "OFF";
-  doc["icon"] = "mdi:ev-station";
-  set_common_discovery_attributes(doc);
-  serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-  bool ok = mqtt_publish(generateCommonBinarySensorAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
-  doc.clear();
-  return ok;
-}
-
-// Home Assistant discovery configs are retained by the broker. Remove the old
-// config when this battery slot no longer supports charge mode, otherwise a
-// battery-type change leaves behind a stale binary sensor.
-static bool clear_charge_mode_discovery(const char* id_suffix) {
-  char entity_id[64];
-  snprintf(entity_id, sizeof(entity_id), "charge_port_mode_active%s", id_suffix);
-  return mqtt_publish(generateCommonBinarySensorAutoConfigTopic(entity_id).c_str(), "", true);
-}
-
-static bool clear_charge_line_discovery(const char* id_suffix) {
-  for (const auto& config : chargeLineSensorConfigTemplate) {
-    char entity_id[64];
-    snprintf(entity_id, sizeof(entity_id), "%s%s", config.entity_id, id_suffix);
-    if (!mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), "", true)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// The first development build used the MQTT JSON keys as discovery object IDs.
-// Clear those retained topics during migration to the unambiguous
-// charge_port_ac_* IDs so Home Assistant does not keep duplicate entities.
-static bool clear_legacy_charge_line_discovery(const char* id_suffix) {
-  static const char* legacy_entity_ids[] = {"charge_line_voltage", "charge_line_current", "charge_line_power",
-                                            "charge_line_current_limit"};
-  for (const char* legacy_entity_id : legacy_entity_ids) {
-    char entity_id[64];
-    snprintf(entity_id, sizeof(entity_id), "%s%s", legacy_entity_id, id_suffix);
-    if (!mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), "", true)) {
-      return false;
-    }
-  }
-  return true;
 }
 
 static bool publish_common_info(void) {
@@ -810,10 +694,6 @@ static bool publish_common_info(void) {
     for (const auto& target : battery_targets) {
       Battery* bat = *target.bat;
       if (bat == nullptr) {
-        if (!clear_charge_mode_discovery(target.id_suffix) || !clear_charge_line_discovery(target.id_suffix) ||
-            !clear_legacy_charge_line_discovery(target.id_suffix)) {
-          return false;
-        }
         continue;
       }
       for (const auto& config : batterySensorConfigTemplate) {
@@ -823,28 +703,6 @@ static bool publish_common_info(void) {
         if (!publish_sensor_discovery(config, target.id_suffix, target.name_suffix, info_topics[target.index - 1])) {
           return false;
         }
-      }
-      if (bat->supports_charge_mode()) {
-        if (!publish_charge_mode_discovery(target.id_suffix, target.name_suffix, info_topics[target.index - 1])) {
-          return false;
-        }
-      } else if (!clear_charge_mode_discovery(target.id_suffix)) {
-        return false;
-      }
-      if (!clear_legacy_charge_line_discovery(target.id_suffix)) {
-        return false;
-      }
-      if (bat->supports_charge_line_measurements()) {
-        for (const auto& config : chargeLineSensorConfigTemplate) {
-          const SensorConfig sensor_config = {config.entity_id, config.name, config.unit, config.device_class, always};
-          if (!publish_sensor_discovery(sensor_config, target.id_suffix, target.name_suffix,
-                                        info_topics[target.index - 1], false, true, config.json_key,
-                                        config.display_precision)) {
-            return false;
-          }
-        }
-      } else if (!clear_charge_line_discovery(target.id_suffix)) {
-        return false;
       }
     }
     // Global (emulator-level) sensors stay on battery #1's "/info" topic. They all describe
@@ -877,7 +735,7 @@ static bool publish_common_info(void) {
       //as if they were real. Gating on detection makes HA show "unknown" until data exists.
       if (battery_detected && datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN &&
           esp32hal->system_booted_up()) {
-        set_battery_attributes(doc, datalayer.battery, 1, battery);
+        set_battery_attributes(doc, datalayer.battery, 1, battery->supports_charged_energy());
       }
 
       doc["event_level"] = get_event_level_string(get_event_level());
@@ -925,7 +783,7 @@ static bool publish_common_info(void) {
       if (*target.detected && target.data->status.CAN_battery_still_alive && allowed_to_send_CAN &&
           esp32hal->system_booted_up()) {
         DocClearGuard guard(shared_doc);
-        set_battery_attributes(shared_doc, *target.data, target.index, bat);
+        set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
         serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
           log_publish_failure("Common info");

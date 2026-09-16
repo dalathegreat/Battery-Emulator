@@ -124,60 +124,6 @@ TEST(TeslaChargeModeConfig, RequiresTeslaPcsChargerSelection) {
   EXPECT_FALSE(battery.is_charge_mode_active());
 }
 
-TEST(TeslaChargeLine, DecodesCapturedPcsFrameIndependentlyOfChargeMode) {
-  user_selected_battery_type = BatteryType::TeslaModel3Y;
-  user_selected_tesla_digital_HVIL = false;
-  set_millis64(1000);
-
-  TeslaBattery battery;
-  battery.setup();
-  ASSERT_TRUE(battery.supports_charge_line_measurements());
-  ASSERT_FALSE(battery.is_charge_mode_active());
-
-  battery.handle_incoming_can_frame(charge_line_264());
-
-  EXPECT_TRUE(battery.is_charge_line_data_valid());
-  EXPECT_NEAR(battery.get_charge_line_voltage_V(), 116.9f, 0.05f);
-  EXPECT_FLOAT_EQ(battery.get_charge_line_current_A(), 12.0f);
-  EXPECT_FLOAT_EQ(battery.get_charge_line_power_W(), 1400.0f);
-  EXPECT_FLOAT_EQ(battery.get_charge_line_current_limit_A(), 12.0f);
-}
-
-TEST(TeslaChargeLine, IgnoresShortFramesAndExpiresWithoutZeroingMeasurements) {
-  user_selected_battery_type = BatteryType::TeslaModel3Y;
-  user_selected_tesla_digital_HVIL = false;
-  set_millis64(1000);
-
-  TeslaBattery battery;
-  battery.setup();
-  battery.handle_incoming_can_frame(charge_line_264());
-  ASSERT_TRUE(battery.is_charge_line_data_valid());
-
-  // A short frame arriving later must not refresh the valid sample's timer.
-  set_millis64(2500);
-  CAN_frame short_frame = charge_line_264(5);
-  short_frame.data.u8[0] = 0;
-  battery.handle_incoming_can_frame(short_frame);
-  EXPECT_TRUE(battery.is_charge_line_data_valid());
-  EXPECT_NEAR(battery.get_charge_line_voltage_V(), 116.9f, 0.05f);
-
-  set_millis64(3001);
-  EXPECT_FALSE(battery.is_charge_line_data_valid());
-  EXPECT_NEAR(battery.get_charge_line_voltage_V(), 116.9f, 0.05f);
-  EXPECT_FLOAT_EQ(battery.get_charge_line_current_A(), 12.0f);
-  EXPECT_FLOAT_EQ(battery.get_charge_line_power_W(), 1400.0f);
-  EXPECT_FLOAT_EQ(battery.get_charge_line_current_limit_A(), 12.0f);
-}
-
-TEST(TeslaChargeLine, IsNotAdvertisedForTeslaModelSx) {
-  user_selected_battery_type = BatteryType::TeslaModelSX;
-  set_millis64(1000);
-
-  TeslaBattery battery;
-  battery.setup();
-  EXPECT_FALSE(battery.supports_charge_line_measurements());
-}
-
 TEST_F(TeslaChargeModeTest, EmitsMeasuredStartupAndSuccessfulChargeProfile) {
   user_selected_battery_type = BatteryType::TeslaModel3Y;
   user_selected_tesla_digital_HVIL = false;
