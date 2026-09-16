@@ -26,21 +26,6 @@ static inline uint32_t power_W_to_current_dA(uint32_t power_W, uint16_t voltage_
   return (((uint64_t)power_W * 100) + (voltage_dV / 2)) / voltage_dV;
 }
 
-/**
- * @brief Convert a current to a power, dividing once at the end.
- *
- * The obvious current_dA * (voltage_dV / 100) throws away everything below a whole Volt before
- * it multiplies: 386.0 V is spent as 380 V, so a 2.5 A pack reports 950 W instead of 965 W.
- * Dividing last keeps the fractional Volt.
- *
- * @param[in] current_dA Pack current in deciAmpere, signed. Positive = charging
- * @param[in] voltage_dV Pack voltage in deciVolt
- * @return The power in Watts, signed
- */
-static inline int32_t current_dA_to_power_W(int16_t current_dA, uint16_t voltage_dV) {
-  return ((int32_t)voltage_dV * (int32_t)current_dA) / 100;
-}
-
 void snapshot_bms_limits(DATALAYER_BATTERY_TYPE& pack);
 
 /**

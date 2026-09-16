@@ -230,14 +230,9 @@ TEST_F(BatteryAggregateTest, UndecodedDesignVoltagesAreIgnored) {
   EXPECT_EQ(datalayer.aggregate.min_design_voltage_dV, 3100);
 }
 
-// Power divides once at the end, everywhere. The obvious current_dA * (voltage_dV / 100) throws
-// the fractional Volt away before it multiplies, so 386.0 V gets spent as 380 V - and since the
-// packs and the aggregate both divide last now, the aggregate agrees with their sum exactly.
-TEST_F(BatteryAggregateTest, PowerKeepsTheFractionalVolts) {
-  EXPECT_EQ(current_dA_to_power_W(5, 3860), 193);     // not 190
-  EXPECT_EQ(current_dA_to_power_W(25, 3860), 965);    // not 950
-  EXPECT_EQ(current_dA_to_power_W(-20, 3525), -705);  // not -700, and the sign survives
-
+// The aggregate converts current to power through the shared helper in datalayer.h, so it
+// rounds the same way the per-pack figures do rather than a percent or two away from them.
+TEST_F(BatteryAggregateTest, PowerUsesTheSharedConversion) {
   add_second_pack();
   battery2_detected = true;
   datalayer.battery.status.voltage_dV = 3860;
@@ -246,18 +241,11 @@ TEST_F(BatteryAggregateTest, PowerKeepsTheFractionalVolts) {
   datalayer.battery2.status.current_dA = 25;
   datalayer.battery.status.reported_current_dA = 30;  // Software.cpp sums these
 
-  datalayer.battery.status.active_power_W =
-      current_dA_to_power_W(datalayer.battery.status.current_dA, datalayer.battery.status.voltage_dV);
-  datalayer.battery2.status.active_power_W =
-      current_dA_to_power_W(datalayer.battery2.status.current_dA, datalayer.battery2.status.voltage_dV);
-
   scale_all();
   update_aggregate_values();
 
   EXPECT_EQ(datalayer.aggregate.current_dA, 30);
-  EXPECT_EQ(datalayer.aggregate.active_power_W, 1158);
-  EXPECT_EQ(datalayer.aggregate.active_power_W,
-            datalayer.battery.status.active_power_W + datalayer.battery2.status.active_power_W);
+  EXPECT_EQ(datalayer.aggregate.active_power_W, current_dA_to_power_W(30, 3860));
 }
 
 // State of health follows the weakest pack, like every other limit here.

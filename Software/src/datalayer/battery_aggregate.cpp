@@ -166,9 +166,8 @@ void update_aggregate_values() {
     }
   }
 
-  /* Power from the summed current against the shared bus voltage. Now that the per-pack figures
-     divide last too, this agrees with their sum exactly rather than running a percent or two
-     above it. */
+  /* Power from the summed current against the shared bus voltage, through the shared helper in
+     datalayer.h so this agrees with the per-pack figures rather than rounding differently. */
   agg.active_power_W = current_dA_to_power_W(agg.current_dA, agg.voltage_dV);
 
   /* SOC follows the emptiest pack, which is what protects the weakest one on discharge. Once
