@@ -1374,7 +1374,7 @@ String processor(const String& var) {
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<div id='bxUpd' style='text-align:center'></div>";
-    content += "<h4>Software: ";
+    content += "<h4>";
 #if defined(GIT_TAG) && defined(GITHUB_ORG) && defined(GITHUB_REPO)
     content += "<a href='https://github.com/" GITHUB_ORG "/" GITHUB_REPO "/releases/tag/" GIT_TAG
                "' target='_blank' style='color:#fff'>" +
@@ -1389,26 +1389,24 @@ String processor(const String& var) {
 
 // Show hardware used:
 #ifdef HW_LILYGO
-    content += " Hardware: LilyGo T-CAN485";
+    content += " running on LilyGo T-CAN485";
 #endif  // HW_LILYGO
 #ifdef HW_LILYGO2CAN
-    content += " Hardware: LilyGo T_2CAN";
+    content += " running on LilyGo T_2CAN";
 #endif  // HW_LILYGO2CAN
 #ifdef HW_BECOM
-    content += " Hardware: BECom";
+    content += " running on BECom";
 #endif  // HW_BECOM
 #ifdef HW_STARK
-    content += " Hardware: Stark CMR Module";
+    content += " running on Stark CMR Module";
 #endif  // HW_STARK
 #ifdef HW_WAVESHARE
-    content += " Hardware: Waveshare ESP32-S3-RS485-CAN";
+    content += " running on Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
     if (datalayer.system.info.CPU_measurement_enabled) {
-      content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
-    } else {
-      content += "</h4>";
+      content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C";
     }
-    content += "<h4>Uptime: " + format_ms_string(millis64()) + "</h4>";
+    content += "</h4><h4>for " + format_ms_string(millis64()) + "</h4>";
     if (datalayer.system.info.performance_measurement_active) {
       content +=
           "<h4>Free heap: " + String(ESP.getFreeHeap()) + ", max alloc: " + String(ESP.getMaxAllocHeap()) + "</h4>";
@@ -1442,18 +1440,22 @@ String processor(const String& var) {
       content += "<h4>SSID: " + html_escape(ssid.c_str());
       if (wifi_connected()) {
         // Get and display the signal strength (RSSI) and channel
-        content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
+        content += " RSSI: " + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
       }
       content += "</h4>";
     }
     // Reachability/hostname/IP reflect the active interface
     if (network_connected()) {
-      content += "<h4>Hostname: " + html_escape(active_hostname()) + "</h4>";
-      // MAC is the station address, which is also the source address of the ESPNow
-      // frames - handy when filling in the ESPNow receiver MAC list on another node.
-      String mac = WiFi.macAddress();
-      mac.toLowerCase();
-      content += "<h4>IP (WiFi): " + WiFi.localIP().toString() + " MAC: " + mac + "</h4>";
+      content += "<h4>" + html_escape(active_hostname()) + " [" + WiFi.localIP().toString();
+      if (espnow_enabled) {
+        // MAC is the station address, which is also the source address of the ESPNow
+        // frames - handy when filling in the ESPNow receiver MAC list on another node.
+        String mac = WiFi.macAddress();
+        mac.toLowerCase();
+        content += ' ';
+        content += mac;
+      }
+      content += "]</h4>";
     } else {
       // Reached only when no interface is up; keep this interface-agnostic
       content += "<h4>Network state: Disconnected</h4>";
