@@ -381,15 +381,54 @@ void init_webserver() {
   {
     // Define the handler to export can log
     server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-      String logs = String(datalayer.system.info.logged_can_messages);
-      if (logs.length() == 0) {
-        logs = "No logs available.";
+      uint32_t duration_s = 10;
+      if (request->hasParam("seconds")) {
+        duration_s = request->getParam("seconds")->value().toInt();
+        if (duration_s == 0) {
+          duration_s = 10;
+        }
+        if (duration_s > 120) {
+          duration_s = 120;
+        }
       }
 
-      String filename = "canlog_" + format_ms_stamp(millis64()) + ".txt";
+      // Start this capture from a clean buffer rather than tailing whatever was
+      // already logged - simpler and avoids ambiguity if a wrap happens mid-capture.
+      datalayer.system.info.logged_can_messages[0] = '\0';
+      datalayer.system.info.logged_can_messages_offset = 0;
+      datalayer.system.info.can_logging_active = true;
 
-      // Use request->send with dynamic headers
-      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+      auto sent_offset = std::make_shared<size_t>(0);
+      auto deadline_ms = std::make_shared<unsigned long>(millis() + duration_s * 1000UL);
+
+      String filename = "canlog_live_" + format_ms_stamp(millis64()) + ".txt";
+
+      AsyncWebServerResponse* response = request->beginChunkedResponse(
+          "text/plain", [sent_offset, deadline_ms](uint8_t* buffer, size_t maxLen, size_t /*index*/) -> size_t {
+            size_t current_offset = datalayer.system.info.logged_can_messages_offset;
+            bool time_up = millis() >= *deadline_ms;
+
+            // The writer restarts at 0 once a message won't fit at the tail, so
+            // offset can go backwards. Detect that and resync instead of letting
+            // the unsigned subtraction below underflow.
+            if (current_offset < *sent_offset) {
+              *sent_offset = 0;
+            }
+
+            if (current_offset > *sent_offset) {
+              size_t available = current_offset - *sent_offset;
+              size_t to_copy = (available < maxLen) ? available : maxLen;
+              memcpy(buffer, datalayer.system.info.logged_can_messages + *sent_offset, to_copy);
+              *sent_offset += to_copy;
+              return to_copy;
+            }
+
+            if (time_up) {
+              return 0;
+            }
+            return RESPONSE_TRY_AGAIN;
+          });
+
       response->addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
       request->send(response);
     });
