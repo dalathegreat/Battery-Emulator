@@ -39,6 +39,45 @@ TEST(FiskerOceanTests, UsesConfiguredCurrentLimits) {
   datalayer.battery.settings.max_user_set_discharge_dA = 300;
 }
 
+TEST(FiskerOceanTests, DecodesCrcProtectedPackCurrentAndVoltage) {
+  FiskerOceanBattery battery;
+  battery.setup();
+
+  // Field capture while discharging: raw current 0x0174 / 20 = 18.6 A,
+  // raw voltage 0x9218 / 100 = 374.00 V.
+  CAN_frame discharge = {
+      .FD = true, .ext_ID = false, .DLC = 8, .ID = 0x0E9, .data = {0x52, 0x0E, 0x32, 0x00, 0x01, 0x74, 0x92, 0x18}};
+  battery.handle_incoming_can_frame(discharge);
+  battery.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.current_dA, -186);
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3740);
+
+  // Vehicle charging capture: signed raw current 0xFE2E = -466, or -23.3 A
+  // in Fisker's convention. Battery Emulator represents charging as positive.
+  CAN_frame charge = {
+      .FD = true, .ext_ID = false, .DLC = 8, .ID = 0x0E9, .data = {0x0B, 0xF4, 0xFF, 0xFF, 0xFE, 0x2E, 0xAA, 0xA0}};
+  battery.handle_incoming_can_frame(charge);
+  battery.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.current_dA, 233);
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4368);
+}
+
+TEST(FiskerOceanTests, RejectsPackCurrentWhenCrcIsInvalid) {
+  FiskerOceanBattery battery;
+  battery.setup();
+  datalayer.battery.status.current_dA = 123;
+  const uint16_t error_count = datalayer.battery.status.CAN_error_counter;
+
+  CAN_frame invalid = {
+      .FD = true, .ext_ID = false, .DLC = 8, .ID = 0x0E9, .data = {0x00, 0x0E, 0x32, 0x00, 0x01, 0x74, 0x92, 0x18}};
+  battery.handle_incoming_can_frame(invalid);
+
+  EXPECT_EQ(datalayer.battery.status.current_dA, 123);
+  EXPECT_EQ(datalayer.battery.status.CAN_error_counter, error_count + 1);
+}
+
 TEST(FiskerOceanTests, TransmitsOnlyConfirmedFramesByDefault) {
   clear_transmitted_frames();
   FiskerOceanBattery battery;

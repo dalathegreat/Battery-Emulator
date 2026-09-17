@@ -100,6 +100,11 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x0E9:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] == expected_CRC(&rx_frame, 0x05)) {  //If CRC matches expected
+        const int16_t fisker_current_raw =
+            static_cast<int16_t>((static_cast<uint16_t>(rx_frame.data.u8[4]) << 8) | rx_frame.data.u8[5]);
+        // Fisker uses 0.05 A/bit with positive = discharge. Battery Emulator uses
+        // deciamps with positive = charge, so invert and divide the raw value by two.
+        datalayer.battery.status.current_dA = -(fisker_current_raw / 2);
         pack_voltage = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       } else {  //If CRC does not match expected, increment error counter
         datalayer.battery.status.CAN_error_counter++;
