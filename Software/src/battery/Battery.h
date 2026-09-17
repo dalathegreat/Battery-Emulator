@@ -62,6 +62,7 @@ enum class BatteryType {
   VAGMqbEvo = 55,
   Akasol = 56,
   GrowattLv = 57,
+  StellantisProOne = 58,
   Highest
 };
 

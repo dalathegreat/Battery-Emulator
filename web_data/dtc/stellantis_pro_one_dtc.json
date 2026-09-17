@@ -1,450 +1,592 @@
 [
   {
     "dtc": "P0AA100",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK CLOSED"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK CLOSED",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0AA200",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK OPEN"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0AA400",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK CLOSED"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK CLOSED",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0AA500",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK OPEN"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0AD900",
-    "l_dsc": "HYBRID BATTERY POSITIVE CONTACTOR CONTROL CIRCUIT/OPEN"
+    "s_dsc": "HYBRID BATTERY POSITIVE CONTACTOR CONTROL CIRCUIT/OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0ADB00",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with internal contactor control circuit"
   },
   {
     "dtc": "P0ADC00",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with internal contactor control circuit"
   },
   {
     "dtc": "P0ADD00",
-    "l_dsc": "HYBRID BATTERY NEGATIVE CONTACTOR CONTROL CIRCUIT/OPEN"
+    "s_dsc": "HYBRID BATTERY NEGATIVE CONTACTOR CONTROL CIRCUIT/OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0ADF00",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with internal contactor control circuit"
   },
   {
     "dtc": "P0AE000",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with internal contactor control circuit"
+  },
+  {
+    "dtc": "P0AE200",
+    "s_dsc": "HYBRID/EV BATTERY CONTACTOR STUCK CLOSED",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0AE300",
-    "l_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CIRCUIT STUCK OPEN"
+    "s_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CIRCUIT STUCK OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0AE600",
-    "l_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CONTROL CIRCUIT A LOW"
+    "s_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CONTROL CIRCUIT A LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with internal contactor control circuit"
   },
   {
     "dtc": "P0AE700",
-    "l_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CONTROL CIRCUIT A HIGH"
+    "s_dsc": "HYBRID/EV BATTERY PRECHARGE CONTACTOR CONTROL CIRCUIT A HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with internal contactor control circuit"
   },
   {
     "dtc": "P0C7700",
-    "l_dsc": "HV BATTERY SYSTEM PRECHARGE TIME TOO SHORT"
+    "s_dsc": "HV BATTERY SYSTEM PRECHARGE TIME TOO SHORT",
+    "l_dsc": "The BPCM detects precharge time out of specification. Check wiring and capacitance"
   },
   {
     "dtc": "P0C7800",
-    "l_dsc": "HYBRID/EV BATTERY SYSTEM PRECHARGE A TIME TOO LONG"
+    "s_dsc": "HYBRID/EV BATTERY SYSTEM PRECHARGE A TIME TOO LONG",
+    "l_dsc": "The BPCM detects precharge time out of specification. Check wiring and capacitance"
   },
   {
     "dtc": "P0D0800",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK CLOSED"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK CLOSED",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D0900",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK OPEN"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A STUCK OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D0A00",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT OPEN"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D0C00",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D0D00",
-    "l_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY POSITIVE CONTACTOR A CONTROL CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D0F00",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK CLOSED"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK CLOSED",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D1000",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK OPEN"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A STUCK OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D1100",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT/OPEN"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT/OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D1300",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0D1400",
-    "l_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY NEGATIVE CONTACTOR A CONTROL CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P0E6D00",
-    "l_dsc": "BATTERY CHARGING SYSTEM PRECHARGE CONTACTOR CONTROL CIRCUIT/OPEN"
+    "s_dsc": "BATTERY CHARGING SYSTEM PRECHARGE CONTACTOR CONTROL CIRCUIT/OPEN",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the battery contactor"
   },
   {
     "dtc": "P1A2000",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE HYBRID BATTERY SYSTEM PRECHARGE TIME TOO LONG"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE HYBRID BATTERY SYSTEM PRECHARGE TIME TOO LONG",
+    "l_dsc": "The BPCM detects precharge time out of specification. Check wiring and capacitance"
   },
   {
     "dtc": "P1A2100",
-    "l_dsc": "HV BATTERY CONTACTOR CONTROL SEQUENCE INCORRECT"
+    "s_dsc": "HV BATTERY CONTACTOR CONTROL SEQUENCE INCORRECT",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault where the Electric Vehicle Control Unit (EVCU) is commanding excessive power from the (BPCM) Driver will be prompted to plug the vehicle into charging station"
   },
   {
     "dtc": "P2C8900",
-    "l_dsc": "HYBRID/EV BATTERY SYSTEM PRECHARGE A CURRENT TOO HIGH"
+    "s_dsc": "HYBRID/EV BATTERY SYSTEM PRECHARGE A CURRENT TOO HIGH",
+    "l_dsc": "The BPCM has detected a short in the HV bus"
   },
   {
     "dtc": "P2C9400",
-    "l_dsc": "HYBRID/EV BATTERY CONTACTOR CONTROL SUPPLY CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY CONTACTOR CONTROL SUPPLY CIRCUIT LOW",
+    "l_dsc": "The BPCM has detected the 12 volt supply is below 9.0 volts"
   },
   {
     "dtc": "P2C9500",
-    "l_dsc": "HYBRID/EV BATTERY CONTACTOR CONTROL SUPPLY CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY CONTACTOR CONTROL SUPPLY CIRCUIT HIGH",
+    "l_dsc": "The BPCM has detected the 12 volt supply is above 18.0 volts"
   },
   {
     "dtc": "P0A7F00",
-    "l_dsc": "HYBRID/EV BATTERY PACK DETERIORATION"
+    "s_dsc": "HYBRID/EV BATTERY PACK DETERIORATION",
+    "l_dsc": "The BPCM has detected the battery pack State of Health (SOH) is less than or equal to 70%"
   },
   {
     "dtc": "P0BBD00",
-    "l_dsc": "HYBRID BATTERY PACK VOLTAGE VARIATION EXCEEDED LIMIT"
+    "s_dsc": "HYBRID BATTERY PACK VOLTAGE VARIATION EXCEEDED LIMIT",
+    "l_dsc": "Difference between the Battery Module voltage and the voltage of the other Battery Modules is more than 0.6 volts"
   },
   {
     "dtc": "P0BBE00",
-    "l_dsc": "HYBRID BATTERY PACK VOLTAGE VARIATION"
+    "s_dsc": "HYBRID BATTERY PACK VOLTAGE VARIATION",
+    "l_dsc": "The difference between total cell voltage measurement and the Internal Pack voltage from Pos (HV-VA) to Negative (HV-NEG) measurement is =>50v"
   },
   {
     "dtc": "P0DAF00",
-    "l_dsc": "HYBRID/EV BATTERY CELL BALANCING CIRCUIT A RANGE/PERFORMANCE"
+    "s_dsc": "HYBRID/EV BATTERY CELL BALANCING CIRCUIT A RANGE/PERFORMANCE",
+    "l_dsc": "CSC Module detects that a Battery Module cell balancing circuit is open or shorted"
   },
   {
     "dtc": "P0DE600",
-    "l_dsc": "HYBRID/EV BATTERY PACK CELL VOLTAGE LOW"
+    "s_dsc": "HYBRID/EV BATTERY PACK CELL VOLTAGE LOW",
+    "l_dsc": "Cell V below 2.8V (Above -5°C) Cell V below 2.5V (Between -5°C and -20°C) Cell V below 2.1V (Below -20°C)"
   },
   {
     "dtc": "P0DE700",
-    "l_dsc": "HYBRID/EV BATTERY PACK CELL VOLTAGE HIGH"
+    "s_dsc": "HYBRID/EV BATTERY PACK CELL VOLTAGE HIGH",
+    "l_dsc": "Maximum cell voltage was above 4.25 volts"
   },
   {
     "dtc": "P1A2900",
-    "l_dsc": "CELL SUPERVISORY CIRCUIT A FAILURE"
+    "s_dsc": "CELL SUPERVISORY CIRCUIT A FAILURE",
+    "l_dsc": "The BPCM has detected an internal failure within a CSC module"
   },
   {
     "dtc": "P29FF00",
-    "l_dsc": "HYBRID/EV BATTERY THERMAL RUNAWAY DETECTED"
+    "s_dsc": "HYBRID/EV BATTERY THERMAL RUNAWAY DETECTED",
+    "l_dsc": "The BPCM has detected a rapid increase in battery temperature"
   },
   {
     "dtc": "P0AC000",
-    "l_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT PERFORMANCE"
+    "s_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT PERFORMANCE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0AC100",
-    "l_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT LOW"
+    "s_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0AC200",
-    "l_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT HIGH"
+    "s_dsc": "HYBRID BATTERY PACK CURRENT SENSOR 1 CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0B0F00",
-    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT PERFORMANCE"
+    "s_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT PERFORMANCE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0B1000",
-    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0B1100",
-    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 2 CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0B1300",
-    "l_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 1/2 CORRELATION"
+    "s_dsc": "HYBRID/EV BATTERY PACK CURRENT SENSOR 1/2 CORRELATION",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0ABA00",
-    "l_dsc": "HYBRID/EV BATTERY PACK VOLTAGE SENSE A CIRCUIT"
+    "s_dsc": "HYBRID/EV BATTERY PACK VOLTAGE SENSE A CIRCUIT",
+    "l_dsc": "Internal BPCM voltage sampling chip error"
   },
   {
     "dtc": "P0B1400",
-    "l_dsc": "HYBRID/EV BATTERY PACK VOLTAGE SENSE B CIRCUIT"
+    "s_dsc": "HYBRID/EV BATTERY PACK VOLTAGE SENSE B CIRCUIT",
+    "l_dsc": "Internal BPCM voltage sampling chip error"
   },
   {
     "dtc": "P0B3D00",
-    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 CIRCUIT LOW",
+    "l_dsc": "CSC Module detects that a single battery cell voltage is low (less than 0.1 volts)."
   },
   {
     "dtc": "P0B3E00",
-    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 CIRCUIT HIGH",
+    "l_dsc": "CSC Module detects that a single battery cell voltage is High. (greater than 4.9 volts)"
   },
   {
     "dtc": "P0C6E00",
-    "l_dsc": "HYBRID BATTERY TEMPERATURE SENSOR A/B CORRELATION"
+    "s_dsc": "HYBRID BATTERY TEMPERATURE SENSOR A/B CORRELATION",
+    "l_dsc": "The BPCM has detected two temperature sensors in one Battery Module have failed"
   },
   {
     "dtc": "P0ECA00",
-    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR SYSTEM-MULTIPLE SENSOR CORRELATION"
+    "s_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR SYSTEM-MULTIPLE SENSOR CORRELATION",
+    "l_dsc": "The BPCM has detected a Battery Module temperature reading imbalance within the battery pack"
   },
   {
     "dtc": "P0ECB00",
-    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSOR SYSTEM-MULTIPLE SENSOR CORRELATION"
+    "s_dsc": "HYBRID/EV BATTERY VOLTAGE SENSOR SYSTEM-MULTIPLE SENSOR CORRELATION",
+    "l_dsc": "CSC Module detects that total cell voltage reading differs from the sum of the individual battery cell voltages by 0.1 volts"
   },
   {
     "dtc": "P1C0000",
-    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 OUT OF RANGE LOW"
+    "s_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 OUT OF RANGE LOW",
+    "l_dsc": "Minimum cell voltage was below 1.7 volts"
   },
   {
     "dtc": "P1C0100",
-    "l_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 OUT OF RANGE HIGH"
+    "s_dsc": "HYBRID/EV BATTERY VOLTAGE SENSE 1 OUT OF RANGE HIGH",
+    "l_dsc": "Maximum cell voltage was above 4.35 volts"
   },
   {
     "dtc": "P1E1500",
-    "l_dsc": "BATTERY CURRENT SENSOR"
+    "s_dsc": "BATTERY CURRENT SENSOR",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0CA600",
-    "l_dsc": "HYBRID/EV BATTERY CHARGING CURRENT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY CHARGING CURRENT HIGH",
+    "l_dsc": "The BPCM detects uncontrolled current during plug in charging"
   },
   {
     "dtc": "P0CA700",
-    "l_dsc": "HYBRID/EV BATTERY DISCHARGING CURRENT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY DISCHARGING CURRENT HIGH",
+    "l_dsc": "The BPCM has detected current discharge limit has been exceeded"
   },
   {
     "dtc": "P0D3500",
-    "l_dsc": "HYBRID/EV BATTERY SYSTEM CURRENT UNSTABLE"
+    "s_dsc": "HYBRID/EV BATTERY SYSTEM CURRENT UNSTABLE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a fault with internal current sensors"
   },
   {
     "dtc": "P0A0A00",
-    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A"
+    "s_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an open HVIL circuit"
   },
   {
     "dtc": "P0A0B00",
-    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A PERFORMANCE"
+    "s_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A PERFORMANCE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an open HVIL circuit"
   },
   {
     "dtc": "P0A0C00",
-    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A LOW"
+    "s_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a short to ground on the HVIL circuit"
   },
   {
     "dtc": "P0A0D00",
-    "l_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A HIGH"
+    "s_dsc": "HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT A HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a short to voltage on the HVIL circuit"
   },
   {
     "dtc": "P0A9500",
-    "l_dsc": "HIGH VOLTAGE FUSE A"
+    "s_dsc": "HIGH VOLTAGE FUSE A",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an open with Battery Pack Fuse A (Smart Fuse) and/or Pyro Fuse"
   },
   {
     "dtc": "P0E2F00",
-    "l_dsc": "HIGH VOLTAGE FUSE B"
+    "s_dsc": "HIGH VOLTAGE FUSE B",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an open with Battery Pack Fuse B (PDC Fuse)"
   },
   {
     "dtc": "P0E3000",
-    "l_dsc": "HIGH VOLTAGE FUSE C"
+    "s_dsc": "HIGH VOLTAGE FUSE C",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an open with Battery Pack Fuse C (Front EDM Fuse)"
   },
   {
     "dtc": "P0AA600",
-    "l_dsc": "HYBRID BATTERY VOLTAGE SYSTEM ISOLATION FAULT"
+    "s_dsc": "HYBRID BATTERY VOLTAGE SYSTEM ISOLATION FAULT",
+    "l_dsc": "The BPCM detects Isolation resistance < 350 kOhms"
   },
   {
     "dtc": "P0AA700",
-    "l_dsc": "HYBRID/EV BATTERY VOLTAGE ISOLATION SENSOR CIRCUIT"
+    "s_dsc": "HYBRID/EV BATTERY VOLTAGE ISOLATION SENSOR CIRCUIT",
+    "l_dsc": "The BPCM detects Isolation resistance < 350 kOhms"
   },
   {
     "dtc": "P0AA800",
-    "l_dsc": "HYBRID/EV BATTERY PACK A VOLTAGE ISOLATION SENSOR CIRCUIT RANGE/PERFORMANCE"
+    "s_dsc": "HYBRID/EV BATTERY PACK A VOLTAGE ISOLATION SENSOR CIRCUIT RANGE/PERFORMANCE",
+    "l_dsc": "The BPCM detects a loss of isolation in the Direct Current Fast Charging (DCFC) circuits"
   },
   {
     "dtc": "P0B3300",
-    "l_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT"
+    "s_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT",
+    "l_dsc": "The BPCM has detected HVIL circuit voltage equal to or less than 0.4 volts"
   },
   {
     "dtc": "P0B3500",
-    "l_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT LOW"
+    "s_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT LOW",
+    "l_dsc": "The BPCM has detected HVIL circuit voltage equal to or less than 0.3 volts"
   },
   {
     "dtc": "P0B3600",
-    "l_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT HIGH"
+    "s_dsc": "HIGH VOLTAGE SERVICE DISCONNECT CIRCUIT HIGH",
+    "l_dsc": "The BPCM has detected HVIL circuit voltage equal to or more than 1.0 volt"
   },
   {
     "dtc": "P1AE200",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an open HVIL circuit"
   },
   {
     "dtc": "P1AE300",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT LOW"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a short to ground on the HVIL circuit."
   },
   {
     "dtc": "P1AE400",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT HIGH"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE HIGH VOLTAGE SYSTEM INTERLOCK CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects a short to voltage on the HVIL circuit"
   },
   {
     "dtc": "P1E1B00",
-    "l_dsc": "HYBRID/EV BATTERY SIDE VOLTAGE SYSTEM ISOLATION"
+    "s_dsc": "HYBRID/EV BATTERY SIDE VOLTAGE SYSTEM ISOLATION",
+    "l_dsc": "The BPCM detects internal isolation less than 350 kOhms"
   },
   {
     "dtc": "P066800",
-    "l_dsc": "CONTROL MODULE INTERNAL TEMPERATURE SENSOR 1 CIRCUIT LOW"
+    "s_dsc": "CONTROL MODULE INTERNAL TEMPERATURE SENSOR 1 CIRCUIT LOW",
+    "l_dsc": "The BPCM has detected an internal temperature sensing circuit failure"
   },
   {
     "dtc": "P063400",
-    "l_dsc": "CONTROL MODULE INTERNAL TEMPERATURE 1 TOO HIGH"
+    "s_dsc": "CONTROL MODULE INTERNAL TEMPERATURE 1 TOO HIGH",
+    "l_dsc": "The BPCM has detected an internal temperature sensing circuit failure"
   },
   {
     "dtc": "P0A7E00",
-    "l_dsc": "HYBRID/EV BATTERY PACK A OVER TEMPERATURE"
+    "s_dsc": "HYBRID/EV BATTERY PACK A OVER TEMPERATURE",
+    "l_dsc": "The BPCM detects Battery Module temperatures over 150.8°(F)/66.0°(C)"
   },
   {
     "dtc": "P0A9B00",
-    "l_dsc": "HYBRID BATTERY TEMPERATURE SENSOR A CIRCUIT"
+    "s_dsc": "HYBRID BATTERY TEMPERATURE SENSOR A CIRCUIT",
+    "l_dsc": "The BPCM has detected two abnormal temperature sensor readings within one Battery Module"
   },
   {
     "dtc": "P0A9D00",
-    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 CIRCUIT LOW"
+    "s_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 CIRCUIT LOW",
+    "l_dsc": "The BPCM has detected temperature channel B out of range low"
   },
   {
     "dtc": "P0A9E00",
-    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 CIRCUIT HIGH"
+    "s_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 CIRCUIT HIGH",
+    "l_dsc": "The BPCM has detected temperature channel B out of range high"
   },
   {
     "dtc": "P0C4400",
-    "l_dsc": "HYBRID BATTERY PACK COOLANT INLET TEMPERATURE SENSOR CIRCUIT LOW"
+    "s_dsc": "HYBRID BATTERY PACK COOLANT INLET TEMPERATURE SENSOR CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the Battery Pack inlet temperature sensor circuit shorted to ground"
   },
   {
     "dtc": "P0C4500",
-    "l_dsc": "HYBRID BATTERY PACK COOLANT INLET TEMPERATURE SENSOR CIRCUIT HIGH"
+    "s_dsc": "HYBRID BATTERY PACK COOLANT INLET TEMPERATURE SENSOR CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the Battery Pack inlet temperature sensor circuit shorted to battery"
   },
   {
     "dtc": "P0CD700",
-    "l_dsc": "HYBRID BATTERY PACK COOLANT OUTLET TEMPERATURE SENSOR CIRCUIT LOW"
+    "s_dsc": "HYBRID BATTERY PACK COOLANT OUTLET TEMPERATURE SENSOR CIRCUIT LOW",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the Battery Pack outlet temperature sensor circuit shorted to ground"
   },
   {
     "dtc": "P0CD800",
-    "l_dsc": "HYBRID BATTERY PACK COOLANT OUTLET TEMPERATURE SENSOR CIRCUIT HIGH"
+    "s_dsc": "HYBRID BATTERY PACK COOLANT OUTLET TEMPERATURE SENSOR CIRCUIT HIGH",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module detects a fault with the Battery Pack outlet temperature sensor circuit shorted to battery"
   },
   {
     "dtc": "P1A9A00",
-    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 OUT OF RANGE LOW"
+    "s_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 OUT OF RANGE LOW",
+    "l_dsc": "The BPCM has detected a Battery Module temperature reading below -34.6°(F)/-37.0°(C)"
   },
   {
     "dtc": "P1A9B00",
-    "l_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 OUT OF RANGE HIGH"
+    "s_dsc": "HYBRID/EV BATTERY TEMPERATURE SENSOR 1 OUT OF RANGE HIGH",
+    "l_dsc": "The BPCM has detected a Battery Module temperature reading above 136.4°(F)/58.0°(C)"
   },
   {
     "dtc": "B1CE900",
-    "l_dsc": "DIGITAL CRASH OUTPUT CONTROL CIRCUIT PERFORMANCE"
+    "s_dsc": "DIGITAL CRASH OUTPUT CONTROL CIRCUIT PERFORMANCE",
+    "l_dsc": "The BPCM has detected an airbag deployment signal circuit failure"
   },
   {
     "dtc": "B273C00",
-    "l_dsc": "DIGITAL CRASH INPUT"
+    "s_dsc": "DIGITAL CRASH INPUT",
+    "l_dsc": "The BPCM is missing the repetitive standard health message from the ORC"
+  },
+  {
+    "dtc": "P056200",
+    "s_dsc": "SYSTEM VOLTAGE LOW",
+    "l_dsc": "The 12 volt system voltage message received over the CAN bus is below 9.0 volts"
+  },
+  {
+    "dtc": "P056300",
+    "s_dsc": "SYSTEM VOLTAGE HIGH",
+    "l_dsc": "The 12 volt system voltage message received over the CAN bus is above 16.0 volts"
   },
   {
     "dtc": "P0A1F00",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE A INTERNAL PERFORMANCE"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE A INTERNAL PERFORMANCE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an internal fault"
   },
   {
     "dtc": "P161400",
-    "l_dsc": "ECU RESET/RECOVERY OCCURRED"
+    "s_dsc": "ECU RESET/RECOVERY OCCURRED",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an internal fault"
   },
   {
     "dtc": "P167B00",
-    "l_dsc": "CONTROLLED SYSTEM SHUTDOWN"
+    "s_dsc": "CONTROLLED SYSTEM SHUTDOWN",
+    "l_dsc": "The BPCM has received an impact occurrence message from the Occupant Restraint Controller (ORC)"
   },
   {
     "dtc": "P1A0100",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE EEPROM FAILURE"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE EEPROM FAILURE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an internal fault"
   },
   {
     "dtc": "P1A0600",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE READ ONLY MEMORY (ROM)"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE READ ONLY MEMORY (ROM)",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an internal fault"
   },
   {
     "dtc": "P1A0C00",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE SYSTEM VOLTAGE LOW"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE SYSTEM VOLTAGE LOW",
+    "l_dsc": "The BPCM has detected the 12 volt supply voltage has fallen below 7.0 volts"
   },
   {
     "dtc": "P1A0D00",
-    "l_dsc": "BATTERY ENERGY CONTROL MODULE SYSTEM VOLTAGE HIGH"
+    "s_dsc": "BATTERY ENERGY CONTROL MODULE SYSTEM VOLTAGE HIGH",
+    "l_dsc": "The BPCM has detected the 12 volt supply voltage is above 18.0 volts"
   },
   {
     "dtc": "P1DAF00",
-    "l_dsc": "INCOMPATIBLE LIMP IN ACTION REQUESTED"
+    "s_dsc": "INCOMPATIBLE LIMP IN ACTION REQUESTED",
+    "l_dsc": "The HV Battery is in limp mode due to another failure and the MCPA is commanding an excessive load on the HV Battery while in limp mode"
   },
   {
     "dtc": "P1E1A00",
-    "l_dsc": "HYBRID/EV BATTERY CONTROL BOARD HARDWARE PERFORMANCE"
+    "s_dsc": "HYBRID/EV BATTERY CONTROL BOARD HARDWARE PERFORMANCE",
+    "l_dsc": "This DTC will set if the Battery Pack Control Module (BPCM) detects an internal fault"
   },
   {
     "dtc": "P1E2500",
-    "l_dsc": "HYBRID/EV BATTERY FAILURE LEVEL 2"
+    "s_dsc": "HYBRID/EV BATTERY FAILURE LEVEL 2",
+    "l_dsc": "The BPCM has detected a Battery Module failure. High Cell resistance, imbalance or sensor failure"
   },
   {
     "dtc": "P2D3A00",
-    "l_dsc": "FORCED HYBRID/EV SYSTEM SHUTDOWN"
+    "s_dsc": "FORCED HYBRID/EV SYSTEM SHUTDOWN",
+    "l_dsc": "The BPCM has detected an improper shutdown occurred in the previous ignition cycle"
   },
   {
     "dtc": "U007400",
-    "l_dsc": "DEDICATED POWERTRAIN-D-PT-CAN BUS OFF"
+    "s_dsc": "DEDICATED POWERTRAIN-D-PT-CAN BUS OFF",
+    "l_dsc": "Dedicated Powertrain-D-Pt-Can Bus Off"
   },
   {
     "dtc": "U007700",
-    "l_dsc": "CONTROL MODULE COMMUNICATION BUS OFF"
+    "s_dsc": "CONTROL MODULE COMMUNICATION BUS OFF",
+    "l_dsc": "Control Module Communication Bus Off"
   },
   {
     "dtc": "U015100",
-    "l_dsc": "LOST COMMUNICATION WITH OCCUPANT RESTRAINT CONTROLLER (ORC)"
+    "s_dsc": "LOST COMMUNICATION WITH OCCUPANT RESTRAINT CONTROLLER (ORC)",
+    "l_dsc": "Lost Communication With Occupant Restraint Controller (Orc)"
   },
   {
     "dtc": "U029300",
-    "l_dsc": "LOST COMMUNICATION WITH HYBRID CONTROL MODULE"
+    "s_dsc": "LOST COMMUNICATION WITH HYBRID CONTROL MODULE",
+    "l_dsc": "Lost Communication With Hybrid Control Module"
   },
   {
     "dtc": "U029400",
-    "l_dsc": "LOST COMMUNICATION WITH POWERTRAIN CONTROL MONITOR MODULE"
+    "s_dsc": "LOST COMMUNICATION WITH POWERTRAIN CONTROL MONITOR MODULE",
+    "l_dsc": "Lost Communication With Powertrain Control Monitor Module"
+  },
+  {
+    "dtc": "U029A00",
+    "s_dsc": "LOST COMMUNICATIONS WITH HYBRID BATTERY PACK SENSOR MODULE",
+    "l_dsc": "The BPCM has lost communication with one of the CSC Modules"
   },
   {
     "dtc": "U02AE00",
-    "l_dsc": "LOST COMMUNICATIONS WITH HYBRID/EV BATTERY COOLANT PUMP"
+    "s_dsc": "LOST COMMUNICATIONS WITH HYBRID/EV BATTERY COOLANT PUMP",
+    "l_dsc": "In the battery coolant system between the high voltage heater and the high voltage battery"
   },
   {
     "dtc": "U059400",
-    "l_dsc": "IMPLAUSIBLE DATA RECEIVED FROM HYBRID CONTROL MODULE"
+    "s_dsc": "IMPLAUSIBLE DATA RECEIVED FROM HYBRID CONTROL MODULE",
+    "l_dsc": "Perform the comparable CAN C Bus diagnostic tests in the BCM"
   },
   {
     "dtc": "U059500",
-    "l_dsc": "INVALID DATA RECEIVED FROM POWERTRAIN CONTROL MONITOR MODULE"
+    "s_dsc": "INVALID DATA RECEIVED FROM POWERTRAIN CONTROL MONITOR MODULE",
+    "l_dsc": "Perform the comparable CAN C Bus diagnostic tests in the BCM"
+  },
+  {
+    "dtc": "U064A00",
+    "s_dsc": "LOST COMMUNICATIONS WITH Hybrid/EV Battery Pack Current Sensor A",
+    "l_dsc": "The BPCM is missing LIN message from current sensor A"
+  },
+  {
+    "dtc": "U064B00",
+    "s_dsc": "LOST COMMUNICATIONS WITH Hybrid/EV Battery Pack Current Sensor B",
+    "l_dsc": "The BPCM is missing LIN message from current sensor B"
   },
   {
     "dtc": "U069E00",
-    "l_dsc": "LOST COMMUNICATION WITH COOLANT HEATER B"
+    "s_dsc": "LOST COMMUNICATION WITH COOLANT HEATER B",
+    "l_dsc": "The BPCM is missing LIN message from Coolant Heater B"
   },
   {
     "dtc": "U100800",
-    "l_dsc": "LIN 1 BUS"
+    "s_dsc": "LIN 1 BUS",
+    "l_dsc": "The BPCM is missing LIN message from the Battery Coolant Pump"
   },
   {
     "dtc": "U301700",
-    "l_dsc": "CONTROL MODULE TIMER/CLOCK PERFORMANCE"
+    "s_dsc": "CONTROL MODULE TIMER/CLOCK PERFORMANCE",
+    "l_dsc": "The BPCM has detected an internal failure"
   }
 ]
