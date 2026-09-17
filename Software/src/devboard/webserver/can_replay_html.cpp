@@ -4,12 +4,6 @@
 #include "index_html.h"
 
 String can_replay_processor(void) {
-  if (!datalayer.system.info.can_logging_active) {
-    datalayer.system.info.logged_can_messages_offset = 0;
-    datalayer.system.info.logged_can_messages[0] = '\0';
-  }
-  datalayer.system.info.can_logging_active =
-      true;  // Signal to main loop that we should log messages. Disabled by default for performance reasons
   String content = index_html_header;
   // Page format
   content += "<style>";
@@ -24,11 +18,29 @@ String can_replay_processor(void) {
   content += "</style>";
   content += "<button onclick='home()'>Back to main page</button>";
 
+  // CAN dump card
+  content +=
+      "<div style='background-color: #303E47; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: "
+      "center'>";
+  content += "<h3>CAN dump</h3>";
+  content +=
+      "<p>CAN traffic will open in a new window. Let it run for the required amount of time and save the file.</p>";
+  content += "<button onclick='startDump()'>Start dump</button>";
+#ifdef SDCARD
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    content += "<hr style='border: 0; border-top: 1px solid #505E67; margin: 0 0 20px'>";
+    content += "<button onclick='exportCANLog()'>Export SD card CAN log</button> ";
+    content += "<button onclick='deleteCANLog()'>Delete SD card CAN log</button>";
+  }
+#endif  // SDCARD
+  content += "</div>";
+
   // Start a new block for the CAN messages
   content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
+  content += "<h3>CAN replay</h3>";
 
   // Ask user to select which CAN interface log should be sent to
-  content += "<h3>Step 1: Select CAN Interface for Playback</h3>";
+  content += "<h4>Step 1: Select CAN Interface for Playback</h4>";
 
   // Dropdown with choices
   content += "<label for='canInterface'>CAN Interface:</label>";
@@ -50,12 +62,12 @@ String can_replay_processor(void) {
   // This function writes the selection to datalayer.system.info.can_replay_interface
   content += "<button onclick='sendCANSelection()'>Apply</button>";
 
-  content += "<h3>Step 2: Upload CAN Log File</h3>";
+  content += "<h4>Step 2: Upload CAN Log File</h4>";
   content += "<p>Click Browse to select a .txt CANdump log file to upload</p>";
   content += "<input type='file' id='file-input' accept='.txt'>";
   content += "<button id='upload-btn'>Upload</button>";
 
-  content += "<h3>Step 3: Playback control</h3>";
+  content += "<h4>Step 3: Playback control</h4>";
 
   //Checkbox to see if the user wants the log to repeat once it reaches the end
   content += "<input type=\"checkbox\" id=\"loopCheckbox\"> Loop ";
@@ -69,7 +81,7 @@ String can_replay_processor(void) {
   // Status indicator
   content += "<span id='statusIndicator' style='margin-left:10px; font-weight:bold;'>Stopped</span> ";
 
-  content += "<h3>Uploaded Log Preview:</h3>";
+  content += "<h4>Uploaded Log Preview:</h4>";
   content += "<pre id='file-content'></pre>";
 
   content += "<script>";
@@ -140,6 +152,13 @@ String can_replay_processor(void) {
   content += "  };";
   content += "  xhr.send();";
   content += "}";
+  content += "function startDump() { window.open('/dump_can', '_blank'); }";
+#ifdef SDCARD
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    content += "function exportCANLog() { window.location.href = '/export_can_log'; }";
+    content += "function deleteCANLog() { window.location.href = '/delete_can_log'; }";
+  }
+#endif  // SDCARD
   content += "function home() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;
