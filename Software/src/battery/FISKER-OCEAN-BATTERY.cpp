@@ -48,16 +48,14 @@ void FiskerOceanBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = pack_voltage / 10;
 
-  // Until the BMS broadcast current limits are decoded, use the operator caps
-  // from the standard settings page as the inverter-facing limits.
-  datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
-  datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+  // Until the BMS broadcast limits are decoded, use Battery Emulator's standard
+  // operator-configured power limits. Keep this development integration capped at 50 A.
+  const uint32_t test_power_limit_W =
+      (static_cast<uint32_t>(TEST_CURRENT_LIMIT_DA) * datalayer.battery.status.voltage_dV) / 100;
   datalayer.battery.status.max_charge_power_W =
-      (static_cast<uint32_t>(datalayer.battery.status.max_charge_current_dA) * datalayer.battery.status.voltage_dV) /
-      100;
+      min(datalayer.battery.status.override_charge_power_W, test_power_limit_W);
   datalayer.battery.status.max_discharge_power_W =
-      (static_cast<uint32_t>(datalayer.battery.status.max_discharge_current_dA) * datalayer.battery.status.voltage_dV) /
-      100;
+      min(datalayer.battery.status.override_discharge_power_W, test_power_limit_W);
 
   if (datalayer_extended.fiskerOcean.broadcast_soc_valid) {
     datalayer.battery.status.real_soc = datalayer_extended.fiskerOcean.broadcast_soc_percent * 100;

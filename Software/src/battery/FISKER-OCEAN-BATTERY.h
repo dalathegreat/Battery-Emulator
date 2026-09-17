@@ -38,6 +38,7 @@ class FiskerOceanBattery : public UdsCanBattery {
   static constexpr int MAX_CELL_DEVIATION_MV = 250;
   static constexpr int MAX_CELL_VOLTAGE_MV = 4250;
   static constexpr int MIN_CELL_VOLTAGE_MV = 2900;
+  static constexpr uint16_t TEST_CURRENT_LIMIT_DA = 500;  // 50.0 A until BMS limits are decoded
 
   int16_t cell_temperature_max_C = 0;
   int16_t cell_temperature_min_C = 0;
