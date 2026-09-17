@@ -26,6 +26,13 @@ String can_replay_processor(void) {
   content +=
       "<p>CAN traffic will open in a new window. Let it run for the required amount of time and save the file.</p>";
   content += "<button onclick='startDump()'>Start dump</button>";
+#ifdef SDCARD
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    content += "<hr style='border: 0; border-top: 1px solid #505E67; margin: 0 0 20px'>";
+    content += "<button onclick='exportCANLog()'>Export SD card CAN log</button> ";
+    content += "<button onclick='deleteCANLog()'>Delete SD card CAN log</button>";
+  }
+#endif  // SDCARD
   content += "</div>";
 
   // Start a new block for the CAN messages
@@ -146,6 +153,12 @@ String can_replay_processor(void) {
   content += "  xhr.send();";
   content += "}";
   content += "function startDump() { window.open('/dump_can', '_blank'); }";
+#ifdef SDCARD
+  if (datalayer.system.info.CAN_SD_logging_active) {
+    content += "function exportCANLog() { window.location.href = '/export_can_log'; }";
+    content += "function deleteCANLog() { window.location.href = '/delete_can_log'; }";
+  }
+#endif  // SDCARD
   content += "function home() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;
