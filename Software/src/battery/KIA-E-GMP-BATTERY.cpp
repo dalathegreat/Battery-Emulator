@@ -72,17 +72,61 @@ uint16_t KiaEGmpBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
 }
 
-void KiaEGmpBattery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
-  if ((reading * 20) > 2600) {
-    datalayer.battery.status.cell_voltages_mV[cellNumber] = (reading * 20);
+// void KiaEGmpBattery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
+//   if ((reading * 20) > 2600) {
+//     datalayer.battery.status.cell_voltages_mV[cellNumber] = (reading * 20);
+//   }
+// }
+
+// Sets a cell voltage that's already expressed in mV (e.g. from 0x215),
+// as opposed to set_cell_voltages() which takes an 8-bit reading and applies *20.
+void KiaEGmpBattery::set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber) {
+  if (cellNumber >= MAX_AMOUNT_CELLS) {
+    return;
+  }
+  if (voltage_mV > 2600) {  // Same sanity floor used for UDS-derived cell voltages
+    datalayer.battery.status.cell_voltages_mV[cellNumber] = voltage_mV;
   }
 }
 
-void KiaEGmpBattery::process_cell_voltage_group(const uint8_t* data, uint8_t baseCell) {
-  for (int i = 0; i < 32; i++) {
-    set_cell_voltages(data[4 + i], baseCell + i);
+void KiaEGmpBattery::handle_0x215_cell_voltages(const CAN_frame& rx_frame) {
+  if (rx_frame.DLC < 7) {
+    return;
+  }
+  const uint8_t mux = rx_frame.data.u8[3];
+  if (mux != 0x01) {
+    return;  // mux 0x02 carries a different, non-voltage signal - still unconfirmed, excluded
+  }
+
+  // byte[4] is the 1-based starting cell number for THIS frame's batch of 13 cells.
+  // It rolls forward by 13 each frame as the BMS cycles through the whole pack -
+  // do not hardcode this to 0.
+  const uint8_t start_cell_1based = rx_frame.data.u8[4];
+  if (start_cell_1based == 0) {
+    return;  // defensive: avoid underflow below
+  }
+  const uint8_t base_cell = start_cell_1based - 1;  // convert to 0-based array index
+
+  const uint8_t max_values = (rx_frame.DLC - 5) / 2;
+  for (uint8_t i = 0; i < max_values; i++) {
+    const uint8_t offset = 5 + (i * 2);
+    if (offset + 1 >= rx_frame.DLC) {
+      break;
+    }
+    const uint16_t mv = (static_cast<uint16_t>(rx_frame.data.u8[offset + 1]) << 8) | rx_frame.data.u8[offset];
+    const uint16_t cellNumber = base_cell + i;
+    if (cellNumber >= MAX_AMOUNT_CELLS) {
+      break;
+    }
+    set_cell_voltage_mv(mv, static_cast<uint8_t>(cellNumber));
   }
 }
+
+// void KiaEGmpBattery::process_cell_voltage_group(const uint8_t* data, uint8_t baseCell) {
+//   for (int i = 0; i < 32; i++) {
+//     set_cell_voltages(data[4 + i], baseCell + i);
+//   }
+// }
 
 void KiaEGmpBattery::set_voltage_minmax_limits() {
 
@@ -212,6 +256,7 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x215:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      handle_0x215_cell_voltages(rx_frame);
       break;
     case 0x21A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -305,22 +350,22 @@ uint16_t KiaEGmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t*
       //Frame 28 (c9 00 00 00 00 0b b8) data52-58
       break;
 case POLL_GROUP_2: //Cellvoltages (Cell 1-32)
-    process_cell_voltage_group(data, 0);
+    // process_cell_voltage_group(data, 0);
     break;
 case POLL_GROUP_3: //Cellvoltages (Cell 33-64)
-    process_cell_voltage_group(data, 32);
+    // process_cell_voltage_group(data, 32);
     break;
 case POLL_GROUP_4: //Cellvoltages (Cell 65-96)
-    process_cell_voltage_group(data, 64);
+    // process_cell_voltage_group(data, 64);
     break;
 case POLL_GROUP_A: //Cellvoltages (Cell 97-128)
-    process_cell_voltage_group(data, 96);
+    // process_cell_voltage_group(data, 96);
     break;
 case POLL_GROUP_B: //Cellvoltages (Cell 129-160)
-    process_cell_voltage_group(data, 128);
+    // process_cell_voltage_group(data, 128);
     break;
 case POLL_GROUP_C: //Cellvoltages (Cell 161-192)
-    process_cell_voltage_group(data, 160);
+    // process_cell_voltage_group(data, 160);
     break;
 case POLL_GROUP_5:
 //Frame 0 (10 2e 62 01 05 ff fb 74) //data0-2
@@ -385,16 +430,16 @@ void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   setup_uds(0x7E4, 0x7EC, true);
   static const uint16_t pid_scan_list[] = {
       POLL_GROUP_1,
-      POLL_GROUP_2,
-      POLL_GROUP_3,
-      POLL_GROUP_4,
+      // POLL_GROUP_2,
+      // POLL_GROUP_3,
+      // POLL_GROUP_4,
       POLL_GROUP_5,
       POLL_GROUP_6,
       POLL_GROUP_7,
       POLL_GROUP_8,
-      POLL_GROUP_A,
-      POLL_GROUP_B,
-      POLL_GROUP_C,
+      // POLL_GROUP_A,
+      // POLL_GROUP_B,
+      // POLL_GROUP_C,
   };
   set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
