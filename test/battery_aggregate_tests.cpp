@@ -26,14 +26,18 @@ class BatteryAggregateTest : public ::testing::Test {
   }
 
   // Only the pointer matters to the aggregate: it decides whether the pack exists at all.
+  // A pack in a running installation is on the DC link. Tests that care about the
+  // configured-but-not-joined case clear the flag themselves.
   void add_second_pack() {
     battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
     datalayer.system.info.configured_batteries = 2;
+    datalayer.system.status.battery2_allowed_contactor_closing = true;
   }
 
   void add_third_pack() {
     battery3 = new TestFakeBattery(&datalayer.battery3, CAN_Interface::CAN_NATIVE);
     datalayer.system.info.configured_batteries = 3;
+    datalayer.system.status.battery3_allowed_contactor_closing = true;
   }
 
   static void scale_all() {
@@ -292,10 +296,25 @@ TEST_F(BatteryAggregateTest, UserCurrentLimitSurvivesTheRoundTrip) {
 }
 
 // A pack that has not joined the DC link yet still counts towards the energy, so the inverter's
-// picture does not jump when the contactors close. It is detected, so it counts towards the SOC
-// too - reporting capacity for a pack while pretending its charge state does not exist would
-// describe two different installations.
-TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCounts) {
+// picture does not jump when the contactors close.
+TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCountsForEnergy) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.system.status.battery2_allowed_contactor_closing = false;
+
+  datalayer.battery.info.total_capacity_Wh = 30000;
+  datalayer.battery2.info.total_capacity_Wh = 30000;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.total_capacity_Wh, 60000u);
+}
+
+// ...but it does not get to move the SOC. It is talking, and its SOC is real, but it is not the
+// SOC of anything the inverter can charge or discharge: an empty detached pack would read the
+// whole installation empty and stop discharge on behalf of a battery that is not connected.
+TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotDriveSoc) {
   add_second_pack();
   battery2_detected = true;
   datalayer.system.status.battery2_allowed_contactor_closing = false;
@@ -303,13 +322,21 @@ TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCounts) {
   datalayer.battery.info.total_capacity_Wh = 30000;
   datalayer.battery.status.real_soc = 5000;
   datalayer.battery2.info.total_capacity_Wh = 30000;
-  datalayer.battery2.status.real_soc = 3000;
+  datalayer.battery2.status.real_soc = 0;  // detached and empty
 
   scale_all();
   update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.real_soc, 5000);
 
-  EXPECT_EQ(datalayer.aggregate.total_capacity_Wh, 60000u);
-  EXPECT_EQ(datalayer.aggregate.real_soc, 3000);
+  // A detached full pack must not lift the blend either
+  datalayer.battery2.status.real_soc = 10000;
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.real_soc, 5000);
+
+  // Once it is on the link it counts, both ways
+  datalayer.system.status.battery2_allowed_contactor_closing = true;
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.real_soc, 10000);  // fully blended at 100%
 }
 
 // A configured pack that has never been seen on the bus holds its power-on defaults. Those are

@@ -94,10 +94,21 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
  *   configured - the pack object exists. Energy counts on this one, whether or not the pack has
  *                joined the DC link yet, so the inverter's picture of the installation does not
  *                jump when the contactors finally close.
- *   detected   - the pack has spoken on the bus. Everything measured needs this: a configured
- *                but silent pack still holds its power-on defaults (3700 mV cells, 0 dC, 0% SOC,
+ *   detected   - the pack has spoken on the bus. Anything measured needs this: a configured but
+ *                silent pack still holds its power-on defaults (3700 mV cells, 0 dC, 0% SOC,
  *                99.00% SOH), which are not measurements and would drag the aggregate somewhere
  *                the installation never went.
+ *   joined     - the pack is actually on the DC link. SOC needs this on top of detected. A pack
+ *                held out by the voltage check, or dropped after a fault, is still talking and
+ *                still reporting a real SOC - but it is not the SOC of anything the inverter can
+ *                charge or discharge. Letting it through means an empty detached pack reads the
+ *                installation empty and a full one reads it full, either of which stops the
+ *                system on behalf of a battery that is not connected to it.
+ *
+ * Cell voltages and temperatures stop at detected on purpose. Those can only ever make the
+ * inverter more cautious - a hot or high-cell pack lowers what it asks for - so seeing a pack
+ * that is about to join a moment early costs nothing, while SOC can halt the system outright in
+ * either direction.
  *
  * The limit fields are deliberately not touched here - see update_aggregate_limits().
  */
@@ -125,6 +136,8 @@ void update_aggregate_values() {
     const DATALAYER_BATTERY_TYPE* extra_pack[2] = {battery2 ? &datalayer.battery2 : nullptr,
                                                    battery3 ? &datalayer.battery3 : nullptr};
     const bool pack_detected[2] = {battery2_detected, battery3_detected};
+    const bool pack_joined[2] = {datalayer.system.status.battery2_allowed_contactor_closing,
+                                 datalayer.system.status.battery3_allowed_contactor_closing};
 
     for (uint8_t i = 0; i < 2; i++) {
       const DATALAYER_BATTERY_TYPE* pack = extra_pack[i];
@@ -145,8 +158,11 @@ void update_aggregate_values() {
       agg.cell_min_voltage_mV = MIN(agg.cell_min_voltage_mV, pack->status.cell_min_voltage_mV);
       agg.temperature_max_dC = MAX(agg.temperature_max_dC, pack->status.temperature_max_dC);
       agg.temperature_min_dC = MIN(agg.temperature_min_dC, pack->status.temperature_min_dC);
-      lowest_soc = MIN(lowest_soc, pack->status.real_soc);
-      highest_soc = MAX(highest_soc, pack->status.real_soc);
+      /* Only a pack that is actually on the link gets to move the installation's SOC */
+      if (pack_joined[i]) {
+        lowest_soc = MIN(lowest_soc, pack->status.real_soc);
+        highest_soc = MAX(highest_soc, pack->status.real_soc);
+      }
       /* Health follows the weakest pack, like every other limit here. A pack reporting zero
          has not decoded one yet and is skipped rather than zeroing the installation. */
       if (pack->status.soh_pptt > 0) {
