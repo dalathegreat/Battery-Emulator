@@ -6,6 +6,10 @@
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
+static inline int32_t current_dA_to_power_W(int16_t current_dA, uint16_t voltage_dV) {
+  return ((int32_t)voltage_dV * (int32_t)current_dA) / 100;
+}
+
 // Per-battery DTC storage to allow common display code
 struct DATALAYER_BATTERY_DTC_TYPE {
   static constexpr int MAX_DTC_COUNT = 32;
