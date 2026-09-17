@@ -1062,7 +1062,10 @@ class DataLayerExtended {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
     };
-    DATALAYER_INFO_TESLA tesla;
+    struct {
+      DATALAYER_INFO_TESLA tesla;
+      DATALAYER_INFO_TESLA tesla_2;
+    };
     struct {
       DATALAYER_INFO_NISSAN_LEAF nissanleaf;
       DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;

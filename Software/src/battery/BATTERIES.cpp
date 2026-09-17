@@ -498,7 +498,7 @@ void setup_battery() {
           break;
         case BatteryType::TeslaModel3Y:
         case BatteryType::TeslaModelSX:
-          battery2 = new TeslaBattery(&datalayer.battery2, can_config.battery_double);
+          battery2 = new TeslaBattery(&datalayer.battery2, &datalayer_extended.tesla_2, can_config.battery_double);
           break;
         default:
           break;
