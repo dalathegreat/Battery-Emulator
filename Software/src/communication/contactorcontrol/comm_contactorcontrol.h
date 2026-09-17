@@ -22,6 +22,17 @@ extern uint16_t precharge_time_ms;
 extern uint16_t pwm_frequency;
 extern uint16_t pwm_hold_duty;
 
+enum ContactorState {
+  DISCONNECTED,
+  START_PRECHARGE,
+  PRECHARGE,
+  POSITIVE,
+  PRECHARGE_OFF,
+  COMPLETED,
+  SHUTDOWN_REQUESTED
+};
+extern ContactorState contactorStatus;
+
 /**
  * @brief Handle BMS power output
  *

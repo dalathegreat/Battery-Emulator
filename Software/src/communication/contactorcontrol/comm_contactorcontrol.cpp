@@ -24,8 +24,7 @@ bool periodic_bms_reset_defer_low_soc = false;          //Defer the reset while 
 bool periodic_bms_reset_skip_balancing = false;         //Skip one period if the pack is balancing
 
 // Parameters
-enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
-State contactorStatus = DISCONNECTED;
+ContactorState contactorStatus = DISCONNECTED;
 
 const uint8_t ON = 1;
 const uint8_t OFF = 0;

@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <fstream>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
