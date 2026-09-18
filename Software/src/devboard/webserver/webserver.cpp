@@ -429,9 +429,8 @@ void init_webserver() {
   }
 
   // Route for going to cellmonitor web page
-  def_route_with_auth("/cellmonitor", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, cellmonitor_processor);
-  });
+  def_route_with_auth("/cellmonitor", server, HTTP_GET,
+                      [](AsyncWebServerRequest* request) { send_cellmonitor_page(request); });
 
   // Route for going to event log web page
   def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
