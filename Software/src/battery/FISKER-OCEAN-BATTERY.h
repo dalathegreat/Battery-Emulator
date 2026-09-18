@@ -15,6 +15,9 @@ class FiskerOceanBattery : public UdsCanBattery {
   static constexpr const char* Name = "Fisker Ocean 113/106kWh battery";
 
   bool supports_contactor_close() override { return true; }
+  bool uses_main_page_contactor_control() override { return true; }
+  bool supports_reset_BMS() override { return true; }
+  void reset_BMS() override;
   void request_open_contactors() override { datalayer_extended.fiskerOcean.wake_transmit_active = false; }
   void request_close_contactors() override { datalayer_extended.fiskerOcean.wake_transmit_active = true; }
   BatteryHtmlRenderer& get_status_renderer() override { return renderer; }
@@ -35,6 +38,7 @@ class FiskerOceanBattery : public UdsCanBattery {
   static constexpr int MAX_CELL_DEVIATION_MV = 250;
   static constexpr int MAX_CELL_VOLTAGE_MV = 4250;
   static constexpr int MIN_CELL_VOLTAGE_MV = 2900;
+  static constexpr uint16_t TEST_CURRENT_LIMIT_DA = 500;  // 50.0 A until BMS limits are decoded
 
   int16_t cell_temperature_max_C = 0;
   int16_t cell_temperature_min_C = 0;
@@ -59,7 +63,6 @@ class FiskerOceanBattery : public UdsCanBattery {
                                 .DLC = 8,
                                 .ID = 0x333,
                                 .data = {0x03, 0xD0, 0x55, 0xAD, 0x96, 0xFF, 0xFF, 0xFF}};
-
   void transmit_ready_frame(CAN_frame* frame, uint8_t& counter, uint8_t high_nibble, uint8_t xor_out);
 };
 

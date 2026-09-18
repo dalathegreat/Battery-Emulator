@@ -65,7 +65,7 @@ jobs:
           ~/.platformio/platforms
           ~/.platformio/.cache
           sdkconfig.defaults
-        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults', '.github/pio-constraints.txt') }}-${{ matrix.pio_env }}
 
     # The env cache will miss if platformio.ini or the custom sdkconfig has
     # changed. In that case, we can use a fallback cache which just avoids
@@ -101,7 +101,7 @@ jobs:
         python-version: '3.13'
 
     - name: Install PlatformIO Core
-      run: pip install --upgrade platformio
+      run: pip install --upgrade "platformio==6.1.19"
 
     # Add a line to print out the hash check values, to help debug why
     # PlatformIO might trigger a rebuild.
@@ -115,6 +115,10 @@ jobs:
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_PR: ${{ github.event.pull_request.number }}
         GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # The pioarduino platform creates a nested environment during an
+        # uncached hybrid build. Prevent it silently upgrading to an
+        # incompatible core/SCons combination.
+        UV_CONSTRAINT: ${{ github.workspace }}/.github/pio-constraints.txt
       run: |
         set -o pipefail
         pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt
@@ -210,7 +214,7 @@ jobs:
           ~/.platformio/platforms
           ~/.platformio/.cache
           sdkconfig.defaults
-        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults', '.github/pio-constraints.txt') }}-${{ matrix.pio_env }}
     
     # Only save fallback cache if it was a miss. The always() means we'll still
     # save the fallback cache even if the build failed, since we want to avoid

@@ -2,6 +2,7 @@
 #define FISKER_OCEAN_HTML_H
 
 #include <Arduino.h>
+#include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
@@ -14,13 +15,14 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
 
   String get_status_html() {
     String content;
-    content.reserve(12000);
+    content.reserve(15000);
     content += "<h4>State of charge: ";
     content += fisker->broadcast_soc_valid ? String(fisker->broadcast_soc_percent) + "%" : "Not available";
     content += "</h4>";
+    content += vehicle_state_html();
 
     content +=
-        "<div style='overflow-x:auto'><table><thead><tr><th>PID</th><th>CAN response</th>"
+        "<div style='overflow-x:auto'><table><thead><tr><th>PID</th><th>Decoded value</th><th>CAN response</th>"
         "</tr></thead><tbody>";
     for (uint8_t i = 0; i < DATALAYER_INFO_FISKER_OCEAN::DID_COUNT; i++) {
       const auto& result = fisker->did_results[i];
@@ -34,12 +36,117 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
  private:
   DATALAYER_INFO_FISKER_OCEAN* fisker;
 
+  String vehicle_state_html() const {
+    String content =
+        "<div style='overflow-x:auto'><table><thead><tr><th>State evidence</th><th>CAN message</th>"
+        "<th>Interpretation</th></tr></thead><tbody>";
+    content +=
+        "<tr><td>Vehicle-origin 0x214 (counter 0 example)</td><td><code>0x214 [16] B0 30 51 41 00 03 00 02 "
+        "00 00 00 00 FF FF FF FF</code></td><td><strong>READY</strong></td></tr>";
+    content +=
+        "<tr><td>Vehicle-origin 0x214 (counter 0 example)</td><td><code>0x214 [16] B0 22 51 41 00 01 00 02 "
+        "00 00 00 00 FF FF FF FF</code></td><td><strong>INACTIVE</strong></td></tr>";
+    content += "<tr><td>Latest BMS-origin 0x5A7</td><td><code>";
+    if (!fisker->last_5a7_valid) {
+      content += "No message received</code></td><td>Unknown";
+    } else {
+      char payload[12];
+      snprintf(payload, sizeof(payload), "%02X %02X %02X %02X", fisker->last_5a7_payload[0],
+               fisker->last_5a7_payload[1], fisker->last_5a7_payload[2], fisker->last_5a7_payload[3]);
+      content += String("0x5A7 [4] ") + payload + "</code></td><td>";
+      if (memcmp(fisker->last_5a7_payload, "\x0F\xFF\xFF\xFF", 4) == 0) {
+        content += "<strong>READY signature observed</strong>";
+      } else if (memcmp(fisker->last_5a7_payload, "\x00\x00\x00\x00", 4) == 0) {
+        content += "<strong>INACTIVE signature observed</strong>";
+      } else {
+        content += "Unknown BMS state signature";
+      }
+    }
+    content += "</td></tr></tbody></table></div>";
+    return content;
+  }
+
   static void add_did_row(String& content, const DATALAYER_INFO_FISKER_OCEAN::DID_RESULT& result) {
     char did[7];
     snprintf(did, sizeof(did), "0x%04X", result.did);
     content += "<tr><td style='text-align:left'><strong>" + String(did_name(result.did)) + "</strong><br><code>" +
-               String(did) + "</code></td><td>";
+               String(did) + "</code></td><td>" + decoded_value(result) + "</td><td>";
     content += "<code>" + can_response(result) + "</code></td></tr>";
+  }
+
+  static uint16_t uint16_be(const uint8_t* data) { return (static_cast<uint16_t>(data[0]) << 8) | data[1]; }
+
+  static uint32_t uint32_be(const uint8_t* data) {
+    return (static_cast<uint32_t>(data[0]) << 24) | (static_cast<uint32_t>(data[1]) << 16) |
+           (static_cast<uint32_t>(data[2]) << 8) | data[3];
+  }
+
+  static String decoded_value(const DATALAYER_INFO_FISKER_OCEAN::DID_RESULT& result) {
+    if (!result.valid)
+      return "-";
+
+    const uint8_t* data = result.payload;
+    switch (result.did) {
+      case 0x2003:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 10.0f, 1) + " V";
+        break;
+      case 0x2004:
+        if (result.payload_length >= 4) {
+          const uint32_t raw = uint32_be(data);
+          if (raw == 20000)
+            return "0 A (raw 20000)";
+          return "Raw " + String(raw);
+        }
+        break;
+      case 0x2005:
+        if (result.payload_length >= 1)
+          return data[0] == 1 ? "Valid" : "Invalid";
+        break;
+      case 0x2026:
+      case 0x2027:
+      case 0x2031:
+      case 0x2033:
+      case 0x2038:
+      case 0x2039:
+      case 0x2040:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 2.0f - 50.0f, 1) + " &deg;C";
+        break;
+      case 0x2047:
+      case 0x2048:
+      case 0x2049:
+      case 0x2050:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 10.0f, 1) + " %";
+        break;
+      case 0x2089:
+      case 0x2090:
+      case 0x2091:
+      case 0x2092:
+      case 0x2093:
+      case 0x2094:
+      case 0x2136:
+      case 0x2137:
+      case 0x2138:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data)) + " mV";
+        break;
+      case 0x2107:
+      case 0x2108:
+      case 0x2109:
+      case 0x2117:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 10.0f, 1) + " V";
+        break;
+      case 0x2130:
+        if (result.payload_length >= 2)
+          return String(uint16_be(data) / 1000.0f, 3) + " V";
+        break;
+      default:
+        break;
+    }
+    return "-";
   }
 
   static String can_response(const DATALAYER_INFO_FISKER_OCEAN::DID_RESULT& result) {

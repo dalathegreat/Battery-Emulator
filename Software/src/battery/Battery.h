@@ -105,6 +105,7 @@ class Battery {
   virtual bool supports_reset_BECM() { return false; }
   virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
+  virtual bool uses_main_page_contactor_control() { return false; }
   virtual bool supports_contactor_reset() { return false; }
   virtual bool supports_set_fake_voltage() { return false; }
   virtual bool supports_manual_balancing() { return false; }

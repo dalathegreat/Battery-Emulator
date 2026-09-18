@@ -1,5 +1,6 @@
 #include "FISKER-OCEAN-BATTERY.h"
 #include <cstring>
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 
@@ -47,6 +48,15 @@ void FiskerOceanBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = pack_voltage / 10;
 
+  // Until the BMS broadcast limits are decoded, use Battery Emulator's standard
+  // operator-configured power limits. Keep this development integration capped at 50 A.
+  const uint32_t test_power_limit_W =
+      (static_cast<uint32_t>(TEST_CURRENT_LIMIT_DA) * datalayer.battery.status.voltage_dV) / 100;
+  datalayer.battery.status.max_charge_power_W =
+      min(datalayer.battery.status.override_charge_power_W, test_power_limit_W);
+  datalayer.battery.status.max_discharge_power_W =
+      min(datalayer.battery.status.override_discharge_power_W, test_power_limit_W);
+
   if (datalayer_extended.fiskerOcean.broadcast_soc_valid) {
     datalayer.battery.status.real_soc = datalayer_extended.fiskerOcean.broadcast_soc_percent * 100;
   }
@@ -90,6 +100,11 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x0E9:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] == expected_CRC(&rx_frame, 0x05)) {  //If CRC matches expected
+        const int16_t fisker_current_raw =
+            static_cast<int16_t>((static_cast<uint16_t>(rx_frame.data.u8[4]) << 8) | rx_frame.data.u8[5]);
+        // Fisker uses 0.05 A/bit with positive = discharge. Battery Emulator uses
+        // deciamps with positive = charge, so invert and divide the raw value by two.
+        datalayer.battery.status.current_dA = -(fisker_current_raw / 2);
         pack_voltage = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       } else {  //If CRC does not match expected, increment error counter
         datalayer.battery.status.CAN_error_counter++;
@@ -109,6 +124,14 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x0F2:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.DLC >= 6) {
+        const uint16_t cell_max_mV = ((static_cast<uint16_t>(rx_frame.data.u8[0]) << 8) | rx_frame.data.u8[1]) / 10;
+        const uint16_t cell_min_mV = ((static_cast<uint16_t>(rx_frame.data.u8[2]) << 8) | rx_frame.data.u8[3]) / 10;
+        if (cell_max_mV > 0 && cell_min_mV > 0) {
+          datalayer.battery.status.cell_max_voltage_mV = cell_max_mV;
+          datalayer.battery.status.cell_min_voltage_mV = cell_min_mV;
+        }
+      }
       break;
     case 0x215:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -173,10 +196,10 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cell_temperature_max_C =
           rx_frame.data.u8[4] -
-          40;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the max temperature
+          50;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the max temperature
       cell_temperature_min_C =
           rx_frame.data.u8[5] -
-          40;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the min temperature
+          50;  //Matches with data from 0x6D0 and 0x6D1 frames, so we can use this as the min temperature
       break;
     case 0x3A0:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -201,6 +224,10 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x5A7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.DLC >= 4) {
+        memcpy(datalayer_extended.fiskerOcean.last_5a7_payload, rx_frame.data.u8, 4);
+        datalayer_extended.fiskerOcean.last_5a7_valid = true;
+      }
       break;
     case 0x63A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -223,7 +250,7 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       for (uint8_t i = 0; i < 4; i++) {
         uint16_t raw = (rx_frame.data.u8[i * 2] << 8) | rx_frame.data.u8[i * 2 + 1];
 
-        if (raw == 0xFFFF) {
+        if (raw == 0 || raw == 0xFFFF) {
           // Padding, no cell present in this slot (covers 6C9's 2nd half
           // and all of 6CA..6CD)
           continue;
@@ -234,6 +261,20 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (cell_index < NUM_CELLS) {
           datalayer.battery.status.cell_voltages_mV[cell_index] = raw / 10;
         }
+      }
+
+      uint16_t cell_min_mV = UINT16_MAX;
+      uint16_t cell_max_mV = 0;
+      for (uint8_t i = 0; i < NUM_CELLS; i++) {
+        const uint16_t cell_mV = datalayer.battery.status.cell_voltages_mV[i];
+        if (cell_mV == 0)
+          continue;
+        cell_min_mV = min(cell_min_mV, cell_mV);
+        cell_max_mV = max(cell_max_mV, cell_mV);
+      }
+      if (cell_max_mV > 0) {
+        datalayer.battery.status.cell_min_voltage_mV = cell_min_mV;
+        datalayer.battery.status.cell_max_voltage_mV = cell_max_mV;
       }
       break;
     }
@@ -304,18 +345,30 @@ void FiskerOceanBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
   auto& fisker = datalayer_extended.fiskerOcean;
 
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    // Match batteries such as Nissan Leaf: do not transmit wake or diagnostic
+    // traffic while the shared hardware BMS power-cycle is in progress.
+    previousMillis093 = currentMillis;
+    previousMillis333 = currentMillis;
+    return;
+  }
+
   if (fisker.wake_transmit_active) {
-    if (currentMillis - previousMillis093 >= 16) {
+    if (currentMillis - previousMillis093 >= INTERVAL_20_MS) {
       previousMillis093 = currentMillis;
       transmit_ready_frame(&FISKER_READY_093, fisker.wake_093_counter, 0xE0, 0xBB);
     }
-    if (currentMillis - previousMillis333 >= 48) {
+    if (currentMillis - previousMillis333 >= INTERVAL_50_MS) {
       previousMillis333 = currentMillis;
       transmit_ready_frame(&FISKER_READY_333, fisker.wake_333_counter, 0xD0, 0x34);
     }
   }
 
   transmit_uds_can(currentMillis);
+}
+
+void FiskerOceanBattery::reset_BMS() {
+  start_bms_reset();
 }
 
 void FiskerOceanBattery::setup() {
@@ -329,6 +382,7 @@ void FiskerOceanBattery::setup() {
   datalayer.system.status.battery_allows_contactor_closing = true;
 
   auto& fisker = datalayer_extended.fiskerOcean;
+  fisker.wake_transmit_active = !datalayer.system.info.equipment_stop_active;
   for (uint8_t i = 0; i < DATALAYER_INFO_FISKER_OCEAN::DID_COUNT; i++) {
     fisker.did_results[i].did = poll_commands[i];
   }
@@ -351,6 +405,7 @@ uint16_t FiskerOceanBattery::handle_pid(uint16_t pid, uint32_t value, const uint
     result.valid = true;
     break;
   }
+
   return 0;
 }
 
