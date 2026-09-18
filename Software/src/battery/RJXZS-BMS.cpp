@@ -11,11 +11,11 @@ void RjxzsBms::update_values() {
     //SOC% not available. Raise warning event if we go too long without SOC
     timespent_without_soc++;
     if (timespent_without_soc > FIVE_MINUTES) {
-      set_event(EVENT_SOC_UNAVAILABLE, 0);
+      set_event(EVENT_SOC_UNAVAILABLE, 0, battery_index);
     }
   } else {  //SOC is available, stop counting and clear error
     timespent_without_soc = 0;
-    clear_event(EVENT_SOC_UNAVAILABLE);
+    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
   }
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -112,10 +112,10 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         if ((status_accounting & 0x020) >> 5) {  //balancing active
           datalayer.battery.status.balancing_status = BALANCING_STATUS_ACTIVE;
-          set_event_latched(EVENT_BALANCING_START, 0);
+          set_event_latched(EVENT_BALANCING_START, 0, battery_index);
         } else {  //balancing off
           datalayer.battery.status.balancing_status = BALANCING_STATUS_READY;
-          set_event(EVENT_BALANCING_END, 0);
+          set_event(EVENT_BALANCING_END, 0, battery_index);
         }
         if ((rx_frame.data.u8[4] & 0x40) >> 6) {
           charging_active = true;
@@ -191,9 +191,9 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
         protecting_historical_logs = rx_frame.data.u8[7];
 
         if ((protecting_historical_logs & 0x0F) > 0) {
-          set_event(EVENT_RJXZS_LOG, 0);
+          set_event(EVENT_RJXZS_LOG, 0, battery_index);
         } else {
-          clear_event(EVENT_RJXZS_LOG);
+          clear_event(EVENT_RJXZS_LOG, battery_index);
         }
 
         if (protecting_historical_logs == 0x01) {
@@ -219,7 +219,7 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
           set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0, battery_index);
         } else if (protecting_historical_logs == 0x08) {
           // Low voltage power outage protection
-          set_event(EVENT_12V_LOW, 0);
+          set_event(EVENT_12V_LOW, 0, battery_index);
         } else if (protecting_historical_logs == 0x09) {
           // Voltage difference protection
           set_event(EVENT_VOLTAGE_DIFFERENCE_BAT2, differential_pressure_setting_value);

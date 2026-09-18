@@ -12,9 +12,23 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
   bool renders_own_battery_data() { return true; }
 
+  bool html_render_failed() const override { return render_failed; }
+
+  String get_dtc_html() override {
+    auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
+    String content = render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
+    render_failed = content.isEmpty();
+    return content;
+  }
+
   String get_status_html() {
-    String content;
-    content.reserve(16000);
+    render_failed = false;
+    CheckedHtml content;
+    const bool reserved = content.reserve(16000);
+    if (!reserved) {
+      render_failed = true;
+      return String();
+    }
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
@@ -128,45 +142,17 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
-    if (byd_datalayer->battery_temperatures[0] != 215) {
-      content += "<h4>Temperature sensor 1: " + String(byd_datalayer->battery_temperatures[0]) + " &deg;C</h4>";
+
+    static const size_t TEMPERATURE_SENSOR_COUNT =
+        sizeof(byd_datalayer->battery_temperatures) / sizeof(byd_datalayer->battery_temperatures[0]);
+    for (size_t i = 0; i < TEMPERATURE_SENSOR_COUNT; ++i) {
+      if (byd_datalayer->battery_temperatures[i] == 215) {
+        break;
+      }
+      content += "<h4>Temperature sensor " + String(i + 1) + ": " + String(byd_datalayer->battery_temperatures[i]) +
+                 " &deg;C</h4>";
     }
-    if (byd_datalayer->battery_temperatures[1] != 215) {
-      content += "<h4>Temperature sensor 2: " + String(byd_datalayer->battery_temperatures[1]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[2] != 215) {
-      content += "<h4>Temperature sensor 3: " + String(byd_datalayer->battery_temperatures[2]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[3] != 215) {
-      content += "<h4>Temperature sensor 4: " + String(byd_datalayer->battery_temperatures[3]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[4] != 215) {
-      content += "<h4>Temperature sensor 5: " + String(byd_datalayer->battery_temperatures[4]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[5] != 215) {
-      content += "<h4>Temperature sensor 6: " + String(byd_datalayer->battery_temperatures[5]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[6] != 215) {
-      content += "<h4>Temperature sensor 7: " + String(byd_datalayer->battery_temperatures[6]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[7] != 215) {
-      content += "<h4>Temperature sensor 8: " + String(byd_datalayer->battery_temperatures[7]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[8] != 215) {
-      content += "<h4>Temperature sensor 9: " + String(byd_datalayer->battery_temperatures[8]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[9] != 215) {
-      content += "<h4>Temperature sensor 10: " + String(byd_datalayer->battery_temperatures[9]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[10] != 215) {
-      content += "<h4>Temperature sensor 11: " + String(byd_datalayer->battery_temperatures[10]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[11] != 215) {
-      content += "<h4>Temperature sensor 12: " + String(byd_datalayer->battery_temperatures[11]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[12] != 215) {
-      content += "<h4>Temperature sensor 13: " + String(byd_datalayer->battery_temperatures[12]) + " &deg;C</h4>";
-    }
+
     content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";
     content += "<h4>Max charge (regen) power: " + String(BMS_maxChargePower) + " kW</h4>";
     content += "<h4>Total charged: " + String(byd_datalayer->total_charged_kwh) + " kWh</h4>";
@@ -730,14 +716,14 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
     append_balance_time_html(content);
 
-    auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
-    content += BatteryHtmlRenderer::render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
-
-    return content;
+    render_failed = !content.good();
+    return content.take();
   }
 
  private:
-  void append_balance_time_html(String& out) const {
+  bool render_failed = false;
+
+  void append_balance_time_html(CheckedHtml& out) const {
     out +=
         "<h4 style='margin-top:18px'><button onclick=\"window.location.href='/bydbalance'\">"
         "&#9889; Cell Balance Timers</button></h4>";

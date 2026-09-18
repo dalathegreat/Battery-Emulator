@@ -28,6 +28,7 @@
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "GEELY-SEA-BATTERY.h"
 #include "GROWATT-HV-ARK-BATTERY.h"
+#include "GROWATT-LV-BATTERY.h"
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -133,6 +134,8 @@ const char* name_for_battery_type(BatteryType type) {
       return GeelyGeometryCBattery::Name;
     case BatteryType::GrowattHvArk:
       return GrowattHvArkBattery::Name;
+    case BatteryType::GrowattLv:
+      return GrowattLvBattery::Name;
     case BatteryType::HyundaiIoniq28:
       return HyundaiIoniq28Battery::Name;
     case BatteryType::OrionBms:
@@ -285,6 +288,8 @@ Battery* create_battery(BatteryType type) {
       return new GeelyGeometryCBattery();
     case BatteryType::GrowattHvArk:
       return new GrowattHvArkBattery();
+    case BatteryType::GrowattLv:
+      return new GrowattLvBattery();
     case BatteryType::HyundaiIoniq28:
       return new HyundaiIoniq28Battery();
     case BatteryType::OrionBms:
@@ -468,9 +473,9 @@ void setup_battery() {
           battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
-          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
-                                             &datalayer.system.status.battery2_allowed_contactor_closing,
-                                             can_config.battery_double);
+          battery2 =
+              new KiaHyundai64Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                      can_config.battery_double);
           break;
         case BatteryType::MgGen1:
           battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
@@ -490,7 +495,8 @@ void setup_battery() {
           battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::RenaultZoe2:
-          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, nullptr, can_config.battery_double);
+          battery2 =
+              new RenaultZoeGen2Battery(&datalayer.battery2, &datalayer_extended.zoePH2_2, can_config.battery_double);
           break;
         case BatteryType::TestFake:
           battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
@@ -545,6 +551,11 @@ void setup_battery() {
       battery3->setup();
     }
   }
+
+  /* Count what actually got created, not what the user ticked: a type that does not support
+     parallel packs leaves battery2/battery3 null above. events.cpp reads this to decide whether
+     an event message has to name its pack. */
+  datalayer.system.info.configured_batteries = 1 + (battery2 != nullptr) + (battery3 != nullptr);
 }
 
 /* User-selected Nissan LEAF settings */
