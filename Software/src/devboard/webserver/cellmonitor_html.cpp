@@ -52,17 +52,21 @@ const char page_head[] =
 .lv{color:red}
 #graph{display:flex;align-items:flex-end;height:200px;border:1px solid #ccc;position:relative}
 .bar{display:inline-block;position:relative;cursor:pointer;border:1px solid #fff}
-#val{text-align:left;font-weight:700;margin-top:10px}
-.lgd{font-weight:700;padding:2px 8px;border-radius:4px;margin-right:15px}
+.row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin:10px 0}
+#val,.lgd{font-weight:700}
+#val{margin-right:auto}
+.lgd{padding:2px 8px;border-radius:4px}
 </style>
 <button onclick="location.href='/'">Back to main page</button>
 <button onclick="location.href='/advanced'+location.search">More Battery Info</button>
 )html";
 
-// Graph, hovered value and legend come first, the cell table below them.
+// Graph, hovered value and legend come first, the cell table below them. The value readout and the
+// legend badges share one flex row: the auto margin holds the readout left and pushes the badges
+// right, and once the row runs out of width they wrap onto lines of their own, still right aligned.
 const char panel_start[] =
-    "<div class='battery-panel'><div id='volt'></div><div id='graph'></div><div id='val'>Value: ...</div>"
-    "<span class='lgd' style='background:blue'>Idle</span>";
+    "<div class='battery-panel'><div id='volt'></div><div id='graph'></div><div class='row'>"
+    "<span id='val'>Value: ...</span><span class='lgd' style='background:blue'>Idle</span>";
 
 // d = cell millivolts, b = per cell balancing flags, A = balancing suffix, M = empty pack message.
 const char page_script[] = R"html(<script>
@@ -133,7 +137,7 @@ String cellmonitor_processor(const String& var, unsigned selected) {
     // Batteries that report no per-cell flags still say whether the pack as a whole is balancing.
     content += "<span class='lgd' style='background:#f90;color:#000'>Balancing is active now!</span>";
   }
-  content += "<span class='lgd' style='background:red'>Min/Max</span>";
+  content += "<span class='lgd' style='background:red'>Min/Max</span></div>";
   content += "<div id='cells' class='container'></div></div>";
 
   content += "<script>const d=[";
