@@ -832,7 +832,7 @@ static void update_bms_status(void) {
       break;
     case EVENT_LEVEL_ERROR:
       // Normally FAULT mode is set if a catastrophic event has triggered, but incase user has forced a recovery charge, we override any FAULT and continue temporarily in active mode
-      if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+      if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
         datalayer.system.status.system_status = ACTIVE;  //Edge case which is active for 30min max
       } else {
         datalayer.system.status.system_status = FAULT;  //We will in 99.999% of the time go here

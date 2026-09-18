@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
+#include "checked_html.h"
 
 //Legend label for the cyan bars. A BMS can flag cells for balancing long before it actually bleeds
 //them, so when the aggregate status reports that waiting state, label the bars as pending instead.
@@ -9,9 +10,24 @@ static const char* balancing_legend_label(balancing_status_enum status) {
   return (status == BALANCING_STATUS_BLOCKED) ? "Pending" : "Balancing";
 }
 
+/* Same reasoning as the main page: this one emits a table cell per battery cell, so three packs
+   of 96 push it past the main page's size, and it was growing from an empty String one append at
+   a time. */
+static constexpr size_t CELLMONITOR_RESERVE_BYTES = 20480;
+
+static String cellmonitor_low_memory_page() {
+  return String(
+      "<h2>Cellmonitor</h2><h4 style='color: #F5CC00;'>Not enough free memory to render this page "
+      "right now. Retrying in a few seconds.</h4>"
+      "<script>setTimeout(function(){location.reload(true);},5000);</script>");
+}
+
 String cellmonitor_processor(const String& var) {
   if (var == "X") {
-    String content = "";
+    CheckedHtml content;
+    if (!content.reserve(CELLMONITOR_RESERVE_BYTES)) {
+      return cellmonitor_low_memory_page();
+    }
     // Page formatH
     content += "<style>";
     content += "body { background-color: black; color: white; }";
@@ -587,7 +603,10 @@ String cellmonitor_processor(const String& var) {
     content += "setTimeout(function(){ location.reload(true); }, 20000);";
 
     content += "</script>";
-    return content;
+    if (!content.good()) {
+      return cellmonitor_low_memory_page();
+    }
+    return content.take();
   }
   return String();
 }

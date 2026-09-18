@@ -404,7 +404,7 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
       *reason = "real SOC below 15 percent";
       return PeriodicResetVerdict::Defer;
     }
-    if (datalayer.battery.status.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
+    if (datalayer.aggregate.reported_soc < BMS_RESET_DEFER_SOC_PPTT) {
       *reason = "scaled SOC below 15 percent";
       return PeriodicResetVerdict::Defer;
     }
@@ -437,7 +437,7 @@ static PeriodicResetVerdict periodic_bms_reset_verdict(const char** reason) {
    phases are short and the BMS is on the bus for part of them. To test the statement in Leaf 
    "GEN4_e_Battery_control_spec_ver1.0.pdf" page 4, "IGN to be OFF for more than 6 min 30 seconds every day. "*/
 static bool bms_reset_needs_can_keepalive() {
-  return datalayer.battery.settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
+  return datalayer.battery_settings.user_set_bms_reset_duration_ms > BMS_RESET_CAN_KEEPALIVE_INTERVAL_MS;
 }
 
 /* Pretends the batteries were just heard from, and restarts the keepalive interval.
@@ -537,7 +537,7 @@ void handle_BMSpower() {
       bms_reset_can_keepalive_tick();
 
       // Check if the user configured duration has passed
-      if (currentTime - lastPowerRemovalTime >= datalayer.battery.settings.user_set_bms_reset_duration_ms) {
+      if (currentTime - lastPowerRemovalTime >= datalayer.battery_settings.user_set_bms_reset_duration_ms) {
         bms_power_on();
         bmsPowerOnTime = currentTime;
         /* The last periodic refresh can have been up to a full interval ago, which would leave

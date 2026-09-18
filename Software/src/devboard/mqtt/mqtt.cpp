@@ -182,8 +182,26 @@ struct SensorConfig {
 static bool always(Battery* b) {
   return true;
 }
+
+// The SOC window is a property of the installation, not of a pack: with several batteries the
+// packs carry what they would with scaling switched off, so a per-pack "scaled" entity would
+// only duplicate its "real" twin. The scaled figures live on the aggregate topic instead.
+static bool single_pack(Battery* b) {
+  return datalayer.system.info.configured_batteries < 2;
+}
 static bool supports_charged(Battery* b) {
   return b->supports_charged_energy();
+}
+
+// For the installation-level entities, which have no single Battery to ask. A Leaf reports no
+// lifetime energy counters, so on an all-Leaf install these would be two entities pinned at 0.
+static bool any_pack_supports_charged(Battery* unused) {
+  for (Battery* bat : {battery, battery2, battery3}) {
+    if (bat != nullptr && bat->supports_charged_energy()) {
+      return true;
+    }
+  }
+  return false;
 }
 static bool supports_tesla_dcdc_metrics(Battery* b) {
   return b != nullptr && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
@@ -207,7 +225,7 @@ static bool heap_metrics_enabled(Battery* b) {
 }
 
 static const SensorConfig batterySensorConfigTemplate[] = {
-    {"SOC", "SoC (scaled)", "%", "battery", always},
+    {"SOC", "SoC (scaled)", "%", "battery", single_pack},
     {"SOC_real", "SoC (real)", "%", "battery", always},
     // No device_class: "battery" would file this next to the state of charge in Home Assistant
     // and take its icon, which is misleading for a health figure. state_class and the unit are
@@ -222,7 +240,7 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"cell_voltage_delta", "Cell Voltage Delta", "mV", "voltage", always},
     {"battery_voltage", "Battery Voltage", "V", "voltage", always},
     {"total_capacity", "Total Capacity", "Wh", "energy", always},
-    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", always},
+    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", single_pack},
     {"remaining_capacity_real", "Remaining Capacity (real)", "Wh", "energy", always},
     {"max_discharge_power", "Max Discharge Power", "W", "power", always},
     {"max_charge_power", "Max Charge Power", "W", "power", always},
@@ -232,7 +250,9 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"balancing_active_cells", "Balancing Cells", "", "", always},
     {"balancing_status", "Balancing Status", "", "", always},
     {"charging_state", "Charging State", "", "", always},
-    {"limiting_factor", "Limiting Factor", "", "", always},
+    // What is limiting the inverter is one answer for the whole installation, not a pack's. With
+    // several packs it lives on the aggregate topic instead of being repeated on every pack.
+    {"limiting_factor", "Limiting Factor", "", "", single_pack},
     {"dc_dc_current", "DC-DC Current", "A", "current", supports_tesla_dcdc_metrics},
     {"dc_dc_voltage", "DC-DC Voltage", "V", "voltage", supports_tesla_dcdc_metrics},
     {"autocal_taper", "BYD Auto-cal: Taper Complete", "", "", supports_byd_autocal_metrics},
@@ -254,6 +274,35 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"charge_term_cell_delta", "BYD Charge: Termination Cell Spread", "mV", "voltage", supports_byd_autocal_metrics},
     {"charge_term_cell_max_num", "BYD Charge: Termination High Cell #", "", "", supports_byd_autocal_metrics},
     {"charge_term_cell_min_num", "BYD Charge: Termination Low Cell #", "", "", supports_byd_autocal_metrics}};
+
+// The installation as the inverter sees it, published on its own topic when more than one
+// battery is configured. Entity ids get "_multi" where batteries 1, 2 and 3 get "", "_2" and
+// "_3"; the names carry no suffix at all, because the unqualified "SoC" sitting beside "SoC 1"
+// and "SoC 2" is the installation. With a single pack this is never published: it would only
+// repeat battery #1.
+static const SensorConfig aggregateSensorConfigTemplate[] = {
+    {"SOC", "SoC (scaled)", "%", "battery", always},
+    {"SOC_real", "SoC (real)", "%", "battery", always},
+    {"state_of_health", "State of Health", "%", "", always},
+    {"battery_voltage", "Battery Voltage", "V", "voltage", always},
+    {"battery_current", "Battery Current", "A", "current", always},
+    {"stat_batt_power", "Battery Power", "W", "power", always},
+    {"total_capacity", "Total Capacity (real)", "Wh", "energy", always},
+    {"total_capacity_scaled", "Total Capacity (scaled)", "Wh", "energy", always},
+    {"remaining_capacity_real", "Remaining Capacity (real)", "Wh", "energy", always},
+    {"remaining_capacity", "Remaining Capacity (scaled)", "Wh", "energy", always},
+    {"max_charge_power", "Max Charge Power", "W", "power", always},
+    {"max_discharge_power", "Max Discharge Power", "W", "power", always},
+    {"max_charge_current", "Max Charge Current", "A", "current", always},
+    {"max_discharge_current", "Max Discharge Current", "A", "current", always},
+    {"cell_max_voltage", "Cell Max Voltage", "V", "voltage", always},
+    {"cell_min_voltage", "Cell Min Voltage", "V", "voltage", always},
+    {"temperature_max", "Temperature Max", "°C", "temperature", always},
+    {"temperature_min", "Temperature Min", "°C", "temperature", always},
+    {"charged_energy", "Battery Charged Energy", "Wh", "energy", any_pack_supports_charged},
+    {"discharged_energy", "Battery Discharged Energy", "Wh", "energy", any_pack_supports_charged},
+    {"charging_state", "Charging State", "", "", always},
+    {"limiting_factor", "Limiting Factor", "", "", always}};
 
 static const SensorConfig globalSensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", always},
@@ -281,6 +330,17 @@ struct BatteryTarget {
   const char* name_suffix;             // suffix for display names ("", " 2", " 3")
 };
 
+// Display-name suffix for a pack. Battery #1 is normally un-suffixed, but once there is more
+// than one pack an unqualified "SoC" sitting next to "SoC 2" reads as the installation's rather
+// than the first pack's, so it gets " 1" too. Entity ids and unique ids are deliberately left
+// alone: renaming those would orphan every existing Home Assistant entity and break history.
+static const char* display_name_suffix(const BatteryTarget& target) {
+  if (target.index == 1 && datalayer.system.info.configured_batteries > 1) {
+    return " 1";
+  }
+  return target.name_suffix;
+}
+
 static const BatteryTarget battery_targets[] = {
     {&battery, &datalayer.battery, &battery_detected, 1, "", ""},
     {&battery2, &datalayer.battery2, &battery2_detected, 2, "_2", " 2"},
@@ -293,6 +353,9 @@ static const BatteryTarget battery_targets[] = {
 // instead of growing with the battery count, and lets ArduinoJson store all keys as
 // zero-copy const char* literals.
 static String info_topics[3];
+
+// "<name>/info_multi", following the "<name>/info_2" pattern. Only used with several batteries.
+static String aggregate_topic;
 
 static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
                                              {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
@@ -385,9 +448,52 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
 // const char* literals: ArduinoJson stores those by pointer (zero copy), whereas the old
 // "key" + suffix String keys were each heap-allocated and then copied into the document
 // pool — on every publish cycle, for every battery.
+// Fills the document with datalayer.aggregate: the installation, not a pack. Keys match the
+// per-battery ones where the meaning is the same, so a value_template reads the same either way.
+static void set_aggregate_attributes(JsonDocument& doc) {
+  const DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
+  doc["SOC"] = ((float)a.reported_soc) / 100.0f;
+  doc["SOC_real"] = ((float)a.real_soc) / 100.0f;
+  doc["state_of_health"] = ((float)a.soh_pptt) / 100.0f;
+  doc["battery_voltage"] = ((float)a.voltage_dV) / 10.0f;
+  doc["battery_current"] = ((float)a.current_dA) / 10.0f;
+  doc["stat_batt_power"] = ((float)a.active_power_W);
+  doc["total_capacity"] = ((float)a.total_capacity_Wh);
+  doc["total_capacity_scaled"] = ((float)a.reported_total_capacity_Wh);
+  doc["remaining_capacity_real"] = ((float)a.remaining_capacity_Wh);
+  doc["remaining_capacity"] = ((float)a.reported_remaining_capacity_Wh);
+  doc["max_charge_power"] = ((float)a.max_charge_power_W);
+  doc["max_discharge_power"] = ((float)a.max_discharge_power_W);
+  doc["max_charge_current"] = ((float)a.max_charge_current_dA) / 10.0f;
+  doc["max_discharge_current"] = ((float)a.max_discharge_current_dA) / 10.0f;
+  doc["cell_max_voltage"] = ((float)a.cell_max_voltage_mV) / 1000.0f;
+  doc["cell_min_voltage"] = ((float)a.cell_min_voltage_mV) / 1000.0f;
+  doc["temperature_max"] = ((float)a.temperature_max_dC) / 10.0f;
+  doc["temperature_min"] = ((float)a.temperature_min_dC) / 10.0f;
+  // Omitted unless some pack actually counts them, so Home Assistant shows "unknown" rather
+  // than a lifetime total of 0 Wh that will never move.
+  if (any_pack_supports_charged(nullptr)) {
+    doc["charged_energy"] = ((float)a.total_charged_battery_Wh);
+    doc["discharged_energy"] = ((float)a.total_discharged_battery_Wh);
+  }
+  const ChargingState charging_state = get_charging_state(a.current_dA);
+  doc["charging_state"] = charging_state_to_text(charging_state);
+  doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
+      charging_state, datalayer.battery_settings.inverter_limits_charge,
+      datalayer.battery_settings.inverter_limits_discharge, datalayer.battery_settings.user_settings_limit_charge,
+      datalayer.battery_settings.user_settings_limit_discharge));
+}
+
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
                             bool battery_supports_charged) {
-  doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
+  // Scaled figures are only a pack's own where that pack is the whole installation. With
+  // several batteries the window is applied to datalayer.aggregate and published on its own
+  // topic, and these keys would just repeat the real ones - so they are left out entirely
+  // rather than published as duplicates. See single_pack().
+  const bool pack_is_the_installation = (datalayer.system.info.configured_batteries < 2);
+  if (pack_is_the_installation) {
+    doc["SOC"] = ((float)battery_data.status.reported_soc) / 100.0f;
+  }
   doc["SOC_real"] = ((float)battery_data.status.real_soc) / 100.0f;
   // Omit until the integration has decoded a real state of health, so HA shows "unknown"
   // instead of the soh_pptt default presented as if it had been read from the pack.
@@ -412,9 +518,21 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
     doc["total_capacity"] = ((float)battery_data.info.total_capacity_Wh);
   }
   doc["remaining_capacity_real"] = ((float)battery_data.status.remaining_capacity_Wh);
-  doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
-  doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
-  doc["max_charge_power"] = ((float)battery_data.status.max_charge_power_W);
+  if (pack_is_the_installation) {
+    doc["remaining_capacity"] = ((float)battery_data.status.reported_remaining_capacity_Wh);
+  }
+  // max_charge_power_W on a pack is not that pack's own figure: the safety layer, the SOC taper
+  // and the inverter filter all rewrite it in place, and for pack 1 that makes it the whole
+  // installation's decision. With several packs publish what each BMS actually asked for, so
+  // the three topics mean the same thing; the installation's limits are on the aggregate topic.
+  // A single pack is the installation, so it keeps reporting the final limit as it always has.
+  if (pack_is_the_installation) {
+    doc["max_discharge_power"] = ((float)battery_data.status.max_discharge_power_W);
+    doc["max_charge_power"] = ((float)battery_data.status.max_charge_power_W);
+  } else {
+    doc["max_discharge_power"] = ((float)battery_data.status.bms_max_discharge_power_W);
+    doc["max_charge_power"] = ((float)battery_data.status.bms_max_charge_power_W);
+  }
   // Omit until the integration has decoded a valid sample so HA shows "unknown"
   // instead of a false 0 kOhm at boot.
   if (battery_data.status.insulation_resistance_available) {
@@ -441,11 +559,18 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["balancing_active_cells"] = active_cells;
   doc["balancing_status"] = get_balancing_status_text(battery_data.status.balancing_status);
+  // Direction is genuinely this pack's: parallel packs at different SOC push current into each
+  // other. What is limiting the inverter is not - that is one answer for the installation, so
+  // with several packs it is published once on the aggregate topic instead of the same answer
+  // appearing on every pack.
   ChargingState charging_state = get_charging_state(battery_data.status.current_dA);
   doc["charging_state"] = charging_state_to_text(charging_state);
-  doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
-      charging_state, battery_data.settings.inverter_limits_charge, battery_data.settings.inverter_limits_discharge,
-      battery_data.settings.user_settings_limit_charge, battery_data.settings.user_settings_limit_discharge));
+  if (pack_is_the_installation) {
+    doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
+        charging_state, datalayer.battery_settings.inverter_limits_charge,
+        datalayer.battery_settings.inverter_limits_discharge, datalayer.battery_settings.user_settings_limit_charge,
+        datalayer.battery_settings.user_settings_limit_discharge));
+  }
   if (battery_index == 1 && supports_tesla_dcdc_metrics(::battery)) {
     doc["dc_dc_current"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1f;
     doc["dc_dc_voltage"] = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.01f;
@@ -700,7 +825,21 @@ static bool publish_common_info(void) {
         if (!config.condition(bat)) {
           continue;
         }
-        if (!publish_sensor_discovery(config, target.id_suffix, target.name_suffix, info_topics[target.index - 1])) {
+        if (!publish_sensor_discovery(config, target.id_suffix, display_name_suffix(target),
+                                      info_topics[target.index - 1])) {
+          return false;
+        }
+      }
+    }
+    // The installation-level entities, only where there is an installation to speak of.
+    if (datalayer.system.info.configured_batteries > 1) {
+      for (const auto& config : aggregateSensorConfigTemplate) {
+        // No single Battery to ask about an installation-wide entity; the conditions here take
+        // nullptr and look at the configured packs themselves.
+        if (!config.condition(nullptr)) {
+          continue;
+        }
+        if (!publish_sensor_discovery(config, "_multi", "", aggregate_topic)) {
           return false;
         }
       }
@@ -768,6 +907,17 @@ static bool publish_common_info(void) {
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Common info");
+        return false;
+      }
+    }
+
+    // The installation on "/info_multi". Nothing to aggregate with a single pack.
+    if (datalayer.system.info.configured_batteries > 1) {
+      DocClearGuard guard(shared_doc);
+      set_aggregate_attributes(shared_doc);
+      serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+      if (mqtt_publish(aggregate_topic.c_str(), mqtt_msg, false) == false) {
+        log_publish_failure("Aggregate info");
         return false;
       }
     }
@@ -893,7 +1043,9 @@ static bool publish_cell_voltages(void) {
     DocClearGuard guard(shared_doc);
     bool all_ready = true;
 
-    if (!publish_cell_voltage_discovery(datalayer.battery, state_topic, default_entity_id_prefix, "", "", all_ready)) {
+    const String first_pack_name_suffix = (datalayer.system.info.configured_batteries > 1) ? " 1" : "";
+    if (!publish_cell_voltage_discovery(datalayer.battery, state_topic, default_entity_id_prefix,
+                                        first_pack_name_suffix, "", all_ready)) {
       return false;
     }
     if (battery2) {
@@ -1085,28 +1237,28 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     deserializeJson(doc, data_str);
 
     if (doc["max_charge"].is<int>()) {
-      datalayer.battery.settings.max_remote_set_charge_dA = doc["max_charge"];
-      datalayer.battery.settings.remote_settings_limit_charge = true;
+      datalayer.battery_settings.max_remote_set_charge_dA = doc["max_charge"];
+      datalayer.battery_settings.remote_settings_limit_charge = true;
     } else {
-      datalayer.battery.settings.max_remote_set_charge_dA = 0;
-      datalayer.battery.settings.remote_settings_limit_charge = false;
+      datalayer.battery_settings.max_remote_set_charge_dA = 0;
+      datalayer.battery_settings.remote_settings_limit_charge = false;
     }
 
     if (doc["max_discharge"].is<int>()) {
-      datalayer.battery.settings.max_remote_set_discharge_dA = doc["max_discharge"];
-      datalayer.battery.settings.remote_settings_limit_discharge = true;
+      datalayer.battery_settings.max_remote_set_discharge_dA = doc["max_discharge"];
+      datalayer.battery_settings.remote_settings_limit_discharge = true;
     } else {
-      datalayer.battery.settings.max_remote_set_discharge_dA = 0;
-      datalayer.battery.settings.remote_settings_limit_discharge = false;
+      datalayer.battery_settings.max_remote_set_discharge_dA = 0;
+      datalayer.battery_settings.remote_settings_limit_discharge = false;
     }
 
     if (doc["timeout"].is<int>()) {
-      datalayer.battery.settings.remote_set_timeout = doc["timeout"].as<int>() * 1000;
+      datalayer.battery_settings.remote_set_timeout = doc["timeout"].as<int>() * 1000;
     } else {
-      datalayer.battery.settings.remote_set_timeout = 30000;
+      datalayer.battery_settings.remote_set_timeout = 30000;
     }
 
-    datalayer.battery.settings.remote_set_timestamp = millis();
+    datalayer.battery_settings.remote_set_timestamp = millis();
 
     free(data_str);
   }
@@ -1180,6 +1332,7 @@ bool init_mqtt(void) {
   for (const auto& target : battery_targets) {
     info_topics[target.index - 1] = topic_name + "/info" + target.id_suffix;
   }
+  aggregate_topic = topic_name + "/info_multi";
   for (int i = 0; i < BTN_COUNT; i++) {
     button_command_topics[i] = generateButtonTopic(button_commands[i]);
   }

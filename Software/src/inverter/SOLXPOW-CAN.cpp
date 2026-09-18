@@ -10,24 +10,24 @@ void SolxpowInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Check what discharge and charge cutoff voltages to send
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
-    discharge_cutoff_voltage_dV = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
-    charge_cutoff_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+    discharge_cutoff_voltage_dV = datalayer.battery_settings.max_user_set_discharge_voltage_dV;
+    charge_cutoff_voltage_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
   } else {
-    discharge_cutoff_voltage_dV = (datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV);
-    charge_cutoff_voltage_dV = (datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV);
+    discharge_cutoff_voltage_dV = (datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV);
+    charge_cutoff_voltage_dV = (datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV);
   }
 
   //There are more mappings that could be added, but this should be enough to use as a starting point
 
   //Charge / Discharge allowed flags
-  if (datalayer.battery.status.max_charge_current_dA == 0) {
+  if (datalayer.aggregate.max_charge_current_dA == 0) {
     SOLXPOW_4280.data.u8[0] = 0xAA;  //Charge forbidden
   } else {
     SOLXPOW_4280.data.u8[0] = 0;  //Charge allowed
   }
 
-  if (datalayer.battery.status.max_discharge_current_dA == 0) {
+  if (datalayer.aggregate.max_discharge_current_dA == 0) {
     SOLXPOW_4280.data.u8[1] = 0xAA;  //Discharge forbidden
   } else {
     SOLXPOW_4280.data.u8[1] = 0;  //Discharge allowed
@@ -40,55 +40,55 @@ void SolxpowInverter::
   }
 
   //Voltage (370.0)
-  SOLXPOW_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
-  SOLXPOW_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SOLXPOW_4210.data.u8[0] = (datalayer.aggregate.voltage_dV >> 8);
+  SOLXPOW_4210.data.u8[1] = (datalayer.aggregate.voltage_dV & 0x00FF);
 
   //Current (15.0)
-  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
-  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
+  SOLXPOW_4210.data.u8[2] = (datalayer.aggregate.current_dA >> 8);
+  SOLXPOW_4210.data.u8[3] = (datalayer.aggregate.current_dA & 0x00FF);
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
 #ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
-  SOLXPOW_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
-  SOLXPOW_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  SOLXPOW_4210.data.u8[4] = ((datalayer.aggregate.temperature_max_dC + 1000) & 0x00FF);
+  SOLXPOW_4210.data.u8[5] = ((datalayer.aggregate.temperature_max_dC + 1000) >> 8);
 #else   // Not INVERT_LOW_HIGH_BYTES
-  SOLXPOW_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
-  SOLXPOW_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  SOLXPOW_4210.data.u8[4] = ((datalayer.aggregate.temperature_max_dC + 1000) >> 8);
+  SOLXPOW_4210.data.u8[5] = ((datalayer.aggregate.temperature_max_dC + 1000) & 0x00FF);
 #endif  // INVERT_LOW_HIGH_BYTES
   //SOC (100.00%)
-  SOLXPOW_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
+  SOLXPOW_4210.data.u8[6] = (datalayer.aggregate.reported_soc / 100);  //Remove decimals
 
   //StateOfHealth (100.00%)
-  SOLXPOW_4210.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
+  SOLXPOW_4210.data.u8[7] = (datalayer.aggregate.soh_pptt / 100);
 
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
   if (datalayer.system.status.system_status == FAULT) {
     SOLXPOW_4250.data.u8[0] = (0x00);  // Sleep
-  } else if (datalayer.battery.status.reported_current_dA < 0) {
+  } else if (datalayer.aggregate.current_dA < 0) {
     SOLXPOW_4250.data.u8[0] = (0x01);  // Charge
-  } else if (datalayer.battery.status.reported_current_dA > 0) {
+  } else if (datalayer.aggregate.current_dA > 0) {
     SOLXPOW_4250.data.u8[0] = (0x02);  // Discharge
-  } else if (datalayer.battery.status.reported_current_dA == 0) {
+  } else if (datalayer.aggregate.current_dA == 0) {
     SOLXPOW_4250.data.u8[0] = (0x03);  // Idle
   }
 
 #ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
   //Voltage (370.0)
-  SOLXPOW_4210.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
-  SOLXPOW_4210.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+  SOLXPOW_4210.data.u8[0] = (datalayer.aggregate.voltage_dV & 0x00FF);
+  SOLXPOW_4210.data.u8[1] = (datalayer.aggregate.voltage_dV >> 8);
 
 #ifdef SET_30K_OFFSET
   //Current (15.0)
-  SOLXPOW_4210.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
-  SOLXPOW_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
+  SOLXPOW_4210.data.u8[2] = ((datalayer.aggregate.current_dA + 30000) & 0x00FF);
+  SOLXPOW_4210.data.u8[3] = ((datalayer.aggregate.current_dA + 30000) >> 8);
 #else   // Not SET_30K_OFFSET
-  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.reported_current_dA & 0x00FF);
-  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
+  SOLXPOW_4210.data.u8[2] = (datalayer.aggregate.current_dA & 0x00FF);
+  SOLXPOW_4210.data.u8[3] = (datalayer.aggregate.current_dA >> 8);
 #endif  //SET_30K_OFFSET
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
-  SOLXPOW_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
-  SOLXPOW_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  SOLXPOW_4210.data.u8[4] = ((datalayer.aggregate.temperature_max_dC + 1000) & 0x00FF);
+  SOLXPOW_4210.data.u8[5] = ((datalayer.aggregate.temperature_max_dC + 1000) >> 8);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
   SOLXPOW_4220.data.u8[0] = (charge_cutoff_voltage_dV & 0x00FF);
@@ -100,62 +100,62 @@ void SolxpowInverter::
 
 #ifdef SET_30K_OFFSET
   //Max ChargeCurrent
-  SOLXPOW_4220.data.u8[4] = ((datalayer.battery.status.max_charge_current_dA + 30000) & 0x00FF);
-  SOLXPOW_4220.data.u8[5] = ((datalayer.battery.status.max_charge_current_dA + 30000) >> 8);
+  SOLXPOW_4220.data.u8[4] = ((datalayer.aggregate.max_charge_current_dA + 30000) & 0x00FF);
+  SOLXPOW_4220.data.u8[5] = ((datalayer.aggregate.max_charge_current_dA + 30000) >> 8);
 
   //Max DischargeCurrent
-  SOLXPOW_4220.data.u8[6] = ((30000 - datalayer.battery.status.max_discharge_current_dA) & 0x00FF);
-  SOLXPOW_4220.data.u8[7] = ((30000 - datalayer.battery.status.max_discharge_current_dA) >> 8);
+  SOLXPOW_4220.data.u8[6] = ((30000 - datalayer.aggregate.max_discharge_current_dA) & 0x00FF);
+  SOLXPOW_4220.data.u8[7] = ((30000 - datalayer.aggregate.max_discharge_current_dA) >> 8);
 #else   // Not SET_30K_OFFSET
   //Max ChargeCurrent
-  SOLXPOW_4220.data.u8[4] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
-  SOLXPOW_4220.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SOLXPOW_4220.data.u8[4] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
+  SOLXPOW_4220.data.u8[5] = (datalayer.aggregate.max_charge_current_dA >> 8);
 
   //Max DishargeCurrent
-  SOLXPOW_4220.data.u8[6] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
-  SOLXPOW_4220.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SOLXPOW_4220.data.u8[6] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
+  SOLXPOW_4220.data.u8[7] = (datalayer.aggregate.max_discharge_current_dA >> 8);
 #endif  // SET_30K_OFFSET
 
   //Max cell voltage
-  SOLXPOW_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  SOLXPOW_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SOLXPOW_4230.data.u8[0] = (datalayer.aggregate.cell_max_voltage_mV & 0x00FF);
+  SOLXPOW_4230.data.u8[1] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
 
   //Min cell voltage
-  SOLXPOW_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  SOLXPOW_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SOLXPOW_4230.data.u8[2] = (datalayer.aggregate.cell_min_voltage_mV & 0x00FF);
+  SOLXPOW_4230.data.u8[3] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
 
   //Max temperature per cell
-  SOLXPOW_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SOLXPOW_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SOLXPOW_4240.data.u8[0] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
+  SOLXPOW_4240.data.u8[1] = (datalayer.aggregate.temperature_max_dC >> 8);
 
   //Max/Min temperature per cell
-  SOLXPOW_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-  SOLXPOW_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  SOLXPOW_4240.data.u8[2] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
+  SOLXPOW_4240.data.u8[3] = (datalayer.aggregate.temperature_min_dC >> 8);
 
   //Max temperature per module
-  SOLXPOW_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SOLXPOW_4270.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SOLXPOW_4270.data.u8[0] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
+  SOLXPOW_4270.data.u8[1] = (datalayer.aggregate.temperature_max_dC >> 8);
 
   //Min temperature per module
-  SOLXPOW_4270.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-  SOLXPOW_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  SOLXPOW_4270.data.u8[2] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
+  SOLXPOW_4270.data.u8[3] = (datalayer.aggregate.temperature_min_dC >> 8);
 #else  // Not INVERT_LOW_HIGH_BYTES
   //Voltage (370.0)
-  SOLXPOW_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
-  SOLXPOW_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SOLXPOW_4210.data.u8[0] = (datalayer.aggregate.voltage_dV >> 8);
+  SOLXPOW_4210.data.u8[1] = (datalayer.aggregate.voltage_dV & 0x00FF);
 
 #ifdef SET_30K_OFFSET
   //Current (15.0)
-  SOLXPOW_4210.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) >> 8);
-  SOLXPOW_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
+  SOLXPOW_4210.data.u8[2] = ((datalayer.aggregate.current_dA + 30000) >> 8);
+  SOLXPOW_4210.data.u8[3] = ((datalayer.aggregate.current_dA + 30000) & 0x00FF);
 #else   // Not SET_30K_OFFSET
-  SOLXPOW_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  SOLXPOW_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  SOLXPOW_4210.data.u8[2] = (datalayer.aggregate.current_dA >> 8);
+  SOLXPOW_4210.data.u8[3] = (datalayer.aggregate.current_dA & 0x00FF);
 #endif  //SET_30K_OFFSET
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
-  SOLXPOW_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
-  SOLXPOW_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  SOLXPOW_4210.data.u8[4] = ((datalayer.aggregate.temperature_max_dC + 1000) >> 8);
+  SOLXPOW_4210.data.u8[5] = ((datalayer.aggregate.temperature_max_dC + 1000) & 0x00FF);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
   SOLXPOW_4220.data.u8[0] = (charge_cutoff_voltage_dV >> 8);
@@ -167,45 +167,45 @@ void SolxpowInverter::
 
 #ifdef SET_30K_OFFSET
   //Max ChargeCurrent
-  SOLXPOW_4220.data.u8[4] = ((datalayer.battery.status.max_charge_current_dA + 30000) >> 8);
-  SOLXPOW_4220.data.u8[5] = ((datalayer.battery.status.max_charge_current_dA + 30000) & 0x00FF);
+  SOLXPOW_4220.data.u8[4] = ((datalayer.aggregate.max_charge_current_dA + 30000) >> 8);
+  SOLXPOW_4220.data.u8[5] = ((datalayer.aggregate.max_charge_current_dA + 30000) & 0x00FF);
 
   //Max DischargeCurrent
-  SOLXPOW_4220.data.u8[6] = ((30000 - datalayer.battery.status.max_discharge_current_dA) >> 8);
-  SOLXPOW_4220.data.u8[7] = ((30000 - datalayer.battery.status.max_discharge_current_dA) & 0x00FF);
+  SOLXPOW_4220.data.u8[6] = ((30000 - datalayer.aggregate.max_discharge_current_dA) >> 8);
+  SOLXPOW_4220.data.u8[7] = ((30000 - datalayer.aggregate.max_discharge_current_dA) & 0x00FF);
 #else   // Not SET_30K_OFFSET
   //Max ChargeCurrent
-  SOLXPOW_4220.data.u8[4] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  SOLXPOW_4220.data.u8[5] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  SOLXPOW_4220.data.u8[4] = (datalayer.aggregate.max_charge_current_dA >> 8);
+  SOLXPOW_4220.data.u8[5] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
 
   //Max DishargeCurrent
-  SOLXPOW_4220.data.u8[6] = (datalayer.battery.status.max_discharge_current_dA >> 8);
-  SOLXPOW_4220.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  SOLXPOW_4220.data.u8[6] = (datalayer.aggregate.max_discharge_current_dA >> 8);
+  SOLXPOW_4220.data.u8[7] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
 #endif  //SET_30K_OFFSET
 
   //Max cell voltage
-  SOLXPOW_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  SOLXPOW_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  SOLXPOW_4230.data.u8[0] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
+  SOLXPOW_4230.data.u8[1] = (datalayer.aggregate.cell_max_voltage_mV & 0x00FF);
 
   //Min cell voltage
-  SOLXPOW_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  SOLXPOW_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  SOLXPOW_4230.data.u8[2] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
+  SOLXPOW_4230.data.u8[3] = (datalayer.aggregate.cell_min_voltage_mV & 0x00FF);
 
   //Max temperature per cell
-  SOLXPOW_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SOLXPOW_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  SOLXPOW_4240.data.u8[0] = (datalayer.aggregate.temperature_max_dC >> 8);
+  SOLXPOW_4240.data.u8[1] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
 
   //Max/Min temperature per cell
-  SOLXPOW_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLXPOW_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  SOLXPOW_4240.data.u8[2] = (datalayer.aggregate.temperature_min_dC >> 8);
+  SOLXPOW_4240.data.u8[3] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
 
   //Max temperature per module
-  SOLXPOW_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SOLXPOW_4270.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  SOLXPOW_4270.data.u8[0] = (datalayer.aggregate.temperature_max_dC >> 8);
+  SOLXPOW_4270.data.u8[1] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
 
   //Min temperature per module
-  SOLXPOW_4270.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLXPOW_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  SOLXPOW_4270.data.u8[2] = (datalayer.aggregate.temperature_min_dC >> 8);
+  SOLXPOW_4270.data.u8[3] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
 #endif  // Not INVERT_LOW_HIGH_BYTES
 }
 
