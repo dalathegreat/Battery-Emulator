@@ -1755,7 +1755,6 @@ String processor(const String& var) {
     ) {
       content += "<button onclick='Log()'>Log</button> ";
     }
-    content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button> ";
     if (webserver_auth)
@@ -1777,7 +1776,6 @@ String processor(const String& var) {
           ">Close Contactors</button><br/>";
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
-    content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
     content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function CANlog() { window.location.href = '/canlog'; }";
