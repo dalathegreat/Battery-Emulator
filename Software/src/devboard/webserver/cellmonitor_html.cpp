@@ -55,7 +55,7 @@ const char page_head[] =
 .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin:10px 0}
 #val,.lgd{font-weight:700}
 #val{margin-right:auto}
-.lgd{padding:2px 8px;border-radius:4px}
+.lgd{padding:2px 8px;border:1px solid transparent;border-radius:4px}
 </style>
 <button onclick="location.href='/'">Back to main page</button>
 <button onclick="location.href='/advanced'+location.search">More Battery Info</button>
@@ -137,7 +137,8 @@ String cellmonitor_processor(const String& var, unsigned selected) {
     // Batteries that report no per-cell flags still say whether the pack as a whole is balancing.
     content += "<span class='lgd' style='background:#f90;color:#000'>Balancing is active now!</span>";
   }
-  content += "<span class='lgd' style='background:red'>Min/Max</span></div>";
+  // Outlined rather than filled, the way a min/max bar is marked in the graph.
+  content += "<span class='lgd' style='border-color:red'>Min/Max</span></div>";
   content += "<div id='cells' class='container'></div></div>";
 
   content += "<script>const d=[";
