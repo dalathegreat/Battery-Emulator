@@ -17,6 +17,10 @@ void KiaHyundai64Battery::
 
   datalayer_battery->status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
 
+  // The diagnostic uint32_t counters are already in 0.1 Ah despite their names.
+  datalayer_battery->status.total_charged_battery_dAh = cumulative_charge_current_ah;
+  datalayer_battery->status.total_discharged_battery_dAh = cumulative_discharge_current_ah;
+
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
