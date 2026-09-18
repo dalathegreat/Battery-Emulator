@@ -10,6 +10,7 @@
 #include "../devboard/utils/logging.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
+#ifndef SMALL_FLASH_DEVICE
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
 unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2);
@@ -18,10 +19,16 @@ short ShortMaskedSumAndProduct(short param_1, short param_2);
 unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
 unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 
-// Note this should only be allowed/used on 2011-2017 24/30kWh batteries!
+//The degradation reset is only for 2011-2017 24/30kWh ZE0/AZE0 packs, and only for one that is on
+//the bus right now. The generation defaults to ZE0 until a ZE1-only broadcast says otherwise, so
+//before this pack has sent anything it cannot be told apart from a ZE1. battery_can_alive latches on
+//its first 0x5BC; the alive counter alone is no proof, as it starts just short of CAN_STILL_ALIVE at
+//boot and only reaches zero a minute after the pack falls silent.
 bool NissanLeafBattery::supports_reset_SOH() {
-  return LEAF_battery_Type != ZE1_BATTERY;
+  return battery_can_alive && datalayer_battery->status.CAN_battery_still_alive &&
+         (LEAF_battery_Type == ZE0_BATTERY || LEAF_battery_Type == AZE0_BATTERY);
 }
+#endif
 
 void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
   if (new_status == datalayer_battery->status.balancing_status) {
@@ -57,8 +64,35 @@ void NissanLeafBattery::
   datalayer_battery->status.voltage_dV =
       (battery_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  datalayer_battery->status.current_dA =
-      (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  // Publish the mean current seen on the 0x1DB CAN stream since the previous
+  // update_values() call. The raw accumulator is fed from every received frame,
+  // so this remains representative even though the normal datalayer update is 1 Hz.
+  if (battery_Current2_sample_count > 0) {
+    // Calculate the mean directly in dA before publishing so the fractional
+    // part of the raw 0.5 A samples is preserved. Round symmetrically around zero.
+    const int32_t current_dA_sum = battery_Current2_sum_raw * 5;
+    if (current_dA_sum >= 0) {
+      datalayer_battery->status.current_dA =
+          (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) / battery_Current2_sample_count);
+    } else {
+      datalayer_battery->status.current_dA =
+          (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) / battery_Current2_sample_count);
+    }
+  }
+
+  // Publish the extremes captured over the same window for safety checks. Kept separate
+  // from current_dA so short excursions are not hidden by averaging. Both accumulators
+  // start at zero, so a window with current in one direction only reports zero for the
+  // other, which is the neutral value for both comparisons.
+  battery_Current2_peak_max_published_dA = battery_Current2_peak_max_raw * 5;
+  battery_Current2_peak_min_published_dA = battery_Current2_peak_min_raw * 5;
+
+  // Start the next accumulation window. update_machineryprotection() runs later
+  // in the same core loop and therefore consumes the values published above.
+  battery_Current2_sum_raw = 0;
+  battery_Current2_sample_count = 0;
+  battery_Current2_peak_max_raw = 0;
+  battery_Current2_peak_min_raw = 0;
 
   //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
   //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
@@ -380,10 +414,13 @@ void NissanLeafBattery::
         ((solvedChallenge[3] << 24) | (solvedChallenge[2] << 16) | (solvedChallenge[1] << 8) | solvedChallenge[0]);
     datalayer_nissan->challengeFailed = challengeFailed;
 
-    // Update requests from webserver datalayer
+    // Update requests from webserver datalayer. Asked again before starting, in case the pack
+    // turned out to be a ZE1 or went quiet since the request was accepted.
     if (UserRequestSOHreset) {
-      stateMachineClearSOH = 0;  //Start the statemachine
       UserRequestSOHreset = false;
+      if (supports_reset_SOH()) {
+        stateMachineClearSOH = 0;  //Start the statemachine
+      }
     }
 
 #endif
@@ -392,7 +429,7 @@ void NissanLeafBattery::
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x1DB:
+    case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
@@ -402,6 +439,18 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // negative so extend the sign bit
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
+
+      // Accumulate every 0x1DB sample for the 1 s published mean, and track the highest
+      // and lowest sample separately so a charge and a discharge excursion inside the same
+      // window both reach the safety path.
+      battery_Current2_sum_raw += battery_Current2;
+      battery_Current2_sample_count++;
+      if (battery_Current2 > battery_Current2_peak_max_raw) {
+        battery_Current2_peak_max_raw = battery_Current2;
+      }
+      if (battery_Current2 < battery_Current2_peak_min_raw) {
+        battery_Current2_peak_min_raw = battery_Current2;
+      }
 
       battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
       if (battery_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
@@ -416,6 +465,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       battery_status_seen |= 0x01;
       break;
+    }
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
@@ -1043,7 +1093,11 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   bool channel_idle = !uds_busy && (currentMillis - last_7bb_millis) > DTC_BUS_IDLE_MS;
   // The SOH clear runs its own multi-step exchange over the same request/response pair, so a DTC
   // request must not be slipped in between its steps either.
+#ifndef SMALL_FLASH_DEVICE
   bool soh_clear_running = stateMachineClearSOH < 255;
+#else
+  const bool soh_clear_running = false;
+#endif
   bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
 
   if (UserRequestDTCreadout && !busy && channel_idle) {
@@ -1264,9 +1318,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+#ifndef SMALL_FLASH_DEVICE
       if (stateMachineClearSOH < 255) {  // Enter the ClearSOH statemachine only if we request it
         clearSOH();
       }
+#endif
 
       //When battery requests heating pack status change, ack this
       if (battery_Batt_Heater_Mail_Send_Request) {
@@ -1424,8 +1480,9 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
 
-void NissanLeafBattery::clearSOH(void) {
 #ifndef SMALL_FLASH_DEVICE
+
+void NissanLeafBattery::clearSOH(void) {
   stop_battery_query = true;
   hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
 
@@ -1490,10 +1547,7 @@ void NissanLeafBattery::clearSOH(void) {
     default:
       break;
   }
-#endif
 }
-
-#ifndef SMALL_FLASH_DEVICE
 
 unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2) {
   bool bVar1;
