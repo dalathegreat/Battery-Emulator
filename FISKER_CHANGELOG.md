@@ -13,6 +13,19 @@ Release tags use `fisker-vMAJOR.MINOR.PATCH`. Binary and release-folder names
 must contain the same version. A released binary is never overwritten; changes
 always receive a new version.
 
+## 2.63.1 - 2026-09-18
+
+- Aligns the Fisker current-limit unit test with Battery Emulator's shared
+  power-to-current flow: the battery integration publishes power limits and
+  the shared main loop derives and applies current limits.
+- Keeps the 50 A Fisker development safety ceiling while respecting lower
+  operator-configured power limits.
+- Corrects wake-frame testing so automatic startup DTC-clear traffic is not
+  mistaken for an additional wake frame. Runtime DTC behaviour is unchanged.
+- Makes uncached CI builds keep pioarduino's child environment on the same
+  PlatformIO version as the parent, preventing the observed SCons import
+  failure without changing firmware behaviour.
+
 ## 2.63.0 - 2026-09-18
 
 - Creates the public integration branch from the field-tested v2.62.0 source.

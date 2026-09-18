@@ -22,21 +22,40 @@ const CAN_frame* find_frame(uint32_t id) {
   return nullptr;
 }
 
-TEST(FiskerOceanTests, UsesConfiguredCurrentLimits) {
+size_t count_frames(uint32_t id) {
+  size_t count = 0;
+  for (const auto& frame : get_transmitted_frames()) {
+    count += frame.ID == id;
+  }
+  return count;
+}
+
+TEST(FiskerOceanTests, CapsOperatorPowerLimitsAt50Amps) {
   FiskerOceanBattery battery;
   battery.setup();
-  datalayer.battery.settings.max_user_set_charge_dA = 350;
-  datalayer.battery.settings.max_user_set_discharge_dA = 350;
+
+  const uint32_t previous_charge_override = datalayer.battery.status.override_charge_power_W;
+  const uint32_t previous_discharge_override = datalayer.battery.status.override_discharge_power_W;
+  datalayer.battery.status.override_charge_power_W = 30000;
+  datalayer.battery.status.override_discharge_power_W = 30000;
 
   battery.update_values();
 
-  EXPECT_EQ(datalayer.battery.status.max_charge_current_dA, 350);
-  EXPECT_EQ(datalayer.battery.status.max_discharge_current_dA, 350);
-  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 12950);
-  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 12950);
+  // At the default 370 V, the Fisker development safety ceiling is 18.5 kW.
+  // The shared Battery Emulator main loop derives and clamps current from
+  // these power limits; battery integrations do not write that current here.
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 18500);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 18500);
 
-  datalayer.battery.settings.max_user_set_charge_dA = 300;
-  datalayer.battery.settings.max_user_set_discharge_dA = 300;
+  datalayer.battery.status.override_charge_power_W = 12000;
+  datalayer.battery.status.override_discharge_power_W = 15000;
+  battery.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 12000);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 15000);
+
+  datalayer.battery.status.override_charge_power_W = previous_charge_override;
+  datalayer.battery.status.override_discharge_power_W = previous_discharge_override;
 }
 
 TEST(FiskerOceanTests, DecodesCrcProtectedPackCurrentAndVoltage) {
@@ -92,7 +111,7 @@ TEST(FiskerOceanTests, TransmitsOnlyConfirmedWakeFrames) {
   ASSERT_NE(find_frame(0x093), nullptr);
   EXPECT_EQ(find_frame(0x093)->data.u8[0], 0x05);
   EXPECT_EQ(find_frame(0x333), nullptr);
-  EXPECT_EQ(get_transmitted_frames().size(), 1);
+  EXPECT_EQ(count_frames(0x093), 1);
 
   clear_transmitted_frames();
   battery.transmit_can(50);
@@ -103,7 +122,8 @@ TEST(FiskerOceanTests, TransmitsOnlyConfirmedWakeFrames) {
   battery.transmit_can(100);
   EXPECT_NE(find_frame(0x093), nullptr);
   EXPECT_NE(find_frame(0x333), nullptr);
-  EXPECT_EQ(get_transmitted_frames().size(), 2);
+  EXPECT_EQ(count_frames(0x093), 1);
+  EXPECT_EQ(count_frames(0x333), 1);
 }
 
 TEST(FiskerOceanTests, ExposesSharedBmsPowerCycleCommand) {
