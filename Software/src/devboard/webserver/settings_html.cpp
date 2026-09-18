@@ -834,6 +834,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(datalayer.battery.info.total_capacity_Wh);
   }
 
+  if (var == "BATTERY_WH_CLASS") {
+    return battery_detects_capacity(user_selected_battery_type) ? "hidden" : "";
+  }
+
   if (var == "MAX_CHARGE_SPEED") {
     return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
   }
@@ -2389,7 +2393,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
 
-      <h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
+      <h4 style='color: white;' class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
       <h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
                 </span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
