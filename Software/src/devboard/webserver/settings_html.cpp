@@ -1393,10 +1393,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
     <style>
     body { background-color: black; color: white; }
-        button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px;
+        button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
         cursor: pointer; border-radius: 10px; }
     button:hover { background-color: #3A4A52; }
-    h4 { margin: 0.6em 0; line-height: 1.2; }
+    h4 { margin: 0.45em 0; line-height: 1.2; }
     select, input { max-width: 250px; box-sizing: border-box; }
     .hidden {
       display: none;
@@ -2379,34 +2379,35 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </form>
     </div>
-    </div>
 
-      <h4 style='color: white;'>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
+    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
 
-      <h4 style='color: white;' class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
+      <h4>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
-      <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
-      
-      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
+      <h4 class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
+
+      <h4 class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
+
+      <h4 class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
     <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
 
-      <h4 style='color: white;' class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
+      <h4 class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
+      <h4>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
                 </span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC min percentage: %SOC_MIN_PERCENTAGE%</span> <button onclick='editSocMin()'>Edit</button></h4>
       
-      <h4 style='color: white;'>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
+      <h4>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
+      <h4>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
+      <h4>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
         <span class='%VOLTAGE_LIMITS_CLASS%'>%VOLTAGE_LIMITS%</span>
                 </span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>
 
@@ -2414,21 +2415,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
 
       <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
     </div>
 
     <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS%">
-      <h4 style='color: white;'><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
+      <h4><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
     </div>
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
       
     <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
 
-          <h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
+          <h4>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>
 
           <h4 class="%BALANCING_CLASS%"><span>Balancing max time: %BAL_MAX_TIME% Minutes</span> <button onclick='editBalTime()'>Edit</button></h4>
@@ -2445,19 +2446,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
      <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
 
-      <h4 style='color: white;'>
+      <h4>
         Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
         <button onclick='editChargerHVDCEnabled()'>Edit</button>
       </h4>
 
-      <h4 style='color: white;'>
+      <h4>
         Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
         <button onclick='editChargerAux12vEnabled()'>Edit</button>
       </h4>
 
-      <h4 style='color: white;'><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
+      <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
 
-      <h4 style='color: white;'><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
 
       </div>
     
