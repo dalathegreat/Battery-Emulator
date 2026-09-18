@@ -161,6 +161,12 @@ class Battery {
      Opt-in on purpose: most drivers assign the flag true unconditionally, and a couple never touch
      it at all, so making the gate apply everywhere would stop those packs from ever closing. */
   virtual bool gates_contactor_closing() { return false; }
+  /* Worst charge (max) and discharge (min) current the pack has seen since the previous
+     update_values(), in deciamps, for the charge/discharge limit safety check. The default
+     hands back the published current, which is exactly what that check used before this
+     existed. Drivers that publish a mean rather than an instantaneous current override it,
+     so a short excursion inside the averaging window is not hidden from the safety layer. */
+  virtual void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA);
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
