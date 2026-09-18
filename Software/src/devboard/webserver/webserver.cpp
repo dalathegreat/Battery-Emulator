@@ -726,11 +726,23 @@ void init_webserver() {
 
   // Route for equipment stop/resume
   update_string("/equipmentStop", [](String value) {
-    if (value == "true" || value == "1") {
+    const bool stop = value == "true" || value == "1";
+    Battery* configured_batteries[] = {battery, battery2, battery3};
+    if (stop) {
+      for (Battery* configured_battery : configured_batteries) {
+        if (configured_battery && configured_battery->uses_main_page_contactor_control()) {
+          configured_battery->request_open_contactors();
+        }
+      }
       setBatteryPause(true, false,
                       EquipmentStop::STOP);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
     } else {
       setBatteryPause(false, false, EquipmentStop::RESUME);
+      for (Battery* configured_battery : configured_batteries) {
+        if (configured_battery && configured_battery->uses_main_page_contactor_control()) {
+          configured_battery->request_close_contactors();
+        }
+      }
     }
   });
 

@@ -1,0 +1,3 @@
+# pioarduino creates a child environment during uncached hybrid builds.
+# Keep it on the same known-good version as the outer PlatformIO environment.
+pioarduino==6.1.19

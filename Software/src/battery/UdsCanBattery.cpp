@@ -98,6 +98,11 @@ bool UdsCanBattery::transaction_tick() {
     }
     const uint16_t failed = seq_state;
     seq_state = UDS_STATE_IDLE;
+    if (failed == UDS_STATE_READ_DTC && dtc != nullptr) {
+      dtc->dtc_read_in_progress = false;
+      dtc->dtc_read_failed = true;
+      dtc->dtc_last_read_millis = millis();
+    }
     // Notify the subclass that it failed
     on_uds_sequence_timeout(failed);
   } else if (pending_pid != 0) {
@@ -324,6 +329,16 @@ bool UdsCanBattery::on_uds_pid_scan_response(uint8_t sid, const uint8_t* data, u
 void UdsCanBattery::on_uds_pid_scan_timeout() {
   // Called when a PID scan request times out.
 
+  if (pending_seq_state != UDS_STATE_IDLE) {
+    // A user-requested sequence (such as a DTC read) takes priority over
+    // retrying a periodic PID that has already failed to respond.
+    next_pid = 0;
+    advance_pid_scan();
+    pending_pid = 0;
+    pid_retries = 0;
+    return;
+  }
+
   pid_retries++;
   if (pid_retries < UDS_PID_MAX_RETRIES) {
     // Keep retrying...
@@ -417,6 +432,7 @@ void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const 
         handle_dtc_response(data, len);
       } else if (dtc != nullptr) {
         // Negative response to the DTC read: mark the readout as failed.
+        dtc->dtc_read_in_progress = false;
         dtc->dtc_read_failed = true;
         dtc->dtc_last_read_millis = millis();
       }
@@ -438,9 +454,11 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
     return;
 
   const bool is_kwp2000 = (pid_scan_id_bytes == 1);
-  const bool valid_header = is_kwp2000 ? (data[0] == 0x59) : (data[1] == 0x02);
+  const bool valid_header =
+      len >= 2 && data[0] == UDS_RESPONSE_SID_OF(SID::ReadDTCInformation) && (is_kwp2000 || data[1] == 0x02);
 
-  if (len < 2 || !valid_header) {
+  dtc->dtc_read_in_progress = false;
+  if (!valid_header) {
     // Unexpected report type or a malformed response — treat as a failed readout.
     dtc->dtc_read_failed = true;
   } else {
@@ -448,6 +466,7 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
     int dtcStartIndex = is_kwp2000 ? 2 : 3;  // KWP2000 starts at offset 2, standard UDS skips 59 02 <mask>
     int availableBytes = len - dtcStartIndex;
     int maxDtcCount = availableBytes / 4;
+    dtc->dtc_reported_count = maxDtcCount > 0 ? maxDtcCount : 0;
 
     if (maxDtcCount > dtc->MAX_DTC_COUNT) {
       maxDtcCount = dtc->MAX_DTC_COUNT;
@@ -535,7 +554,10 @@ bool UdsCanBattery::supports_reset_DTC() {
 }
 
 void UdsCanBattery::read_DTC() {
-  start_sequence(UDS_STATE_READ_DTC_START);
+  if (start_sequence(UDS_STATE_READ_DTC_START) && dtc != nullptr) {
+    dtc->dtc_read_in_progress = true;
+    dtc->dtc_read_failed = false;
+  }
 }
 
 void UdsCanBattery::reset_DTC() {
