@@ -78,7 +78,7 @@ TEST(FiskerOceanTests, RejectsPackCurrentWhenCrcIsInvalid) {
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, error_count + 1);
 }
 
-TEST(FiskerOceanTests, TransmitsOnlyConfirmedFramesByDefault) {
+TEST(FiskerOceanTests, TransmitsOnlyConfirmedWakeFrames) {
   clear_transmitted_frames();
   FiskerOceanBattery battery;
   battery.setup();
@@ -86,42 +86,24 @@ TEST(FiskerOceanTests, TransmitsOnlyConfirmedFramesByDefault) {
   fisker.wake_transmit_active = true;
   fisker.wake_093_counter = 0;
   fisker.wake_333_counter = 0;
-  fisker.ready_candidate_enable_mask = 0;
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 
   battery.transmit_can(20);
   ASSERT_NE(find_frame(0x093), nullptr);
   EXPECT_EQ(find_frame(0x093)->data.u8[0], 0x05);
-  EXPECT_EQ(find_frame(0x214), nullptr);
   EXPECT_EQ(find_frame(0x333), nullptr);
-  EXPECT_EQ(find_frame(0x358), nullptr);
-  EXPECT_EQ(find_frame(0x511), nullptr);
+  EXPECT_EQ(get_transmitted_frames().size(), 1);
 
   clear_transmitted_frames();
   battery.transmit_can(50);
   ASSERT_NE(find_frame(0x333), nullptr);
   EXPECT_EQ(find_frame(0x333)->data.u8[0], 0xB8);
-}
 
-TEST(FiskerOceanTests, TransmitsSelectedOptionalReadyFrames) {
   clear_transmitted_frames();
-  FiskerOceanBattery battery;
-  battery.setup();
-  auto& fisker = datalayer_extended.fiskerOcean;
-  fisker.wake_transmit_active = true;
-  fisker.ready_candidate_enable_mask = (1U << 3) | (1U << 10) | (1U << 14);
-  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
-
   battery.transmit_can(100);
-  ASSERT_NE(find_frame(0x214), nullptr);
-  ASSERT_NE(find_frame(0x358), nullptr);
-  ASSERT_NE(find_frame(0x511), nullptr);
-  EXPECT_EQ(find_frame(0x214)->data.u8[0], 0xB0);
-  EXPECT_EQ(find_frame(0x358)->data.u8[0], 0x31);
-  EXPECT_EQ(find_frame(0x511)->data.u8[2], 0x01);
-  EXPECT_TRUE(find_frame(0x358)->FD);
-  EXPECT_TRUE(find_frame(0x511)->FD);
-  fisker.ready_candidate_enable_mask = 0;
+  EXPECT_NE(find_frame(0x093), nullptr);
+  EXPECT_NE(find_frame(0x333), nullptr);
+  EXPECT_EQ(get_transmitted_frames().size(), 2);
 }
 
 TEST(FiskerOceanTests, ExposesSharedBmsPowerCycleCommand) {

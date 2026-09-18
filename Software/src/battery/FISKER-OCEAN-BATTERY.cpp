@@ -350,9 +350,6 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
     // traffic while the shared hardware BMS power-cycle is in progress.
     previousMillis093 = currentMillis;
     previousMillis333 = currentMillis;
-    for (auto& candidate : ready_candidates) {
-      candidate.previous_millis = currentMillis;
-    }
     return;
   }
 
@@ -365,27 +362,9 @@ void FiskerOceanBattery::transmit_can(unsigned long currentMillis) {
       previousMillis333 = currentMillis;
       transmit_ready_frame(&FISKER_READY_333, fisker.wake_333_counter, 0xD0, 0x34);
     }
-    transmit_optional_ready_frames(currentMillis);
   }
 
   transmit_uds_can(currentMillis);
-}
-
-void FiskerOceanBattery::transmit_optional_ready_frames(unsigned long currentMillis) {
-  const uint16_t enabled_mask = datalayer_extended.fiskerOcean.ready_candidate_enable_mask;
-  for (uint8_t index = 0; index < DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT; index++) {
-    ReadyCandidate& candidate = ready_candidates[index];
-    if ((enabled_mask & (1U << index)) == 0 || currentMillis - candidate.previous_millis < candidate.period_ms) {
-      continue;
-    }
-
-    candidate.previous_millis = currentMillis;
-    if (candidate.protected_frame) {
-      transmit_ready_frame(&candidate.frame, candidate.counter, candidate.counter_high_nibble, candidate.crc_xor_out);
-    } else {
-      transmit_can_frame(&candidate.frame);
-    }
-  }
 }
 
 void FiskerOceanBattery::reset_BMS() {

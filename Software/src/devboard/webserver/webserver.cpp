@@ -747,31 +747,6 @@ void init_webserver() {
     }
   });
 
-  def_route_with_auth("/setFiskerReadyCandidate", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (!request->hasParam("index") || !request->hasParam("enabled")) {
-      request->send(400, "text/plain", "Bad Request");
-      return;
-    }
-
-    const int index = request->getParam("index")->value().toInt();
-    const bool enabled = request->getParam("enabled")->value() == "1";
-    if (index == -1) {
-      datalayer_extended.fiskerOcean.ready_candidate_enable_mask =
-          enabled ? DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_ALL_ENABLED : 0;
-    } else if (index >= 0 && index < DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT) {
-      const uint16_t bit = 1U << index;
-      if (enabled) {
-        datalayer_extended.fiskerOcean.ready_candidate_enable_mask |= bit;
-      } else {
-        datalayer_extended.fiskerOcean.ready_candidate_enable_mask &= ~bit;
-      }
-    } else {
-      request->send(400, "text/plain", "Invalid candidate index");
-      return;
-    }
-    request->send(200, "text/plain", "Updated successfully");
-  });
-
   // Route for editing SOC Calibration BYD
   update_string_setting("/editCalTargetSOC", [](String value) {
     datalayer_extended.bydAtto3.calibrationTargetSOC = static_cast<uint16_t>(value.toFloat());

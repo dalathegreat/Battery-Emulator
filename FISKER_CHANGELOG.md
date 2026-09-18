@@ -13,6 +13,18 @@ Release tags use `fisker-vMAJOR.MINOR.PATCH`. Binary and release-folder names
 must contain the same version. A released binary is never overwritten; changes
 always receive a new version.
 
+## 2.63.0 - 2026-09-18
+
+- Creates the public integration branch from the field-tested v2.62.0 source.
+- Transmits only the confirmed Fisker wake frames: `0x093` every 20 ms and
+  `0x333` every 50 ms, with their rolling counters and calculated CRC bytes.
+- Removes the 15 optional READY-mode candidate frames, their enable mask, and
+  their More Battery Info controls. They remain available on the preserved
+  `fisker-did-decoded-values` testing branch at tag `fisker-v2.62.0`.
+- Retains decoded broadcast voltage, current and SOC, DID polling, DTC reading
+  and clearing, on-demand BMS power cycling, operator power limits, and the
+  hard 50 A charge/discharge safety ceiling.
+
 ## 2.60.0 - 2026-09-15
 
 - Retains the v2.59 on-demand Stark BMS power-cycle command and shared Battery

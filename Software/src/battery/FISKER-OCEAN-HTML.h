@@ -29,7 +29,6 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
       add_did_row(content, result);
     }
     content += "</tbody></table></div>";
-    content += ready_candidate_controls_html();
     content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, "fisker_ocean_dtc.json", true);
     return content;
   }
@@ -64,36 +63,6 @@ class FiskerOceanHtmlRenderer : public BatteryHtmlRenderer {
       }
     }
     content += "</td></tr></tbody></table></div>";
-    return content;
-  }
-
-  String ready_candidate_controls_html() {
-    static constexpr uint16_t candidate_ids[DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT] = {
-        0x150, 0x151, 0x1B6, 0x214, 0x236, 0x260, 0x311, 0x318, 0x354, 0x355, 0x358, 0x365, 0x366, 0x507, 0x511};
-    const uint16_t enabled_mask = fisker->ready_candidate_enable_mask;
-    String content = "<fieldset style='margin:18px auto 8px;max-width:900px;text-align:left;padding:10px;'>";
-    content += "<legend>Optional READY-mode CAN-FD candidates</legend>";
-    content += candidate_checkbox(-1, "All optional candidates",
-                                  enabled_mask == DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_ALL_ENABLED);
-    content += "<hr>";
-    for (uint8_t index = 0; index < DATALAYER_INFO_FISKER_OCEAN::READY_CANDIDATE_COUNT; index++) {
-      char label[8];
-      snprintf(label, sizeof(label), "0x%03X", candidate_ids[index]);
-      content += candidate_checkbox(index, label, (enabled_mask & (1U << index)) != 0);
-    }
-    content += "</fieldset>";
-    content +=
-        "<script>function setFiskerCandidate(i,e){fetch('/setFiskerReadyCandidate?index='+i+'&enabled='+(e?1:0))"
-        ".then(function(){if(i<0)setTimeout(function(){location.reload();},250);});}</script>";
-    return content;
-  }
-
-  static String candidate_checkbox(int index, const String& label, bool checked) {
-    String content = "<label style='display:inline-block;margin:5px 10px;white-space:nowrap;'><input type='checkbox' ";
-    if (checked) {
-      content += "checked ";
-    }
-    content += "onchange='setFiskerCandidate(" + String(index) + ",this.checked)'> " + label + "</label>";
     return content;
   }
 
