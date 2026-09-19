@@ -15,6 +15,10 @@
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../shunt/Shunt.h"
+#ifdef HW_UNIFIED_S3
+#include <LittleFS.h>
+#endif
+#include "../hal/board_config.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
@@ -27,6 +31,7 @@
 #include "../wifi/wifi.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
+#include "hardware_html.h"
 #include "html_escape.h"
 #include "webserver_can_streaming.h"
 
@@ -182,6 +187,35 @@ void canReplayTask(void* param) {
   isReplayRunning = false;  // Mark replay as stopped
   vTaskDelete(NULL);
 }
+
+#ifdef HW_UNIFIED_S3
+// Accumulates one uploaded board configuration. Uploads are handled one chunk at
+// a time and one at a time overall, so a single buffer is enough; it is capped
+// so that a large file cannot exhaust the heap before we reject it.
+static struct BoardConfigUpload {
+  std::string buffer;
+  std::vector<ConfigIssue> issues;
+  bool accepted = false;
+  bool overflowed = false;
+
+  void reset() {
+    buffer.clear();
+    buffer.reserve(4096);
+    issues.clear();
+    accepted = false;
+    overflowed = false;
+  }
+
+  void append(const uint8_t* data, size_t len) {
+    if (overflowed || buffer.length() + len > BOARD_CONFIG_MAX_BYTES) {
+      overflowed = true;
+      buffer.clear();
+      return;
+    }
+    buffer.append(reinterpret_cast<const char*>(data), len);
+  }
+} board_upload;
+#endif  // HW_UNIFIED_S3
 
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
                          std::function<void(AsyncWebServerRequest*)> handler) {
@@ -1004,6 +1038,82 @@ void init_webserver() {
                       [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
 
   // Route to handle reboot command
+#ifdef HW_UNIFIED_S3
+  // Hardware configuration page
+  def_route_with_auth("/hardware", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/html", hardware_html, hardware_processor);
+  });
+
+  // The active configuration, so a user can download it, change two pins and
+  // upload it back instead of writing a file from scratch.
+  def_route_with_auth("/board.json", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!LittleFS.exists(BOARD_CONFIG_PATH)) {
+      return request->send(404, "text/plain", "No board configuration stored");
+    }
+    request->send(LittleFS, BOARD_CONFIG_PATH, "application/json");
+  });
+
+  server.on(
+      "/hardware/upload", HTTP_POST,
+      [](AsyncWebServerRequest* request) {
+        if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+          return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
+        }
+        if (!board_upload.accepted) {
+          String body =
+              "<h2>Configuration rejected</h2><p>Nothing was written; the emulator is still running the "
+              "configuration it had.</p><ul>";
+          for (const auto& issue : board_upload.issues) {
+            body += "<li>";
+            if (!issue.port.empty()) {
+              body += html_escape(issue.port.c_str()) + " &mdash; ";
+            }
+            body += html_escape(issue.text.c_str()) + "</li>";
+          }
+          body += "</ul><p><a href='/hardware' style='color:#8ab4f8'>Back</a></p>";
+          return request->send(400, "text/html", body);
+        }
+        request->send(200, "text/html",
+                      "<h2>Configuration stored</h2><p>Rebooting to apply it. This page will return to the main "
+                      "page in a few seconds.</p>"
+                      "<script>setTimeout(function(){window.location='/';},6000);</script>");
+        hold_pins_across_reset();
+        graceful_restart();
+      },
+      [](AsyncWebServerRequest* request, const String& filename, size_t index, uint8_t* data, size_t len, bool final) {
+        if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+          return;
+        }
+        if (index == 0) {
+          board_upload.reset();
+        }
+        board_upload.append(data, len);
+        if (!final) {
+          return;
+        }
+        // Validate in RAM first: a file that cannot be parsed never reaches flash,
+        // so a bad upload can't leave the board with no way back.
+        if (board_upload.overflowed) {
+          board_upload.issues.push_back(
+              {ConfigIssueLevel::Error, "",
+               "File is larger than the " + std::to_string(BOARD_CONFIG_MAX_BYTES) + " byte limit"});
+          return;
+        }
+        if (!validate_board_config(board_upload.buffer.c_str(), board_upload.buffer.length(), board_upload.issues)) {
+          return;
+        }
+        for (const auto& issue : board_upload.issues) {
+          if (issue.level == ConfigIssueLevel::Error) {
+            return;  // ports failed validation; let the user fix the file first
+          }
+        }
+        board_upload.accepted = store_board_config(board_upload.buffer.c_str(), board_upload.buffer.length());
+        if (!board_upload.accepted) {
+          board_upload.issues.push_back({ConfigIssueLevel::Error, "", "Could not write the file to flash"});
+        }
+      });
+#endif  // HW_UNIFIED_S3
+
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
     hold_pins_across_reset();
