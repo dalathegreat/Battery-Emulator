@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <new>
+#include <utility>
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/logging.h"
 
@@ -180,20 +181,32 @@ int pin_of(JsonObjectConst gpio, const char* key) {
 // Renders whatever pins a port names, whatever its type. Generic on purpose: a
 // hand-written formatter per type is one more place for a port to go missing.
 std::string describe_gpio(JsonObjectConst gpio) {
-  std::string s;
+  std::vector<std::pair<std::string, int>> pins;
   for (JsonPairConst kv : gpio) {
     int pin = kv.value() | -1;
-    if (pin < 0) {
-      continue;
+    if (pin >= 0) {
+      pins.push_back({kv.key().c_str(), pin});
     }
+  }
+  if (pins.empty()) {
+    return "no pins";
+  }
+  // A port with one pin has nothing to distinguish it from, so its role name
+  // carries no information - it is just "pin" on every such port. Roles are
+  // only worth the space once there is more than one to tell apart.
+  if (pins.size() == 1) {
+    return "GPIO" + std::to_string(pins[0].second);
+  }
+  std::string s;
+  for (const auto& [role, pin] : pins) {
     if (!s.empty()) {
       s += ", ";
     }
-    s += kv.key().c_str();
+    s += role;
     s += " GPIO";
     s += std::to_string(pin);
   }
-  return s.empty() ? "no pins" : s;
+  return s;
 }
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
