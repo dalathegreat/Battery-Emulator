@@ -25,7 +25,10 @@ String hardware_processor(const String& var) {
   content += ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left}";
   content += ".err{color:#ff6b6b}.warn{color:#ffd166}.off{color:#8a949b}.bad{color:#ff6b6b}";
   content += "table{margin:12px 0 0 0;text-align:left}";
-  content += ".row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-bottom:12px}";
+  // stretch is the flex default, but say it: it is what makes the two cards
+  // match heights instead of each ending where its own content does. Once they
+  // wrap, each card is alone on its line and takes its natural height again.
+  content += ".row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin-bottom:12px}";
   content += ".row>.card{flex:1 1 320px;margin-bottom:0}</style>";
 
   content += "<button onclick=\"window.location.href='/'\">Back to main page</button>";
