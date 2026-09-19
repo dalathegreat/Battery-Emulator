@@ -22,7 +22,7 @@
       "name": "BOOT button",
       "enabled": true,
       "gpio": { "pin": 0 }
-    }
+    },
     {
       "type": "nativecan",
       "name": "CAN B (native)",
@@ -105,13 +105,6 @@
       "gpio": { "hia4v1": 18, "inverter_disconnect": 14 }
     },
     {
-      "type": "display_ssd1306",
-      "name": "SSD1306-compatible I2C display",
-      "enabled": false,
-      "notes": "Wiring option B. Requires the bottom-header battery wake-up pins instead of the top-connector ones.",
-      "gpio": { "sda": 1, "scl": 2 }
-    },
-    {
       "type": "sma_enable",
       "name": "SMA inverter contactor enable",
       "enabled": true,
@@ -119,11 +112,18 @@
       "gpio": { "pin": 46 }
     },
     {
+      "type": "display_ssd1306",
+      "name": "SSD1306-compatible I2C display",
+      "enabled": false,
+      "notes": "Wiring option B. Requires the bottom-header battery wake-up pins instead of the top-connector ones.",
+      "gpio": { "sda": 1, "scl": 2 }
+    },
+    {
       "type": "chademo",
       "name": "CHAdeMO connector",
       "enabled": false,
       "notes": "Takes over the second and third battery contactor pins, so disable those two ports when enabling this one. The ct pin is on ADC1, which stays usable with Wi-Fi up.",
       "gpio": { "pin2": 16, "pin4": 4, "pin7": 47, "pin10": 15, "lock": 40, "ct": 5 }
-    },
+    }
   ]
 }

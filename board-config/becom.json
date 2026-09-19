@@ -20,7 +20,7 @@
       "name": "BOOT button",
       "enabled": true,
       "gpio": { "pin": 0 }
-    }
+    },
     {
       "type": "mcp2518fd",
       "name": "CAN FD Battery 1",
@@ -103,6 +103,6 @@
       "name": "Battery wake-up pins",
       "enabled": true,
       "gpio": { "wup1": 2, "wup2": 41 }
-    },
+    }
   ]
 }
