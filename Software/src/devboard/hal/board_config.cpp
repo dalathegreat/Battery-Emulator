@@ -7,6 +7,7 @@
 #include <SPI.h>
 #include <map>
 #include <memory>
+#include <new>
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/logging.h"
 
