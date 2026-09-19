@@ -121,8 +121,13 @@ class Validator {
           warn(port, std::string(role_name) + ": GPIO0 is the boot mode strapping pin");
         }
       } else if (pin == 3) {
-        warn(port, std::string(role_name) +
-                       ": GPIO3 straps the JTAG source, which is ignored unless EFUSE_STRAP_JTAG_SEL is burned");
+        // Sampled at reset, when an output of ours is still high impedance, so
+        // only a pin something else drives can move the strap. Ignored anyway
+        // unless EFUSE_STRAP_JTAG_SEL has been burned.
+        if (role == PinRole::Input) {
+          warn(port,
+               std::string(role_name) + ": GPIO3 straps the JTAG source; equipment driving it at reset can change it");
+        }
       } else if (role == PinRole::Input) {
         warn(port, std::string(role_name) + ": GPIO" + std::to_string(pin) + " straps the " + strap +
                        "; equipment driving it high at reset changes how the chip boots");
@@ -217,6 +222,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
   cfg = BoardConfig();
   cfg.name = doc["board"]["name"] | "Unnamed board";
   cfg.revision = doc["board"]["revision"] | "";
+  cfg.notes = doc["board"]["notes"] | "";
 
   Validator v(issues, doc["strict"] | false);
   std::map<std::string, int> enabled_count;
@@ -227,7 +233,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
     bool enabled = port["enabled"] | false;
     JsonObjectConst gpio = port["gpio"];
 
-    cfg.rows.push_back({type, name, describe_gpio(gpio), enabled});
+    cfg.rows.push_back({type, name, describe_gpio(gpio), PortStatus::Inactive});
 
     if (!enabled) {
       continue;  // described but not claimed, so its pins are free for others
@@ -241,203 +247,214 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
     if (++enabled_count[key] > 1) {
       issues.push_back({ConfigIssueLevel::Error, name,
                         std::string("A second \"") + type + "\" port is already enabled; only one may be"});
+      cfg.rows.back().status = PortStatus::Invalid;
       continue;
     }
 
     v.begin_port();
 
-    if (strcmp(type, "statusled") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.led = pin;
-      cfg.led_count = port["led_count"] | 1;
-      cfg.led_max_brightness = port["max_brightness"] | 40;
+    // The dispatch below leaves every rejected port through a bare return, so
+    // whether it was applied is the lambda's result rather than something each
+    // branch has to remember to record.
+    bool applied = [&]() -> bool {
+      if (strcmp(type, "statusled") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.led = pin;
+        cfg.led_count = port["led_count"] | 1;
+        cfg.led_max_brightness = port["max_brightness"] | 40;
 
-    } else if (strcmp(type, "display_ssd1306") == 0) {
-      gpio_num_t sda = v.take(name, "sda", pin_of(gpio, "sda"), PinRole::Bus);
-      gpio_num_t scl = v.take(name, "scl", pin_of(gpio, "scl"), PinRole::Bus);
-      if (v.port_failed())
-        continue;
-      cfg.display_sda = sda;
-      cfg.display_scl = scl;
+      } else if (strcmp(type, "display_ssd1306") == 0) {
+        gpio_num_t sda = v.take(name, "sda", pin_of(gpio, "sda"), PinRole::Bus);
+        gpio_num_t scl = v.take(name, "scl", pin_of(gpio, "scl"), PinRole::Bus);
+        if (v.port_failed())
+          return false;
+        cfg.display_sda = sda;
+        cfg.display_scl = scl;
 
-    } else if (strcmp(type, "contactor_control") == 0) {
-      gpio_num_t pos = v.take(name, "positive", pin_of(gpio, "positive"), PinRole::Output);
-      gpio_num_t neg = v.take(name, "negative", pin_of(gpio, "negative"), PinRole::Output);
-      gpio_num_t pre = v.take(name, "precharge", pin_of(gpio, "precharge"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.positive = pos;
-      cfg.negative = neg;
-      cfg.precharge = pre;
+      } else if (strcmp(type, "contactor_control") == 0) {
+        gpio_num_t pos = v.take(name, "positive", pin_of(gpio, "positive"), PinRole::Output);
+        gpio_num_t neg = v.take(name, "negative", pin_of(gpio, "negative"), PinRole::Output);
+        gpio_num_t pre = v.take(name, "precharge", pin_of(gpio, "precharge"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.positive = pos;
+        cfg.negative = neg;
+        cfg.precharge = pre;
 
-    } else if (strcmp(type, "contactor_second_battery") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.second_battery = pin;
+      } else if (strcmp(type, "contactor_second_battery") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.second_battery = pin;
 
-    } else if (strcmp(type, "contactor_third_battery") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.third_battery = pin;
+      } else if (strcmp(type, "contactor_third_battery") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.third_battery = pin;
 
-    } else if (strcmp(type, "bms_power") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
-      bool hold = port["reset_hold"] | false;
-      if (hold && pin != GPIO_NUM_NC && !pin_is_rtc(pin)) {
-        // The port stays usable, the latch does not: RTC hold only reaches GPIO0-21.
-        // Reported as a warning for that reason - failing the whole port here would
-        // take BMS power away over a feature the board can simply do without.
-        issues.push_back({ConfigIssueLevel::Warning, name,
-                          "reset_hold needs an RTC-capable pin (GPIO0-21), so the latch is dropped"});
-        hold = false;
+      } else if (strcmp(type, "bms_power") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Output);
+        bool hold = port["reset_hold"] | false;
+        if (hold && pin != GPIO_NUM_NC && !pin_is_rtc(pin)) {
+          // The port stays usable, the latch does not: RTC hold only reaches GPIO0-21.
+          // Reported as a warning for that reason - failing the whole port here would
+          // take BMS power away over a feature the board can simply do without.
+          issues.push_back({ConfigIssueLevel::Warning, name,
+                            "reset_hold needs an RTC-capable pin (GPIO0-21), so the latch is dropped"});
+          hold = false;
+        }
+        if (v.port_failed())
+          return false;
+        cfg.bms_power = pin;
+        cfg.bms_power_active_low = port["active_low"] | false;
+        cfg.bms_power_always_on = port["always_on"] | false;
+        cfg.bms_power_reset_hold = hold;
+
+      } else if (strcmp(type, "precharge_control") == 0) {
+        gpio_num_t hia = v.take(name, "hia4v1", pin_of(gpio, "hia4v1"), PinRole::Output);
+        gpio_num_t dis = v.take(name, "inverter_disconnect", pin_of(gpio, "inverter_disconnect"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.hia4v1 = hia;
+        cfg.inverter_disconnect = dis;
+
+      } else if (strcmp(type, "sma_enable") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
+        gpio_num_t led = v.take(name, "led", pin_of(gpio, "led"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.sma_enable = pin;
+        cfg.sma_led = led;
+
+      } else if (strcmp(type, "nativecan") == 0) {
+        gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
+        gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Bus);
+        gpio_num_t se = v.take(name, "se", pin_of(gpio, "se"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.can_tx = tx;
+        cfg.can_rx = rx;
+        cfg.can_se = se;
+        cfg.interfaces.push_back(comm_interface::CanNative);
+
+      } else if (strcmp(type, "mcp2515") == 0) {
+        McpPorts m;
+        m.sck = v.take(name, "sck", pin_of(gpio, "sck"), PinRole::Bus);
+        m.sdi = v.take(name, "mosi", pin_of(gpio, "mosi"), PinRole::Bus);
+        m.sdo = v.take(name, "miso", pin_of(gpio, "miso"), PinRole::Bus);
+        m.cs = v.take(name, "cs", pin_of(gpio, "cs"), PinRole::Output);
+        m.intr = v.take(name, "int", pin_of(gpio, "int"), PinRole::Input);
+        m.rst = v.take(name, "rst", pin_of(gpio, "rst"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        m.enabled = true;
+        m.name = name;
+        m.bus = (strcmp(port["spi_bus"] | "hspi", "fspi") == 0) ? FSPI : HSPI;
+        m.freq = port["freq_hz"] | 0;
+        cfg.mcp2515 = m;
+        cfg.interfaces.push_back(comm_interface::CanAddonMcp2515);
+
+      } else if (strcmp(type, "mcp2518fd") == 0) {
+        int index = (port["interface"] | 1) - 1;
+        if (index < 0 || index > 1) {
+          issues.push_back({ConfigIssueLevel::Error, name, "interface must be 1 or 2"});
+          return false;
+        }
+        McpPorts m;
+        m.sck = v.take(name, "sck", pin_of(gpio, "sck"), PinRole::Bus);
+        m.sdi = v.take(name, "sdi", pin_of(gpio, "sdi"), PinRole::Bus);
+        m.sdo = v.take(name, "sdo", pin_of(gpio, "sdo"), PinRole::Bus);
+        m.cs = v.take(name, "cs", pin_of(gpio, "cs"), PinRole::Output);
+        m.intr = v.take(name, "int", pin_of(gpio, "int"), PinRole::Input);
+        if (v.port_failed())
+          return false;
+        if (m.cs == GPIO_NUM_NC || m.intr == GPIO_NUM_NC) {
+          issues.push_back({ConfigIssueLevel::Error, name, "cs and int are required"});
+          return false;
+        }
+        m.enabled = true;
+        m.name = name;
+        m.bus = (strcmp(port["spi_bus"] | "fspi", "hspi") == 0) ? HSPI : FSPI;
+        m.freq = port["freq_hz"] | 0;
+        m.clkodiv = port["clkodiv"] | 0b11;
+        cfg.mcp2518fd[index] = m;
+        cfg.interfaces.push_back(index == 0 ? comm_interface::CanFdAddonMcp2518 : comm_interface::CanFdAddonMcp2518_2);
+
+      } else if (strcmp(type, "rs485") == 0) {
+        gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
+        gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Bus);
+        gpio_num_t de = v.take(name, "de_re", pin_of(gpio, "de_re"), PinRole::Output);
+        gpio_num_t en = v.take(name, "en", pin_of(gpio, "en"), PinRole::Output);
+        gpio_num_t se = v.take(name, "se", pin_of(gpio, "se"), PinRole::Output);
+        gpio_num_t en5v = v.take(name, "pin_5v_en", pin_of(gpio, "pin_5v_en"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.rs485_tx = tx;
+        cfg.rs485_rx = rx;
+        cfg.rs485_de = de;
+        cfg.rs485_en = en;
+        cfg.rs485_se = se;
+        cfg.pin_5v_en = en5v;
+        cfg.rs485_de_active_high = port["de_active_high"] | true;
+        cfg.interfaces.push_back(comm_interface::RS485);
+        cfg.interfaces.push_back(comm_interface::Modbus);
+
+      } else if (strcmp(type, "e_stop") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
+        if (v.port_failed())
+          return false;
+        cfg.equipment_stop = pin;
+
+      } else if (strcmp(type, "longpress_reset") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
+        if (v.port_failed())
+          return false;
+        cfg.ap_button = pin;
+
+      } else if (strcmp(type, "battery_wakeup") == 0) {
+        gpio_num_t w1 = v.take(name, "wup1", pin_of(gpio, "wup1"), PinRole::Output);
+        gpio_num_t w2 = v.take(name, "wup2", pin_of(gpio, "wup2"), PinRole::Output);
+        if (v.port_failed())
+          return false;
+        cfg.wup1 = w1;
+        cfg.wup2 = w2;
+
+      } else if (strcmp(type, "chademo") == 0) {
+        gpio_num_t p2 = v.take(name, "pin2", pin_of(gpio, "pin2"), PinRole::Input);
+        gpio_num_t p4 = v.take(name, "pin4", pin_of(gpio, "pin4"), PinRole::Input);
+        gpio_num_t p7 = v.take(name, "pin7", pin_of(gpio, "pin7"), PinRole::Output);
+        gpio_num_t p10 = v.take(name, "pin10", pin_of(gpio, "pin10"), PinRole::Output);
+        gpio_num_t lock = v.take(name, "lock", pin_of(gpio, "lock"), PinRole::Output);
+        gpio_num_t ct = v.take(name, "ct", pin_of(gpio, "ct"), PinRole::Input);
+        if (ct != GPIO_NUM_NC && !pin_is_adc1(ct)) {
+          v.error(name, "ct must be on ADC1 (GPIO1-10); ADC2 is unusable while Wi-Fi is up");
+        }
+        if (v.port_failed())
+          return false;
+        cfg.chademo_2 = p2;
+        cfg.chademo_4 = p4;
+        cfg.chademo_7 = p7;
+        cfg.chademo_10 = p10;
+        cfg.chademo_lock = lock;
+        cfg.chademo_ct = ct;
+
+      } else if (strcmp(type, "sdcard") == 0) {
+        // Accepted by the schema for the ESP32 family, but this image is built
+        // without SD support, so say so rather than silently dropping it.
+        issues.push_back({ConfigIssueLevel::Warning, name, "SD card support is not built into this image"});
+        return false;
+
+      } else {
+        issues.push_back({ConfigIssueLevel::Warning, name, std::string("Unknown port type \"") + type + "\", ignored"});
+        return false;
       }
-      if (v.port_failed())
-        continue;
-      cfg.bms_power = pin;
-      cfg.bms_power_active_low = port["active_low"] | false;
-      cfg.bms_power_always_on = port["always_on"] | false;
-      cfg.bms_power_reset_hold = hold;
+      return true;
+    }();
 
-    } else if (strcmp(type, "precharge_control") == 0) {
-      gpio_num_t hia = v.take(name, "hia4v1", pin_of(gpio, "hia4v1"), PinRole::Output);
-      gpio_num_t dis = v.take(name, "inverter_disconnect", pin_of(gpio, "inverter_disconnect"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.hia4v1 = hia;
-      cfg.inverter_disconnect = dis;
-
-    } else if (strcmp(type, "sma_enable") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
-      gpio_num_t led = v.take(name, "led", pin_of(gpio, "led"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.sma_enable = pin;
-      cfg.sma_led = led;
-
-    } else if (strcmp(type, "nativecan") == 0) {
-      gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
-      gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Bus);
-      gpio_num_t se = v.take(name, "se", pin_of(gpio, "se"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.can_tx = tx;
-      cfg.can_rx = rx;
-      cfg.can_se = se;
-      cfg.interfaces.push_back(comm_interface::CanNative);
-
-    } else if (strcmp(type, "mcp2515") == 0) {
-      McpPorts m;
-      m.sck = v.take(name, "sck", pin_of(gpio, "sck"), PinRole::Bus);
-      m.sdi = v.take(name, "mosi", pin_of(gpio, "mosi"), PinRole::Bus);
-      m.sdo = v.take(name, "miso", pin_of(gpio, "miso"), PinRole::Bus);
-      m.cs = v.take(name, "cs", pin_of(gpio, "cs"), PinRole::Output);
-      m.intr = v.take(name, "int", pin_of(gpio, "int"), PinRole::Input);
-      m.rst = v.take(name, "rst", pin_of(gpio, "rst"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      m.enabled = true;
-      m.name = name;
-      m.bus = (strcmp(port["spi_bus"] | "hspi", "fspi") == 0) ? FSPI : HSPI;
-      m.freq = port["freq_hz"] | 0;
-      cfg.mcp2515 = m;
-      cfg.interfaces.push_back(comm_interface::CanAddonMcp2515);
-
-    } else if (strcmp(type, "mcp2518fd") == 0) {
-      int index = (port["interface"] | 1) - 1;
-      if (index < 0 || index > 1) {
-        issues.push_back({ConfigIssueLevel::Error, name, "interface must be 1 or 2"});
-        continue;
-      }
-      McpPorts m;
-      m.sck = v.take(name, "sck", pin_of(gpio, "sck"), PinRole::Bus);
-      m.sdi = v.take(name, "sdi", pin_of(gpio, "sdi"), PinRole::Bus);
-      m.sdo = v.take(name, "sdo", pin_of(gpio, "sdo"), PinRole::Bus);
-      m.cs = v.take(name, "cs", pin_of(gpio, "cs"), PinRole::Output);
-      m.intr = v.take(name, "int", pin_of(gpio, "int"), PinRole::Input);
-      if (v.port_failed())
-        continue;
-      if (m.cs == GPIO_NUM_NC || m.intr == GPIO_NUM_NC) {
-        issues.push_back({ConfigIssueLevel::Error, name, "cs and int are required"});
-        continue;
-      }
-      m.enabled = true;
-      m.name = name;
-      m.bus = (strcmp(port["spi_bus"] | "fspi", "hspi") == 0) ? HSPI : FSPI;
-      m.freq = port["freq_hz"] | 0;
-      m.clkodiv = port["clkodiv"] | 0b11;
-      cfg.mcp2518fd[index] = m;
-      cfg.interfaces.push_back(index == 0 ? comm_interface::CanFdAddonMcp2518 : comm_interface::CanFdAddonMcp2518_2);
-
-    } else if (strcmp(type, "rs485") == 0) {
-      gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
-      gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Bus);
-      gpio_num_t de = v.take(name, "de_re", pin_of(gpio, "de_re"), PinRole::Output);
-      gpio_num_t en = v.take(name, "en", pin_of(gpio, "en"), PinRole::Output);
-      gpio_num_t se = v.take(name, "se", pin_of(gpio, "se"), PinRole::Output);
-      gpio_num_t en5v = v.take(name, "pin_5v_en", pin_of(gpio, "pin_5v_en"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.rs485_tx = tx;
-      cfg.rs485_rx = rx;
-      cfg.rs485_de = de;
-      cfg.rs485_en = en;
-      cfg.rs485_se = se;
-      cfg.pin_5v_en = en5v;
-      cfg.rs485_de_active_high = port["de_active_high"] | true;
-      cfg.interfaces.push_back(comm_interface::RS485);
-      cfg.interfaces.push_back(comm_interface::Modbus);
-
-    } else if (strcmp(type, "e_stop") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
-      if (v.port_failed())
-        continue;
-      cfg.equipment_stop = pin;
-
-    } else if (strcmp(type, "longpress_reset") == 0) {
-      gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
-      if (v.port_failed())
-        continue;
-      cfg.ap_button = pin;
-
-    } else if (strcmp(type, "battery_wakeup") == 0) {
-      gpio_num_t w1 = v.take(name, "wup1", pin_of(gpio, "wup1"), PinRole::Output);
-      gpio_num_t w2 = v.take(name, "wup2", pin_of(gpio, "wup2"), PinRole::Output);
-      if (v.port_failed())
-        continue;
-      cfg.wup1 = w1;
-      cfg.wup2 = w2;
-
-    } else if (strcmp(type, "chademo") == 0) {
-      gpio_num_t p2 = v.take(name, "pin2", pin_of(gpio, "pin2"), PinRole::Input);
-      gpio_num_t p4 = v.take(name, "pin4", pin_of(gpio, "pin4"), PinRole::Input);
-      gpio_num_t p7 = v.take(name, "pin7", pin_of(gpio, "pin7"), PinRole::Output);
-      gpio_num_t p10 = v.take(name, "pin10", pin_of(gpio, "pin10"), PinRole::Output);
-      gpio_num_t lock = v.take(name, "lock", pin_of(gpio, "lock"), PinRole::Output);
-      gpio_num_t ct = v.take(name, "ct", pin_of(gpio, "ct"), PinRole::Input);
-      if (ct != GPIO_NUM_NC && !pin_is_adc1(ct)) {
-        v.error(name, "ct must be on ADC1 (GPIO1-10); ADC2 is unusable while Wi-Fi is up");
-      }
-      if (v.port_failed())
-        continue;
-      cfg.chademo_2 = p2;
-      cfg.chademo_4 = p4;
-      cfg.chademo_7 = p7;
-      cfg.chademo_10 = p10;
-      cfg.chademo_lock = lock;
-      cfg.chademo_ct = ct;
-
-    } else if (strcmp(type, "sdcard") == 0) {
-      // Accepted by the schema for the ESP32 family, but this image is built
-      // without SD support, so say so rather than silently dropping it.
-      issues.push_back({ConfigIssueLevel::Warning, name, "SD card support is not built into this image"});
-
-    } else {
-      issues.push_back({ConfigIssueLevel::Warning, name, std::string("Unknown port type \"") + type + "\", ignored"});
-    }
+    cfg.rows.back().status = applied ? PortStatus::Active : PortStatus::Invalid;
   }
 
   cfg.valid = true;
@@ -445,6 +462,17 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
 }
 
 }  // namespace
+
+const char* name_for_port_status(PortStatus status) {
+  switch (status) {
+    case PortStatus::Active:
+      return "active";
+    case PortStatus::Invalid:
+      return "invalid";
+    default:
+      return "not enabled";
+  }
+}
 
 bool BoardConfig::has_interface(comm_interface iface) const {
   for (auto i : interfaces) {
