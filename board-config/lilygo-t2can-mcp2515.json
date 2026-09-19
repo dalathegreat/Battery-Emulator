@@ -49,7 +49,7 @@
     {
       "type": "rs485",
       "name": "RS485 add-on",
-      "enabled": true,
+      "enabled": false,
       "de_active_high": true,
       "notes": "GPIO43/44 are the UART0 pins, so ROM bootloader output goes out the bus at 115200 baud for a moment after reset.",
       "gpio": { "tx": 43, "rx": 44 }
@@ -69,13 +69,13 @@
     {
       "type": "contactor_third_battery",
       "name": "Third battery contactors",
-      "enabled": true,
+      "enabled": false,
       "gpio": { "pin": 4 }
     },
     {
       "type": "bms_power",
       "name": "BMS power",
-      "enabled": false,
+      "enabled": true,
       "active_low": false,
       "always_on": false,
       "reset_hold": true,
@@ -85,14 +85,14 @@
     {
       "type": "e_stop",
       "name": "Equipment stop",
-      "enabled": true,
+      "enabled": false,
       "notes": "36 - bottom header; 1 - top connector",
       "gpio": { "pin": 36 }
     },
     {
       "type": "battery_wakeup",
       "name": "Battery wake-up",
-      "enabled": true,
+      "enabled": false,
       "notes": "1 and 2 - top connector; 18 and 24 bottom header",
       "gpio": { "wup1": 1, "wup2": 2 }
     },

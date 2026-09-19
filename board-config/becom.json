@@ -62,11 +62,10 @@
       "gpio": { "positive": 47, "negative": 48, "precharge": 45 }
     },
     {
-      "type": "precharge_control",
-      "name": "HIA4V1 precharge control",
-      "enabled": false,
-      "notes": "Reuses the primary contactor pins, so it replaces contactor_control rather than running alongside it.",
-      "gpio": { "hia4v1": 45, "inverter_disconnect": 47 }
+      "type": "contactor_second_battery",
+      "name": "Second battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 37 }
     },
     {
       "type": "bms_power",
@@ -79,29 +78,30 @@
       "gpio": { "pin": 1 }
     },
     {
-      "type": "contactor_second_battery",
-      "name": "Second battery negative contactor",
-      "enabled": true,
-      "gpio": { "pin": 37 }
-    },
-    {
       "type": "e_stop",
       "name": "Equipment stop",
-      "enabled": true,
+      "enabled": false,
       "notes": "Tied low internally on hardware v1. GPIO46 is a boot-mode strapping pin, but reading it is harmless.",
       "gpio": { "pin": 46 }
     },
     {
+      "type": "precharge_control",
+      "name": "HIA4V1 precharge control",
+      "enabled": false,
+      "notes": "Reuses the primary contactor pins, so it replaces contactor_control rather than running alongside it.",
+      "gpio": { "hia4v1": 45, "inverter_disconnect": 47 }
+    },
+    {
       "type": "sma_enable",
       "name": "SMA inverter contactor enable",
-      "enabled": true,
+      "enabled": false,
       "notes": "Input from the inverter on GPIO3, the JTAG source select strapping pin. Harmless unless EFUSE_STRAP_JTAG_SEL has been burned.",
       "gpio": { "pin": 3 }
     },
     {
       "type": "battery_wakeup",
       "name": "Battery wake-up pins",
-      "enabled": true,
+      "enabled": false,
       "gpio": { "wup1": 2, "wup2": 41 }
     }
   ]
