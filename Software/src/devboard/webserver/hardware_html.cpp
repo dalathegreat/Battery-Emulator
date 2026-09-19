@@ -24,7 +24,7 @@ String hardware_processor(const String& var) {
   content += "button:hover{background-color:#3A4A52}";
   content += ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left}";
   content += ".err{color:#ff6b6b}.warn{color:#ffd166}.off{color:#8a949b}.bad{color:#ff6b6b}";
-  content += "table{margin:0 auto;text-align:left}</style>";
+  content += "table{margin:12px 0 0 0;text-align:left}</style>";
 
   content += "<button onclick=\"window.location.href='/'\">Back to main page</button>";
 
@@ -102,11 +102,10 @@ String hardware_processor(const String& var) {
   }
 
   // ── Upload ─────────────────────────────────────────────────────────────────
-  content += "<div class='card'><h3>Files on the filesystem</h3>";
+  // Built here, emitted last, and only when the partition holds something.
+  String files;
   File dir = LittleFS.open("/");
-  bool any = false;
   if (dir && dir.isDirectory()) {
-    content += "<ul style='text-align:left'>";
     for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
       if (f.isDirectory()) {
         continue;
@@ -115,16 +114,10 @@ String hardware_processor(const String& var) {
       if (fname.startsWith("/")) {
         fname = fname.substring(1);
       }
-      content += "<li><a style='color:#8ab4f8' href='/hardware/file?name=" + fname + "'>" + html_escape(fname) +
-                 "</a> &mdash; " + String(f.size()) + " bytes</li>";
-      any = true;
+      files += "<li><a style='color:#8ab4f8' href='/boardfile?name=" + fname + "'>" + html_escape(fname) +
+               "</a> &mdash; " + String(f.size()) + " bytes</li>";
     }
-    content += "</ul>";
   }
-  if (!any) {
-    content += "<p>Nothing stored yet.</p>";
-  }
-  content += "</div>";
 
   content += "<div class='card'><h3>Upload a configuration</h3>";
   content +=
@@ -133,6 +126,12 @@ String hardware_processor(const String& var) {
       "style='color:white'><br><br>"
       "<button type='submit'>Upload and reboot</button></form>";
   content += "</div>";
+
+  if (files.length() > 0) {
+    content += "<div class='card'><h3>Backup hardware configuration</h3><ul style='text-align:left'>";
+    content += files;
+    content += "</ul></div>";
+  }
 
   return content;
 }
