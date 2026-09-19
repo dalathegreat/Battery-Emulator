@@ -27,6 +27,16 @@ enum class ConfigIssueLevel : uint8_t {
   Error,    // port not enabled; the rest of the file still loads
 };
 
+// One row of the hardware page: every port the file describes, in file order,
+// whether it was enabled or not. Built while parsing so the page is a faithful
+// view of the file rather than a hand-written list that can miss a port type.
+struct PortRow {
+  std::string type;
+  std::string name;
+  std::string pins;
+  bool enabled;
+};
+
 struct ConfigIssue {
   ConfigIssueLevel level;
   std::string port;  // port name from the file, or "" for file-level findings
@@ -121,6 +131,9 @@ struct BoardConfig {
 
   std::vector<comm_interface> interfaces;
   std::vector<ConfigIssue> issues;
+  std::vector<PortRow> rows;
+
+  bool has_interface(comm_interface iface) const;
 
   // Result of the boot-time SPI probe against the configured CAN A pins.
   McpKind probed = McpKind::Absent;

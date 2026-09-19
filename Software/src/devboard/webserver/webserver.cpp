@@ -487,6 +487,12 @@ void init_webserver() {
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
     erase_phy_cal_data();
+#ifdef HW_UNIFIED_S3
+    // The board config lives on the filesystem rather than in NVS, so clearing
+    // settings alone would leave the emulator configured for a board it is no
+    // longer meant to know about.
+    LittleFS.format();
+#endif
     LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
@@ -1061,6 +1067,7 @@ void init_webserver() {
         }
         if (!board_upload.accepted) {
           String body =
+              "<style>body{background-color:black;color:white;font-family:sans-serif}a{color:#8ab4f8}</style>"
               "<h2>Configuration rejected</h2><p>Nothing was written; the emulator is still running the "
               "configuration it had.</p><ul>";
           for (const auto& issue : board_upload.issues) {
@@ -1074,6 +1081,7 @@ void init_webserver() {
           return request->send(400, "text/html", body);
         }
         request->send(200, "text/html",
+                      "<style>body{background-color:black;color:white;font-family:sans-serif}</style>"
                       "<h2>Configuration stored</h2><p>Rebooting to apply it. This page will return to the main "
                       "page in a few seconds.</p>"
                       "<script>setTimeout(function(){window.location='/';},6000);</script>");
@@ -1315,9 +1323,6 @@ String processor(const String& var) {
       content += "<script>";
       content += "function Hardware() { window.location.href = '/hardware'; }";
       content += "function Settings() { window.location.href = '/settings'; }";
-#ifdef HW_UNIFIED_S3
-      content += "function Hardware() { window.location.href = '/hardware'; }";
-#endif  // HW_UNIFIED_S3
       content += "function OTA() { window.location.href = '/update'; }";
       content += "function Events() { window.location.href = '/events'; }";
       if (webserver_auth) {
@@ -1926,6 +1931,9 @@ String processor(const String& var) {
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
+#ifdef HW_UNIFIED_S3
+    content += "function Hardware() { window.location.href = '/hardware'; }";
+#endif  // HW_UNIFIED_S3
     content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function CANlog() { window.location.href = '/canlog'; }";
     content += "function CANreplay() { window.location.href = '/canreplay'; }";
