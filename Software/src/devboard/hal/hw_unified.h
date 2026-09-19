@@ -118,11 +118,10 @@ class UnifiedHal : public Esp32Hal {
 
   // The settings page builds its interface dropdowns by walking the whole enum
   // and dropping anything whose name comes back empty, so an interface the board
-  // config never declared has to report an empty name here or it would be
-  // offered for a bus that has no pins behind it.
-  virtual const char* name_for_comm_interface(comm_interface comm) {
-    return board_config.has_interface(comm) ? Esp32Hal::name_for_comm_interface(comm) : "";
-  }
+  // config never declared reports an empty name here and stays out of the list.
+  // What is configured reports the name its port gave itself, so the dropdowns
+  // read the way the file does.
+  virtual const char* name_for_comm_interface(comm_interface comm) { return board_config.name_for_interface(comm); }
 };
 
 #define HalClass UnifiedHal

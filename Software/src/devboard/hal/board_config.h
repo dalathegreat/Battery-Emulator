@@ -139,11 +139,17 @@ struct BoardConfig {
   gpio_num_t chademo_lock = GPIO_NUM_NC;
   gpio_num_t chademo_ct = GPIO_NUM_NC;
 
+  // Interfaces the file configured, with the name each port gave itself, so the
+  // settings dropdowns read the way the file does rather than in generic terms.
   std::vector<comm_interface> interfaces;
+  std::vector<std::string> interface_names;
   std::vector<ConfigIssue> issues;
   std::vector<PortRow> rows;
 
-  bool has_interface(comm_interface iface) const;
+  // The configured name of an interface, or "" when the file did not configure
+  // it. The settings page drops an interface whose name is empty, which is how
+  // a bus with no pins behind it stays out of the dropdowns.
+  const char* name_for_interface(comm_interface iface) const;
 
   // Result of the boot-time SPI probe against the configured CAN A pins.
   McpKind probed = McpKind::Absent;
