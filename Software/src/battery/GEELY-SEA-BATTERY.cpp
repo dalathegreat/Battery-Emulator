@@ -351,6 +351,11 @@ void GeelySeaBattery::transmit_can(unsigned long currentMillis) {
 void GeelySeaBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  // Vacuous allow, declared: this driver does not yet derive a contactor veto from
+  // BMS state, so it grants permission unconditionally at setup like the other
+  // setup-granting drivers. Without the write the flag stays at its false default
+  // and the contactor gate never opens for this battery.
+  datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.total_capacity_Wh = MAX_CAPACITY_NCM_110S_WH;          //Startout in NCM mode
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCM_110S_DV;  //Startout with max allowed range
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCM_110S_DV;  //Startout with min allowed range

@@ -234,7 +234,12 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
+      // The battery's veto is part of this gate: drivers whose protocol has a
+      // handshake (CHAdeMO's EVSE session being the archetype) hold the flag
+      // false until the vehicle side has granted permission. It was lost in
+      // 1645c5b3, after which contactors closed on inverter say-so alone.
+      if (datalayer.system.status.battery_allows_contactor_closing &&
+          datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
         contactorStatus = START_PRECHARGE;
       }
     }

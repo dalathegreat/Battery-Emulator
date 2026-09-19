@@ -221,6 +221,11 @@ void ChargebyteCCSBattery::setup() {
 
   strncpy(datalayer.system.info.battery_protocol, "CCS using chargebyte CME/CCF", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  // Vacuous allow, declared: this driver does not yet derive a contactor veto from
+  // module state, so it grants permission unconditionally at setup like the other
+  // setup-granting drivers. Without the write the flag stays at its false default
+  // and the contactor gate never opens for this battery.
+  datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.min_design_voltage_dV = 1000;
   datalayer.battery.info.max_design_voltage_dV = 5000;
   datalayer.battery.info.max_cell_voltage_mV = 4200;
