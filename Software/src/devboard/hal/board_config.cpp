@@ -116,10 +116,17 @@ class Validator {
     const char* strap = strapping_reason(pin);
     if (strap != nullptr) {
       if (pin == 0) {
-        // GPIO0 is the BOOT button on every S3 board we know of, so using it for
-        // the button is the expected case and worth no remark at all.
-        if (role != PinRole::Input) {
-          warn(port, std::string(role_name) + ": GPIO0 is the boot mode strapping pin");
+        // GPIO0 has an internal pull-up and selects download mode when it is low
+        // at reset. Driving it ourselves cannot move that, since the pin is high
+        // impedance until the firmware runs - a status LED here is fine. What
+        // does move it is equipment holding it low while the chip resets, which
+        // leaves the board in download mode instead of booting. The boot button
+        // is the exception: a momentary switch is only ever held deliberately,
+        // and it is what this pin is for.
+        if (role == PinRole::Input && type_ != "longpress_reset") {
+          error(port, std::string(role_name) +
+                          ": GPIO0 selects download mode when held low at reset, so it cannot read an "
+                          "external signal. Only the boot button belongs here.");
         }
       } else if (pin == 3) {
         // Sampled at reset, when an output of ours is still high impedance, so
@@ -146,13 +153,19 @@ class Validator {
     return static_cast<gpio_num_t>(pin);
   }
 
-  void begin_port() { port_failed_ = false; }
+  void begin_port(const char* type) {
+    port_failed_ = false;
+    type_ = type;
+  }
+
+  const std::string& type() const { return type_; }
   bool port_failed() const { return port_failed_; }
 
  private:
   std::vector<ConfigIssue>& issues_;
   bool strict_;
   bool port_failed_ = false;
+  std::string type_;
   std::map<int, std::string> claims_;
 };
 
@@ -287,7 +300,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
       continue;
     }
 
-    v.begin_port();
+    v.begin_port(type);
 
     // The dispatch below leaves every rejected port through a bare return, so
     // whether it was applied is the lambda's result rather than something each
@@ -367,7 +380,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
 
       } else if (strcmp(type, "nativecan") == 0) {
         gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
-        gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Bus);
+        gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Input);
         gpio_num_t se = v.take(name, "se", pin_of(gpio, "se"), PinRole::Output);
         if (v.port_failed())
           return false;
@@ -380,7 +393,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         McpPorts m;
         m.sck = v.take(name, "sck", pin_of(gpio, "sck"), PinRole::Bus);
         m.sdi = v.take(name, "mosi", pin_of(gpio, "mosi"), PinRole::Bus);
-        m.sdo = v.take(name, "miso", pin_of(gpio, "miso"), PinRole::Bus);
+        m.sdo = v.take(name, "miso", pin_of(gpio, "miso"), PinRole::Input);
         m.cs = v.take(name, "cs", pin_of(gpio, "cs"), PinRole::Output);
         m.intr = v.take(name, "int", pin_of(gpio, "int"), PinRole::Input);
         m.rst = v.take(name, "rst", pin_of(gpio, "rst"), PinRole::Output);
@@ -402,7 +415,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         McpPorts m;
         m.sck = v.take(name, "sck", pin_of(gpio, "sck"), PinRole::Bus);
         m.sdi = v.take(name, "sdi", pin_of(gpio, "sdi"), PinRole::Bus);
-        m.sdo = v.take(name, "sdo", pin_of(gpio, "sdo"), PinRole::Bus);
+        m.sdo = v.take(name, "sdo", pin_of(gpio, "sdo"), PinRole::Input);
         m.cs = v.take(name, "cs", pin_of(gpio, "cs"), PinRole::Output);
         m.intr = v.take(name, "int", pin_of(gpio, "int"), PinRole::Input);
         if (v.port_failed())
@@ -421,7 +434,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
 
       } else if (strcmp(type, "rs485") == 0) {
         gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
-        gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Bus);
+        gpio_num_t rx = v.take(name, "rx", pin_of(gpio, "rx"), PinRole::Input);
         gpio_num_t de = v.take(name, "de_re", pin_of(gpio, "de_re"), PinRole::Output);
         gpio_num_t en = v.take(name, "en", pin_of(gpio, "en"), PinRole::Output);
         gpio_num_t se = v.take(name, "se", pin_of(gpio, "se"), PinRole::Output);
