@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../hal/board_config.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
@@ -277,6 +278,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+  if (var == "HWCFGCSS") {
+#ifdef HW_UNIFIED_S3
+    // Battery, inverter, charger and integration settings all describe hardware
+    // the emulator cannot reach until a board config names its pins. Hiding them
+    // in CSS keeps one copy of the form rather than a second cut-down template.
+    if (!board_config.valid) {
+      return ".needs-hw { display: none; }";
+    }
+#endif
+    return ".needs-hw-notice { display: none; }";
+  }
+
   if (var == "BTRCAPCSS") {
     return capability_css("if-dblcapable", battery_supports_double) +
            capability_css("if-tricapable", battery_supports_triple);
@@ -1397,6 +1410,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     .hidden {
       display: none;
     }
+    %HWCFGCSS%
     .active {
       color: white;
     }
@@ -1650,6 +1664,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
+  <div class="needs-hw-notice">
+    <p>No hardware configuration is loaded, so only the network and web interface
+    settings are shown. <a href="/hardware" style="color:#8ab4f8">Upload a board
+    configuration</a> to unlock the rest.</p>
+  </div>
 
   <script>
   function validateWebAuthPassword() {
@@ -1796,7 +1815,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Battery config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -1960,7 +1979,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
       <h3>Inverter config</h3>
       <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2102,7 +2121,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2155,7 +2174,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Hardware config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2254,7 +2273,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2323,7 +2342,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Debug options</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
