@@ -44,6 +44,8 @@ static const char* label_for_port_type(const std::string& type) {
   return type.c_str();
 }
 
+const char hardware_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
+
 String hardware_processor(const String& var) {
   if (var != "X") {
     return String();
