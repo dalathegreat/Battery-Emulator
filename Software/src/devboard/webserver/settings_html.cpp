@@ -870,10 +870,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return datalayer.battery.settings.user_set_voltage_limits_active ? "active" : "inactive";
   }
 
-  if (var == "SOC_SCALING_CLASS") {
-    return datalayer.battery.settings.soc_scaling_active ? "active" : "inactiveSoc";
-  }
-
   if (var == "SOC_SCALING") {
     return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
@@ -1396,7 +1392,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
         cursor: pointer; border-radius: 10px; }
     button:hover { background-color: #3A4A52; }
-    h4 { margin: 0.45em 0; line-height: 1.2; }
+    h4 { margin: 0.35em 0; line-height: 1.2; }
+    /* Buttons are inline-block: a bottom margin here would inflate the row's line box */
+    h4 button { margin-bottom: 0; }
     select, input { max-width: 250px; box-sizing: border-box; }
     .hidden {
       display: none;
@@ -2396,8 +2394,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
-      <h4>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
-                </span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
+      <h4>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>%SOC_SCALING%</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>
 
