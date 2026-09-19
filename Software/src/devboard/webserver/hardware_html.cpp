@@ -73,8 +73,7 @@ String hardware_processor(const String& var) {
 
     String led = "&mdash;";
     if (cfg.led != GPIO_NUM_NC) {
-      led = pin_cell(cfg.led) + ", " + String(cfg.led_count) + " px, max brightness " +
-            String(cfg.led_max_brightness);
+      led = pin_cell(cfg.led) + ", " + String(cfg.led_count) + " px, max brightness " + String(cfg.led_max_brightness);
     }
     add_row(content, "Status LED", led);
     if (cfg.display_sda != GPIO_NUM_NC) {
