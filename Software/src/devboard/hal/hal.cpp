@@ -5,7 +5,15 @@
 Esp32Hal* esp32hal = nullptr;
 
 void init_hal() {
-#if defined(HW_LILYGO)
+#if defined(HW_UNIFIED_S3)
+#include "board_config.h"
+#include "hw_unified.h"
+  // Reads and validates the stored board config before anything asks the HAL for
+  // a pin. When there is no file, every accessor returns GPIO_NUM_NC and the
+  // firmware comes up in minimal mode.
+  init_board_config();
+  esp32hal = new UnifiedHal();
+#elif defined(HW_LILYGO)
 #include "hw_lilygo.h"
   esp32hal = new LilyGoHal();
 #elif defined(HW_LILYGO2CAN)
