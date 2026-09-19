@@ -27,14 +27,23 @@ enum class ConfigIssueLevel : uint8_t {
   Error,    // port not enabled; the rest of the file still loads
 };
 
+// What became of a port the file described.
+enum class PortStatus : uint8_t {
+  Inactive,  // present in the file but not enabled, so its pins stay free
+  Active,    // enabled and applied
+  Invalid,   // enabled but rejected, so nothing was applied
+};
+
+const char* name_for_port_status(PortStatus status);
+
 // One row of the hardware page: every port the file describes, in file order,
-// whether it was enabled or not. Built while parsing so the page is a faithful
-// view of the file rather than a hand-written list that can miss a port type.
+// whatever became of it. Built while parsing so the page is a faithful view of
+// the file rather than a hand-written list that can miss a port type.
 struct PortRow {
   std::string type;
   std::string name;
   std::string pins;
-  bool enabled;
+  PortStatus status;
 };
 
 struct ConfigIssue {
@@ -66,6 +75,7 @@ struct BoardConfig {
   bool valid = false;
   std::string name;
   std::string revision;
+  std::string notes;
 
   // Status LED
   gpio_num_t led = GPIO_NUM_NC;

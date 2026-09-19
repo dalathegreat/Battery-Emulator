@@ -1059,6 +1059,21 @@ void init_webserver() {
     request->send(LittleFS, BOARD_CONFIG_PATH, "application/json");
   });
 
+  def_route_with_auth("/hardware/file", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("name")) {
+      return request->send(400, "text/plain", "Missing name");
+    }
+    String name = request->getParam("name")->value();
+    if (name.indexOf('/') >= 0 || name.indexOf('\\') >= 0 || name.startsWith(".")) {
+      return request->send(400, "text/plain", "Bad name");
+    }
+    String path = "/" + name;
+    if (!LittleFS.exists(path)) {
+      return request->send(404, "text/plain", "No such file");
+    }
+    request->send(LittleFS, path, "application/json", true);
+  });
+
   server.on(
       "/hardware/upload", HTTP_POST,
       [](AsyncWebServerRequest* request) {
@@ -1072,6 +1087,7 @@ void init_webserver() {
               "configuration it had.</p><ul>";
           for (const auto& issue : board_upload.issues) {
             body += "<li>";
+            body += (issue.level == ConfigIssueLevel::Error) ? "Error: " : "Warning: ";
             if (!issue.port.empty()) {
               body += html_escape(issue.port.c_str()) + " &mdash; ";
             }
