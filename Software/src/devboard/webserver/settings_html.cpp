@@ -2401,7 +2401,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </form>
     </div>
 
-    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
+    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px' class="needs-hw">
 
       <h4>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
@@ -2413,7 +2413,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     </div>
 
-    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="needs-hw">
 
       <h4 class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
@@ -2441,13 +2441,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     </div>
 
-    <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS%">
+    <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS% needs-hw">
       <h4><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
     </div>
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
       
-    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
+    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS% needs-hw">
 
           <h4>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>
@@ -2464,7 +2464,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     </div>
 
-     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS% needs-hw">
 
       <h4>
         Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
