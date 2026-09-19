@@ -1364,7 +1364,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     )rawliteral"
 #define CHARGER_CARD_HTML \
   R"rawliteral(
-     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS% needs-hw">
 
       <h4>
         Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
@@ -2597,7 +2597,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </form>
     </div>
 
-    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
+    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px' class="needs-hw">
 
       <h4>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
@@ -2609,7 +2609,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     </div>
 
-    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="needs-hw">
 
       <h4 class='%BATTERY_WH_CLASS%' data-h=battwh>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
@@ -2641,7 +2641,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
       
-    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
+    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS% needs-hw">
 
           <h4>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>

@@ -2,45 +2,47 @@
 
 #ifdef HW_UNIFIED_S3
 
-#include "../../datalayer/datalayer.h"
 #include "../hal/board_config.h"
 #include "html_escape.h"
 #include "index_html.h"
 
-static String pin_cell(gpio_num_t pin) {
-  return pin == GPIO_NUM_NC ? String("&mdash;") : ("GPIO" + String((int)pin));
+static const char* label_for_port_type(const std::string& type) {
+  if (type == "statusled")
+    return "Status LED";
+  if (type == "display_ssd1306")
+    return "I2C display";
+  if (type == "contactor_control")
+    return "Primary contactors";
+  if (type == "contactor_second_battery")
+    return "Second battery";
+  if (type == "contactor_third_battery")
+    return "Third battery";
+  if (type == "bms_power")
+    return "BMS power";
+  if (type == "precharge_control")
+    return "Automatic precharge";
+  if (type == "sma_enable")
+    return "SMA contactor enable";
+  if (type == "nativecan")
+    return "CAN (native)";
+  if (type == "mcp2515")
+    return "CAN (MCP2515)";
+  if (type == "mcp2518fd")
+    return "CAN FD (MCP2518FD)";
+  if (type == "rs485")
+    return "RS485";
+  if (type == "e_stop")
+    return "Equipment stop";
+  if (type == "longpress_reset")
+    return "Long-press button";
+  if (type == "battery_wakeup")
+    return "Battery wake-up";
+  if (type == "chademo")
+    return "CHAdeMO";
+  if (type == "sdcard")
+    return "SD card";
+  return type.c_str();
 }
-
-// One row per configured peripheral. Only ports the file actually enabled show
-// up: a row here means a pin is claimed, which is the question a user reading
-// this page is trying to answer.
-static void add_row(String& out, const char* label, const String& pins) {
-  out += "<tr><td style='padding:4px 12px 4px 0'>";
-  out += label;
-  out += "</td><td style='padding:4px 0;font-family:monospace'>";
-  out += pins;
-  out += "</td></tr>";
-}
-
-static String mcp_pins(const McpPorts& m, bool is_2515) {
-  String s;
-  if (m.sck != GPIO_NUM_NC) {
-    s += "sck " + pin_cell(m.sck) + ", " + (is_2515 ? "mosi " : "sdi ") + pin_cell(m.sdi) + ", " +
-         (is_2515 ? "miso " : "sdo ") + pin_cell(m.sdo) + ", ";
-  } else {
-    s += "shared bus, ";
-  }
-  s += "cs " + pin_cell(m.cs) + ", int " + pin_cell(m.intr);
-  if (m.rst != GPIO_NUM_NC) {
-    s += ", rst " + pin_cell(m.rst);
-  }
-  if (m.freq != 0) {
-    s += " @ " + String(m.freq / 1000000) + " MHz";
-  }
-  return s;
-}
-
-const char hardware_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
 
 String hardware_processor(const String& var) {
   if (var != "X") {
@@ -56,91 +58,34 @@ String hardware_processor(const String& var) {
       "cursor:pointer;border-radius:10px}";
   content += "button:hover{background-color:#3A4A52}";
   content += ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left}";
-  content += ".err{color:#ff6b6b}.warn{color:#ffd166}";
+  content += ".err{color:#ff6b6b}.warn{color:#ffd166}.off{color:#8a949b}";
   content += "table{margin:0 auto;text-align:left}</style>";
 
-  content += "<h2>Hardware configuration</h2>";
   content += "<button onclick=\"window.location.href='/'\">Back to main page</button>";
 
-  // ── Active configuration ───────────────────────────────────────────────────
+  // Active configuration: every port the file describes, in file order, with the
+  // ones it did not enable greyed out. Driven by what the parser recorded, so a
+  // port type can never be missing from this table.
   content += "<div class='card'>";
   if (cfg.valid) {
-    content += "<h3>Active: " + html_escape(cfg.name.c_str());
+    content += "<h3>" + html_escape(cfg.name.c_str());
     if (!cfg.revision.empty()) {
       content += " (" + html_escape(cfg.revision.c_str()) + ")";
     }
     content += "</h3><table>";
-
-    String led = "&mdash;";
-    if (cfg.led != GPIO_NUM_NC) {
-      led = pin_cell(cfg.led) + ", " + String(cfg.led_count) + " px, max brightness " + String(cfg.led_max_brightness);
+    content += "<tr><th style='padding-right:14px'>Port</th><th style='padding-right:14px'>Pins</th><th></th></tr>";
+    for (const auto& row : cfg.rows) {
+      content += row.enabled ? "<tr>" : "<tr class='off'>";
+      content += "<td style='padding:4px 14px 4px 0'>";
+      content += html_escape(row.name.c_str());
+      content += "<br><small>";
+      content += label_for_port_type(row.type);
+      content += "</small></td><td style='padding:4px 14px 4px 0;font-family:monospace'>";
+      content += html_escape(row.pins.c_str());
+      content += "</td><td style='padding:4px 0'>";
+      content += row.enabled ? "active" : "not enabled";
+      content += "</td></tr>";
     }
-    add_row(content, "Status LED", led);
-    if (cfg.display_sda != GPIO_NUM_NC) {
-      add_row(content, "I2C display", "sda " + pin_cell(cfg.display_sda) + ", scl " + pin_cell(cfg.display_scl));
-    }
-    if (cfg.positive != GPIO_NUM_NC) {
-      add_row(content, "Primary contactors",
-              "positive " + pin_cell(cfg.positive) + ", negative " + pin_cell(cfg.negative) + ", precharge " +
-                  pin_cell(cfg.precharge));
-    }
-    if (cfg.second_battery != GPIO_NUM_NC) {
-      add_row(content, "Second battery", pin_cell(cfg.second_battery));
-    }
-    if (cfg.third_battery != GPIO_NUM_NC) {
-      add_row(content, "Third battery", pin_cell(cfg.third_battery));
-    }
-    if (cfg.bms_power != GPIO_NUM_NC) {
-      String s = pin_cell(cfg.bms_power);
-      if (cfg.bms_power_active_low) {
-        s += ", active low";
-      }
-      if (cfg.bms_power_always_on) {
-        s += ", always on";
-      }
-      if (cfg.bms_power_reset_hold) {
-        s += ", held across reset";
-      }
-      add_row(content, "BMS power", s);
-    }
-    if (cfg.hia4v1 != GPIO_NUM_NC) {
-      add_row(content, "Automatic precharge",
-              "hia4v1 " + pin_cell(cfg.hia4v1) + ", inverter disconnect " + pin_cell(cfg.inverter_disconnect));
-    }
-    if (cfg.sma_enable != GPIO_NUM_NC) {
-      add_row(content, "SMA contactor enable", pin_cell(cfg.sma_enable));
-    }
-    if (cfg.can_tx != GPIO_NUM_NC) {
-      add_row(content, "CAN (native)", "tx " + pin_cell(cfg.can_tx) + ", rx " + pin_cell(cfg.can_rx));
-    }
-    if (cfg.mcp2515.enabled) {
-      add_row(content, "CAN (MCP2515)", mcp_pins(cfg.mcp2515, true));
-    }
-    for (int i = 0; i < 2; i++) {
-      if (cfg.mcp2518fd[i].enabled) {
-        add_row(content, i == 0 ? "CAN FD 1 (MCP2518FD)" : "CAN FD 2 (MCP2518FD)", mcp_pins(cfg.mcp2518fd[i], false));
-      }
-    }
-    if (cfg.rs485_tx != GPIO_NUM_NC) {
-      String s = "tx " + pin_cell(cfg.rs485_tx) + ", rx " + pin_cell(cfg.rs485_rx);
-      if (cfg.rs485_de != GPIO_NUM_NC) {
-        s += ", de/re " + pin_cell(cfg.rs485_de) + (cfg.rs485_de_active_high ? " (active high)" : " (active low)");
-      }
-      add_row(content, "RS485", s);
-    }
-    if (cfg.equipment_stop != GPIO_NUM_NC) {
-      add_row(content, "Equipment stop", pin_cell(cfg.equipment_stop));
-    }
-    if (cfg.wup1 != GPIO_NUM_NC) {
-      add_row(content, "Battery wake-up", "wup1 " + pin_cell(cfg.wup1) + ", wup2 " + pin_cell(cfg.wup2));
-    }
-    if (cfg.chademo_lock != GPIO_NUM_NC) {
-      add_row(content, "CHAdeMO",
-              "2 " + pin_cell(cfg.chademo_2) + ", 4 " + pin_cell(cfg.chademo_4) + ", 7 " + pin_cell(cfg.chademo_7) +
-                  ", 10 " + pin_cell(cfg.chademo_10) + ", lock " + pin_cell(cfg.chademo_lock) + ", ct " +
-                  pin_cell(cfg.chademo_ct));
-    }
-    add_row(content, "Long-press button", pin_cell(cfg.ap_button));
     content += "</table>";
   } else {
     content += "<h3>No hardware configuration loaded</h3>";

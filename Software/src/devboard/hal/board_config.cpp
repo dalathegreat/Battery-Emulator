@@ -154,6 +154,25 @@ int pin_of(JsonObjectConst gpio, const char* key) {
   return gpio[key] | -1;
 }
 
+// Renders whatever pins a port names, whatever its type. Generic on purpose: a
+// hand-written formatter per type is one more place for a port to go missing.
+std::string describe_gpio(JsonObjectConst gpio) {
+  std::string s;
+  for (JsonPairConst kv : gpio) {
+    int pin = kv.value() | -1;
+    if (pin < 0) {
+      continue;
+    }
+    if (!s.empty()) {
+      s += ", ";
+    }
+    s += kv.key().c_str();
+    s += " GPIO";
+    s += std::to_string(pin);
+  }
+  return s.empty() ? "no pins" : s;
+}
+
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
 // Fills out, which may be nullptr when we only want the findings. Returns false
@@ -207,6 +226,8 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
     const char* name = port["name"] | type;
     bool enabled = port["enabled"] | false;
     JsonObjectConst gpio = port["gpio"];
+
+    cfg.rows.push_back({type, name, describe_gpio(gpio), enabled});
 
     if (!enabled) {
       continue;  // described but not claimed, so its pins are free for others
@@ -424,6 +445,15 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
 }
 
 }  // namespace
+
+bool BoardConfig::has_interface(comm_interface iface) const {
+  for (auto i : interfaces) {
+    if (i == iface) {
+      return true;
+    }
+  }
+  return false;
+}
 
 bool BoardConfig::has_errors() const {
   for (const auto& issue : issues) {
