@@ -20,7 +20,7 @@
       "name": "BOOT button",
       "enabled": true,
       "gpio": { "pin": 0 }
-    }
+    },
     {
       "type": "nativecan",
       "name": "CAN",
@@ -98,6 +98,6 @@
       "enabled": false,
       "notes": "Alternative to statusled: SCL shares GPIO2, so enable one or the other, never both.",
       "gpio": { "sda": 1, "scl": 2 }
-    },
+    }
   ]
 }
