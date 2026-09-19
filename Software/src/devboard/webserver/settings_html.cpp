@@ -176,6 +176,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   }
 }
 #endif
+#ifdef HW_LILYGO
 const char* name_for_gpioopt2(GPIOOPT2 option) {
   switch (option) {
     case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
@@ -209,6 +210,7 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return nullptr;
   }
 }
+#endif  // HW_LILYGO
 
 #ifdef HW_STARK
 const char* name_for_gpioopt5(GPIOOPT5 option) {
@@ -465,6 +467,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
+#ifdef HW_LILYGO
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -479,6 +482,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
+#endif  // HW_LILYGO
 #ifdef HW_STARK
   if (var == "GPIOOPT5") {
     return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
