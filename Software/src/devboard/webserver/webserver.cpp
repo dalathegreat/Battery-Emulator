@@ -1798,6 +1798,11 @@ static bool render_live(CheckedHtml& content) {
 #ifdef HW_WAVESHARE
     content += " running on Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
+#ifdef HW_UNIFIED_S3
+    // esp32hal->name() reports the board the configuration names, or
+    // "Unconfigured hardware" when nothing has been loaded yet.
+    content += " running on " + html_escape(esp32hal->name());
+#endif  // HW_UNIFIED_S3
     if (datalayer.system.info.CPU_measurement_enabled) {
       content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C";
     }
@@ -1862,6 +1867,15 @@ static bool render_live(CheckedHtml& content) {
 
     // Close the block
     content += "</div>";
+
+#ifdef HW_UNIFIED_S3
+    // Without a board config there is no battery, inverter, charger or contactor
+    // to report on, so the first card is the whole live part until one loads. The
+    // buttons are chosen by send_main_page(), since they sit in the fixed part.
+    if (!board_config.valid) {
+      return content.good();
+    }
+#endif  // HW_UNIFIED_S3
 
 #ifndef SMALL_FLASH_DEVICE
     const bool charger_in_use = charger != nullptr;
@@ -2156,6 +2170,16 @@ h4{margin:.6em 0;line-height:1.2}
 
 static const char main_page_buttons[] =
     R"html(</div><button id='P0' hidden onclick="if(confirm('Are you sure you want to pause charging and discharging? This will set the maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); }">Pause charge/discharge</button><button id='P1' hidden onclick='PauseBattery(false)'>Resume charge/discharge</button> <button onclick="location='/update'">Perform OTA update</button> <button onclick="location='/settings'">Change Settings</button> <button onclick="location='/advanced'">More Battery/Cell Info</button> <button onclick="location='/canreplay'">CAN tools</button> )html";
+#ifdef HW_UNIFIED_S3
+/* Stands in for main_page_buttons (and the log button) while no board config is loaded. Only
+   what makes sense without hardware: configuring it, network settings, OTA and a reboot.
+   Whether a config is loaded only changes across a reboot, which reloads the page, so this is
+   picked once when the page is opened. The page script still shows one of each Pause and
+   Contactor pair from the live part's state; the style keeps all four hidden instead, and the
+   two <i> give it the P0/P1 it looks up, since the Pause pair is not sent at all. */
+static const char main_page_buttons_unconfigured[] =
+    R"html(</div><style>#P0,#P1,#E0,#E1{display:none!important}</style><i id='P0'></i><i id='P1'></i><button onclick="location='/hardware'">Hardware configuration</button> <button onclick="location='/settings'">Change Settings</button> <button onclick="location='/update'">Perform OTA update</button> )html";
+#endif  // HW_UNIFIED_S3
 static const char main_page_log_button[] = "<button onclick=\"location='/log'\">Log</button> ";
 static const char main_page_more_buttons[] =
     "<button onclick='Events()'>Events</button> <button onclick='askReboot()'>Reboot Emulator</button> ";
@@ -2338,13 +2362,20 @@ static void send_main_page(AsyncWebServerRequest* request, bool live_only) {
     } else {
       add_part(page, main_page_low_memory);
     }
-    add_part(page, main_page_buttons);
-    if (datalayer.system.info.web_logging_active
+#ifdef HW_UNIFIED_S3
+    if (!board_config.valid) {
+      add_part(page, main_page_buttons_unconfigured);
+    } else
+#endif  // HW_UNIFIED_S3
+    {
+      add_part(page, main_page_buttons);
+      if (datalayer.system.info.web_logging_active
 #ifdef SDCARD
-        || datalayer.system.info.SD_logging_active
+          || datalayer.system.info.SD_logging_active
 #endif
-    ) {
-      add_part(page, main_page_log_button);
+      ) {
+        add_part(page, main_page_log_button);
+      }
     }
     add_part(page, main_page_more_buttons);
     if (webserver_auth) {
