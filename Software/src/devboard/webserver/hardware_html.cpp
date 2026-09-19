@@ -24,7 +24,9 @@ String hardware_processor(const String& var) {
   content += "button:hover{background-color:#3A4A52}";
   content += ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left}";
   content += ".err{color:#ff6b6b}.warn{color:#ffd166}.off{color:#8a949b}.bad{color:#ff6b6b}";
-  content += "table{margin:12px 0 0 0;text-align:left}</style>";
+  content += "table{margin:12px 0 0 0;text-align:left}";
+  content += ".row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-bottom:12px}";
+  content += ".row>.card{flex:1 1 320px;margin-bottom:0}</style>";
 
   content += "<button onclick=\"window.location.href='/'\">Back to main page</button>";
 
@@ -119,6 +121,8 @@ String hardware_processor(const String& var) {
     }
   }
 
+  content += "<div class='row'>";
+
   content += "<div class='card'><h3>Upload a configuration</h3>";
   content +=
       "<form method='POST' action='/hardware/upload' enctype='multipart/form-data'>"
@@ -128,10 +132,12 @@ String hardware_processor(const String& var) {
   content += "</div>";
 
   if (files.length() > 0) {
-    content += "<div class='card'><h3>Backup hardware configuration</h3><ul style='text-align:left'>";
+    content += "<div class='card'><h3>Backup</h3><ul style='text-align:left;margin:0;padding-left:20px'>";
     content += files;
     content += "</ul></div>";
   }
+
+  content += "</div>";
 
   return content;
 }
