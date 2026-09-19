@@ -1,0 +1,103 @@
+{
+  "$schema": "./board-config-schema-1.json",
+  "config_version": 1,
+  "board": {
+    "name": "Waveshare ESP32-S3-RS485-CAN",
+    "mcu": "esp32s3",
+    "notes": "ESP32-S3R8 module, 16 MB flash. PSRAM is not initialised by this firmware, so no GPIO is lost to it."
+  },
+  "ports": [
+    {
+      "type": "statusled",
+      "name": "Status LED",
+      "enabled": true,
+      "led_count": 1,
+      "max_brightness": 40,
+      "gpio": { "pin": 2 }
+    },
+    {
+      "type": "display_ssd1306",
+      "name": "I2C display instead of the status LED",
+      "enabled": false,
+      "notes": "Alternative to statusled: SCL shares GPIO2, so enable one or the other, never both.",
+      "gpio": { "sda": 1, "scl": 2 }
+    },
+    {
+      "type": "contactor_control",
+      "name": "Primary battery contactors",
+      "enabled": true,
+      "gpio": { "positive": 3, "negative": 4, "precharge": 5 }
+    },
+    {
+      "type": "precharge_control",
+      "name": "Automatic precharge",
+      "enabled": false,
+      "notes": "Reuses the primary contactor pins, so it replaces contactor_control rather than running alongside it.",
+      "gpio": { "hia4v1": 5, "inverter_disconnect": 3 }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power",
+      "enabled": true,
+      "active_low": false,
+      "always_on": false,
+      "reset_hold": true,
+      "gpio": { "pin": 6 }
+    },
+    {
+      "type": "contactor_second_battery",
+      "name": "Second battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 8 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop",
+      "enabled": true,
+      "gpio": { "pin": 7 }
+    },
+    {
+      "type": "sma_enable",
+      "name": "SMA inverter contactor enable",
+      "enabled": true,
+      "notes": "Shares GPIO9 with battery_wakeup wup2; only one of the two can be enabled.",
+      "gpio": { "pin": 9 }
+    },
+    {
+      "type": "battery_wakeup",
+      "name": "Battery wake-up",
+      "enabled": false,
+      "notes": "wup1 collides with the second battery contactor output and wup2 with the SMA enable input. Enable only for a battery that needs wake-up, and disable the two ports it displaces.",
+      "gpio": { "wup1": 8, "wup2": 9 }
+    },
+    {
+      "type": "nativecan",
+      "name": "CAN",
+      "enabled": true,
+      "gpio": { "tx": 15, "rx": 16 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD add-on",
+      "enabled": false,
+      "notes": "Header only, no controller fitted from the factory. Enable after wiring an MCP2518FD breakout.",
+      "interface": 1,
+      "spi_bus": "fspi",
+      "gpio": { "sck": 10, "sdi": 11, "sdo": 12, "cs": 13, "int": 14 }
+    },
+    {
+      "type": "rs485",
+      "name": "RS485",
+      "enabled": true,
+      "de_active_high": true,
+      "notes": "SP3485 with DE and /RE tied together on GPIO21.",
+      "gpio": { "tx": 17, "rx": 18, "de_re": 21 }
+    },
+    {
+      "type": "longpress_reset",
+      "name": "BOOT button",
+      "enabled": true,
+      "gpio": { "pin": 0 }
+    }
+  ]
+}
