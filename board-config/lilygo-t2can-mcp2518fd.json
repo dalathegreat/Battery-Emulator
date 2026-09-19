@@ -1,0 +1,150 @@
+{
+  "$schema": "./board-config-schema-1.json",
+  "config_version": 1,
+  "board": {
+    "name": "LilyGo T-2CAN",
+    "mcu": "esp32s3",
+    "revision": "MCP2518FD",
+    "notes": "For the T-2CAN fitted with an MCP2518FD. If reading the onboard controller's CANSTAT register returns 0x80, it is an MCP2515 and the other file applies."
+  },
+  "ports": [
+    {
+      "type": "statusled",
+      "name": "Status LED",
+      "enabled": true,
+      "led_count": 1,
+      "max_brightness": 40,
+      "notes": "GPIO35 is only free because this firmware leaves PSRAM uninitialised.",
+      "gpio": { "pin": 35 }
+    },
+    {
+      "type": "contactor_control",
+      "name": "Primary battery contactors",
+      "enabled": true,
+      "gpio": { "positive": 48, "negative": 17, "precharge": 21 }
+    },
+    {
+      "type": "precharge_control",
+      "name": "Automatic precharge",
+      "enabled": false,
+      "notes": "Collides with the wiring option B/C battery_wakeup pins; enable at most one of the two.",
+      "gpio": { "hia4v1": 18, "inverter_disconnect": 14 }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power (wiring option A/B, bottom header pin 3)",
+      "enabled": true,
+      "active_low": false,
+      "always_on": false,
+      "reset_hold": true,
+      "gpio": { "pin": 3 }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power (wiring option C, top connector)",
+      "enabled": false,
+      "active_low": false,
+      "always_on": false,
+      "reset_hold": true,
+      "notes": "Wiring option C. Pairs with the GPIO1 equipment stop and the option B/C battery wake-up pins.",
+      "gpio": { "pin": 2 }
+    },
+    {
+      "type": "contactor_second_battery",
+      "name": "Second battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 5 }
+    },
+    {
+      "type": "contactor_third_battery",
+      "name": "Third battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 4 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop (wiring option A/B, bottom header)",
+      "enabled": true,
+      "gpio": { "pin": 36 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop (wiring option C, top connector)",
+      "enabled": false,
+      "notes": "Wiring option C. Pairs with BMS power on GPIO2.",
+      "gpio": { "pin": 1 }
+    },
+    {
+      "type": "battery_wakeup",
+      "name": "Battery wake-up (wiring option A, top connector)",
+      "enabled": true,
+      "gpio": { "wup1": 1, "wup2": 2 }
+    },
+    {
+      "type": "battery_wakeup",
+      "name": "Battery wake-up (wiring option B/C, bottom header)",
+      "enabled": false,
+      "notes": "Frees GPIO1 and GPIO2 for the I2C display or for the option C equipment stop and BMS power, at the cost of the automatic precharge pins.",
+      "gpio": { "wup1": 18, "wup2": 14 }
+    },
+    {
+      "type": "display_ssd1306",
+      "name": "I2C display (wiring option B, top connector)",
+      "enabled": false,
+      "notes": "Wiring option B. Requires the bottom-header battery wake-up pins instead of the top-connector ones.",
+      "gpio": { "sda": 1, "scl": 2 }
+    },
+    {
+      "type": "sma_enable",
+      "name": "SMA inverter contactor enable",
+      "enabled": true,
+      "notes": "Input from the inverter on GPIO46, a boot-mode strapping pin with an internal pull-down. An inverter holding it high while the emulator resets changes the boot mode, and high here with the BOOT button held is an invalid combination.",
+      "gpio": { "pin": 46 }
+    },
+    {
+      "type": "nativecan",
+      "name": "CAN B (native)",
+      "enabled": true,
+      "gpio": { "tx": 7, "rx": 6 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD A (MCP2518FD)",
+      "enabled": true,
+      "interface": 1,
+      "spi_bus": "fspi",
+      "freq_hz": 40000000,
+      "gpio": { "sck": 12, "sdi": 11, "sdo": 13, "cs": 10, "int": 8 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD add-on",
+      "enabled": false,
+      "notes": "Bottom header only, no controller fitted from the factory. GPIO37 is free because PSRAM is left uninitialised.",
+      "interface": 2,
+      "spi_bus": "hspi",
+      "gpio": { "sck": 38, "sdi": 42, "sdo": 37, "cs": 41, "int": 39 }
+    },
+    {
+      "type": "rs485",
+      "name": "RS485 add-on",
+      "enabled": true,
+      "de_active_high": true,
+      "notes": "GPIO43/44 are the UART0 pins, so ROM bootloader output goes out the bus at 115200 baud for a moment after reset.",
+      "gpio": { "tx": 43, "rx": 44 }
+    },
+    {
+      "type": "chademo",
+      "name": "CHAdeMO connector",
+      "enabled": false,
+      "notes": "Takes over the second and third battery contactor pins, so disable those two ports when enabling this one. The ct pin is on ADC1, which stays usable with Wi-Fi up.",
+      "gpio": { "pin2": 16, "pin4": 4, "pin7": 47, "pin10": 15, "lock": 40, "ct": 5 }
+    },
+    {
+      "type": "longpress_reset",
+      "name": "BOOT button",
+      "enabled": true,
+      "gpio": { "pin": 0 }
+    }
+  ]
+}

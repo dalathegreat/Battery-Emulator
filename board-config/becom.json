@@ -1,0 +1,108 @@
+{
+  "$schema": "./board-config-schema-1.json",
+  "config_version": 1,
+  "board": {
+    "name": "BECom",
+    "mcu": "esp32s3",
+    "notes": "Two MCP2518FD CAN FD channels sharing one SPI bus, plus native CAN towards the inverter."
+  },
+  "ports": [
+    {
+      "type": "statusled",
+      "name": "Status LED",
+      "enabled": true,
+      "led_count": 1,
+      "max_brightness": 40,
+      "gpio": { "pin": 5 }
+    },
+    {
+      "type": "contactor_control",
+      "name": "Primary battery contactors",
+      "enabled": true,
+      "notes": "Precharge sits on GPIO45, a strapping pin that selects the VDD_SPI voltage at reset. Safe on modules with the VDD_SPI eFuse burned, which is why the board works, but the validator will warn.",
+      "gpio": { "positive": 47, "negative": 48, "precharge": 45 }
+    },
+    {
+      "type": "precharge_control",
+      "name": "Automatic precharge",
+      "enabled": false,
+      "notes": "Reuses the primary contactor pins, so it replaces contactor_control rather than running alongside it.",
+      "gpio": { "hia4v1": 45, "inverter_disconnect": 47 }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power",
+      "enabled": true,
+      "active_low": true,
+      "always_on": false,
+      "reset_hold": true,
+      "notes": "Inverted in hardware: driving GPIO1 high removes power from the battery.",
+      "gpio": { "pin": 1 }
+    },
+    {
+      "type": "contactor_second_battery",
+      "name": "Second battery negative contactor",
+      "enabled": true,
+      "gpio": { "pin": 37 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop",
+      "enabled": true,
+      "notes": "Tied low internally on hardware v1. GPIO46 is a boot-mode strapping pin, but reading it is harmless.",
+      "gpio": { "pin": 46 }
+    },
+    {
+      "type": "sma_enable",
+      "name": "SMA inverter contactor enable",
+      "enabled": true,
+      "notes": "Input from the inverter on GPIO3, the JTAG source select strapping pin. Harmless unless EFUSE_STRAP_JTAG_SEL has been burned.",
+      "gpio": { "pin": 3 }
+    },
+    {
+      "type": "battery_wakeup",
+      "name": "Battery wake-up",
+      "enabled": true,
+      "gpio": { "wup1": 2, "wup2": 41 }
+    },
+    {
+      "type": "nativecan",
+      "name": "Inverter CAN",
+      "enabled": true,
+      "gpio": { "tx": 8, "rx": 18 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD Battery 1",
+      "enabled": true,
+      "interface": 1,
+      "spi_bus": "fspi",
+      "freq_hz": 40000000,
+      "clkodiv": 0,
+      "gpio": { "sck": 12, "sdi": 11, "sdo": 13, "cs": 14, "int": 10 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD Battery 2",
+      "enabled": true,
+      "notes": "Shares the SPI bus with CAN FD Battery 1, so it declares only its own chip select and interrupt.",
+      "interface": 2,
+      "spi_bus": "fspi",
+      "freq_hz": 40000000,
+      "gpio": { "cs": 21, "int": 9 }
+    },
+    {
+      "type": "rs485",
+      "name": "RS485",
+      "enabled": true,
+      "de_active_high": true,
+      "gpio": { "tx": 15, "rx": 17, "de_re": 16 }
+    },
+    {
+      "type": "longpress_reset",
+      "name": "BOOT button",
+      "enabled": true,
+      "gpio": { "pin": 0 }
+    }
+  ]
+}
