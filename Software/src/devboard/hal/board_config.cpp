@@ -155,6 +155,24 @@ class Validator {
   std::map<int, std::string> claims_;
 };
 
+// Port names come from an uploaded file and are printed straight into the
+// settings page dropdowns, which do not escape their option text. Dropping the
+// characters that could close a tag or an attribute keeps that safe without
+// mangling any name a real board would use.
+std::string sanitize_label(const char* raw, const char* fallback) {
+  std::string out;
+  for (const char* c = raw; *c != '\0'; c++) {
+    if (*c == '<' || *c == '>' || *c == '"' || *c == '\'' || *c == '&') {
+      continue;
+    }
+    out += *c;
+  }
+  while (!out.empty() && out.back() == ' ') {
+    out.pop_back();
+  }
+  return out.empty() ? std::string(fallback) : out;
+}
+
 int pin_of(JsonObjectConst gpio, const char* key) {
   return gpio[key] | -1;
 }
@@ -226,6 +244,11 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
 
   Validator v(issues, doc["strict"] | false);
   std::map<std::string, int> enabled_count;
+
+  auto add_interface = [&cfg](comm_interface iface, const char* name, const char* type) {
+    cfg.interfaces.push_back(iface);
+    cfg.interface_names.push_back(sanitize_label(name, type));
+  };
 
   for (JsonObjectConst port : ports) {
     const char* type = port["type"] | "";
@@ -338,7 +361,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         cfg.can_tx = tx;
         cfg.can_rx = rx;
         cfg.can_se = se;
-        cfg.interfaces.push_back(comm_interface::CanNative);
+        add_interface(comm_interface::CanNative, name, type);
 
       } else if (strcmp(type, "mcp2515") == 0) {
         McpPorts m;
@@ -355,7 +378,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         m.bus = (strcmp(port["spi_bus"] | "hspi", "fspi") == 0) ? FSPI : HSPI;
         m.freq = port["freq_hz"] | 0;
         cfg.mcp2515 = m;
-        cfg.interfaces.push_back(comm_interface::CanAddonMcp2515);
+        add_interface(comm_interface::CanAddonMcp2515, name, type);
 
       } else if (strcmp(type, "mcp2518fd") == 0) {
         int index = (port["interface"] | 1) - 1;
@@ -381,7 +404,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         m.freq = port["freq_hz"] | 0;
         m.clkodiv = port["clkodiv"] | 0b11;
         cfg.mcp2518fd[index] = m;
-        cfg.interfaces.push_back(index == 0 ? comm_interface::CanFdAddonMcp2518 : comm_interface::CanFdAddonMcp2518_2);
+        add_interface(index == 0 ? comm_interface::CanFdAddonMcp2518 : comm_interface::CanFdAddonMcp2518_2, name, type);
 
       } else if (strcmp(type, "rs485") == 0) {
         gpio_num_t tx = v.take(name, "tx", pin_of(gpio, "tx"), PinRole::Bus);
@@ -399,8 +422,7 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         cfg.rs485_se = se;
         cfg.pin_5v_en = en5v;
         cfg.rs485_de_active_high = port["de_active_high"] | true;
-        cfg.interfaces.push_back(comm_interface::RS485);
-        cfg.interfaces.push_back(comm_interface::Modbus);
+        add_interface(comm_interface::RS485, name, type);
 
       } else if (strcmp(type, "e_stop") == 0) {
         gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
@@ -474,13 +496,13 @@ const char* name_for_port_status(PortStatus status) {
   }
 }
 
-bool BoardConfig::has_interface(comm_interface iface) const {
-  for (auto i : interfaces) {
-    if (i == iface) {
-      return true;
+const char* BoardConfig::name_for_interface(comm_interface iface) const {
+  for (size_t i = 0; i < interfaces.size(); i++) {
+    if (interfaces[i] == iface) {
+      return interface_names[i].c_str();
     }
   }
-  return false;
+  return "";
 }
 
 bool BoardConfig::has_errors() const {
