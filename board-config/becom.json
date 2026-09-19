@@ -4,7 +4,7 @@
   "board": {
     "name": "BECom",
     "mcu": "esp32s3",
-    "notes": "Two MCP2518FD CAN FD channels sharing one SPI bus, plus native CAN towards the inverter."
+    "notes": "Two MCP2518FD CAN FD channels sharing one SPI bus, plus native CAN and RS485."
   },
   "ports": [
     {
@@ -16,6 +16,45 @@
       "gpio": { "pin": 5 }
     },
     {
+      "type": "longpress_reset",
+      "name": "BOOT button",
+      "enabled": true,
+      "gpio": { "pin": 0 }
+    }
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD Battery 1",
+      "enabled": true,
+      "interface": 1,
+      "spi_bus": "fspi",
+      "freq_hz": 40000000,
+      "clkodiv": 0,
+      "gpio": { "sck": 12, "sdi": 11, "sdo": 13, "cs": 14, "int": 10 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD Battery 2",
+      "enabled": true,
+      "notes": "Shares the SPI bus with CAN FD Battery 1, so it declares only its own chip select and interrupt.",
+      "interface": 2,
+      "spi_bus": "fspi",
+      "freq_hz": 40000000,
+      "gpio": { "cs": 21, "int": 9 }
+    },
+    {
+      "type": "nativecan",
+      "name": "Inverter CAN",
+      "enabled": true,
+      "gpio": { "tx": 8, "rx": 18 }
+    },
+    {
+      "type": "rs485",
+      "name": "RS485",
+      "enabled": true,
+      "de_active_high": true,
+      "gpio": { "tx": 15, "rx": 17, "de_re": 16 }
+    },
+    {
       "type": "contactor_control",
       "name": "Primary battery contactors",
       "enabled": true,
@@ -24,7 +63,7 @@
     },
     {
       "type": "precharge_control",
-      "name": "Automatic precharge",
+      "name": "HIA4V1 precharge control",
       "enabled": false,
       "notes": "Reuses the primary contactor pins, so it replaces contactor_control rather than running alongside it.",
       "gpio": { "hia4v1": 45, "inverter_disconnect": 47 }
@@ -61,48 +100,9 @@
     },
     {
       "type": "battery_wakeup",
-      "name": "Battery wake-up",
+      "name": "Battery wake-up pins",
       "enabled": true,
       "gpio": { "wup1": 2, "wup2": 41 }
     },
-    {
-      "type": "nativecan",
-      "name": "Inverter CAN",
-      "enabled": true,
-      "gpio": { "tx": 8, "rx": 18 }
-    },
-    {
-      "type": "mcp2518fd",
-      "name": "CAN FD Battery 1",
-      "enabled": true,
-      "interface": 1,
-      "spi_bus": "fspi",
-      "freq_hz": 40000000,
-      "clkodiv": 0,
-      "gpio": { "sck": 12, "sdi": 11, "sdo": 13, "cs": 14, "int": 10 }
-    },
-    {
-      "type": "mcp2518fd",
-      "name": "CAN FD Battery 2",
-      "enabled": true,
-      "notes": "Shares the SPI bus with CAN FD Battery 1, so it declares only its own chip select and interrupt.",
-      "interface": 2,
-      "spi_bus": "fspi",
-      "freq_hz": 40000000,
-      "gpio": { "cs": 21, "int": 9 }
-    },
-    {
-      "type": "rs485",
-      "name": "RS485",
-      "enabled": true,
-      "de_active_high": true,
-      "gpio": { "tx": 15, "rx": 17, "de_re": 16 }
-    },
-    {
-      "type": "longpress_reset",
-      "name": "BOOT button",
-      "enabled": true,
-      "gpio": { "pin": 0 }
-    }
   ]
 }

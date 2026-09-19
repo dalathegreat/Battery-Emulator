@@ -18,89 +18,11 @@
       "gpio": { "pin": 35 }
     },
     {
-      "type": "contactor_control",
-      "name": "Primary battery contactors",
+      "type": "longpress_reset",
+      "name": "BOOT button",
       "enabled": true,
-      "gpio": { "positive": 48, "negative": 17, "precharge": 21 }
-    },
-    {
-      "type": "precharge_control",
-      "name": "Automatic precharge",
-      "enabled": false,
-      "notes": "Collides with the wiring option B/C battery_wakeup pins; enable at most one of the two.",
-      "gpio": { "hia4v1": 18, "inverter_disconnect": 14 }
-    },
-    {
-      "type": "bms_power",
-      "name": "BMS power (wiring option A/B, bottom header pin 3)",
-      "enabled": true,
-      "active_low": false,
-      "always_on": false,
-      "reset_hold": true,
-      "gpio": { "pin": 3 }
-    },
-    {
-      "type": "bms_power",
-      "name": "BMS power (wiring option C, top connector)",
-      "enabled": false,
-      "active_low": false,
-      "always_on": false,
-      "reset_hold": true,
-      "notes": "Wiring option C. Pairs with the GPIO1 equipment stop and the option B/C battery wake-up pins.",
-      "gpio": { "pin": 2 }
-    },
-    {
-      "type": "contactor_second_battery",
-      "name": "Second battery contactors",
-      "enabled": true,
-      "gpio": { "pin": 5 }
-    },
-    {
-      "type": "contactor_third_battery",
-      "name": "Third battery contactors",
-      "enabled": true,
-      "gpio": { "pin": 4 }
-    },
-    {
-      "type": "e_stop",
-      "name": "Equipment stop (wiring option A/B, bottom header)",
-      "enabled": true,
-      "gpio": { "pin": 36 }
-    },
-    {
-      "type": "e_stop",
-      "name": "Equipment stop (wiring option C, top connector)",
-      "enabled": false,
-      "notes": "Wiring option C. Pairs with BMS power on GPIO2.",
-      "gpio": { "pin": 1 }
-    },
-    {
-      "type": "battery_wakeup",
-      "name": "Battery wake-up (wiring option A, top connector)",
-      "enabled": true,
-      "gpio": { "wup1": 1, "wup2": 2 }
-    },
-    {
-      "type": "battery_wakeup",
-      "name": "Battery wake-up (wiring option B/C, bottom header)",
-      "enabled": false,
-      "notes": "Frees GPIO1 and GPIO2 for the I2C display or for the option C equipment stop and BMS power, at the cost of the automatic precharge pins.",
-      "gpio": { "wup1": 18, "wup2": 14 }
-    },
-    {
-      "type": "display_ssd1306",
-      "name": "I2C display (wiring option B, top connector)",
-      "enabled": false,
-      "notes": "Wiring option B. Requires the bottom-header battery wake-up pins instead of the top-connector ones.",
-      "gpio": { "sda": 1, "scl": 2 }
-    },
-    {
-      "type": "sma_enable",
-      "name": "SMA inverter contactor enable",
-      "enabled": true,
-      "notes": "Input from the inverter on GPIO46, a boot-mode strapping pin with an internal pull-down. An inverter holding it high while the emulator resets changes the boot mode, and high here with the BOOT button held is an invalid combination.",
-      "gpio": { "pin": 46 }
-    },
+      "gpio": { "pin": 0 }
+    }
     {
       "type": "nativecan",
       "name": "CAN B (native)",
@@ -133,17 +55,74 @@
       "gpio": { "tx": 43, "rx": 44 }
     },
     {
+      "type": "contactor_control",
+      "name": "Primary battery contactors",
+      "enabled": true,
+      "gpio": { "positive": 48, "negative": 17, "precharge": 21 }
+    },
+    {
+      "type": "contactor_second_battery",
+      "name": "Second battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 5 }
+    },
+    {
+      "type": "contactor_third_battery",
+      "name": "Third battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 4 }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power",
+      "enabled": false,
+      "active_low": false,
+      "always_on": false,
+      "reset_hold": true,
+      "notes": "2 - top connector or 3 - bottom header",
+      "gpio": { "pin": 2 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop",
+      "enabled": true,
+      "notes": "36 - bottom header; 1 - top connector",
+      "gpio": { "pin": 36 }
+    },
+    {
+      "type": "battery_wakeup",
+      "name": "Battery wake-up",
+      "enabled": true,
+      "notes": "1 and 2 - top connector; 18 and 24 bottom header",
+      "gpio": { "wup1": 1, "wup2": 2 }
+    },
+    {
+      "type": "precharge_control",
+      "name": "HIA4V1 precharge control",
+      "enabled": false,
+      "notes": "Collides with the wiring option B/C battery_wakeup pins; enable at most one of the two.",
+      "gpio": { "hia4v1": 18, "inverter_disconnect": 14 }
+    },
+    {
+      "type": "display_ssd1306",
+      "name": "SSD1306-compatible I2C display",
+      "enabled": false,
+      "notes": "Requires the bottom-header battery wake-up pins instead of the top-connector ones.",
+      "gpio": { "sda": 1, "scl": 2 }
+    },
+    {
+      "type": "sma_enable",
+      "name": "SMA inverter contactor enable",
+      "enabled": false,
+      "notes": "Input from the inverter on GPIO46, a boot-mode strapping pin with an internal pull-down. An inverter holding it high while the emulator resets changes the boot mode, and high here with the BOOT button held is an invalid combination.",
+      "gpio": { "pin": 46 }
+    },
+    {
       "type": "chademo",
       "name": "CHAdeMO connector",
       "enabled": false,
       "notes": "Takes over the second and third battery contactor pins, so disable those two ports when enabling this one. The ct pin is on ADC1, which stays usable with Wi-Fi up.",
       "gpio": { "pin2": 16, "pin4": 4, "pin7": 47, "pin10": 15, "lock": 40, "ct": 5 }
     },
-    {
-      "type": "longpress_reset",
-      "name": "BOOT button",
-      "enabled": true,
-      "gpio": { "pin": 0 }
-    }
   ]
 }
