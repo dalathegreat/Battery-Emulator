@@ -1229,6 +1229,11 @@ String processor(const String& var) {
 #ifdef HW_WAVESHARE
     content += " running on Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
+#ifdef HW_UNIFIED_S3
+    // esp32hal->name() reports the board the configuration names, or
+    // "Unconfigured hardware" when nothing has been loaded yet.
+    content += " running on " + html_escape(esp32hal->name());
+#endif  // HW_UNIFIED_S3
     if (datalayer.system.info.CPU_measurement_enabled) {
       content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C";
     }
@@ -1293,6 +1298,35 @@ String processor(const String& var) {
 
     // Close the block
     content += "</div>";
+
+#ifdef HW_UNIFIED_S3
+    // Without a board config there is no battery, inverter, charger or contactor
+    // to report on, and none of the pages about them would have anything to show.
+    // The first card plus a short button row is the whole page until one loads.
+    if (!board_config.valid) {
+      content += "<button onclick='Hardware()'>Hardware configuration</button> ";
+      content += "<button onclick='Settings()'>Change Settings</button> ";
+      content += "<button onclick='OTA()'>Perform OTA update</button> ";
+      content += "<button onclick='Events()'>Events</button> ";
+      content += "<button onclick='askReboot()'>Reboot Emulator</button> ";
+      if (webserver_auth) {
+        content += "<button onclick='logout()'>Logout</button>";
+      }
+      content += "<script>";
+      content += "function Hardware() { window.location.href = '/hardware'; }";
+      content += "function Settings() { window.location.href = '/settings'; }";
+#ifdef HW_UNIFIED_S3
+      content += "function Hardware() { window.location.href = '/hardware'; }";
+#endif  // HW_UNIFIED_S3
+      content += "function OTA() { window.location.href = '/update'; }";
+      content += "function Events() { window.location.href = '/events'; }";
+      if (webserver_auth) {
+        content += "function logout() { window.location.href = '/logout'; }";
+      }
+      content += "</script>";
+      return content;
+    }
+#endif  // HW_UNIFIED_S3
 
     if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
@@ -1855,6 +1889,9 @@ String processor(const String& var) {
 
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
+#ifdef HW_UNIFIED_S3
+    content += "<button onclick='Hardware()'>Hardware configuration</button> ";
+#endif  // HW_UNIFIED_S3
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
