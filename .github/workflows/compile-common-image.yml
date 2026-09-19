@@ -37,6 +37,8 @@ jobs:
             pio_env: "waveshare_330"
           - board_name: "DFRobot Edge101"
             pio_env: "dfrobot_edge101_330"
+          - board_name: "Unified ESP32-S3"
+            pio_env: "unified_esp32s3"
 
     steps:
     - uses: actions/checkout@v7
