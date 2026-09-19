@@ -17,7 +17,7 @@
     },
     {
       "type": "longpress_reset",
-      "name": "BOOT button",
+      "name": "Start AP/Wipe Net/Reset button",
       "enabled": true,
       "gpio": { "pin": 0 }
     },
