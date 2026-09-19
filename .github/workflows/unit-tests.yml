@@ -17,6 +17,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v7
 
+    # battery_detects_capacity() decides whether the settings page offers a
+    # Battery capacity edit. A driver that starts writing total_capacity_Wh
+    # without being listed there would leave the user an edit that silently
+    # reverts, which no compiler or unit test can catch. This does.
+    - name: Check battery capacity detection list
+      run: python3 tools/check_capacity_detection.py
+
     - name: Configure and build with CMake
       run: |
         cd test
