@@ -53,7 +53,7 @@
     {
       "type": "contactor_second_battery",
       "name": "Second battery contactors",
-      "enabled": true,
+      "enabled": false,
       "gpio": { "pin": 8 }
     },
     {
@@ -81,7 +81,7 @@
     {
       "type": "sma_enable",
       "name": "SMA inverter contactor enable",
-      "enabled": true,
+      "enabled": false,
       "notes": "Shares GPIO9 with battery_wakeup wup2; only one of the two can be enabled.",
       "gpio": { "pin": 9 }
     },
