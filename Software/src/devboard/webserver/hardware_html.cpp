@@ -71,10 +71,12 @@ String hardware_processor(const String& var) {
     }
     content += "</h3><table>";
 
-    add_row(content, "Status LED",
-            cfg.led == GPIO_NUM_NC ? String("&mdash;")
-                                   : pin_cell(cfg.led) + ", " + String(cfg.led_count) + " px, max brightness " +
-                                         String(cfg.led_max_brightness));
+    String led = "&mdash;";
+    if (cfg.led != GPIO_NUM_NC) {
+      led = pin_cell(cfg.led) + ", " + String(cfg.led_count) + " px, max brightness " +
+            String(cfg.led_max_brightness);
+    }
+    add_row(content, "Status LED", led);
     if (cfg.display_sda != GPIO_NUM_NC) {
       add_row(content, "I2C display", "sda " + pin_cell(cfg.display_sda) + ", scl " + pin_cell(cfg.display_scl));
     }
