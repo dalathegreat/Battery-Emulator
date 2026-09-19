@@ -1059,7 +1059,10 @@ void init_webserver() {
     request->send(LittleFS, BOARD_CONFIG_PATH, "application/json");
   });
 
-  def_route_with_auth("/hardware/file", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+  // Deliberately not under /hardware: a handler registered for a path also
+  // matches every URL below it, and the /hardware page above would answer this
+  // one instead. See AsyncCallbackWebHandler::canHandle.
+  def_route_with_auth("/boardfile", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     if (!request->hasParam("name")) {
       return request->send(400, "text/plain", "Missing name");
     }
