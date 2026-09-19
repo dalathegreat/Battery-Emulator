@@ -416,6 +416,52 @@ bool battery_supports_triple(BatteryType type) {
   }
 }
 
+// The integrations that assign info.total_capacity_Wh themselves. Keep in sync
+// with the drivers: if a driver writes total_capacity_Wh anywhere, list it here
+// so the settings page stops offering a capacity the driver will overwrite.
+bool battery_detects_capacity(BatteryType type) {
+  switch (type) {
+    case BatteryType::Akasol:
+    case BatteryType::BmwI3:
+    case BatteryType::BmwIX:
+    case BatteryType::BmwPhev:
+    case BatteryType::BoltAmpera:
+    case BatteryType::Chademo:
+    case BatteryType::ChargebyteCCSBattery:
+    case BatteryType::CmfaEv:
+    case BatteryType::CmpSmartCar:
+    case BatteryType::FordMachE:
+    case BatteryType::GeelyGeometryC:
+    case BatteryType::GeelySea:
+    case BatteryType::GrowattHvArk:
+    case BatteryType::GrowattLv:
+    case BatteryType::HyundaiIoniq28:
+    case BatteryType::JaguarIpace:
+    case BatteryType::KiaHyundai64:
+    case BatteryType::KiaHyundaiHybrid:
+    case BatteryType::Meb:
+    case BatteryType::Mg5:
+    case BatteryType::MgGen1:
+    case BatteryType::NissanLeaf:
+    case BatteryType::Pylon:
+    case BatteryType::RenaultTwizy:
+    case BatteryType::RenaultZoe2:
+    case BatteryType::RivianBattery:
+    case BatteryType::SamsungSdiLv:
+    case BatteryType::SimpBms:
+    case BatteryType::Sono:
+    case BatteryType::TeslaLegacy:
+    case BatteryType::TeslaModel3Y:
+    case BatteryType::TeslaModelSX:
+    case BatteryType::TestFake:
+    case BatteryType::VAGMqbEvo:
+    case BatteryType::VolvoSpa:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void setup_battery() {
   if (battery) {
     // Let's not create the battery again.
