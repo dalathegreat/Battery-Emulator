@@ -15,6 +15,10 @@
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../shunt/Shunt.h"
+#ifdef HW_UNIFIED_S3
+#include <LittleFS.h>
+#endif
+#include "../hal/board_config.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
@@ -27,6 +31,7 @@
 #include "../wifi/wifi.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
+#include "hardware_html.h"
 #include "html_escape.h"
 #include "webserver_can_streaming.h"
 
@@ -182,6 +187,35 @@ void canReplayTask(void* param) {
   isReplayRunning = false;  // Mark replay as stopped
   vTaskDelete(NULL);
 }
+
+#ifdef HW_UNIFIED_S3
+// Accumulates one uploaded board configuration. Uploads are handled one chunk at
+// a time and one at a time overall, so a single buffer is enough; it is capped
+// so that a large file cannot exhaust the heap before we reject it.
+static struct BoardConfigUpload {
+  std::string buffer;
+  std::vector<ConfigIssue> issues;
+  bool accepted = false;
+  bool overflowed = false;
+
+  void reset() {
+    buffer.clear();
+    buffer.reserve(4096);
+    issues.clear();
+    accepted = false;
+    overflowed = false;
+  }
+
+  void append(const uint8_t* data, size_t len) {
+    if (overflowed || buffer.length() + len > BOARD_CONFIG_MAX_BYTES) {
+      overflowed = true;
+      buffer.clear();
+      return;
+    }
+    buffer.append(reinterpret_cast<const char*>(data), len);
+  }
+} board_upload;
+#endif  // HW_UNIFIED_S3
 
 void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethodComposite method,
                          std::function<void(AsyncWebServerRequest*)> handler) {
@@ -453,6 +487,12 @@ void init_webserver() {
     BatteryEmulatorSettingsStore settings;
     settings.clearAll();
     erase_phy_cal_data();
+#ifdef HW_UNIFIED_S3
+    // The board config lives on the filesystem rather than in NVS, so clearing
+    // settings alone would leave the emulator configured for a board it is no
+    // longer meant to know about.
+    LittleFS.format();
+#endif
     LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("Factory reset performed from the web interface.");
     request->send(200, "text/html", "OK");
@@ -1004,6 +1044,103 @@ void init_webserver() {
                       [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
 
   // Route to handle reboot command
+#ifdef HW_UNIFIED_S3
+  // Hardware configuration page
+  def_route_with_auth("/hardware", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/html", hardware_html, hardware_processor);
+  });
+
+  // The active configuration, so a user can download it, change two pins and
+  // upload it back instead of writing a file from scratch.
+  def_route_with_auth("/board.json", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!LittleFS.exists(BOARD_CONFIG_PATH)) {
+      return request->send(404, "text/plain", "No board configuration stored");
+    }
+    request->send(LittleFS, BOARD_CONFIG_PATH, "application/json");
+  });
+
+  // Deliberately not under /hardware: a handler registered for a path also
+  // matches every URL below it, and the /hardware page above would answer this
+  // one instead. See AsyncCallbackWebHandler::canHandle.
+  def_route_with_auth("/boardfile", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("name")) {
+      return request->send(400, "text/plain", "Missing name");
+    }
+    String name = request->getParam("name")->value();
+    if (name.indexOf('/') >= 0 || name.indexOf('\\') >= 0 || name.startsWith(".")) {
+      return request->send(400, "text/plain", "Bad name");
+    }
+    String path = "/" + name;
+    if (!LittleFS.exists(path)) {
+      return request->send(404, "text/plain", "No such file");
+    }
+    request->send(LittleFS, path, "application/json", true);
+  });
+
+  server.on(
+      "/hardware/upload", HTTP_POST,
+      [](AsyncWebServerRequest* request) {
+        if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+          return request->requestAuthentication(AsyncAuthType::AUTH_BASIC, WEB_AUTH_REALM);
+        }
+        if (!board_upload.accepted) {
+          String body =
+              "<style>body{background-color:black;color:white;font-family:sans-serif}a{color:#8ab4f8}</style>"
+              "<h2>Configuration rejected</h2><p>Nothing was written; the emulator is still running the "
+              "configuration it had.</p><ul>";
+          for (const auto& issue : board_upload.issues) {
+            body += "<li>";
+            body += (issue.level == ConfigIssueLevel::Error) ? "Error: " : "Warning: ";
+            if (!issue.port.empty()) {
+              body += html_escape(issue.port.c_str()) + " &mdash; ";
+            }
+            body += html_escape(issue.text.c_str()) + "</li>";
+          }
+          body += "</ul><p><a href='/hardware' style='color:#8ab4f8'>Back</a></p>";
+          return request->send(400, "text/html", body);
+        }
+        request->send(200, "text/html",
+                      "<style>body{background-color:black;color:white;font-family:sans-serif}</style>"
+                      "<h2>Configuration stored</h2><p>Rebooting to apply it. This page will return to the main "
+                      "page in a few seconds.</p>"
+                      "<script>setTimeout(function(){window.location='/';},6000);</script>");
+        hold_pins_across_reset();
+        graceful_restart();
+      },
+      [](AsyncWebServerRequest* request, const String& filename, size_t index, uint8_t* data, size_t len, bool final) {
+        if (webserver_auth_is_ready() && !request->authenticate(http_username.c_str(), http_password.c_str())) {
+          return;
+        }
+        if (index == 0) {
+          board_upload.reset();
+        }
+        board_upload.append(data, len);
+        if (!final) {
+          return;
+        }
+        // Validate in RAM first: a file that cannot be parsed never reaches flash,
+        // so a bad upload can't leave the board with no way back.
+        if (board_upload.overflowed) {
+          board_upload.issues.push_back(
+              {ConfigIssueLevel::Error, "",
+               "File is larger than the " + std::to_string(BOARD_CONFIG_MAX_BYTES) + " byte limit"});
+          return;
+        }
+        if (!validate_board_config(board_upload.buffer.c_str(), board_upload.buffer.length(), board_upload.issues)) {
+          return;
+        }
+        for (const auto& issue : board_upload.issues) {
+          if (issue.level == ConfigIssueLevel::Error) {
+            return;  // ports failed validation; let the user fix the file first
+          }
+        }
+        board_upload.accepted = store_board_config(board_upload.buffer.c_str(), board_upload.buffer.length());
+        if (!board_upload.accepted) {
+          board_upload.issues.push_back({ConfigIssueLevel::Error, "", "Could not write the file to flash"});
+        }
+      });
+#endif  // HW_UNIFIED_S3
+
   def_route_with_auth("/reboot", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
     hold_pins_across_reset();
@@ -1119,6 +1256,11 @@ String processor(const String& var) {
 #ifdef HW_WAVESHARE
     content += " running on Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
+#ifdef HW_UNIFIED_S3
+    // esp32hal->name() reports the board the configuration names, or
+    // "Unconfigured hardware" when nothing has been loaded yet.
+    content += " running on " + html_escape(esp32hal->name());
+#endif  // HW_UNIFIED_S3
     if (datalayer.system.info.CPU_measurement_enabled) {
       content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C";
     }
@@ -1183,6 +1325,32 @@ String processor(const String& var) {
 
     // Close the block
     content += "</div>";
+
+#ifdef HW_UNIFIED_S3
+    // Without a board config there is no battery, inverter, charger or contactor
+    // to report on, and none of the pages about them would have anything to show.
+    // The first card plus a short button row is the whole page until one loads.
+    if (!board_config.valid) {
+      content += "<button onclick='Hardware()'>Hardware configuration</button> ";
+      content += "<button onclick='Settings()'>Change Settings</button> ";
+      content += "<button onclick='OTA()'>Perform OTA update</button> ";
+      content += "<button onclick='Events()'>Events</button> ";
+      content += "<button onclick='askReboot()'>Reboot Emulator</button> ";
+      if (webserver_auth) {
+        content += "<button onclick='logout()'>Logout</button>";
+      }
+      content += "<script>";
+      content += "function Hardware() { window.location.href = '/hardware'; }";
+      content += "function Settings() { window.location.href = '/settings'; }";
+      content += "function OTA() { window.location.href = '/update'; }";
+      content += "function Events() { window.location.href = '/events'; }";
+      if (webserver_auth) {
+        content += "function logout() { window.location.href = '/logout'; }";
+      }
+      content += "</script>";
+      return content;
+    }
+#endif  // HW_UNIFIED_S3
 
     if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
@@ -1745,6 +1913,9 @@ String processor(const String& var) {
 
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
+#ifdef HW_UNIFIED_S3
+    content += "<button onclick='Hardware()'>Hardware configuration</button> ";
+#endif  // HW_UNIFIED_S3
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
@@ -1779,6 +1950,9 @@ String processor(const String& var) {
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
+#ifdef HW_UNIFIED_S3
+    content += "function Hardware() { window.location.href = '/hardware'; }";
+#endif  // HW_UNIFIED_S3
     content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function CANlog() { window.location.href = '/canlog'; }";
     content += "function CANreplay() { window.location.href = '/canreplay'; }";

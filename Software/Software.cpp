@@ -18,6 +18,7 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
+#include "src/devboard/hal/board_config.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -37,7 +38,7 @@
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
-    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT) && !defined(HW_DFROBOT_EDGE101)
+    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT) && !defined(HW_DFROBOT_EDGE101) && !defined(HW_UNIFIED_S3)
 #error You must select a target hardware!
 #endif
 
@@ -78,7 +79,7 @@ void init_serial() {
   // availableForWrite() report ring-buffer space rather than raw FIFO space.
   Serial.setTxBufferSize(1024);
   Serial.begin(115200);
-#if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE)
+#if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE || HW_UNIFIED_S3)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.
@@ -767,45 +768,56 @@ void setup() {
   }
 #endif  // SDCARD
 
-  init_contactors();
+#ifdef HW_UNIFIED_S3
+  // Minimal mode: with no board config there are no pins to drive, and every init
+  // below would allocate pins the configuration never named. Skipping the block
+  // keeps one clear log line instead of a screenful of GPIO_NOT_DEFINED events.
+  if (board_config.valid) {
+#endif
+    init_contactors();
 
-  // Release any pins latched across the reboot. MUST run after init_contactors(), which
-  // re-drives held pins (e.g. BMS_POWER HIGH) to their intended level while still latched;
-  // releasing then hands that level to the pad with no glitch. Runs unconditionally so a
-  // stale hold from a previous session is always cleared. No-op on boards without hold pins.
-  release_pins_across_reset();
+    // Release any pins latched across the reboot. MUST run after init_contactors(), which
+    // re-drives held pins (e.g. BMS_POWER HIGH) to their intended level while still latched;
+    // releasing then hands that level to the pad with no glitch. Runs unconditionally so a
+    // stale hold from a previous session is always cleared. No-op on boards without hold pins.
+    release_pins_across_reset();
 
-  init_precharge_control();
+    init_precharge_control();
 
-  init_rs485();
+    init_rs485();
 
-  setup_charger();
-  setup_inverter();
-  setup_battery();
+    setup_charger();
+    setup_inverter();
+    setup_battery();
 
-  /* Some battery types mandate the SOC-based charge power taper. Enforce at
-     runtime regardless of stored settings, and restrict the start SOC to
-     50-85% (band 1500-5000 pptt) for them. The settings UI reflects this by
-     rendering the checkbox checked and disabled. */
-  if (battery && battery->mandatory_charge_taper()) {
-    if (!charge_taper_soc) {
-      charge_taper_soc = true;
-      logging.println("Charge power tapering based on SOC is mandatory for this battery type, enabling");
+    /* Some battery types mandate the SOC-based charge power taper. Enforce at
+       runtime regardless of stored settings, and restrict the start SOC to
+       50-85% (band 1500-5000 pptt) for them. The settings UI reflects this by
+       rendering the checkbox checked and disabled. */
+    if (battery && battery->mandatory_charge_taper()) {
+      if (!charge_taper_soc) {
+        charge_taper_soc = true;
+        logging.println("Charge power tapering based on SOC is mandatory for this battery type, enabling");
+      }
+      if (charge_taper_band_pptt < 1500) {
+        charge_taper_band_pptt = 1500;  // Start SOC capped at 85% for mandatory-taper batteries
+        logging.println("Charge taper start SOC limited to 85% for this battery type");
+      } else if (charge_taper_band_pptt > 5000) {
+        charge_taper_band_pptt = 5000;  // Start SOC raised to 50% minimum
+      }
     }
-    if (charge_taper_band_pptt < 1500) {
-      charge_taper_band_pptt = 1500;  // Start SOC capped at 85% for mandatory-taper batteries
-      logging.println("Charge taper start SOC limited to 85% for this battery type");
-    } else if (charge_taper_band_pptt > 5000) {
-      charge_taper_band_pptt = 5000;  // Start SOC raised to 50% minimum
-    }
+
+    setup_shunt();
+
+    // Init CAN only after any CAN receivers have had a chance to register.
+    init_CAN();
+
+    init_equipment_stop_button();
+#ifdef HW_UNIFIED_S3
+  } else {
+    logging.println("No hardware configuration loaded - upload one from the web UI to enable the rest");
   }
-
-  setup_shunt();
-
-  // Init CAN only after any CAN receivers have had a chance to register.
-  init_CAN();
-
-  init_equipment_stop_button();
+#endif
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);

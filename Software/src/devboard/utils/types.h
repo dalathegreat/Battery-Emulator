@@ -148,6 +148,7 @@ enum class GPIOOPT1 {
 };
 extern GPIOOPT1 user_selected_gpioopt1;
 #endif
+#ifdef HW_LILYGO
 enum class GPIOOPT2 {
   // T-CAN485: Default, BMS power on PIN18
   DEFAULT_OPT_BMS_POWER_18 = 0,
@@ -169,6 +170,10 @@ enum class GPIOOPT4 {
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
+extern GPIOOPT2 user_selected_gpioopt2;
+extern GPIOOPT3 user_selected_gpioopt3;
+extern GPIOOPT4 user_selected_gpioopt4;
+#endif  // HW_LILYGO
 #ifdef HW_STARK
 enum class GPIOOPT5 {
   // StarkCMR: Default, Gpio23 as BMS power
@@ -189,14 +194,10 @@ enum class GPIOOPT6 {
 };
 extern GPIOOPT6 user_selected_gpioopt6;
 #endif
-extern GPIOOPT2 user_selected_gpioopt2;
-extern GPIOOPT3 user_selected_gpioopt3;
-
 /* The system runs standalone, so events reporting the absence of a
  * grid-tied inverter are not faults. Owned core-side because the core
  * events engine is what consumes it; any inverter can be run offgrid, so it
  * describes the installation rather than a protocol capability. */
 extern bool user_selected_inverter_offgrid;
-extern GPIOOPT4 user_selected_gpioopt4;
 
 #endif

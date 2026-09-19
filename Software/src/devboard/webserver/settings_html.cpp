@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../hal/board_config.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
@@ -172,6 +173,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   }
 }
 #endif
+#ifdef HW_LILYGO
 const char* name_for_gpioopt2(GPIOOPT2 option) {
   switch (option) {
     case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
@@ -205,6 +207,7 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return nullptr;
   }
 }
+#endif  // HW_LILYGO
 
 #ifdef HW_STARK
 const char* name_for_gpioopt5(GPIOOPT5 option) {
@@ -277,6 +280,18 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+  if (var == "HWCFGCSS") {
+#ifdef HW_UNIFIED_S3
+    // Battery, inverter, charger and integration settings all describe hardware
+    // the emulator cannot reach until a board config names its pins. Hiding them
+    // in CSS keeps one copy of the form rather than a second cut-down template.
+    if (!board_config.valid) {
+      return ".needs-hw { display: none; }";
+    }
+#endif
+    return ".needs-hw-notice { display: none; }";
+  }
+
   if (var == "BTRCAPCSS") {
     return capability_css("if-dblcapable", battery_supports_double) +
            capability_css("if-tricapable", battery_supports_triple);
@@ -396,6 +411,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
+#ifdef HW_LILYGO
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -410,6 +426,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
+#endif  // HW_LILYGO
 #ifdef HW_STARK
   if (var == "GPIOOPT5") {
     return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
@@ -1397,6 +1414,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     .hidden {
       display: none;
     }
+    %HWCFGCSS%
     .active {
       color: white;
     }
@@ -1650,6 +1668,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
+  <div class="needs-hw-notice">
+    <p>No hardware configuration is loaded, so only the network and web interface
+    settings are shown. <a href="/hardware" style="color:#8ab4f8">Upload a board
+    configuration</a> to unlock the rest.</p>
+  </div>
 
   <script>
   function validateWebAuthPassword() {
@@ -1796,7 +1819,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Battery config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -1960,7 +1983,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
       <h3>Inverter config</h3>
       <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2102,7 +2125,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2155,7 +2178,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Hardware config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2254,7 +2277,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2323,7 +2346,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Debug options</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2377,17 +2400,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     </div>
     </div>
 
+      <div class="needs-hw">
+
       <h4 style='color: white;'>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
       <h4 style='color: white;' class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
 
       <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
-      
+
       <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
+
+      </div>
 
     </div>
 
-    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="needs-hw">
 
       <h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
@@ -2416,13 +2443,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     </div>
 
-    <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS%">
+    <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS% needs-hw">
       <h4 style='color: white;'><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
     </div>
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
       
-    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
+    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS% needs-hw">
 
           <h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>
@@ -2439,7 +2466,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     </div>
 
-     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS% needs-hw">
 
       <h4 style='color: white;'>
         Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
