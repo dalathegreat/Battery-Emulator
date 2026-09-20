@@ -31,7 +31,8 @@ String hardware_processor(const String& var) {
   content += ".row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin-bottom:12px}";
   content += ".row>.card{flex:1 1 320px;margin-bottom:0}</style>";
 
-  content += "<button onclick=\"window.location.href='/'\">Back to main page</button>";
+  content += "<button onclick=\"window.location.href='/'\">Back to main page</button> ";
+  content += "<button onclick=\"window.location.href='/settings'\">Change settings</button>";
 
   // Active configuration: every port the file describes, in file order, with the
   // ones it did not enable greyed out. Driven by what the parser recorded, so a

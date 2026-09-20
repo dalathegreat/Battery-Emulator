@@ -321,6 +321,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return "";
   }
 
+  if (var == "HWCFGBTN") {
+#ifdef HW_UNIFIED_S3
+    return "<button onclick=\"window.location.href='/hardware'\">Hardware configuration</button>";
+#else
+    return "";
+#endif
+  }
+
   if (var == "HWCFGNOTICE") {
 #ifdef HW_UNIFIED_S3
     if (!board_config.valid) {
@@ -1913,6 +1921,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define SETTINGS_HTML_BODY \
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
+  %HWCFGBTN%
   <button onclick="askFactoryReset()">Factory reset</button>
   %HWCFGNOTICE%
 
