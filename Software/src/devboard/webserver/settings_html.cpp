@@ -333,7 +333,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 #ifdef HW_UNIFIED_S3
     if (!board_config.valid) {
       return "<div>"
-             "<p>No hardware configuration is loaded, so only the network and web interface settings are shown. "
+             "<p>No hardware configuration is loaded, only the network and web interface settings are shown. "
              "<a href=\"/hardware\" style=\"color:#8ab4f8\">Upload a board configuration</a> to unlock the rest.</p>"
              "</div>";
     }
@@ -2414,7 +2414,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
 
         <div class="settings-card needs-hw">
-        <h3>Hardware config</h3>
+        <h3>Hardware settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Equipment stop button: </label><select name='EQSTOP'>
