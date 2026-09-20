@@ -1713,7 +1713,7 @@ String processor(const String& var) {
 
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
-    content += "<button onclick='Advanced()'>More Battery Info</button> ";
+    content += "<button onclick='Advanced()'>More Battery/Cell Info</button> ";
     content += "<button onclick='CANtools()'>CAN tools</button> ";
     if (datalayer.system.info.web_logging_active
 #ifdef SDCARD
