@@ -572,6 +572,17 @@ bool validate_board_config(const char* json, size_t length, std::vector<ConfigIs
   return true;
 }
 
+void erase_board_config() {
+  // Formats rather than removing the files one by one, so nothing is left behind
+  // by a name this build does not know about.
+  if (LittleFS.format()) {
+    logging.println("Board config: filesystem formatted");
+  } else {
+    logging.println("Board config: filesystem could not be formatted");
+  }
+  board_config = BoardConfig();
+}
+
 bool store_board_config(const char* json, size_t length) {
   LittleFS.remove(BOARD_CONFIG_BACKUP_PATH);
   if (LittleFS.exists(BOARD_CONFIG_PATH)) {
