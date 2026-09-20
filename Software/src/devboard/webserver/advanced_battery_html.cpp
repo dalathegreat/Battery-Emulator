@@ -88,20 +88,12 @@ Battery* battery_at(unsigned index) {
   }
 }
 
-const char page_start[] = INDEX_HTML_HEADER R"html(
-<style>
-body{background:black;color:white}h4{margin:.6em 0;line-height:1.2}
-button,.battery-tab{background:#505E67;color:white;border:0;padding:10px 20px;margin:5px;
-cursor:pointer;border-radius:10px;display:inline-block;text-decoration:none;font:inherit}
-button:hover,.battery-tab:hover{background:#3A4A52}
-.battery-tab[aria-current=page]{background:#287c58;outline:2px solid #69c999}
-.battery-panel{background:#303E47;padding:10px;margin-bottom:10px;border-radius:24px}
+// The Cellmonitor link carries location.search along, so the pack selected here stays selected
+// there. Costs nothing in flash: the query string is read in the browser, not built on the ESP.
+const char page_start[] = INDEX_HTML_HEADER INDEX_HTML_SUBPAGE_STYLE R"html(h4{margin:.6em 0;line-height:1.2}
 </style>
-<script>
-function goToMainPage(){window.location.href='/';}
-function exportLog(){window.location.href='/export_log';}
-</script>
-<button onclick='goToMainPage()'>Back to main page</button>
+<button onclick="location.href='/'">Back to main page</button>
+<button onclick="location.href='/cellmonitor'+location.search">Cellmonitor</button>
 <nav aria-label='Battery selection'>
 )html";
 const char page_end[] = "</div>" INDEX_HTML_FOOTER;

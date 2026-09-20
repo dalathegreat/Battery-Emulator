@@ -1537,6 +1537,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    /* Economizing applies to every contactor the emulator drives, not just the main
+       pair, so the PWM settings stay available whenever any of the three is enabled. */
+    form .if-anycntctrl { display: none; }
+    form[data-cntctrl="true"] .if-anycntctrl,
+    form[data-cntctrldbl="true"] .if-anycntctrl,
+    form[data-cntctrltri="true"] .if-anycntctrl {
+      display: contents;
+    }
+
     form .if-cntctrl { display: none; }
     form[data-cntctrl="true"] .if-cntctrl {
       display: contents;
@@ -2168,6 +2177,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Contactor control via GPIO: </label>
         <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
 
+        <div class="if-dblbtr">
+            <label>2ⁿᵈ battery contactor control via GPIO: </label>
+            <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            <div class="if-tribtr">
+                <label>3ʳᵈ battery contactor control via GPIO: </label>
+                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
+            </div>
+        </div>
+
         <div class="if-cntctrl">
             <label>Precharge time ms: </label>
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
@@ -2177,7 +2195,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Use Normally Closed logic: </label>
             <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
             title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
+        </div>
 
+        <div class="if-anycntctrl">
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
 
@@ -2192,15 +2212,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             min="1" max="1023" step="1"
             title="1-1023 , lower value = lower power consumption" />
               </div>
-        </div>
-
-        <div class="if-dblbtr">
-            <label>2ⁿᵈ battery contactor control via GPIO: </label>
-            <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
-            <div class="if-tribtr">
-                <label>3ʳᵈ battery contactor control via GPIO: </label>
-                <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
-            </div>
         </div>
 
         <label>Periodic BMS reset: </label>
