@@ -1139,18 +1139,15 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("UUGP_ALLOW", false) ? "checked" : "";
   }
   if (var == "UUGP_STARTMODE_0") {
-      return settings.getUInt("UUGP_STARTMODE", 1) == 0
-              ? "selected"              : "";
+    return settings.getUInt("UUGP_STARTMODE", 1) == 0 ? "selected" : "";
   }
 
   if (var == "UUGP_STARTMODE_1") {
-      return settings.getUInt("UUGP_STARTMODE", 1) == 1
-              ? "selected"              : "";
+    return settings.getUInt("UUGP_STARTMODE", 1) == 1 ? "selected" : "";
   }
 
   if (var == "UUGP_STARTMODE_2") {
-      return settings.getUInt("UUGP_STARTMODE", 1) == 2
-              ? "selected"              : "";
+    return settings.getUInt("UUGP_STARTMODE", 1) == 2 ? "selected" : "";
   }
   return String();
 }

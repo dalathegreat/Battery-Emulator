@@ -420,12 +420,8 @@ void update_machineryprotection() {
   if (charger && charger->type() != ChargerType::UUGP) {
     // CAN chargers only. UUGP communicates over RS485.
     // If we go 60s without CAN messages we raise a warning.
-    check_can_component_alive(
-        datalayer.charger.CAN_charger_still_alive,
-        charger_detected,
-        EVENT_CAN_CHARGER_DETECTED,
-        EVENT_CAN_CHARGER_MISSING,
-        static_cast<CanCharger*>(charger)->interface());
+    check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
+                              EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
   }
 
   // UUGP communicates over RS485, so the CAN charger watchdog above
@@ -435,8 +431,7 @@ void update_machineryprotection() {
   // This is intentionally done before the final current-limit conversion
   // later in this function, which will also zero the corresponding current
   // limits.
-  if (charger && charger->type() == ChargerType::UUGP &&
-      !datalayer.charger.uugp_communication_ok) {
+  if (charger && charger->type() == ChargerType::UUGP && !datalayer.charger.uugp_communication_ok) {
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   }

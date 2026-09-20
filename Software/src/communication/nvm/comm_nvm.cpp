@@ -321,11 +321,9 @@ void init_stored_settings() {
     uugp_discharge_cutoff_soc = 80;
   }
 
-  uugp_allow_discharge_to_home_grid =
-     settings.getBool("UUGP_ALLOW", false);
+  uugp_allow_discharge_to_home_grid = settings.getBool("UUGP_ALLOW", false);
 
-  uugp_start_mode =
-   settings.getUInt("UUGP_STARTMODE", 1);
+  uugp_start_mode = settings.getUInt("UUGP_STARTMODE", 1);
 
   if (uugp_start_mode > 2) {
     uugp_start_mode = 1;

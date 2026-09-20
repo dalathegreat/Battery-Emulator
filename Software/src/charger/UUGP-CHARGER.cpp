@@ -175,15 +175,14 @@ void UUGPCharger::initialize_system_time() {
 
   localtime_r(&now, &local_time);
 
-  struct tm utc_time {};
+  struct tm utc_time{};
 
   gmtime_r(&now, &utc_time);
 
   time_t local_seconds = mktime(&local_time);
   time_t utc_seconds = mktime(&utc_time);
 
-  int32_t timezone_seconds =
-      static_cast<int32_t>(difftime(local_seconds, utc_seconds));
+  int32_t timezone_seconds = static_cast<int32_t>(difftime(local_seconds, utc_seconds));
 
   int32_t timezone_hours = timezone_seconds / 3600;
 
@@ -223,45 +222,45 @@ void UUGPCharger::initialize_system_time() {
 }
 
 void UUGPCharger::initialize_current_limiting() {
-    switch (initialization_step) {     
-        case 6:
-          // Never enable power during initialization. The charger must remain
-          // stopped until all initialization commands have been acknowledged.
-          write_single(REG_POWER_LIMIT, 0);
-          break;
-        case 7: {
-            uint16_t soc = uugp_discharge_cutoff_soc;
-            if (soc < 10 || soc > 90) {
-                soc = 80;
-            }
-            write_single(REG_DISCHARGE_CUTOFF_SOC, soc);
-            break;
-        }
-        case 8:
-            write_single(REG_CONTROL_MODE, 0);
-            break;
+  switch (initialization_step) {
+    case 6:
+      // Never enable power during initialization. The charger must remain
+      // stopped until all initialization commands have been acknowledged.
+      write_single(REG_POWER_LIMIT, 0);
+      break;
+    case 7: {
+      uint16_t soc = uugp_discharge_cutoff_soc;
+      if (soc < 10 || soc > 90) {
+        soc = 80;
+      }
+      write_single(REG_DISCHARGE_CUTOFF_SOC, soc);
+      break;
+    }
+    case 8:
+      write_single(REG_CONTROL_MODE, 0);
+      break;
   }
 }
 
 void UUGPCharger::initialize_pcs_information() {
-    const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
-    const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
+  const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
+  const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
 
-   switch (initialization_step) {
-     case 9:
-       write_single(REG_VBUS_UPPER, max_voltage_dV);
-       break;
-     case 10:
-       write_single(REG_VBUS_LOWER, max_voltage_dV);
-       break;
-     case 11:
-       write_single(REG_PCS_MODEL, pcs_model);
-       break;
-   }
- }
+  switch (initialization_step) {
+    case 9:
+      write_single(REG_VBUS_UPPER, max_voltage_dV);
+      break;
+    case 10:
+      write_single(REG_VBUS_LOWER, max_voltage_dV);
+      break;
+    case 11:
+      write_single(REG_PCS_MODEL, pcs_model);
+      break;
+  }
+}
 
-  void UUGPCharger::initialize_start_mode() {
-    /*
+void UUGPCharger::initialize_start_mode() {
+  /*
    * 4033:
    *
    * 0 = Default 485
@@ -270,361 +269,352 @@ void UUGPCharger::initialize_pcs_information() {
    *
    * Requested default = 1.
    */
- if (uugp_start_mode > 2) {
-   uugp_start_mode = 1;
- }
-
-    write_single(REG_START_MODE, uugp_start_mode);
+  if (uugp_start_mode > 2) {
+    uugp_start_mode = 1;
   }
 
-  void UUGPCharger::initialize() {
-    if (!ensure_serial()) {
-      return;
-    }
+  write_single(REG_START_MODE, uugp_start_mode);
+}
 
-    /*
+void UUGPCharger::initialize() {
+  if (!ensure_serial()) {
+    return;
+  }
+
+  /*
      * Every initialization write must be acknowledged before moving to
      * the next step. If the response never arrives, the same step is
      * retried after SETTING_INTERVAL_MS.
      */
-    if (initialization_waiting_for_ack) {
-      if (last_ack_transaction_id == expected_transaction_id) {
-        initialization_waiting_for_ack = false;
+  if (initialization_waiting_for_ack) {
+    if (last_ack_transaction_id == expected_transaction_id) {
+      initialization_waiting_for_ack = false;
 
-        ++initialization_step;
+      ++initialization_step;
 
-        if (initialization_step > 12) {
-          initialization_complete = true;
-        }
-
-        last_setting_ms = millis();
-        return;
-      }
-      // No valid acknowledgement yet. Re-send the same step below.
-    }
-
-    switch (initialization_step) {
-      case 0:
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-        initialize_system_time();
-        break;
-
-      case 6:
-      case 7:
-      case 8:
-        initialize_current_limiting();
-        break;
-
-      case 9:
-      case 10:
-      case 11:
-        initialize_pcs_information();
-        break;
-
-      case 12:
-        initialize_start_mode();
-        break;
-
-      default:
+      if (initialization_step > 12) {
         initialization_complete = true;
-        return;
-    }
+      }
 
-    initialization_waiting_for_ack = true;
-    last_setting_ms = millis();
+      last_setting_ms = millis();
+      return;
+    }
+    // No valid acknowledgement yet. Re-send the same step below.
   }
 
-  void UUGPCharger::update_power_limit() {
-    /*
+  switch (initialization_step) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+      initialize_system_time();
+      break;
+
+    case 6:
+    case 7:
+    case 8:
+      initialize_current_limiting();
+      break;
+
+    case 9:
+    case 10:
+    case 11:
+      initialize_pcs_information();
+      break;
+
+    case 12:
+      initialize_start_mode();
+      break;
+
+    default:
+      initialization_complete = true;
+      return;
+  }
+
+  initialization_waiting_for_ack = true;
+  last_setting_ms = millis();
+}
+
+void UUGPCharger::update_power_limit() {
+  /*
      * If communication has not been verified, never send a non-zero
      * power limit. The UUGP may otherwise retain a previously accepted
      * power setting.
      */
-    if (!datalayer.charger.uugp_communication_ok) {
-      write_single(REG_POWER_LIMIT, 0);
-      return;
-    }
+  if (!datalayer.charger.uugp_communication_ok) {
+    write_single(REG_POWER_LIMIT, 0);
+    return;
+  }
 
-    const uint16_t bms_limit = bms_power_limit_W();
-    uint16_t power_limit = bms_limit;
+  const uint16_t bms_limit = bms_power_limit_W();
+  uint16_t power_limit = bms_limit;
 
-    /*
+  /*
      * User configuration can reduce the BMS limit, but can never
      * increase it. The BMS/safety layer remains authoritative.
      */
-    if (uugp_allow_discharge_to_home_grid &&
-        uugp_power_limit_W < power_limit) {
-      power_limit = uugp_power_limit_W;
-    }
-
-    if (power_limit > 22000) {
-      power_limit = 22000;
-    }
-
-    write_single(REG_POWER_LIMIT, power_limit);
+  if (uugp_allow_discharge_to_home_grid && uugp_power_limit_W < power_limit) {
+    power_limit = uugp_power_limit_W;
   }
 
-  void UUGPCharger::poll_status() {
-    if (millis() - last_status_ms < STATUS_INTERVAL_MS) {
-      return;
-    }
+  if (power_limit > 22000) {
+    power_limit = 22000;
+  }
 
-    last_status_ms = millis();
+  write_single(REG_POWER_LIMIT, power_limit);
+}
 
-    switch (status_step) {
-      case 0:
-        /*
+void UUGPCharger::poll_status() {
+  if (millis() - last_status_ms < STATUS_INTERVAL_MS) {
+    return;
+  }
+
+  last_status_ms = millis();
+
+  switch (status_step) {
+    case 0:
+      /*
        * EV-side block:
        * 3020..3028
        */
-        read_registers(FC_READ_INPUT, REG_EV_VOLTAGE, 9);
-        status_step = 1;
-        break;
+      read_registers(FC_READ_INPUT, REG_EV_VOLTAGE, 9);
+      status_step = 1;
+      break;
 
-      case 1:
-        /*
+    case 1:
+      /*
        * DC-side block:
        * 302F..3031
        */
-        read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 3);
-        status_step = 2;
-        break;
+      read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 3);
+      status_step = 2;
+      break;
 
-      case 2:
-        /*
+    case 2:
+      /*
        * Charging information:
        * 3040..3044
        */
-        read_registers(FC_READ_INPUT, REG_CHARGE_MODE, 5);
-        status_step = 3;
-        break;
+      read_registers(FC_READ_INPUT, REG_CHARGE_MODE, 5);
+      status_step = 3;
+      break;
 
-      default:
-        /*
+    default:
+      /*
        * 4013 is controlled by the PCS/card/plug-and-charge logic,
        * so read its current value instead of continuously overriding it.
        */
-        read_registers(FC_READ_HOLDING, REG_CONTROL_MODE, 1);
-        status_step = 0;
-        break;
-    }
+      read_registers(FC_READ_HOLDING, REG_CONTROL_MODE, 1);
+      status_step = 0;
+      break;
+  }
+}
+
+void UUGPCharger::transmit(unsigned long currentMillis) {
+  (void)currentMillis;
+
+  if (!ensure_serial()) {
+    return;
   }
 
-  void UUGPCharger::transmit(unsigned long currentMillis) {
-    (void)currentMillis;
-
-    if (!ensure_serial()) {
-      return;
-    }
-
-  if (last_response_ms != 0 &&
-     millis() - last_response_ms > 3000) {
-   datalayer.charger.uugp_communication_ok = false;
+  if (last_response_ms != 0 && millis() - last_response_ms > 3000) {
+    datalayer.charger.uugp_communication_ok = false;
   }
 
-    if (!initialization_complete) {
-      if (initialization_step == 0 || millis() - last_setting_ms >= SETTING_INTERVAL_MS) {
-        initialize();
-      }
-
-      return;
+  if (!initialization_complete) {
+    if (initialization_step == 0 || millis() - last_setting_ms >= SETTING_INTERVAL_MS) {
+      initialize();
     }
 
-    /*
+    return;
+  }
+
+  /*
    * Keep 4011 synchronized with the selected policy.
    *
    * UUGP requires >=15 seconds between setting operations.
    */
-    if (millis() - last_setting_ms >= SETTING_INTERVAL_MS) {
-      update_power_limit();
-      last_setting_ms = millis();
-    }
-
-    poll_status();
+  if (millis() - last_setting_ms >= SETTING_INTERVAL_MS) {
+    update_power_limit();
+    last_setting_ms = millis();
   }
 
-  void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* values, uint16_t count) {
+  poll_status();
+}
 
-    if (address == REG_EV_VOLTAGE && count >= 9) {
-      datalayer.charger.uugp_ev_voltage_V = values[0];
-      datalayer.charger.uugp_ev_current_A = values[1];
-      datalayer.charger.uugp_power_factor = values[3];
-      datalayer.charger.uugp_max_output_voltage_V = values[6];
-      datalayer.charger.uugp_max_output_current_A = values[7];
-      datalayer.charger.uugp_rated_power_W = values[8];
-      return;
-    }
+void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* values, uint16_t count) {
 
-    if (address == REG_DC_VOLTAGE && count >= 3) {
-      datalayer.charger.uugp_dc_voltage_V = values[0] * 0.1f;
-
-      datalayer.charger.uugp_dc_current_A = static_cast<int16_t>(values[1]) * 0.1f;
-
-      datalayer.charger.uugp_dc_power_derating_kW = values[2] * 0.01f;
-
-      return;
-    }
-
-    if (address == REG_CHARGE_MODE && count >= 5) {
-      datalayer.charger.uugp_control_mode = values[0];
-
-      datalayer.charger.uugp_charging_voltage_V = values[1];
-
-      datalayer.charger.uugp_charging_current_A = values[2];
-
-      datalayer.charger.uugp_active_power_W = values[3];
-
-      datalayer.charger.uugp_vehicle_soc = values[4];
-
-      return;
-    }
+  if (address == REG_EV_VOLTAGE && count >= 9) {
+    datalayer.charger.uugp_ev_voltage_V = values[0];
+    datalayer.charger.uugp_ev_current_A = values[1];
+    datalayer.charger.uugp_power_factor = values[3];
+    datalayer.charger.uugp_max_output_voltage_V = values[6];
+    datalayer.charger.uugp_max_output_current_A = values[7];
+    datalayer.charger.uugp_rated_power_W = values[8];
+    return;
   }
 
-  void UUGPCharger::process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count) {
+  if (address == REG_DC_VOLTAGE && count >= 3) {
+    datalayer.charger.uugp_dc_voltage_V = values[0] * 0.1f;
 
-    if (address == REG_CONTROL_MODE && count >= 1) {
-      datalayer.charger.uugp_control_mode = values[0];
-    }
+    datalayer.charger.uugp_dc_current_A = static_cast<int16_t>(values[1]) * 0.1f;
+
+    datalayer.charger.uugp_dc_power_derating_kW = values[2] * 0.01f;
+
+    return;
   }
 
-  void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
-    if (length < 9) {
-      return;
-    }
+  if (address == REG_CHARGE_MODE && count >= 5) {
+    datalayer.charger.uugp_control_mode = values[0];
 
-    if (frame[2] != 0 || frame[3] != 0 || frame[6] != UNIT_ID) {
-      return;
-    }
+    datalayer.charger.uugp_charging_voltage_V = values[1];
 
-    const uint16_t response_transaction =
-        (static_cast<uint16_t>(frame[0]) << 8) |
-        frame[1];
+    datalayer.charger.uugp_charging_current_A = values[2];
 
-    const uint8_t function = frame[7];
+    datalayer.charger.uugp_active_power_W = values[3];
 
-    /*
+    datalayer.charger.uugp_vehicle_soc = values[4];
+
+    return;
+  }
+}
+
+void UUGPCharger::process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count) {
+
+  if (address == REG_CONTROL_MODE && count >= 1) {
+    datalayer.charger.uugp_control_mode = values[0];
+  }
+}
+
+void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
+  if (length < 9) {
+    return;
+  }
+
+  if (frame[2] != 0 || frame[3] != 0 || frame[6] != UNIT_ID) {
+    return;
+  }
+
+  const uint16_t response_transaction = (static_cast<uint16_t>(frame[0]) << 8) | frame[1];
+
+  const uint8_t function = frame[7];
+
+  /*
      * Only accept a response to the request currently outstanding.
      * This is especially important for writes: a random/stale write
      * response must never make communication_ok true.
      */
-    if (response_transaction != expected_transaction_id) {
-      return;
-    }
+  if (response_transaction != expected_transaction_id) {
+    return;
+  }
 
-    /*
+  /*
      * Exception responses are never considered successful.
      */
-    if (function & 0x80) {
-      return;
-    }
+  if (function & 0x80) {
+    return;
+  }
 
-    if (function != expected_function) {
-      return;
-    }
+  if (function != expected_function) {
+    return;
+  }
 
-    if (function == FC_WRITE_SINGLE || function == FC_WRITE_MULTIPLE) {
-      /*
+  if (function == FC_WRITE_SINGLE || function == FC_WRITE_MULTIPLE) {
+    /*
        * Both write responses contain:
        * transaction + protocol + length + unit + function + 4 bytes data
        * => 12 bytes total.
        */
-      if (length != 12) {
-        return;
-      }
-
-      last_response_ms = millis();
-      last_ack_transaction_id = response_transaction;
-      datalayer.charger.uugp_communication_ok = true;
+    if (length != 12) {
       return;
-    }
-
-    if (function != FC_READ_INPUT && function != FC_READ_HOLDING) {
-      return;
-    }
-
-    const uint8_t byte_count = frame[8];
-
-    if ((byte_count & 1) != 0 ||
-        byte_count > 100 ||
-        9 + byte_count != length) {
-      return;
-    }
-
-    const uint16_t count = byte_count / 2;
-
-    if (count != expected_count) {
-      return;
-    }
-
-    uint16_t values[50];
-
-    for (uint16_t i = 0; i < count; ++i) {
-      values[i] =
-          (static_cast<uint16_t>(frame[9 + i * 2]) << 8) |
-          frame[10 + i * 2];
-    }
-
-    if (function == FC_READ_INPUT) {
-      process_input_registers(expected_register, values, count);
-    } else {
-      process_holding_registers(expected_register, values, count);
     }
 
     last_response_ms = millis();
+    last_ack_transaction_id = response_transaction;
     datalayer.charger.uugp_communication_ok = true;
+    return;
   }
 
-  void UUGPCharger::receive() {
-    if (!serial_initialized) {
+  if (function != FC_READ_INPUT && function != FC_READ_HOLDING) {
+    return;
+  }
+
+  const uint8_t byte_count = frame[8];
+
+  if ((byte_count & 1) != 0 || byte_count > 100 || 9 + byte_count != length) {
+    return;
+  }
+
+  const uint16_t count = byte_count / 2;
+
+  if (count != expected_count) {
+    return;
+  }
+
+  uint16_t values[50];
+
+  for (uint16_t i = 0; i < count; ++i) {
+    values[i] = (static_cast<uint16_t>(frame[9 + i * 2]) << 8) | frame[10 + i * 2];
+  }
+
+  if (function == FC_READ_INPUT) {
+    process_input_registers(expected_register, values, count);
+  } else {
+    process_holding_registers(expected_register, values, count);
+  }
+
+  last_response_ms = millis();
+  datalayer.charger.uugp_communication_ok = true;
+}
+
+void UUGPCharger::receive() {
+  if (!serial_initialized) {
+    return;
+  }
+
+  while (serial.available() > 0 && rx_length < sizeof(rx_buffer)) {
+    rx_buffer[rx_length++] = static_cast<uint8_t>(serial.read());
+  }
+
+  while (rx_length >= 8) {
+    /*
+     * Resynchronize to protocol identifier 0x0000.
+     */
+    if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
+
+      memmove(rx_buffer, rx_buffer + 1, --rx_length);
+
+      continue;
+    }
+
+    const uint16_t length = (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
+
+    /*
+     * length includes Unit ID + Function + data.
+     */
+    const size_t frame_length = 6 + length;
+
+    if (length < 2 || frame_length > sizeof(rx_buffer)) {
+
+      memmove(rx_buffer, rx_buffer + 1, --rx_length);
+
+      continue;
+    }
+
+    if (rx_length < frame_length) {
       return;
     }
 
-    while (serial.available() > 0 && rx_length < sizeof(rx_buffer)) {
-      rx_buffer[rx_length++] = static_cast<uint8_t>(serial.read());
+    process_response(rx_buffer, frame_length);
+
+    const size_t remaining = rx_length - frame_length;
+
+    if (remaining > 0) {
+      memmove(rx_buffer, rx_buffer + frame_length, remaining);
     }
 
-    while (rx_length >= 8) {
-      /*
-     * Resynchronize to protocol identifier 0x0000.
-     */
-      if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
-
-        memmove(rx_buffer, rx_buffer + 1, --rx_length);
-
-        continue;
-      }
-
-      const uint16_t length = (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
-
-      /*
-     * length includes Unit ID + Function + data.
-     */
-      const size_t frame_length = 6 + length;
-
-      if (length < 2 || frame_length > sizeof(rx_buffer)) {
-
-        memmove(rx_buffer, rx_buffer + 1, --rx_length);
-
-        continue;
-      }
-
-      if (rx_length < frame_length) {
-        return;
-      }
-
-      process_response(rx_buffer, frame_length);
-
-      const size_t remaining = rx_length - frame_length;
-
-      if (remaining > 0) {
-        memmove(rx_buffer, rx_buffer + frame_length, remaining);
-      }
-
-      rx_length = remaining;
-    }
+    rx_length = remaining;
   }
-
+}
