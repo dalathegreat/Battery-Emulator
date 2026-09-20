@@ -403,12 +403,15 @@ void update_machineryprotection() {
     }
   }
 
-  if (charger) {
-    // Assuming chargers are all CAN here.
-    // Check that the charger has been seen and is still sending CAN messages.
-    // If we go 60s without messages we raise a warning
-    check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
-                              EVENT_CAN_CHARGER_MISSING, charger->interface());
+  if (charger && charger->type() != ChargerType::UUGP) {
+    // CAN chargers only. UUGP communicates over RS485.
+    // If we go 60s without CAN messages we raise a warning.
+    check_can_component_alive(
+        datalayer.charger.CAN_charger_still_alive,
+        charger_detected,
+        EVENT_CAN_CHARGER_DETECTED,
+        EVENT_CAN_CHARGER_MISSING,
+        static_cast<CanCharger*>(charger)->interface());
   }
 
   // Additional Double-Battery safeties are checked here

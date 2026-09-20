@@ -186,18 +186,17 @@ void UUGPCharger::initialize_system_time() {
 
   localtime_r(&now, &local_time);
 
-  /*
-   * ESP32/newlib exposes the local UTC offset through tm_gmtoff.
-   * UUGP expects a signed 16-bit integer.
-   *
-   * Negative values therefore become two's-complement Uint16:
-   *
-   * -1 -> 0xffff
-   * -2 -> 0xfffe
-   * etc.
-   */
-  int32_t timezone_hours =
-      local_time.tm_gmtoff / 3600;
+  struct tm utc_time {};
+
+  gmtime_r(&now, &utc_time);
+
+  time_t local_seconds = mktime(&local_time);
+  time_t utc_seconds = mktime(&utc_time);
+
+  int32_t timezone_seconds =
+      static_cast<int32_t>(difftime(local_seconds, utc_seconds));
+
+  int32_t timezone_hours = timezone_seconds / 3600;
 
   if (timezone_hours < -12) {
     timezone_hours = -12;
@@ -253,7 +252,7 @@ void UUGPCharger::initialize_system_time() {
 }
 
 void UUGPCharger::initialize_current_limiting() {
-    switch (initialization_step) {     
+    switch (initialization_step) {   
         case 6:
           write_single(REG_POWER_LIMIT, 10000);
           break;
@@ -269,22 +268,23 @@ void UUGPCharger::initialize_current_limiting() {
             write_single(REG_CONTROL_MODE, 0);
             break;
             }
-
+          }
+          
 void UUGPCharger::initialize_pcs_information() {
     const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
     const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
 
-   switch (initialization_step) {
-     case 9:
-       write_single(REG_VBUS_UPPER, max_voltage_dV);
-       break;
-     case 10:
-       write_single(REG_VBUS_LOWER, max_voltage_dV);
-       break;
-     case 11:
-       write_single(REG_PCS_MODEL, pcs_model);
-       break;
-   }
+  switch (initialization_step) {
+   case 9:
+    write_single(REG_VBUS_UPPER, max_voltage_dV);
+    break;
+   case 10:
+    write_single(REG_VBUS_LOWER, max_voltage_dV);
+    break;
+   case 11:
+    write_single(REG_PCS_MODEL, pcs_model);
+    break;
+  }
  }
 
 void UUGPCharger::initialize_start_mode() {
@@ -298,7 +298,7 @@ void UUGPCharger::initialize_start_mode() {
    * Requested default = 1.
    */
  if (uugp_start_mode > 2) {
-   uugp_start_mode = 1;
+  uugp_start_mode = 1;
  }
 
  write_single(REG_START_MODE, uugp_start_mode);
@@ -431,8 +431,8 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
   }
 
   if (last_response_ms != 0 &&
-     millis() - last_response_ms > 3000) {
-   datalayer.charger.uugp_communication_ok = false;
+   millis() - last_response_ms > 3000) {
+  datalayer.charger.uugp_communication_ok = false;
   }
 
   if (!initialization_complete) {
@@ -547,11 +547,11 @@ void UUGPCharger::process_response(
     return;
   }
   const uint16_t response_transaction =
-     (static_cast<uint16_t>(frame[0]) << 8) |
-     frame[1];
+   (static_cast<uint16_t>(frame[0]) << 8) |
+   frame[1];
 
   if (response_transaction != expected_transaction_id) {
-    return;
+   return;
   }
 
   const uint8_t byte_count = frame[8];

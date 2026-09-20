@@ -190,7 +190,7 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
 const char* name_for_gpioopt4(GPIOOPT4 option) {
   switch (option) {
     case GPIOOPT4::DEFAULT_SD_CARD:
-      return "µSD Card";
+      return "SD Card";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT4::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
@@ -1099,18 +1099,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
              : "";
   }
   if (var == "UUGP_STARTMODE_0") {
-   return settings.getUInt("UUGP_STARTMODE", 1) == 0
-              ? "selected"              : "";
+  return settings.getUInt("UUGP_STARTMODE", 1) == 0
+       ? "selected"       : "";
   }
 
   if (var == "UUGP_STARTMODE_1") {
-     return settings.getUInt("UUGP_STARTMODE", 1) == 1
-              ? "selected"              : "";
+    return settings.getUInt("UUGP_STARTMODE", 1) == 1
+       ? "selected"       : "";
   }
 
   if (var == "UUGP_STARTMODE_2") {
-     return settings.getUInt("UUGP_STARTMODE", 1) == 2
-              ? "selected"              : "";
+    return settings.getUInt("UUGP_STARTMODE", 1) == 2
+       ? "selected"       : "";
   }
   return String();
 }
@@ -1171,7 +1171,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #ifdef HW_LILYGO
 #define GPIOOPT4_SETTING \
   R"rawliteral(
-    <label for="GPIOOPT4">µSD Slot:</label>
+    <label for="GPIOOPT4">SD Slot:</label>
     <select id="GPIOOPT4" name="GPIOOPT4">
       %GPIOOPT4%
     </select>
@@ -1783,15 +1783,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           min="1" max="10000" step="1"
           title="Max power per dV when approaching the discharge voltage limit" />
 
-          <label>Power change per °C above/below 0°C (W/°C): </label>
+          <label>Power change per C above/below 0C (W/C): </label>
           <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
           min="1" max="10000" step="1"
-          title="Max power added or removed per degree above or below 0°C" />
+          title="Max power added or removed per degree above or below 0C" />
 
-          <label>Power at 0°C (W): </label>
+          <label>Power at 0C (W): </label>
           <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
           min="0" max="100000" step="1"
-          title="Maximum allowed charge/discharge power at exactly 0°C" />
+          title="Maximum allowed charge/discharge power at exactly 0C" />
         </div>
 
         <div class="if-tesla">
@@ -2066,10 +2066,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
            step="1"
            title="UUGP discharge cut-off SOC." />
         <label>UUGP start mode: </label>
-        <select name='UUGP_STARTMODE'>
-          <option value="0" %UUGP_STARTMODE_0%>Default RS485</option>
-          <option value="1" %UUGP_STARTMODE_1%>Card swipe</option>
-          <option value="2" %UUGP_STARTMODE_2%>Plug &amp; charge</option>
+        <selectname='UUGP_STARTMODE'>
+         <optionvalue="0"%UUGP_STARTMODE_0%>Default RS485</option>
+         <optionvalue="1"%UUGP_STARTMODE_1%>Card swipe</option>
+         <optionvalue="2"%UUGP_STARTMODE_2%>Plug &amp; charge</option>
         </select>
         <p>
         UUGP communication: RS485, 9600 baud, 8N1.
@@ -2197,7 +2197,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
 
          <div class="if-measurecputemp">
-            <label>CPU temperature calibration offset (°C): </label>
+            <label>CPU temperature calibration offset (C): </label>
             <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
         </div>
 

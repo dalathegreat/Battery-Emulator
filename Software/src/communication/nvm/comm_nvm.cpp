@@ -298,22 +298,22 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
   uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
   if (uugp_power_limit_W > 22000) {
-     uugp_power_limit_W = 22000;
+    uugp_power_limit_W = 22000;
   }
 
   uugp_discharge_cutoff_soc = settings.getUInt("UUGP_DSOC", 80);
   if (uugp_discharge_cutoff_soc < 10 || uugp_discharge_cutoff_soc > 90) {
-     uugp_discharge_cutoff_soc = 80;
+    uugp_discharge_cutoff_soc = 80;
   }
 
   uugp_allow_discharge_to_home_grid =
-       settings.getBool("UUGP_ALLOW", false);
+     settings.getBool("UUGP_ALLOW", false);
 
   uugp_start_mode =
-     settings.getUInt("UUGP_STARTMODE", 1);
+   settings.getUInt("UUGP_STARTMODE", 1);
 
   if (uugp_start_mode > 2) {
-     uugp_start_mode = 1;
+    uugp_start_mode = 1;
   }
 }
 
@@ -337,7 +337,7 @@ void store_settings_equipment_stop() {
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
 }
 
-// Erase RF PHY calibration data (the "phy" NVS namespace — untouched by
+// Erase RF PHY calibration data (the "phy" NVS namespace  untouched by
 // clearAll(), which only clears our own settings namespace). A full RF
 // calibration runs on the next boot (~100 ms extra WiFi/RF init).
 void erase_phy_cal_data() {
