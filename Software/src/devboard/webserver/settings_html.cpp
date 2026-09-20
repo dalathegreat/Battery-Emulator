@@ -1922,7 +1922,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   %HWCFGBTN%
-  <button onclick="askFactoryReset()">Factory reset</button>
   %HWCFGNOTICE%
 
   <script>
@@ -2677,6 +2676,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
 )rawliteral" CHARGER_CARD_HTML R"rawliteral(
     
   </div>
+
+  <button onclick="askFactoryReset()">Factory reset</button>
 
 )rawliteral"
 
