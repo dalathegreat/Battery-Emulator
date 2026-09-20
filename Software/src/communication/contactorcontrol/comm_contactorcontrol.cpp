@@ -44,6 +44,10 @@ uint16_t pwm_hold_duty = 250;
 #define PWM_OFF_DUTY 0  //No need to have this userconfigurable
 #define PWM_Positive_Channel 0
 #define PWM_Negative_Channel 1
+#define PWM_Battery2_Channel 2
+#define PWM_Battery3_Channel 3
+#define EXTRA_CONTACTOR_PULL_IN_TIME_MS \
+  PRECHARGE_COMPLETED_TIME_MS  // Battery 2/3 coils are held at full duty for this long before being economized
 static uint32_t prechargeStartTime = 0;
 uint32_t negativeStartTime = 0;
 uint32_t prechargeCompletedTime = 0;
@@ -135,8 +139,13 @@ bool init_contactors() {
       return false;
     }
 
-    pinMode(second_contactors, OUTPUT);
-    set(second_contactors, OFF);
+    if (pwm_contactor_control) {
+      ledcAttachChannel(second_contactors, pwm_frequency, PWM_RESOLUTION, PWM_Battery2_Channel);
+      ledcWrite(second_contactors, PWM_OFF_DUTY);
+    } else {
+      pinMode(second_contactors, OUTPUT);
+      set(second_contactors, OFF);
+    }
   }
 
   if (contactor_control_enabled_triple_battery) {
@@ -146,8 +155,13 @@ bool init_contactors() {
       return false;
     }
 
-    pinMode(triple_contactors, OUTPUT);
-    set(triple_contactors, OFF);
+    if (pwm_contactor_control) {
+      ledcAttachChannel(triple_contactors, pwm_frequency, PWM_RESOLUTION, PWM_Battery3_Channel);
+      ledcWrite(triple_contactors, PWM_OFF_DUTY);
+    } else {
+      pinMode(triple_contactors, OUTPUT);
+      set(triple_contactors, OFF);
+    }
   }
 
   // Init BMS contactor
@@ -331,28 +345,44 @@ void handle_contactors() {
   }
 }
 
-void handle_contactors_battery2() {
-  auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
-
-  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing) {
-    set(second_contactors, ON);
-    datalayer.system.status.contactors_battery2_engaged = true;
-  } else {  // Closing contactors on secondary battery not allowed
-    set(second_contactors, OFF);
-    datalayer.system.status.contactors_battery2_engaged = false;
+/* Battery 2 and 3 each have a single contactor and no precharge stage of their own, they simply
+   close once the main ladder reaches COMPLETED. Every set() here passes an explicit duty so the
+   PWM path is taken when the user enabled economizing: full duty to pull the coil in, hold duty
+   once it has closed, and 0% to release it. Without PWM the duty argument is ignored and set()
+   falls back to digitalWrite exactly as before, so one call site serves both modes.
+   Note that millis() is read here rather than reusing the file-scope currentTime: these handlers
+   run before handle_contactors() refreshes it, and it is not refreshed at all on the COMPLETED
+   pass, which is precisely when these contactors are closed. */
+static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start) {
+  if (close_allowed) {
+    if (!engaged) {  // Rising edge, start the pull-in window
+      pull_in_start = millis();
+      engaged = true;
+    }
+    // Economize only after the coil has had the same pull-in time the main pair gets between
+    // closing and PRECHARGE_OFF. Dropping to hold duty any earlier risks the contactor not seating.
+    bool economize = pwm_contactor_control && ((millis() - pull_in_start) >= EXTRA_CONTACTOR_PULL_IN_TIME_MS);
+    set(pin, ON, economize ? pwm_hold_duty : PWM_ON_DUTY);
+  } else {  // Closing contactors on this battery not allowed
+    set(pin, OFF, PWM_OFF_DUTY);
+    engaged = false;
   }
 }
 
-void handle_contactors_battery3() {
-  auto third_contactors = esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN();
+void handle_contactors_battery2() {
+  static uint32_t pull_in_start = 0;
 
-  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing) {
-    set(third_contactors, ON);
-    datalayer.system.status.contactors_battery3_engaged = true;
-  } else {  // Closing contactors on secondary battery not allowed
-    set(third_contactors, OFF);
-    datalayer.system.status.contactors_battery3_engaged = false;
-  }
+  handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
+                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
+                         datalayer.system.status.contactors_battery2_engaged, pull_in_start);
+}
+
+void handle_contactors_battery3() {
+  static uint32_t pull_in_start = 0;
+
+  handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
+                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
+                         datalayer.system.status.contactors_battery3_engaged, pull_in_start);
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
