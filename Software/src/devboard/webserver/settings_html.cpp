@@ -1690,7 +1690,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   %HWCFGBTN%
-  <button onclick="askFactoryReset()">Factory reset</button>
   %HWCFGNOTICE%
 
   <script>
@@ -2500,6 +2499,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       </div>
     
   </div>
+
+  <button onclick="askFactoryReset()">Factory reset</button>
 
 )rawliteral"
 
