@@ -159,6 +159,8 @@ void init_stored_settings() {
   user_selected_accept_inverter_reboot = settings.getBool("INVACCREB", false);
   // Watchdog period the inverter last told us about, or the default if it never has
   inverter_modbus_watchdog_timeout_s = settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S);
+  user_selected_ECMP_mode = settings.getBool("ECMPMODE", false);
+  user_selected_MysteryVan_mode = settings.getBool("ECMPMODE2", false);
 
   auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
