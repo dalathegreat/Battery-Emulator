@@ -198,6 +198,7 @@ add_executable(tests
     ../Software/src/charger/CHARGERS.cpp
     ../Software/src/charger/CHEVY-VOLT-CHARGER.cpp
     ../Software/src/charger/NISSAN-LEAF-CHARGER.cpp
+    ../Software/src/charger/UUGP-CHARGER.cpp
     )
 
 target_link_libraries(tests
