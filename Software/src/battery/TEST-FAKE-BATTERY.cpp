@@ -1,5 +1,6 @@
 #include "TEST-FAKE-BATTERY.h"
 #include <Arduino.h>
+#include <esp_random.h>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/logging.h"
 
@@ -105,7 +106,11 @@ void TestFakeBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void TestFakeBattery::setup(void) {  // Performs one time setup at startup
-  randomSeed(analogRead(0));
+  // Seed from the hardware RNG rather than an ADC read. GPIO0 is ADC2_CH1 on the
+  // classic ESP32 but is not an ADC pin at all on the ESP32-S3, where every
+  // instance logged "Pin 0 is not ADC pin!" at boot; and because the failed read
+  // returns 0, the fake cell spread came out identical on every boot anyway.
+  randomSeed(esp_random());
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
