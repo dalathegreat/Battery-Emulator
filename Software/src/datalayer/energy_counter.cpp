@@ -20,6 +20,7 @@ struct CounterState {
   uint32_t previous_ms = 0;
   uint32_t checkpoint_ms = 0;
   bool initialized = false;
+  bool persistence_enabled = false;
 } counters;
 
 template <typename T>
@@ -46,6 +47,11 @@ void init_energy_counters(uint32_t now_ms) {
     return;
   }
   BatteryEmulatorSettingsStore settings(true);
+  counters.persistence_enabled = settings.getBool("ENERGYPERSIST", false);
+  if (!counters.persistence_enabled) {
+    return;
+  }
+
   auto& status = datalayer.battery.status;
   if (!battery->supports_charged_energy()) {
     status.total_charged_battery_Wh = std::max<int32_t>(0, settings.getInt("ENERGY_CHG_WH", 0));
@@ -88,7 +94,8 @@ void update_energy_counters(uint32_t now_ms) {
 }
 
 void store_energy_counters(uint32_t now_ms) {
-  if (!counters.initialized || !battery || now_ms - counters.checkpoint_ms < CHECKPOINT_MS) {
+  if (!counters.initialized || !battery || !counters.persistence_enabled ||
+      now_ms - counters.checkpoint_ms < CHECKPOINT_MS) {
     return;
   }
   counters.checkpoint_ms = now_ms;

@@ -30,6 +30,12 @@ class EnergyCounterTest : public testing::Test {
 
   void SetUp() override {
     Preferences::reset();
+
+    Preferences prefs;
+    ASSERT_TRUE(prefs.begin("batterySettings"));
+    prefs.putBool("ENERGYPERSIST", true);
+    prefs.end();
+
     select(false, false);
     ready();
   }
@@ -72,6 +78,74 @@ class EnergyCounterTest : public testing::Test {
   }
   unsigned writes(unsigned index) { return Preferences::writeCount("batterySettings", KEYS[index]); }
 };
+
+TEST_F(EnergyCounterTest, DisabledPersistenceCountsInRamWithoutTouchingSavedTotals) {
+  seed();
+
+  Preferences prefs;
+  ASSERT_TRUE(prefs.begin("batterySettings"));
+  prefs.putBool("ENERGYPERSIST", false);
+  prefs.end();
+
+  const unsigned saved_writes[4] = {
+      writes(0), writes(1), writes(2), writes(3)};
+
+  select(false, false);
+  expect(0, 0);
+
+  step(100, 36000);
+  expect(1, 0);
+
+  store_energy_counters(DAY_MS);
+
+  for (unsigned i = 0; i < 4; ++i) {
+    EXPECT_EQ(writes(i), saved_writes[i]);
+  }
+
+  Preferences saved;
+  ASSERT_TRUE(saved.begin("batterySettings"));
+  EXPECT_EQ(saved.getInt(KEYS[0], 0), 11);
+  EXPECT_EQ(saved.getInt(KEYS[1], 0), 22);
+  EXPECT_EQ(saved.getUInt(KEYS[2], 0), 33u);
+  EXPECT_EQ(saved.getUInt(KEYS[3], 0), 44u);
+  saved.end();
+}
+
+TEST_F(EnergyCounterTest, EnablingPersistenceRequiresRestartBeforeSaving) {
+  seed();
+
+  Preferences prefs;
+  ASSERT_TRUE(prefs.begin("batterySettings"));
+  prefs.putBool("ENERGYPERSIST", false);
+  prefs.end();
+
+  select(false, false);
+  expect(0, 0);
+
+  step(100, 36000);
+  expect(1, 0);
+
+  ASSERT_TRUE(prefs.begin("batterySettings"));
+  prefs.putBool("ENERGYPERSIST", true);
+  prefs.end();
+
+  store_energy_counters(DAY_MS);
+
+  Preferences saved;
+  ASSERT_TRUE(saved.begin("batterySettings"));
+  EXPECT_EQ(saved.getInt(KEYS[0], 0), 11);
+  EXPECT_EQ(saved.getInt(KEYS[1], 0), 22);
+  EXPECT_EQ(saved.getUInt(KEYS[2], 0), 33u);
+  EXPECT_EQ(saved.getUInt(KEYS[3], 0), 44u);
+  saved.end();
+
+  now = 0;
+  select(false, false);
+  EXPECT_EQ(status.total_charged_battery_Wh, 11);
+  EXPECT_EQ(status.total_discharged_battery_Wh, 22);
+  EXPECT_EQ(status.total_charged_battery_dAh, 33u);
+  EXPECT_EQ(status.total_discharged_battery_dAh, 44u);
+}
 
 TEST_F(EnergyCounterTest, DirectionAndActualElapsedMilliseconds) {
   step(100, 12345);
