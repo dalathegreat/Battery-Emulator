@@ -1208,7 +1208,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #ifdef HW_LILYGO
 #define GPIOOPT4_SETTING \
   R"rawliteral(
-    <label for="GPIOOPT4">SD Slot:</label>
+    <label for="GPIOOPT4">uSD Slot:</label>
     <select id="GPIOOPT4" name="GPIOOPT4">
       %GPIOOPT4%
     </select>
@@ -1866,15 +1866,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           min="1" max="10000" step="1"
           title="Max power per dV when approaching the discharge voltage limit" />
 
-          <label>Power change per C above/below 0C (W/C): </label>
+          <label>Power change per °C above/below 0°C (W/°C): </label>
           <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
           min="1" max="10000" step="1"
-          title="Max power added or removed per degree above or below 0C" />
+          title="Max power added or removed per degree above or below 0°C" />
 
-          <label>Power at 0C (W): </label>
+          <label>Power at 0°C (W): </label>
           <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
           min="0" max="100000" step="1"
-          title="Maximum allowed charge/discharge power at exactly 0C" />
+          title="Maximum allowed charge/discharge power at exactly 0°C" />
         </div>
 
         <div class="if-tesla">
@@ -2295,7 +2295,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
 
          <div class="if-measurecputemp">
-            <label>CPU temperature calibration offset (C): </label>
+            <label>CPU temperature calibration offset (°C): </label>
             <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
         </div>
 
