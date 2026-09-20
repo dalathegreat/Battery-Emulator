@@ -18,8 +18,10 @@ String hardware_processor(const String& var) {
   String content;
 
   content += "<style>body{background-color:black;color:white}";
+  // Same rule as the settings page, so the row of buttons at the top of the two
+  // pages that have one matches. The compact padding is what PR #2994 settled on.
   content +=
-      "button{background-color:#505E67;color:white;border:none;padding:10px 20px;margin-bottom:20px;"
+      "button{background-color:#505E67;color:white;border:none;padding:6px 20px;margin-bottom:15px;"
       "cursor:pointer;border-radius:10px}";
   content += "button:hover{background-color:#3A4A52}";
   content += ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left}";
