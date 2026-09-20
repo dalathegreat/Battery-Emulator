@@ -541,8 +541,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "ENERGYPERSIST") {
-  return settings.getBool("ENERGYPERSIST", false) ? "checked" : "";
-}
+    return settings.getBool("ENERGYPERSIST", false) ? "checked" : "";
+  }
 
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";

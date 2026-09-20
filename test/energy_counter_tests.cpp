@@ -87,8 +87,7 @@ TEST_F(EnergyCounterTest, DisabledPersistenceCountsInRamWithoutTouchingSavedTota
   prefs.putBool("ENERGYPERSIST", false);
   prefs.end();
 
-  const unsigned saved_writes[4] = {
-      writes(0), writes(1), writes(2), writes(3)};
+  const unsigned saved_writes[4] = {writes(0), writes(1), writes(2), writes(3)};
 
   select(false, false);
   expect(0, 0);
