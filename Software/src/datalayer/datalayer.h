@@ -6,6 +6,10 @@
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
+static inline int32_t current_dA_to_power_W(int16_t current_dA, uint16_t voltage_dV) {
+  return ((int32_t)voltage_dV * (int32_t)current_dA) / 100;
+}
+
 // Per-battery DTC storage to allow common display code
 struct DATALAYER_BATTERY_DTC_TYPE {
   static constexpr int MAX_DTC_COUNT = 32;
@@ -141,6 +145,15 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    * insulation_resistance_kOhm sample. Not available for all battery types.
    */
   bool insulation_resistance_available = false;
+
+  /** False while the integration has not yet decoded a real state of health, so the
+   * webserver and MQTT can report it as unknown instead of showing the soh_pptt default
+   * as if it were a reading. Defaults to true: integrations that always have an SOH to
+   * report, or that deliberately publish a fixed one, need no change.
+   * Note that soh_pptt itself keeps a safe default either way. It feeds the inverter
+   * protocols and the safety layer, neither of which has an "unknown" to fall back on.
+   */
+  bool soh_available = true;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -335,6 +348,12 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
+
+  /** uint8_t, how many battery packs are actually running: 1, 2 or 3. Set by setup_battery()
+      once the pack objects exist, so it reflects what was created rather than what was ticked
+      in the settings - a type that does not support parallel packs leaves this at 1. Read by
+      events.cpp to decide whether an event message needs to name its pack. */
+  uint8_t configured_batteries = 1;
 
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;

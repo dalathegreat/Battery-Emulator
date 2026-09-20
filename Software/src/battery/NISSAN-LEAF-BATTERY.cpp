@@ -10,6 +10,7 @@
 #include "../devboard/utils/logging.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
+#ifndef SMALL_FLASH_DEVICE
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
 unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2);
@@ -18,19 +19,26 @@ short ShortMaskedSumAndProduct(short param_1, short param_2);
 unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
 unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 
-// Note this should only be allowed/used on 2011-2017 24/30kWh batteries!
+//The degradation reset is only for 2011-2017 24/30kWh ZE0/AZE0 packs, and only for one that is on
+//the bus right now. The generation defaults to ZE0 until a ZE1-only broadcast says otherwise, so
+//before this pack has sent anything it cannot be told apart from a ZE1. battery_can_alive latches on
+//its first 0x5BC; the alive counter alone is no proof, as it starts just short of CAN_STILL_ALIVE at
+//boot and only reaches zero a minute after the pack falls silent.
 bool NissanLeafBattery::supports_reset_SOH() {
-  return LEAF_battery_Type != ZE1_BATTERY;
+  return battery_can_alive && datalayer_battery->status.CAN_battery_still_alive &&
+         (LEAF_battery_Type == ZE0_BATTERY || LEAF_battery_Type == AZE0_BATTERY);
 }
+#endif
 
 void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
   if (new_status == datalayer_battery->status.balancing_status) {
     return;
   }
   if (new_status == BALANCING_STATUS_ACTIVE) {
-    set_event_latched(EVENT_BALANCING_START, 0);
+    set_event_latched(EVENT_BALANCING_START, 0, battery_index);
   } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+    set_event(EVENT_BALANCING_END, 0,
+              battery_index);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
   }
   datalayer_battery->status.balancing_status = new_status;
 }
@@ -39,19 +47,93 @@ void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
-  datalayer_battery->status.soh_pptt = (battery_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+  //The state of health the LBC itself publishes: the polled health block when it has answered,
+  //since that carries hundredths of a percent, otherwise the broadcast value in 0x5BC at whole
+  //percent. This figure is erased along with the degradation data, so a pack that has had its
+  //degradation reset publishes 100% regardless of what it still holds. It is therefore kept for
+  //display next to the raw figure only, and no longer feeds soh_pptt - see the capacity block
+  //below for what does.
+  if (battery_SOH_pptt_g61 != 0) {
+    battery_SOH_avg_pptt = battery_SOH_pptt_g61;
+  } else if (battery_StateOfHealth != 0) {
+    battery_SOH_avg_pptt = (battery_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+  }
 
   datalayer_battery->status.real_soc = (battery_SOC * 10);
 
   datalayer_battery->status.voltage_dV =
       (battery_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  datalayer_battery->status.current_dA =
-      (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  // Publish the mean current seen on the 0x1DB CAN stream since the previous
+  // update_values() call. The raw accumulator is fed from every received frame,
+  // so this remains representative even though the normal datalayer update is 1 Hz.
+  if (battery_Current2_sample_count > 0) {
+    // Calculate the mean directly in dA before publishing so the fractional
+    // part of the raw 0.5 A samples is preserved. Round symmetrically around zero.
+    const int32_t current_dA_sum = battery_Current2_sum_raw * 5;
+    if (current_dA_sum >= 0) {
+      datalayer_battery->status.current_dA =
+          (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) / battery_Current2_sample_count);
+    } else {
+      datalayer_battery->status.current_dA =
+          (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) / battery_Current2_sample_count);
+    }
+  }
 
-  datalayer_battery->info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID * battery_StateOfHealth) / 100);
+  // Publish the extremes captured over the same window for safety checks. Kept separate
+  // from current_dA so short excursions are not hidden by averaging. Both accumulators
+  // start at zero, so a window with current in one direction only reports zero for the
+  // other, which is the neutral value for both comparisons.
+  battery_Current2_peak_max_published_dA = battery_Current2_peak_max_raw * 5;
+  battery_Current2_peak_min_published_dA = battery_Current2_peak_min_raw * 5;
 
-  datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
+  // Start the next accumulation window. update_machineryprotection() runs later
+  // in the same core loop and therefore consumes the values published above.
+  battery_Current2_sum_raw = 0;
+  battery_Current2_sample_count = 0;
+  battery_Current2_peak_max_raw = 0;
+  battery_Current2_peak_min_raw = 0;
+
+  //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
+  //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
+  //kWh packs) rather than something that tracks wear, which is what makes it usable as the
+  //reference the measured capacity is judged against.
+  const uint32_t capacity_as_new_Wh = (uint32_t)battery_Max_GIDS * WH_PER_GID;
+
+  //Actual capacity, and the state of health that follows from it. The capacity the LBC measures
+  //survives a degradation reset, so a pack that has had one still reports what it actually holds
+  //here even though the SOH it publishes has gone back to 100%. Comparing the two capacities is
+  //therefore the only figure that stays truthful on a reset pack.
+  //Held at the last known value until a capacity has been read, rather than collapsing to zero for
+  //the first seconds after boot.
+  if (battery_capacity_cAh != 0) {
+    //Hundredths of an Ah times deciVolts gives milliWatt-hours, so divide by a thousand.
+    const uint16_t nominal_dV =
+        (LEAF_battery_Type == ZE1_BATTERY) ? NOMINAL_VOLTAGE_DV_ZE1 : NOMINAL_VOLTAGE_DV_ZE0_AZE0;
+    battery_capacity_Wh = ((uint32_t)battery_capacity_cAh * nominal_dV) / 1000u;
+    datalayer_battery->info.total_capacity_Wh = battery_capacity_Wh;
+
+    if (capacity_as_new_Wh != 0) {
+      //Capped at 100%. Anything above that is not a pack in better than new condition, it is the
+      //two capacities being measured differently: a GID counts usable energy, while the capacity
+      //the LBC reports is the pack's gross charge capacity, so the ratio sits above unity on a
+      //healthy pack. Reporting more than 100% would also put a figure on the wire that several
+      //inverter protocols have no room for.
+      const uint32_t soh_pptt = (uint32_t)(((uint64_t)battery_capacity_Wh * 10000ull) / capacity_as_new_Wh);
+      datalayer_battery->status.soh_pptt = (uint16_t)((soh_pptt > 10000u) ? 10000u : soh_pptt);
+      datalayer_battery->status.soh_available = true;
+    }
+
+    //Remaining energy has to be measured against the same capacity as the total above, or the two
+    //contradict each other. The GID count the LBC broadcasts is derived from its own capacity
+    //figure, and a degradation reset puts that back to nameplate, so on a reset pack the GIDs
+    //claim more energy left than the pack is able to hold.
+    datalayer_battery->status.remaining_capacity_Wh =
+        (uint32_t)(((uint64_t)battery_capacity_Wh * datalayer_battery->status.real_soc) / 10000u);
+  } else {
+    //No measured capacity yet, so the GID count is all there is to go on.
+    datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
+  }
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_battery_Type == ZE0_BATTERY) {
@@ -169,17 +251,27 @@ void NissanLeafBattery::
   if (user_selected_LEAF_interlock_mandatory) {
     //If user requires both large 80kW and small 6kW interlock to be seated for operation
     if (!battery_Interlock) {
-      set_event(EVENT_HVIL_FAILURE, 0);
+      set_event(EVENT_HVIL_FAILURE, 0, battery_index);
     } else {
-      clear_event(EVENT_HVIL_FAILURE);
+      clear_event(EVENT_HVIL_FAILURE, battery_index);
     }
   }
 
-  if (datalayer_battery->status.cell_max_voltage_mV > 60000 || datalayer_battery->status.cell_min_voltage_mV > 60000) {
-    set_event(EVENT_12V_LOW, 0);
-    //This is a bit of a hack, but we don't have a dedicated event for "12V low" and this is the first indicator of low 12V
+  //Low 12 V supply. The level the pack reports is used whenever one has been read, on any
+  //generation. Failing that the older indirect indicator stands in: a cell reply in which nothing
+  //came back readable means the LBC is returning unusable data, and a sagging 12 V supply is the
+  //usual reason. That is the same condition the previous cell-voltage test was detecting, restated
+  //so it still works now that the unreadable-cell sentinel is filtered out of the cell array.
+  if (battery_vbat_mV > 0) {
+    if (battery_vbat_mV < LOW_12V_THRESHOLD_MV) {
+      set_event(EVENT_12V_LOW, (int16_t)battery_vbat_mV, battery_index);
+    } else if (battery_vbat_mV > (LOW_12V_THRESHOLD_MV + LOW_12V_HYSTERESIS_MV)) {
+      clear_event(EVENT_12V_LOW, battery_index);
+    }
+  } else if (battery_cells_unreadable) {
+    set_event(EVENT_12V_LOW, 0, battery_index);
   } else {
-    clear_event(EVENT_12V_LOW);
+    clear_event(EVENT_12V_LOW, battery_index);
   }
 
   if (battery_HeatExist) {
@@ -291,6 +383,10 @@ void NissanLeafBattery::
     datalayer_nissan->MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
     datalayer_nissan->Interlock = battery_Interlock;
     datalayer_nissan->Insulation = battery_insulation;
+    datalayer_nissan->CapacityCAh = battery_capacity_cAh;
+    datalayer_nissan->CapacityWh = battery_capacity_Wh;
+    datalayer_nissan->CapacityAsNewWh = capacity_as_new_Wh;
+    datalayer_nissan->VBAT_mV = battery_vbat_mV;
     datalayer_nissan->RelayCutRequest = battery_Relay_Cut_Request;
     datalayer_nissan->FailsafeStatus = battery_Failsafe_Status;
     datalayer_nissan->Full = battery_Full_CHARGE_flag;
@@ -300,6 +396,9 @@ void NissanLeafBattery::
     datalayer_nissan->HeatingStop = battery_Heating_Stop;
     datalayer_nissan->HeatingStart = battery_Heating_Start;
     datalayer_nissan->HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+    datalayer_nissan->StatusSeen = battery_status_seen;
+    datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
+    datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
     datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
     datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
     datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
@@ -315,10 +414,13 @@ void NissanLeafBattery::
         ((solvedChallenge[3] << 24) | (solvedChallenge[2] << 16) | (solvedChallenge[1] << 8) | solvedChallenge[0]);
     datalayer_nissan->challengeFailed = challengeFailed;
 
-    // Update requests from webserver datalayer
+    // Update requests from webserver datalayer. Asked again before starting, in case the pack
+    // turned out to be a ZE1 or went quiet since the request was accepted.
     if (UserRequestSOHreset) {
-      stateMachineClearSOH = 0;  //Start the statemachine
       UserRequestSOHreset = false;
+      if (supports_reset_SOH()) {
+        stateMachineClearSOH = 0;  //Start the statemachine
+      }
     }
 
 #endif
@@ -327,7 +429,7 @@ void NissanLeafBattery::
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x1DB:
+    case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
@@ -337,6 +439,18 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // negative so extend the sign bit
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
+
+      // Accumulate every 0x1DB sample for the 1 s published mean, and track the highest
+      // and lowest sample separately so a charge and a discharge excursion inside the same
+      // window both reach the safety path.
+      battery_Current2_sum_raw += battery_Current2;
+      battery_Current2_sample_count++;
+      if (battery_Current2 > battery_Current2_peak_max_raw) {
+        battery_Current2_peak_max_raw = battery_Current2;
+      }
+      if (battery_Current2 < battery_Current2_peak_min_raw) {
+        battery_Current2_peak_min_raw = battery_Current2;
+      }
 
       battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
       if (battery_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
@@ -349,7 +463,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
+      battery_status_seen |= 0x01;
       break;
+    }
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
@@ -369,6 +485,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_SOC = battery_TEMP;
       }
       battery_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      battery_status_seen |= 0x02;
       break;
     case 0x5BC:
       battery_can_alive = true;
@@ -410,6 +527,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
       battery_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
       battery_Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
+      battery_status_seen |= 0x04;
 
       break;
     case 0x59E:
@@ -557,12 +675,28 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         break;
       }
 
+      //A negative response (single frame, 7F <service> <NRC>) is not group data. Clear the latched
+      //group so none of the decoders below runs on it: its PCI byte would otherwise fall through to
+      //whichever group answered last, and in the group 0x02 case land in the odd-frame branch and
+      //corrupt the cell voltage array.
+      if (((rx_frame.data.u8[0] & 0xF0) == 0x00) && (rx_frame.data.u8[1] == 0x7F)) {
+        group_7bb = 0;
+        break;
+      }
+
       //First check which group data we are getting
-      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
+      if ((rx_frame.data.u8[0] & 0xF0) == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
         //Remember how long the reply is. The group 1 layout differs between LEAF generations, and
-        //the announced length is what identifies which one the LBC just sent.
-        group_7bb_length = rx_frame.data.u8[1];
+        //the announced length is what identifies which one the LBC just sent. Masked and taken as
+        //the full 12-bit ISO-TP length, because the health block in group 0x61 runs past 255 bytes
+        //and so announces itself as 1L LL rather than 10 LL.
+        group_7bb_length = (uint16_t)(((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1]);
+        group_7bb_frame = 0;
+      } else if ((rx_frame.data.u8[0] & 0xF0) == 0x20) {  //Consecutive frame
+        if (group_7bb_frame < 255) {
+          group_7bb_frame++;
+        }
       }
 
       transmit_can_frame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
@@ -576,71 +710,124 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //High precision Battery_current_2 resides here, but has been deemed unusable by 62kWh owners
         }
 
-        if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
+        if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame, payload[20..26] in u8[1..7]
           battery_insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
           if (battery_insulation > 0) {
             datalayer_battery->status.insulation_resistance_kOhm = battery_insulation;
             datalayer_battery->status.insulation_resistance_available = true;
           }
+          //12 V accessory battery level at payload[22..23], in mV. Unlike Hx below, this sits at
+          //the same offset on every layout the driver recognises - ZE1 confirmed on the bench -
+          //so no generation branch is needed. Only 0x2C is left out, the layout a ZE1 answers
+          //with shortly after wakeup, which nothing here has mapped.
+          //The range check is a guard against a garbled or partial frame, not against the layout:
+          //nothing outside 6-20 V is a reading from a 12 V battery.
+          if ((group_7bb_length == 0x29) || (group_7bb_length == 0x2B) || (group_7bb_length == 0x35)) {
+            uint16_t vbat = (uint16_t)((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+            if ((vbat > 6000u) && (vbat < 20000u)) {
+              battery_vbat_mV = vbat;
+            }
+          }
         }
 
-        if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          // Hx sits at a different payload offset and uses a different scale depending on which
-          // layout the LBC answered with, so the reply length decides how to read it:
-          //   0x29 (ZE0 24kWh) / 0x2B (AZE0 30kWh) -> payload[26..27], already in hundredths of a %
-          //   0x35 (ZE1 40/62kWh)                  -> payload[28..29], raw / 102.4 = percent
-          // This frame carries payload[25..31] in u8[1..7]. Any other length is a layout we do not
-          // know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
-          if (group_7bb_length == 0x35) {  //ZE1
-            uint16_t battery_HX_raw = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-            //raw / 102.4 * 100 == raw * 125 / 128, rounded to nearest
-            battery_HX_pptt = (uint16_t)(((uint32_t)battery_HX_raw * 125u + 64u) / 128u);
-          } else if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {  //ZE0 / AZE0
+        if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame, payload[27..33] in u8[1..7]
+          //Hx, on the ZE0 (0x29) and AZE0 (0x2B) layouts only: payload[28..29], a u16 in hundredths
+          //of a percent, so the firmware's 100 % is 10000 and a healthy pack reads above it. This is
+          //where the LBC history guide takes the ZE0/AZE0 Hx from. ZE1 (0x35) has its Hx in the
+          //health block instead (group 0x61, same scale), so nothing in this layout is read as Hx,
+          //and no divide by 1024 is involved on either. Any other length is a layout we do not
+          //know (a ZE1 answers 0x2C shortly after wakeup), so leave the last good value in place.
+          if (group_7bb_length == 0x29 || group_7bb_length == 0x2B) {
             battery_HX_pptt = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          }
+        }
+
+        if (rx_frame.data.u8[0] == 0x25) {  // Sixth frame, payload[34..40] in u8[1..7]
+          //Pack capacity at payload[34..37], a u32 in ten-thousandths of an Ah. ZE0/AZE0 layout
+          //only; the ZE1 capacity comes from the health block instead.
+          if ((group_7bb_length == 0x29) || (group_7bb_length == 0x2B)) {
+            uint32_t capacity_raw = ((uint32_t)rx_frame.data.u8[1] << 24) | ((uint32_t)rx_frame.data.u8[2] << 16) |
+                                    ((uint32_t)rx_frame.data.u8[3] << 8) | (uint32_t)rx_frame.data.u8[4];
+            uint32_t capacity_cAh = capacity_raw / 100u;              //to hundredths of an Ah
+            if ((capacity_cAh > 100u) && (capacity_cAh <= 40000u)) {  //1-400 Ah, per the LBC's own range
+              battery_capacity_cAh = (uint16_t)capacity_cAh;
+            }
           }
         }
       }
 
       if (group_7bb == 0x02)  //Cell Voltages
       {
-        if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
+        if ((rx_frame.data.u8[0] & 0xF0) == 0x10) {  //first frame is anomalous
           battery_request_idx = 0;
           battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
           break;
         }
-        if (rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C) {  //Last frame
-          //Last frame does not contain any cell data, calculate the result
 
-          //Map all cell voltages to the global array
-          memcpy(datalayer_battery->status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
+        if (battery_request_idx < 96) {
+          if ((rx_frame.data.u8[0] % 2) == 0) {  //even frames
+            battery_cell_voltages[battery_request_idx++] |= rx_frame.data.u8[1];
+            if (battery_request_idx < 96)
+              battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+            if (battery_request_idx < 96)
+              battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            if (battery_request_idx < 96)
+              battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          } else {  //odd frames
+            battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+            if (battery_request_idx < 96)
+              battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+            if (battery_request_idx < 96)
+              battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+            if (battery_request_idx < 96)
+              battery_cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
+          }
+        }
 
-          //calculate min/max voltages
+        //All 96 cells arrive in the first frame and the 27 that follow; the rest of the reply is
+        //padding. The transfer now ends on the cell count instead of on a PCI byte pattern, because
+        //the ISO-TP sequence number wraps every 16 frames: the byte the old end-of-transfer test
+        //looked for comes round twice in a reply this long, and on an all-sentinel answer from a
+        //bench BMS the padding half of that test matched on the first pass. That ended the transfer
+        //at roughly cell 40 and left the remaining frames writing past the end of the array.
+        if (battery_request_idx == 96) {
+          battery_request_idx = 97;  //Disarm, so the trailing padding frames do nothing
+
+          //Map all cell voltages to the global array. 0xFFFF is the LBC's "no reading" sentinel;
+          //a bench BMS with no HV stack returns it for every cell. Those are stored as 0, which is
+          //the datalayer's established "not measured" value - the cell monitor page already skips
+          //zeroes - and are left out of the min/max search so one unread cell cannot drag the
+          //reported minimum to 0 or the maximum to 65.535 V.
           battery_min_max_voltage[0] = 9999;
           battery_min_max_voltage[1] = 0;
           for (battery_cellcounter = 0; battery_cellcounter < 96; battery_cellcounter++) {
-            if (battery_min_max_voltage[0] > battery_cell_voltages[battery_cellcounter])
-              battery_min_max_voltage[0] = battery_cell_voltages[battery_cellcounter];
-            if (battery_min_max_voltage[1] < battery_cell_voltages[battery_cellcounter])
-              battery_min_max_voltage[1] = battery_cell_voltages[battery_cellcounter];
+            uint16_t cell_mV = battery_cell_voltages[battery_cellcounter];
+            if (cell_mV == 0xFFFF) {
+              cell_mV = 0;
+            }
+            datalayer_battery->status.cell_voltages_mV[battery_cellcounter] = cell_mV;
+            if (cell_mV == 0) {
+              continue;
+            }
+            if (battery_min_max_voltage[0] > cell_mV)
+              battery_min_max_voltage[0] = cell_mV;
+            if (battery_min_max_voltage[1] < cell_mV)
+              battery_min_max_voltage[1] = cell_mV;
           }
 
-          datalayer_battery->status.cell_max_voltage_mV = battery_min_max_voltage[1];
-          datalayer_battery->status.cell_min_voltage_mV = battery_min_max_voltage[0];
+          //A reply in which not one cell came back readable is the signal the older low 12 V
+          //indicator was built on: the LBC returns unusable cell data when its supply sags. Kept
+          //as a flag here because the sentinel filtering above means it can no longer be
+          //recognised further downstream by an implausibly high cell voltage.
+          battery_cells_unreadable = (battery_min_max_voltage[1] == 0);
 
-          break;
-        }
-
-        if ((rx_frame.data.u8[0] % 2) == 0) {  //even frames
-          battery_cell_voltages[battery_request_idx++] |= rx_frame.data.u8[1];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-        } else {  //odd frames
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-          battery_cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
+          //Only publish once at least one cell actually reported, so a pack that answers with
+          //nothing but sentinels leaves the previous min/max in place instead of overwriting it.
+          if (battery_min_max_voltage[1] != 0) {
+            datalayer_battery->status.cell_max_voltage_mV = battery_min_max_voltage[1];
+            datalayer_battery->status.cell_min_voltage_mV = battery_min_max_voltage[0];
+          }
         }
       }
 
@@ -740,18 +927,76 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
-      if (group_7bb == 0x62) {              //Lifetime charge counters
+      if (group_7bb == 0x61) {  //Health block: SOH and, on ZE1, Hx and the pack capacity
+        //Percentages here are stored as hundredths, so the firmware's 100% is 10000. Hx above
+        //100% is normal on a healthy pack and is deliberately not clamped; the range checks below
+        //only reject values that cannot be a reading at all.
+        if (group_7bb_frame == 0) {  //First frame, payload[0..5] in u8[2..7]
+          uint16_t hx_raw = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);   //payload[2..3]
+          uint16_t soh_raw = (uint16_t)((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);  //payload[4..5]
+          //Only ZE1 takes its Hx from here, as the LBC history guide lays out; ZE0/AZE0 read theirs
+          //from group 0x01. The capture in the guide, 61 61 2A F8, is 11000: 110.00 %.
+          if ((LEAF_battery_Type == ZE1_BATTERY) && (hx_raw > 0u) && (hx_raw <= 20000u)) {
+            battery_HX_pptt = hx_raw;
+          }
+          if ((soh_raw > 0u) && (soh_raw <= 10000u)) {
+            battery_SOH_pptt_g61 = soh_raw;
+          }
+        }
+        if (group_7bb_frame == 1) {  //Second frame, payload[6..12] in u8[1..7]
+          //What the LBC's PID 0x61 handler writes after Hx and SOH:
+          //  payload[6]     BarCount_SOH   the capacity bars shown on the dash
+          //  payload[7..8]  SOH_raw        the unfiltered state of health
+          //  payload[9..10] SOH_Internal   the filtered figure, same value the pack publishes
+          //  payload[11]    two status bits, in the low two bits of the byte
+          //Only SOH_raw carries something the pack does not already report. Bench captures put
+          //BarCount_SOH at 0xFF on both a degraded and a freshly reset pack, so it is not
+          //populated with the pack off a car; SOH_Internal came back bit-identical to the SOH
+          //above it on both; and the status bits said nothing that the figures themselves do not.
+          //Same hundredths scale as that SOH: a pack with its degradation just reset reports
+          //exactly 10000 here, which is the firmware's own 100.00 %.
+          uint16_t soh_raw = (uint16_t)((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+          if ((soh_raw > 0u) && (soh_raw <= 10000u)) {
+            battery_SOHraw_pptt = soh_raw;
+          }
+        }
+
+        if (group_7bb_frame == 2) {  //Third frame, payload[13..19] in u8[1..7]
+          //ZE1 carries the pack capacity at payload[14..17], a u32 in ten-thousandths of an Ah.
+          if (LEAF_battery_Type == ZE1_BATTERY) {
+            uint32_t capacity_raw = ((uint32_t)rx_frame.data.u8[2] << 24) | ((uint32_t)rx_frame.data.u8[3] << 16) |
+                                    ((uint32_t)rx_frame.data.u8[4] << 8) | (uint32_t)rx_frame.data.u8[5];
+            uint32_t capacity_cAh = capacity_raw / 100u;
+            if ((capacity_cAh > 100u) && (capacity_cAh <= 40000u)) {
+              battery_capacity_cAh = (uint16_t)capacity_cAh;
+            }
+          }
+        }
+      }
+
+      if (group_7bb == 0x62) {              //Lifetime charge counters and usage histograms
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 76 61 62 08 00 01 5A)
-          //Both counters are carried in the first frame, no need to walk the rest of the reply:
-          //payload[0..1] holds the L1/L2 (AC) charges, payload[2..3] the quick (CHAdeMO) charges.
-          //A counter the LBC has no value for reads back as 0xFFFF. A used pack always has AC
-          //charges, so a zero L1/L2 count means "not read yet" and keeps the group in the rotation.
+          //Both counters are carried in the first frame: payload[2..3] holds the L1/L2 (AC)
+          //charges, payload[4..5] the quick (CHAdeMO) charges. A counter the LBC has no value for
+          //reads back as 0xFFFF. A used pack always has AC charges, so a zero L1/L2 count means
+          //"not read yet".
           uint16_t count_l1l2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           uint16_t count_qc = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
           if (count_l1l2 != 0xFFFF && count_qc != 0xFFFF) {
             battery_charge_count_l1l2 = count_l1l2;
             battery_charge_count_qc = count_qc;
           }
+        } else {
+          //Consecutive frames 1-17 carry payload[6..124], seven bytes each. That span holds all
+          //seven usage tables on either layout, the six histograms and the charge-to-full table
+          //after them, so it is stored raw and the page applies the generation's offset.
+          if (datalayer_nissan && (uint8_t)(group_7bb_frame - 1) < 17) {
+            memcpy(&datalayer_nissan->UsageHistograms[(group_7bb_frame - 1) * 7], &rx_frame.data.u8[1], 7);
+          }
+          //A reply of L bytes ends on consecutive frame L / 7: frame 16 on ZE0/AZE0 (0x76), 17 on
+          //ZE1 (0x78). Only a reply that got that far takes the group out of the rotation; one
+          //cut short is asked for again.
+          battery_usage_history_read = (group_7bb_frame == group_7bb_length / 7);
         }
       }
 
@@ -774,29 +1019,18 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23000000000080FF)
         }
       }
-      if (group_7bb == 0x84) {              //BatterySerialNumber
-        if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 16 61 84 32 33 30 55)
-          BatterySerialNumber[0] = rx_frame.data.u8[7];
+      //BatterySerialNumber: 16 ASCII characters at payload[2..17], straight after the 61 84 header.
+      //The capture 10 16 61 84 32 33 30 55 | 21 4B 31 31 39 32 45 30 | 22 30 31 34 38 32 20 A0 reads
+      //230UK1192E001482; the space and 0xA0 after it are not part of the serial.
+      if (group_7bb == 0x84) {
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame, payload[0..5] in u8[2..7]
+          memcpy(&BatterySerialNumber[0], &rx_frame.data.u8[4], 4);
         }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (21 4B 31 31 39 32 45 30)
-          BatterySerialNumber[1] = rx_frame.data.u8[1];
-          BatterySerialNumber[2] = rx_frame.data.u8[2];
-          BatterySerialNumber[3] = rx_frame.data.u8[3];
-          BatterySerialNumber[4] = rx_frame.data.u8[4];
-          BatterySerialNumber[5] = rx_frame.data.u8[5];
-          BatterySerialNumber[6] = rx_frame.data.u8[6];
-          BatterySerialNumber[7] = rx_frame.data.u8[7];
+        if (rx_frame.data.u8[0] == 0x21) {  //Second frame, payload[6..12] in u8[1..7]
+          memcpy(&BatterySerialNumber[4], &rx_frame.data.u8[1], 7);
         }
-        if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 30 31 34 38 32 20 A0)
-          BatterySerialNumber[8] = rx_frame.data.u8[1];
-          BatterySerialNumber[9] = rx_frame.data.u8[2];
-          BatterySerialNumber[10] = rx_frame.data.u8[3];
-          BatterySerialNumber[11] = rx_frame.data.u8[4];
-          BatterySerialNumber[12] = rx_frame.data.u8[5];
-          BatterySerialNumber[13] = rx_frame.data.u8[6];
-          BatterySerialNumber[14] = rx_frame.data.u8[7];
-        }
-        if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 00 00 00 00 00 00 00)
+        if (rx_frame.data.u8[0] == 0x22) {  //Third frame, payload[13..19]: the serial ends at [17]
+          memcpy(&BatterySerialNumber[11], &rx_frame.data.u8[1], 5);
         }
       }
 
@@ -859,7 +1093,11 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   bool channel_idle = !uds_busy && (currentMillis - last_7bb_millis) > DTC_BUS_IDLE_MS;
   // The SOH clear runs its own multi-step exchange over the same request/response pair, so a DTC
   // request must not be slipped in between its steps either.
+#ifndef SMALL_FLASH_DEVICE
   bool soh_clear_running = stateMachineClearSOH < 255;
+#else
+  const bool soh_clear_running = false;
+#endif
   bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
 
   if (UserRequestDTCreadout && !busy && channel_idle) {
@@ -1080,9 +1318,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+#ifndef SMALL_FLASH_DEVICE
       if (stateMachineClearSOH < 255) {  // Enter the ClearSOH statemachine only if we request it
         clearSOH();
       }
+#endif
 
       //When battery requests heating pack status change, ack this
       if (battery_Batt_Heater_Mail_Send_Request) {
@@ -1157,15 +1397,17 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       if (!stop_battery_query && !dtc_operation_pending) {
 
         // Move to the next group, skipping the static ones that already answered. The charge
-        // counters and the two identity strings cannot change while the pack is powered, so each
-        // is asked for only until its data is in, after which the recurring groups come round
-        // faster. Testing the data itself rather than a "seen" flag means a reply that arrived
-        // while another tool was polling the bus counts just as well.
+        // counters with the usage histograms and the two identity strings cannot change while the
+        // pack is powered, so each is asked for only until its data is in, after which the
+        // recurring groups come round faster. Testing the data itself rather than a "seen" flag
+        // means a reply that arrived while another tool was polling the bus counts just as well.
+        // For group 0x62 that is the whole reply having arrived, since the counters in its first
+        // frame say nothing about the frames after it.
         // After a BMS reset the skipping is suspended for one pass, so the new session answers
         // them once more. Previous values stay on display until the fresh reply overwrites them.
         do {
           PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
-        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
+        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_usage_history_read) ||
                                            (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
                                            (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0)));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
@@ -1238,8 +1480,9 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
 
-void NissanLeafBattery::clearSOH(void) {
 #ifndef SMALL_FLASH_DEVICE
+
+void NissanLeafBattery::clearSOH(void) {
   stop_battery_query = true;
   hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
 
@@ -1304,10 +1547,7 @@ void NissanLeafBattery::clearSOH(void) {
     default:
       break;
   }
-#endif
 }
-
-#ifndef SMALL_FLASH_DEVICE
 
 unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2) {
   bool bVar1;
@@ -1427,6 +1667,7 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
 void NissanLeafBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer_battery->status.soh_available = false;  //Nothing read from the pack yet
   datalayer_battery->info.number_of_cells = 96;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

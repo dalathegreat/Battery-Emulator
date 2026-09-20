@@ -68,7 +68,7 @@ void RivianBattery::update_values() {
   datalayer.battery.status.temperature_max_dC = battery_max_temperature * 10;
 
   if (battery_thermal_runaway) {
-    set_event(EVENT_THERMAL_RUNAWAY, 0);  //Hope nobody will ever get this event!
+    set_event(EVENT_THERMAL_RUNAWAY, 0, battery_index);  //Hope nobody will ever get this event!
   }
 
   //Update extended datalayer for HTML page

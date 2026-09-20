@@ -179,6 +179,29 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
       ZOE_423.data.u8[6] = 0x5D;
     }
     counter_423 = (counter_423 + 1) % 10;
+
+    // Broadcast 100ms vehicle frames (PEB Inverter 0x19F, EVC Power Mux 0x426, EVC Status 0x436)
+    // Rolling 4-bit sequence counter (cycles 0-15)
+    ZOE_19F_INVERTER.data.u8[3] = (zoe_19F_counter++ & 0x0F);
+    transmit_can_frame(&ZOE_19F_INVERTER);
+
+    transmit_can_frame(&ZOE_426_POWER_MUX);
+
+    transmit_can_frame(&ZOE_436_VEHICLE_STATUS);
+  }
+
+  // Update EVC 0x436 vehicle runtime clock every 60s
+  if (currentMillis - previousMillis60000_436 >= INTERVAL_60_S) {
+    previousMillis60000_436 = currentMillis;
+    zoe_436_counter++;
+    ZOE_436_VEHICLE_STATUS.data.u8[2] = (zoe_436_counter >> 8) & 0xFF;
+    ZOE_436_VEHICLE_STATUS.data.u8[3] = zoe_436_counter & 0xFF;
+  }
+
+  // Broadcast 1000ms BCM Gateway alive token
+  if (currentMillis - previousMillis1000_69f >= INTERVAL_1_S) {
+    previousMillis1000_69f = currentMillis;
+    transmit_can_frame(&ZOE_69F_BCM_GATEWAY);
   }
 
   // UDS PID polling and DTC handling

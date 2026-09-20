@@ -24,6 +24,8 @@
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
+#include "src/devboard/utils/ota_confirm_gate.h"
+#include "src/devboard/utils/ota_rollback.h"
 #include "src/devboard/utils/time_meas.h"
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/types.h"
@@ -429,18 +431,15 @@ void update_calculated_values(uint32_t currentMillis) {
     }
   }
 
-  /* Calculate active power based on voltage and current*/
   datalayer.battery.status.active_power_W =
-      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+      current_dA_to_power_W(datalayer.battery.status.current_dA, datalayer.battery.status.voltage_dV);
   if (battery2) {
-    /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery2.status.active_power_W =
-        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+        current_dA_to_power_W(datalayer.battery2.status.current_dA, datalayer.battery2.status.voltage_dV);
   }
   if (battery3) {
-    /* Calculate active power based on voltage and current for battery 2*/
     datalayer.battery3.status.active_power_W =
-        (datalayer.battery3.status.current_dA * (datalayer.battery3.status.voltage_dV / 100));
+        current_dA_to_power_W(datalayer.battery3.status.current_dA, datalayer.battery3.status.voltage_dV);
   }
 
   if (datalayer.battery.settings.soc_scaling_active) {
@@ -618,6 +617,14 @@ void core_loop(void*) {
 
     // Process
     currentMillis = millis();
+
+    /* The OTA confirmation CHECK, and deliberately unconditional: reaching this
+       line is what it is measuring. A tick that has come round for 42 s has
+       received CAN, reached both the 10 ms and the 1 s sub-task, and fed the
+       task watchdog every pass - the strongest liveness witness the firmware
+       has. It sets a flag; loop() does the writing (ota_confirm_gate.h). */
+    ota_confirm_check(currentMillis);
+
     loopPhase = 1 - loopPhase;  // Spread out slower tasks across multiple iterations
     if (currentMillis - previousMillis10ms >= INTERVAL_10_MS && loopPhase == 0) {
       if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
@@ -737,6 +744,16 @@ void setup() {
 
   init_stored_settings();
 
+  /* AFTER init_stored_settings(), because that is what turns the log sinks on.
+     Reported earlier, the warning line went nowhere: web, USB, syslog and SD
+     logging are all switched on from stored settings, so a rollback report made
+     before that call reached no sink a user can read - and the OTA_ROLLBACK
+     event, which DOES survive, sends them looking for exactly the line that was
+     dropped (v12.5.0 field report). Still before anything that can itself fail,
+     which is what the placement was for: reading settings is the one step that
+     has to come first. */
+  report_ota_rollback();
+
   // AP-button recovery must always run
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                           &connectivity_loop_task, esp32hal->WIFICORE());
@@ -830,8 +847,22 @@ void setup() {
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
 
+  /* No OTA confirmation here on purpose. Reaching the end of setup() only says
+     the drivers were constructed, and the crashes worth rolling back for happen
+     after that - the first frames parsed, the first MQTT or HTTP exchange, a
+     watchdog trip under real load. The image is confirmed once the running
+     system has held together for 42 s instead; see ota_confirm_gate.h. Placing
+     it here would also have raced the core_loop task that the line above just
+     started, which is a boundary decided by microseconds and worse than either
+     clean answer. */
+
   DEBUG_PRINTF("Setup complete!\n");
 }
 
-// Loop empty, all functionality runs in tasks
-void loop() {}
+// Ordinary main-task context. Everything else runs in tasks, so this stays the
+// place for work that must not be initiated from the 1 ms core tick - today the
+// otadata write that confirms a fresh image, once the tick says it has earned
+// it.
+void loop() {
+  ota_confirm_service();
+}

@@ -5,6 +5,7 @@
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
+#include "../utils/ota_confirm_gate.h"
 
 static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
@@ -332,8 +333,21 @@ void update_machineryprotection() {
       clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
       clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
     } else {
+      /* A driver that publishes a mean current would average short excursions away before
+         the comparison below ever sees them, so ask the pack for the extremes of its own
+         window instead. The default implementation returns that pack's published current,
+         which is what this check used before, so nothing changes for drivers that do not
+         override it. */
+      int16_t peak_charge_dA = 0;
+      int16_t peak_discharge_dA = 0;
+      if (battery) {
+        battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
+      }
+      const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, datalayer.battery.status.voltage_dV);
+      const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, datalayer.battery.status.voltage_dV);
+
       // Inverter is charging with more power than battery wants!
-      if (datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
+      if (charge_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
         if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
@@ -345,7 +359,7 @@ void update_machineryprotection() {
       }
 
       // Inverter is pulling too much power from battery!
-      if (-datalayer.battery.status.active_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
+      if (-discharge_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
         if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
         } else {
@@ -594,14 +608,16 @@ void update_machineryprotection() {
     }
   }
 
-  //Decrement the forced balancing timer incase user requested it
+  /* Decrement the forced balancing timer incase user requested it. User requested balancing is
+     driven from datalayer.battery.settings, which is pack 1 only, so the events are raised
+     against pack 1. Driver reported balancing names its own pack via battery_index. */
   if (datalayer.battery.settings.user_requests_balancing) {
     // If this is the start of the balancing period, capture the current time
     if (datalayer.battery.settings.balancing_start_time_ms == 0) {
       datalayer.battery.settings.balancing_start_time_ms = millis();
-      set_event(EVENT_BALANCING_START, 0);
+      set_event(EVENT_BALANCING_START, 0, 1);
     } else {
-      clear_event(EVENT_BALANCING_START);
+      clear_event(EVENT_BALANCING_START, 1);
     }
 
     // Check if the elapsed time exceeds the balancing time
@@ -609,9 +625,9 @@ void update_machineryprotection() {
         datalayer.battery.settings.balancing_max_time_ms) {
       datalayer.battery.settings.user_requests_balancing = false;
       datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
-      set_event(EVENT_BALANCING_END, 0);
+      set_event(EVENT_BALANCING_END, 0, 1);
     } else {
-      clear_event(EVENT_BALANCING_END);
+      clear_event(EVENT_BALANCING_END, 1);
     }
   }
 }
@@ -671,6 +687,15 @@ void graceful_restart() {
   // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
 
   set_event(EVENT_RESTARTING, 0);
+
+  /* An intentional restart must not throw away a fresh update. The board was
+     well enough to be asked for one, which is the health this needs; without
+     this, restarting inside the 42 s window - the very thing a user does after
+     an update - would silently revert it. Armed at the REQUEST rather than at
+     the reboot, because the pause below buys 5-10 s, which is what lets the
+     write happen where every other runtime flash write happens instead of from
+     the 1 ms tick. */
+  ota_confirm_request();
 
   // Stop charge/discharge so we don't damage the contactors
   setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);

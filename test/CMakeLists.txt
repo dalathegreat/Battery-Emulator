@@ -97,6 +97,7 @@ add_executable(tests
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
+    ../Software/src/devboard/utils/ota_confirm_gate.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
@@ -109,6 +110,7 @@ add_executable(tests
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
+    ../Software/src/battery/AKASOL-BATTERY.cpp
     ../Software/src/battery/BMW-I3-BATTERY.cpp
     ../Software/src/battery/BMW-I3-HTML.cpp
     ../Software/src/battery/BMW-IX-BATTERY.cpp
@@ -132,12 +134,12 @@ add_executable(tests
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
     ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
+    ../Software/src/battery/GROWATT-LV-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
     ../Software/src/battery/JAGUAR-IPACE-BATTERY.cpp
     ../Software/src/battery/KIA-E-GMP-BATTERY.cpp
-    ../Software/src/battery/KIA-E-GMP-HTML.cpp
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
@@ -175,6 +177,7 @@ add_executable(tests
     ../Software/src/inverter/BYD-MODBUS.cpp
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
+    ../Software/src/inverter/FOXESS-EP-CAN.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp
