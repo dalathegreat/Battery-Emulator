@@ -90,7 +90,7 @@ void TeslaLegacyBattery::update_values() {
       break;
     case 79:  //100kWh
     case 89:
-      datalayer.battery.info.total_capacity_Wh = 70000;
+      datalayer.battery.info.total_capacity_Wh = 100000;
       break;
     default:  //Unknown hwID. Raise event
       set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID, battery_index);
