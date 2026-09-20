@@ -1910,9 +1910,6 @@ String processor(const String& var) {
 
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
-#ifdef HW_UNIFIED_S3
-    content += "<button onclick='Hardware()'>Hardware configuration</button> ";
-#endif  // HW_UNIFIED_S3
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='CANreplay()'>CAN replay</button> ";
@@ -1947,9 +1944,6 @@ String processor(const String& var) {
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
-#ifdef HW_UNIFIED_S3
-    content += "function Hardware() { window.location.href = '/hardware'; }";
-#endif  // HW_UNIFIED_S3
     content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function CANlog() { window.location.href = '/canlog'; }";
     content += "function CANreplay() { window.location.href = '/canreplay'; }";
