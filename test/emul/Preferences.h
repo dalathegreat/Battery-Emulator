@@ -53,9 +53,9 @@ class Preferences {
     return open && it != integers.end() && it->second.is_unsigned ? it->second.value : defaultValue;
   }
   bool getBool(const char* key, bool defaultValue = false) {
-  auto it = integers.find({namespace_name, key});
-  return open && it != integers.end() ? it->second.value != 0 : defaultValue;
-}
+    auto it = integers.find({namespace_name, key});
+    return open && it != integers.end() ? it->second.value != 0 : defaultValue;
+  }
   size_t getString(const char* key, char* value, size_t maxLen) { return 0; }
   String getString(const char* key, String defaultValue = String()) { return String(); }
 
