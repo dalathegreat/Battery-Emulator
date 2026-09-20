@@ -414,6 +414,19 @@ void update_machineryprotection() {
         static_cast<CanCharger*>(charger)->interface());
   }
 
+  // UUGP communicates over RS485, so the CAN charger watchdog above
+  // does not apply. If UUGP communication is not verified, force the
+  // battery-side power limits to zero.
+  //
+  // This is intentionally done before the final current-limit conversion
+  // later in this function, which will also zero the corresponding current
+  // limits.
+  if (charger && charger->type() == ChargerType::UUGP &&
+      !datalayer.charger.uugp_communication_ok) {
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
+  }
+
   // Additional Double-Battery safeties are checked here
   if (battery2) {
     // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning

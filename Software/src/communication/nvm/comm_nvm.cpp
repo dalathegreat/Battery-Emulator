@@ -366,20 +366,6 @@ void store_settings_inverter_watchdog() {
   }
 }
 
-void store_settings_inverter_watchdog() {
-  if (!inverter_modbus_watchdog_changed) {
-    return;
-  }
-  inverter_modbus_watchdog_changed = false;
-  BatteryEmulatorSettingsStore settings(false);
-  // Never write a value NVM already holds. saveUInt() skips an unchanged key on its own, but it
-  // writes when the key is missing, which would put the default into flash the first time an
-  // inverter declares it.
-  if (settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S) != inverter_modbus_watchdog_timeout_s) {
-    settings.saveUInt("INVWDTMO", inverter_modbus_watchdog_timeout_s);
-  }
-}
-
 // Erase RF PHY calibration data (the "phy" NVS namespace  untouched by
 // clearAll(), which only clears our own settings namespace). A full RF
 // calibration runs on the next boot (~100 ms extra WiFi/RF init).

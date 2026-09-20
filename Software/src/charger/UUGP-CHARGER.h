@@ -82,6 +82,9 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
 
   uint16_t transaction_id = 0;
   uint16_t expected_transaction_id = 0;
+  uint8_t expected_function = 0;
+  uint16_t last_ack_transaction_id = 0;
+  bool initialization_waiting_for_ack = false;
   uint16_t expected_register = 0;
   uint16_t expected_count = 0;
 

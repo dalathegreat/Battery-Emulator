@@ -1,4 +1,4 @@
-#include "UUGP-CHARGER.h"
+﻿#include "UUGP-CHARGER.h"
 
 #include <time.h>
 
@@ -65,6 +65,7 @@ void UUGPCharger::send_frame(uint8_t function, const uint8_t* payload, size_t pa
 
   const uint16_t transaction = next_transaction();
   expected_transaction_id = transaction;
+  expected_function = function;
 
   const uint16_t length = static_cast<uint16_t>(2 + payload_length);
 
@@ -222,9 +223,11 @@ void UUGPCharger::initialize_system_time() {
 }
 
 void UUGPCharger::initialize_current_limiting() {
-    switch (initialization_step) {     
+    switch (initialization_step) {     
         case 6:
-          write_single(REG_POWER_LIMIT, 10000);
+          // Never enable power during initialization. The charger must remain
+          // stopped until all initialization commands have been acknowledged.
+          write_single(REG_POWER_LIMIT, 0);
           break;
         case 7: {
             uint16_t soc = uugp_discharge_cutoff_soc;
@@ -237,23 +240,24 @@ void UUGPCharger::initialize_current_limiting() {
         case 8:
             write_single(REG_CONTROL_MODE, 0);
             break;
-            }
+  }
+}
 
 void UUGPCharger::initialize_pcs_information() {
     const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
     const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
 
-   switch (initialization_step) {
-     case 9:
-       write_single(REG_VBUS_UPPER, max_voltage_dV);
-       break;
-     case 10:
-       write_single(REG_VBUS_LOWER, max_voltage_dV);
-       break;
-     case 11:
-       write_single(REG_PCS_MODEL, pcs_model);
-       break;
-   }
+   switch (initialization_step) {
+     case 9:
+       write_single(REG_VBUS_UPPER, max_voltage_dV);
+       break;
+     case 10:
+       write_single(REG_VBUS_LOWER, max_voltage_dV);
+       break;
+     case 11:
+       write_single(REG_PCS_MODEL, pcs_model);
+       break;
+   }
  }
 
   void UUGPCharger::initialize_start_mode() {
@@ -267,7 +271,7 @@ void UUGPCharger::initialize_pcs_information() {
    * Requested default = 1.
    */
  if (uugp_start_mode > 2) {
-   uugp_start_mode = 1;
+   uugp_start_mode = 1;
  }
 
     write_single(REG_START_MODE, uugp_start_mode);
@@ -276,6 +280,27 @@ void UUGPCharger::initialize_pcs_information() {
   void UUGPCharger::initialize() {
     if (!ensure_serial()) {
       return;
+    }
+
+    /*
+     * Every initialization write must be acknowledged before moving to
+     * the next step. If the response never arrives, the same step is
+     * retried after SETTING_INTERVAL_MS.
+     */
+    if (initialization_waiting_for_ack) {
+      if (last_ack_transaction_id == expected_transaction_id) {
+        initialization_waiting_for_ack = false;
+
+        ++initialization_step;
+
+        if (initialization_step > 12) {
+          initialization_complete = true;
+        }
+
+        last_setting_ms = millis();
+        return;
+      }
+      // No valid acknowledgement yet. Re-send the same step below.
     }
 
     switch (initialization_step) {
@@ -309,26 +334,35 @@ void UUGPCharger::initialize_pcs_information() {
         return;
     }
 
+    initialization_waiting_for_ack = true;
     last_setting_ms = millis();
-
-    ++initialization_step;
-
-    if (initialization_step > 12) {
-      initialization_complete = true;
-    }
   }
 
   void UUGPCharger::update_power_limit() {
-    uint16_t power_limit;
+    /*
+     * If communication has not been verified, never send a non-zero
+     * power limit. The UUGP may otherwise retain a previously accepted
+     * power setting.
+     */
+    if (!datalayer.charger.uugp_communication_ok) {
+      write_single(REG_POWER_LIMIT, 0);
+      return;
+    }
 
-    if (uugp_allow_discharge_to_home_grid) {
+    const uint16_t bms_limit = bms_power_limit_W();
+    uint16_t power_limit = bms_limit;
+
+    /*
+     * User configuration can reduce the BMS limit, but can never
+     * increase it. The BMS/safety layer remains authoritative.
+     */
+    if (uugp_allow_discharge_to_home_grid &&
+        uugp_power_limit_W < power_limit) {
       power_limit = uugp_power_limit_W;
+    }
 
-      if (power_limit > 22000) {
-        power_limit = 22000;
-      }
-    } else {
-      power_limit = bms_power_limit_W();
+    if (power_limit > 22000) {
+      power_limit = 22000;
     }
 
     write_single(REG_POWER_LIMIT, power_limit);
@@ -388,8 +422,8 @@ void UUGPCharger::initialize_pcs_information() {
     }
 
   if (last_response_ms != 0 &&
-     millis() - last_response_ms > 3000) {
-   datalayer.charger.uugp_communication_ok = false;
+     millis() - last_response_ms > 3000) {
+   datalayer.charger.uugp_communication_ok = false;
   }
 
     if (!initialization_complete) {
@@ -458,7 +492,6 @@ void UUGPCharger::initialize_pcs_information() {
   }
 
   void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
-
     if (length < 9) {
       return;
     }
@@ -467,33 +500,57 @@ void UUGPCharger::initialize_pcs_information() {
       return;
     }
 
+    const uint16_t response_transaction =
+        (static_cast<uint16_t>(frame[0]) << 8) |
+        frame[1];
+
     const uint8_t function = frame[7];
 
+    /*
+     * Only accept a response to the request currently outstanding.
+     * This is especially important for writes: a random/stale write
+     * response must never make communication_ok true.
+     */
+    if (response_transaction != expected_transaction_id) {
+      return;
+    }
+
+    /*
+     * Exception responses are never considered successful.
+     */
     if (function & 0x80) {
       return;
     }
 
+    if (function != expected_function) {
+      return;
+    }
+
     if (function == FC_WRITE_SINGLE || function == FC_WRITE_MULTIPLE) {
+      /*
+       * Both write responses contain:
+       * transaction + protocol + length + unit + function + 4 bytes data
+       * => 12 bytes total.
+       */
+      if (length != 12) {
+        return;
+      }
+
       last_response_ms = millis();
+      last_ack_transaction_id = response_transaction;
       datalayer.charger.uugp_communication_ok = true;
       return;
     }
 
-  if (function != FC_READ_INPUT &&
-      function != FC_READ_HOLDING) {
-    return;
-  }
-  const uint16_t response_transaction =
-     (static_cast<uint16_t>(frame[0]) << 8) |
-     frame[1];
-
-  if (response_transaction != expected_transaction_id) {
-    return;
-  }
+    if (function != FC_READ_INPUT && function != FC_READ_HOLDING) {
+      return;
+    }
 
     const uint8_t byte_count = frame[8];
 
-    if ((byte_count & 1) != 0 || byte_count > 100 || 9 + byte_count != length) {
+    if ((byte_count & 1) != 0 ||
+        byte_count > 100 ||
+        9 + byte_count != length) {
       return;
     }
 
@@ -506,7 +563,9 @@ void UUGPCharger::initialize_pcs_information() {
     uint16_t values[50];
 
     for (uint16_t i = 0; i < count; ++i) {
-      values[i] = (static_cast<uint16_t>(frame[9 + i * 2]) << 8) | frame[10 + i * 2];
+      values[i] =
+          (static_cast<uint16_t>(frame[9 + i * 2]) << 8) |
+          frame[10 + i * 2];
     }
 
     if (function == FC_READ_INPUT) {
@@ -568,3 +627,4 @@ void UUGPCharger::initialize_pcs_information() {
       rx_length = remaining;
     }
   }
+
