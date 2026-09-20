@@ -24,14 +24,30 @@ String hardware_processor(const String& var) {
       "button{background-color:#505E67;color:white;border:none;padding:6px 20px;margin-bottom:15px;"
       "cursor:pointer;border-radius:10px}";
   content += "button:hover{background-color:#3A4A52}";
-  content += ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left}";
+  // box-sizing keeps the padding inside the card's own width rather than adding
+  // to it, which is what pushes content past the rounded edge on a narrow screen.
+  content +=
+      ".card{background-color:#303E47;padding:14px 20px;margin-bottom:12px;border-radius:20px;text-align:left;"
+      "box-sizing:border-box;overflow-wrap:break-word}";
   content += ".err{color:#ff6b6b}.warn{color:#ffd166}.off{color:#8a949b}.bad{color:#ff6b6b}";
-  content += "table{margin:12px 0 0 0;text-align:left}";
+  // The table takes the card's width and the cells carry their own padding, so
+  // the columns give way to each other instead of the table growing past the card.
+  content += "table{width:100%;border-collapse:collapse;margin:12px 0 0 0;text-align:left;table-layout:fixed}";
+  content += "th,td{vertical-align:top;padding:4px 10px 4px 0}";
+  // Fixed layout takes its column widths from the first row, so name them: the
+  // status column is a fixed label, the port column gets a share, and pins take
+  // whatever is left, since that is the column that actually runs long.
+  content += "th:first-child,td:first-child{width:38%}";
+  // Pins are the column that runs long; let it break mid-token rather than
+  // widen. The status column is short and reads badly wrapped, so it does not.
+  content += "td:nth-child(2){overflow-wrap:anywhere}";
+  content += "th:last-child,td:last-child{padding-right:0;white-space:nowrap;width:5.5em}";
+  content += "@media(max-width:520px){.card{padding:12px 14px}h3{font-size:1.15em;margin:0 0 2px}}";
   // stretch is the flex default, but say it: it is what makes the two cards
   // match heights instead of each ending where its own content does. Once they
   // wrap, each card is alone on its line and takes its natural height again.
   content += ".row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin-bottom:12px}";
-  content += ".row>.card{flex:1 1 320px;margin-bottom:0}</style>";
+  content += ".row>.card{flex:1 1 320px;min-width:0;margin-bottom:0}</style>";
 
   content += "<button onclick=\"window.location.href='/'\">Back to main page</button> ";
   content += "<button onclick=\"window.location.href='/settings'\">Change settings</button>";
@@ -49,7 +65,7 @@ String hardware_processor(const String& var) {
       content += "<small>" + html_escape(cfg.notes.c_str()) + "</small><br>";
     }
     content += "<table>";
-    content += "<tr><th style='padding-right:14px'>Port</th><th style='padding-right:14px'>Pins</th><th></th></tr>";
+    content += "<tr><th>Port</th><th>Pins</th><th></th></tr>";
     for (const auto& row : cfg.rows) {
       if (row.status == PortStatus::Inactive) {
         content += "<tr class='off'>";
@@ -58,13 +74,13 @@ String hardware_processor(const String& var) {
       } else {
         content += "<tr>";
       }
-      content += "<td style='padding:4px 14px 4px 0'>";
+      content += "<td>";
       content += html_escape(row.name.c_str());
       content += "<br><small>";
       content += html_escape(row.type.c_str());
-      content += "</small></td><td style='padding:4px 14px 4px 0'><small>";
+      content += "</small></td><td><small>";
       content += html_escape(row.pins.c_str());
-      content += "</small></td><td style='padding:4px 0'>";
+      content += "</small></td><td>";
       content += name_for_port_status(row.status);
       content += "</td></tr>";
     }
