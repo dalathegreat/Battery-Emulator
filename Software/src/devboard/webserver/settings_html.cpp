@@ -318,7 +318,19 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
       return ".needs-hw { display: none; }";
     }
 #endif
-    return ".needs-hw-notice { display: none; }";
+    return "";
+  }
+
+  if (var == "HWCFGNOTICE") {
+#ifdef HW_UNIFIED_S3
+    if (!board_config.valid) {
+      return "<div>"
+             "<p>No hardware configuration is loaded, so only the network and web interface settings are shown. "
+             "<a href=\"/hardware\" style=\"color:#8ab4f8\">Upload a board configuration</a> to unlock the rest.</p>"
+             "</div>";
+    }
+#endif
+    return "";
   }
 
   if (var == "BTRCAPCSS") {
@@ -1902,11 +1914,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
-  <div class="needs-hw-notice">
-    <p>No hardware configuration is loaded, so only the network and web interface
-    settings are shown. <a href="/hardware" style="color:#8ab4f8">Upload a board
-    configuration</a> to unlock the rest.</p>
-  </div>
+  %HWCFGNOTICE%
 
   <script>
   function validateWebAuthPassword() {
