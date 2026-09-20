@@ -229,7 +229,7 @@ jobs:
     # save the fallback cache even if the build failed, since we want to avoid
     # hammering PlatformIO's download servers.
     - name: Save fallback cache
-      if: success() && steps.fallback-cache.conclusion != 'skipped' && steps.fallback-cache.outputs.cache-hit != 'true'
+      if: always() && steps.fallback-cache.conclusion != 'skipped' && steps.fallback-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v6
       with:
         path: |
