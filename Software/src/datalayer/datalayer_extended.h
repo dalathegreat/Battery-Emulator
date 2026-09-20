@@ -470,6 +470,42 @@ struct DATALAYER_INFO_KIAHYUNDAI64 {
   uint8_t ecu_version_number[16];
 };
 
+struct DATALAYER_INFO_KIA64FD {
+  /** SOC reported by the BMS, 1000 = 100.0% */
+  uint16_t SOC_BMS;
+  /** SOC shown on the vehicle display, 1000 = 100.0% */
+  uint16_t SOC_Display;
+  /** SOC estimated from the lowest cell voltage, 10000 = 100.00% */
+  uint16_t SOC_estimated_lowest;
+  /** SOC estimated from the highest cell voltage, 10000 = 100.00% */
+  uint16_t SOC_estimated_highest;
+  /** State of health reported by the BMS, 1000 = 100.0% */
+  uint16_t batterySOH;
+  /** Voltage measured on the inverter side of the contactors, in V */
+  uint16_t inverterVoltage;
+
+  /** Charge power the BMS permits, in kW*100 */
+  int16_t allowedChargePower;
+  /** Discharge power the BMS permits, in kW*100 */
+  int16_t allowedDischargePower;
+  /** 12V auxiliary battery voltage, 120 = 12.0V */
+  int16_t leadAcidBatteryVoltage;
+
+  /** Coolant temperature at the pack inlet, in degrees C */
+  int8_t temperature_water_inlet;
+  /** Battery heater temperature, in degrees C */
+  int8_t heatertemp;
+
+  /** Index of the cell holding the highest voltage */
+  uint8_t CellVmaxNo;
+  /** Index of the cell holding the lowest voltage */
+  uint8_t CellVminNo;
+  /** BMS operating mode */
+  uint8_t batteryManagementMode;
+  /** BMS ignition signal state */
+  uint8_t BMS_ign;
+};
+
 struct DATALAYER_INFO_RIVIAN {
   uint16_t pre_contactor_voltage;
   uint16_t main_contactor_voltage;
@@ -991,6 +1027,10 @@ class DataLayerExtended {
     DATALAYER_INFO_ECMP stellantisECMP;
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
+    struct {
+      DATALAYER_INFO_KIA64FD Kia64FD;
+      DATALAYER_INFO_KIA64FD Kia64FD_2;
+    };
     struct {
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
       DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;

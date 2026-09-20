@@ -238,7 +238,8 @@ void BydAttoBattery::
   if (datalayer_bydatto) {
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
     datalayer_bydatto->SOC_polled = BMS_SOC;
-    datalayer_bydatto->pack_voltage_dV = battery_voltage_dV;
+    //Resolved voltage, not raw 0x438, so the page matches the main view when 0x438 is rejected
+    datalayer_bydatto->pack_voltage_dV = datalayer_battery->status.voltage_dV;
     datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
@@ -502,7 +503,15 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x438:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
-        battery_voltage_dV = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5];
+        //b5..b6 is not pack voltage on every pack family (142S decodes to thousands of volts).
+        //Only a resolution upgrade on 0x444, so adopt it once seen and the two agree.
+        const uint16_t candidate_dV = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5];
+        if (BMS_voltage_available) {
+          const uint16_t reference_dV = battery_voltage * 10;
+          const uint16_t deviation_dV =
+              (candidate_dV > reference_dV) ? (candidate_dV - reference_dV) : (reference_dV - candidate_dV);
+          battery_voltage_dV = (deviation_dV <= VOLTAGE_CROSSCHECK_TOLERANCE_DV) ? candidate_dV : 0;
+        }
       } else {
         datalayer_battery->status.CAN_error_counter++;
       }

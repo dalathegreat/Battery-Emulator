@@ -59,6 +59,11 @@ uint16_t charge_taper_band_pptt =
 uint16_t charge_taper_floor_W =
     0;  //Minimum charge power in W held during tapering until 100.00% scaled SOC. 0 = disabled, taper goes linearly to 0W
 
+uint32_t inverter_modbus_watchdog_timeout_s = MODBUS_INV_WATCHDOG_DEFAULT_S;
+bool inverter_modbus_watchdog_changed = false;
+bool user_selected_accept_inverter_reboot = false;
+uint64_t inverter_modbus_utc_epoch_s = 0;
+
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
 

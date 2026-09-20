@@ -142,6 +142,9 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
   static const uint16_t MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
 
+  //Max 0x438-vs-0x444 disagreement before 0x438 is treated as not carrying pack voltage
+  static const uint16_t VOLTAGE_CROSSCHECK_TOLERANCE_DV = 50;
+
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
   uint16_t pid_reply = 0;

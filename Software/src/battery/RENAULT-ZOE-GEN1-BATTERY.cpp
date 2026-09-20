@@ -80,14 +80,21 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
         kWh_from_beginning_of_battery_life = (data[15] << 8) | data[16];
       }
       break;
-    case GROUP6_BALANCING:  // 0x07, one bit per cell, MSB first within each byte
+    case GROUP6_BALANCING: {  // 0x07, 18 bytes payload, 1 bit per cell (LSB-first bit order)
+      bool any_balancing = false;
       for (uint8_t cell = 0; cell < 96; cell++) {
         if ((cell >> 3) >= length) {
           break;
         }
-        datalayer_battery->status.cell_balancing_status[cell] = (data[cell >> 3] >> (7 - (cell & 7))) & 0x01;
+        bool is_balancing = (data[cell >> 3] >> (cell & 7)) & 0x01;
+        datalayer_battery->status.cell_balancing_status[cell] = is_balancing;
+        if (is_balancing) {
+          any_balancing = true;
+        }
       }
+      datalayer_battery->status.balancing_status = any_balancing ? BALANCING_STATUS_ACTIVE : BALANCING_STATUS_READY;
       break;
+    }
     default:  //Unknown PID, ignore
       break;
   }

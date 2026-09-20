@@ -50,6 +50,7 @@ void reset_byd_state() {
   datalayer_extended.bydAtto3.SOC_highprec = 0;
   datalayer_extended.bydAtto3.BMS_min_temp_module_number = 0;
   datalayer_extended.bydAtto3.BMS_max_temp_module_number = 0;
+  datalayer_extended.bydAtto3.pack_voltage_dV = 0;
 }
 
 // Coldest sensor 9 at 8C, hottest sensor 1 at 24C, SOC 99.2%, average 16C.
@@ -141,4 +142,76 @@ TEST(BydAtto3Tests, ShouldDecode0x444WholePercentSocAndRejectBadChecksum) {
   EXPECT_EQ(datalayer_extended.bydAtto3.SOC_polled, 31);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9300);
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 1);
+}
+
+TEST(BydAtto3Tests, ShouldPrefer0x438VoltageWhenItAgreesWith0x444) {
+  reset_byd_state();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  // Atto payload: 0x444 says 420V whole-volt, 0x438 says 4203 dV. Real captures peak at 8 dV apart.
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xA4, 0x01, 0x88, 0x13, 0x5D, 0x1F, 0x00}));
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x01, 0xD6, 0x47, 0x6B, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4203);
+  EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4203);
+  EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
+}
+
+TEST(BydAtto3Tests, ShouldFallBackTo0x444WhenPackDoesNotCarryVoltageIn0x438) {
+  reset_byd_state();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  // Real 142S VM7 payloads. b5:b6 there is not voltage and decodes to 36352 dV (3635.2V), which
+  // used to win over 0x444 and trip EVENT_BATTERY_OVERVOLTAGE.
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xD2, 0x01, 0x88, 0x13, 0x64, 0x1C, 0x4E}));
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x05, 0xFF, 0x00, 0x00, 0x8E}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4660);
+  // The detail page must show the resolved voltage too, not the rejected 0x438 value.
+  EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4660);
+  // A rejected pack family is not a bus error.
+  EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
+}
+
+TEST(BydAtto3Tests, ShouldIgnore0x438UntilAReference0x444HasArrived) {
+  reset_byd_state();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  // No 0x444 yet, so there is nothing to cross-check against and 0x438 must not be adopted.
+  const uint16_t initial_voltage_dV = datalayer.battery.status.voltage_dV;
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x05, 0xFF, 0x00, 0x00, 0x8E}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, initial_voltage_dV);
+
+  // Once the reference arrives, the same 0x438 is judged and rejected.
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xD2, 0x01, 0x88, 0x13, 0x64, 0x1C, 0x4E}));
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x05, 0xFF, 0x00, 0x00, 0x8E}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4660);
+}
+
+TEST(BydAtto3Tests, ShouldStopTrusting0x438OnceItDivergesFrom0x444) {
+  reset_byd_state();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xA4, 0x01, 0x88, 0x13, 0x5D, 0x1F, 0x00}));
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x01, 0xD6, 0x47, 0x6B, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4203);
+
+  // 0x438 now reads 4260 dV against 420V, 60 dV apart and past the tolerance. No stale value latches.
+  battery->handle_incoming_can_frame(byd_checksummed_frame(0x438, {0x55, 0x55, 0x01, 0xD6, 0x47, 0xA4, 0x10}));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4200);
+  EXPECT_EQ(datalayer_extended.bydAtto3.pack_voltage_dV, 4200);
 }

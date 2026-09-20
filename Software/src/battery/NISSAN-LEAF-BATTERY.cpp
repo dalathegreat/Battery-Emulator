@@ -917,6 +917,12 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
     previousMillis10s = currentMillis;
+    /* The LBC comes back from the power cycle with a fresh session, so the groups that are asked
+       for only until they answer are armed to be read again, at the same burst rate used at boot.
+       Held rather than edge triggered: the reset ends on whichever loop first sees IDLE again, and
+       both are cleared from the polling code once the pass has actually been sent. */
+    repoll_static_groups = true;
+    poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
     return;
   }
 
@@ -950,6 +956,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&LEAF_1D4);
       }
 
+      //The low nibble of byte 7 is the Nissan nibble checksum over the rest of the message. The
+      //constants below are the ones for CHG_STA_RQ=00b; the selected request is applied, checksum
+      //included, right after the switch.
       switch (mprun10r) {
         case (0):
           LEAF_1F2.data.u8[3] = 0xB0;
@@ -1038,6 +1047,15 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         default:
           break;
       }
+
+      /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
+         Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
+         other nibble in the message: the request adds 0x00, 0x20 or 0x40 to byte 2, i.e. 0, 2 or
+         4 to that sum, so the constants above are corrected by twice the selected value rather
+         than recomputing the whole checksum on every message. */
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (user_selected_LEAF_chg_sta_rq << 5);
+      LEAF_1F2.data.u8[7] =
+          (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
@@ -1143,15 +1161,22 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         // is asked for only until its data is in, after which the recurring groups come round
         // faster. Testing the data itself rather than a "seen" flag means a reply that arrived
         // while another tool was polling the bus counts just as well.
+        // After a BMS reset the skipping is suspended for one pass, so the new session answers
+        // them once more. Previous values stay on display until the fresh reply overwrites them.
         do {
           PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
-        } while ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
-                 (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
-                 (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0));
+        } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_charge_count_l1l2 != 0) ||
+                                           (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
+                                           (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0)));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
         if (poll_burst_remaining) {
           poll_burst_remaining--;
+          // Nothing is skipped while re-polling, so the burst counter running out means every
+          // group has been asked for exactly once. The static ones drop out of the rotation again.
+          if (poll_burst_remaining == 0) {
+            repoll_static_groups = false;
+          }
         }
         uds_busy = true;
         uds_request_millis = currentMillis;
