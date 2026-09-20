@@ -50,7 +50,6 @@ AsyncAuthenticationMiddleware web_auth_middleware;
 static MyTimer ota_progress_timer = MyTimer(1000);
 
 #include "advanced_battery_html.h"
-#include "can_logging_html.h"
 #include "can_replay_html.h"
 #include "cellmonitor_html.h"
 #include "debug_logging_html.h"
@@ -320,12 +319,7 @@ void init_webserver() {
     request->send(response);
   });
 
-  // Route for going to CAN logging web page
-  def_route_with_auth("/canlog", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(request->beginResponse(200, "text/html", can_logger_processor()));
-  });
-
-  // Route for going to CAN replay web page
+  // Route for going to CAN tools web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_replay_processor()));
   });
@@ -382,12 +376,6 @@ void init_webserver() {
     });
   }
 
-  // Define the handler to stop can logging
-  server.on("/stop_can_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
-    datalayer.system.info.can_logging_active = false;
-    request->send(200, "text/plain", "Logging stopped");
-  });
-
   // Define the handler to import can log
   server.on(
       "/import_can_log", HTTP_POST,
@@ -410,24 +398,8 @@ void init_webserver() {
       delete_can_log();
       request->send(200, "text/plain", "Log file deleted");
     });
-  } else
-#endif  // SDCARD
-  {
-    // Define the handler to export can log
-    server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
-      String logs = String(datalayer.system.info.logged_can_messages);
-      if (logs.length() == 0) {
-        logs = "No logs available.";
-      }
-
-      String filename = "canlog_" + format_ms_stamp(millis64()) + ".txt";
-
-      // Use request->send with dynamic headers
-      AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
-      response->addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-      request->send(response);
-    });
   }
+#endif  // SDCARD
 
 #ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
@@ -753,9 +725,6 @@ void init_webserver() {
   update_string_setting("/updateSocMax", [](String value) {
     datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
   });
-
-  // Route for editing CAN ID cutoff filter
-  update_int_setting("/set_can_id_cutoff", [](int value) { user_selected_CAN_ID_cutoff_filter = value; });
 
   // Route for pause/resume Battery emulator
   update_string("/pause", [](String value) { setBatteryPause(value == "true" || value == "1", false); });
@@ -1910,8 +1879,7 @@ String processor(const String& var) {
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
     content += "<button onclick='Advanced()'>More Battery/Cell Info</button> ";
-    content += "<button onclick='CANlog()'>CAN logger</button> ";
-    content += "<button onclick='CANreplay()'>CAN replay</button> ";
+    content += "<button onclick='CANtools()'>CAN tools</button> ";
     if (datalayer.system.info.web_logging_active
 #ifdef SDCARD
         || datalayer.system.info.SD_logging_active
@@ -1942,8 +1910,7 @@ String processor(const String& var) {
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
     content += "function Advanced() { window.location.href = '/advanced'; }";
-    content += "function CANlog() { window.location.href = '/canlog'; }";
-    content += "function CANreplay() { window.location.href = '/canreplay'; }";
+    content += "function CANtools() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
     if (webserver_auth) {
