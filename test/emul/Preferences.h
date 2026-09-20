@@ -36,7 +36,7 @@ class Preferences {
 
   size_t putInt(const char* key, int32_t value) { return putInteger(key, static_cast<uint32_t>(value), false); }
   size_t putUInt(const char* key, uint32_t value) { return putInteger(key, value, true); }
-  size_t putBool(const char* key, bool value) { return 0; }
+  size_t putBool(const char* key, bool value) { return putInteger(key, value ? 1U : 0U, true); }
   size_t putString(const char* key, const char* value) { return 0; }
   size_t putString(const char* key, String value) { return 0; }
 
@@ -52,7 +52,10 @@ class Preferences {
     auto it = integers.find({namespace_name, key});
     return open && it != integers.end() && it->second.is_unsigned ? it->second.value : defaultValue;
   }
-  bool getBool(const char* key, bool defaultValue = false) { return false; }
+  bool getBool(const char* key, bool defaultValue = false) {
+  auto it = integers.find({namespace_name, key});
+  return open && it != integers.end() ? it->second.value != 0 : defaultValue;
+}
   size_t getString(const char* key, char* value, size_t maxLen) { return 0; }
   String getString(const char* key, String defaultValue = String()) { return String(); }
 

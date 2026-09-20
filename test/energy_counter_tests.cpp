@@ -291,6 +291,12 @@ TEST_F(EnergyCounterTest, RestoreOnlyCalculatedTotalsForEveryCapabilityCombinati
     for (bool ah : {false, true}) {
       SCOPED_TRACE(testing::Message() << "native Wh=" << wh << " Ah=" << ah);
       Preferences::reset();
+
+      Preferences prefs;
+      ASSERT_TRUE(prefs.begin("batterySettings"));
+      prefs.putBool("ENERGYPERSIST", true);
+      prefs.end();
+
       seed();
       status.total_charged_battery_Wh = 101;
       status.total_discharged_battery_Wh = 102;
