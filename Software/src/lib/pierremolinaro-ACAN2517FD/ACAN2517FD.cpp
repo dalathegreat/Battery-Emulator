@@ -1334,7 +1334,8 @@ ACAN2517FDSettings::Oscillator ACAN2517FD::autodetectCrystalFrequency (void) {
   // Calculate frequency in 0.1MHz units
   const uint32_t freq_times_10 = ((c2 - c1) * 10) / (t2 - t1);
 
-  logging.printf("MCP2518FD autodetected crystal: %ddMHz\n", freq_times_10);
+  // freq_times_10 is in 0.1MHz units, round it to whole MHz for the log line
+  logging.printf("MCP2518FD autodetected crystal: %u MHz\n", (freq_times_10 + 5) / 10);
 
   // Disable TBC again
   writeRegister8 (C1TSCON_REGISTER_16_23, 0x00);

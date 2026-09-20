@@ -5,6 +5,7 @@
 #include "BYD-MODBUS.h"
 #include "FERROAMP-CAN.h"
 #include "FOXESS-CAN.h"
+#include "FOXESS-EP-CAN.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
 #include "GROWATT-WIT-CAN.h"
@@ -94,6 +95,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::Foxess:
       return FoxessCanInverter::Name;
 
+    case InverterProtocolType::FoxessEp:
+      return FoxessEpCanInverter::Name;
+
     case InverterProtocolType::GrowattHv:
       return GrowattHvInverter::Name;
 
@@ -178,6 +182,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Foxess:
       inverter = new FoxessCanInverter();
+      break;
+
+    case InverterProtocolType::FoxessEp:
+      inverter = new FoxessEpCanInverter();
       break;
 
     case InverterProtocolType::GrowattHv:

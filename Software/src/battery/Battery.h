@@ -60,6 +60,8 @@ enum class BatteryType {
   StellantisSmallWide4x4 = 53,
   ChargebyteCCSBattery = 54,
   VAGMqbEvo = 55,
+  Akasol = 56,
+  GrowattLv = 57,
   Highest
 };
 
@@ -99,7 +101,9 @@ class Battery {
   virtual bool supports_reset_NVROL() { return false; }
   virtual bool supports_reset_DTC() { return false; }
   virtual bool supports_read_DTC() { return false; }
+#ifndef SMALL_FLASH_DEVICE
   virtual bool supports_reset_SOH() { return false; }
+#endif
   virtual bool supports_reset_BECM() { return false; }
   virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
@@ -130,7 +134,9 @@ class Battery {
   virtual void reset_NVROL() {}
   virtual void reset_DTC() {}
   virtual void read_DTC() {}
+#ifndef SMALL_FLASH_DEVICE
   virtual void reset_SOH() {}
+#endif
   virtual void reset_BECM() {}
   virtual void request_open_contactors() {}
   virtual void request_close_contactors() {}
@@ -148,6 +154,13 @@ class Battery {
 
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
+
+  /* Worst charge (max) and discharge (min) current the pack has seen since the previous
+     update_values(), in deciamps, for the charge/discharge limit safety check. The default
+     hands back the published current, which is exactly what that check used before this
+     existed. Drivers that publish a mean rather than an instantaneous current override it,
+     so a short excursion inside the averaging window is not hidden from the safety layer. */
+  virtual void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA);
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }

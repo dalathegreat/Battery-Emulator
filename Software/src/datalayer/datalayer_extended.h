@@ -151,7 +151,7 @@ struct DATALAYER_INFO_BYDATTO3 {
 
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
-  int16_t battery_temperatures[13];
+  int16_t battery_temperatures[12];
 
   uint8_t discharge_status;
   uint8_t BMS_min_cell_voltage_number;
@@ -199,6 +199,31 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool autocal_crit_drift;
   bool autocal_crit_cooldown_ready;
   bool autocal_crit_contactors;
+
+  // Native BMS termination: let the battery end the charge and recalibrate SOC itself, by running a
+  // real charge session on an already closed pack. Needs the pack not reporting an insulation fault
+  // (the isolation-monitor-disable setting, on by default, normally keeps that clear).
+  bool native_termination_enabled;
+  /** Session state: 0 off, 1 requesting, 2 ready, 3 charging, 4 finishing, 5 resting */
+  uint8_t charge_session_state;
+  /** Charge grant the battery gives the charger (0x347), zero means stop */
+  uint8_t charge_grant;
+  /** Seconds spent in the current session state, so the post-charge rest can be timed */
+  uint32_t charge_session_seconds;
+  /** Highest cell and cell spread at the moment the battery ended the last charge */
+  uint16_t termination_cell_max_mV;
+  uint16_t termination_cell_min_mV;
+  uint16_t termination_cell_delta_mV;
+  uint8_t termination_cell_max_number;
+  uint8_t termination_cell_min_number;
+  /** Cycle the contactors open after a native termination, then close again */
+  bool balancing_enabled;
+  /** How long to hold the pack open for */
+  uint16_t balancing_hold_minutes;
+  /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
+  uint8_t balancing_state;
+  /** Minutes left of the hold */
+  uint16_t balancing_remaining_min;
 
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
@@ -442,34 +467,6 @@ struct DATALAYER_INFO_GEELY_GEOMETRY_C {
   uint16_t unknown8;
 };
 
-struct DATALAYER_INFO_KIAHYUNDAI64 {
-  uint32_t cumulative_charge_current_ah;
-  uint32_t cumulative_discharge_current_ah;
-  uint32_t cumulative_energy_charged_kWh;
-  uint32_t cumulative_energy_discharged_kWh;
-  uint32_t powered_on_total_time;
-
-  uint16_t inverterVoltage;
-  uint16_t isolation_resistance_kOhm;
-  uint16_t number_of_standard_charging_sessions;
-  uint16_t number_of_fastcharging_sessions;
-  uint16_t accumulated_normal_charging_energy_kWh;
-  uint16_t accumulated_fastcharging_energy_kWh;
-  uint16_t battery_12V;
-
-  int8_t temperature_water_inlet;
-  int8_t powerRelayTemperature;
-
-  uint8_t total_cell_count;
-  uint8_t waterleakageSensor;
-  uint8_t batteryManagementMode;
-  uint8_t BMS_ign;
-  uint8_t batteryRelay;
-
-  uint8_t ecu_serial_number[16];
-  uint8_t ecu_version_number[16];
-};
-
 struct DATALAYER_INFO_KIA64FD {
   /** SOC reported by the BMS, 1000 = 100.0% */
   uint16_t SOC_BMS;
@@ -568,7 +565,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_info_subUsageId;
   uint16_t battery_dcdcLvBusVolt;
   uint16_t battery_dcdcHvBusVolt;
-  uint16_t battery_dcdcLvOutputCurrent;
+  int16_t battery_dcdcLvOutputCurrent;
   uint16_t battery_nominal_full_pack_energy;
   uint16_t battery_nominal_full_pack_energy_m0;
   uint16_t battery_nominal_energy_remaining;
@@ -584,7 +581,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_BrickVoltageMax;
   uint16_t battery_BrickVoltageMin;
   uint16_t HVP_hvp1v5Ref;
-  uint16_t HVP_shuntCurrentDebug;
+  int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
   int16_t PCS_ambientTemp;
   int16_t PCS_chgPhATemp;
@@ -702,7 +699,6 @@ struct DATALAYER_INFO_TESLA {
   uint8_t HVP_info_pcbaId;
   uint8_t HVP_info_assemblyId;
   uint8_t HVP_info_bootUdsProtoVersion;
-  uint8_t HVP_shuntHwMia;
   uint8_t HVP_shuntAuxCurrentStatus;
   uint8_t HVP_shuntBarTempStatus;
   uint8_t HVP_shuntAsicTempStatus;
@@ -739,19 +735,15 @@ struct DATALAYER_INFO_TESLA {
   bool HVP_gpioPyroPor;
   bool HVP_gpioShuntEn;
   bool HVP_gpioHvpVerEn;
-  bool HVP_gpioPackCoontPosFlywheel;
+  bool HVP_gpioFcContFlywheelEnable;
   bool HVP_gpioCpLatchEnable;
-  bool HVP_gpioPcsEnable;
-  bool HVP_gpioPcsDcdcPwmEnable;
-  bool HVP_gpioPcsChargePwmEnable;
   bool HVP_gpioFcContPowerEnable;
   bool HVP_gpioHvilEnable;
-  bool HVP_gpioSecDrdy;
+  bool HVP_gpioPortSelSpiRdy;
+  bool HVP_gpioPyroUnlock;
   bool HVP_packCurrentMia;
   bool HVP_auxCurrentMia;
   bool HVP_currentSenseMia;
-  bool HVP_shuntRefVoltageMismatch;
-  bool HVP_shuntThermistorMia;
 
   uint8_t BMS_partNumber[12];        //stores raw HEX values for ASCII chars
   uint8_t battery_serialNumber[15];  //stores raw HEX values for ASCII chars
@@ -762,12 +754,23 @@ struct DATALAYER_INFO_TESLA {
 };
 
 struct DATALAYER_INFO_NISSAN_LEAF {
+#ifndef SMALL_FLASH_DEVICE
   /** Cryptographic challenge to be solved */
   uint32_t CryptoChallenge;
   /** Solution for crypto challenge, MSBs */
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+#endif
+  /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
+   * Derived in the driver rather than at each display site so the per-generation nominal
+   * voltage is stated once.
+   */
+  uint32_t CapacityWh;
+  /** Nameplate energy of this pack size, max GIDs times WH_PER_GID, in Wh. Fixed per pack rather
+   * than tracking wear, so it serves as the reference CapacityWh is compared against.
+   */
+  uint32_t CapacityAsNewWh;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
@@ -775,8 +778,22 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;
+  /** Unfiltered state of health from the health block, in hundredths of a percent. 0 until read.
+   * The filtered figure the pack publishes settles onto this one, so it moves first while a
+   * pack is relearning after a degradation reset.
+   */
+  uint16_t battery_SOHraw_pptt;
+  /** State of health as the LBC itself publishes it, in hundredths of a percent. 0 until read.
+   * Erased along with the degradation data, so it reads 100% on a pack that has had a reset no
+   * matter what the pack still holds. Shown for reference only.
+   */
+  uint16_t battery_SOHavg_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
+  /** Pack capacity in hundredths of an Ah (11544 = 115.44 Ah), 0 until read from the battery */
+  uint16_t CapacityCAh;
+  /** 12 V accessory battery level in mV, 0 until read from the battery */
+  uint16_t VBAT_mV;
   /** Lifetime number of quick (CHAdeMO) charges, 0 until read from the battery */
   uint16_t ChargeCountQC;
   /** Lifetime number of L1/L2 (AC) charges, 0 until read from the battery */
@@ -813,12 +830,26 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart;
   /** Heat request sent*/
   bool HeaterSendRequest;
+  /** Which of the LBC's status broadcasts have arrived since boot, as the flags above mean nothing
+   * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
+   * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */
+  uint8_t StatusSeen;
+#ifndef SMALL_FLASH_DEVICE
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
+#endif
 
-  /** Battery info, stores raw HEX values for ASCII chars */
-  uint8_t BatterySerialNumber[15];
+  /** Battery info, stores raw HEX values for ASCII chars. The serial number is 16 characters, not
+   * null-terminated. */
+  uint8_t BatterySerialNumber[16];
   uint8_t BatteryPartNumber[7];
+  /** Lifetime usage tables from group 0x62, stored as the raw reply bytes payload[6..124]: seven
+   * tables of eight big-endian u16 counts. They start at [0] on ZE0/AZE0 and at [2] on ZE1, which
+   * carries one more counter ahead of them. Table order: temperature at drive start, at charge
+   * start, peak while driving, peak while charging, then SOC at drive start, at charge start, and
+   * last the charge-to-full table, whose bin 7 counts charges to 100 % and bin 6 turtle events.
+   */
+  uint8_t UsageHistograms[119];
 };
 
 struct DATALAYER_INFO_MEB {
@@ -1031,10 +1062,6 @@ class DataLayerExtended {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
     };
-    struct {
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
-      DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
-    };
     DATALAYER_INFO_TESLA tesla;
     struct {
       DATALAYER_INFO_NISSAN_LEAF nissanleaf;
@@ -1052,6 +1079,7 @@ class DataLayerExtended {
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_GEELY_SEA GeelySEA;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
+  DATALAYER_INFO_ZOE_PH2 zoePH2_2;
 
   DataLayerExtended() {
     memset(this, 0, sizeof(DataLayerExtended));
@@ -1064,6 +1092,9 @@ class DataLayerExtended {
       data.discharge_status = 14;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
+      data.native_termination_enabled = true;
+      data.balancing_enabled = false;
+      data.balancing_hold_minutes = 30;
     };
     initBydAtto3(bydAtto3);
     initBydAtto3(bydAtto3_2);

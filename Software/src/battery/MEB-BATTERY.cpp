@@ -255,14 +255,14 @@ void MebBattery::
   }
 
   if (service_disconnect_switch_missing) {
-    set_event(EVENT_HVIL_FAILURE, 1);
+    set_event(EVENT_HVIL_FAILURE, 1, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
   if (pilotline_open || BMS_HVIL_status == 2) {
-    set_event(EVENT_HVIL_FAILURE, 2);
+    set_event(EVENT_HVIL_FAILURE, 2, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   // Update webserver datalayer for "More battery info" page
@@ -309,11 +309,11 @@ void MebBattery::
   datalayer_meb->rt_battery_unathorized = realtime_warning_battery_unathorized;
   if (balancing_active == 1 && datalayer_meb->balancing_active != 1) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
-    set_event_latched(EVENT_BALANCING_START, 0);
+    set_event_latched(EVENT_BALANCING_START, 0, battery_index);
   }
   if (balancing_active == 2 && datalayer_meb->balancing_active == 1) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
-    set_event(EVENT_BALANCING_END, 0);
+    set_event(EVENT_BALANCING_END, 0, battery_index);
   }
   datalayer_meb->balancing_active = balancing_active;
   datalayer_meb->balancing_request = balancing_request;
