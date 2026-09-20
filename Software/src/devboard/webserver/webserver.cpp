@@ -488,10 +488,7 @@ void init_webserver() {
     settings.clearAll();
     erase_phy_cal_data();
 #ifdef HW_UNIFIED_S3
-    // The board config lives on the filesystem rather than in NVS, so clearing
-    // settings alone would leave the emulator configured for a board it is no
-    // longer meant to know about.
-    LittleFS.format();
+    erase_board_config();
 #endif
     LOG_SET_NEXT_SEVERITY(5);  // notice
     logging.println("Factory reset performed from the web interface.");

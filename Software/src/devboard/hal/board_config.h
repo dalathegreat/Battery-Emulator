@@ -173,6 +173,11 @@ void init_board_config();
 // either way; the return value is false when the document could not be used.
 bool validate_board_config(const char* json, size_t length, std::vector<ConfigIssue>& issues);
 
+// Erases the stored configuration, including the backup and any rejected copy.
+// Part of a factory reset: the configuration lives on the filesystem rather
+// than in NVS, so clearing settings alone would leave the board configured.
+void erase_board_config();
+
 // Writes a document that validate_board_config() already accepted, keeping the
 // previous one as BOARD_CONFIG_BACKUP_PATH. Returns false if flash rejected it,
 // in which case the previous configuration is still the active one.
