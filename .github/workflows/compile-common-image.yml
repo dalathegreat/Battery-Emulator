@@ -63,8 +63,9 @@ jobs:
           ~/.cache/pip
           ~/.platformio/packages
           ~/.platformio/platforms
+          ~/.platformio/.cache
           sdkconfig.defaults
-        key: ${{ runner.os }}-pio-v2-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
 
     # The env cache will miss if platformio.ini or the custom sdkconfig has
     # changed. In that case, we can use a fallback cache which just avoids
@@ -80,7 +81,8 @@ jobs:
       with:
         path: |
           ~/.cache/pip
-        key: ${{ runner.os }}-pio-v2
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
 
     # PlatformIO uses several heuristics to determine whether the custom
     # sdkconfig needs rebuilding. One of these is the mtime of the custom
@@ -219,8 +221,9 @@ jobs:
           ~/.cache/pip
           ~/.platformio/packages
           ~/.platformio/platforms
+          ~/.platformio/.cache
           sdkconfig.defaults
-        key: ${{ runner.os }}-pio-v2-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
     
     # Only save fallback cache if it was a miss. The always() means we'll still
     # save the fallback cache even if the build failed, since we want to avoid
@@ -231,7 +234,8 @@ jobs:
       with:
         path: |
           ~/.cache/pip
-        key: ${{ runner.os }}-pio-v2
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
 
   measure-size:
     needs: build
