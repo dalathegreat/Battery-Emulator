@@ -123,7 +123,7 @@ void TeslaLegacyBattery::update_values() {
   datalayer.battery.status.cell_min_voltage_mV = battery_BrickVoltageMin;
 
   //Check safeties
-  if (battery_BMS_isolationResistance < 100) {  //TODO: limit unknown
+  if (battery_BMS_isolationResistance < 100) {  //TODO: Exact limit unknown. Working pack reports 165kOhm
     set_event(EVENT_BATTERY_ISOLATION, battery_BMS_isolationResistance);
   } else {
     clear_event(EVENT_BATTERY_ISOLATION);
