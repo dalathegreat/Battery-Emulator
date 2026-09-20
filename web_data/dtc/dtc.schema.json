@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/dalathegreat/Battery-Emulator/main/web_data/dtc/dtc.schema.json",
+  "title": "Battery-Emulator DTC description file",
+  "description": "Array of DTC (Diagnostic Trouble Code) description entries consumed by the web UI's DTC loader (get_dtc_json_loader_html). See README.md in this folder.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "One DTC. Must have a non-empty 'l_dsc' and at least one usable identifier ('code' or a non-empty 'dtc').",
+    "properties": {
+      "code": {
+        "type": "integer",
+        "description": "Decimal DTC code. Matches table cells whose data-dtc-code holds the decimal value. To mean 'no code', omit this key (do NOT use an empty string)."
+      },
+      "dtc": {
+        "type": "string",
+        "description": "DTC string, e.g. 'P0C9500'. Matches cells whose data-dtc-code holds the string. May be empty only when 'code' is present."
+      },
+      "s_dsc": {
+        "type": "string",
+        "description": "Short/internal description, shown in grey italics under the long one. Optional; an empty value is simply omitted from the output."
+      },
+      "l_dsc": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Long human-readable description. This is the displayed text. Required and non-empty."
+      }
+    },
+    "required": ["l_dsc"],
+    "additionalProperties": false,
+    "anyOf": [
+      {
+        "required": ["code"]
+      },
+      {
+        "required": ["dtc"],
+        "properties": {
+          "dtc": { "minLength": 1 }
+        }
+      }
+    ]
+  },
+  "examples": [
+    [
+      { "code": 41848, "dtc": "P0C9500", "s_dsc": "Diag_S_Temp_01CM11_ORH", "l_dsc": "Hybrid/EV Battery Temperature Sensor \"K\" Circuit High" },
+      { "code": 132864, "l_dsc": "SME: Transport mode active" },
+      { "dtc": "P0C9500", "l_dsc": "String-only entry, no decimal code" }
+    ]
+  ]
+}

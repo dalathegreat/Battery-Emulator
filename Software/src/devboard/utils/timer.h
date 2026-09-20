@@ -11,14 +11,14 @@ class MyTimer {
   MyTimer() : interval(0), previous_millis(0) {}
 
   /** interval in ms */
-  MyTimer(unsigned long interval);
+  MyTimer(uint32_t interval);
   /** Returns true and resets the timer if it has elapsed */
   bool elapsed(void);
   void reset(void);
-  void set_interval(unsigned long interval);
+  void set_interval(uint32_t interval);
 
-  unsigned long interval;
-  unsigned long previous_millis;
+  uint32_t interval;
+  uint32_t previous_millis;
 
  private:
 };

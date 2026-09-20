@@ -1,5 +1,30 @@
 #include "INVERTERS.h"
 
+#include "AFORE-CAN.h"
+#include "BYD-CAN.h"
+#include "BYD-MODBUS.h"
+#include "FERROAMP-CAN.h"
+#include "FOXESS-CAN.h"
+#include "FOXESS-EP-CAN.h"
+#include "GROWATT-HV-CAN.h"
+#include "GROWATT-LV-CAN.h"
+#include "GROWATT-WIT-CAN.h"
+#include "KOSTAL-RS485.h"
+#include "PYLON-CAN.h"
+#include "PYLON-LV-CAN.h"
+#include "PYLON-LV-RS485.h"
+#include "SCHNEIDER-CAN.h"
+#include "SMA-BYD-H-CAN.h"
+#include "SMA-BYD-HVS-CAN.h"
+#include "SMA-LV-CAN.h"
+#include "SMA-SBS-BYD-CAN.h"
+#include "SOFAR-CAN.h"
+#include "SOL-ARK-LV-CAN.h"
+#include "SOLAX-CAN.h"
+#include "SOLXPOW-CAN.h"
+#include "SUNGROW-CAN.h"
+#include "VCU-CAN.h"
+
 InverterProtocol* inverter = nullptr;
 
 InverterProtocolType user_selected_inverter_protocol = InverterProtocolType::BydModbus;
@@ -15,8 +40,12 @@ uint16_t user_selected_inverter_voltage_level = 0;
 uint16_t user_selected_inverter_ah_capacity = 0;
 uint16_t user_selected_inverter_battery_type = 0;
 uint16_t user_selected_inverter_sungrow_type = 0;
+uint16_t user_selected_inverter_foxess_type = 0;
+uint16_t user_selected_inverter_foxess_subtype = 0;
+uint16_t user_selected_inverter_foxess_modules = 0;
 uint16_t user_selected_inverter_pylon_type = 0;
 inverter_contactor_mode_enum user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
+bool user_selected_inverter_long_CAN_timeout = false;
 bool user_selected_pylon_30koffset = false;
 bool user_selected_pylon_invert_byteorder = false;
 bool user_selected_inverter_deye_workaround = false;
@@ -24,6 +53,17 @@ bool user_selected_primo_gen24 =
     false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
 
 bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
+
+bool charge_taper_soc = false;  //Should the charge power limit be tapered based on scaled SOC near full?
+uint16_t charge_taper_band_pptt =
+    500;  //Taper band in pptt. 500 = taper starts at 95.00% scaled SOC, reaching 0W at 100.00%
+uint16_t charge_taper_floor_W =
+    0;  //Minimum charge power in W held during tapering until 100.00% scaled SOC. 0 = disabled, taper goes linearly to 0W
+
+uint32_t inverter_modbus_watchdog_timeout_s = MODBUS_INV_WATCHDOG_DEFAULT_S;
+bool inverter_modbus_watchdog_changed = false;
+bool user_selected_accept_inverter_reboot = false;
+uint64_t inverter_modbus_utc_epoch_s = 0;
 
 std::vector<InverterProtocolType> supported_inverter_protocols() {
   std::vector<InverterProtocolType> types;
@@ -54,6 +94,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::Foxess:
       return FoxessCanInverter::Name;
+
+    case InverterProtocolType::FoxessEp:
+      return FoxessEpCanInverter::Name;
 
     case InverterProtocolType::GrowattHv:
       return GrowattHvInverter::Name;
@@ -139,6 +182,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::Foxess:
       inverter = new FoxessCanInverter();
+      break;
+
+    case InverterProtocolType::FoxessEp:
+      inverter = new FoxessEpCanInverter();
       break;
 
     case InverterProtocolType::GrowattHv:

@@ -69,9 +69,9 @@ void KiaHyundaiHybridBattery::
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
 
   if (interlock_missing) {
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 }
 
@@ -299,6 +299,11 @@ void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     transmit_can_frame(&KIA_523);
+
+    if (UserRequestDTCreset) {
+      UserRequestDTCreset = false;
+      transmit_can_frame(&KIA_CLEAR_DTC);
+    }
   }
 
   // Send 1000ms CAN Message

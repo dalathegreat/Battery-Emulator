@@ -1,9 +1,16 @@
 #include "advanced_battery_html.h"
 #include <Arduino.h>
+#include <algorithm>
+#include <atomic>
+#include <new>
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/WebResponseImpl.h"
+#include "checked_html.h"
+#include "index_html.h"
 
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
@@ -28,7 +35,7 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetContactor", "Perform contactor reset", "reset contactors?",
      [](Battery* b) { return b && b->supports_contactor_reset(); }, [](Battery* b) { b->reset_contactor(); }},
     {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
-     [](Battery* b) { b->reset_DTC(); }},
+     [](Battery* b) { b->reset_DTC(); }, true},
     {"startBalancing", "Balancing",
      "continue? Please charge battery fully for this to work. After a couple of minutes, battery will sleep and do "
      "balancing. It often takes many hours. There will be no progress indication.",
@@ -37,16 +44,24 @@ std::vector<BatteryCommand> battery_commands = {
     {"endBalancing", "Stop Balancing Mode", "end offline balancing?",
      [](Battery* b) { return b && b->supports_balancing() && b->is_balancing_active(); },
      [](Battery* b) { b->end_balancing(); }},
+    {"startBalancingRequest", "Start Balancing", "request the BMS to start cell balancing?",
+     [](Battery* b) { return b && b->supports_balancing_request(); }, [](Battery* b) { b->initiate_balancing(); }},
+    {"stopBalancingRequest", "Stop Balancing", "request the BMS to stop cell balancing?",
+     [](Battery* b) { return b && b->supports_balancing_request(); }, [](Battery* b) { b->end_balancing(); }},
+    {"isolationTest", "Isolation Test", "start an isolation test?",
+     [](Battery* b) { return b && b->supports_isolation_test(); }, [](Battery* b) { b->request_isolation_test(); }},
     {"readDTC", "Read DTC", nullptr, [](Battery* b) { return b && b->supports_read_DTC(); },
-     [](Battery* b) { b->read_DTC(); }},
+     [](Battery* b) { b->read_DTC(); }, true},
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
      [](Battery* b) { b->reset_BECM(); }},
     {"contactorClose", "Close Contactors", "a contactor close request?",
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
     {"contactorOpen", "Open Contactors", "a contactor open request?",
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
-    {"resetSOH", "Reset degradation data", "reset degradation data?",
+#ifndef SMALL_FLASH_DEVICE
+    {"resetSOH", "Perform degradation reset", "reset degradation data?",
      [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
+#endif
     {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
      [](Battery* b) { return b && b->supports_factory_mode_method(); }, [](Battery* b) { b->set_factory_mode(); }},
     {"toggleSOC", "Toggle SOC method",
@@ -57,77 +72,217 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { b->reset_energy_saving_mode(); }},
 };
 
-String advanced_battery_processor(const String& var) {
-  if (var == "X") {
-    String content = "";
-    //Page format
-    content += "<style>";
-    content += "body { background-color: black; color: white; }";
-    content +=
-        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin: 5px; "
-        "cursor: pointer; border-radius: 10px; }";
-    content += "button:hover { background-color: #3A4A52; }";
-    content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
-    content += "</style>";
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+namespace {
+std::atomic<bool> advanced_page_busy{false};
 
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+Battery* battery_at(unsigned index) {
+  switch (index) {
+    case 0:
+      return battery;
+    case 1:
+      return battery2;
+    case 2:
+      return battery3;
+    default:
+      return nullptr;
+  }
+}
 
-    // Render buttons dynamically based on what commands the battery supports.
-    auto render_command_buttons = [&content](Battery* batt, int ix) {
-      for (const auto& cmd : battery_commands) {
-        if (cmd.condition(batt)) {
-          // Button for user action
-          content += "<button onclick='ask" + String(cmd.identifier) + "(" + String(ix) + ")'>" + String(cmd.title) +
-                     "</button>";
+// The Cellmonitor link carries location.search along, so the pack selected here stays selected
+// there. Costs nothing in flash: the query string is read in the browser, not built on the ESP.
+const char page_start[] = INDEX_HTML_HEADER INDEX_HTML_SUBPAGE_STYLE R"html(h4{margin:.6em 0;line-height:1.2}
+</style>
+<button onclick="location.href='/'">Back to main page</button>
+<button onclick="location.href='/cellmonitor'+location.search">Cellmonitor</button>
+<nav aria-label='Battery selection'>
+)html";
+const char page_end[] = "</div>" INDEX_HTML_FOOTER;
+const char render_error[] = "<p role='alert'>Battery information could not be loaded. Please reload this page.</p>";
 
-          // Script that calls the backend to perform the command
-          content += "<script>";
-          content += "function ask" + String(cmd.identifier) + "(batteryNum) { ";
+// No template processor: transmit each fragment directly from flash or the owned section buffer.
+class AdvancedBatteryResponse : public AsyncAbstractResponse {
+ public:
+  AdvancedBatteryResponse(unsigned index, uint8_t http_version) : AsyncAbstractResponse(nullptr), selected(index) {
+    _code = 200;
+    _contentType = "text/html";
+    _sendContentLength = false;
+    _chunked = http_version != 0;
+  }
 
-          if (cmd.prompt) {
-            content += "if (window.confirm('Are you sure you want to " + String(cmd.prompt) + "'))";
-          }
+  ~AdvancedBatteryResponse() override {
+    section = static_cast<const char*>(nullptr);
+    release();
+  }
+  bool _sourceValid() const override { return true; }
 
-          content += "{" + String(cmd.identifier) + "(batteryNum); } }";
-          content += "function " + String(cmd.identifier) + "(batteryNum) {";
-          content += "  var xhr = new XMLHttpRequest();";
-          content += "  xhr.open('PUT', '/" + String(cmd.identifier) + "', true);";
-          // Send index of the battery as PUT content
-          content += "  xhr.send(batteryNum);";
-          content += "}";
-          content += "</script>";
+  size_t _fillBuffer(uint8_t* data, size_t len) override {
+    if (!len) {
+      return RESPONSE_TRY_AGAIN;
+    }
+    size_t written = 0;
+    while (written < len) {
+      if (offset == fragment_length) {
+        // Drop the previous allocation before rendering the next fragment.
+        // Assigning an empty String retains its capacity on ESP32; null releases it.
+        section = static_cast<const char*>(nullptr);
+        if (!next_fragment()) {
+          release();
+          break;
+        }
+        offset = 0;
+        fragment_length = strlen(fragment);
+        if (!fragment_length) {
+          continue;
         }
       }
-    };
-
-    if (battery) {
-      content += battery->get_status_renderer().get_status_html();
-      render_command_buttons(battery, 0);
+      const size_t count = std::min(len - written, fragment_length - offset);
+      memcpy(data + written, fragment + offset, count);
+      offset += count;
+      written += count;
     }
-
-    if (battery2) {
-      content += "<hr>";
-      content += "<h4>Values from battery 2</h4>";
-      content += battery2->get_status_renderer().get_status_html();
-      render_command_buttons(battery2, 1);
-    }
-
-    if (battery3) {
-      content += "<h4>Values from battery 3</h4>";
-      content += "<h4 style='color: #f39c12;'>⚠️ Advanced detailed info is currently limited to the Main Battery.</h4>";
-      render_command_buttons(battery3, 2);
-    }
-
-    content += "</div>";
-
-    content += "<script>";
-    content += "function exportLog() { window.location.href = '/export_log'; }";
-    content += "function goToMainPage() { window.location.href = '/'; }";
-    content += "</script>";
-
-    return content;
+    return written;
   }
-  return String();
+
+ private:
+  enum class Stage { Start, Tabs, Panel, Status, Dtc, Commands, End, Done };
+  Stage stage = Stage::Start;
+  unsigned selected;
+  unsigned tab = 0;
+  size_t command = 0;
+  bool failed = false;
+  bool owns_slot = true;
+  String section;
+  char small[192];
+  const char* fragment = "";
+  size_t offset = 0;
+  size_t fragment_length = 0;
+
+  void release() {
+    if (owns_slot) {
+      owns_slot = false;
+      advanced_page_busy.store(false);
+    }
+  }
+
+  bool next_fragment() {
+    Battery* batt = battery_at(selected);
+    while (true) {
+      switch (stage) {
+        case Stage::Start:
+          fragment = page_start;
+          stage = (battery2 || battery3) ? Stage::Tabs : Stage::Panel;
+          return true;
+        case Stage::Tabs:
+          while (tab < 3) {
+            const unsigned current = tab++;
+            if (battery_at(current)) {
+              snprintf(small, sizeof(small), "<a class='battery-tab' href='/advanced?battery=%u'%s>Battery %u</a>",
+                       current + 1, current == selected ? " aria-current='page'" : "", current + 1);
+              fragment = small;
+              return true;
+            }
+          }
+          stage = Stage::Panel;
+          break;
+        case Stage::Panel:
+          fragment = "</nav><div class='battery-panel'>";
+          stage = Stage::Status;
+          return true;
+        case Stage::Status: {
+          stage = Stage::Dtc;
+          BatteryHtmlRenderer& renderer = batt->get_status_renderer();
+          if (selected && !renderer.renders_own_battery_data()) {
+            fragment = "<p>Advanced detailed information is currently available only for Battery 1.</p>";
+          } else {
+            section = renderer.get_status_html();
+            failed = renderer.html_render_failed() || !section;
+            fragment = failed ? render_error : section.c_str();
+          }
+          return true;
+        }
+        case Stage::Dtc: {
+          stage = Stage::Commands;
+          // Diagnostics are built only after the status buffer has been freed.
+          BatteryHtmlRenderer& renderer = batt->get_status_renderer();
+          if (!failed && (!selected || renderer.renders_own_battery_data())) {
+            section = renderer.get_dtc_html();
+            failed = renderer.html_render_failed() || !section;
+            fragment = failed ? render_error : section.c_str();
+            return true;
+          }
+          break;
+        }
+        case Stage::Commands:
+          while (!failed && command < battery_commands.size()) {
+            const auto& cmd = battery_commands[command++];
+            if (cmd.condition(batt)) {
+              section = command_html(cmd, batt->get_status_renderer().get_command_prefix_html(cmd.identifier));
+              if (section.isEmpty()) {
+                failed = true;
+                fragment = render_error;
+              } else {
+                fragment = section.c_str();
+              }
+              return true;
+            }
+          }
+          stage = Stage::End;
+          break;
+        case Stage::End:
+          fragment = page_end;
+          stage = Stage::Done;
+          return true;
+        case Stage::Done:
+          return false;
+      }
+    }
+  }
+
+  // The renderer's prefix goes ahead of the button, in the same checked buffer, so a prefix that
+  // failed to build fails the page rather than silently leaving the button out of its section.
+  String command_html(const BatteryCommand& cmd, const String& prefix) const {
+    CheckedHtml html;
+    html.reserve(1024 + prefix.length());
+    html += prefix;
+    html += "<button onclick='ask" + String(cmd.identifier) + "(" + String(selected) + ")'>" + cmd.title +
+            "</button><script>function ask" + cmd.identifier + "(batteryNum){";
+    if (cmd.prompt) {
+      html += "if(window.confirm('Are you sure you want to " + String(cmd.prompt) + "'))";
+    }
+    html += "{" + String(cmd.identifier) + "(batteryNum);}}function " + cmd.identifier +
+            "(batteryNum){var xhr=new XMLHttpRequest();xhr.open('PUT','/" + cmd.identifier + "',true);";
+    if (cmd.reload_after) {
+      html += "xhr.onload=function(){setTimeout(function(){location.reload();},1500);};";
+    }
+    html += "xhr.send(batteryNum);}</script>";
+    return html.take();
+  }
+};
+}  // namespace
+
+void send_advanced_battery_page(AsyncWebServerRequest* request) {
+  unsigned selected = 0;
+  if (request->hasParam("battery")) {
+    const String value = request->getParam("battery")->value();
+    if (value.length() != 1 || value[0] < '1' || value[0] > '3') {
+      request->send(400, "text/plain", "Invalid battery selection.");
+      return;
+    }
+    selected = value[0] - '1';
+  }
+  if (!battery_at(selected)) {
+    request->send(404, "text/plain", "This battery is not configured.");
+    return;
+  }
+  if (advanced_page_busy.exchange(true)) {
+    request->send(503, "text/plain", "Battery information is busy. Please try again.");
+    return;
+  }
+  auto* response = new (std::nothrow) AdvancedBatteryResponse(selected, request->version());
+  if (!response) {
+    advanced_page_busy.store(false);
+    request->send(503, "text/plain", "Battery information could not be loaded. Please try again.");
+    return;
+  }
+  request->send(response);
 }

@@ -1,7 +1,8 @@
 #ifndef SDCARD_H
 #define SDCARD_H
 
-#include <SD_MMC.h>
+#ifdef SDCARD
+#include <SD.h>
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
 #include "../utils/events.h"
@@ -15,7 +16,7 @@ void deinit_logging_buffers();
 bool init_sdcard();
 void log_sdcard_details();
 
-void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir);
+void add_can_frame_to_buffer(CAN_frame frame, CAN_Interface interface, frameDirection msgDir);
 void write_can_frame_to_sdcard();
 
 void pause_can_writing();
@@ -27,5 +28,7 @@ void pause_log_writing();
 
 void add_log_to_buffer(const uint8_t* buffer, size_t size);
 void write_log_to_sdcard();
+
+#endif  // SDCARD
 
 #endif  // SDCARD_H

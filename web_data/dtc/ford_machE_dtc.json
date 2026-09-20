@@ -67,6 +67,12 @@
   },
   {
     "code": null,
+    "dtc": "P0A7D",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Pack State of Charge Low while in Neutral gear"
+  },
+  {
+    "code": null,
     "dtc": "P0AA6",
     "s_dsc": null,
     "l_dsc": "Hybrid/EV Battery Pack 'A' Voltage System Isolation Fault"

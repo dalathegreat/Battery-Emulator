@@ -20,10 +20,11 @@ class String {
   String(String&& other) = default;
 
   // Numeric constructors (Arduino-style)
-  String(uint64_t value) { data = std::to_string(value); }
   String(int value) { data = std::to_string(value); }
   String(unsigned int value) { data = std::to_string(value); }
   String(long value) { data = std::to_string(value); }
+  String(unsigned long value) { data = std::to_string(value); }
+  String(unsigned long long value) { data = std::to_string(value); }
   String(float value) { data = std::to_string(value); }
   String(double value) { data = std::to_string(value); }
 
@@ -40,6 +41,9 @@ class String {
   // Conversion operator to std::string
   operator std::string() const { return data; }
 
+  // This host shim does not simulate allocation failures; empty strings are valid too.
+  explicit operator bool() const { return true; }
+
   // Accessor
   const std::string& str() const { return data; }
 
@@ -54,6 +58,19 @@ class String {
   String operator+(const char* rhs) const { return String(data + std::string(rhs)); }
 
   // Append
+  bool concat(const char* rhs) {
+    if (!rhs) {
+      return false;
+    }
+    data += rhs;
+    return true;
+  }
+
+  bool concat(const String& rhs) {
+    data += rhs.data;
+    return true;
+  }
+
   String& operator+=(const String& rhs) {
     data += rhs.data;
     return *this;
@@ -71,7 +88,14 @@ class String {
 
   // Arduino-like methods (example)
   int length() const { return static_cast<int>(data.length()); }
+  bool isEmpty() const { return data.empty(); }
   const char* c_str() const { return data.c_str(); }
+
+  // Arduino String::reserve returns bool; pre-allocates capacity.
+  bool reserve(unsigned int size) {
+    data.reserve(size);
+    return true;
+  }
 
   // Friend functions to allow std::string + String
   friend String operator+(const std::string& lhs, const String& rhs) { return String(lhs + rhs.data); }

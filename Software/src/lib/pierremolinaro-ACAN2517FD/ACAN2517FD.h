@@ -153,6 +153,9 @@ class ACAN2517FD {
   private: uint8_t mReceiveFIFOPayload ; // in byte count
   private: uint8_t mTXBWS_RequestedMode ;
   private: uint8_t mHardwareReceiveBufferOverflowCount ;
+  private: bool canErrors = false;
+
+  public: inline bool hasCanErrors() { auto ret = canErrors; canErrors = false; return ret; }
 
 //······················································································································
 //    Receive buffer
@@ -190,6 +193,7 @@ class ACAN2517FD {
   private: uint16_t readRegister16Assume_SPI_transaction (const uint16_t inRegisterAddress) ;
 
   private: void reset2517FD (void) ;
+  private: ACAN2517FDSettings::Oscillator autodetectCrystalFrequency (void) ;
 
   private: void writeRegister8 (const uint16_t inRegisterAddress, const uint8_t inValue) ;
   private: void writeRegister32 (const uint16_t inAddress, const uint32_t inValue) ;

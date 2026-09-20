@@ -34,7 +34,7 @@ void HyundaiIoniq28Battery::
   memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
 
   if (leadAcidBatteryVoltage < 110) {
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
   }
 }
 
@@ -286,6 +286,8 @@ void HyundaiIoniq28Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x28:                         //Eighth datarow in PID group
           if (incoming_poll_group == 1) {  //28 7F FF 7F FF 03 E8 00
             isolation_resistance = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+            datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance;
+            datalayer_battery->status.insulation_resistance_available = true;
           }
           break;
       }
@@ -333,7 +335,12 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
-    transmit_can_frame(&IONIQ_7E4_POLL);
+    if (UserRequestDTCreset) {
+      transmit_can_frame(&IONIQ_CLEAR_DTC);
+      UserRequestDTCreset = false;
+    } else {
+      transmit_can_frame(&IONIQ_7E4_POLL);
+    }
   }
 
   //Send 100ms message

@@ -1,4 +1,7 @@
 #include "sdcard.h"
+
+#ifdef SDCARD
+
 #include "freertos/ringbuf.h"
 
 File can_log_file;
@@ -23,7 +26,7 @@ void delete_can_log() {
 
 void resume_can_writing() {
   can_logging_paused = false;
-  can_log_file = SD_MMC.open(CAN_LOG_FILE, FILE_APPEND);
+  can_log_file = SD.open(CAN_LOG_FILE, FILE_APPEND);
   can_file_open = true;
 }
 
@@ -37,13 +40,13 @@ void delete_log() {
     log_file.close();
     log_file_open = false;
   }
-  SD_MMC.remove(LOG_FILE);
+  SD.remove(LOG_FILE);
   logging_paused = false;
 }
 
 void resume_log_writing() {
   logging_paused = false;
-  log_file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+  log_file = SD.open(LOG_FILE, FILE_APPEND);
   log_file_open = true;
 }
 
@@ -51,34 +54,41 @@ void pause_log_writing() {
   logging_paused = true;
 }
 
-void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
+// Number of frames lost because the ring buffer was full (SD writer stalled).
+// Reported as a gap marker in the log once the buffer has room again.
+static uint32_t can_frames_dropped = 0;
+
+void add_can_frame_to_buffer(CAN_frame frame, CAN_Interface interface, frameDirection msgDir) {
 
   if (!sd_card_active)
     return;
 
-  unsigned long currentTime = millis();
-  static char messagestr_buffer[32];
+  // Sized for the worst case: gap marker + header + 64 data bytes (CAN-FD) at 3 chars each
+  static char messagestr_buffer[320];
   size_t size = 0;
-  size = snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size, "(%lu.%03lu) %s %lX [%u] ",
-                  currentTime / 1000, currentTime % 1000, (msgDir == MSG_RX ? "RX0" : "TX1"), frame.ID, frame.DLC);
 
-  if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-    logging.println("Failed to send message to can ring buffer!");
+  if (can_frames_dropped > 0) {
+    // Frames were lost while the SD writer was stalled. Record the gap so the
+    // log stays honest, then continue with the current frame in the same send.
+    size += snprintf(messagestr_buffer + size, sizeof(messagestr_buffer) - size,
+                     "[%lu CAN frames dropped, SD buffer full]\n", (unsigned long)can_frames_dropped);
+  }
+
+  // Format the frame, as long as it fits
+  size_t written =
+      format_can_frame(messagestr_buffer + size, sizeof(messagestr_buffer) - size, frame, interface, msgDir);
+  if (written > 0) {
+    size += written;
+  }
+
+  // One send per frame, zero timeout: this runs in the core task and must never
+  // block. If the buffer is full the SD card is stalled anyway - waiting here
+  // would not save the frame, it would only delay the 10ms tasks (EVENT_TASK_OVERRUN).
+  if (xRingbufferSend(can_bufferHandle, messagestr_buffer, size, 0) != pdTRUE) {
+    can_frames_dropped++;
     return;
   }
-
-  uint8_t i = 0;
-  for (i = 0; i < frame.DLC; i++) {
-    if (i < frame.DLC - 1)
-      size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X ", frame.data.u8[i]);
-    else
-      size = snprintf(messagestr_buffer, sizeof(messagestr_buffer), "%02X\n", frame.data.u8[i]);
-
-    if (xRingbufferSend(can_bufferHandle, &messagestr_buffer, size, pdMS_TO_TICKS(2)) != pdTRUE) {
-      logging.println("Failed to send message to can ring buffer!");
-      return;
-    }
-  }
+  can_frames_dropped = 0;
 }
 
 void write_can_frame_to_sdcard() {
@@ -97,7 +107,7 @@ void write_can_frame_to_sdcard() {
         can_file_open = false;
       }
       if (delete_can_file) {
-        SD_MMC.remove(CAN_LOG_FILE);
+        SD.remove(CAN_LOG_FILE);
         delete_can_file = false;
         can_logging_paused = false;
       }
@@ -106,7 +116,7 @@ void write_can_frame_to_sdcard() {
     }
 
     if (can_file_open == false) {
-      can_log_file = SD_MMC.open(CAN_LOG_FILE, FILE_APPEND);
+      can_log_file = SD.open(CAN_LOG_FILE, FILE_APPEND);
       can_file_open = true;
     }
 
@@ -122,10 +132,11 @@ void add_log_to_buffer(const uint8_t* buffer, size_t size) {
   if (!sd_card_active)
     return;
 
-  if (xRingbufferSend(log_bufferHandle, buffer, size, pdMS_TO_TICKS(1)) != pdTRUE) {
-    logging.println("Failed to send message to log ring buffer!");
-    return;
-  }
+  // Zero timeout: called from the logging path of any task, must never block.
+  // NOTE: do not log from the failure path here. logging.println() would call
+  // Logging::write() -> add_log_to_buffer() again while the buffer is still
+  // full, recursing until the stack overflows.
+  xRingbufferSend(log_bufferHandle, buffer, size, 0);
 }
 
 void write_log_to_sdcard() {
@@ -144,7 +155,7 @@ void write_log_to_sdcard() {
     }
 
     if (log_file_open == false) {
-      log_file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+      log_file = SD.open(LOG_FILE, FILE_APPEND);
       log_file_open = true;
     }
 
@@ -174,7 +185,7 @@ void init_logging_buffers() {
 }
 
 void deinit_logging_buffers() {
-  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.CAN_SD_logging_active)) {
+  if ((!datalayer.system.info.CAN_SD_logging_active) && (!datalayer.system.info.SD_logging_active)) {
     if (can_bufferHandle != NULL) {
       vRingbufferDelete(can_bufferHandle);
     }
@@ -188,17 +199,21 @@ bool init_sdcard() {
   auto miso_pin = esp32hal->SD_MISO_PIN();
   auto mosi_pin = esp32hal->SD_MOSI_PIN();
   auto sclk_pin = esp32hal->SD_SCLK_PIN();
+  auto cs_pin = esp32hal->SD_CS_PIN();
 
-  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin)) {
+  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin, cs_pin)) {
     return false;
   }
 
-  pinMode(miso_pin, INPUT_PULLUP);
+  static SPIClass sd_spi(esp32hal->SD_SPI_BUS());
+  sd_spi.begin(sclk_pin, miso_pin, mosi_pin, cs_pin);
 
-  SD_MMC.setPins(sclk_pin, mosi_pin, miso_pin);
-  if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
-    set_event_latched(EVENT_SD_INIT_FAILED, 0);
-    logging.println("SD Card initialization failed!");
+  constexpr uint32_t SD_SPI_FREQ = 20 * 1000000;  // 20 MHz
+  constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default
+  constexpr bool FORMAT_IF_EMPTY = true;
+
+  if (!SD.begin(cs_pin, sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
+    set_event_latched(EVENT_SD_INIT_FAILED, 0);  // also printing a log entry
     return false;
   }
 
@@ -215,7 +230,7 @@ bool init_sdcard() {
 void log_sdcard_details() {
 
   logging.print("SD Card Type: ");
-  switch (SD_MMC.cardType()) {
+  switch (SD.cardType()) {
     case CARD_MMC:
       logging.println("MMC");
       break;
@@ -233,17 +248,19 @@ void log_sdcard_details() {
       break;
   }
 
-  if (SD_MMC.cardType() != CARD_NONE) {
+  if (SD.cardType() != CARD_NONE) {
     logging.print("SD Card Size: ");
-    logging.print(SD_MMC.cardSize() / 1024 / 1024);
+    logging.print(SD.cardSize() / 1024 / 1024);
     logging.println(" MB");
 
     logging.print("Total space: ");
-    logging.print(SD_MMC.totalBytes() / 1024 / 1024);
+    logging.print(SD.totalBytes() / 1024 / 1024);
     logging.println(" MB");
 
     logging.print("Used space: ");
-    logging.print(SD_MMC.usedBytes() / 1024 / 1024);
+    logging.print(SD.usedBytes() / 1024 / 1024);
     logging.println(" MB");
   }
 }
+
+#endif  // SDCARD

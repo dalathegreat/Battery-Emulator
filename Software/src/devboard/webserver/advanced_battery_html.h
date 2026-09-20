@@ -2,16 +2,11 @@
 #define ADVANCEDBATTERY_H
 
 #include <Arduino.h>
-#include <string>
+#include <functional>
+#include <vector>
 
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String advanced_battery_processor(const String& var);
+class AsyncWebServerRequest;
+void send_advanced_battery_page(AsyncWebServerRequest* request);
 
 class Battery;
 
@@ -33,6 +28,9 @@ struct BatteryCommand {
 
   // Function that executes the command for the given battery.
   std::function<void(Battery*)> action;
+
+  // Reload page after running (for read commands).
+  bool reload_after = false;
 };
 
 extern std::vector<BatteryCommand> battery_commands;

@@ -5,15 +5,18 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
-inline const char* getBMSState(uint8_t index) {
+/* `index` is the BMS state code, `battery` the pack this driver instance drives: the
+   contactor events it raises have to name the pack, and a free function has no
+   battery_index of its own. */
+inline const char* getBMSState(uint8_t index, uint8_t battery) {
   switch (index) {
     case 0:
-      clear_event(EVENT_CONTACTOR_WELDED);
-      clear_event(EVENT_CONTACTOR_OPEN);
+      clear_event(EVENT_CONTACTOR_WELDED, battery);
+      clear_event(EVENT_CONTACTOR_OPEN, battery);
       return "STANDBY";
     case 1:
-      clear_event(EVENT_CONTACTOR_WELDED);
-      clear_event(EVENT_CONTACTOR_OPEN);
+      clear_event(EVENT_CONTACTOR_WELDED, battery);
+      clear_event(EVENT_CONTACTOR_OPEN, battery);
       return "DRIVE";
     case 2:
       return "SUPPORT";
@@ -26,10 +29,10 @@ inline const char* getBMSState(uint8_t index) {
     case 6:
       return "CLEAR_FAULT";
     case 7:
-      set_event(EVENT_CONTACTOR_OPEN, 0);
+      set_event(EVENT_CONTACTOR_OPEN, 0, battery);
       return "FAULT";
     case 8:
-      set_event(EVENT_CONTACTOR_WELDED, 0);
+      set_event(EVENT_CONTACTOR_WELDED, 0, battery);
       return "WELD";
     case 15:
       return "SNA";
@@ -87,10 +90,10 @@ void TeslaLegacyBattery::update_values() {
       break;
     case 79:  //100kWh
     case 89:
-      datalayer.battery.info.total_capacity_Wh = 70000;
+      datalayer.battery.info.total_capacity_Wh = 100000;
       break;
     default:  //Unknown hwID. Raise event
-      set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID);
+      set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID, battery_index);
       break;
   }
 
@@ -259,7 +262,7 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
     previousMillis1000 = currentMillis;
 
     transmit_can_frame(&TESLA_408);
-    logging.println(getBMSState(battery_BMS_state));
+    logging.println(getBMSState(battery_BMS_state, battery_index));
   }
 
   if (user_requests_bms_reset) {

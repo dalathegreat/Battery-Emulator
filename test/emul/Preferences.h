@@ -20,6 +20,7 @@ class Preferences {
   size_t putString(const char* key, String value) { return 0; }
 
   bool isKey(const char* key) { return false; }
+  bool remove(const char* key) { return true; }
 
   int32_t getInt(const char* key, int32_t defaultValue = 0) { return 0; }
   uint32_t getUInt(const char* key, uint32_t defaultValue = 0) { return 0; }

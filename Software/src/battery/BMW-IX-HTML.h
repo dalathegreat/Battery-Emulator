@@ -15,7 +15,6 @@ class BmwIXHtmlRenderer : public BatteryHtmlRenderer {
  public:
   BmwIXHtmlRenderer(BmwIXBattery& b) : batt(b) {}
 
-  String getDTCDescription(uint32_t code);
   String get_status_html();
 };
 

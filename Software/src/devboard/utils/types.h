@@ -2,18 +2,20 @@
 #define _TYPES_H_
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 
 using milliseconds = std::chrono::milliseconds;
 using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
-enum system_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum system_status_enum { STANDBY = 0, INACTIVE = 1, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
 enum balancing_status_enum {
   BALANCING_STATUS_UNKNOWN = 0,
   BALANCING_STATUS_ERROR = 1,
-  BALANCING_STATUS_READY = 2,  //No balancing active, system supports balancing
-  BALANCING_STATUS_ACTIVE = 3  //Balancing active!
+  BALANCING_STATUS_READY = 2,   //No balancing active, system supports balancing
+  BALANCING_STATUS_ACTIVE = 3,  //Balancing active!
+  BALANCING_STATUS_BLOCKED = 4  //Balancing blocked, cells not yet at rest
 };
 enum battery_chemistry_enum { Autodetect = 0, NCA = 1, NMC = 2, LFP = 3, ZEBRA = 4, Highest };
 
@@ -120,6 +122,19 @@ typedef struct {
 
 std::string getBMSStatus(system_status_enum status);
 
+enum class ChargingState { Idle, Charging, Discharging };
+enum class LimitingFactor { None, Inverter, UserSetting, Battery };
+
+ChargingState get_charging_state(int32_t current_dA);
+LimitingFactor get_limiting_factor(ChargingState state, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                   bool user_settings_limit_charge, bool user_settings_limit_discharge);
+const char* charging_state_to_text(ChargingState state);
+const char* limiting_factor_to_text(LimitingFactor factor);
+
+/** Human readable battery status, e.g. "Battery charging (Inverter limiting)". Used for the web UI. */
+const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
+                                     bool user_settings_limit_charge, bool user_settings_limit_discharge);
+
 #ifdef HW_LILYGO2CAN
 /* Configurable GPIO options (device specific) */
 enum class GPIOOPT1 {
@@ -176,6 +191,12 @@ extern GPIOOPT6 user_selected_gpioopt6;
 #endif
 extern GPIOOPT2 user_selected_gpioopt2;
 extern GPIOOPT3 user_selected_gpioopt3;
+
+/* The system runs standalone, so events reporting the absence of a
+ * grid-tied inverter are not faults. Owned core-side because the core
+ * events engine is what consumes it; any inverter can be run offgrid, so it
+ * describes the installation rather than a protocol capability. */
+extern bool user_selected_inverter_offgrid;
 extern GPIOOPT4 user_selected_gpioopt4;
 
 #endif

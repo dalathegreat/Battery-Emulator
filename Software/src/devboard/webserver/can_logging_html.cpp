@@ -32,7 +32,7 @@ String can_logger_processor(void) {
              "</span> <button onclick='editCANIDCutoff()'>Edit</button></div>";
   content += "<button onclick='refreshPage()'>Refresh data</button> ";
   content += "<button onclick='exportLog()'>Export to .txt</button> ";
-#ifdef LOG_CAN_TO_SD
+#ifdef SDCARD
   content += "<button onclick='deleteLogFile()'>Delete log file</button> ";
 #endif
   content += "<button onclick='stopLoggingAndGoToMainPage()'>Stop &amp; Back to main page</button>";
@@ -64,7 +64,7 @@ String can_logger_processor(void) {
   content += "<script>";
   content += "function refreshPage(){ location.reload(true); }";
   content += "function exportLog() { window.location.href = '/export_can_log'; }";
-#ifdef LOG_CAN_TO_SD
+#ifdef SDCARD
   content += "function deleteLogFile() { window.location.href = '/delete_can_log'; }";
 #endif
   content += "function stopLoggingAndGoToMainPage() {";

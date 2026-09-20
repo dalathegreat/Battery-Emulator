@@ -111,6 +111,7 @@ String BmwI3HtmlRenderer::get_status_html() {
                                           "15"};
   content +=
       "<h4>Balancing status: " + String(safeArrayAccess(balancingText, 16, batt.ST_balancing_status())) + "</h4>";
+  content += "<h4>Charge abort request: " + String(batt.get_abort_charging_string()) + "</h4>";
 
   return content;
 }

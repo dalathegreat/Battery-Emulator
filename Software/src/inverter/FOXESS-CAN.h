@@ -2,16 +2,34 @@
 #define FOXESS_CAN_H
 
 #include "CanInverterProtocol.h"
+#include "INVERTERS.h"
 
 class FoxessCanInverter : public CanInverterProtocol {
  public:
   const char* name() override { return Name; }
+  bool setup();
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
   static constexpr const char* Name = "FoxESS compatible HV2600/ECS4100 battery";
 
  private:
+  static const int FIRMWARE_VERSION_MAIN_BMS = 0x12;
+  static const int FIRMWARE_VERSION_SUBSTACKS = 0x1F;
+  //for the PACK_ID (b7 =10,20,30,40,50,60,70,80) then FIRMWARE_VERSION 0x1F = 0001 1111, version is v1.15, and if FIRMWARE_VERSION was 0x20 = 0010 0000 then = v2.0
+  static const int MAIN = 0;                       //Main BMS has ID 0
+  static const int DEFAULT_NUMBER_OF_MODULES = 8;  //Configurable for user, 1-8 modules, default is 8
+  static const int DEFAULT_BATTERY_TYPE = 0x52;    //0x52 is HV2600 V2 BMS main controlled
+  static const int DEFAULT_BATTERY_SUBTYPE =
+      0x84;  //0x82 is HV2600 V1, 0x83 is ECS4100 v1, 0x84 is HV2600 V2 , the attached sub-stacks
+  uint16_t configured_number_of_modules = 0;
+  uint16_t configured_battery_type = 0;
+  uint16_t configured_battery_subtype = 0;
+  static const int MAX_AC_VOLTAGE = 2567;              //256.7VAC max
+  static const int TOTAL_LIFETIME_WH_ACCUMULATED = 0;  //We dont have this value in the emulator
+  static const uint8_t STATUS_OPERATIONAL_PACKS =
+      0b11111111;  //0x1875 b2 contains status for operational packs (responding) in binary so 01111111 is pack 8 not operational, 11101101 is pack 5 & 2 not operational
+
   int16_t temperature_average = 0;
   uint16_t voltage_per_pack = 0;
   uint16_t cell_tweaked_max_voltage_mV = 3300;

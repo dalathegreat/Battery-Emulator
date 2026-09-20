@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 #include "HardwareSerial.h"
 #include "Logging.h"
@@ -131,7 +132,9 @@ inline void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 unsigned long micros();
 // Can be previously declared as a macro in stupid eModbus
 #undef millis
-unsigned long millis();
+// uint32_t, deliberately: on the target unsigned long IS 32 bits wide, so this
+// is the truthful width of the millis() contract (wrap at 2^32 ms included).
+uint32_t millis();
 void set_millis64(uint64_t time);
 
 void delay(unsigned long ms);
@@ -140,6 +143,33 @@ int max(int a, int b);
 
 bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, int8_t channel);
 bool ledcWrite(uint8_t pin, uint32_t duty);
+bool ledcWriteTone(uint8_t pin, uint32_t freq);
+
+// A PWM tone write recorded by the emulated ledcWriteTone.
+struct ToneWrite {
+  uint8_t pin;
+  uint32_t freq;
+};
+void clear_tone_writes();
+const std::vector<ToneWrite>& get_tone_writes();
+
+// A PWM duty write recorded by the emulated ledcWrite, so tests can tell a
+// contactor pulled in at full duty from one held at the economized duty.
+struct DutyWrite {
+  uint8_t pin;
+  uint32_t duty;
+};
+void clear_duty_writes();
+const std::vector<DutyWrite>& get_duty_writes();
+
+// A pin write recorded by the emulated digitalWrite, for tests that need to
+// assert on what was driven rather than only on state variables.
+struct PinWrite {
+  uint8_t pin;
+  uint8_t value;
+};
+void clear_pin_writes();
+const std::vector<PinWrite>& get_pin_writes();
 
 class ESPClass {
  public:
@@ -150,6 +180,7 @@ class ESPClass {
   }
 
   uint64_t getEfuseMac() { return 0xAABBCCDDEEFFULL; }
+  void restart() {}
 };
 
 extern ESPClass ESP;

@@ -214,21 +214,21 @@ void EcmpBattery::update_values() {
   }
 
   if (battery_InterlockOpen) {
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   if (pid_12v < 11000) {
-    set_event(EVENT_12V_LOW, 11);
+    set_event(EVENT_12V_LOW, 11, battery_index);
   } else {
-    clear_event(EVENT_12V_LOW);
+    clear_event(EVENT_12V_LOW, battery_index);
   }
 
   if (pid_reason_open == 7) {  //Invalid status
-    set_event(EVENT_CONTACTOR_OPEN, 0);
+    set_event(EVENT_CONTACTOR_OPEN, 0, battery_index);
   } else {
-    clear_event(EVENT_CONTACTOR_OPEN);
+    clear_event(EVENT_CONTACTOR_OPEN, battery_index);
   }
 }
 
@@ -500,6 +500,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_insulationResistanceKOhm =
           (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //Byte 2, bit 7, length 16 (0-60000 kOhm)
+      datalayer_battery->status.insulation_resistance_kOhm = battery_insulationResistanceKOhm;
+      datalayer_battery->status.insulation_resistance_available = true;
       break;
     case 0x6D1:
       break;
@@ -701,7 +703,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
         if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
           //Factory mode fails to enter with 7F
-          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
+          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2], battery_index);
           DisableIsoMonitoringStatemachine =
               6;  //Send ECMP_DISABLE_ISOLATION_REQ next loop (pointless, since it will fail)
         }
@@ -713,7 +715,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
         if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
           //Disable Isolation fails to enter with 7F
-          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
+          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2], battery_index);
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
           UserRequestDisableIsoMonitoring = false;
           timeSpentDisableIsoMonitoring = COMPLETED_STATE;

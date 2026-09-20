@@ -56,12 +56,6 @@ class ThreeLBHal : public Esp32Hal {
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_36; }
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
-  // SD card
-  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_2; }
-  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_15; }
-  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
-  virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_13; }
-
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }

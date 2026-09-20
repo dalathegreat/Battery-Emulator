@@ -6,6 +6,7 @@
 
 class GeelySeaBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();

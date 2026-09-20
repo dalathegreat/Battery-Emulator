@@ -27,6 +27,8 @@ extern uint16_t OBC_Charge_Power;
 // OTA status
 extern bool ota_active;
 
+static constexpr const char* WEB_AUTH_REALM = "Battery Emulator";
+
 /**
  * @brief Initialization function for the webserver.
  *
@@ -107,6 +109,7 @@ String formatPowerValue(T value, String unit, int precision);
 
 extern void store_settings();
 
-void ota_monitor();
+bool webserver_auth_is_ready();
+void webserver_tick();
 
 #endif

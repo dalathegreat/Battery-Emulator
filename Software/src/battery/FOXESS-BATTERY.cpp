@@ -23,64 +23,81 @@ void FoxessBattery::
 
   datalayer.battery.status.max_charge_power_W = ((datalayer.battery.status.voltage_dV * max_charge_power_dA) / 100);
 
+  // The HS-series pack table. Sole source for number_of_cells; the design
+  // voltage limits from it apply only until the BMS reports its own limits in
+  // 0x1872 (BMS_Limits) - packs outside this table (e.g. EP-series) would
+  // otherwise trip false BATTERY_OVERVOLTAGE against table values.
+  uint8_t cells = 0;
+  uint16_t table_max_design_voltage_dV = 0;
+  uint16_t table_min_design_voltage_dV = 0;
   switch (NUMBER_OF_PACKS) {
     case 1:  //HS2.6 (48V invalid combo for most HV inverters)
-      datalayer.battery.info.number_of_cells = 16;
-      datalayer.battery.info.max_design_voltage_dV = 584;
-      datalayer.battery.info.min_design_voltage_dV = 400;
+      cells = 16;
+      table_max_design_voltage_dV = 584;
+      table_min_design_voltage_dV = 400;
       break;
     case 2:  //HS5.2
-      datalayer.battery.info.number_of_cells = 32;
-      datalayer.battery.info.max_design_voltage_dV = 1168;
-      datalayer.battery.info.min_design_voltage_dV = 800;
+      cells = 32;
+      table_max_design_voltage_dV = 1168;
+      table_min_design_voltage_dV = 800;
       break;
     case 3:  //HS7.8
-      datalayer.battery.info.number_of_cells = 48;
-      datalayer.battery.info.max_design_voltage_dV = 1752;
-      datalayer.battery.info.min_design_voltage_dV = 1200;
+      cells = 48;
+      table_max_design_voltage_dV = 1752;
+      table_min_design_voltage_dV = 1200;
       break;
     case 4:  //HS10.4
-      datalayer.battery.info.number_of_cells = 64;
-      datalayer.battery.info.max_design_voltage_dV = 2336;
-      datalayer.battery.info.min_design_voltage_dV = 1600;
+      cells = 64;
+      table_max_design_voltage_dV = 2336;
+      table_min_design_voltage_dV = 1600;
       break;
     case 5:  //HS13
-      datalayer.battery.info.number_of_cells = 80;
-      datalayer.battery.info.max_design_voltage_dV = 2920;
-      datalayer.battery.info.min_design_voltage_dV = 2000;
+      cells = 80;
+      table_max_design_voltage_dV = 2920;
+      table_min_design_voltage_dV = 2000;
       break;
     case 6:  //HS15.6
-      datalayer.battery.info.number_of_cells = 96;
-      datalayer.battery.info.max_design_voltage_dV = 3504;
-      datalayer.battery.info.min_design_voltage_dV = 2400;
+      cells = 96;
+      table_max_design_voltage_dV = 3504;
+      table_min_design_voltage_dV = 2400;
       break;
     case 7:  //HS18.2
-      datalayer.battery.info.number_of_cells = 112;
-      datalayer.battery.info.max_design_voltage_dV = 4088;
-      datalayer.battery.info.min_design_voltage_dV = 2800;
+      cells = 112;
+      table_max_design_voltage_dV = 4088;
+      table_min_design_voltage_dV = 2800;
       break;
     case 8:  //HS20.8
-      datalayer.battery.info.number_of_cells = 128;
-      datalayer.battery.info.max_design_voltage_dV = 4672;
-      datalayer.battery.info.min_design_voltage_dV = 3200;
+      cells = 128;
+      table_max_design_voltage_dV = 4672;
+      table_min_design_voltage_dV = 3200;
       break;
     default:
       //Data not available yet
       break;
+  }
+  if (cells != 0) {
+    datalayer.battery.info.number_of_cells = cells;
+    if (!bms_limits_received) {
+      datalayer.battery.info.max_design_voltage_dV = table_max_design_voltage_dV;
+      datalayer.battery.info.min_design_voltage_dV = table_min_design_voltage_dV;
+    }
   }
 }
 
 void FoxessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1872:  //BMS_Limits
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.info.max_design_voltage_dV = (uint16_t)(rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       datalayer.battery.info.min_design_voltage_dV = (uint16_t)(rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      bms_limits_received = true;
       if (!charging_disabled) {
         max_charge_power_dA = (uint16_t)(rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
       }
       max_discharge_power_dA = (uint16_t)(rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
       break;
     case 0x1873:  //BMS_PackData
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.voltage_dV = (uint16_t)(rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       datalayer.battery.status.current_dA =
           (int16_t)(rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);  //TODO: Direction right way?
@@ -88,12 +105,14 @@ void FoxessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.remaining_capacity_Wh = ((rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 10);
       break;
     case 0x1874:  //BMS_CellData
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.temperature_max_dC = (int16_t)(rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       datalayer.battery.status.temperature_min_dC = (int16_t)(rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       cut_mv_max = (uint16_t)(rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
       cut_mv_min = (uint16_t)(rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
       break;
     case 0x1875:  //BMS_Status
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temperature_average = (int16_t)(rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       STATUS_OPERATIONAL_PACKS = (uint8_t)rx_frame.data.u8[2];
       NUMBER_OF_PACKS = (uint8_t)rx_frame.data.u8[3];
@@ -101,6 +120,7 @@ void FoxessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cycle_count = (uint16_t)(rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
       break;
     case 0x1876:  //BMS_PackTemps
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
       // when at 0 indicates charge is possible - additional note there is something more to it than this,
       // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
@@ -115,16 +135,19 @@ void FoxessBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
       break;
     case 0x1877:  //BMS_ErrorsBrand
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       pack_error = (uint8_t)(rx_frame.data.u8[0]);
       firmware_pack_minor = (uint8_t)(rx_frame.data.u8[6] & 0x0F);
       firmware_pack_major = (uint8_t)((rx_frame.data.u8[6] & 0xF0) >> 4);
       break;
     case 0x1878:  //BMS_PackStats
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_ac_voltage = (uint16_t)(rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       total_watt_hours = (uint32_t)(rx_frame.data.u8[7] << 24 | rx_frame.data.u8[6] << 16 | rx_frame.data.u8[5] << 8 |
                                     rx_frame.data.u8[4]);
       break;
     case 0x1879:  //BMS_PackState
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       b0_idle = (bool)(rx_frame.data.u8[1] & 0x01);
       b1_ok_discharge = (bool)((rx_frame.data.u8[1] & 0x02) >> 1);
       b2_ok_charge = (bool)((rx_frame.data.u8[1] & 0x04) >> 2);
