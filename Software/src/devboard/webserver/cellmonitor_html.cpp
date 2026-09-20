@@ -2,611 +2,190 @@
 #include <Arduino.h>
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
-#include "checked_html.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
+#include "index_html.h"
 
-//Legend label for the cyan bars. A BMS can flag cells for balancing long before it actually bleeds
-//them, so when the aggregate status reports that waiting state, label the bars as pending instead.
-static const char* balancing_legend_label(balancing_status_enum status) {
+namespace {
+
+// One pack is rendered per request, selected by the tab strip, the way the More Battery Info page
+// works. The markup and the script below are therefore written once instead of once per battery.
+const DATALAYER_BATTERY_TYPE& battery_data(unsigned index) {
+  if (index == 1) {
+    return datalayer.battery2;
+  }
+  if (index == 2) {
+    return datalayer.battery3;
+  }
+  return datalayer.battery;
+}
+
+// Battery 1 always has a panel, so the page still explains itself before a battery type is picked.
+bool battery_present(unsigned index) {
+  if (index == 1) {
+    return battery2 != nullptr;
+  }
+  if (index == 2) {
+    return battery3 != nullptr;
+  }
+  return true;
+}
+
+// Legend label for the cyan bars. A BMS can flag cells for balancing long before it actually bleeds
+// them, so when the aggregate status reports that waiting state, label the bars as pending instead.
+const char* balancing_legend_label(balancing_status_enum status) {
   return (status == BALANCING_STATUS_BLOCKED) ? "Pending" : "Balancing";
 }
 
-/* Same reasoning as the main page: this one emits a table cell per battery cell, so three packs
-   of 96 push it past the main page's size, and it was growing from an empty String one append at
-   a time. */
-static constexpr size_t CELLMONITOR_RESERVE_BYTES = 20480;
-
-static String cellmonitor_low_memory_page() {
-  return String(
-      "<h2>Cellmonitor</h2><h4 style='color: #F5CC00;'>Not enough free memory to render this page "
-      "right now. Retrying in a few seconds.</h4>"
-      "<script>setTimeout(function(){location.reload(true);},5000);</script>");
+// Appending through a stack buffer keeps the per-cell String temporaries (and their allocations)
+// out of the loop that runs once for every cell in the pack.
+void append_uint(String& out, unsigned value, const char* suffix) {
+  char buffer[64];
+  snprintf(buffer, sizeof(buffer), "%u%s", value, suffix);
+  out += buffer;
 }
 
-String cellmonitor_processor(const String& var) {
-  if (var == "X") {
-    CheckedHtml content;
-    if (!content.reserve(CELLMONITOR_RESERVE_BYTES)) {
-      return cellmonitor_low_memory_page();
-    }
-    // Page formatH
-    content += "<style>";
-    content += "body { background-color: black; color: white; }";
-    content +=
-        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
-        "cursor: pointer; border-radius: 10px; }";
-    content += "button:hover { background-color: #3A4A52; }";
-    content += ".container { display: flex; flex-wrap: wrap; justify-content: space-around; }";
-    content += ".cell { padding: 10px; border: 1px solid white; text-align: center; }";
-    content += ".low-voltage { color: red; }";              // Style for low voltage text
-    content += ".voltage-values { margin-bottom: 10px; }";  // Style for voltage values section
-
-    if (battery3) {
-      content +=
-          "#graph, #graph2, #graph3 {display: flex;align-items: flex-end;height: 200px;border: 1px solid "
-          "#ccc;position: "
-          "relative;}";
-    } else if (battery2) {
-      content +=
-          "#graph, #graph2 {display: flex;align-items: flex-end;height: 200px;border: 1px solid #ccc;position: "
-          "relative;}";
-    } else {
-      content +=
-          "#graph {display: flex;align-items: flex-end;height: 200px;border: 1px solid #ccc;position: relative;}";
-    }
-    content +=
-        ".bar {margin: 0 0px;background-color: blue;display: inline-block;position: relative;cursor: pointer;border: "
-        "1px solid white; /* Add this line */}";
-
-    if (battery3) {
-      content += "#valueDisplay, #valueDisplay2, #valueDisplay3 {text-align: left;font-weight: bold;margin-top: 10px;}";
-    } else if (battery2) {
-      content += "#valueDisplay, #valueDisplay2 {text-align: left;font-weight: bold;margin-top: 10px;}";
-    } else {
-      content += "#valueDisplay {text-align: left;font-weight: bold;margin-top: 10px;}";
-    }
-    content += "</style>";
-
-    content += "<button onclick='home()'>Back to main page</button>";
-
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-
-    // Display max, min, and deviation voltage values
-    content += "<div id='voltageValues' class='voltage-values'></div>";
-    // Display cells
-    content += "<div id='cellContainer' class='container'></div>";
-    // Display bars
-    content += "<div id='graph'></div>";
-    // Display single hovered value
-    content += "<div id='valueDisplay'>Value: ...</div>";
-    //Legend for graph
-    content +=
-        "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
-        "margin-right: 15px;'>Idle</span>";
-    bool battery_balancing = false;
-    // Check per-cell balancing status
-    for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
-      battery_balancing = datalayer.battery.status.cell_balancing_status[i];
-      if (battery_balancing)
-        break;
-    }
-    if (battery_balancing) {
-      content +=
-          "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-          "4px; margin-right: 15px;'>";
-      content += balancing_legend_label(datalayer.battery.status.balancing_status);
-      content += "</span>";
-    }
-    // Also check overall balancing status enum (for batteries without per-cell data)
-    else if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
-      content +=
-          "<span style='color: black; background-color: #ff9900ff; font-weight: bold; padding: 2px 8px; border-radius: "
-          "4px; margin-right: 15px;'>Balancing is active now!</span>";
-    }
-    content +=
-        "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
-        "4px;'>Min/Max</span>";
-
-    // Close the block
-    content += "</div>";
-
-    if (battery2) {
-      // Start a new block with a specific background color
-      content += "<div style='background-color: #303E41; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-
-      // Display max, min, and deviation voltage values
-      content += "<div id='voltageValues2' class='voltage-values'></div>";
-      // Display cells
-      content += "<div id='cellContainer2' class='container'></div>";
-      // Display bars
-      content += "<div id='graph2'></div>";
-      // Display single hovered value
-      content += "<div id='valueDisplay2'>Value: ...</div>";
-      //Legend for graph
-      content +=
-          "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
-          "margin-right: 15px;'>Idle</span>";
-
-      bool battery2_balancing = false;
-      for (uint8_t i = 0u; i < datalayer.battery2.info.number_of_cells; i++) {
-        battery2_balancing = datalayer.battery2.status.cell_balancing_status[i];
-        if (battery2_balancing)
-          break;
-      }
-      if (battery2_balancing) {
-        content +=
-            "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-            "4px; margin-right: 15px;'>";
-        content += balancing_legend_label(datalayer.battery2.status.balancing_status);
-        content += "</span>";
-      }
-      content +=
-          "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
-          "4px;'>Min/Max</span>";
-
-      // Close the block
-      content += "</div>";
-    }
-
-    if (battery3) {
-      // Start a new block with a specific background color
-      content += "<div style='background-color: #313e41ff; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-
-      // Display max, min, and deviation voltage values
-      content += "<div id='voltageValues3' class='voltage-values'></div>";
-      // Display cells
-      content += "<div id='cellContainer3' class='container'></div>";
-      // Display bars
-      content += "<div id='graph3'></div>";
-      // Display single hovered value
-      content += "<div id='valueDisplay3'>Value: ...</div>";
-      //Legend for graph
-      content +=
-          "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
-          "margin-right: 15px;'>Idle</span>";
-
-      bool battery3_balancing = false;
-      for (uint8_t i = 0u; i < datalayer.battery3.info.number_of_cells; i++) {
-        battery3_balancing = datalayer.battery3.status.cell_balancing_status[i];
-        if (battery3_balancing)
-          break;
-      }
-      if (battery3_balancing) {
-        content +=
-            "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-            "4px; margin-right: 15px;'>";
-        content += balancing_legend_label(datalayer.battery3.status.balancing_status);
-        content += "</span>";
-      }
-      content +=
-          "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
-          "4px;'>Min/Max</span>";
-
-      // Close the block
-      content += "</div>";
-    }
-
-    content += "<button onclick='home()'>Back to main page</button>";
-
-    content += "<script>";
-    // Populate cell data
-    content += "const data = [";
-    for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
-      if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
-        continue;
-      }
-      content += String(datalayer.battery.status.cell_voltages_mV[i]) + ",";
-    }
-    content += "];";
-
-    content += "const balancing = [";
-    for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
-      if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
-        continue;
-      }
-      content += datalayer.battery.status.cell_balancing_status[i] ? "true," : "false,";
-    }
-    content += "];";
-
-    content += "const min_mv = Math.min(...data) - 20;";
-    content += "const max_mv = Math.max(...data) + 20;";
-    content += "const min_index = data.indexOf(Math.min(...data));";
-    content += "const max_index = data.indexOf(Math.max(...data));";
-    content += "const graphContainer = document.getElementById('graph');";
-    content += "const valueDisplay = document.getElementById('valueDisplay');";
-    content += "const cellContainer = document.getElementById('cellContainer');";
-
-    content += "function home() { window.location.href = '/'; }";
-
-    // Arduino-style map() function
-    content +=
-        "function map(value, fromLow, fromHigh, toLow, toHigh) {return (value - fromLow) * (toHigh - toLow) / "
-        "(fromHigh - fromLow) + toLow;}";
-
-    // Mark cell and bar with highest/lowest values
-    content +=
-        "function checkMinMax(cell, bar, index) {if ((index == min_index) || (index == max_index)) "
-        "{cell.style.borderColor = 'red';bar.style.borderColor = 'red';}}";
-
-    // Bar function. Basically get the mV, scale the height and add a bar div to its container
-    content +=
-        "function createBars(data) {"
-        "data.forEach((mV, index) => {"
-        "const bar = document.createElement('div');"
-        "const mV_limited = map(mV, min_mv, max_mv, 20, 200);"
-        "bar.className = 'bar';"
-        "bar.id = `barIndex${index}`;"
-        "bar.style.height = `${mV_limited}px`;"
-        "bar.style.width = `${750/data.length}px`;"
-        "if (balancing[index]) {"
-        "  bar.style.backgroundColor = '#00FFFF';"  // Cyan color for balancing
-        "  bar.style.borderColor = '#00FFFF';"
-        "} else {"
-        "  bar.style.backgroundColor = 'blue';"  // Normal blue for non-balancing
-        "  bar.style.borderColor = 'white';"
-        "}"
-
-        "const cell = document.getElementById(`cellIndex${index}`);"
-
-        "checkMinMax(cell, bar, index);"
-
-        "bar.addEventListener('mouseenter', () => {"
-        "    valueDisplay.textContent = `Value: ${mV}` + (balancing[index] ? ' (balancing)' : '');"
-        "    bar.style.backgroundColor = balancing[index] ? '#80FFFF' : 'lightblue';"
-        "    cell.style.backgroundColor = balancing[index] ? '#006666' : 'blue';"
-        "});"
-
-        "bar.addEventListener('mouseleave', () => {"
-        "valueDisplay.textContent = 'Value: ...';"
-        "bar.style.backgroundColor = balancing[index] ? '#00FFFF' : 'blue';"  // Restore cyan if balancing, else blue
-        "cell.style.removeProperty('background-color');"
-        "});"
-
-        "graphContainer.appendChild(bar);"
-        "});"
-        "}";
-
-    // Cell population function. For each value, add a cell block with its value
-    content +=
-        "function createCells(data) {"
-        "data.forEach((mV, index) => {"
-        "const cell = document.createElement('div');"
-        "cell.className = 'cell';"
-        "cell.id = `cellIndex${index}`;"
-        "let cellContent = `Cell ${index + 1}<br>${mV} mV`;"
-        "if (mV < 3000) {"
-        "  cellContent = `<span class='low-voltage'>${cellContent}</span>`;"
-        "}"
-        "cell.innerHTML = cellContent;"
-
-        "cell.addEventListener('mouseenter', () => {"
-        "let bar = document.getElementById(`barIndex${index}`);"
-        "valueDisplay.textContent = `Value: ${mV}`;"
-        "bar.style.backgroundColor = balancing[index] ? '#80FFFF' : 'lightblue';"  // Lighter cyan if balancing
-        "cell.style.backgroundColor = balancing[index] ? '#006666' : 'blue';"      // Darker cyan if balancing
-        "});"
-
-        "cell.addEventListener('mouseleave', () => {"
-        "let bar = document.getElementById(`barIndex${index}`);"
-        "bar.style.backgroundColor = balancing[index] ? '#00FFFF' : 'blue';"  // Restore original color
-        "cell.style.removeProperty('background-color');"
-        "});"
-
-        "cellContainer.appendChild(cell);"
-        "});"
-        "}";
-
-    // On fetch, update the header of max/min/deviation client-side for consistency
-    content +=
-        "function updateVoltageValues(data) {"
-        "const min_mv = Math.min(...data);"
-        "const max_mv = Math.max(...data);"
-        "const cell_dev = max_mv - min_mv;"
-        "const voltVal = document.getElementById('voltageValues');"
-        "voltVal.innerHTML = `Max Voltage : ${max_mv} mV<br>Min Voltage: ${min_mv} mV<br>Voltage Deviation: ";
-    if (datalayer.battery.status.balancing_status == BALANCING_STATUS_ACTIVE) {
-      content += "${cell_dev} mV (Battery is balancing now!)`}";
-    } else {
-      content += "${cell_dev} mV`}";
-    }
-
-    // If we have values, do the thing. Otherwise, display friendly message and wait
-    content += "if (data.length != 0) {";
-    content += "createCells(data);";
-    content += "createBars(data);";
-    content += "updateVoltageValues(data);";
-    content += "}";
-    content += "else {";
-    if (datalayer.battery.info.number_of_cells > 0) {
-      content += "document.getElementById('voltageValues').textContent = '" +
-                 String(datalayer.battery.info.number_of_cells) + " cells configured, but cellvoltages not yet read';";
-    } else {
-      content +=
-          "document.getElementById('voltageValues').textContent = 'Amount of cells unknown. Cellvoltages not yet "
-          "read';";
-    }
-    content += "}";
-
-    if (battery2) {
-      // Populate cell data
-      content += "const data2 = [";
-      for (uint8_t i = 0u; i < datalayer.battery2.info.number_of_cells; i++) {
-        if (datalayer.battery2.status.cell_voltages_mV[i] == 0) {
-          continue;
-        }
-        content += String(datalayer.battery2.status.cell_voltages_mV[i]) + ",";
-      }
-      content += "];";
-
-      content += "const balancing2 = [";
-      for (uint8_t i = 0u; i < datalayer.battery2.info.number_of_cells; i++) {
-        if (datalayer.battery2.status.cell_voltages_mV[i] == 0) {
-          continue;
-        }
-        content += datalayer.battery2.status.cell_balancing_status[i] ? "true," : "false,";
-      }
-      content += "];";
-
-      content += "const min_mv2 = Math.min(...data2) - 20;";
-      content += "const max_mv2 = Math.max(...data2) + 20;";
-      content += "const min_index2 = data2.indexOf(Math.min(...data2));";
-      content += "const max_index2 = data2.indexOf(Math.max(...data2));";
-      content += "const graphContainer2 = document.getElementById('graph2');";
-      content += "const valueDisplay2 = document.getElementById('valueDisplay2');";
-      content += "const cellContainer2 = document.getElementById('cellContainer2');";
-
-      // Arduino-style map() function
-      content +=
-          "function map2(value, fromLow, fromHigh, toLow, toHigh) {return (value - fromLow) * (toHigh - toLow) / "
-          "(fromHigh - fromLow) + toLow;}";
-
-      // Mark cell and bar with highest/lowest values
-      content +=
-          "function checkMinMax2(cell2, bar2, index2) {if ((index2 == min_index2) || (index2 == max_index2)) "
-          "{cell2.style.borderColor = 'red';bar2.style.borderColor = 'red';}}";
-
-      // Bar function. Basically get the mV, scale the height and add a bar div to its container
-      content +=
-          "function createBars2(data2) {"
-          "data2.forEach((mV, index2) => {"
-          "const bar2 = document.createElement('div');"
-          "const mV_limited2 = map2(mV, min_mv2, max_mv2, 20, 200);"
-          "bar2.className = 'bar';"
-          "bar2.id = `barIndex2${index2}`;"
-          "bar2.style.height = `${mV_limited2}px`;"
-          "bar2.style.width = `${750/data2.length}px`;"
-          "if (balancing2[index2]) {"
-          "  bar2.style.backgroundColor = '#00FFFF';"  // Cyan color for balancing
-          "  bar2.style.borderColor = '#00FFFF';"
-          "} else {"
-          "  bar2.style.backgroundColor = 'blue';"  // Normal blue for non-balancing
-          "  bar2.style.borderColor = 'white';"
-          "}"
-          "const cell2 = document.getElementById(`cellIndex2${index2}`);"
-
-          "checkMinMax2(cell2, bar2, index2);"
-
-          "bar2.addEventListener('mouseenter', () => {"
-          "    valueDisplay2.textContent = `Value: ${mV}` + (balancing[index2] ? ' (balancing)' : '');"
-          "    bar2.style.backgroundColor = balancing2[index2] ? '#80FFFF' : 'lightblue';"
-          "    cell2.style.backgroundColor = balancing2[index2] ? '#006666' : 'blue';"
-          "});"
-
-          "bar2.addEventListener('mouseleave', () => {"
-          "valueDisplay2.textContent = 'Value: ...';"
-          "bar2.style.backgroundColor = balancing2[index2] ? '#00FFFF' : 'blue';"  // Restore cyan if balancing, else blue
-          "cell2.style.removeProperty('background-color');"
-          "});"
-
-          "graphContainer2.appendChild(bar2);"
-          "});"
-          "}";
-
-      // Cell population function. For each value, add a cell block with its value
-      content +=
-          "function createCells2(data2) {"
-          "data2.forEach((mV, index2) => {"
-          "const cell2 = document.createElement('div');"
-          "cell2.className = 'cell';"
-          "cell2.id = `cellIndex2${index2}`;"
-          "let cellContent2 = `Cell ${index2 + 1}<br>${mV} mV`;"
-          "if (mV < 3000) {"
-          "cellContent2 = `<span class='low-voltage'>${cellContent2}</span>`;"
-          "}"
-          "cell2.innerHTML = cellContent2;"
-
-          "cell2.addEventListener('mouseenter', () => {"
-          "let bar2 = document.getElementById(`barIndex2${index2}`);"
-          "valueDisplay2.textContent = `Value: ${mV}`;"
-          "bar2.style.backgroundColor = balancing2[index2] ? '#80FFFF' : 'lightblue';"  // Lighter cyan if balancing
-          "cell2.style.backgroundColor = balancing2[index2] ? '#006666' : 'blue';"      // Darker cyan if balancing
-          "});"
-
-          "cell2.addEventListener('mouseleave', () => {"
-          "let bar2 = document.getElementById(`barIndex2${index2}`);"
-          "bar2.style.backgroundColor = balancing2[index2] ? '#00FFFF' : 'blue';"  // Restore original color
-          "cell2.style.removeProperty('background-color');"
-          "});"
-
-          "cellContainer2.appendChild(cell2);"
-          "});"
-          "}";
-
-      // On fetch, update the header of max/min/deviation client-side for consistency
-      content +=
-          "function updateVoltageValues2(data2) {"
-          "const min_mv2 = Math.min(...data2);"
-          "const max_mv2 = Math.max(...data2);"
-          "const cell_dev2 = max_mv2 - min_mv2;"
-          "const voltVal2 = document.getElementById('voltageValues2');"
-          "voltVal2.innerHTML = `Battery #2<br>Max Voltage : ${max_mv2} mV<br>Min Voltage: ${min_mv2} mV<br>Voltage "
-          "Deviation: "
-          "${cell_dev2} mV`"
-          "}";
-
-      // If we have values, do the thing. Otherwise, display friendly message and wait
-      content += "if (data2.length != 0) {";
-      content += "createCells2(data2);";
-      content += "createBars2(data2);";
-      content += "updateVoltageValues2(data2);";
-      content += "}";
-      content += "else {";
-      if (datalayer.battery2.info.number_of_cells > 0) {
-        content += "document.getElementById('voltageValues2').textContent = '" +
-                   String(datalayer.battery2.info.number_of_cells) +
-                   " cells configured, but cellvoltages not yet read';";
-      } else {
-        content +=
-            "document.getElementById('voltageValues2').textContent = 'Amount of cells unknown. Cellvoltages not yet "
-            "read';";
-      }
-      content += "}";
-    }
-
-    if (battery3) {
-      // Populate cell data
-      content += "const data3 = [";
-      for (uint8_t i = 0u; i < datalayer.battery3.info.number_of_cells; i++) {
-        if (datalayer.battery3.status.cell_voltages_mV[i] == 0) {
-          continue;
-        }
-        content += String(datalayer.battery3.status.cell_voltages_mV[i]) + ",";
-      }
-      content += "];";
-
-      content += "const balancing3 = [";
-      for (uint8_t i = 0u; i < datalayer.battery3.info.number_of_cells; i++) {
-        if (datalayer.battery3.status.cell_voltages_mV[i] == 0) {
-          continue;
-        }
-        content += datalayer.battery3.status.cell_balancing_status[i] ? "true," : "false,";
-      }
-      content += "];";
-
-      content += "const min_mv3 = Math.min(...data3) - 30;";
-      content += "const max_mv3 = Math.max(...data3) + 30;";
-      content += "const min_index3 = data3.indexOf(Math.min(...data3));";
-      content += "const max_index3 = data3.indexOf(Math.max(...data3));";
-      content += "const graphContainer3 = document.getElementById('graph3');";
-      content += "const valueDisplay3 = document.getElementById('valueDisplay3');";
-      content += "const cellContainer3 = document.getElementById('cellContainer3');";
-
-      // Arduino-style map() function
-      content +=
-          "function map3(value, fromLow, fromHigh, toLow, toHigh) {return (value - fromLow) * (toHigh - toLow) / "
-          "(fromHigh - fromLow) + toLow;}";
-
-      // Mark cell and bar with highest/lowest values
-      content +=
-          "function checkMinMax3(cell3, bar3, index3) {if ((index3 == min_index3) || (index3 == max_index3)) "
-          "{cell3.style.borderColor = 'red';bar3.style.borderColor = 'red';}}";
-
-      // Bar function. Basically get the mV, scale the height and add a bar div to its container
-      content +=
-          "function createBars3(data3) {"
-          "data3.forEach((mV, index3) => {"
-          "const bar3 = document.createElement('div');"
-          "const mV_limited3 = map3(mV, min_mv3, max_mv3, 30, 300);"
-          "bar3.className = 'bar';"
-          "bar3.id = `barIndex3${index3}`;"
-          "bar3.style.height = `${mV_limited3}px`;"
-          "bar3.style.width = `${750/data3.length}px`;"
-          "if (balancing3[index3]) {"
-          "  bar3.style.backgroundColor = '#00FFFF';"  // Cyan color for balancing
-          "  bar3.style.borderColor = '#00FFFF';"
-          "} else {"
-          "  bar3.style.backgroundColor = 'blue';"  // Normal blue for non-balancing
-          "  bar3.style.borderColor = 'white';"
-          "}"
-          "const cell3 = document.getElementById(`cellIndex3${index3}`);"
-
-          "checkMinMax3(cell3, bar3, index3);"
-
-          "bar3.addEventListener('mouseenter', () => {"
-          "    valueDisplay3.textContent = `Value: ${mV}` + (balancing[index3] ? ' (balancing)' : '');"
-          "    bar3.style.backgroundColor = balancing3[index3] ? '#80FFFF' : 'lightblue';"
-          "    cell3.style.backgroundColor = balancing3[index3] ? '#006666' : 'blue';"
-          "});"
-
-          "bar3.addEventListener('mouseleave', () => {"
-          "valueDisplay3.textContent = 'Value: ...';"
-          "bar3.style.backgroundColor = balancing3[index3] ? '#00FFFF' : 'blue';"  // Restore cyan if balancing, else blue
-          "cell3.style.removeProperty('background-color');"
-          "});"
-
-          "graphContainer3.appendChild(bar3);"
-          "});"
-          "}";
-
-      // Cell population function. For each value, add a cell block with its value
-      content +=
-          "function createCells3(data3) {"
-          "data3.forEach((mV, index3) => {"
-          "const cell3 = document.createElement('div');"
-          "cell3.className = 'cell';"
-          "cell3.id = `cellIndex3${index3}`;"
-          "let cellContent3 = `Cell ${index3 + 1}<br>${mV} mV`;"
-          "if (mV < 3000) {"
-          "cellContent3 = `<span class='low-voltage'>${cellContent3}</span>`;"
-          "}"
-          "cell3.innerHTML = cellContent3;"
-
-          "cell3.addEventListener('mouseenter', () => {"
-          "let bar3 = document.getElementById(`barIndex3${index3}`);"
-          "valueDisplay3.textContent = `Value: ${mV}`;"
-          "bar3.style.backgroundColor = balancing3[index3] ? '#80FFFF' : 'lightblue';"  // Lighter cyan if balancing
-          "cell3.style.backgroundColor = balancing3[index3] ? '#006666' : 'blue';"      // Darker cyan if balancing
-          "});"
-
-          "cell3.addEventListener('mouseleave', () => {"
-          "let bar3 = document.getElementById(`barIndex3${index3}`);"
-          "bar3.style.backgroundColor = balancing3[index3] ? '#00FFFF' : 'blue';"  // Restore original color
-          "cell3.style.removeProperty('background-color');"
-          "});"
-
-          "cellContainer3.appendChild(cell3);"
-          "});"
-          "}";
-
-      // On fetch, update the header of max/min/deviation client-side for consistency
-      content +=
-          "function updateVoltageValues3(data3) {"
-          "const min_mv3 = Math.min(...data3);"
-          "const max_mv3 = Math.max(...data3);"
-          "const cell_dev3 = max_mv3 - min_mv3;"
-          "const voltVal3 = document.getElementById('voltageValues3');"
-          "voltVal3.innerHTML = `Battery #3<br>Max Voltage : ${max_mv3} mV<br>Min Voltage: ${min_mv3} mV<br>Voltage "
-          "Deviation: "
-          "${cell_dev3} mV`"
-          "}";
-
-      // If we have values, do the thing. Otherwise, display friendly message and wait
-      content += "if (data3.length != 0) {";
-      content += "createCells3(data3);";
-      content += "createBars3(data3);";
-      content += "updateVoltageValues3(data3);";
-      content += "}";
-      content += "else {";
-      if (datalayer.battery3.info.number_of_cells > 0) {
-        content += "document.getElementById('voltageValues3').textContent = '" +
-                   String(datalayer.battery3.info.number_of_cells) +
-                   " cells configured, but cellvoltages not yet read';";
-      } else {
-        content +=
-            "document.getElementById('voltageValues3').textContent = 'Amount of cells unknown. Cellvoltages not yet "
-            "read';";
-      }
-      content += "}";
-    }
-
-    // Automatic refresh is nice
-    content += "setTimeout(function(){ location.reload(true); }, 20000);";
-
-    content += "</script>";
-    if (!content.good()) {
-      return cellmonitor_low_memory_page();
-    }
-    return content.take();
+// Page chrome. The More Battery Info link carries location.search along, so the pack selected here
+// stays selected there; the browser assembles it, nothing is built on the ESP.
+const char page_head[] =
+    INDEX_HTML_SUBPAGE_STYLE R"html(.container{display:flex;flex-wrap:wrap;justify-content:space-around}
+.cell{padding:10px;border:1px solid #fff;text-align:center}
+.lv{color:red}
+#graph{display:flex;align-items:flex-end;height:200px;border:1px solid #ccc;position:relative}
+.bar{display:inline-block;position:relative;cursor:pointer;border:1px solid #fff}
+.row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin:10px 0}
+#val,.lgd{font-weight:700}
+#val{margin-right:auto}
+.lgd{padding:2px 8px;border:1px solid transparent;border-radius:4px}
+</style>
+<button onclick="location.href='/'">Back to main page</button>
+<button onclick="location.href='/advanced'+location.search">More Battery Info</button>
+)html";
+
+// Graph, hovered value and legend come first, the cell table below them. The value readout and the
+// legend badges share one flex row: the auto margin holds the readout left and pushes the badges
+// right, and once the row runs out of width they wrap onto lines of their own, still right aligned.
+const char panel_start[] =
+    "<div class='battery-panel'><div id='volt'></div><div id='graph'></div><div class='row'>"
+    "<span id='val'>Value: ...</span><span class='lgd' style='background:blue'>Idle</span>";
+
+// d = cell millivolts, b = per cell balancing flags, A = balancing suffix, M = empty pack message.
+const char page_script[] = R"html(<script>
+const G=document.getElementById('graph'),V=document.getElementById('val'),C=document.getElementById('cells'),T=document.getElementById('volt');
+if(d.length){
+const mn=Math.min(...d),mx=Math.max(...d),lo=mn-20,sc=180/(mx-mn+40),w=750/d.length+'px';
+T.innerHTML='Max Voltage: '+mx+' mV<br>Min Voltage: '+mn+' mV<br>Voltage Deviation: '+(mx-mn)+' mV'+A;
+d.forEach((mV,i)=>{
+const e=document.createElement('div'),r=document.createElement('div'),z=b[i];
+e.className='cell';
+e.innerHTML='<span'+(mV<3000?' class=lv>':'>')+'Cell '+(i+1)+'<br>'+mV+' mV</span>';
+r.className='bar';
+r.style.height=(mV-lo)*sc+20+'px';
+r.style.width=w;
+r.style.background=z?'#0ff':'blue';
+if(z)r.style.borderColor='#0ff';
+if(mV==mn||mV==mx){e.style.borderColor='red';r.style.borderColor='red'}
+const on=()=>{V.textContent='Value: '+mV+(z?' (balancing)':'');r.style.background=z?'#8ff':'lightblue';e.style.background=z?'#066':'blue'};
+const off=()=>{V.textContent='Value: ...';r.style.background=z?'#0ff':'blue';e.style.removeProperty('background')};
+r.onmouseenter=e.onmouseenter=on;
+r.onmouseleave=e.onmouseleave=off;
+G.appendChild(r);C.appendChild(e)})}
+else T.textContent=M;
+setTimeout(()=>location.reload(),20000)
+</script>)html";
+
+String cellmonitor_processor(const String& var, unsigned selected) {
+  if (var != "X") {
+    return String();
   }
-  return String();
+
+  const DATALAYER_BATTERY_TYPE& pack = battery_data(selected);
+  const uint8_t cells = pack.info.number_of_cells;
+
+  String content;
+  content.reserve(4096);
+  content += page_head;
+
+  // Tab strip, shown only once a second pack exists.
+  if (battery2 || battery3) {
+    content += "<nav aria-label='Battery selection'>";
+    for (unsigned i = 0; i < 3; i++) {
+      if (!battery_present(i)) {
+        continue;
+      }
+      char tab[112];
+      snprintf(tab, sizeof(tab), "<a class='battery-tab' href='/cellmonitor?battery=%u'%s>Battery %u</a>", i + 1,
+               i == selected ? " aria-current='page'" : "", i + 1);
+      content += tab;
+    }
+    content += "</nav>";
+  }
+
+  content += panel_start;
+
+  bool cell_balancing = false;
+  for (uint8_t i = 0u; i < cells; i++) {
+    if (pack.status.cell_balancing_status[i]) {
+      cell_balancing = true;
+      break;
+    }
+  }
+  if (cell_balancing) {
+    content += "<span class='lgd' style='background:#0ff;color:#000'>";
+    content += balancing_legend_label(pack.status.balancing_status);
+    content += "</span>";
+  } else if (pack.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+    // Batteries that report no per-cell flags still say whether the pack as a whole is balancing.
+    content += "<span class='lgd' style='background:#f90;color:#000'>Balancing is active now!</span>";
+  }
+  // Outlined rather than filled, the way a min/max bar is marked in the graph.
+  content += "<span class='lgd' style='border-color:red'>Min/Max</span></div>";
+  content += "<div id='cells' class='container'></div></div>";
+
+  content += "<script>const d=[";
+  for (uint8_t i = 0u; i < cells; i++) {
+    if (pack.status.cell_voltages_mV[i] == 0) {
+      continue;
+    }
+    append_uint(content, pack.status.cell_voltages_mV[i], ",");
+  }
+  content += "],b=[";
+  for (uint8_t i = 0u; i < cells; i++) {
+    if (pack.status.cell_voltages_mV[i] == 0) {
+      continue;
+    }
+    content += pack.status.cell_balancing_status[i] ? "1," : "0,";
+  }
+  content += "],A='";
+  if (pack.status.balancing_status == BALANCING_STATUS_ACTIVE) {
+    content += " (Battery is balancing now!)";
+  }
+  content += "',M='";
+  if (cells > 0) {
+    append_uint(content, cells, " cells configured, but cellvoltages not yet read");
+  } else {
+    content += "Amount of cells unknown. Cellvoltages not yet read";
+  }
+  content += "';</script>";
+
+  content += page_script;
+  return content;
+}
+}  // namespace
+
+void send_cellmonitor_page(AsyncWebServerRequest* request) {
+  unsigned selected = 0;
+  if (request->hasParam("battery")) {
+    const String value = request->getParam("battery")->value();
+    if (value.length() != 1 || value[0] < '1' || value[0] > '3') {
+      request->send(400, "text/plain", "Invalid battery selection.");
+      return;
+    }
+    selected = value[0] - '1';
+  }
+  if (!battery_present(selected)) {
+    request->send(404, "text/plain", "This battery is not configured.");
+    return;
+  }
+  request->send(200, "text/html", index_html,
+                [selected](const String& var) { return cellmonitor_processor(var, selected); });
 }
