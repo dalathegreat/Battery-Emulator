@@ -103,17 +103,30 @@ void PylonLV485InverterProtocol::route_frame_request(const std::string& frame_st
   }
 
   // Extract command (CID2) from positions 7-8. These are the real Pylontech
-  // CID2 command codes (spec section 2.5.2) - not to be confused with the
-  // RTN (return code) field, which reuses this same byte position in our
-  // response but means something different: 0x00 = Normal, not an echo of
-  // the command we're replying to.
+  // CID2 command codes - not to be confused with the RTN (return code)
+  // field, which reuses this same byte position in our response but means
+  // something different: 0x00 = Normal, not an echo of the command we're
+  // replying to.
+  //
+  // Two generations of command codes exist for the same information: the
+  // original per-battery commands (spec section 2.5.2 in the V3.3 protocol
+  // doc) and a newer, system-level command group added in V3.5 (queried
+  // through the master battery, "a CAN-protocol-like design... for
+  // expansion"). An inverter may use either depending on its firmware, so
+  // both are accepted here.
   std::string cid2 = frame_str.substr(7, 2);
 
-  if (cid2 == "42") {
+  if (cid2 == "42" || cid2 == "61") {
+    // 42H = get analog value (V2.x, per-battery); 61H = get system analog
+    // data (V3.5+, system-level)
     handle_get_analog_value();
-  } else if (cid2 == "44") {
+  } else if (cid2 == "44" || cid2 == "62") {
+    // 44H = get alarm info (V2.x, per-battery); 62H = get system alarm
+    // info (V3.5+, system-level)
     handle_get_alarm_info();
-  } else if (cid2 == "92") {
+  } else if (cid2 == "92" || cid2 == "63") {
+    // 92H = get charge/discharge management info (V2.x, per-battery);
+    // 63H = get system charge/discharge management info (V3.5+, system-level)
     handle_get_charge_discharge_info();
   } else {
     logging.printf("RX: Unknown command 0x%s\n", cid2.c_str());
