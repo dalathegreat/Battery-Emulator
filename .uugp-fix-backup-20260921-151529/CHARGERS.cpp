@@ -19,15 +19,8 @@ std::vector<ChargerType> supported_charger_types() {
   std::vector<ChargerType> types;
 
   for (int i = 0; i < (int)ChargerType::Highest; i++) {
-    
-#ifndef SMALL_FLASH_DEVICE
     types.push_back((ChargerType)i);
-#else
-    if ((ChargerType)i != ChargerType::UUGP) {
-      types.push_back((ChargerType)i);
-    }
-#endif
-}
+  }
 
   return types;
 }
@@ -38,10 +31,8 @@ extern const char* name_for_charger_type(ChargerType type) {
       return ChevyVoltCharger::Name;
     case ChargerType::NissanLeaf:
       return NissanLeafCharger::Name;
-#ifndef SMALL_FLASH_DEVICE
     case ChargerType::UUGP:
       return UUGPCharger::Name;
-#endif
     case ChargerType::None:
     case ChargerType::Highest:
       return "None";
@@ -59,11 +50,9 @@ void setup_charger() {
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
       break;
-#ifndef SMALL_FLASH_DEVICE
     case ChargerType::UUGP:
       charger = new UUGPCharger();
       break;
-#endif
     case ChargerType::None:
     case ChargerType::Highest:
       break;
