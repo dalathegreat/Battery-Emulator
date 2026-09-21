@@ -1,5 +1,5 @@
 ﻿#include "UUGP-CHARGER.h"
-
+#ifndef SMALL_FLASH_DEVICE
 #include <time.h>
 
 #include <cstring>
