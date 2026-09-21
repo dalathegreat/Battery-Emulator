@@ -196,7 +196,7 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
 const char* name_for_gpioopt4(GPIOOPT4 option) {
   switch (option) {
     case GPIOOPT4::DEFAULT_SD_CARD:
-      return "SD Card";
+      return "µSD Card";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT4::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
