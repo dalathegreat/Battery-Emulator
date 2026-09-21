@@ -19,7 +19,7 @@ std::vector<ChargerType> supported_charger_types() {
   std::vector<ChargerType> types;
 
   for (int i = 0; i < (int)ChargerType::Highest; i++) {
-    
+
 #ifndef SMALL_FLASH_DEVICE
     types.push_back((ChargerType)i);
 #else
@@ -27,7 +27,7 @@ std::vector<ChargerType> supported_charger_types() {
       types.push_back((ChargerType)i);
     }
 #endif
-}
+  }
 
   return types;
 }
