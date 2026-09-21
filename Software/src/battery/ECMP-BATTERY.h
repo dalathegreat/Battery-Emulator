@@ -303,7 +303,7 @@ class EcmpBattery : public UdsCanBattery {
   uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
   uint64_t pid_current_time = NOT_SAMPLED_YET;
   uint32_t pid_time_sent_by_car = NOT_SAMPLED_YET;
-  int32_t pid_current = NOT_SAMPLED_YET;
+  uint32_t pid_current = NOT_SAMPLED_YET;
   uint8_t pid_hw_version_num[17] = {NOT_SAMPLED_YET};
   uint8_t pid_sw_version_num[17] = {NOT_SAMPLED_YET};
 
@@ -430,6 +430,7 @@ class EcmpBattery : public UdsCanBattery {
   uint16_t BMS_DC_RELAY_MES_EVSE_VOLTAGE = 0;
   uint16_t HV_BATT_COP_VOLTAGE = 0;
 
+  int16_t calculated_highprec_current_value = 0;
   int16_t HV_BATT_MAX_REAL_CURR = 0;
   int16_t HV_BATT_REAL_CURR_HD = 0;
   int16_t battery_current = 0;

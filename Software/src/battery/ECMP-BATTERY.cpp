@@ -40,7 +40,8 @@ void EcmpBattery::update_values() {
 
     // If High Precision Curent is avilable, use it
     if (pid_current != NOT_SAMPLED_YET && datalayer.system.status.system_status != FAULT) {
-      datalayer_battery->status.current_dA = (int16_t)(pid_current / 100);
+      calculated_highprec_current_value = (-((pid_current - 76800) * 155)) / 1000;
+      datalayer_battery->status.current_dA = calculated_highprec_current_value;
     } else {  //Low precision
       datalayer_battery->status.current_dA = -(battery_current * 10);
     }
@@ -991,7 +992,7 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
       pid_avg_cell_voltage = value;
       break;
     case PID_CURRENT:
-      pid_current = -(((value - 76800) * 155) / 10);
+      pid_current = value;
       break;
     case PID_INSULATION_NEG:
       pid_insulation_res_neg = value;
