@@ -260,16 +260,11 @@ void Logging::add_timestamp(size_t size) {
   static char timestr_buffer[MAX_LENGTH_TIME_STR];
 
   if (datalayer.system.info.web_logging_active) {
-    if (!datalayer.system.info.can_logging_active) {
-      /* If web debug is active and can logging is inactive, 
-       * we use the debug logging memory directly for writing the timestring */
-      if (offset + size + MAX_LENGTH_TIME_STR > message_string_size) {
-        offset = 0;
-      }
-      timestr = datalayer.system.info.logged_can_messages + offset;
-    } else {
-      timestr = timestr_buffer;
+    /* If web debug is active, we use the debug logging memory directly for writing the timestring */
+    if (offset + size + MAX_LENGTH_TIME_STR > message_string_size) {
+      offset = 0;
     }
+    timestr = datalayer.system.info.logged_can_messages + offset;
   } else {
     timestr = timestr_buffer;
   }
@@ -277,7 +272,7 @@ void Logging::add_timestamp(size_t size) {
   offset += min(MAX_LENGTH_TIME_STR - 1,
                 snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
 
-  if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
+  if (datalayer.system.info.web_logging_active) {
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
   }
 
@@ -323,7 +318,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 
   syslog_emit(buffer, size);
 
-  if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
+  if (datalayer.system.info.web_logging_active) {
     char* message_string = datalayer.system.info.logged_can_messages;
     size_t offset =
         datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
@@ -362,17 +357,12 @@ void Logging::printf(const char* fmt, ...) {
   char* message_buffer;
 
   if (datalayer.system.info.web_logging_active) {
-    if (!datalayer.system.info.can_logging_active) {
-      /* If web debug is active and can logging is inactive, 
-       * we use the debug logging memory directly for writing the output */
-      if (offset + MAX_LINE_LENGTH_PRINTF > message_string_size) {
-        // Not enough space, reset and start from the beginning
-        offset = 0;
-      }
-      message_buffer = message_string + offset;
-    } else {
-      message_buffer = buffer;
+    /* If web debug is active, we use the debug logging memory directly for writing the output */
+    if (offset + MAX_LINE_LENGTH_PRINTF > message_string_size) {
+      // Not enough space, reset and start from the beginning
+      offset = 0;
     }
+    message_buffer = message_string + offset;
   } else {
     message_buffer = buffer;
   }
@@ -410,7 +400,7 @@ void Logging::printf(const char* fmt, ...) {
 
   syslog_emit((const uint8_t*)message_buffer, size);
 
-  if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
+  if (datalayer.system.info.web_logging_active) {
     // Data was already added to buffer, just move offset
     datalayer.system.info.logged_can_messages_offset =
         offset + size;  // Keeps track of the current position in the buffer
