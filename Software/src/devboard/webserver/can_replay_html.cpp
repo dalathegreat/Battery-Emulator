@@ -130,7 +130,7 @@ String can_replay_processor(void) {
 
   // Dropdown with choices
   content += "<label for='canInterface'>CAN Interface:</label>";
-  content += "<select id='canInterface' name='canInterface'>";
+  content += "<select id='canInterface' name='canInterface' style='margin: 0 10px'>";
 #ifdef HW_UNIFIED_S3
   // Only the CAN buses the board configuration declared, under the names it
   // gave them. A fixed list would offer buses this board does not have, and a

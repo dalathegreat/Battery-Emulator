@@ -292,6 +292,44 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return "";
   }
 
+  if (var == "IFACEFILTER") {
+#ifdef HW_UNIFIED_S3
+    // Offer only the interfaces the selected battery or inverter can use: the
+    // RS485 transceiver for RS485 and Modbus drivers, the CAN buses for the rest.
+    // Runs in the browser so it follows the dropdown before anything is saved.
+    // Option values are comm_interface: 1 Modbus and 2 RS485 share the RS485
+    // transceiver, 3 and up are CAN buses.
+    String rs_batteries, rs_inverters;
+    for (int i = 0; i < (int)BatteryType::Highest; i++) {
+      if (battery_type_uses_rs485((BatteryType)i)) {
+        rs_batteries += (rs_batteries.length() ? "," : "") + String(i);
+      }
+    }
+    for (int i = 0; i < (int)InverterProtocolType::Highest; i++) {
+      if (inverter_type_uses_rs485((InverterProtocolType)i)) {
+        rs_inverters += (rs_inverters.length() ? "," : "") + String(i);
+      }
+    }
+    return "function fitIf(t,rs,names){if(!t)return;var v=+t.value,wantRs=rs.indexOf(v)>=0;"
+           "names.forEach(function(n){var s=document.querySelector('select[name='+n+']');if(!s)return;"
+           "var first=null;for(var i=0;i<s.options.length;i++){var o=s.options[i],isRs=(o.value==1||o.value==2),"
+           "ok=(v==0)||(isRs==wantRs);o.hidden=o.disabled=!ok;if(ok&&!first)first=o;}"
+           "var cur=s.options[s.selectedIndex];if(cur&&cur.disabled&&first){s.value=first.value;"
+           "s.dispatchEvent(new Event('change'));}});}"
+           "var bt=document.querySelector('select[name=battery]'),it=document.querySelector('select[name=inverter]');"
+           "function fb(){fitIf(bt,[" +
+           rs_batteries +
+           "],['BATTCOMM','BATT2COMM','BATT3COMM']);}"
+           "function fi(){fitIf(it,[" +
+           rs_inverters +
+           "],['INVCOMM']);}"
+           "if(bt){bt.addEventListener('change',fb);fb();}"
+           "if(it){it.addEventListener('change',fi);fi();}";
+#else
+    return "";
+#endif
+  }
+
   if (var == "HWCFGBTN") {
 #ifdef HW_UNIFIED_S3
     return "<button onclick=\"window.location.href='/hardware'\">Hardware configuration</button>";
@@ -1419,6 +1457,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
           if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
+          %IFACEFILTER%
     </script>
 )rawliteral"
 
