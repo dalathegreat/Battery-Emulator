@@ -60,9 +60,6 @@ String channel_pair(CAN_Interface can, bool fd) {
 // "The dump will contain data from interface CAN denoted as rx0/tx1, and from
 // CAN FD 1 denoted as rx6/tx7." One clause per configured bus, in file order.
 String dump_channel_sentence(const std::vector<CanPort>& ports) {
-  if (ports.empty()) {
-    return "This board has no CAN interfaces configured, so a dump will be empty.";
-  }
   String s = "The dump will contain data from interface ";
   const CanPort* fd = nullptr;
   for (size_t i = 0; i < ports.size(); i++) {
@@ -101,6 +98,22 @@ String can_replay_processor(void) {
   content += "</style>";
   content += "<button onclick='home()'>Back to main page</button>";
 
+#ifdef HW_UNIFIED_S3
+  // With no CAN bus configured there is nothing to dump and nowhere to replay
+  // to, so the page is a single card saying so rather than two cards of controls
+  // that cannot do anything.
+  if (configured_can_ports().empty()) {
+    content +=
+        "<div style='background-color: #303E47; padding: 20px; border-radius: 15px; margin-bottom: 20px; "
+        "text-align: center'>";
+    content += "<h3>No CAN interfaces configured in the hardware.</h3>";
+    content += "</div>";
+    content += "<script>function home() { window.location.href = '/'; }</script>";
+    content += index_html_footer;
+    return content;
+  }
+#endif  // HW_UNIFIED_S3
+
   // CAN dump card
   content +=
       "<div style='background-color: #303E47; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: "
@@ -135,11 +148,7 @@ String can_replay_processor(void) {
   // Only the CAN buses the board configuration declared, under the names it
   // gave them. A fixed list would offer buses this board does not have, and a
   // replay sent to one of those goes nowhere.
-  std::vector<CanPort> ports = configured_can_ports();
-  if (ports.empty()) {
-    content += "<option disabled selected>No CAN interfaces configured</option>";
-  }
-  for (const CanPort& port : ports) {
+  for (const CanPort& port : configured_can_ports()) {
     content += "<option value='" + String((int)port.can) + "'" +
                (datalayer.system.info.can_replay_interface == port.can ? " selected" : "") + ">" + port.name +
                "</option>";

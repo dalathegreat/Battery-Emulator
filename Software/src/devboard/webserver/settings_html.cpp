@@ -310,21 +310,25 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
         rs_inverters += (rs_inverters.length() ? "," : "") + String(i);
       }
     }
-    return "function fitIf(t,rs,names){if(!t)return;var v=+t.value,wantRs=rs.indexOf(v)>=0;"
+    // No charger or shunt driver uses RS485 today, so theirs are empty lists and
+    // their selectors offer only CAN buses. One that does would need a
+    // classification like battery_type_uses_rs485().
+    return "function fitIf(t,rs,names){var v=+t.value,wantRs=rs.indexOf(v)>=0;"
            "names.forEach(function(n){var s=document.querySelector('select[name='+n+']');if(!s)return;"
            "var first=null;for(var i=0;i<s.options.length;i++){var o=s.options[i],isRs=(o.value==1||o.value==2),"
            "ok=(v==0)||(isRs==wantRs);o.hidden=o.disabled=!ok;if(ok&&!first)first=o;}"
            "var cur=s.options[s.selectedIndex];if(cur&&cur.disabled&&first){s.value=first.value;"
            "s.dispatchEvent(new Event('change'));}});}"
-           "var bt=document.querySelector('select[name=battery]'),it=document.querySelector('select[name=inverter]');"
-           "function fb(){fitIf(bt,[" +
+           "function bindIf(type,rs,names){var t=document.querySelector('select[name='+type+']');if(!t)return;"
+           "var f=function(){fitIf(t,rs,names);};t.addEventListener('change',f);f();}"
+           "bindIf('battery',[" +
            rs_batteries +
-           "],['BATTCOMM','BATT2COMM','BATT3COMM']);}"
-           "function fi(){fitIf(it,[" +
+           "],['BATTCOMM','BATT2COMM','BATT3COMM']);"
+           "bindIf('inverter',[" +
            rs_inverters +
-           "],['INVCOMM']);}"
-           "if(bt){bt.addEventListener('change',fb);fb();}"
-           "if(it){it.addEventListener('change',fi);fi();}";
+           "],['INVCOMM']);"
+           "bindIf('charger',[],['CHGCOMM']);"
+           "bindIf('shunttype',[],['SHUNTCOMM']);";
 #else
     return "";
 #endif
