@@ -618,3 +618,4 @@ void UUGPCharger::receive() {
     rx_length = remaining;
   }
 }
+#endif // !SMALL_FLASH_DEVICE
