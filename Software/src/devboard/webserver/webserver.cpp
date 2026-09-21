@@ -1582,7 +1582,7 @@ String processor(const String& var) {
 
     if (!contactor_control_enabled) {
       content += "<div class=\"tooltip\">";
-      content += "<h4>Contactors not fully controlled via emulator <span style=\"color:orange\">[?]</span></h4>";
+      content += "<h4>Contactors not fully controlled via emulator <span style=\"color:orange\">ⓘ</span></h4>";
       content +=
           "<span class=\"tooltiptext\">This means you are either running CAN controlled contactors OR manually "
           "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
