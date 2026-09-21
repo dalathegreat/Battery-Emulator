@@ -3,6 +3,89 @@
 #include "../../datalayer/datalayer.h"
 #include "index_html.h"
 
+#ifdef HW_UNIFIED_S3
+#include <vector>
+#include "../hal/hal.h"
+#include "html_escape.h"
+
+namespace {
+
+// A CAN bus the board configuration declared, with the name its port gave it.
+struct CanPort {
+  CAN_Interface can;
+  String name;
+};
+
+// The settings enum and the runtime enum number interfaces differently. The
+// dump numbers channels by the runtime one, so that is the one that matters here.
+CAN_Interface can_interface_for(comm_interface comm) {
+  switch (comm) {
+    case comm_interface::CanNative:
+      return CAN_NATIVE;
+    case comm_interface::CanFdNative:
+      return CANFD_NATIVE;
+    case comm_interface::CanAddonMcp2515:
+      return CAN_ADDON_MCP2515;
+    case comm_interface::CanFdAddonMcp2518:
+      return CANFD_ADDON_MCP2518;
+    case comm_interface::CanFdAddonMcp2518_2:
+      return CANFD_ADDON_MCP2518_2;
+    default:
+      return NO_CAN_INTERFACE;  // RS485 and Modbus carry no CAN traffic
+  }
+}
+
+std::vector<CanPort> configured_can_ports() {
+  std::vector<CanPort> ports;
+  for (comm_interface comm : esp32hal->available_interfaces()) {
+    CAN_Interface can = can_interface_for(comm);
+    if (can != NO_CAN_INTERFACE) {
+      ports.push_back({can, html_escape(esp32hal->name_for_comm_interface(comm))});
+    }
+  }
+  return ports;
+}
+
+bool is_fd_capable(CAN_Interface can) {
+  return can == CANFD_NATIVE || can == CANFD_ADDON_MCP2518 || can == CANFD_ADDON_MCP2518_2;
+}
+
+// format_can_frame() in comm_can.cpp writes rx as '0' + interface*2 and tx as
+// '1' + interface*2, so the channel numbers follow from the runtime enum.
+String channel_pair(CAN_Interface can, bool fd) {
+  int n = (int)can * 2;
+  return String(fd ? "RX" : "rx") + String(n) + "/" + String(fd ? "TX" : "tx") + String(n + 1);
+}
+
+// "The dump will contain data from interface CAN denoted as rx0/tx1, and from
+// CAN FD 1 denoted as rx6/tx7." One clause per configured bus, in file order.
+String dump_channel_sentence(const std::vector<CanPort>& ports) {
+  if (ports.empty()) {
+    return "This board has no CAN interfaces configured, so a dump will be empty.";
+  }
+  String s = "The dump will contain data from interface ";
+  const CanPort* fd = nullptr;
+  for (size_t i = 0; i < ports.size(); i++) {
+    if (i > 0) {
+      s += (i == ports.size() - 1) ? ", and from " : ", from ";
+    }
+    s += "<b>" + ports[i].name + "</b> denoted as " + channel_pair(ports[i].can, false);
+    if (fd == nullptr && is_fd_capable(ports[i].can)) {
+      fd = &ports[i];
+    }
+  }
+  s += ".";
+  // The case follows the frame, not the bus: an FD controller sending classic
+  // frames still writes lower case, which is why the sample dump shows rx6.
+  if (fd != nullptr) {
+    s += " Frames carried as CAN FD are written in capitals, such as " + channel_pair(fd->can, true) + ".";
+  }
+  return s;
+}
+
+}  // namespace
+#endif  // HW_UNIFIED_S3
+
 String can_replay_processor(void) {
   String content = index_html_header;
   // Page format
@@ -25,6 +108,9 @@ String can_replay_processor(void) {
   content += "<h3>CAN dump</h3>";
   content +=
       "<p>CAN traffic will open in a new window. Let it run for the required amount of time and save the file.</p>";
+#ifdef HW_UNIFIED_S3
+  content += "<p>" + dump_channel_sentence(configured_can_ports()) + "</p>";
+#endif  // HW_UNIFIED_S3
   content += "<button onclick='startDump()'>Start dump</button>";
 #ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
@@ -45,6 +131,20 @@ String can_replay_processor(void) {
   // Dropdown with choices
   content += "<label for='canInterface'>CAN Interface:</label>";
   content += "<select id='canInterface' name='canInterface'>";
+#ifdef HW_UNIFIED_S3
+  // Only the CAN buses the board configuration declared, under the names it
+  // gave them. A fixed list would offer buses this board does not have, and a
+  // replay sent to one of those goes nowhere.
+  std::vector<CanPort> ports = configured_can_ports();
+  if (ports.empty()) {
+    content += "<option disabled selected>No CAN interfaces configured</option>";
+  }
+  for (const CanPort& port : ports) {
+    content += "<option value='" + String((int)port.can) + "'" +
+               (datalayer.system.info.can_replay_interface == port.can ? " selected" : "") + ">" + port.name +
+               "</option>";
+  }
+#else
   content += "<option value='" + String(CAN_NATIVE) + "' " +
              (datalayer.system.info.can_replay_interface == CAN_NATIVE ? "selected" : "") + ">CAN Native</option>";
   content += "<option value='" + String(CANFD_NATIVE) + "' " +
@@ -55,6 +155,7 @@ String can_replay_processor(void) {
   content += "<option value='" + String(CANFD_ADDON_MCP2518) + "' " +
              (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518 ? "selected" : "") +
              ">CANFD Addon MCP2518</option>";
+#endif  // HW_UNIFIED_S3
 
   content += "</select>";
 
