@@ -42,6 +42,11 @@ class EcmpBattery : public UdsCanBattery {
   // Called by the UDS superclass for each successful PID query response.
   uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
+  // Real positive+negative contactor feedback from the Stellantis BMS for this pack.
+  ContactorStatus contactor_status() override;
+  int16_t contactor_open_reason() override;
+  bool reports_contactor_status() override { return true; }
+
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
 
@@ -59,6 +64,12 @@ class EcmpBattery : public UdsCanBattery {
   unsigned long previousMillis500 = 0;   // will store last time a 500ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
   unsigned long previousMillis5000 = 0;  // will store last time a 1000ms CAN Message was sent
+  // millis() of the last positive/negative contactor-feedback PID answer. Used only to age out
+  // the main-page "BMS contactors" line: the diagnostic poll is stopped while system_status is
+  // FAULT (see transmit_can), so without this the last-before-FAULT value would show forever.
+  unsigned long pid_contactor_feedback_millis = 0;
+  // Rotates 0->1->2 over PID_CONTACTOR_POSITIVE / _NEGATIVE / CONT_REASON_OPEN while faulted.
+  uint8_t fault_contactor_poll_state = 0;
   CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};  //VCU_BCM_Crash 100ms
   CAN_frame ECMP_0F0 = {.FD = false,  //VCU2_0F0 (Common) 20ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,

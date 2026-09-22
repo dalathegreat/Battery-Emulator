@@ -135,6 +135,54 @@ void EcmpBattery::update_values() {
   }
 }
 
+Battery::ContactorStatus EcmpBattery::contactor_status() {
+  // Display-only helper for the main web page. Reads this instance's own PID fields, never the
+  // globals, so battery 2/3 report their own contactors.
+  //
+  // Source: the polled "Contactor positive" / "Contactor negative" feedback PIDs (0xD44D / 0xD44C),
+  // stored raw as received. On-vehicle testing on this system: 1 = CLOSED, 0 = OPEN, 255 = not
+  // sampled yet (NOT_SAMPLED_YET). These are the two fields that actually track contactor state on
+  // this battery; MainConnectorState (CAN 0x125) and the "power switch status" PIDs (0xD452/0xD453,
+  // which report 3 here) do not, so they are deliberately not used.
+  //
+  // CLOSED only when BOTH report closed. If either truly reports open the result is OPEN. Missing
+  // CAN, an unsampled value or any value that is not a clean 0/1 yields UNKNOWN - never CLOSED.
+  if (!datalayer_battery) {
+    return ContactorStatus::UNKNOWN;
+  }
+  if (datalayer_battery->status.CAN_battery_still_alive == 0) {
+    return ContactorStatus::UNKNOWN;  // BMS silent -> feedback would be stale
+  }
+  // The contactor-feedback PIDs are only refreshed by the UDS scan, which keeps cycling
+  // (including through FAULT - transmit_uds_can() is not gated on system_status). If the last
+  // answer is old regardless, report UNKNOWN rather than a stale CLOSED/OPEN - e.g. a CAN issue
+  // stalling the scan itself. 45 s tolerates one missed cycle without flapping to UNKNOWN.
+  const unsigned long CONTACTOR_FEEDBACK_MAX_AGE_MS = 45000;
+  if (pid_contactor_feedback_millis == 0 ||
+      (millis() - pid_contactor_feedback_millis) > CONTACTOR_FEEDBACK_MAX_AGE_MS) {
+    return ContactorStatus::UNKNOWN;
+  }
+
+  const uint8_t pos = pid_contactor_positive;  // PID 0xD44D
+  const uint8_t neg = pid_contactor_negative;  // PID 0xD44C
+  const bool pos_valid = (pos == 0 || pos == 1);
+  const bool neg_valid = (neg == 0 || neg == 1);
+  if (!pos_valid || !neg_valid) {
+    return ContactorStatus::UNKNOWN;  // not sampled (255) or unexpected raw value
+  }
+  if (pos == 1 && neg == 1) {
+    return ContactorStatus::CLOSED;
+  }
+  return ContactorStatus::OPEN;  // at least one contactor confirmed open
+}
+
+int16_t EcmpBattery::contactor_open_reason() {
+  // Raw "Contactor opening reason" PID (0xD812). 255 = not sampled / not applicable.
+  // Same value shown as "Contactor opening reason" on the More Battery Info page.
+  const uint8_t r = pid_reason_open;
+  return (r == NOT_SAMPLED_YET) ? -1 : (int16_t)r;
+}
+
 template <typename T>
 inline String& operator<<(String& str, const T& value) {
   str += value;
@@ -956,9 +1004,11 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
       break;
     case PID_CONTACTOR_NEGATIVE:
       pid_contactor_negative = value;
+      pid_contactor_feedback_millis = millis();
       break;
     case PID_CONTACTOR_POSITIVE:
       pid_contactor_positive = value;
+      pid_contactor_feedback_millis = millis();
       break;
     case PID_PRECHARGE_RELAY_CONTROL:
       pid_precharge_relay_control = value;
