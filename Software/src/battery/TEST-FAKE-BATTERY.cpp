@@ -7,13 +7,8 @@
 void TestFakeBattery::
     update_values() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer_battery->status.soh_pptt = 9900;  // 99.00%
-
-  // Battery 1's voltage is set by the user via the webserver (set_fake_voltage).
-  // Batteries 2 and 3 mirror it so all instances report the same pack voltage.
-  if (datalayer_battery != &datalayer.battery) {
-    datalayer_battery->status.voltage_dV = datalayer.battery.status.voltage_dV;
-  }
+  // Voltage and SOH are this pack's own, set by the user on its More Battery Info tab
+  // (set_fake_voltage / set_fake_soh), so they are not touched here.
 
   datalayer_battery->status.current_dA = 0;  // 0 A
 
@@ -97,6 +92,39 @@ void TestFakeBattery::
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 
+// Edit handler for the blue card below. Static, so it stays in flash and off the stack.
+static const char fake_battery_edit_script[] =
+    "<script>function editFake(b,n,max){var v=prompt('Enter new '+n+' (0-'+max+')');if(v!==null&&v!==''){"
+    "if(v>=0&&v<=max){var x=new XMLHttpRequest();x.onload=function(){if(x.status==200){location.reload();}"
+    "else{alert(x.responseText);}};x.open('GET','/updateFakeBattery?battery='+b+'&'+n+'='+v,true);x.send();}"
+    "else{alert('Invalid value. Please enter a value between 0 and '+max);}}}</script>";
+
+// More Battery Info page, one per pack. The info panel is closed and the blue card, which edits this
+// pack's own voltage and SOH, opens as the next panel under it; the page closes the last panel itself.
+String TestFakeBattery::get_status_html() {
+  char html[512];
+  snprintf(html, sizeof(html),
+           "<h4>Capacity: %lu Wh</h4>"
+           "<h4>Number of cells: %u</h4>"
+           "<h4>Balancing above SOC: %u%%</h4>"
+           "<h4>Total charged: %ld Wh</h4>"
+           "<h4>Total discharged: %ld Wh</h4>"
+           "</div><div class='battery-panel' style='background:#2E37AD'>"
+           "<h4><span>Voltage: %u.%u V </span> <button onclick=\"editFake(%u,'Voltage',5000)\">Edit</button></h4>"
+           "<h4><span>SOH: %u.%02u%% </span> <button onclick=\"editFake(%u,'SOH',100)\">Edit</button></h4>",
+           (unsigned long)datalayer_battery->info.total_capacity_Wh, (unsigned)datalayer_battery->info.number_of_cells,
+           (unsigned)(BALANCING_START_SOC_PPTT / 100), (long)datalayer_battery->status.total_charged_battery_Wh,
+           (long)datalayer_battery->status.total_discharged_battery_Wh,
+           (unsigned)(datalayer_battery->status.voltage_dV / 10), (unsigned)(datalayer_battery->status.voltage_dV % 10),
+           (unsigned)battery_index, (unsigned)(datalayer_battery->status.soh_pptt / 100),
+           (unsigned)(datalayer_battery->status.soh_pptt % 100), (unsigned)battery_index);
+  CheckedHtml content;
+  content.reserve(strlen(html) + sizeof(fake_battery_edit_script));
+  content += html;
+  content += fake_battery_edit_script;
+  return content.take();
+}
+
 void TestFakeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
@@ -126,11 +154,11 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = 4250;  // 404.0V pack -> 4208mV per cell
   datalayer_battery->info.min_cell_voltage_mV = 2500;  // 245.0V pack -> 2552mV per cell
 
-  // Default fake pack voltage for the primary battery; editable via webserver.
-  // Batteries 2 and 3 pick this up through the mirror in update_values().
-  if (datalayer_battery == &datalayer.battery && datalayer_battery->status.voltage_dV == 0) {
+  // Default fake pack voltage and SOH, both editable per pack on the More Battery Info page
+  if (datalayer_battery->status.voltage_dV == 0) {
     datalayer_battery->status.voltage_dV = 3700;  // 370.0V
   }
+  datalayer_battery->status.soh_pptt = 9900;  // 99.00%
 
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
