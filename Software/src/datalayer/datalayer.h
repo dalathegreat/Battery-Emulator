@@ -87,6 +87,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   int32_t active_power_W = 0;
   int32_t total_charged_battery_Wh = 0;
   int32_t total_discharged_battery_Wh = 0;
+  // Cumulative lifetime throughput, 0.1 Ah/count; not remaining/nominal capacity.
+  uint32_t total_charged_battery_dAh = 0;
+  uint32_t total_discharged_battery_dAh = 0;
 
   /** uint16_t */
   /** Maximum allowed battery discharge current in dA. Calculated based on allowed W and Voltage */
