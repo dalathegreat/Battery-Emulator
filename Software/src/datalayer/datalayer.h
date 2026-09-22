@@ -29,6 +29,8 @@ struct DATALAYER_BATTERY_DTC_TYPE {
   unsigned long dtc_last_read_millis;
   // Indicates that the last read failed
   bool dtc_read_failed = false;
+  // Indicates that a DTC request is queued or awaiting its final response.
+  bool dtc_read_in_progress = false;
 };
 
 struct DATALAYER_BATTERY_INFO_TYPE {

@@ -55,9 +55,11 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetBECM", "Restart BECM module", "restart BECM??", [](Battery* b) { return b && b->supports_reset_BECM(); },
      [](Battery* b) { b->reset_BECM(); }},
     {"contactorClose", "Close Contactors", "a contactor close request?",
-     [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
+     [](Battery* b) { return b && b->supports_contactor_close() && !b->uses_main_page_contactor_control(); },
+     [](Battery* b) { b->request_close_contactors(); }},
     {"contactorOpen", "Open Contactors", "a contactor open request?",
-     [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
+     [](Battery* b) { return b && b->supports_contactor_close() && !b->uses_main_page_contactor_control(); },
+     [](Battery* b) { b->request_open_contactors(); }},
 #ifndef SMALL_FLASH_DEVICE
     {"resetSOH", "Perform degradation reset", "reset degradation data?",
      [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
