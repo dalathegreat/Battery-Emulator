@@ -1250,7 +1250,13 @@ String processor(const String& var) {
       else
         content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
 
-      content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+      //Unknown until the integration has decoded a state of health, rather than the soh_pptt default
+      //shown as if it had been read from the pack.
+      if (datalayer.battery.status.soh_available) {
+        content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+      } else {
+        content += "<h4 style='color: white;'>SOH: Unknown</h4>";
+      }
       content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                  " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
       content += formatPowerValue("Power", powerFloat, "", 1);
@@ -1376,7 +1382,13 @@ String processor(const String& var) {
         else
           content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
 
-        content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+        //Unknown until the integration has decoded a state of health, rather than the soh_pptt default
+        //shown as if it had been read from the pack.
+        if (datalayer.battery2.status.soh_available) {
+          content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+        } else {
+          content += "<h4 style='color: white;'>SOH: Unknown</h4>";
+        }
         content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                    " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
         content += formatPowerValue("Power", powerFloat, "", 1);
@@ -1464,7 +1476,13 @@ String processor(const String& var) {
           else
             content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
 
-          content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+          //Unknown until the integration has decoded a state of health, rather than the soh_pptt default
+          //shown as if it had been read from the pack.
+          if (datalayer.battery3.status.soh_available) {
+            content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
+          } else {
+            content += "<h4 style='color: white;'>SOH: Unknown</h4>";
+          }
           content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) +
                      " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
           content += formatPowerValue("Power", powerFloat, "", 1);
