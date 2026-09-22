@@ -97,6 +97,24 @@ void TestFakeBattery::
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 
+// More Battery Info page. One format string keeps the flash cost down to a single snprintf call.
+String TestFakeBattery::get_status_html() {
+  char html[320];
+  snprintf(html, sizeof(html),
+           "<h4>Capacity: %lu Wh</h4>"
+           "<h4>SOH: %u%%</h4>"
+           "<h4>Number of cells: %u</h4>"
+           "<h4>Balancing above SOC: %u%%</h4>"
+           "<h4>Total charged: %ld Wh</h4>"
+           "<h4>Total discharged: %ld Wh</h4>"
+           "<p>To change SOC, adjust the Fake battery voltage in the settings.</p>",
+           (unsigned long)datalayer_battery->info.total_capacity_Wh,
+           (unsigned)(datalayer_battery->status.soh_pptt / 100), (unsigned)datalayer_battery->info.number_of_cells,
+           (unsigned)(BALANCING_START_SOC_PPTT / 100), (long)datalayer_battery->status.total_charged_battery_Wh,
+           (long)datalayer_battery->status.total_discharged_battery_Wh);
+  return String(html);
+}
+
 void TestFakeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }

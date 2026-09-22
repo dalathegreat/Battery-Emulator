@@ -1,9 +1,12 @@
 #ifndef TEST_FAKE_BATTERY_H
 #define TEST_FAKE_BATTERY_H
 #include "../datalayer/datalayer.h"
+#include "../devboard/webserver/BatteryHtmlRenderer.h"
 #include "CanBattery.h"
 
-class TestFakeBattery : public CanBattery {
+// Also implements BatteryHtmlRenderer directly, as AKASOL does, so the More Battery Info page can
+// show the private constants below and each instance renders its own datalayer (battery 2 and 3 too)
+class TestFakeBattery : public CanBattery, public BatteryHtmlRenderer {
  public:
   // Use this constructor for the second battery.
   TestFakeBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
@@ -26,6 +29,10 @@ class TestFakeBattery : public CanBattery {
 
   bool supports_set_fake_voltage() { return true; }
   void set_fake_voltage(float val) { datalayer.battery.status.voltage_dV = val * 10; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return *this; }
+  String get_status_html();
+  bool renders_own_battery_data() { return true; }
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
