@@ -38,9 +38,11 @@ extern const char* name_for_charger_type(ChargerType type) {
       return ChevyVoltCharger::Name;
     case ChargerType::NissanLeaf:
       return NissanLeafCharger::Name;
-#ifndef SMALL_FLASH_DEVICE
     case ChargerType::UUGP:
+#ifndef SMALL_FLASH_DEVICE
       return UUGPCharger::Name;
+#else
+      return "UUGP";
 #endif
     case ChargerType::None:
     case ChargerType::Highest:
@@ -59,11 +61,11 @@ void setup_charger() {
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
       break;
-#ifndef SMALL_FLASH_DEVICE
     case ChargerType::UUGP:
+#ifndef SMALL_FLASH_DEVICE
       charger = new UUGPCharger();
-      break;
 #endif
+      break;
     case ChargerType::None:
     case ChargerType::Highest:
       break;

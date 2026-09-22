@@ -316,6 +316,7 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
+#ifndef SMALL_FLASH_DEVICE
   uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
   if (uugp_power_limit_W > 22000) {
     uugp_power_limit_W = 22000;
@@ -333,6 +334,7 @@ void init_stored_settings() {
   if (uugp_start_mode > 2) {
     uugp_start_mode = 1;
   }
+#endif
 }
 
 void clear_wifi_sta_settings() {
@@ -403,7 +405,9 @@ void store_settings() {
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
+#ifndef SMALL_FLASH_DEVICE
   settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
   settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
   settings.saveBool("UUGP_ALLOW", uugp_allow_discharge_to_home_grid);
+#endif
 }
