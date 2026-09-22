@@ -99,7 +99,8 @@ static const char fake_battery_edit_script[] =
     "else{alert(x.responseText);}};x.open('GET','/updateFakeBattery?battery='+b+'&'+n+'='+v,true);x.send();}"
     "else{alert('Invalid value. Please enter a value between 0 and '+max);}}}</script>";
 
-// More Battery Info page, one per pack. The blue card edits this pack's own voltage and SOH.
+// More Battery Info page, one per pack. The info panel is closed and the blue card, which edits this
+// pack's own voltage and SOH, opens as the next panel under it; the page closes the last panel itself.
 String TestFakeBattery::get_status_html() {
   char html[512];
   snprintf(html, sizeof(html),
@@ -108,9 +109,9 @@ String TestFakeBattery::get_status_html() {
            "<h4>Balancing above SOC: %u%%</h4>"
            "<h4>Total charged: %ld Wh</h4>"
            "<h4>Total discharged: %ld Wh</h4>"
-           "<div style='background-color:#2E37AD;padding:10px;margin-bottom:10px;border-radius:50px'>"
+           "</div><div class='battery-panel' style='background:#2E37AD'>"
            "<h4><span>Voltage: %u.%u V </span> <button onclick=\"editFake(%u,'Voltage',5000)\">Edit</button></h4>"
-           "<h4><span>SOH: %u.%02u%% </span> <button onclick=\"editFake(%u,'SOH',100)\">Edit</button></h4></div>",
+           "<h4><span>SOH: %u.%02u%% </span> <button onclick=\"editFake(%u,'SOH',100)\">Edit</button></h4>",
            (unsigned long)datalayer_battery->info.total_capacity_Wh, (unsigned)datalayer_battery->info.number_of_cells,
            (unsigned)(BALANCING_START_SOC_PPTT / 100), (long)datalayer_battery->status.total_charged_battery_Wh,
            (long)datalayer_battery->status.total_discharged_battery_Wh,

@@ -55,6 +55,9 @@ TEST_F(TestFakeBatteryTest, PageEditsItsOwnPack) {
   const std::string html = renderer.get_status_html().c_str();
 
   EXPECT_TRUE(renderer.renders_own_battery_data());
+  // The blue card is a panel of its own, opened after the info panel is closed
+  EXPECT_NE(html.find("</div><div class='battery-panel' style='background:#2E37AD'><h4><span>Voltage:"),
+            std::string::npos);
   EXPECT_NE(html.find("Voltage: 355.5 V"), std::string::npos);
   EXPECT_NE(html.find("SOH: 91.50%"), std::string::npos);
   EXPECT_NE(html.find("editFake(2,'Voltage',5000)"), std::string::npos);
