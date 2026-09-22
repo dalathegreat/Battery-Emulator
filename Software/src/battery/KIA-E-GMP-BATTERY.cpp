@@ -7,6 +7,21 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../system_settings.h"
+namespace {
+constexpr uint8_t MAX_21A_LOG_ENTRIES = 50;
+
+struct Can21AByte4LogEntry {
+  uint32_t time_ms;
+  uint8_t value;
+};
+
+Can21AByte4LogEntry can21a_byte4_log[MAX_21A_LOG_ENTRIES] = {};
+uint8_t can21a_byte4_log_count = 0;
+uint8_t can21a_byte4_log_write_index = 0;
+
+uint8_t can21a_byte4_last_value = 0;
+bool can21a_byte4_valid = false;
+}  // namespace
 
 // Function to estimate SOC based on cell voltage
 uint16_t KiaEGmpBattery::estimateSOCFromCell(uint16_t cellVoltage) {
@@ -223,13 +238,72 @@ uint8_t KiaEGmpBattery::find_transmit_counter_index(uint16_t can_id) {
   return invalid_transmit_counter_index;
 }
 
+CAN_frame KiaEGmpBattery::build_startup_message(uint8_t message_index) {
+  CAN_frame frame = {};
+  frame.FD = true;
+  frame.ext_ID = false;
+  frame.DLC = 32;
+  frame.ID = startup_trigger_ids[message_index];
+
+  for (uint8_t index = 0; index < work_message_count; index++) {
+    if (work_messages[index].ID == frame.ID) {
+      frame = work_messages[index];
+      break;
+    }
+  }
+
+  const uint8_t counter_index = find_transmit_counter_index(frame.ID);
+  if (counter_index != invalid_transmit_counter_index) {
+    uint8_t next_counter = 0;
+    if (last_transmit_counter_valid[counter_index]) {
+      next_counter = static_cast<uint8_t>(last_transmit_counter[counter_index] + 1u);
+    }
+    last_transmit_counter_valid[counter_index] = true;
+    last_transmit_counter[counter_index] = next_counter;
+    frame.data.u8[2] = next_counter;
+  }
+
+  frame.data.u8[0] = 0;
+  frame.data.u8[1] = 0;
+  return frame;
+}
+
+void KiaEGmpBattery::apply_dc_link_voltage(CAN_frame& frame) {
+  // batteryVoltage is 0.1 V/LSB internally.
+  // Default to 806 V until a valid live pack voltage is available.
+  uint16_t live_pack_voltage_V = 806;
+
+  if (batteryVoltage > 0) {
+    live_pack_voltage_V = static_cast<uint16_t>((batteryVoltage + 5) / 10);
+  }
+
+  switch (frame.ID) {
+    case 0x10A:
+    case 0x120:
+      // DC-link voltage: 1 V/bit, little-endian
+      frame.data.u8[16] = static_cast<uint8_t>(live_pack_voltage_V & 0xFF);
+      frame.data.u8[17] = static_cast<uint8_t>((live_pack_voltage_V >> 8) & 0xFF);
+      break;
+
+    case 0x3B5:
+      // DC-link voltage: 1 V/bit, little-endian
+      frame.data.u8[15] = static_cast<uint8_t>(live_pack_voltage_V & 0xFF);
+      frame.data.u8[16] = static_cast<uint8_t>((live_pack_voltage_V >> 8) & 0xFF);
+      break;
+
+    default:
+      break;
+  }
+}
+
 void KiaEGmpBattery::transmit_startup_message(uint8_t message_index) {
-  CAN_frame frame = *messages[message_index];
+  CAN_frame frame = build_startup_message(message_index);
   const uint8_t counter_index = find_transmit_counter_index(frame.ID);
   if (counter_index != invalid_transmit_counter_index) {
     last_transmit_counter_valid[counter_index] = true;
     last_transmit_counter[counter_index] = frame.data.u8[2];
   }
+  apply_dc_link_voltage(frame);
   uint16_t checksum = calculate_transmit_checksum(frame);
   frame.data.u8[0] = static_cast<uint8_t>(checksum);
   frame.data.u8[1] = static_cast<uint8_t>(checksum >> 8);
@@ -243,8 +317,8 @@ bool KiaEGmpBattery::has_transmit_counter(uint16_t can_id) const {
 void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
   uint8_t selected_message = 0;
   bool found_message = false;
-  for (uint8_t index = 0; index < sizeof(messages) / sizeof(messages[0]); index++) {
-    if (messages[index]->ID == can_id) {
+  for (uint8_t index = 0; index < work_message_count; index++) {
+    if (work_messages[index].ID == can_id) {
       selected_message = index;
       found_message = true;
       if (can_id == 0x30A && (message_count & 1) != 0) {
@@ -255,8 +329,8 @@ void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
   }
 
   if (can_id == 0x30A && (message_count & 1) != 0) {
-    for (uint8_t index = selected_message + 1; index < sizeof(messages) / sizeof(messages[0]); index++) {
-      if (messages[index]->ID == can_id) {
+    for (uint8_t index = selected_message + 1; index < work_message_count; index++) {
+      if (work_messages[index].ID == can_id) {
         selected_message = index;
         break;
       }
@@ -267,7 +341,7 @@ void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
     return;
   }
 
-  CAN_frame frame = *messages[selected_message];
+  CAN_frame frame = work_messages[selected_message];
   const uint8_t counter_index = find_transmit_counter_index(frame.ID);
   if (counter_index != invalid_transmit_counter_index) {
     uint8_t next_counter = frame.data.u8[2];
@@ -280,6 +354,7 @@ void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
     last_transmit_counter[counter_index] = next_counter;
     frame.data.u8[2] = next_counter;
   }
+  apply_dc_link_voltage(frame);
   uint16_t checksum = calculate_transmit_checksum(frame);
   frame.data.u8[0] = static_cast<uint8_t>(checksum);
   frame.data.u8[1] = static_cast<uint8_t>(checksum >> 8);
@@ -317,9 +392,31 @@ void KiaEGmpBattery::update_values() {
 
   datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
+  uint16_t actual_min_mV = UINT16_MAX;
+  uint16_t actual_max_mV = 0;
+  bool any_valid_cell = false;
 
-  datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
+    uint16_t v = datalayer.battery.status.cell_voltages_mV[i];
+    if (v > 0) {
+      any_valid_cell = true;
+      if (v < actual_min_mV) {
+        actual_min_mV = v;
+      }
+      if (v > actual_max_mV) {
+        actual_max_mV = v;
+      }
+    }
+  }
+
+  if (any_valid_cell) {
+    datalayer.battery.status.cell_max_voltage_mV = actual_max_mV;
+    datalayer.battery.status.cell_min_voltage_mV = actual_min_mV;
+  } else {
+    // No cell data populated yet - fall back to the coarser UDS-reported values
+    datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
+    datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+  }
 
   if ((millis64() > INTERVAL_60_S) && !set_voltage_limits) {  // millis64: plain millis() wraps after 49.7 days
     set_voltage_limits = true;
@@ -345,20 +442,99 @@ String KiaEGmpBattery::get_uds_info_html() {
   content.reserve(1600);
 
   // clang-format off
-  content << "<h4>Cells: " << String(datalayer.battery.info.number_of_cells) << "</h4>"
+  content << "<h3>BATTERY_MGMT</h3>"
+              "<h4>Cells: " << String(datalayer.battery.info.number_of_cells) << "</h4>"
               "<h4>SOC (BMS): " << String(SOC_BMS) << "</h4>"
               "<h4>SOC (Display): " << String(SOC_Display) << "</h4>"
+              "<h4>SOH: " << String(batterySOH / 10.0f, 1) << "%</h4>"
+              "<h4>Allowed charge power: " << String(allowedChargePower / 100.0f, 2) << " kW</h4>"
+              "<h4>Allowed discharge power: " << String(allowedDischargePower / 100.0f, 2) << " kW</h4>"
               "<h4>12V voltage: " << String(leadAcidBatteryVoltage / 10.0f, 1) << "</h4>"
-              "<h4>Waterleakage: " << String(waterleakageSensor)  << "</h4>"
-              "<h4>Temperature, water inlet: " << String(temperature_water_inlet)  << "</h4>"
-              "<h4>Batterymanagement mode: " << String(batteryManagementMode)  << "</h4>"
-              "<h4>Cumulative Charge Energy: " << String(cumulativeChargeEnergy)  << " Wh</h4>"
-              "<h4>Cumulative Discharge Energy: " << String(cumulativeDischargeEnergy)  << " Wh</h4>"
-              "<h4>Operation Time: " << String(opTime)  << " s</h4>"
-              "<h4>BMS ignition: " << String(BMS_ign)  << "</h4>";
+              "<h4>Inverter voltage: " << String(inverterVoltage) << " V</h4>"
+              "<h4>Waterleakage: " << String(waterleakageSensor) << "</h4>"
+              "<h4>Temperature, water inlet: " << String(temperature_water_inlet) << " &deg;C</h4>"
+              "<h4>Temperature, heater: " << String(heatertemp) << " &deg;C</h4>"
+              "<h4>Temp min: " << String(temperatureMin) << " &deg;C</h4>"
+              "<h4>Temp max: " << String(temperatureMax) << " &deg;C</h4>"
+              "<h4>Cell max voltage: " << String(CellVoltMax_mV) << " mV</h4>"
+              "<h4>Cell min voltage: " << String(CellVoltMin_mV) << " mV</h4>"
+              "<h4>Highest cell: no " << String(CellVmaxNo) << "</h4>"
+              "<h4>Lowest cell: no " << String(CellVminNo) << "</h4>"
+              "<h4>Batterymanagement mode: " << String(batteryManagementMode) << "</h4>"
+              "<h4>Cumulative Charge Energy: " << String(cumulativeChargeEnergy) << " Wh</h4>"
+              "<h4>Cumulative Discharge Energy: " << String(cumulativeDischargeEnergy) << " Wh</h4>"
+              "<h4>Operation Time: " << String(opTime) << " s</h4>"
+              "<h4>BMS ignition: " << String(BMS_ign) << "</h4>"
+              "<h4>BMS Main Relay: " << String(batteryRelay) << "</h4>";
+  content << "<h3>0x21A BYTE 4 CHANGE LOG</h3>";
+
+  if (can21a_byte4_log_count == 0) {
+    content << "<h4>No changes recorded</h4>";
+  } else {
+    uint8_t start_index;
+
+    if (can21a_byte4_log_count < MAX_21A_LOG_ENTRIES) {
+      start_index = 0;
+    } else {
+      start_index = can21a_byte4_log_write_index;
+    }
+
+    for (uint8_t n = 0; n < can21a_byte4_log_count; n++) {
+      uint8_t index =
+          (start_index + n) % MAX_21A_LOG_ENTRIES;
+
+      const Can21AByte4LogEntry& entry = can21a_byte4_log[index];
+
+      content << "<div>"
+              << String(entry.time_ms / 1000.0f, 1)
+              << "s - 0x";
+
+      if (entry.value < 0x10) {
+        content << "0";
+      }
+
+      content << String(entry.value, HEX)
+              << "</div>";
+    }
+  }
 
   return content;
 }
+
+void KiaEGmpBattery::handle_0x21A(const CAN_frame& rx_frame) {
+  if (rx_frame.DLC < 5) {
+    return;
+  }
+
+  // Byte 4 of the CAN frame.
+  const uint8_t value = rx_frame.data.u8[4];
+
+  // First received value establishes the baseline.
+  // Don't create a log entry until it actually changes.
+  if (can21a_byte4_valid && value == can21a_byte4_last_value) {
+    return;
+  }
+
+  can21a_byte4_last_value = value;
+  can21a_byte4_valid = true;
+
+  Can21AByte4LogEntry& entry =
+      can21a_byte4_log[can21a_byte4_log_write_index];
+
+  entry.time_ms = millis();
+  entry.value = value;
+
+  can21a_byte4_log_write_index++;
+
+  if (can21a_byte4_log_write_index >= MAX_21A_LOG_ENTRIES) {
+    can21a_byte4_log_write_index = 0;
+  }
+
+  if (can21a_byte4_log_count < MAX_21A_LOG_ENTRIES) {
+    can21a_byte4_log_count++;
+  }
+}
+
 
 void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
@@ -384,6 +560,7 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x21A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      handle_0x21A(rx_frame);
       break;
     case 0x235:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -468,9 +645,10 @@ uint16_t KiaEGmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t*
       cumulativeDischargeEnergy2 = data[43] << 16 | data[44] << 8 | data[45]; //Flow over
 
       //Frame 27 (a8 01 03 f3 0f 00 02) data45-51
-      opTime = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49]; 
+      opTime = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49];
       BMS_ign = data[50];
       inverterVoltage = ((data[51] << 8) + data[52]); //Flow over
+      batteryRelay = data[51] & 0x01;
       //Frame 28 (c9 00 00 00 00 0b b8) data52-58
       break;
 case POLL_GROUP_2: //Cellvoltages (Cell 1-32)
@@ -525,13 +703,13 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
     }
 
     if (startupSequenceActive) {
-      while (startupMessageIndex < sizeof(messages) / sizeof(messages[0]) &&
-             currentMillis - startupStartMillis >= startupMessageDelays[startupMessageIndex]) {
+      while (startupMessageIndex < startup_trigger_count &&
+             currentMillis - startupStartMillis >= startup_trigger_delays[startupMessageIndex]) {
         transmit_startup_message(startupMessageIndex);
         startupMessageIndex++;
       }
 
-      if (startupMessageIndex >= sizeof(messages) / sizeof(messages[0])) {
+      if (startupMessageIndex >= startup_trigger_count) {
         startupSequenceActive = false;
         startupSequenceComplete = true;
         lastTransmitMillis = currentMillis;
