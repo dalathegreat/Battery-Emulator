@@ -69,9 +69,18 @@ inline String& operator<<(String& str, const T& value) {
   return str;
 }
 
+// Balancing stats are stored in 1/1024 Ah or 1/1024 h units.
+// Treat the INT32_MIN sentinel as zero.
+static int32_t bal_mAh(int32_t v) {
+  return (v == INT32_MIN) ? 0 : (v * 125) / 128;
+}
+static int32_t bal_s(int32_t v) {
+  return (v == INT32_MIN) ? 0 : (v * 225) / 64;
+}
+
 String CmfaEvBattery::get_uds_info_html() {
   String content;
-  content.reserve(600);
+  content.reserve(900);
 
   // clang-format off
   content << "<h4>SOC U: " << soc_u << "percent</h4>"
@@ -91,7 +100,13 @@ String CmfaEvBattery::get_uds_info_html() {
              "<h4>Minimum temperature: " << minimum_temperature << "dC</h4>"
              "<h4>Cumulative energy discharged: " << cumulative_energy_when_discharging << "Wh</h4>"
              "<h4>Cumulative energy charged: " << cumulative_energy_when_charging << "Wh</h4>"
-             "<h4>Cumulative energy regen: " << cumulative_energy_in_regen << "Wh</h4>";
+             "<h4>Cumulative energy regen: " << cumulative_energy_in_regen << "Wh</h4>"
+             "<h4>Balance capacity total: " << bal_mAh(balance_capacity_total) << "mAh (was " << bal_mAh(initial_balance_capacity_total) << "mAh)</h4>"
+             "<h4>Balance time total: " << bal_s(balance_time_total) << "s (was " << bal_s(initial_balance_time_total) << "s)</h4>"
+             "<h4>Balance capacity sleep: " << bal_mAh(balance_capacity_sleep) << "mAh (was " << bal_mAh(initial_balance_capacity_sleep) << "mAh)</h4>"
+             "<h4>Balance time sleep: " << bal_s(balance_time_sleep) << "s (was " << bal_s(initial_balance_time_sleep) << "s)</h4>"
+             "<h4>Balance capacity wake: " << bal_mAh(balance_capacity_wake) << "mAh (was " << bal_mAh(initial_balance_capacity_wake) << "mAh)</h4>"
+             "<h4>Balance time wake: " << bal_s(balance_time_wake) << "s (was " << bal_s(initial_balance_time_wake) << "s)</h4>";
   // clang-format on
 
   return content;
@@ -151,6 +166,11 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
+}
+
+// The balancing data has a offset that needs stripping
+static int32_t decode_balance_word(uint32_t raw) {
+  return (int32_t)(raw - 0x80000000u);
 }
 
 uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
@@ -230,6 +250,52 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
     case PID_POLL_CUMULATIVE_ENERGY_IN_REGEN:
       cumulative_energy_in_regen = value;
       break;
+    case PID_POLL_BALANCE_CAPACITY_TOTAL:
+      balance_capacity_total = decode_balance_word(value);
+      if (initial_balance_capacity_total == INT32_MIN)
+        initial_balance_capacity_total = balance_capacity_total;
+      break;
+    case PID_POLL_BALANCE_TIME_TOTAL:
+      balance_time_total = decode_balance_word(value);
+      if (initial_balance_time_total == INT32_MIN)
+        initial_balance_time_total = balance_time_total;
+      break;
+    case PID_POLL_BALANCE_CAPACITY_SLEEP:
+      balance_capacity_sleep = decode_balance_word(value);
+      if (initial_balance_capacity_sleep == INT32_MIN)
+        initial_balance_capacity_sleep = balance_capacity_sleep;
+      break;
+    case PID_POLL_BALANCE_TIME_SLEEP:
+      balance_time_sleep = decode_balance_word(value);
+      if (initial_balance_time_sleep == INT32_MIN)
+        initial_balance_time_sleep = balance_time_sleep;
+      break;
+    case PID_POLL_BALANCE_CAPACITY_WAKE:
+      balance_capacity_wake = decode_balance_word(value);
+      if (initial_balance_capacity_wake == INT32_MIN)
+        initial_balance_capacity_wake = balance_capacity_wake;
+      break;
+    case PID_POLL_BALANCE_TIME_WAKE:
+      balance_time_wake = decode_balance_word(value);
+      if (initial_balance_time_wake == INT32_MIN)
+        initial_balance_time_wake = balance_time_wake;
+      break;
+    case PID_POLL_BMS_STATE:
+      bms_state = (uint8_t)value;
+      break;
+    case PID_POLL_BALANCE_SWITCHES: {
+      // Assumed to use the same encoding as RENAULT-ZOE-2-BATTERY, with the
+      // bitmap at the end of the payload, cell 1 in bit 0 of the last byte.
+      // May not be correct!
+      uint8_t cells = datalayer_battery->info.number_of_cells;
+      if (length < (cells + 7) / 8) {
+        break;
+      }
+      for (uint8_t i = 0; i < cells; i++) {
+        datalayer_battery->status.cell_balancing_status[i] = (data[length - 1 - (i >> 3)] >> (i & 7)) & 0x01;
+      }
+      break;
+    }
     default:  //Unknown pid, or a cellvoltage
       uint8_t cellnumber = 0;
       if (pid >= PID_POLL_CELL_1 && pid <= PID_POLL_CELL_31) {  //Cellvoltage PID reply
@@ -309,6 +375,14 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
       PID_POLL_MAX_TEMPERATURE,
       PID_POLL_END_OF_CHARGE_FLAG,
       PID_POLL_INTERLOCK_FLAG,
+      PID_POLL_BALANCE_CAPACITY_TOTAL,
+      PID_POLL_BALANCE_TIME_TOTAL,
+      PID_POLL_BALANCE_CAPACITY_SLEEP,
+      PID_POLL_BALANCE_TIME_SLEEP,
+      PID_POLL_BALANCE_CAPACITY_WAKE,
+      PID_POLL_BALANCE_TIME_WAKE,
+      PID_POLL_BMS_STATE,
+      PID_POLL_BALANCE_SWITCHES,
       PID_POLL_CELL_1,
       PID_POLL_CELL_2,
       PID_POLL_CELL_3,

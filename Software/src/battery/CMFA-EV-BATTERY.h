@@ -156,6 +156,15 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING = 0x9245;
   static const int PID_POLL_CUMULATIVE_ENERGY_IN_REGEN = 0x9247;
 
+  static const int PID_POLL_BALANCE_CAPACITY_TOTAL = 0x924F;
+  static const int PID_POLL_BALANCE_TIME_TOTAL = 0x9250;
+  static const int PID_POLL_BALANCE_CAPACITY_SLEEP = 0x9251;
+  static const int PID_POLL_BALANCE_TIME_SLEEP = 0x9252;
+  static const int PID_POLL_BALANCE_CAPACITY_WAKE = 0x9262;
+  static const int PID_POLL_BALANCE_TIME_WAKE = 0x9263;
+  static const int PID_POLL_BMS_STATE = 0x9259;
+  static const int PID_POLL_BALANCE_SWITCHES = 0x912B;
+
   CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
   CAN_frame CMFA_125 = {.FD = false,
                         .ext_ID = false,
@@ -196,6 +205,19 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t cumulative_energy_when_charging = 0;
   uint32_t cumulative_energy_in_regen = 0;
   uint16_t soh_average = 10000;
+  int32_t balance_capacity_total = 0;  // 1/1024 Ah
+  int32_t balance_time_total = 0;      // 1/1024 h
+  int32_t balance_capacity_sleep = 0;  // 1/1024 Ah
+  int32_t balance_time_sleep = 0;      // 1/1024 h
+  int32_t balance_capacity_wake = 0;   // 1/1024 Ah
+  int32_t balance_time_wake = 0;       // 1/1024 h
+  int32_t initial_balance_capacity_total = INT32_MIN;
+  int32_t initial_balance_time_total = INT32_MIN;
+  int32_t initial_balance_capacity_sleep = INT32_MIN;
+  int32_t initial_balance_time_sleep = INT32_MIN;
+  int32_t initial_balance_capacity_wake = INT32_MIN;
+  int32_t initial_balance_time_wake = INT32_MIN;
+  uint8_t bms_state = 0;
 
   uint8_t counter_10ms = 0;
   uint8_t content_125[16] = {0x07, 0x0C, 0x01, 0x06, 0x0B, 0x00, 0x05, 0x0A,
