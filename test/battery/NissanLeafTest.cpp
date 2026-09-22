@@ -373,6 +373,52 @@ TEST(NissanLeafHealthTests, ShouldFallBackToGidsForRemainingCapacityBeforeCapaci
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 24640u);  // 320 GIDs at 77 Wh
 }
 
+// Runs the scheduler until every group has been asked for at least once since the pack came up,
+// which is what the SOH fallback waits for before it concludes that no capacity is coming.
+void complete_first_poll_pass(NissanLeafBattery* battery) {
+  unsigned long t = 50000;
+  for (int i = 0; i < 8; i++) {  //One per entry in PIDgroups
+    next_polled_group(battery, t);
+  }
+}
+
+// A pack whose group 0x01 layout the capacity decode does not cover never yields a capacity. Once
+// every group has been asked for, the SOH the LBC publishes stands in, with the total worked out
+// from it as before, so the inverter is not left on the datalayer's placeholder total.
+TEST(NissanLeafHealthTests, ShouldFallBackToPublishedStateOfHealthWhenNoCapacityIsFound) {
+  auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0xAA, 0x00, 0x00, 0x00}));  // 85 %
+
+  // Still waiting: the capacity groups may not have answered yet.
+  battery->update_values();
+  EXPECT_FALSE(datalayer.battery.status.soh_available);
+
+  complete_first_poll_pass(battery);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityCAh, 0u);  // Still no capacity to judge by
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8500u);
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 17867u);        // 85 % of 273 GIDs at 77 Wh
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 24640u);  // 320 GIDs at 77 Wh
+}
+
+// The fallback is a stand-in, not a latch: a capacity that turns up later takes over from it.
+// On a degradation-reset pack that is the difference between the 100 % it claims and what it holds.
+TEST(NissanLeafHealthTests, ShouldReplaceFallbackOnceCapacityIsRead) {
+  auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0xC8, 0x00, 0x00, 0x00}));  // 100 %
+
+  complete_first_poll_pass(battery);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000u);  // What the pack claims
+
+  feed_pack_capacity(battery, 331250);  // 33.12 Ah, 11923 Wh
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // What it actually holds
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 11923u);
+}
+
 // The max GID count is broadcast with the mux bit set, and only by the 30/40/62 kWh packs.
 TEST(NissanLeafHealthTests, ShouldTakeCapacityAsNewFromBroadcastMaxGids) {
   auto battery = battery_polling();
