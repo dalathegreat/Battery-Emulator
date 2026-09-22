@@ -41,6 +41,11 @@ extern bool user_selected_use_estimated_SOC;
 extern bool user_selected_use_estimated_charge_limits;
 extern bool user_selected_LEAF_interlock_mandatory;
 extern uint8_t user_selected_LEAF_chg_sta_rq;
+// Per-pack trim added to the Nissan LEAF averaged current, in dA. Index 0 is the first pack.
+// Missing from NVM means 0, so no key is kept for an untrimmed pack.
+static const int LEAF_CURRENT_OFFSET_MAX_DA = 100;
+extern int16_t user_selected_LEAF_current_offset_dA[3];
+extern const char* const LEAF_CURRENT_OFFSET_KEYS[3];
 extern bool user_selected_tesla_digital_HVIL;
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;

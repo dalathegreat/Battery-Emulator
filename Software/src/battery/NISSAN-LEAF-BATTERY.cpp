@@ -78,6 +78,12 @@ void NissanLeafBattery::
       datalayer_battery->status.current_dA =
           (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) / battery_Current2_sample_count);
     }
+    // Per-pack trim for a current sensor that reads non-zero with the contactors open. Applied
+    // to the fresh mean only, so a window without samples keeps the value without trimming it
+    // twice, and the extremes below still reach the safety layer as the LBC sent them.
+    if (battery_index >= 1 && battery_index <= 3) {
+      datalayer_battery->status.current_dA += user_selected_LEAF_current_offset_dA[battery_index - 1];
+    }
   }
 
   // Publish the extremes captured over the same window for safety checks. Kept separate

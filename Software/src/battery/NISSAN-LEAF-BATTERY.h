@@ -10,6 +10,8 @@ extern bool user_selected_LEAF_interlock_mandatory;
 //CHG_STA_RQ value transmitted in 0x1F2 as the BMS starts up: 0 = 00b (no request), 1 = 01b
 //(normal charge), 2 = 10b (quick charge). Only ever holds one of those three.
 extern uint8_t user_selected_LEAF_chg_sta_rq;
+//Per-pack trim added to the averaged current, in dA, indexed by battery_index - 1.
+extern int16_t user_selected_LEAF_current_offset_dA[3];
 
 class NissanLeafBattery : public CanBattery {
  public:

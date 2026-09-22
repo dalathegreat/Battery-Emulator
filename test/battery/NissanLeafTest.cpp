@@ -1301,3 +1301,83 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
   EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
   EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4></div>"), std::string::npos);
 }
+
+// 0x1DB carrying the given current in raw 0.5 A steps (11 bit two's complement) and a valid CRC.
+CAN_frame leaf_current_frame(NissanLeafBattery* battery, int16_t raw_half_amps) {
+  const uint16_t bits = (uint16_t)raw_half_amps & 0x07FF;
+  CAN_frame frame = leaf_frame(0x1DB, {(uint8_t)(bits >> 3), (uint8_t)((bits & 0x07) << 5)});
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  return frame;
+}
+
+class NissanLeafCurrentOffsetTests : public ::testing::Test {
+ protected:
+  void TearDown() override {
+    for (auto& offset : user_selected_LEAF_current_offset_dA) {
+      offset = 0;
+    }
+  }
+};
+
+TEST_F(NissanLeafCurrentOffsetTests, ShouldAddOffsetToAveragedCurrent) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  user_selected_LEAF_current_offset_dA[0] = -5;
+
+  // A pack reading +0.5 A with nothing flowing, trimmed back to zero
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 1));
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 1));
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, 0);
+
+  // The offset goes on after the mean: (-10 dA + -5 dA) / 2 rounds to -8, then -5 more
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, -2));
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, -1));
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, -13);
+}
+
+TEST_F(NissanLeafCurrentOffsetTests, ShouldNotApplyOffsetAgainWithoutNewSamples) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  user_selected_LEAF_current_offset_dA[0] = 20;
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 10));
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, 70);
+
+  battery->update_values();  // No 0x1DB in this window, so the last value is held as it was
+  EXPECT_EQ(datalayer.battery.status.current_dA, 70);
+}
+
+TEST_F(NissanLeafCurrentOffsetTests, ShouldUseOffsetOfItsOwnPack) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  user_selected_LEAF_current_offset_dA[0] = 0;
+  user_selected_LEAF_current_offset_dA[1] = -30;
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 4));
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, 20);
+
+  battery->battery_index = 2;
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 4));
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, -10);
+}
+
+TEST_F(NissanLeafCurrentOffsetTests, ShouldLeaveSafetyExtremesUntrimmed) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  user_selected_LEAF_current_offset_dA[0] = -50;
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 6));
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, -4));
+  battery->update_values();
+
+  int16_t max_dA = 0;
+  int16_t min_dA = 0;
+  battery->safety_current_range_dA(max_dA, min_dA);
+  EXPECT_EQ(max_dA, 30);
+  EXPECT_EQ(min_dA, -20);
+}

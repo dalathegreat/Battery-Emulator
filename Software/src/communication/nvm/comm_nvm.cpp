@@ -142,6 +142,11 @@ void init_stored_settings() {
   if (user_selected_LEAF_chg_sta_rq > 2) {
     user_selected_LEAF_chg_sta_rq = 0;
   }
+  for (uint8_t pack = 0; pack < 3; pack++) {
+    const int32_t offset = settings.getInt(LEAF_CURRENT_OFFSET_KEYS[pack], 0);
+    const bool in_range = offset >= -LEAF_CURRENT_OFFSET_MAX_DA && offset <= LEAF_CURRENT_OFFSET_MAX_DA;
+    user_selected_LEAF_current_offset_dA[pack] = in_range ? (int16_t)offset : 0;
+  }
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
   user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);

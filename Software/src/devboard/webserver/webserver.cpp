@@ -567,6 +567,21 @@ void init_webserver() {
                   settings.saveUInt("MQTTPUBLISHMS", interval);
                 }
 
+                for (uint8_t pack = 0; pack < 3; pack++) {
+                  if (p->name() == LEAF_CURRENT_OFFSET_KEYS[pack]) {
+                    // Signed, so stored as an int. 0 is the same as no key, so it is removed rather
+                    // than written. Taken into use right away, so a pack can be trimmed live.
+                    const int32_t offset =
+                        constrain(atoi(p->value().c_str()), -LEAF_CURRENT_OFFSET_MAX_DA, LEAF_CURRENT_OFFSET_MAX_DA);
+                    if (offset == 0) {
+                      settings.removeKey(LEAF_CURRENT_OFFSET_KEYS[pack]);
+                    } else {
+                      settings.saveInt(LEAF_CURRENT_OFFSET_KEYS[pack], offset);
+                    }
+                    user_selected_LEAF_current_offset_dA[pack] = (int16_t)offset;
+                  }
+                }
+
                 for (auto& uintSetting : uintSettingNames) {
                   if (p->name() == uintSetting) {
                     auto value = atoi(p->value().c_str());

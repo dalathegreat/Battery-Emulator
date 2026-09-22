@@ -1063,6 +1063,12 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
   }
 
+  for (uint8_t pack = 0; pack < 3; pack++) {
+    if (var == LEAF_CURRENT_OFFSET_KEYS[pack]) {
+      return String(settings.getInt(LEAF_CURRENT_OFFSET_KEYS[pack], 0));
+    }
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1812,6 +1818,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
             data-canreset='%CHGSTARQCANRESET%' />
 
+            <label for='LEAFCUROFS'>Current measurement offset, dA: </label>
+            <input type='number' name='LEAFCUROFS' id='LEAFCUROFS' value="%LEAFCUROFS%"
+            min="-100" max="100" step="1"
+            title="Only adjust this offset from 0 if your pack erroneously reads a current measurement with contactors open." />
+
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
@@ -1937,6 +1948,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
                 %BATT2COMM%
             </select>
 
+            <div class="if-nissan">
+            <label for='LEAFCUROFS2'>2ⁿᵈ current measurement offset, dA: </label>
+            <input type='number' name='LEAFCUROFS2' id='LEAFCUROFS2' value="%LEAFCUROFS2%"
+            min="-100" max="100" step="1"
+            title="Only adjust this offset from 0 if your pack erroneously reads a current measurement with contactors open." />
+            </div>
+
         <div class="if-tricapable">
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
@@ -1947,6 +1965,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
+
+        <div class="if-nissan">
+        <label for='LEAFCUROFS3'>3ʳᵈ current measurement offset, dA: </label>
+        <input type='number' name='LEAFCUROFS3' id='LEAFCUROFS3' value="%LEAFCUROFS3%"
+        min="-100" max="100" step="1"
+        title="Only adjust this offset from 0 if your pack erroneously reads a current measurement with contactors open." />
+        </div>
         </div>
 
         </div>
