@@ -27,8 +27,11 @@ class TestFakeBattery : public CanBattery, public BatteryHtmlRenderer {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  bool supports_set_fake_voltage() { return true; }
-  void set_fake_voltage(float val) { datalayer.battery.status.voltage_dV = val * 10; }
+  // Each pack has its own voltage and SOH, set from its own More Battery Info tab
+  void set_fake_voltage(float val) { datalayer_battery->status.voltage_dV = static_cast<uint16_t>(val * 10 + 0.5f); }
+  void set_fake_soh(float soh_percent) {
+    datalayer_battery->status.soh_pptt = static_cast<uint16_t>(soh_percent * 100 + 0.5f);
+  }
 
   BatteryHtmlRenderer& get_status_renderer() { return *this; }
   String get_status_html();
