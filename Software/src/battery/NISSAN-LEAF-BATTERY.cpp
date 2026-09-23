@@ -132,7 +132,22 @@ void NissanLeafBattery::
     datalayer_battery->status.remaining_capacity_Wh =
         (uint32_t)(((uint64_t)battery_capacity_Wh * datalayer_battery->status.real_soc) / 10000u);
   } else {
-    //No measured capacity yet, so the GID count is all there is to go on.
+    //No measured capacity, which is either not asked for yet or asked for and not found. The second
+    //is a pack whose group 0x01 layout the capacity decode does not cover. Once every group has been
+    //asked for at least once since the pack came up, stop waiting: fall back to the SOH the LBC
+    //publishes, and work the total out from it the way it was done before a measured capacity was
+    //used at all, rather than leave the inverter on the datalayer's placeholder total.
+    //Waiting for the whole first pass instead of falling back at once is what keeps a pack that does
+    //report a capacity from publishing its own SOH for the seconds before the capacity arrives -
+    //which on a degradation-reset pack is exactly the 100% the measured capacity is there to avoid.
+    //The pass re-arms after a BMS reset; the last values simply hold until it completes.
+    if ((poll_burst_remaining == 0) && (battery_SOH_avg_pptt != 0)) {
+      datalayer_battery->status.soh_pptt = battery_SOH_avg_pptt;
+      datalayer_battery->status.soh_available = true;
+      datalayer_battery->info.total_capacity_Wh =
+          (uint32_t)(((uint64_t)capacity_as_new_Wh * battery_SOH_avg_pptt) / 10000u);
+    }
+    //Nothing measured to scale by, so the GID count is all there is to go on.
     datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
   }
 
