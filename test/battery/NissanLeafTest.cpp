@@ -1849,3 +1849,82 @@ TEST(NissanLeafSleepTests, LogsWhenThePackNeverWentSilentBeforePowerReturned) {
   Logging::stop_capture();
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }
+
+// --- Nothing on the bus between the end of GoToSleep and BMS power returning ---
+
+// Test hooks of the emulated CAN layer (test/emul/can.cpp).
+bool emul_can_transmissions_held(CAN_Interface interface);
+int emul_can_abort_count();
+void emul_set_can_interface_shared(bool shared);
+
+/* 5.1.2 3)(3): once the pack has been quiet for 1 s, stop sending. The interface is held, which
+   drops whatever the controller is still retrying, and nothing - not even a user's DTC request -
+   reaches the bus until BMS power is back. */
+TEST(NissanLeafSleepTests, HoldsTheBusFromTheEndOfGoToSleepUntilBmsPowerReturns) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+
+  battery->transmit_can(100000);  // GoToSleep, pack already dark with the power cut
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+  battery->transmit_can(100999);
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE)) << "held before a full second of silence";
+
+  battery->transmit_can(101000);
+  EXPECT_TRUE(emul_can_transmissions_held(CAN_NATIVE));
+  EXPECT_EQ(emul_can_abort_count(), 1) << "pending retries were not dropped";
+
+  // Anything sent now is discarded, including a DTC readout requested from the web UI.
+  const size_t before = get_transmitted_frames().size();
+  battery->read_DTC();
+  for (unsigned long t = 101010; t < 130000; t += 10) {
+    battery->transmit_can(t);
+  }
+  EXPECT_EQ(get_transmitted_frames().size(), before) << "something reached the bus while held";
+
+  // BMS power back: released on the first pass, and normal traffic resumes once the reset is over.
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(133000);
+  EXPECT_GT(get_transmitted_frames().size(), before) << "bus not usable again after the reset";
+}
+
+// With another of our components on the same bus, that node acknowledges, nothing piles up, and its
+// own traffic must keep flowing: no hold.
+TEST(NissanLeafSleepTests, DoesNotHoldABusSharedWithAnotherComponent) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+  emul_set_can_interface_shared(true);
+
+  battery->transmit_can(100000);
+  battery->transmit_can(101000);
+
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+  EXPECT_EQ(emul_can_abort_count(), 0);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+}
+
+// A pack that is still talking is acknowledging, so there is nothing to drop and no reason to hold.
+TEST(NissanLeafSleepTests, DoesNotHoldWhileThePackIsStillTalking) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+
+  for (unsigned long t = 100000; t < 130000; t += 100) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());
+    battery->transmit_can(t);
+  }
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+}

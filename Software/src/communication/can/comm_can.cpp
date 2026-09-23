@@ -52,6 +52,9 @@ static CAN_Speed native_can_speed;
 
 static uint32_t quartz_frequency;
 
+// Interfaces whose transmissions are held, one bit per CAN_Interface. See hold_can_transmissions().
+static uint8_t can_tx_held_mask = 0;
+
 static MCP2515_Lite* can2515 = nullptr;
 static SPIClass* SPI2515;
 
@@ -299,6 +302,9 @@ static bool begin_canfd_2() {
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
   if (!allowed_to_send_CAN) {
     return;
+  }
+  if (interface < NO_CAN_INTERFACE && (can_tx_held_mask & (1u << interface)) != 0) {
+    return;  //Held, see hold_can_transmissions(): not queued, not logged
   }
   print_can_frame(*tx_frame, interface, frameDirection(MSG_TX));
 
@@ -671,6 +677,62 @@ void restart_can() {
   if (canfd_2) {
     begin_canfd_2();
   }
+}
+
+/* Drops everything not yet on the wire for one interface. The native TWAI and the MCP2518s are
+   reinitialised, the same path already used after a bus-off: it resets the controller, which ends
+   any retry in progress, and recreates the driver's transmit buffer empty. Reception carries on.
+   The MCP2515 driver aborts in its own task instead, since that task owns its buffers.
+   Needed because an error-passive transmitter does not count failed acknowledgements, so a frame
+   nobody acknowledges never takes the controller to bus-off; it is retried for as long as the bus
+   stays empty, and everything queued behind it goes out the moment another node returns. */
+static void abort_pending_can_transmissions(CAN_Interface interface) {
+  switch (interface) {
+    case CAN_NATIVE:
+      if (settingsespcan != nullptr) {
+        change_can_speed(CAN_NATIVE, native_can_speed);
+      }
+      break;
+    case CAN_ADDON_MCP2515:
+      if (can2515 != nullptr) {
+        can2515->abortPendingTransmissions();
+      }
+      break;
+    case CANFD_NATIVE:
+    case CANFD_ADDON_MCP2518:
+      if (canfd != nullptr) {
+        begin_canfd();
+      }
+      break;
+    case CANFD_ADDON_MCP2518_2:
+      if (canfd_2 != nullptr) {
+        begin_canfd_2();
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+void hold_can_transmissions(CAN_Interface interface, bool hold) {
+  if (interface >= NO_CAN_INTERFACE) {
+    return;
+  }
+  const uint8_t bit = (uint8_t)(1u << interface);
+  const bool held = (can_tx_held_mask & bit) != 0;
+  if (hold == held) {
+    return;
+  }
+  if (hold) {
+    can_tx_held_mask |= bit;  //Set first, so nothing new is queued while the old is dropped
+    abort_pending_can_transmissions(interface);
+  } else {
+    can_tx_held_mask &= (uint8_t)~bit;
+  }
+}
+
+bool can_interface_shared(CAN_Interface interface) {
+  return can_receivers.count(interface) > 1;
 }
 
 // Initialize the native CAN interface with the given speed and pins.

@@ -1248,6 +1248,16 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
           "LEAF (Battery %u): pack went silent on CAN after GoToSleep (HCM_WakeUpSleepCommand=00b), "
           "last frame %+ld ms\n",
           (unsigned)battery_index, last_frame_ms);
+      /* 5.1.2 3)(3) ends with "then stop sending CAN of BMS". This driver queues nothing more from
+         here, but the GoToSleep frames the pack never acknowledged are still being retried by the CAN
+         controller - for the whole off period, then delivered as a burst to the LBC as it boots.
+         Hold the interface: drop what is pending and put nothing on the bus until BMS power is back.
+         Only on a bus that is this pack's alone. With any other of our components on it that node
+         acknowledges, nothing piles up, and its own traffic must not be cut. */
+      if (!can_interface_shared(can_interface)) {
+        hold_can_transmissions(can_interface, true);
+        holding_can = true;
+      }
       return;
     }
     if (currentMillis - go_to_sleep_last_tx_millis < INTERVAL_100_MS) {
@@ -1267,11 +1277,16 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
   go_to_sleep_phase = GO_TO_SLEEP_SENDING;
 }
 
-/* Called on every pass outside POWERED_OFF. A GoToSleep still in progress here means BMS power came
+/* Called on every pass outside POWERED_OFF, so also the first pass after BMS power is restored,
+   which is where the bus is released again. A GoToSleep still in progress here means BMS power came
    back before the pack went quiet, so there is no confirmation it ever went off - worth saying, since
    otherwise the only sign is a success line that never appeared. Most likely BMS_POWER does not feed
    this pack's LBC. */
 void NissanLeafBattery::rearm_go_to_sleep() {
+  if (holding_can) {
+    hold_can_transmissions(can_interface, false);  //BMS power is back, see transmit_go_to_sleep()
+    holding_can = false;
+  }
   if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
     logging.printf("LEAF (Battery %u): pack still on CAN when BMS power returned, GoToSleep not confirmed\n",
                    (unsigned)battery_index);

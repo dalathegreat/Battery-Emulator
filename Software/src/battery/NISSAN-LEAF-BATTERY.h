@@ -152,6 +152,8 @@ class NissanLeafBattery : public CanBattery {
   unsigned long go_to_sleep_first_tx_millis = 0;  // For the confirmation log line
   unsigned long go_to_sleep_last_tx_millis = 0;
   void rearm_go_to_sleep();
+  // This pack's interface is held from the end of GoToSleep until BMS power is restored.
+  bool holding_can = false;
   unsigned long last_pack_frame_millis = 0;  // Any frame received from the pack
 
   /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2).

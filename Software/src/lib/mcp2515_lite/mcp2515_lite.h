@@ -67,6 +67,11 @@ public:
     // Non-blocking: pauses all communication (and stops acknowledging messages)
     void pause(bool paused);
 
+    // Non-blocking: drops every frame not yet on the wire, both those still queued and those loaded
+    // in the controller's transmit buffers. Without it, a frame nobody acknowledges is retried by
+    // the MCP2515 indefinitely, and everything queued behind it goes out once someone does.
+    void abortPendingTransmissions();
+
     inline bool hasErrors() { auto ret = _errors; _errors = false; return ret; }
 
 private:
@@ -79,6 +84,7 @@ private:
 
     MCP2515_Lite_Speed _next_speed;
     volatile bool _speed_change_pending = false;
+    volatile bool _abort_tx_requested = false;
     volatile bool _pause_requested = false;
     volatile bool _paused = false;
     volatile bool _rx_overflow = false;
