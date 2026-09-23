@@ -168,6 +168,12 @@ class Battery {
      so a short excursion inside the averaging window is not hidden from the safety layer. */
   virtual void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA);
 
+  /* Asked by the BMS reset just before it drives BMS_POWER low. A driver that has to tell its pack
+     something first returns false until that has been sent, and the reset waits in
+     BMS_RESET_PREPARING_POWER_OFF meanwhile (bounded by a timeout). The default of true keeps every
+     other driver on the previous timing, with power cut as soon as the reset allows. */
+  virtual bool ready_for_bms_power_off() { return true; }
+
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
 

@@ -1176,6 +1176,32 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   }
 }
 
+/* 293A0NDS25 5.1.2 steps 1) and 2), sent while BMS power is still on, in the specification's order:
+   CHG_STA_RQ = 11b ("Preparation of battery controller stop"), then BTONFN = 0 (sent with the MAIN
+   RLY1 (+) OFF command), then RLYP = 0 (sent with the MAIN RLY2 (-) OFF command). Only then may BMS
+   power be cut, which is step 3) and handled by transmit_go_to_sleep().
+   Each step is held for ENDING_STEP_HOLD_MS before the next one starts, so it has been on the wire
+   in several consecutive 10 ms frames before anything after it changes. The specification leaves
+   these waits to the implementer ("the specified waiting time ... shall be reported to Nissan"). */
+void NissanLeafBattery::advance_ending_sequence(unsigned long currentMillis) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_PREPARING_POWER_OFF) {
+    ending_step = ENDING_NOT_STARTED;  //Re-armed for the next reset, and normal reporting outside one
+    return;
+  }
+  if (ending_step == ENDING_NOT_STARTED) {
+    ending_step = ENDING_CHG_STA_RQ_STOP;
+    ending_step_since = currentMillis;
+  } else if (ending_step != ENDING_DONE && currentMillis - ending_step_since >= ENDING_STEP_HOLD_MS) {
+    ending_step = static_cast<EndingStep>(ending_step + 1);
+    ending_step_since = currentMillis;
+  }
+}
+
+// Asked by the BMS reset before it drives BMS_POWER low. A pack that never talked needs nothing.
+bool NissanLeafBattery::ready_for_bms_power_off() {
+  return !battery_can_alive || ending_step == ENDING_DONE;
+}
+
 /* 293A0NDS25 5.1.2 step 3) "Stop of the controller in the pack", in the specification's order:
    (1) IGN OFF for all packs, (2) send HCM_WakeUpSleepCommand = 00b, (3) keep sending until the pack's
    own CAN has been stopped for 1 s or more, then stop the controller's CAN. Status 9 "Waiting for
@@ -1216,7 +1242,12 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   handle_DTC_requests(currentMillis);
 
-  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+  advance_ending_sequence(currentMillis);
+
+  /* PREPARING_POWER_OFF is the exception: BMS power is still on and the ending sequence has to
+     reach the pack, so the normal frame set keeps going with the overrides applied below. */
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE &&
+      datalayer.system.status.bms_reset_status != BMS_RESET_PREPARING_POWER_OFF) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
@@ -1269,6 +1300,18 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         uint8_t engaged = datalayer.system.status.contactors_engaged;
         relay_plus_commanded = (engaged == 1 || engaged == 3);
         high_voltage_supplied = (engaged == 1);
+      }
+      /* 293A0NDS25 5.1.2 step 2) ahead of a BMS power cut: BTONFN = 0 then RLYP = 0, each after the
+         step before it has been on the wire, see advance_ending_sequence(). Applied regardless of
+         contactor control. Where this firmware keeps its contactors closed through the reset the
+         bits then say open while they are shut, which the pack cannot detect; the point is to take
+         the LBC through the ending sequence before it loses power, and normal reporting resumes
+         once the reset is over. */
+      if (ending_step >= ENDING_BTONFN_OFF) {
+        high_voltage_supplied = false;
+      }
+      if (ending_step >= ENDING_RLYP_OFF) {
+        relay_plus_commanded = false;
       }
       //PRUN, byte 4 bits 7-6. Bits 1-0 of that byte come from the frame initialiser and stay put.
       LEAF_1D4.data.u8[4] = (LEAF_1D4.data.u8[4] & ~0xC0) | (mprun10 << 6);
@@ -1386,12 +1429,15 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
       /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
          Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
-         other nibble in the message: the request adds 0x00, 0x20 or 0x40 to byte 2, i.e. 0, 2 or
-         4 to that sum, so the constants above are corrected by twice the selected value rather
-         than recomputing the whole checksum on every message. */
-      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (user_selected_LEAF_chg_sta_rq << 5);
-      LEAF_1F2.data.u8[7] =
-          (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
+         other nibble in the message: the request adds 0x00, 0x20, 0x40 or 0x60 to byte 2, i.e. 0,
+         2, 4 or 6 to that sum, so the constants above are corrected by twice the value sent rather
+         than recomputing the whole checksum on every message.
+         293A0NDS25 5.1.2 step 1) "Preparation of battery controller stop" overrides the selected
+         value with 11b ahead of a BMS power cut. It is the first step of the ending sequence, so
+         BTONFN and RLYP only drop after it has been sent. */
+      uint8_t chg_sta_rq = (ending_step >= ENDING_CHG_STA_RQ_STOP) ? 0x03 : user_selected_LEAF_chg_sta_rq;
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (chg_sta_rq << 5);
+      LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (chg_sta_rq << 1)) & 0x0F);
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging

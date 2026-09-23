@@ -58,6 +58,9 @@ class NissanLeafBattery : public CanBattery {
      LBC's own signals, so handle_contactors() may use it as a precondition. See update_values(). */
   bool gates_contactor_closing() { return true; }
 
+  // Holds a BMS reset's power cut until the ending sequence has been sent, see advance_ending_sequence().
+  bool ready_for_bms_power_off();
+
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
     return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
@@ -148,6 +151,20 @@ class NissanLeafBattery : public CanBattery {
   GoToSleepPhase go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
   unsigned long go_to_sleep_last_tx_millis = 0;
   unsigned long last_pack_frame_millis = 0;  // Any frame received from the pack
+
+  /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2).
+     Steps are cumulative: each one keeps the overrides of the steps before it. */
+  void advance_ending_sequence(unsigned long currentMillis);
+  static const unsigned long ENDING_STEP_HOLD_MS = 100;  // ~10 consecutive 10 ms frames per step
+  enum EndingStep : uint8_t {
+    ENDING_NOT_STARTED,
+    ENDING_CHG_STA_RQ_STOP,  // 0x1F2 CHG_STA_RQ = 11b
+    ENDING_BTONFN_OFF,       // 0x1D4 BTONFN = 0
+    ENDING_RLYP_OFF,         // 0x1D4 RLYP = 0
+    ENDING_DONE              // Held long enough, BMS power may be cut
+  };
+  EndingStep ending_step = ENDING_NOT_STARTED;
+  unsigned long ending_step_since = 0;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis40 = 0;   // will store last time a 40ms CAN Message was send

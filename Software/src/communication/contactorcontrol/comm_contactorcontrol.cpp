@@ -59,6 +59,11 @@ bool periodicResetDeferred = false;   //True while a due periodic reset is waiti
 bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
 uint32_t bmsPowerOnTime = 0;
 const uint32_t bmsWarmupDuration = 3000;
+/* Start of BMS_RESET_PREPARING_POWER_OFF, and the most it may take. A driver that never reports
+   ready must not hold the reset open, so power is cut regardless once this has passed. Generous
+   against the Leaf's ending sequence, which needs about 300 ms. */
+static uint32_t bmsPreparePowerOffTime = 0;
+static const uint32_t BMS_PREPARE_POWER_OFF_TIMEOUT_MS = 2000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
 
 /* The safety layer decrements CAN_battery_still_alive once per second and latches
@@ -511,6 +516,27 @@ static void bms_reset_can_keepalive_tick() {
   bms_reset_refresh_can_alive();
 }
 
+// Every configured battery has said what it needed to before losing BMS power.
+static bool batteries_ready_for_bms_power_off() {
+  return (!battery || battery->ready_for_bms_power_off()) && (!battery2 || battery2->ready_for_bms_power_off()) &&
+         (!battery3 || battery3->ready_for_bms_power_off());
+}
+
+/* The single place that decides to cut BMS power. When every battery is ready it does so at once,
+   exactly as before. Otherwise it parks the reset in BMS_RESET_PREPARING_POWER_OFF, where the
+   drivers keep transmitting and handle_BMSpower() cuts power once they are done. The pin is always
+   driven low before POWERED_OFF is published, which the Leaf driver relies on for its GoToSleep. */
+static void cut_bms_power_when_batteries_ready(uint32_t now) {
+  if (batteries_ready_for_bms_power_off()) {
+    bms_power_off();
+    lastPowerRemovalTime = now;
+    datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  } else {
+    bmsPreparePowerOffTime = now;
+    datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  }
+}
+
 void handle_BMSpower() {
   //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
   if (datalayer.system.info.equipment_stop_active) {
@@ -569,15 +595,25 @@ void handle_BMSpower() {
           || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
-        bms_power_off();
-        lastPowerRemovalTime = currentTime;
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        cut_bms_power_when_batteries_ready(currentTime);
       } else if (currentTime - lastPowerRemovalTime >= 10000) {
         // There's still current, and we don't want to weld the contactors, so give up.
 
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
         set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);  // also printing a log entry
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
+      }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_PREPARING_POWER_OFF) {
+      // A battery driver is sending its last CAN before losing power. Cut once it is done.
+      bool timed_out = currentTime - bmsPreparePowerOffTime >= BMS_PREPARE_POWER_OFF_TIMEOUT_MS;
+      if (batteries_ready_for_bms_power_off() || timed_out) {
+        if (timed_out) {
+          logging.printf("BMS reset: Battery not ready for power off after %u ms, cutting anyway.\n",
+                         (unsigned)BMS_PREPARE_POWER_OFF_TIMEOUT_MS);
+        }
+        bms_power_off();
+        lastPowerRemovalTime = currentTime;
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
       bms_reset_can_keepalive_tick();
@@ -628,11 +664,9 @@ void start_bms_reset() {
         // We power the contactors directly, so we can avoid closing/opening them
         // during reset.
 
-        // Thus we can cut the BMS power now
-        bms_power_off();
-
-        // and jump straight to powered off state, no need to wait.
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        // Thus we can cut the BMS power now, once the batteries have sent what they need to,
+        // and jump straight to powered off state, no need to wait for current.
+        cut_bms_power_when_batteries_ready(lastPowerRemovalTime);
       } else {
         // The BMS powers the contactors, so we need to wait for the pause to
         // take effect before cutting power to it, or the contactors might drop

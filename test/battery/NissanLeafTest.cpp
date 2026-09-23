@@ -1,8 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
+#include "../../Software/src/devboard/hal/hal.h"
+#include "../../Software/src/devboard/safety/safety.h"
 
 #include <vector>
 
@@ -1527,4 +1530,141 @@ TEST(NissanLeafSleepTests, WakeUpResumesAfterResetAndTheNextResetSleepsAgain) {
   EXPECT_TRUE(is_go_to_sleep(frames[0])) << "second reset did not send GoToSleep";
 
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// --- 293A0NDS25 5.1.2 steps 1) and 2): ending sequence before BMS power is cut --
+
+namespace {
+
+uint8_t chg_sta_rq_of(const CAN_frame& f) {
+  return (f.data.u8[2] >> 5) & 0x03;
+}
+bool btonfn_of(const CAN_frame& f) {
+  return (f.data.u8[4] & 0x04) != 0;
+}
+bool rlyp_of(const CAN_frame& f) {
+  return (f.data.u8[5] & 0x40) != 0;
+}
+
+// Low nibble of byte 7 is the sum of every other nibble plus 2.
+bool nibble_checksum_ok(const CAN_frame& f) {
+  unsigned sum = 0;
+  for (int i = 0; i < 7; ++i) {
+    sum += (f.data.u8[i] >> 4) + (f.data.u8[i] & 0x0F);
+  }
+  sum += f.data.u8[7] >> 4;
+  return ((sum + 2) & 0x0F) == (f.data.u8[7] & 0x0F);
+}
+
+size_t first_index(const std::vector<CAN_frame>& frames, uint32_t id, bool (*pred)(const CAN_frame&)) {
+  for (size_t i = 0; i < frames.size(); ++i) {
+    if (frames[i].ID == id && pred(frames[i])) {
+      return i;
+    }
+  }
+  return SIZE_MAX;
+}
+
+}  // namespace
+
+/* End to end, with the real reset state machine: CHG_STA_RQ = 11b, then BTONFN = 0, then RLYP = 0,
+   all on the wire before BMS_POWER is driven low; GoToSleep only after it. The loop runs the core
+   loop's order - handle_BMSpower() then transmit - so a frame sent on the same pass as the cut
+   counts as after it, as it would on the device. */
+TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
+  init_hal();
+  auto leaf = awake_pack(1000000);
+  battery = leaf;
+  datalayer.system.info.equipment_stop_active = false;
+  remote_bms_reset = true;
+  periodic_bms_reset = false;
+  contactor_control_enabled = true;
+  datalayer.system.status.contactors_engaged = 1;  // Closed, so the bits start at 1
+  datalayer.battery.settings.user_set_bms_reset_duration_ms = 5000;
+  const uint8_t bms_pin = (uint8_t)esp32hal->BMS_POWER();
+
+  clear_transmitted_frames();
+  clear_pin_writes();
+  start_bms_reset();
+  ASSERT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+
+  size_t frames_at_cut = SIZE_MAX;
+  for (unsigned long t = 1000000; t < 1000000 + 12000; ++t) {
+    set_millis64(t);
+    handle_BMSpower();
+    if (frames_at_cut == SIZE_MAX) {
+      for (const PinWrite& w : get_pin_writes()) {
+        if (w.pin == bms_pin && w.value == LOW) {
+          frames_at_cut = get_transmitted_frames().size();
+        }
+      }
+    }
+    leaf->transmit_can(t);
+  }
+  ASSERT_NE(frames_at_cut, SIZE_MAX) << "BMS power was never cut";
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE) << "reset did not complete";
+
+  const auto& frames = get_transmitted_frames();
+  size_t stop_rq = first_index(frames, 0x1F2, [](const CAN_frame& f) { return chg_sta_rq_of(f) == 0x03; });
+  size_t btonfn_off = first_index(frames, 0x1D4, [](const CAN_frame& f) { return !btonfn_of(f); });
+  size_t rlyp_off = first_index(frames, 0x1D4, [](const CAN_frame& f) { return !rlyp_of(f); });
+  size_t sleep = first_index(frames, 0x50B, [](const CAN_frame& f) { return (f.data.u8[3] & 0xC0) == 0x00; });
+
+  ASSERT_NE(stop_rq, SIZE_MAX);
+  ASSERT_NE(btonfn_off, SIZE_MAX);
+  ASSERT_NE(rlyp_off, SIZE_MAX);
+  ASSERT_NE(sleep, SIZE_MAX);
+  EXPECT_LT(stop_rq, btonfn_off) << "BTONFN dropped before CHG_STA_RQ = 11b was sent";
+  EXPECT_LT(btonfn_off, rlyp_off) << "RLYP dropped before BTONFN";
+  EXPECT_LT(rlyp_off, frames_at_cut) << "BMS power cut before RLYP = 0 was sent";
+  EXPECT_GE(sleep, frames_at_cut) << "GoToSleep sent before BMS power was cut";
+
+  // RLYP only drops once BTONFN is already 0, and BTONFN only once CHG_STA_RQ is 11b.
+  for (size_t i = btonfn_off; i < frames_at_cut; ++i) {
+    if (frames[i].ID == 0x1D4) {
+      EXPECT_FALSE(btonfn_of(frames[i])) << "BTONFN came back on at frame " << i;
+    }
+  }
+  for (size_t i = stop_rq; i < frames_at_cut; ++i) {
+    if (frames[i].ID == 0x1F2) {
+      EXPECT_EQ(chg_sta_rq_of(frames[i]), 0x03) << "CHG_STA_RQ left 11b at frame " << i;
+      EXPECT_TRUE(nibble_checksum_ok(frames[i])) << "bad 0x1F2 checksum at frame " << i;
+    }
+    if (frames[i].ID == 0x1D4) {
+      CAN_frame copy = frames[i];
+      EXPECT_EQ(copy.data.u8[7], leaf->calculate_crc(copy)) << "bad 0x1D4 CRC at frame " << i;
+    }
+  }
+
+  // Once the reset is over the pack gets normal reporting back.
+  size_t after = SIZE_MAX;
+  for (size_t i = frames.size(); i-- > frames_at_cut;) {
+    if (frames[i].ID == 0x1D4) {
+      after = i;
+      break;
+    }
+  }
+  ASSERT_NE(after, SIZE_MAX) << "no 0x1D4 after the reset";
+  EXPECT_TRUE(btonfn_of(frames[after]));
+  EXPECT_TRUE(rlyp_of(frames[after]));
+  for (size_t i = frames.size(); i-- > frames_at_cut;) {
+    if (frames[i].ID == 0x1F2) {
+      EXPECT_EQ(chg_sta_rq_of(frames[i]), user_selected_LEAF_chg_sta_rq);
+      break;
+    }
+  }
+
+  battery = nullptr;
+  remote_bms_reset = false;
+  contactor_control_enabled = false;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
+}
+
+// A pack that never talked has nothing to be told, so it must not delay the cut.
+TEST(NissanLeafSleepTests, ReadyForPowerOffAtOnceWhenThePackNeverTalked) {
+  datalayer = DataLayer();
+  auto leaf = new NissanLeafBattery();
+  leaf->setup();
+  EXPECT_TRUE(leaf->ready_for_bms_power_off());
 }
