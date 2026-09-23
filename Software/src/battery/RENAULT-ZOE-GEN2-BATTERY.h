@@ -13,8 +13,6 @@ class RenaultZoeGen2Battery : public CanBattery {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_zoePH2 = extended;
-
-    battery_pack_voltage_periodic_dV = 0;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -203,7 +201,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_usable_soc = 5000;
   uint16_t battery_soh = 10000;
   uint16_t battery_pack_voltage_polled_dV = 3700;
-  uint16_t battery_pack_voltage_periodic_dV = 3700;
+  uint16_t battery_pack_voltage_periodic_dV = 0;
   uint16_t battery_minimum_cell_voltage_mV = 3700;
   uint16_t battery_maximum_cell_voltage_mV = 3700;
   uint16_t battery_max_cell_voltage_polled = 3700;
