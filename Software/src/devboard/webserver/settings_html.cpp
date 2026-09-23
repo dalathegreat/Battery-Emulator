@@ -925,8 +925,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BMS_RESET_CLASS") {
-    // The off time and the reset button follow the "Periodic BMS reset" checkbox as saved.
-    return settings.getBool("PERBMSRESET") ? "" : "hidden";
+    // The off time and the reset button apply to both reset methods, so they show when either
+    // "Periodic BMS reset" or "Allow remote BMS reset via MQTT" is enabled, as saved.
+    return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
   if (var == "CHARGER_CLASS") {
