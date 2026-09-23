@@ -196,7 +196,7 @@ enum espnow_key_t {
   /* ---- battery live values (ESPNOW_FRAME_BATTERY) ---- */
   ESPNOW_KEY_SOC_PPTT = 0x50,                 /* UINT16 0.01 %, scaled/reported SOC */
   ESPNOW_KEY_SOC_REAL_PPTT = 0x51,            /* UINT16 0.01 %, real SOC from the BMS */
-  ESPNOW_KEY_SOH_PPTT = 0x52,                 /* UINT16 0.01 % */
+  ESPNOW_KEY_SOH_PPTT = 0x52,                 /* UINT16 0.01 %, omitted until the battery reports one */
   ESPNOW_KEY_VOLTAGE_DV = 0x53,               /* UINT16 deciVolt */
   ESPNOW_KEY_CURRENT_DA = 0x54,               /* INT16  deciAmpere, + = charging */
   ESPNOW_KEY_REPORTED_CURRENT_DA = 0x55,      /* INT16  deciAmpere, all batteries summed */

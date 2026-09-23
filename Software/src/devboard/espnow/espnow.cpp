@@ -459,7 +459,11 @@ static void send_battery_frame(uint8_t index) {
   if (battery_is_detected(index) && d->status.CAN_battery_still_alive && esp32hal->system_booted_up()) {
     put_u16_field(ESPNOW_KEY_SOC_PPTT, d->status.reported_soc);
     put_u16_field(ESPNOW_KEY_SOC_REAL_PPTT, d->status.real_soc);
-    put_u16_field(ESPNOW_KEY_SOH_PPTT, d->status.soh_pptt);
+    // Omitted until the integration has decoded a state of health, the same as MQTT, so a
+    // receiver never shows the soh_pptt default as if it had been read from the pack.
+    if (d->status.soh_available) {
+      put_u16_field(ESPNOW_KEY_SOH_PPTT, d->status.soh_pptt);
+    }
     put_u16_field(ESPNOW_KEY_VOLTAGE_DV, d->status.voltage_dV);
     put_i16_field(ESPNOW_KEY_CURRENT_DA, d->status.current_dA);
     put_i16_field(ESPNOW_KEY_REPORTED_CURRENT_DA, d->status.reported_current_dA);

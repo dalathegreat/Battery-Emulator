@@ -154,7 +154,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   bool insulation_resistance_available = false;
 
   /** False while the integration has not yet decoded a real state of health, so the
-   * webserver and MQTT can report it as unknown instead of showing the soh_pptt default
+   * webserver, MQTT and ESP-NOW can report it as unknown instead of showing the soh_pptt default
    * as if it were a reading. Defaults to true: integrations that always have an SOH to
    * report, or that deliberately publish a fixed one, need no change.
    * Note that soh_pptt itself keeps a safe default either way. It feeds the inverter
