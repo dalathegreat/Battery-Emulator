@@ -87,12 +87,6 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
     content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
-    if (user_selected_LEAF_auto_current_offset) {
-      content += "<h4>Automatic current offset: " +
-                 (nissan_dl->AutoCurrentOffsetKnown ? String(nissan_dl->AutoCurrentOffset_dA / 10.0f, 1) + " A"
-                                                    : String("Unknown")) +
-                 "</h4>";
-    }
     //The flags from the LBC's status broadcasts, each unknown until the broadcast carrying it has
     //arrived since boot (bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0, see StatusSeen)
     const uint8_t seen = nissan_dl->StatusSeen;
@@ -120,6 +114,12 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                failsafe_names[nissan_dl->FailsafeStatus & 7]);
     status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01,
                nissan_dl->RelayCutRequest ? "Main relay off" : "None");
+    if (user_selected_LEAF_auto_current_offset) {
+      content += "<h4>Automatic current offset: " +
+                 (nissan_dl->AutoCurrentOffsetKnown ? String(nissan_dl->AutoCurrentOffset_dA / 10.0f, 1) + " A"
+                                                    : String("Unknown")) +
+                 "</h4>";
+    }
     content += "</div>";
 
     new_panel(content, "Health and lifetime usage");

@@ -1471,5 +1471,10 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldShowTheOffsetOnTheStatusCard) {
   EXPECT_NE(status_html().find("<h4>Automatic current offset: Unknown</h4>"), std::string::npos);
 
   run_seconds(battery, 5, 1);
-  EXPECT_NE(status_html().find("<h4>Automatic current offset: 2.5 A</h4>"), std::string::npos);
+  // The last entry of the Status panel, right before the next panel opens
+  const std::string html = status_html();
+  const size_t offset = html.find("<h4>Automatic current offset: 2.5 A</h4></div>");
+  ASSERT_NE(offset, std::string::npos);
+  EXPECT_LT(html.find("Relay cut request"), offset);
+  EXPECT_LT(offset, html.find("<h3>Health and lifetime usage</h3>"));
 }
