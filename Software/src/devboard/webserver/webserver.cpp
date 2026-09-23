@@ -905,8 +905,27 @@ void init_webserver() {
     datalayer.battery.settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
   });
 
-  // Route for editing FakeBatteryVoltage
-  update_string_setting("/updateFakeBatteryVoltage", [](String value) { battery->set_fake_voltage(value.toFloat()); });
+  // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab.
+  // Runtime values like before, so nothing is stored.
+  def_route_with_auth("/updateFakeBattery", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    Battery* const packs[] = {battery, battery2, battery3};
+    const long index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    Battery* const batt = (index >= 1 && index <= 3) ? packs[index - 1] : nullptr;
+    const AsyncWebParameter* voltage = request->getParam("Voltage");
+    const AsyncWebParameter* soh = request->getParam("SOH");
+    const float value = voltage ? voltage->value().toFloat() : (soh ? soh->value().toFloat() : -1.0f);
+    // Negated range test, so that a NaN is rejected as well
+    if (!batt || !(value >= 0.0f && value <= (voltage ? 5000.0f : 100.0f))) {
+      request->send(400, "text/plain", "Invalid value");
+      return;
+    }
+    if (voltage) {
+      batt->set_fake_voltage(value);
+    } else {
+      batt->set_fake_soh(value);
+    }
+    request->send(200, "text/plain", "Updated successfully");
+  });
 
   // Route for editing balancing enabled
   update_int_setting("/TeslaBalAct", [](int value) { datalayer.battery.settings.user_requests_balancing = value; });
