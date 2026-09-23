@@ -6,6 +6,11 @@
 
 class BydModbusInverter : public ModbusInverterProtocol {
  public:
+  /** The Fronius Gen24 stops charge and discharge below -10 degrees C, because the pack it was
+   * designed for is LFP. Caps a reading between -9.0 and -20.0 C to -9.0 C, and leaves anything
+   * else alone: colder than -20 C is a fault, not weather. Pure, so it can be tested directly */
+  static int16_t clamp_cold_temperature(int16_t temperature_dC);
+
   BydModbusInverter() : ModbusInverterProtocol(21) {}
   const char* name() override { return Name; }
   bool setup() override;
@@ -15,6 +20,10 @@ class BydModbusInverter : public ModbusInverterProtocol {
  private:
   void handle_static_data();
   void verify_temperature();
+  // What this inverter reports, after the cold-weather cap. Kept here rather than written back
+  // into the datalayer, which every other consumer reads.
+  int16_t reported_temperature_min_dC = 0;
+  int16_t reported_temperature_max_dC = 0;
   void verify_inverter_modbus();
   // Consumes the ControlData block the inverter writes: WatchDogTimeout (402), UTC (403-406)
   // and RebootCommand (407)

@@ -563,44 +563,44 @@ void TeslaBattery::
     }
 
     // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
-    if (datalayer_battery->settings.user_requests_balancing) {
+    if (datalayer.battery_settings.user_requests_balancing) {
       datalayer_battery->status.real_soc = 9900;  //Force battery to show up as 99% when balancing
-      datalayer_battery->info.max_design_voltage_dV = datalayer_battery->settings.balancing_max_pack_voltage_dV;
-      datalayer_battery->info.max_cell_voltage_mV = datalayer_battery->settings.balancing_max_cell_voltage_mV;
+      datalayer_battery->info.max_design_voltage_dV = datalayer.battery_settings.balancing_max_pack_voltage_dV;
+      datalayer_battery->info.max_cell_voltage_mV = datalayer.battery_settings.balancing_max_cell_voltage_mV;
       datalayer_battery->info.max_cell_voltage_deviation_mV =
-          datalayer_battery->settings.balancing_max_deviation_cell_voltage_mV;
-      datalayer_battery->status.max_charge_power_W = datalayer_battery->settings.balancing_float_power_W;
+          datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV;
+      datalayer_battery->status.max_charge_power_W = datalayer.battery_settings.balancing_float_power_W;
     }
   }
 
   // Check if user requests some action
-  if (datalayer_battery->settings.user_requests_tesla_isolation_clear) {
+  if (datalayer.battery_settings.user_requests_tesla_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer_battery->settings.user_requests_tesla_isolation_clear = false;
+    datalayer.battery_settings.user_requests_tesla_isolation_clear = false;
   }
-  if (datalayer_battery->settings.user_requests_tesla_bms_reset) {
+  if (datalayer.battery_settings.user_requests_tesla_bms_reset) {
     if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
-      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
+      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
       stateMachineBMSReset = 0xFF;
-      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
+      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
       set_event(EVENT_BMS_RESET_REQ_FAIL, 0, battery_index);  // also printing a log entry
       clear_event(EVENT_BMS_RESET_REQ_FAIL, battery_index);
     }
   }
-  if (datalayer_battery->settings.user_requests_tesla_soc_reset) {
+  if (datalayer.battery_settings.user_requests_tesla_soc_reset) {
     if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
         battery_contactor == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
-      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
+      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
       stateMachineSOCReset = 0xFF;
-      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
+      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
       clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
     }
@@ -608,7 +608,7 @@ void TeslaBattery::
 
   //Update 0x333 UI_chargeTerminationPct (bit 16, width 10) value to SOC max value - expose via UI?
   //One firmware version this was seen at bit 17 width 11
-  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer_battery->settings.max_percentage / 10), false);
+  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer.battery_settings.max_percentage / 10), false);
 
   // Update webserver datalayer
   //datalayer_extended.tesla.BMS_hvilFault = BMS_a036_SW_HvpHvilFault;

@@ -330,13 +330,13 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         content += String("Unknown</h4>");
     }
     content += "<h4>Balancing Request: ";
-    content += datalayer.battery.settings.user_requests_balancing ? String("<span style='color: #43a047;'>True</span>")
+    content += datalayer.battery_settings.user_requests_balancing ? String("<span style='color: #43a047;'>True</span>")
                                                                   : String("False");
     content += "</h4>";
     // Max balancing time before the safety timer auto-cancels the request (shared
     // balancing_max_time_ms, default 1h). Editable here via the existing /BalTime route, since the
     // PHEV uses supports_balancing_request() and so doesn't get the Tesla manual-balancing settings UI.
-    content += "<h4>Balancing Max Time: " + String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1) +
+    content += "<h4>Balancing Max Time: " + String(datalayer.battery_settings.balancing_max_time_ms / 60000.0f, 1) +
                " min <button onclick='editPhevBalTime()'>Edit</button></h4>";
     content +=
         "<script>"
