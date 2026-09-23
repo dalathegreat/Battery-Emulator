@@ -101,12 +101,13 @@ class NissanLeafBattery : public CanBattery {
      window above and closed by update_values(), and the offset is the mean of the last
      AUTO_OFFSET_BUCKETS of them: all of a short opening, the latest 10 s of a pack that stays open
      because it cannot join the DC link. It holds while the contactor is closed, and the next
-     opening measures afresh. At boot the contactors have not closed since power came on, so only
-     the LBC starting up needs to settle: the first open period counts from AUTO_OFFSET_BOOT_SETTLE_MS
-     after the BMS power went on. Sums and counts signed, for the reason above. */
+     opening measures afresh. When the LBC starts up, at boot or powered back on after a BMS reset,
+     with the contactor open since before, nothing has flowed and only the LBC's start needs to
+     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Sums and
+     counts signed, for the reason above. */
   static const uint8_t AUTO_OFFSET_BUCKETS = 10;
   static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
-  static const uint32_t AUTO_OFFSET_BOOT_SETTLE_MS = 30;
+  static const uint32_t AUTO_OFFSET_POWER_ON_SETTLE_MS = 30;
   int32_t auto_offset_bucket_sum_raw[AUTO_OFFSET_BUCKETS] = {};
   int32_t auto_offset_bucket_count[AUTO_OFFSET_BUCKETS] = {};
   uint8_t auto_offset_next_bucket = 0;
@@ -115,7 +116,8 @@ class NissanLeafBattery : public CanBattery {
   uint32_t auto_offset_open_since_ms = 0;
   uint32_t auto_offset_settle_ms = AUTO_OFFSET_SETTLE_MS;
   uint32_t auto_offset_last_sample_ms = 0;
-  bool auto_offset_open = false;         //Contactor seen open at the previous sample
+  uint32_t auto_offset_power_on_ms = 0;  //bms_power_on_ms as of the previous sample
+  bool auto_offset_open = true;          //Contactor seen open at the previous sample, or not closed since boot
   bool auto_offset_first_sample = true;  //No 0x1DB seen since boot yet
   bool auto_offset_new_period = true;    //The next settled sample starts a new measurement
   int16_t auto_offset_dA = 0;            //Taken off the published current, 0 while disabled

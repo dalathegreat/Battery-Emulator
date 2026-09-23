@@ -21,8 +21,8 @@ extern bool remote_bms_reset;
 extern uint16_t precharge_time_ms;
 extern uint16_t pwm_frequency;
 extern uint16_t pwm_hold_duty;
-// millis() when init_contactors() switched the BMS power on at boot. Stays 0 without BMS power
-// control, the LBC then being powered from before boot.
+// millis() when the BMS power was last switched on: at boot by init_contactors(), then after each
+// BMS reset. Stays 0 without BMS power control, the LBC then being powered from before boot.
 extern uint32_t bms_power_on_ms;
 
 /**

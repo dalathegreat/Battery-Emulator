@@ -1432,7 +1432,34 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldMeasureAfreshOnEachOpening) {
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 10);
 }
 
-// A stream coming back after a silence, as after a BMS reset, gets the same 300 ms to settle.
+// An LBC powered back on after a BMS reset, the contactor open throughout, settles as at boot.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettle30msAfterBmsPowerOnAfterAReset) {
+  run_seconds(battery, 2, 2);          // 197 samples, the first three at boot left out
+  bms_power_on_ms = millis() + 5000;   // Powered back on at the end of the reset
+  set_millis64(bms_power_on_ms + 10);  // First frame 10 ms later
+  feed_current(battery, 40, 20);       // 10 and 20 ms: the LBC starting up
+  feed_current(battery, 4, 280);       // 30 to 300 ms
+  feed_current(battery, 2, 700);
+  battery->update_values();
+  // (197 x 10 dA + 28 x 20 dA + 70 x 10 dA) / 295 rounds to 11: 10 with a 300 ms settle from the
+  // first frame, 12 with none at all
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 11);
+}
+
+// A contactor that opened while the LBC was powered down gets the full 300 ms, not the power-on's.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettle300msWhenTheContactorOpenedDuringAReset) {
+  datalayer.system.status.contactors_engaged = 1;
+  run_seconds(battery, 40, 1);
+  datalayer.system.status.contactors_engaged = 0;
+  bms_power_on_ms = millis() + 5000;
+  set_millis64(bms_power_on_ms + 10);
+  feed_current(battery, 4, 300);
+  feed_current(battery, 2, 700);
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 10);
+}
+
+// A stream coming back after a silence without a BMS power cycle gets the full 300 ms to settle.
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettleAgainWhenTheStreamResumes) {
   run_seconds(battery, 2, 2);
   set_millis64(millis() + 5000);

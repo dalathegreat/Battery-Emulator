@@ -470,10 +470,13 @@ bool NissanLeafBattery::contactor_open() {
 //Called for every 0x1DB sample while the automatic current offset correction is enabled
 void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
   const uint32_t now = millis();
-  const bool at_boot = auto_offset_first_sample;
+  //The LBC has started since the previous sample: at boot, or powered back on after a BMS reset.
+  //Compared for a change rather than an order, so it holds however long the system has been up.
+  const bool lbc_started = auto_offset_first_sample || (bms_power_on_ms != auto_offset_power_on_ms);
   auto_offset_first_sample = false;
-  //A stream that has been silent, as while the LBC is powered down for a BMS reset, settles again
-  const bool resumed = !at_boot && (now - auto_offset_last_sample_ms) > AUTO_OFFSET_SETTLE_MS;
+  auto_offset_power_on_ms = bms_power_on_ms;
+  //A stream that has been silent for any other reason settles again as after an opening
+  const bool resumed = !lbc_started && (now - auto_offset_last_sample_ms) > AUTO_OFFSET_SETTLE_MS;
   auto_offset_last_sample_ms = now;
 
   if (!contactor_open()) {
@@ -481,11 +484,10 @@ void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
     auto_offset_new_period = true;
     return;
   }
-  if (at_boot) {
-    //Open since power came on, so nothing has flowed: only the LBC starting up needs to settle
-    auto_offset_open = true;
+  if (lbc_started && auto_offset_open) {
+    //Open since before the LBC started, so nothing has flowed: only its start needs to settle
     auto_offset_open_since_ms = bms_power_on_ms;
-    auto_offset_settle_ms = AUTO_OFFSET_BOOT_SETTLE_MS;
+    auto_offset_settle_ms = AUTO_OFFSET_POWER_ON_SETTLE_MS;
   } else if (!auto_offset_open || resumed) {
     auto_offset_open = true;
     auto_offset_open_since_ms = now;

@@ -402,6 +402,7 @@ void bms_power_off() {
 
 void bms_power_on() {
   digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  bms_power_on_ms = millis();
   set_indicator_led(IndicatorLed::BMS_POWER, true);
 }
 
