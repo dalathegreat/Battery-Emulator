@@ -878,10 +878,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return datalayer.battery_settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
 
-  if (var == "FAKE_VOLTAGE_CLASS") {
-    return battery && battery->supports_set_fake_voltage() ? "" : "hidden";
-  }
-
   if (var == "MANUAL_BALANCING_CLASS") {
     return datalayer.battery_settings.user_requests_balancing ? "" : "inactiveSoc";
   }
@@ -891,12 +887,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
       return TRUE_CHAR_CODE;
     } else {
       return FALSE_CHAR_CODE;
-    }
-  }
-
-  if (var == "BATTERY_VOLTAGE") {
-    if (battery) {
-      return String(battery->get_voltage(), 1);
     }
   }
 
@@ -1346,9 +1336,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     
         function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
-
-          function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new 
-          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateFakeBatteryVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000');}}}
 
           function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -2431,10 +2418,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
-    </div>
-
-    <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS%">
-      <h4><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
     </div>
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
