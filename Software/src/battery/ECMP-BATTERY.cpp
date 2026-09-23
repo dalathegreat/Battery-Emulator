@@ -40,8 +40,7 @@ void EcmpBattery::update_values() {
 
     // If High Precision Curent is avilable, use it
     if (pid_current != NOT_SAMPLED_YET && datalayer.system.status.system_status != FAULT) {
-      calculated_highprec_current_value = (-((pid_current - 76800) * 155)) / 1000;
-      datalayer_battery->status.current_dA = calculated_highprec_current_value;
+      datalayer_battery->status.current_dA = pid_current;
     } else {  //Low precision
       datalayer_battery->status.current_dA = -(battery_current * 10);
     }
@@ -482,7 +481,7 @@ String EcmpBattery::get_uds_info_html() {
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
-  // UDS frames (0x7EC PID/DTC replies) are handled by the superclass.
+  // UDS frames (0x6B4-694 PID/DTC replies) are handled by the superclass.
   // Only exception is if userRequested functionality is requested, then we need to handle the UDS frame ourselves and not let the superclass handle it.
   if (UserRequestContactorReset || UserRequestCollisionReset || UserRequestIsolationReset) {
 
@@ -992,7 +991,7 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
       pid_avg_cell_voltage = value;
       break;
     case PID_CURRENT:
-      pid_current = value;
+      pid_current = -(((static_cast<int32_t>(value) - 76800) * 155) / 10);
       break;
     case PID_INSULATION_NEG:
       pid_insulation_res_neg = value;

@@ -430,7 +430,6 @@ class EcmpBattery : public UdsCanBattery {
   uint16_t BMS_DC_RELAY_MES_EVSE_VOLTAGE = 0;
   uint16_t HV_BATT_COP_VOLTAGE = 0;
 
-  int16_t calculated_highprec_current_value = 0;
   int16_t HV_BATT_MAX_REAL_CURR = 0;
   int16_t HV_BATT_REAL_CURR_HD = 0;
   int16_t battery_current = 0;
