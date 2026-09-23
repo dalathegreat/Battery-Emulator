@@ -1397,3 +1397,134 @@ TEST(NissanLeafContactorTests, KeepsRelayBitsSetWhenContactorControlIsDisabled) 
   EXPECT_EQ(frame->data.u8[4] & 0x04, 0x04);
   EXPECT_EQ(frame->data.u8[5] & 0x40, 0x40);
 }
+
+// --- 293A0NDS25 5.1.2 step 3): GoToSleep once BMS power is cut --------------
+
+namespace {
+
+// All 0x50B frames transmitted since the last clear, in order.
+std::vector<CAN_frame> transmitted_50b() {
+  std::vector<CAN_frame> out;
+  for (const CAN_frame& frame : get_transmitted_frames()) {
+    if (frame.ID == 0x50B) {
+      out.push_back(frame);
+    }
+  }
+  return out;
+}
+
+bool is_go_to_sleep(const CAN_frame& frame) {
+  return (frame.data.u8[3] & 0xC0) == 0x00;
+}
+
+bool canmask_set(const CAN_frame& frame) {
+  return (frame.data.u8[2] & 0x04) != 0;
+}
+
+// A pack that has been talking, as it is at the moment a reset starts.
+NissanLeafBattery* awake_pack(unsigned long now) {
+  datalayer = DataLayer();
+  set_millis64(now);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+  return battery;
+}
+
+}  // namespace
+
+// Pin low is what POWERED_OFF means, and the first GoToSleep must not wait for the next 100 ms slot.
+TEST(NissanLeafSleepTests, SendsGoToSleepOnTheFirstPassAfterBmsPowerIsCut) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  auto frames = transmitted_50b();
+  ASSERT_EQ(frames.size(), 1u);
+  EXPECT_TRUE(is_go_to_sleep(frames[0]));
+  EXPECT_FALSE(canmask_set(frames[0])) << "Status 9 clears CANMASK together with GoToSleep";
+  EXPECT_EQ(get_transmitted_frames().size(), 1u) << "nothing but GoToSleep goes out while powered off";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// While the pin is still high the pack is powered, so no GoToSleep yet: strictly after, never before.
+TEST(NissanLeafSleepTests, SendsNothingWhileWaitingToCutBmsPower) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+  battery->transmit_can(100200);
+
+  EXPECT_TRUE(transmitted_50b().empty());
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// 5.1.2 3)(3): keep sending at the normal period while the pack still talks, stop once it has been
+// quiet for 1 s.
+TEST(NissanLeafSleepTests, StopsOnceThePackHasBeenQuietForOneSecond) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);  // First frame, on the edge
+  battery->transmit_can(100050);  // Too soon for the next one
+  EXPECT_EQ(transmitted_50b().size(), 1u);
+
+  battery->transmit_can(100100);
+  battery->transmit_can(100200);
+
+  // The pack is still on the bus for a little while, winding down.
+  set_millis64(100300);
+  battery->handle_incoming_can_frame(leaf_5bc());
+  battery->transmit_can(100300);
+  battery->transmit_can(101200);  // Pack last heard 900 ms ago, still within the window
+  const size_t sent_while_pack_talked = transmitted_50b().size();
+  EXPECT_EQ(sent_while_pack_talked, 5u);
+
+  battery->transmit_can(101300);  // Now 1 s of silence
+  battery->transmit_can(101400);
+  battery->transmit_can(105000);
+  EXPECT_EQ(transmitted_50b().size(), sent_while_pack_talked) << "kept transmitting after the pack went quiet";
+
+  for (const CAN_frame& frame : transmitted_50b()) {
+    EXPECT_TRUE(is_go_to_sleep(frame));
+  }
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// The GoToSleep frame is a copy: once the reset is over the regular 0x50B still commands WakeUp with
+// CANMASK set, and the next reset gets its own GoToSleep again.
+TEST(NissanLeafSleepTests, WakeUpResumesAfterResetAndTheNextResetSleepsAgain) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  battery->transmit_can(100000);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  set_millis64(133000);
+  battery->handle_incoming_can_frame(leaf_5bc());
+  clear_transmitted_frames();
+  battery->transmit_can(133100);
+
+  auto frames = transmitted_50b();
+  ASSERT_EQ(frames.size(), 1u);
+  EXPECT_EQ(frames[0].data.u8[3] & 0xC0, 0xC0) << "regular 0x50B no longer commands WakeUp";
+  EXPECT_TRUE(canmask_set(frames[0]));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+  battery->transmit_can(200000);
+  frames = transmitted_50b();
+  ASSERT_EQ(frames.size(), 1u);
+  EXPECT_TRUE(is_go_to_sleep(frames[0])) << "second reset did not send GoToSleep";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}

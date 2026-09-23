@@ -139,6 +139,16 @@ class NissanLeafBattery : public CanBattery {
   // every cycle.
   int8_t contactor_permission_state = -1;
 
+  /* GoToSleep towards the pack while BMS_POWER is held low during a BMS reset, per 293A0NDS25
+     5.1.2 step 3). See transmit_go_to_sleep(). */
+  void transmit_go_to_sleep(unsigned long currentMillis);
+  // How long the pack must have been silent before our own CAN stops too. 5.1.2 3)(3): "1 s or more".
+  static const unsigned long GO_TO_SLEEP_PACK_QUIET_MS = 1000;
+  enum GoToSleepPhase : uint8_t { GO_TO_SLEEP_NOT_SENT, GO_TO_SLEEP_SENDING, GO_TO_SLEEP_DONE };
+  GoToSleepPhase go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
+  unsigned long go_to_sleep_last_tx_millis = 0;
+  unsigned long last_pack_frame_millis = 0;  // Any frame received from the pack
+
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis40 = 0;   // will store last time a 40ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send

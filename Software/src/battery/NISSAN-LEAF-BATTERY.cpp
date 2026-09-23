@@ -457,6 +457,7 @@ void NissanLeafBattery::
 }
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  last_pack_frame_millis = millis();  //For the GoToSleep handshake, see transmit_go_to_sleep()
   switch (rx_frame.ID) {
     case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
@@ -1175,6 +1176,42 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   }
 }
 
+/* 293A0NDS25 5.1.2 step 3) "Stop of the controller in the pack", in the specification's order:
+   (1) IGN OFF for all packs, (2) send HCM_WakeUpSleepCommand = 00b, (3) keep sending until the pack's
+   own CAN has been stopped for 1 s or more, then stop the controller's CAN. Status 9 "Waiting for
+   pack stop" gives the frame content: GoToSleep with CANMASK = 0.
+   BMS_POWER is the IGN of step (1) here, so the first frame goes out on the first pass that sees it
+   low rather than waiting for the next 100 ms slot. Previously the driver simply went silent, which
+   leaves an LBC that is still on its 12 V supply with a controller that vanished while commanding
+   WakeUp and authorizing CAN-absent failure storage.
+   CANMASK (byte 2 bit 2) is DiagMuxOn_VCM in the pack databooks: 1 authorizes the LBC to store CAN
+   mute/absent failures. Clearing it with GoToSleep is what Status 9 specifies, and is what stops the
+   silence that follows from being recorded as a lost-communication fault.
+   The frame is a copy, so LEAF_50B keeps WakeUp and CANMASK = 1 for when the reset ends. */
+void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
+  if (!battery_can_alive || go_to_sleep_phase == GO_TO_SLEEP_DONE) {
+    return;  //Never woke this pack, or it has already gone quiet
+  }
+
+  if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
+    if (currentMillis - last_pack_frame_millis >= GO_TO_SLEEP_PACK_QUIET_MS) {
+      go_to_sleep_phase = GO_TO_SLEEP_DONE;  //Step (3): pack silent for 1 s, stop our CAN too
+      return;
+    }
+    if (currentMillis - go_to_sleep_last_tx_millis < INTERVAL_100_MS) {
+      return;  //0x50B keeps its normal 100 ms period after the first frame
+    }
+  }
+
+  CAN_frame go_to_sleep = LEAF_50B;
+  go_to_sleep.data.u8[3] &= ~0xC0;  //HCM_WakeUpSleepCommand, byte 3 bits 7-6: 00b = GoToSleep
+  go_to_sleep.data.u8[2] &= ~0x04;  //CANMASK, byte 2 bit 2: 0 = CAN absent failures not stored
+  transmit_can_frame(&go_to_sleep);
+
+  go_to_sleep_last_tx_millis = currentMillis;
+  go_to_sleep_phase = GO_TO_SLEEP_SENDING;
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   handle_DTC_requests(currentMillis);
@@ -1190,8 +1227,19 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
        both are cleared from the polling code once the pass has actually been sent. */
     repoll_static_groups = true;
     poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
+
+    /* The one exception is the GoToSleep command, see transmit_go_to_sleep(). Only in POWERED_OFF:
+       handle_BMSpower() and start_bms_reset() drive BMS_POWER low before they publish that state, and
+       both run ahead of the transmitters, so seeing it here means the pin is already low. */
+    if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+      transmit_go_to_sleep(currentMillis);
+    } else {
+      go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;  //Re-armed for the next reset
+    }
     return;
   }
+
+  go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
 
   if (battery_can_alive) {
 
