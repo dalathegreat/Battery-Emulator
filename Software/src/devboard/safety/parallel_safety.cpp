@@ -50,7 +50,12 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
       return;  // Both voltage values need to be available to start check
     }
     if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery3.status.voltage_dV == 3700) {
-      return;  // Also abort if both voltages happened to be initialized to the 3700 default value that most integrations use
+      //Same special case as for the second battery: only return early while the cellvoltages min/max are still at
+      //their 3700mV default too, otherwise a battery genuinely at 370V (e.g. the fake battery) could never join
+      if (datalayer.battery.status.cell_max_voltage_mV == 3700 ||
+          datalayer.battery3.status.cell_max_voltage_mV == 3700) {
+        return;
+      }
     }
     uint16_t voltage_diff_battery3_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);
