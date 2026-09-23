@@ -454,7 +454,9 @@ static void set_aggregate_attributes(JsonDocument& doc) {
   const DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
   doc["SOC"] = ((float)a.reported_soc) / 100.0f;
   doc["SOC_real"] = ((float)a.real_soc) / 100.0f;
-  doc["state_of_health"] = ((float)a.soh_pptt) / 100.0f;
+  if (a.soh_available) {  // unknown in Home Assistant until some pack has decoded one
+    doc["state_of_health"] = ((float)a.soh_pptt) / 100.0f;
+  }
   doc["battery_voltage"] = ((float)a.voltage_dV) / 10.0f;
   doc["battery_current"] = ((float)a.current_dA) / 10.0f;
   doc["stat_batt_power"] = ((float)a.active_power_W);

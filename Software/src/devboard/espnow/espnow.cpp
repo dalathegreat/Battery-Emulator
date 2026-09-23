@@ -389,7 +389,9 @@ static void send_aggregate_frame() {
 
   put_u16_field(ESPNOW_KEY_AGG_SOC_PPTT, a.reported_soc);
   put_u16_field(ESPNOW_KEY_AGG_SOC_REAL_PPTT, a.real_soc);
-  put_u16_field(ESPNOW_KEY_AGG_SOH_PPTT, a.soh_pptt);
+  if (a.soh_available) {  // omitted until some pack has decoded one, same as the pack frame
+    put_u16_field(ESPNOW_KEY_AGG_SOH_PPTT, a.soh_pptt);
+  }
   put_u16_field(ESPNOW_KEY_AGG_VOLTAGE_DV, a.voltage_dV);
   put_i16_field(ESPNOW_KEY_AGG_CURRENT_DA, a.current_dA);
   put_i32_field(ESPNOW_KEY_AGG_ACTIVE_POWER_W, a.active_power_W);

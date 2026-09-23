@@ -505,9 +505,14 @@ struct DATALAYER_AGGREGATE_TYPE {
   /** SOC reported to the inverter, in integer-percent x 100. A pack sitting at an extreme
    * takes this over, so the whole installation stops charging or discharging with it */
   uint16_t reported_soc = 0;
-  /** Lowest state of health any pack reports, in integer-percent x 100. Packs reporting zero
-   * have not decoded one yet and do not count */
+  /** Lowest state of health any pack reports, in integer-percent x 100. Packs that have not
+   * decoded one yet (soh_available false, or reporting zero) do not count. When none has, this
+   * keeps pack 1's safe default, because it still feeds the inverter */
   uint16_t soh_pptt = 9900;
+  /** False until at least one pack has decoded a real state of health. The web page, MQTT and
+   * ESP-NOW then report it as unknown rather than showing soh_pptt's default as if it were a
+   * reading - the same rule each pack follows */
+  bool soh_available = true;
   /** Highest cell voltage found in any pack, in milliVolt */
   uint16_t cell_max_voltage_mV = 3700;
   /** Lowest cell voltage found in any pack, in milliVolt */

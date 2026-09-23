@@ -121,7 +121,11 @@ void update_aggregate_values() {
   agg.cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
   agg.temperature_max_dC = datalayer.battery.status.temperature_max_dC;
   agg.temperature_min_dC = datalayer.battery.status.temperature_min_dC;
-  agg.soh_pptt = datalayer.battery.status.soh_pptt;
+  /* Health only from packs that have actually decoded one. Pack 1's soh_pptt is the fallback
+     when none has: it is a safe default and it still has to feed the inverter, but it is not a
+     reading, so soh_available says so. */
+  bool soh_found = datalayer.battery.status.soh_available && datalayer.battery.status.soh_pptt > 0;
+  uint16_t lowest_soh = soh_found ? datalayer.battery.status.soh_pptt : 0;
   agg.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   agg.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   agg.total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
@@ -163,10 +167,12 @@ void update_aggregate_values() {
         lowest_soc = MIN(lowest_soc, pack->status.real_soc);
         highest_soc = MAX(highest_soc, pack->status.real_soc);
       }
-      /* Health follows the weakest pack, like every other limit here. A pack reporting zero
-         has not decoded one yet and is skipped rather than zeroing the installation. */
-      if (pack->status.soh_pptt > 0) {
-        agg.soh_pptt = MIN(agg.soh_pptt, pack->status.soh_pptt);
+      /* Health follows the weakest pack, like every other limit here. A pack that has not
+         decoded one yet is skipped, rather than dragging the installation to its default or to
+         zero. */
+      if (pack->status.soh_available && pack->status.soh_pptt > 0) {
+        lowest_soh = soh_found ? MIN(lowest_soh, pack->status.soh_pptt) : pack->status.soh_pptt;
+        soh_found = true;
       }
 
       /* The installation may only be charged as high as the lowest ceiling any pack reports,
@@ -201,6 +207,9 @@ void update_aggregate_values() {
   } else {
     agg.real_soc = lowest_soc;
   }
+
+  agg.soh_available = soh_found;
+  agg.soh_pptt = soh_found ? lowest_soh : datalayer.battery.status.soh_pptt;
 
   apply_soc_window(agg);
 }

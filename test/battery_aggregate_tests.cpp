@@ -453,4 +453,42 @@ TEST_F(BatteryAggregateTest, UnreportedBmsLimitStaysZero) {
   EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 0u);
 }
 
+// A LEAF clears soh_available until it has decoded one. That pack must not drag the
+// installation's health to its default, and when no pack has decoded one the aggregate must say
+// so rather than present pack 1's default as a reading - while still feeding the inverter.
+TEST_F(BatteryAggregateTest, SohIgnoresPacksThatHaveNotDecodedOne) {
+  add_second_pack();
+  battery2_detected = true;
+
+  datalayer.battery.status.soh_available = false;  // pack 1 still waiting
+  datalayer.battery.status.soh_pptt = 9900;        // its safe default
+  datalayer.battery2.status.soh_available = true;
+  datalayer.battery2.status.soh_pptt = 6209;
+
+  scale_all();
+  update_aggregate_values();
+  EXPECT_TRUE(datalayer.aggregate.soh_available);
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 6209);  // pack 1's default is not a reading
+
+  datalayer.battery2.status.soh_available = false;  // nobody has one now
+  update_aggregate_values();
+  EXPECT_FALSE(datalayer.aggregate.soh_available);
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 9900);  // safe default still reaches the inverter
+}
+
+TEST_F(BatteryAggregateTest, SinglePackSohAvailabilityPassesThrough) {
+  datalayer.battery.status.soh_available = false;
+  datalayer.battery.status.soh_pptt = 9900;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_FALSE(datalayer.aggregate.soh_available);
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 9900);
+
+  datalayer.battery.status.soh_available = true;
+  datalayer.battery.status.soh_pptt = 7560;
+  update_aggregate_values();
+  EXPECT_TRUE(datalayer.aggregate.soh_available);
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 7560);
+}
+
 }  // namespace

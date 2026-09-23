@@ -1051,6 +1051,7 @@ struct BatteryCardView {
   uint16_t real_soc;
   uint16_t reported_soc;
   uint16_t soh_pptt;
+  bool soh_available;
   uint16_t voltage_dV;
   uint16_t max_charge_current_dA;
   uint16_t max_discharge_current_dA;
@@ -1081,6 +1082,7 @@ static void fill_card_view(BatteryCardView& v, const DATALAYER_BATTERY_TYPE& pac
   v.real_soc = pack.status.real_soc;
   v.reported_soc = pack.status.reported_soc;
   v.soh_pptt = pack.status.soh_pptt;
+  v.soh_available = pack.status.soh_available;
   v.voltage_dV = pack.status.voltage_dV;
   v.cell_max_voltage_mV = pack.status.cell_max_voltage_mV;
   v.cell_min_voltage_mV = pack.status.cell_min_voltage_mV;
@@ -1102,6 +1104,7 @@ static void fill_card_view_aggregate(BatteryCardView& v) {
   v.real_soc = a.real_soc;
   v.reported_soc = a.reported_soc;
   v.soh_pptt = a.soh_pptt;
+  v.soh_available = a.soh_available;
   v.voltage_dV = a.voltage_dV;
   v.max_charge_current_dA = a.max_charge_current_dA;
   v.max_discharge_current_dA = a.max_discharge_current_dA;
@@ -1184,7 +1187,13 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += "<h4 style='color: white;'>SOC: " + String(v.real_soc / 100.0f, 2) + "&percnt;</h4>";
   }
 
-  content += "<h4 style='color: white;'>SOH: " + String(v.soh_pptt / 100.0f, 2) + "&percnt;</h4>";
+  // Unknown until the integration has decoded a state of health, rather than the soh_pptt default
+  // shown as if it had been read from the pack. The combined card follows the same rule.
+  if (v.soh_available) {
+    content += "<h4 style='color: white;'>SOH: " + String(v.soh_pptt / 100.0f, 2) + "&percnt;</h4>";
+  } else {
+    content += "<h4 style='color: white;'>SOH: Unknown</h4>";
+  }
   content += "<h4 style='color: white;'>Voltage: " + String(v.voltage_dV / 10.0f, 1) +
              " V &nbsp; Current: " + String(v.current_dA / 10.0f, 1) + " A</h4>";
   content += formatPowerValue("Power", (float)v.active_power_W, "", 1);

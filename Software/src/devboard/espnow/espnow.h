@@ -263,7 +263,7 @@ enum espnow_key_t {
   ESPNOW_KEY_AGG_SOC_PPTT = 0xB0,                 /* UINT16 0.01 %, scaled/reported SOC */
   ESPNOW_KEY_AGG_SOC_REAL_PPTT = 0xB1,            /* UINT16 0.01 %, emptiest pack, blended to
                                                      the fullest above 90 % */
-  ESPNOW_KEY_AGG_SOH_PPTT = 0xB2,                 /* UINT16 0.01 %, weakest talking pack */
+  ESPNOW_KEY_AGG_SOH_PPTT = 0xB2,                 /* UINT16 0.01 %, weakest pack, omitted until one reports */
   ESPNOW_KEY_AGG_VOLTAGE_DV = 0xB3,               /* UINT16 deciVolt, shared DC bus */
   ESPNOW_KEY_AGG_CURRENT_DA = 0xB4,               /* INT16  deciAmpere, every pack summed */
   ESPNOW_KEY_AGG_ACTIVE_POWER_W = 0xB5,           /* INT32  W, + = charging */
