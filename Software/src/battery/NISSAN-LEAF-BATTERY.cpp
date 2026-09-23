@@ -1239,6 +1239,15 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
   if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
     if (currentMillis - last_pack_frame_millis >= GO_TO_SLEEP_PACK_QUIET_MS) {
       go_to_sleep_phase = GO_TO_SLEEP_DONE;  //Step (3): pack silent for 1 s, stop our CAN too
+      /* Confirmation that the pack really went off the bus while being told to sleep. The figure is
+         when its last frame arrived relative to the first GoToSleep: a few ms, or negative, means it
+         went dark together with the BMS power cut; hundreds of ms means it was still powered and shut
+         its CAN down itself. Either way nothing has been heard from it for a full second. */
+      long last_frame_ms = (long)(last_pack_frame_millis - go_to_sleep_first_tx_millis);
+      logging.printf(
+          "LEAF (Battery %u): pack went silent on CAN after GoToSleep (HCM_WakeUpSleepCommand=00b), "
+          "last frame %+ld ms\n",
+          (unsigned)battery_index, last_frame_ms);
       return;
     }
     if (currentMillis - go_to_sleep_last_tx_millis < INTERVAL_100_MS) {
@@ -1251,8 +1260,23 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
   go_to_sleep.data.u8[2] &= ~0x04;  //CANMASK, byte 2 bit 2: 0 = CAN absent failures not stored
   transmit_can_frame(&go_to_sleep);
 
+  if (go_to_sleep_phase == GO_TO_SLEEP_NOT_SENT) {
+    go_to_sleep_first_tx_millis = currentMillis;
+  }
   go_to_sleep_last_tx_millis = currentMillis;
   go_to_sleep_phase = GO_TO_SLEEP_SENDING;
+}
+
+/* Called on every pass outside POWERED_OFF. A GoToSleep still in progress here means BMS power came
+   back before the pack went quiet, so there is no confirmation it ever went off - worth saying, since
+   otherwise the only sign is a success line that never appeared. Most likely BMS_POWER does not feed
+   this pack's LBC. */
+void NissanLeafBattery::rearm_go_to_sleep() {
+  if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
+    logging.printf("LEAF (Battery %u): pack still on CAN when BMS power returned, GoToSleep not confirmed\n",
+                   (unsigned)battery_index);
+  }
+  go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
 }
 
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
@@ -1293,12 +1317,12 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
       transmit_go_to_sleep(currentMillis);
     } else {
-      go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;  //Re-armed for the next reset
+      rearm_go_to_sleep();  //Re-armed for the next reset
     }
     return;
   }
 
-  go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
+  rearm_go_to_sleep();
 
   if (battery_can_alive) {
 

@@ -149,7 +149,9 @@ class NissanLeafBattery : public CanBattery {
   static const unsigned long GO_TO_SLEEP_PACK_QUIET_MS = 1000;
   enum GoToSleepPhase : uint8_t { GO_TO_SLEEP_NOT_SENT, GO_TO_SLEEP_SENDING, GO_TO_SLEEP_DONE };
   GoToSleepPhase go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
+  unsigned long go_to_sleep_first_tx_millis = 0;  // For the confirmation log line
   unsigned long go_to_sleep_last_tx_millis = 0;
+  void rearm_go_to_sleep();
   unsigned long last_pack_frame_millis = 0;  // Any frame received from the pack
 
   /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2).

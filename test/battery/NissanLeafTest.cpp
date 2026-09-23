@@ -1773,3 +1773,79 @@ TEST(NissanLeafSleepTests, DoesNotMuteCanErrorsOutsideAReset) {
 
   reset_all_events();
 }
+
+// --- Confirmation that the pack really went off the bus ------------------------
+
+namespace {
+
+bool log_contains(const char* text) {
+  return Logging::captured().find(text) != std::string::npos;
+}
+
+}  // namespace
+
+// The pack keeps talking for a while after GoToSleep, then goes quiet: one success line, with the
+// time of its last frame relative to the first GoToSleep.
+TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+
+  battery->transmit_can(100000);  // First GoToSleep
+  set_millis64(100240);
+  battery->handle_incoming_can_frame(leaf_5bc());  // Still powered, winding down
+  battery->transmit_can(100300);
+  battery->transmit_can(101239);
+  EXPECT_FALSE(log_contains("went silent")) << "confirmed before a full second of silence";
+
+  battery->transmit_can(101240);
+  EXPECT_TRUE(
+      log_contains("LEAF (Battery 1): pack went silent on CAN after GoToSleep "
+                   "(HCM_WakeUpSleepCommand=00b), last frame +240 ms"))
+      << Logging::captured();
+
+  // Power comes back after a confirmed stop: no failure line.
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  EXPECT_FALSE(log_contains("not confirmed"));
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// A pack that went dark together with the power cut shows a last frame at or before the GoToSleep.
+TEST(NissanLeafSleepTests, LogsWhenThePackWentSilentWithThePowerCut) {
+  auto battery = awake_pack(99990);  // Last frame 10 ms before the cut
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+
+  battery->transmit_can(100000);
+  battery->transmit_can(100990);
+
+  EXPECT_TRUE(log_contains("last frame -10 ms")) << Logging::captured();
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// If BMS power returns while the pack is still talking, there is no proof it went off: say so.
+TEST(NissanLeafSleepTests, LogsWhenThePackNeverWentSilentBeforePowerReturned) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+
+  for (unsigned long t = 100000; t < 130000; t += 100) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());  // BMS_POWER is not feeding this LBC
+    battery->transmit_can(t);
+  }
+  EXPECT_FALSE(log_contains("went silent"));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): pack still on CAN when BMS power returned, GoToSleep not confirmed"))
+      << Logging::captured();
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
