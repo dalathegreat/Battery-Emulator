@@ -10,66 +10,65 @@ void BydCanInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   /* Calculate temperature */
-  temperature_average =
-      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
   /* Calculate capacity in 0.1 Ah units. Use nominal (mid-design) voltage so the rated value
    * is stable across SOC; multiply before divide to avoid integer truncation. Fall back to
    * current pack voltage when design limits aren't set yet (generic BMS without configured
    * BATTPVMAX/MIN, or BMS that hasn't reported its limits). */
   uint16_t nominal_voltage_dV =
-      (datalayer.battery.info.max_design_voltage_dV + datalayer.battery.info.min_design_voltage_dV) / 2;
+      (datalayer.aggregate.max_design_voltage_dV + datalayer.aggregate.min_design_voltage_dV) / 2;
   if (nominal_voltage_dV < 100) {
-    nominal_voltage_dV = datalayer.battery.status.voltage_dV;
+    nominal_voltage_dV = datalayer.aggregate.voltage_dV;
   }
   if (nominal_voltage_dV > 10) {
-    remaining_capacity_ah = (datalayer.battery.status.reported_remaining_capacity_Wh * 100UL) / nominal_voltage_dV;
-    fully_charged_capacity_ah = (datalayer.battery.info.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
+    remaining_capacity_ah = (datalayer.aggregate.reported_remaining_capacity_Wh * 100UL) / nominal_voltage_dV;
+    fully_charged_capacity_ah = (datalayer.aggregate.reported_total_capacity_Wh * 100UL) / nominal_voltage_dV;
   }
 
   //Map values to CAN messages
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
     //Target charge voltage (eg 400.0V = 4000 , 16bits long)
-    BYD_110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
-    BYD_110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
+    BYD_110.data.u8[0] = (datalayer.battery_settings.max_user_set_charge_voltage_dV >> 8);
+    BYD_110.data.u8[1] = (datalayer.battery_settings.max_user_set_charge_voltage_dV & 0x00FF);
     //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
-    BYD_110.data.u8[2] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
-    BYD_110.data.u8[3] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
+    BYD_110.data.u8[2] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV >> 8);
+    BYD_110.data.u8[3] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV & 0x00FF);
   } else {  //Use the voltage based on battery reported design voltage +- offset to avoid triggering events
     //Target charge voltage (eg 400.0V = 4000 , 16bits long)
-    BYD_110.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
-    BYD_110.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
+    BYD_110.data.u8[0] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
+    BYD_110.data.u8[1] = ((datalayer.aggregate.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
     //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
-    BYD_110.data.u8[2] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
-    BYD_110.data.u8[3] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
+    BYD_110.data.u8[2] = ((datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
+    BYD_110.data.u8[3] = ((datalayer.aggregate.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
   }
 
   //Maximum discharge power allowed (Unit: A+1)
-  BYD_110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
-  BYD_110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  BYD_110.data.u8[4] = (datalayer.aggregate.max_discharge_current_dA >> 8);
+  BYD_110.data.u8[5] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
   //Maximum charge power allowed (Unit: A+1)
-  BYD_110.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  BYD_110.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  BYD_110.data.u8[6] = (datalayer.aggregate.max_charge_current_dA >> 8);
+  BYD_110.data.u8[7] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
 
   //SOC (100.00%)
-  BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
-  BYD_150.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
+  BYD_150.data.u8[0] = (datalayer.aggregate.reported_soc >> 8);
+  BYD_150.data.u8[1] = (datalayer.aggregate.reported_soc & 0x00FF);
   if (user_selected_inverter_deye_workaround) {
     // Fix for avoiding offgrid Deye inverters to underdischarge batteries
-    if (datalayer.battery.status.max_charge_current_dA == 0) {
+    if (datalayer.aggregate.max_charge_current_dA == 0) {
       //Force to 100.00% incase battery no longer wants to charge
       BYD_150.data.u8[0] = (10000 >> 8);
       BYD_150.data.u8[1] = (10000 & 0x00FF);
     }
-    if (datalayer.battery.status.max_discharge_current_dA == 0) {
+    if (datalayer.aggregate.max_discharge_current_dA == 0) {
       //Force to 0% incase battery no longer wants to discharge
       BYD_150.data.u8[0] = 0;
       BYD_150.data.u8[1] = 0;
     }
   }
   //StateOfHealth (100.00%)
-  BYD_150.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
-  BYD_150.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
+  BYD_150.data.u8[2] = (datalayer.aggregate.soh_pptt >> 8);
+  BYD_150.data.u8[3] = (datalayer.aggregate.soh_pptt & 0x00FF);
   //Remaining capacity (Ah+1)
   BYD_150.data.u8[4] = (remaining_capacity_ah >> 8);
   BYD_150.data.u8[5] = (remaining_capacity_ah & 0x00FF);
@@ -82,24 +81,24 @@ void BydCanInverter::
   //BYD_190.data.u8[0] =
 
   //Voltage (ex 370.0)
-  BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
-  BYD_1D0.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  BYD_1D0.data.u8[0] = (datalayer.aggregate.voltage_dV >> 8);
+  BYD_1D0.data.u8[1] = (datalayer.aggregate.voltage_dV & 0x00FF);
   //Current (ex 81.0A)
-  BYD_1D0.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
-  BYD_1D0.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
+  BYD_1D0.data.u8[2] = (datalayer.aggregate.current_dA >> 8);
+  BYD_1D0.data.u8[3] = (datalayer.aggregate.current_dA & 0x00FF);
   //Temperature average
   BYD_1D0.data.u8[4] = (temperature_average >> 8);
   BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);
 
   //Temperature max
-  BYD_210.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  BYD_210.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  BYD_210.data.u8[0] = (datalayer.aggregate.temperature_max_dC >> 8);
+  BYD_210.data.u8[1] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
   //Temperature min
-  BYD_210.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  BYD_210.data.u8[2] = (datalayer.aggregate.temperature_min_dC >> 8);
+  BYD_210.data.u8[3] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
   //Capacity
-  BYD_250.data.u8[4] = (uint8_t)((datalayer.battery.info.reported_total_capacity_Wh / 100) >> 8);
-  BYD_250.data.u8[5] = (uint8_t)(datalayer.battery.info.reported_total_capacity_Wh / 100);
+  BYD_250.data.u8[4] = (uint8_t)((datalayer.aggregate.reported_total_capacity_Wh / 100) >> 8);
+  BYD_250.data.u8[5] = (uint8_t)(datalayer.aggregate.reported_total_capacity_Wh / 100);
 }
 
 void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
