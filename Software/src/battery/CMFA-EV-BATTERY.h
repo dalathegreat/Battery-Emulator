@@ -26,6 +26,8 @@ class CmfaEvBattery : public UdsCanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  virtual void enable_temporisation();
+  virtual void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
   static constexpr const char* Name = "CMFA platform, 27 kWh battery";
 
   String get_uds_info_html() override;
@@ -36,6 +38,18 @@ class CmfaEvBattery : public UdsCanBattery {
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
+
+  // UDS sequence states for this battery.
+  enum CmfaUdsState : uint16_t {
+    // UDS temporisation sequence
+    CMFA_STATE_TEMPORISATION_START = 0x01,
+    CMFA_STATE_TEMPORISATION_DIAG,  // 0x10 0x03 (extended session)
+    CMFA_STATE_TEMPORISATION_SEND,  // 0x2E 0x9281 (write temporisation)
+  };
+
+  // Timeouts for the UDS sequences (in UDS ticks).
+  static constexpr uint16_t CMFA_UDS_TIMEOUT_SESSION_CONTROL = 10;
+  static constexpr uint16_t CMFA_UDS_TIMEOUT_WRITE = 50;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
@@ -69,6 +83,11 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_END_OF_CHARGE_FLAG = 0x9019;
   static const int PID_POLL_INTERLOCK_FLAG = 0x901A;
   static const int PID_POLL_BATTERY_IDENTIFICATION = 0x901B;
+
+  static const int PID_POLL_TEMPORISATION = 0x9281;
+
+  static const int PID_POLL_PACK_TIME_LIFE = 0x91C1;
+  static const int PID_POLL_ABSOLUTE_TIME_SAVED = 0x9261;
 
   static const int PID_POLL_CELL_1 = 0x9021;
   static const int PID_POLL_CELL_2 = 0x9022;
@@ -204,6 +223,11 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t cumulative_energy_when_discharging = 0;
   uint32_t cumulative_energy_when_charging = 0;
   uint32_t cumulative_energy_in_regen = 0;
+  uint32_t pack_time_life = 0;       // Minutes
+  uint32_t absolute_time_saved = 0;  // Minutes
+  // Initial values, UINT32_MAX until the DID has been read at least once
+  uint32_t initial_pack_time_life = UINT32_MAX;
+  uint32_t initial_absolute_time_saved = UINT32_MAX;
   uint16_t soh_average = 10000;
   int32_t balance_capacity_total = 0;  // 1/1024 Ah
   int32_t balance_time_total = 0;      // 1/1024 h
@@ -218,6 +242,11 @@ class CmfaEvBattery : public UdsCanBattery {
   int32_t initial_balance_capacity_wake = INT32_MIN;
   int32_t initial_balance_time_wake = INT32_MIN;
   uint8_t bms_state = 0;
+  uint8_t temporisation = 0xFF;  // 0xFF until the DID has been read at least once
+
+  // Automatically re-enable temporisation at most every 60s.
+  static constexpr unsigned long TEMPORISATION_RETRY_MS = 60000;
+  unsigned long previousMillisTemporisation = 0;
 
   uint8_t counter_10ms = 0;
   uint8_t content_125[16] = {0x07, 0x0C, 0x01, 0x06, 0x0B, 0x00, 0x05, 0x0A,

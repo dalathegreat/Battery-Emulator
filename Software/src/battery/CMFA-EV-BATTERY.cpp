@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 #include "BATTERIES.h"
 
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
@@ -106,7 +107,13 @@ String CmfaEvBattery::get_uds_info_html() {
              "<h4>Balance capacity sleep: " << bal_mAh(balance_capacity_sleep) << "mAh (was " << bal_mAh(initial_balance_capacity_sleep) << "mAh)</h4>"
              "<h4>Balance time sleep: " << bal_s(balance_time_sleep) << "s (was " << bal_s(initial_balance_time_sleep) << "s)</h4>"
              "<h4>Balance capacity wake: " << bal_mAh(balance_capacity_wake) << "mAh (was " << bal_mAh(initial_balance_capacity_wake) << "mAh)</h4>"
-             "<h4>Balance time wake: " << bal_s(balance_time_wake) << "s (was " << bal_s(initial_balance_time_wake) << "s)</h4>";
+             "<h4>Balance time wake: " << bal_s(balance_time_wake) << "s (was " << bal_s(initial_balance_time_wake) << "s)</h4>"
+             "<h4>Temporisation: " << (
+                temporisation==0xFF ? "UNKNOWN" : 
+                temporisation==1 ? "ACTIVE" : "INACTIVE"
+             ) << "</h4>"
+             "<h4>Pack time life: " << pack_time_life << "m (was " << int32_t(initial_pack_time_life) << "m)</h4>"
+             "<h4>Absolute time saved: " << absolute_time_saved << "m (was " << int32_t(initial_absolute_time_saved) << "m)</h4>";
   // clang-format on
 
   return content;
@@ -283,6 +290,19 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
     case PID_POLL_BMS_STATE:
       bms_state = (uint8_t)value;
       break;
+    case PID_POLL_TEMPORISATION:
+      temporisation = value;
+      break;
+    case PID_POLL_PACK_TIME_LIFE:
+      pack_time_life = value;
+      if (initial_pack_time_life == UINT32_MAX)
+        initial_pack_time_life = pack_time_life;
+      break;
+    case PID_POLL_ABSOLUTE_TIME_SAVED:
+      absolute_time_saved = value;
+      if (initial_absolute_time_saved == UINT32_MAX)
+        initial_absolute_time_saved = absolute_time_saved;
+      break;
     case PID_POLL_BALANCE_SWITCHES: {
       // Assumed to use the same encoding as RENAULT-ZOE-2-BATTERY, with the
       // bitmap at the end of the payload, cell 1 in bit 0 of the last byte.
@@ -323,6 +343,29 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
   return 0;  //Continue scanning the PID list in order
 }
 
+void CmfaEvBattery::enable_temporisation() {
+  start_sequence(CMFA_STATE_TEMPORISATION_START);
+}
+
+void CmfaEvBattery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
+  // Called by the superclass when a response in a UDS sequence is received.
+  switch (state) {
+    case CMFA_STATE_TEMPORISATION_START:
+      // Enter an extended diagnostic session first.
+      send_sequence_message(CMFA_STATE_TEMPORISATION_DIAG, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            CMFA_UDS_TIMEOUT_SESSION_CONTROL, 2);
+      break;
+    case CMFA_STATE_TEMPORISATION_DIAG:
+      // Extended diagnostic session entered, write the temporisation value.
+      send_sequence_message(CMFA_STATE_TEMPORISATION_SEND, SID::WriteDataByIdentifier, (const uint8_t*)"\x92\x81\x01",
+                            3, CMFA_UDS_TIMEOUT_WRITE, 2);
+      break;
+    case CMFA_STATE_TEMPORISATION_SEND:
+      logging.println("[CMFA] Temporisation enabled (DID 0x9281 set to 0x01)");
+      break;
+  }
+}
+
 void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
@@ -342,6 +385,14 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
 
     transmit_can_frame(&CMFA_59B);
     transmit_can_frame(&CMFA_3D3);
+  }
+
+  // Automatically enable temporisation if the BMS reports it as disabled.
+  if (temporisation != 0xFF && currentMillis - previousMillisTemporisation >= TEMPORISATION_RETRY_MS) {
+    if (temporisation == 0) {
+      previousMillisTemporisation = currentMillis;
+      enable_temporisation();
+    }
   }
 
   // UDS PID polling and DTC handling
@@ -382,6 +433,9 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
       PID_POLL_BALANCE_CAPACITY_WAKE,
       PID_POLL_BALANCE_TIME_WAKE,
       PID_POLL_BMS_STATE,
+      PID_POLL_TEMPORISATION,
+      PID_POLL_PACK_TIME_LIFE,
+      PID_POLL_ABSOLUTE_TIME_SAVED,
       PID_POLL_BALANCE_SWITCHES,
       PID_POLL_CELL_1,
       PID_POLL_CELL_2,
