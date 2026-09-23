@@ -1,9 +1,11 @@
-#include "comm_nvm.h"
+﻿#include "comm_nvm.h"
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CanCharger.h"
+#ifndef SMALL_FLASH_DEVICE
 #include "../../charger/UUGP-CHARGER.h"
+#endif
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
@@ -409,5 +411,7 @@ void store_settings() {
   settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
   settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
   settings.saveBool("UUGP_ALLOW", uugp_allow_discharge_to_home_grid);
+  settings.saveUInt("UUGP_STARTMODE", uugp_start_mode);
 #endif
 }
+

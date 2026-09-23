@@ -1,4 +1,4 @@
-#include "settings_html.h"
+﻿#include "settings_html.h"
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -1129,12 +1129,16 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "FOXESSMODULES") {
     return String(settings.getUInt("FOXESSMODULES", 0));
   }
+#ifndef SMALL_FLASH_DEVICE
   if (var == "UUGP_PWRLIM") {
     return String(settings.getUInt("UUGP_PWRLIM", 10000));
   }
+#endif
+
   if (var == "UUGP_DSOC") {
     return String(settings.getUInt("UUGP_DSOC", 80));
   }
+
   if (var == "UUGP_ALLOW") {
     return settings.getBool("UUGP_ALLOW", false) ? "checked" : "";
   }
@@ -2150,7 +2154,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <div class="if-uugp">
+        #ifndef SMALL_FLASH_DEVICE
+<div class="if-uugp">
         <label>Allow UUGP discharge to home/grid: </label>
         <input type='checkbox'
            name='UUGP_ALLOW'
@@ -2174,15 +2179,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
            step="1"
            title="UUGP discharge cut-off SOC." />
         <label>UUGP start mode: </label>
-        <selectname='UUGP_STARTMODE'>
-         <optionvalue="0"%UUGP_STARTMODE_0%>Default RS485</option>
-         <optionvalue="1"%UUGP_STARTMODE_1%>Card swipe</option>
-         <optionvalue="2"%UUGP_STARTMODE_2%>Plug &amp; charge</option>
+        <select name='UUGP_STARTMODE'>
+          <option value="0" %UUGP_STARTMODE_0%>Default RS485</option>
+          <option value="1" %UUGP_STARTMODE_1%>Card swipe</option>
+          <option value="2" %UUGP_STARTMODE_2%>Plug &amp; charge</option>
         </select>
         <p>
         UUGP communication: RS485, 9600 baud, 8N1.
         </p>
         </div>
+#endif
 
         <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
@@ -2533,3 +2539,5 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 const char settings_html[] =
     INDEX_HTML_HEADER COMMON_JAVASCRIPT SETTINGS_STYLE SETTINGS_HTML_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+
+
