@@ -81,15 +81,37 @@ class NissanLeafBattery : public CanBattery {
   bool UserRequestSOHreset = false;
 #endif
 
-  /* Current is sampled from every 0x1DB frame. Accumulate the samples for the 1 s datalayer
-     update, while retaining the extremes of the window for safety. 32 bits is ample for the
-     sum: one second of 10 ms frames at the signal's full scale reaches about 102,000, four
-     orders of magnitude below the type, and it keeps the division out of the 64 bit helpers.
-     Both the sum and the count are signed on purpose - mixing a signed sum with an unsigned
-     count promotes the rounding arithmetic in update_values() to unsigned, which turns every
-     negative (discharge) window into a large positive current. */
-  int32_t battery_Current2_sum_raw = 0;
-  int32_t battery_Current2_sample_count = 0;
+  /* One window of raw 0x1DB current samples, kept whole so that its mean can leave out the lowest
+     and highest tenth: a stray reading then cannot pull the result. Room for 1.28 s of 10 ms
+     frames; should the window run longer, the oldest samples give way. trim() hands out the kept
+     samples' raw sum and count for pooling. 32 bits is ample for the sum: one second of 10 ms
+     frames at the signal's full scale reaches about 102,000, four orders of magnitude below the
+     type, and it keeps the division out of the 64 bit helpers. Both the sum and the count are
+     signed on purpose - mixing a signed sum with an unsigned count promotes the rounding
+     arithmetic to unsigned, which turns every negative (discharge) window into a large positive
+     current. */
+  struct CurrentWindow {
+    static const uint8_t CAPACITY = 128;
+    int16_t samples[CAPACITY];
+    uint8_t count = 0;
+    uint8_t next = 0;
+    void add(int16_t sample) {
+      samples[next] = sample;
+      next = (next + 1) % CAPACITY;
+      if (count < CAPACITY) {
+        count++;
+      }
+    }
+    void clear() {
+      count = 0;
+      next = 0;
+    }
+    void trim(int32_t& sum_raw, int32_t& kept);  //Sorts the samples, then clears the window
+  };
+
+  /* Current is sampled from every 0x1DB frame. The window's samples make the 1 s datalayer update,
+     while the extremes of the window are retained for safety. */
+  CurrentWindow battery_Current2_window;
   int16_t battery_Current2_peak_max_raw = 0;
   int16_t battery_Current2_peak_min_raw = 0;
   int16_t battery_Current2_peak_max_published_dA = 0;
@@ -103,16 +125,16 @@ class NissanLeafBattery : public CanBattery {
      because it cannot join the DC link. It holds while the contactor is closed, and the next
      opening measures afresh. When the LBC starts up, at boot or powered back on after a BMS reset,
      with the contactor open since before, nothing has flowed and only the LBC's start needs to
-     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Sums and
-     counts signed, for the reason above. */
+     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Each
+     bucket holds what is left of its second after trimming. Sums and counts signed, for the reason
+     above. */
   static const uint8_t AUTO_OFFSET_BUCKETS = 10;
   static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
   static const uint32_t AUTO_OFFSET_POWER_ON_SETTLE_MS = 30;
   int32_t auto_offset_bucket_sum_raw[AUTO_OFFSET_BUCKETS] = {};
   int32_t auto_offset_bucket_count[AUTO_OFFSET_BUCKETS] = {};
   uint8_t auto_offset_next_bucket = 0;
-  int32_t auto_offset_sum_raw = 0;  //The bucket being filled
-  int32_t auto_offset_sample_count = 0;
+  CurrentWindow auto_offset_window;  //The bucket being filled
   uint32_t auto_offset_open_since_ms = 0;
   uint32_t auto_offset_settle_ms = AUTO_OFFSET_SETTLE_MS;
   uint32_t auto_offset_last_sample_ms = 0;

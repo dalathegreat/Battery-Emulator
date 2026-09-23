@@ -19,6 +19,29 @@ static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
   return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
 }
 
+//Keeps the samples between the window's 10th and 90th percentiles: sorted, then a tenth of them
+//left out at each end. Counted in samples rather than values, so the many equal readings of the
+//0.5 A steps split correctly and the mean of what is kept still resolves below one step. An
+//insertion sort, as the window is short and a steady current leaves it nearly sorted already.
+void NissanLeafBattery::CurrentWindow::trim(int32_t& sum_raw, int32_t& kept) {
+  for (uint8_t i = 1; i < count; i++) {
+    const int16_t sample = samples[i];
+    uint8_t j = i;
+    while (j > 0 && samples[j - 1] > sample) {
+      samples[j] = samples[j - 1];
+      j--;
+    }
+    samples[j] = sample;
+  }
+  const uint8_t left_out = count / 10;
+  sum_raw = 0;
+  for (uint8_t i = left_out; i < count - left_out; i++) {
+    sum_raw += samples[i];
+  }
+  kept = count - 2 * left_out;
+  clear();
+}
+
 #ifndef SMALL_FLASH_DEVICE
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
@@ -78,12 +101,15 @@ void NissanLeafBattery::
   }
 
   // Publish the mean current seen on the 0x1DB CAN stream since the previous
-  // update_values() call. The raw accumulator is fed from every received frame,
-  // so this remains representative even though the normal datalayer update is 1 Hz.
-  // Less the sensor's offset, when the automatic correction has learned one.
-  if (battery_Current2_sample_count > 0) {
-    datalayer_battery->status.current_dA =
-        mean_current_dA(battery_Current2_sum_raw, battery_Current2_sample_count) - auto_offset_dA;
+  // update_values() call, between the window's 10th and 90th percentiles. The window
+  // is fed from every received frame, so this remains representative even though the
+  // normal datalayer update is 1 Hz. Less the sensor's offset, when the automatic
+  // correction has learned one. Trimming the window also starts the next one.
+  if (battery_Current2_window.count > 0) {
+    int32_t sum_raw = 0;
+    int32_t kept = 0;
+    battery_Current2_window.trim(sum_raw, kept);
+    datalayer_battery->status.current_dA = mean_current_dA(sum_raw, kept) - auto_offset_dA;
   }
 
   // Publish the extremes captured over the same window for safety checks. Kept separate
@@ -93,10 +119,8 @@ void NissanLeafBattery::
   battery_Current2_peak_max_published_dA = battery_Current2_peak_max_raw * 5;
   battery_Current2_peak_min_published_dA = battery_Current2_peak_min_raw * 5;
 
-  // Start the next accumulation window. update_machineryprotection() runs later
+  // Start the next window of extremes. update_machineryprotection() runs later
   // in the same core loop and therefore consumes the values published above.
-  battery_Current2_sum_raw = 0;
-  battery_Current2_sample_count = 0;
   battery_Current2_peak_max_raw = 0;
   battery_Current2_peak_min_raw = 0;
 
@@ -503,23 +527,19 @@ void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
     memset(auto_offset_bucket_sum_raw, 0, sizeof(auto_offset_bucket_sum_raw));
     memset(auto_offset_bucket_count, 0, sizeof(auto_offset_bucket_count));
     auto_offset_next_bucket = 0;
-    auto_offset_sum_raw = 0;
-    auto_offset_sample_count = 0;
+    auto_offset_window.clear();
   }
-  auto_offset_sum_raw += sample_raw;
-  auto_offset_sample_count++;
+  auto_offset_window.add(sample_raw);
 }
 
 //Closes the bucket filled since the previous update_values() and works the offset out afresh
 void NissanLeafBattery::update_current_offset() {
-  if (auto_offset_sample_count == 0) {
+  if (auto_offset_window.count == 0) {
     return;  //Nothing measured this second, so the offset holds
   }
-  auto_offset_bucket_sum_raw[auto_offset_next_bucket] = auto_offset_sum_raw;
-  auto_offset_bucket_count[auto_offset_next_bucket] = auto_offset_sample_count;
+  auto_offset_window.trim(auto_offset_bucket_sum_raw[auto_offset_next_bucket],
+                          auto_offset_bucket_count[auto_offset_next_bucket]);
   auto_offset_next_bucket = (auto_offset_next_bucket + 1) % AUTO_OFFSET_BUCKETS;
-  auto_offset_sum_raw = 0;
-  auto_offset_sample_count = 0;
 
   int32_t sum_raw = 0;
   int32_t count = 0;
@@ -545,11 +565,10 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      // Accumulate every 0x1DB sample for the 1 s published mean, and track the highest
-      // and lowest sample separately so a charge and a discharge excursion inside the same
-      // window both reach the safety path.
-      battery_Current2_sum_raw += battery_Current2;
-      battery_Current2_sample_count++;
+      // Keep every 0x1DB sample for the 1 s published mean, and track the highest and
+      // lowest sample separately so a charge and a discharge excursion inside the same
+      // window both reach the safety path, untouched by the trimming.
+      battery_Current2_window.add(battery_Current2);
       if (battery_Current2 > battery_Current2_peak_max_raw) {
         battery_Current2_peak_max_raw = battery_Current2;
       }
