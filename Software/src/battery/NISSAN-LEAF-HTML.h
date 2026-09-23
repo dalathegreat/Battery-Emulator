@@ -6,6 +6,10 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+//Automatic current offset correction, one setting for all packs. Declared here as the Status card
+//shows each pack's learned offset while it is enabled.
+extern bool user_selected_LEAF_auto_current_offset;
+
 class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
  public:
   NissanLeafHtmlRenderer(DATALAYER_BATTERY_TYPE* battery_dl, DATALAYER_INFO_NISSAN_LEAF* dl)
@@ -83,6 +87,12 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     content += "<h4>Temperature 4: " + String(nissan_dl->temperature4 / 10.0) + " &deg;C</h4>";
     content += "<h4>Insulation: " + String(nissan_dl->Insulation) + " kΩ</h4>";
+    if (user_selected_LEAF_auto_current_offset) {
+      content += "<h4>Automatic current offset: " +
+                 (nissan_dl->AutoCurrentOffsetKnown ? String(nissan_dl->AutoCurrentOffset_dA / 10.0f, 1) + " A"
+                                                    : String("Unknown")) +
+                 "</h4>";
+    }
     //The flags from the LBC's status broadcasts, each unknown until the broadcast carrying it has
     //arrived since boot (bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0, see StatusSeen)
     const uint8_t seen = nissan_dl->StatusSeen;

@@ -3,6 +3,7 @@
 #include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
 #include "../devboard/utils/common_functions.h"  //For CRC table
@@ -10,6 +11,14 @@
 #include "../devboard/utils/logging.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
+
+//Mean of raw 0x1DB current samples (0.5 A/bit) in dA. Scaled before dividing so the fraction of
+//the 0.5 A steps is kept, and rounded symmetrically around zero.
+static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
+  const int32_t sum_dA = sum_raw * 5;
+  return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
+}
+
 #ifndef SMALL_FLASH_DEVICE
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
@@ -64,20 +73,17 @@ void NissanLeafBattery::
   datalayer_battery->status.voltage_dV =
       (battery_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
+  if (user_selected_LEAF_auto_current_offset) {
+    update_current_offset();
+  }
+
   // Publish the mean current seen on the 0x1DB CAN stream since the previous
   // update_values() call. The raw accumulator is fed from every received frame,
   // so this remains representative even though the normal datalayer update is 1 Hz.
+  // Less the sensor's offset, when the automatic correction has learned one.
   if (battery_Current2_sample_count > 0) {
-    // Calculate the mean directly in dA before publishing so the fractional
-    // part of the raw 0.5 A samples is preserved. Round symmetrically around zero.
-    const int32_t current_dA_sum = battery_Current2_sum_raw * 5;
-    if (current_dA_sum >= 0) {
-      datalayer_battery->status.current_dA =
-          (int16_t)((current_dA_sum + battery_Current2_sample_count / 2) / battery_Current2_sample_count);
-    } else {
-      datalayer_battery->status.current_dA =
-          (int16_t)((current_dA_sum - battery_Current2_sample_count / 2) / battery_Current2_sample_count);
-    }
+    datalayer_battery->status.current_dA =
+        mean_current_dA(battery_Current2_sum_raw, battery_Current2_sample_count) - auto_offset_dA;
   }
 
   // Publish the extremes captured over the same window for safety checks. Kept separate
@@ -442,6 +448,80 @@ void NissanLeafBattery::
   }
 }
 
+//Whether this pack's contactor is known to be open. Only contactor control can tell: without it
+//contactors_engaged never leaves its start-up 0, and learning then would take the load current for
+//an offset. Pack 1's contactors are open until precharge starts (0) and once a fault has latched
+//them open (2). Packs 2 and 3 have one contactor each, only ever closed once pack 1's are.
+bool NissanLeafBattery::contactor_open() {
+  switch (battery_index) {
+    case 1: {
+      const uint8_t state = datalayer.system.status.contactors_engaged;
+      return contactor_control_enabled && (state == 0 || state == 2);
+    }
+    case 2:
+      return contactor_control_enabled_double_battery && !datalayer.system.status.contactors_battery2_engaged;
+    case 3:
+      return contactor_control_enabled_triple_battery && !datalayer.system.status.contactors_battery3_engaged;
+    default:
+      return false;
+  }
+}
+
+//Called for every 0x1DB sample while the automatic current offset correction is enabled
+void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
+  const uint32_t now = millis();
+  //A stream that has been silent, as while the LBC is powered down for a BMS reset, settles again
+  const bool resumed = (now - auto_offset_last_sample_ms) > AUTO_OFFSET_SETTLE_MS;
+  auto_offset_last_sample_ms = now;
+
+  if (!contactor_open()) {
+    auto_offset_open = false;
+    auto_offset_new_period = true;
+    return;
+  }
+  if (!auto_offset_open || resumed) {
+    auto_offset_open = true;
+    auto_offset_open_since_ms = now;
+  }
+  if ((now - auto_offset_open_since_ms) < AUTO_OFFSET_SETTLE_MS) {
+    return;  //Let whatever was flowing as the contactor opened die away
+  }
+
+  if (auto_offset_new_period) {
+    //First settled sample since the contactor opened: what the previous opening measured goes
+    auto_offset_new_period = false;
+    memset(auto_offset_bucket_sum_raw, 0, sizeof(auto_offset_bucket_sum_raw));
+    memset(auto_offset_bucket_count, 0, sizeof(auto_offset_bucket_count));
+    auto_offset_next_bucket = 0;
+    auto_offset_sum_raw = 0;
+    auto_offset_sample_count = 0;
+  }
+  auto_offset_sum_raw += sample_raw;
+  auto_offset_sample_count++;
+}
+
+//Closes the bucket filled since the previous update_values() and works the offset out afresh
+void NissanLeafBattery::update_current_offset() {
+  if (auto_offset_sample_count == 0) {
+    return;  //Nothing measured this second, so the offset holds
+  }
+  auto_offset_bucket_sum_raw[auto_offset_next_bucket] = auto_offset_sum_raw;
+  auto_offset_bucket_count[auto_offset_next_bucket] = auto_offset_sample_count;
+  auto_offset_next_bucket = (auto_offset_next_bucket + 1) % AUTO_OFFSET_BUCKETS;
+  auto_offset_sum_raw = 0;
+  auto_offset_sample_count = 0;
+
+  int32_t sum_raw = 0;
+  int32_t count = 0;
+  for (uint8_t i = 0; i < AUTO_OFFSET_BUCKETS; i++) {
+    sum_raw += auto_offset_bucket_sum_raw[i];
+    count += auto_offset_bucket_count[i];
+  }
+  auto_offset_dA = mean_current_dA(sum_raw, count);
+  datalayer_nissan->AutoCurrentOffset_dA = auto_offset_dA;
+  datalayer_nissan->AutoCurrentOffsetKnown = true;
+}
+
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1DB: {
@@ -465,6 +545,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       if (battery_Current2 < battery_Current2_peak_min_raw) {
         battery_Current2_peak_min_raw = battery_Current2;
+      }
+      if (user_selected_LEAF_auto_current_offset) {
+        learn_current_offset(battery_Current2);
       }
 
       battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
