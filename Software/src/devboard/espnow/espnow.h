@@ -132,10 +132,13 @@ enum espnow_type_t {
 #define ESPNOW_LEN_CODE_MAX_INLINE 29
 
 enum espnow_frame_type_t {
-  ESPNOW_FRAME_SYSTEM = 0x01,  /* emulator-wide state, battery_id = 0 */
-  ESPNOW_FRAME_BATTERY = 0x02, /* per-battery scalars, battery_id = 1..3 */
-  ESPNOW_FRAME_CELLS = 0x03,   /* per-battery cell voltages + balancing bits */
-  ESPNOW_FRAME_EVENT = 0x04    /* one emulator event */
+  ESPNOW_FRAME_SYSTEM = 0x01,   /* emulator-wide state, battery_id = 0 */
+  ESPNOW_FRAME_BATTERY = 0x02,  /* per-battery scalars, battery_id = 1..3 */
+  ESPNOW_FRAME_CELLS = 0x03,    /* per-battery cell voltages + balancing bits */
+  ESPNOW_FRAME_EVENT = 0x04,    /* one emulator event */
+  ESPNOW_FRAME_AGGREGATE = 0x05 /* every configured pack rolled into one, battery_id = 0. Only
+                                   sent when more than one battery is configured: with a single
+                                   pack it would repeat ESPNOW_FRAME_BATTERY verbatim */
 };
 
 /* -------------------------------------------------------------------------------------
@@ -216,7 +219,9 @@ enum espnow_key_t {
   ESPNOW_KEY_BALANCING_STATUS = 0x66,         /* UINT8  balancing_status_enum (types.h) */
   ESPNOW_KEY_BALANCING_ACTIVE_CELLS = 0x67,   /* UINT16 count of shunts currently on */
   ESPNOW_KEY_CHARGING_STATE = 0x68,           /* UINT8  ChargingState (types.h) */
-  ESPNOW_KEY_LIMITING_FACTOR = 0x69,          /* UINT8  LimitingFactor (types.h) */
+  ESPNOW_KEY_LIMITING_FACTOR = 0x69,          /* UINT8  LimitingFactor (types.h). Omitted when
+                                                 several packs are configured - see
+                                                 ESPNOW_KEY_AGG_LIMITING_FACTOR */
   ESPNOW_KEY_REAL_BMS_STATUS = 0x6A,          /* UINT8  real_bms_status_enum (types.h) */
   ESPNOW_KEY_CAN_ALIVE = 0x6B,                /* UINT8  battery keepalive countdown */
   ESPNOW_KEY_CAN_ERROR_COUNTER = 0x6C,        /* UINT16 CAN CRC error count */
@@ -244,12 +249,45 @@ enum espnow_key_t {
   /* 0xA5 RETIRED. Was "UINT8 event specific payload byte". The payload is signed and wider
      than a byte (deci-Celsius temperatures), so per the compatibility rules above the key was
      retired rather than redefined, and ESPNOW_KEY_EVENT_DATA_I16 allocated in its place. */
-  ESPNOW_KEY_EVENT_MILLIS = 0xA6,  /* UINT64 millis64() at the last occurrence */
-  ESPNOW_KEY_EVENT_MESSAGE = 0xA7, /* STR    human readable description, " (Battery N)" appended
+  ESPNOW_KEY_EVENT_MILLIS = 0xA6,   /* UINT64 millis64() at the last occurrence */
+  ESPNOW_KEY_EVENT_MESSAGE = 0xA7,  /* STR    human readable description, " (Battery N)" appended
                                         when the event refers to one specific pack */
-  ESPNOW_KEY_EVENT_INDEX = 0xA8,   /* UINT8  position in the replay batch, 0 = most recent */
-  ESPNOW_KEY_EVENT_TOTAL = 0xA9,   /* UINT8  events in this replay batch, 1..ESPNOW_EVENT_REPLAY */
-  ESPNOW_KEY_EVENT_DATA_I16 = 0xAA /* INT16  event specific payload, replaces retired 0xA5 */
+  ESPNOW_KEY_EVENT_INDEX = 0xA8,    /* UINT8  position in the replay batch, 0 = most recent */
+  ESPNOW_KEY_EVENT_TOTAL = 0xA9,    /* UINT8  events in this replay batch, 1..ESPNOW_EVENT_REPLAY */
+  ESPNOW_KEY_EVENT_DATA_I16 = 0xAA, /* INT16  event specific payload, replaces retired 0xA5 */
+
+  /* ---- the whole installation (ESPNOW_FRAME_AGGREGATE) ----
+     Deliberately their own keys rather than a reuse of 0x50..0x64: a receiver that decodes by
+     key alone cannot then mistake one pack's reading for the installation's. These are what the
+     inverter is given. */
+  ESPNOW_KEY_AGG_SOC_PPTT = 0xB0,                 /* UINT16 0.01 %, scaled/reported SOC */
+  ESPNOW_KEY_AGG_SOC_REAL_PPTT = 0xB1,            /* UINT16 0.01 %, emptiest pack, blended to
+                                                     the fullest above 90 % */
+  ESPNOW_KEY_AGG_SOH_PPTT = 0xB2,                 /* UINT16 0.01 %, weakest pack, omitted until one reports */
+  ESPNOW_KEY_AGG_VOLTAGE_DV = 0xB3,               /* UINT16 deciVolt, shared DC bus */
+  ESPNOW_KEY_AGG_CURRENT_DA = 0xB4,               /* INT16  deciAmpere, every pack summed */
+  ESPNOW_KEY_AGG_ACTIVE_POWER_W = 0xB5,           /* INT32  W, + = charging */
+  ESPNOW_KEY_AGG_TOTAL_CAPACITY_WH = 0xB6,        /* UINT32 Wh, every configured pack summed */
+  ESPNOW_KEY_AGG_REPORTED_CAPACITY_WH = 0xB7,     /* UINT32 Wh, inside the SOC window */
+  ESPNOW_KEY_AGG_REMAINING_CAPACITY_WH = 0xB8,    /* UINT32 Wh, real */
+  ESPNOW_KEY_AGG_REPORTED_REMAIN_WH = 0xB9,       /* UINT32 Wh, inside the SOC window */
+  ESPNOW_KEY_AGG_MAX_CHARGE_POWER_W = 0xBA,       /* UINT32 W, after safety, taper and filter */
+  ESPNOW_KEY_AGG_MAX_DISCHARGE_POWER_W = 0xBB,    /* UINT32 W, after safety, taper and filter */
+  ESPNOW_KEY_AGG_MAX_CHARGE_CURRENT_DA = 0xBC,    /* UINT16 deciAmpere */
+  ESPNOW_KEY_AGG_MAX_DISCHARGE_CURRENT_DA = 0xBD, /* UINT16 deciAmpere */
+  ESPNOW_KEY_AGG_CELL_MAX_MV = 0xBE,              /* UINT16 mV, highest in any talking pack */
+  ESPNOW_KEY_AGG_CELL_MIN_MV = 0xBF,              /* UINT16 mV, lowest in any talking pack */
+  ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC = 0xC0,       /* INT16  0.1 degrees C */
+  ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC = 0xC1,       /* INT16  0.1 degrees C */
+  ESPNOW_KEY_AGG_TOTAL_CHARGED_WH = 0xC2,         /* INT32  Wh lifetime, every pack summed */
+  ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH = 0xC3,      /* INT32  Wh lifetime, every pack summed */
+  ESPNOW_KEY_AGG_CHARGING_STATE = 0xC4,           /* UINT8  ChargingState (types.h), from the
+                                                     summed current */
+  ESPNOW_KEY_AGG_LIMITING_FACTOR = 0xC5           /* UINT8  LimitingFactor (types.h). Describes
+                                                     why the inverter's limit is what it is, so
+                                                     it belongs to the installation, not a pack.
+                                                     ESPNOW_KEY_LIMITING_FACTOR is only sent in
+                                                     a pack frame when there is a single pack */
 };
 
 void init_espnow();
