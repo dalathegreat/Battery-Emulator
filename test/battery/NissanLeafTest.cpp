@@ -1335,6 +1335,7 @@ class NissanLeafAutoCurrentOffsetTests : public ::testing::Test {
 
   void SetUp() override {
     set_millis64(100000);
+    bms_power_on_ms = 100000;  // Booting: the BMS power has just gone on
     user_selected_LEAF_auto_current_offset = true;
     contactor_control_enabled = true;
     contactor_control_enabled_double_battery = false;
@@ -1346,6 +1347,7 @@ class NissanLeafAutoCurrentOffsetTests : public ::testing::Test {
   }
 
   void TearDown() override {
+    bms_power_on_ms = 0;
     user_selected_LEAF_auto_current_offset = false;
     contactor_control_enabled = false;
     contactor_control_enabled_double_battery = false;
@@ -1370,6 +1372,27 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLearnWhileOpenAndHoldWhileClosed)
   run_seconds(battery, 25, 2);  // 12.5 A as read, 10 A of it real
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 25);
   EXPECT_EQ(datalayer.battery.status.current_dA, 100);
+}
+
+// At boot nothing has flowed yet, so only 30 ms after the BMS power went on are left out.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettleFor30msAfterBmsPowerAtBoot) {
+  feed_current(battery, 40, 30);  // 0, 10 and 20 ms: the LBC starting up
+  feed_current(battery, 4, 270);  // Past the boot settle, though inside the 300 ms an opening gets
+  feed_current(battery, 2, 700);
+  battery->update_values();
+  // (27 x 20 dA + 70 x 10 dA) / 97 rounds to 13, where a 300 ms settle would give 10
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 13);
+}
+
+// Timed from the BMS power going on, not from the first frame, so a late LBC starts at once.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldTimeTheBootSettleFromBmsPower) {
+  bms_power_on_ms = 100000 - 800;
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 40));  // 800 ms after power on
+  set_millis64(millis() + 10);
+  feed_current(battery, 2, 990);
+  battery->update_values();
+  // (20 dA + 99 x 10 dA) / 100 rounds to 12, where leaving the first frame out would give 10
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 12);
 }
 
 // Whatever was still flowing in the first 300 ms after the contactors opened is not learned.
