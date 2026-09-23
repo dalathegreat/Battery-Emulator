@@ -87,6 +87,8 @@ String CmfaEvBattery::get_uds_info_html() {
   content << "<h4>SOC U: " << soc_u << "percent</h4>"
              "<h4>SOC Z: " << soc_z << "percent</h4>"
              "<h4>SOH Average: " << soh_average << "pptt</h4>"
+             "<h4>Instant current: " << (((int32_t)instant_current_raw - 48000) * 25) << "mA</h4>"
+             "<h4>Average current: " << ((((int32_t)instant_current_raw - 32640) * 125) / 4) << "mA</h4>"
              "<h4>12V voltage: " << lead_acid_voltage << "mV</h4>"
              "<h4>Highest cell number: " << highest_cell_voltage_number << "</h4>"
              "<h4>Lowest cell number: " << lowest_cell_voltage_number << "</h4>"
@@ -213,7 +215,10 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
       // Not used
       break;
     case PID_POLL_INSTANT_CURRENT:
-      // Not used
+      instant_current_raw = value;
+      break;
+    case PID_POLL_100MS_CURRENT:
+      averaged_current_raw = value;
       break;
     case PID_POLL_MAX_REGEN:
       max_regen_power = (uint16_t)value;
@@ -340,6 +345,13 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
 
       break;
   }
+
+  // The instantaneous current changes quickly, so sample it every other PID by
+  // requesting it out-of-sequence next; the scan list then resumes where it
+  // left off when the instant current response comes back (which returns 0).
+  if (pid != PID_POLL_INSTANT_CURRENT) {
+    return PID_POLL_INSTANT_CURRENT;
+  }
   return 0;  //Continue scanning the PID list in order
 }
 
@@ -416,8 +428,8 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
       PID_POLL_CUMULATIVE_ENERGY_IN_REGEN,
       PID_POLL_SOCZ,
       PID_POLL_USOC,
-      PID_POLL_CURRENT_OFFSET,
-      PID_POLL_INSTANT_CURRENT,
+      //PID_POLL_CURRENT_OFFSET,
+      PID_POLL_100MS_CURRENT,
       PID_POLL_MAX_REGEN,
       PID_POLL_MAX_DISCHARGE_POWER,
       PID_POLL_MAX_CHARGE_POWER,

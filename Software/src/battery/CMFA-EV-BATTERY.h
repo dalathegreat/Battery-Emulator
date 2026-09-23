@@ -83,6 +83,7 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_END_OF_CHARGE_FLAG = 0x9019;
   static const int PID_POLL_INTERLOCK_FLAG = 0x901A;
   static const int PID_POLL_BATTERY_IDENTIFICATION = 0x901B;
+  static const int PID_POLL_100MS_CURRENT = 0x925D;
 
   static const int PID_POLL_TEMPORISATION = 0x9281;
 
@@ -264,6 +265,8 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t SOC_raw = 20000;
   uint16_t SOH = 99;
   int16_t current_raw = 2000;
+  uint32_t instant_current_raw = 0;
+  uint32_t averaged_current_raw = 0;
   uint16_t pack_voltage = 500;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;
