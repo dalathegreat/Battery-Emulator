@@ -482,7 +482,7 @@ TEST(BmsResetTests, WaitsForBatteryReadinessBeforeCuttingPower) {
   datalayer.system.info.equipment_stop_active = false;
   remote_bms_reset = true;
   contactor_control_enabled = true;
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 30000;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
   set_millis64(1000000);
 
   clear_pin_writes();

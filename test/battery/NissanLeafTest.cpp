@@ -1626,7 +1626,7 @@ TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
   periodic_bms_reset = false;
   contactor_control_enabled = true;
   datalayer.system.status.contactors_engaged = 1;  // Closed, so the bits start at 1
-  datalayer.battery.settings.user_set_bms_reset_duration_ms = 5000;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 5000;
   const uint8_t bms_pin = (uint8_t)esp32hal->BMS_POWER();
 
   clear_transmitted_frames();
