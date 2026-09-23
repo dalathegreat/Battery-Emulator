@@ -924,6 +924,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(datalayer.battery_settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
   }
 
+  if (var == "BMS_RESET_CLASS") {
+    // The off time and the reset button follow the "Periodic BMS reset" checkbox as saved.
+    return settings.getBool("PERBMSRESET") ? "" : "hidden";
+  }
+
   if (var == "CHARGER_CLASS") {
     if (!charger) {
       return "hidden";
@@ -1318,6 +1323,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600.');}}}
+
+        function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -2414,7 +2422,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4 class='%BMS_RESET_CLASS%'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+
+      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS reset now: <button onclick='startBMSReset()'>Start</button></h4>
 
       <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
