@@ -102,22 +102,39 @@ void PylonLV485InverterProtocol::route_frame_request(const std::string& frame_st
     return;
   }
 
-  // Extract command (CID2) from positions 7-8
+  // Extract command (CID2) from positions 7-8. These are the real Pylontech
+  // CID2 command codes - not to be confused with the RTN (return code)
+  // field, which reuses this same byte position in our response but means
+  // something different: 0x00 = Normal, not an echo of the command we're
+  // replying to.
+  //
+  // Two generations of command codes exist for the same information: the
+  // original per-battery commands (spec section 2.5.2 in the V3.3 protocol
+  // doc) and a newer, system-level command group added in V3.5 (queried
+  // through the master battery, "a CAN-protocol-like design... for
+  // expansion"). An inverter may use either depending on its firmware, so
+  // both are accepted here.
   std::string cid2 = frame_str.substr(7, 2);
 
-  if (cid2 == "61") {
-    handle_command_61();
-  } else if (cid2 == "62") {
-    handle_command_62();
-  } else if (cid2 == "63") {
-    handle_command_63();
+  if (cid2 == "42" || cid2 == "61") {
+    // 42H = get analog value (V2.x, per-battery); 61H = get system analog
+    // data (V3.5+, system-level)
+    handle_get_analog_value();
+  } else if (cid2 == "44" || cid2 == "62") {
+    // 44H = get alarm info (V2.x, per-battery); 62H = get system alarm
+    // info (V3.5+, system-level)
+    handle_get_alarm_info();
+  } else if (cid2 == "92" || cid2 == "63") {
+    // 92H = get charge/discharge management info (V2.x, per-battery);
+    // 63H = get system charge/discharge management info (V3.5+, system-level)
+    handle_get_charge_discharge_info();
   } else {
     logging.printf("RX: Unknown command 0x%s\n", cid2.c_str());
   }
 }
 
-void PylonLV485InverterProtocol::handle_command_61() {
-  // Command 0x61: System Analog Value (26 values, 49 bytes total)
+void PylonLV485InverterProtocol::handle_get_analog_value() {
+  // Command 0x42: Get analog value, fixed point (26 values, 49 bytes total)
   // Uses safe defaults, overridden by datalayer values if available
 
   uint16_t cycles = 100;
@@ -144,9 +161,9 @@ void PylonLV485InverterProtocol::handle_command_61() {
   if (datalayer.aggregate.temperature_min_dC > -273)
     min_cell_temp = (datalayer.aggregate.temperature_min_dC + 273.15) * 10;
 
-  // Log what we're sending for 0x61
+  // Log what we're sending for 0x42
   if (datalayer.system.info.web_logging_active) {
-    // logging.printf("[FakePylontech485] TX 0x61: V=%u mV, I=%d cA, SOC=%u%%, Cycles=%u, SOH=%u%%, MaxCell=%u mV, MinCell=%u mV\n",
+    // logging.printf("[FakePylontech485] TX 0x42: V=%u mV, I=%d cA, SOC=%u%%, Cycles=%u, SOH=%u%%, MaxCell=%u mV, MinCell=%u mV\n",
     //                voltage_mv, current_ca, soc_percent, cycles, soh, max_cell_v, min_cell_v);
   }
 
@@ -160,16 +177,19 @@ void PylonLV485InverterProtocol::handle_command_61() {
 
   std::string info_str(info_payload);
   std::string length_field = calculate_length_field(info_str.length());
+  // "4600" = CID1(46H, battery data) + RTN(00H, Normal) - RTN is a return
+  // code, not an echo of the request's CID2 command. See the note above
+  // route_frame_request().
   std::string frame_data =
-      std::string(PROTOCOL_VERSION) + std::string(RESPONSE_ADDRESS) + "4661" + length_field + info_str;
+      std::string(PROTOCOL_VERSION) + std::string(RESPONSE_ADDRESS) + "4600" + length_field + info_str;
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
   Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
 }
 
-void PylonLV485InverterProtocol::handle_command_62() {
-  // Command 0x62: System Alarm/Protection Status (4 bytes)
+void PylonLV485InverterProtocol::handle_get_alarm_info() {
+  // Command 0x44: Get alarm info (4 bytes)
   // All bits start as 0 (no alarms/protections triggered)
 
   uint8_t alarm_status_1 = 0;
@@ -186,20 +206,21 @@ void PylonLV485InverterProtocol::handle_command_62() {
 
   std::string info_str(info_payload);
   std::string length_field = calculate_length_field(info_str.length());
+  // "4600" = CID1(46H) + RTN(00H, Normal) - see note above route_frame_request().
   std::string frame_data =
-      std::string(PROTOCOL_VERSION) + std::string(RESPONSE_ADDRESS) + "4662" + length_field + info_str;
+      std::string(PROTOCOL_VERSION) + std::string(RESPONSE_ADDRESS) + "4600" + length_field + info_str;
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
   Serial2.write((const uint8_t*)full_frame.c_str(), full_frame.length());
 
   if (datalayer.system.info.web_logging_active) {
-    // logging.printf("[FakePylontech485] Frame TX 0x62: %s\n", full_frame.c_str());
+    // logging.printf("[FakePylontech485] Frame TX 0x44: %s\n", full_frame.c_str());
   }
 }
 
-void PylonLV485InverterProtocol::handle_command_63() {
-  // Command 0x63: Charge/Discharge Management (9 bytes)
+void PylonLV485InverterProtocol::handle_get_charge_discharge_info() {
+  // Command 0x92: Get charge, discharge management info (9 bytes)
   // Format: Max_Charge_Voltage(2) | Min_Discharge_Voltage(2) | Max_Charge_Current(2) | Max_Discharge_Current(2) | Status(1)
 
   char info_payload[19];
@@ -208,8 +229,9 @@ void PylonLV485InverterProtocol::handle_command_63() {
 
   std::string info_str(info_payload);
   std::string length_field = calculate_length_field(info_str.length());
+  // "4600" = CID1(46H) + RTN(00H, Normal) - see note above route_frame_request().
   std::string frame_data =
-      std::string(PROTOCOL_VERSION) + std::string(RESPONSE_ADDRESS) + "4663" + length_field + info_str;
+      std::string(PROTOCOL_VERSION) + std::string(RESPONSE_ADDRESS) + "4600" + length_field + info_str;
   std::string checksum = calculate_checksum(frame_data);
   std::string full_frame = "~" + frame_data + checksum + "\r";
 
