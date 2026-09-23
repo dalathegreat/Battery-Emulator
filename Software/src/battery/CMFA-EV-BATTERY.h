@@ -265,8 +265,8 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t SOC_raw = 20000;
   uint16_t SOH = 99;
   int16_t current_raw = 2000;
-  uint32_t instant_current_raw = 0;
-  uint32_t averaged_current_raw = 0;
+  uint32_t instant_current_raw = 48000;
+  uint32_t averaged_current_raw = 32640;
   uint16_t pack_voltage = 500;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;
