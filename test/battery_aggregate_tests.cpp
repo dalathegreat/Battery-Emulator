@@ -491,4 +491,26 @@ TEST_F(BatteryAggregateTest, SinglePackSohAvailabilityPassesThrough) {
   EXPECT_EQ(datalayer.aggregate.soh_pptt, 7560);
 }
 
+// Every pack starts at 0 V until its integration has decoded one. The inverter must never see
+// that 0: until pack 1 has a reading it keeps getting the 370.0 V the packs used to start on.
+TEST_F(BatteryAggregateTest, UndecodedVoltageSendsPlaceholder) {
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 0);  // the pack's own power-on value
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3700);
+
+  datalayer.battery.status.voltage_dV = 3525;  // decoded: passed through as is
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3525);
+}
+
+// An LV installation must not be told 370.0 V: it gets the middle of its design window instead
+TEST_F(BatteryAggregateTest, UndecodedLvVoltageSendsMiddleOfDesignWindow) {
+  datalayer.battery.info.min_design_voltage_dV = 400;
+  datalayer.battery.info.max_design_voltage_dV = 580;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 490);
+}
+
 }  // namespace
