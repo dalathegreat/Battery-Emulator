@@ -156,6 +156,9 @@ class NissanLeafBattery : public CanBattery {
      Steps are cumulative: each one keeps the overrides of the steps before it. */
   void advance_ending_sequence(unsigned long currentMillis);
   static const unsigned long ENDING_STEP_HOLD_MS = 100;  // ~10 consecutive 10 ms frames per step
+
+  // How long CAN errors on this pack's interface stay muted after a BMS reset has ended.
+  static const uint32_t BMS_RESET_CAN_ERROR_GRACE_MS = 5000;
   enum EndingStep : uint8_t {
     ENDING_NOT_STARTED,
     ENDING_CHG_STA_RQ_STOP,  // 0x1F2 CHG_STA_RQ = 11b

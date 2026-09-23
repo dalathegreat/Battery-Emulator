@@ -209,11 +209,13 @@ void NissanLeafBattery::
     //silent no-close, so name the signal that is holding it.
     if (pack_permits != (contactor_permission_state == 1)) {
       contactor_permission_state = pack_permits ? 1 : 0;
+      //Named by pack, in the same "(Battery N)" form events use, so double and triple setups can tell
+      //which LBC is holding.
       if (pack_permits) {
-        logging.printf("LEAF: pack permits contactor closing\n");
+        logging.printf("LEAF (Battery %u): pack permits contactor closing\n", (unsigned)battery_index);
       } else {
-        logging.printf("LEAF: contactor close held. FRLYON:%u FAIL:%u interlock:%u\n", battery_MainRelayOn_flag,
-                       battery_Relay_Cut_Request, battery_Interlock);
+        logging.printf("LEAF (Battery %u): contactor close held. FRLYON:%u FAIL:%u interlock:%u\n",
+                       (unsigned)battery_index, battery_MainRelayOn_flag, battery_Relay_Cut_Request, battery_Interlock);
       }
     }
   }
@@ -1258,6 +1260,17 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   handle_DTC_requests(currentMillis);
 
   advance_ending_sequence(currentMillis);
+
+  /* A BMS reset takes the LBC off this bus. While BMS power is off nothing acknowledges our frames -
+     the GoToSleep in particular goes to a pack that may already be unpowered - and the LBC's own
+     power-down and boot disturb the bus, so the controller reports TX/RX errors that are expected
+     rather than a wiring fault. Refreshed on every pass of the reset, so the mute spans all of it
+     and runs on for BMS_RESET_CAN_ERROR_GRACE_MS afterwards while the error counters decay.
+     Scoped to this pack's own interface: other packs and the inverter keep reporting normally,
+     unless they share it. Same mechanism the MG Gen1 and MEB resets use. */
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    ignore_can_errors_for(can_interface, BMS_RESET_CAN_ERROR_GRACE_MS);
+  }
 
   /* PREPARING_POWER_OFF is the exception: BMS power is still on and the ending sequence has to
      reach the pack, so the normal frame set keeps going with the overrides applied below. */

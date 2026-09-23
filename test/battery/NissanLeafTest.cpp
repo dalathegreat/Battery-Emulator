@@ -1714,3 +1714,62 @@ TEST(NissanLeafSleepTests, ReadyForPowerOffAtOnceWhenThePackNeverTalked) {
   leaf->setup();
   EXPECT_TRUE(leaf->ready_for_bms_power_off());
 }
+
+// --- CAN errors are expected while the LBC is power cycled --------------------
+
+/* Nothing acknowledges frames while BMS power is off, so TX/RX errors on the pack's interface are
+   muted for the whole reset and a grace period after it. The window is refreshed by the driver on
+   every non-idle pass, so it is measured from the last such pass. Other interfaces are untouched. */
+TEST(NissanLeafSleepTests, MutesCanErrorsOnItsOwnInterfaceDuringAndJustAfterAReset) {
+  reset_all_events();
+  auto leaf = awake_pack(1000000);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  leaf->transmit_can(1000000);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_INACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUFFER_FULL)->state, EVENT_STATE_INACTIVE);
+
+  // A different interface is not this pack's business.
+  set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CANMCP2515_BUS_ERROR)->state, EVENT_STATE_ACTIVE);
+
+  // Still muted late in the reset, well past the grace period measured from the start.
+  set_millis64(1029000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  leaf->transmit_can(1029000);
+  set_millis64(1032000);  // Last non-idle pass
+  leaf->transmit_can(1032000);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_INACTIVE);
+
+  // Reset over. Muted for the grace period, then reported again.
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  set_millis64(1033000);
+  leaf->transmit_can(1033000);
+  set_millis64(1032000 + 4999);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_INACTIVE);
+
+  set_millis64(1032000 + 5001);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_ACTIVE)
+      << "a genuine wiring fault after the reset would stay hidden";
+
+  reset_all_events();
+}
+
+// Outside a reset nothing is muted: a Leaf on a healthy bus must still report real errors.
+TEST(NissanLeafSleepTests, DoesNotMuteCanErrorsOutsideAReset) {
+  reset_all_events();
+  auto leaf = awake_pack(2000000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  leaf->transmit_can(2000000);
+
+  set_millis64(2100000);  // Clear of any window left by an earlier test
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_ACTIVE);
+
+  reset_all_events();
+}

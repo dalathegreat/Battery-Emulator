@@ -516,10 +516,23 @@ static void bms_reset_can_keepalive_tick() {
   bms_reset_refresh_can_alive();
 }
 
-// Every configured battery has said what it needed to before losing BMS power.
+// The first configured battery (1, 2 or 3) that still has something to send before losing BMS
+// power, or 0 when every one of them is ready.
+static uint8_t first_battery_not_ready_for_bms_power_off() {
+  if (battery && !battery->ready_for_bms_power_off()) {
+    return 1;
+  }
+  if (battery2 && !battery2->ready_for_bms_power_off()) {
+    return 2;
+  }
+  if (battery3 && !battery3->ready_for_bms_power_off()) {
+    return 3;
+  }
+  return 0;
+}
+
 static bool batteries_ready_for_bms_power_off() {
-  return (!battery || battery->ready_for_bms_power_off()) && (!battery2 || battery2->ready_for_bms_power_off()) &&
-         (!battery3 || battery3->ready_for_bms_power_off());
+  return first_battery_not_ready_for_bms_power_off() == 0;
 }
 
 /* The single place that decides to cut BMS power. When every battery is ready it does so at once,
@@ -605,11 +618,12 @@ void handle_BMSpower() {
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_PREPARING_POWER_OFF) {
       // A battery driver is sending its last CAN before losing power. Cut once it is done.
+      uint8_t not_ready = first_battery_not_ready_for_bms_power_off();
       bool timed_out = currentTime - bmsPreparePowerOffTime >= BMS_PREPARE_POWER_OFF_TIMEOUT_MS;
-      if (batteries_ready_for_bms_power_off() || timed_out) {
-        if (timed_out) {
-          logging.printf("BMS reset: Battery not ready for power off after %u ms, cutting anyway.\n",
-                         (unsigned)BMS_PREPARE_POWER_OFF_TIMEOUT_MS);
+      if (not_ready == 0 || timed_out) {
+        if (not_ready != 0) {
+          logging.printf("BMS reset: Battery %u not ready for power off after %u ms, cutting anyway.\n",
+                         (unsigned)not_ready, (unsigned)BMS_PREPARE_POWER_OFF_TIMEOUT_MS);
         }
         bms_power_off();
         lastPowerRemovalTime = currentTime;
