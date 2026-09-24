@@ -71,6 +71,8 @@ TEST(BmsResetTests, BmsResetSequenceDirectSuccess) {
   // BMS should now be idle again
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
   EXPECT_EQ(emulator_pause_request_ON, false);
+
+  contactor_control_enabled = false;  // A global: left set, it changes how later tests behave
 }
 
 // Test a BMS reqest sequence from end to end. This is for the case where the
@@ -190,6 +192,7 @@ static void setup_periodic_reset_test(uint16_t interval_h) {
 
 static void teardown_periodic_reset_test() {
   periodic_bms_reset = false;
+  contactor_control_enabled = false;  // Set by setup_periodic_reset_test(); a global later tests see
   periodic_bms_reset_interval_h = 24;
   periodic_bms_reset_defer_low_soc = false;
   periodic_bms_reset_skip_balancing = false;
