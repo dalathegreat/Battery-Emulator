@@ -971,7 +971,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     // otherwise the min 10.6V.
     static constexpr uint8_t NVEM_12V_FLOOR = (uint8_t)((10.6f - 10.6f) / 0.025f + 0.5f);
     const uint8_t NVEM_12V_CHARGE =
-        (uint8_t)(((int32_t)user_selected_VW_dcdc_lv_setpoint_mV - 10600) / 25);  // 0.025 V per step
+        (uint8_t)(((int32_t)user_selected_VW_dcdc_lv_setpoint_mV - DCDC_MIN_SETPOINT_MV) / 25);  // 0.025 V per step
     NVEM_10_frame.data.u8[7] =
         (dcdc_actual_mode == DCDC_MODE_CHARGE_12V) ? NVEM_12V_CHARGE : NVEM_12V_FLOOR;
     NVEM_10_frame.data.u8[1] = ((NVEM_10_frame.data.u8[1] & 0xF0) | counter_50ms);
@@ -1562,13 +1562,16 @@ void MebBattery::high_voltage_coordinator(unsigned long currentMillis) {
       dcdc_request_mode = DCDC_MODE_PRECHARGE_ON;
       precharge_active = true;
       if (BMS_mode == BMS_TARGET_AC_CHARGING) {
-        //hv_coordinator_state = HvCoordinatorState::REQUEST_DCDC_BUCK;
-        hv_coordinator_state = HvCoordinatorState::RUNNING; //workaround no 12V battery
+        if (user_selected_VW_dcdc_lv_setpoint_mV == DCDC_MIN_SETPOINT_MV) {
+          hv_coordinator_state = HvCoordinatorState::RUNNING;
+        } else {
+          hv_coordinator_state = HvCoordinatorState::REQUEST_DCDC_BUCK;
+        }
       }
       break;
 
     case HvCoordinatorState::REQUEST_DCDC_BUCK:
-      // BMS is in AC charging: move the DCDC into Tiefsetzen (normal buck supply).
+      // BMS is in AC charging: move the DCDC into charging (normal buck supply).
       bms_request_mode = BMS_TARGET_AC_CHARGING;
       dcdc_request_mode = DCDC_MODE_CHARGE_12V;
       precharge_active = true;
@@ -1580,8 +1583,11 @@ void MebBattery::high_voltage_coordinator(unsigned long currentMillis) {
     case HvCoordinatorState::RUNNING:
       // Steady state: HV up, DCDC in buck, precharge bit cleared.
       bms_request_mode = BMS_TARGET_AC_CHARGING;
-      //dcdc_request_mode = DCDC_MODE_CHARGE_12V;
-      dcdc_request_mode = DCDC_MODE_STANDBY; //workaround no 12V battery
+      if (user_selected_VW_dcdc_lv_setpoint_mV == DCDC_MIN_SETPOINT_MV) {
+        dcdc_request_mode = DCDC_MODE_STANDBY;
+      } else {
+        dcdc_request_mode = DCDC_MODE_CHARGE_12V;
+      }
       precharge_active = false;
       break;
   }
@@ -1600,12 +1606,8 @@ void MebBattery::high_voltage_coordinator(unsigned long currentMillis) {
   // charging mode — never during precharge.
   const bool bordnetz_active =
       (hv_coordinator_state != HvCoordinatorState::IDLE_HV_OFF) && (BMS_mode == BMS_TARGET_AC_CHARGING);
-  // Byte 3 packs HVK_BMS_Sollmodus (bits 0-2) and HVK_DCDC_Sollmodus (bits 3-5).
-  //const uint8_t byte1_base = (hv_coordinator_state == HvCoordinatorState::IDLE_HV_OFF) ? 0x00 : 0x20;
   HVK_01_frame.data.u8[1] = precharge_active ? 0xE0 : 0x60;
   HVK_01_frame.data.u8[3] = 0xC0 | (bms_request_mode & 0x07) | ((dcdc_request_mode & 0x07) << 3);
-  // Byte 5 follows bordnetz_active: 0x42 = HV_Bordnetz_aktiv (bit 1) + HVK_HVEM_Freigabe = 1
-  // (Freigabe, bits 6-7); 0x00 = inactive + keine_Freigabe.
   HVK_01_frame.data.u8[5] = bordnetz_active ? 0x42 : 0x00;
   HVK_01_frame.data.u8[6] = ((hv_coordinator_state == HvCoordinatorState::IDLE_HV_OFF) ? 0x63 : 0x60) |
                             (iso_measurement_active ? 0x04 : 0x00);
