@@ -1532,10 +1532,20 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldShowTheOffsetOnTheStatusCard) {
 // Trimmed means: the published current leaves out 20 of a full 1.5 s window at each end, and each
 // second the offset is learned from leaves out 20 of a full second's 100
 
-TEST(NissanLeafCurrentTests, ShouldLeaveOut20AtEachEndOfAFullWindow) {
+/* A pack for the current window tests. The automatic current offset learns whenever contactor
+   control reports pack 1's contactors open, and would then subtract the very current these tests
+   feed. contactor_control_enabled is a global another test may have left set, and CI runs the
+   binary shuffled, so the state these tests depend on is stated here rather than inherited. */
+static NissanLeafBattery* current_test_battery() {
   set_millis64(100000);
+  contactor_control_enabled = false;
   auto battery = new NissanLeafBattery();
   battery->setup();
+  return battery;
+}
+
+TEST(NissanLeafCurrentTests, ShouldLeaveOut20AtEachEndOfAFullWindow) {
+  auto battery = current_test_battery();
 
   feed_current(battery, -200, 200);  // 20 samples far below
   feed_current(battery, 20, 1100);   // 110 at 10 A
@@ -1546,9 +1556,7 @@ TEST(NissanLeafCurrentTests, ShouldLeaveOut20AtEachEndOfAFullWindow) {
 
 // A window not yet full, as the first after boot, leaves out two fifteenths of what it holds.
 TEST(NissanLeafCurrentTests, ShouldScaleTheTrimToWhatTheWindowHolds) {
-  set_millis64(100000);
-  auto battery = new NissanLeafBattery();
-  battery->setup();
+  auto battery = current_test_battery();
 
   feed_current(battery, 10, 300);
   feed_current(battery, 20, 700);
@@ -1560,9 +1568,7 @@ TEST(NissanLeafCurrentTests, ShouldScaleTheTrimToWhatTheWindowHolds) {
 
 // Each update covers the latest 1.5 s, so it shares half a second with the one before.
 TEST(NissanLeafCurrentTests, ShouldOverlapHalfASecondWithThePreviousUpdate) {
-  set_millis64(100000);
-  auto battery = new NissanLeafBattery();
-  battery->setup();
+  auto battery = current_test_battery();
 
   run_seconds(battery, 0, 1);
   EXPECT_EQ(datalayer.battery.status.current_dA, 0);
@@ -1576,9 +1582,7 @@ TEST(NissanLeafCurrentTests, ShouldOverlapHalfASecondWithThePreviousUpdate) {
 
 // A second without samples holds the value, and what follows is not mixed with what came before.
 TEST(NissanLeafCurrentTests, ShouldStartAfreshAfterASilentSecond) {
-  set_millis64(100000);
-  auto battery = new NissanLeafBattery();
-  battery->setup();
+  auto battery = current_test_battery();
 
   run_seconds(battery, 40, 1);
   set_millis64(millis() + 1000);
@@ -1590,9 +1594,7 @@ TEST(NissanLeafCurrentTests, ShouldStartAfreshAfterASilentSecond) {
 }
 
 TEST(NissanLeafCurrentTests, ShouldIgnoreASpikeButStillReportItToSafety) {
-  set_millis64(100000);
-  auto battery = new NissanLeafBattery();
-  battery->setup();
+  auto battery = current_test_battery();
 
   feed_current(battery, 20, 500);
   feed_current(battery, 1000, 10);  // One 500 A reading, which the plain mean would take to 14.9 A
@@ -1608,9 +1610,7 @@ TEST(NissanLeafCurrentTests, ShouldIgnoreASpikeButStillReportItToSafety) {
 
 // Counted in samples, not values, so the mean of what is kept still falls between two 0.5 A steps.
 TEST(NissanLeafCurrentTests, ShouldKeepResolvingBelowOneStep) {
-  set_millis64(100000);
-  auto battery = new NissanLeafBattery();
-  battery->setup();
+  auto battery = current_test_battery();
 
   feed_current(battery, 1, 500);
   feed_current(battery, 2, 500);
@@ -1620,9 +1620,7 @@ TEST(NissanLeafCurrentTests, ShouldKeepResolvingBelowOneStep) {
 
 // The window holds the latest 150 samples, however late the update comes.
 TEST(NissanLeafCurrentTests, ShouldKeepTheLatestSamplesOfAnOverlongWindow) {
-  set_millis64(100000);
-  auto battery = new NissanLeafBattery();
-  battery->setup();
+  auto battery = current_test_battery();
 
   feed_current(battery, 100, 500);
   feed_current(battery, 20, 1500);
