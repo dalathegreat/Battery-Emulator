@@ -40,7 +40,7 @@ void EcmpBattery::update_values() {
 
     // If High Precision Curent is avilable, use it
     if (pid_current != NOT_SAMPLED_YET && datalayer.system.status.system_status != FAULT) {
-      datalayer_battery->status.current_dA = pid_current;
+      datalayer_battery->status.current_dA = static_cast<int16_t>(pid_current / 100);
     } else {  //Low precision
       datalayer_battery->status.current_dA = -(battery_current * 10);
     }
