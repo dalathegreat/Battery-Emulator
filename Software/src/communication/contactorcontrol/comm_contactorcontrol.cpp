@@ -39,6 +39,7 @@ const uint8_t OFF = 0;
   7000  // Equipment stop: max time to wait for the pause to reach zero current before opening contactors anyway
 uint16_t pwm_frequency = 20000;
 uint16_t pwm_hold_duty = 250;
+uint32_t bms_power_on_ms = 0;
 #define PWM_ON_DUTY 1023
 #define PWM_RESOLUTION 10
 #define PWM_OFF_DUTY 0  //No need to have this userconfigurable
@@ -178,6 +179,7 @@ bool init_contactors() {
     }
     pinMode(pin, OUTPUT);
     digitalWrite(pin, HIGH);
+    bms_power_on_ms = millis();
     set_indicator_led(IndicatorLed::BMS_POWER, true);
   }
 
@@ -435,6 +437,7 @@ void bms_power_off() {
 
 void bms_power_on() {
   digitalWrite(esp32hal->BMS_POWER(), HIGH);
+  bms_power_on_ms = millis();
   set_indicator_led(IndicatorLed::BMS_POWER, true);
 }
 
