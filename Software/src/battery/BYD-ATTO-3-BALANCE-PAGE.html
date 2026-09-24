@@ -1,266 +1,143 @@
 <!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Cell Balance Timers</title><style>
 :root{--card:#1d2a32;--edge:#50616b;--dim:#aebbc3;--faint:#7f8f9a;--cyan:#00d9df;--amber:#ffc45c;
---green:#6fd18a;
---chip:#26343d;--red:#ff6b70;--blue:#6fa8dc}
-body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0;padding:16px}
-.page{max-width:820px;margin:0 auto;text-align:left}
-.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:18px;margin-bottom:14px}
-h1{font-size:21px;margin:0}h3{font-size:15px;margin:0}
-.dim{color:var(--dim)}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.tabs{display:flex;gap:6px;margin-bottom:12px}
-.pair{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:10px}
-.box{border-radius:10px;padding:13px 16px;border:1px solid;min-width:0}
-.box .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:bold}
-.box .n{font-size:28px;font-weight:bold;line-height:1.15;margin:3px 0 2px;font-family:monospace}
-.box .s{font-size:12.5px;line-height:1.45}
-.box.now{background:#14241b;border-color:#3a6b4c}
-.box.now .k{color:var(--green)}.box.now .n{color:#fff}.box.now .s{color:var(--dim)}
-.box.bal{background:#2a2114;border-color:#5c451c}
-.box.bal .k{color:var(--amber)}.box.bal .n{color:var(--amber)}.box.bal .s{color:#d8c9ae}
-.box.hi{background:#2a1a1b;border-color:#5c2c2f}
-.box.hi .k{color:var(--red)}.box.hi .n{color:var(--red)}.box.hi .s{color:#e0b9bb}
-.box.lo{background:#16232e;border-color:#2f4a5e}
-.box.lo .k{color:var(--blue)}.box.lo .n{color:var(--blue)}.box.lo .s{color:#b9cbd8}
-.why{color:var(--dim);font-size:12.5px;line-height:1.65;margin-bottom:14px;background:#141d23;
-border:1px solid #2a3740;border-radius:10px;padding:12px 16px;text-wrap:pretty}
-.head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.sortrow{display:flex;gap:6px;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:4px;margin-top:12px}
-.cell{background:var(--chip);border:1px solid #313f49;border-radius:6px;padding:5px 2px;text-align:center;
-min-height:44px;display:flex;flex-direction:column;justify-content:center}
-.cell .i{font-size:10px;color:var(--faint);font-weight:bold;line-height:1.25}
-.cell .h{font-family:monospace;font-size:17px;font-weight:bold;line-height:1.3}
-.cell.sel{background:#3a2c14;border-color:var(--amber)}
-.cell.most{border-color:var(--red)}.cell.most .h{color:var(--red)}
-.cell.least{border-color:var(--blue)}.cell.least .h{color:var(--blue)}
-.key{display:flex;gap:16px;flex-wrap:wrap;margin-top:13px;color:var(--dim);font-size:12.5px}
-.key i{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:-2px;margin-right:6px}
-button{background:#505E67;color:#fff;border:none;padding:9px 16px;border-radius:9px;font-size:13.5px;cursor:pointer}
-button:hover{background:#3A4A52}
-button.on{background:#00aeb4;color:#071416;font-weight:bold}
-button:disabled{opacity:.55;cursor:default}
-.prog{height:5px;background:#10171b;border-radius:3px;overflow:hidden;margin-bottom:12px}
-.prog i{display:block;height:5px;background:var(--cyan);width:0;transition:width .3s}
-.msg{color:var(--dim);font-size:13px;margin-bottom:12px}
-.msg.err{color:#ff9295}
-@media(max-width:780px){.pair{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){body{padding:10px}.card{padding:12px}}
-@media(max-width:430px){.pair{grid-template-columns:1fr}}
-</style></head><body>
-<div class="page">
+--green:#6fd18a;--chip:#26343d;--red:#ff6b70;--blue:#6fa8dc}
+*{box-sizing:border-box}body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0;padding:16px}
+.page{max-width:900px;margin:0 auto}.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;
+padding:16px;margin-bottom:14px}h1{font-size:21px;margin:0}h3{font-size:15px;margin:0}.dim{color:var(--dim)}
+.top,.head,.auto,.steps,.key{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.top,.head{justify-content:space-between}
+.top{margin-bottom:14px}.tabs{display:flex;gap:6px;margin-bottom:12px}.pair{display:grid;
+grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.box{border-radius:10px;padding:13px 14px;
+border:1px solid;min-width:0}.box .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:bold}
+.box .n{font-size:27px;font-weight:bold;line-height:1.15;margin:4px 0 2px;font-family:monospace}.box .s{font-size:12px;line-height:1.4}
+.box.now{background:#14241b;border-color:#3a6b4c}.box.now .k{color:var(--green)}.box.bal{background:#2a2114;border-color:#5c451c}
+.box.bal .k,.box.bal .n{color:var(--amber)}.box.hi{background:#2a1a1b;border-color:#5c2c2f}.box.hi .k,.box.hi .n{color:var(--red)}
+.box.lo{background:#16232e;border-color:#2f4a5e}.box.lo .k,.box.lo .n{color:var(--blue)}
+.auto{justify-content:space-between}.steps{font-size:12.5px}.step{border-left:2px solid var(--cyan);padding-left:9px}.step b{display:block;margin-bottom:3px}
+.status{color:var(--cyan);font-size:12.5px}.toggle{min-width:62px}.controls{display:flex;gap:6px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;margin-top:12px}.cell{background:var(--chip);
+border:1px solid #313f49;border-radius:6px;padding:5px 2px;text-align:center;min-height:43px;display:flex;flex-direction:column;
+justify-content:center}.cell .i{font-size:9px;color:var(--faint);font-weight:bold}.cell .h{font-family:monospace;font-size:15px;font-weight:bold;line-height:1.35}
+.cell.sel{background:#3a2c14;border-color:var(--amber)}.cell.sel .h{color:var(--amber)}.cell.most{border-color:var(--red)}
+.cell.most .h{color:var(--red)}.cell.least{border-color:var(--blue)}.cell.least .h{color:var(--blue)}
+/* Reserved so the grid keeps its place when a view has no picker, no period or no legend */
+.subhead{min-height:36px}.key{margin-top:12px;color:var(--dim);font-size:12px;min-height:16px}.key i{width:12px;height:12px;border-radius:3px;display:inline-block;
+vertical-align:-2px;margin-right:6px}.note{font-size:12px;line-height:1.5;margin-top:10px;color:var(--dim)}button,select{background:#505e67;
+color:#fff;border:0;padding:9px 14px;border-radius:8px;font-size:13px}select{border:1px solid var(--edge);background:#17232a}button{cursor:pointer}
+button.on{background:#00aeb4;color:#071416}button:disabled{opacity:.55;cursor:default}.prog{height:5px;background:#10171b;
+border-radius:3px;overflow:hidden;margin-bottom:12px}.prog i{display:block;height:5px;background:var(--cyan);width:0;transition:width .3s}
+.msg{color:var(--dim);font-size:13px;margin-bottom:12px}.msg.err{color:#ff9295}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;
+font-size:12.5px;margin-top:10px}th,td{text-align:left;padding:9px;border-bottom:1px solid #43535d;white-space:nowrap}th{color:var(--dim);font-size:11px}
+tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child{border-left:3px solid var(--cyan);font-weight:bold}
+@media(max-width:780px){.pair{grid-template-columns:repeat(2,minmax(0,1fr))}.auto{align-items:flex-start}}
+@media(max-width:480px){body{padding:10px}.card{padding:12px}.pair{grid-template-columns:1fr 1fr}.box .n{font-size:22px}}
+</style></head><body><div class="page">
 <div style="margin-bottom:12px"><button onclick="location.href='/advanced'">&#8592; Battery Info</button></div>
-<div class="top">
- <div><h1>Cell Balance Timers</h1><div class="dim" style="font-size:13px;margin-top:2px">Which cells the BMS balanced, and for how long over the pack's life.</div></div>
- <button class="on" id="scan">Read Timers</button>
+<div class="top"><div><h1>Cell Balance Timers</h1><div class="dim" style="font-size:13px;margin-top:3px">Lifetime totals and activity by completed charge.</div></div>
+<button class="on" id="scan">Read Timers</button></div><div class="tabs" id="tabs"></div>
+<div class="prog" id="prog" hidden><i></i></div><div class="msg" id="msg"></div>
+<div class="pair" id="summary" hidden>
+ <div class="box now"><div class="k">Completed Charges</div><div class="n" id="chgN">-</div><div class="s" id="chgS"></div></div>
+ <div class="box bal"><div class="k">Cells Balanced</div><div class="n" id="balN">-</div><div class="s" id="balS"></div></div>
+ <div class="box hi"><div class="k">Most Balancing Time</div><div class="n" id="hiN">-</div><div class="s" id="hiS"></div></div>
+ <div class="box lo"><div class="k">Least Balancing Time</div><div class="n" id="loN">-</div><div class="s" id="loS"></div></div>
 </div>
-<div class="tabs" id="tabs"></div>
-<div class="prog" id="prog" hidden><i></i></div>
-<div class="msg" id="msg"></div>
-<div id="body" hidden>
- <div class="pair">
-  <div class="box now"><div class="k" id="nowK">Cells Read</div><div class="n" id="nowN"></div><div class="s" id="nowS"></div></div>
-  <div class="box bal"><div class="k">Cells Balanced</div><div class="n" id="balN"></div><div class="s" id="balS"></div></div>
-  <div class="box hi"><div class="k">Most Balancing Time</div><div class="n" id="hiN"></div><div class="s" id="hiS"></div></div>
-  <div class="box lo"><div class="k">Least Balancing Time</div><div class="n" id="loN"></div><div class="s" id="loS"></div></div>
- </div>
- <div class="why">The pack only reports a lifetime total per cell, so Cells Balanced is just the totals
-  that rose since your previous reading. That shows balancing happened in between, not when. Read now,
-  then again a day after a later charge.</div>
- <div class="card">
-  <div class="head"><h3>All Cells</h3>
-   <div class="sortrow"><button data-s="pos" class="on">By Position</button><button data-s="hrs">Highest Hours</button></div>
-  </div>
-  <div class="dim" style="font-size:12.5px">Every balanced cell gets the same fixed dose, so a bigger total
-   just means the BMS has picked that cell more often.</div>
-  <div class="grid" id="grid"></div>
-  <div class="key" id="key"></div>
- </div>
- <div class="dim" style="font-size:11.5px">Only the last two readings are kept, in this browser only,
-  so a reading is compared against the one before it. Nothing is stored on the device.</div>
-</div>
-</div>
-<script>
-(function(){
-var E=function(x){return document.getElementById(x)};
-var packs=[],bat=0,sort='pos',data=null,hist=[],wasReset=false,unchanged=false,justScanned=false;
-
-function key(i){return 'be.bydBalance.v5.'+i}
-function load(i){try{var x=JSON.parse(localStorage.getItem(key(i)));return x&&x.length?x:[]}catch(e){return[]}}
-function same(a,b){
- if(!a||!b||a.length!==b.length)return false;
- for(var i=0;i<a.length;i++)if(a[i]!==b[i])return false;
- return true;
+<div class="card" id="autoCard" hidden><div class="auto">
+ <div><div class="head" style="justify-content:flex-start"><h3>Automatic readings</h3><button class="toggle" id="autoBtn">Off</button></div>
+  <div class="steps" style="margin-top:12px"><div class="step"><b>Baseline</b>When completed charges increments</div><span>&#8594;</span>
+   <div class="step"><b>Record closes</b>At the next charge's baseline</div></div>
+  <div class="note">Each record spans one charge to the next, so the whole balance dose lands in it. Manual reads update the charge in progress without changing its baseline.</div>
+ </div><div class="status" id="autoStatus"></div></div></div>
+<div class="card" id="cellsCard" hidden><div class="head"><h3>Cells</h3><div class="controls"><button data-view="life">Lifetime</button><button data-view="read">Since Last Read</button><button data-view="charge">By Charge</button><button id="sort">Sort by hours</button></div></div>
+ <div class="head subhead" style="justify-content:flex-start;margin-top:10px"><label id="chargeLabel">Charge&nbsp; <select id="charge"></select></label>
+ <span class="dim" id="period" style="font-size:12px"></span></div><div class="grid" id="grid"></div><div class="key" id="key"></div>
+ <div class="note" id="gridNote"></div></div>
+<div class="card" id="historyCard" hidden><div class="head"><h3>Charge history</h3><button id="export">Export CSV</button></div><div class="tablewrap">
+ <table><thead><tr><th>Charge</th><th>Baseline</th><th>Closed</th><th>Cells balanced</th></tr></thead><tbody id="history"></tbody></table></div>
+ <div class="note">One record per completed charge, from its baseline to the next charge's baseline.</div></div>
+<div class="dim" id="foot" style="font-size:11.5px" hidden>The automation setting is saved on the device. The last three charge records are kept on the device until it restarts; longer history and your last two readings are saved in this browser.</div>
+</div><script>(function(){
+var E=function(x){return document.getElementById(x)},packs=[],bat=0,data=null,hist=[],reads=[],view=null,selected=null,byHrs=false;
+function key(i){return'be.bydBalance.charge.v1.'+i}
+function load(i){try{var x=JSON.parse(localStorage.getItem(key(i)));return Array.isArray(x)?x:[]}catch(e){return[]}}
+function save(i,h){try{localStorage.setItem(key(i),JSON.stringify(h.slice(0,20)))}catch(e){}}
+function stamp(age){return Date.now()-(age||0)*1000}
+function merge(d){var h=load(bat);if(d.cy!=null)h=h.filter(function(o){return o.cy<=d.cy});(d.a.h||[]).forEach(function(r){
+ var x={cy:r.cy,bt:stamp(r.ba),ft:stamp(r.fa),n:r.n,d:r.d};h=h.filter(function(o){return o.cy!==x.cy});h.push(x)
+ });h.sort(function(a,b){return b.cy-a.cy});h=h.slice(0,20);save(bat,h);hist=h}
+function rkey(i){return'be.bydBalance.reads.v1.'+i}
+function same(a,b){if(a.length!==b.length)return false;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true}
+// Keeps the last two distinct complete readings. A repeat is skipped so it cannot replace the baseline,
+// and a fall or a cell-count change starts over because the old reading no longer compares.
+function track(d){var h;try{h=JSON.parse(localStorage.getItem(rkey(bat)))}catch(e){}h=Array.isArray(h)?h:[];
+ if(d.s===3&&d.v&&!(h.length&&same(h[0].v,d.v))){if(h.length&&(h[0].v.length!==d.v.length||h[0].v.some(function(x,i){return x!=null&&d.v[i]!=null&&d.v[i]<x})))h=[];
+  h.unshift({at:Date.now(),v:d.v});h=h.slice(0,2);try{localStorage.setItem(rkey(bat),JSON.stringify(h))}catch(e){}}
+ reads=h}
+function fmt(t){if(!t)return'Pending';return new Date(t).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+function active(){var a=data.a;if(a.ac==null||!a.cur)return null;return{cy:a.cur.cy,bt:stamp(a.cur.ba),ft:null,rt:a.cur.ra==null?null:stamp(a.cur.ra),n:a.cur.n,d:a.cur.d||[],active:true}}
+function count(n){return n==null?'-':n}
+function readDelta(){return reads.length>1?reads[0].v.map(function(x,i){var y=reads[1].v[i];return x!=null&&y!=null?x-y:null}):null}
+function records(){var a=active(),h=hist.slice();if(a)h=h.filter(function(x){return x.cy!==a.cy});return a?[a].concat(h):h}
+function chosen(){var rs=records();if(!rs.length)return null;for(var i=0;i<rs.length;i++)if(String(rs[i].cy)===String(selected))return rs[i];return rs[0]}
+function list(a){return(a.length>1?'Cells ':'Cell ')+(a.length>8?a.slice(0,8).join(', ')+' +'+(a.length-8)+' more':a.join(', '))}
+function render(){if(!data)return;var d=data,hrs=d.v||[],vals=hrs.filter(function(x){return x!=null}),rec=chosen();
+ E('summary').hidden=E('autoCard').hidden=E('cellsCard').hidden=E('historyCard').hidden=E('foot').hidden=false;
+ E('chgN').textContent=d.cy==null?'-':d.cy;E('chgS').textContent=d.cy==null?d.r+' of '+d.e+' cells read':'BMS completed-charge count';
+ if(view==null){view=records().length?'charge':'read';setView()}
+ var pair=reads.length>1,rd=readDelta(),nRead=rd?rd.filter(function(x){return x>0}).length:null;
+ if(view==='read'){E('balN').textContent=count(nRead);E('balS').textContent=pair?'Since previous reading':'Read again later to compare'}
+ else{E('balN').textContent=rec?count(rec.n):'-';E('balS').textContent=!rec?'No charge record yet':!rec.active?'Counter increases for Charge '+rec.cy:
+  rec.rt?'Charge '+rec.cy+' so far, as of '+fmt(rec.rt):'Charge '+rec.cy+(rec.d.length?', no reading since baseline':' in progress')}
+ var mx=vals.length?Math.max.apply(null,vals):null,mn=vals.length?Math.min.apply(null,vals):null,most=[],least=[];
+ hrs.forEach(function(x,i){if(x===mx)most.push(i+1);if(x===mn)least.push(i+1)});
+ E('hiN').textContent=mx==null?'-':mx+'h';E('hiS').textContent=mx==null?'':list(most)+' · lifetime total';
+ E('loN').textContent=mn==null?'-':mn+'h';E('loS').textContent=mn==null?'':list(least)+' · lifetime total';
+ E('autoBtn').textContent=d.a.en?'On':'Off';E('autoBtn').classList.toggle('on',d.a.en);
+ var st=['Automation off','Waiting for Charge '+(d.cy==null?'?':d.cy+1),'Reading baseline','Recording Charge '+d.a.ac+' until the next charge'];
+ E('autoStatus').textContent=st[d.a.ph]||'';
+ var rs=records();E('charge').innerHTML=rs.length?rs.map(function(r){return'<option value="'+r.cy+'">'+r.cy+(r.active?' — In progress':'')+'</option>'}).join(''):'<option>No records</option>';
+ if(rec){selected=rec.cy;E('charge').value=String(rec.cy)}
+ E('period').textContent=view==='charge'?(!rec?'Waiting for the first automatic record':!rec.active?fmt(rec.bt)+' → '+fmt(rec.ft):
+  'Baseline '+fmt(rec.bt)+(rec.rt?' → interim reading '+fmt(rec.rt):rec.d.length?' · no reading since':'')+' · closes at the next charge'):
+  view==='read'?(pair?fmt(reads[1].at)+' → '+fmt(reads[0].at):reads.length?'One reading saved. Read again later to compare.':'No complete reading yet'):'';
+ var delta=view!=='life',arr=view==='charge'?(rec&&rec.d.length?rec.d:new Array(d.e)):view==='read'?(rd||new Array(d.e)):hrs,ord=[];
+ E('chargeLabel').hidden=view!=='charge';for(var i=0;i<arr.length;i++)ord.push(i);if(byHrs)ord.sort(function(a,b){return(arr[b]||0)-(arr[a]||0)||a-b});
+ E('grid').innerHTML=ord.map(function(i){var v=arr[i],cls='cell';if(delta){if(v>0)cls+=' sel'}else{if(mx!==mn&&v===mx)cls+=' most';else if(mx!==mn&&v===mn)cls+=' least'}
+  return'<div class="'+cls+'"><span class="i">'+(i+1)+'</span><span class="h">'+(v==null||delta&&!v?'—':(delta?'+':'')+v+'h')+'</span></div>'}).join('');
+ if(view==='read'){E('key').innerHTML='<span><i style="background:#3a2c14;border:1px solid var(--amber)"></i>Increased since previous reading</span>';
+  E('gridNote').textContent='Compares the last two complete readings saved in this browser. Totals only rise, so a highlighted cell was balanced somewhere in between.'
+ }else if(view==='charge'){E('key').innerHTML='<span><i style="background:#3a2c14;border:1px solid var(--amber)"></i>Counter increased during this charge</span><span><i style="background:var(--chip);border:1px solid var(--edge)"></i>No reported increase</span>';
+  E('gridNote').textContent='Selected cells receive the fixed balance dose and stop together. Highlights show recorded counter changes, not live balancing status.'
+ }else{E('key').innerHTML=mx===mn?'':'<span><i style="border:1px solid var(--red)"></i>Most, '+mx+'h</span><span><i style="border:1px solid var(--blue)"></i>Least, '+mn+'h</span>';E('gridNote').textContent='Lifetime balancing time reported by the BMS for each cell.'}
+ E('history').innerHTML=rs.map(function(r){return'<tr class="pick '+(rec&&r.cy===rec.cy?'active':'')+'" data-cy="'+r.cy+'"><td>Charge '+r.cy+'</td><td>'+fmt(r.bt)+'</td><td>'+(r.active?'Open'+(r.rt?' · read '+fmt(r.rt):''):fmt(r.ft))+'</td><td>'+count(r.n)+(r.active?' so far':'')+'</td></tr>'}).join('')||'<tr><td colspan="4" class="dim">No automatic charge records yet.</td></tr>';
+ Array.prototype.forEach.call(document.querySelectorAll('[data-cy]'),function(row){row.onclick=function(){selected=row.dataset.cy;view='charge';setView();render()}})
 }
-// Keep the previous and current readings only. A read that changed nothing is redundant, so it is
-// dropped rather than stored - otherwise reading twice in a row would throw away the baseline the
-// next charge needs to be compared against.
-function record(i,d){
- var h=load(i);
- wasReset=false;unchanged=false;
- if(d.s!==3||!d.v)return h;
- if(h.length&&same(h[0].v,d.v)){unchanged=true;return h}
- // Totals only ever climb, so a fall means the BMS counters were reset and the baseline is void.
- if(h.length&&dropped(d.v,h[0].v)){h=[];wasReset=true}
- h.unshift({cy:d.cy,at:Date.now(),v:d.v});
- h=h.slice(0,2);
- try{localStorage.setItem(key(i),JSON.stringify(h))}catch(e){}
- return h;
-}
-function dropped(now,before){
- for(var i=0;i<now.length&&i<before.length;i++)
-  if(now[i]!=null&&before[i]!=null&&now[i]<before[i])return true;
- return false;
-}
-function took(now,before){
- var o=[];
- for(var i=0;i<now.length;i++)if(now[i]!=null&&before[i]!=null&&now[i]>before[i])o.push(i+1);
- return o;
-}
-function list(a){
- if(!a.length)return '';
- return (a.length>1?'Cells ':'Cell ')+
-  (a.length>8?a.slice(0,8).join(', ')+' +'+(a.length-8)+' more':a.join(', '));
-}
-
-function render(){
- var d=data,hrs=d?d.v||[]:[];
- var vals=hrs.filter(function(x){return x!=null});
- if(!vals.length){E('body').hidden=true;return}
- E('body').hidden=false;
-
- // Only diff when the reading on screen is the one that was stored, so a partial or failed
- // read never gets compared against a baseline it does not belong to.
- var cells=[],pair=hist.length>1&&same(hist[0].v,hrs);
- // A just-run scan that matched the stored reading found nothing, so the older interval's
- // activity must not be shown as if it were this scan's result.
- var noNew=justScanned&&unchanged;
- if(pair&&!noNew)cells=took(hist[0].v,hist[1].v);
-
- var mx=Math.max.apply(null,vals),mn=Math.min.apply(null,vals),flat=mx===mn;
- var most=[],least=[];
- if(!flat)hrs.forEach(function(x,i){
-  if(x===mx)most.push(i+1);else if(x===mn)least.push(i+1);
- });
-
- E('nowK').textContent=d.cy!=null?'Completed Charges':'Cells Read';
- E('nowN').textContent=d.cy!=null?d.cy:d.r;
- E('nowS').textContent=d.cy!=null?d.r+' of '+d.e+' cells read':'of '+d.e+' reported by the pack';
- if(noNew){
-  E('balN').textContent='0';
-  E('balS').textContent='no change since previous reading';
- }else if(!pair){
-  E('balN').textContent='-';
-  E('balS').textContent='read again later to compare';
- }else{
-  E('balN').textContent=cells.length;
-  // The interval is bounded by the two readings, not by charges, so the charge count is context
-  // rather than the boundary.
-  var n=(hist[0].cy!=null&&hist[1].cy!=null)?hist[0].cy-hist[1].cy:0;
-  E('balS').textContent='since previous reading'+
-   (n>0?' · '+n+' charge'+(n>1?'s':'')+' completed':'');
- }
- E('hiN').textContent=flat?'-':mx+'h';
- E('hiS').textContent=flat?'every cell reads the same':list(most);
- E('loN').textContent=flat?'-':mn+'h';
- E('loS').textContent=flat?'':list(least);
-
- var ord=[];
- for(var i=0;i<hrs.length;i++)ord.push(i);
- if(sort==='hrs')ord.sort(function(a,b){return (hrs[b]||0)-(hrs[a]||0)||a-b});
- E('grid').innerHTML=ord.map(function(i){
-  var n=i+1;
-  var c='cell'+(cells.indexOf(n)>=0?' sel':'')+(most.indexOf(n)>=0?' most':'')+
-   (least.indexOf(n)>=0?' least':'');
-  return '<div class="'+c+'"><span class="i">'+n+'</span><span class="h">'+
-   (hrs[i]==null?'-':hrs[i]+'h')+'</span></div>';
- }).join('');
- E('key').innerHTML=(cells.length?'<span><i style="background:#3a2c14;border:1px solid var(--amber)"></i>'+
-   'Balanced</span>':'')+(flat?'':
-  '<span><i style="background:var(--chip);border:1px solid var(--red)"></i>Most, '+mx+'h'+
-   (most.length>1?' ('+most.length+' cells)':'')+'</span>'+
-  '<span><i style="background:var(--chip);border:1px solid var(--blue)"></i>Least, '+mn+'h'+
-   (least.length>1?' ('+least.length+' cells)':'')+'</span>');
-}
-function note(d){
- E('msg').className='msg';
- if(d.s===4)E('msg').textContent='Partial read. Only '+d.r+' of '+d.e+' cells answered.';
- else if(d.s===5)E('msg').textContent='The pack did not answer. Try again.';
- else if(wasReset)E('msg').textContent='Timers went backwards, so the pack counters were reset. New baseline saved.';
- else if(!d.r)E('msg').textContent='No reading yet. Press Read Timers to ask the BMS.'+
-  (hist.length?' Your last reading is saved and will be the baseline.':'');
- else E('msg').textContent='';
-}
-function get(b){
- return fetch('/bydCellBalanceTimes?battery='+b,{cache:'no-store'}).then(function(x){
-  if(!x.ok)return x.text().then(function(t){throw Error(t)});
-  return x.json();
- });
-}
-function show(b,d,fresh){data=d;hist=record(b,d);justScanned=!!fresh;note(d);render()}
-// Errors carry the battery they were asked for, so one for a battery the user has switched away
-// from cannot clear the state of the battery now on screen.
-function fail(b,e){
- if(b!==bat)return;
- idle();E('msg').className='msg err';E('msg').textContent=e.message||'Unavailable';
-}
+function setView(){Array.prototype.forEach.call(document.querySelectorAll('[data-view]'),function(b){b.classList.toggle('on',b.dataset.view===view)})}
+function note(d){E('msg').className='msg';if(d.s===4)E('msg').textContent='Partial read. Only '+d.r+' of '+d.e+' cells answered.';else if(d.s===5)E('msg').textContent='The pack did not answer. Try again.';else if(!d.r)E('msg').textContent='No timer reading yet.';else E('msg').textContent=''}
+function get(b){return fetch('/bydCellBalanceTimes?battery='+b,{cache:'no-store'}).then(function(x){if(!x.ok)return x.text().then(function(t){throw Error(t)});return x.json()})}
+function show(b,d){if(b!==bat)return;data=d;merge(d);track(d);note(d);render()}
+function fail(b,e){if(b!==bat)return;idle();E('msg').className='msg err';E('msg').textContent=e.message||'Unavailable'}
 function idle(){E('prog').hidden=true;E('scan').disabled=false;E('scan').textContent='Read Timers'}
-// One path for every status reply. Tabs can be switched while a request is in flight, so a reply for
-// another battery is dropped; and a scan already running when the page opens is picked up rather than
-// leaving an enabled button the firmware would reject.
-function handleStatus(b,d,fresh){
- if(b!==bat)return;
- if(d.s===1||d.s===2){
-  E('scan').disabled=true;E('scan').textContent='Reading...';
-  E('prog').hidden=false;
-  E('prog').querySelector('i').style.width=(d.e?Math.round(d.r*100/d.e):0)+'%';
-  setTimeout(function(){tick(b)},800);
-  return;
- }
- idle();show(b,d,fresh);
-}
-function refresh(){var b=bat;return get(b).then(function(d){handleStatus(b,d)})
- .catch(function(e){fail(b,e)})}
-function tick(b){get(b).then(function(d){handleStatus(b,d,true)}).catch(function(e){fail(b,e)})}
-E('scan').onclick=function(){
- E('scan').disabled=true;E('scan').textContent='Reading...';
- E('msg').className='msg';E('msg').textContent='';
- E('prog').hidden=false;E('prog').querySelector('i').style.width='0';
- var b=bat;
- fetch('/bydCellBalanceTimes?battery='+b,{method:'PUT'}).then(function(x){
-  if(!x.ok)return x.text().then(function(t){throw Error(t)});
-  tick(b);
- }).catch(function(e){fail(b,e)});
-};
-Array.prototype.forEach.call(document.querySelectorAll('[data-s]'),function(b){
- b.onclick=function(){
-  sort=b.dataset.s;
-  Array.prototype.forEach.call(document.querySelectorAll('[data-s]'),function(o){o.classList.toggle('on',o===b)});
-  render();
- };
-});
-
-// Probe both indices; an absent battery answers 404 and simply gets no tab.
-Promise.all([0,1].map(function(i){
- return fetch('/bydCellBalanceTimes?battery='+i,{cache:'no-store'})
-  .then(function(x){if(x.ok)packs.push(i)}).catch(function(){});
-})).then(function(){
- if(!packs.length){E('msg').textContent='No BYD battery available.';return}
- packs.sort();bat=packs[0];
- if(packs.length>1){
-  E('tabs').innerHTML=packs.map(function(i,n){
-   return '<button class="'+(n?'':'on')+'" data-b="'+i+'">Battery '+(i+1)+'</button>';
-  }).join('');
-  Array.prototype.forEach.call(document.querySelectorAll('[data-b]'),function(b){
-   b.onclick=function(){
-    bat=+b.dataset.b;
-    Array.prototype.forEach.call(document.querySelectorAll('[data-b]'),function(o){o.classList.toggle('on',o===b)});
-    refresh();
-   };
-  });
- }
- refresh();
-});
-})();
-</script></body></html>
+function handle(b,d){if(b!==bat)return;if(d.s===1||d.s===2){E('scan').disabled=true;E('scan').textContent='Reading...';E('prog').hidden=false;E('prog').querySelector('i').style.width=(d.e?Math.round(d.r*100/d.e):0)+'%';setTimeout(function(){tick(b)},800)}else{idle();show(b,d)}}
+function refresh(){var b=bat;get(b).then(function(d){handle(b,d)}).catch(function(e){fail(b,e)})}function tick(b){get(b).then(function(d){handle(b,d)}).catch(function(e){fail(b,e)})}
+E('scan').onclick=function(){var b=bat;E('scan').disabled=true;E('scan').textContent='Reading...';E('prog').hidden=false;fetch('/bydCellBalanceTimes?battery='+b,{method:'PUT'}).then(function(x){if(!x.ok)return x.text().then(function(t){throw Error(t)});tick(b)}).catch(function(e){fail(b,e)})};
+function setAuto(en){var b=bat;E('autoBtn').disabled=true;fetch('/bydCellBalanceAutomation?battery='+b+'&enabled='+(en?1:0),{method:'PUT'}).then(function(x){if(!x.ok)return x.text().then(function(t){throw Error(t)});refresh()}).catch(function(e){fail(b,e)}).then(function(){E('autoBtn').disabled=false})}
+E('autoBtn').onclick=function(){setAuto(!data.a.en)};E('sort').onclick=function(){byHrs=!byHrs;this.classList.toggle('on',byHrs);render()};E('charge').onchange=function(){selected=this.value;render()};
+Array.prototype.forEach.call(document.querySelectorAll('[data-view]'),function(b){b.onclick=function(){view=b.dataset.view;setView();render()}});
+// One row per cell, one column per charge, so it opens as a grid in any spreadsheet.
+function q(v){return'"'+String(v).replace(/"/g,'""')+'"'}
+function csv(){var hrs=data.v||[],rs=records(),rd=readDelta(),
+ head=['Cell','Lifetime hours'];
+ if(rd)head.push('Since last read ('+fmt(reads[1].at)+' to '+fmt(reads[0].at)+')');
+ rs.forEach(function(r){head.push('Charge '+r.cy+' ('+fmt(r.bt)+(r.active?' to open'+(r.rt?', read '+fmt(r.rt):'')+')':' to '+fmt(r.ft)+')'))});
+ var rows=[head.map(q).join(',')],n=Math.max(hrs.length,data.e||0);
+ for(var i=0;i<n;i++){var row=[i+1,hrs[i]==null?'':hrs[i]];
+  if(rd)row.push(rd[i]==null?'':rd[i]);
+  rs.forEach(function(r){row.push(r.d&&r.d[i]!=null?r.d[i]:'')});
+  rows.push(row.join(','))}
+ return'﻿'+rows.join('\r\n')+'\r\n'}
+E('export').onclick=function(){if(!data)return;var a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([csv()],{type:'text/csv'}));
+ a.download='byd-balance-battery-'+(bat+1)+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href)};
+Promise.all([0,1].map(function(i){return fetch('/bydCellBalanceTimes?battery='+i,{cache:'no-store'}).then(function(x){if(x.ok)packs.push(i)}).catch(function(){})})).then(function(){if(!packs.length){E('msg').textContent='No BYD battery available.';return}packs.sort();bat=packs[0];if(packs.length>1){E('tabs').innerHTML=packs.map(function(i,n){return'<button class="'+(n?'':'on')+'" data-b="'+i+'">Battery '+(i+1)+'</button>'}).join('');Array.prototype.forEach.call(document.querySelectorAll('[data-b]'),function(b){b.onclick=function(){bat=+b.dataset.b;selected=null;Array.prototype.forEach.call(document.querySelectorAll('[data-b]'),function(o){o.classList.toggle('on',o===b)});refresh()}})}refresh()});
+})();</script></body></html>

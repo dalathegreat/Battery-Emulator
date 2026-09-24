@@ -18,6 +18,12 @@ enum class BydCellBalanceTimeState : uint8_t {
   FAILED,
 };
 
+enum class BydCellBalanceScanReason : uint8_t {
+  NONE = 0,
+  MANUAL,
+  AUTO_BASELINE,
+};
+
 // Lifetime balancer on-time in whole hours.
 struct BydCellBalanceTimeData {
   // Matches the datalayer so larger BYD packs are read in full rather than silently truncated.
@@ -37,6 +43,15 @@ struct BydCellBalanceTimeData {
   bool cell_valid(uint8_t cell) const {
     return cell < MAX_CELLS && (valid[cell / 8] & static_cast<uint8_t>(1U << (cell % 8)));
   }
+};
+
+struct BydCellBalanceChargeRecord {
+  uint16_t charge_cycles = 0;
+  uint8_t cell_count = 0;
+  uint8_t changed_cells = 0;
+  uint32_t baseline_millis = 0;
+  uint32_t final_millis = 0;
+  uint8_t delta[BydCellBalanceTimeData::MAX_CELLS] = {0};
 };
 
 class BydAttoBattery : public CanBattery {
@@ -85,6 +100,7 @@ class BydAttoBattery : public CanBattery {
   bool supports_insulation_resistance() { return true; }
   void reset_DTC() { datalayer_bydatto->UserRequestDTCreset = true; }
   bool request_cell_balance_times();
+  void set_cell_balance_automation(bool enabled);
   const BydCellBalanceTimeData& cell_balance_times() const { return cell_balance_time_data; }
   String cell_balance_times_json() const;
 
@@ -272,24 +288,47 @@ class BydAttoBattery : public CanBattery {
   // 126 cells take about 27s, so the cap needs headroom for the largest packs on a slow bus.
   static const uint32_t CELL_BALANCE_TIME_SCAN_TIMEOUT_MS = 90000;
   static const uint8_t CELL_BALANCE_TIME_RETRIES = 1;
+  static const uint8_t CELL_BALANCE_HISTORY_SIZE = 3;
   BydCellBalanceTimeData cell_balance_time_data;
+  BydCellBalanceChargeRecord cell_balance_history[CELL_BALANCE_HISTORY_SIZE];
+  uint16_t cell_balance_baseline[BydCellBalanceTimeData::MAX_CELLS] = {0};
   unsigned long cell_balance_time_scan_millis = 0;
   unsigned long cell_balance_time_request_millis = 0;
+  unsigned long cell_balance_baseline_millis = 0;
+  uint32_t cell_balance_baseline_scan_id = 0;
   uint8_t cell_balance_time_cell = 0;
   uint8_t cell_balance_time_retries = 0;
+  uint8_t cell_balance_history_count = 0;
+  uint8_t cell_balance_baseline_cells = 0;
   bool cell_balance_time_queued = false;
   bool cell_balance_time_active = false;
   bool cell_balance_time_waiting = false;
-  std::atomic<bool> cell_balance_time_requested{false};
+  bool cell_balance_auto_applied = false;
+  bool cell_balance_charge_seen = false;
+  bool cell_balance_baseline_pending = false;
+  bool cell_balance_session_active = false;
+  uint16_t cell_balance_seen_charge = 0;
+  uint16_t cell_balance_pending_charge = 0;
+  uint16_t cell_balance_active_charge = 0;
+  BydCellBalanceScanReason cell_balance_scan_reason = BydCellBalanceScanReason::NONE;
+  std::atomic<uint8_t> cell_balance_time_requested{0};
   bool BMS_times_full_power_valid = false;
 
   bool awaiting_cell_balance_reply() const { return cell_balance_time_active && cell_balance_time_waiting; }
+  bool queue_cell_balance_scan(BydCellBalanceScanReason reason);
   bool diagnostics_idle() const;
   void begin_cell_balance_time_scan(unsigned long currentMillis);
   bool handle_cell_balance_time_reply(const CAN_frame& frame);
   void advance_cell_balance_time_cell();
   void handle_cell_balance_time_poll(unsigned long currentMillis);
   void finish_cell_balance_time_scan();
+  void sync_cell_balance_automation();
+  void observe_completed_charge_counter(uint16_t charge_cycles);
+  void handle_cell_balance_automation();
+  void handle_automatic_scan_result(unsigned long currentMillis);
+  bool save_cell_balance_charge_record(unsigned long currentMillis);
+  void start_cell_balance_charge_record(unsigned long currentMillis);
+  void append_cell_balance_deltas_json(String& json, const uint8_t* values, uint8_t cells) const;
 
   int16_t battery_temperature_ambient = 0;
   int16_t battery_calc_min_temperature = 0;

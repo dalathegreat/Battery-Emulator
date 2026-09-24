@@ -344,6 +344,24 @@ void init_webserver() {
     request->send(response);
   });
 
+  def_route_with_auth("/bydCellBalanceAutomation", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!request->hasParam("enabled")) {
+      request->send(400, "text/plain", "enabled is required");
+      return;
+    }
+    const bool enabled = request->getParam("enabled")->value().toInt() != 0;
+    if (!set_byd_cell_balance_automation(index, enabled)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool(index ? "BYDBALAUTO2" : "BYDBALAUTO", enabled);
+    prefs.end();
+    request->send(204);
+  });
+
   // Route for going to CAN tools web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_replay_processor()));
