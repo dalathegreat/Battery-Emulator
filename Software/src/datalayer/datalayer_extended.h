@@ -705,6 +705,10 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   int16_t temperature2;
   int16_t temperature3;  // This sensor not available on 2013+ packs
   int16_t temperature4;
+  /** What the current sensor reads with this pack's contactor open, in dA, learned by the automatic
+   * current offset correction and taken off the published current. Only valid once
+   * AutoCurrentOffsetKnown. */
+  int16_t AutoCurrentOffset_dA;
 
   /** Enum, ZE0, AZE0 = 1, ZE1 = 2 */
   uint8_t LEAF_gen;
@@ -729,6 +733,8 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart;
   /** Heat request sent*/
   bool HeaterSendRequest;
+  /** True once the automatic current offset correction has measured an offset for this pack */
+  bool AutoCurrentOffsetKnown;
   /** Which of the LBC's status broadcasts have arrived since boot, as the flags above mean nothing
    * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
    * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */

@@ -6,6 +6,10 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+//Automatic current offset correction, one setting for all packs. Declared here as the Status card
+//shows each pack's learned offset while it is enabled.
+extern bool user_selected_LEAF_auto_current_offset;
+
 class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
  public:
   NissanLeafHtmlRenderer(DATALAYER_BATTERY_TYPE* battery_dl, DATALAYER_INFO_NISSAN_LEAF* dl)
@@ -110,6 +114,12 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                failsafe_names[nissan_dl->FailsafeStatus & 7]);
     status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01,
                nissan_dl->RelayCutRequest ? "Main relay off" : "None");
+    if (user_selected_LEAF_auto_current_offset) {
+      content += "<h4>Automatic current offset: " +
+                 (nissan_dl->AutoCurrentOffsetKnown ? String(nissan_dl->AutoCurrentOffset_dA / 10.0f, 1) + " A"
+                                                    : String("Unknown")) +
+                 "</h4>";
+    }
     content += "</div>";
 
     new_panel(content, "Health and lifetime usage");
