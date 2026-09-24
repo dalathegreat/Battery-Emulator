@@ -221,8 +221,10 @@ void handle_contactors() {
       timeSpentInFaultedMode = 0;
     }
 
-    //handle contactor control SHUTDOWN_REQUESTED
-    if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+    //handle contactor control SHUTDOWN_REQUESTED. Logged on entry only: the fault counter keeps
+    //counting while latched, so this condition stays true on every following pass
+    if ((timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) && (contactorStatus != SHUTDOWN_REQUESTED)) {
+      dbg_contactors("OPEN (fault, latched)");
       contactorStatus = SHUTDOWN_REQUESTED;
     }
 
@@ -258,6 +260,7 @@ void handle_contactors() {
       if (!datalayer.system.status.inverter_allows_contactor_closing) {
         // Inverter-commanded opening stays immediate: the inverter has already
         // stopped power transfer before revoking its permission
+        dbg_contactors("OPEN (inverter request)");
         contactorStatus = DISCONNECTED;
       } else if (datalayer.system.info.equipment_stop_active) {
         // Equipment stop: every e-stop entry point also issues a battery pause,
@@ -278,6 +281,7 @@ void handle_contactors() {
             set_event(EVENT_ERROR_OPEN_CONTACTOR, 1);
           }
           estop_open_wait_start_ms = 0;
+          dbg_contactors("OPEN (equipment stop)");
           contactorStatus = DISCONNECTED;
         }
       } else {
