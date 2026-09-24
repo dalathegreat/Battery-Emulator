@@ -26,7 +26,16 @@ class CmfaEvBattery : public UdsCanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  virtual void enable_temporisation();
+  virtual void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
   static constexpr const char* Name = "CMFA platform, 27 kWh battery";
+
+  bool supports_reset_NVROL() { return true; }
+  void reset_NVROL() { start_sequence(CMFA_STATE_NVROL_START); }
+  // The generic "BMS Reset" button is reused to put the pack through a plain
+  // 30 s sleep cycle (no diagnostic session or NVROL reset).
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { start_sequence(CMFA_STATE_SLEEP_START); }
 
   String get_uds_info_html() override;
 
@@ -36,6 +45,41 @@ class CmfaEvBattery : public UdsCanBattery {
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
+
+  // UDS sequence states for this battery.
+  enum CmfaUdsState : uint16_t {
+    // UDS temporisation sequence
+    CMFA_STATE_TEMPORISATION_START = 0x01,
+    CMFA_STATE_TEMPORISATION_DIAG,  // 0x10 0x03 (extended session)
+    CMFA_STATE_TEMPORISATION_SEND,  // 0x2E 0x9281 (write temporisation)
+
+    // NVROL reset sequence (ported from the Renault Zoe Gen2 integration).
+    // After resetting the NVROL memory we enable "temporisation before sleep",
+    // then put the 0x1EA keep-alive frame to sleep for 30 s so the pack saves
+    // its state and falls asleep, and finally wake it back up.
+    CMFA_STATE_NVROL_START = 0x10,
+    CMFA_STATE_NVROL_SESSION,        // 0x10 0x03 (extended diagnostic session)
+    CMFA_STATE_NVROL_ROUTINE,        // 0x31 01 B0 09 (NVROL reset routine)
+    CMFA_STATE_NVROL_SLEEP_SESSION,  // 0x10 0x03 (extended session, again)
+    CMFA_STATE_NVROL_SLEEP_WRITE,    // 0x2E 92 81 01 (enable temporisation before sleep)
+    CMFA_STATE_NVROL_SLEEP_WAIT,     // 30 s: 0x1EA kept asleep so the pack falls asleep
+
+    // Plain sleep sequence: put the pack to sleep for 30 s and wake it again,
+    // without any diagnostic session or NVROL reset.
+    CMFA_STATE_SLEEP_START = 0x20,
+    CMFA_STATE_SLEEP_WAIT,  // 30 s: 0x1EA kept asleep so the pack falls asleep
+  };
+
+  // Timeouts for the UDS sequences (in UDS ticks).
+  static constexpr uint16_t CMFA_UDS_TIMEOUT_SESSION_CONTROL = 10;
+  static constexpr uint16_t CMFA_UDS_TIMEOUT_WRITE = 50;
+  static constexpr uint16_t CMFA_NVROL_TIMEOUT_TICKS = 10;  // 1 s, per NVROL sequence step
+  static constexpr uint16_t CMFA_SLEEP_TICKS = 300;         // 30 s
+
+  // 0x1EA is the keep-alive/wakeup frame towards the BMS; 0x01 asks it to go
+  // to sleep, 0x00 keeps it awake.
+  static constexpr uint8_t CMFA_1EA_AWAKE = 0x00;
+  static constexpr uint8_t CMFA_1EA_SLEEP = 0x01;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
@@ -69,6 +113,12 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_END_OF_CHARGE_FLAG = 0x9019;
   static const int PID_POLL_INTERLOCK_FLAG = 0x901A;
   static const int PID_POLL_BATTERY_IDENTIFICATION = 0x901B;
+  static const int PID_POLL_100MS_CURRENT = 0x925D;
+
+  static const int PID_POLL_TEMPORISATION = 0x9281;
+
+  static const int PID_POLL_PACK_TIME_LIFE = 0x91C1;
+  static const int PID_POLL_ABSOLUTE_TIME_SAVED = 0x9261;
 
   static const int PID_POLL_CELL_1 = 0x9021;
   static const int PID_POLL_CELL_2 = 0x9022;
@@ -156,6 +206,15 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING = 0x9245;
   static const int PID_POLL_CUMULATIVE_ENERGY_IN_REGEN = 0x9247;
 
+  static const int PID_POLL_BALANCE_CAPACITY_TOTAL = 0x924F;
+  static const int PID_POLL_BALANCE_TIME_TOTAL = 0x9250;
+  static const int PID_POLL_BALANCE_CAPACITY_SLEEP = 0x9251;
+  static const int PID_POLL_BALANCE_TIME_SLEEP = 0x9252;
+  static const int PID_POLL_BALANCE_CAPACITY_WAKE = 0x9262;
+  static const int PID_POLL_BALANCE_TIME_WAKE = 0x9263;
+  static const int PID_POLL_BMS_STATE = 0x9259;
+  static const int PID_POLL_BALANCE_SWITCHES = 0x912B;
+
   CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
   CAN_frame CMFA_125 = {.FD = false,
                         .ext_ID = false,
@@ -195,7 +254,30 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t cumulative_energy_when_discharging = 0;
   uint32_t cumulative_energy_when_charging = 0;
   uint32_t cumulative_energy_in_regen = 0;
+  uint32_t pack_time_life = 0;       // Minutes
+  uint32_t absolute_time_saved = 0;  // Minutes
+  // Initial values, UINT32_MAX until the DID has been read at least once
+  uint32_t initial_pack_time_life = UINT32_MAX;
+  uint32_t initial_absolute_time_saved = UINT32_MAX;
   uint16_t soh_average = 10000;
+  int32_t balance_capacity_total = 0;  // 1/1024 Ah
+  int32_t balance_time_total = 0;      // 1/1024 h
+  int32_t balance_capacity_sleep = 0;  // 1/1024 Ah
+  int32_t balance_time_sleep = 0;      // 1/1024 h
+  int32_t balance_capacity_wake = 0;   // 1/1024 Ah
+  int32_t balance_time_wake = 0;       // 1/1024 h
+  int32_t initial_balance_capacity_total = INT32_MIN;
+  int32_t initial_balance_time_total = INT32_MIN;
+  int32_t initial_balance_capacity_sleep = INT32_MIN;
+  int32_t initial_balance_time_sleep = INT32_MIN;
+  int32_t initial_balance_capacity_wake = INT32_MIN;
+  int32_t initial_balance_time_wake = INT32_MIN;
+  uint8_t bms_state = 0;
+  uint8_t temporisation = 0xFF;  // 0xFF until the DID has been read at least once
+
+  // Automatically re-enable temporisation at most every 60s.
+  static constexpr unsigned long TEMPORISATION_RETRY_MS = 60000;
+  unsigned long previousMillisTemporisation = 0;
 
   uint8_t counter_10ms = 0;
   uint8_t content_125[16] = {0x07, 0x0C, 0x01, 0x06, 0x0B, 0x00, 0x05, 0x0A,
@@ -213,6 +295,8 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t SOC_raw = 20000;
   uint16_t SOH = 99;
   int16_t current_raw = 2000;
+  uint32_t instant_current_raw = 48000;
+  uint32_t averaged_current_raw = 32640;
   uint16_t pack_voltage = 500;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;

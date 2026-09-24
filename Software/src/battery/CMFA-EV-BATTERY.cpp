@@ -3,6 +3,7 @@
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 #include "BATTERIES.h"
 
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
@@ -69,14 +70,25 @@ inline String& operator<<(String& str, const T& value) {
   return str;
 }
 
+// Balancing stats are stored in 1/1024 Ah or 1/1024 h units.
+// Treat the INT32_MIN sentinel as zero.
+static int32_t bal_mAh(int32_t v) {
+  return (v == INT32_MIN) ? 0 : (v * 125) / 128;
+}
+static int32_t bal_s(int32_t v) {
+  return (v == INT32_MIN) ? 0 : (v * 225) / 64;
+}
+
 String CmfaEvBattery::get_uds_info_html() {
   String content;
-  content.reserve(600);
+  content.reserve(900);
 
   // clang-format off
   content << "<h4>SOC U: " << soc_u << "percent</h4>"
              "<h4>SOC Z: " << soc_z << "percent</h4>"
              "<h4>SOH Average: " << soh_average << "pptt</h4>"
+             "<h4>Instant current: " << (((int32_t)instant_current_raw - 48000) * 25) << "mA</h4>"
+             "<h4>Average current: " << ((((int32_t)instant_current_raw - 32640) * 125) / 4) << "mA</h4>"
              "<h4>12V voltage: " << lead_acid_voltage << "mV</h4>"
              "<h4>Highest cell number: " << highest_cell_voltage_number << "</h4>"
              "<h4>Lowest cell number: " << lowest_cell_voltage_number << "</h4>"
@@ -91,7 +103,19 @@ String CmfaEvBattery::get_uds_info_html() {
              "<h4>Minimum temperature: " << minimum_temperature << "dC</h4>"
              "<h4>Cumulative energy discharged: " << cumulative_energy_when_discharging << "Wh</h4>"
              "<h4>Cumulative energy charged: " << cumulative_energy_when_charging << "Wh</h4>"
-             "<h4>Cumulative energy regen: " << cumulative_energy_in_regen << "Wh</h4>";
+             "<h4>Cumulative energy regen: " << cumulative_energy_in_regen << "Wh</h4>"
+             "<h4>Balance capacity total: " << bal_mAh(balance_capacity_total) << "mAh (was " << bal_mAh(initial_balance_capacity_total) << "mAh)</h4>"
+             "<h4>Balance time total: " << bal_s(balance_time_total) << "s (was " << bal_s(initial_balance_time_total) << "s)</h4>"
+             "<h4>Balance capacity sleep: " << bal_mAh(balance_capacity_sleep) << "mAh (was " << bal_mAh(initial_balance_capacity_sleep) << "mAh)</h4>"
+             "<h4>Balance time sleep: " << bal_s(balance_time_sleep) << "s (was " << bal_s(initial_balance_time_sleep) << "s)</h4>"
+             "<h4>Balance capacity wake: " << bal_mAh(balance_capacity_wake) << "mAh (was " << bal_mAh(initial_balance_capacity_wake) << "mAh)</h4>"
+             "<h4>Balance time wake: " << bal_s(balance_time_wake) << "s (was " << bal_s(initial_balance_time_wake) << "s)</h4>"
+             "<h4>Temporisation: " << (
+                temporisation==0xFF ? "UNKNOWN" : 
+                temporisation==1 ? "ACTIVE" : "INACTIVE"
+             ) << "</h4>"
+             "<h4>Pack time life: " << pack_time_life << "m (was " << int32_t(initial_pack_time_life) << "m)</h4>"
+             "<h4>Absolute time saved: " << absolute_time_saved << "m (was " << int32_t(initial_absolute_time_saved) << "m)</h4>";
   // clang-format on
 
   return content;
@@ -153,6 +177,11 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
+// The balancing data has a offset that needs stripping
+static int32_t decode_balance_word(uint32_t raw) {
+  return (int32_t)(raw - 0x80000000u);
+}
+
 uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
   // Called by the UDS superclass for every successful PID response. `value` is
   // the big-endian PID value (up to 4 bytes), `data` points at the raw value
@@ -186,7 +215,10 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
       // Not used
       break;
     case PID_POLL_INSTANT_CURRENT:
-      // Not used
+      instant_current_raw = value;
+      break;
+    case PID_POLL_100MS_CURRENT:
+      averaged_current_raw = value;
       break;
     case PID_POLL_MAX_REGEN:
       max_regen_power = (uint16_t)value;
@@ -230,6 +262,65 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
     case PID_POLL_CUMULATIVE_ENERGY_IN_REGEN:
       cumulative_energy_in_regen = value;
       break;
+    case PID_POLL_BALANCE_CAPACITY_TOTAL:
+      balance_capacity_total = decode_balance_word(value);
+      if (initial_balance_capacity_total == INT32_MIN)
+        initial_balance_capacity_total = balance_capacity_total;
+      break;
+    case PID_POLL_BALANCE_TIME_TOTAL:
+      balance_time_total = decode_balance_word(value);
+      if (initial_balance_time_total == INT32_MIN)
+        initial_balance_time_total = balance_time_total;
+      break;
+    case PID_POLL_BALANCE_CAPACITY_SLEEP:
+      balance_capacity_sleep = decode_balance_word(value);
+      if (initial_balance_capacity_sleep == INT32_MIN)
+        initial_balance_capacity_sleep = balance_capacity_sleep;
+      break;
+    case PID_POLL_BALANCE_TIME_SLEEP:
+      balance_time_sleep = decode_balance_word(value);
+      if (initial_balance_time_sleep == INT32_MIN)
+        initial_balance_time_sleep = balance_time_sleep;
+      break;
+    case PID_POLL_BALANCE_CAPACITY_WAKE:
+      balance_capacity_wake = decode_balance_word(value);
+      if (initial_balance_capacity_wake == INT32_MIN)
+        initial_balance_capacity_wake = balance_capacity_wake;
+      break;
+    case PID_POLL_BALANCE_TIME_WAKE:
+      balance_time_wake = decode_balance_word(value);
+      if (initial_balance_time_wake == INT32_MIN)
+        initial_balance_time_wake = balance_time_wake;
+      break;
+    case PID_POLL_BMS_STATE:
+      bms_state = (uint8_t)value;
+      break;
+    case PID_POLL_TEMPORISATION:
+      temporisation = value;
+      break;
+    case PID_POLL_PACK_TIME_LIFE:
+      pack_time_life = value;
+      if (initial_pack_time_life == UINT32_MAX)
+        initial_pack_time_life = pack_time_life;
+      break;
+    case PID_POLL_ABSOLUTE_TIME_SAVED:
+      absolute_time_saved = value;
+      if (initial_absolute_time_saved == UINT32_MAX)
+        initial_absolute_time_saved = absolute_time_saved;
+      break;
+    case PID_POLL_BALANCE_SWITCHES: {
+      // Assumed to use the same encoding as RENAULT-ZOE-2-BATTERY, with the
+      // bitmap at the end of the payload, cell 1 in bit 0 of the last byte.
+      // May not be correct!
+      uint8_t cells = datalayer_battery->info.number_of_cells;
+      if (length < (cells + 7) / 8) {
+        break;
+      }
+      for (uint8_t i = 0; i < cells; i++) {
+        datalayer_battery->status.cell_balancing_status[i] = (data[length - 1 - (i >> 3)] >> (i & 7)) & 0x01;
+      }
+      break;
+    }
     default:  //Unknown pid, or a cellvoltage
       uint8_t cellnumber = 0;
       if (pid >= PID_POLL_CELL_1 && pid <= PID_POLL_CELL_31) {  //Cellvoltage PID reply
@@ -254,7 +345,91 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
 
       break;
   }
+
+  // The instantaneous current changes quickly, so sample it every other PID by
+  // requesting it out-of-sequence next; the scan list then resumes where it
+  // left off when the instant current response comes back (which returns 0).
+  if (pid != PID_POLL_INSTANT_CURRENT) {
+    return PID_POLL_INSTANT_CURRENT;
+  }
   return 0;  //Continue scanning the PID list in order
+}
+
+void CmfaEvBattery::enable_temporisation() {
+  start_sequence(CMFA_STATE_TEMPORISATION_START);
+}
+
+void CmfaEvBattery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
+  // Called by the superclass when a response in a UDS sequence is received.
+  // Timeouts are ignored for now: each step only advances on a response.
+  switch (state) {
+      // Temporisation sequence
+
+    case CMFA_STATE_TEMPORISATION_START:
+      // Enter an extended diagnostic session first.
+      send_sequence_message(CMFA_STATE_TEMPORISATION_DIAG, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            CMFA_UDS_TIMEOUT_SESSION_CONTROL, 2);
+      break;
+    case CMFA_STATE_TEMPORISATION_DIAG:
+      // Extended diagnostic session entered, write the temporisation value.
+      send_sequence_message(CMFA_STATE_TEMPORISATION_SEND, SID::WriteDataByIdentifier, (const uint8_t*)"\x92\x81\x01",
+                            3, CMFA_UDS_TIMEOUT_WRITE, 2);
+      break;
+    case CMFA_STATE_TEMPORISATION_SEND:
+      logging.println("[CMFA] Temporisation enabled (DID 0x9281 set to 0x01)");
+      break;
+
+      // NVROL reset sequence
+
+    case CMFA_STATE_NVROL_START:
+      // NVROL reset, part 1: enter an extended diagnostic session (0x10 0x03).
+      send_sequence_message(CMFA_STATE_NVROL_SESSION, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            CMFA_NVROL_TIMEOUT_TICKS, 1);
+      break;
+    case CMFA_STATE_NVROL_SESSION:
+      // NVROL reset, part 2: run the NVROL reset routine (0x31 01 B0 09).
+      send_sequence_message(CMFA_STATE_NVROL_ROUTINE, SID::RoutineControl, (const uint8_t*)"\x01\xB0\x09", 3,
+                            CMFA_NVROL_TIMEOUT_TICKS, 2);
+      break;
+    case CMFA_STATE_NVROL_ROUTINE:
+      // Enable temporisation before sleep, part 1: extended session again.
+      send_sequence_message(CMFA_STATE_NVROL_SLEEP_SESSION, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            CMFA_NVROL_TIMEOUT_TICKS, 1);
+      break;
+    case CMFA_STATE_NVROL_SLEEP_SESSION:
+      // Enable temporisation before sleep, part 2: write DID 0x9281 = 0x01.
+      send_sequence_message(CMFA_STATE_NVROL_SLEEP_WRITE, SID::WriteDataByIdentifier, (const uint8_t*)"\x92\x81\x01", 3,
+                            CMFA_NVROL_TIMEOUT_TICKS, 1);
+      break;
+    case CMFA_STATE_NVROL_SLEEP_WRITE:
+      // The temporisation write is done: stop streaming the awake byte on 0x1EA
+      // so the pack saves its state and falls asleep, then hold the bus for 30 s.
+      CMFA_1EA.data.u8[0] = CMFA_1EA_SLEEP;
+      sequence_wait(CMFA_STATE_NVROL_SLEEP_WAIT, CMFA_SLEEP_TICKS);
+      break;
+    case CMFA_STATE_NVROL_SLEEP_WAIT:
+      // Wake the pack back up. The sequence ends here (no further steps sent).
+      CMFA_1EA.data.u8[0] = CMFA_1EA_AWAKE;
+      logging.println("[CMFA] NVROL reset complete");
+      break;
+
+      // Plain sleep sequence
+
+    case CMFA_STATE_SLEEP_START:
+      // Put the pack to sleep (no diagnostic session or reset) and hold the
+      // bus for 30 s while it saves its state and falls asleep.
+      CMFA_1EA.data.u8[0] = CMFA_1EA_SLEEP;
+      sequence_wait(CMFA_STATE_SLEEP_WAIT, CMFA_SLEEP_TICKS);
+      break;
+    case CMFA_STATE_SLEEP_WAIT:
+      // Wake the pack back up. The sequence ends here (no further steps sent).
+      CMFA_1EA.data.u8[0] = CMFA_1EA_AWAKE;
+      logging.println("[CMFA] Sleep cycle complete");
+      break;
+
+    default:
+      break;
+  }
 }
 
 void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
@@ -278,6 +453,16 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&CMFA_3D3);
   }
 
+  // Automatically enable temporisation if the BMS reports it as disabled.
+  // Don't queue it while a UDS sequence (e.g. an NVROL reset) is in progress.
+  if (!uds_is_busy() && temporisation != 0xFF &&
+      currentMillis - previousMillisTemporisation >= TEMPORISATION_RETRY_MS) {
+    if (temporisation == 0) {
+      previousMillisTemporisation = currentMillis;
+      enable_temporisation();
+    }
+  }
+
   // UDS PID polling and DTC handling
   transmit_uds_can(currentMillis);
 }
@@ -299,8 +484,8 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
       PID_POLL_CUMULATIVE_ENERGY_IN_REGEN,
       PID_POLL_SOCZ,
       PID_POLL_USOC,
-      PID_POLL_CURRENT_OFFSET,
-      PID_POLL_INSTANT_CURRENT,
+      //PID_POLL_CURRENT_OFFSET,
+      PID_POLL_100MS_CURRENT,
       PID_POLL_MAX_REGEN,
       PID_POLL_MAX_DISCHARGE_POWER,
       PID_POLL_MAX_CHARGE_POWER,
@@ -309,6 +494,17 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
       PID_POLL_MAX_TEMPERATURE,
       PID_POLL_END_OF_CHARGE_FLAG,
       PID_POLL_INTERLOCK_FLAG,
+      PID_POLL_BALANCE_CAPACITY_TOTAL,
+      PID_POLL_BALANCE_TIME_TOTAL,
+      PID_POLL_BALANCE_CAPACITY_SLEEP,
+      PID_POLL_BALANCE_TIME_SLEEP,
+      PID_POLL_BALANCE_CAPACITY_WAKE,
+      PID_POLL_BALANCE_TIME_WAKE,
+      PID_POLL_BMS_STATE,
+      PID_POLL_TEMPORISATION,
+      PID_POLL_PACK_TIME_LIFE,
+      PID_POLL_ABSOLUTE_TIME_SAVED,
+      PID_POLL_BALANCE_SWITCHES,
       PID_POLL_CELL_1,
       PID_POLL_CELL_2,
       PID_POLL_CELL_3,
