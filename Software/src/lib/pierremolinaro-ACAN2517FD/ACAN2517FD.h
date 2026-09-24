@@ -194,6 +194,7 @@ class ACAN2517FD {
 
   private: void reset2517FD (void) ;
   private: ACAN2517FDSettings::Oscillator autodetectCrystalFrequency (void) ;
+  private: ACAN2517FDSettings::Oscillator mDetectedOscillator = ACAN2517FDSettings::OSC_AUTODETECT ;
 
   private: void writeRegister8 (const uint16_t inRegisterAddress, const uint8_t inValue) ;
   private: void writeRegister32 (const uint16_t inAddress, const uint32_t inValue) ;

@@ -331,9 +331,20 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     }
   }
 
-  const auto oscillator = inSettings.oscillator() == ACAN2517FDSettings::OSC_AUTODETECT
-    ?  autodetectCrystalFrequency ()
-    : inSettings.oscillator() ;
+  // The crystal can't change while running: measure it on the first successful
+  // begin() only, and reuse the result on later calls (e.g. restart after end()),
+  // sparing the 10 ms blocking measurement.
+  ACAN2517FDSettings::Oscillator oscillator = inSettings.oscillator () ;
+  if (oscillator == ACAN2517FDSettings::OSC_AUTODETECT) {
+    if (mDetectedOscillator != ACAN2517FDSettings::OSC_AUTODETECT) {
+      oscillator = mDetectedOscillator ;
+    }else{
+      oscillator = autodetectCrystalFrequency () ;
+      if (errorCode == 0) { // Only trust a measurement taken over a verified SPI link
+        mDetectedOscillator = oscillator ;
+      }
+    }
+  }
   // Create a new settings object with the new frequency (which recalculates the timings)
   const auto clockSettings = ACAN2517FDSettings(oscillator, inSettings.mDesiredArbitrationBitRate, inSettings.mDataBitRateFactor);
 
