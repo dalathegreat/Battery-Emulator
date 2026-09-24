@@ -1888,7 +1888,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
             <label for='vwdcdcv'>DC-DC Low voltage setting (V): </label>
             <input name='VWDCDCV' id='vwdcdcv' type='number' min='10.6' max='14.5' step='0.025' value='%VWDCDCV%'
-            title="Output voltage the DC-DC converter on the 12V rail while it is charging. Range 10.6 - 14.5 V" />
+            title="Set charging voltage for the 12V battery. Range 10.6 - 14.5 V. The value 10.6V puts DC-DC into standby." />
         </div>
 
         <div class="if-daly">
