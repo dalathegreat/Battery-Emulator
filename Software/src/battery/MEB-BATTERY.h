@@ -363,11 +363,6 @@ class MebBattery : public CanBattery, public IsoTp {
   static constexpr unsigned long BMS_RESET_SLEEP_MS = 5000;             // bus-quiet wait before restart
   static constexpr uint32_t BMS_CAN_ERR_IGNORE_MS = 2000;               // ignore CAN errors while BMS wakes after reset
 
-  // HVK_DCDC_Sollmodus / DC_IstModus_02 values (HVK_01 byte 3 bits 3-5, DCDC_04 DC_IstModus_02)
-#define DCDC_MODE_STANDBY 0
-#define DCDC_MODE_PRECHARGE_ON 1  // precharge
-#define DCDC_MODE_CHARGE_12V 2    // buck — normal HV supply
-
   // HV coordinator: brings HV up by sequencing the external DCDC through precharge, then handing
   // off to the BMS for AC charging. Any fault sets back to IDLE_HV_OFF.
   enum class HvCoordinatorState : uint8_t {
@@ -388,6 +383,11 @@ class MebBattery : public CanBattery, public IsoTp {
   static constexpr unsigned long ISO_MEASUREMENT_PERIOD_MS = 15000;
   bool iso_measurement_active = false;   // true = request measurement, false = no measurement
   unsigned long iso_measurement_ms = 0;  // start of the current 15 seconds phase
+
+  static constexpr uint8_t DCDC_MODE_STANDBY = 0;
+  static constexpr uint8_t DCDC_MODE_PRECHARGE_ON = 1;  // precharge
+  static constexpr uint8_t DCDC_MODE_CHARGE_12V = 2;    // buck — normal HV supply
+  static constexpr uint16_t DCDC_MIN_SETPOINT_MV = 10600;
 
   // DCDC converter state, decoded from the received DCDC_01/02/04 messages.
   uint8_t dcdc_actual_mode = DCDC_MODE_STANDBY;  // DC mode from DCDC_04
