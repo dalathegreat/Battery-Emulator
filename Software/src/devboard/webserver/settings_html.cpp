@@ -1074,7 +1074,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "LEAFAUTOOFS") {
-    return settings.getBool("LEAFAUTOOFS") ? "checked" : "";
+    return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
   }
 
   if (var == "DIGITALHVIL") {

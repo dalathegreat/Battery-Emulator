@@ -1297,10 +1297,11 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
     EXPECT_NE(renderer.get_status_html().str().find(row), std::string::npos) << (int)value;
   }
 
-  // Last in the status list, straight before it closes
+  // Last in the status list but for the automatic current offset, which is on by default
   std::string html = renderer.get_status_html().str();
   EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
-  EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4></div>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4><h4>Automatic current offset: "),
+            std::string::npos);
 }
 
 // Automatic current offset correction
@@ -1348,7 +1349,7 @@ class NissanLeafAutoCurrentOffsetTests : public ::testing::Test {
 
   void TearDown() override {
     bms_power_on_ms = 0;
-    user_selected_LEAF_auto_current_offset = false;
+    user_selected_LEAF_auto_current_offset = true;  // Its default
     contactor_control_enabled = false;
     contactor_control_enabled_double_battery = false;
     datalayer.system.status.contactors_engaged = 0;
