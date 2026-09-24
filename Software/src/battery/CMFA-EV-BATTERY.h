@@ -30,6 +30,13 @@ class CmfaEvBattery : public UdsCanBattery {
   virtual void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
   static constexpr const char* Name = "CMFA platform, 27 kWh battery";
 
+  bool supports_reset_NVROL() { return true; }
+  void reset_NVROL() { start_sequence(CMFA_STATE_NVROL_START); }
+  // The generic "BMS Reset" button is reused to put the pack through a plain
+  // 30 s sleep cycle (no diagnostic session or NVROL reset).
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { start_sequence(CMFA_STATE_SLEEP_START); }
+
   String get_uds_info_html() override;
 
  protected:
@@ -45,11 +52,34 @@ class CmfaEvBattery : public UdsCanBattery {
     CMFA_STATE_TEMPORISATION_START = 0x01,
     CMFA_STATE_TEMPORISATION_DIAG,  // 0x10 0x03 (extended session)
     CMFA_STATE_TEMPORISATION_SEND,  // 0x2E 0x9281 (write temporisation)
+
+    // NVROL reset sequence (ported from the Renault Zoe Gen2 integration).
+    // After resetting the NVROL memory we enable "temporisation before sleep",
+    // then put the 0x1EA keep-alive frame to sleep for 30 s so the pack saves
+    // its state and falls asleep, and finally wake it back up.
+    CMFA_STATE_NVROL_START = 0x10,
+    CMFA_STATE_NVROL_SESSION,        // 0x10 0x03 (extended diagnostic session)
+    CMFA_STATE_NVROL_ROUTINE,        // 0x31 01 B0 09 (NVROL reset routine)
+    CMFA_STATE_NVROL_SLEEP_SESSION,  // 0x10 0x03 (extended session, again)
+    CMFA_STATE_NVROL_SLEEP_WRITE,    // 0x2E 92 81 01 (enable temporisation before sleep)
+    CMFA_STATE_NVROL_SLEEP_WAIT,     // 30 s: 0x1EA kept asleep so the pack falls asleep
+
+    // Plain sleep sequence: put the pack to sleep for 30 s and wake it again,
+    // without any diagnostic session or NVROL reset.
+    CMFA_STATE_SLEEP_START = 0x20,
+    CMFA_STATE_SLEEP_WAIT,  // 30 s: 0x1EA kept asleep so the pack falls asleep
   };
 
   // Timeouts for the UDS sequences (in UDS ticks).
   static constexpr uint16_t CMFA_UDS_TIMEOUT_SESSION_CONTROL = 10;
   static constexpr uint16_t CMFA_UDS_TIMEOUT_WRITE = 50;
+  static constexpr uint16_t CMFA_NVROL_TIMEOUT_TICKS = 10;  // 1 s, per NVROL sequence step
+  static constexpr uint16_t CMFA_SLEEP_TICKS = 300;         // 30 s
+
+  // 0x1EA is the keep-alive/wakeup frame towards the BMS; 0x01 asks it to go
+  // to sleep, 0x00 keeps it awake.
+  static constexpr uint8_t CMFA_1EA_AWAKE = 0x00;
+  static constexpr uint8_t CMFA_1EA_SLEEP = 0x01;
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;

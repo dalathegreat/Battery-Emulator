@@ -56,6 +56,10 @@
 //     response and send the next step.
 //   - Optionally override `on_uds_sequence_timeout(state)` to handle a step
 //     timing out (the superclass retries automatically).
+//   - Add `sequence_wait(state, ticks)` steps to hold the bus between requests
+//     for a given number of 100ms ticks without sending anything; the state is
+//     handed to on_uds_sequence_step() when the wait elapses (e.g. letting a
+//     pack fall asleep between reset steps).
 
 class UdsCanBattery;
 
@@ -190,6 +194,15 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   // handed back here.
   virtual void on_uds_sequence_timeout(uint16_t state) {}
 
+  // Hold the bus as part of the active sequence for the given number of 100ms
+  // ticks (must be non-zero) without sending anything. No ISO-TP traffic is
+  // generated and no retries apply. When the wait elapses,
+  // on_uds_sequence_step() is called with the same state (sid 0, empty data) -
+  // send the next step there, or send nothing to end the sequence. The PID
+  // scan stays held while a wait is running, like any other sequence step.
+  // Returns false if a step (or PID request) is already in flight.
+  bool sequence_wait(uint16_t state, uint16_t ticks);
+
   // Override this to be passed successful PID query responses. A return value
   // of 0 causes the PID list to be scanned in order. Return a PID to read it
   // next, out-of-sequence (e.g. to sample a specific PID more often), after
@@ -266,6 +279,8 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   uint16_t next_pid = 0;
   // The PID currently being requested.
   uint16_t pending_pid = 0;
+  // True while a sequence_wait() step is ticking down (no request in flight).
+  bool seq_waiting = false;
   // How many times we've retried the current PID request.
   uint32_t pid_retries = 0;
   // Current position in the active sequence, or UDS_STATE_IDLE if no sequence

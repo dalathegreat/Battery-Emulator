@@ -361,7 +361,10 @@ void CmfaEvBattery::enable_temporisation() {
 
 void CmfaEvBattery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
   // Called by the superclass when a response in a UDS sequence is received.
+  // Timeouts are ignored for now: each step only advances on a response.
   switch (state) {
+      // Temporisation sequence
+
     case CMFA_STATE_TEMPORISATION_START:
       // Enter an extended diagnostic session first.
       send_sequence_message(CMFA_STATE_TEMPORISATION_DIAG, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
@@ -374,6 +377,57 @@ void CmfaEvBattery::on_uds_sequence_step(uint16_t state, uint8_t sid, const uint
       break;
     case CMFA_STATE_TEMPORISATION_SEND:
       logging.println("[CMFA] Temporisation enabled (DID 0x9281 set to 0x01)");
+      break;
+
+      // NVROL reset sequence
+
+    case CMFA_STATE_NVROL_START:
+      // NVROL reset, part 1: enter an extended diagnostic session (0x10 0x03).
+      send_sequence_message(CMFA_STATE_NVROL_SESSION, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            CMFA_NVROL_TIMEOUT_TICKS, 1);
+      break;
+    case CMFA_STATE_NVROL_SESSION:
+      // NVROL reset, part 2: run the NVROL reset routine (0x31 01 B0 09).
+      send_sequence_message(CMFA_STATE_NVROL_ROUTINE, SID::RoutineControl, (const uint8_t*)"\x01\xB0\x09", 3,
+                            CMFA_NVROL_TIMEOUT_TICKS, 2);
+      break;
+    case CMFA_STATE_NVROL_ROUTINE:
+      // Enable temporisation before sleep, part 1: extended session again.
+      send_sequence_message(CMFA_STATE_NVROL_SLEEP_SESSION, SID::DiagnosticSessionControl, (const uint8_t*)"\x03", 1,
+                            CMFA_NVROL_TIMEOUT_TICKS, 1);
+      break;
+    case CMFA_STATE_NVROL_SLEEP_SESSION:
+      // Enable temporisation before sleep, part 2: write DID 0x9281 = 0x01.
+      send_sequence_message(CMFA_STATE_NVROL_SLEEP_WRITE, SID::WriteDataByIdentifier, (const uint8_t*)"\x92\x81\x01", 3,
+                            CMFA_NVROL_TIMEOUT_TICKS, 1);
+      break;
+    case CMFA_STATE_NVROL_SLEEP_WRITE:
+      // The temporisation write is done: stop streaming the awake byte on 0x1EA
+      // so the pack saves its state and falls asleep, then hold the bus for 30 s.
+      CMFA_1EA.data.u8[0] = CMFA_1EA_SLEEP;
+      sequence_wait(CMFA_STATE_NVROL_SLEEP_WAIT, CMFA_SLEEP_TICKS);
+      break;
+    case CMFA_STATE_NVROL_SLEEP_WAIT:
+      // Wake the pack back up. The sequence ends here (no further steps sent).
+      CMFA_1EA.data.u8[0] = CMFA_1EA_AWAKE;
+      logging.println("[CMFA] NVROL reset complete");
+      break;
+
+      // Plain sleep sequence
+
+    case CMFA_STATE_SLEEP_START:
+      // Put the pack to sleep (no diagnostic session or reset) and hold the
+      // bus for 30 s while it saves its state and falls asleep.
+      CMFA_1EA.data.u8[0] = CMFA_1EA_SLEEP;
+      sequence_wait(CMFA_STATE_SLEEP_WAIT, CMFA_SLEEP_TICKS);
+      break;
+    case CMFA_STATE_SLEEP_WAIT:
+      // Wake the pack back up. The sequence ends here (no further steps sent).
+      CMFA_1EA.data.u8[0] = CMFA_1EA_AWAKE;
+      logging.println("[CMFA] Sleep cycle complete");
+      break;
+
+    default:
       break;
   }
 }
@@ -400,7 +454,9 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   }
 
   // Automatically enable temporisation if the BMS reports it as disabled.
-  if (temporisation != 0xFF && currentMillis - previousMillisTemporisation >= TEMPORISATION_RETRY_MS) {
+  // Don't queue it while a UDS sequence (e.g. an NVROL reset) is in progress.
+  if (!uds_is_busy() && temporisation != 0xFF &&
+      currentMillis - previousMillisTemporisation >= TEMPORISATION_RETRY_MS) {
     if (temporisation == 0) {
       previousMillisTemporisation = currentMillis;
       enable_temporisation();

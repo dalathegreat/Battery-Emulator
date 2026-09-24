@@ -88,6 +88,16 @@ bool UdsCanBattery::transaction_tick() {
   // The current request timed out.
   uds_current_response_address = 0;
 
+  if (seq_waiting) {
+    // A sequence_wait() step elapsed: dispatch it like a completed step (with
+    // no response) so the subclass can continue or end the sequence.
+    seq_waiting = false;
+    const uint16_t waited = seq_state;
+    seq_state = UDS_STATE_IDLE;
+    handle_sequence(waited, 0, nullptr, 0);
+    return false;
+  }
+
   if (seq_state != UDS_STATE_IDLE) {
     // A sequence step timed out, retry if we have any retries left. If the
     // pause now blocks this priority (e.g. an external tool appeared), don't
@@ -115,6 +125,24 @@ bool UdsCanBattery::start_sequence(uint16_t state) {
   }
 
   pending_seq_state = state;
+  return true;
+}
+
+bool UdsCanBattery::sequence_wait(uint16_t state, uint16_t ticks) {
+  if (seq_state != UDS_STATE_IDLE || pending_pid != 0) {
+    // A sequence step or PID request is already in flight: refuse.
+    return false;
+  }
+
+  if (ticks == 0) {
+    // A zero-length wait would wedge the sequence (it could never be
+    // distinguished from a freshly queued step).
+    return false;
+  }
+
+  seq_state = state;
+  seq_waiting = true;
+  uds_transaction_timeout = ticks;
   return true;
 }
 
@@ -359,6 +387,13 @@ void UdsCanBattery::on_uds_receive(const uint8_t* data, uint16_t len) {
   if (seq_state == UDS_STATE_IDLE && pending_pid == 0) {
     // Nothing in flight: this can't be a response to anything we sent. Don't
     // let it pin the response address for a future transaction.
+    uds_current_response_address = 0;
+    return;
+  }
+
+  if (seq_waiting) {
+    // Mid-sequence wait: no request is in flight, so anything arriving is not
+    // a response to a step. Don't let it pin the response address either.
     uds_current_response_address = 0;
     return;
   }
