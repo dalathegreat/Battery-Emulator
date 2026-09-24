@@ -374,9 +374,9 @@ class MebBattery : public CanBattery, public IsoTp {
     RUNNING,             // steady HV on; precharge bit cleared
   };
   HvCoordinatorState hv_coordinator_state = HvCoordinatorState::IDLE_HV_OFF;
-  unsigned long hv_coordinator_ms = 0;                       // phase-start timestamp (diagnostics)
-  static constexpr unsigned long HV_STEP_STALL_MS = 3000;    // log if a step stalls this long
-  static constexpr int PRECHARGE_VOLTAGE_MATCH_DV = 100;     // DCDC HV vs pack match window (10 V)
+  unsigned long hv_coordinator_ms = 0;                     // phase-start timestamp (diagnostics)
+  static constexpr unsigned long HV_STEP_STALL_MS = 3000;  // log if a step stalls this long
+  static constexpr int PRECHARGE_VOLTAGE_MATCH_DV = 100;   // DCDC HV vs pack match window (10 V)
 
   // Isolation measurement request sent in HVK_01 (bits 50-52): 15 seconds of
   // measurement alternating with 15 seconds idle, only while KL15 is on.
@@ -733,10 +733,10 @@ class MebBattery : public CanBattery, public IsoTp {
                                  .ID = Motor_EV_01,  // content
                                  .data = {0x00, 0x80, 0x12, 0x00, 0x00, 0x00, 0x30, 0x96}};
   CAN_frame NVEM_10_frame = {.FD = true,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = NVEM_10,  // content
-                                 .data = {0x3E, 0x09, 0x00, 0x00, 0x40, 0x00, 0xFD, 0x00}};
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = NVEM_10,  // content
+                             .data = {0x3E, 0x09, 0x00, 0x00, 0x40, 0x00, 0xFD, 0x00}};
   uint32_t can_msg_received = 0;
 };
 

@@ -815,7 +815,8 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       dcdc_hv_current_dA = (int16_t)((int32_t)dc_i_raw - 511);
       // DC Low voltage side voltage
       dcdc_lv_voltage_dV = rx_frame.data.u8[7];  // store in dV (0.1 V units)
-      dcdc_lv_current_A = (((int16_t)(rx_frame.data.u8[5] & 0xF) << 6) | (rx_frame.data.u8[4] >> 2)) - 511;  // store in A (1 A units)
+      dcdc_lv_current_A =
+          (((int16_t)(rx_frame.data.u8[5] & 0xF) << 6) | (rx_frame.data.u8[4] >> 2)) - 511;  // store in A (1 A units)
       break;
     }
     case DCDC_02:  // DCDC (0x3F4) — consumption / utilization (display only)
@@ -824,7 +825,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // DC HV utilization (bits 56-63, factor 0.4 %)
       dcdc_utilization_pct = (uint8_t)(rx_frame.data.u8[7] * 0.4f);
       break;
-    case DCDC_03:  // DCDC temperature
+    case DCDC_03:                                   // DCDC temperature
       dcdc_temperature = rx_frame.data.u8[7] - 40;  // offset of 40 degrees
       break;
     case DCDC_04:  // DCDC (0xF7) — reported converter mode + precharge status
@@ -972,8 +973,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     static constexpr uint8_t NVEM_12V_FLOOR = (uint8_t)((10.6f - 10.6f) / 0.025f + 0.5f);
     const uint8_t NVEM_12V_CHARGE =
         (uint8_t)(((int32_t)user_selected_VW_dcdc_lv_setpoint_mV - DCDC_MIN_SETPOINT_MV) / 25);  // 0.025 V per step
-    NVEM_10_frame.data.u8[7] =
-        (dcdc_actual_mode == DCDC_MODE_CHARGE_12V) ? NVEM_12V_CHARGE : NVEM_12V_FLOOR;
+    NVEM_10_frame.data.u8[7] = (dcdc_actual_mode == DCDC_MODE_CHARGE_12V) ? NVEM_12V_CHARGE : NVEM_12V_FLOOR;
     NVEM_10_frame.data.u8[1] = ((NVEM_10_frame.data.u8[1] & 0xF0) | counter_50ms);
     NVEM_10_frame.data.u8[0] = vw_crc_calc(NVEM_10_frame.data.u8, NVEM_10_frame.DLC, NVEM_10_frame.ID);
 
@@ -1109,7 +1109,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         break;
       case PID_SOH:
         if (platform == VAGPlatform::MQB_Evo) {
-          poll_pid = PID_SOC; // MQB Evo reads cell voltages directly from BMS_CMC_04;
+          poll_pid = PID_SOC;  // MQB Evo reads cell voltages directly from BMS_CMC_04;
         } else {
           poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
         }
@@ -1419,27 +1419,25 @@ void MebBattery::high_voltage_coordinator_legacy(unsigned long currentMillis) {
   const auto bms_status = datalayer.battery.status.real_bms_status;
   const bool equipment_stop = datalayer.system.info.equipment_stop_active;
   const bool inverter_ok = datalayer.system.status.inverter_allows_contactor_closing;
-  const uint8_t precharge_bit =
-      (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) ? 0x80 : 0x00;
+  const uint8_t precharge_bit = (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) ? 0x80 : 0x00;
 
   // Our own precharge has brought the DC link within 20 V of the pack, so the BMS may close.
-  const bool precharge_matched = datalayer.battery.status.voltage_dV > 200 &&
-                                 datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
-                                 labs(((int32_t)datalayer.battery.status.voltage_dV) -
-                                      ((int32_t)datalayer_meb->BMS_voltage_intermediate_dV)) < 200;
+  const bool precharge_matched =
+      datalayer.battery.status.voltage_dV > 200 && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
+      labs(((int32_t)datalayer.battery.status.voltage_dV) - ((int32_t)datalayer_meb->BMS_voltage_intermediate_dV)) <
+          200;
   // The BMS may be commanded to close when it is either already closed (BMS_ACTIVE, normal
   // operation) or standing by with precharge matched / HV already requested. FAULT and every other
   // state fall through to the HV_OFF branch below.
-  const bool bms_ready =
-      bms_status == BMS_ACTIVE || (bms_status == BMS_STANDBY && (hv_requested || precharge_matched));
+  const bool bms_ready = bms_status == BMS_ACTIVE || (bms_status == BMS_STANDBY && (hv_requested || precharge_matched));
 
   // Command the BMS to close, or to open. Neither applies before the first CAN messages arrive or
   // while the BMS is still in INIT: byte 1 is then left untouched.
   const bool request_hv_on = !equipment_stop && inverter_ok && bms_ready;
   const bool request_hv_off =
-      !request_hv_on && ((first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 &&
-                          BMS_mode != BMS_TARGET_INIT) ||
-                         equipment_stop || !inverter_ok);
+      !request_hv_on &&
+      ((first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 && BMS_mode != BMS_TARGET_INIT) ||
+       equipment_stop || !inverter_ok);
 
   // Both branches drive the precharge bit identically; log it only when it actually flips.
   if ((request_hv_on || request_hv_off) && (HVK_01_frame.data.u8[1] & 0x80) != precharge_bit) {
@@ -1464,7 +1462,7 @@ void MebBattery::high_voltage_coordinator_legacy(unsigned long currentMillis) {
     HVK_01_frame.data.u8[3] = BMS_TARGET_AC_CHARGING;
     HVK_01_frame.data.u8[5] = 0x82;  // Bordnetz Active
     HVK_01_frame.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
-  } else if (request_hv_off) {  //FAULT STATE, open contactors
+  } else if (request_hv_off) {       //FAULT STATE, open contactors
 
     if (datalayer.system.status.system_status != FAULT && bms_status == BMS_STANDBY && !equipment_stop) {
       datalayer.system.info.start_precharging = true;
@@ -1549,8 +1547,8 @@ void MebBattery::high_voltage_coordinator(unsigned long currentMillis) {
       precharge_active = true;
       //if (dcdc_precharge_complete && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
       if (datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
-          labs((int32_t)dcdc_hv_voltage_dV -
-               (int32_t)datalayer.battery.status.voltage_dV) < PRECHARGE_VOLTAGE_MATCH_DV) {
+          labs((int32_t)dcdc_hv_voltage_dV - (int32_t)datalayer.battery.status.voltage_dV) <
+              PRECHARGE_VOLTAGE_MATCH_DV) {
         hv_coordinator_state = HvCoordinatorState::REQUEST_BMS_CHARGE;
       }
       break;

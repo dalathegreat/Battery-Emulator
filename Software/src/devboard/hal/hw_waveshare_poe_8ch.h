@@ -74,7 +74,8 @@ class WavesharePoE8ChHal : public Esp32Hal {
   }
 
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdAddonMcp2518};
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative,
+            comm_interface::CanFdAddonMcp2518};
   }
 
   virtual const char* name_for_comm_interface(comm_interface comm) {
