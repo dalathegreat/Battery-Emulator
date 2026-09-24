@@ -9,6 +9,25 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+//Diagnostic: the latest group 0x01 current line of each pack, shared across the pack instances so
+//a summed line can follow once every configured pack has logged since the previous sum.
+namespace {
+struct LeafG01CurrentLog {
+  int32_t i1_raw;    //High precision current 1, 1/1024 A, + = discharge
+  int32_t i2_raw;    //High precision current 2, 1/1024 A, + = discharge
+  int32_t c1db_raw;  //Latest 0x1DB sample, 0.5 A, + = charge
+  int32_t avg_dA;    //Latest 1 s mean published to the datalayer, 0.1 A, + = charge
+};
+LeafG01CurrentLog leaf_g01_log[3];
+uint8_t leaf_g01_logged_mask = 0;
+
+//Everything printed in the LBC's sign (+ = discharge). The charge-positive values are negated as
+//integers so a zero prints as 0.0 rather than -0.0.
+void log_leaf_g01_currents(const char* packs, const LeafG01CurrentLog& v) {
+  logging.printf("Leaf %s group 0x01 current (+discharge): I1 %.3f A, I2 %.3f A, 0x1DB %.1f A, avg1s %.1f A\n", packs,
+                 v.i1_raw / 1024.0f, v.i2_raw / 1024.0f, -v.c1db_raw * 0.5f, -v.avg_dA / 10.0f);
+}
+}  // namespace
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 #ifndef SMALL_FLASH_DEVICE
 //Cryptographic functions
@@ -732,11 +751,32 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               (int32_t)(((uint32_t)rx_frame.data.u8[3] << 24) | ((uint32_t)rx_frame.data.u8[4] << 16) |
                         ((uint32_t)rx_frame.data.u8[5] << 8) | (uint32_t)rx_frame.data.u8[6]);
           //Diagnostic: both high precision currents once per group 0x01 poll, next to the latest 0x1DB
-          //sample so their usability can be judged. All three in the LBC's sign (+ = discharge), so
-          //0x1DB, which the driver carries charge-positive, is negated here.
-          logging.printf("Leaf %u group 0x01 current (+discharge): I1 %.3f A, I2 %.3f A, 0x1DB %.1f A\n",
-                         (unsigned)battery_index, battery_HP_Current1_raw / 1024.0f, battery_HP_Current2_raw / 1024.0f,
-                         battery_Current2 * -0.5f);
+          //sample and the latest 1 s mean in the datalayer, so their usability can be judged. With
+          //more than one pack, a summed line follows once every pack has logged since the last one.
+          const uint8_t pack = battery_index - 1;
+          if (pack < 3) {
+            leaf_g01_log[pack] = {battery_HP_Current1_raw, battery_HP_Current2_raw, battery_Current2,
+                                  datalayer_battery->status.current_dA};
+            const char name[2] = {(char)('1' + pack), '\0'};
+            log_leaf_g01_currents(name, leaf_g01_log[pack]);
+
+            const uint8_t packs = datalayer.system.info.configured_batteries;
+            if (packs > 1 && packs <= 3) {
+              leaf_g01_logged_mask |= (uint8_t)(1u << pack);
+              const uint8_t all = (uint8_t)((1u << packs) - 1u);
+              if ((leaf_g01_logged_mask & all) == all) {
+                LeafG01CurrentLog sum = {0, 0, 0, 0};
+                for (uint8_t i = 0; i < packs; i++) {
+                  sum.i1_raw += leaf_g01_log[i].i1_raw;
+                  sum.i2_raw += leaf_g01_log[i].i2_raw;
+                  sum.c1db_raw += leaf_g01_log[i].c1db_raw;
+                  sum.avg_dA += leaf_g01_log[i].avg_dA;
+                }
+                log_leaf_g01_currents((packs == 3) ? "1+2+3" : "1+2", sum);
+                leaf_g01_logged_mask = 0;
+              }
+            }
+          }
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame, payload[20..26] in u8[1..7]
