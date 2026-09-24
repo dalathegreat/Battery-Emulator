@@ -94,6 +94,9 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_Current2_peak_min_raw = 0;
   int16_t battery_Current2_peak_max_published_dA = 0;
   int16_t battery_Current2_peak_min_published_dA = 0;
+  //Group 0x01 high precision current 1 (1/1024 A, LBC sign: + = discharge), held from the first
+  //frame of the reply until the second one brings current 2, then both are logged together.
+  int32_t battery_HP_Current1_raw = 0;
 
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.

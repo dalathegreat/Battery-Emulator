@@ -720,9 +720,23 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame
           //High precision Battery_current_1 resides here, but has been deemed unusable by 62kWh owners
+          //payload[2..5] in u8[4..7], big-endian two's complement, 1/1024 A per bit
+          battery_HP_Current1_raw =
+              (int32_t)(((uint32_t)rx_frame.data.u8[4] << 24) | ((uint32_t)rx_frame.data.u8[5] << 16) |
+                        ((uint32_t)rx_frame.data.u8[6] << 8) | (uint32_t)rx_frame.data.u8[7]);
         }
         if (rx_frame.data.u8[0] == 0x21) {  //Second frame
           //High precision Battery_current_2 resides here, but has been deemed unusable by 62kWh owners
+          //payload[8..11] in u8[3..6], same encoding as current 1
+          int32_t battery_HP_Current2_raw =
+              (int32_t)(((uint32_t)rx_frame.data.u8[3] << 24) | ((uint32_t)rx_frame.data.u8[4] << 16) |
+                        ((uint32_t)rx_frame.data.u8[5] << 8) | (uint32_t)rx_frame.data.u8[6]);
+          //Diagnostic: both high precision currents once per group 0x01 poll, next to the latest 0x1DB
+          //sample so their usability can be judged. All three in the LBC's sign (+ = discharge), so
+          //0x1DB, which the driver carries charge-positive, is negated here.
+          logging.printf("Leaf %u group 0x01 current (+discharge): I1 %.3f A, I2 %.3f A, 0x1DB %.1f A\n",
+                         (unsigned)battery_index, battery_HP_Current1_raw / 1024.0f, battery_HP_Current2_raw / 1024.0f,
+                         battery_Current2 * -0.5f);
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame, payload[20..26] in u8[1..7]
