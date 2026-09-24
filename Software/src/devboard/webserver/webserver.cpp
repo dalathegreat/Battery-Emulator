@@ -945,6 +945,23 @@ void init_webserver() {
     datalayer.battery_settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
   });
 
+  // Route for the settings page "Perform a BMS reset now" button. Runs the same sequence as the
+  // MQTT BMSRESET command, and says why when start_bms_reset() would silently do nothing.
+  def_route_with_auth("/startBMSReset", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (!periodic_bms_reset && !remote_bms_reset) {
+      request->send(409, "text/plain", "No BMS reset method is active yet. Save the settings and reboot first.");
+      return;
+    }
+    if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+      request->send(409, "text/plain", "A BMS reset is already in progress.");
+      return;
+    }
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.println("BMS reset requested from the settings page.");
+    start_bms_reset();
+    request->send(200, "text/plain", "OK");
+  });
+
   // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab.
   // Runtime values like before, so nothing is stored.
   def_route_with_auth("/updateFakeBattery", server, HTTP_GET, [](AsyncWebServerRequest* request) {
