@@ -390,20 +390,34 @@ static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& eng
   }
 }
 
+/* An extra pack's own permission, for drivers that gate closing (Battery::gates_contactor_closing()),
+   the same precondition the primary pack gets before its ladder starts (293A0NDS25 5.1.1 step 3)).
+   Consulted only while the contactor is open, as for the primary pack: it keeps a pack from joining,
+   but a momentary loss of permission never breaks a circuit that is carrying current. */
+static bool extra_pack_permits_close(Battery* pack, bool pack_permits, bool engaged) {
+  return engaged || !pack || !pack->gates_contactor_closing() || pack_permits;
+}
+
 void handle_contactors_battery2() {
   static uint32_t pull_in_start = 0;
+  bool& engaged = datalayer.system.status.contactors_battery2_engaged;
 
-  handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery2_engaged, pull_in_start);
+  handle_extra_contactor(
+      esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing &&
+          extra_pack_permits_close(battery2, datalayer.system.status.battery2_pack_permits_closing, engaged),
+      engaged, pull_in_start);
 }
 
 void handle_contactors_battery3() {
   static uint32_t pull_in_start = 0;
+  bool& engaged = datalayer.system.status.contactors_battery3_engaged;
 
-  handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery3_engaged, pull_in_start);
+  handle_extra_contactor(
+      esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing &&
+          extra_pack_permits_close(battery3, datalayer.system.status.battery3_pack_permits_closing, engaged),
+      engaged, pull_in_start);
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.

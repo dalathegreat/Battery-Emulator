@@ -1796,12 +1796,10 @@ TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
   battery->handle_incoming_can_frame(leaf_5bc());  // Still powered, winding down
   battery->transmit_can(100300);
   battery->transmit_can(101239);
-  EXPECT_FALSE(log_contains("went silent")) << "confirmed before a full second of silence";
+  EXPECT_FALSE(log_contains("successfully went silent")) << "confirmed before a full second of silence";
 
   battery->transmit_can(101240);
-  EXPECT_TRUE(
-      log_contains("LEAF (Battery 1): pack went silent on CAN after GoToSleep "
-                   "(HCM_WakeUpSleepCommand=00b), last frame +240 ms"))
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): successfully went silent on CAN, last frame +240 ms"))
       << Logging::captured();
 
   // Power comes back after a confirmed stop: no failure line.
@@ -1839,7 +1837,7 @@ TEST(NissanLeafSleepTests, LogsWhenThePackNeverWentSilentBeforePowerReturned) {
     battery->handle_incoming_can_frame(leaf_5bc());  // BMS_POWER is not feeding this LBC
     battery->transmit_can(t);
   }
-  EXPECT_FALSE(log_contains("went silent"));
+  EXPECT_FALSE(log_contains("successfully went silent"));
 
   datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
   battery->transmit_can(130000);
@@ -1927,4 +1925,69 @@ TEST(NissanLeafSleepTests, DoesNotHoldWhileThePackIsStillTalking) {
   battery->transmit_can(130000);
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
   clear_transmitted_frames();
+}
+
+// --- Extra packs publish their own LBC's permission ---------------------------
+
+/* 293A0NDS25 5.1.1 step 3) applies to every pack, not only the primary one. The second pack's
+   driver publishes its own permission, and logs it under its own number. */
+TEST(NissanLeafContactorTests, SecondPackPublishesAndLogsItsOwnPermission) {
+  datalayer = DataLayer();
+  set_millis64(100000);
+  auto pack2 = new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_NATIVE);
+  pack2->battery_index = 2;
+  pack2->setup();
+  datalayer.system.status.battery_allows_contactor_closing = true;  // Primary pack's, must stay untouched
+  Logging::start_capture();
+
+  pack2->handle_incoming_can_frame(leaf_5bc());
+  feed(pack2, leaf_1db(false, 0, true));
+  pack2->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery2_pack_permits_closing);
+  EXPECT_TRUE(log_contains("LEAF (Battery 2): contactor close held. FRLYON:0 FAIL:0")) << Logging::captured();
+
+  feed(pack2, leaf_1db(true, 0, true));
+  pack2->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery2_pack_permits_closing);
+  EXPECT_TRUE(log_contains("LEAF (Battery 2): pack permits contactor closing")) << Logging::captured();
+
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing) << "pack 2 wrote pack 1's permission";
+  EXPECT_FALSE(log_contains("LEAF (Battery 1)"));
+  Logging::stop_capture();
+}
+
+TEST(NissanLeafContactorTests, ThirdPackPublishesItsOwnPermission) {
+  datalayer = DataLayer();
+  auto pack3 = new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3, CAN_NATIVE);
+  pack3->battery_index = 3;
+  pack3->setup();
+
+  pack3->handle_incoming_can_frame(leaf_5bc());
+  feed(pack3, leaf_1db(true, 0, true));
+  pack3->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery3_pack_permits_closing);
+  EXPECT_FALSE(datalayer.system.status.battery2_pack_permits_closing);
+}
+
+// A pack that talks but never grants permission must say so at once, not only after it has once
+// permitted. Nothing is logged before the pack has spoken at all.
+TEST(NissanLeafContactorTests, LogsAPackThatWithholdsPermissionFromTheStart) {
+  datalayer = DataLayer();
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  Logging::start_capture();
+
+  battery->update_values();  // Pack not heard yet
+  EXPECT_FALSE(log_contains("LEAF (Battery 1)")) << Logging::captured();
+
+  battery->handle_incoming_can_frame(leaf_5bc());
+  feed(battery, leaf_1db(false, 0, true));
+  battery->update_values();
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): contactor close held. FRLYON:0 FAIL:0 interlock:1"))
+      << Logging::captured();
+
+  battery->update_values();  // Unchanged: logged once only
+  const std::string once = Logging::captured();
+  EXPECT_EQ(once.find("close held"), once.rfind("close held"));
+  Logging::stop_capture();
 }

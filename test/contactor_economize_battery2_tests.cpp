@@ -3,6 +3,7 @@
 
 #include <Arduino.h>  // Emul: set_millis64(), get_duty_writes(), get_pin_writes()
 
+#include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/hal/hal.h"
@@ -33,6 +34,20 @@ constexpr uint32_t kOffDuty = 0;
 constexpr unsigned long kPullInMs = 1000;
 constexpr unsigned long kBootMs = 100000;
 
+// Minimal second-pack drivers for the permission gate: one that publishes a real permission and
+// one that, like most drivers, does not.
+class StubPack : public Battery {
+ public:
+  void setup(void) override {}
+  void update_values() override {}
+  const char* interface_name() override { return "stub"; }
+};
+class GatingPack : public StubPack {
+ public:
+  bool gates_contactor_closing() override { return true; }
+};
+class NonGatingPack : public StubPack {};
+
 }  // namespace
 
 extern SeqState contactorStatus;
@@ -55,12 +70,14 @@ class ContactorEconomizeBattery2Test : public ::testing::Test {
     periodic_bms_reset = false;
     remote_bms_reset = false;
     datalayer.system.status.battery2_allowed_contactor_closing = true;
+    battery2 = nullptr;  // No driver gating unless a test installs one
     second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
     clear_duty_writes();
     clear_pin_writes();
   }
 
   void TearDown() override {
+    battery2 = nullptr;  // Test doubles live on the test body's stack
     contactorStatus = DISCONNECTED;
     contactor_control_enabled_double_battery = false;
     pwm_contactor_control = false;
@@ -168,5 +185,51 @@ TEST_F(ContactorEconomizeBattery2Test, PlainGpioWhenEconomizingIsDisabled) {
 
   EXPECT_FALSE(last_duty(second_contactors).has_value());  // Never touched by the LEDC peripheral
   EXPECT_EQ(last_level(second_contactors), static_cast<uint8_t>(HIGH));
+  EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+}
+
+// --- The second pack's own permission ------------------------------------------
+
+// A pack whose own BMS withholds permission does not join, however well its voltage matches.
+TEST_F(ContactorEconomizeBattery2Test, StaysOpenWhileItsPackWithholdsPermission) {
+  GatingPack pack;
+  battery2 = &pack;
+  datalayer.system.status.battery2_pack_permits_closing = false;
+
+  tick_at(kBootMs);
+  EXPECT_FALSE(datalayer.system.status.contactors_battery2_engaged);
+  EXPECT_EQ(last_duty(second_contactors), kOffDuty);
+
+  datalayer.system.status.battery2_pack_permits_closing = true;
+  tick_at(kBootMs + 1);
+  EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+  EXPECT_EQ(last_duty(second_contactors), kFullDuty);
+}
+
+// Once joined, a momentary loss of permission must not break a circuit that may be carrying current.
+// Parallel safety still opens it as before.
+TEST_F(ContactorEconomizeBattery2Test, StaysClosedWhenPermissionDropsButStillOpensOnParallelSafety) {
+  GatingPack pack;
+  battery2 = &pack;
+  datalayer.system.status.battery2_pack_permits_closing = true;
+  tick_at(kBootMs);
+  ASSERT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+
+  datalayer.system.status.battery2_pack_permits_closing = false;
+  tick_at(kBootMs + 10);
+  EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged) << "opened under load on a permission drop";
+
+  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  tick_at(kBootMs + 20);
+  EXPECT_FALSE(datalayer.system.status.contactors_battery2_engaged) << "parallel safety no longer opens it";
+}
+
+// Drivers that do not gate never publish the flag, so it must not hold their pack open.
+TEST_F(ContactorEconomizeBattery2Test, IgnoresPackPermissionForDriversThatDoNotGate) {
+  NonGatingPack pack;
+  battery2 = &pack;
+  datalayer.system.status.battery2_pack_permits_closing = false;
+
+  tick_at(kBootMs);
   EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
 }

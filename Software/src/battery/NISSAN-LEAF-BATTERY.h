@@ -24,7 +24,15 @@ class NissanLeafBattery : public CanBattery {
                     CAN_Interface targetCan)
       : CanBattery(targetCan), renderer(datalayer_ptr, extended) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = nullptr;
+    /* An extra pack publishes its own LBC's permission, which handle_contactors_battery2/3() check
+       before letting it join. Previously null here, so only the primary pack's LBC had a say. */
+    if (datalayer_ptr == &datalayer.battery2) {
+      allows_contactor_closing = &datalayer.system.status.battery2_pack_permits_closing;
+    } else if (datalayer_ptr == &datalayer.battery3) {
+      allows_contactor_closing = &datalayer.system.status.battery3_pack_permits_closing;
+    } else {
+      allows_contactor_closing = nullptr;
+    }
     datalayer_nissan = extended;
 
     battery_Total_Voltage2 = 0;  //Zero out pack voltage to avoid contactor closing before we know value via CAN

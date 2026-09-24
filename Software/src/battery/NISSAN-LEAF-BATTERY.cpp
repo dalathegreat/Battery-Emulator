@@ -205,9 +205,10 @@ void NissanLeafBattery::
                         (!user_selected_LEAF_interlock_mandatory || battery_Interlock);
     *allows_contactor_closing = pack_permits;
 
-    //Logged on the transition only. A pack that never grants permission would otherwise be a
-    //silent no-close, so name the signal that is holding it.
-    if (pack_permits != (contactor_permission_state == 1)) {
+    //Logged on each change, including the first decision once the pack has talked: a pack that
+    //withholds permission from the start would otherwise be a silent no-close. Before it has talked
+    //there is nothing it could be holding, so nothing is logged.
+    if (battery_can_alive && contactor_permission_state != (pack_permits ? 1 : 0)) {
       contactor_permission_state = pack_permits ? 1 : 0;
       //Named by pack, in the same "(Battery N)" form events use, so double and triple setups can tell
       //which LBC is holding.
@@ -1244,10 +1245,8 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
          went dark together with the BMS power cut; hundreds of ms means it was still powered and shut
          its CAN down itself. Either way nothing has been heard from it for a full second. */
       long last_frame_ms = (long)(last_pack_frame_millis - go_to_sleep_first_tx_millis);
-      logging.printf(
-          "LEAF (Battery %u): pack went silent on CAN after GoToSleep (HCM_WakeUpSleepCommand=00b), "
-          "last frame %+ld ms\n",
-          (unsigned)battery_index, last_frame_ms);
+      logging.printf("LEAF (Battery %u): successfully went silent on CAN, last frame %+ld ms\n",
+                     (unsigned)battery_index, last_frame_ms);
       /* 5.1.2 3)(3) ends with "then stop sending CAN of BMS". This driver queues nothing more from
          here, but the GoToSleep frames the pack never acknowledged are still being retried by the CAN
          controller - for the whole off period, then delivered as a burst to the LBC as it boots.

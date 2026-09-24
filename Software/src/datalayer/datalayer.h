@@ -437,6 +437,11 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool battery2_allowed_contactor_closing = false;
   /** True if the third battery is allowed to close the contactors */
   bool battery3_allowed_contactor_closing = false;
+  /** The second and third battery's own BMS permitting its contactor to close, published by drivers
+   *  that gate closing (Battery::gates_contactor_closing()) and ignored for every other driver.
+   *  Separate from batteryN_allowed_contactor_closing, which parallel safety owns. */
+  bool battery2_pack_permits_closing = false;
+  bool battery3_pack_permits_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_parallel_battery_safety(); if voltage is OK */
