@@ -142,6 +142,12 @@ void init_stored_settings() {
   if (user_selected_LEAF_chg_sta_rq > 2) {
     user_selected_LEAF_chg_sta_rq = 0;
   }
+  user_selected_VW_iso_measurement = settings.getBool("VWISOMEAS", false);
+  user_selected_VW_dcdc_converter = settings.getBool("VWDCDC", false);
+  // Clamped here as well as in the web form, so a stored out-of-range value can never underflow the
+  // NVEM_10 encoding (raw = (mV - 10600) / 25).
+  temp = settings.getUInt("VWDCDCV", 13300);
+  user_selected_VW_dcdc_lv_setpoint_mV = (temp < 10600) ? 10600 : ((temp > 14500) ? 14500 : temp);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
   user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);
@@ -218,7 +224,7 @@ void init_stored_settings() {
   remote_bms_reset = settings.getBool("REMBMSRESET", false);
   datalayer.system.info.CPU_measurement_enabled = settings.getBool("MEASURECPUTEMP", false);
   datalayer.system.info.CPU_temperature_calibration_offset = settings.getInt("CPUTEMPOFFSET", 0);
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);

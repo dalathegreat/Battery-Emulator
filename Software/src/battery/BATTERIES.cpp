@@ -602,6 +602,10 @@ void setup_battery() {
 /* User-selected Nissan LEAF settings */
 bool user_selected_LEAF_interlock_mandatory = false;
 uint8_t user_selected_LEAF_chg_sta_rq = 0;
+/* User-selected VW MEB / MQB Evo settings */
+bool user_selected_VW_iso_measurement = false;
+bool user_selected_VW_dcdc_converter = false;
+uint16_t user_selected_VW_dcdc_lv_setpoint_mV = 13300;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
 uint16_t user_selected_tesla_GTW_country = 17477;

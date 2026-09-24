@@ -438,7 +438,7 @@ void init_webserver() {
       "PYLONOFFSET",  "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",
       "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
       "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
-      "INVACCREB",
+      "INVACCREB",    "VWISOMEAS",    "VWDCDC",
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
@@ -515,6 +515,16 @@ void init_webserver() {
                 } else if (p->name() == "BATTPVMIN") {
                   auto type = p->value().toFloat() * 10.0f;
                   settings.saveUInt("BATTPVMIN", (int)type);
+                } else if (p->name() == "VWDCDCV") {
+                  // 12V rail setpoint, entered in volts and stored in mV. Clamp to the range the
+                  // DC-DC accepts (NVEM_10 encodes 10.6 - 16.0 V, we allow up to 14.5 V).
+                  int millivolts = (int)(p->value().toFloat() * 1000.0f + 0.5f);
+                  if (millivolts < 10600) {
+                    millivolts = 10600;
+                  } else if (millivolts > 14500) {
+                    millivolts = 14500;
+                  }
+                  settings.saveUInt("VWDCDCV", millivolts);
                 } else if (p->name() == "charger") {
                   auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
                   settings.saveUInt("CHGTYPE", (int)type);
@@ -1416,6 +1426,9 @@ String processor(const String& var) {
 #ifdef HW_WAVESHARE
     content += " running on Waveshare ESP32-S3-RS485-CAN";
 #endif  // HW_WAVESHARE
+#ifdef HW_WAVESHARE_POE_8CH
+    content += " Hardware: Waveshare ESP32-S3-POE-8CH";
+#endif  // HW_WAVESHARE_POE_8CH
     if (datalayer.system.info.CPU_measurement_enabled) {
       content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C";
     }
