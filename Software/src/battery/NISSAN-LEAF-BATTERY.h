@@ -167,6 +167,9 @@ class NissanLeafBattery : public CanBattery {
   /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2).
      Steps are cumulative: each one keeps the overrides of the steps before it. */
   void advance_ending_sequence(unsigned long currentMillis);
+
+  // BTONFN / RLYP source for this particular pack, see the definition.
+  void commanded_relay_state(bool& relay_plus_commanded, bool& high_voltage_supplied);
   static const unsigned long ENDING_STEP_HOLD_MS = 100;  // ~10 consecutive 10 ms frames per step
 
   // How long CAN errors on this pack's interface stay muted after a BMS reset has ended.

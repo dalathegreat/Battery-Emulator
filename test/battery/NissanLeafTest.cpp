@@ -1991,3 +1991,106 @@ TEST(NissanLeafContactorTests, LogsAPackThatWithholdsPermissionFromTheStart) {
   EXPECT_EQ(once.find("close held"), once.rfind("close held"));
   Logging::stop_capture();
 }
+
+// --- Each pack declares its own relay state in 0x1D4 ---------------------------
+
+namespace {
+
+// Sends one 10 ms cycle from the given pack and returns its 0x1D4. Each call is a further 10 ms on,
+// or the driver's 10 ms timer would rightly send nothing on a repeat.
+CAN_frame sent_1d4(NissanLeafBattery* pack) {
+  static unsigned long now = 100000;
+  now += 10;
+  clear_transmitted_frames();
+  pack->transmit_can(now);
+  const CAN_frame* frame = find_frame(0x1D4);
+  EXPECT_NE(frame, nullptr);
+  return frame ? *frame : CAN_frame{};
+}
+
+NissanLeafBattery* awake_extra_pack(DATALAYER_BATTERY_TYPE* layer, DATALAYER_INFO_NISSAN_LEAF* extended,
+                                    uint8_t index) {
+  auto pack = new NissanLeafBattery(layer, extended, CAN_NATIVE);
+  pack->battery_index = index;
+  pack->setup();
+  pack->handle_incoming_can_frame(leaf_5bc());
+  return pack;
+}
+
+}  // namespace
+
+/* Main contactors closed, but parallel safety holds pack 2's own contactor open: pack 2 must be told
+   its relays are open, not inherit the main pair's state. */
+TEST(NissanLeafContactorTests, SecondPackReportsItsOwnContactorNotTheMainOnes) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = true;
+  datalayer.system.status.contactors_engaged = 1;  // Main pair closed
+  datalayer.system.status.contactors_battery2_engaged = false;
+  auto pack2 = awake_extra_pack(&datalayer.battery2, &datalayer_extended.nissanleaf_2, 2);
+
+  CAN_frame open = sent_1d4(pack2);
+  EXPECT_FALSE(btonfn_of(open)) << "pack 2 told HV is supplied while its contactor is open";
+  EXPECT_FALSE(rlyp_of(open));
+  EXPECT_EQ(open.data.u8[7], pack2->calculate_crc(open));
+
+  datalayer.system.status.contactors_battery2_engaged = true;
+  CAN_frame closed = sent_1d4(pack2);
+  EXPECT_TRUE(btonfn_of(closed));
+  EXPECT_TRUE(rlyp_of(closed));
+
+  contactor_control_enabled = false;
+  contactor_control_enabled_double_battery = false;
+}
+
+TEST(NissanLeafContactorTests, ThirdPackReportsItsOwnContactor) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_triple_battery = true;
+  datalayer.system.status.contactors_engaged = 1;
+  datalayer.system.status.contactors_battery2_engaged = true;  // Must not leak into pack 3
+  datalayer.system.status.contactors_battery3_engaged = false;
+  auto pack3 = awake_extra_pack(&datalayer.battery3, &datalayer_extended.nissanleaf_3, 3);
+
+  CAN_frame frame = sent_1d4(pack3);
+  EXPECT_FALSE(btonfn_of(frame));
+  EXPECT_FALSE(rlyp_of(frame));
+
+  contactor_control_enabled = false;
+  contactor_control_enabled_triple_battery = false;
+}
+
+// Without its own contactor control, an extra pack keeps following the main contactors as before.
+TEST(NissanLeafContactorTests, SecondPackWithoutItsOwnContactorFollowsTheMainOnes) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = false;
+  datalayer.system.status.contactors_engaged = 3;  // Main ladder closing, precharge on
+  datalayer.system.status.contactors_battery2_engaged = false;
+  auto pack2 = awake_extra_pack(&datalayer.battery2, &datalayer_extended.nissanleaf_2, 2);
+
+  CAN_frame frame = sent_1d4(pack2);
+  EXPECT_TRUE(rlyp_of(frame));
+  EXPECT_FALSE(btonfn_of(frame));
+
+  contactor_control_enabled = false;
+}
+
+// The primary pack is unchanged: it still reports the main ladder even when pack 2's contactor differs.
+TEST(NissanLeafContactorTests, PrimaryPackStillReportsTheMainLadder) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = true;
+  datalayer.system.status.contactors_engaged = 1;
+  datalayer.system.status.contactors_battery2_engaged = false;
+  auto pack1 = new NissanLeafBattery();
+  pack1->setup();
+  pack1->handle_incoming_can_frame(leaf_5bc());
+
+  CAN_frame frame = sent_1d4(pack1);
+  EXPECT_TRUE(btonfn_of(frame));
+  EXPECT_TRUE(rlyp_of(frame));
+
+  contactor_control_enabled = false;
+  contactor_control_enabled_double_battery = false;
+}

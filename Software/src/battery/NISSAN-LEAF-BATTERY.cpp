@@ -1194,6 +1194,35 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   }
 }
 
+/* What this pack's high voltage path is doing, for BTONFN and RLYP in 0x1D4. Left at 1/1 when it is
+   outside this firmware's knowledge.
+   - A second or third pack with its own contactor enabled reports that contactor. It joins only once
+     the main ladder has completed, onto a bus already at its voltage, with no precharge phase of its
+     own, so both bits follow it together. Previously every pack reported the main contactors, so a
+     pack held off the bus by parallel safety was told its relays were closed.
+   - Otherwise a pack is taken to reach the bus through the main contactors, as before: the ladder
+     state from contactors_engaged, RLYP from the start of precharge and BTONFN once closed.
+   - Without GPIO contactor control nothing is known, and the constant 1/1 is kept. */
+void NissanLeafBattery::commanded_relay_state(bool& relay_plus_commanded, bool& high_voltage_supplied) {
+  relay_plus_commanded = true;
+  high_voltage_supplied = true;
+
+  if (datalayer_battery == &datalayer.battery2 && contactor_control_enabled_double_battery) {
+    relay_plus_commanded = high_voltage_supplied = datalayer.system.status.contactors_battery2_engaged;
+    return;
+  }
+  if (datalayer_battery == &datalayer.battery3 && contactor_control_enabled_triple_battery) {
+    relay_plus_commanded = high_voltage_supplied = datalayer.system.status.contactors_battery3_engaged;
+    return;
+  }
+  if (contactor_control_enabled) {
+    //1 = closed and economized, 3 = closing ladder in progress, 0 = open, 2 = latched open
+    uint8_t engaged = datalayer.system.status.contactors_engaged;
+    relay_plus_commanded = (engaged == 1 || engaged == 3);
+    high_voltage_supplied = (engaged == 1);
+  }
+}
+
 /* 293A0NDS25 5.1.2 steps 1) and 2), sent while BMS power is still on, in the specification's order:
    CHG_STA_RQ = 11b ("Preparation of battery controller stop"), then BTONFN = 0 (sent with the MAIN
    RLY1 (+) OFF command), then RLYP = 0 (sent with the MAIN RLY2 (-) OFF command). Only then may BMS
@@ -1356,17 +1385,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
          equipment stop, and while latched open by a fault.
          The pack cannot measure the relays itself, so this changes no electrical behaviour; it stops
          the declaration contradicting the commanded state, and gives the LBC the resting state the
-         specification expects it to be parked in.
-         contactors_engaged is only written when GPIO contactor control is enabled. Without it the
-         relays are outside this firmware's knowledge, so the previous constant 1/1 is kept. */
+         specification expects it to be parked in. Each pack reports its own path, see
+         commanded_relay_state(). */
       bool relay_plus_commanded = true;
       bool high_voltage_supplied = true;
-      if (contactor_control_enabled) {
-        //1 = closed and economized, 3 = closing ladder in progress, 0 = open, 2 = latched open
-        uint8_t engaged = datalayer.system.status.contactors_engaged;
-        relay_plus_commanded = (engaged == 1 || engaged == 3);
-        high_voltage_supplied = (engaged == 1);
-      }
+      commanded_relay_state(relay_plus_commanded, high_voltage_supplied);
       /* 293A0NDS25 5.1.2 step 2) ahead of a BMS power cut: BTONFN = 0 then RLYP = 0, each after the
          step before it has been on the wire, see advance_ending_sequence(). Applied regardless of
          contactor control. Where this firmware keeps its contactors closed through the reset the
