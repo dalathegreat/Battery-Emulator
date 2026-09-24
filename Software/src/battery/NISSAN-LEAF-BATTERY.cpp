@@ -19,27 +19,27 @@ static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
   return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
 }
 
-//Keeps the samples between the window's 10th and 90th percentiles: sorted, then a tenth of them
-//left out at each end. Counted in samples rather than values, so the many equal readings of the
-//0.5 A steps split correctly and the mean of what is kept still resolves below one step. An
-//insertion sort, as the window is short and a steady current leaves it nearly sorted already.
-void NissanLeafBattery::CurrentWindow::trim(int32_t& sum_raw, int32_t& kept) {
-  for (uint8_t i = 1; i < count; i++) {
+//Sorts a copy of the window, so the window itself keeps sliding, and sums what is left once
+//left_out samples are dropped at each end. Counted in samples rather than values, so the many
+//equal readings of the 0.5 A steps split correctly and the mean of what is kept still resolves
+//below one step. An insertion sort, as the window is short and a steady current leaves nearly
+//nothing to move.
+void NissanLeafBattery::CurrentWindow::trim(uint8_t left_out, int32_t& sum_raw, int32_t& kept) const {
+  int16_t sorted[CAPACITY];
+  for (uint8_t i = 0; i < count; i++) {
     const int16_t sample = samples[i];
     uint8_t j = i;
-    while (j > 0 && samples[j - 1] > sample) {
-      samples[j] = samples[j - 1];
+    while (j > 0 && sorted[j - 1] > sample) {
+      sorted[j] = sorted[j - 1];
       j--;
     }
-    samples[j] = sample;
+    sorted[j] = sample;
   }
-  const uint8_t left_out = count / 10;
   sum_raw = 0;
   for (uint8_t i = left_out; i < count - left_out; i++) {
-    sum_raw += samples[i];
+    sum_raw += sorted[i];
   }
   kept = count - 2 * left_out;
-  clear();
 }
 
 #ifndef SMALL_FLASH_DEVICE
@@ -100,17 +100,21 @@ void NissanLeafBattery::
     update_current_offset();
   }
 
-  // Publish the mean current seen on the 0x1DB CAN stream since the previous
-  // update_values() call, between the window's 10th and 90th percentiles. The window
-  // is fed from every received frame, so this remains representative even though the
-  // normal datalayer update is 1 Hz. Less the sensor's offset, when the automatic
-  // correction has learned one. Trimming the window also starts the next one.
-  if (battery_Current2_window.count > 0) {
+  // Publish the mean current of the latest 1.5 s on the 0x1DB CAN stream, less the
+  // lowest and highest CURRENT_TRIM of a full window. The window is fed from every
+  // received frame, so this remains representative even though the normal datalayer
+  // update is 1 Hz. Less the sensor's offset, when the automatic correction has learned
+  // one. A second without samples holds the value and empties the window.
+  if (battery_Current2_new_samples > 0) {
     int32_t sum_raw = 0;
     int32_t kept = 0;
-    battery_Current2_window.trim(sum_raw, kept);
+    const uint8_t left_out = (uint16_t)battery_Current2_window.count * CURRENT_TRIM / CurrentWindow::CAPACITY;
+    battery_Current2_window.trim(left_out, sum_raw, kept);
     datalayer_battery->status.current_dA = mean_current_dA(sum_raw, kept) - auto_offset_dA;
+  } else {
+    battery_Current2_window.clear();
   }
+  battery_Current2_new_samples = 0;
 
   // Publish the extremes captured over the same window for safety checks. Kept separate
   // from current_dA so short excursions are not hidden by averaging. Both accumulators
@@ -537,8 +541,10 @@ void NissanLeafBattery::update_current_offset() {
   if (auto_offset_window.count == 0) {
     return;  //Nothing measured this second, so the offset holds
   }
-  auto_offset_window.trim(auto_offset_bucket_sum_raw[auto_offset_next_bucket],
+  const uint8_t left_out = (uint16_t)auto_offset_window.count * AUTO_OFFSET_TRIM / SAMPLES_PER_SECOND;
+  auto_offset_window.trim(left_out, auto_offset_bucket_sum_raw[auto_offset_next_bucket],
                           auto_offset_bucket_count[auto_offset_next_bucket]);
+  auto_offset_window.clear();
   auto_offset_next_bucket = (auto_offset_next_bucket + 1) % AUTO_OFFSET_BUCKETS;
 
   int32_t sum_raw = 0;
@@ -569,6 +575,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // lowest sample separately so a charge and a discharge excursion inside the same
       // window both reach the safety path, untouched by the trimming.
       battery_Current2_window.add(battery_Current2);
+      if (battery_Current2_new_samples < UINT8_MAX) {
+        battery_Current2_new_samples++;
+      }
       if (battery_Current2 > battery_Current2_peak_max_raw) {
         battery_Current2_peak_max_raw = battery_Current2;
       }

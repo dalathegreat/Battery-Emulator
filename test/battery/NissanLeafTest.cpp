@@ -1434,15 +1434,15 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldMeasureAfreshOnEachOpening) {
 
 // An LBC powered back on after a BMS reset, the contactor open throughout, settles as at boot.
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettle30msAfterBmsPowerOnAfterAReset) {
-  run_seconds(battery, 0, 2);          // 159 samples of 0 A kept: 97 and 100, each less a tenth per end
+  run_seconds(battery, 0, 2);          // 119 samples of 0 A kept: 97 and 100, each less a fifth per end
   bms_power_on_ms = millis() + 5000;   // Powered back on at the end of the reset
   set_millis64(bms_power_on_ms + 10);  // First frame 10 ms later
   feed_current(battery, 300, 20);      // 10 and 20 ms: the LBC starting up
   feed_current(battery, 100, 20);      // 30 and 40 ms
   battery->update_values();
-  // Two samples of 50 A pooled with the 159: 200 / 161 x 5 dA rounds to 6, where a 300 ms settle
-  // from the first frame would keep 0 and no settle at all give 25
-  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 6);
+  // Two samples of 50 A pooled with the 119: 200 / 121 x 5 dA rounds to 8, where a 300 ms settle
+  // from the first frame would keep 0 and no settle at all give 33
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 8);
 }
 
 // A contactor that opened while the LBC was powered down gets the full 300 ms, not the power-on's.
@@ -1501,7 +1501,7 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLearnASecondPackFromItsOwnContact
   EXPECT_EQ(datalayer.battery.status.current_dA, 0);
 
   datalayer.system.status.contactors_battery2_engaged = true;
-  run_seconds(battery, -23, 1);
+  run_seconds(battery, -23, 2);  // Two, so the published window has left the open samples behind
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, -15);
   EXPECT_EQ(datalayer.battery.status.current_dA, -100);
 }
@@ -1528,18 +1528,64 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldShowTheOffsetOnTheStatusCard) {
   EXPECT_LT(offset, html.find("<h3>Health and lifetime usage</h3>"));
 }
 
-// Trimmed means: the lowest and highest tenth of each window's samples are left out
+// Trimmed means: the published current leaves out 20 of a full 1.5 s window at each end, and each
+// second the offset is learned from leaves out 20 of a full second's 100
 
-TEST(NissanLeafCurrentTests, ShouldLeaveOutTheLowestAndHighestTenthOfEachSecond) {
+TEST(NissanLeafCurrentTests, ShouldLeaveOut20AtEachEndOfAFullWindow) {
   set_millis64(100000);
   auto battery = new NissanLeafBattery();
   battery->setup();
 
-  feed_current(battery, -200, 100);  // 10 samples far below
-  feed_current(battery, 20, 800);    // 80 at 10 A
-  feed_current(battery, 300, 100);   // 10 far above
+  feed_current(battery, -200, 200);  // 20 samples far below
+  feed_current(battery, 20, 1100);   // 110 at 10 A
+  feed_current(battery, 300, 200);   // 20 far above
   battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, 100);  // 113 with 15 left out, 5 strays each side
+}
+
+// A window not yet full, as the first after boot, leaves out two fifteenths of what it holds.
+TEST(NissanLeafCurrentTests, ShouldScaleTheTrimToWhatTheWindowHolds) {
+  set_millis64(100000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  feed_current(battery, 10, 300);
+  feed_current(battery, 20, 700);
+  battery->update_values();
+  // 13 of the 100 left out at each end: (17 x 50 dA + 57 x 100 dA) / 74 rounds to 89, where a
+  // tenth would give 88 and a full window's 20 give 92
+  EXPECT_EQ(datalayer.battery.status.current_dA, 89);
+}
+
+// Each update covers the latest 1.5 s, so it shares half a second with the one before.
+TEST(NissanLeafCurrentTests, ShouldOverlapHalfASecondWithThePreviousUpdate) {
+  set_millis64(100000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  run_seconds(battery, 0, 1);
+  EXPECT_EQ(datalayer.battery.status.current_dA, 0);
+
+  run_seconds(battery, 20, 1);  // 50 samples of 0 A and 100 of 10 A, 20 of each left out
+  EXPECT_EQ(datalayer.battery.status.current_dA, 73);
+
+  run_seconds(battery, 20, 1);
   EXPECT_EQ(datalayer.battery.status.current_dA, 100);
+}
+
+// A second without samples holds the value, and what follows is not mixed with what came before.
+TEST(NissanLeafCurrentTests, ShouldStartAfreshAfterASilentSecond) {
+  set_millis64(100000);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  run_seconds(battery, 40, 1);
+  set_millis64(millis() + 1000);
+  battery->update_values();
+  EXPECT_EQ(datalayer.battery.status.current_dA, 200);
+
+  run_seconds(battery, 20, 1);
+  EXPECT_EQ(datalayer.battery.status.current_dA, 100);  // 127 with the 20 A from before still in
 }
 
 TEST(NissanLeafCurrentTests, ShouldIgnoreASpikeButStillReportItToSafety) {
@@ -1571,16 +1617,26 @@ TEST(NissanLeafCurrentTests, ShouldKeepResolvingBelowOneStep) {
   EXPECT_EQ(datalayer.battery.status.current_dA, 8);  // (40 x 5 dA + 40 x 10 dA) / 80 = 7.5, rounded
 }
 
-// A window running longer than its 128 samples keeps the latest of them.
+// The window holds the latest 150 samples, however late the update comes.
 TEST(NissanLeafCurrentTests, ShouldKeepTheLatestSamplesOfAnOverlongWindow) {
   set_millis64(100000);
   auto battery = new NissanLeafBattery();
   battery->setup();
 
-  feed_current(battery, 100, 720);
-  feed_current(battery, 20, 1280);
+  feed_current(battery, 100, 500);
+  feed_current(battery, 20, 1500);
   battery->update_values();
   EXPECT_EQ(datalayer.battery.status.current_dA, 100);
+}
+
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLeaveOutAFifthAtEachEndOfEachSecondWhileLearning) {
+  bms_power_on_ms = 100000 - 1000;  // Long enough ago that the whole second counts
+  feed_current(battery, 10, 300);
+  feed_current(battery, 20, 700);
+  battery->update_values();
+  // 20 of the 100 left out at each end: (10 x 50 dA + 50 x 100 dA) / 60 rounds to 92, where a
+  // tenth would give 88
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 92);
 }
 
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldIgnoreASpikeWhileLearning) {
