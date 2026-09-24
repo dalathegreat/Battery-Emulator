@@ -353,10 +353,10 @@ void handle_contactors() {
    Note that millis() is read here rather than reusing the file-scope currentTime: these handlers
    run before handle_contactors() refreshes it, and it is not refreshed at all on the COMPLETED
    pass, which is precisely when these contactors are closed.
-   The rising edge is logged next to the main ladder's steps, so the log shows when each extra
-   battery actually joined the DC link, not just when the main one finished. */
+   Both edges are logged next to the main ladder's steps, so the log shows when each extra
+   battery actually joined the DC link and when it left it again, not just what the main one did. */
 static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start,
-                                   const char* join_log) {
+                                   const char* join_log, const char* leave_log) {
   if (close_allowed) {
     if (!engaged) {  // Rising edge, start the pull-in window
       pull_in_start = millis();
@@ -369,6 +369,9 @@ static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& eng
     set(pin, ON, economize ? pwm_hold_duty : PWM_ON_DUTY);
   } else {  // Closing contactors on this battery not allowed
     set(pin, OFF, PWM_OFF_DUTY);
+    if (engaged) {  // Falling edge. Only once, not on every pass while it stays open
+      dbg_contactors(leave_log);
+    }
     engaged = false;
   }
 }
@@ -378,7 +381,8 @@ void handle_contactors_battery2() {
 
   handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
                          (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2");
+                         datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2",
+                         "LEAVE Battery 2");
 }
 
 void handle_contactors_battery3() {
@@ -386,7 +390,8 @@ void handle_contactors_battery3() {
 
   handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
                          (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3");
+                         datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3",
+                         "LEAVE Battery 3");
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
