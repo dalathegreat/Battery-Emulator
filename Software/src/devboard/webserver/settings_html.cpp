@@ -1152,6 +1152,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
   }
 
+  if (var == "LEAFAUTOOFS") {
+    return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1906,6 +1910,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             </select>
             <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
             data-canreset='%CHGSTARQCANRESET%' />
+
+            <label for='LEAFAUTOOFS'>Automatic current offset correction: </label>
+            <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS%
+            title="Each pack learns what its current sensor reads while its contactor is open, and subtracts that from the measured current. Needs contactor control." />
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
