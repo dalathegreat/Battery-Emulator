@@ -679,10 +679,15 @@ void restart_can() {
   }
 }
 
-/* Drops everything not yet on the wire for one interface. The native TWAI and the MCP2518s are
-   reinitialised, the same path already used after a bus-off: it resets the controller, which ends
-   any retry in progress, and recreates the driver's transmit buffer empty. Reception carries on.
-   The MCP2515 driver aborts in its own task instead, since that task owns its buffers.
+/* Drops everything not yet on the wire for one interface. Reception carries on.
+   - Native TWAI: reinitialised, the same path already used after a bus-off. ACAN_ESP32::begin() frees
+     its previous interrupt handler, so running it again is safe; it resets the controller, ending any
+     retry, and recreates the driver's transmit buffer empty.
+   - MCP2518: aborted in place by the driver, see ACAN2517FD::abortPendingTransmissions(). Re-running
+     begin() on it is not safe: without end() first its interrupt handler task keeps running and a
+     second one is started, and begin() needs a configuration mode change that can time out while a
+     frame is being retried - after which BE drops the interface until reboot (canfd = nullptr).
+   - MCP2515: aborted in place by the driver's own task, which owns its buffers.
    Needed because an error-passive transmitter does not count failed acknowledgements, so a frame
    nobody acknowledges never takes the controller to bus-off; it is retried for as long as the bus
    stays empty, and everything queued behind it goes out the moment another node returns. */
@@ -700,13 +705,13 @@ static void abort_pending_can_transmissions(CAN_Interface interface) {
       break;
     case CANFD_NATIVE:
     case CANFD_ADDON_MCP2518:
-      if (canfd != nullptr) {
-        begin_canfd();
+      if (canfd != nullptr && !canfd->abortPendingTransmissions()) {
+        logging.printf("CAN-FD: pending transmissions could not be aborted\n");
       }
       break;
     case CANFD_ADDON_MCP2518_2:
-      if (canfd_2 != nullptr) {
-        begin_canfd_2();
+      if (canfd_2 != nullptr && !canfd_2->abortPendingTransmissions()) {
+        logging.printf("CAN-FD 2: pending transmissions could not be aborted\n");
       }
       break;
     default:
