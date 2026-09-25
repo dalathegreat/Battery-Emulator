@@ -23,9 +23,18 @@ void RenaultZoeGen1Battery::
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer_battery->status.max_discharge_power_W = LB_Discharge_allowed_W;
-
-  datalayer_battery->status.max_charge_power_W = LB_Regen_allowed_W;
+  if (quiet_balancing_mode) {
+    // Park the inverter while 0x423 is muted (i3-style). GPIO contactors stay
+    // as they are; the LBC may still drop pack HV if it sleeps.
+    datalayer_battery->status.max_discharge_power_W = 0;
+    datalayer_battery->status.max_charge_power_W = 0;
+    if (datalayer.system.status.system_status != FAULT) {
+      datalayer.system.status.system_status = STANDBY;
+    }
+  } else {
+    datalayer_battery->status.max_discharge_power_W = LB_Discharge_allowed_W;
+    datalayer_battery->status.max_charge_power_W = LB_Regen_allowed_W;
+  }
 
   datalayer_battery->status.temperature_min_dC = LB_Cell_minimum_temperature * 10;
   datalayer_battery->status.temperature_max_dC = LB_Cell_maximum_temperature * 10;
@@ -169,16 +178,22 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
   // receives this wakeup frame)
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
-    transmit_can_frame(&ZOE_423);
-
-    if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
-      ZOE_423.data.u8[4] = 0xB2;
-      ZOE_423.data.u8[6] = 0xB2;
+    if (quiet_balancing_mode) {
+      // Mute 0x423 so the LBC can sleep and balance. Keep partner frames and
+      // the liveness counter so the safety layer does not trip.
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     } else {
-      ZOE_423.data.u8[4] = 0x5D;
-      ZOE_423.data.u8[6] = 0x5D;
+      transmit_can_frame(&ZOE_423);
+
+      if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
+        ZOE_423.data.u8[4] = 0xB2;
+        ZOE_423.data.u8[6] = 0xB2;
+      } else {
+        ZOE_423.data.u8[4] = 0x5D;
+        ZOE_423.data.u8[6] = 0x5D;
+      }
+      counter_423 = (counter_423 + 1) % 10;
     }
-    counter_423 = (counter_423 + 1) % 10;
 
     // Broadcast 100ms vehicle frames (PEB Inverter 0x19F, EVC Power Mux 0x426, EVC Status 0x436)
     // Rolling 4-bit sequence counter (cycles 0-15)
@@ -205,7 +220,9 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
   }
 
   // UDS PID polling and DTC handling
-  transmit_uds_can(currentMillis);
+  if (!quiet_balancing_mode) {
+    transmit_uds_can(currentMillis);
+  }
 }
 
 template <typename T>
