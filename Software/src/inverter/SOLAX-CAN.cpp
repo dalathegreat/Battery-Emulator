@@ -25,6 +25,14 @@ void SolaxInverter::update_values() {
   //Calculate the required values
   temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
+  // The inverter won't close contactors for a pack reporting 0A discharge
+  uint16_t max_discharge_current_dA = datalayer.aggregate.max_discharge_current_dA;
+  if (max_discharge_current_dA == 0 && (STATE != CONTACTOR_CLOSED || !datalayer.system.status.dc_bus_live) &&
+      configured_contactor_mode != inverter_contactor_mode_enum::AlwaysClosed &&
+      !datalayer.system.info.equipment_stop_active && datalayer.system.status.system_status != FAULT) {
+    max_discharge_current_dA = ANNOUNCE_DISCHARGE_dA;
+  }
+
   //Put the values into the CAN messages
   //BMS_Limits
   SOLAX_1872.data.u8[0] = (uint8_t)datalayer.aggregate.max_design_voltage_dV;
@@ -33,8 +41,8 @@ void SolaxInverter::update_values() {
   SOLAX_1872.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
   SOLAX_1872.data.u8[4] = (uint8_t)datalayer.aggregate.max_charge_current_dA;
   SOLAX_1872.data.u8[5] = (datalayer.aggregate.max_charge_current_dA >> 8);
-  SOLAX_1872.data.u8[6] = (uint8_t)datalayer.aggregate.max_discharge_current_dA;
-  SOLAX_1872.data.u8[7] = (datalayer.aggregate.max_discharge_current_dA >> 8);
+  SOLAX_1872.data.u8[6] = (uint8_t)max_discharge_current_dA;
+  SOLAX_1872.data.u8[7] = (max_discharge_current_dA >> 8);
 
   //BMS_PackData
   SOLAX_1873.data.u8[0] = (uint8_t)datalayer.aggregate.voltage_dV;  // OK
@@ -177,7 +185,6 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         case (BATTERY_ANNOUNCE):
           if (print_state)
             logging.println("[Solax]: Announce");
-          datalayer.system.status.inverter_allows_contactor_closing = false;
           SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
           for (uint8_t i = 0; i < number_of_batteries; i++) {
             transmit_can_frame(&SOLAX_187E);
@@ -211,6 +218,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           transmit_can_frame(&SOLAX_1877);
           transmit_can_frame(&SOLAX_1878);
           transmit_can_frame(&SOLAX_1801);  // Announce that the battery will be connected
+          bus_watch = BUS_WAIT_LIVE;        // The pack is not closed yet, whatever the state machine says
           STATE = CONTACTOR_CLOSED;         // Jump to Contactor Closed State
           break;
 
@@ -218,7 +226,8 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           if (print_state)
             logging.println("[Solax]: Contactor closed");
           datalayer.system.status.inverter_allows_contactor_closing = true;
-          SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
+          SOLAX_1875.data.u8[4] =
+              datalayer.system.status.dc_bus_live ? 0x01 : 0x00;  // Inform Inverter: Contactor 0=off, 1=on.
           transmit_can_frame(&SOLAX_187E);
           transmit_can_frame(&SOLAX_187A);
           transmit_can_frame(&SOLAX_1872);
@@ -234,6 +243,16 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           if (rx_frame.data.u64 == Contactor_Open_Payload &&
               configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
             set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
+            datalayer.system.status.inverter_allows_contactor_closing = false;
+            STATE = BATTERY_ANNOUNCE;
+          }
+          // Replay the handshake once the battery has closed its contactors.
+          if (bus_watch == BUS_WAIT_LIVE && datalayer.system.status.dc_bus_live) {
+            bus_watch = BUS_LIVE;
+          } else if (bus_watch == BUS_LIVE && !datalayer.system.status.dc_bus_live) {
+            bus_watch = BUS_DROPPED;
+          } else if (bus_watch == BUS_DROPPED && datalayer.system.status.dc_bus_live) {
+            logging.println("[Solax]: Battery reconnected, replaying announce");
             STATE = BATTERY_ANNOUNCE;
           }
           break;

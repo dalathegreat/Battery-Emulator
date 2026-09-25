@@ -24,9 +24,18 @@ class SolaxInverter : public CanInverterProtocol {
   static const int UPDATING_FW = 4;
   static const int INVALID = 255;
 
+  //Tracks the DC bus so a battery-initiated open is told apart from the bus not having come up yet
+  static const uint8_t BUS_WAIT_LIVE = 0;
+  static const uint8_t BUS_LIVE = 1;
+  static const uint8_t BUS_DROPPED = 2;
+
+  //Announced while handshaking if the battery reports 0A
+  static const uint16_t ANNOUNCE_DISCHARGE_dA = 50;
+
   int16_t temperature_average = 0;
   uint8_t STATE = BATTERY_ANNOUNCE;
   uint8_t PREV_STATE = INVALID;
+  uint8_t bus_watch = BUS_WAIT_LIVE;
   unsigned long LastFrameTime = 0;
   uint8_t number_of_batteries = 1;
 
