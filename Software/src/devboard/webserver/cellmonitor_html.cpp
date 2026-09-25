@@ -50,45 +50,61 @@ const char page_head[] =
     INDEX_HTML_SUBPAGE_STYLE R"html(.container{display:flex;flex-wrap:wrap;justify-content:space-around}
 .cell{padding:10px;border:1px solid #fff;text-align:center}
 .lv{color:red}
-#graph{display:flex;align-items:flex-end;height:200px;border:1px solid #ccc;position:relative}
-.bar{display:inline-block;position:relative;cursor:pointer;border:1px solid #fff}
+#graph{display:flex;align-items:flex-end;height:200px;border:1px solid #ccc;cursor:pointer;touch-action:pan-y}
+.bar{flex:1;border:1px solid #fff}
 .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin:10px 0}
 #val,.lgd{font-weight:700}
-#val{margin-right:auto}
 .lgd{padding:2px 8px;border:1px solid transparent;border-radius:4px}
 </style>
 <button onclick="location.href='/'">Back to main page</button>
 <button onclick="location.href='/advanced'+location.search">More Battery Info</button>
 )html";
 
-// Graph, hovered value and legend come first, the cell table below them. The value readout and the
-// legend badges share one flex row: the auto margin holds the readout left and pushes the badges
-// right, and once the row runs out of width they wrap onto lines of their own, still right aligned.
+// Voltage summary, selected cell's value, graph and legend come first, the cell table below them.
+// The value readout has a line of its own above the graph: a finger sliding along the bars covers
+// what is below it, not what is above, and a readout whose length changes from cell to cell would
+// rewrap a row it shared with the badges, bouncing the table up and down on a phone. The legend
+// badges keep their right aligned row under the graph and wrap only on a screen too narrow for them.
 const char panel_start[] =
-    "<div class='battery-panel'><div id='volt'></div><div id='graph'></div><div class='row'>"
-    "<span id='val'>Value: ...</span><span class='lgd' style='background:blue'>Idle</span>";
+    "<div class='battery-panel'><div id='volt'></div><div id='val'>Value: ...</div><div id='graph'></div>"
+    "<div class='row'><span class='lgd' style='background:blue'>Idle</span>";
 
 // d = cell millivolts, b = per cell balancing flags, A = balancing suffix, M = empty pack message.
+//
+// A cell is selected rather than hovered, so one code path serves mouse, pen and touch. The
+// selection lights up the bar and the table cell and prints the cell number and voltage above the
+// graph, and it stays until another cell is picked, because a finger has no hover to end.
+//
+// In the graph the whole column counts, not just the bar, so a finger does not have to hit a bar a
+// few pixels wide and can slide along the pack to scrub through the cells. touch-action:pan-y keeps
+// the browser from cancelling that slide as a pan, while vertical swipes still scroll the page. The
+// column comes from the pointer's x position inside the graph's border, which also follows a finger
+// that has slid off the bar it started on: the bars share the width equally (flex:1), and
+// scrollWidth still spans all of them when 192 bars overflow a phone screen. Table cells select on
+// a tap or a mouse hover, so a swipe that scrolls the table does not move the selection.
+//
+// H(cell, selected) holds both colour schemes, so the bars take their initial colour from it too. A
+// selected bar turns white whatever its colour: the lighter cyan a balancing bar used to get was
+// next to invisible on the two pixel wide bars of a phone.
 const char page_script[] = R"html(<script>
 const G=document.getElementById('graph'),V=document.getElementById('val'),C=document.getElementById('cells'),T=document.getElementById('volt');
 if(d.length){
-const mn=Math.min(...d),mx=Math.max(...d),lo=mn-20,sc=180/(mx-mn+40),w=750/d.length+'px';
-T.innerHTML='Max Voltage: '+mx+' mV<br>Min Voltage: '+mn+' mV<br>Voltage Deviation: '+(mx-mn)+' mV'+A;
+let p=0;
+const mn=Math.min(...d),mx=Math.max(...d),lo=mn-20,sc=180/(mx-mn+40),
+H=(j,o,z=b[j])=>{G.children[j].style.background=o?'#fff':z?'#0ff':'blue';C.children[j].style.background=o?z?'#066':'blue':''},
+S=i=>{H(p,0);H(p=i,1);V.textContent='Cell '+(i+1)+': '+d[i]+' mV'+(b[i]?' (balancing)':'')};
+T.innerHTML='Min/Max: '+mn+'/'+mx+' mV<br>Delta: '+(mx-mn)+' mV'+A;
 d.forEach((mV,i)=>{
-const e=document.createElement('div'),r=document.createElement('div'),z=b[i];
+const e=document.createElement('div'),r=document.createElement('div');
 e.className='cell';
 e.innerHTML='<span'+(mV<3000?' class=lv>':'>')+'Cell '+(i+1)+'<br>'+mV+' mV</span>';
+e.onclick=e.onmouseover=()=>S(i);
 r.className='bar';
 r.style.height=(mV-lo)*sc+20+'px';
-r.style.width=w;
-r.style.background=z?'#0ff':'blue';
-if(z)r.style.borderColor='#0ff';
+if(b[i])r.style.borderColor='#0ff';
 if(mV==mn||mV==mx){e.style.borderColor='red';r.style.borderColor='red'}
-const on=()=>{V.textContent='Value: '+mV+(z?' (balancing)':'');r.style.background=z?'#8ff':'lightblue';e.style.background=z?'#066':'blue'};
-const off=()=>{V.textContent='Value: ...';r.style.background=z?'#0ff':'blue';e.style.removeProperty('background')};
-r.onmouseenter=e.onmouseenter=on;
-r.onmouseleave=e.onmouseleave=off;
-G.appendChild(r);C.appendChild(e)})}
+G.appendChild(r);C.appendChild(e);H(i,0)});
+G.onpointerdown=G.onpointermove=v=>{const i=(v.clientX-G.getBoundingClientRect().left-G.clientLeft)/G.scrollWidth*d.length|0;i in d&&S(i)}}
 else T.textContent=M;
 setTimeout(()=>location.reload(),20000)
 </script>)html";
@@ -157,7 +173,7 @@ String cellmonitor_processor(const String& var, unsigned selected) {
   }
   content += "],A='";
   if (pack.status.balancing_status == BALANCING_STATUS_ACTIVE) {
-    content += " (Battery is balancing now!)";
+    content += " (balancing now!)";
   }
   content += "',M='";
   if (cells > 0) {
