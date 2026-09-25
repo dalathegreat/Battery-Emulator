@@ -443,14 +443,14 @@ TEST_F(BatteryAggregateTest, BmsLimitsSurviveTheSafetyLayer) {
   EXPECT_EQ(datalayer.battery2.status.bms_max_charge_power_W, 70000u);
 }
 
-// An integration that never reports a limit leaves the snapshot at zero, which the card turns
-// into a dash rather than a misleading "0 W".
-TEST_F(BatteryAggregateTest, UnreportedBmsLimitStaysZero) {
+// A full pack's BMS allows no more charge but still allows discharge. That zero is a limit, not
+// a missing value, and the snapshot has to keep it as one.
+TEST_F(BatteryAggregateTest, FullPackSnapshotKeepsZeroChargeLimit) {
   datalayer.battery.status.max_charge_power_W = 0;
-  datalayer.battery.status.max_discharge_power_W = 0;
+  datalayer.battery.status.max_discharge_power_W = 10000;
   snapshot_bms_limits(datalayer.battery);
   EXPECT_EQ(datalayer.battery.status.bms_max_charge_power_W, 0u);
-  EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 10000u);
 }
 
 // A LEAF clears soh_available until it has decoded one. That pack must not drag the

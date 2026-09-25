@@ -75,8 +75,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint32_t max_charge_power_W = 0;
   /** Discharge power the pack's own BMS asked for, in Watts. Snapshotted once per cycle before
    * the safety layer and the inverter filters rewrite max_discharge_power_W, so a per-pack card
-   * can show what that pack reported rather than what the system decided. 0 means the
-   * integration does not report one */
+   * can show what that pack reported rather than what the system decided. 0 is a real limit,
+   * not a missing one: that BMS allows none right now (pack full or empty, too cold, faulted) */
   uint32_t bms_max_discharge_power_W = 0;
   /** Charge power the pack's own BMS asked for, in Watts. See bms_max_discharge_power_W */
   uint32_t bms_max_charge_power_W = 0;
