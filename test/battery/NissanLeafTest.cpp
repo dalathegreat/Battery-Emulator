@@ -1825,7 +1825,8 @@ NissanLeafBattery* awake_pack(unsigned long now) {
 
 }  // namespace
 
-// Pin low is what POWERED_OFF means, and the first GoToSleep must not wait for the next 100 ms slot.
+// Pin low is what POWERED_OFF means. If power was cut before the ending sequence got to GoToSleep (the
+// prepare timeout), the first GoToSleep must not wait for the next 100 ms slot.
 TEST(NissanLeafSleepTests, SendsGoToSleepOnTheFirstPassAfterBmsPowerIsCut) {
   auto battery = awake_pack(100000);
   datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
@@ -1842,7 +1843,7 @@ TEST(NissanLeafSleepTests, SendsGoToSleepOnTheFirstPassAfterBmsPowerIsCut) {
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
 }
 
-// While the pin is still high the pack is powered, so no GoToSleep yet: strictly after, never before.
+// Waiting for the pause, before the ending sequence has started: the driver is halted, no GoToSleep.
 TEST(NissanLeafSleepTests, SendsNothingWhileWaitingToCutBmsPower) {
   auto battery = awake_pack(100000);
   datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
@@ -1957,9 +1958,10 @@ size_t first_index(const std::vector<CAN_frame>& frames, uint32_t id, bool (*pre
 }  // namespace
 
 /* End to end, with the real reset state machine: CHG_STA_RQ = 11b, then BTONFN = 0, then RLYP = 0,
-   all on the wire before BMS_POWER is driven low; GoToSleep only after it. The loop runs the core
-   loop's order - handle_BMSpower() then transmit - so a frame sent on the same pass as the cut
-   counts as after it, as it would on the device. */
+   then GoToSleep for 300 ms, all on the wire before BMS_POWER is driven low; GoToSleep carries on at
+   its 100 ms period after it. The loop runs the core loop's order - handle_BMSpower() then transmit -
+   so a frame sent on the same pass as the cut counts as after it, as it would on the device. The
+   pack talks until 100 ms after the cut, as the LBCs did on the bench. */
 TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
   init_hal();
   auto leaf = awake_pack(1000000);
@@ -1978,6 +1980,10 @@ TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
   ASSERT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
 
   size_t frames_at_cut = SIZE_MAX;
+  unsigned long cut_at = 0;
+  unsigned long last_heard = 0;
+  std::vector<unsigned long> sleep_at;  // Time of every GoToSleep frame
+  size_t scanned = 0;
   for (unsigned long t = 1000000; t < 1000000 + 12000; ++t) {
     set_millis64(t);
     handle_BMSpower();
@@ -1985,10 +1991,21 @@ TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
       for (const PinWrite& w : get_pin_writes()) {
         if (w.pin == bms_pin && w.value == LOW) {
           frames_at_cut = get_transmitted_frames().size();
+          cut_at = t;
         }
       }
     }
+    if (t % 10 == 0 && (frames_at_cut == SIZE_MAX || t <= cut_at + 100)) {
+      leaf->handle_incoming_can_frame(leaf_5bc());
+      last_heard = t;
+    }
     leaf->transmit_can(t);
+    const auto& sent = get_transmitted_frames();
+    for (; scanned < sent.size(); ++scanned) {
+      if (sent[scanned].ID == 0x50B && is_go_to_sleep(sent[scanned])) {
+        sleep_at.push_back(t);
+      }
+    }
   }
   ASSERT_NE(frames_at_cut, SIZE_MAX) << "BMS power was never cut";
   EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE) << "reset did not complete";
@@ -2005,8 +2022,39 @@ TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
   ASSERT_NE(sleep, SIZE_MAX);
   EXPECT_LT(stop_rq, btonfn_off) << "BTONFN dropped before CHG_STA_RQ = 11b was sent";
   EXPECT_LT(btonfn_off, rlyp_off) << "RLYP dropped before BTONFN";
-  EXPECT_LT(rlyp_off, frames_at_cut) << "BMS power cut before RLYP = 0 was sent";
-  EXPECT_GE(sleep, frames_at_cut) << "GoToSleep sent before BMS power was cut";
+  EXPECT_LT(rlyp_off, sleep) << "GoToSleep sent before RLYP = 0";
+  EXPECT_LT(sleep, frames_at_cut) << "GoToSleep did not start while IGN was still on";
+
+  // 300 ms of GoToSleep with IGN on, then unbroken at 100 ms across the cut until the pack is quiet.
+  ASSERT_FALSE(sleep_at.empty());
+  EXPECT_GE(cut_at - sleep_at.front(), 300u) << "IGN cut too soon after the first GoToSleep";
+  EXPECT_LT(cut_at - sleep_at.front(), 400u) << "IGN cut held longer than the GoToSleep phase";
+  EXPECT_GT(sleep_at.back(), cut_at) << "GoToSleep stopped at the power cut";
+  for (size_t i = 1; i < sleep_at.size(); ++i) {
+    EXPECT_EQ(sleep_at[i] - sleep_at[i - 1], 100u) << "GoToSleep period broken at frame " << i;
+  }
+  EXPECT_GE(sleep_at.back() - last_heard, 900u) << "stopped before the pack had been quiet for 1 s";
+
+  // Once GoToSleep has started no WakeUp goes out until the reset is over, and the pack still gets
+  // 0x1D4 and 0x1F2 with the ending values while IGN is on: the Status 9 content.
+  size_t sleep_1d4 = 0, sleep_1f2 = 0;
+  for (size_t i = sleep; i < frames_at_cut; ++i) {
+    sleep_1d4 += frames[i].ID == 0x1D4;
+    sleep_1f2 += frames[i].ID == 0x1F2;
+  }
+  EXPECT_GT(sleep_1d4, 0u);
+  EXPECT_GT(sleep_1f2, 0u);
+  size_t last_sleep = sleep;
+  for (size_t i = sleep; i < frames.size(); ++i) {
+    if (frames[i].ID == 0x50B && is_go_to_sleep(frames[i])) {
+      last_sleep = i;
+    }
+  }
+  for (size_t i = sleep; i < last_sleep; ++i) {
+    if (frames[i].ID == 0x50B) {
+      EXPECT_TRUE(is_go_to_sleep(frames[i])) << "WakeUp in the middle of GoToSleep at frame " << i;
+    }
+  }
 
   // RLYP only drops once BTONFN is already 0, and BTONFN only once CHG_STA_RQ is 11b.
   for (size_t i = btonfn_off; i < frames_at_cut; ++i) {
@@ -2139,7 +2187,7 @@ CAN_frame leaf_55b_refuse(uint8_t value) {
 }  // namespace
 
 // The pack keeps talking for a while after GoToSleep, then goes quiet: one success line, with the
-// time of its last frame relative to the first GoToSleep.
+// time of its last frame relative to the first GoToSleep and to IGN off - the same moment here.
 TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
   auto battery = awake_pack(100000);
   feed(battery, leaf_55b_refuse(0x01));  // Its last 0x55B before GoToSleep: RefuseToSleep
@@ -2154,7 +2202,8 @@ TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
   EXPECT_FALSE(log_contains("went silent on CAN")) << "confirmed before a full second of silence";
 
   battery->transmit_can(101240);
-  EXPECT_TRUE(log_contains("LEAF (Battery 1): went silent on CAN (Refused), last frame +240 ms"))
+  EXPECT_TRUE(log_contains(
+      "LEAF (Battery 1): went silent on CAN (Refused), last frame +240 ms from GoToSleep, +240 ms from IGN off\n"))
       << Logging::captured();
 
   // Power comes back after a confirmed stop: no failure line.
@@ -2175,7 +2224,7 @@ TEST(NissanLeafSleepTests, LogsWhenThePackWentSilentWithThePowerCut) {
   battery->transmit_can(100000);
   battery->transmit_can(100990);
 
-  EXPECT_TRUE(log_contains("last frame -10 ms")) << Logging::captured();
+  EXPECT_TRUE(log_contains("last frame -10 ms from GoToSleep, -10 ms from IGN off")) << Logging::captured();
 
   Logging::stop_capture();
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
@@ -2544,4 +2593,111 @@ TEST(NissanLeafSleepTests, DefersADtcRequestMadeDuringTheReset) {
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
   battery->transmit_can(205010);
   EXPECT_TRUE(dtc_read_sent()) << "the deferred DTC request was lost";
+}
+
+// --- GoToSleep with IGN still on, before BMS power is cut -----------------------
+
+namespace {
+
+// Runs the ending sequence from t0 with the pack talking every 10 ms until stop_talking_at, and
+// its 0x55B carrying `answer` once GoToSleep has started. Power is cut on the first pass after the
+// driver reports ready, as handle_BMSpower() does ahead of the transmitters. Returns the time of the cut.
+unsigned long run_reset_until_quiet(NissanLeafBattery* battery, unsigned long t0, unsigned long stop_talking_at,
+                                    uint8_t answer) {
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  clear_transmitted_frames();
+  unsigned long cut_at = 0;
+  bool sleep_seen = false;
+  for (unsigned long t = t0; t < t0 + 3000; t += 10) {
+    set_millis64(t);
+    if (cut_at == 0 && battery->ready_for_bms_power_off()) {
+      datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+      cut_at = t;
+    }
+    if (t < stop_talking_at) {
+      battery->handle_incoming_can_frame(leaf_5bc());
+      if (t % 100 == 80) {
+        feed(battery, leaf_55b_refuse(sleep_seen ? answer : 0x01));
+      }
+    }
+    battery->transmit_can(t);
+    for (const CAN_frame& f : transmitted_50b()) {
+      sleep_seen = sleep_seen || is_go_to_sleep(f);
+    }
+  }
+  return cut_at;
+}
+
+}  // namespace
+
+// GoToSleep is the last step of the ending sequence: it starts with IGN still on and power is cut
+// only after 300 ms of it, so the LBC has three 0x55B cycles to answer.
+TEST(NissanLeafSleepTests, StartsGoToSleepWithIgnStillOnAndCutsAfter300ms) {
+  auto battery = awake_pack(300000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  clear_transmitted_frames();
+
+  unsigned long first_sleep = 0;
+  for (unsigned long t = 300000; t <= 300600; t += 10) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());
+    battery->transmit_can(t);
+    auto frames = transmitted_50b();
+    if (first_sleep == 0 && !frames.empty() && is_go_to_sleep(frames.back())) {
+      first_sleep = t;
+    }
+    if (t < 300600) {
+      EXPECT_FALSE(battery->ready_for_bms_power_off()) << "ready for the cut at +" << (t - 300000) << " ms";
+    }
+  }
+  EXPECT_EQ(first_sleep, 300300u) << "GoToSleep should follow the three 100 ms ending steps";
+  EXPECT_TRUE(battery->ready_for_bms_power_off()) << "not ready after 300 ms of GoToSleep";
+
+  bool sleeping = false;
+  for (const CAN_frame& f : transmitted_50b()) {
+    if (is_go_to_sleep(f)) {
+      sleeping = true;
+      EXPECT_FALSE(canmask_set(f));
+    } else {
+      EXPECT_FALSE(sleeping) << "WakeUp sent after GoToSleep had started";
+    }
+  }
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(300700);
+}
+
+// The LBC answers while it still has IGN: the line carries that answer, not its awake value.
+TEST(NissanLeafSleepTests, ReportsTheAnswerGivenWithIgnStillOn) {
+  auto battery = awake_pack(400000);
+  Logging::start_capture();
+
+  // GoToSleep from +300 ms, cut at +610 ms, last frame at +700 ms.
+  unsigned long cut_at = run_reset_until_quiet(battery, 400000, 400710, 0x02);
+
+  EXPECT_EQ(cut_at, 400610u);
+  EXPECT_TRUE(
+      log_contains("LEAF (Battery 1): went silent on CAN (Ready to sleep), last frame +400 ms from GoToSleep, +90 ms "
+                   "from IGN off\n"))
+      << Logging::captured();
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(403000);
+}
+
+// A pack that stops on the CAN command alone, with IGN still on, shows a negative time from IGN off.
+TEST(NissanLeafSleepTests, ShowsAPackThatStoppedBeforeIgnWasCut) {
+  auto battery = awake_pack(500000);
+  Logging::start_capture();
+
+  run_reset_until_quiet(battery, 500000, 500460, 0x02);  // Last frame at +450 ms, cut at +610 ms
+
+  EXPECT_TRUE(
+      log_contains("went silent on CAN (Ready to sleep), last frame +150 ms from GoToSleep, -160 ms from IGN off"))
+      << Logging::captured();
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(503000);
 }

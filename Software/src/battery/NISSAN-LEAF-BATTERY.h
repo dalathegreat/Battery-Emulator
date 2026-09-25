@@ -211,15 +211,20 @@ class NissanLeafBattery : public CanBattery {
   // every cycle.
   int8_t contactor_permission_state = -1;
 
-  /* GoToSleep towards the pack while BMS_POWER is held low during a BMS reset, per 293A0NDS25
-     5.1.2 step 3). See transmit_go_to_sleep(). */
+  /* GoToSleep towards the pack during a BMS reset, per 293A0NDS25 5.1.2 step 3): started while
+     BMS_POWER is still high and kept up after it is driven low. See transmit_go_to_sleep(). */
   void transmit_go_to_sleep(unsigned long currentMillis);
   // How long the pack must have been silent before our own CAN stops too. 5.1.2 3)(3): "1 s or more".
   static const unsigned long GO_TO_SLEEP_PACK_QUIET_MS = 1000;
+  // GoToSleep sent with IGN still on before BMS_POWER is cut: three of the LBC's 100 ms 0x55B cycles.
+  static const unsigned long GO_TO_SLEEP_BEFORE_IGN_OFF_MS = 300;
   enum GoToSleepPhase : uint8_t { GO_TO_SLEEP_NOT_SENT, GO_TO_SLEEP_SENDING, GO_TO_SLEEP_DONE };
   GoToSleepPhase go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
   unsigned long go_to_sleep_first_tx_millis = 0;  // For the confirmation log line
   unsigned long go_to_sleep_last_tx_millis = 0;
+  // First pass that saw BMS_POWER low (IGN off) in this reset, for the confirmation log line.
+  bool ign_off_seen = false;
+  unsigned long ign_off_millis = 0;
   void rearm_go_to_sleep();
   // This pack's interface is held from the end of GoToSleep until BMS power is restored.
   bool holding_can = false;
@@ -227,8 +232,8 @@ class NissanLeafBattery : public CanBattery {
   // Last LB_RefusetoSleep from 0x55B (2 bits), 0xFF until one has been received.
   uint8_t lb_refuse_to_sleep = 0xFF;
 
-  /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2).
-     Steps are cumulative: each one keeps the overrides of the steps before it. */
+  /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2), then
+     the start of step 3)'s GoToSleep. Steps are cumulative: each keeps the overrides of those before. */
   void advance_ending_sequence(unsigned long currentMillis);
 
   // BTONFN / RLYP source for this particular pack, see the definition.
@@ -242,6 +247,7 @@ class NissanLeafBattery : public CanBattery {
     ENDING_CHG_STA_RQ_STOP,  // 0x1F2 CHG_STA_RQ = 11b
     ENDING_BTONFN_OFF,       // 0x1D4 BTONFN = 0
     ENDING_RLYP_OFF,         // 0x1D4 RLYP = 0
+    ENDING_GO_TO_SLEEP,      // 0x50B GoToSleep, IGN still on, held GO_TO_SLEEP_BEFORE_IGN_OFF_MS
     ENDING_DONE              // Held long enough, BMS power may be cut
   };
   EndingStep ending_step = ENDING_NOT_STARTED;

@@ -62,7 +62,8 @@ uint32_t bmsPowerOnTime = 0;
 const uint32_t bmsWarmupDuration = 3000;
 /* Start of BMS_RESET_PREPARING_POWER_OFF, and the most it may take. A driver that never reports
    ready must not hold the reset open, so power is cut regardless once this has passed. Generous
-   against the Leaf's ending sequence, which needs about 300 ms. */
+   against the Leaf's ending sequence, which needs about 600 ms (three 100 ms steps, then 300 ms of
+   GoToSleep with IGN still on). */
 static uint32_t bmsPreparePowerOffTime = 0;
 static const uint32_t BMS_PREPARE_POWER_OFF_TIMEOUT_MS = 2000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
