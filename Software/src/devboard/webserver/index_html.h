@@ -18,8 +18,9 @@
 // Help buttons (help.js). A page carries only this tag; the loader is cached by the browser and
 // the texts are fetched from web_data/help/help.json, so neither costs flash per page. A form
 // field gets a button when help.json has an entry for its name, any other element when it has a
-// data-h attribute that help.json has an entry for.
-#define HELP_SCRIPT "<script src=/help.js defer></script>"
+// data-h attribute that help.json has an entry for. Put it early in the page: it loads async and
+// adds the buttons while the rest of the page streams in.
+#define HELP_SCRIPT "<script src=/help.js async></script>"
 
 // Shared chrome for the battery sub pages (More Battery Info, Cellmonitor): dark page, pill
 // buttons and the battery tab strip. Opens the style block only - the page appends its own rules

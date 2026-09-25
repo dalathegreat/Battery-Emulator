@@ -5,6 +5,7 @@
 
 String can_replay_processor(void) {
   String content = index_html_header;
+  content += HELP_SCRIPT;
   // Page format
   content += "<style>";
   content += "body { background-color: black; color: white; font-family: Arial, sans-serif; }";
@@ -159,7 +160,7 @@ String can_replay_processor(void) {
   }
 #endif  // SDCARD
   content += "function home() { window.location.href = '/'; }";
-  content += "</script>" HELP_SCRIPT;
+  content += "</script>";
   content += index_html_footer;
   return content;
 }

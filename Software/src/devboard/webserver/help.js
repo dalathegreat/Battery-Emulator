@@ -17,11 +17,13 @@
 //
 // Texts are inserted as plain text, never as HTML. The only markup is [label](path), which
 // becomes a link to the "wiki" address of the file with the path appended, opening in a new tab.
+//
+// The script is loaded async near the top of the page, so the texts are fetched while the page
+// itself still streams in, and buttons are added as their elements arrive instead of when the
+// whole page has loaded (the settings page takes seconds to stream from the ESP32).
 (function () {
-  // Nothing on this page could get a button: skip the fetch.
-  if (!document.querySelector('form [name],[data-h]')) return;
   var url = 'https://raw.githubusercontent.com/dalathegreat/Battery-Emulator/main/web_data/help/help.json';
-  var store, cached, cachedAt, open = [];
+  var store, cached, cachedAt, open = [], help, wiki;
   try {
     store = localStorage;
     cached = store.beHelp;
@@ -63,20 +65,23 @@
     box.append(text.slice(last));
   }
 
-  function apply(json) {
-    var data;
-    try { data = JSON.parse(json); } catch (e) { return false; }
-    var help = data.help || {};
-    // Only an https address is used for links, anything else leaves the link labels as text.
-    var wiki = /^https:\/\//.test(data.wiki) ? data.wiki : '';
+  // Adds the buttons for everything that has arrived so far; safe to call again and again.
+  function scan() {
+    if (!help) return;
+    var loading = document.readyState == 'loading';
     document.querySelectorAll('form [name],[data-h]').forEach(function (el) {
+      if (el.hasHelp) return;
       var key = el.dataset.h || el.name, text = help[key];
       var host = el.dataset.h ? el : el.previousElementSibling;
-      if (!text || !host || (!el.dataset.h && host.tagName != 'LABEL') || host.querySelector('.hi')) return;
+      if (!text || !host || (!el.dataset.h && host.tagName != 'LABEL')) return;
+      // The button goes inside a data-h element: wait until its content has arrived, which is
+      // certain once something follows it.
+      if (el.dataset.h && loading && !el.nextSibling) return;
+      el.hasHelp = 1;
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'hi';
-      btn.textContent = 'ⓘ';
+      btn.textContent = '\u24D8';
       btn.setAttribute('aria-label', 'Help');
       btn.setAttribute('aria-expanded', false);
       function toggle(show) {
@@ -96,7 +101,30 @@
       host.appendChild(btn);
       if (open.indexOf(key) >= 0) toggle(true);
     });
+  }
+
+  function apply(json) {
+    if (help) return true;
+    try {
+      var data = JSON.parse(json);
+      help = data.help || {};
+      // Only an https address is used for links, anything else leaves the link labels as text.
+      wiki = /^https:\/\//.test(data.wiki) ? data.wiki : '';
+    } catch (e) {
+      return false;
+    }
+    scan();
     return true;
+  }
+
+  // Keep adding buttons while the page streams in, and once more when it is complete.
+  if (document.readyState == 'loading') {
+    var watch = new MutationObserver(scan);
+    watch.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('DOMContentLoaded', function () {
+      watch.disconnect();
+      scan();
+    });
   }
 
   function get(u) {
@@ -108,11 +136,11 @@
   // GitHub's is cached. Without either, the page simply has no help buttons.
   var shown = cached && apply(cached);
   if (!shown || Date.now() - cachedAt > 36e5) {
-    if (!shown) get('/help.json').then(function (t) { shown = shown || apply(t); }).catch(function () {});
+    if (!shown) get('/help.json').then(apply).catch(function () {});
     get(url)
       .then(function (t) {
         try { store.beHelp = t; store.beHelpT = Date.now(); } catch (e) {}
-        shown = shown || apply(t);
+        apply(t);
       })
       .catch(function () {});
   }
