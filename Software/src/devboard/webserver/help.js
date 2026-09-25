@@ -4,8 +4,10 @@
 // indentation of this file and writes help_js.h - re-run it after editing). Pages that want help
 // buttons only carry HELP_SCRIPT from index_html.h.
 //
-// The texts are not in flash: they come from web_data/help/help.json on GitHub, cached in the
-// browser for an hour. An element gets a help button when the file has an entry for it:
+// The texts come from web_data/help/help.json on GitHub, cached in the browser for an hour.
+// Devices with enough flash also carry the copy the firmware was built with as /help.json
+// (tools/embed_help_json.py), used while there is no cached copy, and the only one offline.
+// An element gets a help button when the file has an entry for it:
 //   - a form field, keyed by its name attribute; the button goes on the <label> in front of it
 //   - any element with a data-h attribute, keyed by that value; the button goes inside it
 // Pressing the button opens the text right below the element, pressing it again closes it. It
@@ -97,15 +99,20 @@
     return true;
   }
 
+  function get(u) {
+    return fetch(u).then(function (r) { if (!r.ok) throw 0; return r.text(); });
+  }
+
   // Show the cached copy straight away, and refresh it in the background once it is an hour old.
-  // Without a network the page simply has no help buttons.
-  if (cached && !apply(cached)) cached = 0;
-  if (!cached || Date.now() - cachedAt > 36e5) {
-    fetch(url)
-      .then(function (r) { if (!r.ok) throw 0; return r.text(); })
+  // With nothing cached, whichever of the device's copy and GitHub's answers first is shown; only
+  // GitHub's is cached. Without either, the page simply has no help buttons.
+  var shown = cached && apply(cached);
+  if (!shown || Date.now() - cachedAt > 36e5) {
+    if (!shown) get('/help.json').then(function (t) { shown = shown || apply(t); }).catch(function () {});
+    get(url)
       .then(function (t) {
         try { store.beHelp = t; store.beHelpT = Date.now(); } catch (e) {}
-        if (!cached) apply(t);
+        shown = shown || apply(t);
       })
       .catch(function () {});
   }

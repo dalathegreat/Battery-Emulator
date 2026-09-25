@@ -1,12 +1,18 @@
 # Web interface help texts
 
-`help.json` holds the texts behind the ⓘ buttons of the web interface. They are not in the
-firmware: the browser fetches this file from GitHub and caches it for an hour, so a text can be
-written, fixed or extended without a firmware release and without costing flash.
+`help.json` holds the texts behind the ⓘ buttons of the web interface. The browser fetches this
+file from GitHub and caches it for an hour, so a text can be written, fixed or extended without
+a firmware release.
 
 - **Fetched from:** `https://raw.githubusercontent.com/dalathegreat/Battery-Emulator/main/web_data/help/help.json`
   (in [`Software/src/devboard/webserver/help.js`](../../Software/src/devboard/webserver/help.js)).
   A change reaches users only **after it is merged to `main`**.
+- **Embedded copy:** firmware for devices with enough flash (no `SMALL_FLASH_DEVICE`) also carries
+  the `help.json` it was built from, served as `/help.json`. The build writes it
+  ([`tools/embed_help_json.py`](../../tools/embed_help_json.py)), nothing to commit. It is shown
+  while the browser has no cached copy, and it is what makes the help work without internet,
+  such as during first setup over the emulator's own access point. Small flash devices rely on
+  GitHub alone.
 - **Validator:** [`tools/validate_help_json.py`](../../tools/validate_help_json.py), also run by pre-commit.
 
 ## Format
@@ -52,5 +58,5 @@ and reload. It is replaced by the file from GitHub an hour later, or after `loca
 
 Settings fields with a `pattern` carry no `title`: their format rule (for example *Printable
 ASCII only*) is part of their text here. When the browser rejects a value on save, the field's
-text opens by itself next to the browser's own message. Without internet the browser's generic
-message is all there is.
+text opens by itself next to the browser's own message. On small flash devices without internet
+the browser's generic message is all there is.
