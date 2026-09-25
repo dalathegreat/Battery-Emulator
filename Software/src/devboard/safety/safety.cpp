@@ -417,6 +417,7 @@ void update_machineryprotection() {
     }
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (charger && charger->type() != ChargerType::UUGP) {
     // CAN chargers only. UUGP communicates over RS485.
     // If we go 60s without CAN messages we raise a warning.
@@ -435,6 +436,7 @@ void update_machineryprotection() {
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   }
+#endif
 
   // Additional Double-Battery safeties are checked here
   if (battery2) {

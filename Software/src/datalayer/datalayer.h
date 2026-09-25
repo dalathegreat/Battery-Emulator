@@ -279,6 +279,7 @@ struct DATALAYER_CHARGER_TYPE {
   bool charger_HV_enabled = false;
   /** True if the 12V DC/DC output is enabled */
   bool charger_aux12V_enabled = false;
+#ifndef SMALL_FLASH_DEVICE
   /* UUGP EV-side measurements */
   uint16_t uugp_ev_voltage_V = 0;
   uint16_t uugp_ev_current_A = 0;
@@ -300,6 +301,7 @@ struct DATALAYER_CHARGER_TYPE {
   uint16_t uugp_vehicle_soc = 0;
 
   bool uugp_communication_ok = false;
+#endif
 };
 
 struct DATALAYER_SHUNT_TYPE {

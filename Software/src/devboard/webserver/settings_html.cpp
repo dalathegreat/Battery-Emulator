@@ -1123,7 +1123,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "UUGP_PWRLIM") {
     return String(settings.getUInt("UUGP_PWRLIM", 10000));
   }
-#endif
 
   if (var == "UUGP_DSOC") {
     return String(settings.getUInt("UUGP_DSOC", 80));
@@ -1132,6 +1131,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "UUGP_ALLOW") {
     return settings.getBool("UUGP_ALLOW", false) ? "checked" : "";
   }
+
   if (var == "UUGP_STARTMODE_0") {
     return settings.getUInt("UUGP_STARTMODE", 1) == 0 ? "selected" : "";
   }
@@ -1143,6 +1143,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "UUGP_STARTMODE_2") {
     return settings.getUInt("UUGP_STARTMODE", 1) == 2 ? "selected" : "";
   }
+#endif
   return String();
 }
 
@@ -1453,10 +1454,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
+#ifndef SMALL_FLASH_DEVICE
     form .if-uugp {display: none;}
     form[data-charger="3"] .if-uugp {
       display: contents;
     }
+#endif
     form[data-shunttype="0"] .if-shunt,
     form[data-shunttype="3"] .if-shunt {
       display: none;
