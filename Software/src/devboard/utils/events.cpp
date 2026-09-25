@@ -20,7 +20,7 @@ static const char* EMULATOR_STATUS_STRING[] = {EMULATOR_STATUS(GENERATE_STRING)}
 static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
 
 /* Local function prototypes */
-static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
+static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latched);
 
 /* Offgrid downgrade.
  *
@@ -40,6 +40,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
  * nothing about which events belong here. */
 static const EVENTS_ENUM_TYPE OFFGRID_DOWNGRADED_EVENTS[] = {
     EVENT_CAN_INVERTER_MISSING,
+    EVENT_MODBUS_INVERTER_MISSING,
 };
 
 static EVENTS_LEVEL_TYPE effective_level(EVENTS_ENUM_TYPE event) {
@@ -108,6 +109,8 @@ static const uint8_t notice_events[] = {
     EVENT_WIFI_AP_PASSWORD_DEFAULT,
     EVENT_PERIODIC_BMS_RESET,
     EVENT_BMS_RESET_REQ_SUCCESS,
+    EVENT_BMS_RESET_REQ_SUCCESS_BAT2,
+    EVENT_BMS_RESET_REQ_SUCCESS_BAT3,
     // Reset cause - fires exactly once per boot and answers "why did it come back".
     // The WDT/panic/lockup causes are already warning.
     EVENT_RESET_UNKNOWN,
@@ -134,6 +137,14 @@ static uint8_t event_syslog_severity(EVENTS_ENUM_TYPE event) {
 }
 
 /* Initialization function */
+/* Assign one level to all three variants of a per-battery event. The variants are contiguous
+   by construction (see the static_asserts further down), so the triplet takes one line. */
+static void set_battery_event_level(EVENTS_ENUM_TYPE base, EVENTS_LEVEL_TYPE level) {
+  events.entries[base].level = level;
+  events.entries[base + 1].level = level;
+  events.entries[base + 2].level = level;
+}
+
 void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
@@ -149,12 +160,18 @@ void init_events(void) {
   events.entries[EVENT_CANFD_2_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_TASK_OVERRUN].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_THERMAL_RUNAWAY].level = EVENT_LEVEL_ERROR;
+  set_battery_event_level(EVENT_THERMAL_RUNAWAY, EVENT_LEVEL_ERROR);
   events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_NATIVE_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUS_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_2_BUS_ERROR].level = EVENT_LEVEL_WARNING;
+  /* Use set_battery_event_level() when all battery variants have the same severity.
+     Use events.entries[] directly when the severity differs between battery 1/2/3,
+     or when the event has no per-battery variants. */
+
+  /* Not set_battery_event_level(): losing the main pack stops the system, losing a secondary
+     one does not, so EVENT_CAN_BATTERY_MISSING is an error and its 2/3 variants are warnings. */
   events.entries[EVENT_CAN_BATTERY_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY2_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_BATTERY3_DETECTED].level = EVENT_LEVEL_INFO;
@@ -165,48 +182,50 @@ void init_events(void) {
   events.entries[EVENT_CAN_CHARGER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CONTACTOR_OPEN].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
+  set_battery_event_level(EVENT_CONTACTOR_WELDED, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_CONTACTOR_OPEN, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_WATER_INGRESS, EVENT_LEVEL_ERROR);
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
+  set_battery_event_level(EVENT_12V_LOW, EVENT_LEVEL_WARNING);
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_STALE_VALUE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BALANCING_START].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BALANCING_END].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_FUSE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_FROZEN].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_CAUTION].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BATTERY_OVERHEAT].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_SOC_RECALIBRATION].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BYD_AUTO_SOC_CALIBRATION].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BYD_CONTACTOR_MISMATCH].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BYD_CONTACTOR_FORCE_OPEN].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BYD_CONTACTOR_OPEN_REQ].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BYD_CONTACTOR_CLOSE_REQ].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_SOC_RESET_FAIL].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_SOC_UNAVAILABLE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_STALE_VALUE, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_KWH_PLAUSIBILITY_ERROR, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BALANCING_START, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BALANCING_END, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_EMPTY, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_FULL, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_FUSE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BATTERY_FROZEN, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_CAUTION, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_CHG_STOP_REQ, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_BATTERY_DISCHG_STOP_REQ, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_BATTERY_OVERHEAT, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_BATTERY_OVERVOLTAGE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BATTERY_UNDERVOLTAGE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BATTERY_VALUE_UNAVAILABLE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BATTERY_ISOLATION, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BATTERY_SOC_RECALIBRATION, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BYD_AUTO_SOC_CALIBRATION, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BYD_CHARGE_TERMINATED, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BYD_CONTACTOR_MISMATCH, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BYD_CONTACTOR_FORCE_OPEN, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_BYD_CONTACTOR_OPEN_REQ, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BYD_CONTACTOR_CLOSE_REQ, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_SOC_RESET_SUCCESS, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_SOC_RESET_FAIL, EVENT_LEVEL_INFO);
   events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT2].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_VOLTAGE_DIFFERENCE_BAT3].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
+  set_battery_event_level(EVENT_HVIL_FAILURE, EVENT_LEVEL_ERROR);
   events.entries[EVENT_LOW_HEAP_MEMORY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_AUTOMATIC_PRECHARGE_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
+  set_battery_event_level(EVENT_INTERNAL_OPEN_FAULT, EVENT_LEVEL_ERROR);
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
@@ -221,6 +240,7 @@ void init_events(void) {
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_OTA_ROLLBACK].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_RESTARTING].level = EVENT_LEVEL_UPDATE;  // Stops Fronius erroring out during restarts
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
@@ -250,10 +270,10 @@ void init_events(void) {
   events.entries[EVENT_RESET_EFUSE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_PWR_GLITCH].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_RJXZS_LOG].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_RJXZS_LOG, EVENT_LEVEL_INFO);
   events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_PID_FAILED].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_PID_FAILED, EVENT_LEVEL_INFO);
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_AP_PASSWORD_DEFAULT].level = EVENT_LEVEL_INFO;
@@ -263,22 +283,102 @@ void init_events(void) {
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PERIODIC_BMS_RESET].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BMS_RESET_REQ_SUCCESS].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BMS_RESET_REQ_FAIL].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_BATTERY_REQUESTS_HEAT].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_BATTERY_WARMED_UP].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_BMS_RESET_REQ_SUCCESS, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BMS_RESET_REQ_FAIL, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_TEMP_DEVIATION_HIGH, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_BATTERY_REQUESTS_HEAT, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_WARMED_UP, EVENT_LEVEL_INFO);
   events.entries[EVENT_PERIODIC_BMS_RESET_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_INVERTER_REBOOT_DECLINED].level = EVENT_LEVEL_WARNING;
 }
 
-void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
-  set_event(event, data, false);
+void set_event(EVENTS_ENUM_TYPE event, int16_t data) {
+  set_event_internal(event, data, false);
 }
 
-void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data) {
-  set_event(event, data, true);
+/* The per-battery event variants are laid out as contiguous 1,2,3 triplets, so the concrete
+   event for a pack is the EVENT_BATTERY_* variant plus (battery - 1). Nothing about that
+   layout is enforced by the type system, so lock it at compile time: inserting or reordering
+   an entry inside the block fails the build here rather than silently misdirecting events at
+   runtime. Checking the two ends plus one interior triplet is enough, because the block is
+   generated as whole triplets and its length is checked too. */
+static_assert(EVENT_BATTERY2_EMPTY == EVENT_BATTERY_EMPTY + 1 && EVENT_BATTERY3_EMPTY == EVENT_BATTERY_EMPTY + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert(EVENT_BATTERY2_OVERHEAT == EVENT_BATTERY_OVERHEAT + 1 &&
+                  EVENT_BATTERY3_OVERHEAT == EVENT_BATTERY_OVERHEAT + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert(EVENT_BATTERY2_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION_HIGH + 1 &&
+                  EVENT_BATTERY3_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION_HIGH + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert((EVENT_CAN_BATTERY3_MISSING - EVENT_BATTERY_EMPTY + 1) % 3 == 0,
+              "The per-battery event block must consist of whole 1,2,3 triplets");
+static_assert(EVENT_BALANCING_START_BAT2 == EVENT_BALANCING_START + 1 &&
+                  EVENT_BALANCING_START_BAT3 == EVENT_BALANCING_START + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT2 == EVENT_BYD_CONTACTOR_CLOSE_BLOCKED + 1 &&
+                  EVENT_BYD_CONTACTOR_CLOSE_BLOCKED_BAT3 == EVENT_BYD_CONTACTOR_CLOSE_BLOCKED + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert(EVENT_CAN_BATTERY2_MISSING == EVENT_CAN_BATTERY_MISSING + 1 &&
+                  EVENT_CAN_BATTERY3_MISSING == EVENT_CAN_BATTERY_MISSING + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+
+/* Returns the pack a battery specific event belongs to (1/2/3), or 0 when the event is not
+   battery specific. Derived from the enum, so it cannot disagree with the event that was set. */
+static uint8_t event_battery_number(EVENTS_ENUM_TYPE event) {
+  if (event < EVENT_BATTERY_EMPTY || event > EVENT_CAN_BATTERY3_MISSING) {
+    return 0;
+  }
+  return static_cast<uint8_t>((event - EVENT_BATTERY_EMPTY) % 3 + 1);
+}
+
+/* Map any per-battery variant back to its pack 1 base, so callers that only care about what
+   the event means (the message text) handle one case label per event instead of three. */
+static EVENTS_ENUM_TYPE battery_event_base(EVENTS_ENUM_TYPE event) {
+  if (event < EVENT_BATTERY_EMPTY || event > EVENT_CAN_BATTERY3_MISSING) {
+    return event;
+  }
+  return static_cast<EVENTS_ENUM_TYPE>(event - (event - EVENT_BATTERY_EMPTY) % 3);
+}
+
+/* Resolve the EVENT_BATTERY_* variant plus a pack number into the concrete event.
+   Resolution is index arithmetic over the enum, so a bad argument would quietly land on an
+   unrelated event. Anything that is not a EVENT_BATTERY_* base with a pack number of 1..3
+   returns EVENT_NOF_EVENTS, which callers report rather than acting on. */
+static EVENTS_ENUM_TYPE resolve_battery_event(EVENTS_ENUM_TYPE event, uint8_t battery) {
+  const bool valid_base =
+      (event >= EVENT_BATTERY_EMPTY && event <= EVENT_CAN_BATTERY3_MISSING && (event - EVENT_BATTERY_EMPTY) % 3 == 0);
+  if (!valid_base || battery < 1 || battery > 3) {
+    DEBUG_PRINTF("Bad battery event %d for battery %u\n", (int)event, (unsigned)battery);
+    return EVENT_NOF_EVENTS;
+  }
+  return static_cast<EVENTS_ENUM_TYPE>(event + (battery - 1));
+}
+
+void set_event(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery) {
+  const EVENTS_ENUM_TYPE resolved = resolve_battery_event(event, battery);
+  if (resolved != EVENT_NOF_EVENTS) {
+    set_event_internal(resolved, data, false);
+  }
+}
+
+void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data, uint8_t battery) {
+  const EVENTS_ENUM_TYPE resolved = resolve_battery_event(event, battery);
+  if (resolved != EVENT_NOF_EVENTS) {
+    set_event_internal(resolved, data, true);
+  }
+}
+
+void clear_event(EVENTS_ENUM_TYPE event, uint8_t battery) {
+  const EVENTS_ENUM_TYPE resolved = resolve_battery_event(event, battery);
+  if (resolved != EVENT_NOF_EVENTS) {
+    clear_event(resolved);
+  }
+}
+
+void set_event_latched(EVENTS_ENUM_TYPE event, int16_t data) {
+  set_event_internal(event, data, true);
 }
 
 void clear_event(EVENTS_ENUM_TYPE event) {
@@ -313,7 +413,10 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
   events.entries[event].MQTTpublished = true;
 }
 
-String get_event_message_string(EVENTS_ENUM_TYPE event) {
+static String get_event_base_message(EVENTS_ENUM_TYPE event) {
+  // One label per event: the 2/3 variants share their base's text, the pack number is
+  // appended by get_event_message_string().
+  event = battery_event_base(event);
   switch (event) {
     case EVENT_CANMCP2518FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
@@ -337,16 +440,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Multiple CAN TX/RX errors. Check wiring!";
     case EVENT_CAN_BATTERY_DETECTED:
       return "Successfully communicating with battery. Battery detected!";
-    case EVENT_CAN_BATTERY2_DETECTED:
-      return "Successfully communicating with secondary battery. Secondary battery detected!";
-    case EVENT_CAN_BATTERY3_DETECTED:
-      return "Successfully communicating with third battery. Third battery detected!";
     case EVENT_CAN_BATTERY_MISSING:
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
-    case EVENT_CAN_BATTERY2_MISSING:
-      return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
-    case EVENT_CAN_BATTERY3_MISSING:
-      return "Third battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_CHARGER_DETECTED:
       return "Successfully communicating with charger. Charger detected!";
     case EVENT_CAN_CHARGER_MISSING:
@@ -407,15 +502,19 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery under minimum design voltage. Charge battery to prevent damage!";
     case EVENT_BATTERY_VALUE_UNAVAILABLE:
       return "Battery measurement unavailable. Check 12V power supply and battery wiring!";
+    case EVENT_BATTERY_TEMP_DEVIATION_HIGH:
+      return "Battery temperature sensors reporting large difference between hottest and coldest cell!";
     case EVENT_BATTERY_ISOLATION:
       return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_BATTERY_SOC_RECALIBRATION:
-      return "The BMS updated the HV battery State of Charge (SOC) by more than 3pct based on SocByOcv.";
+      return "The BMS updated the HV battery State of Charge (SOC) by more than 3% based on SocByOcv.";
     case EVENT_BYD_AUTO_SOC_CALIBRATION:
       return "Auto SOC recalibration to 100% triggered. Data column shows drift% below 100%.";
+    case EVENT_BYD_CHARGE_TERMINATED:
+      return "Battery ended the charge itself and recalibrated SOC. Data column shows cell spread in tens of mV.";
     case EVENT_BYD_CONTACTOR_MISMATCH:
       return "Battery did not confirm the contactor command in time. Data: 2 = open not confirmed, 3 = close not "
-             "confirmed.";
+             "confirmed, 4 = close retries exhausted, pack left open.";
     case EVENT_BYD_CONTACTOR_FORCE_OPEN:
       return "Contactors force-opened: pack current was not confirmed safe before the timeout. Data: 0 = current "
              "stayed high, 1 = no fresh current reading. Check the inverter ramped down.";
@@ -425,14 +524,16 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_BYD_CONTACTOR_CLOSE_REQ:
       return "Contactor close commanded. The battery precharges and closes its contactors. Data: 1 = cancelled a "
              "pending open.";
+    case EVENT_BYD_CONTACTOR_CLOSE_BLOCKED:
+      return "Contactor close blocked. Data bits: 1 = equipment stop, 2 = inverter denied, 4 = system fault.";
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
       return "SOC reset routine was successful.";
     case EVENT_BATTERY_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT2:
-      return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+      return "Too large voltage diff between battery packs. Battery 2 join to DC bus deferred.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT3:
-      return "Too large voltage diff between the batteries. Third battery cannot join the DC-link";
+      return "Too large voltage diff between battery packs. Battery 3 join to DC bus deferred.";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
@@ -460,6 +561,9 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_MODBUS_INVERTER_DETECTED:
       return "Successfully communicating with inverter over Modbus/RS485. Inverter detected!";
+    case EVENT_INVERTER_REBOOT_DECLINED:
+      return "Inverter asked the emulator to restart, but the request was declined. "
+             "Enable 'Accept reboot command from inverter' in the settings if you want to allow it next time.";
     case EVENT_NO_ENABLE_DETECTED:
       return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
@@ -498,6 +602,9 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "OTA update started!";
     case EVENT_OTA_UPDATE_TIMEOUT:
       return "OTA update timed out!";
+    case EVENT_OTA_ROLLBACK:
+      return "A firmware update did not start up and was rolled back. This board is running the previous firmware; "
+             "the log line names which version failed.";
     case EVENT_RECOVERY_START:
       return "CAUTION! Emergency low charge recovery started! Make sure battery cells do not overheat!";
     case EVENT_RECOVERY_END:
@@ -581,6 +688,27 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
   }
 }
 
+String get_event_message_string(EVENTS_ENUM_TYPE event) {
+  String message = get_event_base_message(event);
+  /* The three variants of a battery event share one message string, so name the pack here
+     rather than storing three near-identical literals each in flash. 0 = not battery specific.
+
+     The pack is only named when there is more than one to tell apart: on a single battery
+     install, which is the common case, "(Battery 1)" on every message is noise. Packs 2 and 3
+     always name themselves - their events cannot fire unless that pack exists - so only the
+     pack 1 suffix is conditional. */
+  const uint8_t battery = event_battery_number(event);
+  if (battery > 1 || (battery == 1 && datalayer.system.info.configured_batteries > 1)) {
+    // Built into a plain buffer and appended as const char*. The native unit-test build
+    // (test/emul/WString.h) only provides String::operator+=(const String&/std::string/const char*),
+    // and has no F() macro, so the Arduino-only integer and char overloads cannot be used here.
+    char suffix[16];
+    snprintf(suffix, sizeof(suffix), " (Battery %u)", (unsigned)battery);
+    message += suffix;
+  }
+  return message;
+}
+
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
   // Return the event name but skip "EVENT_" that should always be first
   return EVENTS_ENUM_TYPE_STRING[event] + 6;
@@ -656,7 +784,7 @@ static bool can_error_ignored(EVENTS_ENUM_TYPE event) {
   return false;
 }
 
-static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
+static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latched) {
   // Just some defensive stuff if someone sets an unknown event
   if (event >= EVENT_NOF_EVENTS) {
     event = EVENT_UNKNOWN_EVENT_SET;
@@ -666,6 +794,10 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if (can_error_ignored(event)) {
     return;
   }
+
+  // Store the payload before the logging below, so the log and syslog lines carry this
+  // occurrence's value rather than the previous one's.
+  events.entries[event].data = data;
 
   // If the event is already set, no reason to continue
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
@@ -679,7 +811,6 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // We should set the event, update event info
   events.entries[event].occurences++;
   events.entries[event].timestamp = millis64();
-  events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
@@ -701,7 +832,7 @@ static void update_bms_status(void) {
       break;
     case EVENT_LEVEL_ERROR:
       // Normally FAULT mode is set if a catastrophic event has triggered, but incase user has forced a recovery charge, we override any FAULT and continue temporarily in active mode
-      if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+      if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
         datalayer.system.status.system_status = ACTIVE;  //Edge case which is active for 30min max
       } else {
         datalayer.system.status.system_status = FAULT;  //We will in 99.999% of the time go here

@@ -2,7 +2,6 @@
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
-#include "../../battery/Shunt.h"
 #include "../../charger/CanCharger.h"
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
@@ -12,6 +11,7 @@
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
+#include "../../shunt/Shunt.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../precharge_control/precharge_control.h"
@@ -77,33 +77,33 @@ void init_stored_settings() {
   }
   temp = settings.getUInt("MAXPERCENTAGE", false);
   if (temp != 0) {
-    datalayer.battery.settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
+    datalayer.battery_settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
   }
   int32_t temp2 = settings.getInt("MINPERCENTAGE", false);
   if (temp2 <= 500 && temp2 >= -100) {
-    datalayer.battery.settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
+    datalayer.battery_settings.min_percentage = temp2 * 10;  // Multiply by 10 for backwards compatibility
   }
-  datalayer.battery.settings.max_user_set_charge_dA =
-      settings.getUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
-  datalayer.battery.settings.max_user_set_discharge_dA =
-      settings.getUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
-  datalayer.battery.settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
+  datalayer.battery_settings.max_user_set_charge_dA =
+      settings.getUInt("MAXCHARGEAMP", datalayer.battery_settings.max_user_set_charge_dA);
+  datalayer.battery_settings.max_user_set_discharge_dA =
+      settings.getUInt("MAXDISCHARGEAMP", datalayer.battery_settings.max_user_set_discharge_dA);
+  datalayer.battery_settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
   temp = settings.getUInt("TARGETCHVOLT", false);
   if (temp != 0) {
-    datalayer.battery.settings.max_user_set_charge_voltage_dV = temp;
+    datalayer.battery_settings.max_user_set_charge_voltage_dV = temp;
   }
   temp = settings.getUInt("TARGETDISCHVOLT", false);
   if (temp != 0) {
-    datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
+    datalayer.battery_settings.max_user_set_discharge_voltage_dV = temp;
   }
-  datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
+  datalayer.battery_settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
   temp = settings.getUInt("SOFAR_ID", false);
   if (temp < 16) {
-    datalayer.battery.settings.sofar_user_specified_battery_id = temp;
+    datalayer.battery_settings.sofar_user_specified_battery_id = temp;
   }
   temp = settings.getUInt("BMSRESETDUR", false);
   if (temp != 0) {
-    datalayer.battery.settings.user_set_bms_reset_duration_ms = temp;
+    datalayer.battery_settings.user_set_bms_reset_duration_ms = temp;
   }
 
   user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
@@ -136,6 +136,13 @@ void init_stored_settings() {
   user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
+  // Stored as the two CHG_STA_RQ bits themselves. 11b is the charge stop request and is not
+  // offered, so anything outside 00b/01b/10b falls back to the default of no request.
+  user_selected_LEAF_chg_sta_rq = settings.getUInt("CHGSTARQ", 0);
+  if (user_selected_LEAF_chg_sta_rq > 2) {
+    user_selected_LEAF_chg_sta_rq = 0;
+  }
+  user_selected_LEAF_auto_current_offset = settings.getBool("LEAFAUTOOFS", true);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
   user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);
@@ -150,6 +157,9 @@ void init_stored_settings() {
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
+  user_selected_accept_inverter_reboot = settings.getBool("INVACCREB", false);
+  // Watchdog period the inverter last told us about, or the default if it never has
+  inverter_modbus_watchdog_timeout_s = settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S);
 
   auto readIf = [&settings](const char* settingName) {
     auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
@@ -244,6 +254,12 @@ void init_stored_settings() {
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+  // Battery 2 reuses battery 1's manual power settings: update_calculated_values() caps the
+  // combined system's max charge/discharge power to whichever battery reports less, so leaving
+  // these at their unset default of 0 would silently zero out the whole system for double-battery
+  // setups using the same "estimated power" integrations as above.
+  datalayer.battery2.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery2.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
@@ -295,6 +311,11 @@ void init_stored_settings() {
   // One isolation-monitor setting for both batteries
   datalayer_extended.bydAtto3.keep_iso_disabled = settings.getBool("BYDKEEPISOOFF", true);
   datalayer_extended.bydAtto3_2.keep_iso_disabled = datalayer_extended.bydAtto3.keep_iso_disabled;
+  // Native termination is primary-battery only: inverter charge limits come from battery 1 alone,
+  // so a secondary termination could not stop a parallel bank.
+  datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
+  datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
+  datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
 }
 
 void clear_wifi_sta_settings() {
@@ -317,6 +338,20 @@ void store_settings_equipment_stop() {
   settings.saveBool("EQUIPMENT_STOP", datalayer.system.info.equipment_stop_active);
 }
 
+void store_settings_inverter_watchdog() {
+  if (!inverter_modbus_watchdog_changed) {
+    return;
+  }
+  inverter_modbus_watchdog_changed = false;
+  BatteryEmulatorSettingsStore settings(false);
+  // Never write a value NVM already holds. saveUInt() skips an unchanged key on its own, but it
+  // writes when the key is missing, which would put the default into flash the first time an
+  // inverter declares it.
+  if (settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S) != inverter_modbus_watchdog_timeout_s) {
+    settings.saveUInt("INVWDTMO", inverter_modbus_watchdog_timeout_s);
+  }
+}
+
 // Erase RF PHY calibration data (the "phy" NVS namespace — untouched by
 // clearAll(), which only clears our own settings namespace). A full RF
 // calibration runs on the next boot (~100 ms extra WiFi/RF init).
@@ -334,18 +369,21 @@ void store_settings() {
   BatteryEmulatorSettingsStore settings(false);
 
   settings.saveUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
-  settings.saveBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
-  settings.saveUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10);
-  settings.saveInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10);
-  settings.saveUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
-  settings.saveUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
-  settings.saveBool("USEVOLTLIMITS", datalayer.battery.settings.user_set_voltage_limits_active);
-  settings.saveUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV);
-  settings.saveUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV);
-  settings.saveUInt("BMSRESETDUR", datalayer.battery.settings.user_set_bms_reset_duration_ms);
+  settings.saveBool("USE_SCALED_SOC", datalayer.battery_settings.soc_scaling_active);
+  settings.saveUInt("MAXPERCENTAGE", datalayer.battery_settings.max_percentage / 10);
+  settings.saveInt("MINPERCENTAGE", datalayer.battery_settings.min_percentage / 10);
+  settings.saveUInt("MAXCHARGEAMP", datalayer.battery_settings.max_user_set_charge_dA);
+  settings.saveUInt("MAXDISCHARGEAMP", datalayer.battery_settings.max_user_set_discharge_dA);
+  settings.saveBool("USEVOLTLIMITS", datalayer.battery_settings.user_set_voltage_limits_active);
+  settings.saveUInt("TARGETCHVOLT", datalayer.battery_settings.max_user_set_charge_voltage_dV);
+  settings.saveUInt("TARGETDISCHVOLT", datalayer.battery_settings.max_user_set_discharge_voltage_dV);
+  settings.saveUInt("BMSRESETDUR", datalayer.battery_settings.user_set_bms_reset_duration_ms);
   settings.saveUInt("BYDAUTOCALDRIFT", datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN", datalayer_extended.bydAtto3.auto_calibrate_soc_enabled);
   settings.saveBool("BYDKEEPISOOFF", datalayer_extended.bydAtto3.keep_iso_disabled);
   settings.saveUInt("BYDAUTOCALDRFT2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_drift_percent);
   settings.saveBool("BYDAUTOCALEN2", datalayer_extended.bydAtto3_2.auto_calibrate_soc_enabled);
+  settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
+  settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
+  settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
 }

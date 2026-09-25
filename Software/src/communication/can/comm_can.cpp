@@ -63,8 +63,6 @@ static ACAN2517FD* canfd_2 = nullptr;
 static ACAN2517FDSettings* settings2517_2;
 
 static bool native_can_initialized = false;
-//CAN logging filter settings
-uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
 
 bool init_CAN() {
   // Native CAN (onboard the ESP32)
@@ -190,24 +188,12 @@ bool init_CAN() {
 
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
-    auto int0_pin = esp32hal->MCP2517_INT0();
-    auto int1_pin = esp32hal->MCP2517_INT1();
 
-    if (!esp32hal->alloc_pins("CANFD", cs_pin)) {
+    if (!esp32hal->alloc_pins("CANFD", cs_pin, int_pin)) {
       return false;
     }
-    if (int_pin != GPIO_NUM_NC) {
-      if (!esp32hal->alloc_pins("CANFD", int_pin)) {
-        return false;
-      }
-    } else {
-      if (!esp32hal->alloc_pins("CANFD", int0_pin, int1_pin)) {
-        return false;
-      }
-    }
 
-    canfd = new ACAN2517FD(cs_pin, *SPI2517, int_pin != GPIO_NUM_NC ? int_pin : 255,
-                           int0_pin != GPIO_NUM_NC ? int0_pin : 255, int1_pin != GPIO_NUM_NC ? int1_pin : 255);
+    canfd = new ACAN2517FD(cs_pin, *SPI2517, int_pin);
 
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
 
@@ -324,6 +310,13 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
 
   switch (interface) {
     case CAN_NATIVE: {
+      if (tx_frame->DLC > sizeof(CANMessage::data)) {
+        // An FD-length frame cannot be sent on a classic CAN interface (a CAN-FD
+        // battery configured on it produces these), and copying it below would
+        // overflow frame.data on the stack.
+        datalayer.system.info.can_native_send_fail = true;
+        break;
+      }
       CANMessage frame;
       frame.id = tx_frame->ID;
       frame.ext = tx_frame->ext_ID;
@@ -337,6 +330,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       }
     } break;
     case CAN_ADDON_MCP2515: {
+      if (tx_frame->DLC > sizeof(MCP2515_Lite_Frame::data)) {
+        // Same as CAN_NATIVE: an FD-length frame cannot travel over the MCP2515.
+        datalayer.system.info.can_2515_send_fail = true;
+        break;
+      }
       MCP2515_Lite_Frame mcp2515_frame;
       copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
 
@@ -527,11 +525,6 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
     }
   }
 
-  if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
-    if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
-      dump_can_frame(frame, interface, msgDir);
-    }
-  }
   if (datalayer.system.info.can_streaming_active) {
     stream_can_frame(frame, interface, msgDir);
   }
@@ -642,23 +635,6 @@ size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_In
   *ptr++ = '\n';
   *ptr = '\0';
   return (size_t)(ptr - buffer);
-}
-
-void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
-  char* message_string = datalayer.system.info.logged_can_messages;
-  size_t offset =
-      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-
-  size_t written = format_can_frame(message_string + offset, message_string_size - offset, frame, interface, msgDir);
-  if (written == 0 && offset != 0) {
-    // Not enough space left at the tail - wrap around and start from the beginning
-    offset = 0;
-    written = format_can_frame(message_string, message_string_size, frame, interface, msgDir);
-  }
-  if (written > 0) {
-    datalayer.system.info.logged_can_messages_offset = offset + written;  // Update offset in buffer
-  }
 }
 
 void stop_can() {

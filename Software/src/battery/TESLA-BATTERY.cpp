@@ -496,40 +496,41 @@ void TeslaBattery::
     if (HVP_battery12V > 0) {
       // Scale is 0.1, so HVP_battery12V * 0.1 is the physical voltage
       if ((HVP_battery12V * 0.1) < 11.7) {
-        set_event(EVENT_12V_LOW, 0);
+        set_event(EVENT_12V_LOW, 0, battery_index);
       } else {
-        clear_event(EVENT_12V_LOW);
+        clear_event(EVENT_12V_LOW, battery_index);
       }
     }
   } else {
     // Optional: If contactors are closed, we might want to clear the event
     // or simply stop updating it to prevent a latching error.
-    clear_event(EVENT_12V_LOW);
+    clear_event(EVENT_12V_LOW, battery_index);
   }
   //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
   if (battery_hvil_status == 3) {
-    set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
+    set_event(EVENT_INTERNAL_OPEN_FAULT, 0, battery_index);
   } else {
-    clear_event(EVENT_INTERNAL_OPEN_FAULT);
+    clear_event(EVENT_INTERNAL_OPEN_FAULT, battery_index);
   }
   //Voltage between 0.5-5.0V, pyrofuse most likely blown
   if (datalayer_battery->status.voltage_dV >= 5 && datalayer_battery->status.voltage_dV <= 50) {
-    set_event(EVENT_BATTERY_FUSE, 0);
+    set_event(EVENT_BATTERY_FUSE, 0, battery_index);
   } else {
-    clear_event(EVENT_BATTERY_FUSE);
+    clear_event(EVENT_BATTERY_FUSE, battery_index);
   }
   // Raise any Tesla BMS events in BE
   // Events: Informational
-  if (BMS_a145_SW_SOC_Change) {                             // BMS has newly recalibrated pack SOC
-    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0);  // Latcched as BMS_a145 can be active for a while
+  if (BMS_a145_SW_SOC_Change) {  // BMS has newly recalibrated pack SOC
+    set_event_latched(EVENT_BATTERY_SOC_RECALIBRATION, 0,
+                      battery_index);  // Latcched as BMS_a145 can be active for a while
   } else if (!BMS_a145_SW_SOC_Change) {
-    clear_event(EVENT_BATTERY_SOC_RECALIBRATION);
+    clear_event(EVENT_BATTERY_SOC_RECALIBRATION, battery_index);
   }
   // Events: Warning
   if (BMS_contactorState == 5) {  // BMS has detected welded contactor(s)
-    set_event_latched(EVENT_CONTACTOR_WELDED, 0);
+    set_event_latched(EVENT_CONTACTOR_WELDED, 0, battery_index);
   } else if (BMS_contactorState != 5) {
-    clear_event(EVENT_CONTACTOR_WELDED);
+    clear_event(EVENT_CONTACTOR_WELDED, battery_index);
   }
 
   // Pack-internal contactors: DC bus is live only when the BMS confirms CLOSED (4).
@@ -562,52 +563,52 @@ void TeslaBattery::
     }
 
     // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
-    if (datalayer_battery->settings.user_requests_balancing) {
+    if (datalayer.battery_settings.user_requests_balancing) {
       datalayer_battery->status.real_soc = 9900;  //Force battery to show up as 99% when balancing
-      datalayer_battery->info.max_design_voltage_dV = datalayer_battery->settings.balancing_max_pack_voltage_dV;
-      datalayer_battery->info.max_cell_voltage_mV = datalayer_battery->settings.balancing_max_cell_voltage_mV;
+      datalayer_battery->info.max_design_voltage_dV = datalayer.battery_settings.balancing_max_pack_voltage_dV;
+      datalayer_battery->info.max_cell_voltage_mV = datalayer.battery_settings.balancing_max_cell_voltage_mV;
       datalayer_battery->info.max_cell_voltage_deviation_mV =
-          datalayer_battery->settings.balancing_max_deviation_cell_voltage_mV;
-      datalayer_battery->status.max_charge_power_W = datalayer_battery->settings.balancing_float_power_W;
+          datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV;
+      datalayer_battery->status.max_charge_power_W = datalayer.battery_settings.balancing_float_power_W;
     }
   }
 
   // Check if user requests some action
-  if (datalayer_battery->settings.user_requests_tesla_isolation_clear) {
+  if (datalayer.battery_settings.user_requests_tesla_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer_battery->settings.user_requests_tesla_isolation_clear = false;
+    datalayer.battery_settings.user_requests_tesla_isolation_clear = false;
   }
-  if (datalayer_battery->settings.user_requests_tesla_bms_reset) {
+  if (datalayer.battery_settings.user_requests_tesla_bms_reset) {
     if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
-      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
+      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
       stateMachineBMSReset = 0xFF;
-      datalayer_battery->settings.user_requests_tesla_bms_reset = false;
-      set_event(EVENT_BMS_RESET_REQ_FAIL, 0);  // also printing a log entry
-      clear_event(EVENT_BMS_RESET_REQ_FAIL);
+      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
+      set_event(EVENT_BMS_RESET_REQ_FAIL, 0, battery_index);  // also printing a log entry
+      clear_event(EVENT_BMS_RESET_REQ_FAIL, battery_index);
     }
   }
-  if (datalayer_battery->settings.user_requests_tesla_soc_reset) {
+  if (datalayer.battery_settings.user_requests_tesla_soc_reset) {
     if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
         battery_contactor == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
-      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
+      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
       stateMachineSOCReset = 0xFF;
-      datalayer_battery->settings.user_requests_tesla_soc_reset = false;
-      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);  // also printing a log entry
-      clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
+      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
+      set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
+      clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
     }
   }
 
   //Update 0x333 UI_chargeTerminationPct (bit 16, width 10) value to SOC max value - expose via UI?
   //One firmware version this was seen at bit 17 width 11
-  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer_battery->settings.max_percentage / 10), false);
+  write_signal_value(&TESLA_333, 16, 10, static_cast<int64_t>(datalayer.battery_settings.max_percentage / 10), false);
 
   // Update webserver datalayer
   //datalayer_extended.tesla.BMS_hvilFault = BMS_a036_SW_HvpHvilFault;
@@ -665,7 +666,8 @@ void TeslaBattery::
   //0x392
   datalayer_extended.tesla.battery_moduleType = battery_moduleType;
   datalayer_extended.tesla.battery_packMass = battery_packMass;
-  datalayer_extended.tesla.battery_platformMaxBusVoltage = battery_platformMaxBusVoltage;
+  datalayer_extended.tesla.battery_platformMaxBusVoltage =
+      older_firmware ? battery_platformMaxBusVoltage / 10 + 375 : battery_platformMaxBusVoltage + 300;
   //0x2D2
   datalayer_extended.tesla.BMS_min_voltage = BMS_min_voltage;
   datalayer_extended.tesla.BMS_max_voltage = BMS_max_voltage;
@@ -795,22 +797,17 @@ void TeslaBattery::
   datalayer_extended.tesla.HVP_gpioPyroPor = HVP_gpioPyroPor;
   datalayer_extended.tesla.HVP_gpioShuntEn = HVP_gpioShuntEn;
   datalayer_extended.tesla.HVP_gpioHvpVerEn = HVP_gpioHvpVerEn;
-  datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel = HVP_gpioPackCoontPosFlywheel;
+  datalayer_extended.tesla.HVP_gpioFcContFlywheelEnable = HVP_gpioFcContFlywheelEnable;
   datalayer_extended.tesla.HVP_gpioCpLatchEnable = HVP_gpioCpLatchEnable;
-  datalayer_extended.tesla.HVP_gpioPcsEnable = HVP_gpioPcsEnable;
-  datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable = HVP_gpioPcsDcdcPwmEnable;
-  datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable = HVP_gpioPcsChargePwmEnable;
   datalayer_extended.tesla.HVP_gpioFcContPowerEnable = HVP_gpioFcContPowerEnable;
   datalayer_extended.tesla.HVP_gpioHvilEnable = HVP_gpioHvilEnable;
-  datalayer_extended.tesla.HVP_gpioSecDrdy = HVP_gpioSecDrdy;
+  datalayer_extended.tesla.HVP_gpioPortSelSpiRdy = HVP_gpioPortSelSpiRdy;
+  datalayer_extended.tesla.HVP_gpioPyroUnlock = HVP_gpioPyroUnlock;
   datalayer_extended.tesla.HVP_hvp1v5Ref = HVP_hvp1v5Ref;
   datalayer_extended.tesla.HVP_shuntCurrentDebug = HVP_shuntCurrentDebug;
   datalayer_extended.tesla.HVP_packCurrentMia = HVP_packCurrentMia;
   datalayer_extended.tesla.HVP_auxCurrentMia = HVP_auxCurrentMia;
   datalayer_extended.tesla.HVP_currentSenseMia = HVP_currentSenseMia;
-  datalayer_extended.tesla.HVP_shuntRefVoltageMismatch = HVP_shuntRefVoltageMismatch;
-  datalayer_extended.tesla.HVP_shuntThermistorMia = HVP_shuntThermistorMia;
-  datalayer_extended.tesla.HVP_shuntHwMia = HVP_shuntHwMia;
   datalayer_extended.tesla.HVP_dcLinkVoltage = HVP_dcLinkVoltage;
   datalayer_extended.tesla.HVP_packVoltage = HVP_packVoltage;
   datalayer_extended.tesla.HVP_fcLinkVoltage = HVP_fcLinkVoltage;
@@ -1171,8 +1168,8 @@ void TeslaBattery::
   logging.printf(", Pyrotest: ");
   logging.println(getNoYes(battery_pyroTestInProgress));
 
-  logging.printf("HV: %.2f V, 12V: %.2f V, 12V current: %.2f A.\n", (battery_dcdcHvBusVolt * 0.146484),
-                 (battery_dcdcLvBusVolt * 0.0390625), (battery_dcdcLvOutputCurrent * 0.1));
+  logging.printf("HV: %.2f V, 12V: %.2f V, 12V current: %.2f A.\n", (battery_dcdcHvBusVolt * 0.1),
+                 (battery_dcdcLvBusVolt * 0.01), (battery_dcdcLvOutputCurrent * 0.1));
 }
 
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -1414,10 +1411,15 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         //BattBrickTempMin m0 : 24|8@1+ (0.5,-40) [0|0] "C" (_d[3] & (0xFFU));
         battery_min_temp =
             (rx_frame.data.u8[3] * 5) - 400;  //Multiply by 5 and remove offset to get C+1 (0x61*5=485-400=8.5*C)
-        //BattBrickTempMaxNum m0 : 2|4@1+ (1,0) [0|0] "" ((_d[0] >> 2) & (0x0FU));
-        battery_BrickTempMaxNum = ((rx_frame.data.u8[0] >> 2) & (0x0F));  //to datalayer_extended
-        //BattBrickTempMinNum m0 : 8|4@1+ (1,0) [0|0] "" (_d[1] & (0x0FU));
-        battery_BrickTempMinNum = (rx_frame.data.u8[1] & (0x0F));  //to datalayer_extended
+        //Thermistor numbers swapped place and BMS_thermistorTAvg (32|8) appeared between firmware 2023.7.30
+        //and 2023.12.1. An average inside [TMin, TMax] identifies the newer layout.
+        {
+          uint8_t num_at_bit2 = (rx_frame.data.u8[0] >> 2) & 0x0F;  //2|4@1+ NumTMax (old) / NumTMin (new)
+          uint8_t num_at_bit8 = rx_frame.data.u8[1] & 0x0F;         //8|4@1+ NumTMin (old) / NumTMax (new)
+          newer_firmware = rx_frame.data.u8[4] >= rx_frame.data.u8[3] && rx_frame.data.u8[4] <= rx_frame.data.u8[2];
+          battery_BrickTempMaxNum = newer_firmware ? num_at_bit8 : num_at_bit2;
+          battery_BrickTempMinNum = newer_firmware ? num_at_bit2 : num_at_bit8;
+        }
         //BattBrickModelTMax m0 : 32|8@1+ (0.5,-40) [0|0] "C" (_d[4] & (0xFFU));
         battery_BrickModelTMax = (rx_frame.data.u8[4] & (0xFFU));  //to datalayer_extended
         //BattBrickModelTMin m0 : 40|8@1+ (0.5,-40) [0|0] "C" (_d[5] & (0xFFU));
@@ -1575,14 +1577,25 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_max_discharge_current = (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]) *
                                       0.128;  //48|14@1+ (0.128,0) [0|2096.9] "A"  //Example 430? * 0.128 = 55.4?
       break;
-    case 0x2b4:  //PCS_dcdcRailStatus:
+    case 0x2b4:  //PCS_dcdcRailStatus: DLC 5 up to firmware 2023.2.12, DLC 6 from 2023.6.11
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_dcdcLvBusVolt =
-          (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.0390625,0) [0|39.9609] "V"
-      battery_dcdcHvBusVolt = (((rx_frame.data.u8[2] & 0x3F) << 6) |
-                               ((rx_frame.data.u8[1] & 0xFC) >> 2));  //10|12@1+ (0.146484,0) [0|599.854] "V"
-      battery_dcdcLvOutputCurrent =
-          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]);  //24|12@1+ (0.1,0) [0|400] "A"
+      older_firmware = (rx_frame.DLC < 6);
+      if (older_firmware) {
+        battery_dcdcLvBusVolt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) * 125u /
+                                32;  //0|10@1+ (0.0390625,0) [0|39.9609] "V" -> 10mV
+        battery_dcdcHvBusVolt = ((((rx_frame.data.u8[2] & 0x3F) << 6) | (rx_frame.data.u8[1] >> 2)) * 375u) /
+                                256;  //10|12@1+ (0.146484,0) [0|599.854] "V" -> 0.1V
+        battery_dcdcLvOutputCurrent =
+            ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3];  //24|12@1+ (0.1,0) [0|400] "A"
+      } else {
+        battery_dcdcLvBusVolt = ((rx_frame.data.u8[1] & 0x1F) << 8) | rx_frame.data.u8[0];  //0|13@1+ (0.01,0) "V"
+        battery_dcdcHvBusVolt = ((rx_frame.data.u8[3] & 0x3F) << 8) | rx_frame.data.u8[2];  //16|14@1+ (0.1,0) "V"
+        battery_dcdcLvOutputCurrent =
+            ((rx_frame.data.u8[5] & 0x1F) << 8) | rx_frame.data.u8[4];  //32|13@1- (0.1,0) [-400|400] "A"
+        if (battery_dcdcLvOutputCurrent & 0x1000) {
+          battery_dcdcLvOutputCurrent -= 0x2000;
+        }
+      }
       break;
     case 0x292:  //BMS_socStatus
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -1608,7 +1621,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
              (0x07));  //8|3@1+ (1,0) [0|4] ""//0 "UNKNOWN" 1 "E3_NCT" 2 "E1_NCT" 3 "E3_CT" 4 "E1_CT" 5 "E1_CP" ;//to datalayer_extended
         battery_packMass = (rx_frame.data.u8[2]) + 300;  //16|8@1+ (1,300) [342|469] "kg"
         battery_platformMaxBusVoltage =
-            (((rx_frame.data.u8[4] & 0x03) << 8) | (rx_frame.data.u8[3]));  //24|10@1+ (0.1,375) [0|0] "V"
+            (((rx_frame.data.u8[4] & 0x03) << 8) |
+             (rx_frame.data.u8[3]));  //24|10@1+ (0.1,375) "V" up to 2022.45.15, (1,300) from 2023.2.12
       }
       if (mux == 0) {
         battery_reservedConfig =
@@ -1637,24 +1651,22 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         HVP_gpioPyroPor = ((rx_frame.data.u8[2] >> 1) & (0x01U));               //: 17|1@1+ (1,0) [0|1] ""  Receiver
         HVP_gpioShuntEn = ((rx_frame.data.u8[2] >> 2) & (0x01U));               //: 18|1@1+ (1,0) [0|1] ""  Receiver
         HVP_gpioHvpVerEn = ((rx_frame.data.u8[2] >> 3) & (0x01U));              //: 19|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPackCoontPosFlywheel = ((rx_frame.data.u8[2] >> 4) & (0x01U));  //: 20|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioFcContFlywheelEnable = ((rx_frame.data.u8[2] >> 4) & (0x01U));  //: 20|1@1+ (1,0) [0|1] ""  Receiver
         HVP_gpioCpLatchEnable = ((rx_frame.data.u8[2] >> 5) & (0x01U));         //: 21|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPcsEnable = ((rx_frame.data.u8[2] >> 6) & (0x01U));             //: 22|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPcsDcdcPwmEnable = ((rx_frame.data.u8[2] >> 7) & (0x01U));      //: 23|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioPcsChargePwmEnable = (rx_frame.data.u8[3] & (0x01U));           //: 24|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioFcContPowerEnable = ((rx_frame.data.u8[3] >> 1) & (0x01U));     //: 25|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioHvilEnable = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //: 26|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_gpioSecDrdy = ((rx_frame.data.u8[3] >> 3) & (0x01U));               //: 27|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_hvp1v5Ref = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
-                        ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|3] "V"  Receiver
-        HVP_shuntCurrentDebug = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                                (rx_frame.data.u8[5] & (0xFFU));     //: 40|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
-        HVP_packCurrentMia = (rx_frame.data.u8[7] & (0x01U));        //: 56|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_auxCurrentMia = ((rx_frame.data.u8[7] >> 1) & (0x01U));  //: 57|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_currentSenseMia = ((rx_frame.data.u8[7] >> 2) & (0x03U));          //: 58|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_shuntRefVoltageMismatch = ((rx_frame.data.u8[7] >> 3) & (0x01U));  //: 59|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_shuntThermistorMia = ((rx_frame.data.u8[7] >> 4) & (0x01U));       //: 60|1@1+ (1,0) [0|1] ""  Receiver
-        HVP_shuntHwMia = ((rx_frame.data.u8[7] >> 5) & (0x01U));               //: 61|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioFcContPowerEnable = ((rx_frame.data.u8[2] >> 6) & (0x01U));     //: 22|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioHvilEnable = ((rx_frame.data.u8[2] >> 7) & (0x01U));            //: 23|1@1+ (1,0) [0|1] ""  Receiver
+        HVP_gpioPortSelSpiRdy = (rx_frame.data.u8[3] & (0x01U));                //: 24|1@1+ (1,0) [0|1] ""  Receiver
+        {
+          //Up to firmware 2023.7.30: hvp1v5Ref 25|12, MIA flags from bit 37. From 2023.12.1 gpioPyroUnlock
+          //takes bit 25 and everything behind it moves up one bit.
+          uint8_t shift = newer_firmware ? 1 : 0;
+          HVP_gpioPyroUnlock = newer_firmware && (rx_frame.data.u8[3] & 0x02);
+          HVP_hvp1v5Ref = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]) >> (1 + shift)) & 0x0FFF;  //(0.1,0) "V"
+          uint16_t mia = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) >> (5 + shift);
+          HVP_packCurrentMia = mia & 0x01;
+          HVP_auxCurrentMia = (mia >> 1) & 0x01;
+          HVP_currentSenseMia = (mia >> 2) & 0x01;
+        }
       }
       if (mux == 1) {
         HVP_dcLinkVoltage = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
@@ -1712,6 +1724,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         HVP_shuntAuxCurrentStatus = (rx_frame.data.u8[7] & (0x03U));       //: 56|2@1+ (1,0) [0|3] ""  Receiver
         HVP_shuntBarTempStatus = ((rx_frame.data.u8[7] >> 2) & (0x03U));   //: 58|2@1+ (1,0) [0|3] ""  Receiver
         HVP_shuntAsicTempStatus = ((rx_frame.data.u8[7] >> 4) & (0x03U));  //: 60|2@1+ (1,0) [0|3] ""  Receiver
+      }
+      if (mux == 7) {
+        HVP_shuntCurrentDebug = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3];  //: 24|16@1- (0.1,0) "A"
       }
       break;
     /* We ignore 0x3AA for now, as on later software/firmware this is a muxed frame so values aren't correct.
@@ -2322,17 +2337,17 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         logging.println("CAN UDS: BMS ECU reset request successful but ECU busy, response pending");
       }
       if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0);  // also printing a log entry
-        clear_event(EVENT_BMS_RESET_REQ_SUCCESS);
+        set_event(EVENT_BMS_RESET_REQ_SUCCESS, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BMS_RESET_REQ_SUCCESS, battery_index);
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x01\xAA\xAA", 8) == 0) {
-        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0);  // also printing a log entry
-        clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS);
+        set_event(EVENT_BATTERY_SOC_RESET_SUCCESS, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BATTERY_SOC_RESET_SUCCESS, battery_index);
         stateMachineBMSReset = 6;  // BMS ECU already unlocked etc. so we jump straight to reset
       }
       if (memcmp(rx_frame.data.u8, "\x05\x71\x01\x04\x07\x00\xAA\xAA", 8) == 0) {
-        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0);  // also printing a log entry
-        clear_event(EVENT_BATTERY_SOC_RESET_FAIL);
+        set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
+        clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
       }
       break;
     default:

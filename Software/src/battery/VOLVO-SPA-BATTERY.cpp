@@ -56,8 +56,8 @@ void VolvoSpaBattery::
   //Check safeties
   if (BECMsupplyVoltage < 10700) {  //10.7V,
     //If 12V voltage goes under this, latch battery OFF to prevent contactors from swinging between on/off
-    set_event(EVENT_12V_LOW, (BECMsupplyVoltage / 100));
-    set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
+    set_event(EVENT_12V_LOW, (BECMsupplyVoltage / 100), battery_index);
+    set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0, battery_index);
   }
 
   // Update diagnostic requests from webserver
@@ -185,7 +185,7 @@ void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         CHARGE_ENERGY = ((((rx_frame.data.u8[4] & 0x0F) * 256.0 + rx_frame.data.u8[5]) * 50) - 500);
       else {
         CHARGE_ENERGY = 0;
-        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY);
+        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY, battery_index);
       }
       break;
     case 0x413:

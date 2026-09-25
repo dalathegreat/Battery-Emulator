@@ -59,7 +59,7 @@ void CmfaEvBattery::
   datalayer_battery->status.cell_max_voltage_mV = highest_cell_voltage_mv;
 
   if (lead_acid_voltage < 11000) {  //11.000V
-    set_event(EVENT_12V_LOW, lead_acid_voltage);
+    set_event(EVENT_12V_LOW, lead_acid_voltage, battery_index);
   }
 }
 
@@ -247,7 +247,7 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
         if (cellvoltage_reading == 0) {
           //Blown fuse/celltap. Force value to 10mV so user sees this in cellmonitor page. Also fire event
           cellvoltage_reading = 10;
-          set_event(EVENT_BATTERY_FUSE, cellnumber);
+          set_event(EVENT_BATTERY_FUSE, cellnumber, battery_index);
         }
         datalayer_battery->status.cell_voltages_mV[cellnumber] = (uint16_t)(cellvoltage_reading * 0.976563f);
       }

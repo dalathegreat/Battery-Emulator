@@ -10,8 +10,8 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
-#include "src/battery/Shunt.h"
 #include "src/inverter/INVERTERS.h"
+#include "src/shunt/Shunt.h"
 
 #include <map>
 
@@ -114,6 +114,12 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
+
+// CHG_STA_RQ transmitted in 0x1F2 while the LBC starts up. The key is the two-bit signal value
+// itself, which is what gets stored; 11b (charge stop request) is deliberately not offered.
+static const std::map<int, String> leaf_chg_sta_rq = {{0, "other (default)"},
+                                                      {1, "normal charge (experimental)"},
+                                                      {2, "quick charge (experimental)"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -228,8 +234,8 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 #endif
 
 // Special unicode characters
-const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
-const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; ✓
+const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; ✗
 
 // Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
 // only for the battery integrations that actually implement parallel batteries.
@@ -329,20 +335,34 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+  // The GTW keys must render with the same fallbacks init_stored_settings()
+  // boots with (the driver globals), or a device that never saved them shows
+  // values the firmware is not running.
   if (var == "GTWCOUNTRY") {
-    return options_from_map(settings.getUInt("GTWCOUNTRY", 0), tesla_countries);
+    return options_from_map(settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country), tesla_countries);
   }
 
   if (var == "GTWMAPREG") {
-    return options_from_map(settings.getUInt("GTWMAPREG", 0), tesla_mapregion);
+    return options_from_map(settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion), tesla_mapregion);
   }
 
   if (var == "GTWCHASSIS") {
-    return options_from_map(settings.getUInt("GTWCHASSIS", 0), tesla_chassis);
+    return options_from_map(settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType), tesla_chassis);
   }
 
   if (var == "GTWPACK") {
-    return options_from_map(settings.getUInt("GTWPACK", 0), tesla_pack);
+    return options_from_map(settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy), tesla_pack);
+  }
+
+  if (var == "CHGSTARQ") {
+    return options_from_map(settings.getUInt("CHGSTARQ", user_selected_LEAF_chg_sta_rq), leaf_chg_sta_rq);
+  }
+
+  if (var == "CHGSTARQCANRESET") {
+    // Offering to reset the BMS is only honest when the firmware currently running would act on
+    // it. These are the same two globals start_bms_reset() checks, and they only take their
+    // stored values at boot, so a reset method enabled but not yet rebooted into reads as off.
+    return (periodic_bms_reset || remote_bms_reset) ? "1" : "0";
   }
 
   if (var == "LEDMODE") {
@@ -476,7 +496,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "INVBID") {
     if (inverter && inverter->supports_battery_id()) {
-      return String(datalayer.battery.settings.sofar_user_specified_battery_id);
+      return String(datalayer.battery_settings.sofar_user_specified_battery_id);
     }
   }
 
@@ -814,70 +834,64 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(datalayer.battery.info.total_capacity_Wh);
   }
 
+  if (var == "BATTERY_WH_CLASS") {
+    return battery_detects_capacity(user_selected_battery_type) ? "hidden" : "";
+  }
+
   if (var == "MAX_CHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_charge_dA / 10.0f, 1);
   }
 
   if (var == "MAX_DISCHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_discharge_dA / 10.0f, 1);
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
+    return String(datalayer.battery_settings.max_percentage / 100.0f, 1);
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
+    return String(datalayer.battery_settings.min_percentage / 100.0f, 1);
   }
 
   if (var == "CHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_charge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "DISCHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "SOC_SCALING_ACTIVE_CLASS") {
-    return datalayer.battery.settings.soc_scaling_active ? "active" : "inactive";
+    return datalayer.battery_settings.soc_scaling_active ? "active" : "inactive";
   }
 
   if (var == "VOLTAGE_LIMITS_ACTIVE_CLASS") {
-    return datalayer.battery.settings.user_set_voltage_limits_active ? "active" : "inactive";
+    return datalayer.battery_settings.user_set_voltage_limits_active ? "active" : "inactive";
   }
 
   if (var == "SOC_SCALING_CLASS") {
-    return datalayer.battery.settings.soc_scaling_active ? "active" : "inactiveSoc";
+    return datalayer.battery_settings.soc_scaling_active ? "active" : "inactiveSoc";
   }
 
   if (var == "SOC_SCALING") {
-    return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
-  }
-
-  if (var == "FAKE_VOLTAGE_CLASS") {
-    return battery && battery->supports_set_fake_voltage() ? "" : "hidden";
+    return datalayer.battery_settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
 
   if (var == "MANUAL_BALANCING_CLASS") {
-    return datalayer.battery.settings.user_requests_balancing ? "" : "inactiveSoc";
+    return datalayer.battery_settings.user_requests_balancing ? "" : "inactiveSoc";
   }
 
   if (var == "MANUAL_BALANCING") {
-    if (datalayer.battery.settings.user_requests_balancing) {
+    if (datalayer.battery_settings.user_requests_balancing) {
       return TRUE_CHAR_CODE;
     } else {
       return FALSE_CHAR_CODE;
     }
   }
 
-  if (var == "BATTERY_VOLTAGE") {
-    if (battery) {
-      return String(battery->get_voltage(), 1);
-    }
-  }
-
   if (var == "VOLTAGE_LIMITS") {
-    if (datalayer.battery.settings.user_set_voltage_limits_active) {
+    if (datalayer.battery_settings.user_set_voltage_limits_active) {
       return TRUE_CHAR_CODE;
     } else {
       return FALSE_CHAR_CODE;
@@ -885,29 +899,35 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BALANCING_CLASS") {
-    return datalayer.battery.settings.user_requests_balancing ? "active" : "inactive";
+    return datalayer.battery_settings.user_requests_balancing ? "active" : "inactive";
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
+    return String(datalayer.battery_settings.balancing_max_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
-    return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
+    return String(datalayer.battery_settings.balancing_float_power_W / 1.0f, 0);
   }
 
   if (var == "BAL_MAX_PACK_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
+    return String(datalayer.battery_settings.balancing_max_pack_voltage_dV / 10.0f, 0);
   }
   if (var == "BAL_MAX_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
+    return String(datalayer.battery_settings.balancing_max_cell_voltage_mV / 1.0f, 0);
   }
   if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
+    return String(datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
   }
 
   if (var == "BMS_RESET_DURATION") {
-    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
+    return String(datalayer.battery_settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
+  }
+
+  if (var == "BMS_RESET_CLASS") {
+    // The off time and the reset button apply to both reset methods, so they show when either
+    // "Periodic BMS reset" or "Allow remote BMS reset via MQTT" is enabled, as saved.
+    return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
   if (var == "CHARGER_CLASS") {
@@ -1012,6 +1032,31 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("PRIMOGEN24") ? "checked" : "";
   }
 
+  if (var == "INVACCREB") {
+    return settings.getBool("INVACCREB") ? "checked" : "";
+  }
+
+  if (var == "INVWDT") {
+    // Not editable: the value comes from the inverter (register 402) and is only kept in NVM so it
+    // survives a reboot. "(default)" marks the value we start from when no inverter has changed it.
+    String watchdog = String(inverter_modbus_watchdog_timeout_s) + "s";
+    if (inverter_modbus_watchdog_timeout_s == MODBUS_INV_WATCHDOG_DEFAULT_S) {
+      watchdog += " (default)";
+    }
+    return watchdog;
+  }
+
+  if (var == "INVUTC") {
+    if (inverter_modbus_utc_epoch_s == 0) {
+      return "not yet received";
+    }
+    // Emitted as raw epoch seconds and turned into a date by the page. Formatting it here would pull
+    // strftime and the newlib time conversion tables into the image for the sake of one label.
+    char epoch[21];
+    snprintf(epoch, sizeof(epoch), "%llu", (unsigned long long)inverter_modbus_utc_epoch_s);
+    return String(epoch);
+  }
+
   if (var == "PRECHGMS") {
     return String(settings.getUInt("PRECHGMS", 100));
   }
@@ -1028,12 +1073,17 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
   }
 
+  if (var == "LEAFAUTOOFS") {
+    return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
 
   if (var == "GTWRHD") {
-    return settings.getBool("GTWRHD") ? "checked" : "";
+    // Boots true when unset, so it must also render checked when unset.
+    return settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive) ? "checked" : "";
   }
 
   if (var == "CTOFFSET") {
@@ -1276,8 +1326,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=600){var 
-        xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 59');}}}
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
+        xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600.');}}}
+
+        function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -1296,9 +1349,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     
         function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
-
-          function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new 
-          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateFakeBatteryVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000');}}}
 
           function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -1333,6 +1383,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             sel.addEventListener('change', ch);
             ch();
           });
+
+          var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
+          if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
     </script>
 )rawliteral"
 
@@ -1340,10 +1393,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   R"rawliteral(
     <style>
     body { background-color: black; color: white; }
-        button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px;
+        button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
         cursor: pointer; border-radius: 10px; }
     button:hover { background-color: #3A4A52; }
-    h4 { margin: 0.6em 0; line-height: 1.2; }
+    h4 { margin: 0.35em 0; line-height: 1.2; }
+    /* Buttons are inline-block: a bottom margin here would inflate the row's line box */
+    h4 button { margin-bottom: 0; }
     select, input { max-width: 250px; box-sizing: border-box; }
     .hidden {
       display: none;
@@ -1353,6 +1408,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     }
     .inactive {
       color: darkgrey;
+    }
+
+    /* Values shown in the settings grid that are not editable. Boxed like a form control so the
+       value column lines up with the dropdowns above and the checkboxes below it. */
+    .settings-value { 
+      display: flex; 
+      align-items: center; 
+      min-height: 1.5em; 
+      padding-left: 5px; 
     }
 
     .inactiveSoc {
@@ -1474,6 +1538,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     form .if-pwmcntctrl { display: none; }
     form[data-pwmcntctrl="true"] .if-pwmcntctrl {
+      display: contents;
+    }
+
+    /* Economizing applies to every contactor the emulator drives, not just the main
+       pair, so the PWM settings stay available whenever any of the three is enabled. */
+    form .if-anycntctrl { display: none; }
+    form[data-cntctrl="true"] .if-anycntctrl,
+    form[data-cntctrldbl="true"] .if-anycntctrl,
+    form[data-cntctrltri="true"] .if-anycntctrl {
       display: contents;
     }
 
@@ -1609,6 +1682,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     return true;
   }
 
+  //The LBC latches the starting sequence request as it powers up, so a change to it is inert
+  //until the BMS is reset. Offer to do that right away rather than leaving the setting saved
+  //but not in effect.
+  function confirmBmsRestart() {
+    const sel = document.getElementById('CHGSTARQ');
+    const flag = document.getElementById('CHGSTARQRESET');
+    if (!sel || !flag || sel.value === sel.dataset.initial) {
+      return true;
+    }
+    if (flag.dataset.canreset !== '1') {
+      alert('The BMS only reads the starting sequence request while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
+      return true;
+    }
+    flag.value = window.confirm('The BMS only reads the starting sequence request while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
+    return true;
+  }
+
   function toggleWebPasswordVisibility(show) {
     const fieldType = show ? 'text' : 'password';
     document.querySelector('input[name="HTTPPASS"]').type = fieldType;
@@ -1617,7 +1707,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   </script>
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword()'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && confirmBmsRestart()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
@@ -1632,7 +1722,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         pattern="[ -~]{1,63}" 
         title="Max 63 characters, printable ASCII only"/>
 
-        <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" 
+        <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" autocomplete="new-password"
         pattern="[ -~]{8,63}" 
         title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
 
@@ -1680,7 +1770,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <input type='checkbox' name='WIFIAPENABLED' value='on' %WIFIAPENABLED% />
 
         <label>Access Point password: </label>
-        <input type='password' name='APPASSWORD' value="%APPASSWORD%" 
+        <input type='password' name='APPASSWORD' value="%APPASSWORD%" autocomplete="new-password"
         pattern="([ -~]{8,63})?"
         title="Password must be 8-63 characters long, printable ASCII only."
         placeholder='Leave blank to keep unchanged' />
@@ -1707,12 +1797,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Web interface username, printable ASCII only" />
 
         <label>Web interface password: </label>
-        <input type='password' name='HTTPPASS' value="%HTTPPASS%"
+        <input type='password' name='HTTPPASS' value="%HTTPPASS%" autocomplete="new-password"
         pattern="[ -~]{0,63}"
         title="Set a password before enabling password protection. Printable ASCII only" placeholder='Leave blank to keep unchanged' />
 
         <label>Repeat web interface password: </label>
-        <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%"
+        <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%" autocomplete="new-password"
         pattern="[ -~]{0,63}"
         title="Repeat the web interface password" placeholder='Leave blank to keep unchanged' />
 
@@ -1731,9 +1821,28 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
 
         <div class="if-nissan">
+            <label for='CHGSTARQ'>BMS starting sequence request: </label>
+            <select name='CHGSTARQ' id='CHGSTARQ'
+            title="CHG_STA_RQ transmitted in 0x1F2. The LBC only acts on it while starting up, so a BMS reset is needed to apply a change.">
+            %CHGSTARQ%
+            </select>
+            <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
+            data-canreset='%CHGSTARQCANRESET%' />
+
+            <label for='LEAFAUTOOFS'>Automatic current offset correction: </label>
+            <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS%
+            title="Each pack learns what its current sensor reads while its contactor is open, and subtracts that from the measured current. Needs contactor control." />
+
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
+
+        <script> //Remember what the LBC is currently being sent, so a change can be spotted on save
+        (function() {
+          const sel = document.getElementById('CHGSTARQ');
+          if (sel) { sel.dataset.initial = sel.value; }
+        })();
+        </script>
 
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
@@ -1844,7 +1953,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Enable this option if you intend to run two batteries in parallel" />
 
         <div class="if-dblbtr">
-            <label>Battery 2 interface: </label>
+            <label>2ⁿᵈ interface: </label>
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
@@ -1855,7 +1964,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Enable this option if you intend to run three batteries in parallel" />
 
         <div class="if-tribtr">
-        <label>Battery 3 interface: </label>
+        <label>3ʳᵈ interface: </label>
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
@@ -1882,30 +1991,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Inverter interface: </label><select name='INVCOMM'>
         %INVCOMM%     
         </select>
-
-        <label>Ramp up charge limits gradually:</label>
-        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
-
-        <label>Charge power tapering based on SOC:</label>
-        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
-        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
-
-        <div class='if-chgtapersoc'>
-        <label>Start tapering at SOC, percent: </label>
-        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
-        min="50" max="%CHGTAPERMAX%" step="1"
-        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
-
-        <label>Float charge power, W: </label>
-        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
-        min="0" max="2000" step="10"
-        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
-        </div>
-
-        <label>Allow longer CAN timeout: </label>
-        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
-        title="Use a longer timeout for inverter still alive CAN messages" />
         </div>
 
         <div class="if-sofar">
@@ -1930,18 +2015,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
 
-        <label>Inverter run entirely offgrid: </label>
-        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
-        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
-
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
         <input type='checkbox' name='DEYEBYD' value='on' %DEYEBYD% />
         </div>
 
         <div class="if-bydmodbus">
+        <label>Accept reboot command from inverter: </label>
+        <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
+        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
+
         <label>Fronius Primo, 450V maxvoltage cap: </label>
-        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24%
+        title="Use only in case you see 'Invalid battery size detected' message on Primo, with higher voltage batteries." />
+
+        <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
+
+        <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
         </div>
 
         <div class="if-pylonish">
@@ -1993,6 +2083,41 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
+        </div>
+
+        <div class="if-inverter">
+        <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;
+        margin-top: 5px; padding-top: 12px; border-top: 1px solid #4d5f69;'>
+
+        <label>Ramp up charge limits gradually:</label>
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
+        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+
+        <label>Charge power tapering based on SOC:</label>
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
+        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
+
+        <div class='if-chgtapersoc'>
+        <label>Start tapering at SOC, percent: </label>
+        <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
+        min="50" max="%CHGTAPERMAX%" step="1"
+        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
+
+        <label>Float charge power, W: </label>
+        <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
+        min="0" max="2000" step="10"
+        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        </div>
+
+        <label>Allow longer CAN timeout: </label>
+        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
+        title="Use a longer timeout for inverter still alive CAN messages" />
+
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
+
+        </div>
         </div>
         </div>
 
@@ -2057,17 +2182,17 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %EQSTOP%  
         </select>
 
+        <label>Contactor control via GPIO: </label>
+        <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
+
         <div class="if-dblbtr">
-            <label>Double-Battery Contactor control via GPIO: </label>
+            <label>2ⁿᵈ battery contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
             <div class="if-tribtr">
-                <label>Triple-Battery Contactor control via GPIO: </label>
+                <label>3ʳᵈ battery contactor control via GPIO: </label>
                 <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
             </div>
         </div>
-
-        <label>Contactor control via GPIO: </label>
-        <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
 
         <div class="if-cntctrl">
             <label>Precharge time ms: </label>
@@ -2078,7 +2203,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             <label>Use Normally Closed logic: </label>
             <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
             title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
+        </div>
 
+        <div class="if-anycntctrl">
             <label>PWM contactor control: </label>
             <input type='checkbox' name='PWMCNTCTRL' value='on' %PWMCNTCTRL% />
 
@@ -2093,7 +2220,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             min="1" max="1023" step="1"
             title="1-1023 , lower value = lower power consumption" />
               </div>
-
         </div>
 
         <label>Periodic BMS reset: </label>
@@ -2179,7 +2305,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
         pattern="[ -~]+"
         title="MQTT username can only contain printable ASCII" />
-        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" 
+        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
         pattern="[ -~]+"
         title="MQTT password can only contain printable ASCII" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
@@ -2270,34 +2396,34 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         </form>
     </div>
-    </div>
 
-      <h4 style='color: white;'>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
+    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
 
-      <h4 style='color: white;' class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
+      <h4>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
-      <h4 style='color: white;' class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
-      
-      <h4 style='color: white;' class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
+      <h4 class="%BATTERY2CLASS%">Battery interface: <span id='Battery2'>%BATTERY2INTF%</span></h4>
+
+      <h4 class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
+
+      <h4 class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
     <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
 
-      <h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
+      <h4 class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'><span class='%SOC_SCALING_CLASS%'>%SOC_SCALING%</span>
-                </span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
+      <h4>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>%SOC_SCALING%</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC min percentage: %SOC_MIN_PERCENTAGE%</span> <button onclick='editSocMin()'>Edit</button></h4>
       
-      <h4 style='color: white;'>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
+      <h4>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
+      <h4>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
+      <h4>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
         <span class='%VOLTAGE_LIMITS_CLASS%'>%VOLTAGE_LIMITS%</span>
                 </span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>
 
@@ -2305,21 +2431,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4 style='color: white;'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4 class='%BMS_RESET_CLASS%'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+
+      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS reset now: <button onclick='startBMSReset()'>Start</button></h4>
 
       <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
-    </div>
-
-    <div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%FAKE_VOLTAGE_CLASS%">
-      <h4 style='color: white;'><span>Fake battery voltage: %BATTERY_VOLTAGE% V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>
     </div>
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
       
     <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
 
-          <h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
+          <h4>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>
 
           <h4 class="%BALANCING_CLASS%"><span>Balancing max time: %BAL_MAX_TIME% Minutes</span> <button onclick='editBalTime()'>Edit</button></h4>
@@ -2336,19 +2460,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
      <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
 
-      <h4 style='color: white;'>
+      <h4>
         Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
         <button onclick='editChargerHVDCEnabled()'>Edit</button>
       </h4>
 
-      <h4 style='color: white;'>
+      <h4>
         Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
         <button onclick='editChargerAux12vEnabled()'>Edit</button>
       </h4>
 
-      <h4 style='color: white;'><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
+      <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
 
-      <h4 style='color: white;'><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
 
       </div>
     

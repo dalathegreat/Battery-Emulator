@@ -65,25 +65,31 @@ include_directories(emul)
 # For eModBus
 add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 
-# Test sources are globbed so that adding a test does not mean editing this
-# list. Naming every file here means two branches that each add a test conflict
-# on the same line, always with the same resolution. CONFIGURE_DEPENDS re-globs
-# at build time, so a new file is picked up without re-running cmake by hand.
-# The production sources below stay explicit: they are a curated set, and not
-# everything under Software/src builds against the host emulation.
-file(GLOB TEST_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*_tests.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/battery/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/can_log_based/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp"
-)
+# The test sources are globbed. They were a hand-written list, which put every
+# branch that adds a test file in conflict with every other one - the list is
+# the only thing they all touch - for no benefit: a new test file appears in the
+# diff as a new file whether or not a line here accompanies it.
+#
+# CONFIGURE_DEPENDS re-globs at build time, so a newly added file is picked up
+# without re-running cmake by hand. The filter drops the leftovers of an
+# in-source `cmake -B build` inside test/, which are not sources.
+# Some firmware sources include headers as "src/...", which PlatformIO resolves
+# from its src_dir (Software/). Give the test build the same root.
+include_directories(../Software)
 
-# add the executable
-add_executable(tests 
-    tests.cpp
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
+
+# The firmware sources stay an explicit, curated list, and must. It is not
+# "every file under Software/src" - it is the subset that links in a host build.
+# Software.cpp, the webserver and anything reaching for FS.h, ip_addr or the
+# async server are deliberately absent, and globbing here would drag them in and
+# silently change what is under test whenever upstream adds a driver.
+add_executable(tests
     ${TEST_SOURCES}
     ../Software/src/devboard/safety/parallel_safety.cpp
     ../Software/src/communication/contactorcontrol/comm_contactorcontrol.cpp
+    ../Software/src/communication/precharge_control/precharge_control.cpp
     ../Software/src/communication/rs485/comm_rs485.cpp
     ../Software/src/devboard/safety/safety.cpp
     ../Software/src/devboard/hal/hal.cpp
@@ -91,10 +97,11 @@ add_executable(tests
     ../Software/src/devboard/utils/events.cpp
     ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
+    ../Software/src/devboard/utils/ota_confirm_gate.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
-    emul/neopixel_show.cpp
     ../Software/src/datalayer/datalayer.cpp
+    ../Software/src/datalayer/battery_aggregate.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
@@ -104,12 +111,13 @@ add_executable(tests
     ../Software/src/lib/eModbus-eModbus/RTUutils.cpp
     ../Software/src/battery/BATTERIES.cpp
     ../Software/src/battery/Battery.cpp
+    ../Software/src/battery/AKASOL-BATTERY.cpp
     ../Software/src/battery/BMW-I3-BATTERY.cpp
     ../Software/src/battery/BMW-I3-HTML.cpp
     ../Software/src/battery/BMW-IX-BATTERY.cpp
     ../Software/src/battery/BMW-IX-HTML.cpp
     ../Software/src/battery/BMW-PHEV-BATTERY.cpp
-    ../Software/src/battery/BMW-SBOX.cpp
+    ../Software/src/shunt/BMW-SBOX.cpp
     ../Software/src/battery/BOLT-AMPERA-BATTERY.cpp
     ../Software/src/battery/BYD-ATTO-3-BATTERY.cpp
     ../Software/src/battery/CanBattery.cpp
@@ -127,12 +135,12 @@ add_executable(tests
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
     ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
+    ../Software/src/battery/GROWATT-LV-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
     ../Software/src/battery/JAGUAR-IPACE-BATTERY.cpp
     ../Software/src/battery/KIA-E-GMP-BATTERY.cpp
-    ../Software/src/battery/KIA-E-GMP-HTML.cpp
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
@@ -152,7 +160,7 @@ add_executable(tests
     ../Software/src/battery/RJXZS-BMS.cpp
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
-    ../Software/src/battery/Shunts.cpp
+    ../Software/src/shunt/Shunts.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
@@ -170,6 +178,7 @@ add_executable(tests
     ../Software/src/inverter/BYD-MODBUS.cpp
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
+    ../Software/src/inverter/FOXESS-EP-CAN.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp
@@ -193,12 +202,6 @@ add_executable(tests
     ../Software/src/charger/CHARGERS.cpp
     ../Software/src/charger/CHEVY-VOLT-CHARGER.cpp
     ../Software/src/charger/NISSAN-LEAF-CHARGER.cpp
-    emul/can.cpp
-    emul/time.cpp
-    emul/serial.cpp
-    emul/Arduino.cpp
-    emul/freertos/FreeRTOS.cpp
-    emul/driver/i2c_master.cpp
     )
 
 target_link_libraries(tests

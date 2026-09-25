@@ -128,7 +128,7 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         CHARGE_ENERGY = ((((rx_frame.data.u8[4] & 0x0F) * 256.0 + rx_frame.data.u8[5]) * 50) - 500);
       else {
         CHARGE_ENERGY = 0;
-        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY);
+        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY, battery_index);
       }
       break;
     case 0x413:

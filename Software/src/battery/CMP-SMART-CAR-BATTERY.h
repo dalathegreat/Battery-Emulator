@@ -2,22 +2,20 @@
 #define CMP_SMART_CAR_BATTERY_H
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/hal/hal.h"
-#include "CMP-SMART-CAR-BATTERY-HTML.h"
-#include "CanBattery.h"
+#include "UdsCanBattery.h"
 
-class CmpSmartCarBattery : public CanBattery {
+class CmpSmartCarBattery : public UdsCanBattery {
  public:
   // Use this constructor for the second battery.
-  CmpSmartCarBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_CMPSMART* extended, CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+  CmpSmartCarBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    datalayer_cmpsmart = extended;
+    dtc = &datalayer_battery->dtc;
   }
 
   // Use the default constructor to create the first or single battery.
-  CmpSmartCarBattery() {
+  CmpSmartCarBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
-    datalayer_cmpsmart = &datalayer_extended.stellantisCMPsmart;
+    dtc = &datalayer_battery->dtc;
   }
 
   virtual void setup(void);
@@ -29,15 +27,14 @@ class CmpSmartCarBattery : public CanBattery {
   bool supports_charged_energy() { return true; }
   bool supports_insulation_resistance() { return true; }
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { datalayer_extended.stellantisCMPsmart.UserRequestDTCreset = true; }
+  String get_uds_info_html() override;
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
-  CmpSmartCarHtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_CMPSMART* datalayer_cmpsmart;
 
   static const int MAX_PACK_VOLTAGE_100S_DV = 3700;
   static const int MIN_PACK_VOLTAGE_100S_DV = 2900;
@@ -124,12 +121,6 @@ class CmpSmartCarBattery : public CanBattery {
                        .ID = 0x552,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
   */
-  CAN_frame CMP_POLL = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6B4, .data = {0x03, 0x22, 0xD8, 0x13}};
-  CAN_frame CMP_CLEAR_ALL_DTC = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 5,
-                                 .ID = 0x6B4,
-                                 .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF}};
   uint32_t vehicle_time_counter = 0x088B390B;  //Taken from log on 19thOctober2025
   uint32_t main_contactor_cycle_count = 0;
   uint32_t QC_contactor_cycle_count = 0;

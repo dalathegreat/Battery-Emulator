@@ -10,10 +10,12 @@
 //    unaligned struct access.
 
 #include "espnow.h"
+
 #include <WiFi.h>
 #include <esp_now.h>
 #include <string.h>
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../hal/hal.h"
@@ -21,6 +23,7 @@
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "../utils/millis64.h"
+#include "../webserver/webserver.h"
 #include "../wifi/wifi.h"
 #include "Arduino.h"
 
@@ -70,7 +73,7 @@ static uint16_t emulator_id = 0;
 static uint8_t num_batteries = 1;
 
 // Send schedule state
-enum send_phase_t { PHASE_IDLE, PHASE_SYSTEM, PHASE_BATTERY, PHASE_CELLS, PHASE_EVENTS };
+enum send_phase_t { PHASE_IDLE, PHASE_SYSTEM, PHASE_AGGREGATE, PHASE_BATTERY, PHASE_CELLS, PHASE_EVENTS };
 static send_phase_t phase = PHASE_IDLE;
 static uint32_t cycle_start_ms = 0;
 static uint32_t last_frame_ms = 0;
@@ -377,6 +380,55 @@ static void send_system_frame() {
   end_frame();
 }
 
+/* The whole installation: what the inverter is given, as opposed to any one pack. Skipped
+   entirely with a single battery, where it would repeat the battery frame verbatim. */
+static void send_aggregate_frame() {
+  const DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
+
+  begin_frame(ESPNOW_FRAME_AGGREGATE, 0, 0);
+
+  put_u16_field(ESPNOW_KEY_AGG_SOC_PPTT, a.reported_soc);
+  put_u16_field(ESPNOW_KEY_AGG_SOC_REAL_PPTT, a.real_soc);
+  if (a.soh_available) {  // omitted until some pack has decoded one, same as the pack frame
+    put_u16_field(ESPNOW_KEY_AGG_SOH_PPTT, a.soh_pptt);
+  }
+  put_u16_field(ESPNOW_KEY_AGG_VOLTAGE_DV, a.voltage_dV);
+  put_i16_field(ESPNOW_KEY_AGG_CURRENT_DA, a.current_dA);
+  put_i32_field(ESPNOW_KEY_AGG_ACTIVE_POWER_W, a.active_power_W);
+  put_u32_field(ESPNOW_KEY_AGG_TOTAL_CAPACITY_WH, a.total_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_REPORTED_CAPACITY_WH, a.reported_total_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_REMAINING_CAPACITY_WH, a.remaining_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_REPORTED_REMAIN_WH, a.reported_remaining_capacity_Wh);
+  put_u32_field(ESPNOW_KEY_AGG_MAX_CHARGE_POWER_W, a.max_charge_power_W);
+  put_u32_field(ESPNOW_KEY_AGG_MAX_DISCHARGE_POWER_W, a.max_discharge_power_W);
+  put_u16_field(ESPNOW_KEY_AGG_MAX_CHARGE_CURRENT_DA, a.max_charge_current_dA);
+  put_u16_field(ESPNOW_KEY_AGG_MAX_DISCHARGE_CURRENT_DA, a.max_discharge_current_dA);
+  put_u16_field(ESPNOW_KEY_AGG_CELL_MAX_MV, a.cell_max_voltage_mV);
+  put_u16_field(ESPNOW_KEY_AGG_CELL_MIN_MV, a.cell_min_voltage_mV);
+  put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MAX_DC, a.temperature_max_dC);
+  put_i16_field(ESPNOW_KEY_AGG_TEMPERATURE_MIN_DC, a.temperature_min_dC);
+  const ChargingState agg_charging_state = get_charging_state(a.current_dA);
+  put_enum_field(ESPNOW_KEY_AGG_CHARGING_STATE, static_cast<uint8_t>(agg_charging_state));
+  put_enum_field(
+      ESPNOW_KEY_AGG_LIMITING_FACTOR,
+      static_cast<uint8_t>(get_limiting_factor(agg_charging_state, datalayer.battery_settings.inverter_limits_charge,
+                                               datalayer.battery_settings.inverter_limits_discharge,
+                                               datalayer.battery_settings.user_settings_limit_charge,
+                                               datalayer.battery_settings.user_settings_limit_discharge)));
+
+  // Only where some pack counts them. The per-pack frame gates the same way.
+  for (uint8_t i = 0; i < num_batteries; i++) {
+    Battery* bat = battery_instance(i);
+    if (bat != nullptr && bat->supports_charged_energy()) {
+      put_i32_field(ESPNOW_KEY_AGG_TOTAL_CHARGED_WH, a.total_charged_battery_Wh);
+      put_i32_field(ESPNOW_KEY_AGG_TOTAL_DISCHARGED_WH, a.total_discharged_battery_Wh);
+      break;
+    }
+  }
+
+  end_frame();
+}
+
 static void send_battery_frame(uint8_t index) {
   const DATALAYER_BATTERY_TYPE* d = battery_data(index);
   Battery* bat = battery_instance(index);
@@ -409,17 +461,38 @@ static void send_battery_frame(uint8_t index) {
   if (battery_is_detected(index) && d->status.CAN_battery_still_alive && esp32hal->system_booted_up()) {
     put_u16_field(ESPNOW_KEY_SOC_PPTT, d->status.reported_soc);
     put_u16_field(ESPNOW_KEY_SOC_REAL_PPTT, d->status.real_soc);
-    put_u16_field(ESPNOW_KEY_SOH_PPTT, d->status.soh_pptt);
+    // Omitted until the integration has decoded a state of health, the same as MQTT, so a
+    // receiver never shows the soh_pptt default as if it had been read from the pack.
+    if (d->status.soh_available) {
+      put_u16_field(ESPNOW_KEY_SOH_PPTT, d->status.soh_pptt);
+    }
     put_u16_field(ESPNOW_KEY_VOLTAGE_DV, d->status.voltage_dV);
     put_i16_field(ESPNOW_KEY_CURRENT_DA, d->status.current_dA);
     put_i16_field(ESPNOW_KEY_REPORTED_CURRENT_DA, d->status.reported_current_dA);
     put_i32_field(ESPNOW_KEY_ACTIVE_POWER_W, d->status.active_power_W);
     put_u32_field(ESPNOW_KEY_REMAINING_CAPACITY_WH, d->status.remaining_capacity_Wh);
     put_u32_field(ESPNOW_KEY_REPORTED_REMAIN_WH, d->status.reported_remaining_capacity_Wh);
-    put_u32_field(ESPNOW_KEY_MAX_CHARGE_POWER_W, d->status.max_charge_power_W);
-    put_u32_field(ESPNOW_KEY_MAX_DISCHARGE_POWER_W, d->status.max_discharge_power_W);
-    put_u16_field(ESPNOW_KEY_MAX_CHARGE_CURRENT_DA, d->status.max_charge_current_dA);
-    put_u16_field(ESPNOW_KEY_MAX_DISCHARGE_CURRENT_DA, d->status.max_discharge_current_dA);
+    /* A pack's max_charge_power_W is rewritten in place by the safety layer, the SOC taper and
+       the inverter filter, which for pack 1 turns it into the whole installation's decision.
+       With several packs send what each BMS asked for instead, so every pack frame means the
+       same thing - the installation's limits ride in ESPNOW_FRAME_AGGREGATE. The per-pack
+       current limits are only ever computed for the system, so derive them from the pack's own
+       voltage rather than sending the 0 that packs 2 and 3 carry. */
+    if (num_batteries > 1) {
+      put_u32_field(ESPNOW_KEY_MAX_CHARGE_POWER_W, d->status.bms_max_charge_power_W);
+      put_u32_field(ESPNOW_KEY_MAX_DISCHARGE_POWER_W, d->status.bms_max_discharge_power_W);
+      if (d->status.voltage_dV > 10) {
+        put_u16_field(ESPNOW_KEY_MAX_CHARGE_CURRENT_DA,
+                      power_W_to_current_dA(d->status.bms_max_charge_power_W, d->status.voltage_dV));
+        put_u16_field(ESPNOW_KEY_MAX_DISCHARGE_CURRENT_DA,
+                      power_W_to_current_dA(d->status.bms_max_discharge_power_W, d->status.voltage_dV));
+      }
+    } else {
+      put_u32_field(ESPNOW_KEY_MAX_CHARGE_POWER_W, d->status.max_charge_power_W);
+      put_u32_field(ESPNOW_KEY_MAX_DISCHARGE_POWER_W, d->status.max_discharge_power_W);
+      put_u16_field(ESPNOW_KEY_MAX_CHARGE_CURRENT_DA, d->status.max_charge_current_dA);
+      put_u16_field(ESPNOW_KEY_MAX_DISCHARGE_CURRENT_DA, d->status.max_discharge_current_dA);
+    }
     put_u32_field(ESPNOW_KEY_OVERRIDE_CHARGE_W, d->status.override_charge_power_W);
     put_u32_field(ESPNOW_KEY_OVERRIDE_DISCHARGE_W, d->status.override_discharge_power_W);
     put_i16_field(ESPNOW_KEY_TEMPERATURE_MAX_DC, d->status.temperature_max_dC);
@@ -448,22 +521,24 @@ static void send_battery_frame(uint8_t index) {
     put_u16_field(ESPNOW_KEY_BALANCING_ACTIVE_CELLS, active_cells);
     put_enum_field(ESPNOW_KEY_BALANCING_STATUS, static_cast<uint8_t>(d->status.balancing_status));
 
+    /* Direction is genuinely this pack's: parallel packs at different SOC push current into each
+       other. What is limiting the inverter is not - that is one answer for the installation, and
+       it rides in ESPNOW_FRAME_AGGREGATE once there is more than one pack. */
     const ChargingState charging_state = get_charging_state(d->status.current_dA);
     put_enum_field(ESPNOW_KEY_CHARGING_STATE, static_cast<uint8_t>(charging_state));
-    put_enum_field(ESPNOW_KEY_LIMITING_FACTOR,
-                   static_cast<uint8_t>(get_limiting_factor(
-                       charging_state, d->settings.inverter_limits_charge, d->settings.inverter_limits_discharge,
-                       d->settings.user_settings_limit_charge, d->settings.user_settings_limit_discharge)));
+    if (num_batteries == 1) {
+      put_enum_field(ESPNOW_KEY_LIMITING_FACTOR, static_cast<uint8_t>(get_limiting_factor(
+                                                     charging_state, datalayer.battery_settings.inverter_limits_charge,
+                                                     datalayer.battery_settings.inverter_limits_discharge,
+                                                     datalayer.battery_settings.user_settings_limit_charge,
+                                                     datalayer.battery_settings.user_settings_limit_discharge)));
+    }
 
     if (index == 0 && (user_selected_battery_type == BatteryType::TeslaModel3Y ||
                        user_selected_battery_type == BatteryType::TeslaModelSX)) {
-      put_i16_field(ESPNOW_KEY_DCDC_CURRENT_DA,
-                    static_cast<int16_t>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent));
-      // Raw unit is 0.0390625 V; 1/0.0390625 == 25.6, so *1000/25.6 == *125/3.2. Scaled
-      // with integer maths to millivolts to keep floats out of the send path.
-      put_u16_field(
-          ESPNOW_KEY_DCDC_VOLTAGE_MV,
-          static_cast<uint16_t>((static_cast<uint32_t>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 625u) / 16u));
+      put_i16_field(ESPNOW_KEY_DCDC_CURRENT_DA, datalayer_extended.tesla.battery_dcdcLvOutputCurrent);
+      const uint32_t dcdc_mv = datalayer_extended.tesla.battery_dcdcLvBusVolt * 10u;
+      put_u16_field(ESPNOW_KEY_DCDC_VOLTAGE_MV, static_cast<uint16_t>(dcdc_mv > 0xFFFF ? 0xFFFF : dcdc_mv));
     }
     if (user_selected_battery_type == BatteryType::BydAtto3) {
       const DATALAYER_INFO_BYDATTO3& byd = (index == 1) ? datalayer_extended.bydAtto3_2 : datalayer_extended.bydAtto3;
@@ -565,7 +640,7 @@ static void send_event_frame(EVENTS_ENUM_TYPE handle, const EVENTS_STRUCT_TYPE* 
   put_enum_field(ESPNOW_KEY_EVENT_SEVERITY, static_cast<uint8_t>(ev->level));
   put_enum_field(ESPNOW_KEY_EVENT_STATE, static_cast<uint8_t>(ev->state));
   put_u8_field(ESPNOW_KEY_EVENT_COUNT, ev->occurences);
-  put_u8_field(ESPNOW_KEY_EVENT_DATA, ev->data);
+  put_i16_field(ESPNOW_KEY_EVENT_DATA_I16, ev->data);
   put_int(ESPNOW_KEY_EVENT_MILLIS, ESPNOW_TYPE_UINT, ev->timestamp, 8);
   put_str_field(ESPNOW_KEY_EVENT_MESSAGE, get_event_message_string(handle).c_str());
 
@@ -630,7 +705,7 @@ void init_espnow() {
 }
 
 void update_espnow() {
-  if (!espnow_initialized) {
+  if (!espnow_initialized || ota_active) {
     return;
   }
 
@@ -663,6 +738,11 @@ void update_espnow() {
   switch (phase) {
     case PHASE_SYSTEM:
       send_system_frame();
+      phase = (num_batteries > 1) ? PHASE_AGGREGATE : PHASE_BATTERY;
+      break;
+
+    case PHASE_AGGREGATE:
+      send_aggregate_frame();
       phase = PHASE_BATTERY;
       break;
 

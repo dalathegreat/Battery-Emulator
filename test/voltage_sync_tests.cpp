@@ -9,15 +9,40 @@ class VoltageSyncTest : public ::testing::Test {
  protected:
   void SetUp() override {
     init_events();
+    // The drift counters in check_parallel_battery_safety() are function-local
+    // statics, so a preceding run of the timeout tests leaves them latched at
+    // 10 and the next run in the same process starts mid-fault - a plain
+    // --gtest_repeat=2 fails without this. They are not reachable from a
+    // fixture; one in-sync pass through the public API is the reset (the
+    // <=1.5V branch zeroes the counter). 3750 dodges the 3700-startup-default
+    // guard, which returns before touching the counter.
+    battery2_detected = true;
+    battery3_detected = true;
+    datalayer.battery.status.voltage_dV = 3750;
+    datalayer.battery2.status.voltage_dV = 3750;
+    datalayer.battery3.status.voltage_dV = 3750;
+    check_parallel_battery_safety(2);
+    check_parallel_battery_safety(3);
     // Reset datalayer to known state
     datalayer.battery.status.voltage_dV = 3700;   // 370.0V
     datalayer.battery2.status.voltage_dV = 3700;  // 370.0V
     datalayer.battery3.status.voltage_dV = 3700;  // 370.0V
+    // Cell voltages at their 3700mV default too: nothing has been read yet
+    datalayer.battery.status.cell_max_voltage_mV = 3700;
+    datalayer.battery2.status.cell_max_voltage_mV = 3700;
+    datalayer.battery3.status.cell_max_voltage_mV = 3700;
     datalayer.system.status.system_status = ACTIVE;
     datalayer.system.status.battery2_allowed_contactor_closing = false;
     datalayer.system.status.battery3_allowed_contactor_closing = false;
     battery2_detected = true;
     battery3_detected = true;
+  }
+
+  // Hand the cell voltages back at their default, as some suites do not reset the whole datalayer
+  void TearDown() override {
+    datalayer.battery.status.cell_max_voltage_mV = 3700;
+    datalayer.battery2.status.cell_max_voltage_mV = 3700;
+    datalayer.battery3.status.cell_max_voltage_mV = 3700;
   }
 };
 
@@ -92,6 +117,30 @@ TEST_F(VoltageSyncTest, Battery3DisconnectedAfterVoltageDriftTimeout) {
 
   check_parallel_battery_safety(3);
   EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
+}
+
+// Test: 370.0V is also the startup default, so while the cell voltages are still at their default
+// nothing has been read yet and neither battery may join
+TEST_F(VoltageSyncTest, BatteriesAt370VWaitForCellVoltages) {
+  check_parallel_battery_safety(2);
+  check_parallel_battery_safety(3);
+
+  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+  EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
+}
+
+// Test: Once cell voltages have been read, batteries genuinely at 370.0V (e.g. the fake battery) may join,
+// battery3 exactly like battery2
+TEST_F(VoltageSyncTest, BatteriesAt370VJoinOnceCellVoltagesRead) {
+  datalayer.battery.status.cell_max_voltage_mV = 3860;
+  datalayer.battery2.status.cell_max_voltage_mV = 3860;
+  datalayer.battery3.status.cell_max_voltage_mV = 3860;
+
+  check_parallel_battery_safety(2);
+  check_parallel_battery_safety(3);
+
+  EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+  EXPECT_TRUE(datalayer.system.status.battery3_allowed_contactor_closing);
 }
 
 // Test: Battery1 fault disengages battery2 even when voltages match

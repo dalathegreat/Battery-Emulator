@@ -14,32 +14,32 @@ bool PylonLV485InverterProtocol::setup() {
   }
 
   //initialize safe defaults before we start receiving real data
-  datalayer.battery.status.voltage_dV = 480;  // 48.0V
+  datalayer.aggregate.voltage_dV = 480;  // 48.0V
 
   return true;
 }
 
 void PylonLV485InverterProtocol::update_values() {
 
-  voltage_mv = datalayer.battery.status.voltage_dV * 100;
+  voltage_mv = datalayer.aggregate.voltage_dV * 100;
 
-  current_ca = datalayer.battery.status.current_dA * 10;
+  current_ca = datalayer.aggregate.current_dA * 10;
 
-  soc_percent = datalayer.battery.status.reported_soc / 100;
+  soc_percent = datalayer.aggregate.reported_soc / 100;
 
-  temp_deci_k = (datalayer.battery.status.temperature_max_dC + 273.15) * 10;
+  temp_deci_k = (datalayer.aggregate.temperature_max_dC + 273.15) * 10;
 
-  max_cell_v = datalayer.battery.status.cell_max_voltage_mV;
+  max_cell_v = datalayer.aggregate.cell_max_voltage_mV;
 
-  min_cell_v = datalayer.battery.status.cell_min_voltage_mV;
+  min_cell_v = datalayer.aggregate.cell_min_voltage_mV;
 
-  max_charge_v_mv = datalayer.battery.info.max_design_voltage_dV * 100;
+  max_charge_v_mv = datalayer.aggregate.max_design_voltage_dV * 100;
 
-  min_discharge_v_mv = datalayer.battery.info.min_design_voltage_dV * 100;
+  min_discharge_v_mv = datalayer.aggregate.min_design_voltage_dV * 100;
 
-  max_charge_i_dA = datalayer.battery.status.max_charge_current_dA;
+  max_charge_i_dA = datalayer.aggregate.max_charge_current_dA;
 
-  max_discharge_i_dA = datalayer.battery.status.max_discharge_current_dA;
+  max_discharge_i_dA = datalayer.aggregate.max_discharge_current_dA;
 
   if (datalayer.system.status.system_status == FAULT) {
     //If we are in FAULT mode, do not allow charging or discharging
@@ -135,14 +135,14 @@ void PylonLV485InverterProtocol::handle_command_61() {
   uint16_t min_bms_temp = temp_deci_k;
 
   // Override with real datalayer values if available
-  if (datalayer.battery.status.cell_max_voltage_mV > 0)
-    max_cell_v = datalayer.battery.status.cell_max_voltage_mV;
-  if (datalayer.battery.status.cell_min_voltage_mV > 0)
-    min_cell_v = datalayer.battery.status.cell_min_voltage_mV;
-  if (datalayer.battery.status.temperature_max_dC > -273)
-    max_cell_temp = (datalayer.battery.status.temperature_max_dC + 273.15) * 10;
-  if (datalayer.battery.status.temperature_min_dC > -273)
-    min_cell_temp = (datalayer.battery.status.temperature_min_dC + 273.15) * 10;
+  if (datalayer.aggregate.cell_max_voltage_mV > 0)
+    max_cell_v = datalayer.aggregate.cell_max_voltage_mV;
+  if (datalayer.aggregate.cell_min_voltage_mV > 0)
+    min_cell_v = datalayer.aggregate.cell_min_voltage_mV;
+  if (datalayer.aggregate.temperature_max_dC > -273)
+    max_cell_temp = (datalayer.aggregate.temperature_max_dC + 273.15) * 10;
+  if (datalayer.aggregate.temperature_min_dC > -273)
+    min_cell_temp = (datalayer.aggregate.temperature_min_dC + 273.15) * 10;
 
   // Log what we're sending for 0x61
   if (datalayer.system.info.web_logging_active) {
