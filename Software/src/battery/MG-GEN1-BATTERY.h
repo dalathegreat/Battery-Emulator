@@ -102,23 +102,18 @@ class MgGen1Battery : public UdsCanBattery {
   // Latched flags for hysteresis
   bool voltageAtCellMin = false;
   bool voltageAtCellMax = false;
-  // Some batteries might need the transmit frames at 10/20ms intervals, others
-  // seem happy with 100ms (which is preferable)
-  // TODO: Double-check whether this is true (ideally we'd use 100ms for all of them).
-  bool fastTick = true;
 
   uint16_t soc = 5000;
 
   // Diagnostics/status tracking.
   uint32_t tx_count = 0;
   uint32_t rx_count = 0;
-  // Positive if the max/min cell voltages were recently updated. If they become stale
-  // we set max power to zero.
+  // Positive as long as the cell voltage min/max values are fresh. If they
+  // become stale we set max power to zero and open the contactors.
   uint16_t cellVoltageValidTime = 0;
-  // Positive if the pack voltage was recently updated. If stale we open
-  // contactors (to avoid an undetected double-battery discrepancy).
+  // Positive if the pack voltage is fresh. Important for the parallel-pack
+  // voltage divergence checks.
   uint16_t voltageValidTime = 0;
-  uint16_t highestSeenCellCount = 0;
   int limit_message_counter = 0;
   uint8_t previousState = 0;
 

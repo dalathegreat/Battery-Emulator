@@ -407,8 +407,7 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (datalayer.system.status.system_status == FAULT) {
         // If in fault state, don't try resetting things yet as it'll turn the
         // BMS off and we'll lose CAN info
-      } else if (!datalayer.system.status.inverter_allows_contactor_closing || batteryType == 0 ||
-                 highestSeenCellCount != datalayer_battery->info.number_of_cells) {
+      } else if (!datalayer.system.status.inverter_allows_contactor_closing || batteryType == 0) {
         // We haven't requested contactor closing, so we don't care what state
         // the BMS is in.
         announce_contactor_state(false);
@@ -495,9 +494,6 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (cell_id < datalayer_battery->info.number_of_cells) {
         v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
         datalayer_battery->status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
-        if (v < 10000 && cell_id >= highestSeenCellCount) {
-          highestSeenCellCount = cell_id + 1;
-        }
         // cell temperature is rx_frame.data.u8[1]-40 but we don't use it
       }
 
@@ -745,39 +741,39 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     send_phase = 0;
   }
 
-  // Send 10ms CAN Message (or 100ms if we're non-fast-tick)
-  const unsigned long TICK_PERIOD_10 = fastTick ? INTERVAL_10_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis10 >= TICK_PERIOD_10 && send_phase == 0) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && send_phase == 0) {
     previousMillis10 = currentMillis;
 
     tx_count++;
 
-    // It can take up to 30s to establish the cell count. During this period we
-    // won't send any contactor-control messages (unless there is a FAULT or
-    // inverter requests opening) - if the contactors were already closed,
-    // they'll remain so until the BMS times out. This allows us to maintain
-    // closed contactors during reboots.
+    // Until the battery is identified and we have fresh cell and pack voltage
+    // readings we won't send any contactor-control messages (unless there is a
+    // FAULT or the inverter requests opening). If the contactors were already
+    // closed they'll remain so until the BMS times out, which lets us ride
+    // through reboots.
     static constexpr uint32_t STARTUP_GRACE_PERIOD_MS = 30000;  // 30 seconds
 
-    // We've got the battery type and have seen the expected number of cells
-    const bool identified_battery = batteryType != 0 && highestSeenCellCount == datalayer_battery->info.number_of_cells;
+    // We've got the battery type
+    const bool identified_battery = batteryType != 0;
     // Open contactors if fault
     const bool must_open_contactors = datalayer.system.status.system_status == FAULT;
     // Open contactors if inverter requests it, or we haven't identified the
-    // battery yet, or we don't have a recent voltage reading, or if we're a
-    // secondary battery and haven't been given permission to close yet.
+    // battery yet, or we don't have a recent pack/cell voltage reading, or if
+    // we're a secondary battery and haven't been given permission to close yet.
     const bool should_open_contactors = !datalayer.system.status.inverter_allows_contactor_closing ||
-                                        !identified_battery || voltageValidTime == 0 ||
+                                        !identified_battery || voltageValidTime == 0 || cellVoltageValidTime == 0 ||
                                         (allowed_contactor_closing != nullptr && !*allowed_contactor_closing);
 
     bool send_8a = true;
     if (must_open_contactors || (should_open_contactors && currentMillis > STARTUP_GRACE_PERIOD_MS)) {
 
       if (announcedContactorsClosed) {
-        logging.printf("[MG] Open contactors, iacc: %d, hSCC: %d, bT: %d, accnull: %d, acc: %d, vvt: %d\n",
-                       datalayer.system.status.inverter_allows_contactor_closing, highestSeenCellCount, batteryType,
+        logging.printf("[MG] Open contactors, iacc: %d, bT: %d, accnull: %d, acc: %d, vvt: %d, cvt: %d\n",
+                       datalayer.system.status.inverter_allows_contactor_closing, batteryType,
                        allowed_contactor_closing == nullptr,
-                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime);
+                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime,
+                       cellVoltageValidTime);
         announcedContactorsClosed = false;
       }
 
@@ -796,17 +792,18 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       MG_HS_8A.data.u8[5] = 0x02;
 
       if (!announcedContactorsClosed) {
-        logging.printf("[MG] Close contactors, iacc: %d, hSCC: %d, bT: %d, accnull: %d, acc: %d\n",
-                       datalayer.system.status.inverter_allows_contactor_closing, highestSeenCellCount, batteryType,
+        logging.printf("[MG] Close contactors, iacc: %d, bT: %d, accnull: %d, acc: %d, vvt: %d, cvt: %d\n",
+                       datalayer.system.status.inverter_allows_contactor_closing, batteryType,
                        allowed_contactor_closing == nullptr,
-                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0);
+                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime,
+                       cellVoltageValidTime);
         announcedContactorsClosed = true;
       }
 
       if (warmupCounter < 1100) {
         // Keep the 1 asserted for 1.1s
         MG_HS_8A.data.u8[6] = 0x10 | eightAcycle;
-        warmupCounter += TICK_PERIOD_10;
+        warmupCounter += INTERVAL_10_MS;
       } else {
         // After that we go to the 3
         MG_HS_8A.data.u8[6] = 0x30 | eightAcycle;
@@ -830,8 +827,7 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  const unsigned long TICK_PERIOD_20 = fastTick ? INTERVAL_20_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis20 >= TICK_PERIOD_20 && send_phase == 1) {
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS && send_phase == 1) {
     previousMillis20 = currentMillis;
 
     transmit_can_frame(&MG_HS_1F1);
