@@ -11,7 +11,6 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     dtc = &datalayer_battery->dtc;
-    calculated_total_pack_voltage_mV = 0;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -118,7 +117,7 @@ class RenaultZoeGen1Battery : public UdsCanBattery {
   uint8_t LB_HVBOT = 0;
   uint8_t LB_HVBOV = 0;
   uint8_t LB_COV = 0;
-  uint32_t calculated_total_pack_voltage_mV = 370000;
+  uint32_t calculated_total_pack_voltage_mV = 0;
   uint16_t battery_mileage_in_km = 0;
   uint16_t kWh_from_beginning_of_battery_life = 0;
 };

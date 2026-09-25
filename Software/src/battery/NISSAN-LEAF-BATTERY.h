@@ -13,7 +13,7 @@ extern uint8_t user_selected_LEAF_chg_sta_rq;
 
 class NissanLeafBattery : public CanBattery {
  public:
-  // Use the default constructor to create the first or single battery.battery_Total_Voltage2
+  // Use the default constructor to create the first or single battery.
   NissanLeafBattery() : renderer(&datalayer.battery, &datalayer_extended.nissanleaf) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
@@ -34,8 +34,6 @@ class NissanLeafBattery : public CanBattery {
       allows_contactor_closing = nullptr;
     }
     datalayer_nissan = extended;
-
-    battery_Total_Voltage2 = 0;  //Zero out pack voltage to avoid contactor closing before we know value via CAN
   }
 
   virtual void setup(void);
@@ -410,7 +408,7 @@ class NissanLeafBattery : public CanBattery {
   //State of health in whole percent from broadcast 0x5BC, 0 until the pack has reported one.
   //No value is invented at boot: an SOH that has not been read is reported as unknown instead.
   uint16_t battery_StateOfHealth = 0;
-  uint16_t battery_Total_Voltage2 = 740;          //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+  uint16_t battery_Total_Voltage2 = 0;            //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
   int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
   int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C
   int16_t battery_HistData_Temperature_MIN = 86;  //-40 to 86*C

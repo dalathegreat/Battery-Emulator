@@ -228,8 +228,10 @@ void handle_contactors() {
       timeSpentInFaultedMode = 0;
     }
 
-    //handle contactor control SHUTDOWN_REQUESTED
-    if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+    //handle contactor control SHUTDOWN_REQUESTED. Logged on entry only: the fault counter keeps
+    //counting while latched, so this condition stays true on every following pass
+    if ((timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) && (contactorStatus != SHUTDOWN_REQUESTED)) {
+      dbg_contactors("OPEN (fault, latched)");
       contactorStatus = SHUTDOWN_REQUESTED;
     }
 
@@ -281,6 +283,7 @@ void handle_contactors() {
       if (!datalayer.system.status.inverter_allows_contactor_closing) {
         // Inverter-commanded opening stays immediate: the inverter has already
         // stopped power transfer before revoking its permission
+        dbg_contactors("OPEN (inverter request)");
         contactorStatus = DISCONNECTED;
       } else if (datalayer.system.info.equipment_stop_active) {
         // Equipment stop: every e-stop entry point also issues a battery pause,
@@ -301,6 +304,7 @@ void handle_contactors() {
             set_event(EVENT_ERROR_OPEN_CONTACTOR, 1);
           }
           estop_open_wait_start_ms = 0;
+          dbg_contactors("OPEN (equipment stop)");
           contactorStatus = DISCONNECTED;
         }
       } else {
@@ -375,12 +379,16 @@ void handle_contactors() {
    falls back to digitalWrite exactly as before, so one call site serves both modes.
    Note that millis() is read here rather than reusing the file-scope currentTime: these handlers
    run before handle_contactors() refreshes it, and it is not refreshed at all on the COMPLETED
-   pass, which is precisely when these contactors are closed. */
-static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start) {
+   pass, which is precisely when these contactors are closed.
+   Both edges are logged next to the main ladder's steps, so the log shows when each extra
+   battery actually joined the DC link and when it left it again, not just what the main one did. */
+static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start,
+                                   const char* join_log, const char* leave_log) {
   if (close_allowed) {
     if (!engaged) {  // Rising edge, start the pull-in window
       pull_in_start = millis();
       engaged = true;
+      dbg_contactors(join_log);
     }
     // Economize only after the coil has had the same pull-in time the main pair gets between
     // closing and PRECHARGE_OFF. Dropping to hold duty any earlier risks the contactor not seating.
@@ -388,6 +396,9 @@ static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& eng
     set(pin, ON, economize ? pwm_hold_duty : PWM_ON_DUTY);
   } else {  // Closing contactors on this battery not allowed
     set(pin, OFF, PWM_OFF_DUTY);
+    if (engaged) {  // Falling edge. Only once, not on every pass while it stays open
+      dbg_contactors(leave_log);
+    }
     engaged = false;
   }
 }
@@ -408,7 +419,7 @@ void handle_contactors_battery2() {
       esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
       (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing &&
           extra_pack_permits_close(battery2, datalayer.system.status.battery2_pack_permits_closing, engaged),
-      engaged, pull_in_start);
+      engaged, pull_in_start, "JOIN Battery 2", "LEAVE Battery 2");
 }
 
 void handle_contactors_battery3() {
@@ -419,7 +430,7 @@ void handle_contactors_battery3() {
       esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
       (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing &&
           extra_pack_permits_close(battery3, datalayer.system.status.battery3_pack_permits_closing, engaged),
-      engaged, pull_in_start);
+      engaged, pull_in_start, "JOIN Battery 3", "LEAVE Battery 3");
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
