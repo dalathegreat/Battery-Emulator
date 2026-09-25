@@ -39,7 +39,8 @@ class MgGen1Battery : public UdsCanBattery {
 
   // UDS PIDs
   static const uint16_t POLL_BATTERY_SOH = 0xB061;
-  static const uint16_t POLL_BATTERY_TYPE = 0xF18A;
+  static const uint16_t POLL_BATTERY_NSTC_SERIAL = 0xB18C;
+  static const uint16_t POLL_BATTERY_ECU_HW_NUMBER = 0xF18A;
   static const uint16_t POLL_BATTERY_VIN = 0xF190;
   static const uint16_t POLL_BATTERY_MFR_DATE = 0xF18B;
   static const uint16_t POLL_BATTERY_FINGERPRINT = 0xF183;
@@ -48,10 +49,10 @@ class MgGen1Battery : public UdsCanBattery {
   static const uint16_t POLL_BATTERY_SYSTEM_SW_NUMBER = 0xF194;
 
   // PIDs read at boot time only (battery identifiers)
-  static constexpr uint16_t UDS_BOOT_PID_LIST[] = {POLL_BATTERY_VEHICLE_HW_NUMBER,
-                                                   POLL_BATTERY_TYPE,
+  static constexpr uint16_t UDS_BOOT_PID_LIST[] = {POLL_BATTERY_NSTC_SERIAL,
+                                                   POLL_BATTERY_ECU_HW_NUMBER,
                                                    0xF120,
-                                                   0xB18C,
+                                                   POLL_BATTERY_VEHICLE_HW_NUMBER,
                                                    POLL_BATTERY_FINGERPRINT,
                                                    POLL_BATTERY_MFR_DATE,
                                                    POLL_BATTERY_VIN,
@@ -62,19 +63,19 @@ class MgGen1Battery : public UdsCanBattery {
   // PIDs read regularly
   static constexpr uint16_t UDS_STEADY_PID_LIST[] = {POLL_BATTERY_SOH};
 
-  // Battery type codes returned by PID 0xF18A.
-  // These probably aren't intended for identification, but they allow us to tell the batteries apart.
-  static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x53534541;  // "SSEA"
-  static const uint32_t BATTERY_TYPE_MG_ZS = 0x5a533131;       // "ZS11"
-  static const uint32_t BATTERY_TYPE_MG5 = 0x00010203;         // Odd placeholder value
-  static const uint32_t BATTERY_TYPE_MG5_50_LFP = 0xFF000001;  // Sentinel value
+  static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x45443330;    // "ED30"
+  static const uint32_t BATTERY_TYPE_MG_ZS_44_NMC = 0x454c3130;  // "EL10"
+  static const uint32_t BATTERY_TYPE_MG5_50_LFP = 0x424b3430;    // "BK40"
+  static const uint32_t BATTERY_TYPE_MG5_52_NMC = 0x45443930;    // "ED90"
+  static const uint32_t BATTERY_TYPE_MG5_61_NMC = 0x45503243;    // "EP2C"
+  static const uint32_t BATTERY_TYPE_MG5_69_NMC = 0x454e3243;    // "EN2C"
+
   uint32_t batteryType = 0;
-  uint32_t vehicleHardwareNumber = 0;
 
   // Identifier PID payloads
-  uint8_t pid_f18a[8] = {0};
+  uint8_t pid_ecu_hw_number[8] = {0};
   uint8_t pid_f120[16] = {0};
-  uint8_t pid_b18c[24] = {0};
+  uint8_t pid_nstc_serial[24] = {0};
   uint8_t pid_fingerprint[10] = {0};
   uint8_t pid_mfr_date[3] = {0};
   uint8_t pid_vin[17] = {0};
@@ -135,13 +136,6 @@ class MgGen1Battery : public UdsCanBattery {
                         .DLC = 8,
                         .ID = 0x08A,
                         .data = {0x80, 0x00, 0x00, 0x04, 0x00, 0x02, 0x36, 0xB0}};
-  // Apart from the initial 0x0E, various balues have been seen. However 0x00
-  // seems most likely to work across all batteries.
-  static constexpr CAN_frame MG_HS_1F1 = {.FD = false,
-                                          .ext_ID = false,
-                                          .DLC = 8,
-                                          .ID = 0x1F1,
-                                          .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
 inline MgGen1Battery::MgGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan,
