@@ -976,13 +976,13 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
       pid_coldest_module = value;
       break;
     case PID_LOWEST_TEMPERATURE:
-      pid_lowest_temperature = value;
+      pid_lowest_temperature = value - 40;
       break;
     case PID_AVERAGE_TEMPERATURE:
-      pid_average_temperature = value;
+      pid_average_temperature = value - 40;
       break;
     case PID_HIGHEST_TEMPERATURE:
-      pid_highest_temperature = value;
+      pid_highest_temperature = value - 40;
       break;
     case PID_HOTTEST_MODULE:
       pid_hottest_module = value;
