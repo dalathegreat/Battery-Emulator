@@ -8,7 +8,7 @@
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/types.h"
 
-enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
+enum class ChargerType { None, NissanLeaf, ChevyVolt, TeslaModel3YPcs, Highest };
 
 extern ChargerType user_selected_charger_type;
 

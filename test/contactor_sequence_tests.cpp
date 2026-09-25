@@ -20,9 +20,6 @@
 
 namespace {
 
-// Mirrors the file-scope FSM in comm_contactorcontrol.cpp. Must match it.
-enum SeqState { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
-
 // Values published in datalayer.system.status.contactors_engaged. Named here
 // because the production code writes the numbers inline.
 constexpr uint8_t kEngagedNone = 0;
@@ -38,8 +35,6 @@ constexpr unsigned long kFaultTicksBeforeShutdown = 1000;
 constexpr unsigned long kBootMs = 100000;  // Well past INTERVAL_10_S
 
 }  // namespace
-
-extern SeqState contactorStatus;
 
 class ContactorSequenceTest : public ::testing::Test {
  protected:
