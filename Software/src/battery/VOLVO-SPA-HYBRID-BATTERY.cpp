@@ -476,7 +476,7 @@ void VolvoSpaHybridBattery::transmit_can(unsigned long currentMillis) {
 
     if ((datalayer.system.status.system_status == ACTIVE) && startedUp) {
       datalayer.system.status.battery_allows_contactor_closing = true;
-      //transmit_can_frame(&VOLVO_140_CLOSE);  //Send 0x140 Close contactors message
+      transmit_can_frame(&VOLVO_140_CLOSE);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT , OR inverter requested opening contactors, OR system not started yet
       datalayer.system.status.battery_allows_contactor_closing = false;
       transmit_can_frame(&VOLVO_140_OPEN);  //Send 0x140 Open contactors message
