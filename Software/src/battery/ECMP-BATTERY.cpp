@@ -1024,7 +1024,7 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
       pid_lowest_cell_voltage_num = value;
       break;
     case PID_SUM_OF_CELLS:
-      pid_sum_of_cells = value / 2;
+      pid_sum_of_cells = (value / 2)*1.25;
       break;
     case PID_CELL_MIN_CAPACITY:
       pid_cell_min_capacity = value;
