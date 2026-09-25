@@ -59,39 +59,39 @@ TEST(MillisWrapTest, RemoteLimitExpiryIsWrapSafe) {
   datalayer = DataLayer();
 
   // (a) Set 16 ms before the wrap; timestamp + timeout overflows to ~59984
-  datalayer.battery.settings.remote_set_timestamp = 0xFFFFFFF0u;
-  datalayer.battery.settings.remote_set_timeout = 60000;
-  datalayer.battery.settings.remote_settings_limit_charge = true;
-  datalayer.battery.settings.remote_settings_limit_discharge = true;
-  datalayer.battery.settings.max_remote_set_charge_dA = 100;
-  datalayer.battery.settings.max_remote_set_discharge_dA = 100;
+  datalayer.battery_settings.remote_set_timestamp = 0xFFFFFFF0u;
+  datalayer.battery_settings.remote_set_timeout = 60000;
+  datalayer.battery_settings.remote_settings_limit_charge = true;
+  datalayer.battery_settings.remote_settings_limit_discharge = true;
+  datalayer.battery_settings.max_remote_set_charge_dA = 100;
+  datalayer.battery_settings.max_remote_set_discharge_dA = 100;
 
   // 8 ms later, still before the wrap: must survive
   update_remote_limit_expiry(0xFFFFFFF8u);
-  EXPECT_TRUE(datalayer.battery.settings.remote_settings_limit_charge)
+  EXPECT_TRUE(datalayer.battery_settings.remote_settings_limit_charge)
       << "A fresh remote limit must not expire because timestamp + timeout overflowed";
   // 1 s after the wrap (~1 s elapsed): must still survive
   update_remote_limit_expiry(1000);
-  EXPECT_TRUE(datalayer.battery.settings.remote_settings_limit_charge)
+  EXPECT_TRUE(datalayer.battery_settings.remote_settings_limit_charge)
       << "A fresh remote limit must not expire just because the clock wrapped";
   // 70 s after the wrap: the 60 s timeout has genuinely elapsed
   update_remote_limit_expiry(70000);
-  EXPECT_FALSE(datalayer.battery.settings.remote_settings_limit_charge);
+  EXPECT_FALSE(datalayer.battery_settings.remote_settings_limit_charge);
 
   // (b) Set ~65 s before the wrap; the sum does NOT overflow (~4294961760),
   // so after the wrap the naive comparison never becomes true again
-  datalayer.battery.settings.remote_set_timestamp = 0xFFFF0000u;
-  datalayer.battery.settings.remote_set_timeout = 60000;
-  datalayer.battery.settings.remote_settings_limit_charge = true;
-  datalayer.battery.settings.remote_settings_limit_discharge = true;
-  datalayer.battery.settings.max_remote_set_charge_dA = 100;
-  datalayer.battery.settings.max_remote_set_discharge_dA = 100;
+  datalayer.battery_settings.remote_set_timestamp = 0xFFFF0000u;
+  datalayer.battery_settings.remote_set_timeout = 60000;
+  datalayer.battery_settings.remote_settings_limit_charge = true;
+  datalayer.battery_settings.remote_settings_limit_discharge = true;
+  datalayer.battery_settings.max_remote_set_charge_dA = 100;
+  datalayer.battery_settings.max_remote_set_discharge_dA = 100;
 
   // 70 s after the wrap: ~135 s elapsed, far past the 60 s timeout
   update_remote_limit_expiry(70000);
-  EXPECT_FALSE(datalayer.battery.settings.remote_settings_limit_charge)
+  EXPECT_FALSE(datalayer.battery_settings.remote_settings_limit_charge)
       << "A stale remote limit must not persist across the wrap";
-  EXPECT_FALSE(datalayer.battery.settings.remote_settings_limit_discharge);
-  EXPECT_EQ(datalayer.battery.settings.max_remote_set_charge_dA, 0);
-  EXPECT_EQ(datalayer.battery.settings.max_remote_set_discharge_dA, 0);
+  EXPECT_FALSE(datalayer.battery_settings.remote_settings_limit_discharge);
+  EXPECT_EQ(datalayer.battery_settings.max_remote_set_charge_dA, 0);
+  EXPECT_EQ(datalayer.battery_settings.max_remote_set_discharge_dA, 0);
 }

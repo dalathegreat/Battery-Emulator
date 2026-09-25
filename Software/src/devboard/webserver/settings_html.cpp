@@ -496,7 +496,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "INVBID") {
     if (inverter && inverter->supports_battery_id()) {
-      return String(datalayer.battery.settings.sofar_user_specified_battery_id);
+      return String(datalayer.battery_settings.sofar_user_specified_battery_id);
     }
   }
 
@@ -839,47 +839,51 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "MAX_CHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_charge_dA / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_charge_dA / 10.0f, 1);
   }
 
   if (var == "MAX_DISCHARGE_SPEED") {
-    return String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_discharge_dA / 10.0f, 1);
   }
 
   if (var == "SOC_MAX_PERCENTAGE") {
-    return String(datalayer.battery.settings.max_percentage / 100.0f, 1);
+    return String(datalayer.battery_settings.max_percentage / 100.0f, 1);
   }
 
   if (var == "SOC_MIN_PERCENTAGE") {
-    return String(datalayer.battery.settings.min_percentage / 100.0f, 1);
+    return String(datalayer.battery_settings.min_percentage / 100.0f, 1);
   }
 
   if (var == "CHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_charge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "DISCHARGE_VOLTAGE") {
-    return String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
+    return String(datalayer.battery_settings.max_user_set_discharge_voltage_dV / 10.0f, 1);
   }
 
   if (var == "SOC_SCALING_ACTIVE_CLASS") {
-    return datalayer.battery.settings.soc_scaling_active ? "active" : "inactive";
+    return datalayer.battery_settings.soc_scaling_active ? "active" : "inactive";
   }
 
   if (var == "VOLTAGE_LIMITS_ACTIVE_CLASS") {
-    return datalayer.battery.settings.user_set_voltage_limits_active ? "active" : "inactive";
+    return datalayer.battery_settings.user_set_voltage_limits_active ? "active" : "inactive";
+  }
+
+  if (var == "SOC_SCALING_CLASS") {
+    return datalayer.battery_settings.soc_scaling_active ? "active" : "inactiveSoc";
   }
 
   if (var == "SOC_SCALING") {
-    return datalayer.battery.settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
+    return datalayer.battery_settings.soc_scaling_active ? TRUE_CHAR_CODE : FALSE_CHAR_CODE;
   }
 
   if (var == "MANUAL_BALANCING_CLASS") {
-    return datalayer.battery.settings.user_requests_balancing ? "" : "inactiveSoc";
+    return datalayer.battery_settings.user_requests_balancing ? "" : "inactiveSoc";
   }
 
   if (var == "MANUAL_BALANCING") {
-    if (datalayer.battery.settings.user_requests_balancing) {
+    if (datalayer.battery_settings.user_requests_balancing) {
       return TRUE_CHAR_CODE;
     } else {
       return FALSE_CHAR_CODE;
@@ -887,7 +891,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "VOLTAGE_LIMITS") {
-    if (datalayer.battery.settings.user_set_voltage_limits_active) {
+    if (datalayer.battery_settings.user_set_voltage_limits_active) {
       return TRUE_CHAR_CODE;
     } else {
       return FALSE_CHAR_CODE;
@@ -895,29 +899,35 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "BALANCING_CLASS") {
-    return datalayer.battery.settings.user_requests_balancing ? "active" : "inactive";
+    return datalayer.battery_settings.user_requests_balancing ? "active" : "inactive";
   }
 
   if (var == "BALANCING_MAX_TIME") {
-    return String(datalayer.battery.settings.balancing_max_time_ms / 60000.0f, 1);
+    return String(datalayer.battery_settings.balancing_max_time_ms / 60000.0f, 1);
   }
 
   if (var == "BAL_POWER") {
-    return String(datalayer.battery.settings.balancing_float_power_W / 1.0f, 0);
+    return String(datalayer.battery_settings.balancing_float_power_W / 1.0f, 0);
   }
 
   if (var == "BAL_MAX_PACK_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0f, 0);
+    return String(datalayer.battery_settings.balancing_max_pack_voltage_dV / 10.0f, 0);
   }
   if (var == "BAL_MAX_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0f, 0);
+    return String(datalayer.battery_settings.balancing_max_cell_voltage_mV / 1.0f, 0);
   }
   if (var == "BAL_MAX_DEV_CELL_VOLTAGE") {
-    return String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
+    return String(datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV / 1.0f, 0);
   }
 
   if (var == "BMS_RESET_DURATION") {
-    return String(datalayer.battery.settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
+    return String(datalayer.battery_settings.user_set_bms_reset_duration_ms / 1000.0f, 0);
+  }
+
+  if (var == "BMS_RESET_CLASS") {
+    // The off time and the reset button apply to both reset methods, so they show when either
+    // "Periodic BMS reset" or "Allow remote BMS reset via MQTT" is enabled, as saved.
+    return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
   if (var == "CHARGER_CLASS") {
@@ -1061,6 +1071,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "INTERLOCKREQ") {
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
+  }
+
+  if (var == "LEAFAUTOOFS") {
+    return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
   }
 
   if (var == "DIGITALHVIL") {
@@ -1338,6 +1352,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600.');}}}
+
+        function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -1841,6 +1858,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             </select>
             <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
             data-canreset='%CHGSTARQCANRESET%' />
+
+            <label for='LEAFAUTOOFS'>Automatic current offset correction: </label>
+            <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS%
+            title="Each pack learns what its current sensor reads while its contactor is open, and subtracts that from the measured current. Needs contactor control." />
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
@@ -2476,7 +2497,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4 class='%BMS_RESET_CLASS%'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+
+      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS reset now: <button onclick='startBMSReset()'>Start</button></h4>
 
       <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 

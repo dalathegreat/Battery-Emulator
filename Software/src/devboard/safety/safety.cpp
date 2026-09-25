@@ -111,12 +111,12 @@ static void check_battery_temperatures(void) {
    millis() wrap (fresh limits expire immediately) and inverts after it (stale limits
    persist up to another 49.7 days) */
 void update_remote_limit_expiry(uint32_t currentMillis) {
-  if ((currentMillis - datalayer.battery.settings.remote_set_timestamp) >
-      datalayer.battery.settings.remote_set_timeout) {
-    datalayer.battery.settings.remote_settings_limit_charge = false;
-    datalayer.battery.settings.remote_settings_limit_discharge = false;
-    datalayer.battery.settings.max_remote_set_charge_dA = 0;
-    datalayer.battery.settings.max_remote_set_discharge_dA = 0;
+  if ((currentMillis - datalayer.battery_settings.remote_set_timestamp) >
+      datalayer.battery_settings.remote_set_timeout) {
+    datalayer.battery_settings.remote_settings_limit_charge = false;
+    datalayer.battery_settings.remote_settings_limit_discharge = false;
+    datalayer.battery_settings.max_remote_set_charge_dA = 0;
+    datalayer.battery_settings.max_remote_set_discharge_dA = 0;
   }
 }
 
@@ -244,12 +244,12 @@ void update_machineryprotection() {
     //If user is requesting charge to stop at a specific voltage
     static bool charge_blocked = false;
     static bool discharge_blocked = false;
-    if (datalayer.battery.settings.user_set_voltage_limits_active) {
+    if (datalayer.battery_settings.user_set_voltage_limits_active) {
       // --- Charge limiting with hysteresis ---
-      if (datalayer.battery.status.voltage_dV >= datalayer.battery.settings.max_user_set_charge_voltage_dV) {
+      if (datalayer.battery.status.voltage_dV >= datalayer.battery_settings.max_user_set_charge_voltage_dV) {
         charge_blocked = true;  // Latch: block charging once target is hit
       } else if (datalayer.battery.status.voltage_dV <
-                 (datalayer.battery.settings.max_user_set_charge_voltage_dV - HYSTERESIS_OFFSET_DV)) {
+                 (datalayer.battery_settings.max_user_set_charge_voltage_dV - HYSTERESIS_OFFSET_DV)) {
         charge_blocked = false;  // Only release when voltage drops well below target
       }
       if (charge_blocked) {
@@ -257,10 +257,10 @@ void update_machineryprotection() {
       }
 
       // --- Discharge limiting with hysteresis ---
-      if (datalayer.battery.status.voltage_dV <= datalayer.battery.settings.max_user_set_discharge_voltage_dV) {
+      if (datalayer.battery.status.voltage_dV <= datalayer.battery_settings.max_user_set_discharge_voltage_dV) {
         discharge_blocked = true;
       } else if (datalayer.battery.status.voltage_dV >
-                 (datalayer.battery.settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
+                 (datalayer.battery_settings.max_user_set_discharge_voltage_dV + HYSTERESIS_OFFSET_DV)) {
         discharge_blocked = false;
       }
       if (discharge_blocked) {
@@ -270,7 +270,7 @@ void update_machineryprotection() {
 
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.battery.status.reported_soc == 10000 ||
+    if (datalayer.aggregate.reported_soc == 10000 ||
         datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
     {
       if (!battery_full_event_fired) {
@@ -286,7 +286,7 @@ void update_machineryprotection() {
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
     if (datalayer.system.status.system_status == ACTIVE) {
-      if (datalayer.battery.status.reported_soc == 0 ||
+      if (datalayer.aggregate.reported_soc == 0 ||
           datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
         if (!battery_empty_event_fired) {
           set_event(EVENT_BATTERY_EMPTY, 0, 1);
@@ -571,28 +571,28 @@ void update_machineryprotection() {
     datalayer.battery.status.max_charge_current_dA = 0;
   }
   //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
-  if (datalayer.battery.settings.user_requests_forced_charging_recovery_mode) {
+  if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
 
     //We allow the user set value as long as it does not exceed MAX_CHARGEPOWER_RECOVERY_CHARGE_DA
-    if (datalayer.battery.settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
+    if (datalayer.battery_settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
       datalayer.battery.status.max_charge_current_dA = MAX_CHARGEPOWER_RECOVERY_CHARGE_DA;
     } else {
-      datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+      datalayer.battery.status.max_charge_current_dA = datalayer.battery_settings.max_user_set_charge_dA;
     }
 
     // If this is the start of the emergency recovery charge period, capture the current time
-    if (datalayer.battery.settings.recovery_charge_start_time_ms == 0) {
-      datalayer.battery.settings.recovery_charge_start_time_ms = millis();
+    if (datalayer.battery_settings.recovery_charge_start_time_ms == 0) {
+      datalayer.battery_settings.recovery_charge_start_time_ms = millis();
       set_event(EVENT_RECOVERY_START, 0);
     } else {
       clear_event(EVENT_RECOVERY_START);
     }
 
     // Check if the elapsed time exceeds the max recovery charge time
-    if (millis() - datalayer.battery.settings.recovery_charge_start_time_ms >=
-        datalayer.battery.settings.recovery_charge_max_time_ms) {
-      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
-      datalayer.battery.settings.recovery_charge_start_time_ms = 0;  // Reset the start time
+    if (millis() - datalayer.battery_settings.recovery_charge_start_time_ms >=
+        datalayer.battery_settings.recovery_charge_max_time_ms) {
+      datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
+      datalayer.battery_settings.recovery_charge_start_time_ms = 0;  // Reset the start time
       set_event(EVENT_RECOVERY_END, 0);
     } else {
       clear_event(EVENT_RECOVERY_END);
@@ -600,7 +600,7 @@ void update_machineryprotection() {
 
     //Check if cellvoltage is too low to safely start recovery. If so, abort!
     if (datalayer.battery.status.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
-      datalayer.battery.settings.user_requests_forced_charging_recovery_mode = false;
+      datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
       set_event(EVENT_RECOVERY_END, 255);
     }
   }
@@ -608,20 +608,20 @@ void update_machineryprotection() {
   /* Decrement the forced balancing timer incase user requested it. User requested balancing is
      driven from datalayer.battery.settings, which is pack 1 only, so the events are raised
      against pack 1. Driver reported balancing names its own pack via battery_index. */
-  if (datalayer.battery.settings.user_requests_balancing) {
+  if (datalayer.battery_settings.user_requests_balancing) {
     // If this is the start of the balancing period, capture the current time
-    if (datalayer.battery.settings.balancing_start_time_ms == 0) {
-      datalayer.battery.settings.balancing_start_time_ms = millis();
+    if (datalayer.battery_settings.balancing_start_time_ms == 0) {
+      datalayer.battery_settings.balancing_start_time_ms = millis();
       set_event(EVENT_BALANCING_START, 0, 1);
     } else {
       clear_event(EVENT_BALANCING_START, 1);
     }
 
     // Check if the elapsed time exceeds the balancing time
-    if (millis() - datalayer.battery.settings.balancing_start_time_ms >=
-        datalayer.battery.settings.balancing_max_time_ms) {
-      datalayer.battery.settings.user_requests_balancing = false;
-      datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
+    if (millis() - datalayer.battery_settings.balancing_start_time_ms >=
+        datalayer.battery_settings.balancing_max_time_ms) {
+      datalayer.battery_settings.user_requests_balancing = false;
+      datalayer.battery_settings.balancing_start_time_ms = 0;  // Reset the start time
       set_event(EVENT_BALANCING_END, 0, 1);
     } else {
       clear_event(EVENT_BALANCING_END, 1);

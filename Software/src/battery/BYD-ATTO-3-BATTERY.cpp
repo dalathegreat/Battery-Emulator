@@ -115,7 +115,7 @@ void BydAttoBattery::
   const uint16_t delta_mV = (cell_max_mV > cell_min_mV) ? (cell_max_mV - cell_min_mV) : 0;
 
   // Start from the user manual limit (deci-amps).
-  uint16_t user_cap_dA = datalayer_battery->settings.max_user_set_charge_dA;
+  uint16_t user_cap_dA = datalayer.battery_settings.max_user_set_charge_dA;
   // In the band, hold to what a real AC charger could deliver: that is the approach rate every
   // captured native termination happened at. Never deliver above the transmitted 0x47E current
   // offer either (0.5A per bit).
@@ -1047,7 +1047,7 @@ void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
       // A user charge limit below the session tail could never reach the termination band, so don't
       // start a session that cannot finish.
       if (enabled && chargeRearmAllowed && !chargeBackoffActive && pack_closed && contactorState == CONTACTORS_ACTIVE &&
-          datalayer_battery->settings.max_user_set_charge_dA >= SESSION_TAIL_CURRENT_dA) {
+          datalayer.battery_settings.max_user_set_charge_dA >= SESSION_TAIL_CURRENT_dA) {
         if (current_dA >= SESSION_ARM_CURRENT_dA) {
           if (chargeArmCurrentSinceMillis == 0) {
             chargeArmCurrentSinceMillis = currentMillis;
