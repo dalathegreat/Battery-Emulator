@@ -28,6 +28,7 @@
 #include "../wifi/wifi.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
+#include "help_js.h"
 #include "html_escape.h"
 #include "webserver_can_streaming.h"
 
@@ -253,6 +254,15 @@ void init_webserver() {
   // Route for going to advanced battery info web page
   def_route_with_auth("/advanced", server, HTTP_GET,
                       [](AsyncWebServerRequest* request) { send_advanced_battery_page(request); });
+
+  // Loader for the help buttons (HELP_SCRIPT in index_html.h). Pre-compressed like the BYD page
+  // below, and cached by the browser so the pages that use it do not fetch it on every reload.
+  def_route_with_auth("/help.js", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/javascript", HELP_JS_GZ, sizeof(HELP_JS_GZ));
+    response->addHeader("Content-Encoding", "gzip");
+    response->addHeader("Cache-Control", "max-age=3600");
+    request->send(response);
+  });
 
   // Served pre-compressed from flash rather than the template processor, so it never competes
   // for heap and costs a third of the space the plain HTML would.
@@ -1345,26 +1355,6 @@ String processor(const String& var) {
     content += "button:hover { background-color: #3A4A52; }";
     content += "h2 { font-size: 1.2em; margin: 0.3em 0 0.5em 0; }";
     content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
-    //content += ".tooltip { position: relative; display: inline-block; }";
-    content += ".tooltip .tooltiptext {";
-    content += "  visibility: hidden;";
-    content += "  width: 200px;";
-    content += "  background-color: #3A4A52;";  // Matching your button hover color
-    content += "  color: white;";
-    content += "  text-align: center;";
-    content += "  border-radius: 6px;";
-    content += "  padding: 8px;";
-    content += "  position: absolute;";
-    content += "  z-index: 1;";
-    content += "  margin-left: -100px;";
-    content += "  opacity: 0;";
-    content += "  transition: opacity 0.3s;";
-    content += "  font-size: 0.9em;";
-    content += "  font-weight: normal;";
-    content += "  line-height: 1.4;";
-    content += "}";
-    content += ".tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }";
-    content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
     content += "</style>";
 
     // Compact header
@@ -1614,14 +1604,10 @@ String processor(const String& var) {
     }
 
     if (!contactor_control_enabled) {
-      content += "<div class=\"tooltip\">";
-      content += "<h4>Contactors not fully controlled via emulator <span style=\"color:orange\">ⓘ</span></h4>";
-      content +=
-          "<span class=\"tooltiptext\">This means you are either running CAN controlled contactors OR manually "
-          "powering the contactors. Battery-Emulator will have limited amount of control over the contactors!</span>";
-      content += "</div>";
+      // The explanation is the "nocntctrl" entry of help.json, behind the button help.js adds.
+      content += "<h4 data-h=nocntctrl>Contactors not fully controlled via emulator</h4>" HELP_SCRIPT;
     } else {  //contactor_control_enabled TRUE
-      content += "<div class=\"tooltip\"><h4>Contactors control — state: ";
+      content += "<h4>Contactors control — state: ";
       if (datalayer.system.status.contactors_engaged == 0) {
         content += "<span style='color: red;'>OFF<br>(DISCONNECTED)</span>";
       } else if (datalayer.system.status.contactors_engaged == 1) {
@@ -1632,14 +1618,16 @@ String processor(const String& var) {
         }
       } else if (datalayer.system.status.contactors_engaged == 2) {
         content += "<span style='color: red;'>OFF<br>(FAULT)</span>";
-        content += "<span class=\"tooltip-icon\"> [!]</span>";
-        content +=
-            "<span class=\"tooltiptext\">Emulator spent too much time in critical FAULT event. Investigate event "
-            "causing this via Events page. Reboot required to resume operation!</span>";
       } else if (datalayer.system.status.contactors_engaged == 3) {
         content += "<span style='color: orange;'>PRECHARGE</span>";
       }
-      content += "</h4></div>";
+      content += "</h4>";
+      if (datalayer.system.status.contactors_engaged == 2) {
+        // Shown outright rather than behind a help button: it says what to do now, offline too.
+        content +=
+            "<p>Emulator spent too much time in critical FAULT event. Investigate event causing this via Events "
+            "page. Reboot required to resume operation!</p>";
+      }
       if (contactor_control_enabled_double_battery && battery2) {
         content += "<h4>Contactor for 2ⁿᵈ — state: ";
         if (pwm_contactor_control) {

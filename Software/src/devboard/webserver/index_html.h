@@ -15,6 +15,12 @@
   R"rawliteral(<meta content="width=device-width"name=viewport><style>html{font-family:Arial;display:inline-block;text-align:center}h2{font-size:3rem}body{max-width:800px;margin:0 auto}</style><body>)rawliteral"
 #define INDEX_HTML_FOOTER R"rawliteral(</body></html>)rawliteral";
 
+// Help buttons (help.js). A page carries only this tag; the loader is cached by the browser and
+// the texts are fetched from web_data/help/help.json, so neither costs flash per page. A form
+// field gets a button when help.json has an entry for its name, any other element when it has a
+// data-h attribute that help.json has an entry for.
+#define HELP_SCRIPT "<script src=/help.js defer></script>"
+
 // Shared chrome for the battery sub pages (More Battery Info, Cellmonitor): dark page, pill
 // buttons and the battery tab strip. Opens the style block only - the page appends its own rules
 // and the closing </style>, so both pages carry one styling idea instead of two that drift apart.
