@@ -15,3 +15,17 @@ repos:
   - id: clang-format
     args: [-Werror]  # change formatting warnings to errors, hook includes -i (Inplace edit) by default
     types_or: [c++, c]  # override default file types to only C and CPP files
+- repo: local
+  hooks:
+  - id: validate-help-json
+    name: Validate web_data/help/help.json
+    entry: python tools/validate_help_json.py
+    language: python
+    files: ^(web_data/help/|Software/src/)
+    pass_filenames: false
+  - id: help-js-generated
+    name: Check help_js.h is generated from help.js
+    entry: python tools/gen_help_js.py --check
+    language: python
+    files: ^(Software/src/devboard/webserver/help|tools/gen_help_js\.py)
+    pass_filenames: false
