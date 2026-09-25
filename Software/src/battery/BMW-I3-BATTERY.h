@@ -17,9 +17,6 @@ class BmwI3Battery : public CanBattery {
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
     wakeup_pin = wakeup;
-
-    //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
-    battery_volts = 0;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -414,7 +411,7 @@ class BmwI3Battery : public CanBattery {
   uint32_t battery_BEV_available_power_longterm_discharge = 0;
   uint16_t battery_energy_content_maximum_Wh = 0;
   uint16_t battery_display_SOC = 100;
-  uint16_t battery_volts = 3700;
+  uint16_t battery_volts = 0;
   uint16_t temp_voltage = 0;
   uint16_t battery_HVBatt_SOC = 0;
   uint16_t battery_DC_link_voltage = 0;

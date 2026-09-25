@@ -1287,22 +1287,6 @@ static String system_status_color() {
   return (datalayer.system.status.system_status == FAULT) ? "#A70107;" : "#2D3F2F;";
 }
 
-/* A pack that does not report a limit shows a dash. A zero here would read as "not allowed to
-   charge", which is a different thing entirely from "this integration never tells us". */
-static String formatPackPower(const String& label, uint32_t value_W) {
-  if (value_W == 0) {
-    return "<h4 style='color: white;'>" + label + ": &mdash;</h4>";
-  }
-  return formatPowerValue(label, value_W, "", 1);
-}
-
-static String formatPackCurrent(const String& label, uint16_t value_dA) {
-  if (value_dA == 0) {
-    return "<h4 style='color: white;'>" + label + ": &mdash;</h4>";
-  }
-  return "<h4 style='color: white;'>" + label + ": " + String(value_dA / 10.0f, 1) + " A</h4>";
-}
-
 /* The combined card describes the installation, not a battery, so "Battery charging!" drops its
    first word and the next one takes the capital. A "(Battery limiting)" that follows names the
    limiting factor rather than the subject, and stays as it is. */
@@ -1392,10 +1376,13 @@ static void render_battery_card(String& content, const String& style, const Batt
     }
     content += "</h4>";
   } else {
-    content += formatPackPower("Max discharge power", v.max_discharge_power_W);
-    content += formatPackPower("Max charge power", v.max_charge_power_W);
-    content += formatPackCurrent("Max discharge current", v.max_discharge_current_dA);
-    content += formatPackCurrent("Max charge current", v.max_charge_current_dA);
+    /* A zero here is a limit like any other: this pack's BMS allows nothing right now - full,
+       empty, too cold, faulted - so it shows as 0 W, exactly as the system card would. */
+    content += formatPowerValue("Max discharge power", v.max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", v.max_charge_power_W, "", 1);
+    content += "<h4 style='color: white;'>Max discharge current: " + String(v.max_discharge_current_dA / 10.0f, 1) +
+               " A</h4><h4 style='color: white;'>Max charge current: " + String(v.max_charge_current_dA / 10.0f, 1) +
+               " A</h4>";
   }
 
   /* Cells and temperatures are a property of a pack, not of the installation: the combined card

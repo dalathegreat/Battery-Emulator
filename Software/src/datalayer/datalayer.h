@@ -75,8 +75,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint32_t max_charge_power_W = 0;
   /** Discharge power the pack's own BMS asked for, in Watts. Snapshotted once per cycle before
    * the safety layer and the inverter filters rewrite max_discharge_power_W, so a per-pack card
-   * can show what that pack reported rather than what the system decided. 0 means the
-   * integration does not report one */
+   * can show what that pack reported rather than what the system decided. 0 is a real limit,
+   * not a missing one: that BMS allows none right now (pack full or empty, too cold, faulted) */
   uint32_t bms_max_discharge_power_W = 0;
   /** Charge power the pack's own BMS asked for, in Watts. See bms_max_discharge_power_W */
   uint32_t bms_max_charge_power_W = 0;
@@ -102,8 +102,10 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t max_charge_current_dA = 0;
   /** State of health in integer-percent x 100. 9900 = 99.00% */
   uint16_t soh_pptt = 9900;
-  /** Instantaneous battery voltage in deciVolts. 3700 = 370.0 V */
-  uint16_t voltage_dV = 3700;
+  /** Instantaneous battery voltage in deciVolts. 3700 = 370.0 V. 0 until the integration has
+   * decoded one: check_parallel_battery_safety() waits on that, and datalayer.aggregate keeps
+   * the inverter on a placeholder meanwhile */
+  uint16_t voltage_dV = 0;
   /** Maximum cell voltage currently measured in the pack, in mV */
   uint16_t cell_max_voltage_mV = 3700;
   /** Minimum cell voltage currently measured in the pack, in mV */
@@ -488,7 +490,8 @@ struct DATALAYER_AGGREGATE_TYPE {
   int32_t total_discharged_battery_Wh = 0;
 
   /** uint16_t */
-  /** DC link voltage in deciVolt. Packs sit in parallel, so this is pack 1's measurement */
+  /** DC link voltage in deciVolt. Packs sit in parallel, so this is pack 1's measurement, or a
+   * placeholder until pack 1 has decoded one - see update_aggregate_values() */
   uint16_t voltage_dV = 3700;
   /** Highest voltage the installation may be charged to, in deciVolt. The lowest ceiling any
    * pack reports, so a weaker pack is never pushed past what it will tolerate */

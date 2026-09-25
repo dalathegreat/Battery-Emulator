@@ -443,14 +443,14 @@ TEST_F(BatteryAggregateTest, BmsLimitsSurviveTheSafetyLayer) {
   EXPECT_EQ(datalayer.battery2.status.bms_max_charge_power_W, 70000u);
 }
 
-// An integration that never reports a limit leaves the snapshot at zero, which the card turns
-// into a dash rather than a misleading "0 W".
-TEST_F(BatteryAggregateTest, UnreportedBmsLimitStaysZero) {
+// A full pack's BMS allows no more charge but still allows discharge. That zero is a limit, not
+// a missing value, and the snapshot has to keep it as one.
+TEST_F(BatteryAggregateTest, FullPackSnapshotKeepsZeroChargeLimit) {
   datalayer.battery.status.max_charge_power_W = 0;
-  datalayer.battery.status.max_discharge_power_W = 0;
+  datalayer.battery.status.max_discharge_power_W = 10000;
   snapshot_bms_limits(datalayer.battery);
   EXPECT_EQ(datalayer.battery.status.bms_max_charge_power_W, 0u);
-  EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.bms_max_discharge_power_W, 10000u);
 }
 
 // A LEAF clears soh_available until it has decoded one. That pack must not drag the
@@ -489,6 +489,56 @@ TEST_F(BatteryAggregateTest, SinglePackSohAvailabilityPassesThrough) {
   update_aggregate_values();
   EXPECT_TRUE(datalayer.aggregate.soh_available);
   EXPECT_EQ(datalayer.aggregate.soh_pptt, 7560);
+}
+
+// Every pack starts at 0 V until its integration has decoded one. The inverter must never see
+// that 0: until pack 1 has a reading it keeps getting the 370.0 V the packs used to start on.
+TEST_F(BatteryAggregateTest, UndecodedVoltageSendsPlaceholder) {
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 0);  // the pack's own power-on value
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3700);
+
+  datalayer.battery.status.voltage_dV = 3525;  // decoded: passed through as is
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3525);
+}
+
+// Some inverters (Solax) fault on a startup voltage outside what the pack can reach, and an LFP
+// pack can top out below 370.0 V. LFP gets 330.0 V, even while the integration still has the
+// deliberately wide start-up window the BYD Atto 3 uses until it has counted its cells.
+TEST_F(BatteryAggregateTest, UndecodedLfpVoltageSends330V) {
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.min_design_voltage_dV = 2000;
+  datalayer.battery.info.max_design_voltage_dV = 6500;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3300);
+
+  // A pack whose range ends at 350.0 V, as on the smaller BYD LFP packs
+  datalayer.battery.info.min_design_voltage_dV = 2500;
+  datalayer.battery.info.max_design_voltage_dV = 3500;
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3300);
+}
+
+// An LV LFP pack cannot take 330.0 V either: it falls back to the middle of its window too
+TEST_F(BatteryAggregateTest, UndecodedLvLfpVoltageSendsMiddleOfDesignWindow) {
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.min_design_voltage_dV = 400;
+  datalayer.battery.info.max_design_voltage_dV = 580;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 490);
+}
+
+// An LV installation must not be told 370.0 V: it gets the middle of its design window instead
+TEST_F(BatteryAggregateTest, UndecodedLvVoltageSendsMiddleOfDesignWindow) {
+  datalayer.battery.info.min_design_voltage_dV = 400;
+  datalayer.battery.info.max_design_voltage_dV = 580;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 490);
 }
 
 }  // namespace
