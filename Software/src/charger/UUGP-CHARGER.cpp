@@ -1,11 +1,11 @@
+#ifndef SMALL_FLASH_DEVICE
+
 #include "UUGP-CHARGER.h"
 
 #include <time.h>
 
 #include <cstring>
 #include "../datalayer/datalayer.h"
-
-#ifndef SMALL_FLASH_DEVICE
 
 volatile uint16_t uugp_power_limit_W = 10000;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
