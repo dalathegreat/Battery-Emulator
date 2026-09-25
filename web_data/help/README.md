@@ -24,7 +24,9 @@ written, fixed or extended without a firmware release and without costing flash.
 - A **settings field** gets a button when its `name` attribute is a key here (`LOWPASSFILTER`).
   The button goes on the field's label, the text opens below the field.
 - **Any other element** gets a button when it has a `data-h` attribute that is a key here, for
-  example `<h4 data-h=nocntctrl>`. The page must also carry `HELP_SCRIPT` (from `index_html.h`).
+  example `<h4 data-h=nocntctrl>`. The page must also carry `HELP_SCRIPT` (from `index_html.h`);
+  the settings, main, CAN tools and More Battery Info pages do, so battery renderers can use
+  `data-h` in their panels right away.
 - Texts are **plain text**. The only markup is a link, `[label](path)`: the path is appended to
   `wiki` and opens in a new tab. Write paths as the wiki's page addresses, e.g.
   `setup/software/mqtt/#enabling-mqtt`.
@@ -46,8 +48,9 @@ localStorage.beHelpT = Date.now();
 
 and reload. It is replaced by the file from GitHub an hour later, or after `localStorage.clear()`.
 
-## Format rules stay in the firmware
+## Fields with a format rule
 
-Fields with a `pattern` keep a short `title` stating the format (for example *Printable ASCII
-only*): browsers show it when they reject a value on save, and it has to work without internet,
-such as during the first setup over the emulator's own access point.
+Settings fields with a `pattern` carry no `title`: their format rule (for example *Printable
+ASCII only*) is part of their text here. When the browser rejects a value on save, the field's
+text opens by itself next to the browser's own message. Without internet the browser's generic
+message is all there is.

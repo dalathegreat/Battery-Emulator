@@ -1247,7 +1247,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-syslogen'>
         <label>Syslog server IP: </label>
         <input type='text' name='SYSLOGIP' value="%SYSLOGIP%" pattern="%IPPATTERN%"
-              inputmode="decimal" title="IPv4 address of the syslog server" />
+              inputmode="decimal" />
         <label>Syslog UDP port: </label>
         <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
               min="1" max="65535" step="1" />
@@ -1715,18 +1715,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>SSID: </label>
         <input type='text' name='SSID' value="%SSID%" 
-        pattern="[ -~]{1,63}" 
-        title="Max 63 characters, printable ASCII only"/>
+        pattern="[ -~]{1,63}"/>
 
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" autocomplete="new-password"
-        pattern="[ -~]{8,63}" 
-        title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]{8,63}" placeholder='Leave blank to keep unchanged' />
 
         <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
         pattern="[A-Za-z0-9_\-]+"
-        placeholder="%DEFAULTHOSTNAME%"
-        title="Letters, numbers, '_' and '-' only" />
+        placeholder="%DEFAULTHOSTNAME%" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1734,20 +1731,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-staticip'>
         <label>Local IP: </label>
         <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
+              inputmode="decimal" placeholder="%LOCALIPPH%" />
 
         <label>Gateway: </label>
         <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
+              inputmode="decimal" placeholder="%GATEWAYPH%" />
 
         <label>Subnet mask: </label>
         <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
+              inputmode="decimal" placeholder="%SUBNETPH%" />
 
         <label>DNS server: </label>
         <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%DNSPH%"
-              title="IPv4 address of the DNS resolver" />
+              inputmode="decimal" placeholder="%DNSPH%" />
         </div>
 
         <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
@@ -1768,7 +1764,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Access Point password: </label>
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" autocomplete="new-password"
         pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only."
         placeholder='Leave blank to keep unchanged' />
 
         <label>Wifi channel 0-14: </label>
@@ -1787,18 +1782,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>Username: </label>
         <input type='text' name='HTTPUSER' value="%HTTPUSER%"
-        pattern="[ -~]{1,32}"
-        title="Web interface username, printable ASCII only" />
+        pattern="[ -~]{1,32}" />
 
         <label>Web interface password: </label>
         <input type='password' name='HTTPPASS' value="%HTTPPASS%" autocomplete="new-password"
-        pattern="[ -~]{0,63}"
-        title="Printable ASCII only" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]{0,63}" placeholder='Leave blank to keep unchanged' />
 
         <label>Repeat web interface password: </label>
         <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%" autocomplete="new-password"
-        pattern="[ -~]{0,63}"
-        title="Printable ASCII only" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]{0,63}" placeholder='Leave blank to keep unchanged' />
 
         <label>Show web interface password: </label>
         <input type='checkbox' onchange='toggleWebPasswordVisibility(this.checked)' />
@@ -2241,8 +2233,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-espnowenabled'>
         <label>ESPNow receiver MACs: </label>
         <input type='text' name='ESPNOWMACS' value="%ESPNOWMACS%" maxlength="180"
-        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*"
-        title="Comma separated MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8)" />
+        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*" />
         </div>
 
         <label>Enable MQTT: </label>
@@ -2251,17 +2242,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="[A-Za-z0-9.\-]+"
-        title="Hostname (letters, numbers, '.', '-')" />
+        pattern="[A-Za-z0-9.\-]+" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[ -~]+"
-        title="MQTT username can only contain printable ASCII" />
+        pattern="[ -~]+" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
-        pattern="[ -~]+"
-        title="MQTT password can only contain printable ASCII" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]+" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="1" max="60000" step="1" />
@@ -2279,8 +2267,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-hadiscen'>
         <label>Autodiscovery topic: </label>
         <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
-        pattern="[A-Za-z0-9_\-]+"
-        title="Letters, numbers, '_' and '-' only" />
+        pattern="[A-Za-z0-9_\-]+" />
         <label>Publish at firmware updates: </label>
         <input type='checkbox' name='HADISCFWU' value='on' %HADISCFWU% />
         <label>Publish at next boot: </label>

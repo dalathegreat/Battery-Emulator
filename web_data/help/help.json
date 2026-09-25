@@ -1,12 +1,20 @@
 {
   "wiki": "https://dalathegreat.github.io/Battery-Emulator-Wiki/",
   "help": {
-    "HOSTNAME": "Optional. If MQTT is enabled, the topic name, object ID prefix, Home Assistant device name and ID are also set to this. See [MQTT](setup/software/mqtt/#enabling-mqtt).",
-    "DNS": "Leave blank to use the gateway, which is correct on most home networks.",
+    "SSID": "Max 63 characters, printable ASCII only.",
+    "PASSWORD": "Password must be 8-63 characters long, printable ASCII only.",
+    "HOSTNAME": "Letters, numbers, '_' and '-' only. Optional. If MQTT is enabled, the topic name, object ID prefix, Home Assistant device name and ID are also set to this. See [MQTT](setup/software/mqtt/#enabling-mqtt).",
+    "LOCALIP": "IPv4 address of this device.",
+    "GATEWAY": "IPv4 address of your router.",
+    "SUBNET": "Subnet mask of your network.",
+    "DNS": "IPv4 address of the DNS resolver. Leave blank to use the gateway, which is correct on most home networks.",
     "WIFICHANNEL": "Force a specific channel. Set to 0 for autodetect.",
+    "APPASSWORD": "Password must be 8-63 characters long, printable ASCII only.",
 
     "WEBAUTH": "Require HTTP Basic authentication for the web interface and OTA page. See [Web Server Authentication](setup/software/webserver_guide/#web-server-authentication).",
-    "HTTPPASS": "Set a password before enabling password protection.",
+    "HTTPUSER": "Web interface username, max 32 characters, printable ASCII only.",
+    "HTTPPASS": "Set a password before enabling password protection. Max 63 characters, printable ASCII only.",
+    "HTTPPASSCONFIRM": "Repeat the web interface password. Max 63 characters, printable ASCII only.",
 
     "battery": "The battery integration to use. Every supported battery has its own page with wiring and settings: see [Batteries](battery/).",
     "CHGSTARQ": "CHG_STA_RQ transmitted in 0x1F2. The LBC only acts on it while starting up, so a BMS reset is needed to apply a change. See [Nissan LEAF](battery/nissan_leaf_e_nv200/#software-configuration).",
@@ -65,13 +73,16 @@
     "ESPNOWENABLED": "Send battery telemetry to nearby devices over ESP-NOW. See [ESP-NOW](setup/software/espnow/).",
     "ESPNOWMACS": "Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart.",
     "MQTTENABLED": "Publish the battery data to an MQTT broker and accept commands from it. See [MQTT](setup/software/mqtt/#enabling-mqtt).",
+    "MQTTSERVER": "Hostname or IP address of the MQTT broker: letters, numbers, '.' and '-'.",
     "MQTTPORT": "Port number (1-65535).",
+    "MQTTUSER": "MQTT username can only contain printable ASCII.",
+    "MQTTPASSWORD": "MQTT password can only contain printable ASCII.",
     "MQTTTIMEOUT": "Timeout in milliseconds (1-60000).",
     "MQTTPUBLISHMS": "How often to publish MQTT messages in seconds (1-300, step 1). Default: 5.",
     "MQTTHEAP": "Publish free heap, largest free block, minimum free heap and heap fragmentation to the /info topic and to Home Assistant autodiscovery. Takes effect after a restart.",
     "REMBMSRESET": "Act on the BMSRESET command topic (the Reset BMS button in Home Assistant). When disabled, the command is ignored. See [Periodic BMS reset](setup/hardware/periodic_bms_reset/#remote-trigger-through-mqtt).",
     "HADISCEN": "Publish Home Assistant MQTT discovery configs. The broker retains them, so Home Assistant keeps the entities without them being republished at every boot. See [Home Assistant Discovery](setup/software/mqtt/#home-assistant-discovery).",
-    "HADISCTOPIC": "MQTT auto discovery base topic, homeassistant by default.",
+    "HADISCTOPIC": "MQTT auto discovery base topic, homeassistant by default. Letters, numbers, '_' and '-' only.",
     "HADISCFWU": "Publish the discovery configs once after every firmware update. They carry the software version and can gain or change entities between releases.",
     "HADISC": "Publish the discovery configs once after the next restart. Clears itself once they have been published.",
 
@@ -82,6 +93,7 @@
     "SDLOGENABLED": "Store logs on an SD card. Only works on hardware with SD-card slot. See [SD card](setup/software/webserver_guide/#sd-card).",
     "CANLOGSD": "Store incoming/outgoing CAN messages on SD card. Only works on hardware with SD-card slot. See [CAN logging](setup/can_related/can_logging/#sd-card).",
     "SYSLOGEN": "Send general logging as UDP syslog datagrams (RFC 5424) to a remote server. Events use their own severity; other lines are sent as debug. See [Remote syslog](setup/software/webserver_guide/#remote-syslog).",
+    "SYSLOGIP": "IPv4 address of the syslog server.",
     "SYSLOGPORT": "UDP port (default 514).",
     "SYSLOGFAC": "0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1).",
 
@@ -96,6 +108,12 @@
     "nocntctrl": "This means you are either running CAN controlled contactors OR manually powering the contactors. Battery-Emulator will have limited amount of control over the contactors! See [Contactor control via GPIO](setup/software/contactor_control_via_gpio_pins/).",
 
     "candump": "CAN traffic will open in a new window. Let it run for the required amount of time and save the file. See [CAN logging](setup/can_related/can_logging/#webserver).",
-    "canreplay": "Replays a CANdump .txt log (the format the CAN logging produces) onto the selected CAN interface, once or in a loop. See [CAN replay](setup/can_related/can_replay/)."
+    "canreplay": "Replays a CANdump .txt log (the format the CAN logging produces) onto the selected CAN interface, once or in a loop. See [CAN replay](setup/can_related/can_replay/).",
+
+    "bydnative": "Native termination lets the battery finish charging and recalibrate its own SOC and SOH, as it does in the car. On by default. Without balancing, the pack remains closed and available for discharge. With balancing enabled, the contactors open after the charge for the selected hold time before closing again, a cycle that appears to trigger balancing. The battery will not enter a charge session while it reports an insulation fault. The isolation-monitor-disable option (on by default) normally keeps that clear; otherwise the pack case must be isolated from earth. See [Charging and SOC calibration](battery/byd_vehicle_atto_3_seal_tang_dolphin_song_and_more/#charging-and-soc-calibration).",
+    "bydnative2": "The inverter charge limit follows battery 1, so a termination on the second battery could not stop the charge. See [Charging and SOC calibration](battery/byd_vehicle_atto_3_seal_tang_dolphin_song_and_more/#charging-and-soc-calibration).",
+    "bydautocal": "Battery Emulator decides the pack is full and writes 100% SOC to the battery over UDS. On by default. See [Artificial SOC auto-calibration](battery/byd_vehicle_atto_3_seal_tang_dolphin_song_and_more/#artificial-soc-auto-calibration).",
+    "bydmancal": "Values used by the Calibrate SOC button below. Automatic calibration overwrites them when it runs. See [Manual SOC and capacity calibration](battery/byd_vehicle_atto_3_seal_tang_dolphin_song_and_more/#manual-soc-and-capacity-calibration).",
+    "bydiso": "The battery refuses a native charge session while it reports an insulation fault. Disabling the monitor does not repair an insulation fault. See [Insulation monitor and native charging](battery/byd_vehicle_atto_3_seal_tang_dolphin_song_and_more/#insulation-monitor-and-native-charging)."
   }
 }

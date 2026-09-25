@@ -10,10 +10,14 @@
 //   - any element with a data-h attribute, keyed by that value; the button goes inside it
 // Pressing the button opens the text right below the element, pressing it again closes it. It
 // works the same with a mouse and a finger. Pages that reload themselves reopen what was open.
+// When the browser rejects a field's value on save, the field's text opens by itself, so the
+// format rules for validated fields live here too.
 //
 // Texts are inserted as plain text, never as HTML. The only markup is [label](path), which
 // becomes a link to the "wiki" address of the file with the path appended, opening in a new tab.
 (function () {
+  // Nothing on this page could get a button: skip the fetch.
+  if (!document.querySelector('form [name],[data-h]')) return;
   var url = 'https://raw.githubusercontent.com/dalathegreat/Battery-Emulator/main/web_data/help/help.json';
   var store, cached, cachedAt, open = [];
   try {
@@ -86,6 +90,7 @@
         remember(key, show);
       }
       btn.onclick = function () { toggle(btn.getAttribute('aria-expanded') != 'true'); };
+      el.addEventListener('invalid', function () { toggle(true); });
       host.appendChild(btn);
       if (open.indexOf(key) >= 0) toggle(true);
     });

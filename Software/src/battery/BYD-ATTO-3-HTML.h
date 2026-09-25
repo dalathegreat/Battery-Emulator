@@ -195,12 +195,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     if (s.length() > 0) {
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      // Why is the "bydnative2" entry of web_data/help/help.json, behind the heading's help button.
       content +=
-          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
+          "<h4 data-h=bydnative2 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination "
+          "&amp; balancing</h4>";
       content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Not available on the second battery: "
-          "the inverter charge limit follows battery 1, so a termination here could not stop the "
-          "charge.</div>";
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Not available on the second battery.</div>";
       content += "</div>";
       content += "<hr>";
     } else {
@@ -235,13 +235,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      // The panel's explanation is the "bydnative" entry of web_data/help/help.json.
       content +=
-          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
-      content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Native termination lets the battery "
-          "finish charging and recalibrate its own SOC and SOH, as it does in the car. Without balancing, the "
-          "pack remains closed and available for discharge. With balancing enabled, the contactors open for the "
-          "selected hold time before closing again &mdash; a cycle that appears to trigger balancing.</div>";
+          "<h4 data-h=bydnative style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination "
+          "&amp; balancing</h4>";
       content += panel_table;
 
       content += "<tr>";
@@ -251,7 +248,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' id='nativeTerm" + s + "' ";
       content += (byd_datalayer->native_termination_enabled ? "checked" : "");
       content += " onchange='toggleNativeTermination" + s + "()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> default on</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -261,7 +257,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' id='balancingEnabled' ";
       content += (byd_datalayer->balancing_enabled ? "checked" : "");
       content += " onchange='toggleBalancingEnabled()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> open/reclose after charge</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -363,11 +358,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "</td></tr>";
 
       content += "</table>";
-      content +=
-          "<div style='margin:10px auto 0;font-size:0.9em;color:#8b949e'>The battery will not enter a "
-          "charge session while it reports an insulation fault. The isolation-monitor-disable option "
-          "(on by default) normally keeps that clear; otherwise the pack case must be isolated from "
-          "earth.</div>";
       content += "</div>";
       content += "<hr>";
     }
@@ -390,10 +380,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       // Dimmed while native calibration owns the job, so the panel reads as inactive at a glance
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white";
       content += byd_datalayer->native_termination_enabled ? ";opacity:0.45'>" : "'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Artificial SOC auto-calibration</h4>";
-      content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Battery Emulator decides the pack is full "
-          "and writes 100&percnt; SOC to the battery over UDS.</div>";
+      content += "<h4 data-h=bydautocal style='margin:0 0 8px 0;color:white'>Artificial SOC auto-calibration</h4>";
       content += panel_table;
 
       content += "<tr>";
@@ -403,7 +390,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' style='margin:0;vertical-align:middle' id='autoCalEnabled" + s + "' ";
       content += (byd_datalayer->auto_calibrate_soc_enabled ? "checked" : "");
       content += " onchange='toggleAutoCalSOCEnabled" + s + "()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> default on, UDS write</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -504,10 +490,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Manual SOC &amp; capacity calibration</h4>";
-      content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Values used by the Calibrate SOC button "
-          "below. Automatic calibration overwrites them when it runs.</div>";
+      content += "<h4 data-h=bydmancal style='margin:0 0 8px 0;color:white'>Manual SOC &amp; capacity calibration</h4>";
       content += panel_table;
 
       content += "<tr>";
@@ -541,7 +524,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       const char* iso_value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
 
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Isolation resistance monitor</h4>";
+      content += "<h4 data-h=bydiso style='margin:0 0 8px 0;color:white'>Isolation resistance monitor</h4>";
       content += "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white'>";
 
       // Monitoring status from 0x35E b0 bit0x80; only unambiguous when the pack is closed
