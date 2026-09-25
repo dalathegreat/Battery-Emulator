@@ -1351,13 +1351,11 @@ void NissanLeafBattery::commanded_relay_state(bool& relay_plus_commanded, bool& 
 
 /* 293A0NDS25 5.1.2 steps 1) and 2), sent while BMS power is still on, in the specification's order:
    CHG_STA_RQ = 11b ("Preparation of battery controller stop"), then BTONFN = 0 (sent with the MAIN
-   RLY1 (+) OFF command), then RLYP = 0 (sent with the MAIN RLY2 (-) OFF command). Then GoToSleep,
-   still with IGN on, for GO_TO_SLEEP_BEFORE_IGN_OFF_MS; only after that may BMS power be cut. Step 3)
-   and the GoToSleep itself are handled by transmit_go_to_sleep().
-   Each of the first three steps is held for ENDING_STEP_HOLD_MS before the next one starts, so it has
-   been on the wire in several consecutive 10 ms frames before anything after it changes. The
-   specification leaves these waits to the implementer ("the specified waiting time ... shall be
-   reported to Nissan"). */
+   RLY1 (+) OFF command), then RLYP = 0 (sent with the MAIN RLY2 (-) OFF command). Only then may BMS
+   power be cut, which is step 3) and handled by transmit_go_to_sleep().
+   Each step is held for ENDING_STEP_HOLD_MS before the next one starts, so it has been on the wire
+   in several consecutive 10 ms frames before anything after it changes. The specification leaves
+   these waits to the implementer ("the specified waiting time ... shall be reported to Nissan"). */
 void NissanLeafBattery::advance_ending_sequence(unsigned long currentMillis) {
   if (datalayer.system.status.bms_reset_status != BMS_RESET_PREPARING_POWER_OFF) {
     ending_step = ENDING_NOT_STARTED;  //Re-armed for the next reset, and normal reporting outside one
@@ -1366,12 +1364,9 @@ void NissanLeafBattery::advance_ending_sequence(unsigned long currentMillis) {
   if (ending_step == ENDING_NOT_STARTED) {
     ending_step = ENDING_CHG_STA_RQ_STOP;
     ending_step_since = currentMillis;
-  } else if (ending_step != ENDING_DONE) {
-    unsigned long hold = (ending_step == ENDING_GO_TO_SLEEP) ? GO_TO_SLEEP_BEFORE_IGN_OFF_MS : ENDING_STEP_HOLD_MS;
-    if (currentMillis - ending_step_since >= hold) {
-      ending_step = static_cast<EndingStep>(ending_step + 1);
-      ending_step_since = currentMillis;
-    }
+  } else if (ending_step != ENDING_DONE && currentMillis - ending_step_since >= ENDING_STEP_HOLD_MS) {
+    ending_step = static_cast<EndingStep>(ending_step + 1);
+    ending_step_since = currentMillis;
   }
 }
 
@@ -1396,21 +1391,14 @@ static const char* refuse_to_sleep_name(uint8_t value) {
   }
 }
 
-/* 293A0NDS25 5.1.2 step 3) "Stop of the controller in the pack": (1) IGN OFF for all packs, (2) send
-   HCM_WakeUpSleepCommand = 00b, (3) keep sending until the pack's own CAN has been stopped for 1 s or
-   more, then stop the controller's CAN. Status 9 "Waiting for pack stop" gives the frame content:
-   GoToSleep with CANMASK = 0, together with CHG_STA_RQ = 11b, BTONFN = 0 and RLYP = 0.
-   Here (2) starts GO_TO_SLEEP_BEFORE_IGN_OFF_MS before (1), as the last step of the ending sequence
-   (ENDING_GO_TO_SLEEP, BMS_POWER still high), and carries on unbroken at the same 100 ms period once
-   BMS_POWER - the IGN of step (1) - is low. With IGN cut first the LBC stops within about 100 ms, before
-   its next 0x55B, so it never gets to answer the command: LB_RefusetoSleep only ever showed its awake
-   value. Given a few 0x55B cycles with power it can say whether it is ready to sleep, and the value it
-   last sent is what the confirmation line reports. During those cycles 0x1D4 and 0x1F2 keep going with
-   the ending sequence overrides, so the pack sees the full Status 9 content.
-   If power was cut before that step was reached (the prepare timeout), the first frame goes out on the
-   first pass that sees BMS_POWER low. Previously the driver simply went silent, which leaves an LBC
-   that is still on its 12 V supply with a controller that vanished while commanding WakeUp and
-   authorizing CAN-absent failure storage.
+/* 293A0NDS25 5.1.2 step 3) "Stop of the controller in the pack", in the specification's order:
+   (1) IGN OFF for all packs, (2) send HCM_WakeUpSleepCommand = 00b, (3) keep sending until the pack's
+   own CAN has been stopped for 1 s or more, then stop the controller's CAN. Status 9 "Waiting for
+   pack stop" gives the frame content: GoToSleep with CANMASK = 0.
+   BMS_POWER is the IGN of step (1) here, so the first frame goes out on the first pass that sees it
+   low rather than waiting for the next 100 ms slot. Previously the driver simply went silent, which
+   leaves an LBC that is still on its 12 V supply with a controller that vanished while commanding
+   WakeUp and authorizing CAN-absent failure storage.
    CANMASK (byte 2 bit 2) is DiagMuxOn_VCM in the pack databooks: 1 authorizes the LBC to store CAN
    mute/absent failures. Clearing it with GoToSleep is what Status 9 specifies, and is what stops the
    silence that follows from being recorded as a lost-communication fault.
@@ -1421,21 +1409,15 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
   }
 
   if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
-    /* Judged only once IGN is off: the 1 s wait of (3) follows the power cut, and the bus is never
-       held while the pack still has IGN. A pack that already went quiet on the command alone is
-       confirmed on the first pass after the cut. */
-    if (ign_off_seen && currentMillis - last_pack_frame_millis >= GO_TO_SLEEP_PACK_QUIET_MS) {
+    if (currentMillis - last_pack_frame_millis >= GO_TO_SLEEP_PACK_QUIET_MS) {
       go_to_sleep_phase = GO_TO_SLEEP_DONE;  //Step (3): pack silent for 1 s, stop our CAN too
-      /* Confirmation that the pack really went off the bus while being told to sleep, with the
-         LB_RefusetoSleep of its last 0x55B. Its last frame is timed from the first GoToSleep and from
-         IGN off: negative from IGN off means it stopped on the CAN command alone, with IGN still on;
-         around +100 ms is the LBC shutting down once IGN is gone; a few ms or less means it went dark
-         with the power cut. Either way nothing has been heard from it for a full second. */
-      long from_sleep_ms = (long)(last_pack_frame_millis - go_to_sleep_first_tx_millis);
-      long from_ign_off_ms = (long)(last_pack_frame_millis - ign_off_millis);
-      logging.printf(
-          "LEAF (Battery %u): went silent on CAN (%s), last frame %+ld ms from GoToSleep, %+ld ms from IGN off\n",
-          (unsigned)battery_index, refuse_to_sleep_name(lb_refuse_to_sleep), from_sleep_ms, from_ign_off_ms);
+      /* Confirmation that the pack really went off the bus while being told to sleep. The figure is
+         when its last frame arrived relative to the first GoToSleep: a few ms, or negative, means it
+         went dark together with the BMS power cut; hundreds of ms means it was still powered and shut
+         its CAN down itself. Either way nothing has been heard from it for a full second. */
+      long last_frame_ms = (long)(last_pack_frame_millis - go_to_sleep_first_tx_millis);
+      logging.printf("LEAF (Battery %u): went silent on CAN (%s), last frame %+ld ms\n", (unsigned)battery_index,
+                     refuse_to_sleep_name(lb_refuse_to_sleep), last_frame_ms);
       /* 5.1.2 3)(3) ends with "then stop sending CAN of BMS". This driver queues nothing more from
          here, but the GoToSleep frames the pack never acknowledged are still being retried by the CAN
          controller - for the whole off period, then delivered as a burst to the LBC as it boots.
@@ -1449,7 +1431,7 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
       return;
     }
     if (currentMillis - go_to_sleep_last_tx_millis < INTERVAL_100_MS) {
-      return;  //0x50B keeps its normal 100 ms period after the first frame, across the power cut too
+      return;  //0x50B keeps its normal 100 ms period after the first frame
     }
   }
 
@@ -1480,7 +1462,6 @@ void NissanLeafBattery::rearm_go_to_sleep() {
                    (unsigned)battery_index);
   }
   go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
-  ign_off_seen = false;
 }
 
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
@@ -1519,10 +1500,6 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
        handle_BMSpower() and start_bms_reset() drive BMS_POWER low before they publish that state, and
        both run ahead of the transmitters, so seeing it here means the pin is already low. */
     if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
-      if (!ign_off_seen) {
-        ign_off_seen = true;  //First pass with BMS_POWER low, for the confirmation line
-        ign_off_millis = currentMillis;
-      }
       transmit_go_to_sleep(currentMillis);
     } else {
       rearm_go_to_sleep();  //Re-armed for the next reset
@@ -1530,15 +1507,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     return;
   }
 
-  /* The ending sequence's last step starts GoToSleep while BMS power is still on, and it must carry on
-     into POWERED_OFF, so it is only re-armed outside PREPARING_POWER_OFF. */
-  if (datalayer.system.status.bms_reset_status == BMS_RESET_PREPARING_POWER_OFF) {
-    if (ending_step >= ENDING_GO_TO_SLEEP) {
-      transmit_go_to_sleep(currentMillis);
-    }
-  } else {
-    rearm_go_to_sleep();
-  }
+  rearm_go_to_sleep();
 
   if (battery_can_alive) {
 
@@ -1753,11 +1722,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         }
       }
 
-      /* VCM message, containing info if battery should sleep or stay awake. Once GoToSleep has
-         started, at the end of the ending sequence, it owns 0x50B: no WakeUp in between. */
-      if (go_to_sleep_phase == GO_TO_SLEEP_NOT_SENT) {
-        transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
-      }
+      // VCM message, containing info if battery should sleep or stay awake
+      transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
