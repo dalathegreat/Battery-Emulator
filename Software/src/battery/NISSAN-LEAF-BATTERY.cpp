@@ -653,6 +653,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_SOC = battery_TEMP;
       }
       battery_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      //LB_RefusetoSleep, byte 6 bits 5-4 per the pack CAN databooks: 01 = RefuseToSleep, 10 = ReadyToSleep,
+      //00 and 11 reserved. Reported once the pack goes quiet after GoToSleep, see transmit_go_to_sleep().
+      lb_refuse_to_sleep = (rx_frame.data.u8[6] >> 4) & 0x03;
       battery_status_seen |= 0x02;
       break;
     case 0x5BC:
@@ -1267,6 +1270,9 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   const bool soh_clear_running = false;
 #endif
   bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
+  // A request made during a BMS reset stays queued until the reset has ended, for the same reason the
+  // group polls pause: no diagnostic exchange while the LBC is being taken to sleep and back.
+  busy = busy || datalayer.system.status.bms_reset_status != BMS_RESET_IDLE;
 
   if (UserRequestDTCreadout && !busy && channel_idle) {
     UserRequestDTCreadout = false;
@@ -1369,6 +1375,22 @@ bool NissanLeafBattery::ready_for_bms_power_off() {
   return !battery_can_alive || ending_step == ENDING_DONE;
 }
 
+// LB_RefusetoSleep as it is reported in the log. The reserved codes are named by value.
+static const char* refuse_to_sleep_name(uint8_t value) {
+  switch (value) {
+    case 0x01:
+      return "Refused";
+    case 0x02:
+      return "Ready to sleep";
+    case 0x00:
+      return "res_00";
+    case 0x03:
+      return "res_11";
+    default:
+      return "not received";
+  }
+}
+
 /* 293A0NDS25 5.1.2 step 3) "Stop of the controller in the pack", in the specification's order:
    (1) IGN OFF for all packs, (2) send HCM_WakeUpSleepCommand = 00b, (3) keep sending until the pack's
    own CAN has been stopped for 1 s or more, then stop the controller's CAN. Status 9 "Waiting for
@@ -1394,8 +1416,8 @@ void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
          went dark together with the BMS power cut; hundreds of ms means it was still powered and shut
          its CAN down itself. Either way nothing has been heard from it for a full second. */
       long last_frame_ms = (long)(last_pack_frame_millis - go_to_sleep_first_tx_millis);
-      logging.printf("LEAF (Battery %u): successfully went silent on CAN, last frame %+ld ms\n",
-                     (unsigned)battery_index, last_frame_ms);
+      logging.printf("LEAF (Battery %u): went silent on CAN (%s), last frame %+ld ms\n", (unsigned)battery_index,
+                     refuse_to_sleep_name(lb_refuse_to_sleep), last_frame_ms);
       /* 5.1.2 3)(3) ends with "then stop sending CAN of BMS". This driver queues nothing more from
          here, but the GoToSleep frames the pack never acknowledged are still being retried by the CAN
          controller - for the whole off period, then delivered as a burst to the LBC as it boots.
@@ -1747,7 +1769,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC.
       bool dtc_operation_pending =
           UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
-      if (!stop_battery_query && !dtc_operation_pending) {
+      /* No group polls from the moment a BMS reset starts until it has ended. A diagnostic exchange
+         with the LBC is a reason for it to stay awake, and the reset is taking it through the ending
+         sequence towards sleep. The static groups are armed for a re-read after the reset anyway. */
+      bool bms_reset_running = datalayer.system.status.bms_reset_status != BMS_RESET_IDLE;
+      if (!stop_battery_query && !dtc_operation_pending && !bms_reset_running) {
 
         // Move to the next group, skipping the static ones that already answered. The charge
         // counters with the usage histograms and the two identity strings cannot change while the

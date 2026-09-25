@@ -2127,10 +2127,22 @@ bool log_contains(const char* text) {
 
 }  // namespace
 
+namespace {
+
+// 0x55B with only LB_RefusetoSleep (byte 6, bits 5-4) set. The CRC is added by feed().
+CAN_frame leaf_55b_refuse(uint8_t value) {
+  CAN_frame frame = leaf_frame(0x55B, {0x00, 0x00, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00});
+  frame.data.u8[6] = (uint8_t)((value & 0x03) << 4);
+  return frame;
+}
+
+}  // namespace
+
 // The pack keeps talking for a while after GoToSleep, then goes quiet: one success line, with the
 // time of its last frame relative to the first GoToSleep.
 TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
   auto battery = awake_pack(100000);
+  feed(battery, leaf_55b_refuse(0x01));  // Its last 0x55B before GoToSleep: RefuseToSleep
   datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
   Logging::start_capture();
 
@@ -2139,10 +2151,10 @@ TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
   battery->handle_incoming_can_frame(leaf_5bc());  // Still powered, winding down
   battery->transmit_can(100300);
   battery->transmit_can(101239);
-  EXPECT_FALSE(log_contains("successfully went silent")) << "confirmed before a full second of silence";
+  EXPECT_FALSE(log_contains("went silent on CAN")) << "confirmed before a full second of silence";
 
   battery->transmit_can(101240);
-  EXPECT_TRUE(log_contains("LEAF (Battery 1): successfully went silent on CAN, last frame +240 ms"))
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): went silent on CAN (Refused), last frame +240 ms"))
       << Logging::captured();
 
   // Power comes back after a confirmed stop: no failure line.
@@ -2180,7 +2192,7 @@ TEST(NissanLeafSleepTests, LogsWhenThePackNeverWentSilentBeforePowerReturned) {
     battery->handle_incoming_can_frame(leaf_5bc());  // BMS_POWER is not feeding this LBC
     battery->transmit_can(t);
   }
-  EXPECT_FALSE(log_contains("successfully went silent"));
+  EXPECT_FALSE(log_contains("went silent on CAN"));
 
   datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
   battery->transmit_can(130000);
@@ -2436,4 +2448,100 @@ TEST(NissanLeafContactorTests, PrimaryPackStillReportsTheMainLadder) {
 
   contactor_control_enabled = false;
   contactor_control_enabled_double_battery = false;
+}
+
+// --- LB_RefusetoSleep in the silent line, and no diagnostics during a reset ------
+
+namespace {
+
+// The silent line for a pack whose last 0x55B carried the given LB_RefusetoSleep, or none at all.
+std::string silent_line_for(int refuse_value) {
+  auto battery = awake_pack(100000);
+  if (refuse_value >= 0) {
+    feed(battery, leaf_55b_refuse((uint8_t)refuse_value));
+  }
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+  battery->transmit_can(100000);
+  battery->transmit_can(101000);
+  std::string captured = Logging::captured();
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  return captured;
+}
+
+size_t group_requests_sent() {
+  size_t n = 0;
+  for (const CAN_frame& f : get_transmitted_frames()) {
+    if (f.ID == 0x79B && f.data.u8[0] == 0x02 && f.data.u8[1] == 0x21) {
+      n++;
+    }
+  }
+  return n;
+}
+
+bool dtc_read_sent() {
+  for (const CAN_frame& f : get_transmitted_frames()) {
+    if (f.ID == 0x79B && f.data.u8[1] == 0x19) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+TEST(NissanLeafSleepTests, SilentLineNamesEachRefuseToSleepValue) {
+  EXPECT_NE(silent_line_for(0x01).find("went silent on CAN (Refused), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(0x02).find("went silent on CAN (Ready to sleep), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(0x00).find("went silent on CAN (res_00), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(0x03).find("went silent on CAN (res_11), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(-1).find("went silent on CAN (not received), last frame"), std::string::npos);
+}
+
+// From the moment a reset starts until it has ended, no group polls go to the LBC. Polling picks up
+// again afterwards.
+TEST(NissanLeafSleepTests, PausesGroupPollingForTheWholeReset) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  unsigned long t = 100000;
+  for (; t < 110000; t += 10) {
+    battery->transmit_can(t);
+  }
+  ASSERT_GT(group_requests_sent(), 0u) << "no polling before the reset, so the test proves nothing";
+
+  // Only the ending sequence transmits during a reset: every other state halts the driver entirely.
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  clear_transmitted_frames();
+  for (; t < 140000; t += 10) {
+    battery->transmit_can(t);
+  }
+  EXPECT_EQ(group_requests_sent(), 0u) << "group polled while the reset was taking the LBC to sleep";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  for (; t < 150000; t += 10) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());
+    battery->transmit_can(t);
+  }
+  EXPECT_GT(group_requests_sent(), 0u) << "polling did not resume after the reset";
+}
+
+// A DTC readout asked for during a reset is kept, and sent once the reset has ended.
+TEST(NissanLeafSleepTests, DefersADtcRequestMadeDuringTheReset) {
+  auto battery = awake_pack(200000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  clear_transmitted_frames();
+  battery->read_DTC();
+  for (unsigned long t = 200000; t < 205000; t += 10) {
+    battery->transmit_can(t);
+  }
+  EXPECT_FALSE(dtc_read_sent()) << "DTC request sent during the reset";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(205010);
+  EXPECT_TRUE(dtc_read_sent()) << "the deferred DTC request was lost";
 }
