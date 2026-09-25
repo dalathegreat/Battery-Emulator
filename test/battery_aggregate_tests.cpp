@@ -504,6 +504,34 @@ TEST_F(BatteryAggregateTest, UndecodedVoltageSendsPlaceholder) {
   EXPECT_EQ(datalayer.aggregate.voltage_dV, 3525);
 }
 
+// Some inverters (Solax) fault on a startup voltage outside what the pack can reach, and an LFP
+// pack can top out below 370.0 V. LFP gets 330.0 V, even while the integration still has the
+// deliberately wide start-up window the BYD Atto 3 uses until it has counted its cells.
+TEST_F(BatteryAggregateTest, UndecodedLfpVoltageSends330V) {
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.min_design_voltage_dV = 2000;
+  datalayer.battery.info.max_design_voltage_dV = 6500;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3300);
+
+  // A pack whose range ends at 350.0 V, as on the smaller BYD LFP packs
+  datalayer.battery.info.min_design_voltage_dV = 2500;
+  datalayer.battery.info.max_design_voltage_dV = 3500;
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 3300);
+}
+
+// An LV LFP pack cannot take 330.0 V either: it falls back to the middle of its window too
+TEST_F(BatteryAggregateTest, UndecodedLvLfpVoltageSendsMiddleOfDesignWindow) {
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.min_design_voltage_dV = 400;
+  datalayer.battery.info.max_design_voltage_dV = 580;
+  scale_all();
+  update_aggregate_values();
+  EXPECT_EQ(datalayer.aggregate.voltage_dV, 490);
+}
+
 // An LV installation must not be told 370.0 V: it gets the middle of its design window instead
 TEST_F(BatteryAggregateTest, UndecodedLvVoltageSendsMiddleOfDesignWindow) {
   datalayer.battery.info.min_design_voltage_dV = 400;
