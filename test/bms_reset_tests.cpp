@@ -513,6 +513,7 @@ TEST(BmsResetTests, WaitsForBatteryReadinessBeforeCuttingPower) {
 
   battery = nullptr;
   remote_bms_reset = false;
+  contactor_control_enabled = false;  // A global: left set, it changes how later tests behave
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
   setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 }
@@ -542,6 +543,7 @@ TEST(BmsResetTests, CutsPowerAnywayOnceThePrepareTimeoutPasses) {
 
   battery = nullptr;
   remote_bms_reset = false;
+  contactor_control_enabled = false;  // A global: left set, it changes how later tests behave
   datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
   setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 }
