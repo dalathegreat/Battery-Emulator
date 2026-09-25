@@ -2525,5 +2525,3 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 const char settings_html[] =
     INDEX_HTML_HEADER COMMON_JAVASCRIPT SETTINGS_STYLE SETTINGS_HTML_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
-
-

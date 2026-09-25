@@ -414,4 +414,3 @@ void store_settings() {
   settings.saveUInt("UUGP_STARTMODE", uugp_start_mode);
 #endif
 }
-
