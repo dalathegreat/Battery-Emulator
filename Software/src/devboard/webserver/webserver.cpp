@@ -1619,7 +1619,7 @@ String processor(const String& var) {
 
     if (!contactor_control_enabled) {
       // The explanation is the "nocntctrl" entry of help.json, behind the button help.js adds.
-      content += "<h4 data-h=nocntctrl>Contactors not fully controlled via emulator</h4>" HELP_SCRIPT;
+      content += "<h4 data-h=nocntctrl>Contactors control — non-exclusive</h4>" HELP_SCRIPT;
     } else {  //contactor_control_enabled TRUE
       content += "<h4>Contactors control — state: ";
       if (datalayer.system.status.contactors_engaged == 0) {
