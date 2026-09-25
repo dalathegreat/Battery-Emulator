@@ -73,7 +73,7 @@ const char page_script[] = R"html(<script>
 const G=document.getElementById('graph'),V=document.getElementById('val'),C=document.getElementById('cells'),T=document.getElementById('volt');
 if(d.length){
 const mn=Math.min(...d),mx=Math.max(...d),lo=mn-20,sc=180/(mx-mn+40),w=750/d.length+'px';
-T.innerHTML='Max Voltage: '+mx+' mV<br>Min Voltage: '+mn+' mV<br>Voltage Deviation: '+(mx-mn)+' mV'+A;
+T.innerHTML='Min/Max: '+mn+'/'+mx+' mV<br>Delta: '+(mx-mn)+' mV'+A;
 d.forEach((mV,i)=>{
 const e=document.createElement('div'),r=document.createElement('div'),z=b[i];
 e.className='cell';
@@ -157,7 +157,7 @@ String cellmonitor_processor(const String& var, unsigned selected) {
   }
   content += "],A='";
   if (pack.status.balancing_status == BALANCING_STATUS_ACTIVE) {
-    content += " (Battery is balancing now!)";
+    content += " (balancing now!)";
   }
   content += "',M='";
   if (cells > 0) {
