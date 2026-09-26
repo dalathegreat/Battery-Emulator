@@ -26,7 +26,7 @@ class RenaultZoeGen2Battery : public UdsCanBattery {
   void reset_NVROL() { UserRequestNVROLReset = true; }
 
   String get_uds_info_html() override;
-
+  const char* get_dtc_json_filename() override { return "renault_zoe_gen2_dtc.json"; }
   uint8_t calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor);
 
  protected:
