@@ -41,3 +41,6 @@ Software/idf_component.yml
 
 # Ignore generated version header (produced by tools/identify_build.py)
 Software/src/devboard/utils/version_autogen.h
+
+# Ignore the embedded help texts (produced by tools/embed_help_json.py)
+Software/src/devboard/webserver/help_json_autogen.h

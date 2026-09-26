@@ -90,7 +90,9 @@ Battery* battery_at(unsigned index) {
 
 // The Cellmonitor link carries location.search along, so the pack selected here stays selected
 // there. Costs nothing in flash: the query string is read in the browser, not built on the ESP.
-const char page_start[] = INDEX_HTML_HEADER INDEX_HTML_SUBPAGE_STYLE R"html(h4{margin:.6em 0;line-height:1.2}
+// HELP_SCRIPT lets any renderer explain its panels with data-h attributes (texts in help.json).
+const char page_start[] =
+    INDEX_HTML_HEADER HELP_SCRIPT INDEX_HTML_SUBPAGE_STYLE R"html(h4{margin:.6em 0;line-height:1.2}
 </style>
 <button onclick="location.href='/'">Back to main page</button>
 <button onclick="location.href='/cellmonitor'+location.search">Cellmonitor</button>

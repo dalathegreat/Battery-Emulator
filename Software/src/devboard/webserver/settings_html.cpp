@@ -1230,12 +1230,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SD_SETTING_HTML \
   R"rawliteral(
         <label>General logging to SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
-            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% />
 
         <label>CAN message logging to SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD%
-            title="Store incoming/outgoing CAN messages on SD card. Only works on hardware with SD-card slot." />
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% />
   )rawliteral"
 #else
 #define SD_SETTING_HTML ""
@@ -1244,20 +1242,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
-        <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN%
-              title="Send general logging as UDP syslog datagrams (RFC 5424) to a remote server. Events use their own severity; other lines are sent as debug." />
+        <input type='checkbox' name='SYSLOGEN' value='on' %SYSLOGEN% />
 
         <div class='if-syslogen'>
         <label>Syslog server IP: </label>
         <input type='text' name='SYSLOGIP' value="%SYSLOGIP%" pattern="%IPPATTERN%"
-              inputmode="decimal" title="IPv4 address of the syslog server" />
+              inputmode="decimal" />
         <label>Syslog UDP port: </label>
         <input type='number' name='SYSLOGPORT' value="%SYSLOGPORT%"
-              min="1" max="65535" step="1" title="UDP port (default 514)" />
+              min="1" max="65535" step="1" />
         <label>Syslog facility: </label>
         <input type='number' name='SYSLOGFAC' value="%SYSLOGFAC%"
-              min="0" max="23" step="1"
-              title="0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1)" />
+              min="0" max="23" step="1" />
         </div>
   )rawliteral"
 
@@ -1719,18 +1715,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <label>SSID: </label>
         <input type='text' name='SSID' value="%SSID%" 
-        pattern="[ -~]{1,63}" 
-        title="Max 63 characters, printable ASCII only"/>
+        pattern="[ -~]{1,63}"/>
 
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" autocomplete="new-password"
-        pattern="[ -~]{8,63}" 
-        title="Password must be 8-63 characters long, printable ASCII only" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]{8,63}" placeholder='Leave blank to keep unchanged' />
 
         <label>Hostname:<br>(also Access Point SSID, MQTT topics)</label>
         <input type='text' name='HOSTNAME' value="%HOSTNAME%" 
         pattern="[A-Za-z0-9_\-]+"
-        placeholder="%DEFAULTHOSTNAME%"
-        title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
+        placeholder="%DEFAULTHOSTNAME%" />
 
         <label>Use static IP address: </label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />
@@ -1738,20 +1731,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-staticip'>
         <label>Local IP: </label>
         <input type='text' name='LOCALIP' value="%LOCALIP%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%LOCALIPPH%" title="IPv4 address of this device" />
+              inputmode="decimal" placeholder="%LOCALIPPH%" />
 
         <label>Gateway: </label>
         <input type='text' name='GATEWAY' value="%GATEWAY%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%GATEWAYPH%" title="IPv4 address of your router" />
+              inputmode="decimal" placeholder="%GATEWAYPH%" />
 
         <label>Subnet mask: </label>
         <input type='text' name='SUBNET' value="%SUBNET%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%SUBNETPH%" title="Subnet mask of your network" />
+              inputmode="decimal" placeholder="%SUBNETPH%" />
 
         <label>DNS server: </label>
         <input type='text' name='DNS' value="%DNS%" pattern="%IPPATTERN%"
-              inputmode="decimal" placeholder="%DNSPH%"
-              title="DNS resolver. Leave blank to use the gateway, which is correct on most home networks." />
+              inputmode="decimal" placeholder="%DNSPH%" />
         </div>
 
         <script> //Ticking static IP with empty fields adopts the addresses currently in use (the DHCP lease)
@@ -1772,13 +1764,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Access Point password: </label>
         <input type='password' name='APPASSWORD' value="%APPASSWORD%" autocomplete="new-password"
         pattern="([ -~]{8,63})?"
-        title="Password must be 8-63 characters long, printable ASCII only."
         placeholder='Leave blank to keep unchanged' />
 
         <label>Wifi channel 0-14: </label>
         <input type='number' name='WIFICHANNEL' value="%WIFICHANNEL%" 
-        min="0" max="14" step="1"
-        title="Force specific channel. Set to 0 for autodetect" required />
+        min="0" max="14" step="1" required />
 
         </div>
         </div>
@@ -1788,23 +1778,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Enable password protection: </label>
-        <input type='checkbox' name='WEBAUTH' value='on' %WEBAUTH%
-        title="Require HTTP Basic authentication for the web interface and OTA page" />
+        <input type='checkbox' name='WEBAUTH' value='on' %WEBAUTH% />
 
         <label>Username: </label>
         <input type='text' name='HTTPUSER' value="%HTTPUSER%"
-        pattern="[ -~]{1,32}"
-        title="Web interface username, printable ASCII only" />
+        pattern="[ -~]{1,32}" />
 
         <label>Web interface password: </label>
         <input type='password' name='HTTPPASS' value="%HTTPPASS%" autocomplete="new-password"
-        pattern="[ -~]{0,63}"
-        title="Set a password before enabling password protection. Printable ASCII only" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]{0,63}" placeholder='Leave blank to keep unchanged' />
 
         <label>Repeat web interface password: </label>
         <input type='password' name='HTTPPASSCONFIRM' value="%HTTPPASS%" autocomplete="new-password"
-        pattern="[ -~]{0,63}"
-        title="Repeat the web interface password" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]{0,63}" placeholder='Leave blank to keep unchanged' />
 
         <label>Show web interface password: </label>
         <input type='checkbox' onchange='toggleWebPasswordVisibility(this.checked)' />
@@ -1822,16 +1808,14 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-nissan">
             <label for='CHGSTARQ'>BMS starting sequence request: </label>
-            <select name='CHGSTARQ' id='CHGSTARQ'
-            title="CHG_STA_RQ transmitted in 0x1F2. The LBC only acts on it while starting up, so a BMS reset is needed to apply a change.">
+            <select name='CHGSTARQ' id='CHGSTARQ'>
             %CHGSTARQ%
             </select>
             <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
             data-canreset='%CHGSTARQCANRESET%' />
 
             <label for='LEAFAUTOOFS'>Automatic current offset correction: </label>
-            <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS%
-            title="Each pack learns what its current sensor reads while its contactor is open, and subtracts that from the measured current. Needs contactor control." />
+            <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS% />
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
@@ -1847,28 +1831,23 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
           <input type='number' name='DALYPWRPCT' value="%DALYPWRPCT%"
-          min="1" max="10000" step="1"
-          title="Below 20% and above 80% SOC, limit power to this value * SOC% (e.g. 50 W/% means 150W at 3%, 500W at 10%)" />
+          min="1" max="10000" step="1" />
 
           <label>Voltage difference for start of voltage based discharge limit (dV): </label>
           <input type='number' name='DALYDVSTART' value="%DALYDVSTART%"
-          min="1" max="200" step="1"
-          title="Power limiting begins when pack voltage is this many dV above the discharge voltage limit (default 20 = 2.0V)" />
+          min="1" max="200" step="1" />
 
           <label>Max power per dV distance from minimum voltage (W/dV): </label>
           <input type='number' name='DALYPWRDV' value="%DALYPWRDV%"
-          min="1" max="10000" step="1"
-          title="Max power per dV when approaching the discharge voltage limit" />
+          min="1" max="10000" step="1" />
 
           <label>Power change per °C above/below 0°C (W/°C): </label>
           <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
-          min="1" max="10000" step="1"
-          title="Max power added or removed per degree above or below 0°C" />
+          min="1" max="10000" step="1" />
 
           <label>Power at 0°C (W): </label>
           <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
-          min="0" max="100000" step="1"
-          title="Maximum allowed charge/discharge power at exactly 0°C" />
+          min="0" max="100000" step="1" />
         </div>
 
         <div class="if-tesla">
@@ -1893,25 +1872,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-estimated">
         <label>Manual charging power, watt: </label>
         <input type='number' name='CHGPOWER' value="%CHGPOWER%" 
-        min="0" max="65000" step="1"
-        title="Continous max charge power. Used since CAN data not valid for this integration. Do not set too high!" />
+        min="0" max="65000" step="1" />
 
         <label>Manual discharge power, watt: </label>
         <input type='number' name='DCHGPOWER' value="%DCHGPOWER%" 
-        min="0" max="65000" step="1"
-        title="Continous max discharge power. Used since CAN data not valid for this integration. Do not set too high!" />
+        min="0" max="65000" step="1" />
         </div>
 
         <div class="if-socestimated">
         <label>Use estimated SOC: </label>
-        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% 
-        title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
+        <input type='checkbox' name='SOCESTIMATED' value='on' %SOCESTIMATED% />
         </div>
 
         <div class="if-chgestimated">
         <label>Use estimated charge limits: </label>
-        <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% 
-        title="Switch to estimated charge/discharge limits when accurate data is not available from the battery" />
+        <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% />
         </div>
 
         <div class="if-battery">
@@ -1926,31 +1901,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-pylon-battery">
         <label>Pylon CAN baudrate (kbps): </label>
-        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+" title="Select CAN bus baudrate (500kbps for most batteries, 250kbps for some configurations)"/>
+        <input name='PYLONBAUD' type='text' value="%PYLONBAUD%" pattern="[0-9]+"/>
         </div>
 
         <div class="if-cbms">
         <label>Battery max design voltage (V): </label>
-        <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%'   
-        title="Maximum safe voltage for the entire battery pack in volts. Used as charge target and protection limits." />
+        <input name='BATTPVMAX' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMAX%' />
 
         <label>Battery min design voltage (V): </label>
-        <input name='BATTPVMIN' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMIN%' 
-        title="Minimum safe voltage for the entire battery pack in volts. Further discharge not possible below this limit." />
+        <input name='BATTPVMIN' pattern="[0-9]+(\.[0-9]+)?" type='text' value='%BATTPVMIN%' />
 
         <label>Cell max design voltage (mV): </label>
-        <input name='BATTCVMAX' pattern="[0-9]+" type='text' value='%BATTCVMAX%' 
-        title="Maximum voltage per individual cell in millivolts. Charging stops if one cell reaches this voltage." />
+        <input name='BATTCVMAX' pattern="[0-9]+" type='text' value='%BATTCVMAX%' />
 
         <label>Cell min design voltage (mV): </label>
-        <input name='BATTCVMIN' pattern="[0-9]+$" type='text' value='%BATTCVMIN%' 
-        title="Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage." />
+        <input name='BATTCVMIN' pattern="[0-9]+$" type='text' value='%BATTCVMIN%' />
         </div>
 
         <div class="if-dblcapable">
         <label>Double battery: </label>
-        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% 
-        title="Enable this option if you intend to run two batteries in parallel" />
+        <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
 
         <div class="if-dblbtr">
             <label>2ⁿᵈ interface: </label>
@@ -1960,8 +1930,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-tricapable">
         <label>Triple battery: </label>
-        <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% 
-        title="Enable this option if you intend to run three batteries in parallel" />
+        <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% />
 
         <div class="if-tribtr">
         <label>3ʳᵈ interface: </label>
@@ -2000,16 +1969,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-pylon-inverter">
         <label>Pylon, send group (0-1): </label>
-        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" 
-        title="Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems" />
+        <input name='PYLONSEND' type='text' value="%PYLONSEND%" pattern="[0-9]+" />
 
         <label>Pylon, 30k offset: </label>
-        <input type='checkbox' name='PYLONOFFSET' value='on' %PYLONOFFSET% 
-        title="When enabled, 30k offset will be applied on some signals, useful for some inverters that see wrong data otherwise" />
+        <input type='checkbox' name='PYLONOFFSET' value='on' %PYLONOFFSET% />
 
         <label>Pylon, invert byteorder: </label>
-        <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% 
-        title="When enabled, byteorder will be inverted on some signals, useful for some inverters that see wrong data otherwise" />
+        <input type='checkbox' name='PYLONORDER' value='on' %PYLONORDER% />
 
         <label>Pylon, manufacturer name: </label>
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
@@ -2022,12 +1988,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         <div class="if-bydmodbus">
         <label>Accept reboot command from inverter: </label>
-        <input type='checkbox' name='INVACCREB' value='on' %INVACCREB%
-        title="When enabled, a non-zero RebootCommand written by the inverter to register 407 restarts the emulator, pausing charge/discharge and opening the contactors first." />
+        <input type='checkbox' name='INVACCREB' value='on' %INVACCREB% />
 
         <label>Fronius Primo, 450V maxvoltage cap: </label>
-        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24%
-        title="Use only in case you see 'Invalid battery size detected' message on Primo, with higher voltage batteries." />
+        <input type='checkbox' name='PRIMOGEN24' value='on' %PRIMOGEN24% />
 
         <label>WatchDog Timeout: </label><span class='settings-value'>%INVWDT%</span>
 
@@ -2090,32 +2054,26 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         margin-top: 5px; padding-top: 12px; border-top: 1px solid #4d5f69;'>
 
         <label>Ramp up charge limits gradually:</label>
-        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% 
-        title="Smooths sudden increases in the battery's charge power limits before sending them to the inverter to prevent oscillation, using a low pass filter." />
+        <input type='checkbox' name='LOWPASSFILTER' value='on' %LOWPASSFILTER% />
 
         <label>Charge power tapering based on SOC:</label>
-        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY%
-        title="Linearly reduces the allowed charge power from full power at the start SOC down to 0W at 100pct scaled SOC, for a smooth approach to full instead of an abrupt cutoff. Mandatory and always enabled for some battery types." />
+        <input type='checkbox' name='CHGTAPERSOC' value='on' %CHGTAPERSOC% %CHGTAPERMANDATORY% />
 
         <div class='if-chgtapersoc'>
         <label>Start tapering at SOC, percent: </label>
         <input type='number' name='CHGTAPERSTART' value="%CHGTAPERSTART%"
-        min="50" max="%CHGTAPERMAX%" step="1"
-        title="Scaled SOC where charge power tapering begins. 95 = full power until 95pct, then linear reduction reaching 0W at 100pct. Limited to 50-85pct for battery types where tapering is mandatory." />
+        min="50" max="%CHGTAPERMAX%" step="1" />
 
         <label>Float charge power, W: </label>
         <input type='number' name='CHGTAPERFLOOR' value="%CHGTAPERFLOOR%"
-        min="0" max="2000" step="10"
-        title="Minimum charge power held during tapering until 100pct scaled SOC is reached. Recommended to set it to 5-10pct of the inverter's max power. 0 disables the floor, tapering goes linearly to 0W." />
+        min="0" max="2000" step="10" />
         </div>
 
         <label>Allow longer CAN timeout: </label>
-        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% 
-        title="Use a longer timeout for inverter still alive CAN messages" />
+        <input type='checkbox' name='SLOWCANINV' value='on' %SLOWCANINV% />
 
         <label>Inverter run entirely offgrid: </label>
-        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
-        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID% />
 
         </div>
         </div>
@@ -2148,18 +2106,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-ctclamp">
           <label>CT Clamp offset (mV): </label>
           <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
-          min="-1" max="3000" step="1"
-          title="Voltage offset required to calibrate 0A reading. -1 = auto-detect" />
+          min="-1" max="3000" step="1" />
 
           <label>CT Clamp nominal voltage (dV): </label>
           <input type='number' name='CTVNOM' value="%CTVNOM%" 
-          min="0" max="500" step="1"
-          title="Nominal voltage of the CT Clamp x10. Integer only." />
+          min="0" max="500" step="1" />
 
           <label>CT Clamp nominal current (A): </label>
           <input type='number' name='CTANOM' value="%CTANOM%" 
-          min="0" max="200" step="1"
-          title="Nominal current of the CT Clamp. Integer only." />
+          min="0" max="200" step="1" />
 
           <label>ESP32 pin attenuation: </label>
           <select name='CTATTEN'>
@@ -2167,8 +2122,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           </select>
 
           <label>Invert CT current: </label>
-          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% 
-          title="Invert the current reading from the CT clamp, +ve is charging, -ve is discharging" />
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
           </div>
         </div>
 
@@ -2197,12 +2151,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class="if-cntctrl">
             <label>Precharge time ms: </label>
             <input type='number' name='PRECHGMS' value="%PRECHGMS%" 
-            min="1" max="65000" step="1"
-            title="Time in milliseconds the precharge should be active" />
+            min="1" max="65000" step="1" />
 
             <label>Use Normally Closed logic: </label>
-            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% 
-            title="Extremely rare option. If configured, GPIO control logic will be inverted for operation with normally closed contactors" />
+            <input type='checkbox' name='NCCONTACTOR' value='on' %NCCONTACTOR% />
         </div>
 
         <div class="if-anycntctrl">
@@ -2212,13 +2164,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
              <div class="if-pwmcntctrl">
             <label>PWM Frequency Hz: </label>
             <input name='PWMFREQ' type='text' value="%PWMFREQ%"             
-            min="1" max="65000" step="1"
-            title="Frequency in Hz used for PWM" />
+            min="1" max="65000" step="1" />
 
             <label>PWM Hold 1-1023: </label>
             <input type='number' name='PWMHOLD' value="%PWMHOLD%" 
-            min="1" max="1023" step="1"
-            title="1-1023 , lower value = lower power consumption" />
+            min="1" max="1023" step="1" />
               </div>
         </div>
 
@@ -2231,12 +2181,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             </select>
 
             <label>Defer reset if SOC less than 15&#37;: </label>
-            <input type='checkbox' name='PERBMSDEFSOC' value='on' %PERBMSDEFSOC%
-            title="Holds the reset back while either the real or the scaled SOC is below 15 percent. It runs as soon as SOC recovers, and the interval restarts from that point" />
+            <input type='checkbox' name='PERBMSDEFSOC' value='on' %PERBMSDEFSOC% />
 
             <label>Skip reset for one period if balancing: </label>
-            <input type='checkbox' name='PERBMSSKIPBAL' value='on' %PERBMSSKIPBAL%
-            title="Gives up one occurrence if the battery reports balancing as active. The next occurrence runs even if balancing is still active" />
+            <input type='checkbox' name='PERBMSSKIPBAL' value='on' %PERBMSSKIPBAL% />
         </div>
 
         <label>External precharge via HIA4V1: </label>
@@ -2254,11 +2202,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </div>
 
         <label>Measure CPU temperature: </label>
-        <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP%  title="If enabled, the CPU temperature will be displayed on webserver" />
+        <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP% />
 
          <div class="if-measurecputemp">
             <label>CPU temperature calibration offset (°C): </label>
-            <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" title="Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly." />
+            <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" />
         </div>
 
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
@@ -2280,14 +2228,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Enable ESPNow: </label>
-        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED%
-        title="Send battery telemetry to nearby devices over ESP-NOW" />
+        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
 
         <div class='if-espnowenabled'>
         <label>ESPNow receiver MACs: </label>
         <input type='text' name='ESPNOWMACS' value="%ESPNOWMACS%" maxlength="180"
-        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*"
-        title="Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart." />
+        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*" />
         </div>
 
         <label>Enable MQTT: </label>
@@ -2296,47 +2242,36 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div class='if-mqtt'>
         <label>MQTT server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
-        pattern="[A-Za-z0-9.\-]+"
-        title="Hostname (letters, numbers, '.', '-')" />
+        pattern="[A-Za-z0-9.\-]+" />
         <label>MQTT port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
-        min="1" max="65535" step="1"
-        title="Port number (1-65535)" />
+        min="1" max="65535" step="1" />
         <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
-        pattern="[ -~]+"
-        title="MQTT username can only contain printable ASCII" />
+        pattern="[ -~]+" />
         <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
-        pattern="[ -~]+"
-        title="MQTT password can only contain printable ASCII" placeholder='Leave blank to keep unchanged' />
+        pattern="[ -~]+" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
-        min="1" max="60000" step="1"
-        title="Timeout in milliseconds (1-60000)" />
+        min="1" max="60000" step="1" />
         <label>MQTT publish interval (seconds): </label>
         <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
-        min="1" max="300" step="1"
-        title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
+        min="1" max="300" step="1" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Publish heap metric diagnostics: </label>
-        <input type='checkbox' name='MQTTHEAP' value='on' %MQTTHEAP%
-        title="Publish free heap, largest free block, minimum free heap and heap fragmentation to the /info topic and to Home Assistant autodiscovery. Takes effect after a restart." />
+        <input type='checkbox' name='MQTTHEAP' value='on' %MQTTHEAP% />
         <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Home Assistant autodiscovery: </label>
-        <input type='checkbox' name='HADISCEN' value='on' %HADISCEN% onchange='haDisc(this)'
-        title="Publish Home Assistant MQTT discovery configs. The broker retains them, so Home Assistant keeps the entities without them being republished at every boot." />
+        <input type='checkbox' name='HADISCEN' value='on' %HADISCEN% onchange='haDisc(this)' />
 
         <div class='if-hadiscen'>
         <label>Autodiscovery topic: </label>
         <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
-        pattern="[A-Za-z0-9_\-]+"
-        title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
+        pattern="[A-Za-z0-9_\-]+" />
         <label>Publish at firmware updates: </label>
-        <input type='checkbox' name='HADISCFWU' value='on' %HADISCFWU%
-        title="Publish the discovery configs once after every firmware update. They carry the software version and can gain or change entities between releases." />
+        <input type='checkbox' name='HADISCFWU' value='on' %HADISCFWU% />
         <label>Publish at next boot: </label>
-        <input type='checkbox' name='HADISC' value='on' %HADISC%
-        title="Publish the discovery configs once after the next restart. Clears itself once they have been published." />
+        <input type='checkbox' name='HADISC' value='on' %HADISC% />
         </div>
 
         </div>
@@ -2349,18 +2284,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Performance profiling on main page: </label>
-        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE%          
-              title="For developers. Get detailed performance metrics on the front page" />
+        <input type='checkbox' name='PERFPROFILE' value='on' %PERFPROFILE% />
 
         <label>General logging via Webserver: </label>
         <input type='checkbox' name='WEBENABLED' value='on' %WEBENABLED% 
-              onclick="handleCheckboxSelection(this)"         
-              title="Enable this if you want general logging available in the Webserver." />
+              onclick="handleCheckboxSelection(this)" />
 
         <label>General logging via USB serial: </label>
         <input type='checkbox' name='USBENABLED' value='on' %USBENABLED% 
-              onclick="handleCheckboxSelection(this)" 
-              title="WARNING: Causes performance issues. Log general messages via USB cable. Avoid if possible!" />
+              onclick="handleCheckboxSelection(this)" />
 
         <script> //Make sure user only uses one general logging method, improves performance
         function handleCheckboxSelection(clickedCheckbox) { 
@@ -2380,8 +2312,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </script>
 
         <label>CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%
-            title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
 
         )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
 
@@ -2411,19 +2342,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
     <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
 
-      <h4 class='%BATTERY_WH_CLASS%'>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
+      <h4 class='%BATTERY_WH_CLASS%' data-h=battwh>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
-      <h4>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>%SOC_SCALING%</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
+      <h4 data-h=socscale>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>%SOC_SCALING%</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC max percentage: %SOC_MAX_PERCENTAGE%</span> <button onclick='editSocMax()'>Edit</button></h4>
 
       <h4 class='%SOC_SCALING_ACTIVE_CLASS%'><span>SOC min percentage: %SOC_MIN_PERCENTAGE%</span> <button onclick='editSocMin()'>Edit</button></h4>
       
-      <h4>Max charge speed: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
+      <h4 data-h=maxchga>Max charge current: %MAX_CHARGE_SPEED% A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>
 
-      <h4>Max discharge speed: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
+      <h4 data-h=maxdchga>Max discharge current: %MAX_DISCHARGE_SPEED% A </span><button onclick='editMaxDischargeA()'>Edit</button></h4>
 
-      <h4>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
+      <h4 data-h=vlimits>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>
         <span class='%VOLTAGE_LIMITS_CLASS%'>%VOLTAGE_LIMITS%</span>
                 </span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>
 
@@ -2431,11 +2362,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4 class='%BMS_RESET_CLASS%'>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4 class='%BMS_RESET_CLASS%' data-h=bmsoff>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
 
       <h4 class='%BMS_RESET_CLASS%'>Perform a BMS reset now: <button onclick='startBMSReset()'>Start</button></h4>
 
-      <h4 style='color: red;'>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
+      <h4 style='color: red;' data-h=recovery>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
     </div>
 
@@ -2480,5 +2411,5 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
 )rawliteral"
 
-const char settings_html[] =
-    INDEX_HTML_HEADER COMMON_JAVASCRIPT SETTINGS_STYLE SETTINGS_HTML_BODY SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
+const char settings_html[] = INDEX_HTML_HEADER HELP_SCRIPT COMMON_JAVASCRIPT SETTINGS_STYLE SETTINGS_HTML_BODY
+    SETTINGS_HTML_SCRIPTS INDEX_HTML_FOOTER;
