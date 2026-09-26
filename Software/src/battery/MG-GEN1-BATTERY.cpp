@@ -191,14 +191,14 @@ String MgGen1Battery::get_uds_info_html() {
   ret += "<br>SysSWNo: ";
   print_chars_or_hex(buf, pid_system_sw_number, 10);
   ret += buf;
-  ret += "<br>F18A: ";
-  print_chars_or_hex(buf, pid_f18a, 8);
+  ret += "<br>EcuHWNo: ";
+  print_chars_or_hex(buf, pid_ecu_hw_number, 8);
   ret += buf;
   ret += "<br>F120: ";
   print_chars_or_hex(buf, pid_f120, 16);
   ret += buf;
-  ret += "<br>B18C: ";
-  print_chars_or_hex(buf, pid_b18c, 24);
+  ret += "<br>NSTC: ";
+  print_chars_or_hex(buf, pid_nstc_serial, 24);
   ret += buf;
   ret += "<br>F1A2: ";
   print_chars_or_hex(buf, pid_f1a2, 8);
@@ -407,8 +407,7 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (datalayer.system.status.system_status == FAULT) {
         // If in fault state, don't try resetting things yet as it'll turn the
         // BMS off and we'll lose CAN info
-      } else if (!datalayer.system.status.inverter_allows_contactor_closing || batteryType == 0 ||
-                 highestSeenCellCount != datalayer_battery->info.number_of_cells) {
+      } else if (!datalayer.system.status.inverter_allows_contactor_closing || batteryType == 0) {
         // We haven't requested contactor closing, so we don't care what state
         // the BMS is in.
         announce_contactor_state(false);
@@ -495,9 +494,6 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (cell_id < datalayer_battery->info.number_of_cells) {
         v = 1000 + ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
         datalayer_battery->status.cell_voltages_mV[cell_id] = v < 10000 ? v : 0;
-        if (v < 10000 && cell_id >= highestSeenCellCount) {
-          highestSeenCellCount = cell_id + 1;
-        }
         // cell temperature is rx_frame.data.u8[1]-40 but we don't use it
       }
 
@@ -578,64 +574,55 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
   // We've received a battery type code, which we can use to update the battery
   // parameters.
 
-  logging.printf("[MG] Battery type code: %X\n", type);
-  batteryType = type;
-  if (batteryType == BATTERY_TYPE_MG_HS_PHEV) {
-    logging.println("[MG] Detected MG HS PHEV battery (90s)");
-    datalayer_battery->info.number_of_cells = 90;
-    if (datalayer_battery->info.total_capacity_Wh == 0) {
-      datalayer_battery->info.total_capacity_Wh = 16600;
-    }
-    // Definitely works fine with slower ticks
-    fastTick = false;
-  } else if (batteryType == BATTERY_TYPE_MG_ZS) {
-    logging.println("[MG] Detected MG ZS EV battery (108s)");
-    maxChargePowerW = 14000;
-    maxDischargePowerW = 14000;
-    datalayer_battery->info.number_of_cells = 108;
-    if (datalayer_battery->info.total_capacity_Wh == 0) {
-      datalayer_battery->info.total_capacity_Wh = 44500;
-    }
-    //} else if (batteryType == BATTERY_TYPE_MG5_61_NMC) {
-    //   logging.println("[MG] Detected MG5 61kWh NMC (96s)");
-    //   datalayer_battery->info.number_of_cells = 96;
-    //   if(datalayer_battery->info.total_capacity_Wh == 0) {
-    //     datalayer_battery->info.total_capacity_Wh = 61000;
-    //   }
-  } else if (vehicleHardwareNumber == 0x11054259) {
-    // The 50.3kWh LFP and 61kWh NMC MG5 batteries have the same battery type
-    // code (the obviously fake 00010203), so we need to distinguish by
-    // something else. The vehicle hardware number seems a good candidate.
+  // The type is the chemistry character plus the first three characters of the
+  // model code, from the Chinese "National Standard Traceability Code".
 
-    // 50.3kWh LFP:  11 05 42 59 01
-    // 52kWh NMC x2: 10 95 22 20 01
-    // 61kWh NMC:    11 01 61 90 01 (detected as ZS above anyway)
+  // These have been gathered from observed B18C serial numbers:
+  // 0AFPED30: HS NMC
+  // 05LPEL10: ZS 44kWh NMC
+  // 066PED90: MG5 52kWh NMC
+  // 066PBK40: MG5 50kWh LFP
+  // 05LPEP2C: MG5 61kWh NMC
+  // 05LPEN2C: MG5 69.9kWh NMC
 
-    logging.println("[MG] Detected MG5 50kWh LFP (120s)");
-    batteryType = BATTERY_TYPE_MG5_50_LFP;
-    maxChargePowerW = 14000;
-    maxDischargePowerW = 14000;
-    datalayer_battery->info.number_of_cells = 120;
-    // Force the chemistry to LFP (for safety)
+  auto setup_battery = [&](uint32_t type, uint8_t number_of_cells, uint16_t max_power, uint32_t total_capacity_Wh) {
+    batteryType = type;
+    datalayer_battery->info.number_of_cells = number_of_cells;
+    maxChargePowerW = max_power;
+    maxDischargePowerW = max_power;
+    if (datalayer_battery->info.total_capacity_Wh == 0) {
+      datalayer_battery->info.total_capacity_Wh = total_capacity_Wh;
+    }
+  };
+
+  auto force_lfp = [&]() {
     datalayer_battery->info.chemistry = LFP;
     datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP_MV;
     datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP_MV;
-    if (datalayer_battery->info.total_capacity_Wh == 0) {
-      datalayer_battery->info.total_capacity_Wh = 50300;
-    }
-    // Needs fast tick or contactors don't close and it emits strange frames
-    fastTick = true;
+  };
+
+  if (type == BATTERY_TYPE_MG_HS_PHEV) {
+    logging.println("[MG] Detected MG HS PHEV battery (90s)");
+    setup_battery(type, 90, 14000, 16600);
+  } else if (type == BATTERY_TYPE_MG_ZS_44_NMC) {
+    logging.println("[MG] Detected MG ZS EV battery (108s)");
+    setup_battery(type, 108, 14000, 44500);
+  } else if (type == BATTERY_TYPE_MG5_50_LFP) {
+    logging.println("[MG] Detected MG5 50kWh LFP (120s)");
+    setup_battery(type, 120, 14000, 50300);
+    // Force the chemistry to LFP (for safety)
+    force_lfp();
+  } else if (type == BATTERY_TYPE_MG5_52_NMC) {
+    logging.println("[MG] Detected MG5 52kWh NMC (96s)");
+    setup_battery(type, 96, 14000, 52000);
+  } else if (type == BATTERY_TYPE_MG5_61_NMC) {
+    logging.println("[MG] Detected MG5 61kWh NMC (96s)");
+    setup_battery(type, 96, 14000, 61100);
+  } else if (type == BATTERY_TYPE_MG5_69_NMC) {
+    logging.println("[MG] Detected MG5 69.9kWh NMC (96s)");
+    setup_battery(type, 96, 14000, 69900);
   } else {
-    logging.printf("[MG] Assuming MG5 battery (96s)\n");
-    batteryType = BATTERY_TYPE_MG5;
-    maxChargePowerW = 14000;
-    maxDischargePowerW = 14000;
-    datalayer_battery->info.number_of_cells = 96;
-    if (datalayer_battery->info.total_capacity_Wh == 0) {
-      datalayer_battery->info.total_capacity_Wh = 52500;
-    }
-    // Seems to work fine with slower ticks
-    fastTick = false;
+    logging.printf("[MG] Unknown battery type: %s\n", (const char*)pid_nstc_serial);
   }
 
   datalayer_battery->info.max_design_voltage_dV =
@@ -659,28 +646,26 @@ uint16_t MgGen1Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
       datalayer_battery->status.soh_pptt = value;
       break;
 
-    case POLL_BATTERY_VEHICLE_HW_NUMBER:
+    case POLL_BATTERY_NSTC_SERIAL:
       if (value == 0) {
-        // Retry until we get a valid vehicle hardware number (0 is invalid)
-        return POLL_BATTERY_VEHICLE_HW_NUMBER;
+        // Retry until we get a valid number
+        return POLL_BATTERY_NSTC_SERIAL;
       }
-      vehicleHardwareNumber = value;
-      memcpy(pid_vehicle_hw_number, data,
-             length > sizeof(pid_vehicle_hw_number) ? sizeof(pid_vehicle_hw_number) : length);
+      memcpy(pid_nstc_serial, data, length > sizeof(pid_nstc_serial) ? sizeof(pid_nstc_serial) : length);
+      // We extract a 'battery type' from the NSTC serial number, consisting of
+      // the chemistry plus the first three letters of the model code (big-endian).
+      got_battery_type((pid_nstc_serial[4] << 24) | (pid_nstc_serial[5] << 16) | (pid_nstc_serial[6] << 8) |
+                       pid_nstc_serial[7]);
       break;
-    case POLL_BATTERY_TYPE:  // Battery type
-      if (value == 0) {
-        // Retry until we get a valid battery type (0 is invalid)
-        return POLL_BATTERY_TYPE;
-      }
-      got_battery_type(value);
-      memcpy(pid_f18a, data, length > sizeof(pid_f18a) ? sizeof(pid_f18a) : length);
+    case POLL_BATTERY_ECU_HW_NUMBER:
+      memcpy(pid_ecu_hw_number, data, length > sizeof(pid_ecu_hw_number) ? sizeof(pid_ecu_hw_number) : length);
       break;
     case 0xF120:
       memcpy(pid_f120, data, length > sizeof(pid_f120) ? sizeof(pid_f120) : length);
       break;
-    case 0xB18C:
-      memcpy(pid_b18c, data, length > sizeof(pid_b18c) ? sizeof(pid_b18c) : length);
+    case POLL_BATTERY_VEHICLE_HW_NUMBER:
+      memcpy(pid_vehicle_hw_number, data,
+             length > sizeof(pid_vehicle_hw_number) ? sizeof(pid_vehicle_hw_number) : length);
       break;
     case POLL_BATTERY_FINGERPRINT:
       memcpy(pid_fingerprint, data, length > sizeof(pid_fingerprint) ? sizeof(pid_fingerprint) : length);
@@ -745,39 +730,39 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     send_phase = 0;
   }
 
-  // Send 10ms CAN Message (or 100ms if we're non-fast-tick)
-  const unsigned long TICK_PERIOD_10 = fastTick ? INTERVAL_10_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis10 >= TICK_PERIOD_10 && send_phase == 0) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS && send_phase == 0) {
     previousMillis10 = currentMillis;
 
     tx_count++;
 
-    // It can take up to 30s to establish the cell count. During this period we
-    // won't send any contactor-control messages (unless there is a FAULT or
-    // inverter requests opening) - if the contactors were already closed,
-    // they'll remain so until the BMS times out. This allows us to maintain
-    // closed contactors during reboots.
+    // Until the battery is identified and we have fresh cell and pack voltage
+    // readings we won't send any contactor-control messages (unless there is a
+    // FAULT or the inverter requests opening). If the contactors were already
+    // closed they'll remain so until the BMS times out, which lets us ride
+    // through reboots.
     static constexpr uint32_t STARTUP_GRACE_PERIOD_MS = 30000;  // 30 seconds
 
-    // We've got the battery type and have seen the expected number of cells
-    const bool identified_battery = batteryType != 0 && highestSeenCellCount == datalayer_battery->info.number_of_cells;
+    // We've got the battery type
+    const bool identified_battery = batteryType != 0;
     // Open contactors if fault
     const bool must_open_contactors = datalayer.system.status.system_status == FAULT;
     // Open contactors if inverter requests it, or we haven't identified the
-    // battery yet, or we don't have a recent voltage reading, or if we're a
-    // secondary battery and haven't been given permission to close yet.
+    // battery yet, or we don't have a recent pack/cell voltage reading, or if
+    // we're a secondary battery and haven't been given permission to close yet.
     const bool should_open_contactors = !datalayer.system.status.inverter_allows_contactor_closing ||
-                                        !identified_battery || voltageValidTime == 0 ||
+                                        !identified_battery || voltageValidTime == 0 || cellVoltageValidTime == 0 ||
                                         (allowed_contactor_closing != nullptr && !*allowed_contactor_closing);
 
     bool send_8a = true;
     if (must_open_contactors || (should_open_contactors && currentMillis > STARTUP_GRACE_PERIOD_MS)) {
 
       if (announcedContactorsClosed) {
-        logging.printf("[MG] Open contactors, iacc: %d, hSCC: %d, bT: %d, accnull: %d, acc: %d, vvt: %d\n",
-                       datalayer.system.status.inverter_allows_contactor_closing, highestSeenCellCount, batteryType,
+        logging.printf("[MG] Open contactors, iacc: %d, bT: %d, accnull: %d, acc: %d, vvt: %d, cvt: %d\n",
+                       datalayer.system.status.inverter_allows_contactor_closing, batteryType,
                        allowed_contactor_closing == nullptr,
-                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime);
+                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime,
+                       cellVoltageValidTime);
         announcedContactorsClosed = false;
       }
 
@@ -796,17 +781,18 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       MG_HS_8A.data.u8[5] = 0x02;
 
       if (!announcedContactorsClosed) {
-        logging.printf("[MG] Close contactors, iacc: %d, hSCC: %d, bT: %d, accnull: %d, acc: %d\n",
-                       datalayer.system.status.inverter_allows_contactor_closing, highestSeenCellCount, batteryType,
+        logging.printf("[MG] Close contactors, iacc: %d, bT: %d, accnull: %d, acc: %d, vvt: %d, cvt: %d\n",
+                       datalayer.system.status.inverter_allows_contactor_closing, batteryType,
                        allowed_contactor_closing == nullptr,
-                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0);
+                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime,
+                       cellVoltageValidTime);
         announcedContactorsClosed = true;
       }
 
       if (warmupCounter < 1100) {
         // Keep the 1 asserted for 1.1s
         MG_HS_8A.data.u8[6] = 0x10 | eightAcycle;
-        warmupCounter += TICK_PERIOD_10;
+        warmupCounter += INTERVAL_10_MS;
       } else {
         // After that we go to the 3
         MG_HS_8A.data.u8[6] = 0x30 | eightAcycle;
@@ -830,11 +816,20 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  const unsigned long TICK_PERIOD_20 = fastTick ? INTERVAL_20_MS : INTERVAL_100_MS;
-  if (currentMillis - previousMillis20 >= TICK_PERIOD_20 && send_phase == 1) {
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS && send_phase == 1) {
     previousMillis20 = currentMillis;
 
-    transmit_can_frame(&MG_HS_1F1);
+    CAN_frame oneFOne = {
+        .FD = false, .ext_ID = false, .DLC = 8, .ID = 0x1F1, .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+    if (batteryType == BATTERY_TYPE_MG5_61_NMC) {
+      // Some batteries need nonzero values here or the contactors won't close.
+      // TODO: figure out what this actually represents
+      oneFOne.data.u8[4] = 0x08;
+      oneFOne.data.u8[5] = 0x72;
+    }
+
+    transmit_can_frame(&oneFOne);
   }
 
   transmit_uds_can(currentMillis);
