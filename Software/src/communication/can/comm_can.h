@@ -70,4 +70,14 @@ void restart_can();
 // Change the speed of the CAN interface. Returns true if successful.
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed);
 
+/* Holds all transmission on one interface. Setting the hold drops everything not yet on the wire -
+   frames queued in the driver and frames the controller keeps retrying because nobody acknowledges
+   them - and frames sent while it is set are discarded rather than queued. Releasing it simply lets
+   new frames through again. For a bus whose other node has been powered down on purpose. */
+void hold_can_transmissions(CAN_Interface interface, bool hold);
+
+// True when more than one of our components is registered on this interface, i.e. the bus is not
+// one component's alone.
+bool can_interface_shared(CAN_Interface interface);
+
 #endif

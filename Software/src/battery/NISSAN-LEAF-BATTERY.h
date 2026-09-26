@@ -24,7 +24,15 @@ class NissanLeafBattery : public CanBattery {
                     CAN_Interface targetCan)
       : CanBattery(targetCan), renderer(datalayer_ptr, extended) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = nullptr;
+    /* An extra pack publishes its own LBC's permission, which handle_contactors_battery2/3() check
+       before letting it join. Previously null here, so only the primary pack's LBC had a say. */
+    if (datalayer_ptr == &datalayer.battery2) {
+      allows_contactor_closing = &datalayer.system.status.battery2_pack_permits_closing;
+    } else if (datalayer_ptr == &datalayer.battery3) {
+      allows_contactor_closing = &datalayer.system.status.battery3_pack_permits_closing;
+    } else {
+      allows_contactor_closing = nullptr;
+    }
     datalayer_nissan = extended;
   }
 
@@ -51,6 +59,13 @@ class NissanLeafBattery : public CanBattery {
     dtc_read_retries = 0;
   }
   bool supports_insulation_resistance() { return true; }
+
+  /* This driver publishes battery_allows_contactor_closing as a real permission derived from the
+     LBC's own signals, so handle_contactors() may use it as a precondition. See update_values(). */
+  bool gates_contactor_closing() { return true; }
+
+  // Holds a BMS reset's power cut until the ending sequence has been sent, see advance_ending_sequence().
+  bool ready_for_bms_power_off();
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
@@ -188,6 +203,47 @@ class NissanLeafBattery : public CanBattery {
 
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
+
+  // Last value published there: -1 not decided yet, 0 withheld, 1 granted. Only used to log the
+  // transition, so a pack that refuses to permit closing says so once instead of silently or
+  // every cycle.
+  int8_t contactor_permission_state = -1;
+
+  /* GoToSleep towards the pack while BMS_POWER is held low during a BMS reset, per 293A0NDS25
+     5.1.2 step 3). See transmit_go_to_sleep(). */
+  void transmit_go_to_sleep(unsigned long currentMillis);
+  // How long the pack must have been silent before our own CAN stops too. 5.1.2 3)(3): "1 s or more".
+  static const unsigned long GO_TO_SLEEP_PACK_QUIET_MS = 1000;
+  enum GoToSleepPhase : uint8_t { GO_TO_SLEEP_NOT_SENT, GO_TO_SLEEP_SENDING, GO_TO_SLEEP_DONE };
+  GoToSleepPhase go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
+  unsigned long go_to_sleep_first_tx_millis = 0;  // For the confirmation log line
+  unsigned long go_to_sleep_last_tx_millis = 0;
+  void rearm_go_to_sleep();
+  // This pack's interface is held from the end of GoToSleep until BMS power is restored.
+  bool holding_can = false;
+  unsigned long last_pack_frame_millis = 0;  // Any frame received from the pack
+  // Last LB_RefusetoSleep from 0x55B (2 bits), 0xFF until one has been received.
+  uint8_t lb_refuse_to_sleep = 0xFF;
+
+  /* Ending sequence sent before a BMS reset cuts power, per 293A0NDS25 5.1.2 steps 1) and 2).
+     Steps are cumulative: each one keeps the overrides of the steps before it. */
+  void advance_ending_sequence(unsigned long currentMillis);
+
+  // BTONFN / RLYP source for this particular pack, see the definition.
+  void commanded_relay_state(bool& relay_plus_commanded, bool& high_voltage_supplied);
+  static const unsigned long ENDING_STEP_HOLD_MS = 100;  // ~10 consecutive 10 ms frames per step
+
+  // How long CAN errors on this pack's interface stay muted after a BMS reset has ended.
+  static const uint32_t BMS_RESET_CAN_ERROR_GRACE_MS = 5000;
+  enum EndingStep : uint8_t {
+    ENDING_NOT_STARTED,
+    ENDING_CHG_STA_RQ_STOP,  // 0x1F2 CHG_STA_RQ = 11b
+    ENDING_BTONFN_OFF,       // 0x1D4 BTONFN = 0
+    ENDING_RLYP_OFF,         // 0x1D4 RLYP = 0
+    ENDING_DONE              // Held long enough, BMS power may be cut
+  };
+  EndingStep ending_step = ENDING_NOT_STARTED;
+  unsigned long ending_step_since = 0;
 
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis40 = 0;   // will store last time a 40ms CAN Message was send

@@ -218,9 +218,40 @@ void NissanLeafBattery::
 
   datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
 
-  //Allow contactors to close
-  if (battery_can_alive && allows_contactor_closing) {
-    *allows_contactor_closing = true;
+  /* Allow contactors to close.
+     293A0NDS25 5.1.1 step 3) "Confirmation of CAN signal reception": before any relay is commanded
+     on, the controller confirms the pack is willing. Table 7 lists LB_FRLYON = 1, LB_FAIL = 0,
+     LB_STATUS = 0 and LB_INTERLOC = 1, and states that step 4) is not entered until they match.
+     Two deliberate departures from that list, both documented rather than silent:
+     - LB_STATUS is not required to be 0. On a vehicle the pack is mid-SOC at key-on, but in
+       stationary storage 010b "Charging Mode Stop Request" (full) and, on ZE0, 001b "Normal Stop
+       Request" (empty) are ordinary resting states. Requiring 0 would leave a full or empty pack
+       unable to close after a reboot or an equipment stop. The genuinely abnormal LB_STATUS codes
+       (5, 6, 7) already raise error events further down, which the fault path acts on.
+     - LB_INTERLOCK is only required when the user has asked for it, keeping the existing
+       "Interlock required:" setting the single place that decides whether a seated interlock is
+       mandatory. Its meaning is unchanged; it now prevents the close instead of only faulting
+       after it. */
+  if (allows_contactor_closing) {
+    bool pack_permits = battery_can_alive && battery_MainRelayOn_flag &&  //LB_FRLYON = 1
+                        (battery_Relay_Cut_Request == 0) &&               //LB_FAIL = 0
+                        (!user_selected_LEAF_interlock_mandatory || battery_Interlock);
+    *allows_contactor_closing = pack_permits;
+
+    //Logged on each change, including the first decision once the pack has talked: a pack that
+    //withholds permission from the start would otherwise be a silent no-close. Before it has talked
+    //there is nothing it could be holding, so nothing is logged.
+    if (battery_can_alive && contactor_permission_state != (pack_permits ? 1 : 0)) {
+      contactor_permission_state = pack_permits ? 1 : 0;
+      //Named by pack, in the same "(Battery N)" form events use, so double and triple setups can tell
+      //which LBC is holding.
+      if (pack_permits) {
+        logging.printf("LEAF (Battery %u): pack permits contactor closing\n", (unsigned)battery_index);
+      } else {
+        logging.printf("LEAF (Battery %u): contactor close held. FRLYON:%u FAIL:%u interlock:%u\n",
+                       (unsigned)battery_index, battery_MainRelayOn_flag, battery_Relay_Cut_Request, battery_Interlock);
+      }
+    }
   }
 
   /*Extra safety functions below*/
@@ -559,6 +590,7 @@ void NissanLeafBattery::update_current_offset() {
 }
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  last_pack_frame_millis = millis();  //For the GoToSleep handshake, see transmit_go_to_sleep()
   switch (rx_frame.ID) {
     case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
@@ -621,6 +653,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_SOC = battery_TEMP;
       }
       battery_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      //LB_RefusetoSleep, byte 6 bits 5-4 per the pack CAN databooks: 01 = RefuseToSleep, 10 = ReadyToSleep,
+      //00 and 11 reserved. Reported once the pack goes quiet after GoToSleep, see transmit_go_to_sleep().
+      lb_refuse_to_sleep = (rx_frame.data.u8[6] >> 4) & 0x03;
       battery_status_seen |= 0x02;
       break;
     case 0x5BC:
@@ -1235,6 +1270,9 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   const bool soh_clear_running = false;
 #endif
   bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
+  // A request made during a BMS reset stays queued until the reset has ended, for the same reason the
+  // group polls pause: no diagnostic exchange while the LBC is being taken to sleep and back.
+  busy = busy || datalayer.system.status.bms_reset_status != BMS_RESET_IDLE;
 
   if (UserRequestDTCreadout && !busy && channel_idle) {
     UserRequestDTCreadout = false;
@@ -1282,11 +1320,171 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   }
 }
 
+/* What this pack's high voltage path is doing, for BTONFN and RLYP in 0x1D4. Left at 1/1 when it is
+   outside this firmware's knowledge.
+   - A second or third pack with its own contactor enabled reports that contactor. It joins only once
+     the main ladder has completed, onto a bus already at its voltage, with no precharge phase of its
+     own, so both bits follow it together. Previously every pack reported the main contactors, so a
+     pack held off the bus by parallel safety was told its relays were closed.
+   - Otherwise a pack is taken to reach the bus through the main contactors, as before: the ladder
+     state from contactors_engaged, RLYP from the start of precharge and BTONFN once closed.
+   - Without GPIO contactor control nothing is known, and the constant 1/1 is kept. */
+void NissanLeafBattery::commanded_relay_state(bool& relay_plus_commanded, bool& high_voltage_supplied) {
+  relay_plus_commanded = true;
+  high_voltage_supplied = true;
+
+  if (datalayer_battery == &datalayer.battery2 && contactor_control_enabled_double_battery) {
+    relay_plus_commanded = high_voltage_supplied = datalayer.system.status.contactors_battery2_engaged;
+    return;
+  }
+  if (datalayer_battery == &datalayer.battery3 && contactor_control_enabled_triple_battery) {
+    relay_plus_commanded = high_voltage_supplied = datalayer.system.status.contactors_battery3_engaged;
+    return;
+  }
+  if (contactor_control_enabled) {
+    //1 = closed and economized, 3 = closing ladder in progress, 0 = open, 2 = latched open
+    uint8_t engaged = datalayer.system.status.contactors_engaged;
+    relay_plus_commanded = (engaged == 1 || engaged == 3);
+    high_voltage_supplied = (engaged == 1);
+  }
+}
+
+/* 293A0NDS25 5.1.2 steps 1) and 2), sent while BMS power is still on, in the specification's order:
+   CHG_STA_RQ = 11b ("Preparation of battery controller stop"), then BTONFN = 0 (sent with the MAIN
+   RLY1 (+) OFF command), then RLYP = 0 (sent with the MAIN RLY2 (-) OFF command). Only then may BMS
+   power be cut, which is step 3) and handled by transmit_go_to_sleep().
+   Each step is held for ENDING_STEP_HOLD_MS before the next one starts, so it has been on the wire
+   in several consecutive 10 ms frames before anything after it changes. The specification leaves
+   these waits to the implementer ("the specified waiting time ... shall be reported to Nissan"). */
+void NissanLeafBattery::advance_ending_sequence(unsigned long currentMillis) {
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_PREPARING_POWER_OFF) {
+    ending_step = ENDING_NOT_STARTED;  //Re-armed for the next reset, and normal reporting outside one
+    return;
+  }
+  if (ending_step == ENDING_NOT_STARTED) {
+    ending_step = ENDING_CHG_STA_RQ_STOP;
+    ending_step_since = currentMillis;
+  } else if (ending_step != ENDING_DONE && currentMillis - ending_step_since >= ENDING_STEP_HOLD_MS) {
+    ending_step = static_cast<EndingStep>(ending_step + 1);
+    ending_step_since = currentMillis;
+  }
+}
+
+// Asked by the BMS reset before it drives BMS_POWER low. A pack that never talked needs nothing.
+bool NissanLeafBattery::ready_for_bms_power_off() {
+  return !battery_can_alive || ending_step == ENDING_DONE;
+}
+
+// LB_RefusetoSleep as it is reported in the log. The reserved codes are named by value.
+static const char* refuse_to_sleep_name(uint8_t value) {
+  switch (value) {
+    case 0x01:
+      return "Refused";
+    case 0x02:
+      return "Ready to sleep";
+    case 0x00:
+      return "res_00";
+    case 0x03:
+      return "res_11";
+    default:
+      return "not received";
+  }
+}
+
+/* 293A0NDS25 5.1.2 step 3) "Stop of the controller in the pack", in the specification's order:
+   (1) IGN OFF for all packs, (2) send HCM_WakeUpSleepCommand = 00b, (3) keep sending until the pack's
+   own CAN has been stopped for 1 s or more, then stop the controller's CAN. Status 9 "Waiting for
+   pack stop" gives the frame content: GoToSleep with CANMASK = 0.
+   BMS_POWER is the IGN of step (1) here, so the first frame goes out on the first pass that sees it
+   low rather than waiting for the next 100 ms slot. Previously the driver simply went silent, which
+   leaves an LBC that is still on its 12 V supply with a controller that vanished while commanding
+   WakeUp and authorizing CAN-absent failure storage.
+   CANMASK (byte 2 bit 2) is DiagMuxOn_VCM in the pack databooks: 1 authorizes the LBC to store CAN
+   mute/absent failures. Clearing it with GoToSleep is what Status 9 specifies, and is what stops the
+   silence that follows from being recorded as a lost-communication fault.
+   The frame is a copy, so LEAF_50B keeps WakeUp and CANMASK = 1 for when the reset ends. */
+void NissanLeafBattery::transmit_go_to_sleep(unsigned long currentMillis) {
+  if (!battery_can_alive || go_to_sleep_phase == GO_TO_SLEEP_DONE) {
+    return;  //Never woke this pack, or it has already gone quiet
+  }
+
+  if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
+    if (currentMillis - last_pack_frame_millis >= GO_TO_SLEEP_PACK_QUIET_MS) {
+      go_to_sleep_phase = GO_TO_SLEEP_DONE;  //Step (3): pack silent for 1 s, stop our CAN too
+      /* Confirmation that the pack really went off the bus while being told to sleep. The figure is
+         when its last frame arrived relative to the first GoToSleep: a few ms, or negative, means it
+         went dark together with the BMS power cut; hundreds of ms means it was still powered and shut
+         its CAN down itself. Either way nothing has been heard from it for a full second. */
+      long last_frame_ms = (long)(last_pack_frame_millis - go_to_sleep_first_tx_millis);
+      logging.printf("LEAF (Battery %u): went silent on CAN (%s), last frame %+ld ms\n", (unsigned)battery_index,
+                     refuse_to_sleep_name(lb_refuse_to_sleep), last_frame_ms);
+      /* 5.1.2 3)(3) ends with "then stop sending CAN of BMS". This driver queues nothing more from
+         here, but the GoToSleep frames the pack never acknowledged are still being retried by the CAN
+         controller - for the whole off period, then delivered as a burst to the LBC as it boots.
+         Hold the interface: drop what is pending and put nothing on the bus until BMS power is back.
+         Only on a bus that is this pack's alone. With any other of our components on it that node
+         acknowledges, nothing piles up, and its own traffic must not be cut. */
+      if (!can_interface_shared(can_interface)) {
+        hold_can_transmissions(can_interface, true);
+        holding_can = true;
+      }
+      return;
+    }
+    if (currentMillis - go_to_sleep_last_tx_millis < INTERVAL_100_MS) {
+      return;  //0x50B keeps its normal 100 ms period after the first frame
+    }
+  }
+
+  CAN_frame go_to_sleep = LEAF_50B;
+  go_to_sleep.data.u8[3] &= ~0xC0;  //HCM_WakeUpSleepCommand, byte 3 bits 7-6: 00b = GoToSleep
+  go_to_sleep.data.u8[2] &= ~0x04;  //CANMASK, byte 2 bit 2: 0 = CAN absent failures not stored
+  transmit_can_frame(&go_to_sleep);
+
+  if (go_to_sleep_phase == GO_TO_SLEEP_NOT_SENT) {
+    go_to_sleep_first_tx_millis = currentMillis;
+  }
+  go_to_sleep_last_tx_millis = currentMillis;
+  go_to_sleep_phase = GO_TO_SLEEP_SENDING;
+}
+
+/* Called on every pass outside POWERED_OFF, so also the first pass after BMS power is restored,
+   which is where the bus is released again. A GoToSleep still in progress here means BMS power came
+   back before the pack went quiet, so there is no confirmation it ever went off - worth saying, since
+   otherwise the only sign is a success line that never appeared. Most likely BMS_POWER does not feed
+   this pack's LBC. */
+void NissanLeafBattery::rearm_go_to_sleep() {
+  if (holding_can) {
+    hold_can_transmissions(can_interface, false);  //BMS power is back, see transmit_go_to_sleep()
+    holding_can = false;
+  }
+  if (go_to_sleep_phase == GO_TO_SLEEP_SENDING) {
+    logging.printf("LEAF (Battery %u): pack still on CAN when BMS power returned, GoToSleep not confirmed\n",
+                   (unsigned)battery_index);
+  }
+  go_to_sleep_phase = GO_TO_SLEEP_NOT_SENT;
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   handle_DTC_requests(currentMillis);
 
+  advance_ending_sequence(currentMillis);
+
+  /* A BMS reset takes the LBC off this bus. While BMS power is off nothing acknowledges our frames -
+     the GoToSleep in particular goes to a pack that may already be unpowered - and the LBC's own
+     power-down and boot disturb the bus, so the controller reports TX/RX errors that are expected
+     rather than a wiring fault. Refreshed on every pass of the reset, so the mute spans all of it
+     and runs on for BMS_RESET_CAN_ERROR_GRACE_MS afterwards while the error counters decay.
+     Scoped to this pack's own interface: other packs and the inverter keep reporting normally,
+     unless they share it. Same mechanism the MG Gen1 and MEB resets use. */
   if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+    ignore_can_errors_for(can_interface, BMS_RESET_CAN_ERROR_GRACE_MS);
+  }
+
+  /* PREPARING_POWER_OFF is the exception: BMS power is still on and the ending sequence has to
+     reach the pack, so the normal frame set keeps going with the overrides applied below. */
+  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE &&
+      datalayer.system.status.bms_reset_status != BMS_RESET_PREPARING_POWER_OFF) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
@@ -1297,8 +1495,19 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
        both are cleared from the polling code once the pass has actually been sent. */
     repoll_static_groups = true;
     poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
+
+    /* The one exception is the GoToSleep command, see transmit_go_to_sleep(). Only in POWERED_OFF:
+       handle_BMSpower() and start_bms_reset() drive BMS_POWER low before they publish that state, and
+       both run ahead of the transmitters, so seeing it here means the pin is already low. */
+    if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+      transmit_go_to_sleep(currentMillis);
+    } else {
+      rearm_go_to_sleep();  //Re-armed for the next reset
+    }
     return;
   }
+
+  rearm_go_to_sleep();
 
   if (battery_can_alive) {
 
@@ -1306,24 +1515,51 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
 
-      switch (mprun10) {
-        case 0:
-          LEAF_1D4.data.u8[4] = 0x07;
-          LEAF_1D4.data.u8[7] = 0x12;
-          break;
-        case 1:
-          LEAF_1D4.data.u8[4] = 0x47;
-          LEAF_1D4.data.u8[7] = 0xD5;
-          break;
-        case 2:
-          LEAF_1D4.data.u8[4] = 0x87;
-          LEAF_1D4.data.u8[7] = 0x19;
-          break;
-        case 3:
-          LEAF_1D4.data.u8[4] = 0xC7;
-          LEAF_1D4.data.u8[7] = 0xDE;
-          break;
+      /* 0x1D4 carries the controller's declaration of what it has done with the high voltage
+         relays: BTONFN (byte 4 bit 2, StatusOfHighVoltagePowerSupply) and RLYP (byte 5 bit 6,
+         Relay_Plus_Output_Status), per the pack CAN databooks. 293A0NDS25 pairs each with the
+         matching relay command - Table 7 sends RLYP = 1 once PRE CHARGE RLY is on, BTONFN = 1 once
+         MAIN RLY1 (+) and MAIN RLY2 (-) are on, and Status 6/8 clears both as the relays open again.
+         Status 2 "Waiting for permission of Relay ON" is the resting state with both at 0.
+         Both bits were previously hardcoded to 1 in the frame initialiser and never cleared, so the
+         pack was told high voltage was supplied and the plus relay commanded from the first frame
+         after boot and for the whole time the contactors were open - during precharge, after an
+         equipment stop, and while latched open by a fault.
+         The pack cannot measure the relays itself, so this changes no electrical behaviour; it stops
+         the declaration contradicting the commanded state, and gives the LBC the resting state the
+         specification expects it to be parked in. Each pack reports its own path, see
+         commanded_relay_state(). */
+      bool relay_plus_commanded = true;
+      bool high_voltage_supplied = true;
+      commanded_relay_state(relay_plus_commanded, high_voltage_supplied);
+      /* 293A0NDS25 5.1.2 step 2) ahead of a BMS power cut: BTONFN = 0 then RLYP = 0, each after the
+         step before it has been on the wire, see advance_ending_sequence(). Applied regardless of
+         contactor control. Where this firmware keeps its contactors closed through the reset the
+         bits then say open while they are shut, which the pack cannot detect; the point is to take
+         the LBC through the ending sequence before it loses power, and normal reporting resumes
+         once the reset is over. */
+      if (ending_step >= ENDING_BTONFN_OFF) {
+        high_voltage_supplied = false;
       }
+      if (ending_step >= ENDING_RLYP_OFF) {
+        relay_plus_commanded = false;
+      }
+      //PRUN, byte 4 bits 7-6. Bits 1-0 of that byte come from the frame initialiser and stay put.
+      LEAF_1D4.data.u8[4] = (LEAF_1D4.data.u8[4] & ~0xC0) | (mprun10 << 6);
+      if (high_voltage_supplied) {
+        LEAF_1D4.data.u8[4] |= 0x04;
+      } else {
+        LEAF_1D4.data.u8[4] &= ~0x04;
+      }
+      if (relay_plus_commanded) {
+        LEAF_1D4.data.u8[5] |= 0x40;
+      } else {
+        LEAF_1D4.data.u8[5] &= ~0x40;
+      }
+      /* Byte 7 was a lookup of four constants that only held for the fixed payload. With two bits
+         now variable the CRC has to be computed; for BTONFN = RLYP = 1 it reproduces the previous
+         0x12 / 0xD5 / 0x19 / 0xDE exactly, so a build without contactor control is bit-identical. */
+      LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
@@ -1424,12 +1660,15 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
       /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
          Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
-         other nibble in the message: the request adds 0x00, 0x20 or 0x40 to byte 2, i.e. 0, 2 or
-         4 to that sum, so the constants above are corrected by twice the selected value rather
-         than recomputing the whole checksum on every message. */
-      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (user_selected_LEAF_chg_sta_rq << 5);
-      LEAF_1F2.data.u8[7] =
-          (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
+         other nibble in the message: the request adds 0x00, 0x20, 0x40 or 0x60 to byte 2, i.e. 0,
+         2, 4 or 6 to that sum, so the constants above are corrected by twice the value sent rather
+         than recomputing the whole checksum on every message.
+         293A0NDS25 5.1.2 step 1) "Preparation of battery controller stop" overrides the selected
+         value with 11b ahead of a BMS power cut. It is the first step of the ending sequence, so
+         BTONFN and RLYP only drop after it has been sent. */
+      uint8_t chg_sta_rq = (ending_step >= ENDING_CHG_STA_RQ_STOP) ? 0x03 : user_selected_LEAF_chg_sta_rq;
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (chg_sta_rq << 5);
+      LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (chg_sta_rq << 1)) & 0x0F);
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
@@ -1530,7 +1769,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC.
       bool dtc_operation_pending =
           UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
-      if (!stop_battery_query && !dtc_operation_pending) {
+      /* No group polls from the moment a BMS reset starts until it has ended. A diagnostic exchange
+         with the LBC is a reason for it to stay awake, and the reset is taking it through the ending
+         sequence towards sleep. The static groups are armed for a re-read after the reset anyway. */
+      bool bms_reset_running = datalayer.system.status.bms_reset_status != BMS_RESET_IDLE;
+      if (!stop_battery_query && !dtc_operation_pending && !bms_reset_running) {
 
         // Move to the next group, skipping the static ones that already answered. The charge
         // counters with the usage histograms and the two identity strings cannot change while the

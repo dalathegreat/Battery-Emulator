@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
+#include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
+#include "../Software/src/devboard/hal/hal.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
 
@@ -446,4 +448,135 @@ TEST(BmsResetTests, ShortBmsResetLeavesCanAliveAlone) {
   EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 3);
 
   teardown_periodic_reset_test();
+}
+
+// --- Battery::ready_for_bms_power_off() -----------------------------------------
+
+namespace {
+
+// A battery driver that has CAN of its own to send before losing BMS power, and says when it is done.
+class PreparingBattery : public Battery {
+ public:
+  bool ready = false;
+  void setup(void) override {}
+  void update_values() override {}
+  const char* interface_name() override { return "stub"; }
+  bool ready_for_bms_power_off() override { return ready; }
+};
+
+bool bms_power_driven_low() {
+  const uint8_t pin = (uint8_t)esp32hal->BMS_POWER();
+  for (const PinWrite& write : get_pin_writes()) {
+    if (write.pin == pin && write.value == LOW) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+// The pin stays high while a battery is still preparing, and is driven low as soon as it is ready.
+TEST(BmsResetTests, WaitsForBatteryReadinessBeforeCuttingPower) {
+  init_hal();
+  PreparingBattery preparing;
+  battery = &preparing;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  datalayer.system.info.equipment_stop_active = false;
+  remote_bms_reset = true;
+  contactor_control_enabled = true;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
+  set_millis64(1000000);
+
+  clear_pin_writes();
+  start_bms_reset();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+  EXPECT_FALSE(bms_power_driven_low()) << "power cut before the battery was ready";
+
+  set_millis64(1000500);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+  EXPECT_FALSE(bms_power_driven_low());
+
+  preparing.ready = true;
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+  EXPECT_TRUE(bms_power_driven_low());
+
+  // The off time runs from the actual cut, not from when the reset was requested.
+  set_millis64(1000500 + 29999);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+  set_millis64(1000500 + 30000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+
+  battery = nullptr;
+  remote_bms_reset = false;
+  contactor_control_enabled = false;  // A global: left set, it changes how later tests behave
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
+}
+
+// A driver that never reports ready must not hold the reset open.
+TEST(BmsResetTests, CutsPowerAnywayOnceThePrepareTimeoutPasses) {
+  init_hal();
+  PreparingBattery preparing;
+  battery = &preparing;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  datalayer.system.info.equipment_stop_active = false;
+  remote_bms_reset = true;
+  contactor_control_enabled = true;
+  set_millis64(1000000);
+
+  clear_pin_writes();
+  start_bms_reset();
+
+  set_millis64(1000000 + 1999);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+
+  set_millis64(1000000 + 2000);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+  EXPECT_TRUE(bms_power_driven_low());
+
+  battery = nullptr;
+  remote_bms_reset = false;
+  contactor_control_enabled = false;  // A global: left set, it changes how later tests behave
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
+}
+
+// Without contactor control the current wait still comes first; preparing starts only once it is met.
+TEST(BmsResetTests, PreparesAfterTheCurrentWaitWithoutContactorControl) {
+  init_hal();
+  PreparingBattery preparing;
+  battery = &preparing;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  datalayer.system.info.equipment_stop_active = false;
+  remote_bms_reset = true;
+  contactor_control_enabled = false;
+  datalayer.battery.status.current_dA = 50;
+  set_millis64(1000000);
+
+  clear_pin_writes();
+  start_bms_reset();
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_WAITING_FOR_PAUSE);
+
+  datalayer.battery.status.current_dA = 0;
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+  EXPECT_FALSE(bms_power_driven_low());
+
+  preparing.ready = true;
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+  EXPECT_TRUE(bms_power_driven_low());
+
+  battery = nullptr;
+  remote_bms_reset = false;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 }

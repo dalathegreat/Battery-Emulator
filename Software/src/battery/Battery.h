@@ -155,12 +155,24 @@ class Battery {
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
 
+  /* True for drivers that maintain datalayer.system.status.battery_allows_contactor_closing as a
+     real permission, i.e. that are capable of withholding it. handle_contactors() then treats the
+     flag as a precondition for starting the closing ladder, rather than as status only.
+     Opt-in on purpose: most drivers assign the flag true unconditionally, and a couple never touch
+     it at all, so making the gate apply everywhere would stop those packs from ever closing. */
+  virtual bool gates_contactor_closing() { return false; }
   /* Worst charge (max) and discharge (min) current the pack has seen since the previous
      update_values(), in deciamps, for the charge/discharge limit safety check. The default
      hands back the published current, which is exactly what that check used before this
      existed. Drivers that publish a mean rather than an instantaneous current override it,
      so a short excursion inside the averaging window is not hidden from the safety layer. */
   virtual void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA);
+
+  /* Asked by the BMS reset just before it drives BMS_POWER low. A driver that has to tell its pack
+     something first returns false until that has been sent, and the reset waits in
+     BMS_RESET_PREPARING_POWER_OFF meanwhile (bounded by a timeout). The default of true keeps every
+     other driver on the previous timing, with power cut as soon as the reset allows. */
+  virtual bool ready_for_bms_power_off() { return true; }
 
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }

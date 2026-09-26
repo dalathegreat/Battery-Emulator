@@ -60,6 +60,11 @@ bool periodicResetDeferred = false;   //True while a due periodic reset is waiti
 bool balancingPeriodSkipped = false;  //True once balancing has cost the reset a period
 uint32_t bmsPowerOnTime = 0;
 const uint32_t bmsWarmupDuration = 3000;
+/* Start of BMS_RESET_PREPARING_POWER_OFF, and the most it may take. A driver that never reports
+   ready must not hold the reset open, so power is cut regardless once this has passed. Generous
+   against the Leaf's ending sequence, which needs about 300 ms. */
+static uint32_t bmsPreparePowerOffTime = 0;
+static const uint32_t BMS_PREPARE_POWER_OFF_TIMEOUT_MS = 2000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset
 
 /* The safety layer decrements CAN_battery_still_alive once per second and latches
@@ -252,7 +257,23 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
+      /* A standing FAULT has to stop the ladder from starting, not just unwind it afterwards.
+         The latch above is a tick counter, so a fault that is already present at boot only trips it
+         about 10 s after it is raised - by which time the 10 s startup inhibit below has expired and
+         the ladder has run all the way to COMPLETED. The visible effect was that "Interlock
+         required:" with an open interlock closed negative, precharge and positive and only then
+         latched everything open again, instead of never closing. */
+      bool no_standing_fault = (datalayer.system.status.system_status != FAULT);
+
+      /* The pack's own permission, checked before any relay is commanded on rather than after.
+         293A0NDS25 5.1.1 step 3) has the controller confirm the pack is willing (LB_FRLYON = 1,
+         LB_FAIL = 0) and only then proceed to step 4), the relay ON sequence. Only drivers that can
+         genuinely withhold the flag opt in, see Battery::gates_contactor_closing(). */
+      bool battery_permits =
+          !battery || !battery->gates_contactor_closing() || datalayer.system.status.battery_allows_contactor_closing;
+
+      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+          no_standing_fault && battery_permits) {
         contactorStatus = START_PRECHARGE;
       }
     }
@@ -382,22 +403,34 @@ static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& eng
   }
 }
 
+/* An extra pack's own permission, for drivers that gate closing (Battery::gates_contactor_closing()),
+   the same precondition the primary pack gets before its ladder starts (293A0NDS25 5.1.1 step 3)).
+   Consulted only while the contactor is open, as for the primary pack: it keeps a pack from joining,
+   but a momentary loss of permission never breaks a circuit that is carrying current. */
+static bool extra_pack_permits_close(Battery* pack, bool pack_permits, bool engaged) {
+  return engaged || !pack || !pack->gates_contactor_closing() || pack_permits;
+}
+
 void handle_contactors_battery2() {
   static uint32_t pull_in_start = 0;
+  bool& engaged = datalayer.system.status.contactors_battery2_engaged;
 
-  handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2",
-                         "LEAVE Battery 2");
+  handle_extra_contactor(
+      esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing &&
+          extra_pack_permits_close(battery2, datalayer.system.status.battery2_pack_permits_closing, engaged),
+      engaged, pull_in_start, "JOIN Battery 2", "LEAVE Battery 2");
 }
 
 void handle_contactors_battery3() {
   static uint32_t pull_in_start = 0;
+  bool& engaged = datalayer.system.status.contactors_battery3_engaged;
 
-  handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3",
-                         "LEAVE Battery 3");
+  handle_extra_contactor(
+      esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing &&
+          extra_pack_permits_close(battery3, datalayer.system.status.battery3_pack_permits_closing, engaged),
+      engaged, pull_in_start, "JOIN Battery 3", "LEAVE Battery 3");
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
@@ -511,6 +544,40 @@ static void bms_reset_can_keepalive_tick() {
   bms_reset_refresh_can_alive();
 }
 
+// The first configured battery (1, 2 or 3) that still has something to send before losing BMS
+// power, or 0 when every one of them is ready.
+static uint8_t first_battery_not_ready_for_bms_power_off() {
+  if (battery && !battery->ready_for_bms_power_off()) {
+    return 1;
+  }
+  if (battery2 && !battery2->ready_for_bms_power_off()) {
+    return 2;
+  }
+  if (battery3 && !battery3->ready_for_bms_power_off()) {
+    return 3;
+  }
+  return 0;
+}
+
+static bool batteries_ready_for_bms_power_off() {
+  return first_battery_not_ready_for_bms_power_off() == 0;
+}
+
+/* The single place that decides to cut BMS power. When every battery is ready it does so at once,
+   exactly as before. Otherwise it parks the reset in BMS_RESET_PREPARING_POWER_OFF, where the
+   drivers keep transmitting and handle_BMSpower() cuts power once they are done. The pin is always
+   driven low before POWERED_OFF is published, which the Leaf driver relies on for its GoToSleep. */
+static void cut_bms_power_when_batteries_ready(uint32_t now) {
+  if (batteries_ready_for_bms_power_off()) {
+    bms_power_off();
+    lastPowerRemovalTime = now;
+    datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  } else {
+    bmsPreparePowerOffTime = now;
+    datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  }
+}
+
 void handle_BMSpower() {
   //Skip running the BMS reset state machine if equipment stop is active, as we don't want to powercycle the BMS during that time
   if (datalayer.system.info.equipment_stop_active) {
@@ -569,15 +636,26 @@ void handle_BMSpower() {
           || (abs(battery_current_dA) < 10 && abs(battery2_current_dA) < 10 && abs(battery3_current_dA) < 10 &&
               currentTime - lastPowerRemovalTime >= 5000)) {
 
-        bms_power_off();
-        lastPowerRemovalTime = currentTime;
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        cut_bms_power_when_batteries_ready(currentTime);
       } else if (currentTime - lastPowerRemovalTime >= 10000) {
         // There's still current, and we don't want to weld the contactors, so give up.
 
         datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
         set_event(EVENT_PERIODIC_BMS_RESET_FAILURE, 0);  // also printing a log entry
         clear_event(EVENT_PERIODIC_BMS_RESET_FAILURE);
+      }
+    } else if (datalayer.system.status.bms_reset_status == BMS_RESET_PREPARING_POWER_OFF) {
+      // A battery driver is sending its last CAN before losing power. Cut once it is done.
+      uint8_t not_ready = first_battery_not_ready_for_bms_power_off();
+      bool timed_out = currentTime - bmsPreparePowerOffTime >= BMS_PREPARE_POWER_OFF_TIMEOUT_MS;
+      if (not_ready == 0 || timed_out) {
+        if (not_ready != 0) {
+          logging.printf("BMS reset: Battery %u not ready for power off after %u ms, cutting anyway.\n",
+                         (unsigned)not_ready, (unsigned)BMS_PREPARE_POWER_OFF_TIMEOUT_MS);
+        }
+        bms_power_off();
+        lastPowerRemovalTime = currentTime;
+        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
       }
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERED_OFF) {
       bms_reset_can_keepalive_tick();
@@ -628,11 +706,9 @@ void start_bms_reset() {
         // We power the contactors directly, so we can avoid closing/opening them
         // during reset.
 
-        // Thus we can cut the BMS power now
-        bms_power_off();
-
-        // and jump straight to powered off state, no need to wait.
-        datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+        // Thus we can cut the BMS power now, once the batteries have sent what they need to,
+        // and jump straight to powered off state, no need to wait for current.
+        cut_bms_power_when_batteries_ready(lastPowerRemovalTime);
       } else {
         // The BMS powers the contactors, so we need to wait for the pause to
         // take effect before cutting power to it, or the contactors might drop
