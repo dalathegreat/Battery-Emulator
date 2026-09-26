@@ -222,9 +222,11 @@ void init_stored_settings() {
 #ifdef HW_LILYGO2CAN
   user_selected_gpioopt1 = (GPIOOPT1)settings.getUInt("GPIOOPT1", 0);
 #endif
+#ifdef HW_LILYGO
   user_selected_gpioopt2 = (GPIOOPT2)settings.getUInt("GPIOOPT2", 0);
   user_selected_gpioopt3 = (GPIOOPT3)settings.getUInt("GPIOOPT3", 0);
   user_selected_gpioopt4 = (GPIOOPT4)settings.getUInt("GPIOOPT4", 0);
+#endif
 #ifdef HW_STARK
   user_selected_gpioopt5 = (GPIOOPT5)settings.getUInt("GPIOOPT5", 0);
 #endif

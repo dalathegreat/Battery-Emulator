@@ -67,6 +67,10 @@ enum class BatteryType {
 
 extern std::vector<BatteryType> supported_battery_types();
 extern const char* name_for_battery_type(BatteryType type);
+// Whether a battery talks RS485 rather than CAN, without constructing it - the
+// constructors register transmitters and receivers, so probing one is not free.
+// The settings page uses this to offer only interfaces the battery can use.
+extern bool battery_type_uses_rs485(BatteryType type);
 extern const char* name_for_chemistry(battery_chemistry_enum chem);
 extern const char* name_for_comm_interface(comm_interface comm);
 

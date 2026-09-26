@@ -1,0 +1,570 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/dalathegreat/Battery-Emulator/raw/refs/heads/main/board-config/board-config-schema-1.json",
+  "title": "Battery-Emulator board configuration",
+  "description": "Describes the GPIO wiring of one physical board, so that a single firmware image can run on any board of the same CPU architecture. Uploaded to the device through the web UI and stored on the filesystem partition as /board.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["config_version", "board", "ports"],
+
+  "properties": {
+    "$schema": {
+      "description": "Editor hint pointing at this schema. Ignored by the firmware.",
+      "type": "string"
+    },
+    "config_version": {
+      "description": "Schema version this file is written against.",
+      "type": "integer",
+      "const": 1
+    },
+    "strict": {
+      "description": "Promote every validation warning to an error. Off by default, because several shipping boards drive strapping pins and would otherwise refuse to start.",
+      "type": "boolean",
+      "default": false
+    },
+    "board": { "$ref": "#/definitions/board" },
+    "ports": {
+      "description": "Every peripheral the board exposes. Ports of the same type may appear more than once to describe alternative wiring; exactly one of them may be enabled.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/port" }
+    }
+  },
+
+  "definitions": {
+
+    "board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mcu"],
+      "properties": {
+        "name": {
+          "description": "Shown in the web UI and in the boot log.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 48
+        },
+        "mcu": {
+          "description": "Target the file is written for. A file is rejected if it does not match the running chip.",
+          "type": "string",
+          "enum": ["esp32s3"]
+        },
+        "revision": {
+          "description": "Free-text hardware revision or variant, e.g. \"v2\" or \"MCP2518FD\".",
+          "type": "string",
+          "maxLength": 32
+        },
+        "notes": { "$ref": "#/definitions/notes" }
+      }
+    },
+
+    "notes": {
+      "description": "Free-text remark. Ignored by the firmware; use this instead of JSON comments so the file still validates against this schema in an editor.",
+      "type": "string",
+      "maxLength": 240
+    },
+
+    "pin": {
+      "description": "GPIO number. ESP32-S3 has GPIO0-21 and GPIO26-48; 22-25 do not exist.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 48
+    },
+
+    "spi_bus": {
+      "description": "Which SPI peripheral drives this device. Two devices may share a bus if only one of them declares sck/sdi/sdo.",
+      "type": "string",
+      "enum": ["fspi", "hspi"]
+    },
+
+    "enabled": {
+      "description": "Whether this port is claimed at boot. Disabled ports are still parsed and validated, but their pins are not allocated, so they may overlap enabled ports freely.",
+      "type": "boolean"
+    },
+
+    "port": {
+      "type": "object",
+      "required": ["type", "enabled"],
+      "oneOf": [
+        { "$ref": "#/definitions/port_statusled" },
+        { "$ref": "#/definitions/port_display_ssd1306" },
+        { "$ref": "#/definitions/port_contactor_control" },
+        { "$ref": "#/definitions/port_contactor_second_battery" },
+        { "$ref": "#/definitions/port_contactor_third_battery" },
+        { "$ref": "#/definitions/port_bms_power" },
+        { "$ref": "#/definitions/port_precharge_control" },
+        { "$ref": "#/definitions/port_sma_enable" },
+        { "$ref": "#/definitions/port_nativecan" },
+        { "$ref": "#/definitions/port_mcp2515" },
+        { "$ref": "#/definitions/port_mcp2518fd" },
+        { "$ref": "#/definitions/port_rs485" },
+        { "$ref": "#/definitions/port_e_stop" },
+        { "$ref": "#/definitions/port_longpress_reset" },
+        { "$ref": "#/definitions/port_battery_wakeup" },
+        { "$ref": "#/definitions/port_chademo" },
+        { "$ref": "#/definitions/port_sdcard" }
+      ]
+    },
+
+    "port_statusled": {
+      "title": "Addressable status LED",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "statusled" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "led_count": {
+          "description": "Pixels chained off the data pin. Pixel 0 is always the status LED; boards that replace hardwired indicator LEDs with RGB report more.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "default": 1
+        },
+        "max_brightness": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 255,
+          "default": 40
+        },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": { "pin": { "$ref": "#/definitions/pin" } }
+        }
+      }
+    },
+
+    "port_display_ssd1306": {
+      "title": "SSD1306 I2C display",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "display_ssd1306" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sda", "scl"],
+          "properties": {
+            "sda": { "$ref": "#/definitions/pin" },
+            "scl": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    },
+
+    "port_contactor_control": {
+      "title": "Primary battery contactors",
+      "description": "Outputs. Mutually exclusive with precharge_control, which reuses the same pins for automatic precharging.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "contactor_control" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["positive", "negative", "precharge"],
+          "properties": {
+            "positive": { "$ref": "#/definitions/pin" },
+            "negative": { "$ref": "#/definitions/pin" },
+            "precharge": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    },
+
+    "port_contactor_second_battery": {
+      "title": "Second battery contactors",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "contactor_second_battery" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": { "pin": { "$ref": "#/definitions/pin" } }
+        }
+      }
+    },
+
+    "port_contactor_third_battery": {
+      "title": "Third battery contactors",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "contactor_third_battery" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": { "pin": { "$ref": "#/definitions/pin" } }
+        }
+      }
+    },
+
+    "port_bms_power": {
+      "title": "BMS power control",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "bms_power" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "active_low": {
+          "description": "True when driving the pin HIGH removes power from the BMS.",
+          "type": "boolean",
+          "default": false
+        },
+        "always_on": {
+          "description": "Hold BMS power asserted unconditionally, for boards where the pin collides with nothing and the BMS should never be cut.",
+          "type": "boolean",
+          "default": false
+        },
+        "reset_hold": {
+          "description": "Latch the pin at its driven level across a firmware-initiated reset or OTA reboot, so it does not float during the boot window. Requires an RTC-capable pin (GPIO0-21 on ESP32-S3).",
+          "type": "boolean",
+          "default": false
+        },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": { "pin": { "$ref": "#/definitions/pin" } }
+        }
+      }
+    },
+
+    "port_precharge_control": {
+      "title": "Automatic precharge control",
+      "description": "HIA4V1 precharge relay plus an inverter disconnect contactor. Usually reuses the contactor_control pins, so only one of the two may be enabled.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "precharge_control" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hia4v1", "inverter_disconnect"],
+          "properties": {
+            "hia4v1": { "$ref": "#/definitions/pin" },
+            "inverter_disconnect": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    },
+
+    "port_sma_enable": {
+      "title": "SMA inverter contactor enable",
+      "description": "Input from the inverter. Never place this on a pin whose boot level is sampled by the chip.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "sma_enable" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": {
+            "pin": { "$ref": "#/definitions/pin" },
+            "led": {
+              "description": "Optional hardwired indicator LED mirroring the enable state.",
+              "$ref": "#/definitions/pin"
+            }
+          }
+        }
+      }
+    },
+
+    "port_nativecan": {
+      "title": "Native CAN (TWAI) controller",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "nativecan" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tx", "rx"],
+          "properties": {
+            "tx": { "$ref": "#/definitions/pin" },
+            "rx": { "$ref": "#/definitions/pin" },
+            "se": {
+              "description": "Optional transceiver silent/standby enable.",
+              "$ref": "#/definitions/pin"
+            }
+          }
+        }
+      }
+    },
+
+    "port_mcp2515": {
+      "title": "MCP2515 SPI CAN controller",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "mcp2515" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "spi_bus": { "$ref": "#/definitions/spi_bus" },
+        "freq_hz": {
+          "description": "Crystal frequency. Omit to autodetect.",
+          "type": "integer",
+          "enum": [8000000, 16000000, 20000000]
+        },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sck", "mosi", "miso", "cs", "int"],
+          "properties": {
+            "sck": { "$ref": "#/definitions/pin" },
+            "mosi": { "$ref": "#/definitions/pin" },
+            "miso": { "$ref": "#/definitions/pin" },
+            "cs": { "$ref": "#/definitions/pin" },
+            "int": { "$ref": "#/definitions/pin" },
+            "rst": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    },
+
+    "port_mcp2518fd": {
+      "title": "MCP2517/2518FD SPI CAN FD controller",
+      "description": "Omit sck/sdi/sdo to share the bus with the other MCP2518FD interface; cs and int are then the only pins of its own.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "interface", "gpio"],
+      "properties": {
+        "type": { "const": "mcp2518fd" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "interface": {
+          "description": "Which of the two CAN FD slots this device occupies.",
+          "type": "integer",
+          "enum": [1, 2]
+        },
+        "spi_bus": { "$ref": "#/definitions/spi_bus" },
+        "freq_hz": {
+          "description": "Crystal frequency. Omit to autodetect.",
+          "type": "integer",
+          "enum": [4000000, 20000000, 40000000]
+        },
+        "clkodiv": {
+          "description": "CLKODIV field of the CiOSC register: 0 = divide by 1, 1 = by 2, 2 = by 4, 3 = by 10.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "default": 3
+        },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cs", "int"],
+          "properties": {
+            "sck": { "$ref": "#/definitions/pin" },
+            "sdi": { "$ref": "#/definitions/pin" },
+            "sdo": { "$ref": "#/definitions/pin" },
+            "cs": { "$ref": "#/definitions/pin" },
+            "int": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    },
+
+    "port_rs485": {
+      "title": "RS485 / Modbus transceiver",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "rs485" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "de_active_high": {
+          "description": "Polarity of the direction pin on half-duplex transceivers with DE and /RE tied together. True means HIGH transmits.",
+          "type": "boolean",
+          "default": true
+        },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tx", "rx"],
+          "properties": {
+            "tx": { "$ref": "#/definitions/pin" },
+            "rx": { "$ref": "#/definitions/pin" },
+            "de_re": {
+              "description": "Direction pin for half-duplex transceivers.",
+              "$ref": "#/definitions/pin"
+            },
+            "en": {
+              "description": "Transceiver chip enable, where separate from the direction pin.",
+              "$ref": "#/definitions/pin"
+            },
+            "se": {
+              "description": "Transceiver slope/standby enable.",
+              "$ref": "#/definitions/pin"
+            },
+            "pin_5v_en": {
+              "description": "Board-level 5 V rail enable the transceiver depends on.",
+              "$ref": "#/definitions/pin"
+            }
+          }
+        }
+      }
+    },
+
+    "port_e_stop": {
+      "title": "Equipment stop input",
+      "description": "Switch type (latching, momentary, not connected) stays a user setting in the web UI, since it describes the switch the installer wired rather than the board.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "e_stop" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": { "pin": { "$ref": "#/definitions/pin" } }
+        }
+      }
+    },
+
+    "port_longpress_reset": {
+      "title": "Momentary button with tiered long-press actions",
+      "description": "Usually the BOOT button. If no board config is loaded, the firmware falls back to GPIO0 so the access point can still be started.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "longpress_reset" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": { "pin": { "$ref": "#/definitions/pin" } }
+        }
+      }
+    },
+
+    "port_battery_wakeup": {
+      "title": "Battery wake-up outputs",
+      "description": "Used by the battery drivers that need to wake a sleeping BMS.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "battery_wakeup" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["wup1"],
+          "properties": {
+            "wup1": { "$ref": "#/definitions/pin" },
+            "wup2": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    },
+
+    "port_chademo": {
+      "title": "CHAdeMO connector signals",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "chademo" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin2", "pin4", "pin7", "pin10", "lock"],
+          "properties": {
+            "pin2": { "$ref": "#/definitions/pin" },
+            "pin4": { "$ref": "#/definitions/pin" },
+            "pin7": { "$ref": "#/definitions/pin" },
+            "pin10": { "$ref": "#/definitions/pin" },
+            "lock": { "$ref": "#/definitions/pin" },
+            "ct": {
+              "description": "Current transformer analog input. Must be an ADC1 channel (GPIO1-10 on ESP32-S3), because ADC2 is unusable while Wi-Fi is up.",
+              "$ref": "#/definitions/pin"
+            }
+          }
+        }
+      }
+    },
+
+    "port_sdcard": {
+      "title": "SD card over SPI",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "sdcard" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "spi_bus": { "$ref": "#/definitions/spi_bus" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["miso", "mosi", "sclk", "cs"],
+          "properties": {
+            "miso": { "$ref": "#/definitions/pin" },
+            "mosi": { "$ref": "#/definitions/pin" },
+            "sclk": { "$ref": "#/definitions/pin" },
+            "cs": { "$ref": "#/definitions/pin" }
+          }
+        }
+      }
+    }
+  }
+}

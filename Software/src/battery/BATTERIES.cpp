@@ -1,4 +1,5 @@
 #include "BATTERIES.h"
+#include <type_traits>
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/hal/hal.h"
 #include "../devboard/utils/logging.h"
@@ -96,6 +97,19 @@ const char* name_for_chemistry(battery_chemistry_enum chem) {
 const char* name_for_comm_interface(comm_interface comm) {
   return esp32hal->name_for_comm_interface(comm);
 }
+
+bool battery_type_uses_rs485(BatteryType type) {
+  // Every battery not listed here is a CanBattery. Add a new RS485Battery here,
+  // or the settings page will hide the RS485 interface it needs.
+  switch (type) {
+    case BatteryType::DalyBms:
+      return true;
+    default:
+      return false;
+  }
+}
+static_assert(std::is_base_of<RS485Battery, DalyBms>::value,
+              "battery_type_uses_rs485() lists DalyBms, which no longer derives from RS485Battery");
 
 const char* name_for_battery_type(BatteryType type) {
   switch (type) {

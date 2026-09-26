@@ -1,4 +1,5 @@
 #include "INVERTERS.h"
+#include <type_traits>
 
 #include "AFORE-CAN.h"
 #include "BYD-CAN.h"
@@ -74,6 +75,25 @@ std::vector<InverterProtocolType> supported_inverter_protocols() {
 
   return types;
 }
+
+bool inverter_type_uses_rs485(InverterProtocolType type) {
+  // Every protocol not listed here is a CanInverterProtocol. Add a new RS485 or
+  // Modbus protocol here, or the settings page will hide the interface it needs.
+  switch (type) {
+    case InverterProtocolType::BydModbus:
+    case InverterProtocolType::Kostal:
+    case InverterProtocolType::PylonLV485:
+      return true;
+    default:
+      return false;
+  }
+}
+static_assert(std::is_base_of<ModbusInverterProtocol, BydModbusInverter>::value,
+              "inverter_type_uses_rs485() lists BydModbus, which no longer derives from ModbusInverterProtocol");
+static_assert(std::is_base_of<Rs485InverterProtocol, KostalInverterProtocol>::value,
+              "inverter_type_uses_rs485() lists Kostal, which no longer derives from Rs485InverterProtocol");
+static_assert(std::is_base_of<Rs485InverterProtocol, PylonLV485InverterProtocol>::value,
+              "inverter_type_uses_rs485() lists PylonLV485, which no longer derives from Rs485InverterProtocol");
 
 extern const char* name_for_inverter_type(InverterProtocolType type) {
   switch (type) {

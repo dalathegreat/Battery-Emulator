@@ -2,6 +2,7 @@
 #define __HW_LILYGO2CAN_H__
 
 #include "hal.h"
+#include "mcp_probe.h"
 
 #include "../utils/types.h"
 
@@ -194,51 +195,10 @@ class LilyGo2CANHal : public Esp32Hal {
   bool has_mcp2518fd = false;
 
   bool detect_fd() {
-    // Detect whether this is the T-2CAN with MCP2515 (non-FD) or MCP2518FD (FD)
-    // by assuming it is a MCP2515, attempting to reset and reading CANSTAT.
-
-    const int IO9 = GPIO_NUM_9;
-    const int CS = GPIO_NUM_10;
-    const int MISO = GPIO_NUM_13;
-    const int MOSI = GPIO_NUM_11;
-    const int SCK = GPIO_NUM_12;
-
-    pinMode(IO9, INPUT_PULLDOWN);        // Reset (if MCP2515)
-    vTaskDelay(1 / portTICK_PERIOD_MS);  // Wait for reset
-    pinMode(IO9, INPUT_PULLUP);          // Deassert reset
-
-    pinMode(CS, OUTPUT);
-    digitalWrite(CS, HIGH);              // Ensure CS is high to start with
-    vTaskDelay(1 / portTICK_PERIOD_MS);  // Wait for chip to settle
-
-    SPISettings _settings(100000, MSBFIRST, SPI_MODE0);
-    SPIClass _spi(HSPI);
-    _spi.begin(SCK, MISO, MOSI);
-
-    // Read MCP2515 CANSTAT register
-    const uint8_t tx_data[] = {0x03, 0x0E, 0x00};
-    uint8_t rx_data[3] = {0};
-
-    _spi.beginTransaction(_settings);
-    digitalWrite(CS, LOW);
-    _spi.transferBytes(tx_data, rx_data, 3);
-    digitalWrite(CS, HIGH);
-    _spi.endTransaction();
-
-    pinMode(CS, INPUT);  // Set CS back to high impedance
-
-    _spi.end();
-
-    // MCP2515 will return 0x80, MCP2518FD will return something else.
-    bool detected_fd = rx_data[2] != 0x80;
-
-    if (detected_fd) {
-      logging.printf("2CAN FD detected (ret=%d)\n", rx_data[2]);
-    } else {
-      logging.printf("2CAN non-FD detected (ret=%d)\n", rx_data[2]);
-    }
-
-    return detected_fd;
+    // Anything that is not a plain MCP2515 is treated as the FD variant, which is
+    // also how a silent bus was read before the probe moved into mcp_probe.h.
+    return probe_mcp(DEFAULT_MCP2515_BUS, GPIO_NUM_12, GPIO_NUM_13, GPIO_NUM_11, GPIO_NUM_10, GPIO_NUM_9) !=
+           McpKind::Mcp2515;
   }
 };
 
