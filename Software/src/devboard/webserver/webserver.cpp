@@ -1,5 +1,9 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include <esp_random.h>
+#include <algorithm>
+#include <atomic>
+#include <new>
 #include <vector>
 #include "../../battery/BATTERIES.h"
 #include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
@@ -66,6 +70,8 @@ bool isReplayRunning = false;  // Global flag to track replay state
 bool settingsUpdated = false;
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
+
+static void send_main_page(AsyncWebServerRequest* request, bool live_only);
 
 bool webserver_auth_is_ready() {
   return webserver_auth && !http_username.empty() && !http_password.empty();
@@ -238,8 +244,11 @@ void init_webserver() {
   def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     // Clear OTA active flag as a safeguard in case onOTAEnd() wasn't called
     ota_active = false;
-    request->send(200, "text/html", index_html, processor);
+    send_main_page(request, false);
   });
+
+  // The changing part of the main page on its own. The page polls this instead of reloading itself.
+  def_route_with_auth("/live", server, HTTP_GET, [](AsyncWebServerRequest* request) { send_main_page(request, true); });
 
   // Route for going to settings web page
   def_route_with_auth("/settings", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -407,9 +416,7 @@ void init_webserver() {
                       [](AsyncWebServerRequest* request) { send_cellmonitor_page(request); });
 
   // Route for going to event log web page
-  def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, events_processor);
-  });
+  def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) { send_events_page(request); });
 
   // Route for clearing all events
   def_route_with_auth("/clearevents", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -1306,75 +1313,43 @@ static void render_battery_card(String& content, const String& style, const Batt
   content += "</div>";
 }
 
-/* The main page is a little over 12 kB with two packs, and it used to be assembled by two
-   hundred appends onto an empty String. Arduino's String grows by reallocating, so that is two
-   hundred chances to ask a heap that has been up for weeks for an ever larger contiguous block -
-   and when one of those fails, concat() drops the append and returns silently. The page then
-   arrives truncated at whatever point the heap gave out, which is why it sometimes renders with
-   elements missing. Reserving up front turns two hundred chances to fail into one, and that one
-   is checked, at a size that leaves the largest free block mostly intact: three packs come to
-   about 13.6 kB, so this is headroom rather than a land grab. Note that it lowers the peak
-   rather than raising it - a realloc holds the old buffer and the new one at the same time, so
-   growing to 12 kB by halves was already touching 25 kB at the moment it crossed over.
+/* The main page is split in two. Its styles, buttons and scripts never change, so they are sent
+   straight from flash when the page is opened and never rebuilt. Only the live part in between -
+   the status blocks and the battery cards - is rendered per request, both into the page and on
+   its own for /live, which the page polls instead of reloading itself.
 
-   The proper fix is the one send_advanced_battery_page() uses: an AsyncAbstractResponse that
-   emits the page in stages so it is never held whole. That is a rewrite of this function and
-   the three others like it, and worth doing separately. */
-static constexpr size_t MAIN_PAGE_RESERVE_BYTES = 16384;
+   The live part is rendered into one buffer reserved up front. Arduino's String grows by
+   reallocating, so appending a few hundred pieces onto an empty String is a few hundred chances
+   to ask a heap that has been up for weeks for an ever larger contiguous block - and when one of
+   those fails, concat() drops the append and returns silently, leaving a page with elements
+   missing. Reserving turns those chances into one, and that one is checked. Three packs come to
+   roughly 10 kB, so this is headroom rather than a land grab. The buffer is sent as it is, with
+   no second copy of it on the way out (see MainPageResponse). */
+static constexpr size_t LIVE_RESERVE_BYTES = 12288;
 
-static String low_memory_page(const char* title) {
-  return String("<h2>") + title +
-         "</h2><h4 style='color: #F5CC00;'>Not enough free memory to render this page right now. "
-         "Retrying in a few seconds.</h4>"
-         "<script>setTimeout(function(){location.reload(true);},5000);</script>";
+/* Differs on every boot, so a page left open can tell that the emulator restarted - after a
+   reboot or an OTA update - and reload itself to pick up the page of the running firmware. Drawn
+   on first use rather than at startup, when the radio that seeds the RNG may not be up yet. */
+static uint32_t boot_id() {
+  static uint32_t id = 0;
+  if (id == 0) {
+    id = esp_random() | 1;
+  }
+  return id;
 }
 
-String processor(const String& var) {
-  if (var == "X") {
-    CheckedHtml content;
-    if (!content.reserve(MAIN_PAGE_RESERVE_BYTES)) {
-      /* Say so and come back for another try, rather than serving half a page that looks like
-         the emulator has lost half its hardware. */
-      return low_memory_page("Battery Emulator");
-    }
-    content += "<style>";
-    content += "body { background-color: black; color: white; }";
-    content +=
-        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
-        "cursor: pointer; border-radius: 10px; }";
-    content += "button:hover { background-color: #3A4A52; }";
-    content += "h2 { font-size: 1.2em; margin: 0.3em 0 0.5em 0; }";
-    content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
-    //content += ".tooltip { position: relative; display: inline-block; }";
-    content += ".tooltip .tooltiptext {";
-    content += "  visibility: hidden;";
-    content += "  width: 200px;";
-    content += "  background-color: #3A4A52;";  // Matching your button hover color
-    content += "  color: white;";
-    content += "  text-align: center;";
-    content += "  border-radius: 6px;";
-    content += "  padding: 8px;";
-    content += "  position: absolute;";
-    content += "  z-index: 1;";
-    content += "  margin-left: -100px;";
-    content += "  opacity: 0;";
-    content += "  transition: opacity 0.3s;";
-    content += "  font-size: 0.9em;";
-    content += "  font-weight: normal;";
-    content += "  line-height: 1.4;";
-    content += "}";
-    content += ".tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }";
-    content += ".tooltip-icon { color: #505E67; cursor: help; }";  // Matching your button color
-    content += "</style>";
-
-    // Compact header
-    content +=
-        "<h2><a href='https://dalathegreat.github.io/Battery-Emulator-Wiki/' target='_blank' "
-        "rel='noopener' style='color:inherit'>Battery Emulator</a></h2>";
+static bool render_live(CheckedHtml& content) {
+  if (content.reserve(LIVE_RESERVE_BYTES)) {
+    /* What the fixed part of the page needs from this render: which button of each pair to show,
+       and which boot served it. */
+    char state[96];
+    snprintf(state, sizeof(state), "<i id='S' hidden data-b='%08lx' data-p='%d' data-e='%d'></i>",
+             (unsigned long)boot_id(), emulator_pause_request_ON ? 1 : 0,
+             datalayer.system.info.equipment_stop_active ? 1 : 0);
+    content += state;
 
     // Start content block
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-    content += "<div id='bxUpd' style='text-align:center'></div>";
     content += "<h4>";
 #if defined(GIT_TAG) && defined(GITHUB_ORG) && defined(GITHUB_REPO)
     content += "<a href='https://github.com/" GITHUB_ORG "/" GITHUB_REPO "/releases/tag/" GIT_TAG
@@ -1729,111 +1704,223 @@ String processor(const String& var) {
 
       content += "</div>";
     }
+  }
+  return content.good();
+}
 
-    if (emulator_pause_request_ON)
-      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button> ";
-    else
-      content +=
-          "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
-          "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
-          "}\">Pause charge/discharge</button> ";
+/* The fixed part of the main page, around the live part. The styles and the header come before
+   it; the buttons and the scripts after it. The buttons whose label follows the emulator's state
+   come in pairs, both hidden until the script shows the right one from the live part's state. */
+static const char main_page_head[] =
+    R"html(<style>body{background-color:black;color:white}
+button{background-color:#505E67;color:white;border:none;padding:10px 20px;margin-bottom:20px;cursor:pointer;border-radius:10px}
+button:hover{background-color:#3A4A52}
+h2{font-size:1.2em;margin:.3em 0 .5em}
+h4{margin:.6em 0;line-height:1.2}
+.tooltip .tooltiptext{visibility:hidden;width:200px;background-color:#3A4A52;color:white;text-align:center;border-radius:6px;padding:8px;position:absolute;z-index:1;margin-left:-100px;opacity:0;transition:opacity .3s;font-size:.9em;font-weight:normal;line-height:1.4}
+.tooltip:hover .tooltiptext{visibility:visible;opacity:1}
+.tooltip-icon{color:#505E67;cursor:help}
+#live{cursor:pointer;transition:opacity .2s;-webkit-tap-highlight-color:transparent}
+</style>
+<h2><a href='https://dalathegreat.github.io/Battery-Emulator-Wiki/' target='_blank' rel='noopener' style='color:inherit'>Battery Emulator</a></h2>
+<div id='bxUpd' style='text-align:center'></div><h4 id='note' hidden style='color:#F5CC00'></h4><div id='live'>)html";
 
-    content += "<button onclick='OTA()'>Perform OTA update</button> ";
-    content += "<button onclick='Settings()'>Change Settings</button> ";
-    content += "<button onclick='Advanced()'>More Battery/Cell Info</button> ";
-    content += "<button onclick='CANtools()'>CAN tools</button> ";
+static const char main_page_buttons[] =
+    R"html(</div><button id='P0' hidden onclick="if(confirm('Are you sure you want to pause charging and discharging? This will set the maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); }">Pause charge/discharge</button><button id='P1' hidden onclick='PauseBattery(false)'>Resume charge/discharge</button> <button onclick="location='/update'">Perform OTA update</button> <button onclick="location='/settings'">Change Settings</button> <button onclick="location='/advanced'">More Battery/Cell Info</button> <button onclick="location='/canreplay'">CAN tools</button> )html";
+static const char main_page_log_button[] = "<button onclick=\"location='/log'\">Log</button> ";
+static const char main_page_more_buttons[] =
+    "<button onclick='Events()'>Events</button> <button onclick='askReboot()'>Reboot Emulator</button> ";
+static const char main_page_logout_button[] = "<button onclick=\"location='/logout'\">Logout</button>";
+
+#ifdef GIT_TAG
+// In-UI update notification (browser-side, 6h cached) - issue #1660. Release builds only.
+#define MAIN_PAGE_UPDATE_CHECK \
+  R"js(<script>(function(){var cur=')js" GIT_TAG R"js(';var el=document.getElementById('bxUpd');if(!el)return;
+function p(v){return v.replace(/^v/,'').split('.').map(function(x){return parseInt(x,10)||0;});}
+function nw(a,b){for(var i=0;i<Math.max(a.length,b.length);i++){var x=a[i]||0,y=b[i]||0;if(x>y)return true;if(x<y)return false;}return false;}
+function show(t,u){if(nw(p(t),p(cur)))el.innerHTML="<a href='"+u+"' target='_blank' style='display:inline-block;margin:2px 0 10px;padding:8px 16px;background:#505E67;border:1px solid #4caf50;border-radius:10px;color:#fff;font-weight:bold;text-decoration:none'>&#128276; New version "+t+" available &rarr;</a>";}
+var c=null;try{c=JSON.parse(localStorage.getItem('beUpd'));}catch(e){}var now=Date.now();
+if(c&&c.t&&(now-c.t)<21600000){show(c.tag,c.url);return;}
+fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/latest').then(function(r){return r.json();}).then(function(d){if(!d||!d.tag_name)return;try{localStorage.setItem('beUpd',JSON.stringify({t:now,tag:d.tag_name,url:d.html_url}));}catch(e){}show(d.tag_name,d.html_url);}).catch(function(){});
+})();</script>)js"
+#else
+#define MAIN_PAGE_UPDATE_CHECK ""
+#endif
+
+/* The page script polls /live and swaps it in, instead of reloading the whole page:
+   - A hidden tab does not poll at all; it catches up the moment it is shown again.
+   - A failed poll keeps what is on screen and retries in 5 s. From the second failure in a row
+     the data is dimmed and the reason shown, so stale numbers never pass for fresh ones.
+   - A poll answered by a different boot means the emulator restarted (reboot, OTA update), so
+     the page reloads to get the page of the firmware now running. Rebooting from this page just
+     keeps polling until that happens, instead of navigating away after a fixed delay.
+   - Pause and the contactor buttons refresh the live part right away instead of reloading.
+   - A tap or click on the live part (or on the note above it) refreshes it at once, dimming it
+     briefly as acknowledgement. Not when it lands on a link, a button or a tooltip of its own,
+     or ends a text selection, and not within 1 s of the last request, so tapping away cannot
+     hammer the emulator. A tap that fails is reported at once, without waiting for a second.
+   Plain ES5, so a browser too old for fetch() still parses it and falls back to reloading. The
+   page does without COMMON_JAVASCRIPT: its reboot() would navigate away after a fixed delay. */
+static const char main_page_end[] =
+    R"html(<br/><button id='E0' hidden style="background:red;color:white;cursor:pointer;" onclick="if(confirm('This action will attempt to open contactors on the battery. Are you sure?')) { estop(true); }">Open Contactors</button><button id='E1' hidden style="background:green;color:white;cursor:pointer;" onclick="if(confirm('This action will attempt to close contactors and enable power transfer. Are you sure?')) { estop(false); }">Close Contactors</button><br/>
+<script>
+function Events(){location='/events'}
+function g(i){return document.getElementById(i)}
+function send(u,f){var x=new XMLHttpRequest();x.onload=function(){if(f)f();tick()};x.open('GET',u,true);x.send()}
+function PauseBattery(p){send('/pause?value='+p)}
+function estop(s){send('/equipmentStop?value='+s)}
+function askReboot(){if(confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!'))send('/reboot',function(){R=1})}
+var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0;
+function state(){var s=g('S');if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
+g('P0').hidden=p;g('P1').hidden=!p;g('E0').hidden=e;g('E1').hidden=!e;return s.getAttribute('data-b')}
+function later(ms){clearTimeout(T);T=setTimeout(tick,ms)}
+function tick(){clearTimeout(T);if(document.hidden)return;if(Q){Q=2;return}
+if(!window.fetch)return location.reload();
+Q=1;M=+new Date;var a=window.AbortController?new AbortController():0,w=a&&setTimeout(function(){a.abort()},8000);
+function end(ms){clearTimeout(w);var q=Q;Q=0;later(q>1?0:ms>0?ms:15000)}
+fetch('/live',{cache:'no-store',signal:a?a.signal:undefined})
+.then(function(r){return r.text().then(function(h){if(!r.ok)throw h;return h})})
+.then(function(h){L.innerHTML=h;var b=state();if(B&&b&&b!=B)location.reload();
+B=b||B;F=0;L.style.opacity='';N.hidden=true;return R?3000:15000},
+function(m){if(++F>1){L.style.opacity=.5;N.hidden=false;
+N.textContent=(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
+else L.style.opacity='';return 5000}).then(end,end)}
+L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.tooltip')||String(getSelection())||new Date-M<1000)return;
+F=F||1;L.style.opacity=.7;tick()};
+document.addEventListener('visibilitychange',tick);
+B=state();later(B?15000:5000);
+</script>)html" MAIN_PAGE_UPDATE_CHECK INDEX_HTML_FOOTER;
+
+// Shown in place of the live part when there is not enough memory to render it. The page retries
+// on its own, and fills in as soon as a render succeeds.
+static const char main_page_low_memory[] =
+    "<h4 style='color: #F5CC00;'>Not enough free memory to render this page right now. Retrying in a few "
+    "seconds.</h4>";
+
+namespace {
+// Only one /live answer is out at a time; see send_main_page().
+std::atomic<bool> live_busy{false};
+
+/* Sends the page as a few pieces back to back: the fixed ones straight from flash, the live part
+   from the buffer it was rendered into. Unlike the template engine, which copied everything
+   after the first TCP segment into a cache of its own, nothing is held twice. */
+class MainPageResponse : public AsyncAbstractResponse {
+ public:
+  explicit MainPageResponse(bool holds_live_slot) : AsyncAbstractResponse(nullptr), holds_live_slot(holds_live_slot) {
+    _code = 200;
+    _contentType = "text/html";
+  }
+  ~MainPageResponse() override {
+    if (holds_live_slot) {
+      live_busy.store(false);
+    }
+  }
+
+  // The text must stay valid and unchanged until the response is gone.
+  void add(const char* text, size_t length) {
+    if (length > 0 && count < MAX_PARTS) {
+      parts[count] = text;
+      lengths[count] = length;
+      count++;
+      _contentLength += length;
+    }
+  }
+
+  bool _sourceValid() const override { return true; }
+
+  size_t _fillBuffer(uint8_t* data, size_t len) override {
+    size_t written = 0;
+    while (written < len && part < count) {
+      const size_t n = std::min(len - written, lengths[part] - offset);
+      memcpy(data + written, parts[part] + offset, n);
+      written += n;
+      offset += n;
+      if (offset == lengths[part]) {
+        part++;
+        offset = 0;
+      }
+    }
+    return written;
+  }
+
+  String live;
+
+ private:
+  static constexpr uint8_t MAX_PARTS = 8;
+  const char* parts[MAX_PARTS] = {};
+  size_t lengths[MAX_PARTS] = {};
+  uint8_t count = 0;
+  uint8_t part = 0;
+  size_t offset = 0;
+  bool holds_live_slot;
+};
+}  // namespace
+
+template <size_t N>
+static void add_part(MainPageResponse* page, const char (&text)[N]) {
+  page->add(text, N - 1);
+}
+
+static void send_unavailable(AsyncWebServerRequest* request, const char* reason) {
+  AsyncWebServerResponse* response = request->beginResponse(503, "text/plain", reason);
+  response->addHeader("Cache-Control", "no-store");
+  request->send(response);
+}
+
+static void send_main_page(AsyncWebServerRequest* request, bool live_only) {
+  /* A poll that finds another page's answer still going out is turned away: it keeps what it
+     shows and asks again in a few seconds. That bounds the heap the polls can take however many
+     pages are open. Opening the page is never turned away. */
+  if (live_only && live_busy.exchange(true)) {
+    send_unavailable(request, "Emulator busy.");
+    return;
+  }
+  MainPageResponse* page = new (std::nothrow) MainPageResponse(live_only);
+  if (!page) {
+    if (live_only) {
+      live_busy.store(false);
+    }
+    send_unavailable(request, "Not enough free memory to update right now.");
+    return;
+  }
+
+  CheckedHtml live;
+  const bool rendered = render_live(live);
+  if (rendered) {
+    page->live = live.take();
+  }
+
+  if (live_only) {
+    if (!rendered) {
+      delete page;  // frees the slot
+      send_unavailable(request, "Not enough free memory to update right now.");
+      return;
+    }
+    page->add(page->live.c_str(), page->live.length());
+    page->addHeader("Cache-Control", "no-store");
+  } else {
+    page->add(index_html_header, strlen(index_html_header));
+    add_part(page, main_page_head);
+    if (rendered) {
+      page->add(page->live.c_str(), page->live.length());
+    } else {
+      add_part(page, main_page_low_memory);
+    }
+    add_part(page, main_page_buttons);
     if (datalayer.system.info.web_logging_active
 #ifdef SDCARD
         || datalayer.system.info.SD_logging_active
 #endif
     ) {
-      content += "<button onclick='Log()'>Log</button> ";
+      add_part(page, main_page_log_button);
     }
-    content += "<button onclick='Events()'>Events</button> ";
-    content += "<button onclick='askReboot()'>Reboot Emulator</button> ";
-    if (webserver_auth)
-      content += "<button onclick='logout()'>Logout</button>";
-    if (!datalayer.system.info.equipment_stop_active)
-      content +=
-          "<br/><button style=\"background:red;color:white;cursor:pointer;\""
-          " onclick=\""
-          "if(confirm('This action will attempt to open contactors on the battery. Are you "
-          "sure?')) { estop(true); }\""
-          ">Open Contactors</button><br/>";
-    else
-      content +=
-          "<br/><button style=\"background:green;color:white;cursor:pointer;\""
-          "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
-          " onclick=\""
-          "if(confirm('This action will attempt to close contactors and enable power transfer. Are you sure?')) { "
-          "estop(false); }\""
-          ">Close Contactors</button><br/>";
-    content += "<script>";
-    content += "function OTA() { window.location.href = '/update'; }";
-    content += "function Settings() { window.location.href = '/settings'; }";
-    content += "function Advanced() { window.location.href = '/advanced'; }";
-    content += "function CANtools() { window.location.href = '/canreplay'; }";
-    content += "function Log() { window.location.href = '/log'; }";
-    content += "function Events() { window.location.href = '/events'; }";
+    add_part(page, main_page_more_buttons);
     if (webserver_auth) {
-      content += "function logout() {";
-      content += "  window.location.href = '/logout';";
-      content += "}";
+      add_part(page, main_page_logout_button);
     }
-    content += "function PauseBattery(pause){";
-    content +=
-        "var xhr=new "
-        "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/pause?value='+pause,true);xhr.send();";
-    content += "}";
-    content += "function estop(stop){";
-    content +=
-        "var xhr=new "
-        "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/equipmentStop?value='+stop,true);xhr.send();";
-    content += "}";
-    content += "</script>";
-
-    //Script for refreshing page
-    content += "<script>";
-    content += "setTimeout(function(){ location.reload(true); }, 15000);";
-    content += "</script>";
-
-    // In-UI update notification (browser-side; skips dev builds, 6h cached) - issue #1660
-    content += "<script>";
-    content += "(function(){var cur='" + String(version_number) + "';";
-#ifdef GIT_TAG
-    content += "if(false)return;";
-#else
-    content += "if(true)return;";
-#endif
-    content += "var el=document.getElementById('bxUpd');if(!el)return;";
-    content += "function p(v){return v.replace(/^v/,'').split('.').map(function(x){return parseInt(x,10)||0;});}";
-    content +=
-        "function nw(a,b){for(var i=0;i<Math.max(a.length,b.length);i++){var x=a[i]||0,y=b[i]||0;if(x>y)return "
-        "true;if(x<y)return false;}return false;}";
-    content +=
-        "function show(t,u){if(nw(p(t),p(cur)))el.innerHTML=\"<a href='\"+u+\"' target='_blank' "
-        "style='display:inline-block;margin:2px 0 10px;padding:8px 16px;background:#505E67;border:1px solid "
-        "#4caf50;border-radius:10px;color:#fff;font-weight:bold;text-decoration:none'>&#128276; New version \"+t+\" "
-        "available &rarr;</a>\";}";
-    content += "var c=null;try{c=JSON.parse(localStorage.getItem('beUpd'));}catch(e){}var now=Date.now();";
-    content += "if(c&&c.t&&(now-c.t)<21600000){show(c.tag,c.url);return;}";
-    content +=
-        "fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/latest')."
-        "then(function(r){return r.json();}).then(function(d){if(!d||!d.tag_name)return;"
-        "try{localStorage.setItem('beUpd',JSON.stringify({t:now,tag:d.tag_name,url:d.html_url}));}catch(e){}"
-        "show(d.tag_name,d.html_url);}).catch(function(){});";
-    content += "})();";
-    content += "</script>";
-
-    if (!content.good()) {
-      // An append failed somewhere above. Serving what we have would look like missing hardware.
-      return low_memory_page("Battery Emulator");
-    }
-    return content.take();
+    add_part(page, main_page_end);
   }
-  return String();
+  request->send(page);
 }
 
 void onOTAStart() {
