@@ -3,7 +3,7 @@
   "help": {
     "SSID": "Max 63 characters, printable ASCII only.",
     "PASSWORD": "Password must be 8-63 characters long, printable ASCII only.",
-    "HOSTNAME": "Letters, numbers, '_' and '-' only. Optional. If MQTT is enabled, the topic name, object ID prefix, Home Assistant device name and ID are also set to this. See [MQTT](setup/software/mqtt/#enabling-mqtt).",
+    "HOSTNAME": "Letters, numbers, '_' and '-' only. Optional. If MQTT is enabled, the topic name, object ID prefix, Home Assistant device name and ID are also set to this. See [MQTT](setup/software/mqtt/).",
     "LOCALIP": "IPv4 address of this device.",
     "GATEWAY": "IPv4 address of your router.",
     "SUBNET": "Subnet mask of your network.",
@@ -70,9 +70,9 @@
     "MEASURECPUTEMP": "If enabled, the CPU temperature will be displayed on the webserver.",
     "CPUTEMPOFFSET": "Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly.",
 
-    "ESPNOWENABLED": "Send battery telemetry to nearby devices over ESP-NOW. See [ESP-NOW](setup/software/espnow/).",
+    "ESPNOWENABLED": "Send battery telemetry to nearby devices over ESP-NOW. See [ESPNow](setup/software/espnow/).",
     "ESPNOWMACS": "Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart.",
-    "MQTTENABLED": "Publish the battery data to an MQTT broker and accept commands from it. See [MQTT](setup/software/mqtt/#enabling-mqtt).",
+    "MQTTENABLED": "Publish the battery data to an MQTT broker and accept commands from it. See [MQTT](setup/software/mqtt/).",
     "MQTTSERVER": "Hostname or IP address of the MQTT broker: letters, numbers, '.' and '-'.",
     "MQTTPORT": "Port number (1-65535).",
     "MQTTUSER": "MQTT username can only contain printable ASCII.",
@@ -86,8 +86,8 @@
     "HADISCFWU": "Publish the discovery configs once after every firmware update. They carry the software version and can gain or change entities between releases.",
     "HADISC": "Publish the discovery configs once after the next restart. Clears itself once they have been published.",
 
-    "PERFPROFILE": "For developers. Get detailed performance metrics on the front page.",
-    "WEBENABLED": "Enable this if you want general logging available in the Webserver. See [Log](setup/software/webserver_guide/#log).",
+    "PERFPROFILE": "If asked by developers. Get detailed performance metrics on the front page.",
+    "WEBENABLED": "General logging available in the Webserver. See [Log](setup/software/webserver_guide/#log).",
     "USBENABLED": "WARNING: Causes performance issues. Log general messages via USB cable. Avoid if possible! See [USB serial](setup/software/webserver_guide/#usb-serial).",
     "CANLOGUSB": "WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible! See [CAN logging](setup/can_related/can_logging/#usb).",
     "SDLOGENABLED": "Store logs on an SD card. Only works on hardware with SD-card slot. See [SD card](setup/software/webserver_guide/#sd-card).",
@@ -98,14 +98,14 @@
     "SYSLOGFAC": "0=kern, 1=user, 3=daemon, 16-23=local0-7 (default 1).",
 
     "battwh": "How much energy the battery can store. Some batteries report this over CAN; for the others set it manually, so that the inverter knows how large the battery is. See [Battery Capacity](setup/software/webserver_guide/#battery-capacity).",
-    "socscale": "Extends battery life by rescaling the SOC within the configured minimum and maximum percentage, so the inverter never uses the whole battery. See [Rescale SOC%](setup/software/webserver_guide/#rescale-soc).",
+    "socscale": "Extends battery life by rescaling the SOC within the configured minimum and maximum percentage, so the inverter never uses the whole battery. See [Rescale SOC](setup/software/webserver_guide/#rescale-soc).",
     "maxchga": "Caps the current that can go into the battery. Set it to what your inverter, wiring or fuses allow, whichever is lowest (inverter power / minimum voltage). See [Battery charge/discharge limit](setup/software/webserver_guide/#battery-chargedischarge-limit).",
     "maxdchga": "Caps the current that can come out of the battery. Set it to what your inverter, wiring or fuses allow, whichever is lowest (inverter power / minimum voltage). See [Battery charge/discharge limit](setup/software/webserver_guide/#battery-chargedischarge-limit).",
     "vlimits": "Manually restrict charge/discharge to the target voltages below. If disabled, the emulator determines this based on the battery limits. Not all inverters support voltage based limits. See [Manual charge voltage limits](setup/software/webserver_guide/#manual-charge-voltage-limits).",
     "bmsoff": "How long the BMS power pin stays low during a periodic BMS reset. See [Periodic BMS reset](setup/hardware/periodic_bms_reset/).",
     "recovery": "Allows charging a severely undercharged battery at up to 5 A for 30 minutes. Recovering a too low cell can result in fire: keep the charge power low and watch the temperatures. See [Recovering an undercharged battery](setup/hardware/recovering_undercharged_battery/).",
 
-    "nocntctrl": "This means you are either running CAN controlled contactors OR manually powering the contactors. Battery-Emulator will have limited amount of control over the contactors! See [Contactor control via GPIO](setup/software/contactor_control_via_gpio_pins/).",
+    "nocntctrl": "Running with CAN controlled contactors some other way of controlling them. Battery Emulator has limited of control over contactors behavior!",
 
     "candump": "CAN traffic will open in a new window. Let it run for the required amount of time and save the file. See [CAN logging](setup/can_related/can_logging/#webserver).",
     "canreplay": "Replays a CANdump .txt log (the format the CAN logging produces) onto the selected CAN interface, once or in a loop. See [CAN replay](setup/can_related/can_replay/).",
