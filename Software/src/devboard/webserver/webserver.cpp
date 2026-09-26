@@ -1720,6 +1720,7 @@ h4{margin:.6em 0;line-height:1.2}
 .tooltip .tooltiptext{visibility:hidden;width:200px;background-color:#3A4A52;color:white;text-align:center;border-radius:6px;padding:8px;position:absolute;z-index:1;margin-left:-100px;opacity:0;transition:opacity .3s;font-size:.9em;font-weight:normal;line-height:1.4}
 .tooltip:hover .tooltiptext{visibility:visible;opacity:1}
 .tooltip-icon{color:#505E67;cursor:help}
+#live{cursor:pointer;transition:opacity .2s;-webkit-tap-highlight-color:transparent}
 </style>
 <h2><a href='https://dalathegreat.github.io/Battery-Emulator-Wiki/' target='_blank' rel='noopener' style='color:inherit'>Battery Emulator</a></h2>
 <div id='bxUpd' style='text-align:center'></div><h4 id='note' hidden style='color:#F5CC00'></h4><div id='live'>)html";
@@ -1754,6 +1755,10 @@ fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/lates
      the page reloads to get the page of the firmware now running. Rebooting from this page just
      keeps polling until that happens, instead of navigating away after a fixed delay.
    - Pause and the contactor buttons refresh the live part right away instead of reloading.
+   - A tap or click on the live part (or on the note above it) refreshes it at once, dimming it
+     briefly as acknowledgement. Not when it lands on a link, a button or a tooltip of its own,
+     or ends a text selection, and not within 1 s of the last request, so tapping away cannot
+     hammer the emulator. A tap that fails is reported at once, without waiting for a second.
    Plain ES5, so a browser too old for fetch() still parses it and falls back to reloading. The
    page does without COMMON_JAVASCRIPT: its reboot() would navigate away after a fixed delay. */
 static const char main_page_end[] =
@@ -1765,13 +1770,13 @@ function send(u,f){var x=new XMLHttpRequest();x.onload=function(){if(f)f();tick(
 function PauseBattery(p){send('/pause?value='+p)}
 function estop(s){send('/equipmentStop?value='+s)}
 function askReboot(){if(confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!'))send('/reboot',function(){R=1})}
-var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0;
+var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0;
 function state(){var s=g('S');if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
 g('P0').hidden=p;g('P1').hidden=!p;g('E0').hidden=e;g('E1').hidden=!e;return s.getAttribute('data-b')}
 function later(ms){clearTimeout(T);T=setTimeout(tick,ms)}
 function tick(){clearTimeout(T);if(document.hidden)return;if(Q){Q=2;return}
 if(!window.fetch)return location.reload();
-Q=1;var a=window.AbortController?new AbortController():0,w=a&&setTimeout(function(){a.abort()},8000);
+Q=1;M=+new Date;var a=window.AbortController?new AbortController():0,w=a&&setTimeout(function(){a.abort()},8000);
 function end(ms){clearTimeout(w);var q=Q;Q=0;later(q>1?0:ms>0?ms:15000)}
 fetch('/live',{cache:'no-store',signal:a?a.signal:undefined})
 .then(function(r){return r.text().then(function(h){if(!r.ok)throw h;return h})})
@@ -1779,7 +1784,9 @@ fetch('/live',{cache:'no-store',signal:a?a.signal:undefined})
 B=b||B;F=0;L.style.opacity='';N.hidden=true;return R?3000:15000},
 function(m){if(++F>1){L.style.opacity=.5;N.hidden=false;
 N.textContent=(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
-return 5000}).then(end,end)}
+else L.style.opacity='';return 5000}).then(end,end)}
+L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.tooltip')||String(getSelection())||new Date-M<1000)return;
+F=F||1;L.style.opacity=.7;tick()};
 document.addEventListener('visibilitychange',tick);
 B=state();later(B?15000:5000);
 </script>)html" MAIN_PAGE_UPDATE_CHECK INDEX_HTML_FOOTER;
