@@ -1,8 +1,11 @@
-#include "comm_nvm.h"
+﻿#include "comm_nvm.h"
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CanCharger.h"
+#ifndef SMALL_FLASH_DEVICE
+#include "../../charger/UUGP-CHARGER.h"
+#endif
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
@@ -316,6 +319,25 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
+#ifndef SMALL_FLASH_DEVICE
+  uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
+  if (uugp_power_limit_W > 22000) {
+    uugp_power_limit_W = 22000;
+  }
+
+  uugp_discharge_cutoff_soc = settings.getUInt("UUGP_DSOC", 80);
+  if (uugp_discharge_cutoff_soc < 10 || uugp_discharge_cutoff_soc > 90) {
+    uugp_discharge_cutoff_soc = 80;
+  }
+
+  uugp_allow_discharge_to_home_grid = settings.getBool("UUGP_ALLOW", false);
+
+  uugp_start_mode = settings.getUInt("UUGP_STARTMODE", 1);
+
+  if (uugp_start_mode > 2) {
+    uugp_start_mode = 1;
+  }
+#endif
 }
 
 void clear_wifi_sta_settings() {
@@ -352,7 +374,7 @@ void store_settings_inverter_watchdog() {
   }
 }
 
-// Erase RF PHY calibration data (the "phy" NVS namespace — untouched by
+// Erase RF PHY calibration data (the "phy" NVS namespace - untouched by
 // clearAll(), which only clears our own settings namespace). A full RF
 // calibration runs on the next boot (~100 ms extra WiFi/RF init).
 void erase_phy_cal_data() {
@@ -386,4 +408,10 @@ void store_settings() {
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
+#ifndef SMALL_FLASH_DEVICE
+  settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
+  settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
+  settings.saveBool("UUGP_ALLOW", uugp_allow_discharge_to_home_grid);
+  settings.saveUInt("UUGP_STARTMODE", uugp_start_mode);
+#endif
 }

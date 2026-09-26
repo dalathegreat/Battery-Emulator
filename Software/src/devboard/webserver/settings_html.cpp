@@ -1,4 +1,4 @@
-#include "settings_html.h"
+﻿#include "settings_html.h"
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -1133,7 +1133,31 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "FOXESSMODULES") {
     return String(settings.getUInt("FOXESSMODULES", 0));
   }
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "UUGP_PWRLIM") {
+    return String(settings.getUInt("UUGP_PWRLIM", 10000));
+  }
 
+  if (var == "UUGP_DSOC") {
+    return String(settings.getUInt("UUGP_DSOC", 80));
+  }
+
+  if (var == "UUGP_ALLOW") {
+    return settings.getBool("UUGP_ALLOW", false) ? "checked" : "";
+  }
+
+  if (var == "UUGP_STARTMODE_0") {
+    return settings.getUInt("UUGP_STARTMODE", 1) == 0 ? "selected" : "";
+  }
+
+  if (var == "UUGP_STARTMODE_1") {
+    return settings.getUInt("UUGP_STARTMODE", 1) == 1 ? "selected" : "";
+  }
+
+  if (var == "UUGP_STARTMODE_2") {
+    return settings.getUInt("UUGP_STARTMODE", 1) == 2 ? "selected" : "";
+  }
+#endif
   return String();
 }
 
@@ -1193,7 +1217,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #ifdef HW_LILYGO
 #define GPIOOPT4_SETTING \
   R"rawliteral(
-    <label for="GPIOOPT4">µSD Slot:</label>
+    <label for="GPIOOPT4">uSD Slot:</label>
     <select id="GPIOOPT4" name="GPIOOPT4">
       %GPIOOPT4%
     </select>
@@ -1447,9 +1471,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
+#ifndef SMALL_FLASH_DEVICE
+    form .if-uugp {display: none;}
+    form[data-charger="3"] .if-uugp {
+      display: contents;
+    }
+#endif
     form[data-shunttype="0"] .if-shunt,
-    form[data-shunttype="3"] .if-shunt { 
-      display: none; 
+    form[data-shunttype="3"] .if-shunt {
+      display: none;
     }
     form[data-shunttype="0"] .if-ctclamp,
     form[data-shunttype="1"] .if-ctclamp,
@@ -2134,6 +2164,42 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %CHGCOMM%
         </select>
         </div>
+
+        #ifndef SMALL_FLASH_DEVICE
+<div class="if-uugp">
+        <label>Allow UUGP discharge to home/grid: </label>
+        <input type='checkbox'
+           name='UUGP_ALLOW'
+           value='on'
+           %UUGP_ALLOW%
+           title="When enabled, UUGP 0x4011 uses the configured power limit. When disabled, 0x4011 follows the BMS charge/discharge power limit." />
+        <label>UUGP power limit (W): </label>
+        <input type='number'
+           name='UUGP_PWRLIM'
+           value="%UUGP_PWRLIM%"
+           min="0"
+           max="22000"
+           step="1"
+           title="Maximum UUGP power when discharge to home/grid is allowed." />
+        <label>UUGP discharge cut-off SOC (%): </label>
+        <input type='number'
+           name='UUGP_DSOC'
+           value="%UUGP_DSOC%"
+           min="10"
+           max="90"
+           step="1"
+           title="UUGP discharge cut-off SOC." />
+        <label>UUGP start mode: </label>
+        <select name='UUGP_STARTMODE'>
+          <option value="0" %UUGP_STARTMODE_0%>Default RS485</option>
+          <option value="1" %UUGP_STARTMODE_1%>Card swipe</option>
+          <option value="2" %UUGP_STARTMODE_2%>Plug &amp; charge</option>
+        </select>
+        <p>
+        UUGP communication: RS485, 9600 baud, 8N1.
+        </p>
+        </div>
+#endif
 
         <label>Shunt: </label><select name='shunttype'>
         %SHUNTTYPE%
