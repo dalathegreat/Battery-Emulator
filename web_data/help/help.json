@@ -105,7 +105,7 @@
     "bmsoff": "How long the BMS power pin stays low during a periodic BMS reset. See [Periodic BMS reset](setup/hardware/periodic_bms_reset/).",
     "recovery": "Allows charging a severely undercharged battery at up to 5 A for 30 minutes. Recovering a too low cell can result in fire: keep the charge power low and watch the temperatures. See [Recovering an undercharged battery](setup/hardware/recovering_undercharged_battery/).",
 
-    "nocntctrl": "Running with CAN controlled contactors some other way of controlling them. Battery Emulator has limited of control over contactors behavior!",
+    "nocntctrl": "Running with contactors controlled via CAN or other methods. Battery Emulator has limited influence over contactors behavior!",
 
     "candump": "CAN traffic will open in a new window. Let it run for the required amount of time and save the file. See [CAN logging](setup/can_related/can_logging/#webserver).",
     "canreplay": "Replays a CANdump .txt log (the format the CAN logging produces) onto the selected CAN interface, once or in a loop. See [CAN replay](setup/can_related/can_replay/).",
