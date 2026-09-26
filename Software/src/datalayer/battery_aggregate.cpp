@@ -9,6 +9,13 @@
    in integer-percent x 100. Below this the emptiest pack has it alone. */
 static constexpr uint16_t SOC_BLEND_START_PPTT = 9000;
 
+/* What the inverter is told until pack 1 has decoded a voltage. The packs themselves read 0
+   until then. Some inverters (Solax in particular) fault with "voltage out of range" when this
+   lies outside what the pack can really reach, and an LFP pack can top out below 370.0 V, so
+   LFP gets 330.0 V - the value the CMP Smart Car integration used to start its LFP pack on. */
+static constexpr uint16_t PLACEHOLDER_LINK_VOLTAGE_DV = 3700;
+static constexpr uint16_t PLACEHOLDER_LINK_VOLTAGE_LFP_DV = 3300;
+
 /* The safety layer, the SOC taper and the low pass filter all rewrite a pack's power limits in
    place, so by the time the web page renders, what the BMS actually asked for is gone. Keep a
    copy while it is still the driver's own number. */
@@ -115,7 +122,6 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
 void update_aggregate_values() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
-  agg.voltage_dV = datalayer.battery.status.voltage_dV;
   agg.current_dA = datalayer.battery.status.reported_current_dA;  // Already the sum of every pack
   agg.cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
   agg.cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
@@ -186,6 +192,21 @@ void update_aggregate_values() {
         agg.min_design_voltage_dV = MAX(agg.min_design_voltage_dV, pack->info.min_design_voltage_dV);
       }
     }
+  }
+
+  /* Every pack reads 0 until its integration has decoded a voltage, which is what
+     check_parallel_battery_safety() waits for. The inverter never sees that 0: until pack 1
+     has a reading it gets 370.0 V, or 330.0 V for an LFP pack, or the middle of the design
+     window when that value does not fit the installation (LV). The chemistry decides rather
+     than the window, because some integrations start on a deliberately wide window until they
+     have counted their cells. Done after the loop, so the window is the installation's. */
+  agg.voltage_dV = datalayer.battery.status.voltage_dV;
+  if (agg.voltage_dV == 0) {
+    const uint16_t placeholder_dV = (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP)
+                                        ? PLACEHOLDER_LINK_VOLTAGE_LFP_DV
+                                        : PLACEHOLDER_LINK_VOLTAGE_DV;
+    const bool fits = agg.min_design_voltage_dV <= placeholder_dV && placeholder_dV <= agg.max_design_voltage_dV;
+    agg.voltage_dV = fits ? placeholder_dV : (uint16_t)((agg.min_design_voltage_dV + agg.max_design_voltage_dV) / 2);
   }
 
   /* Power from the summed current against the shared bus voltage, dividing once at the end so
