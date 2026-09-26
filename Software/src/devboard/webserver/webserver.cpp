@@ -416,9 +416,7 @@ void init_webserver() {
                       [](AsyncWebServerRequest* request) { send_cellmonitor_page(request); });
 
   // Route for going to event log web page
-  def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send(200, "text/html", index_html, events_processor);
-  });
+  def_route_with_auth("/events", server, HTTP_GET, [](AsyncWebServerRequest* request) { send_events_page(request); });
 
   // Route for clearing all events
   def_route_with_auth("/clearevents", server, HTTP_GET, [](AsyncWebServerRequest* request) {
