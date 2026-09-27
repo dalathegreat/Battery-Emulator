@@ -9,13 +9,9 @@ class VoltageSyncTest : public ::testing::Test {
  protected:
   void SetUp() override {
     init_events();
-    // The drift counters in check_parallel_battery_safety() are function-local
-    // statics, so a preceding run of the timeout tests leaves them latched at
-    // 10 and the next run in the same process starts mid-fault - a plain
-    // --gtest_repeat=2 fails without this. They are not reachable from a
-    // fixture; one in-sync pass through the public API is the reset (the
-    // <=1.5V branch zeroes the counter). Any decoded, i.e. non-zero, voltage
-    // gets there.
+    // The warning counters in check_parallel_battery_safety() are function-local statics, so a
+    // preceding test can leave them counting. They are not reachable from a fixture; one matching
+    // pass through the public API is the reset. Any decoded, i.e. non-zero, voltage gets there.
     battery2_detected = true;
     battery3_detected = true;
     datalayer.battery.status.voltage_dV = 3750;
@@ -27,135 +23,92 @@ class VoltageSyncTest : public ::testing::Test {
     datalayer.battery.status.voltage_dV = 0;
     datalayer.battery2.status.voltage_dV = 0;
     datalayer.battery3.status.voltage_dV = 0;
-    datalayer.system.status.system_status = ACTIVE;
-    datalayer.system.status.battery2_allowed_contactor_closing = false;
-    datalayer.system.status.battery3_allowed_contactor_closing = false;
-    battery2_detected = true;
-    battery3_detected = true;
+    init_events();
   }
+
+  static bool matches(uint8_t n) {
+    return n == 2 ? datalayer.system.status.battery2_voltage_matches : datalayer.system.status.battery3_voltage_matches;
+  }
+  static bool warned(EVENTS_ENUM_TYPE event) { return get_event_pointer(event)->state == EVENT_STATE_ACTIVE; }
 };
 
-// Test: When battery is powered OFF (no CAN comm), the allowed closing should be false
-TEST_F(VoltageSyncTest, Battery2NotPoweredOn) {
-  battery2_detected = false;                   //Not detected via CAN
-  datalayer.battery.status.voltage_dV = 3750;  //Voltages in sync, so detection alone holds it back
-  datalayer.battery2.status.voltage_dV = 3750;
-
+TEST_F(VoltageSyncTest, MatchesWithin1V5) {
+  datalayer.battery.status.voltage_dV = 3715;
+  datalayer.battery2.status.voltage_dV = 3700;  // 1.5V apart
   check_parallel_battery_safety(2);
+  EXPECT_TRUE(matches(2));
 
-  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+  datalayer.battery2.status.voltage_dV = 3699;  // 1.6V apart
+  check_parallel_battery_safety(2);
+  EXPECT_FALSE(matches(2));
 }
 
-// Test: When voltages are in sync, battery2 is allowed to close contactors
-TEST_F(VoltageSyncTest, Battery2AllowedWhenVoltagesInSync) {
-  datalayer.battery.status.voltage_dV = 3750;
-  datalayer.battery2.status.voltage_dV = 3750;
-
-  check_parallel_battery_safety(2);
-
-  EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
-}
-
-// Test: When voltage drifts >1.5V, battery2 should be disconnected after 10 seconds
-TEST_F(VoltageSyncTest, Battery2DisconnectedAfterVoltageDriftTimeout) {
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
-  datalayer.battery.status.voltage_dV = 3710;   // 370.0V
-  datalayer.battery2.status.voltage_dV = 3500;  // 350.0V — 20V difference, way over 1.5V
-
-  // Simulate 10 seconds of calls (function called once per second)
-  for (int i = 0; i < 10; i++) {
-    check_parallel_battery_safety(2);
-    // During the first 10 calls, battery2 should still be allowed (counting up)
-    EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing)
-        << "Should still be allowed at second " << i;
-  }
-
-  // 11th call — counter reaches 10, battery2 should be disconnected
-  check_parallel_battery_safety(2);
-  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
-}
-
-// Test: After voltage drift timeout, re-syncing resets the counter and allows reconnection
-TEST_F(VoltageSyncTest, Battery2ReconnectsAfterVoltagesResync) {
+// The flag is the latest reading alone: no memory in either direction
+TEST_F(VoltageSyncTest, FollowsTheLatestReading) {
   datalayer.battery.status.voltage_dV = 3710;
-  datalayer.battery2.status.voltage_dV = 3500;  // Out of sync
+  datalayer.battery3.status.voltage_dV = 3500;
+  check_parallel_battery_safety(3);
+  EXPECT_FALSE(matches(3));
 
-  // Drift for 11 seconds — battery2 disconnected
-  for (int i = 0; i < 11; i++) {
-    check_parallel_battery_safety(2);
-  }
-  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+  datalayer.battery3.status.voltage_dV = 3710;
+  check_parallel_battery_safety(3);
+  EXPECT_TRUE(matches(3));
 
-  // Voltages re-sync
-  datalayer.battery2.status.voltage_dV = 3710;
-  check_parallel_battery_safety(2);
-  EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+  datalayer.battery3.status.voltage_dV = 3500;
+  check_parallel_battery_safety(3);
+  EXPECT_FALSE(matches(3));
 }
 
-// Test: Battery3 has the same voltage drift timeout behavior
-TEST_F(VoltageSyncTest, Battery3DisconnectedAfterVoltageDriftTimeout) {
-  datalayer.system.status.battery3_allowed_contactor_closing = true;
-  datalayer.battery.status.voltage_dV = 3710;
-  datalayer.battery3.status.voltage_dV = 3500;  // 20V difference
-
-  for (int i = 0; i < 10; i++) {
-    check_parallel_battery_safety(3);
-    EXPECT_TRUE(datalayer.system.status.battery3_allowed_contactor_closing)
-        << "Should still be allowed at second " << i;
-  }
-
-  check_parallel_battery_safety(3);
-  EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
-}
-
-// Test: every pack reads 0 until its integration has decoded a voltage, and nothing may join
-// before both sides of the comparison have one
-TEST_F(VoltageSyncTest, UndecodedVoltagesHoldBatteriesBack) {
+// Every pack reads 0 until its integration has decoded a voltage: with nothing to compare there is
+// no match, whatever matched before
+TEST_F(VoltageSyncTest, NoReadingNoMatch) {
   check_parallel_battery_safety(2);
-  check_parallel_battery_safety(3);
-  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
-  EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
+  EXPECT_FALSE(matches(2));
 
-  // Pack 2 and 3 decoded, pack 1 not yet
-  datalayer.battery2.status.voltage_dV = 3750;
-  datalayer.battery3.status.voltage_dV = 3750;
-  check_parallel_battery_safety(2);
-  check_parallel_battery_safety(3);
-  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
-  EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
-}
-
-// Test: 370.0V is an ordinary reading, so packs genuinely there (e.g. the fake battery) join
-// straight away, battery3 exactly like battery2
-TEST_F(VoltageSyncTest, BatteriesAt370VJoin) {
   datalayer.battery.status.voltage_dV = 3700;
   datalayer.battery2.status.voltage_dV = 3700;
-  datalayer.battery3.status.voltage_dV = 3700;
-
   check_parallel_battery_safety(2);
-  check_parallel_battery_safety(3);
+  ASSERT_TRUE(matches(2));
 
-  EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
-  EXPECT_TRUE(datalayer.system.status.battery3_allowed_contactor_closing);
+  datalayer.battery.status.voltage_dV = 0;  // Battery 1 not decoded
+  check_parallel_battery_safety(2);
+  EXPECT_FALSE(matches(2));
 }
 
-// Test: Battery1 fault disengages battery2 even when voltages match
-TEST_F(VoltageSyncTest, Battery1FaultDisengagesBattery2) {
+// A pack not seen on CAN never matches, even with a plausible voltage in the datalayer
+TEST_F(VoltageSyncTest, UndetectedPackNeverMatches) {
+  battery2_detected = false;
+  datalayer.battery.status.voltage_dV = 3750;
+  datalayer.battery2.status.voltage_dV = 3750;
+  check_parallel_battery_safety(2);
+  EXPECT_FALSE(matches(2));
+}
+
+// The warning is raised once the voltages have been apart for more than 3 seconds, and cleared
+// as soon as they match again
+TEST_F(VoltageSyncTest, WarnsAfter3SecondsApart) {
   datalayer.battery.status.voltage_dV = 3710;
-  datalayer.battery2.status.voltage_dV = 3700;  // In sync
-  datalayer.system.status.system_status = FAULT;
-
+  datalayer.battery2.status.voltage_dV = 3500;
+  for (int second = 1; second <= 3; second++) {
+    check_parallel_battery_safety(2);
+    EXPECT_FALSE(warned(EVENT_VOLTAGE_DIFFERENCE_BAT2)) << "warned at second " << second;
+  }
   check_parallel_battery_safety(2);
-  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+  EXPECT_TRUE(warned(EVENT_VOLTAGE_DIFFERENCE_BAT2));
+  EXPECT_FALSE(warned(EVENT_VOLTAGE_DIFFERENCE_BAT3));
+
+  datalayer.battery2.status.voltage_dV = 3710;
+  check_parallel_battery_safety(2);
+  EXPECT_FALSE(warned(EVENT_VOLTAGE_DIFFERENCE_BAT2));
 }
 
-// Test: Zero voltage skips the check entirely (no crash, no state change)
-TEST_F(VoltageSyncTest, ZeroVoltageSkipsCheck) {
-  datalayer.battery.status.voltage_dV = 0;
-  datalayer.battery2.status.voltage_dV = 3710;
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
-
-  check_parallel_battery_safety(2);
-  // Should remain unchanged — early return
-  EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+// Long mismatches keep the warning up rather than wrapping the counter round
+TEST_F(VoltageSyncTest, WarningStaysUpThroughALongMismatch) {
+  datalayer.battery.status.voltage_dV = 3710;
+  datalayer.battery3.status.voltage_dV = 3500;
+  for (int second = 0; second < 600; second++) {
+    check_parallel_battery_safety(3);
+  }
+  EXPECT_TRUE(warned(EVENT_VOLTAGE_DIFFERENCE_BAT3));
+  EXPECT_FALSE(matches(3));
 }

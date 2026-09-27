@@ -53,7 +53,7 @@ void start_bms_reset();
 bool init_contactors();
 
 /**
- * @brief Handle contactors
+ * @brief Handle contactors, every 10ms
  *
  * @param[in] void
  *
@@ -62,22 +62,9 @@ bool init_contactors();
 void handle_contactors();
 
 /**
- * @brief Handle contactors of battery 2
- *
- * @param[in] void
- *
- * @return void
+ * @brief Human readable name of a pack's contactor state, for the webserver
  */
-void handle_contactors_battery2();
-
-/**
- * @brief Handle contactors of battery 3
- *
- * @param[in] void
- *
- * @return void
- */
-void handle_contactors_battery3();
+const char* contactor_state_name(ContactorState state);
 
 // True when init_contactors() drives BMS_POWER (i.e. the pin is actively controlled).
 bool bms_power_is_active();

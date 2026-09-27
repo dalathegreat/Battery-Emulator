@@ -496,7 +496,7 @@ void setup_battery() {
               new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, can_config.battery_double);
           break;
         case BatteryType::BmwI3:
-          battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+          battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.contactor_invite[1],
                                       can_config.battery_double, esp32hal->WUP_PIN2());
           break;
         case BatteryType::CmfaEv:
@@ -514,13 +514,12 @@ void setup_battery() {
           battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
-          battery2 =
-              new KiaHyundai64Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                      can_config.battery_double);
+          battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer.system.status.contactor_invite[1],
+                                             can_config.battery_double);
           break;
         case BatteryType::MgGen1:
           battery2 = new MgGen1Battery(&datalayer.battery2, can_config.battery_double,
-                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+                                       &datalayer.system.status.contactor_invite[1]);
           break;
         case BatteryType::Pylon:
           battery2 = new PylonBattery(&datalayer.battery2, nullptr, can_config.battery_double);
@@ -530,7 +529,7 @@ void setup_battery() {
           break;
         case BatteryType::RelionBattery:
           battery2 = new RelionBattery(&datalayer.battery2, can_config.battery_double,
-                                       &datalayer.system.status.battery2_allowed_contactor_closing);
+                                       &datalayer.system.status.contactor_invite[1]);
           break;
         case BatteryType::RenaultZoe1:
           battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
@@ -577,7 +576,7 @@ void setup_battery() {
           break;
         case BatteryType::RelionBattery:
           battery3 = new RelionBattery(&datalayer.battery3, can_config.battery_triple,
-                                       &datalayer.system.status.battery3_allowed_contactor_closing);
+                                       &datalayer.system.status.contactor_invite[2]);
           break;
         case BatteryType::TestFake:
           battery3 = new TestFakeBattery(&datalayer.battery3, can_config.battery_triple);
