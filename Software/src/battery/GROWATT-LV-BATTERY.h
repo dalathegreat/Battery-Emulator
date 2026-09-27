@@ -30,6 +30,13 @@
 //    plausible voltage range (53.2-53.4V) through a real charge/discharge
 //    cycle; the 0.1V reading would imply ~530V.
 //
+// Only 0x311 refreshes CAN_battery_still_alive, and the charge/discharge
+// limits it carries are forced to zero if it goes missing for more than
+// LIMITS_STALE_MS while other frames keep arriving - a BMS emulating this
+// protocol less faithfully than a real GBLI6532 (e.g. Seplos/Pace-based
+// packs) could otherwise leave stale limits published forever with no
+// missing-event ever firing (github.com/dalathegreat/Battery-Emulator/issues/3034).
+//
 // Protocol reference:
 //  Growatt BMS CAN-Bus protocol, low voltage V1.04. Standard (11-bit) CAN
 //  IDs, 500 kbit/s, big-endian.
@@ -55,6 +62,14 @@ class GrowattLvBattery : public CanBattery {
   // Solis accepts 40.0-60.0V; GBLI6532 datasheet range is 48.0-57.6V.
   static const int MAX_PACK_VOLTAGE_DV = 576;
   static const int MIN_PACK_VOLTAGE_DV = 480;
+
+  // 0x311 arrives at 1 Hz along with the rest of the frame set. Five missed
+  // queries is generous slack for jitter while still reacting quickly once a
+  // BMS has stopped updating the limits it advertises (issue #3034).
+  // uint32_t (not unsigned long/millis()'s usual type) so the staleness check
+  // in update_values() wraps at the same 2^32ms boundary as millis() itself
+  // on every host, not just on a 32-bit "unsigned long" target.
+  static const uint32_t LIMITS_STALE_MS = 5000;
 
   unsigned long previousMillis1000 = 0;
 
@@ -82,6 +97,8 @@ class GrowattLvBattery : public CanBattery {
   uint16_t dcl_dA = 0;
   uint16_t status_word = 0;
   bool have_311 = false;
+  // uint32_t, not unsigned long: see LIMITS_STALE_MS above.
+  uint32_t last_311_millis = 0;
 
   uint8_t prot1 = 0, prot2 = 0, warn1 = 0, warn2 = 0;
   uint8_t pack_count = 1;
