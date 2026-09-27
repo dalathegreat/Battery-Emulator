@@ -5,8 +5,8 @@
 
 class MgGen1Battery : public UdsCanBattery {
  public:
-  // Use this constructor for the second battery.
-  MgGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* allowed_contactor_closing_ptr);
+  // Use this constructor for the second battery. invite_ptr is its entry in datalayer contactor_invite[].
+  MgGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* invite_ptr);
   // Use the default constructor to create the first or single battery.
   MgGen1Battery();
 
@@ -19,6 +19,7 @@ class MgGen1Battery : public UdsCanBattery {
   virtual void reset_BMS() override;
   virtual bool supports_reset_BMS() override;
   virtual void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
+  virtual ContactorState contactor_state() override;
 
   static constexpr const char* Name = "MG Gen1 (HS/ZS/MG5/MarvelR)";
 
@@ -84,10 +85,10 @@ class MgGen1Battery : public UdsCanBattery {
   uint8_t pid_f1a2[8] = {0};
   uint8_t pid_f1aa[5] = {0};
 
-  // Contactor control. allowed_contactor_closing is an input from the
-  // multi-battery controller; null means we're the primary battery, so we
-  // always can close, otherwise we wait for this to be true.
-  bool* allowed_contactor_closing = nullptr;
+  // Contactor control. invite is our entry in datalayer contactor_invite[]:
+  // we close our contactors only while it is true.
+  bool* invite = nullptr;
+  ContactorState bms_contactor_state = ContactorState::UNKNOWN;
   bool announcedContactorsClosed = false;
   bool contactorCloseReset = false;
   uint8_t eightAcycle = 0;
@@ -149,13 +150,13 @@ class MgGen1Battery : public UdsCanBattery {
                                           .data = {0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 };
 
-inline MgGen1Battery::MgGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan,
-                                    bool* allowed_contactor_closing_ptr)
+inline MgGen1Battery::MgGen1Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* invite_ptr)
     : UdsCanBattery(targetCan) {
   datalayer_battery = datalayer_ptr;
-  allowed_contactor_closing = allowed_contactor_closing_ptr;
+  invite = invite_ptr;
 }
 
 inline MgGen1Battery::MgGen1Battery() : UdsCanBattery() {
   datalayer_battery = &datalayer.battery;
+  invite = &datalayer.system.status.contactor_invite[0];
 }

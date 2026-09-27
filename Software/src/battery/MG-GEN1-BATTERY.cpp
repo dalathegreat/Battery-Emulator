@@ -350,9 +350,15 @@ void MgGen1Battery::update_values() {
 
 void MgGen1Battery::announce_contactor_state(bool state) {
   // Only the primary battery should announce the contactor state
-  if (allowed_contactor_closing == nullptr) {
+  if (datalayer_battery == &datalayer.battery) {
     datalayer.system.status.battery_allows_contactor_closing = state;
   }
+}
+
+ContactorState MgGen1Battery::contactor_state() {
+  // Until the pack is identified we keep its contactors open, whatever it reports
+  const bool identified_battery = batteryType != 0 && highestSeenCellCount == datalayer_battery->info.number_of_cells;
+  return identified_battery ? bms_contactor_state : ContactorState::UNKNOWN;
 }
 
 void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -402,6 +408,24 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       if (rx_frame.data.u8[1] != previousState) {
         logging.printf("[MG] Battery status changed to %d (%d)\n", rx_frame.data.u8[1], rx_frame.data.u8[0]);
+      }
+
+      switch (rx_frame.data.u8[1]) {
+        case 0x1:
+          bms_contactor_state = ContactorState::READY;
+          break;
+        case 0x2:
+          bms_contactor_state = ContactorState::PRECHARGING;
+          break;
+        case 0x3:
+          bms_contactor_state = ContactorState::CLOSED;
+          break;
+        case 0xf:
+          bms_contactor_state = ContactorState::FAULT;
+          break;
+        default:
+          bms_contactor_state = ContactorState::UNKNOWN;
+          break;
       }
 
       if (datalayer.system.status.system_status == FAULT) {
@@ -763,21 +787,18 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
     const bool identified_battery = batteryType != 0 && highestSeenCellCount == datalayer_battery->info.number_of_cells;
     // Open contactors if fault
     const bool must_open_contactors = datalayer.system.status.system_status == FAULT;
-    // Open contactors if inverter requests it, or we haven't identified the
-    // battery yet, or we don't have a recent voltage reading, or if we're a
-    // secondary battery and haven't been given permission to close yet.
-    const bool should_open_contactors = !datalayer.system.status.inverter_allows_contactor_closing ||
-                                        !identified_battery || voltageValidTime == 0 ||
-                                        (allowed_contactor_closing != nullptr && !*allowed_contactor_closing);
+    // Open contactors if we're not invited to close them (the inverter
+    // forbids it, or we're a secondary battery that may not join yet), or we
+    // haven't identified the battery yet, or we don't have a recent voltage
+    // reading.
+    const bool should_open_contactors = !*invite || !identified_battery || voltageValidTime == 0;
 
     bool send_8a = true;
     if (must_open_contactors || (should_open_contactors && currentMillis > STARTUP_GRACE_PERIOD_MS)) {
 
       if (announcedContactorsClosed) {
-        logging.printf("[MG] Open contactors, iacc: %d, hSCC: %d, bT: %d, accnull: %d, acc: %d, vvt: %d\n",
-                       datalayer.system.status.inverter_allows_contactor_closing, highestSeenCellCount, batteryType,
-                       allowed_contactor_closing == nullptr,
-                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0, voltageValidTime);
+        logging.printf("[MG] Open contactors, invite: %d, hSCC: %d, bT: %d, vvt: %d\n", *invite, highestSeenCellCount,
+                       batteryType, voltageValidTime);
         announcedContactorsClosed = false;
       }
 
@@ -796,10 +817,8 @@ void MgGen1Battery::transmit_can(unsigned long currentMillis) {
       MG_HS_8A.data.u8[5] = 0x02;
 
       if (!announcedContactorsClosed) {
-        logging.printf("[MG] Close contactors, iacc: %d, hSCC: %d, bT: %d, accnull: %d, acc: %d\n",
-                       datalayer.system.status.inverter_allows_contactor_closing, highestSeenCellCount, batteryType,
-                       allowed_contactor_closing == nullptr,
-                       allowed_contactor_closing != nullptr ? *allowed_contactor_closing : 0);
+        logging.printf("[MG] Close contactors, invite: %d, hSCC: %d, bT: %d\n", *invite, highestSeenCellCount,
+                       batteryType);
         announcedContactorsClosed = true;
       }
 
