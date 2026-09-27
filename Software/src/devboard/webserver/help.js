@@ -37,6 +37,7 @@
   var style = document.createElement('style');
   style.textContent =
     '.hi,.hi:hover{background:none;border:0;margin:0 0 0 4px;padding:0 2px;color:#8ab4f8;font:inherit;cursor:pointer}' +
+    '.hi[aria-expanded=true]{color:#ffd54f}' +
     '.hw{display:grid;grid-template-columns:minmax(0,250px) 1.6em;align-items:center}' +
     '.hw>[type=checkbox]{justify-self:center}.hw>.hi{margin:0;justify-self:end}' +
     '.hb{grid-column:1/-1;margin:0 0 6px;padding:8px 10px;border-radius:8px;background:#26343c;color:#ddd;' +
