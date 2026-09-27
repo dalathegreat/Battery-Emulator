@@ -85,6 +85,7 @@ String dump_channel_sentence(const std::vector<CanPort>& ports) {
 
 String can_replay_processor(void) {
   String content = index_html_header;
+  content += HELP_SCRIPT;
   // Page format
   content += "<style>";
   content += "body { background-color: black; color: white; font-family: Arial, sans-serif; }";
@@ -118,10 +119,11 @@ String can_replay_processor(void) {
   content +=
       "<div style='background-color: #303E47; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: "
       "center'>";
-  content += "<h3>CAN dump</h3>";
-  content +=
-      "<p>CAN traffic will open in a new window. Let it run for the required amount of time and save the file.</p>";
+  // How to use it is the "candump" entry of help.json, behind the button help.js adds.
+  content += "<h3 data-h=candump>CAN dump</h3>";
 #ifdef HW_UNIFIED_S3
+  // Which channel is which depends on the board config, so it can't live in the
+  // static help.json and stays on the page.
   content += "<p>" + dump_channel_sentence(configured_can_ports()) + "</p>";
 #endif  // HW_UNIFIED_S3
   content += "<button onclick='startDump()'>Start dump</button>";
@@ -136,7 +138,7 @@ String can_replay_processor(void) {
 
   // Start a new block for the CAN messages
   content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
-  content += "<h3>CAN replay</h3>";
+  content += "<h3 data-h=canreplay>CAN replay</h3>";
 
   // Ask user to select which CAN interface log should be sent to
   content += "<h4>Step 1: Select CAN Interface for Playback</h4>";
