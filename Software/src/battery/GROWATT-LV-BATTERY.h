@@ -37,6 +37,12 @@
 // packs) could otherwise leave stale limits published forever with no
 // missing-event ever firing (github.com/dalathegreat/Battery-Emulator/issues/3034).
 //
+// From protocol V1.03, the per-cell frames 0x315-0x318 are optional; 0x319
+// carries the same highest/lowest cell voltage as a fallback, used only when
+// no per-cell frame has populated a cell. setup() also sets an LFP cell
+// voltage ceiling/floor (previously unset, so the generic cell over/under-
+// voltage checks in safety.cpp could never trigger on this pack).
+//
 // Protocol reference:
 //  Growatt BMS CAN-Bus protocol, low voltage V1.04. Standard (11-bit) CAN
 //  IDs, 500 kbit/s, big-endian.
@@ -63,6 +69,12 @@ class GrowattLvBattery : public CanBattery {
   static const int MAX_PACK_VOLTAGE_DV = 576;
   static const int MIN_PACK_VOLTAGE_DV = 480;
 
+  // GBLI6532 16S range is 48.0-57.6V; no generic cell ceiling/floor was set
+  // before, so the cell over/under-voltage checks in safety.cpp could never
+  // trigger on this LFP pack. Agreed with the driver's author in issue #3034.
+  static const int MAX_CELL_VOLTAGE_MV = 3650;
+  static const int MIN_CELL_VOLTAGE_MV = 2500;
+
   // 0x311 arrives at 1 Hz along with the rest of the frame set. Five missed
   // queries is generous slack for jitter while still reacting quickly once a
   // BMS has stopped updating the limits it advertises (issue #3034).
@@ -70,6 +82,12 @@ class GrowattLvBattery : public CanBattery {
   // in update_values() wraps at the same 2^32ms boundary as millis() itself
   // on every host, not just on a 32-bit "unsigned long" target.
   static const uint32_t LIMITS_STALE_MS = 5000;
+
+  // Sanity bounds for 0x319's fallback max/min cell voltage (bytes 1-4):
+  // reject anything outside a plausible Li-ion cell range instead of trusting
+  // a garbage/zero reading.
+  static const uint16_t CELL_MV_PLAUSIBLE_MIN = 1000;
+  static const uint16_t CELL_MV_PLAUSIBLE_MAX = 5000;
 
   unsigned long previousMillis1000 = 0;
 
@@ -119,6 +137,11 @@ class GrowattLvBattery : public CanBattery {
   bool discharge_en = false;
   bool force_chg_1 = false;
   bool force_chg_2 = false;
+
+  // 0x319 bytes 1-4: fallback max/min cell voltage (1 mV), used only when no
+  // per-cell frame (0x315-0x318) has populated a cell - see update_values().
+  uint16_t max_cell_mV_319 = 0;
+  uint16_t min_cell_mV_319 = 0;
 };
 
 #endif

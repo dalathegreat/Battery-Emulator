@@ -19,6 +19,8 @@ void GrowattLvBattery::setup(void) {
   datalayer.battery.info.chemistry = LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 
   // Allow contactor closing once the BMS itself reports charge/discharge enabled.
   datalayer.system.status.battery_allows_contactor_closing = false;
@@ -78,7 +80,7 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       have_314 = true;
       break;
 
-    case 0x319:                                         // Force-charge request + fallback enable bits
+    case 0x319:  // Force-charge request + fallback enable bits + max/min cell voltage
       force_chg_2 = (rx_frame.data.u8[0] & 0x04) != 0;  // bit 2
       force_chg_1 = (rx_frame.data.u8[0] & 0x08) != 0;  // bit 3
       // Only used before the first 0x311 arrives; a real capture showed this
@@ -87,6 +89,11 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         discharge_en = (rx_frame.data.u8[0] & 0x20) != 0;  // bit 5
         charge_en = (rx_frame.data.u8[0] & 0x40) != 0;     // bit 6
       }
+      // Fallback max/min cell voltage (1 mV) - from protocol V1.03 the
+      // per-cell frames below are optional, and this carries the same
+      // highest/lowest cell voltage directly. See update_values().
+      max_cell_mV_319 = read_u16_be(rx_frame, 1);
+      min_cell_mV_319 = read_u16_be(rx_frame, 3);
       break;
 
     case 0x315:  // Cell voltages 1-4 (mV)
@@ -203,8 +210,17 @@ void GrowattLvBattery::update_values() {
     }
   }
   if (cell_max > 0) {
+    // Per-cell frames (0x315-0x318) have populated at least one cell - derive
+    // from them, as before.
     datalayer.battery.status.cell_max_voltage_mV = cell_max;
     datalayer.battery.status.cell_min_voltage_mV = cell_min;
+  } else if (max_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && max_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX &&
+             min_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && min_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX) {
+    // No per-cell frame has arrived - fall back to 0x319's own max/min, which
+    // the protocol has carried directly since V1.03 (see header comment).
+    // Only trusted within a plausible cell-voltage range.
+    datalayer.battery.status.cell_max_voltage_mV = max_cell_mV_319;
+    datalayer.battery.status.cell_min_voltage_mV = min_cell_mV_319;
   }
 
   // Conservative: only allow contactor closing once the BMS itself has

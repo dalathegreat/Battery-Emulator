@@ -7,11 +7,17 @@
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/types.h"
 
-// Regression test for issue #3034
-// (github.com/dalathegreat/Battery-Emulator/issues/3034): only 0x311
-// refreshes CAN_battery_still_alive, and the charge/discharge limits it
-// carries must go to zero once it has been missing for more than five 1 Hz
-// query periods, independently of whatever other frame IDs keep arriving.
+// Regression tests for the three Growatt LV gaps confirmed in issue #3034
+// (github.com/dalathegreat/Battery-Emulator/issues/3034):
+//  1. 0x311 freshness - only 0x311 refreshes CAN_battery_still_alive, and the
+//     charge/discharge limits it carries must go to zero once it has been
+//     missing for more than five 1 Hz query periods, independently of
+//     whatever other frame IDs keep arriving.
+//  2. setup() sets an LFP cell voltage ceiling/floor, so the generic cell
+//     over/under-voltage checks in safety.cpp can actually trigger.
+//  3. 0x319's own max/min cell voltage is used as a fallback for
+//     cell_max_voltage_mV/cell_min_voltage_mV when no per-cell frame
+//     (0x315-0x318) has populated a cell.
 
 namespace {
 
@@ -167,4 +173,60 @@ TEST(GrowattLvStaleness, StalenessSurvivesAMillisWrap) {
   EXPECT_EQ(datalayer.battery.status.max_discharge_current_dA, 0);
 
   set_millis64(0);
+}
+
+// setup() must set an LFP cell voltage ceiling/floor - previously unset, so
+// the cell over/under-voltage checks in safety.cpp could never trigger on
+// this pack. Also pins down that nothing else setup() does (notably
+// contactor-closing permission) changed alongside it.
+TEST(GrowattLvBatterySetup, SetsLfpCellVoltageLimits) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+
+  b.setup();
+
+  EXPECT_EQ(datalayer.battery.info.max_cell_voltage_mV, 3650);
+  EXPECT_EQ(datalayer.battery.info.min_cell_voltage_mV, 2500);
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing)
+      << "setup() must still start with contactor closing disallowed, unchanged by this fix";
+  EXPECT_EQ(datalayer.battery.status.max_charge_current_dA, 0)
+      << "before any CAN frame arrives, limits must still be 0 as before";
+  EXPECT_EQ(datalayer.battery.status.max_discharge_current_dA, 0);
+}
+
+// From protocol V1.03, 0x315-0x318 are optional and 0x319 carries the same
+// highest/lowest cell voltage as a fallback (bytes 1-2 max, bytes 3-4 min).
+// With no per-cell frame ever received, that fallback must populate
+// cell_max_voltage_mV/cell_min_voltage_mV.
+TEST(GrowattLvCellVoltageFallback, Frame0x319AloneSetsCellMaxAndMin) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+
+  // byte0 = 0 (unused here), bytes1-2 = 3412 mV max, bytes3-4 = 3398 mV min,
+  // byte5/6 = max/min cell number, byte7 = protect pack ID (unused here).
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0D, 0x54, 0x0D, 0x46, 0x01, 0x10, 0x00}));
+  b.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3412);
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3398);
+}
+
+// Once any per-cell frame (0x315-0x318) has populated a cell, cell_max/min
+// must keep being derived from the per-cell data, even if 0x319 disagrees -
+// the fallback is for when there is no per-cell data at all.
+TEST(GrowattLvCellVoltageFallback, PerCellFramesTakePriorityOver0x319) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+
+  // 0x319 claims 3500 mV max / 3300 mV min - deliberately different from the
+  // per-cell frames below, to prove it gets ignored once they're present.
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0D, 0xAC, 0x0C, 0xE4, 0x01, 0x10, 0x00}));
+  b.handle_incoming_can_frame(Frame(0x315, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));  // cells 1-4: 3400mV
+  b.handle_incoming_can_frame(Frame(0x316, {0x0D, 0x5C, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));  // cell 5: 3420mV (max)
+  b.handle_incoming_can_frame(Frame(0x317, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x3E}));  // cell 12: 3390mV (min)
+  b.handle_incoming_can_frame(Frame(0x318, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));  // cells 13-16: 3400mV
+  b.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3420);
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3390);
 }
