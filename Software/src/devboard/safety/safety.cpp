@@ -417,7 +417,6 @@ void update_machineryprotection() {
     }
   }
 
-#ifndef SMALL_FLASH_DEVICE
   if (charger && charger->type() != ChargerType::UUGP) {
     // CAN chargers only. UUGP communicates over RS485.
     // If we go 60s without CAN messages we raise a warning.
@@ -425,6 +424,7 @@ void update_machineryprotection() {
                               EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
   }
 
+#ifndef SMALL_FLASH_DEVICE
   // UUGP communicates over RS485, so the CAN charger watchdog above
   // does not apply. If UUGP communication is not verified, force the
   // battery-side power limits to zero.
