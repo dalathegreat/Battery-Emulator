@@ -41,7 +41,7 @@ extern const char* name_for_charger_type(ChargerType type) {
 
 #ifndef SMALL_FLASH_DEVICE
 
-        case ChargerType::UUGP:
+    case ChargerType::UUGP:
       return UUGPCharger::Name;
 #endif
     case ChargerType::None:
