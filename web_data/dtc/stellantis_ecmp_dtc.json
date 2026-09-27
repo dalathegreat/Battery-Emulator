@@ -1,0 +1,47 @@
+[
+  {
+    "dtc": "P0B3B",
+    "s_dsc": "Traction Battery Voltage Sensor",
+    "l_dsc": "Traction Battery Voltage Sensor"
+  },
+  {
+    "dtc": "P0AA6",
+    "s_dsc": "Isolation issue",
+    "l_dsc": "High voltage leak to protective earth"
+  },
+  {
+    "dtc": "P1AED01",
+    "s_dsc": "Detection Of a Vehicle Impace",
+    "l_dsc": "Detection Of a Vehicle Impace"
+  },
+  {
+    "dtc": "P1B7915",
+    "s_dsc": "Vehicle Crash Information Wire Circuit",
+    "l_dsc": "Vehicle Crash Information Wire Circuit"
+  },
+  {
+    "dtc": "P2C85",
+    "s_dsc": "Isolation issue",
+    "l_dsc": "Isolation of the power voltage in relation to the internal/external traction battery earth"
+  },
+  {
+    "dtc": "P3078",
+    "s_dsc": "Traction Battery ECU",
+    "l_dsc": "Traction Battery ECU"
+  },
+  {
+    "dtc": "U1207",
+    "s_dsc": "Communication issue Electric Drive Train Supervisor ECU",
+    "l_dsc": "Infromation Sent By The Electric Drive Train Supervisor ECU (Electric Drive Train CAN)"
+  },
+  {
+    "dtc": "U12DE81",
+    "s_dsc": "CAN Communication issue",
+    "l_dsc": "Manufacturer or system-specific network communication fault. Description missing"
+  },
+  {
+    "dtc": "U2000",
+    "s_dsc": "Remote Controlled Triggering CAN Signal",
+    "l_dsc": "Remote Controlled Triggering CAN Signal"
+  }
+]
