@@ -417,7 +417,7 @@ void update_machineryprotection() {
     }
   }
 
-  if (charger && charger->type() != ChargerType::UUGP) {
+  if (charger) {
     // CAN chargers only. UUGP communicates over RS485.
     // If we go 60s without CAN messages we raise a warning.
     check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
@@ -767,3 +767,4 @@ std::string get_emulator_pause_status() {
   }
 }
 //battery pause status
+
