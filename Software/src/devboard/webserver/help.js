@@ -11,7 +11,8 @@
 //   - a form field, keyed by its name attribute; the button goes on the <label> in front of it
 //   - any element with a data-h attribute, keyed by that value; the button goes inside it
 // Pressing the button opens the text right below the element, pressing it again closes it. It
-// works the same with a mouse and a finger. Pages that reload themselves reopen what was open.
+// works the same with a mouse and a finger. Pages that reload themselves, or swap parts in place
+// (the main page refreshes its live part that way), reopen what was open.
 // When the browser rejects a field's value on save, the field's text opens by itself, so the
 // format rules for validated fields live here too.
 //
@@ -117,15 +118,11 @@
     return true;
   }
 
-  // Keep adding buttons while the page streams in, and once more when it is complete.
-  if (document.readyState == 'loading') {
-    var watch = new MutationObserver(scan);
-    watch.observe(document.documentElement, { childList: true, subtree: true });
-    document.addEventListener('DOMContentLoaded', function () {
-      watch.disconnect();
-      scan();
-    });
-  }
+  // Keep adding buttons while the page streams in, once more when it is complete, and to whatever
+  // the page swaps in later: the main page replaces its live part every few seconds, and the
+  // elements in it arrive without their buttons.
+  new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
+  if (document.readyState == 'loading') document.addEventListener('DOMContentLoaded', scan);
 
   function get(u) {
     return fetch(u).then(function (r) { if (!r.ok) throw 0; return r.text(); });

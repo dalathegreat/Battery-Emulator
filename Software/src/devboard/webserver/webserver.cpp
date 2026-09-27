@@ -1775,7 +1775,7 @@ fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/lates
      keeps polling until that happens, instead of navigating away after a fixed delay.
    - Pause and the contactor buttons refresh the live part right away instead of reloading.
    - A tap or click on the live part (or on the note above it) refreshes it at once, dimming it
-     briefly as acknowledgement. Not when it lands on a link, a button or a tooltip of its own,
+     briefly as acknowledgement. Not when it lands on a link, a button or a help text of its own,
      or ends a text selection, and not within 1 s of the last request, so tapping away cannot
      hammer the emulator. A tap that fails is reported at once, without waiting for a second.
    Plain ES5, so a browser too old for fetch() still parses it and falls back to reloading. The
@@ -1804,7 +1804,7 @@ B=b||B;F=0;L.style.opacity='';N.hidden=true;return R?3000:15000},
 function(m){if(++F>1){L.style.opacity=.5;N.hidden=false;
 N.textContent=(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
 else L.style.opacity='';return 5000}).then(end,end)}
-L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.tooltip')||String(getSelection())||new Date-M<1000)return;
+L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.hb')||String(getSelection())||new Date-M<1000)return;
 F=F||1;L.style.opacity=.7;tick()};
 document.addEventListener('visibilitychange',tick);
 B=state();later(B?15000:5000);
