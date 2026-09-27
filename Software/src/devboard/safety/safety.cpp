@@ -767,4 +767,3 @@ std::string get_emulator_pause_status() {
   }
 }
 //battery pause status
-
