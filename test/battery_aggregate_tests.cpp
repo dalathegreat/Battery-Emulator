@@ -404,6 +404,36 @@ TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);  // pack 1's own card is honest
 }
 
+// A pack held out by the voltage check is still talking, and its 0 W is real - but it is not a
+// limit on anything the inverter can charge or discharge. Letting it through would stop the
+// installation on behalf of a battery that is not connected to it, same reasoning as SOC above.
+TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotCapLimits) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  datalayer.battery.status.voltage_dV = 3700;
+
+  datalayer.battery.status.max_charge_power_W = 10000;
+  datalayer.battery.status.max_discharge_power_W = 10000;
+  datalayer.battery2.status.max_charge_power_W = 0;  // detached, reads 0 while held out
+  datalayer.battery2.status.max_discharge_power_W = 0;
+
+  update_aggregate_values();
+  update_aggregate_limits();
+
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);     // pack 1 alone, not dragged to 0
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);
+
+  // Once it joins, its real limits count again
+  datalayer.system.status.battery2_allowed_contactor_closing = true;
+  datalayer.battery2.status.max_charge_power_W = 6000;
+  datalayer.battery2.status.max_discharge_power_W = 8000;
+  update_aggregate_limits();
+
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+}
+
 // The user's current ceiling still applies on top of the power derived value.
 TEST_F(BatteryAggregateTest, UserCurrentLimitCapsTheAggregate) {
   datalayer.battery.status.voltage_dV = 3700;
