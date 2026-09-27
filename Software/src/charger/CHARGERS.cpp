@@ -37,9 +37,11 @@ extern const char* name_for_charger_type(ChargerType type) {
     case ChargerType::ChevyVolt:
       return ChevyVoltCharger::Name;
     case ChargerType::NissanLeaf:
-      return NissanLeafCharger::Name;#ifndef SMALL_FLASH_DEVICE
+      return NissanLeafCharger::Name;
 
-    case ChargerType::UUGP:
+#ifndef SMALL_FLASH_DEVICE
+
+        case ChargerType::UUGP:
       return UUGPCharger::Name;
 #endif
     case ChargerType::None:
