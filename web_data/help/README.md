@@ -28,7 +28,7 @@ a firmware release.
 ```
 
 - A **settings field** gets a button when its `name` attribute is a key here (`LOWPASSFILTER`).
-  The button goes on the field's label, the text opens below the field.
+  The button goes right of the field, on the same line, and the text opens below the field.
 - **Any other element** gets a button when it has a `data-h` attribute that is a key here, for
   example `<h4 data-h=nocntctrl>`. The page must also carry `HELP_SCRIPT` (from `index_html.h`);
   the settings, main, CAN tools and More Battery Info pages do, so battery renderers can use

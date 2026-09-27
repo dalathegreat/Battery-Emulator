@@ -8,7 +8,9 @@
 // Devices with enough flash also carry the copy the firmware was built with as /help.json
 // (tools/embed_help_json.py), used while there is no cached copy, and the only one offline.
 // An element gets a help button when the file has an entry for it:
-//   - a form field, keyed by its name attribute; the button goes on the <label> in front of it
+//   - a form field, keyed by its name attribute; the button goes right of the field, sharing its
+//     grid cell through a wrapper, so the two stay on one line however narrow the screen. Every
+//     field of the form gets the wrapper, with or without a text, so they all line up
 //   - any element with a data-h attribute, keyed by that value; the button goes inside it
 // Pressing the button opens the text right below the element, pressing it again closes it. It
 // works the same with a mouse and a finger. Pages that reload themselves, or swap parts in place
@@ -35,6 +37,8 @@
   var style = document.createElement('style');
   style.textContent =
     '.hi,.hi:hover{background:none;border:0;margin:0 0 0 4px;padding:0 2px;color:#8ab4f8;font:inherit;cursor:pointer}' +
+    '.hw{display:grid;grid-template-columns:minmax(0,250px) 1.6em;align-items:center}' +
+    '.hw>[type=checkbox]{justify-self:center}.hw>.hi{margin:0;justify-self:end}' +
     '.hb{grid-column:1/-1;margin:0 0 6px;padding:8px 10px;border-radius:8px;background:#26343c;color:#ddd;' +
     'font-size:.9em;font-weight:400;line-height:1.4;text-align:left}.hb a{color:#8ab4f8}';
   document.head.appendChild(style);
@@ -70,15 +74,26 @@
   function scan() {
     if (!help) return;
     var loading = document.readyState == 'loading';
-    document.querySelectorAll('form [name],[data-h]').forEach(function (el) {
-      if (el.hasHelp) return;
-      var key = el.dataset.h || el.name, text = help[key];
-      var host = el.dataset.h ? el : el.previousElementSibling;
-      if (!text || !host || (!el.dataset.h && host.tagName != 'LABEL')) return;
-      // The button goes inside a data-h element: wait until its content has arrived, which is
-      // certain once something follows it.
-      if (el.dataset.h && loading && !el.nextSibling) return;
-      el.hasHelp = 1;
+    // Every control that follows a label in a form (a settings row), and every data-h element.
+    document.querySelectorAll('form label+*,[data-h]').forEach(function (el) {
+      if (el.handled) return;
+      var field = !el.dataset.h, key = el.dataset.h || el.name, text = help[key];
+      if (!field && !text) return;
+      // Wait until the element is complete (a data-h element's content, a select's options),
+      // which is certain once something follows it.
+      if (loading && !el.nextSibling) return;
+      el.handled = 1;
+      // A settings control moves into a wrapper that takes its grid cell, with room for the
+      // button after it, whether or not this one has a text.
+      var cell = el;
+      if (field) {
+        cell = document.createElement('span');
+        cell.className = 'hw';
+        cell.handled = 1;
+        el.before(cell);
+        cell.appendChild(el);
+        if (!text) return;
+      }
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'hi';
@@ -86,20 +101,20 @@
       btn.setAttribute('aria-label', 'Help');
       btn.setAttribute('aria-expanded', false);
       function toggle(show) {
-        var box = el.nextElementSibling;
+        var box = cell.nextElementSibling;
         if (box && box.className == 'hb') box.remove();
         if (show) {
           box = document.createElement('div');
           box.className = 'hb';
           render(box, text, wiki);
-          el.after(box);
+          cell.after(box);
         }
         btn.setAttribute('aria-expanded', show);
         remember(key, show);
       }
       btn.onclick = function () { toggle(btn.getAttribute('aria-expanded') != 'true'); };
       el.addEventListener('invalid', function () { toggle(true); });
-      host.appendChild(btn);
+      cell.appendChild(btn);
       if (open.indexOf(key) >= 0) toggle(true);
     });
   }
