@@ -421,7 +421,7 @@ TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotCapLimits) {
   update_aggregate_values();
   update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);     // pack 1 alone, not dragged to 0
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);  // pack 1 alone, not dragged to 0
   EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);
 
   // Once it joins, its real limits count again
