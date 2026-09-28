@@ -42,8 +42,8 @@ class KiaEGmpBattery : public UdsCanBattery {
   static const int MAX_PACK_VOLTAGE_DV = 8064;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 4320;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4220;  //Battery stops allowing charging above this voltage
+  static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery stops allowingn discharge below this voltage
 
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance

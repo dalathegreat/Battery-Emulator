@@ -380,7 +380,7 @@ class EcmpBattery : public UdsCanBattery {
   static const uint16_t PID_TIME_SPENT_OVER_55C = 0xE082;
   static const uint16_t PID_CONTACTOR_CLOSING_COUNTER = 0xD416;
   static const uint16_t PID_DATE_OF_MANUFACTURE = 0xF18B;
-  uint16_t battery_voltage = 370;
+  uint16_t battery_voltage = 0;
   uint16_t battery_soc = 0;
   uint16_t cellvoltages[108];
   uint16_t battery_AllowedMaxChargeCurrent = 0;

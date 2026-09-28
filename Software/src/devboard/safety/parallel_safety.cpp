@@ -7,16 +7,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
   /* Before the checks are started, we need to know the battery is alive via CAN, and that the voltages have ben read*/
   if ((batteryNumber == 2) && battery2_detected) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
-      return;  // Both voltage values need to be available to start check
-    }
-    if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery2.status.voltage_dV == 3700) {
-      //This is a special case. It can either be that both batteries are at 370V (unlikely), or that both batteries have not been ready yet
-      //To actually determine if we should return early, check that cellvoltages min/max have been read. If those are still at 3700mV(default)
-      //we can assume confidently that no CAN data has been read and we need to return early
-      if (datalayer.battery.status.cell_max_voltage_mV == 3700 ||
-          datalayer.battery2.status.cell_max_voltage_mV == 3700) {
-        return;
-      }
+      return;  // 0 = not decoded yet, every pack starts there. Both are needed to start the check
     }
     uint16_t voltage_diff_battery2_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
@@ -47,15 +38,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
 
   if ((batteryNumber == 3) && battery3_detected) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery3.status.voltage_dV == 0) {
-      return;  // Both voltage values need to be available to start check
-    }
-    if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery3.status.voltage_dV == 3700) {
-      //Same special case as for the second battery: only return early while the cellvoltages min/max are still at
-      //their 3700mV default too, otherwise a battery genuinely at 370V (e.g. the fake battery) could never join
-      if (datalayer.battery.status.cell_max_voltage_mV == 3700 ||
-          datalayer.battery3.status.cell_max_voltage_mV == 3700) {
-        return;
-      }
+      return;  // 0 = not decoded yet, every pack starts there. Both are needed to start the check
     }
     uint16_t voltage_diff_battery3_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);

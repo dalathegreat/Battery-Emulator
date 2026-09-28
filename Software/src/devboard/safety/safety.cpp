@@ -204,9 +204,12 @@ void update_machineryprotection() {
       clear_event(EVENT_BATTERY_OVERVOLTAGE, 1);
     }
 
-    // Battery voltage is under designed min voltage!
+    // Battery voltage is under designed min voltage! 0 means not decoded yet: nothing to
+    // discharge against, but nothing to report either
     if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
+      if (datalayer.battery.status.voltage_dV > 0) {
+        set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
+      }
       datalayer.battery.status.max_discharge_power_W = 0;
     } else {
       clear_event(EVENT_BATTERY_UNDERVOLTAGE, 1);
@@ -244,7 +247,8 @@ void update_machineryprotection() {
     //If user is requesting charge to stop at a specific voltage
     static bool charge_blocked = false;
     static bool discharge_blocked = false;
-    if (datalayer.battery_settings.user_set_voltage_limits_active) {
+    // Nothing to compare until pack 1 has decoded a voltage; the latches keep their state
+    if (datalayer.battery_settings.user_set_voltage_limits_active && datalayer.battery.status.voltage_dV > 0) {
       // --- Charge limiting with hysteresis ---
       if (datalayer.battery.status.voltage_dV >= datalayer.battery_settings.max_user_set_charge_voltage_dV) {
         charge_blocked = true;  // Latch: block charging once target is hit

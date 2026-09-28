@@ -872,7 +872,7 @@ static bool publish_common_info(void) {
       //only publish these values once the battery was actually seen on CAN (battery_detected)
       //and we are still communicating with it. CAN_battery_still_alive alone is not enough:
       //it starts as a nonzero countdown at boot, so for up to ~60 s it is truthy before the
-      //first frame ever arrived - publishing datalayer defaults (SOC 0%, 370.0 V, SOH 99%)
+      //first frame ever arrived - publishing datalayer defaults (SOC 0%, 0.0 V, SOH 99%)
       //as if they were real. Gating on detection makes HA show "unknown" until data exists.
       if (battery_detected && datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN &&
           esp32hal->system_booted_up()) {

@@ -14,7 +14,6 @@ class RelionBattery : public CanBattery {
       : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = allows_contactor_closing_ptr;
-    battery_total_voltage = 0;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -71,7 +70,7 @@ class RelionBattery : public CanBattery {
   };
   uint16_t SOC_from_max_cell_voltage = 0;
   uint16_t SOC_from_min_cell_voltage = 0;
-  uint16_t battery_total_voltage = 500;
+  uint16_t battery_total_voltage = 0;
   int16_t battery_total_current = 0;
   uint8_t system_state = 0;
   uint8_t battery_soc = 50;
