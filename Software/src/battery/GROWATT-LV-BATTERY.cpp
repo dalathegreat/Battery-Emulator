@@ -19,6 +19,8 @@ void GrowattLvBattery::setup(void) {
   datalayer.battery.info.chemistry = LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 
   // Allow contactor closing once the BMS itself reports charge/discharge enabled.
   datalayer.system.status.battery_allows_contactor_closing = false;
@@ -27,7 +29,12 @@ void GrowattLvBattery::setup(void) {
 void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x311: {  // Voltage/current limits + status
+      // Only 0x311 refreshes the aliveness counter - see the header comment
+      // and issue #3034: it carries the charge/discharge limits, so losing
+      // it must raise the normal battery-missing event even if every other
+      // frame ID keeps arriving.
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      last_311_millis = millis();
 
       cvl_dV = read_u16_be(rx_frame, 0);  // 0.1V
       ccl_dA = read_u16_be(rx_frame, 2);  // 0.1A
@@ -45,8 +52,6 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
 
     case 0x312: {  // Protection/warning flags + live pack count
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-
       prot1 = rx_frame.data.u8[0];
       prot2 = rx_frame.data.u8[1];
       warn1 = rx_frame.data.u8[2];
@@ -58,9 +63,7 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     }
 
-    case 0x313: {  // Pack voltage/current/temperature/SOC/SOH
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-
+    case 0x313: {                             // Pack voltage/current/temperature/SOC/SOH
       pack_v_cV = read_s16_be(rx_frame, 0);   // 0.01V - confirmed against real hardware
       current_dA = read_s16_be(rx_frame, 2);  // + = charging, same sign as datalayer convention
       temp_dC = read_s16_be(rx_frame, 4);
@@ -72,14 +75,12 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
 
     case 0x314:  // Remaining/full capacity (0.01Ah), delta-V, cycle count
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       remaining_cAh = read_u16_be(rx_frame, 0);
       full_cAh = read_u16_be(rx_frame, 2);
       have_314 = true;
       break;
 
-    case 0x319:  // Force-charge request + fallback enable bits
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    case 0x319:  // Force-charge request + fallback enable bits + max/min cell voltage
       force_chg_2 = (rx_frame.data.u8[0] & 0x04) != 0;  // bit 2
       force_chg_1 = (rx_frame.data.u8[0] & 0x08) != 0;  // bit 3
       // Only used before the first 0x311 arrives; a real capture showed this
@@ -88,10 +89,14 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         discharge_en = (rx_frame.data.u8[0] & 0x20) != 0;  // bit 5
         charge_en = (rx_frame.data.u8[0] & 0x40) != 0;     // bit 6
       }
+      // Fallback max/min cell voltage (1 mV) - from protocol V1.03 the
+      // per-cell frames below are optional, and this carries the same
+      // highest/lowest cell voltage directly. See update_values().
+      max_cell_mV_319 = read_u16_be(rx_frame, 1);
+      min_cell_mV_319 = read_u16_be(rx_frame, 3);
       break;
 
     case 0x315:  // Cell voltages 1-4 (mV)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.cell_voltages_mV[0] = read_u16_be(rx_frame, 0);
       datalayer.battery.status.cell_voltages_mV[1] = read_u16_be(rx_frame, 2);
       datalayer.battery.status.cell_voltages_mV[2] = read_u16_be(rx_frame, 4);
@@ -99,7 +104,6 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
 
     case 0x316:  // Cell voltages 5-8 (mV)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.cell_voltages_mV[4] = read_u16_be(rx_frame, 0);
       datalayer.battery.status.cell_voltages_mV[5] = read_u16_be(rx_frame, 2);
       datalayer.battery.status.cell_voltages_mV[6] = read_u16_be(rx_frame, 4);
@@ -107,7 +111,6 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
 
     case 0x317:  // Cell voltages 9-12 (mV)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.cell_voltages_mV[8] = read_u16_be(rx_frame, 0);
       datalayer.battery.status.cell_voltages_mV[9] = read_u16_be(rx_frame, 2);
       datalayer.battery.status.cell_voltages_mV[10] = read_u16_be(rx_frame, 4);
@@ -115,7 +118,6 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
 
     case 0x318:  // Cell voltages 13-16 (mV)
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       datalayer.battery.status.cell_voltages_mV[12] = read_u16_be(rx_frame, 0);
       datalayer.battery.status.cell_voltages_mV[13] = read_u16_be(rx_frame, 2);
       datalayer.battery.status.cell_voltages_mV[14] = read_u16_be(rx_frame, 4);
@@ -137,6 +139,15 @@ void GrowattLvBattery::update_values() {
   datalayer.battery.status.real_soc = (uint16_t)soc_pct * 100;
   datalayer.battery.status.soh_pptt = (uint16_t)soh_pct * 100;
 
+  // Only 0x311 carries the charge/discharge limits (see header comment and
+  // issue #3034), so its own freshness has to gate them independently of the
+  // aliveness counter: a BMS that keeps sending every other frame but stops
+  // updating 0x311 must not have its last-known limits published forever.
+  // Unsigned subtraction is correct across a millis() wrap. Before the first
+  // 0x311 ever arrives have_311 is false, so this has no effect - charge_en/
+  // discharge_en/ccl_dA/dcl_dA are already at their power-on-safe defaults.
+  const bool limits_stale = have_311 && ((millis() - last_311_millis) > LIMITS_STALE_MS);
+
   // Per-pack ceiling scales with the live pack count from 0x312 - a fixed
   // single-pack ceiling would wrongly halve a 2-pack system's real
   // capability. Belt-and-braces: also zero the limit outright whenever the
@@ -145,8 +156,10 @@ void GrowattLvBattery::update_values() {
   // this driver's enable state directly - the safety guarantee has to come
   // from the current magnitude being genuinely zero, not just from a flag.
   const uint16_t ceiling_dA = (uint16_t)(MAX_CURRENT_PER_PACK_dA * (uint16_t)pack_count);
-  datalayer.battery.status.max_charge_current_dA = charge_en ? (ccl_dA > ceiling_dA ? ceiling_dA : ccl_dA) : 0;
-  datalayer.battery.status.max_discharge_current_dA = discharge_en ? (dcl_dA > ceiling_dA ? ceiling_dA : dcl_dA) : 0;
+  const bool charge_ok = charge_en && !limits_stale;
+  const bool discharge_ok = discharge_en && !limits_stale;
+  datalayer.battery.status.max_charge_current_dA = charge_ok ? (ccl_dA > ceiling_dA ? ceiling_dA : ccl_dA) : 0;
+  datalayer.battery.status.max_discharge_current_dA = discharge_ok ? (dcl_dA > ceiling_dA ? ceiling_dA : dcl_dA) : 0;
 
   // Power fields are separate from the current fields above and not derived
   // from them automatically - the generic safety layer (safety.cpp) zeroes
@@ -197,8 +210,17 @@ void GrowattLvBattery::update_values() {
     }
   }
   if (cell_max > 0) {
+    // Per-cell frames (0x315-0x318) have populated at least one cell - derive
+    // from them, as before.
     datalayer.battery.status.cell_max_voltage_mV = cell_max;
     datalayer.battery.status.cell_min_voltage_mV = cell_min;
+  } else if (max_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && max_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX &&
+             min_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && min_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX) {
+    // No per-cell frame has arrived - fall back to 0x319's own max/min, which
+    // the protocol has carried directly since V1.03 (see header comment).
+    // Only trusted within a plausible cell-voltage range.
+    datalayer.battery.status.cell_max_voltage_mV = max_cell_mV_319;
+    datalayer.battery.status.cell_min_voltage_mV = min_cell_mV_319;
   }
 
   // Conservative: only allow contactor closing once the BMS itself has
