@@ -8,6 +8,7 @@
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/espnow/espnow.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/network/hostname.h"
 #include "../../devboard/network/network_status.h"
@@ -364,10 +365,20 @@ static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, 
                                              {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
-// init_mqtt() so that mqtt_message_received() does not rebuild six temporary Strings on
+// init_mqtt() so that mqtt_message_received() does not rebuild temporary Strings on
 // every received message.
-enum ButtonCommand { BTN_BMSRESET = 0, BTN_PAUSE, BTN_RESUME, BTN_RESTART, BTN_STOP, BTN_SET_LIMITS, BTN_COUNT };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE", "RESUME", "RESTART", "STOP", "SET_LIMITS"};
+enum ButtonCommand {
+  BTN_BMSRESET = 0,
+  BTN_PAUSE,
+  BTN_RESUME,
+  BTN_RESTART,
+  BTN_STOP,
+  BTN_SET_LIMITS,
+  BTN_ESPNOW_RUN,
+  BTN_COUNT
+};
+static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE",      "RESUME",    "RESTART",
+                                                 "STOP",     "SET_LIMITS", "ESPNOW_RUN"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -890,6 +901,7 @@ static bool publish_common_info(void) {
         doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
       }
       doc["emulator_uptime"] = millis64() / 1000;
+      doc["espnow_running"] = espnow_is_running() ? 1 : 0;
 
       // Internal-RAM heap diagnostics. Same sources and fragmentation formula as the ESPHome
       // debug component, so the values are directly comparable with an ESPHome node's.
@@ -1231,6 +1243,28 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, button_command_topics[BTN_STOP].c_str()) == 0) {
     setBatteryPause(true, false, EquipmentStop::STOP);
+  }
+
+  // "1" starts ESP-NOW if it is not running, "0" stops it if it is. Runtime only: the
+  // "Start ESPNow at boot" setting stored in NVS is not changed.
+  if (strcmp(topic, button_command_topics[BTN_ESPNOW_RUN].c_str()) == 0) {
+    int start = 0;
+    while (start < data_len && isspace((unsigned char)data[start])) {
+      start++;
+    }
+    int end = data_len;
+    while (end > start && isspace((unsigned char)data[end - 1])) {
+      end--;
+    }
+    if (end - start == 1 && data[start] == '1') {
+      logging.println("MQTT: starting ESPNow");
+      request_espnow_running(true);
+    } else if (end - start == 1 && data[start] == '0') {
+      logging.println("MQTT: stopping ESPNow");
+      request_espnow_running(false);
+    } else {
+      logging.printf("MQTT: invalid ESPNOW_RUN payload [%.*s], expected 1 or 0\n", data_len, data);
+    }
   }
 
   if (strcmp(topic, button_command_topics[BTN_SET_LIMITS].c_str()) == 0) {

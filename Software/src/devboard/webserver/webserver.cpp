@@ -20,6 +20,7 @@
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../shunt/Shunt.h"
+#include "../espnow/espnow.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
@@ -1454,7 +1455,7 @@ static bool render_live(CheckedHtml& content) {
     // Reachability/hostname/IP reflect the active interface
     if (network_connected()) {
       content += "<h4>" + html_escape(active_hostname()) + " [" + WiFi.localIP().toString();
-      if (espnow_enabled) {
+      if (espnow_is_running()) {
         // MAC is the station address, which is also the source address of the ESPNow
         // frames - handy when filling in the ESPNow receiver MAC list on another node.
         String mac = WiFi.macAddress();
