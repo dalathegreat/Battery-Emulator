@@ -70,7 +70,7 @@
     "MEASURECPUTEMP": "If enabled, the CPU temperature will be displayed on the webserver.",
     "CPUTEMPOFFSET": "Unreliable CPU temperature readings can be corrected with an offset. Measure the actual temperature with a separate thermometer and adjust the offset accordingly.",
 
-    "ESPNOWENABLED": "Send battery telemetry to nearby devices over ESP-NOW. See [ESPNow](setup/software/espnow/).",
+    "ESPNOWENABLED": "Start sending battery telemetry to nearby devices over ESP-NOW when the emulator boots. ESP-NOW can also be started and stopped at runtime with the MQTT command ESPNOW_RUN (payload 1 or 0). See [ESPNow](setup/software/espnow/).",
     "ESPNOWMACS": "Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart.",
     "MQTTENABLED": "Publish the battery data to an MQTT broker and accept commands from it. See [MQTT](setup/software/mqtt/).",
     "MQTTSERVER": "Hostname or IP address of the MQTT broker: letters, numbers, '.' and '-'.",
