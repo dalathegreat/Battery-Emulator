@@ -213,7 +213,8 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t SESSION_RAMP_IDLE_HOLD_MS = 4000;     // 0x36D idle prearm before the work-mode ramp
   static const uint32_t SESSION_GRANT_MIRROR_MS = 1500;       // act without 0x345 if the mirror goes quiet
   static const uint32_t SESSION_MIRROR_FRESH_MS = 500;        // 0x345 must be this recent to fast-confirm
-  static const uint16_t SESSION_TERMINATION_FLOOR_MV = 3700;  // a grant-zero below this is an abort, not full
+  static const uint16_t SESSION_TERMINATION_FLOOR_MV = 3700;  // a grant end below this is an abort, not full
+  static const uint8_t SESSION_GRANT_END = 0x01;              // 0x347 b1 grant end: Atto 0x00, PW4 0x01
   static const uint32_t SESSION_FINISH_ACK_MS = 4000;
   static const uint32_t SESSION_DONE_TIMEOUT_MS = 30000;  // finish anyway if the charge flag lags the grant
   static const uint32_t SESSION_HOLD_SETTLE_MS = 2500;    // 0x24A 8C -> 80 once the pack is resting
