@@ -10,9 +10,19 @@
     "l_dsc": "High voltage leak to protective earth"
   },
   {
+    "dtc": "P0AD9",
+    "s_dsc": "Traction Battery Positive Switch control",
+    "l_dsc": "Traction Battery Positive Switch control"
+  },
+  {
     "dtc": "P1AED01",
     "s_dsc": "Detection Of a Vehicle Impace",
     "l_dsc": "Detection Of a Vehicle Impace"
+  },
+  {
+    "dtc": "P1AEA11",
+    "s_dsc": "Traction Battery Electric Circuit Breaker Connector ",
+    "l_dsc": "Traction Battery Electric Circuit Breaker Connector - Short Circuit To Ground"
   },
   {
     "dtc": "P1B7915",
@@ -38,6 +48,11 @@
     "dtc": "U12DE81",
     "s_dsc": "CAN Communication issue",
     "l_dsc": "Manufacturer or system-specific network communication fault. Description missing"
+  },
+  {
+    "dtc": "U180B",
+    "s_dsc": "Collision detected",
+    "l_dsc": "Collision detected"
   },
   {
     "dtc": "U2000",
