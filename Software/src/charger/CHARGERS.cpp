@@ -2,7 +2,7 @@
 #include <vector>
 #include "CanCharger.h"
 
-CanCharger* charger = nullptr;
+Charger* charger = nullptr;
 
 ChargerType user_selected_charger_type = ChargerType::None;
 
@@ -31,6 +31,12 @@ extern const char* name_for_charger_type(ChargerType type) {
       return ChevyVoltCharger::Name;
     case ChargerType::NissanLeaf:
       return NissanLeafCharger::Name;
+
+#ifndef SMALL_FLASH_DEVICE
+
+    case ChargerType::UUGP:
+      return UUGPCharger::Name;
+#endif
     case ChargerType::None:
     case ChargerType::Highest:
       return "None";
@@ -48,6 +54,11 @@ void setup_charger() {
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
       break;
+#ifndef SMALL_FLASH_DEVICE
+    case ChargerType::UUGP:
+      charger = new UUGPCharger();
+      break;
+#endif
     case ChargerType::None:
     case ChargerType::Highest:
       break;

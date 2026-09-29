@@ -165,6 +165,7 @@ add_executable(tests
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TESLA-HTML.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
@@ -202,6 +203,7 @@ add_executable(tests
     ../Software/src/charger/CHARGERS.cpp
     ../Software/src/charger/CHEVY-VOLT-CHARGER.cpp
     ../Software/src/charger/NISSAN-LEAF-CHARGER.cpp
+    ../Software/src/charger/UUGP-CHARGER.cpp
     )
 
 target_link_libraries(tests

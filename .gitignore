@@ -12,6 +12,8 @@ test/Makefile
 test/cmake_install.cmake
 test/gtest/
 test/tests[1]_include.cmake
+dependencies.lock
+CMakeLists.txt
 
 # Ignore .exe (unit tests)
 *.exe
