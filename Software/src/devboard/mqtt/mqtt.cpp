@@ -1306,7 +1306,6 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   if (strcmp(topic, button_command_topics[BTN_SET_SCALESOC].c_str()) == 0) {
     if (!datalayer.battery_settings.soc_scaling_active) {
       // Limits have no effect without "Rescale SOC", so the command is ignored.
-      logging.println("MQTT: SET_SCALESOC ignored, Rescale SOC is not enabled");
     } else {
       JsonDocument doc;
       char* data_str = strndup(data, data_len);
@@ -1321,18 +1320,16 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
           float max_pct = doc["max_pct"].as<float>();
           if (max_pct >= 50.0f && max_pct <= 100.0f) {
             datalayer.battery_settings.max_percentage = (uint16_t)lroundf(max_pct * 100.0f);
-            logging.printf("MQTT: SOC scaling max set to %.1f%%\n", max_pct);
           } else {
-            logging.printf("MQTT: WARNING SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
+            logging.printf("MQTT: SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
           }
         }
         if (doc["min_pct"].is<float>()) {
           float min_pct = doc["min_pct"].as<float>();
           if (min_pct >= -10.0f && min_pct <= 50.0f) {
             datalayer.battery_settings.min_percentage = (int16_t)lroundf(min_pct * 100.0f);
-            logging.printf("MQTT: SOC scaling min set to %.1f%%\n", min_pct);
           } else {
-            logging.printf("MQTT: WARNING SET_SCALESOC min_pct %.1f out of range (-10.0-50.0), ignored\n", min_pct);
+            logging.printf("MQTT: SET_SCALESOC min_pct %.1f out of range (-10.0-50.0), ignored\n", min_pct);
           }
         }
       }
