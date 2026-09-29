@@ -247,14 +247,19 @@ void update_aggregate_values() {
 void update_aggregate_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
-  /* Cap max charge/discharge to the lowest battery's limits */
+  /* Cap max charge/discharge to the lowest battery's limits - joined packs only. Same "joined"
+     gate update_aggregate_values() uses for SOC, and for the same reason: a pack held out by
+     the voltage check, or dropped after a fault, is still talking and still reporting real
+     limits, but they are not limits on anything the inverter can charge or discharge. Letting
+     an unjoined pack's 0 W through here would stop the installation on behalf of a battery that
+     is not connected to it. */
   agg.max_charge_power_W = datalayer.battery.status.max_charge_power_W;
   agg.max_discharge_power_W = datalayer.battery.status.max_discharge_power_W;
-  if (battery2) {
+  if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
     agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery2.status.max_charge_power_W);
     agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery2.status.max_discharge_power_W);
   }
-  if (battery3) {
+  if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {
     agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery3.status.max_charge_power_W);
     agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery3.status.max_discharge_power_W);
   }
