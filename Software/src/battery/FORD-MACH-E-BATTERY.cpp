@@ -674,7 +674,10 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis30s >= INTERVAL_30_S) {
     previousMillis30s = currentMillis;
 
-    transmit_can_frame(&FORD_DTC_RESET);
+    if (user_selected_FORD_force_DTC_clear_periodically) {
+      dtc_clear_in_progress = true;
+      transmit_can_frame(&FORD_DTC_RESET);
+    }
   }
 }
 

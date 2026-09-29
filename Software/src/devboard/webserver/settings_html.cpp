@@ -1073,6 +1073,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INTERLOCKREQ") ? "checked" : "";
   }
 
+  if (var == "FORDCLRDTC") {
+    return settings.getBool("FORDCLRDTC") ? "checked" : "";
+  }
+
   if (var == "LEAFAUTOOFS") {
     return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
   }
@@ -1474,6 +1478,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-ford { display: none; }
+    form[data-battery="44"] .if-ford {
+      display: contents;
+    }
+
     form .if-daly { display: none; }
     form[data-battery="23"] .if-daly {
       display: contents;
@@ -1819,6 +1828,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
+        </div>
+
+        <div class="if-ford">
+            <label for='FORDCLRDTC'>Autoclear DTC every 30s: </label>
+            <input type='checkbox' name='FORDCLRDTC' id='interlock' value='on' %FORDCLRDTC% />
         </div>
 
         <script> //Remember what the LBC is currently being sent, so a change can be spotted on save

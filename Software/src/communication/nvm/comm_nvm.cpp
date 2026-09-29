@@ -143,6 +143,7 @@ void init_stored_settings() {
     user_selected_LEAF_chg_sta_rq = 0;
   }
   user_selected_LEAF_auto_current_offset = settings.getBool("LEAFAUTOOFS", true);
+  user_selected_FORD_force_DTC_clear_periodically = settings.getBool("FORDCLRDTC", false);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
   user_selected_daly_power_per_dV = settings.getUInt("DALYPWRDV", 50);
   user_selected_daly_power_per_dV_start = settings.getUInt("DALYDVSTART", 20);

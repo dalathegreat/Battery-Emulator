@@ -603,6 +603,8 @@ void setup_battery() {
 bool user_selected_LEAF_interlock_mandatory = false;
 uint8_t user_selected_LEAF_chg_sta_rq = 0;
 bool user_selected_LEAF_auto_current_offset = true;
+/* User-selected Ford settings */
+bool user_selected_FORD_force_DTC_clear_periodically = false;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
 uint16_t user_selected_tesla_GTW_country = 17477;
