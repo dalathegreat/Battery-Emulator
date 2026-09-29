@@ -8,15 +8,8 @@
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/types.h"
 
-enum class ChargerType {
-  None,
-  NissanLeaf,
-  ChevyVolt,
-#ifndef SMALL_FLASH_DEVICE
-  UUGP,
-#endif
-  Highest
-};
+enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
+
 extern ChargerType user_selected_charger_type;
 
 extern std::vector<ChargerType> supported_charger_types();
@@ -78,6 +71,6 @@ class CanCharger : public Charger, Transmitter, CanReceiver {
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
-extern Charger* charger;
+extern CanCharger* charger;
 
 #endif

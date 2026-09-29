@@ -5,15 +5,13 @@
 
 #include "CHEVY-VOLT-CHARGER.h"
 #include "NISSAN-LEAF-CHARGER.h"
-#ifndef SMALL_FLASH_DEVICE
-#include "UUGP-CHARGER.h"
-#endif
+
 // Constructs the global charger object based on build-time selection of charger type.
 // Safe to call even though no charger is selected.
 void setup_charger();
 
 // The selected charger or null if no charger in use.
-extern Charger* charger;
+extern CanCharger* charger;
 
 //TODO: These should be user configurable via webserver
 extern volatile float CHARGER_SET_HV;
