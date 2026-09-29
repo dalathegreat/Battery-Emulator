@@ -92,6 +92,9 @@ CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 # undefined behaviour instead. Switch back to _SILENT if you want the aborts.
 # CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE is not set
 CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT=y
+# Keep ESP_RETURN_ON_* / ESP_EXIT_ON_* checks,
+# but remove their diagnostic strings from the firmware.
+CONFIG_COMPILER_OPTIMIZATION_CHECKS_SILENT=y
 
 # -----------------------------------------------------------------------------
 # TIER 3 - measure carefully, board-by-board. May interact with AsyncTCP / mDNS.
