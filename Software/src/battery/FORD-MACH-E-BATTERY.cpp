@@ -669,6 +669,13 @@ void FordMachEBattery::transmit_can(unsigned long currentMillis) {
     //transmit_can_frame(&FORD_3C3); //Confirmed does NOT help reduce amount of DTCs
     //transmit_can_frame(&FORD_581); //Confirmed does NOT help reduce amount of DTCs
   }
+
+  // Send 30s CAN Message
+  if (currentMillis - previousMillis30s >= INTERVAL_30_S) {
+    previousMillis30s = currentMillis;
+
+    transmit_can_frame(&FORD_DTC_RESET);
+  }
 }
 
 void FordMachEBattery::setup(void) {  // Performs one time setup at startup
