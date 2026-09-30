@@ -312,6 +312,8 @@ void init_stored_settings() {
   qnhck_rated_output_mV = qnhck_is_model(QNHCK_RATED_OUTPUTS, temp) ? temp : QNHCK_DEFAULT_RATED_OUTPUT_MV;
   temp = settings.getUInt("QNHZERO", QNHCK_NOMINAL_ZERO_MV);
   qnhck_zero_mV = qnhck_zero_plausible(temp) ? temp : QNHCK_NOMINAL_ZERO_MV;
+  // Only the off state of the automatic calibration is ever stored
+  qnhck_auto_calibration = settings.getBool("QNHAUTOCAL", true);
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);

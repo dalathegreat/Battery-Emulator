@@ -2,6 +2,7 @@
 
 #include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/battery/TEST-FAKE-BATTERY.h"
+#include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/battery_aggregate.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
@@ -101,7 +102,7 @@ TEST(QnhckBoardTest, SetupWithoutAnAdcPinRaisesAnEventAndLeavesTheBatteriesInCha
   EXPECT_GE(get_event_pointer(EVENT_GPIO_NOT_DEFINED)->occurences, 1);
   EXPECT_FALSE(datalayer.shunt.replaces_battery_current);
   EXPECT_FALSE(datalayer.shunt.available);
-  EXPECT_STREQ(datalayer.system.info.shunt_protocol, "QNHCK2-16 50 A, ±0.625 V");
+  EXPECT_STREQ(datalayer.system.info.shunt_protocol, "QNHCK2-16 (50 A ±0.625 V)");
 
   uint16_t reading_mV = 1234;
   EXPECT_FALSE(sensor.calibrate_zero(reading_mV));
@@ -123,6 +124,148 @@ TEST(QnhckBoardTest, AnUnpoweredSensorIsNotPassedOn) {
   uint16_t reading_mV = 1234;
   EXPECT_FALSE(sensor.calibrate_zero(reading_mV));
   EXPECT_EQ(reading_mV, 0);
+}
+
+// --- Automatic calibration while the contactors are open ---
+
+class QnhckAutoCalibrationTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    // The global DataLayerResetListener has already reset datalayer (contactors_engaged 0, open)
+    qnhck_rated_current_A = 50;  // 12.5 mV per A
+    qnhck_rated_output_mV = 625;
+    qnhck_zero_mV = QNHCK_NOMINAL_ZERO_MV;
+    qnhck_auto_calibration = true;
+    contactor_control_enabled = true;
+    contactor_control_enabled_double_battery = false;
+    contactor_control_enabled_triple_battery = false;
+  }
+
+  void TearDown() override {
+    qnhck_rated_current_A = QNHCK_DEFAULT_RATED_CURRENT_A;
+    qnhck_rated_output_mV = QNHCK_DEFAULT_RATED_OUTPUT_MV;
+    qnhck_zero_mV = QNHCK_NOMINAL_ZERO_MV;
+    qnhck_auto_calibration = true;
+    contactor_control_enabled = false;
+    contactor_control_enabled_double_battery = false;
+    contactor_control_enabled_triple_battery = false;
+  }
+
+  // One sample per millisecond from from_ms to to_ms, both included, all reading mV
+  static void feed(Qnhck2_16Shunt& sensor, uint32_t from_ms, uint32_t to_ms, uint32_t mV) {
+    for (uint32_t ms = from_ms; ms <= to_ms; ms++) {
+      sensor.add_sample(ms, mV);
+    }
+  }
+
+  static void close_contactors() { datalayer.system.status.contactors_engaged = 1; }
+  static void open_contactors() { datalayer.system.status.contactors_engaged = 0; }
+};
+
+TEST_F(QnhckAutoCalibrationTest, MeasuresTheZeroPointWhileTheContactorsAreOpen) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+
+  EXPECT_EQ(qnhck_zero_mV, 1640);
+  EXPECT_TRUE(datalayer.shunt.available);
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
+
+  // Closed, the zero point holds and 125 mV above it is 10 A
+  close_contactors();
+  feed(sensor, 2001, 3000, 1765);
+  EXPECT_EQ(qnhck_zero_mV, 1640);
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 10000);
+  EXPECT_TRUE(datalayer.shunt.available);
+}
+
+TEST_F(QnhckAutoCalibrationTest, NotPassedOnBeforeTheZeroPointIsKnown) {
+  contactor_control_enabled = false;  // Nothing says the contactors are open
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 3000, 1650);
+
+  EXPECT_FALSE(datalayer.shunt.available);
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);  // Still published, just not trusted
+}
+
+TEST_F(QnhckAutoCalibrationTest, ClosingContactorsBeforeTheyHaveSettledMeasureNothing) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 200, 1640);  // Open, but less than the settle time
+  close_contactors();
+  feed(sensor, 201, 3000, 1640);
+
+  EXPECT_FALSE(datalayer.shunt.available);
+  EXPECT_EQ(qnhck_zero_mV, QNHCK_NOMINAL_ZERO_MV);
+}
+
+TEST_F(QnhckAutoCalibrationTest, PrechargeIsNotOpen) {
+  datalayer.system.status.contactors_engaged = 3;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 3000, 1640);
+
+  EXPECT_FALSE(datalayer.shunt.available);
+}
+
+TEST_F(QnhckAutoCalibrationTest, AFaultLatchedOpenCounts) {
+  datalayer.system.status.contactors_engaged = 2;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+
+  EXPECT_EQ(qnhck_zero_mV, 1640);
+  EXPECT_TRUE(datalayer.shunt.available);
+}
+
+TEST_F(QnhckAutoCalibrationTest, EveryOpeningMeasuresAfresh) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  feed(sensor, 2001, 3000, 1765);
+  open_contactors();
+  feed(sensor, 3001, 5000, 1660);
+
+  EXPECT_EQ(qnhck_zero_mV, 1660);  // Not averaged with the previous opening
+}
+
+TEST_F(QnhckAutoCalibrationTest, ALongOpeningKeepsTheLatestTenSeconds) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 10000, 1600);
+  feed(sensor, 10001, 20000, 1680);
+
+  EXPECT_EQ(qnhck_zero_mV, 1680);
+}
+
+TEST_F(QnhckAutoCalibrationTest, AZeroPointThatCannotBeIsNotTaken) {
+  // In range for the 150 A model, but no zero point: something flows, or it is on the wrong pin
+  qnhck_rated_current_A = 150;
+  qnhck_rated_output_mV = 1650;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 3000, 1900);
+
+  EXPECT_EQ(qnhck_zero_mV, QNHCK_NOMINAL_ZERO_MV);
+  EXPECT_FALSE(datalayer.shunt.available);
+}
+
+TEST_F(QnhckAutoCalibrationTest, APackWithoutItsOwnContactorControlMayStillBeOnTheLink) {
+  battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  EXPECT_FALSE(datalayer.shunt.available);
+
+  contactor_control_enabled_double_battery = true;  // Now its contactor is ours, and open
+  feed(sensor, 2001, 4000, 1640);
+  EXPECT_EQ(qnhck_zero_mV, 1640);
+  EXPECT_TRUE(datalayer.shunt.available);
+}
+
+TEST_F(QnhckAutoCalibrationTest, ByHandTheStoredZeroPointIsUsedRightAway) {
+  qnhck_auto_calibration = false;
+  contactor_control_enabled = false;
+  qnhck_zero_mV = 1640;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 1000, 1765);
+
+  EXPECT_TRUE(datalayer.shunt.available);
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 10000);
+  EXPECT_EQ(qnhck_zero_mV, 1640);
 }
 
 // --- The inverter gets the measured current ---

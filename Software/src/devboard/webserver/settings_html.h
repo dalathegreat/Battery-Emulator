@@ -27,12 +27,13 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 const char* getCANInterfaceName(CAN_Interface interface);
 
 /**
- * @brief The zero point the QNHCK2-16 current sensor runs with, as shown next to its
- * calibration button
+ * @brief A QNHCK2-16 zero point as shown next to its manual calibration button
+ *
+ * @param[in] zero_mV
  *
  * @return String
  */
-String qnhck_zero_text();
+String qnhck_zero_text(uint16_t zero_mV);
 
 extern const char settings_html[];
 

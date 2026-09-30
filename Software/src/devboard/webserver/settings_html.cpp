@@ -1112,7 +1112,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "QNHZERO") {
-    return qnhck_zero_text();
+    // What calibration by hand uses: the stored zero point, or the nominal one. Not the running
+    // value, which the automatic calibration may have measured since.
+    return qnhck_zero_text(settings.getUInt("QNHZERO", QNHCK_NOMINAL_ZERO_MV));
+  }
+
+  if (var == "QNHAUTOCAL") {
+    return settings.getBool("QNHAUTOCAL", true) ? "checked" : "";
   }
 
   if (var == "DALYPWRPCT") {
@@ -1167,9 +1173,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   }
 }
 
-String qnhck_zero_text() {
-  return String(qnhck_zero_mV / 1000.0f, 3) +
-         (qnhck_zero_mV == QNHCK_NOMINAL_ZERO_MV ? " V (default)" : " V (calibrated)");
+String qnhck_zero_text(uint16_t zero_mV) {
+  return String(zero_mV / 1000.0f, 3) + (zero_mV == QNHCK_NOMINAL_ZERO_MV ? " V (default)" : " V (calibrated)");
 }
 
 #ifdef HW_LILYGO2CAN
@@ -1479,6 +1484,8 @@ String qnhck_zero_text() {
     
     form .if-qnhck { display: none; }
     form[data-shunttype="4"] .if-qnhck { display: contents; }
+    form .if-qnhmanual { display: none; }
+    form[data-qnhautocal="false"] .if-qnhmanual { display: contents; }
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms,
@@ -2161,9 +2168,14 @@ String qnhck_zero_text() {
           %QNHVO%
           </select>
 
-          <label>Calibration: </label>
+          <label>Automatic calibration: </label>
+          <input type='checkbox' name='QNHAUTOCAL' value='on' %QNHAUTOCAL% />
+
+          <div class="if-qnhmanual">
+          <label>Manual calibration: </label>
           <span class='settings-value' data-h=qnhzero><span id='qnhzero'>%QNHZERO%</span>
           <button type='button' onclick='calibrateQnhZero()' style='margin:0 0 0 10px;padding:3px 14px'>Start</button></span>
+          </div>
         </div>
         </div>
 

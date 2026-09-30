@@ -46,10 +46,13 @@ static constexpr uint16_t QNHCK_NOMINAL_ZERO_MV = 1650;
 static constexpr uint16_t QNHCK_ZERO_TOLERANCE_MV = 200;
 
 // Settings page values, loaded from NVM at boot. qnhck_zero_mV also changes at runtime, when the
-// zero point is calibrated.
+// zero point is calibrated, by hand or automatically.
 extern uint16_t qnhck_rated_current_A;
 extern uint16_t qnhck_rated_output_mV;
 extern uint16_t qnhck_zero_mV;
+// Measure the zero point whenever the contactors are open, instead of using the one set by hand.
+// On unless switched off, and only the off state is stored.
+extern bool qnhck_auto_calibration;
 
 // Whether a reading taken with no current flowing can be the sensor's zero point.
 bool qnhck_zero_plausible(uint32_t zero_mV);
@@ -74,6 +77,9 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   // Called on every pass of the core task. Nothing is transmitted: the tick paces the sampling.
   void transmit(unsigned long currentMillis) override;
 
+  // One ADC reading, taken at now. transmit() feeds these; public so the host tests can too.
+  void add_sample(uint32_t now, uint32_t sample_mV);
+
  private:
   gpio_num_t pin = GPIO_NUM_NC;
   char interface_label[16] = "ADC";
@@ -90,6 +96,32 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
 
   // The last window read beyond the sensor's range, so the batteries' own current is in use
   bool out_of_range = false;
+
+  /* Automatic calibration, the way the Nissan LEAF learns its current sensor's offset. While
+     every contactor the emulator drives is open, no current can flow through the clamp, so what
+     it reads then is its zero point. The samples from AUTO_ZERO_SETTLE_MS after the contactors
+     opened until they close again are gathered in 1 s buckets, closed with each window, and the
+     zero point is the mean of the last AUTO_ZERO_BUCKETS of them: all of a short opening, the
+     latest 10 s of one that lasts. It holds while the contactors are closed, and the next opening
+     measures afresh. At boot the contactors are open, so it is known within the first seconds.
+     Until then the reading is not passed on. */
+  static const uint8_t AUTO_ZERO_BUCKETS = 10;
+  static const uint32_t AUTO_ZERO_SETTLE_MS = 300;
+  uint32_t auto_zero_bucket_sum_mV[AUTO_ZERO_BUCKETS] = {};
+  uint16_t auto_zero_bucket_count[AUTO_ZERO_BUCKETS] = {};
+  uint8_t auto_zero_next_bucket = 0;
+  uint32_t auto_zero_sum_mV = 0;  // The bucket being filled
+  uint16_t auto_zero_samples = 0;
+  uint32_t auto_zero_open_since_ms = 0;
+  bool auto_zero_open = false;           // Contactors seen open at the previous sample
+  bool auto_zero_new_period = true;      // The next settled sample starts a new measurement
+  bool auto_zero_period_result = false;  // This opening has measured a zero point, to log at its end
+  bool auto_zero_rejected = false;       // This opening measured one that cannot be, already logged
+  bool zero_known = false;               // Measured since boot. Only needed with automatic calibration
+
+  static bool no_current_can_flow();
+  void track_zero(uint32_t now, uint32_t sample_mV);
+  void close_zero_bucket();
 };
 
 #endif
