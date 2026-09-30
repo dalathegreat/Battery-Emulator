@@ -19,6 +19,7 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
 #include "../network/hostname.h"
@@ -484,7 +485,7 @@ void init_webserver() {
       "INVSUNTYPE", "GPIOOPT4",     "CTVNOM",        "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
       "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
       "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
-      "SYSLOGFAC",  "PERBMSRESETH",
+      "SYSLOGFAC",  "PERBMSRESETH", "QNHIPN",        "QNHVO",
   };
 
   const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
@@ -955,6 +956,40 @@ void init_webserver() {
     logging.println("BMS reset requested from the settings page.");
     start_bms_reset();
     request->send(200, "text/plain", "OK");
+  });
+
+  // Route for the QNHCK2-16 zero current calibration. The sensor's output averaged over the last
+  // second becomes its zero point, in use right away without a reboot. Stored unless it is the
+  // nominal 1.65 V, which is what an unstored zero point falls back to.
+  def_route_with_auth("/calibrateShuntZero", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (!shunt || user_selected_shunt_type != ShuntType::Qnhck2_16) {
+      request->send(409, "text/plain",
+                    "The QNHCK2-16 is not running yet. Select it as the shunt, save the settings and reboot first.");
+      return;
+    }
+    uint16_t reading_mV = 0;
+    if (!shunt->calibrate_zero(reading_mV)) {
+      if (reading_mV == 0) {
+        request->send(409, "text/plain",
+                      "No reading from the sensor. It needs a second after booting, and 3.3 V on its red wire. "
+                      "If this persists, check the Events page.");
+      } else {
+        request->send(422, "text/plain",
+                      "The sensor reads " + String(reading_mV / 1000.0f, 3) +
+                          " V, too far from 1.65 V to be its zero point. Check its wiring and supply, "
+                          "and that no current flows through it.");
+      }
+      return;
+    }
+    BatteryEmulatorSettingsStore settings;
+    if (reading_mV == QNHCK_NOMINAL_ZERO_MV) {
+      settings.removeKey("QNHZERO");
+    } else {
+      settings.saveUInt("QNHZERO", reading_mV);
+    }
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("QNHCK2-16 zero point calibrated to %u mV\n", (unsigned)reading_mV);
+    request->send(200, "text/plain", qnhck_zero_text());
   });
 
   // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab.

@@ -11,6 +11,7 @@
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
+#include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
 
 #include <map>
@@ -317,6 +318,14 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none(
         (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
         name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
+  }
+
+  if (var == "QNHIPN") {
+    return options_from_map(settings.getUInt("QNHIPN", QNHCK_DEFAULT_RATED_CURRENT_A), QNHCK_RATED_CURRENTS);
+  }
+
+  if (var == "QNHVO") {
+    return options_from_map(settings.getUInt("QNHVO", QNHCK_DEFAULT_RATED_OUTPUT_MV), QNHCK_RATED_OUTPUTS);
   }
 
   if (var == "EQSTOP") {
@@ -1102,6 +1111,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
+  if (var == "QNHZERO") {
+    return qnhck_zero_text();
+  }
+
   if (var == "DALYPWRPCT") {
     return String(settings.getUInt("DALYPWRPCT", 50));
   }
@@ -1152,6 +1165,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     default:
       return "UNKNOWN";
   }
+}
+
+String qnhck_zero_text() {
+  return String(qnhck_zero_mV / 1000.0f, 3) +
+         (qnhck_zero_mV == QNHCK_NOMINAL_ZERO_MV ? " V (default)" : " V (calibrated)");
 }
 
 #ifdef HW_LILYGO2CAN
@@ -1328,6 +1346,9 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
         xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 
+        function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure its zero point now?')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/calibrateShuntZero',true);xhr.send();}}
+
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
     
@@ -1444,16 +1465,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
     form[data-shunttype="0"] .if-shunt,
-    form[data-shunttype="3"] .if-shunt { 
+    form[data-shunttype="3"] .if-shunt,
+    form[data-shunttype="4"] .if-shunt {
       display: none; 
     }
     form[data-shunttype="0"] .if-ctclamp,
     form[data-shunttype="1"] .if-ctclamp,
-    form[data-shunttype="2"] .if-ctclamp { 
+    form[data-shunttype="2"] .if-ctclamp,
+    form[data-shunttype="4"] .if-ctclamp {
       display: none; 
     }
     form[data-shunttype="3"] .if-ctclamp { display: contents;}
     
+    form .if-qnhck { display: none; }
+    form[data-shunttype="4"] .if-qnhck { display: contents; }
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms,
@@ -2124,6 +2149,22 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           <label>Invert CT current: </label>
           <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
           </div>
+
+        <div class="if-qnhck">
+          <label>Rated current: </label>
+          <select name='QNHIPN'>
+          %QNHIPN%
+          </select>
+
+          <label>Rated output: </label>
+          <select name='QNHVO'>
+          %QNHVO%
+          </select>
+
+          <label>Calibration: </label>
+          <span class='settings-value' data-h=qnhzero><span id='qnhzero'>%QNHZERO%</span>
+          <button type='button' onclick='calibrateQnhZero()' style='margin:0 0 0 10px;padding:3px 14px'>Start</button></span>
+        </div>
         </div>
 
         </div>

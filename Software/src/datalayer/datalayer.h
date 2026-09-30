@@ -311,6 +311,9 @@ struct DATALAYER_SHUNT_TYPE {
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
   bool available = false;
+  /** True if the measured current is what the inverter is given, in place of what the batteries
+   * report (their sum, with several). Set by the shunt, honoured while available is true **/
+  bool replaces_battery_current = false;
 };
 
 struct DATALAYER_SYSTEM_INFO_TYPE {
@@ -522,7 +525,8 @@ struct DATALAYER_AGGREGATE_TYPE {
   uint16_t cell_min_voltage_mV = 3700;
 
   /** int16_t */
-  /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A */
+  /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A. A shunt with
+   * replaces_battery_current set provides this instead, while it has a reading */
   int16_t current_dA = 0;
   /** Highest temperature found in any pack, in d°C */
   int16_t temperature_max_dC = 0;

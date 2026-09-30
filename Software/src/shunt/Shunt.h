@@ -10,16 +10,33 @@
 
 #include <vector>
 
-enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Highest };
+enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Qnhck2_16 = 4, Highest };
 
-class CanShunt : public Transmitter, CanReceiver {
+// A shunt the emulator runs itself. How it reaches the hardware, CAN or an ADC pin, is up to
+// the subclass.
+class Shunt {
  public:
   virtual void setup() = 0;
+
+  // The name of the interface the shunt is read through, for the settings page.
+  virtual const char* interface_name() = 0;
+
+  // Takes what the shunt reads right now as its zero current point. reading_mV is what was
+  // read, 0 when there is no reading yet. Returns false when the shunt has no such calibration
+  // or the reading cannot be its zero point.
+  virtual bool calibrate_zero(uint16_t& reading_mV) {
+    reading_mV = 0;
+    return false;
+  }
+};
+
+class CanShunt : public Shunt, public Transmitter, CanReceiver {
+ public:
   virtual void transmit_can(unsigned long currentMillis) = 0;
   virtual void handle_incoming_can_frame(CAN_frame rx_frame) = 0;
 
   // The name of the comm interface the shunt is using.
-  virtual const char* interface_name() { return getCANInterfaceName(can_config.shunt); }
+  const char* interface_name() override { return getCANInterfaceName(can_config.shunt); }
 
   void transmit(unsigned long currentMillis) {
     if (allowed_to_send_CAN) {
@@ -41,7 +58,7 @@ class CanShunt : public Transmitter, CanReceiver {
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
-extern CanShunt* shunt;
+extern Shunt* shunt;
 extern std::vector<ShuntType> supported_shunt_types();
 extern const char* name_for_shunt_type(ShuntType type);
 extern ShuntType user_selected_shunt_type;
