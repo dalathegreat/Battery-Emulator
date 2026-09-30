@@ -6,11 +6,11 @@
 /**
  * @brief Safety checks for parallel-connected secondary batteries.
  *
- * Called once per second. Verifies that the specified secondary battery
- * is safe to remain connected in parallel with the primary battery.
- * Currently checks voltage synchronization — if voltages drift apart
- * by more than 1.5V for longer than 10 seconds, the secondary battery
- * is disconnected.
+ * Called once per second. Publishes whether the specified secondary battery's
+ * latest voltage reading is within 1.5V of the primary battery's, in
+ * datalayer.system.status.batteryN_voltage_matches (false while either has no
+ * reading), and raises a warning event once they have been apart for more than
+ * 3 seconds.
  *
  * @param[in] batteryNumber The battery to check (2 or 3)
  */

@@ -146,8 +146,7 @@ void update_aggregate_values() {
     const DATALAYER_BATTERY_TYPE* extra_pack[2] = {battery2 ? &datalayer.battery2 : nullptr,
                                                    battery3 ? &datalayer.battery3 : nullptr};
     const bool pack_detected[2] = {battery2_detected, battery3_detected};
-    const bool pack_joined[2] = {datalayer.system.status.battery2_allowed_contactor_closing,
-                                 datalayer.system.status.battery3_allowed_contactor_closing};
+    const bool pack_joined[2] = {datalayer.system.status.battery2_joined, datalayer.system.status.battery3_joined};
 
     for (uint8_t i = 0; i < 2; i++) {
       const DATALAYER_BATTERY_TYPE* pack = extra_pack[i];

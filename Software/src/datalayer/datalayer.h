@@ -433,15 +433,22 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   bool dc_bus_live = true;
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
-  /** True if the primary battery allows for the contactors to close */
+  /** True if the primary battery allows for the contactors to close. Legacy. */
   bool battery_allows_contactor_closing = false;
-  /** True if the second battery is allowed to close the contactors */
-  bool battery2_allowed_contactor_closing = false;
-  /** True if the third battery is allowed to close the contactors */
-  bool battery3_allowed_contactor_closing = false;
+  /** Invitation for each pack (index 0 = battery 1) to close its own contactors and keep them closed.
+   *  Written only by handle_contactors(), read by packs that switch their own contactors. */
+  bool contactor_invite[3] = {false, false, false};
+  /** True while battery 2/3's latest voltage reading is within 1.5V of battery 1's.
+   *  Written only by check_parallel_battery_safety() */
+  bool battery2_voltage_matches = false;
+  bool battery3_voltage_matches = false;
+  /** True while battery 2/3 is joined to the DC bus (via link or own
+   * contactors). Written only by handle_contactors() */
+  bool battery2_joined = false;
+  bool battery3_joined = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-  /** True if the contactor controlled by battery-emulator is closed. Determined by check_parallel_battery_safety(); if voltage is OK */
+  /** True if the link contactor between battery 2/3 and the DC link (driven by battery-emulator) is closed */
   bool contactors_battery2_engaged = false;
   bool contactors_battery3_engaged = false;
   /** State of BMS reset sequence */

@@ -152,6 +152,11 @@ class Battery {
   virtual void set_fake_voltage(float v) {}
   virtual void set_fake_soh(float soh_percent) {}
 
+  /* This pack's own contactors, as its BMS reports them. Packs without contactor feedback keep
+     the default and are treated as conducting, exactly as before the state existed. Packs that
+     switch their own contactors read their invitation from datalayer contactor_invite[]. */
+  virtual ContactorState contactor_state() { return ContactorState::ASSUMED_CLOSED; }
+
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
 

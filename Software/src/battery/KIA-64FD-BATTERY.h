@@ -13,8 +13,8 @@ class Kia64FDBattery : public CanBattery {
   // Use this constructor for the second battery. This integration is CAN-FD and
   // is limited to double battery, see battery_supports_triple() in BATTERIES.cpp.
   // allows_contactor_closing is deliberately left null: it is an output of the
-  // main battery only. For battery 2, parallel_safety.cpp owns
-  // battery2_allowed_contactor_closing and this integration must not write it.
+  // main battery only. For battery 2, the contactor coordinator owns
+  // contactor_invite[1] and this integration must not write it.
   Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIA64FD* extended_ptr, CAN_Interface targetCan)
       : CanBattery(targetCan), renderer(extended_ptr) {
     datalayer_battery = datalayer_ptr;
@@ -48,7 +48,7 @@ class Kia64FDBattery : public CanBattery {
   DATALAYER_INFO_KIA64FD* datalayer_battery_extended;
 
   // Output, main battery only. Null for battery 2, whose
-  // battery2_allowed_contactor_closing is owned by parallel_safety.cpp.
+  // contactor_invite[1] is owned by the contactor coordinator.
   bool* allows_contactor_closing;
 
   bool UserRequestDTCreset = false;

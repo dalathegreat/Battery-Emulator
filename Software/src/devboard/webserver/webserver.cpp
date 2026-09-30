@@ -1604,21 +1604,18 @@ static bool render_live(CheckedHtml& content) {
     } else {
       content += "<span style='color: red;'>✗</span></h4>";
     }
-    if (battery2) {
-      content += "<h4>2ⁿᵈ battery allowed to join: ";
-      if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
-        content += "<span>✓</span>";
-      } else {
-        content += "<span style='color: red;'>✗<br>(voltage mismatch)</span>";
+    // What each pack reports about its own contactors. Battery 1 is left out while it reports nothing.
+    Battery* const packs[3] = {battery, battery2, battery3};
+    const bool voltage_matches[3] = {true, datalayer.system.status.battery2_voltage_matches,
+                                     datalayer.system.status.battery3_voltage_matches};
+    for (uint8_t i = 0; i < 3; i++) {
+      if (!packs[i] || (i == 0 && !battery2 && packs[i]->contactor_state() == ContactorState::ASSUMED_CLOSED)) {
+        continue;
       }
-      content += "</h4>";
-    }
-    if (battery3) {
-      content += "<h4>3ʳᵈ battery allowed to join: ";
-      if (datalayer.system.status.battery3_allowed_contactor_closing == true) {
-        content += "<span>✓</span>";
-      } else {
-        content += "<span style='color: red;'>✗<br>(voltage mismatch)</span>";
+      content += "<h4>Battery " + String(i + 1) + " contactors: ";
+      content += contactor_state_name(packs[i]->contactor_state());
+      if (!voltage_matches[i]) {
+        content += " <span style='color: red;'>(voltage mismatch)</span>";
       }
       content += "</h4>";
     }

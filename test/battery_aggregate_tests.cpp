@@ -31,13 +31,13 @@ class BatteryAggregateTest : public ::testing::Test {
   void add_second_pack() {
     battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
     datalayer.system.info.configured_batteries = 2;
-    datalayer.system.status.battery2_allowed_contactor_closing = true;
+    datalayer.system.status.battery2_joined = true;
   }
 
   void add_third_pack() {
     battery3 = new TestFakeBattery(&datalayer.battery3, CAN_Interface::CAN_NATIVE);
     datalayer.system.info.configured_batteries = 3;
-    datalayer.system.status.battery3_allowed_contactor_closing = true;
+    datalayer.system.status.battery3_joined = true;
   }
 
   static void scale_all() {
@@ -300,7 +300,7 @@ TEST_F(BatteryAggregateTest, UserCurrentLimitSurvivesTheRoundTrip) {
 TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCountsForEnergy) {
   add_second_pack();
   battery2_detected = true;
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  datalayer.system.status.battery2_joined = false;
 
   datalayer.battery.info.total_capacity_Wh = 30000;
   datalayer.battery2.info.total_capacity_Wh = 30000;
@@ -317,7 +317,7 @@ TEST_F(BatteryAggregateTest, NotYetJoinedPackStillCountsForEnergy) {
 TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotDriveSoc) {
   add_second_pack();
   battery2_detected = true;
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  datalayer.system.status.battery2_joined = false;
 
   datalayer.battery.info.total_capacity_Wh = 30000;
   datalayer.battery.status.real_soc = 5000;
@@ -334,7 +334,7 @@ TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotDriveSoc) {
   EXPECT_EQ(datalayer.aggregate.real_soc, 5000);
 
   // Once it is on the link it counts, both ways
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
+  datalayer.system.status.battery2_joined = true;
   update_aggregate_values();
   EXPECT_EQ(datalayer.aggregate.real_soc, 10000);  // fully blended at 100%
 }

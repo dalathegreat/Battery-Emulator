@@ -188,28 +188,11 @@ static void dbg_contactors(const char* state) {
   logging.println(state);
 }
 
-// Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
-void handle_contactors() {
-  if (inverter && inverter->controls_contactor()) {
-    datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
-  }
-
+// The main GPIO contactor handling state machine for battery 1
+static void handle_gpio_main_contactors(ContactorState battery1) {
   auto posPin = esp32hal->POSITIVE_CONTACTOR_PIN();
   auto negPin = esp32hal->NEGATIVE_CONTACTOR_PIN();
   auto prechargePin = esp32hal->PRECHARGE_PIN();
-  auto bms_power_pin = esp32hal->BMS_POWER();
-
-  if (bms_power_pin != GPIO_NUM_NC) {
-    handle_BMSpower();  // Some batteries need to be periodically power cycled
-  }
-
-  if (contactor_control_enabled_double_battery) {
-    handle_contactors_battery2();
-  }
-
-  if (contactor_control_enabled_triple_battery) {
-    handle_contactors_battery3();
-  }
 
   if (contactor_control_enabled) {
     // DC is only live to the inverter once precharge is fully complete (COMPLETED). Re-evaluated every
@@ -252,7 +235,8 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
       datalayer.system.status.contactors_engaged = 0;
 
-      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
+      if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+          battery1 != ContactorState::FAULT) {
         contactorStatus = START_PRECHARGE;
       }
     }
@@ -351,53 +335,151 @@ void handle_contactors() {
   }
 }
 
-/* Battery 2 and 3 each have a single contactor and no precharge stage of their own, they simply
-   close once the main ladder reaches COMPLETED. Every set() here passes an explicit duty so the
-   PWM path is taken when the user enabled economizing: full duty to pull the coil in, hold duty
-   once it has closed, and 0% to release it. Without PWM the duty argument is ignored and set()
-   falls back to digitalWrite exactly as before, so one call site serves both modes.
-   Note that millis() is read here rather than reusing the file-scope currentTime: these handlers
-   run before handle_contactors() refreshes it, and it is not refreshed at all on the COMPLETED
-   pass, which is precisely when these contactors are closed.
-   Both edges are logged next to the main ladder's steps, so the log shows when each extra
-   battery actually joined the DC link and when it left it again, not just what the main one did. */
-static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start,
-                                   const char* join_log, const char* leave_log) {
-  if (close_allowed) {
-    if (!engaged) {  // Rising edge, start the pull-in window
+static void dbg_pack(const char* what, uint8_t battery_number) {
+  logging.printf("[%lu ms] contactors control: %s Battery %u\n", (unsigned long)millis(), what, battery_number);
+}
+
+// Drive the GPIO link contactor for the specified battery according to whether
+// `close` is asserted. Handles the pull-in and hold phases using PWM if
+// enabled.
+static void drive_gpio_link_contactor(gpio_num_t pin, bool close, bool& engaged, uint32_t& pull_in_start) {
+  if (close) {
+    if (!engaged) {
+      // We weren't previously engaged, start the pull-in window
       pull_in_start = millis();
       engaged = true;
-      dbg_contactors(join_log);
     }
-    // Economize only after the coil has had the same pull-in time the main pair gets between
-    // closing and PRECHARGE_OFF. Dropping to hold duty any earlier risks the contactor not seating.
+    // Economize only after the coil has had the full pull-in time.
     bool economize = pwm_contactor_control && ((millis() - pull_in_start) >= EXTRA_CONTACTOR_PULL_IN_TIME_MS);
     set(pin, ON, economize ? pwm_hold_duty : PWM_ON_DUTY);
-  } else {  // Closing contactors on this battery not allowed
+  } else {
     set(pin, OFF, PWM_OFF_DUTY);
-    if (engaged) {  // Falling edge. Only once, not on every pass while it stays open
-      dbg_contactors(leave_log);
-    }
     engaged = false;
   }
 }
 
-void handle_contactors_battery2() {
-  static uint32_t pull_in_start = 0;
-
-  handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2",
-                         "LEAVE Battery 2");
+// The pack's own contactors are connected, as far as we can tell
+static bool pack_connected(ContactorState state) {
+  return state == ContactorState::CLOSED || state == ContactorState::ASSUMED_CLOSED;
 }
 
-void handle_contactors_battery3() {
-  static uint32_t pull_in_start = 0;
+// The pack's contactor state (from the perspective of its BMS).
+static ContactorState pack_state(Battery* pack, const DATALAYER_BATTERY_TYPE& data, bool detected) {
+  if (pack == nullptr || !detected || data.status.CAN_battery_still_alive == 0) {
+    return ContactorState::UNKNOWN;
+  }
+  return pack->contactor_state();
+}
 
-  handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3",
-                         "LEAVE Battery 3");
+// Whether any batteries are allowed to close their contactors
+static bool system_permits_closing() {
+  return datalayer.system.status.inverter_allows_contactor_closing && datalayer.system.status.system_status != FAULT;
+}
+
+// How long a voltage discrepancy for a joined battery 2/3 can exist before it
+// is kicked out.
+#define VOLTAGE_MISMATCH_LEAVE_MS 10000
+
+struct ExtraPack {
+  uint32_t link_pull_in_start = 0;
+  // When this pack's voltage last matched battery 1's
+  uint32_t last_voltage_match_ms = 0;
+  // We've closed the link in order to precharge the pack (which has not closed
+  // yet).
+  bool precharging_via_link = false;
+};
+
+/* Whether a pack in the given state is ready to join the DC bus. It must have
+   either closed its contactors, be awaiting external precharge, or undergoing
+   external precharge. */
+static bool ready_for_link(ContactorState state, bool precharging_via_link) {
+  return pack_connected(state) || state == ContactorState::NEEDS_EXTERNAL_PRECHARGE ||
+         (precharging_via_link && (state == ContactorState::READY || state == ContactorState::PRECHARGING));
+}
+
+static void handle_extra_pack(uint8_t battery_number, ContactorState state, bool voltage_matches, bool link_fitted,
+                              gpio_num_t link_pin, bool battery1_live, bool& invite, bool& joined, bool& link_engaged,
+                              ExtraPack& pack) {
+  const uint32_t now = millis();
+  if (voltage_matches) {
+    pack.last_voltage_match_ms = now;
+  }
+
+  // System must be ready and pack state must be known
+  const bool eligible = system_permits_closing() && state != ContactorState::UNKNOWN;
+  // If we're using a link contactor, the pack must be ready for it before it can connect
+  const bool can_connect = !link_fitted || ready_for_link(state, pack.precharging_via_link);
+
+  const bool was_joined = joined;
+  if (!joined) {
+    // Battery 1 must be live, and this pack must be closely matched in voltage
+    // to join
+    joined = eligible && battery1_live && can_connect && voltage_matches;
+  } else if (!eligible || !battery1_live || !can_connect) {
+    // Vital conditions no longer met, leave immediately.
+    // We don't leave immediately on voltage mismatch though.
+    joined = false;
+  } else if (now - pack.last_voltage_match_ms > VOLTAGE_MISMATCH_LEAVE_MS) {
+    // The pack has been mismatched for too long, leave.
+    joined = false;
+  }
+  if (joined != was_joined) {
+    dbg_pack(joined ? "JOIN" : "LEAVE", battery_number);
+  }
+
+  // If we're using a link contactor, invite the pack as soon it is eligible,
+  // since it is isolated from the bus. Otherwise it needs to wait.
+  invite = link_fitted ? eligible : joined;
+
+  if (link_fitted) {
+    // We let disconnected packs join for precharge, record if we did so.
+    pack.precharging_via_link = joined && !pack_connected(state);
+    // Actuate the link contactor based on the joined state.
+    drive_gpio_link_contactor(link_pin, joined, link_engaged, pack.link_pull_in_start);
+  }
+}
+
+// The main contactor handling routine
+void handle_contactors() {
+  if (inverter && inverter->controls_contactor()) {
+    // Sample whether the inverter allows the contactor to close
+    datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
+  }
+
+  if (esp32hal->BMS_POWER() != GPIO_NUM_NC) {
+    handle_BMSpower();  // Some batteries need to be periodically power cycled
+  }
+
+  auto& status = datalayer.system.status;
+  const ContactorState battery1 = pack_state(battery, datalayer.battery, battery_detected);
+
+  // Should we invite battery1 to close contactors?
+  status.contactor_invite[0] = system_permits_closing() && battery1 != ContactorState::UNKNOWN;
+  // Handle the main GPIO contactors
+  handle_gpio_main_contactors(battery1);
+
+  // The DC link is live from battery 1 once its own contactors, and the main GPIO ones if used, are closed
+  const bool battery1_live = pack_connected(battery1) && (!contactor_control_enabled || contactorStatus == COMPLETED);
+
+  static ExtraPack pack2, pack3;
+  if (battery2) {
+    handle_extra_pack(2, pack_state(battery2, datalayer.battery2, battery2_detected), status.battery2_voltage_matches,
+                      contactor_control_enabled_double_battery, esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
+                      battery1_live, status.contactor_invite[1], status.battery2_joined,
+                      status.contactors_battery2_engaged, pack2);
+  }
+  if (battery3) {
+    handle_extra_pack(3, pack_state(battery3, datalayer.battery3, battery3_detected), status.battery3_voltage_matches,
+                      contactor_control_enabled_triple_battery, esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
+                      battery1_live, status.contactor_invite[2], status.battery3_joined,
+                      status.contactors_battery3_engaged, pack3);
+  }
+}
+
+const char* contactor_state_name(ContactorState state) {
+  static const char* const names[] = {"Unknown", "Needs external precharge", "Ready", "Precharging",
+                                      "Closed",  "Assumed closed",           "Fault"};
+  return names[(uint8_t)state];
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.

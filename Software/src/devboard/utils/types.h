@@ -44,6 +44,19 @@ enum PrechargeState {
   AUTO_PRECHARGE_COMPLETED,
   AUTO_PRECHARGE_FAILURE
 };
+/* The state of one pack's own contactors, as its BMS reports them (Battery::contactor_state()).
+   Contactors the emulator drives over GPIO (the main ladder, the link contactors of battery 2/3)
+   are not described by this. */
+enum class ContactorState : uint8_t {
+  UNKNOWN,                   // pack is silent or contactor state is not yet known
+  NEEDS_EXTERNAL_PRECHARGE,  // open, and cannot close until its HV side has been precharged externally
+  READY,                     // open, and will close when invited
+  PRECHARGING,               // closing through its own precharge
+  CLOSED,                    // closed, and the pack's BMS confirms it
+  ASSUMED_CLOSED,            // no feedback, treated as closed. The default for packs that don't report
+  FAULT,                     // pack reports a fault. Possibly still live until it reports open
+};
+
 enum BMSResetState {
   BMS_RESET_IDLE = 0,
   BMS_RESET_WAITING_FOR_PAUSE,

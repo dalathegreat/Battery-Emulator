@@ -6,8 +6,9 @@
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/hal/hal.h"
+#include "stub_pack.h"
 
-// Covers the secondary battery contactor in handle_contactors_battery2(): that it
+// Covers the link contactor of battery 2 in handle_contactors(): that it
 // is driven through the PWM path when the user enabled economizing, that it is
 // pulled in at full duty before being dropped to the hold duty, and that with the
 // setting off it still falls back to a plain digitalWrite.
@@ -22,9 +23,6 @@
 
 namespace {
 
-// Mirrors the file-scope FSM in comm_contactorcontrol.cpp. Must match it.
-enum SeqState { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
-
 // Duties and timings from comm_contactorcontrol.cpp, where they are #defines and
 // so not reachable from here. Kept in step with it deliberately: if the ladder is
 // retimed or the resolution changes these tests must be revisited, not silently pass.
@@ -35,16 +33,17 @@ constexpr unsigned long kBootMs = 100000;
 
 }  // namespace
 
-extern SeqState contactorStatus;
-
 class ContactorEconomizeBattery2Test : public ::testing::Test {
  protected:
   void SetUp() override {
     datalayer = DataLayer();
     init_hal();
     set_millis64(kBootMs);
-    contactorStatus = COMPLETED;        // Battery 2 only joins once the main ladder is done
     contactor_control_enabled = false;  // Isolate: only the secondary contactor is under test
+    // Two packs without contactor feedback, both assumed closed: battery 1 makes the DC link live,
+    // so battery 2's link contactor closes as soon as its voltage is in sync
+    install_stub_pack(1);
+    install_stub_pack(2);
     contactor_control_enabled_double_battery = true;
     contactor_control_inverted_logic = false;
     pwm_contactor_control = true;
@@ -54,23 +53,24 @@ class ContactorEconomizeBattery2Test : public ::testing::Test {
     // state this fixture depends on has to be stated here rather than inherited.
     periodic_bms_reset = false;
     remote_bms_reset = false;
-    datalayer.system.status.battery2_allowed_contactor_closing = true;
+    datalayer.system.status.battery2_voltage_matches = true;
     second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
     clear_duty_writes();
     clear_pin_writes();
   }
 
   void TearDown() override {
-    contactorStatus = DISCONNECTED;
+    battery_detected = false;
+    battery2_detected = false;
     contactor_control_enabled_double_battery = false;
     pwm_contactor_control = false;
     set_millis64(0);
   }
 
-  // Advances the clock and runs one pass of the secondary contactor handler.
+  // Advances the clock and runs one pass of the contactor handler.
   static void tick_at(unsigned long ms) {
     set_millis64(ms);
-    handle_contactors_battery2();
+    handle_contactors();
   }
 
   // The duty last written to the given pin, or nothing if PWM never drove it.
@@ -130,7 +130,7 @@ TEST_F(ContactorEconomizeBattery2Test, ReleasesAtZeroDuty) {
   tick_at(kBootMs + kPullInMs);
   ASSERT_EQ(last_duty(second_contactors), pwm_hold_duty);
 
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  datalayer.system.status.inverter_allows_contactor_closing = false;
   tick_at(kBootMs + kPullInMs + 10);
 
   EXPECT_EQ(last_duty(second_contactors), kOffDuty);
@@ -144,9 +144,9 @@ TEST_F(ContactorEconomizeBattery2Test, ReclosingRestartsThePullInWindow) {
   tick_at(kBootMs + kPullInMs);
   ASSERT_EQ(last_duty(second_contactors), pwm_hold_duty);
 
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  datalayer.system.status.inverter_allows_contactor_closing = false;
   tick_at(kBootMs + kPullInMs + 10);
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
+  datalayer.system.status.inverter_allows_contactor_closing = true;
 
   tick_at(kBootMs + kPullInMs + 20);
   EXPECT_EQ(last_duty(second_contactors), kFullDuty);
