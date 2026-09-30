@@ -38,7 +38,11 @@ class ThreeLBHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_34; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_35; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
-  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_25; }
+  // CT clamp input ("Custom Clamp" shunt type). GPIO25 is ADC2_CH8: on the classic ESP32, ADC2
+  // cannot be sampled while Wi-Fi is running, so analogReadMilliVolts() fails and the current reads
+  // 0 A whenever Wi-Fi (STA or AP) is up. GPIO25 is also shared with the precharge, HIA4V1 and
+  // WUP_PIN1 outputs.
+  virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_25; }  // ADC2_CH8
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
