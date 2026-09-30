@@ -1,3 +1,5 @@
+#ifndef SMALL_FLASH_DEVICE  // Left out of the small flash devices
+
 #include "QNHCK2-16.h"
 #include <Arduino.h>
 #include "../battery/BATTERIES.h"
@@ -251,3 +253,5 @@ bool Qnhck2_16Shunt::calibrate_zero(uint16_t& reading_mV) {
   qnhck_zero_mV = reading_mV;  // In use from the next window on
   return true;
 }
+
+#endif  // SMALL_FLASH_DEVICE

@@ -311,9 +311,11 @@ struct DATALAYER_SHUNT_TYPE {
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
   bool available = false;
+#ifndef SMALL_FLASH_DEVICE
   /** True if the measured current is what the inverter is given, in place of what the batteries
    * report (their sum, with several). Set by the shunt, honoured while available is true **/
   bool replaces_battery_current = false;
+#endif  // SMALL_FLASH_DEVICE
 };
 
 struct DATALAYER_SYSTEM_INFO_TYPE {

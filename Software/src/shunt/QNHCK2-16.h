@@ -1,6 +1,8 @@
 #ifndef QNHCK2_16_H
 #define QNHCK2_16_H
 
+#ifndef SMALL_FLASH_DEVICE  // Left out of the small flash devices
+
 #include <soc/gpio_num.h>
 #include "Shunt.h"
 
@@ -123,5 +125,7 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   void track_zero(uint32_t now, uint32_t sample_mV);
   void close_zero_bucket();
 };
+
+#endif  // SMALL_FLASH_DEVICE
 
 #endif

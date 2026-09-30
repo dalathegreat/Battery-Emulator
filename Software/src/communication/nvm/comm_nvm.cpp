@@ -303,6 +303,7 @@ void init_stored_settings() {
   ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
   ct_invert_current = settings.getBool("CTINVERT", false);
 
+#ifndef SMALL_FLASH_DEVICE
   // QNHCK2-16 current sensor. Anything that is not one of its models, or a zero point it cannot
   // have, falls back to the defaults. The zero point is only stored once calibrated away from
   // the nominal 1.65 V.
@@ -314,6 +315,7 @@ void init_stored_settings() {
   qnhck_zero_mV = qnhck_zero_plausible(temp) ? temp : QNHCK_NOMINAL_ZERO_MV;
   // Only the off state of the automatic calibration is ever stored
   qnhck_auto_calibration = settings.getBool("QNHAUTOCAL", true);
+#endif  // SMALL_FLASH_DEVICE
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);

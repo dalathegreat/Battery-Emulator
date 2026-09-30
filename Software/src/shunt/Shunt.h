@@ -11,9 +11,15 @@
 
 #include <vector>
 
+#ifndef SMALL_FLASH_DEVICE
 enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Qnhck2_16 = 4, Highest };
+#else
+// The QNHCK2-16 (4) is left out of the small flash devices
+enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Highest };
+#endif  // SMALL_FLASH_DEVICE
 enum class BatteryType;
 
+#ifndef SMALL_FLASH_DEVICE
 // A shunt the emulator runs itself. How it reaches the hardware, CAN or an ADC pin, is up to
 // the subclass.
 class Shunt {
@@ -33,12 +39,16 @@ class Shunt {
 };
 
 class CanShunt : public Shunt, public Transmitter, CanReceiver {
+#else
+class CanShunt : public Transmitter, CanReceiver {
+#endif  // SMALL_FLASH_DEVICE
  public:
+  virtual void setup() = 0;
   virtual void transmit_can(unsigned long currentMillis) = 0;
   virtual void handle_incoming_can_frame(CAN_frame rx_frame) = 0;
 
   // The name of the comm interface the shunt is using.
-  const char* interface_name() override { return getCANInterfaceName(can_config.shunt); }
+  virtual const char* interface_name() { return getCANInterfaceName(can_config.shunt); }
 
   void transmit(unsigned long currentMillis) {
     if (allowed_to_send_CAN) {
@@ -60,6 +70,10 @@ class CanShunt : public Shunt, public Transmitter, CanReceiver {
   void transmit_can_frame(CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 };
 
+#ifdef SMALL_FLASH_DEVICE
+// Without the QNHCK2-16, every shunt the emulator runs itself is a CAN one
+using Shunt = CanShunt;
+#endif  // SMALL_FLASH_DEVICE
 extern Shunt* shunt;
 // Whether a shunt type can work with the selected battery resp. inverter. "Custom Clamp" is only
 // read by the CHAdeMO integration, "Using inverter values" needs an inverter that reports the pack

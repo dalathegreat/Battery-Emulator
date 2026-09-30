@@ -485,7 +485,10 @@ void init_webserver() {
       "INVSUNTYPE", "GPIOOPT4",     "CTVNOM",        "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
       "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
       "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
-      "SYSLOGFAC",  "PERBMSRESETH", "QNHIPN",        "QNHVO",
+      "SYSLOGFAC",  "PERBMSRESETH",
+#ifndef SMALL_FLASH_DEVICE
+      "QNHIPN",     "QNHVO",
+#endif  // SMALL_FLASH_DEVICE
   };
 
   const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
@@ -644,6 +647,7 @@ void init_webserver() {
                 }
               }
 
+#ifndef SMALL_FLASH_DEVICE
               // The QNHCK2-16's automatic calibration is on unless switched off, and only the off
               // state is stored: switching it back on removes the key rather than storing true.
               auto qnhAutoCalParam = request->getParam("QNHAUTOCAL", true);
@@ -652,6 +656,7 @@ void init_webserver() {
               } else {
                 settings.saveBool("QNHAUTOCAL", false);
               }
+#endif  // SMALL_FLASH_DEVICE
 
               // The double/triple battery checkboxes are hidden in the UI for integrations
               // that don't implement parallel batteries. Make sure a previously stored
@@ -977,6 +982,7 @@ void init_webserver() {
     request->send(200, "text/plain", "OK");
   });
 
+#ifndef SMALL_FLASH_DEVICE
   // Route for the QNHCK2-16 zero current calibration by hand, while the automatic one is off. The
   // sensor's output averaged over the last second becomes its zero point, in use right away without
   // a reboot. Stored unless it is the nominal 1.65 V, which is what an unstored zero point falls
@@ -1016,6 +1022,7 @@ void init_webserver() {
     logging.printf("QNHCK2-16 zero point calibrated to %u mV\n", (unsigned)reading_mV);
     request->send(200, "text/plain", qnhck_zero_text(reading_mV));
   });
+#endif  // SMALL_FLASH_DEVICE
 
   // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab.
   // Runtime values like before, so nothing is stored.
@@ -1559,10 +1566,12 @@ static bool render_live(CheckedHtml& content) {
       if (user_selected_shunt_type != ShuntType::None) {
         content += "<h4 style='color: white;'>Shunt protocol: ";
         content += datalayer.system.info.shunt_protocol;
+#ifndef SMALL_FLASH_DEVICE
         if (user_selected_shunt_type == ShuntType::Qnhck2_16) {
           // Whether its reading is what the inverter gets: running, calibrated and within range
           content += datalayer.shunt.available ? " <span>✓</span>" : " <span style='color: red;'>✗</span>";
         }
+#endif  // SMALL_FLASH_DEVICE
         content += "</h4>";
       }
 

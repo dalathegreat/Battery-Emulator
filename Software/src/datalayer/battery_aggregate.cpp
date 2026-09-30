@@ -91,12 +91,14 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
   }
 }
 
+#ifndef SMALL_FLASH_DEVICE
 /* What the shunt measured, in deciAmpere: rounded half away from zero, and held within int16_t. */
 static int16_t shunt_current_dA() {
   const int32_t mA = datalayer.shunt.measured_amperage_mA;
   const int32_t dA = (mA >= 0) ? (mA + 50) / 100 : (mA - 50) / 100;
   return (int16_t)CONSTRAIN(dA, (int32_t)INT16_MIN, (int32_t)INT16_MAX);
 }
+#endif  // SMALL_FLASH_DEVICE
 
 /* Roll every configured pack up into datalayer.aggregate.
  *
@@ -130,12 +132,14 @@ void update_aggregate_values() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
   agg.current_dA = datalayer.battery.status.reported_current_dA;  // Already the sum of every pack
+#ifndef SMALL_FLASH_DEVICE
   /* A current sensor fitted for this measures what actually flows between the batteries and the
      inverter, so while it has a reading it replaces what the packs report - their sum, with
      several. The packs keep their own figures. Power below follows from it. */
   if (datalayer.shunt.replaces_battery_current && datalayer.shunt.available) {
     agg.current_dA = shunt_current_dA();
   }
+#endif  // SMALL_FLASH_DEVICE
   agg.cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
   agg.cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
   agg.temperature_max_dC = datalayer.battery.status.temperature_max_dC;
