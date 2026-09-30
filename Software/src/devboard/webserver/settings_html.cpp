@@ -263,6 +263,32 @@ static String capability_css(const char* className, bool (*supported)(BatteryTyp
   return css;
 }
 
+// Builds the CSS rules that hide a shunt type in the "Shunt:" dropdown unless the battery resp.
+// inverter currently picked in the form (data-<attr>) can use it. Generated from the
+// shunt_type_supported_by_*() predicates so the UI follows the same rules as the save handler.
+template <typename EnumType>
+static String shunt_option_css(const char* attr, bool (*supported)(ShuntType, EnumType)) {
+  String css;
+
+  for (auto& shunt_type : enum_values<ShuntType>()) {
+    String allowed;
+    bool restricted = false;
+    for (auto& type : enum_values<EnumType>()) {
+      if (supported(shunt_type, type)) {
+        allowed += ":not([data-" + String(attr) + "=\"" + String(to_underlying(type)) + "\"])";
+      } else {
+        restricted = true;
+      }
+    }
+    if (restricted) {
+      css += "form" + allowed + " select[name=shunttype] option[value=\"" + String(to_underlying(shunt_type)) +
+             "\"]{display:none}";
+    }
+  }
+
+  return css;
+}
+
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
@@ -306,6 +332,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "SHUNTTYPE") {
     return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
                                       name_for_shunt_type, ShuntType::None);
+  }
+
+  if (var == "SHUNTCAPCSS") {
+    return shunt_option_css<BatteryType>("battery", shunt_type_supported_by_battery) +
+           shunt_option_css<InverterProtocolType>("inverter", shunt_type_supported_by_inverter);
   }
 
   if (var == "SHUNTCOMM") {
@@ -1380,6 +1411,16 @@ const char* getCANInterfaceName(CAN_Interface interface) {
             ch();
           });
 
+          // A shunt type hidden for the selected battery/inverter must not stay selected
+          function syncShunt() {
+            var s = document.querySelector('select[name=shunttype]'), o = s && s.options[s.selectedIndex];
+            if (o && getComputedStyle(o).display == 'none') { s.value = '0'; s.dispatchEvent(new Event('change')); }
+          }
+          document.querySelectorAll('select[name=battery],select[name=inverter]').forEach(function(sel) {
+            sel.addEventListener('change', syncShunt);
+          });
+          syncShunt();
+
           var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
           if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
     </script>
@@ -1453,6 +1494,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: none; 
     }
     form[data-shunttype="3"] .if-ctclamp { display: contents;}
+
+    /* Shunt types the selected battery/inverter can't use.
+       Rules are generated at runtime from the shunt capability predicates. */
+    %SHUNTCAPCSS%
     
 
     form .if-cbms { display: none; }

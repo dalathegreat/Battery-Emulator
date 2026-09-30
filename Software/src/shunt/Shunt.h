@@ -6,11 +6,13 @@
 #include "../../src/communication/can/comm_can.h"
 #include "../../src/devboard/safety/safety.h"
 #include "../../src/devboard/utils/types.h"
+#include "../../src/inverter/InverterProtocol.h"
 #include "Arduino.h"
 
 #include <vector>
 
 enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Highest };
+enum class BatteryType;
 
 class CanShunt : public Transmitter, CanReceiver {
  public:
@@ -42,7 +44,11 @@ class CanShunt : public Transmitter, CanReceiver {
 };
 
 extern CanShunt* shunt;
-extern std::vector<ShuntType> supported_shunt_types();
+// Whether a shunt type can work with the selected battery resp. inverter. "Custom Clamp" is only
+// read by the CHAdeMO integration, "Using inverter values" needs an inverter that reports the pack
+// voltage and current. The settings page hides the unusable types and the save handler resets them.
+extern bool shunt_type_supported_by_battery(ShuntType type, BatteryType battery_type);
+extern bool shunt_type_supported_by_inverter(ShuntType type, InverterProtocolType inverter_type);
 extern const char* name_for_shunt_type(ShuntType type);
 extern ShuntType user_selected_shunt_type;
 
