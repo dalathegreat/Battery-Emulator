@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE
 #ifndef UUGP_CHARGER_H
 #define UUGP_CHARGER_H
 
@@ -134,4 +135,5 @@ extern volatile uint16_t uugp_discharge_cutoff_soc;
 extern volatile bool uugp_allow_discharge_to_home_grid;
 extern volatile uint8_t uugp_start_mode;
 
+#endif
 #endif

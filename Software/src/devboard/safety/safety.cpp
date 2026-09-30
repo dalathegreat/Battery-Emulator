@@ -421,12 +421,21 @@ void update_machineryprotection() {
     }
   }
 
-  if (charger) {
-    // CAN chargers only. UUGP communicates over RS485.
-    // If we go 60s without CAN messages we raise a warning.
-    check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
-                              EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
-  }
+  if (charger
+#ifndef SMALL_FLASH_DEVICE
+    && charger->type() != ChargerType::UUGP
+#endif
+) {
+  // CAN chargers only. UUGP communicates over RS485.
+  // If we go 60s without CAN messages we raise a warning.
+  check_can_component_alive(
+      datalayer.charger.CAN_charger_still_alive,
+      charger_detected,
+      EVENT_CAN_CHARGER_DETECTED,
+      EVENT_CAN_CHARGER_MISSING,
+      static_cast<CanCharger*>(charger)->interface());
+}
+
 
 #ifndef SMALL_FLASH_DEVICE
   // UUGP communicates over RS485, so the CAN charger watchdog above
