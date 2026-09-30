@@ -664,6 +664,16 @@ void init_webserver() {
                 settings.saveBool("TRIBTR", false);
               }
 
+              // Same for the shunt types hidden for the selected battery/inverter: "Custom Clamp"
+              // outside CHAdeMO, "Using inverter values" with an inverter that provides no shunt.
+              auto selectedShuntType = static_cast<ShuntType>(settings.getUInt("SHUNTTYPE", (int)ShuntType::None));
+              auto selectedInverterType =
+                  static_cast<InverterProtocolType>(settings.getUInt("INVTYPE", (int)InverterProtocolType::None));
+              if (!shunt_type_supported_by_battery(selectedShuntType, selectedBatteryType) ||
+                  !shunt_type_supported_by_inverter(selectedShuntType, selectedInverterType)) {
+                settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
+              }
+
               // The page offers a BMS reset when the starting sequence request was changed, since
               // the LBC only reads that signal while it powers up. Done after every setting is
               // stored so the reset runs against the saved configuration.

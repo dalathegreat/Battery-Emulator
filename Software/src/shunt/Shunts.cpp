@@ -1,3 +1,4 @@
+#include "../battery/Battery.h"
 #include "../devboard/hal/hal.h"
 #include "../inverter/INVERTERS.h"
 #include "BMW-SBOX.h"
@@ -42,20 +43,18 @@ void setup_shunt() {
   }
 }
 
-extern std::vector<ShuntType> supported_shunt_types() {
-  std::vector<ShuntType> types;
-  types.push_back(ShuntType::None);
-  types.push_back(ShuntType::BmwSbox);
+bool shunt_type_supported_by_battery(ShuntType type, BatteryType battery_type) {
+  if (type == ShuntType::CustomClamp) {
+    return battery_type == BatteryType::Chademo;
+  }
+  return true;
+}
 
-  if (inverter && inverter->provides_shunt())
-    types.push_back(ShuntType::Inverter);
-
-  types.push_back(ShuntType::CustomClamp);
-
-  if (board_has_shunt_adc_pin())
-    types.push_back(ShuntType::Qnhck2_16);
-
-  return types;
+bool shunt_type_supported_by_inverter(ShuntType type, InverterProtocolType inverter_type) {
+  if (type == ShuntType::Inverter) {
+    return inverter_type_provides_shunt(inverter_type);
+  }
+  return true;
 }
 
 extern const char* name_for_shunt_type(ShuntType type) {

@@ -485,8 +485,7 @@ void setup_battery() {
     } else {
       switch (user_selected_battery_type) {
         case BatteryType::BoltAmpera:
-          battery2 =
-              new BoltAmperaBattery(&datalayer.battery2, &datalayer_extended.boltampera_2, can_config.battery_double);
+          battery2 = new BoltAmperaBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::BydAtto3:
           battery2 = new BydAttoBattery(&datalayer.battery2, &datalayer_extended.bydAtto3_2, can_config.battery_double);

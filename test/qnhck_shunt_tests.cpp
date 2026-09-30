@@ -87,12 +87,18 @@ TEST(QnhckZeroTest, OnlyTheModelsThatExist) {
 
 // --- Boards without an ADC pin for it ---
 
-// The unit test HAL is a LilyGo, which routes no ADC pin for a current sensor
+// The unit test HAL is a LilyGo, which routes no ADC pin for a current sensor. The settings page
+// leaves out the shunt types without a name.
 TEST(QnhckBoardTest, NotOfferedWithoutAnAdcPin) {
   EXPECT_EQ(name_for_shunt_type(ShuntType::Qnhck2_16), nullptr);
-  for (auto type : supported_shunt_types()) {
-    EXPECT_NE(type, ShuntType::Qnhck2_16);
-  }
+}
+
+// Only the board decides: saving another battery or inverter does not reset it
+TEST(QnhckBoardTest, WorksWithAnyBatteryAndInverter) {
+  EXPECT_TRUE(shunt_type_supported_by_battery(ShuntType::Qnhck2_16, BatteryType::NissanLeaf));
+  EXPECT_TRUE(shunt_type_supported_by_battery(ShuntType::Qnhck2_16, BatteryType::None));
+  EXPECT_TRUE(shunt_type_supported_by_inverter(ShuntType::Qnhck2_16, InverterProtocolType::BydModbus));
+  EXPECT_TRUE(shunt_type_supported_by_inverter(ShuntType::Qnhck2_16, InverterProtocolType::None));
 }
 
 TEST(QnhckBoardTest, SetupWithoutAnAdcPinRaisesAnEventAndLeavesTheBatteriesInCharge) {
