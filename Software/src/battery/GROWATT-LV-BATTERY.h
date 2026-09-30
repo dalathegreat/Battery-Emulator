@@ -37,9 +37,10 @@
 // packs) could otherwise leave stale limits published forever with no
 // missing-event ever firing (github.com/dalathegreat/Battery-Emulator/issues/3034).
 //
-// From protocol V1.03, the per-cell frames 0x315-0x318 are optional; 0x319
-// carries the same highest/lowest cell voltage as a fallback, used only when
-// no per-cell frame has populated a cell. setup() also sets an LFP cell
+// From protocol V1.03, the per-cell frames 0x315-0x318 are optional and 0x319
+// carries the highest/lowest cell voltage. In a parallel bank 0x319 counts
+// every pack's cells, while 0x315-0x318 can only hold the master's 16, so the
+// reported max/min is the wider of the two. setup() also sets an LFP cell
 // voltage ceiling/floor (previously unset, so the generic cell over/under-
 // voltage checks in safety.cpp could never trigger on this pack).
 //
