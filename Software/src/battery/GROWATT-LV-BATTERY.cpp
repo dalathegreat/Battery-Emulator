@@ -209,18 +209,23 @@ void GrowattLvBattery::update_values() {
       cell_min = mv;
     }
   }
+  // 0x319 carries the highest/lowest cell of every pack in a parallel bank
+  // (protocol V1.03 note), while 0x315-0x318 hold only 16 cells - on a bank,
+  // the master's own. Take the wider of the two whenever 0x319 is plausible,
+  // so the per-cell frames can't hide a slave pack's highest or lowest cell.
+  const bool have_319 = max_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && max_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX &&
+                        min_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && min_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX;
+  if (have_319) {
+    if (max_cell_mV_319 > cell_max) {
+      cell_max = max_cell_mV_319;
+    }
+    if (min_cell_mV_319 < cell_min) {
+      cell_min = min_cell_mV_319;
+    }
+  }
   if (cell_max > 0) {
-    // Per-cell frames (0x315-0x318) have populated at least one cell - derive
-    // from them, as before.
     datalayer.battery.status.cell_max_voltage_mV = cell_max;
     datalayer.battery.status.cell_min_voltage_mV = cell_min;
-  } else if (max_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && max_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX &&
-             min_cell_mV_319 >= CELL_MV_PLAUSIBLE_MIN && min_cell_mV_319 <= CELL_MV_PLAUSIBLE_MAX) {
-    // No per-cell frame has arrived - fall back to 0x319's own max/min, which
-    // the protocol has carried directly since V1.03 (see header comment).
-    // Only trusted within a plausible cell-voltage range.
-    datalayer.battery.status.cell_max_voltage_mV = max_cell_mV_319;
-    datalayer.battery.status.cell_min_voltage_mV = min_cell_mV_319;
   }
 
   // Conservative: only allow contactor closing once the BMS itself has
