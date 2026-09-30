@@ -264,3 +264,29 @@ TEST(GrowattLvCellVoltageFallback, Implausible0x319IsIgnoredAlongsidePerCellFram
   EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3420);
   EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3390);
 }
+
+// number_of_cells was never set, so the web UI cell view, MQTT and ESP-NOW
+// showed no cells even though 0x315-0x318 were arriving.
+TEST(GrowattLvCellCount, PerCellFrameSetsSixteenCells) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+  b.setup();
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 0);
+
+  b.handle_incoming_can_frame(Frame(0x315, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));
+
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 16);
+}
+
+// A pack that sends only 0x319 (max/min, no per-cell frames) has no cell
+// array to show, so the count stays 0.
+TEST(GrowattLvCellCount, Frame0x319AloneLeavesCellCountAtZero) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+  b.setup();
+
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0D, 0x54, 0x0D, 0x46, 0x01, 0x10, 0x00}));
+  b.update_values();
+
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 0);
+}

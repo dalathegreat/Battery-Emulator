@@ -90,6 +90,9 @@ class GrowattLvBattery : public CanBattery {
   static const uint16_t CELL_MV_PLAUSIBLE_MIN = 1000;
   static const uint16_t CELL_MV_PLAUSIBLE_MAX = 5000;
 
+  // 0x315-0x318 carry exactly 16 cell voltages (cells 1-16).
+  static const uint8_t PER_CELL_FRAME_CELLS = 16;
+
   unsigned long previousMillis1000 = 0;
 
   // --- Outgoing (PCS -> BMS) ---
