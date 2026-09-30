@@ -32,9 +32,9 @@ void EnnoidBms::update_values() {
   // Discharge power is manually set
   datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
-  datalayer.battery.status.temperature_min_dC = tBms_cC;
+  datalayer.battery.status.temperature_min_dC = (tBms_cC / 10);
 
-  datalayer.battery.status.temperature_max_dC = tBms_cC - 1;
+  datalayer.battery.status.temperature_max_dC = (tBms_cC / 10) - 1;
 
   datalayer.battery.info.number_of_cells = numberOfCells;  // 1-192S
 
