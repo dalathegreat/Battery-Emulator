@@ -130,6 +130,13 @@ void GrowattLvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
+
+  // Once per-cell frames arrive, publish the cell count so the web UI's cell
+  // view, MQTT and ESP-NOW show them. A pack that sends only 0x319 has no
+  // per-cell data, so the count stays 0 there.
+  if (rx_frame.ID >= 0x315 && rx_frame.ID <= 0x318) {
+    datalayer.battery.info.number_of_cells = PER_CELL_FRAME_CELLS;
+  }
 }
 
 void GrowattLvBattery::update_values() {
