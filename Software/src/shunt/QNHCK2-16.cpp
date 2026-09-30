@@ -66,8 +66,8 @@ void Qnhck2_16Shunt::setup() {
   snprintf(interface_label, sizeof(interface_label), "ADC (GPIO%d)", (int)pin);
 
   // The first read sets the pin up as an ADC input, which setting its attenuation needs. 11 dB
-  // gives the widest range, about 0.1-3.1 V, and is also what analogReadMilliVolts() has its
-  // calibration curve made for.
+  // gives the widest range, 0-2.9 V on the ESP32-S3 according to its datasheet, and is also what
+  // analogReadMilliVolts() has its calibration curve made for.
   analogReadMilliVolts(pin);
   analogSetPinAttenuation(pin, ADC_11db);
 
