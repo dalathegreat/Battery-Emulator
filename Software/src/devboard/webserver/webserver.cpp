@@ -1486,21 +1486,21 @@ static bool render_live(CheckedHtml& content) {
       if (espnow_is_running()) {
         // Show both WiFi and Ethernet
 #ifdef ETHERNET
-      if (ethernet_connected()) {
-        String eth_mac = ETH.macAddress();
-        eth_mac.toLowerCase();
-        content += "<h4>IP (Ethernet): " + ETH.localIP().toString() + " MAC: " + eth_mac + "</h4>";
-      }
+        if (ethernet_connected()) {
+          String eth_mac = ETH.macAddress();
+          eth_mac.toLowerCase();
+          content += "<h4>IP (Ethernet): " + ETH.localIP().toString() + " MAC: " + eth_mac + "</h4>";
+        }
 #endif
-      if (wifi_connected()) {
-        // MAC is the station address, which is also the source address of the ESPNow
-        // frames - handy when filling in the ESPNow receiver MAC list on another node.
-        String mac = WiFi.macAddress();
-        mac.toLowerCase();
-        content += ' ';
-        content += mac;
-      }
-      content += "]</h4>";
+        if (wifi_connected()) {
+          // MAC is the station address, which is also the source address of the ESPNow
+          // frames - handy when filling in the ESPNow receiver MAC list on another node.
+          String mac = WiFi.macAddress();
+          mac.toLowerCase();
+          content += ' ';
+          content += mac;
+        }
+        content += "]</h4>";
       }
     } else {
       // Reached only when no interface is up; keep this interface-agnostic
