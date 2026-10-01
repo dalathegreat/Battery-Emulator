@@ -106,6 +106,7 @@ void connectivity_loop(void*) {
   init_display();
 #endif
 
+  // "Start ESPNow at boot" setting. ESP-NOW can still be started later at runtime.
   if (espnow_enabled) {
     init_espnow();
   }
@@ -118,9 +119,9 @@ void connectivity_loop(void*) {
     update_display();
 #endif
 
-    if (espnow_enabled) {
-      update_espnow();
-    }
+    // Always called: ESP-NOW can also be started and stopped at runtime (MQTT "ESPNOW_RUN"),
+    // and update_espnow() returns immediately while it is not running.
+    update_espnow();
 
     webserver_tick();
 

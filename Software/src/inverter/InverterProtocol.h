@@ -39,6 +39,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type);
 // Whether an inverter protocol talks over the RS485 transceiver - RS485 framing
 // or Modbus RTU - rather than CAN, without constructing it.
 extern bool inverter_type_uses_rs485(InverterProtocolType type);
+// True for the protocols whose provides_shunt() returns true. Lets the web UI decide whether to
+// offer "Using inverter values" for the inverter picked in the form, without instantiating it.
+extern bool inverter_type_provides_shunt(InverterProtocolType type);
 
 enum class InverterInterfaceType { Can, Rs485, Modbus };
 
@@ -60,6 +63,7 @@ class InverterProtocol {
 
   virtual bool supports_battery_id() { return false; }
 
+  // An override returning true must also be listed in inverter_type_provides_shunt().
   virtual bool provides_shunt() { return false; }
   virtual void enable_shunt() {}
 

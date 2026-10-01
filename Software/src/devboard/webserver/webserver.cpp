@@ -23,6 +23,7 @@
 #ifdef HW_UNIFIED_S3
 #include <LittleFS.h>
 #endif
+#include "../espnow/espnow.h"
 #include "../hal/board_config.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
@@ -689,6 +690,16 @@ void init_webserver() {
               }
               if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
                 settings.saveBool("TRIBTR", false);
+              }
+
+              // Same for the shunt types hidden for the selected battery/inverter: "Custom Clamp"
+              // outside CHAdeMO, "Using inverter values" with an inverter that provides no shunt.
+              auto selectedShuntType = static_cast<ShuntType>(settings.getUInt("SHUNTTYPE", (int)ShuntType::None));
+              auto selectedInverterType =
+                  static_cast<InverterProtocolType>(settings.getUInt("INVTYPE", (int)InverterProtocolType::None));
+              if (!shunt_type_supported_by_battery(selectedShuntType, selectedBatteryType) ||
+                  !shunt_type_supported_by_inverter(selectedShuntType, selectedInverterType)) {
+                settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
               }
 
               // The page offers a BMS reset when the starting sequence request was changed, since
@@ -1587,7 +1598,7 @@ static bool render_live(CheckedHtml& content) {
     // Reachability/hostname/IP reflect the active interface
     if (network_connected()) {
       content += "<h4>" + html_escape(active_hostname()) + " [" + WiFi.localIP().toString();
-      if (espnow_enabled) {
+      if (espnow_is_running()) {
         // MAC is the station address, which is also the source address of the ESPNow
         // frames - handy when filling in the ESPNow receiver MAC list on another node.
         String mac = WiFi.macAddress();
