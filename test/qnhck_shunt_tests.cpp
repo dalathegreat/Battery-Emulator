@@ -5,6 +5,7 @@
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/battery_aggregate.h"
 #include "../Software/src/datalayer/datalayer.h"
+#include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
 #include "../Software/src/shunt/QNHCK2-16.h"
 #include "../Software/src/shunt/Shunt.h"
@@ -362,6 +363,62 @@ TEST_F(QnhckAggregateTest, RoundsToTheNearestDeciAmpereAndStaysInRange) {
   shunt_reads(-4000000);
   update_aggregate_values();
   EXPECT_EQ(datalayer.aggregate.current_dA, INT16_MIN);
+}
+
+// --- Everything else that reads a battery's current: MQTT, ESP-NOW, the web pages, the display ---
+
+TEST_F(QnhckAggregateTest, ASinglePackShowsTheMeasuredCurrent) {
+  datalayer.battery.status.current_dA = -120;
+  datalayer.battery.status.active_power_W = -4440;
+  shunt_reads(-15049);
+
+  EXPECT_EQ(pack_current_dA(datalayer.battery.status), -150);
+  EXPECT_EQ(pack_power_W(datalayer.battery.status), -5550);  // 370.0 V x -15.0 A
+  EXPECT_EQ(installation_current_dA(), -150);
+  // The datalayer keeps what the battery reported
+  EXPECT_EQ(datalayer.battery.status.current_dA, -120);
+}
+
+TEST_F(QnhckAggregateTest, ASinglePackShowsItsOwnCurrentUntilTheShuntHasAReading) {
+  datalayer.battery.status.current_dA = -120;
+  datalayer.battery.status.active_power_W = -4440;
+  shunt_reads(-15049);
+  datalayer.shunt.available = false;
+
+  EXPECT_EQ(pack_current_dA(datalayer.battery.status), -120);
+  EXPECT_EQ(pack_power_W(datalayer.battery.status), -4440);
+  EXPECT_EQ(installation_current_dA(), -120);
+}
+
+TEST_F(QnhckAggregateTest, SeveralPacksKeepTheirOwnAndTheShuntStandsInForTheirSum) {
+  battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
+  datalayer.system.info.configured_batteries = 2;
+  datalayer.battery.status.current_dA = 30;
+  datalayer.battery.status.active_power_W = 1110;
+  datalayer.battery2.status.current_dA = 40;
+  shunt_reads(7500);
+
+  // One sensor cannot tell the packs apart
+  EXPECT_EQ(pack_current_dA(datalayer.battery.status), 30);
+  EXPECT_EQ(pack_power_W(datalayer.battery.status), 1110);
+  EXPECT_EQ(pack_current_dA(datalayer.battery2.status), 40);
+  EXPECT_EQ(installation_current_dA(), 75);
+
+  datalayer.shunt.available = false;
+  EXPECT_EQ(installation_current_dA(), 70);
+}
+
+TEST_F(QnhckAggregateTest, APauseCompletesOnTheMeasuredCurrent) {
+  datalayer.battery.status.current_dA = 50;  // The battery's own sensor still sees 5 A
+  shunt_reads(1000);                         // while 1 A flows
+
+  setBatteryPause(true, false);
+  update_pause_state();
+  EXPECT_EQ(emulator_pause_status, PAUSED);
+
+  setBatteryPause(false, false);
+  update_pause_state();
+  EXPECT_EQ(emulator_pause_status, NORMAL);
 }
 
 }  // namespace

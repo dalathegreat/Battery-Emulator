@@ -4,6 +4,7 @@
 #ifndef SMALL_FLASH_DEVICE
 
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../hal/hal.h"
 #include "../network/network_status.h"
@@ -299,7 +300,7 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
     buf[8] = 't';
     buf[9] = '0' + num;
   }
-  printn(buf + 14, status.active_power_W, 6);
+  printn(buf + 14, pack_power_W(status), 6);
   buf[20] = 'W';
   buf[21] = '\0';
   write_text(6 * 6, row++, buf + 6, false);
@@ -324,7 +325,7 @@ static void print_battery_status(int row, DATALAYER_BATTERY_STATUS_TYPE& status,
     buf[10] = 'm';
     buf[11] = 'V';
     buf[12] = ' ';
-    print3d1(buf + 15, status.current_dA);
+    print3d1(buf + 15, pack_current_dA(status));
     buf[20] = 'A';
     buf[21] = '\0';
   } else if (page == 2) {

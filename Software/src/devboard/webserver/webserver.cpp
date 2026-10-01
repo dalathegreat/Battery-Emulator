@@ -1195,7 +1195,7 @@ static void fill_card_view(BatteryCardView& v, const DATALAYER_BATTERY_TYPE& pac
     v.max_charge_current_dA = power_W_to_current_dA(v.max_charge_power_W, pack.status.voltage_dV);
     v.max_discharge_current_dA = power_W_to_current_dA(v.max_discharge_power_W, pack.status.voltage_dV);
   }
-  v.active_power_W = pack.status.active_power_W;
+  v.active_power_W = pack_power_W(pack.status);
   v.real_soc = pack.status.real_soc;
   v.reported_soc = pack.status.reported_soc;
   v.soh_pptt = pack.status.soh_pptt;
@@ -1204,7 +1204,7 @@ static void fill_card_view(BatteryCardView& v, const DATALAYER_BATTERY_TYPE& pac
   v.cell_max_voltage_mV = pack.status.cell_max_voltage_mV;
   v.cell_min_voltage_mV = pack.status.cell_min_voltage_mV;
   v.max_cell_voltage_deviation_mV = pack.info.max_cell_voltage_deviation_mV;
-  v.current_dA = pack.status.current_dA;
+  v.current_dA = pack_current_dA(pack.status);
   v.temperature_max_dC = pack.status.temperature_max_dC;
   v.temperature_min_dC = pack.status.temperature_min_dC;
 }

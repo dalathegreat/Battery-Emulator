@@ -1,6 +1,7 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
@@ -347,6 +348,13 @@ void update_machineryprotection() {
       if (battery) {
         battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
       }
+#ifndef SMALL_FLASH_DEVICE
+      // A current sensor fitted in place of the battery's own measures what actually flows. Its
+      // reading is a one second mean already, so it has no extremes of its own to hand over.
+      if (shunt_measures_battery1()) {
+        peak_charge_dA = peak_discharge_dA = shunt_current_dA();
+      }
+#endif  // SMALL_FLASH_DEVICE
       const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, datalayer.battery.status.voltage_dV);
       const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, datalayer.battery.status.voltage_dV);
 
@@ -714,7 +722,8 @@ void update_pause_state() {
     allowed_to_send_CAN = true;
   }
 
-  int16_t battery_current_dA = datalayer.battery.status.current_dA;
+  // Pack 1's through pack_current_dA(): a current sensor fitted in place of its own stands in
+  int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
   int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
   int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
   static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps

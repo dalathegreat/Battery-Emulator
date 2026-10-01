@@ -6,6 +6,7 @@
 #include <src/communication/nvm/comm_nvm.h>
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/espnow/espnow.h"
@@ -515,8 +516,9 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["temperature_min"] = ((float)((int16_t)battery_data.status.temperature_min_dC)) / 10.0f;
   doc["temperature_max"] = ((float)((int16_t)battery_data.status.temperature_max_dC)) / 10.0f;
-  doc["stat_batt_power"] = ((float)((int32_t)battery_data.status.active_power_W));
-  doc["battery_current"] = ((float)((int16_t)battery_data.status.current_dA)) / 10.0f;
+  // A current sensor fitted in place of the batteries' own stands in for these (pack_current_dA())
+  doc["stat_batt_power"] = ((float)pack_power_W(battery_data.status));
+  doc["battery_current"] = ((float)pack_current_dA(battery_data.status)) / 10.0f;
   doc["battery_voltage"] = ((float)battery_data.status.voltage_dV) / 10.0f;
   if (battery_data.info.number_of_cells != 0u &&
       battery_data.status.cell_voltages_mV[battery_data.info.number_of_cells - 1] != 0u) {
@@ -576,7 +578,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   // other. What is limiting the inverter is not - that is one answer for the installation, so
   // with several packs it is published once on the aggregate topic instead of the same answer
   // appearing on every pack.
-  ChargingState charging_state = get_charging_state(battery_data.status.current_dA);
+  ChargingState charging_state = get_charging_state(pack_current_dA(battery_data.status));
   doc["charging_state"] = charging_state_to_text(charging_state);
   if (pack_is_the_installation) {
     doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(

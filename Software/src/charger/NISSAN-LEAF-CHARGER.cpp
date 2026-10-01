@@ -1,5 +1,6 @@
 #include "NISSAN-LEAF-CHARGER.h"
 #include "../communication/can/comm_can.h"
+#include "../datalayer/battery_aggregate.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "CHARGERS.h"
@@ -105,7 +106,7 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
       uint16_t Vbatt = (datalayer.battery.status.voltage_dV / 10) * 2;  //0-450V, 0.5V/bit
-      uint16_t Ibatt = (datalayer.battery.status.current_dA / 10) * 2;
+      uint16_t Ibatt = (pack_current_dA(datalayer.battery.status) / 10) * 2;
       LEAF_1DB.data.u8[0] = Ibatt >> 3;  //MSB current. 11 bit signed MSBit first
       LEAF_1DB.data.u8[1] = (Ibatt & 0x07)
                             << 5;  //LSB current bits 7-5. Dont need to mess with bits 0-4 for now as 0 works.
