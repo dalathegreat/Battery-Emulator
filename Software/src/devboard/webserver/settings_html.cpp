@@ -1465,7 +1465,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="41"] .if-cbms,
     form[data-battery="48"] .if-cbms,
     form[data-battery="49"] .if-cbms,
-    form[data-battery="51"] .if-cbms {
+    form[data-battery="41"] .if-cbms,
+    form[data-battery="52"] .if-cbms {
       display: contents;
     }
 

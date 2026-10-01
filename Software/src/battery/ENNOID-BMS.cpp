@@ -70,16 +70,19 @@ void EnnoidBms::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x260a:
     case 0x260:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       packVoltage = be_f32(&rx_frame.data.u8[0]);
       break;
 
     case 0x270a:
     case 0x270:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       packCurrent = be_f32(&rx_frame.data.u8[0]);
       break;
 
     case 0x280a:
     case 0x280:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // All zeros after BMS restart/counter reset until current flows
       dischargeAh = be_f32(&rx_frame.data.u8[0]);
       dischargeWh = be_f32(&rx_frame.data.u8[4]);
@@ -87,6 +90,7 @@ void EnnoidBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     case 0x290a:
     case 0x290: {
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       uint8_t seq = rx_frame.data.u8[0];  // 0, 3, 6, ...
       numberOfCells = rx_frame.data.u8[1];
       for (uint8_t i = 0; i < 3; i++) {
@@ -100,11 +104,13 @@ void EnnoidBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     case 0x2a0a:
     case 0x2a0:  //Unclear if this frame exists
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       numberOfCells = rx_frame.data.u8[0];
       break;
 
     case 0x2b0a:
     case 0x2b0: {
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       uint8_t seq = rx_frame.data.u8[0];
       numberOfTempSensors = rx_frame.data.u8[1];
       for (uint8_t i = 0; i < 3; i++) {
@@ -118,12 +124,14 @@ void EnnoidBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     case 0x2c0a:
     case 0x2c0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       tBms_cC = be_i16(&rx_frame.data.u8[0]);
       unknown2C0 = be_i16(&rx_frame.data.u8[4]);
       break;
 
     case 0x2d0a:
     case 0x2d0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       cellVoltageLow_mV = be_u16(&rx_frame.data.u8[0]);
       cellVoltageMax_mV = be_u16(&rx_frame.data.u8[2]);
       SOC = rx_frame.data.u8[4] * 40;
@@ -134,12 +142,14 @@ void EnnoidBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     case 0x350a:
     case 0x350:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       totalChargeAh = be_f32(&rx_frame.data.u8[0]);
       totalChargeWh = be_f32(&rx_frame.data.u8[4]);
       break;
 
     case 0x360a:
     case 0x360:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       totalDischargeAh = be_f32(&rx_frame.data.u8[0]);
       totalDischargeWh = be_f32(&rx_frame.data.u8[4]);
       break;
