@@ -70,7 +70,7 @@ bool qnhck_current_in_range(int32_t current_mA, uint16_t rated_current_A);
 
 class Qnhck2_16Shunt : public Shunt, public Transmitter {
  public:
-  static constexpr const char* Name = "QNHCK2-16 (3.3V)";
+  static constexpr const char* Name = "QNHCK2-16 Clamp";
 
   void setup() override;
   const char* interface_name() override { return interface_label; }
