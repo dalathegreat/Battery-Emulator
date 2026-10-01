@@ -122,9 +122,11 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLV485:
       return PylonLV485InverterProtocol::Name;
 
-#ifndef SMALL_FLASH_DEVICE
     case InverterProtocolType::InterUnitNode:
+#ifndef SMALL_FLASH_DEVICE
       return "Inter-Unit Node";
+#else
+      return nullptr;  // Not available on SMALL_FLASH_DEVICE, hidden in Settings
 #endif
 
     case InverterProtocolType::Schneider:
