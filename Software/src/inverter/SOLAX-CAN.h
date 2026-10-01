@@ -22,9 +22,11 @@ class SolaxInverter : public CanInverterProtocol {
   static const int CONTACTOR_CLOSED = 2;
   static const int FAULT_SOLAX = 3;
   static const int UPDATING_FW = 4;
+  static const int INVALID = 255;
 
   int16_t temperature_average = 0;
   uint8_t STATE = BATTERY_ANNOUNCE;
+  uint8_t PREV_STATE = INVALID;
   unsigned long LastFrameTime = 0;
   uint8_t number_of_batteries = 1;
 

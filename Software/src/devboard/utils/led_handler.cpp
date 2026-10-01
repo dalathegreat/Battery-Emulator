@@ -9,6 +9,15 @@
 #define COLOR_RED(x) (((uint32_t)x << 16) | ((uint32_t)0 << 8) | 0)
 #define COLOR_BLUE(x) (((uint32_t)0 << 16) | ((uint32_t)0 << 8) | x)
 
+// Scales a full-brightness 24-bit color's R/G/B channels by `brightness` (0-255).
+static uint32_t scale_color(uint32_t color, uint8_t brightness) {
+  uint8_t r = (uint8_t)(color >> 16), g = (uint8_t)(color >> 8), b = (uint8_t)color;
+  r = (uint16_t)r * brightness / 255;
+  g = (uint16_t)g * brightness / 255;
+  b = (uint16_t)b * brightness / 255;
+  return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
+}
+
 #define BPM_TO_MS(x) ((60000 / (x)))  // 60 * 1000 = 60000
 
 #define HEARTBEAT_BASE 150      // 0.15 * 1000
@@ -18,6 +27,25 @@
 #define SCALE_FACTOR 1000
 
 static LED* led = nullptr;
+
+static bool led_override_active = false;
+static uint32_t led_override_color = 0;
+static uint16_t led_override_period_ms = 0;
+
+static bool indicator_led_state[4] = {false, false, false, false};
+
+void set_led_override(bool active, uint32_t color, uint16_t period_ms) {
+  if (led == nullptr) {
+    return;  // no LED (GPIO unset or used for an OLED) — nothing to drive
+  }
+  led_override_active = active;
+  led_override_color = color;
+  led_override_period_ms = period_ms;
+}
+
+void set_indicator_led(IndicatorLed indicator, bool on) {
+  indicator_led_state[static_cast<uint8_t>(indicator)] = on;
+}
 
 uint16_t map_int(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -35,7 +63,7 @@ bool led_init(void) {
     return false;
   }
 
-  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS());
+  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), esp32hal->LED_COUNT());
 
   return true;
 }
@@ -49,6 +77,14 @@ void led_exe(void) {
 }
 
 void LED::exe(void) {
+  // Button-hold feedback: square-wave blink at full brightness, ahead of normal state.
+  if (led_override_active && led_override_period_ms > 0) {
+    const bool on = (millis() / (led_override_period_ms / 2)) % 2;
+    pixels.setPixelColor(on ? led_override_color : 0);
+    pixels.show();
+    return;
+  }
+
   // Update brightness
   switch (datalayer.battery.status.led_mode) {
     case led_mode_enum::FLOW:
@@ -78,19 +114,34 @@ void LED::exe(void) {
   }
 
   // Set color
+  uint32_t status_hue = 0;  // full-brightness hue, reused below for the indicator LEDs
   switch (get_emulator_status()) {
     case EMULATOR_STATUS::STATUS_OK:
+      status_hue = COLOR_GREEN(0xFF);
       pixels.setPixelColor(COLOR_GREEN(brightness));  // Green pulsing LED
       break;
     case EMULATOR_STATUS::STATUS_WARNING:
+      status_hue = COLOR_YELLOW(0xFF);
       pixels.setPixelColor(COLOR_YELLOW(brightness));  // Yellow pulsing LED
       break;
     case EMULATOR_STATUS::STATUS_ERROR:
+      status_hue = COLOR_RED(0xFF);
       pixels.setPixelColor(COLOR_RED(esp32hal->LED_MAX_BRIGHTNESS()));  // Red LED full brightness
       break;
     case EMULATOR_STATUS::STATUS_UPDATING:
+      status_hue = COLOR_BLUE(0xFF);
       pixels.setPixelColor(COLOR_BLUE(brightness));  // Blue pulsing LED
       break;
+  }
+
+  // Indicator LEDs 1-4 mirror the STATUS LED's color, at a fixed (non-animated) brightness.
+  // Skipped entirely on boards with no RGB indicator LEDs (num_leds == 1), rather than relying
+  // on Adafruit_NeoPixel::setPixelColor()'s bounds check to make it a no-op.
+  if (num_leds > 1) {
+    uint32_t indicator_color = scale_color(status_hue, max_brightness);
+    for (uint8_t i = 0; i < 4; i++) {
+      pixels.setPixelColor(i + 1, indicator_led_state[i] ? indicator_color : 0);
+    }
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.

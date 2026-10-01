@@ -112,7 +112,7 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
       LEAF_1DB.data.u8[2] = Vbatt >> 2;
       LEAF_1DB.data.u8[3] =
           (((Vbatt & 0x07) << 6) | (0x2b));  //0x2b should give no cut req, main rly on permission,normal p limit.
-      LEAF_1DB.data.u8[4] = (datalayer.battery.status.reported_soc / 100);  //SOC for dash
+      LEAF_1DB.data.u8[4] = (datalayer.aggregate.reported_soc / 100);  //SOC for dash
       LEAF_1DB.data.u8[5] = 0x00;
       LEAF_1DB.data.u8[6] = mprun10;
       LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);

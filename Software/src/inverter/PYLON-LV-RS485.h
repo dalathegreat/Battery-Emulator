@@ -17,6 +17,7 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   e.g. value set to 12, 12*5sec=60seconds without comm before event is raised */
   const int RS485_HEALTHY = 12;
   uint8_t incoming_message_counter = RS485_HEALTHY;
+  bool inverter_detected = false;
 
   int baud_rate() { return 9600; }
 

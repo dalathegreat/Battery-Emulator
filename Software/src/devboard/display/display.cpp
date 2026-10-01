@@ -1,9 +1,12 @@
 // A realtime display of battery status and events, using a I2C-connected 128x64
 // OLED display based on the SSD1306 driver.
 
+#ifndef SMALL_FLASH_DEVICE
+
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
 #include "../hal/hal.h"
+#include "../network/network_status.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "fonts.h"
@@ -406,14 +409,13 @@ static void print_events(int row, int count) {
   }
 }
 
-static void print_wifi_status(int row) {
-  wl_status_t status = WiFi.status();
+static void print_network_status(int row) {
   char buf[22];
   memset(buf, ' ', sizeof(buf));
   buf[21] = '\0';
 
-  if (status == WL_CONNECTED) {
-    cpy(buf, WiFi.localIP().toString().c_str());
+  if (network_connected()) {
+    cpy(buf, network_localIP().toString().c_str());
     print3(buf + 16, WiFi.RSSI());
     buf[19] = 'd';
     buf[20] = 'B';
@@ -462,7 +464,7 @@ void update_display() {
   write_text(0, 6, "---------------------", false);
 
   // Then IP/RSSI at the bottom
-  print_wifi_status(7);
+  print_network_status(7);
 
   phase++;
   if (phase >= total_phases) {
@@ -470,3 +472,5 @@ void update_display() {
   }
   lastUpdateMillis = currentMillis;
 }
+
+#endif  // SMALL_FLASH_DEVICE

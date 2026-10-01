@@ -11,10 +11,19 @@ extern bool contactor_control_enabled_double_battery;
 extern bool contactor_control_enabled_triple_battery;
 extern bool pwm_contactor_control;
 extern bool periodic_bms_reset;
+// Interval between periodic BMS resets, in hours. Only 24 and 48 are offered in the UI.
+extern uint16_t periodic_bms_reset_interval_h;
+// Guards for the periodic reset. Low SOC defers the reset until SOC recovers, balancing
+// costs it a single period. Neither ever applies to a remote (MQTT) triggered reset.
+extern bool periodic_bms_reset_defer_low_soc;
+extern bool periodic_bms_reset_skip_balancing;
 extern bool remote_bms_reset;
 extern uint16_t precharge_time_ms;
 extern uint16_t pwm_frequency;
 extern uint16_t pwm_hold_duty;
+// millis() when the BMS power was last switched on: at boot by init_contactors(), then after each
+// BMS reset. Stays 0 without BMS power control, the LBC then being powered from before boot.
+extern uint32_t bms_power_on_ms;
 
 /**
  * @brief Handle BMS power output
@@ -69,5 +78,14 @@ void handle_contactors_battery2();
  * @return void
  */
 void handle_contactors_battery3();
+
+// True when init_contactors() drives BMS_POWER (i.e. the pin is actively controlled).
+bool bms_power_is_active();
+
+// Latch/unlatch reset-hold pins (see Esp32Hal::reset_hold_pins()).
+// hold: only pins currently driven by the firmware are latched.
+// release: every candidate pin is released unconditionally (clears any stale hold).
+void hold_pins_across_reset();
+void release_pins_across_reset();
 
 #endif

@@ -3,7 +3,6 @@
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 
 /*
@@ -91,19 +90,12 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
 
   datalayer_battery->status.soh_pptt = 9900;
 
-  // Charge power is set in .h file (TODO: Remove this estimation when real value has been found)
-  if (datalayer_battery->status.real_soc > 9900) {
-    datalayer_battery->status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer_battery->status.real_soc > user_set_rampdown_SOC) {
-    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer_battery->status.max_charge_power_W =
-        datalayer_battery->status.override_charge_power_W *
-        (1 - (datalayer_battery->status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
-  }
+  // Charge power is set by user (TODO: Remove this estimation when real value has been found)
+  // This value gets ramped down by inverter function
+  datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
 
-  // Discharge power is also set in .h file (TODO: Remove this estimation when real value has been found)
+  // Discharge power is also set by user (TODO: Remove this estimation when real value has been found)
+  // This value gets ramped down by inverter function
   datalayer_battery->status.max_discharge_power_W = datalayer_battery->status.override_discharge_power_W;
 
   datalayer_battery->status.temperature_min_dC = temperature_lowest_C * 10;
@@ -116,41 +108,59 @@ void BoltAmperaBattery::update_values() {  //This function maps all the values f
   datalayer_battery->status.cell_max_voltage_mV = battery_cell_voltage_max_mV;
 
   datalayer_battery->status.cell_min_voltage_mV = battery_cell_voltage_min_mV;
+}
 
-  // Update webserver datalayer
-  if (datalayer_boltampera) {
-    datalayer_boltampera->battery_5V_ref = battery_5V_ref;
-    datalayer_boltampera->battery_module_temp_1 = battery_module_temp_1;
-    datalayer_boltampera->battery_module_temp_2 = battery_module_temp_2;
-    datalayer_boltampera->battery_module_temp_3 = battery_module_temp_3;
-    datalayer_boltampera->battery_module_temp_4 = battery_module_temp_4;
-    datalayer_boltampera->battery_module_temp_5 = battery_module_temp_5;
-    datalayer_boltampera->battery_module_temp_6 = battery_module_temp_6;
-    datalayer_boltampera->battery_cell_average_voltage = battery_cell_average_voltage;
-    datalayer_boltampera->battery_cell_average_voltage_2 = battery_cell_average_voltage_2;
-    datalayer_boltampera->battery_terminal_voltage = battery_terminal_voltage;
-    datalayer_boltampera->battery_ignition_power_mode = battery_ignition_power_mode;
-    datalayer_boltampera->battery_current_7E7 = battery_current_7E7;
-    datalayer_boltampera->battery_capacity_my17_18 = battery_capacity_my17_18;
-    datalayer_boltampera->battery_capacity_my19plus = battery_capacity_my19plus;
-    datalayer_boltampera->battery_SOC_display = battery_SOC_display;
-    datalayer_boltampera->battery_SOC_raw_highprec = battery_SOC_raw_highprec;
-    datalayer_boltampera->battery_max_temperature = battery_max_temperature;
-    datalayer_boltampera->battery_min_temperature = battery_min_temperature;
-    datalayer_boltampera->battery_min_cell_voltage = battery_min_cell_voltage;
-    datalayer_boltampera->battery_max_cell_voltage = battery_max_cell_voltage;
-    datalayer_boltampera->battery_lowest_cell = battery_lowest_cell;
-    datalayer_boltampera->battery_highest_cell = battery_highest_cell;
-    datalayer_boltampera->battery_internal_resistance = battery_internal_resistance;
-    datalayer_boltampera->battery_voltage_polled = battery_voltage_polled;
-    datalayer_boltampera->battery_vehicle_isolation = battery_vehicle_isolation;
-    datalayer_boltampera->battery_isolation_kohm = battery_isolation_kohm;
-    datalayer_boltampera->battery_HV_locked = battery_HV_locked;
-    datalayer_boltampera->battery_crash_event = battery_crash_event;
-    datalayer_boltampera->battery_HVIL = battery_HVIL;
-    datalayer_boltampera->battery_HVIL_status = battery_HVIL_status;
-    datalayer_boltampera->battery_current_7E4 = battery_current_7E4;
-  }
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
+
+String BoltAmperaBattery::get_uds_info_html() {
+  String content;
+  content.reserve(1600);
+
+  // clang-format off
+content << "<h4>7E7 polled values</h4>"
+           "<h4>Battery current (7E7): "  << battery_current_7E7            << "</h4>"
+           "<h4>5V Reference 0: "         << battery_5V_ref                 << "</h4>"
+           "<h4>5V Reference 1: "         << battery_5V_ref_1               << "</h4>"
+           "<h4>5V Reference 2: "         << battery_5V_ref_2               << "</h4>"
+           "<h4>Module temp (1-6): "      << battery_module_temp_1 << " " << battery_module_temp_2 << " " << battery_module_temp_3 << " " << battery_module_temp_4 << " " << battery_module_temp_5 << " " << battery_module_temp_6 << " " << "</h4>"
+           "<h4>Cell average voltage: "   << battery_cell_average_voltage   << "</h4>"
+           "<h4>Cell average voltage 2: " << battery_cell_average_voltage_2 << "</h4>"
+           "<h4>Terminal voltage: "       << battery_terminal_voltage       << "</h4>"
+           "<h4>Ignition power mode: "    << battery_ignition_power_mode    << "</h4>"
+           "<h4>GMLAN high speed status: "<< battery_gmlan_high_speed_st    << "</h4>"
+           "<h4>Isolation resistance: "   << battery_hv_iso_resist_7E7      << "</h4>"
+           "<h4>Bus voltage: "            << battery_bus_volage             << "</h4>"
+           "<h4>Cell Balancing ID 1-6: "  << battery_cell_bal_id_1 << " " << battery_cell_bal_id_2 << " " << battery_cell_bal_id_3 << " " << battery_cell_bal_id_4 << " " << battery_cell_bal_id_5 << " " << battery_cell_bal_id_6 << " " << "</h4>"
+           "<h4>Cell Balance Status: "    << battery_cell_bal_status        << "</h4>";
+           /*
+           "<h4>7E4 polled values (Not polled!)</h4>"
+           "<h4>Max temp: "               << battery_max_temperature        << "</h4>"
+           "<h4>Min temp: "               << battery_min_temperature        << "</h4>"
+           "<h4>Capacity MY17-18: "       << battery_capacity_my17_18       << "</h4>"
+           "<h4>Capacity MY19+: "         << battery_capacity_my19plus      << "</h4>"
+           "<h4>SOC Display: "            << battery_SOC_display            << "</h4>"
+           "<h4>SOC Raw highprec: "       << battery_SOC_raw_highprec       << "</h4>"
+           "<h4>Cell max mV: "            << battery_max_cell_voltage       << "</h4>"
+           "<h4>Cell min mV: "            << battery_min_cell_voltage       << "</h4>"
+           "<h4>Lowest cell: "            << battery_lowest_cell            << "</h4>"
+           "<h4>Highest cell: "           << battery_highest_cell           << "</h4>"
+           "<h4>Internal resistance: "    << battery_internal_resistance    << "</h4>"
+           "<h4>Voltage: "                << battery_voltage_polled         << "</h4>"
+           "<h4>Isolation Ohm: "          << battery_vehicle_isolation      << "</h4>"
+           "<h4>Isolation kOhm: "         << battery_isolation_kohm         << "</h4>"
+           "<h4>HV locked: "              << battery_HV_locked              << "</h4>"
+           "<h4>Crash event: "            << battery_crash_event            << "</h4>"
+           "<h4>HVIL: "                   << battery_HVIL                   << "</h4>"
+           "<h4>HVIL status: "            << battery_HVIL_status            << "</h4>"
+           "<h4>Current (7E4): "          << battery_current_7E4            << "</h4>";
+           */
+  // clang-format on
+
+  return content;
 }
 
 void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -276,7 +286,8 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //When polling 7E4 BMS replies with 7EC (This is not working for some reason)
-
+      //Code left intentionally in incase someone wants to continue experimenting with it
+      /*
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
         transmit_can_frame(&BOLT_ACK_7E4);
       }
@@ -345,112 +356,119 @@ void BoltAmperaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         default:
           break;
       }
-
+       */
       break;
     case 0x7EF:  //When polling 7E7 BMS replies with 7EF
-
-      if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
-        transmit_can_frame(&BOLT_ACK_7E7);
-      }
-
-      //Frame 2 & 3 contains reply
-      reply_poll_7E7 = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-
-      switch (reply_poll_7E7) {
-        case POLL_7E7_CURRENT:
-          battery_current_7E7 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_7E7_5V_REF:
-          battery_5V_ref = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 5) / 65535);
-          break;
-        case POLL_7E7_MODULE_TEMP_1:
-          battery_module_temp_1 = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_7E7_MODULE_TEMP_2:
-          battery_module_temp_2 = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_7E7_MODULE_TEMP_3:
-          battery_module_temp_3 = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_7E7_MODULE_TEMP_4:
-          battery_module_temp_4 = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_7E7_MODULE_TEMP_5:
-          battery_module_temp_5 = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_7E7_MODULE_TEMP_6:
-          battery_module_temp_6 = (rx_frame.data.u8[4] - 40);
-          break;
-        case POLL_7E7_CELL_AVG_VOLTAGE:
-          battery_cell_average_voltage = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 5000) / 65535);
-          break;
-        case POLL_7E7_CELL_AVG_VOLTAGE_2:
-          battery_cell_average_voltage_2 = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8000) * 1000);
-          break;
-        case POLL_7E7_TERMINAL_VOLTAGE:
-          battery_terminal_voltage = rx_frame.data.u8[4] * 2;
-          break;
-        case POLL_7E7_IGNITION_POWER_MODE:
-          battery_ignition_power_mode = rx_frame.data.u8[4];
-          break;
-        default:
-          // Handle cell voltages in two banks (as they are not contiguous)
-
-          if (reply_poll_7E7 >= POLL_7E7_CELL_01 && reply_poll_7E7 <= POLL_7E7_CELL_31) {
-            battery_cell_voltages[reply_poll_7E7 - POLL_7E7_CELL_01] =
-                ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 5000) / 65535);
-          }
-
-          if (reply_poll_7E7 >= POLL_7E7_CELL_32 && reply_poll_7E7 <= POLL_7E7_CELL_96) {
-            battery_cell_voltages[reply_poll_7E7 - POLL_7E7_CELL_32 + 31] =
-                ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 5000) / 65535);
-          }
-          break;
-      }
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // Hand the reply to the UDS superclass: ISO-TP reassembly, then handle_pid()
+      // for PID scan responses and the DTC handlers for the rest.
+      handle_incoming_uds_can_frame(rx_frame);
+      break;
     default:
       break;
   }
 }
 
+uint16_t BoltAmperaBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+    case POLL_7E7_CURRENT:
+      battery_current_7E7 = value;
+      break;
+    case POLL_7E7_5V_REF:
+      battery_5V_ref = ((value * 5) / 65535);
+      break;
+    case POLL_7E7_MODULE_TEMP_1:
+      battery_module_temp_1 = (value - 40);
+      break;
+    case POLL_7E7_MODULE_TEMP_2:
+      battery_module_temp_2 = (value - 40);
+      break;
+    case POLL_7E7_MODULE_TEMP_3:
+      battery_module_temp_3 = (value - 40);
+      break;
+    case POLL_7E7_MODULE_TEMP_4:
+      battery_module_temp_4 = (value - 40);
+      break;
+    case POLL_7E7_MODULE_TEMP_5:
+      battery_module_temp_5 = (value - 40);
+      break;
+    case POLL_7E7_MODULE_TEMP_6:
+      battery_module_temp_6 = (value - 40);
+      break;
+    case POLL_7E7_CELL_AVG_VOLTAGE:
+      battery_cell_average_voltage = ((value * 5000) / 65535);
+      break;
+    case POLL_7E7_CELL_AVG_VOLTAGE_2:
+      battery_cell_average_voltage_2 = ((value / 8000) * 1000);
+      break;
+    case POLL_7E7_TERMINAL_VOLTAGE:
+      battery_terminal_voltage = value * 2;
+      break;
+    case POLL_7E7_IGNITION_POWER_MODE:
+      battery_ignition_power_mode = value;
+      break;
+    case POLL_7E7_GMLAN_HIGH_SPEED_STATUS:
+      battery_gmlan_high_speed_st = value;
+      break;
+    case POLL_7E7_HV_ISOLATION_RESISTANCE:
+      battery_hv_iso_resist_7E7 = value;
+      break;
+    case POLL_7E7_HV_BUS_VOLTAGE:
+      battery_bus_volage = value;
+      break;
+    case POLL_7E7_HYBRID_CELL_BALANCING_ID_1:
+      battery_cell_bal_id_1 = value;
+      break;
+    case POLL_7E7_HYBRID_CELL_BALANCING_ID_2:
+      battery_cell_bal_id_2 = value;
+      break;
+    case POLL_7E7_HYBRID_CELL_BALANCING_ID_3:
+      battery_cell_bal_id_3 = value;
+      break;
+    case POLL_7E7_HYBRID_CELL_BALANCING_ID_4:
+      battery_cell_bal_id_4 = value;
+      break;
+    case POLL_7E7_HYBRID_CELL_BALANCING_ID_5:
+      battery_cell_bal_id_5 = value;
+      break;
+    case POLL_7E7_HYBRID_CELL_BALANCING_ID_6:
+      battery_cell_bal_id_6 = value;
+      break;
+    case POLL_7E7_HYBRID_BATTERY_CELL_BALANCE_STATUS:
+      battery_cell_bal_status = value;
+      break;
+    case POLL_7E7_5V_REF_VOLTAGE_1:
+      battery_5V_ref_1 = value;
+      break;
+    case POLL_7E7_5V_REF_VOLTAGE_2:
+      battery_5V_ref_2 = value;
+      break;
+    default:
+      // Handle cell voltages in two banks (as they are not contiguous)
+
+      if (pid >= POLL_7E7_CELL_01 && pid <= POLL_7E7_CELL_31) {
+        battery_cell_voltages[pid - POLL_7E7_CELL_01] = ((value * 5000) / 65535);
+      }
+
+      if (pid >= POLL_7E7_CELL_32 && pid <= POLL_7E7_CELL_96) {
+        battery_cell_voltages[pid - POLL_7E7_CELL_32 + 31] = ((value * 5000) / 65535);
+      }
+      break;
+  }
+  return 0;  //Continue scanning the PID list in order
+}
+
 void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
+  // UDS PID polling and DTC handling
+  transmit_uds_can(currentMillis);
 
   //Send 20ms message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
     previousMillis20ms = currentMillis;
     transmit_can_frame(&BOLT_778);
-  }
-
-  //Send 100ms message
-  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
-    previousMillis100ms = currentMillis;
-
-    // Update current poll from the 7E7 array
-    currentpoll_7E7 = poll_commands_7E7[poll_index_7E7];
-    poll_index_7E7 = (poll_index_7E7 + 1) % 108;
-
-    BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll_7E7 & 0xFF00) >> 8);
-    BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll_7E7 & 0x00FF);
-
-    if (UserRequestDTCreset) {
-      transmit_can_frame(&BOLT_CLEAR_DTC);
-      UserRequestDTCreset = false;
-    } else {  //Normal poll
-      transmit_can_frame(&BOLT_POLL_7E7);
-    }
-  }
-
-  //Send 120ms message
-  if (currentMillis - previousMillis120ms >= 120) {
-    previousMillis120ms = currentMillis;
-
-    // Update current poll from the 7E4 array
-    currentpoll_7E4 = poll_commands_7E4[poll_index_7E4];
-    poll_index_7E4 = (poll_index_7E4 + 1) % 19;
-
-    BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll_7E4 & 0xFF00) >> 8);
-    BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll_7E4 & 0x00FF);
-
-    //transmit_can_frame(&BOLT_POLL_7E4); //TODO: Battery does not seem to reply on this poll
   }
 }
 
@@ -464,7 +482,130 @@ void BoltAmperaBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  if (allows_contactor_closing) {
-    *allows_contactor_closing = true;
-  }
+  // UDS: send requests to 0x7E7, accept replies from the BMS on 07EF.
+  // This battery should technically have nother BMS (7E4-7EC), but this poll does not work
+  setup_uds(0x7E7, 0x7EF);
+  static const uint16_t pid_scan_list[] = {
+      POLL_7E7_CURRENT,
+      POLL_7E7_5V_REF,
+      POLL_7E7_MODULE_TEMP_1,
+      POLL_7E7_MODULE_TEMP_2,
+      POLL_7E7_MODULE_TEMP_3,
+      POLL_7E7_MODULE_TEMP_4,
+      POLL_7E7_MODULE_TEMP_5,
+      POLL_7E7_MODULE_TEMP_6,
+      POLL_7E7_CELL_AVG_VOLTAGE,
+      POLL_7E7_CELL_AVG_VOLTAGE_2,
+      POLL_7E7_TERMINAL_VOLTAGE,
+      POLL_7E7_IGNITION_POWER_MODE,
+      POLL_7E7_GMLAN_HIGH_SPEED_STATUS,
+      POLL_7E7_HV_ISOLATION_RESISTANCE,
+      POLL_7E7_HV_BUS_VOLTAGE,
+      POLL_7E7_HYBRID_CELL_BALANCING_ID_1,
+      POLL_7E7_HYBRID_CELL_BALANCING_ID_2,
+      POLL_7E7_HYBRID_CELL_BALANCING_ID_3,
+      POLL_7E7_HYBRID_CELL_BALANCING_ID_4,
+      POLL_7E7_HYBRID_CELL_BALANCING_ID_5,
+      POLL_7E7_HYBRID_CELL_BALANCING_ID_6,
+      POLL_7E7_HYBRID_BATTERY_CELL_BALANCE_STATUS,
+      POLL_7E7_5V_REF_VOLTAGE_1,
+      POLL_7E7_5V_REF_VOLTAGE_2,
+      POLL_7E7_CELL_01,
+      POLL_7E7_CELL_02,
+      POLL_7E7_CELL_03,
+      POLL_7E7_CELL_04,
+      POLL_7E7_CELL_05,
+      POLL_7E7_CELL_06,
+      POLL_7E7_CELL_07,
+      POLL_7E7_CELL_08,
+      POLL_7E7_CELL_09,
+      POLL_7E7_CELL_10,
+      POLL_7E7_CELL_11,
+      POLL_7E7_CELL_12,
+      POLL_7E7_CELL_13,
+      POLL_7E7_CELL_14,
+      POLL_7E7_CELL_15,
+      POLL_7E7_CELL_16,
+      POLL_7E7_CELL_17,
+      POLL_7E7_CELL_18,
+      POLL_7E7_CELL_19,
+      POLL_7E7_CELL_20,
+      POLL_7E7_CELL_21,
+      POLL_7E7_CELL_22,
+      POLL_7E7_CELL_23,
+      POLL_7E7_CELL_24,
+      POLL_7E7_CELL_25,
+      POLL_7E7_CELL_26,
+      POLL_7E7_CELL_27,
+      POLL_7E7_CELL_28,
+      POLL_7E7_CELL_29,
+      POLL_7E7_CELL_30,
+      POLL_7E7_CELL_31,
+      POLL_7E7_CELL_32,
+      POLL_7E7_CELL_33,
+      POLL_7E7_CELL_34,
+      POLL_7E7_CELL_35,
+      POLL_7E7_CELL_36,
+      POLL_7E7_CELL_37,
+      POLL_7E7_CELL_38,
+      POLL_7E7_CELL_39,
+      POLL_7E7_CELL_40,
+      POLL_7E7_CELL_41,
+      POLL_7E7_CELL_42,
+      POLL_7E7_CELL_43,
+      POLL_7E7_CELL_44,
+      POLL_7E7_CELL_45,
+      POLL_7E7_CELL_46,
+      POLL_7E7_CELL_47,
+      POLL_7E7_CELL_48,
+      POLL_7E7_CELL_49,
+      POLL_7E7_CELL_50,
+      POLL_7E7_CELL_51,
+      POLL_7E7_CELL_52,
+      POLL_7E7_CELL_53,
+      POLL_7E7_CELL_54,
+      POLL_7E7_CELL_55,
+      POLL_7E7_CELL_56,
+      POLL_7E7_CELL_57,
+      POLL_7E7_CELL_58,
+      POLL_7E7_CELL_59,
+      POLL_7E7_CELL_60,
+      POLL_7E7_CELL_61,
+      POLL_7E7_CELL_62,
+      POLL_7E7_CELL_63,
+      POLL_7E7_CELL_64,
+      POLL_7E7_CELL_65,
+      POLL_7E7_CELL_66,
+      POLL_7E7_CELL_67,
+      POLL_7E7_CELL_68,
+      POLL_7E7_CELL_69,
+      POLL_7E7_CELL_70,
+      POLL_7E7_CELL_71,
+      POLL_7E7_CELL_72,
+      POLL_7E7_CELL_73,
+      POLL_7E7_CELL_74,
+      POLL_7E7_CELL_75,
+      POLL_7E7_CELL_76,
+      POLL_7E7_CELL_77,
+      POLL_7E7_CELL_78,
+      POLL_7E7_CELL_79,
+      POLL_7E7_CELL_80,
+      POLL_7E7_CELL_81,
+      POLL_7E7_CELL_82,
+      POLL_7E7_CELL_83,
+      POLL_7E7_CELL_84,
+      POLL_7E7_CELL_85,
+      POLL_7E7_CELL_86,
+      POLL_7E7_CELL_87,
+      POLL_7E7_CELL_88,
+      POLL_7E7_CELL_89,
+      POLL_7E7_CELL_90,
+      POLL_7E7_CELL_91,
+      POLL_7E7_CELL_92,
+      POLL_7E7_CELL_93,
+      POLL_7E7_CELL_94,
+      POLL_7E7_CELL_95,
+      POLL_7E7_CELL_96,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }

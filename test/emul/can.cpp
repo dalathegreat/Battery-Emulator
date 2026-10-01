@@ -1,17 +1,25 @@
+#include <vector>
+
 #include "../../Software/src/communication/Transmitter.h"
 #include "../../Software/src/communication/can/comm_can.h"
 
-#include <vector>
+// Records every frame transmitted by the emulated CAN interface so unit tests
+// can assert what the firmware actually put on the wire (UDS requests, ISO-TP
+// flow control / consecutive frames, heartbeat frames, ...).
+std::vector<CAN_frame> g_emul_transmitted_frames;
 
-// Test hook: every frame handed to the (real) firmware TX path is captured here so tests can
-// inspect what a sender actually put on the wire. Cleared by tests via emul_tx_frames().clear().
-std::vector<CAN_frame>& emul_tx_frames() {
-  static std::vector<CAN_frame> frames;
-  return frames;
+void clear_transmitted_frames() {
+  g_emul_transmitted_frames.clear();
+}
+
+const std::vector<CAN_frame>& get_transmitted_frames() {
+  return g_emul_transmitted_frames;
 }
 
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
-  emul_tx_frames().push_back(*tx_frame);
+  if (tx_frame != nullptr) {
+    g_emul_transmitted_frames.push_back(*tx_frame);
+  }
 }
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {}

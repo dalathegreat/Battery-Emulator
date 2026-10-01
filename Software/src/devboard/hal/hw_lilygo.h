@@ -44,6 +44,10 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_34; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_35; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
+  // CT clamp input ("Custom Clamp" shunt type). GPIO15 is ADC2_CH3: on the classic ESP32, ADC2
+  // cannot be sampled while Wi-Fi is running, so analogReadMilliVolts() fails and the current reads
+  // 0 A whenever Wi-Fi (STA or AP) is up. GPIO15 is also a strapping pin and is shared with the
+  // SD card MOSI, the SSD1306 SDA and the second battery contactor output.
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_15; }  // ADC2_CH3
 
   // Contactor handling
@@ -56,6 +60,8 @@ class LilyGoHal : public Esp32Hal {
     }  //Else user_selected_gpioopt2 == GPIOOPT2::BMS_POWER_25
     return GPIO_NUM_25;
   }
+  // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
   virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
 
   // Automatic precharging
@@ -73,7 +79,9 @@ class LilyGoHal : public Esp32Hal {
 
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
+#ifdef SDCARD
   // SD card
+  uint8_t SD_SPI_BUS() override { return VSPI; }
   virtual gpio_num_t SD_MISO_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_2;
@@ -98,6 +106,7 @@ class LilyGoHal : public Esp32Hal {
     }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
     return GPIO_NUM_NC;
   }
+#endif  // SDCARD
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
@@ -109,6 +118,10 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
 
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_0; }
+
+#ifndef SMALL_FLASH_DEVICE
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306) {
@@ -122,6 +135,7 @@ class LilyGoHal : public Esp32Hal {
     }
     return GPIO_NUM_NC;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanAddonMcp2515,

@@ -2,10 +2,17 @@
 
 #include "../utils/utils.h"
 
+#include "Arduino.h"  // set_millis64() for driving the UDS poll clock
+
 #include "../../Software/src/battery/BATTERIES.h"
+#include "../../Software/src/battery/CanBattery.h"
+#include "../../Software/src/battery/UdsCanBattery.h"
 #include "../../Software/src/devboard/utils/events.h"
 
 #include <fstream>
+
+// TX frame capture injected by the emulated CAN layer (see emul/can.cpp).
+const std::vector<CAN_frame>& get_transmitted_frames();
 
 namespace fs = std::filesystem;
 
@@ -21,14 +28,6 @@ class CanLogTestFixture : public testing::Test {
   //   static void TearDownTestSuite() { ... }
 
   void SetUp() override {
-    // Reset the datalayer and events before each test
-    datalayer = DataLayer();
-    reset_all_events();
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
-
     // Assume a 90s NMC pack for custom-BMS batteries
     user_selected_max_pack_voltage_dV = 378 + 10;
     user_selected_min_pack_voltage_dV = 261 - 10;
@@ -39,6 +38,7 @@ class CanLogTestFixture : public testing::Test {
     std::string filename = path_.filename().string();
     std::string batteryId = filename.substr(0, filename.find('_'));
     user_selected_battery_type = (BatteryType)std::stoi(batteryId);
+    battery = nullptr;
     setup_battery();
 
     // Initialize datalayer to invalid values
@@ -51,25 +51,86 @@ class CanLogTestFixture : public testing::Test {
     datalayer.battery.status.temperature_min_dC = INT16_MIN;
   }
 
-  void TearDown() override {
-    if (battery) {
-      delete battery;
-      battery = nullptr;
-    }
-  }
+  void HandleFrames() {
+    // Read the CAN frames in and handle them. In the emulator this would run
+    // every 1ms or so.
 
-  void ProcessLog() {
     std::vector<CAN_frame> parsedMessages = parse_can_log_file(path_);
 
-    for (const auto& msg : parsedMessages) {
-      dynamic_cast<CanBattery*>(battery)->handle_incoming_can_frame(msg);
-      dynamic_cast<CanBattery*>(battery)->update_values();
-    }
+    CanBattery* canBattery = dynamic_cast<CanBattery*>(battery);
 
-    update_machineryprotection();
+    unsigned long now = 0;
+    for (const auto& msg : parsedMessages) {
+      // Pump the battery transmit (may be necessary)
+      now = PumpBatteryTransmit(battery, msg, now);
+      canBattery->handle_incoming_can_frame(msg);
+    }
 
     // When debugging, uncomment this to see the parsed values
     // PrintValues();
+  }
+
+  unsigned long PumpBatteryTransmit(Battery* battery, const CAN_frame& msg, unsigned long now) {
+    // Some log frames require that the battery is in the right state to receive
+    // them. This includes UDS/KWP2000 PID scan responses, where the battery
+    // cycles through a list of PIDs and will only accept responses for that
+    // particular PID during the window after that particular poll transmission.
+
+    UdsCanBattery* udsBattery = dynamic_cast<UdsCanBattery*>(battery);
+    const auto& tx_frames = get_transmitted_frames();
+
+    // Does this message looks like a UDS/KWP2000 poll response?
+    if (udsBattery != nullptr && msg.ID >= 0x780 && msg.ID <= 0x7EF && (msg.data.u8[0] & 0xF0) == 0x10) {
+      // Extract the SID from the poll response
+      const uint8_t resp_sid = msg.data.u8[2];
+      uint16_t target_pid = msg.data.u8[3];
+      if (resp_sid == 0x62) {
+        // Is a UDS two-byte PID response (as opposed to a one-byte KWP2000 one).
+        target_pid = (target_pid << 8) | msg.data.u8[4];
+      }
+
+      // Now we keep hammering transmit_can up to 3000 times until we detect
+      // that it has sent a poll to the SID we're responding for.
+
+      const size_t tx_start = tx_frames.size();
+      const unsigned long deadline = now + 30000;  // 30 s of emulated time
+      bool poll_found = false;
+      while (now < deadline && !poll_found) {
+        now += 10;
+        set_millis64(now);
+        udsBattery->transmit_can(now);
+
+        // Go through all the frames that the battery has transmitted.
+        for (size_t i = tx_start; i < tx_frames.size(); i++) {
+          const CAN_frame& req = tx_frames[i];
+          const bool single_frame = (req.data.u8[0] == 0x02 || req.data.u8[0] == 0x03);
+          const bool one_byte_match =
+              (resp_sid == 0x61 && req.data.u8[1] == 0x21 && req.data.u8[2] == (uint8_t)target_pid);
+          const bool two_byte_match = (resp_sid == 0x62 && req.data.u8[1] == 0x22 &&
+                                       (((uint16_t)req.data.u8[2] << 8) | req.data.u8[3]) == target_pid);
+          if (single_frame && (one_byte_match || two_byte_match)) {
+            // We've found an outgoing poll for our SID. Now we can finish up,
+            // and the battery should accept the next log message.
+            poll_found = true;
+            break;
+          }
+        }
+      }
+    }
+    return now;
+  }
+
+  void UpdateValues() {
+    // Run the battery update_values functions and apply safety protections. In
+    // the emulator this happens every 1s.
+
+    dynamic_cast<CanBattery*>(battery)->update_values();
+    update_machineryprotection();
+  }
+
+  void HandleFramesAndUpdateValues() {
+    HandleFrames();
+    UpdateValues();
   }
 
   void PrintValues() {
@@ -96,7 +157,19 @@ class BaseValuesPresentTest : public CanLogTestFixture {
   void TestBody() override {
     datalayer.battery.status.CAN_battery_still_alive = 10;
 
-    ProcessLog();
+    // Set the charge/discharge power to a specific value
+    datalayer.battery.status.max_charge_power_W = 11;
+    datalayer.battery.status.max_discharge_power_W = 12;
+
+    // Handle the CAN frames. This shouldn't touch the above limits.
+    HandleFrames();
+    EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 11);
+    EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 12);
+
+    // Update the values, which should overwrite the above limits
+    UpdateValues();
+    EXPECT_NE(datalayer.battery.status.max_charge_power_W, 11);
+    EXPECT_NE(datalayer.battery.status.max_discharge_power_W, 12);
 
     EXPECT_GT(datalayer.battery.status.CAN_battery_still_alive, 10);
     EXPECT_NE(datalayer.battery.status.voltage_dV, 0);
@@ -118,7 +191,7 @@ class OverVoltageTest : public CanLogTestFixture {
  public:
   explicit OverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_BATTERY_OVERVOLTAGE)->occurences, 1);
   }
@@ -129,7 +202,7 @@ class CellOverVoltageTest : public CanLogTestFixture {
  public:
   explicit CellOverVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_CELL_OVER_VOLTAGE)->occurences, 1);
     EXPECT_EQ(get_event_pointer(EVENT_CELL_CRITICAL_OVER_VOLTAGE)->occurences, 1);
@@ -141,7 +214,7 @@ class CellUnderVoltageTest : public CanLogTestFixture {
  public:
   explicit CellUnderVoltageTest(fs::path path) : CanLogTestFixture(path) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     EXPECT_EQ(get_event_pointer(EVENT_CELL_UNDER_VOLTAGE)->occurences, 1);
     EXPECT_EQ(get_event_pointer(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)->occurences, 1);
@@ -153,7 +226,7 @@ class CellVoltageTest : public CanLogTestFixture {
  public:
   explicit CellVoltageTest(fs::path path, int cellnum) : CanLogTestFixture(path), cellnum_(cellnum) {}
   void TestBody() override {
-    ProcessLog();
+    HandleFramesAndUpdateValues();
 
     // Target is 3123mV, but some integrations round strangely so need a margin
     EXPECT_GT(datalayer.battery.status.cell_voltages_mV[cellnum_], 3121);
@@ -162,6 +235,66 @@ class CellVoltageTest : public CanLogTestFixture {
 
  private:
   int cellnum_;
+};
+
+// Check that PID responses were correctly demuxed and interpreted.
+// Currently very Zoe1 specific, could be generalized (or removed).
+class PidDemuxTest : public CanLogTestFixture {
+ public:
+  explicit PidDemuxTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    HandleFramesAndUpdateValues();
+
+    // 96 cells polled in two ISO-TP blocks (0x41: cells 0-61, 0x42: 62-95).
+    // Every cell is 3700 mV in this log; the summed pack works out to 3552 dV.
+    for (int i = 0; i < 96; i++) {
+      EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[i], 3700) << "cell " << i;
+    }
+    EXPECT_EQ(datalayer.battery.status.voltage_dV, 3552);
+
+    // 0x07 balancing group: one bit per cell, LSB first within each byte.
+    // The log uses a pattern that spans every ISO-TP frame of the reply and
+    // both edges of the first/last byte, so re-decode it here to check the
+    // demuxed bits land on the right cells.
+    const uint8_t balancing_bytes[] = {0xA5, 0x3C, 0x00, 0xFF, 0x81, 0x10, 0x42, 0x80, 0x01, 0x55, 0xAA, 0x0F};
+    for (int i = 0; i < 96; i++) {
+      bool expected = (balancing_bytes[i / 8] >> (i % 8)) & 1;
+      EXPECT_EQ(datalayer.battery.status.cell_balancing_status[i], expected) << "cell " << i;
+    }
+
+    // 0x155 broadcast: SOC value bytes 4-5 are 0x2132 (8498 = 84.98%).
+    EXPECT_EQ(datalayer.battery.status.real_soc, 8498);
+
+    // 0x424 broadcast: min/max temperatures (18 C / 21 C -> 180/210 dC).
+    EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 180);
+    EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 210);
+
+    // 0x61 metrics group: mileage 0xBB7C (47996 km), lifetime energy 0x23E4
+    // (9188 kWh), surfaced on the advanced page via get_uds_info_html().
+    UdsCanBattery* udsBattery = dynamic_cast<UdsCanBattery*>(battery);
+    ASSERT_NE(udsBattery, nullptr);
+    String uds_html = udsBattery->get_uds_info_html();
+    EXPECT_NE(std::string(uds_html.c_str()).find("47996 km"), std::string::npos);
+    EXPECT_NE(std::string(uds_html.c_str()).find("9188 kWh"), std::string::npos);
+
+    // 0x424/0x445 heartbeats were 0x55, so no frame was rejected.
+    EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
+  }
+};
+
+// Check that the driver accepted every frame in the log. Drivers that verify a
+// checksum count rejected frames in CAN_error_counter.
+class NoCanErrorsTest : public CanLogTestFixture {
+ public:
+  explicit NoCanErrorsTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    datalayer.battery.status.CAN_battery_still_alive = 0;
+
+    HandleFramesAndUpdateValues();
+
+    EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
+    EXPECT_GT(datalayer.battery.status.CAN_battery_still_alive, 0);
+  }
 };
 
 void RegisterCanLogTests() {
@@ -177,6 +310,9 @@ void RegisterCanLogTests() {
   //     cov:  test that normal and critical cell overvoltage events are triggered
   //     cuv:  test that normal and critical cell undervoltage events are triggered
   //     cv88: test that cell 88 (or another) voltage is correctly set (to 3123mV)
+  //     crc:  test that no frame is rejected, i.e. the driver's checksum calculation
+  //     pid:  test that KWP2000 poll responses were demuxed into the datalayer
+  //           exactly (cells, balancing, SOC, temperatures, metrics)
 
   std::string directoryPath = TEST_CAN_LOG_DIR;
 
@@ -226,12 +362,25 @@ void RegisterCanLogTests() {
                             [=]() -> CanLogTestFixture* { return new CellUnderVoltageTest(entry.path()); });
     }
 
+    if (has_flag("crc")) {
+      testing::RegisterTest("CanLogSafetyTests",
+                            ("TestNoCanErrors" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+                            nullptr, nullptr, __FILE__, __LINE__,
+                            [=]() -> CanLogTestFixture* { return new NoCanErrorsTest(entry.path()); });
+    }
+
     if (has_flag("cv")) {
       int cellnum = get_int_flag("cv");
       testing::RegisterTest("CanLogSafetyTests",
                             ("TestCellVoltage" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
                             nullptr, nullptr, __FILE__, __LINE__,
                             [=]() -> CanLogTestFixture* { return new CellVoltageTest(entry.path(), cellnum); });
+    }
+
+    if (has_flag("pid")) {
+      testing::RegisterTest(
+          "CanLogSafetyTests", ("TestPidDemux" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+          nullptr, nullptr, __FILE__, __LINE__, [=]() -> CanLogTestFixture* { return new PidDemuxTest(entry.path()); });
     }
   }
 }

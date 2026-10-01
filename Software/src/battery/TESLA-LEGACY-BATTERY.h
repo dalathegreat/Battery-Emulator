@@ -27,8 +27,8 @@ class TeslaLegacyBattery : public CanBattery {
   static const int MAX_PACK_VOLTAGE_100_DV = 5000;  //TODO, set
   static const int MIN_PACK_VOLTAGE_100_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
-  static const int MAX_CELL_VOLTAGE_MV = 4200;  //Battery is put into emergency stop if one cell goes over this value
-  static const int MIN_CELL_VOLTAGE_MV = 3400;  //Battery is put into emergency stop if one cell goes below this value
+  static const int MAX_CELL_VOLTAGE_MV = 4200;  //Charging stops when one cell reaches this value
+  static const int MIN_CELL_VOLTAGE_MV = 3200;  //Discharge stops when one cell reaches this value2
   CAN_frame TESLA_25C = {.FD = false,           // fast charge status
                          .ext_ID = false,
                          .DLC = 8,
@@ -60,8 +60,6 @@ class TeslaLegacyBattery : public CanBattery {
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
   uint32_t BMS_CAC_min = 23160000;
-  uint16_t battery_cell_max_v = 3300;
-  uint16_t battery_cell_min_v = 3300;
   uint16_t battery_soc_ui = 0;
   uint8_t battery_BMS_state = 0;
   bool cellvoltagesRead = false;
@@ -79,12 +77,12 @@ class TeslaLegacyBattery : public CanBattery {
   //0x332: 818 BattBrickMinMax:BMS_bmbMinMax
   int16_t battery_max_temp = 0;  // C*
   int16_t battery_min_temp = 0;  // C*
-  uint16_t battery_BrickVoltageMax = 0;
-  uint16_t battery_BrickVoltageMin = 0;
+  uint16_t battery_BrickVoltageMax = 3300;
+  uint16_t battery_BrickVoltageMin = 3300;
   uint8_t battery_BrickTempMaxNum = 0;
   uint8_t battery_BrickTempMinNum = 0;
-  uint8_t battery_BrickModelTMax = 0;
-  uint8_t battery_BrickModelTMin = 0;
+  int16_t battery_BrickModelTMax = 0;
+  int16_t battery_BrickModelTMin = 0;
   uint8_t battery_BrickVoltageMaxNum = 0;
   uint8_t battery_BrickVoltageMinNum = 0;
   //0x5D2

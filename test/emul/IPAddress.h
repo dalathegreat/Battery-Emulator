@@ -16,6 +16,8 @@ class IPAddress {
 
   operator uint32_t() const { return _addr; }
 
+  bool fromString(const char*) { return false; }
+
   String toString() const {
     char buf[16];
     snprintf(buf, sizeof(buf), "%u.%u.%u.%u", (unsigned)((_addr >> 24) & 0xFF), (unsigned)((_addr >> 16) & 0xFF),

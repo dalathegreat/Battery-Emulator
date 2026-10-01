@@ -1,13 +1,124 @@
 #ifndef _BATTERY_HTML_RENDERER_H
 #define _BATTERY_HTML_RENDERER_H
 
+#include "../../datalayer/datalayer.h"
+
+#include <Arduino.h>
 #include <WString.h>
+#include <stdio.h>
+#include "checked_html.h"
 
 // Each battery can implement this interface to render more battery specific HTML
 // content
 class BatteryHtmlRenderer {
  public:
   virtual String get_status_html() = 0;
+  // Optional diagnostics, rendered after the status buffer is released.
+  // Empty means none unless html_render_failed() reports a failure.
+  virtual String get_dtc_html() { return String(); }
+  // Optional HTML streamed just before the button of the given battery command (the identifier
+  // from battery_commands), for example to start a section of the page around that button. The
+  // page keeps the status, diagnostics and buttons inside one battery-panel div, so closing it and
+  // opening another is how a renderer splits its information into panels. Empty means nothing.
+  virtual String get_command_prefix_html(const char* identifier) { return String(); }
+  // Reports failure of the most recent status or diagnostics render.
+  virtual bool html_render_failed() const { return false; }
+
+  // Returns true when this renderer reads the data of its own battery instance
+  // (e.g. via a datalayer pointer supplied at construction), rather than the
+  // hardcoded main-battery globals. The advanced battery page only renders
+  // status HTML for battery 2/3 when this returns true; otherwise it shows a
+  // "limited to the Main Battery" notice. Override and return true after
+  // reworking a battery integration for double/triple support.
+  virtual bool renders_own_battery_data() { return false; }
+
+  static String render_dtc_section_html(DATALAYER_BATTERY_DTC_TYPE& dtc, const char* json_filename,
+                                        bool standard_code_string) {
+    CheckedHtml content;
+
+    // Reserve enough space to avoid reallocs
+    content.reserve(3300 + dtc.dtc_count * 320);
+    // Underline hugs the title instead of spanning the page
+    content +=
+        "<h4 style='margin:20px auto 0;width:fit-content;color:#27b06c;border-bottom:2px solid #27b06c;"
+        "padding-bottom:5px;'>&#128295; Diagnostic Trouble Codes</h4>";
+    if (dtc.dtc_last_read_millis == 0) {
+      content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
+    } else if (dtc.dtc_read_failed) {
+      content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
+    } else if (dtc.dtc_count == 0) {
+      content += "<p style='color:#69f0ae;'>&#10003; No DTCs present.</p>";
+    } else {
+      unsigned long age_s = (millis() - dtc.dtc_last_read_millis) / 1000;
+      content +=
+          "<p style='color:#bbb;'>" + String(dtc.dtc_count) + " codes &mdash; read " + String(age_s) + "s ago</p>";
+      content += "<div style='overflow-x:auto;margin-bottom:12px;'>";
+      content +=
+          "<table style='margin:0 auto;text-align:left;border-collapse:separate;border-spacing:0;"
+          "border:1px solid #4a5a64;border-radius:8px;overflow:hidden;'>";
+      content +=
+          "<thead><tr style='background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;'>"
+          "<th style='padding:10px 18px;text-align:left;'>DTC</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Status</th>"
+          "<th style='padding:10px 18px;text-align:left;'>Description</th></tr></thead><tbody>";
+
+      const char SYS[5] = "PCBU";
+      for (int i = 0; i < dtc.dtc_count; i++) {
+        uint32_t code = dtc.dtc_codes[i];
+        uint8_t status = dtc.dtc_status[i];
+
+        char dtcStr[12];
+        String matchKey;
+        if (standard_code_string) {
+          // SAE format (P0C9500, B1B4E12, etc.)
+          snprintf(dtcStr, sizeof(dtcStr), "%c%02lX%02lX%02lX", SYS[(code >> 22) & 0x03],
+                   (unsigned long)((code >> 16) & 0x3F), (unsigned long)((code >> 8) & 0xFF),
+                   (unsigned long)(code & 0xFF));
+          matchKey = String(dtcStr);
+        } else {
+          // Raw 6-digit hex code (9B4E12, DB4E12, etc.)
+          snprintf(dtcStr, sizeof(dtcStr), "%06lX", (unsigned long)code);
+          matchKey = String(code);
+        }
+
+        // Status precedence: Active (bit 0x01) > Confirmed (bit 0x08) > Stored.
+        const char* statusStr = "Stored";
+        const char* statusColor = "#9e9e9e";
+        if (status & 0x08) {
+          statusStr = "Confirmed";
+          statusColor = "#d29922";
+        }
+        if (status & 0x01) {
+          statusStr = "Active";
+          statusColor = "#ff5252";
+        }
+
+        content +=
+            "<tr><td style='padding:8px 18px;border-top:1px solid #3a4750;font-family:monospace;"
+            "font-weight:600;'>";
+        content += dtcStr;
+        content +=
+            "</td>"
+            "<td style='padding:8px 18px;border-top:1px solid #3a4750;color:";
+        content += statusColor;
+        content += ";font-weight:600;'>";
+        content += statusStr;
+        content +=
+            "</td>"
+            "<td data-dtc-code='";
+        content += matchKey;
+        content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
+      }
+      content += "</tbody></table></div>";
+      String loader = get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, json_filename);
+      if (loader.isEmpty()) {
+        return String();
+      }
+      content += loader;
+    }
+
+    return content.take();
+  }
 
   // Base URL for the upstream GitHub repository's data folder.
   // Battery renderers can pass this to get_dtc_json_loader_html() directly,
@@ -27,7 +138,7 @@ class BatteryHtmlRenderer {
   //   On a successful GitHub fetch the file picker is hidden automatically.
   //   On failure the file picker is revealed so the user can load a local copy.
   static String get_dtc_json_loader_html(const char* base_url = "", const char* filename = "") {
-    String s;
+    CheckedHtml s;
     s.reserve(4096);  // avoid repeated 16-byte realloc steps while building the loader
     s += "<div style='margin-top:15px;padding:12px;background:#1e1e2e;border:1px solid #444;border-radius:8px;'>";
     s += "<p id='dtcJsonStatus' style='margin:0 0 8px 0;color:#aaa;font-size:.95em;'></p>";
@@ -183,13 +294,15 @@ class BatteryHtmlRenderer {
          "catch(err){S.textContent='Parse error: '+err.message;S.style.color='#d32f2f';}};"
          "R.onerror=function(){S.textContent='File read error';S.style.color='#d32f2f';};"
          "R.readAsText(f);});})();</script>";
-    return s;
+    return s.take();
   }
 };
 
 class BatteryDefaultRenderer : public BatteryHtmlRenderer {
  public:
   String get_status_html() { return String("No extra information available for this battery type"); }
+  // Static text, valid for any battery instance.
+  bool renders_own_battery_data() { return true; }
 };
 
 #endif

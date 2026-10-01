@@ -1,9 +1,9 @@
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../shunt/Shunt.h"
 #include "CHADEMO-CT.h"
 #include "CHADEMO-SHUNTS.h"
-#include "Shunt.h"
 
 float (*get_measured_current_ptr)();
 float (*get_measured_voltage_ptr)();

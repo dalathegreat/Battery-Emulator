@@ -2,8 +2,11 @@
 
 uint64_t current_time = 0;
 
-unsigned long millis() {
-  return static_cast<unsigned long>(current_time);
+uint32_t millis() {
+  // Match the ESP32: millis() is 32 bits wide and wraps at 2^32 ms (49.7 days).
+  // Production time variables are uint32_t, so the host runs exactly the
+  // arithmetic the target runs, wrap included.
+  return static_cast<uint32_t>(current_time);
 }
 
 uint64_t get_timestamp(unsigned long millis) {

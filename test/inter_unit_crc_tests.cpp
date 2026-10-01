@@ -8,8 +8,9 @@
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
 
-// TX capture hook provided by the test emul (test/emul/can.cpp).
-extern std::vector<CAN_frame>& emul_tx_frames();
+// TX capture hooks provided by the test emul (test/emul/can.cpp).
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
 // Emul clock control (test/emul/time.cpp) — reset so reply timing is deterministic.
 void set_millis64(uint64_t time);
 
@@ -176,12 +177,12 @@ TEST(InterUnitEndToEnd, NodeStatusPowerFramesRoundTripThroughController) {
   iu_crc_stamp(hb.ID, hb.data.u8, hb.DLC);
   battery_node_can.receive_can_frame(&hb);
 
-  emul_tx_frames().clear();
+  clear_transmitted_frames();
   battery_node_can.transmit(1000000);  // well past the (node_id * 5ms) reply delay
 
   // Replay every frame the node put on the wire into the controller.
-  ASSERT_FALSE(emul_tx_frames().empty());
-  for (CAN_frame frame : emul_tx_frames()) {
+  ASSERT_FALSE(get_transmitted_frames().empty());
+  for (CAN_frame frame : get_transmitted_frames()) {
     controller_can.receive_can_frame(&frame);
   }
 

@@ -1,5 +1,4 @@
-#ifndef WIFI_H
-#define WIFI_H
+#pragma once
 
 #include <stdint.h>
 #include "IPAddress.h"
@@ -10,5 +9,3 @@ class WiFiClass {
 };
 
 inline WiFiClass WiFi;
-
-#endif

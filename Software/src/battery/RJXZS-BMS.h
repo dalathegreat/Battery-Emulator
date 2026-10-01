@@ -6,6 +6,7 @@
 
 class RjxzsBms : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   RjxzsBms() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
 
   virtual void setup(void);

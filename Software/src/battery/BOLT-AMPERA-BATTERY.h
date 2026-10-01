@@ -1,25 +1,21 @@
 #ifndef BOLT_AMPERA_BATTERY_H
 #define BOLT_AMPERA_BATTERY_H
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
-#include "BOLT-AMPERA-HTML.h"
-#include "CanBattery.h"
+#include "UdsCanBattery.h"
 
-class BoltAmperaBattery : public CanBattery {
+class BoltAmperaBattery : public UdsCanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Default constructor - first or single battery
-  BoltAmperaBattery() : renderer(&datalayer_extended.boltampera) {
+  BoltAmperaBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    datalayer_boltampera = &datalayer_extended.boltampera;
+    dtc = &datalayer_battery->dtc;
   }
 
   // Second battery constructor
-  BoltAmperaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BOLTAMPERA* extended, CAN_Interface targetCan)
-      : CanBattery(targetCan), renderer(extended) {
+  BoltAmperaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = nullptr;
-    datalayer_boltampera = extended;
+    dtc = &datalayer_battery->dtc;
   }
 
   virtual void setup(void);
@@ -29,24 +25,22 @@ class BoltAmperaBattery : public CanBattery {
 
   static constexpr const char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "bolt_ampera_dtc.json"; }
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
-  BoltAmperaHtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_BOLTAMPERA* datalayer_boltampera;
-  bool* allows_contactor_closing;
-  bool UserRequestDTCreset = false;
 
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 500;
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2510;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4220;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 3000;  //Battery is put into emergency stop if one cell goes below this value
+
   static const int POLL_7E4_CAPACITY_EST_GEN1 = 0x41A3;
   static const int POLL_7E4_CAPACITY_EST_GEN2 = 0x45F9;
   static const int POLL_7E4_SOC_DISPLAY = 0x8334;
@@ -66,6 +60,7 @@ class BoltAmperaBattery : public CanBattery {
   static const int POLL_7E4_HVIL = 0x4310;
   static const int POLL_7E4_HVIL_STATUS = 0x4311;
   static const int POLL_7E4_CURRENT = 0x4356;
+
   static const int POLL_7E7_CURRENT = 0x40D4;
   static const int POLL_7E7_5V_REF = 0x40D3;
   static const int POLL_7E7_MODULE_TEMP_1 = 0x40D7;
@@ -187,9 +182,7 @@ class BoltAmperaBattery : public CanBattery {
   static const int POLL_7E7_CELL_95 = 0x423F;
   static const int POLL_7E7_CELL_96 = 0x4240;
 
-  unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
-  unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis120ms = 0;  // will store last time a 120ms CAN Message was send
+  unsigned long previousMillis20ms = 0;  // will store last time a 20ms CAN Message was send
 
   CAN_frame BOLT_778 = {.FD = false,  // Unsure of what this message is, added only as example
                         .ext_ID = false,
@@ -201,26 +194,11 @@ class BoltAmperaBattery : public CanBattery {
                              .DLC = 8,
                              .ID = 0x7E4,
                              .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame BOLT_ACK_7E4 = {.FD = false,  //VICM_HV ack
-                            .ext_ID = false,
-                            .DLC = 8,
-                            .ID = 0x7E4,
-                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame BOLT_POLL_7E7 = {.FD = false,  //VITM_HV poll
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x7E7,
                              .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame BOLT_ACK_7E7 = {.FD = false,  //VITM_HV ack
-                            .ext_ID = false,
-                            .DLC = 8,
-                            .ID = 0x7E7,
-                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame BOLT_CLEAR_DTC = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x7E7,
-                              .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
 
   // Other PID requests in the vehicle
   // All HV ECUs - 0x101
@@ -248,7 +226,7 @@ class BoltAmperaBattery : public CanBattery {
   uint16_t battery_lowest_cell = 0;
   uint16_t battery_highest_cell = 0;
   uint16_t battery_voltage_polled = 0;
-  uint16_t battery_voltage_periodic_dV = 3700;
+  uint16_t battery_voltage_periodic_dV = 0;
   uint16_t battery_vehicle_isolation = 0;
   uint16_t battery_isolation_kohm = 9999;
   uint16_t battery_HV_locked = 0;
@@ -256,7 +234,8 @@ class BoltAmperaBattery : public CanBattery {
   uint16_t battery_HVIL = 0;
   uint16_t battery_HVIL_status = 0;
   uint16_t battery_5V_ref = 0;
-  int16_t battery_current_7E4 = 0;
+  uint16_t battery_5V_ref_1 = 0;
+  uint16_t battery_5V_ref_2 = 0;
   int16_t battery_module_temp_1 = 0;
   int16_t battery_module_temp_2 = 0;
   int16_t battery_module_temp_3 = 0;
@@ -270,6 +249,7 @@ class BoltAmperaBattery : public CanBattery {
   uint16_t battery_terminal_voltage = 0;
   uint16_t battery_ignition_power_mode = 0;
   int16_t battery_current_7E7 = 0;
+  int16_t battery_current_7E4 = 0;
   int16_t inlet_coolant_temperature = 0;
   int16_t outlet_coolant_temperature = 0;
   int16_t temperature_1 = 0;
@@ -280,87 +260,16 @@ class BoltAmperaBattery : public CanBattery {
   int16_t temperature_6 = 0;
   int16_t temperature_highest_C = 0;
   int16_t temperature_lowest_C = 0;
-  uint8_t poll_index_7E4 = 0;
-  uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
-  uint16_t reply_poll_7E4 = 0;
-  uint8_t poll_index_7E7 = 0;
-  uint16_t currentpoll_7E7 = POLL_7E7_CURRENT;
-  uint16_t reply_poll_7E7 = 0;
-
-  const uint16_t poll_commands_7E4[19] = {POLL_7E4_CAPACITY_EST_GEN1,
-                                          POLL_7E4_CAPACITY_EST_GEN2,
-                                          POLL_7E4_SOC_DISPLAY,
-                                          POLL_7E4_SOC_RAW_HIGHPREC,
-                                          POLL_7E4_MAX_TEMPERATURE,
-                                          POLL_7E4_MIN_TEMPERATURE,
-                                          POLL_7E4_MIN_CELL_V,
-                                          POLL_7E4_MAX_CELL_V,
-                                          POLL_7E4_INTERNAL_RES,
-                                          POLL_7E4_LOWEST_CELL_NUMBER,
-                                          POLL_7E4_HIGHEST_CELL_NUMBER,
-                                          POLL_7E4_VOLTAGE,
-                                          POLL_7E4_VEHICLE_ISOLATION,
-                                          POLL_7E4_ISOLATION_TEST_KOHM,
-                                          POLL_7E4_HV_LOCKED_OUT,
-                                          POLL_7E4_CRASH_EVENT,
-                                          POLL_7E4_HVIL,
-                                          POLL_7E4_HVIL_STATUS,
-                                          POLL_7E4_CURRENT};
-
-  const uint16_t poll_commands_7E7[108] = {POLL_7E7_CURRENT,          POLL_7E7_5V_REF,
-                                           POLL_7E7_MODULE_TEMP_1,    POLL_7E7_MODULE_TEMP_2,
-                                           POLL_7E7_MODULE_TEMP_3,    POLL_7E7_MODULE_TEMP_4,
-                                           POLL_7E7_MODULE_TEMP_5,    POLL_7E7_MODULE_TEMP_6,
-                                           POLL_7E7_CELL_AVG_VOLTAGE, POLL_7E7_CELL_AVG_VOLTAGE_2,
-                                           POLL_7E7_TERMINAL_VOLTAGE, POLL_7E7_IGNITION_POWER_MODE,
-                                           POLL_7E7_CELL_01,          POLL_7E7_CELL_02,
-                                           POLL_7E7_CELL_03,          POLL_7E7_CELL_04,
-                                           POLL_7E7_CELL_05,          POLL_7E7_CELL_06,
-                                           POLL_7E7_CELL_07,          POLL_7E7_CELL_08,
-                                           POLL_7E7_CELL_09,          POLL_7E7_CELL_10,
-                                           POLL_7E7_CELL_11,          POLL_7E7_CELL_12,
-                                           POLL_7E7_CELL_13,          POLL_7E7_CELL_14,
-                                           POLL_7E7_CELL_15,          POLL_7E7_CELL_16,
-                                           POLL_7E7_CELL_17,          POLL_7E7_CELL_18,
-                                           POLL_7E7_CELL_19,          POLL_7E7_CELL_20,
-                                           POLL_7E7_CELL_21,          POLL_7E7_CELL_22,
-                                           POLL_7E7_CELL_23,          POLL_7E7_CELL_24,
-                                           POLL_7E7_CELL_25,          POLL_7E7_CELL_26,
-                                           POLL_7E7_CELL_27,          POLL_7E7_CELL_28,
-                                           POLL_7E7_CELL_29,          POLL_7E7_CELL_30,
-                                           POLL_7E7_CELL_31,          POLL_7E7_CELL_32,
-                                           POLL_7E7_CELL_33,          POLL_7E7_CELL_34,
-                                           POLL_7E7_CELL_35,          POLL_7E7_CELL_36,
-                                           POLL_7E7_CELL_37,          POLL_7E7_CELL_38,
-                                           POLL_7E7_CELL_39,          POLL_7E7_CELL_40,
-                                           POLL_7E7_CELL_41,          POLL_7E7_CELL_42,
-                                           POLL_7E7_CELL_43,          POLL_7E7_CELL_44,
-                                           POLL_7E7_CELL_45,          POLL_7E7_CELL_46,
-                                           POLL_7E7_CELL_47,          POLL_7E7_CELL_48,
-                                           POLL_7E7_CELL_49,          POLL_7E7_CELL_50,
-                                           POLL_7E7_CELL_51,          POLL_7E7_CELL_52,
-                                           POLL_7E7_CELL_53,          POLL_7E7_CELL_54,
-                                           POLL_7E7_CELL_55,          POLL_7E7_CELL_56,
-                                           POLL_7E7_CELL_57,          POLL_7E7_CELL_58,
-                                           POLL_7E7_CELL_59,          POLL_7E7_CELL_60,
-                                           POLL_7E7_CELL_61,          POLL_7E7_CELL_62,
-                                           POLL_7E7_CELL_63,          POLL_7E7_CELL_64,
-                                           POLL_7E7_CELL_65,          POLL_7E7_CELL_66,
-                                           POLL_7E7_CELL_67,          POLL_7E7_CELL_68,
-                                           POLL_7E7_CELL_69,          POLL_7E7_CELL_70,
-                                           POLL_7E7_CELL_71,          POLL_7E7_CELL_72,
-                                           POLL_7E7_CELL_73,          POLL_7E7_CELL_74,
-                                           POLL_7E7_CELL_75,          POLL_7E7_CELL_76,
-                                           POLL_7E7_CELL_77,          POLL_7E7_CELL_78,
-                                           POLL_7E7_CELL_79,          POLL_7E7_CELL_80,
-                                           POLL_7E7_CELL_81,          POLL_7E7_CELL_82,
-                                           POLL_7E7_CELL_83,          POLL_7E7_CELL_84,
-                                           POLL_7E7_CELL_85,          POLL_7E7_CELL_86,
-                                           POLL_7E7_CELL_87,          POLL_7E7_CELL_88,
-                                           POLL_7E7_CELL_89,          POLL_7E7_CELL_90,
-                                           POLL_7E7_CELL_91,          POLL_7E7_CELL_92,
-                                           POLL_7E7_CELL_93,          POLL_7E7_CELL_94,
-                                           POLL_7E7_CELL_95,          POLL_7E7_CELL_96};
+  uint16_t battery_gmlan_high_speed_st = 0;
+  uint16_t battery_hv_iso_resist_7E7 = 0;
+  uint16_t battery_bus_volage = 0;
+  uint16_t battery_cell_bal_id_1 = 0;
+  uint16_t battery_cell_bal_id_2 = 0;
+  uint16_t battery_cell_bal_id_3 = 0;
+  uint16_t battery_cell_bal_id_4 = 0;
+  uint16_t battery_cell_bal_id_5 = 0;
+  uint16_t battery_cell_bal_id_6 = 0;
+  uint16_t battery_cell_bal_status = 0;
 };
 
 #endif

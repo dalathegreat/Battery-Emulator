@@ -8,12 +8,12 @@
 
 class RelionBattery : public CanBattery {
  public:
+  bool mandatory_charge_taper() { return true; }
   // Use this constructor for the second battery.
   RelionBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan, bool* allows_contactor_closing_ptr)
       : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = allows_contactor_closing_ptr;
-    battery_total_voltage = 0;
   }
 
   // Use the default constructor to create the first or single battery.
@@ -40,9 +40,6 @@ class RelionBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 300;
   static const int MAX_CELL_VOLTAGE_MV = 3750;
   static const int MIN_CELL_VOLTAGE_MV = 2800;
-
-  static const int MAX_CHARGE_POWER_WHEN_TOPBALANCING_W = 150;  // W, what power to allow for top balancing battery
-  static const int FLOAT_START_MV = 20;  // mV, how many mV under overvoltage to start float charging
 
   unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was sent
 
@@ -73,7 +70,7 @@ class RelionBattery : public CanBattery {
   };
   uint16_t SOC_from_max_cell_voltage = 0;
   uint16_t SOC_from_min_cell_voltage = 0;
-  uint16_t battery_total_voltage = 500;
+  uint16_t battery_total_voltage = 0;
   int16_t battery_total_current = 0;
   uint8_t system_state = 0;
   uint8_t battery_soc = 50;

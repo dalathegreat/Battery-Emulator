@@ -3,10 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "CanCharger.h"
 
-#ifdef CHEVYVOLT_CHARGER
-#define SELECTED_CHARGER_CLASS ChevyVoltCharger
-#endif
-
 class ChevyVoltCharger : public CanCharger {
  public:
   ChevyVoltCharger() : CanCharger(ChargerType::ChevyVolt) {}
@@ -35,7 +31,6 @@ class ChevyVoltCharger : public CanCharger {
   const float CHEVYVOLT_MAX_HVDC = 420.0f;
   const float CHEVYVOLT_MIN_HVDC = 200.0f;
   const float CHEVYVOLT_MAX_AMP = 11.5f;
-  const float CHEVYVOLT_MAX_POWER = 3300;
 
   /* CAN cycles and timers */
   unsigned long previousMillis30ms = 0;    // 30ms cycle for keepalive frames

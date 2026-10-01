@@ -28,7 +28,8 @@ enum class InverterProtocolType {
   VCU = 22,
   PylonLV485 = 23,
   SmaSBSByd = 24,
-  InterUnitNode = 25,  // This node acts as a battery Node in a multi-unit setup
+  FoxessEp = 25,
+  InterUnitNode = 26,  // This node acts as a battery Node in a multi-unit setup
   Highest
 };
 
@@ -36,6 +37,9 @@ extern InverterProtocolType user_selected_inverter_protocol;
 
 extern std::vector<InverterProtocolType> supported_inverter_protocols();
 extern const char* name_for_inverter_type(InverterProtocolType type);
+// True for the protocols whose provides_shunt() returns true. Lets the web UI decide whether to
+// offer "Using inverter values" for the inverter picked in the form, without instantiating it.
+extern bool inverter_type_provides_shunt(InverterProtocolType type);
 
 enum class InverterInterfaceType { Can, Rs485, Modbus };
 
@@ -57,8 +61,12 @@ class InverterProtocol {
 
   virtual bool supports_battery_id() { return false; }
 
+  // An override returning true must also be listed in inverter_type_provides_shunt().
   virtual bool provides_shunt() { return false; }
   virtual void enable_shunt() {}
+
+  // Some inverters are slow to boot; suppress the CAN-missing fault during a startup grace window.
+  virtual bool needs_can_startup_grace() { return false; }
 };
 
 extern InverterProtocol* inverter;

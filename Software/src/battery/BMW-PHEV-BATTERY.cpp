@@ -282,7 +282,7 @@ void BmwPhevBattery::PhevCloseContactors(void) {
   // instead of startRoutine) AND kick off a short pre-close phase that sends several guarded
   // stopRoutine frames (one per UDS-guard window). 0x10B close is held off until those are sent
   // (see phev_pre_close_stops_remaining gating in the 20ms block).
-  datalayer.battery.settings.user_requests_balancing = false;
+  datalayer.battery_settings.user_requests_balancing = false;
   phev_pre_close_stops_remaining = PHEV_PRE_CLOSE_STOP_COUNT;
   phev_pre_close_stop_last_ms = 0;  // 0 = send the first stop immediately
   contactorCloseReq = true;
@@ -489,21 +489,11 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
   datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
   datalayer.battery.status.soh_pptt = min_soh_state;
+
   datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
-  //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
-
-  // Charge power is set in .h file
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
-  } else if (datalayer.battery.status.real_soc > user_set_rampdown_SOC) {
-    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    datalayer.battery.status.max_charge_power_W =
-        battery_BEV_available_power_longterm_charge *
-        (1 - (datalayer.battery.status.real_soc - user_set_rampdown_SOC) / (10000.0 - user_set_rampdown_SOC));
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-  }
+  datalayer.battery.status.max_charge_power_W =
+      battery_BEV_available_power_longterm_charge;  //Value is ramped down by Inverter function (TODO: needed?)
 
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
@@ -518,8 +508,7 @@ void BmwPhevBattery::update_values() {  //This function maps all the values fetc
       battery_current != 0) {                             //Ignore stale values if there is no current flowing
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
-    set_event(EVENT_STALE_VALUE, 0);
-    logging.println("Stale Min/Max voltage values detected during charge/discharge sending - 9999mV...");
+    set_event(EVENT_STALE_VALUE, 0, battery_index);       // also printing a log entry
   } else {
 
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
@@ -683,6 +672,8 @@ void BmwPhevBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           if (rx_frame.DLC == 8 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xD6 &&
               rx_frame.data.u8[4] == 0xD9) {                                     // Isolation Reading 2
             iso_safety_kohm = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);  //STAT_R_ISO_ROH_01_WERT
+            datalayer.battery.status.insulation_resistance_kOhm = iso_safety_kohm;
+            datalayer.battery.status.insulation_resistance_available = true;
             iso_safety_kohm_quality =
                 (rx_frame.data.u8[7]);  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
           }
@@ -1005,7 +996,7 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // Earlier firmware sent startRoutine unconditionally every 10s, so the routine can be left
     // latched ON - causing autonomous balancing + precharge block once the cells reach rest (~10 min).
     // Clearing it once on every boot guarantees we start from a known "not balancing" state.
-    if (!phev_balancing_stop_sent && !datalayer.battery.settings.user_requests_balancing) {
+    if (!phev_balancing_stop_sent && !datalayer.battery_settings.user_requests_balancing) {
       logging.println("Clearing any latched balancing routine in SME (stopRoutine)");
       transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_STOP);
       phev_balancing_stop_sent = true;
@@ -1030,9 +1021,9 @@ void BmwPhevBattery::transmit_can(unsigned long currentMillis) {
     // toggles balancing, fire several guarded frames of the new desired state (startRoutine when
     // requested, stopRoutine when cancelled), one per UDS-guard window, so the latching routine takes.
     // NOTE: balancing only works with contactors OPEN and it BLOCKS contactor close while active.
-    if (datalayer.battery.settings.user_requests_balancing != phev_last_balancing_request) {
-      phev_last_balancing_request = datalayer.battery.settings.user_requests_balancing;
-      phev_balancing_burst_start = datalayer.battery.settings.user_requests_balancing;
+    if (datalayer.battery_settings.user_requests_balancing != phev_last_balancing_request) {
+      phev_last_balancing_request = datalayer.battery_settings.user_requests_balancing;
+      phev_balancing_burst_start = datalayer.battery_settings.user_requests_balancing;
       phev_balancing_bursts_remaining = PHEV_BALANCING_BURST_COUNT;
       phev_balancing_burst_last_ms = 0;  // 0 = send the first frame immediately
     }
@@ -1264,5 +1255,5 @@ void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   // PHEV-specific default max balancing time: 5h (the shared datalayer default is 1h). This is the
   // ceiling the safety timer uses before it auto-cancels a balancing request. NOTE: a value changed
   // via the web UI is NOT persisted to NVS yet, so this 5h default is restored on every boot.
-  datalayer.battery.settings.balancing_max_time_ms = 5UL * 60UL * 60UL * 1000UL;  // 5 hours
+  datalayer.battery_settings.balancing_max_time_ms = 5UL * 60UL * 60UL * 1000UL;  // 5 hours
 }

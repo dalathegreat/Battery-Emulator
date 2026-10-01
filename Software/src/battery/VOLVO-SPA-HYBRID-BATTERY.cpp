@@ -128,7 +128,7 @@ void VolvoSpaHybridBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         CHARGE_ENERGY = ((((rx_frame.data.u8[4] & 0x0F) * 256.0 + rx_frame.data.u8[5]) * 50) - 500);
       else {
         CHARGE_ENERGY = 0;
-        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY);
+        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY, battery_index);
       }
       break;
     case 0x413:
@@ -476,7 +476,7 @@ void VolvoSpaHybridBattery::transmit_can(unsigned long currentMillis) {
 
     if ((datalayer.system.status.system_status == ACTIVE) && startedUp) {
       datalayer.system.status.battery_allows_contactor_closing = true;
-      //transmit_can_frame(&VOLVO_140_CLOSE);  //Send 0x140 Close contactors message
+      transmit_can_frame(&VOLVO_140_CLOSE);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT , OR inverter requested opening contactors, OR system not started yet
       datalayer.system.status.battery_allows_contactor_closing = false;
       transmit_can_frame(&VOLVO_140_OPEN);  //Send 0x140 Open contactors message

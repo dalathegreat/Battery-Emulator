@@ -51,7 +51,9 @@ public:
     MCP2515_Lite(SPIClass& spi, uint8_t cs, uint8_t int_pin);
     ~MCP2515_Lite();
 
-    bool begin(const MCP2515_Lite_Speed& speed);
+    uint32_t autodetectOscillatorFrequency();
+
+    bool begin(const MCP2515_Lite_Speed& speed, bool loopback = false, bool skip_task_start = false);
     
     // Non-blocking: pushes message to the TX queue
     bool sendFrame(const MCP2515_Lite_Frame& msg);
@@ -64,6 +66,8 @@ public:
 
     // Non-blocking: pauses all communication (and stops acknowledging messages)
     void pause(bool paused);
+
+    inline bool hasErrors() { auto ret = _errors; _errors = false; return ret; }
 
 private:
     SPIClass& _spi;
@@ -78,6 +82,7 @@ private:
     volatile bool _pause_requested = false;
     volatile bool _paused = false;
     volatile bool _rx_overflow = false;
+    volatile bool _errors = false;
 
     // Background task for handling sequential blocking transfers
     TaskHandle_t _can_task_handle = nullptr;
