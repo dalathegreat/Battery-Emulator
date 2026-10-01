@@ -1,6 +1,6 @@
 #include "comm_can.h"
 #include "../../lib/mcp2515_lite/mcp2515_lite.h"
-#include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+#include "../../lib/mcp2518fd_lite/mcp2518fd_lite.h"
 #include "../../lib/pierremolinaro-acan-esp32/ACAN_ESP32.h"
 #include "CanReceiver.h"
 #include "comm_can.h"
@@ -56,11 +56,13 @@ static MCP2515_Lite* can2515 = nullptr;
 static SPIClass* SPI2515;
 
 static SPIClass* SPI2517;
-static ACAN2517FD* canfd = nullptr;
-static ACAN2517FDSettings* settings2517;
+static MCP2518FD_Lite* canfd = nullptr;
+static MCP2518FD_Lite_Speed canfd_speed;
+static uint8_t canfd_clko_div = 3;
 static SPIClass* SPI2517_2;
-static ACAN2517FD* canfd_2 = nullptr;
-static ACAN2517FDSettings* settings2517_2;
+static MCP2518FD_Lite* canfd_2 = nullptr;
+static MCP2518FD_Lite_Speed canfd_2_speed;
+static uint8_t canfd_2_clko_div = 3;
 
 static bool native_can_initialized = false;
 
@@ -193,23 +195,16 @@ bool init_CAN() {
       return false;
     }
 
-    canfd = new ACAN2517FD(cs_pin, *SPI2517, int_pin);
+    canfd = new MCP2518FD_Lite(*SPI2517, cs_pin, int_pin);
 
-    logging.println("CAN FD add-on (ESP32+MCP2517) selected");
+    logging.println("CAN FD add-on (ESP32+MCP2518) selected");
 
-    const uint32_t freq = esp32hal->MCP2517_FREQ();
-    ACAN2517FDSettings::Oscillator osc_freq =
-        (freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
-                   : (freq == 20000000 ? ACAN2517FDSettings::OSC_20MHz : ACAN2517FDSettings::OSC_40MHz));
     auto bitRate = (int)speed * 1000UL;
-    settings2517 = new ACAN2517FDSettings(osc_freq, bitRate, DataBitRateFactor::x4);
-
-    // Set up clock output divider (some hardware uses this for the second CAN FD add-on)
-    settings2517->mCLKOPin = static_cast<ACAN2517FDSettings::CLKOpin>(esp32hal->MCP2517_CLKODIV());
-
-    // ListenOnly / Normal20B / NormalFDs
-    settings2517->mRequestedMode =
-        ACAN2517FDSettings::NormalFD;  //Startup in NormalFD mode, both for Classic CAN and CAN-FD messages
+    // Arbitration bit rate as requested, data bit rate 4x (as with the old driver).
+    // f_osc of 0 autodetects the 20/40MHz crystal.
+    canfd_speed = {bitRate, bitRate * 4, esp32hal->MCP2517_FREQ()};
+    // Clock output divider (some hardware uses CLKO for the second CAN FD add-on)
+    canfd_clko_div = esp32hal->MCP2517_CLKODIV() & 0x03;
 
     if (!begin_canfd()) {
       return false;
@@ -242,23 +237,16 @@ bool init_CAN() {
       SPI2517_2->begin(sck_pin, sdo_pin, sdi_pin);
     }
 
-    canfd_2 = new ACAN2517FD(cs_pin, *SPI2517_2, int_pin);
+    canfd_2 = new MCP2518FD_Lite(*SPI2517_2, cs_pin, int_pin);
 
-    logging.println("CAN FD add-on 2 (ESP32+MCP2517) selected");
-
-    const uint32_t freq = esp32hal->MCP2517_FREQ2();
-    ACAN2517FDSettings::Oscillator osc_freq =
-        (freq == 0 ? ACAN2517FDSettings::OSC_AUTODETECT
-                   : (freq == 20000000 ? ACAN2517FDSettings::OSC_20MHz : ACAN2517FDSettings::OSC_40MHz));
+    logging.println("CAN FD add-on 2 (ESP32+MCP2518) selected");
 
     auto speed = fdAddonIt_2->second.speed;
     auto bitRate = (int)speed * 1000UL;
-    // Crystal setting is ignored (library now autodetects)
-    settings2517_2 = new ACAN2517FDSettings(osc_freq, bitRate, DataBitRateFactor::x4);
-    // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
-
-    settings2517_2->mRequestedMode =
-        ACAN2517FDSettings::NormalFD;  //Startup in NormalFD mode, both for Classic CAN and CAN-FD messages
+    // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s (as with the old driver).
+    // f_osc of 0 autodetects the 20/40MHz crystal.
+    canfd_2_speed = {bitRate, bitRate * 4, esp32hal->MCP2517_FREQ2()};
+    canfd_2_clko_div = esp32hal->MCP2517_CLKODIV() & 0x03;
 
     if (!begin_canfd_2()) {
       return false;
@@ -269,12 +257,9 @@ bool init_CAN() {
 }
 
 static bool begin_canfd() {
-  const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
-  canfd->poll();
-  if (errorCode2517 != 0) {
-    logging.print("CAN-FD Configuration error 0x");
-    logging.println(errorCode2517, HEX);
-    set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517);
+  if (!canfd->begin(canfd_speed, canfd_clko_div)) {
+    logging.println("CAN-FD init failed");
+    set_event(EVENT_CANMCP2518FD_INIT_FAILURE, 1);
     // This will leak, but we have failed and won't try to reinit.
     canfd = nullptr;
     return false;
@@ -283,12 +268,9 @@ static bool begin_canfd() {
 }
 
 static bool begin_canfd_2() {
-  const uint32_t errorCode2517_2 = canfd_2->begin(*settings2517_2, [] { canfd_2->isr(); });
-  canfd_2->poll();
-  if (errorCode2517_2 != 0) {
-    logging.print("CAN-FD 2 Configuration error 0x");
-    logging.println(errorCode2517_2, HEX);
-    set_event(EVENT_CANMCP2518FD_INIT_FAILURE, (uint8_t)errorCode2517_2);
+  if (!canfd_2->begin(canfd_2_speed, canfd_2_clko_div)) {
+    logging.println("CAN-FD 2 init failed");
+    set_event(EVENT_CANMCP2518FD_INIT_FAILURE, 1);
     // This will leak, but we have failed and won't try to reinit.
     canfd_2 = nullptr;
     return false;
@@ -344,34 +326,18 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
     } break;
     case CANFD_NATIVE:
     case CANFD_ADDON_MCP2518: {
-      CANFDMessage MCP2518Frame;
-      if (tx_frame->FD) {
-        MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
-      } else {  //Classic CAN message
-        MCP2518Frame.type = CANFDMessage::CAN_DATA;
-      }
-      MCP2518Frame.id = tx_frame->ID;
-      MCP2518Frame.ext = tx_frame->ext_ID;
-      MCP2518Frame.len = tx_frame->DLC;
-      memcpy(MCP2518Frame.data, tx_frame->data.u8, std::min(tx_frame->DLC, (uint8_t)sizeof(MCP2518Frame.data)));
+      MCP2518FD_Lite_Frame fd_frame;
+      copy_can_frame_to_mcp2518fd_lite_frame(*tx_frame, fd_frame);
 
-      if (canfd == nullptr || !canfd->tryToSend(MCP2518Frame)) {
+      if (canfd == nullptr || !canfd->sendFrame(fd_frame)) {
         datalayer.system.info.can_2518_send_fail = true;
       }
     } break;
     case CANFD_ADDON_MCP2518_2: {
-      CANFDMessage MCP2518Frame;
-      if (tx_frame->FD) {
-        MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
-      } else {  //Classic CAN message
-        MCP2518Frame.type = CANFDMessage::CAN_DATA;
-      }
-      MCP2518Frame.id = tx_frame->ID;
-      MCP2518Frame.ext = tx_frame->ext_ID;
-      MCP2518Frame.len = tx_frame->DLC;
-      memcpy(MCP2518Frame.data, tx_frame->data.u8, std::min(tx_frame->DLC, (uint8_t)sizeof(MCP2518Frame.data)));
+      MCP2518FD_Lite_Frame fd_frame;
+      copy_can_frame_to_mcp2518fd_lite_frame(*tx_frame, fd_frame);
 
-      if (canfd_2 == nullptr || !canfd_2->tryToSend(MCP2518Frame)) {
+      if (canfd_2 == nullptr || !canfd_2->sendFrame(fd_frame)) {
         datalayer.system.info.can_2518_2_send_fail = true;
       }
     } break;
@@ -448,19 +414,13 @@ receive_frame_can_addon() {  // This section checks if we have a complete CAN me
   }
 }
 
-static void _receive_frame_canfd(ACAN2517FD* canfd, bool first) {
-  CANFDMessage MCP2518frame;
-  int count = 0;
-  while (canfd->available() && count++ < 16) {
-    canfd->receive(MCP2518frame);
+static void _receive_frame_canfd(MCP2518FD_Lite* driver, bool first) {
+  MCP2518FD_Lite_Frame fd_frame;
+  CAN_frame rx_frame;
 
-    CAN_frame rx_frame;
-    rx_frame.ID = MCP2518frame.id;
-    rx_frame.ext_ID = MCP2518frame.ext;
-    rx_frame.DLC = MCP2518frame.len;
-    rx_frame.FD = (MCP2518frame.type == CANFDMessage::CANFD_NO_BIT_RATE_SWITCH ||
-                   MCP2518frame.type == CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH);
-    memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)sizeof(rx_frame.data.u8)));
+  int count = 0;
+  while (count++ < 16 && driver->receiveFrame(fd_frame)) {
+    copy_mcp2518fd_lite_frame_to_can_frame(fd_frame, rx_frame);
     //message incoming, pass it on to the handler
     if (first) {
       map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
@@ -470,7 +430,7 @@ static void _receive_frame_canfd(ACAN2517FD* canfd, bool first) {
     }
   }
 
-  if (canfd->hasCanErrors()) {
+  if (driver->hasErrors()) {
     if (first) {
       datalayer.system.info.can_2518_bus_error = true;
     } else {
@@ -647,11 +607,11 @@ void stop_can() {
   }
 
   if (canfd) {
-    canfd->end();
+    canfd->pause(true);
   }
 
   if (canfd_2) {
-    canfd_2->end();
+    canfd_2->pause(true);
   }
 }
 
@@ -711,6 +671,16 @@ bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
     return true;
   } else if (interface == CAN_Interface::CAN_ADDON_MCP2515 && can2515) {
     can2515->changeSpeed({(int)speed * 1000UL, quartz_frequency});
+    return true;
+  } else if ((interface == CAN_Interface::CANFD_ADDON_MCP2518 || interface == CAN_Interface::CANFD_NATIVE) && canfd) {
+    canfd_speed.nominal_bitrate = (int)speed * 1000UL;
+    canfd_speed.data_bitrate = (int)speed * 1000UL * 4;
+    canfd->changeSpeed(canfd_speed);
+    return true;
+  } else if (interface == CAN_Interface::CANFD_ADDON_MCP2518_2 && canfd_2) {
+    canfd_2_speed.nominal_bitrate = (int)speed * 1000UL;
+    canfd_2_speed.data_bitrate = (int)speed * 1000UL * 4;
+    canfd_2->changeSpeed(canfd_2_speed);
     return true;
   }
 
