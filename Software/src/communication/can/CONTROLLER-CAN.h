@@ -1,6 +1,8 @@
 #ifndef _CONTROLLER_CAN_H_
 #define _CONTROLLER_CAN_H_
 
+#ifndef SMALL_FLASH_DEVICE
+
 #include "../../battery/Battery.h"
 #include "../../communication/Transmitter.h"
 #include "../../datalayer/datalayer.h"
@@ -81,5 +83,7 @@ class ControllerCan : public CanReceiver, public Transmitter {
 };
 
 extern ControllerCan controller_can;
+
+#endif  // SMALL_FLASH_DEVICE
 
 #endif  // _CONTROLLER_CAN_H_

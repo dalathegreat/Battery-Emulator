@@ -9,7 +9,9 @@
 #include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
+#ifndef SMALL_FLASH_DEVICE
 #include "../../communication/can/INTER-UNIT-PROTOCOL.h"
+#endif
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -1180,6 +1182,7 @@ static void fill_card_view_aggregate(BatteryCardView& v) {
 /* Card background colours, kept as small helpers so the four call sites stay readable */
 static String emulator_status_color() {
   EMULATOR_STATUS emu_status = get_emulator_status();
+#ifndef SMALL_FLASH_DEVICE
   // In controller mode, only show error color if ALL online nodes are faulted
   if (emu_status == EMULATOR_STATUS::STATUS_ERROR && datalayer.system.status.node_mode == NODE_CONTROLLER) {
     int node_online = 0, node_error = 0;
@@ -1197,6 +1200,7 @@ static String emulator_status_color() {
       emu_status = (emulator_pause_status != NORMAL) ? EMULATOR_STATUS::STATUS_WARNING : EMULATOR_STATUS::STATUS_OK;
     }
   }
+#endif  // SMALL_FLASH_DEVICE
   switch (emu_status) {
     case EMULATOR_STATUS::STATUS_WARNING:
       return "#F5CC00;";
@@ -1503,6 +1507,7 @@ static bool render_live(CheckedHtml& content) {
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
       // Display which components are used
+#ifndef SMALL_FLASH_DEVICE
       if (datalayer.system.status.node_mode == NODE_BATTERY) {
         const char* controller_dot = datalayer.system.status.controller_online ? "&#10003;" : "&#10060;";
         const char* controller_color = datalayer.system.status.controller_online ? "color:lightgreen;" : "color:red;";
@@ -1512,6 +1517,7 @@ static bool render_live(CheckedHtml& content) {
                    String(controller_dot) + "</span> &nbsp;|&nbsp; Contactor closing: " + String(contactor_text) +
                    "</h4>";
       }
+#endif  // SMALL_FLASH_DEVICE
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
         content += inverter->name();
@@ -1589,6 +1595,7 @@ static bool render_live(CheckedHtml& content) {
     // Block for Contactor status and component request status
     // Start a new block with gray background color
 
+#ifndef SMALL_FLASH_DEVICE
     // === CONTROLLER MODE: battery node status grid ===
     if (datalayer.system.status.node_mode == NODE_CONTROLLER) {
       const char* controller_bg;
@@ -1683,6 +1690,7 @@ static bool render_live(CheckedHtml& content) {
       content += "</div>";
       content += "</div>";
     }
+#endif  // SMALL_FLASH_DEVICE
 
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 

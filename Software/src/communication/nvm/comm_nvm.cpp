@@ -161,8 +161,8 @@ void init_stored_settings() {
   // Watchdog period the inverter last told us about, or the default if it never has
   inverter_modbus_watchdog_timeout_s = settings.getUInt("INVWDTMO", MODBUS_INV_WATCHDOG_DEFAULT_S);
 
-  auto readIf = [&settings](const char* settingName, comm_interface defaultIf = comm_interface::CanNative) {
-    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)defaultIf);
+  auto readIf = [&settings](const char* settingName) {
+    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
     switch (batt1If) {
       case comm_interface::CanNative:
         return CAN_Interface::CAN_NATIVE;
@@ -317,6 +317,7 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
 
+#ifndef SMALL_FLASH_DEVICE
   // Controller/Node inter-unit protocol settings
   // Derive node mode from battery/inverter selection — no separate NODEMODE key needed.
   // InterUnitController battery type → this unit is the Controller.
@@ -333,6 +334,7 @@ void init_stored_settings() {
   if (datalayer.system.status.battery_node_id < 1 || datalayer.system.status.battery_node_id > MAX_BATTERY_NODES) {
     datalayer.system.status.battery_node_id = 1;  // Clamp to valid range
   }
+#endif  // SMALL_FLASH_DEVICE
 }
 
 void clear_wifi_sta_settings() {
@@ -404,8 +406,10 @@ void store_settings() {
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
 
+#ifndef SMALL_FLASH_DEVICE
   // Controller/Node inter-unit protocol settings
   // node_mode is derived from BATTTYPE/INVTYPE at load time — no need to save separately.
   // NVM key "SLAVENODEID" is kept for backward compatibility with saved settings.
   settings.saveUInt("SLAVENODEID", datalayer.system.status.battery_node_id);
+#endif  // SMALL_FLASH_DEVICE
 }

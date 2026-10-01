@@ -51,10 +51,12 @@ enum BMSResetState {
   BMS_RESET_POWERING_ON,
 };
 
+#ifndef SMALL_FLASH_DEVICE
 /** Node operating mode for controller/node inter-unit protocol */
 enum node_mode_enum { NODE_STANDALONE = 0, NODE_CONTROLLER = 1, NODE_BATTERY = 2 };
 
 #define MAX_BATTERY_NODES 24
+#endif  // SMALL_FLASH_DEVICE
 
 #define DISCHARGING 1
 #define CHARGING 2

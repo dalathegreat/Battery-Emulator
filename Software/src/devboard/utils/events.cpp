@@ -181,12 +181,14 @@ void init_events(void) {
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_CHARGER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
+#ifndef SMALL_FLASH_DEVICE
   events.entries[EVENT_CAN_CONTROLLER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_FAULT].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_IDENT_MISMATCH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_STATUS_STALE].level = EVENT_LEVEL_WARNING;
+#endif  // SMALL_FLASH_DEVICE
   events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   set_battery_event_level(EVENT_CONTACTOR_WELDED, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_CONTACTOR_OPEN, EVENT_LEVEL_WARNING);
@@ -456,6 +458,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Successfully communicating with inverter. Inverter detected!";
     case EVENT_CAN_INVERTER_MISSING:
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
+#ifndef SMALL_FLASH_DEVICE
     case EVENT_CAN_CONTROLLER_MISSING:
       return "Controller unit not sending heartbeat via CAN for the last 60 seconds. Check wiring!";
     case EVENT_BATTERY_NODE_MISSING:
@@ -470,6 +473,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
              "closing until resolved; an already-closed contactor stays closed.";
     case EVENT_BATTERY_NODE_STATUS_STALE:
       return "A battery node's STATUS data stopped refreshing. That node is excluded until it recovers.";
+#endif  // SMALL_FLASH_DEVICE
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CONTACTOR_OPEN:
@@ -825,11 +829,15 @@ static void set_event_internal(EVENTS_ENUM_TYPE event, int16_t data, bool latche
     events.entries[event].MQTTpublished = false;
 
     LOG_SET_NEXT_SEVERITY(event_syslog_severity(event));
+#ifndef SMALL_FLASH_DEVICE
     if (event == EVENT_BATTERY_NODE_FAULT && data > 0) {
       DEBUG_PRINTF("Battery node %u is reporting a critical fault. Contactor blocked! (event)\n", data);
     } else {
       DEBUG_PRINTF("%s (event)\n", get_event_message_string(event).c_str());
     }
+#else
+    DEBUG_PRINTF("%s (event)\n", get_event_message_string(event).c_str());
+#endif  // SMALL_FLASH_DEVICE
   }
 
   // We should set the event, update event info

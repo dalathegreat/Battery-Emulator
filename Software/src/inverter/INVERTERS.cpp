@@ -1,5 +1,7 @@
 #include "INVERTERS.h"
+#ifndef SMALL_FLASH_DEVICE
 #include "../communication/can/BATTERY-NODE-CAN.h"
+#endif
 
 #include "AFORE-CAN.h"
 #include "BYD-CAN.h"
@@ -120,8 +122,10 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLV485:
       return PylonLV485InverterProtocol::Name;
 
+#ifndef SMALL_FLASH_DEVICE
     case InverterProtocolType::InterUnitNode:
       return "Inter-Unit Node";
+#endif
 
     case InverterProtocolType::Schneider:
       return SchneiderInverter::Name;
@@ -230,9 +234,11 @@ bool setup_inverter() {
       inverter = new PylonLV485InverterProtocol();
       break;
 
+#ifndef SMALL_FLASH_DEVICE
     case InverterProtocolType::InterUnitNode:
       setup_battery_node_can();
       return true;  // Battery node has no inverter object, but node CAN is now running
+#endif
 
     case InverterProtocolType::Schneider:
       inverter = new SchneiderInverter();

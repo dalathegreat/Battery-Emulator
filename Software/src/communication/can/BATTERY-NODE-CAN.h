@@ -1,6 +1,8 @@
 #ifndef _BATTERY_NODE_CAN_H_
 #define _BATTERY_NODE_CAN_H_
 
+#ifndef SMALL_FLASH_DEVICE
+
 #include "../../communication/Transmitter.h"
 #include "CanReceiver.h"
 #include "INTER-UNIT-PROTOCOL.h"
@@ -47,5 +49,7 @@ class BatteryNodeCan : public CanReceiver, public Transmitter {
 
 extern BatteryNodeCan battery_node_can;
 void setup_battery_node_can();
+
+#endif  // SMALL_FLASH_DEVICE
 
 #endif  // _BATTERY_NODE_CAN_H_

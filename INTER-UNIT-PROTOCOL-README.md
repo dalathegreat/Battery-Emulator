@@ -20,6 +20,8 @@ A Battery Emulator can be configured as **Controller** or **Battery Node** via t
 
 Up to **24 battery nodes** are supported (Node ID 1–24).
 
+The whole feature is compiled out on `SMALL_FLASH_DEVICE` builds (LilyGo T-CAN485, ESP32 DevKit), so the controller and every node must run on a larger board (e.g. LilyGo T-2CAN, Stark CMR).
+
 CAN bus, **500 kbps**: the controller runs the inter-unit protocol on its **battery** interface (`BATTCOMM`), the node on its **inverter** interface (`INVCOMM`). There is no separate inter-unit bus.
 
 ---

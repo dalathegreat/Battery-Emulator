@@ -9,6 +9,8 @@
 #include "../../devboard/utils/logging.h"
 #include "comm_can.h"
 
+#ifndef SMALL_FLASH_DEVICE
+
 ControllerCan controller_can;
 
 // Voltage threshold for contactor safety (same as check_interconnect_available)
@@ -927,3 +929,5 @@ void ControllerCan::update_node_aggregation() {
   // Signal inverter that system allows contactor
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
+
+#endif  // SMALL_FLASH_DEVICE

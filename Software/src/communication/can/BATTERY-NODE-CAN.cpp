@@ -10,6 +10,8 @@
 #include "../../devboard/utils/logging.h"
 #include "comm_can.h"
 
+#ifndef SMALL_FLASH_DEVICE
+
 BatteryNodeCan battery_node_can;
 
 void setup_battery_node_can() {
@@ -329,3 +331,5 @@ void BatteryNodeCan::send_ident_frame() {
 
   transmit_can_frame_to_interface(&frame, can_config.inverter);
 }
+
+#endif  // SMALL_FLASH_DEVICE

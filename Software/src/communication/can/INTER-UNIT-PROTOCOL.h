@@ -1,6 +1,8 @@
 #ifndef _INTER_UNIT_PROTOCOL_H_
 #define _INTER_UNIT_PROTOCOL_H_
 
+#ifndef SMALL_FLASH_DEVICE
+
 #include <stdint.h>
 
 #include "../../devboard/utils/common_functions.h"  // crc8_table_SAE_J1850_ZER0
@@ -210,5 +212,7 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
  *   [4..6] : reserved (must be 0)
  *   [7]    : uint8_t   CRC
  */
+
+#endif  // SMALL_FLASH_DEVICE
 
 #endif  // _INTER_UNIT_PROTOCOL_H_

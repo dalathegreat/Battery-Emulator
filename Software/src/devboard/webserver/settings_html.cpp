@@ -427,7 +427,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
-
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -1154,9 +1153,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DALYPWR0C", 800));
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "SLAVENODEID") {
     return String(settings.getUInt("SLAVENODEID", 1));
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "FOXESSTYPE") {
     return String(settings.getUInt("FOXESSTYPE", 0));
@@ -1189,6 +1190,20 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       return "UNKNOWN";
   }
 }
+
+#ifndef SMALL_FLASH_DEVICE
+#define INTER_UNIT_NODE_SETTING \
+  R"rawliteral(
+        <div class="if-inter-node">
+        <label for='SLAVENODEID'>Battery node ID (1-24): </label>
+        <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
+        min='1' max='24' step='1'
+        title="Unique ID for this battery node. Each node must have a different ID (1-24)." />
+        </div>
+  )rawliteral"
+#else
+#define INTER_UNIT_NODE_SETTING ""
+#endif
 
 #ifdef HW_LILYGO2CAN
 #define GPIOOPT1_SETTING \
@@ -2025,12 +2040,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         %INVTYPE%
         </select>
 
-        <div class="if-inter-node">
-        <label for='SLAVENODEID'>Battery node ID (1-24): </label>
-        <input type='number' id='SLAVENODEID' name='SLAVENODEID' value='%SLAVENODEID%'
-        min='1' max='24' step='1'
-        title="Unique ID for this battery node. Each node must have a different ID (1-24)." />
-        </div>
+        )rawliteral" INTER_UNIT_NODE_SETTING R"rawliteral(
 
         <div class="if-inverter">
         <label for='INVCOMM'>Inverter interface: </label><select name='INVCOMM' id='INVCOMM'>

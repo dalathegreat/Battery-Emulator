@@ -149,8 +149,10 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   led_mode_enum led_mode = CLASSIC;
   /** Balancing status */
   balancing_status_enum balancing_status = BALANCING_STATUS_UNKNOWN;
+#ifndef SMALL_FLASH_DEVICE
   /** True when offline balancing is active (battery goes to sleep, excluded from controller aggregation) */
   bool offline_balancing = false;
+#endif
 
   /** True once the battery integration has decoded a valid
    * insulation_resistance_kOhm sample. Not available for all battery types.
@@ -382,6 +384,7 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   bool start_precharging = false;      //Is precharge ongoing?
 };
 
+#ifndef SMALL_FLASH_DEVICE
 /** Per-node status maintained by the controller */
 struct BATTERY_NODE_TYPE {
   uint16_t voltage_dV = 0;             // Pack voltage in deciVolts
@@ -412,6 +415,7 @@ struct BATTERY_NODE_TYPE {
   uint8_t status_stale_seconds = 0;    // Incremented each second; reset when STATUS toggle bit changes
   uint8_t _last_status_toggle = 0xFF;  // Previous value of STATUS toggle bit (0xFF = never seen)
 };
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** Core task measurement variable */
@@ -482,6 +486,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   /** The current system status, determined by which Events are active, usually pending between ACTIVE and FAULT, but there are more enums. Used to signal incase we have a critical fault active, or if we should proceed operating */
   system_status_enum system_status = ACTIVE;
 
+#ifndef SMALL_FLASH_DEVICE
   /** Controller/Node inter-unit protocol */
   node_mode_enum node_mode = NODE_STANDALONE;
   uint8_t battery_node_id = 1;     // 1-24, used when node_mode == NODE_BATTERY
@@ -490,6 +495,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
    * heartbeat and decremented every second in safety.cpp; reaching 0 raises EVENT_CAN_CONTROLLER_MISSING.
    * Starts at CAN_STILL_ALIVE - 1 so the first heartbeat has time to arrive before we flag it missing. */
   uint8_t CAN_controller_still_alive = (CAN_STILL_ALIVE - 1);
+#endif  // SMALL_FLASH_DEVICE
 };
 
 /** The whole installation seen as one pack.
@@ -575,7 +581,9 @@ struct DATALAYER_AGGREGATE_TYPE {
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
+#ifndef SMALL_FLASH_DEVICE
   BATTERY_NODE_TYPE battery_nodes[MAX_BATTERY_NODES];  // Index 0 = Battery Node ID 1, used by controller
+#endif
 };
 
 class DataLayer {
