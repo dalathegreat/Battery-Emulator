@@ -27,7 +27,9 @@ void PylonLV485InverterProtocol::update_values() {
 
   soc_percent = datalayer.aggregate.reported_soc / 100;
 
-  temp_deci_k = (datalayer.aggregate.temperature_max_dC + 273.15) * 10;
+  // Both datalayer and protocol use tenths of a degree. Only add the Kelvin offset
+  // (2731.5 dK, truncated to match the integer wire format), do not scale again.
+  temp_deci_k = datalayer.aggregate.temperature_max_dC + 2731;
 
   max_cell_v = datalayer.aggregate.cell_max_voltage_mV;
 
@@ -139,10 +141,10 @@ void PylonLV485InverterProtocol::handle_command_61() {
     max_cell_v = datalayer.aggregate.cell_max_voltage_mV;
   if (datalayer.aggregate.cell_min_voltage_mV > 0)
     min_cell_v = datalayer.aggregate.cell_min_voltage_mV;
-  if (datalayer.aggregate.temperature_max_dC > -273)
-    max_cell_temp = (datalayer.aggregate.temperature_max_dC + 273.15) * 10;
-  if (datalayer.aggregate.temperature_min_dC > -273)
-    min_cell_temp = (datalayer.aggregate.temperature_min_dC + 273.15) * 10;
+  if (datalayer.aggregate.temperature_max_dC > -2731)
+    max_cell_temp = datalayer.aggregate.temperature_max_dC + 2731;
+  if (datalayer.aggregate.temperature_min_dC > -2731)
+    min_cell_temp = datalayer.aggregate.temperature_min_dC + 2731;
 
   // Log what we're sending for 0x61
   if (datalayer.system.info.web_logging_active) {
