@@ -11,6 +11,7 @@ class EnnoidBms : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool mandatory_charge_taper() { return true; }
   bool supports_charged_energy() { return true; }
 
   static constexpr const char* Name = "ENNOID BMS via VESC, DIY battery";

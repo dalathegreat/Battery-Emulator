@@ -1499,7 +1499,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="41"] .if-estimated,
     form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
-    form[data-battery="51"] .if-estimated {
+    form[data-battery="51"] .if-estimated,
+    form[data-battery="52"] .if-estimated {
       display: contents;
     }
 
