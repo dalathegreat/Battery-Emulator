@@ -300,11 +300,12 @@ The controller combines data from all online nodes whose contactor is actually *
 |-----------|--------|
 | Total capacity | Sum of all engaged nodes |
 | Remaining capacity | Sum of all engaged nodes |
-| Max charge power | Sum (0 if any engaged node blocks charging) |
-| Max discharge power | Sum (0 if any engaged node blocks discharging) |
+| Max charge power | Lowest per-node limit × number of engaged nodes (0 if any engaged node blocks charging) |
+| Max discharge power | Lowest per-node limit × number of engaged nodes (0 if any engaged node blocks discharging) |
 | Voltage | First available node (parallel = same for all) |
 | Current | Sum of all engaged nodes |
 | Reported SOC | Lowest SOC normally. When the highest node SOC reaches 95%, the reported value blends linearly from lowest toward highest as the top node rises from 95% to 100%, so the inverter sees a smooth rise rather than a sudden jump at full charge. |
+| SOH | Average of the engaged nodes that report one, rounded to whole percent |
 | Temperature max/min | Highest max, lowest min across all engaged nodes |
 | Max design voltage | **Lowest** across all engaged nodes (protects against overcharge) |
 | Min design voltage | **Highest** across all engaged nodes (protects against over-discharge) |
