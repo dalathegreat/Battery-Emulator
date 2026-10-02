@@ -121,6 +121,12 @@
   },
   {
     "code": null,
+    "dtc": "P0B24",
+    "s_dsc": null,
+    "l_dsc": "Hybrid Battery 'A' Voltage Unstable"
+  },
+  {
+    "code": null,
     "dtc": "P0C48",
     "s_dsc": null,
     "l_dsc": "Hybrid/EV Battery Pack Coolant Pump 'A' Control Circuit Low"
@@ -130,5 +136,11 @@
     "dtc": "P1627",
     "s_dsc": null,
     "l_dsc": "Module Supply Voltage Out Of Range"
+  },
+  {
+    "code": null,
+    "dtc": "P2C85",
+    "s_dsc": null,
+    "l_dsc": "Hybrid/EV Battery Voltage External Isolation Fault"
   }
 ]
