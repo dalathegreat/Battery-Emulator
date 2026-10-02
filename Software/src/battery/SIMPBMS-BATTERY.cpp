@@ -13,11 +13,11 @@ void SimpBmsBattery::update_values() {
 
   datalayer.battery.status.current_dA = current_mA / 100;
 
-  datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
+  datalayer.battery.status.max_charge_power_W = current_dA_to_power_W(max_charge_current_dA, voltage_dV);
 
-  datalayer.battery.status.max_discharge_power_W = (max_discharge_current * (voltage_dV / 10));
+  datalayer.battery.status.max_discharge_power_W = current_dA_to_power_W(max_discharge_current_dA, voltage_dV);
 
-  datalayer.battery.info.total_capacity_Wh = ah_total * (voltage_dV / 10);
+  datalayer.battery.info.total_capacity_Wh = (ah_total * voltage_dV) / 10;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -50,8 +50,8 @@ void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //discharge and charge limits
       charge_cutoff_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       discharge_cutoff_voltage = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
-      max_charge_current = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2])) / 10;
-      max_discharge_current = (((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4])) / 10;
+      max_charge_current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      max_discharge_current_dA = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
       break;
     case 0x356:
       //current status

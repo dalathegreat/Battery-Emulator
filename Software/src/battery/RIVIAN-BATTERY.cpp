@@ -52,8 +52,9 @@ void RivianBattery::update_values() {
     datalayer.battery.status.max_charge_power_W = 50000;
     datalayer.battery.status.max_discharge_power_W = 50000;
   } else {
-    datalayer.battery.status.max_charge_power_W = ((pre_contactor_voltage / 10) * battery_charge_limit_amp);
-    datalayer.battery.status.max_discharge_power_W = ((pre_contactor_voltage / 10) * battery_discharge_limit_amp);
+    datalayer.battery.status.max_charge_power_W = ((uint32_t)pre_contactor_voltage * battery_charge_limit_amp) / 10;
+    datalayer.battery.status.max_discharge_power_W =
+        ((uint32_t)pre_contactor_voltage * battery_discharge_limit_amp) / 10;
   }
 
   if (cell_min_voltage_mV > 0) {
