@@ -43,7 +43,13 @@ void PylonLV485InverterProtocol::update_values() {
     charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
   max_charge_v_mv = charge_voltage_dV * 100;
 
-  min_discharge_v_mv = datalayer.aggregate.min_design_voltage_dV * 100;
+  // Honor the manual discharge limit without going below the battery design minimum.
+  uint16_t discharge_voltage_dV = datalayer.aggregate.min_design_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active)
+    discharge_voltage_dV = datalayer.battery_settings.max_user_set_discharge_voltage_dV;
+  if (discharge_voltage_dV < datalayer.aggregate.min_design_voltage_dV)
+    discharge_voltage_dV = datalayer.aggregate.min_design_voltage_dV;
+  min_discharge_v_mv = discharge_voltage_dV * 100;
 
   max_charge_i_dA = datalayer.aggregate.max_charge_current_dA;
 
