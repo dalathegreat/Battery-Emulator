@@ -1752,7 +1752,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       for (let b = a + 1; b < selects.length; b++) {
         if (selects[a] && selects[b] && isCan(+selects[a].value) && selects[a].value === selects[b].value) {
           const name = selects[a].options[selects[a].selectedIndex].text;
-          alert('Two or more batteries are assigned to the same CAN interface (' + name + ').\n\nEach battery needs its own CAN interface. The inverter, shunt and charger can share a battery\'s interface.');
+          alert('Multiple batteries are assigned to the same CAN interface: ' + name + '.\nEach battery needs its own.');
           selects[b].focus();
           return false;
         }
