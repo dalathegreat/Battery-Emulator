@@ -51,6 +51,7 @@
     "INVOFFGRID": "When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting.",
 
     "charger": "An optional charger controlled by the emulator. See [Chargers](setup/chargers/).",
+    "shunttype": "An optional shunt or measurement device to be read by the emulator.",
     "CTOFFSET": "Voltage offset required to calibrate 0A reading. -1 = auto-detect.",
     "CTVNOM": "Nominal voltage of the CT Clamp x10. Integer only.",
     "CTANOM": "Nominal current of the CT Clamp. Integer only.",

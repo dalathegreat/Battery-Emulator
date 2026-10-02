@@ -58,7 +58,7 @@ void Qnhck2_16Shunt::setup() {
   format_rated_output(output_V, sizeof(output_V));
 
   // Named even if the pin cannot be had, so the main page says what was configured
-  snprintf(datalayer.system.info.shunt_protocol, sizeof(datalayer.system.info.shunt_protocol), "QNHCK2-16 (%u A ±%s V)",
+  snprintf(datalayer.system.info.shunt_protocol, sizeof(datalayer.system.info.shunt_protocol), "QNHCK2-16 (%uA ±%sV)",
            (unsigned)qnhck_rated_current_A, output_V);
 
   pin = esp32hal->SHUNT_ADC_PIN();

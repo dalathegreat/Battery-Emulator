@@ -109,7 +109,7 @@ TEST(QnhckBoardTest, SetupWithoutAnAdcPinRaisesAnEventAndLeavesTheBatteriesInCha
   EXPECT_GE(get_event_pointer(EVENT_GPIO_NOT_DEFINED)->occurences, 1);
   EXPECT_FALSE(datalayer.shunt.replaces_battery_current);
   EXPECT_FALSE(datalayer.shunt.available);
-  EXPECT_STREQ(datalayer.system.info.shunt_protocol, "QNHCK2-16 (50 A ±0.625 V)");
+  EXPECT_STREQ(datalayer.system.info.shunt_protocol, "QNHCK2-16 (50A ±0.625V)");
 
   uint16_t reading_mV = 1234;
   EXPECT_FALSE(sensor.calibrate_zero(reading_mV));
