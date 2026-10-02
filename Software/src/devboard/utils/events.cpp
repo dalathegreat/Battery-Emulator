@@ -236,7 +236,7 @@ void init_events(void) {
   set_battery_event_level(EVENT_CELL_CRITICAL_OVER_VOLTAGE, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_CELL_UNDER_VOLTAGE, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_CELL_OVER_VOLTAGE, EVENT_LEVEL_WARNING);
-  events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  set_battery_event_level(EVENT_CELL_DEVIATION_HIGH, EVENT_LEVEL_WARNING);
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;

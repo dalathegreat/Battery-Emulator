@@ -124,6 +124,9 @@
   XX(EVENT_CELL_OVER_VOLTAGE)                \
   XX(EVENT_CELL_OVER_VOLTAGE_BAT2)           \
   XX(EVENT_CELL_OVER_VOLTAGE_BAT3)           \
+  XX(EVENT_CELL_DEVIATION_HIGH)              \
+  XX(EVENT_CELL_DEVIATION_HIGH_BAT2)         \
+  XX(EVENT_CELL_DEVIATION_HIGH_BAT3)         \
   XX(EVENT_BALANCING_START)                  \
   XX(EVENT_BALANCING_START_BAT2)             \
   XX(EVENT_BALANCING_START_BAT3)             \
@@ -211,7 +214,6 @@
   XX(EVENT_MODBUS_INVERTER_DETECTED)         \
   XX(EVENT_NO_ENABLE_DETECTED)               \
   XX(EVENT_ERROR_OPEN_CONTACTOR)             \
-  XX(EVENT_CELL_DEVIATION_HIGH)              \
   XX(EVENT_UNKNOWN_EVENT_SET)                \
   XX(EVENT_OTA_UPDATE)                       \
   XX(EVENT_OTA_UPDATE_TIMEOUT)               \

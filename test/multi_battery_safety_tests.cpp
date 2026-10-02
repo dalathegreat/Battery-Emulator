@@ -237,3 +237,42 @@ TEST_F(MultiBatterySafetyTest, Pack3UnderItsDesignVoltageStopsDischarging) {
   EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
   EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
 }
+
+// While the cell deviation event was shared, battery 2 and 3 being fine cleared the warning
+// battery 1 had raised, in the same pass
+TEST_F(MultiBatterySafetyTest, HealthyPackDoesNotClearAnotherPacksCellDeviation) {
+  datalayer.battery.status.cell_max_voltage_mV = 4000;
+  datalayer.battery.status.cell_min_voltage_mV = 3400;  // 600 mV, the limit is 500 mV
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH_BAT2), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH_BAT3), EVENT_STATE_INACTIVE);
+
+  // Each pack clears only its own
+  datalayer.battery2.status.cell_min_voltage_mV = 3200;
+  run_cycle();
+  datalayer.battery.status.cell_min_voltage_mV = 3750;
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH_BAT2), EVENT_STATE_ACTIVE);
+}
+
+// Battery 2 and 3 are each compared with battery 1 for the one shared SOH difference event. A
+// battery 3 within range used to clear the warning battery 2 had just raised.
+TEST_F(MultiBatterySafetyTest, Pack3WithinRangeDoesNotClearPack2SohDifference) {
+  datalayer.battery.status.soh_pptt = 9000;
+  datalayer.battery2.status.soh_pptt = 6000;  // 30 % apart, the limit is 25 %
+  datalayer.battery3.status.soh_pptt = 8800;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
+
+  datalayer.battery2.status.soh_pptt = 8500;
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_INACTIVE);
+}

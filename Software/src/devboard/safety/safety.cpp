@@ -7,7 +7,6 @@
 #include "../utils/events.h"
 #include "../utils/ota_confirm_gate.h"
 
-static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
 static uint8_t discharge_limit_failures = 0;
 static bool battery_full_event_fired = false;
@@ -162,6 +161,43 @@ static void check_cell_voltages(DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
   //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
   if (pack.status.cell_min_voltage_mV <= (pack.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
     set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0, number);
+  }
+}
+
+/* Spread between the highest and the lowest cell. Each pack owns its own event, so this is a
+   plain per-pack set/clear: while the event was shared, a healthy pack cleared the warning
+   another pack had just raised in the same pass. */
+static void check_cell_deviation(const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  const uint16_t deviation_mV = std::abs(pack.status.cell_max_voltage_mV - pack.status.cell_min_voltage_mV);
+  if (deviation_mV > pack.info.max_cell_voltage_deviation_mV) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, (deviation_mV / 20), number);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH, number);
+  }
+}
+
+/* EVENT_SOH_DIFFERENCE is one event for the installation, so battery 2 and 3 are both compared
+   with battery 1 before it is set or cleared. Compared pack by pack, a battery 3 within range
+   cleared the warning battery 2 had just raised. 9900 is the power-on default, not a reading, so
+   a pack still holding it is not compared, and with nothing compared the event is left as is. */
+static void check_soh_difference(void) {
+  const DATALAYER_BATTERY_TYPE* others[2] = {battery2 ? &datalayer.battery2 : nullptr,
+                                             battery3 ? &datalayer.battery3 : nullptr};
+  bool compared = false;
+  bool too_large = false;
+  for (const DATALAYER_BATTERY_TYPE* pack : others) {
+    if (!pack || datalayer.battery.status.soh_pptt == 9900 || pack->status.soh_pptt == 9900) {
+      continue;
+    }
+    compared = true;
+    if (std::abs(datalayer.battery.status.soh_pptt - pack->status.soh_pptt) > MAX_SOH_DEVIATION_PPTT) {
+      too_large = true;
+    }
+  }
+  if (too_large) {
+    set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+  } else if (compared) {
+    clear_event(EVENT_SOH_DIFFERENCE);
   }
 }
 
@@ -328,14 +364,7 @@ void update_machineryprotection() {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
     }
 
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
+    check_cell_deviation(datalayer.battery, 1);
 
     /* Check that the inverter respects the charge/discharge limits we hand it.
        Skipped entirely while a pause is requested or a fault is active: those zero the
@@ -463,32 +492,7 @@ void update_machineryprotection() {
     if (battery2_detected) {
       check_pack_voltage(datalayer.battery2, 2);
       check_cell_voltages(datalayer.battery2, 2);
-    }
-
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-
-    // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
-      // Both values available, check diff
-      uint16_t soh_diff_pptt;
-      if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
-        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
-      } else {
-        soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
-      }
-
-      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
-      } else {
-        clear_event(EVENT_SOH_DIFFERENCE);
-      }
+      check_cell_deviation(datalayer.battery2, 2);
     }
   }
 
@@ -510,34 +514,11 @@ void update_machineryprotection() {
     if (battery3_detected) {
       check_pack_voltage(datalayer.battery3, 3);
       check_cell_voltages(datalayer.battery3, 3);
-    }
-
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-
-    // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
-      // Both values available, check diff
-      uint16_t soh_diff_pptt;
-      if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
-        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery3.status.soh_pptt;
-      } else {
-        soh_diff_pptt = datalayer.battery3.status.soh_pptt - datalayer.battery.status.soh_pptt;
-      }
-
-      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
-      } else {
-        clear_event(EVENT_SOH_DIFFERENCE);
-      }
+      check_cell_deviation(datalayer.battery3, 3);
     }
   }
+
+  check_soh_difference();
 
   // Temperature limits are shared by all batteries, so all of them are checked in one pass
   check_battery_temperatures();
