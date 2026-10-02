@@ -35,7 +35,13 @@ void PylonLV485InverterProtocol::update_values() {
 
   min_cell_v = datalayer.aggregate.cell_min_voltage_mV;
 
-  max_charge_v_mv = datalayer.aggregate.max_design_voltage_dV * 100;
+  // Match Pylon LV CAN: honor the manual charge limit without exceeding the battery design limit.
+  uint16_t charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active)
+    charge_voltage_dV = datalayer.battery_settings.max_user_set_charge_voltage_dV;
+  if (charge_voltage_dV > datalayer.aggregate.max_design_voltage_dV)
+    charge_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
+  max_charge_v_mv = charge_voltage_dV * 100;
 
   min_discharge_v_mv = datalayer.aggregate.min_design_voltage_dV * 100;
 
