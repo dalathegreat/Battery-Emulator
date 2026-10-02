@@ -2217,7 +2217,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </select>
 
         <div class="if-shunt">
-        <label>Shunt interface: </label><select name='SHUNTCOMM'>
+        <label>Interface: </label><select name='SHUNTCOMM'>
         %SHUNTCOMM%
         </select>
         </div>
@@ -2455,7 +2455,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4 class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
 
-      <h4 class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
+      <h4 class="%SHUNTCLASS%">Measurement interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
