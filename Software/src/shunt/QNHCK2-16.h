@@ -99,9 +99,9 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   // The last window read beyond the sensor's range, so the batteries' own current is in use
   bool out_of_range = false;
 
-  /* Automatic calibration, the way the Nissan LEAF learns its current sensor's offset. While
-     every contactor the emulator drives is open, no current can flow through the clamp, so what
-     it reads then is its zero point. The samples from AUTO_ZERO_SETTLE_MS after the contactors
+  /* Automatic calibration: 
+     While every contactor the emulator drives is open, no current can flow through the clamp, 
+     so what it reads then is its zero point. The samples from AUTO_ZERO_SETTLE_MS after the contactors
      opened until they close again are gathered in 1 s buckets, closed with each window, and the
      zero point is the mean of the last AUTO_ZERO_BUCKETS of them: all of a short opening, the
      latest 10 s of one that lasts. It holds while the contactors are closed, and the next opening
