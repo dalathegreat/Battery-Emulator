@@ -24,6 +24,28 @@ void snapshot_bms_limits(DATALAYER_BATTERY_TYPE& pack) {
   pack.status.bms_max_discharge_power_W = pack.status.max_discharge_power_W;
 }
 
+#ifndef SMALL_FLASH_DEVICE
+/* These two live here rather than inline in the header so that no caller can inline them. GCC
+   (13 and 14, at -Os) miscompiles them once inlined into a function that hands in the status of a
+   pack it took by reference, as the main page's fill_card_view(pack) does: it carries the address
+   check below over to the pack itself, forgetting where in the pack the status sits, concludes
+   that pack 1 can never match, and drops that path as unreachable. Pack 1 then ran into code that
+   was not there, and the main page ended right after the combined card. */
+int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  if (&status == &datalayer.battery.status && shunt_measures_battery1()) {
+    return shunt_current_dA();
+  }
+  return status.current_dA;
+}
+
+int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  if (&status == &datalayer.battery.status && shunt_measures_battery1()) {
+    return current_dA_to_power_W(shunt_current_dA(), status.voltage_dV);
+  }
+  return status.active_power_W;
+}
+#endif  // SMALL_FLASH_DEVICE
+
 /* The SOC window belongs to the installation, not to any one pack: it decides what the inverter
    is told, and a scaled number on a single pack of several describes nothing that exists. So
    once there is more than one battery the packs report exactly what they would with scaling

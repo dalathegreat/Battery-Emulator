@@ -67,14 +67,13 @@ static inline bool shunt_measures_battery1() {
  * @param[in] status datalayer.battery.status, .battery2.status or .battery3.status
  * @return The current in deciAmpere, positive while charging
  */
-static inline int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status) {
 #ifndef SMALL_FLASH_DEVICE
-  if (&status == &datalayer.battery.status && shunt_measures_battery1()) {
-    return shunt_current_dA();
-  }
-#endif  // SMALL_FLASH_DEVICE
+int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status);  // Never inline: see battery_aggregate.cpp
+#else
+static inline int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status) {
   return status.current_dA;
 }
+#endif  // SMALL_FLASH_DEVICE
 
 /**
  * @brief A pack's power, the same way: from the sensor's current where pack_current_dA() takes
@@ -83,14 +82,13 @@ static inline int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& statu
  * @param[in] status datalayer.battery.status, .battery2.status or .battery3.status
  * @return The power in Watts, positive while charging
  */
-static inline int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
 #ifndef SMALL_FLASH_DEVICE
-  if (&status == &datalayer.battery.status && shunt_measures_battery1()) {
-    return current_dA_to_power_W(shunt_current_dA(), status.voltage_dV);
-  }
-#endif  // SMALL_FLASH_DEVICE
+int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status);  // Never inline: see battery_aggregate.cpp
+#else
+static inline int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
   return status.active_power_W;
 }
+#endif  // SMALL_FLASH_DEVICE
 
 /**
  * @brief The current of the whole installation: the sensor's while it has a reading, else the
