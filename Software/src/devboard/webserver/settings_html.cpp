@@ -1724,6 +1724,41 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     return true;
   }
 
+  //Each battery needs a CAN interface of its own. Inverters, shunts and chargers may share a
+  //bus with a battery, so only the battery interface selects are compared.
+  function validateBatteryInterfaces() {
+    const shown = (el, cls) => {
+      const wrap = el && el.closest(cls);
+      return !!wrap && getComputedStyle(wrap).display !== 'none';
+    };
+    const isCan = (v) => v >= 3 && v <= 7; //comm_interface::CanNative .. CanFdAddonMcp2518_2
+    const batt = document.querySelector('select[name="BATTCOMM"]');
+    const dbl = document.querySelector('input[name="DBLBTR"]');
+    const tri = document.querySelector('input[name="TRIBTR"]');
+    const selects = [];
+    if (!shown(batt, '.if-battery')) {
+      return true;
+    }
+    selects.push(batt);
+    if (dbl && dbl.checked && shown(dbl, '.if-dblcapable')) {
+      selects.push(document.querySelector('select[name="BATT2COMM"]'));
+    }
+    if (tri && tri.checked && shown(tri, '.if-tricapable')) {
+      selects.push(document.querySelector('select[name="BATT3COMM"]'));
+    }
+    for (let a = 0; a < selects.length; a++) {
+      for (let b = a + 1; b < selects.length; b++) {
+        if (selects[a] && selects[b] && isCan(+selects[a].value) && selects[a].value === selects[b].value) {
+          const name = selects[a].options[selects[a].selectedIndex].text;
+          alert('Two or more batteries are assigned to the same CAN interface (' + name + ').\n\nEach battery needs its own CAN interface. The inverter, shunt and charger can share a battery\'s interface.');
+          selects[b].focus();
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   //The LBC latches the starting sequence request as it powers up, so a change to it is inert
   //until the BMS is reset. Offer to do that right away rather than leaving the setting saved
   //but not in effect.
@@ -1749,7 +1784,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   </script>
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && confirmBmsRestart()'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && validateBatteryInterfaces() && confirmBmsRestart()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>

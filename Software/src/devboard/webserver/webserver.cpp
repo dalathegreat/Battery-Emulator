@@ -523,6 +523,50 @@ void init_webserver() {
                 return;
               }
 
+              // Each battery needs a CAN interface of its own. Inverters, shunts and chargers
+              // may share a bus with a battery, so only battery interfaces are compared here.
+              {
+                auto paramUInt = [&](const char* name, uint32_t fallback) -> uint32_t {
+                  auto p = request->getParam(name, true);
+                  return p != nullptr ? (uint32_t)atoi(p->value().c_str()) : fallback;
+                };
+                auto paramBool = [&](const char* name) {
+                  auto p = request->getParam(name, true);
+                  return p != nullptr && p->value() == "on";
+                };
+                auto isCan = [](uint32_t interface) {
+                  return interface >= (uint32_t)comm_interface::CanNative &&
+                         interface <= (uint32_t)comm_interface::CanFdAddonMcp2518_2;
+                };
+
+                auto batteryType = static_cast<BatteryType>(
+                    paramUInt("battery", settings.getUInt("BATTTYPE", (int)BatteryType::None)));
+                uint32_t batteryComm[3];
+                int batteryCount = 0;
+                if (batteryType != BatteryType::None) {
+                  batteryComm[batteryCount++] =
+                      paramUInt("BATTCOMM", settings.getUInt("BATTCOMM", (int)comm_interface::CanNative));
+                  if (paramBool("DBLBTR") && battery_supports_double(batteryType)) {
+                    batteryComm[batteryCount++] =
+                        paramUInt("BATT2COMM", settings.getUInt("BATT2COMM", (int)comm_interface::CanNative));
+                  }
+                  if (paramBool("TRIBTR") && battery_supports_triple(batteryType)) {
+                    batteryComm[batteryCount++] =
+                        paramUInt("BATT3COMM", settings.getUInt("BATT3COMM", (int)comm_interface::CanNative));
+                  }
+                }
+                for (int a = 0; a < batteryCount; a++) {
+                  for (int b = a + 1; b < batteryCount; b++) {
+                    if (isCan(batteryComm[a]) && batteryComm[a] == batteryComm[b]) {
+                      request->send(400, "text/plain",
+                                    "Two or more batteries are assigned to the same CAN interface. "
+                                    "Each battery needs its own CAN interface.");
+                      return;
+                    }
+                  }
+                }
+              }
+
               int numParams = request->params();
               for (int i = 0; i < numParams; i++) {
                 auto p = request->getParam(i);
