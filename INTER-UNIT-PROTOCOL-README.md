@@ -18,9 +18,7 @@ A Battery Emulator can be configured as **Controller** or **Battery Node** via t
 | **Controller** | Communicates with the inverter. Aggregates data from all nodes. Controls contactors. |
 | **Battery Node** | Communicates with a battery. Sends battery data to the controller. Opens/closes contactor on controller command. |
 
-Up to **24 battery nodes** are supported (Node ID 1–24).
-
-A node reports what an inverter connected to it would see: the combined values of its own packs (`datalayer.aggregate`), not pack 1 alone. So a node with **double battery** enabled appears on the controller as one node with the summed capacity/current, the lowest SOC/limits and the widest cell/temperature extremes. The link voltage is pack 1's measured voltage. Capacity travels in 10 Wh steps, so a node can report up to 327 kWh remaining / 655 kWh total.
+Up to **24 battery nodes** are supported (Node ID 1–24). Each node can itself run a **double or triple battery** setup — see [Double / triple battery on a node](#double--triple-battery-on-a-node).
 
 The whole feature is compiled out on `SMALL_FLASH_DEVICE` builds (LilyGo T-CAN485, ESP32 DevKit), so the controller and every node must run on a larger board (e.g. LilyGo T-2CAN, Stark CMR).
 
@@ -54,6 +52,32 @@ Each unit is a separate ESP32 board (e.g. LilyGo). The controller and all nodes 
 ```
 
 - All inter-unit nodes share one 500 kbps bus; terminate it with 120 Ω at both physical ends like any CAN bus, and tie all node grounds together.
+
+---
+
+## Double / triple battery on a node
+
+A node can drive two or three packs of the same type, exactly as a standalone Battery Emulator can. Enable **Double battery** (or **Triple battery**) in the node's own settings; the option is only offered for battery types that support it, and each extra pack needs its own battery interface on the node.
+
+Because a node is set up as its unit's *inverter*, it reports the same combined figures a real inverter would get from that unit (`datalayer.aggregate`), not pack 1 alone:
+
+| Sent to controller | From the node's packs |
+|--------------------|-----------------------|
+| Voltage | Pack 1's measured voltage (all packs share the node's DC link) |
+| Current | Sum of all packs |
+| Total / remaining capacity | Sum of all packs |
+| SOC | Lowest joined pack, blending towards the fullest one above 90% |
+| SOH | Lowest pack that reports one |
+| Max charge / discharge power | **Lowest** joined pack's limit (same rule the inverter gets without a node) |
+| Cell max/min, temperature max/min | Highest max / lowest min across the packs |
+| Design voltage max / min | Lowest max / highest min across the packs |
+| Offline balancing, battery CAN timeout | Set if **any** pack has it |
+
+What this means in practice:
+- The controller sees each node as **one** node, whatever is behind it. Capacity and current add up correctly.
+- Packs 2 and 3 join the node's DC link through the node's own parallel-battery voltage check, exactly like without a node. The controller only opens/closes the node as a whole.
+- The power limit of a double/triple node is that of its weakest pack, not the sum. Since the controller uses *lowest per-node limit × number of engaged nodes*, the installation is conservative (never above what any pack allows), but a double node does not contribute double power.
+- Capacity travels in 10 Wh steps, so one node can report up to ~327 kWh remaining / ~655 kWh total.
 
 ---
 
@@ -359,5 +383,6 @@ Settings are applied via the web UI under **Settings**:
 | Battery type = **Inter-Unit Controller** | Selects Controller role. The controller's `BATTCOMM` interface carries the inter-unit protocol. |
 | Inverter protocol = **Inter-Unit Node** | Selects Battery Node role. The node's `INVCOMM` interface carries the inter-unit protocol. |
 | Battery node ID | Node ID for this battery node (1–24). Stored under the NVM key `SLAVENODEID` (kept for backward compatibility). |
+| Double / Triple battery (on a node) | Optional. Lets one node drive 2 or 3 packs; the controller sees their combined values as one node. |
 
 > The node role is derived from the battery/inverter selection — there is no separate `NODE_MODE` setting.
