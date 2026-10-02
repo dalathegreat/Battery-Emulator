@@ -106,6 +106,29 @@ static void check_battery_temperatures(void) {
   }
 }
 
+/* Pack voltage against the pack's own design window, the same for every pack. The joined packs
+   share one link, but each has its own window, and the link must stay inside all of them. */
+static void check_pack_voltage(DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  // Battery voltage is over designed max voltage!
+  if (pack.status.voltage_dV > pack.info.max_design_voltage_dV) {
+    set_event(EVENT_BATTERY_OVERVOLTAGE, pack.status.voltage_dV, number);
+    pack.status.max_charge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_OVERVOLTAGE, number);
+  }
+
+  // Battery voltage is under designed min voltage! 0 means not decoded yet: nothing to
+  // discharge against, but nothing to report either
+  if (pack.status.voltage_dV < pack.info.min_design_voltage_dV) {
+    if (pack.status.voltage_dV > 0) {
+      set_event(EVENT_BATTERY_UNDERVOLTAGE, pack.status.voltage_dV, number);
+    }
+    pack.status.max_discharge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_UNDERVOLTAGE, number);
+  }
+}
+
 /* Cell voltage limits, the same for every pack. Each pack is held to its own limits and raises
    its own events. update_aggregate_limits() hands the inverter the lowest limit of any joined
    pack, so a zero written here stops the whole installation. That is what it has to do: every
@@ -232,25 +255,7 @@ void update_machineryprotection() {
     // Temperature checks for every configured battery are done together in
     // check_battery_temperatures(), called further down.
 
-    // Battery voltage is over designed max voltage!
-    if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
-      datalayer.battery.status.max_charge_power_W = 0;
-    } else {
-      clear_event(EVENT_BATTERY_OVERVOLTAGE, 1);
-    }
-
-    // Battery voltage is under designed min voltage! 0 means not decoded yet: nothing to
-    // discharge against, but nothing to report either
-    if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      if (datalayer.battery.status.voltage_dV > 0) {
-        set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
-      }
-      datalayer.battery.status.max_discharge_power_W = 0;
-    } else {
-      clear_event(EVENT_BATTERY_UNDERVOLTAGE, 1);
-    }
-
+    check_pack_voltage(datalayer.battery, 1);
     check_cell_voltages(datalayer.battery, 1);
 
     //If user is requesting charge to stop at a specific voltage
@@ -456,6 +461,7 @@ void update_machineryprotection() {
        3700 mV cells, which are not measurements: a pack whose cell ceiling is below that (LFP at
        3650 mV) would latch an overvoltage before it ever spoke. Same gate the aggregate uses. */
     if (battery2_detected) {
+      check_pack_voltage(datalayer.battery2, 2);
       check_cell_voltages(datalayer.battery2, 2);
     }
 
@@ -502,6 +508,7 @@ void update_machineryprotection() {
 
     // Only once the pack has been heard on the bus, see battery 2 above
     if (battery3_detected) {
+      check_pack_voltage(datalayer.battery3, 3);
       check_cell_voltages(datalayer.battery3, 3);
     }
 

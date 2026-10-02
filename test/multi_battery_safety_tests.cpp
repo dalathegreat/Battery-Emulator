@@ -199,3 +199,41 @@ TEST_F(MultiBatterySafetyTest, CellEventsNameThePack) {
   const std::string pack3_message = get_event_message_string(EVENT_CELL_OVER_VOLTAGE_BAT3).c_str();
   EXPECT_NE(pack3_message.find("(Battery 3)"), std::string::npos);
 }
+
+// The joined packs share one link but not one design window. A pack with a lower ceiling than
+// pack 1 has to stop charging at its own ceiling.
+TEST_F(MultiBatterySafetyTest, Pack2OverItsDesignVoltageStopsCharging) {
+  datalayer.battery2.info.max_design_voltage_dV = 3900;
+  for (DATALAYER_BATTERY_TYPE* pack : packs()) {
+    pack->status.voltage_dV = 3950;  // Inside pack 1's window, above pack 2's
+  }
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY2_OVERVOLTAGE), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(state(EVENT_BATTERY_OVERVOLTAGE), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 5000u);
+
+  // Back inside the window: the warning clears and charging resumes
+  for (DATALAYER_BATTERY_TYPE* pack : packs()) {
+    pack->status.voltage_dV = 3850;
+  }
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY2_OVERVOLTAGE), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
+}
+
+TEST_F(MultiBatterySafetyTest, Pack3UnderItsDesignVoltageStopsDischarging) {
+  datalayer.battery3.status.voltage_dV = datalayer.battery3.info.min_design_voltage_dV - 1;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY3_UNDERVOLTAGE), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(state(EVENT_BATTERY_UNDERVOLTAGE), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.battery3.status.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
+}
