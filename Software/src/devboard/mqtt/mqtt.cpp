@@ -376,10 +376,11 @@ enum ButtonCommand {
   BTN_STOP,
   BTN_SET_LIMITS,
   BTN_ESPNOW_RUN,
+  BTN_SET_SCALESOC,
   BTN_COUNT
 };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE",      "RESUME",    "RESTART",
-                                                 "STOP",     "SET_LIMITS", "ESPNOW_RUN"};
+static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE",      "RESUME",     "RESTART",
+                                                 "STOP",     "SET_LIMITS", "ESPNOW_RUN", "SET_SCALESOC"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -1299,6 +1300,42 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     datalayer.battery_settings.remote_set_timestamp = millis();
 
     free(data_str);
+  }
+
+  // Runtime change of the SOC rescale limits. Payload: {"max_pct": 50.0-100.0, "min_pct": -10.0-50.0}.
+  // Either key may be omitted to leave that limit unchanged. Only the live datalayer values are
+  // touched (nothing is written to NVS), so a reboot restores the saved settings.
+  if (strcmp(topic, button_command_topics[BTN_SET_SCALESOC].c_str()) == 0) {
+    if (!datalayer.battery_settings.soc_scaling_active) {
+      // Limits have no effect without "Rescale SOC", so the command is ignored.
+    } else {
+      JsonDocument doc;
+      char* data_str = strndup(data, data_len);
+      DeserializationError err = deserializeJson(doc, data_str);
+      free(data_str);
+
+      if (err) {
+        logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
+      } else {
+        // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
+        if (doc["max_pct"].is<float>()) {
+          float max_pct = doc["max_pct"].as<float>();
+          if (max_pct >= 50.0f && max_pct <= 100.0f) {
+            datalayer.battery_settings.max_percentage = (uint16_t)lroundf(max_pct * 100.0f);
+          } else {
+            logging.printf("MQTT: SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
+          }
+        }
+        if (doc["min_pct"].is<float>()) {
+          float min_pct = doc["min_pct"].as<float>();
+          if (min_pct >= -10.0f && min_pct <= 50.0f) {
+            datalayer.battery_settings.min_percentage = (int16_t)lroundf(min_pct * 100.0f);
+          } else {
+            logging.printf("MQTT: SET_SCALESOC min_pct %.1f out of range (-10.0-50.0), ignored\n", min_pct);
+          }
+        }
+      }
+    }
   }
 
   free(topic);

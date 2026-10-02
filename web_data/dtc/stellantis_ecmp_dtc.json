@@ -30,7 +30,7 @@
     "l_dsc": "Vehicle Crash Information Wire Circuit"
   },
   {
-    "dtc": "P2C85",
+    "dtc": "P2C8501",
     "s_dsc": "Isolation issue",
     "l_dsc": "Isolation of the power voltage in relation to the internal/external traction battery earth"
   },
