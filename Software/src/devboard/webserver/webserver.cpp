@@ -1564,7 +1564,7 @@ static bool render_live(CheckedHtml& content) {
       }
 
       if (user_selected_shunt_type != ShuntType::None) {
-        content += "<h4 style='color: white;'>Shunt protocol: ";
+        content += "<h4 style='color: white;'>Measurement: ";
         content += datalayer.system.info.shunt_protocol;
 #ifndef SMALL_FLASH_DEVICE
         if (user_selected_shunt_type == ShuntType::Qnhck2_16) {
