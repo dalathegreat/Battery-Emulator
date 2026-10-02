@@ -525,6 +525,7 @@ void init_webserver() {
 
         // Each battery needs a CAN interface of its own. Inverters, shunts and chargers
         // may share a bus with a battery, so only battery interfaces are compared here.
+        // The fake battery sends nothing on the bus, so it is free to share any interface.
         {
           auto paramUInt = [&](const char* name, uint32_t fallback) -> uint32_t {
             auto p = request->getParam(name, true);
@@ -543,7 +544,7 @@ void init_webserver() {
               static_cast<BatteryType>(paramUInt("battery", settings.getUInt("BATTTYPE", (int)BatteryType::None)));
           uint32_t batteryComm[3];
           int batteryCount = 0;
-          if (batteryType != BatteryType::None) {
+          if (batteryType != BatteryType::None && batteryType != BatteryType::TestFake) {
             batteryComm[batteryCount++] =
                 paramUInt("BATTCOMM", settings.getUInt("BATTCOMM", (int)comm_interface::CanNative));
             if (paramBool("DBLBTR") && battery_supports_double(batteryType)) {

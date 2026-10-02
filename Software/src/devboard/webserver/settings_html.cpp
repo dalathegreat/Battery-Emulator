@@ -1725,7 +1725,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   }
 
   //Each battery needs a CAN interface of its own. Inverters, shunts and chargers may share a
-  //bus with a battery, so only the battery interface selects are compared.
+  //bus with a battery, so only the battery interface selects are compared. The fake battery
+  //sends nothing on the bus, so it is free to share any interface.
   function validateBatteryInterfaces() {
     const shown = (el, cls) => {
       const wrap = el && el.closest(cls);
@@ -1736,7 +1737,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     const dbl = document.querySelector('input[name="DBLBTR"]');
     const tri = document.querySelector('input[name="TRIBTR"]');
     const selects = [];
-    if (!shown(batt, '.if-battery')) {
+    const battType = document.querySelector('select[name="battery"]'); //34 = BatteryType::TestFake
+    if (!shown(batt, '.if-battery') || (battType && battType.value === '34')) {
       return true;
     }
     selects.push(batt);
