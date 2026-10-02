@@ -492,198 +492,243 @@ void init_webserver() {
                                       "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
 
   // Handles the form POST from UI to save settings of the common image
-  server.on("/saveSettings", HTTP_POST,
-            [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
-              BatteryEmulatorSettingsStore settings;
-              auto webAuthParam = request->getParam("WEBAUTH", true);
-              auto httpUserParam = request->getParam("HTTPUSER", true);
-              auto httpPassParam = request->getParam("HTTPPASS", true);
-              auto httpPassConfirmParam = request->getParam("HTTPPASSCONFIRM", true);
+  server.on(
+      "/saveSettings", HTTP_POST,
+      [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+        BatteryEmulatorSettingsStore settings;
+        auto webAuthParam = request->getParam("WEBAUTH", true);
+        auto httpUserParam = request->getParam("HTTPUSER", true);
+        auto httpPassParam = request->getParam("HTTPPASS", true);
+        auto httpPassConfirmParam = request->getParam("HTTPPASSCONFIRM", true);
 
-              bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
-              String requestedHttpUser =
-                  httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
-              String requestedHttpPass = (httpPassParam != nullptr && !httpPassParam->value().isEmpty())
-                                             ? httpPassParam->value()
-                                             : settings.getString("HTTPPASS");
+        bool requestedWebAuth = webAuthParam != nullptr && webAuthParam->value() == "on";
+        String requestedHttpUser =
+            httpUserParam != nullptr ? httpUserParam->value() : settings.getString("HTTPUSER", "admin");
+        String requestedHttpPass = (httpPassParam != nullptr && !httpPassParam->value().isEmpty())
+                                       ? httpPassParam->value()
+                                       : settings.getString("HTTPPASS");
 
-              String requestedHttpPassConfirm =
-                  (httpPassConfirmParam != nullptr && !httpPassConfirmParam->value().isEmpty())
-                      ? httpPassConfirmParam->value()
-                      : requestedHttpPass;
+        String requestedHttpPassConfirm = (httpPassConfirmParam != nullptr && !httpPassConfirmParam->value().isEmpty())
+                                              ? httpPassConfirmParam->value()
+                                              : requestedHttpPass;
 
-              if (requestedHttpPass != requestedHttpPassConfirm) {
-                request->send(400, "text/plain", "Web interface passwords do not match.");
-                return;
-              }
+        if (requestedHttpPass != requestedHttpPassConfirm) {
+          request->send(400, "text/plain", "Web interface passwords do not match.");
+          return;
+        }
 
-              if (requestedWebAuth && (requestedHttpUser.isEmpty() || requestedHttpPass.isEmpty())) {
+        if (requestedWebAuth && (requestedHttpUser.isEmpty() || requestedHttpPass.isEmpty())) {
+          request->send(400, "text/plain",
+                        "Set a username and password before enabling web interface password protection.");
+          return;
+        }
+
+        // Each battery needs a CAN interface of its own. Inverters, shunts and chargers
+        // may share a bus with a battery, so only battery interfaces are compared here.
+        // The fake battery sends nothing on the bus, so it is free to share any interface.
+        {
+          auto paramUInt = [&](const char* name, uint32_t fallback) -> uint32_t {
+            auto p = request->getParam(name, true);
+            return p != nullptr ? (uint32_t)atoi(p->value().c_str()) : fallback;
+          };
+          auto paramBool = [&](const char* name) {
+            auto p = request->getParam(name, true);
+            return p != nullptr && p->value() == "on";
+          };
+          auto isCan = [](uint32_t interface) {
+            return interface >= (uint32_t)comm_interface::CanNative &&
+                   interface <= (uint32_t)comm_interface::CanFdAddonMcp2518_2;
+          };
+
+          auto batteryType =
+              static_cast<BatteryType>(paramUInt("battery", settings.getUInt("BATTTYPE", (int)BatteryType::None)));
+          uint32_t batteryComm[3];
+          int batteryCount = 0;
+          if (batteryType != BatteryType::None && batteryType != BatteryType::TestFake) {
+            batteryComm[batteryCount++] =
+                paramUInt("BATTCOMM", settings.getUInt("BATTCOMM", (int)comm_interface::CanNative));
+            if (paramBool("DBLBTR") && battery_supports_double(batteryType)) {
+              batteryComm[batteryCount++] =
+                  paramUInt("BATT2COMM", settings.getUInt("BATT2COMM", (int)comm_interface::CanNative));
+            }
+            if (paramBool("TRIBTR") && battery_supports_triple(batteryType)) {
+              batteryComm[batteryCount++] =
+                  paramUInt("BATT3COMM", settings.getUInt("BATT3COMM", (int)comm_interface::CanNative));
+            }
+          }
+          for (int a = 0; a < batteryCount; a++) {
+            for (int b = a + 1; b < batteryCount; b++) {
+              if (isCan(batteryComm[a]) && batteryComm[a] == batteryComm[b]) {
                 request->send(400, "text/plain",
-                              "Set a username and password before enabling web interface password protection.");
+                              "Multiple batteries are assigned to the same CAN interface. "
+                              "Each battery needs its own.");
                 return;
               }
+            }
+          }
+        }
 
-              int numParams = request->params();
-              for (int i = 0; i < numParams; i++) {
-                auto p = request->getParam(i);
-                if (p->name() == "inverter") {
-                  auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
-                  settings.saveUInt("INVTYPE", (int)type);
-                } else if (p->name() == "INVCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("INVCOMM", (int)type);
-                } else if (p->name() == "battery") {
-                  auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATTTYPE", (int)type);
-                } else if (p->name() == "BATTCHEM") {
-                  auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATTCHEM", (int)type);
-                } else if (p->name() == "BATTCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATTCOMM", (int)type);
-                } else if (p->name() == "BATTPVMAX") {
-                  auto type = p->value().toFloat() * 10.0f;
-                  settings.saveUInt("BATTPVMAX", (int)type);
-                } else if (p->name() == "BATTPVMIN") {
-                  auto type = p->value().toFloat() * 10.0f;
-                  settings.saveUInt("BATTPVMIN", (int)type);
-                } else if (p->name() == "charger") {
-                  auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
-                  settings.saveUInt("CHGTYPE", (int)type);
-                } else if (p->name() == "CHGSTARQ") {
-                  // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
-                  // is not offered, so anything else falls back to "no request".
-                  uint8_t request = atoi(p->value().c_str());
-                  if (request > 2) {
-                    request = 0;
-                  }
-                  settings.saveUInt("CHGSTARQ", request);
-                  // Unlike the other settings this one is taken into use without a reboot, so the
-                  // reset offered below sends the newly chosen request rather than the old one.
-                  user_selected_LEAF_chg_sta_rq = request;
-                } else if (p->name() == "CHGCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("CHGCOMM", (int)type);
-                } else if (p->name() == "EQSTOP") {
-                  auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
-                  settings.saveUInt("EQSTOP", (int)type);
-                } else if (p->name() == "BATT2COMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATT2COMM", (int)type);
-                } else if (p->name() == "BATT3COMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("BATT3COMM", (int)type);
-                } else if (p->name() == "shunttype") {
-                  auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
-                  settings.saveUInt("SHUNTTYPE", (int)type);
-                } else if (p->name() == "SHUNTCOMM") {
-                  auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
-                  settings.saveUInt("SHUNTCOMM", (int)type);
-                } else if (p->name() == "CTOFFSET") {
-                  // allow negative offsets so save as string
-                  settings.saveString("CTOFFSET", p->value().c_str());
-                } else if (p->name() == "CTATTEN") {
-                  auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
-                  settings.saveUInt("CTATTEN", (int)type);
-                } else if (p->name() == "CPUTEMPOFFSET") {
-                  // allow negative offsets so save as number
-                  settings.saveInt("CPUTEMPOFFSET", atoi(p->value().c_str()));
-                } else if (p->name() == "SSID") {
-                  settings.saveString("SSID", p->value().c_str());
-                  ssid = settings.getString("SSID", "").c_str();
-                } else if (p->name() == "PASSWORD") {
-                  if (!p->value().isEmpty()) {  // blank = keep existing (field is rendered empty)
-                    settings.saveString("PASSWORD", p->value().c_str());
-                  }
-                  password = settings.getString("PASSWORD", "").c_str();
-                } else if (p->name() == "MQTTPUBLISHMS") {
-                  auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
-                  settings.saveUInt("MQTTPUBLISHMS", interval);
-                }
+        int numParams = request->params();
+        for (int i = 0; i < numParams; i++) {
+          auto p = request->getParam(i);
+          if (p->name() == "inverter") {
+            auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+            settings.saveUInt("INVTYPE", (int)type);
+          } else if (p->name() == "INVCOMM") {
+            auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+            settings.saveUInt("INVCOMM", (int)type);
+          } else if (p->name() == "battery") {
+            auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
+            settings.saveUInt("BATTTYPE", (int)type);
+          } else if (p->name() == "BATTCHEM") {
+            auto type = static_cast<battery_chemistry_enum>(atoi(p->value().c_str()));
+            settings.saveUInt("BATTCHEM", (int)type);
+          } else if (p->name() == "BATTCOMM") {
+            auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+            settings.saveUInt("BATTCOMM", (int)type);
+          } else if (p->name() == "BATTPVMAX") {
+            auto type = p->value().toFloat() * 10.0f;
+            settings.saveUInt("BATTPVMAX", (int)type);
+          } else if (p->name() == "BATTPVMIN") {
+            auto type = p->value().toFloat() * 10.0f;
+            settings.saveUInt("BATTPVMIN", (int)type);
+          } else if (p->name() == "charger") {
+            auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+            settings.saveUInt("CHGTYPE", (int)type);
+          } else if (p->name() == "CHGSTARQ") {
+            // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
+            // is not offered, so anything else falls back to "no request".
+            uint8_t request = atoi(p->value().c_str());
+            if (request > 2) {
+              request = 0;
+            }
+            settings.saveUInt("CHGSTARQ", request);
+            // Unlike the other settings this one is taken into use without a reboot, so the
+            // reset offered below sends the newly chosen request rather than the old one.
+            user_selected_LEAF_chg_sta_rq = request;
+          } else if (p->name() == "CHGCOMM") {
+            auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+            settings.saveUInt("CHGCOMM", (int)type);
+          } else if (p->name() == "EQSTOP") {
+            auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+            settings.saveUInt("EQSTOP", (int)type);
+          } else if (p->name() == "BATT2COMM") {
+            auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+            settings.saveUInt("BATT2COMM", (int)type);
+          } else if (p->name() == "BATT3COMM") {
+            auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+            settings.saveUInt("BATT3COMM", (int)type);
+          } else if (p->name() == "shunttype") {
+            auto type = static_cast<ShuntType>(atoi(p->value().c_str()));
+            settings.saveUInt("SHUNTTYPE", (int)type);
+          } else if (p->name() == "SHUNTCOMM") {
+            auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
+            settings.saveUInt("SHUNTCOMM", (int)type);
+          } else if (p->name() == "CTOFFSET") {
+            // allow negative offsets so save as string
+            settings.saveString("CTOFFSET", p->value().c_str());
+          } else if (p->name() == "CTATTEN") {
+            auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
+            settings.saveUInt("CTATTEN", (int)type);
+          } else if (p->name() == "CPUTEMPOFFSET") {
+            // allow negative offsets so save as number
+            settings.saveInt("CPUTEMPOFFSET", atoi(p->value().c_str()));
+          } else if (p->name() == "SSID") {
+            settings.saveString("SSID", p->value().c_str());
+            ssid = settings.getString("SSID", "").c_str();
+          } else if (p->name() == "PASSWORD") {
+            if (!p->value().isEmpty()) {  // blank = keep existing (field is rendered empty)
+              settings.saveString("PASSWORD", p->value().c_str());
+            }
+            password = settings.getString("PASSWORD", "").c_str();
+          } else if (p->name() == "MQTTPUBLISHMS") {
+            auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
+            settings.saveUInt("MQTTPUBLISHMS", interval);
+          }
 
-                for (auto& uintSetting : uintSettingNames) {
-                  if (p->name() == uintSetting) {
-                    auto value = atoi(p->value().c_str());
-                    settings.saveUInt(uintSetting, value);
-                  }
-                }
+          for (auto& uintSetting : uintSettingNames) {
+            if (p->name() == uintSetting) {
+              auto value = atoi(p->value().c_str());
+              settings.saveUInt(uintSetting, value);
+            }
+          }
 
-                for (auto& stringSetting : stringSettingNames) {
-                  if (p->name() == stringSetting) {
-                    // Password fields are rendered blank; an empty value means "keep unchanged".
-                    const bool isPasswordField =
-                        (std::string(stringSetting) == "APPASSWORD" || std::string(stringSetting) == "MQTTPASSWORD" ||
-                         std::string(stringSetting) == "HTTPPASS");
-                    if (isPasswordField && p->value().isEmpty()) {
-                      continue;  // keep existing stored password
-                    }
-                    if (settings.getString(stringSetting) != p->value()) {
-                      settings.saveString(stringSetting, p->value().c_str());
-                    }
-                  }
-                }
+          for (auto& stringSetting : stringSettingNames) {
+            if (p->name() == stringSetting) {
+              // Password fields are rendered blank; an empty value means "keep unchanged".
+              const bool isPasswordField =
+                  (std::string(stringSetting) == "APPASSWORD" || std::string(stringSetting) == "MQTTPASSWORD" ||
+                   std::string(stringSetting) == "HTTPPASS");
+              if (isPasswordField && p->value().isEmpty()) {
+                continue;  // keep existing stored password
               }
-
-              for (auto& boolSetting : boolSettingNames) {
-                auto p = request->getParam(boolSetting, true);
-                // The comparison default must match what the firmware boots with when the
-                // key is unset, or saving that state writes nothing and the page keeps
-                // disagreeing with the firmware. Only three bools boot true: WIFIAPENABLED,
-                // LEAFAUTOOFS and GTWRHD (whose boot fallback is the driver global).
-                bool default_value = false;
-                if (std::string(boolSetting) == std::string("WIFIAPENABLED") ||
-                    std::string(boolSetting) == std::string("LEAFAUTOOFS")) {
-                  default_value = true;
-                } else if (std::string(boolSetting) == std::string("GTWRHD")) {
-                  default_value = user_selected_tesla_GTW_rightHandDrive;
-                }
-                const bool value = p != nullptr && p->value() == "on";
-                if (settings.getBool(boolSetting, default_value) != value) {
-                  settings.saveBool(boolSetting, value);
-                }
+              if (settings.getString(stringSetting) != p->value()) {
+                settings.saveString(stringSetting, p->value().c_str());
               }
+            }
+          }
+        }
 
-              // The double/triple battery checkboxes are hidden in the UI for integrations
-              // that don't implement parallel batteries. Make sure a previously stored
-              // value can't survive a switch to such an integration.
-              auto selectedBatteryType = static_cast<BatteryType>(settings.getUInt("BATTTYPE", (int)BatteryType::None));
-              if (!battery_supports_double(selectedBatteryType) && settings.getBool("DBLBTR", false)) {
-                settings.saveBool("DBLBTR", false);
-              }
-              if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
-                settings.saveBool("TRIBTR", false);
-              }
+        for (auto& boolSetting : boolSettingNames) {
+          auto p = request->getParam(boolSetting, true);
+          // The comparison default must match what the firmware boots with when the
+          // key is unset, or saving that state writes nothing and the page keeps
+          // disagreeing with the firmware. Only three bools boot true: WIFIAPENABLED,
+          // LEAFAUTOOFS and GTWRHD (whose boot fallback is the driver global).
+          bool default_value = false;
+          if (std::string(boolSetting) == std::string("WIFIAPENABLED") ||
+              std::string(boolSetting) == std::string("LEAFAUTOOFS")) {
+            default_value = true;
+          } else if (std::string(boolSetting) == std::string("GTWRHD")) {
+            default_value = user_selected_tesla_GTW_rightHandDrive;
+          }
+          const bool value = p != nullptr && p->value() == "on";
+          if (settings.getBool(boolSetting, default_value) != value) {
+            settings.saveBool(boolSetting, value);
+          }
+        }
 
-              // Same for the shunt types hidden for the selected battery/inverter: "Custom Clamp"
-              // outside CHAdeMO, "Using inverter values" with an inverter that provides no shunt.
-              auto selectedShuntType = static_cast<ShuntType>(settings.getUInt("SHUNTTYPE", (int)ShuntType::None));
-              auto selectedInverterType =
-                  static_cast<InverterProtocolType>(settings.getUInt("INVTYPE", (int)InverterProtocolType::None));
-              if (!shunt_type_supported_by_battery(selectedShuntType, selectedBatteryType) ||
-                  !shunt_type_supported_by_inverter(selectedShuntType, selectedInverterType)) {
-                settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
-              }
+        // The double/triple battery checkboxes are hidden in the UI for integrations
+        // that don't implement parallel batteries. Make sure a previously stored
+        // value can't survive a switch to such an integration.
+        auto selectedBatteryType = static_cast<BatteryType>(settings.getUInt("BATTTYPE", (int)BatteryType::None));
+        if (!battery_supports_double(selectedBatteryType) && settings.getBool("DBLBTR", false)) {
+          settings.saveBool("DBLBTR", false);
+        }
+        if (!battery_supports_triple(selectedBatteryType) && settings.getBool("TRIBTR", false)) {
+          settings.saveBool("TRIBTR", false);
+        }
 
-              // The page offers a BMS reset when the starting sequence request was changed, since
-              // the LBC only reads that signal while it powers up. Done after every setting is
-              // stored so the reset runs against the saved configuration.
-              auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
-              if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
-                if (periodic_bms_reset || remote_bms_reset) {
-                  LOG_SET_NEXT_SEVERITY(5);  // notice
-                  logging.println("BMS reset requested from the settings page.");
-                  start_bms_reset();
-                } else {
-                  LOG_SET_NEXT_SEVERITY(4);  // warning
-                  logging.println(
-                      "BMS reset requested from the settings page, but no BMS reset method is enabled. "
-                      "The new setting applies at the next BMS power cycle.");
-                }
-              }
+        // Same for the shunt types hidden for the selected battery/inverter: "Custom Clamp"
+        // outside CHAdeMO, "Using inverter values" with an inverter that provides no shunt.
+        auto selectedShuntType = static_cast<ShuntType>(settings.getUInt("SHUNTTYPE", (int)ShuntType::None));
+        auto selectedInverterType =
+            static_cast<InverterProtocolType>(settings.getUInt("INVTYPE", (int)InverterProtocolType::None));
+        if (!shunt_type_supported_by_battery(selectedShuntType, selectedBatteryType) ||
+            !shunt_type_supported_by_inverter(selectedShuntType, selectedInverterType)) {
+          settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
+        }
 
-              settingsUpdated = settings.were_settings_updated();
-              request->redirect("/settings");
-            });
+        // The page offers a BMS reset when the starting sequence request was changed, since
+        // the LBC only reads that signal while it powers up. Done after every setting is
+        // stored so the reset runs against the saved configuration.
+        auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
+        if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
+          if (periodic_bms_reset || remote_bms_reset) {
+            LOG_SET_NEXT_SEVERITY(5);  // notice
+            logging.println("BMS reset requested from the settings page.");
+            start_bms_reset();
+          } else {
+            LOG_SET_NEXT_SEVERITY(4);  // warning
+            logging.println(
+                "BMS reset requested from the settings page, but no BMS reset method is enabled. "
+                "The new setting applies at the next BMS power cycle.");
+          }
+        }
+
+        settingsUpdated = settings.were_settings_updated();
+        request->redirect("/settings");
+      });
 
   auto update_string = [](const char* route, std::function<void(String)> setter,
                           std::function<bool(String)> validator = nullptr) {
