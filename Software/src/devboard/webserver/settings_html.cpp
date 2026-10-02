@@ -6,6 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../hal/board_config.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
@@ -173,6 +174,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   }
 }
 #endif
+#ifdef HW_LILYGO
 const char* name_for_gpioopt2(GPIOOPT2 option) {
   switch (option) {
     case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
@@ -206,6 +208,7 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return nullptr;
   }
 }
+#endif  // HW_LILYGO
 
 #ifdef HW_STARK
 const char* name_for_gpioopt5(GPIOOPT5 option) {
@@ -304,6 +307,80 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+  if (var == "HWCFGCSS") {
+#ifdef HW_UNIFIED_S3
+    // Battery, inverter, charger and integration settings all describe hardware
+    // the emulator cannot reach until a board config names its pins. Hiding them
+    // in CSS keeps one copy of the form rather than a second cut-down template.
+    if (!board_config.valid) {
+      return ".needs-hw { display: none; }";
+    }
+#endif
+    return "";
+  }
+
+  if (var == "IFACEFILTER") {
+#ifdef HW_UNIFIED_S3
+    // Offer only the interfaces the selected battery or inverter can use: the
+    // RS485 transceiver for RS485 and Modbus drivers, the CAN buses for the rest.
+    // Runs in the browser so it follows the dropdown before anything is saved.
+    // Option values are comm_interface: 1 Modbus and 2 RS485 share the RS485
+    // transceiver, 3 and up are CAN buses.
+    String rs_batteries, rs_inverters;
+    for (int i = 0; i < (int)BatteryType::Highest; i++) {
+      if (battery_type_uses_rs485((BatteryType)i)) {
+        rs_batteries += (rs_batteries.length() ? "," : "") + String(i);
+      }
+    }
+    for (int i = 0; i < (int)InverterProtocolType::Highest; i++) {
+      if (inverter_type_uses_rs485((InverterProtocolType)i)) {
+        rs_inverters += (rs_inverters.length() ? "," : "") + String(i);
+      }
+    }
+    // No charger or shunt driver uses RS485 today, so theirs are empty lists and
+    // their selectors offer only CAN buses. One that does would need a
+    // classification like battery_type_uses_rs485().
+    return "function fitIf(t,rs,names){var v=+t.value,wantRs=rs.indexOf(v)>=0;"
+           "names.forEach(function(n){var s=document.querySelector('select[name='+n+']');if(!s)return;"
+           "var first=null;for(var i=0;i<s.options.length;i++){var o=s.options[i],isRs=(o.value==1||o.value==2),"
+           "ok=(v==0)||(isRs==wantRs);o.hidden=o.disabled=!ok;if(ok&&!first)first=o;}"
+           "var cur=s.options[s.selectedIndex];if(cur&&cur.disabled&&first){s.value=first.value;"
+           "s.dispatchEvent(new Event('change'));}});}"
+           "function bindIf(type,rs,names){var t=document.querySelector('select[name='+type+']');if(!t)return;"
+           "var f=function(){fitIf(t,rs,names);};t.addEventListener('change',f);f();}"
+           "bindIf('battery',[" +
+           rs_batteries +
+           "],['BATTCOMM','BATT2COMM','BATT3COMM']);"
+           "bindIf('inverter',[" +
+           rs_inverters +
+           "],['INVCOMM']);"
+           "bindIf('charger',[],['CHGCOMM']);"
+           "bindIf('shunttype',[],['SHUNTCOMM']);";
+#else
+    return "";
+#endif
+  }
+
+  if (var == "HWCFGBTN") {
+#ifdef HW_UNIFIED_S3
+    return "<button onclick=\"window.location.href='/hardware'\">Hardware configuration</button>";
+#else
+    return "";
+#endif
+  }
+
+  if (var == "HWCFGNOTICE") {
+#ifdef HW_UNIFIED_S3
+    if (!board_config.valid) {
+      return "<div>"
+             "<p>No hardware configuration is loaded, only the network and web interface settings are shown. "
+             "<a href=\"/hardware\" style=\"color:#8ab4f8\">Upload a board configuration</a> to unlock the rest.</p>"
+             "</div>";
+    }
+#endif
+    return "";
+  }
+
   if (var == "BTRCAPCSS") {
     return capability_css("if-dblcapable", battery_supports_double) +
            capability_css("if-tricapable", battery_supports_triple);
@@ -438,6 +515,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
+#ifdef HW_LILYGO
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -452,6 +530,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
+#endif  // HW_LILYGO
 #ifdef HW_STARK
   if (var == "GPIOOPT5") {
     return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
@@ -1498,6 +1577,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
           var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
           if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
+          %IFACEFILTER%
     </script>
 )rawliteral"
 
@@ -1515,6 +1595,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     .hidden {
       display: none;
     }
+    %HWCFGCSS%
     .active {
       color: white;
     }
@@ -1780,7 +1861,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define SETTINGS_HTML_BODY \
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
-  <button onclick="askFactoryReset()">Factory reset</button>
+  %HWCFGBTN%
+  %HWCFGNOTICE%
 
   <script>
   function validateWebAuthPassword() {
@@ -1954,7 +2036,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Battery config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2105,7 +2187,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
       <h3>Inverter config</h3>
       <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2236,7 +2318,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2285,8 +2367,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
         </div>
 
-        <div class="settings-card">
-        <h3>Hardware config</h3>
+        <div class="settings-card needs-hw">
+        <h3>Hardware settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Equipment stop button: </label><select name='EQSTOP'>
@@ -2380,7 +2462,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2436,7 +2518,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card needs-hw">
         <h3>Debug options</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
@@ -2485,7 +2567,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </form>
     </div>
 
-    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
+    <div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px' class="needs-hw">
 
       <h4>Battery interface: <span id='Battery'>%BATTERYINTF%</span></h4>
 
@@ -2497,7 +2579,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     </div>
 
-    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+    <div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="needs-hw">
 
       <h4 class='%BATTERY_WH_CLASS%' data-h=battwh>Battery capacity: <span id='BATTERY_WH_MAX'>%BATTERY_WH_MAX% Wh </span> <button onclick='editWh()'>Edit</button></h4>
 
@@ -2529,7 +2611,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     <!--if (battery && battery->supports_manual_balancing()) {-->
       
-    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS%">
+    <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%MANUAL_BAL_CLASS% needs-hw">
 
           <h4>Manual LFP balancing: <span id='TSL_BAL_ACT'><span class="%MANUAL_BALANCING_CLASS%">%MANUAL_BALANCING%</span>
           </span> <button onclick='editTeslaBalAct()'>Edit</button></h4>
@@ -2546,7 +2628,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     </div>
 
-     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS% needs-hw">
 
       <h4>
         Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
@@ -2565,6 +2647,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
       </div>
     
   </div>
+
+  <button onclick="askFactoryReset()">Factory reset</button>
 
 )rawliteral"
 

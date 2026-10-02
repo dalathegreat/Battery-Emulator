@@ -1,0 +1,101 @@
+{
+  "$schema": "./board-config-schema-1.json",
+  "config_version": 1,
+  "board": {
+    "name": "Waveshare ESP32-S3-RS485-CAN",
+    "mcu": "esp32s3",
+    "notes": "ESP32-S3R8 module, 16 MB flash. Example config for triple battery setup with GPIO-controlled contactors."
+  },
+  "ports": [
+    {
+      "type": "statusled",
+      "name": "Status LED",
+      "enabled": false,
+      "led_count": 1,
+      "max_brightness": 40,
+      "gpio": { "pin": 2 }
+    },
+    {
+      "type": "longpress_reset",
+      "name": "Start AP/Wipe Net/Reset button",
+      "enabled": true,
+      "gpio": { "pin": 0 }
+    },
+    {
+      "type": "nativecan",
+      "name": "CAN",
+      "enabled": true,
+      "gpio": { "tx": 15, "rx": 16 }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD 1",
+      "enabled": true,
+      "notes": "On the 2.0 mm header. Oscillator left unset so the driver autodetects 20 or 40 MHz.",
+      "interface": 1,
+      "spi_bus": "fspi",
+      "gpio": {
+        "sck": 10,
+        "sdi": 11,
+        "sdo": 12,
+        "cs": 13,
+        "int": 14
+      }
+    },
+    {
+      "type": "mcp2518fd",
+      "name": "CAN FD 2",
+      "enabled": true,
+      "notes": "Shares the SPI bus with CAN FD 1, so it declares only its own chip select and interrupt. GPIO1 and GPIO2 are the SH1.0 connector pins.",
+      "interface": 2,
+      "spi_bus": "fspi",
+      "gpio": {
+        "cs": 1,
+        "int": 2
+      }
+    },
+    {
+      "type": "rs485",
+      "name": "RS485",
+      "enabled": true,
+      "de_active_high": true,
+      "notes": "SP3485 with DE and /RE tied together on GPIO21.",
+      "gpio": { "tx": 17, "rx": 18, "de_re": 21 }
+    },
+    {
+      "type": "contactor_control",
+      "name": "Primary battery contactors",
+      "enabled": true,
+      "gpio": { "positive": 3, "negative": 4, "precharge": 5 }
+    },
+    {
+      "type": "contactor_second_battery",
+      "name": "Second battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 8 }
+    },
+    {
+      "type": "contactor_third_battery",
+      "name": "Third battery contactors",
+      "enabled": true,
+      "gpio": {
+        "pin": 9
+      }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power",
+      "enabled": true,
+      "active_low": false,
+      "always_on": false,
+      "reset_hold": true,
+      "gpio": { "pin": 6 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop",
+      "enabled": true,
+      "gpio": { "pin": 7 }
+    }
+  ]
+}
