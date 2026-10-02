@@ -1,5 +1,6 @@
 #include "comm_contactorcontrol.h"
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/safety/safety.h"
 #include "../../devboard/utils/led_handler.h"
@@ -558,7 +559,8 @@ void handle_BMSpower() {
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_WAITING_FOR_PAUSE) {
       // We've already issued a pause, now we're waiting for that to take effect.
 
-      int16_t battery_current_dA = datalayer.battery.status.current_dA;
+      // Pack 1's through pack_current_dA(): a current sensor fitted in place of its own stands in
+      int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
       int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
       int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
 

@@ -28,6 +28,84 @@ static inline uint32_t power_W_to_current_dA(uint32_t power_W, uint16_t voltage_
 
 void snapshot_bms_limits(DATALAYER_BATTERY_TYPE& pack);
 
+#ifndef SMALL_FLASH_DEVICE
+/**
+ * @brief Whether a current sensor fitted in place of the batteries' own (the QNHCK2-16) has a
+ * reading to stand in with.
+ */
+static inline bool shunt_replaces_battery_current() {
+  return datalayer.shunt.replaces_battery_current && datalayer.shunt.available;
+}
+
+/**
+ * @brief What that sensor measured, in deciAmpere: rounded half away from zero, and held within
+ * int16_t.
+ */
+static inline int16_t shunt_current_dA() {
+  const int32_t mA = datalayer.shunt.measured_amperage_mA;
+  const int32_t dA = (mA >= 0) ? (mA + 50) / 100 : (mA - 50) / 100;
+  return (int16_t)(dA > INT16_MAX ? INT16_MAX : (dA < INT16_MIN ? INT16_MIN : dA));
+}
+
+/**
+ * @brief Whether that sensor stands in for pack 1's current: it has a reading, and pack 1 is the
+ * whole installation.
+ */
+static inline bool shunt_measures_battery1() {
+  return datalayer.system.info.configured_batteries < 2 && shunt_replaces_battery_current();
+}
+#endif  // SMALL_FLASH_DEVICE
+
+/**
+ * @brief A pack's current, as everything but its own driver uses and shows it.
+ *
+ * The datalayer keeps what each battery reports. A current sensor fitted in place of their own
+ * measures the whole installation, so while it has a reading it stands in for pack 1 when pack 1
+ * is the installation. With several packs each keeps its own, since the sensor only measures
+ * their sum: datalayer.aggregate and reported_current_dA take that instead.
+ *
+ * @param[in] status datalayer.battery.status, .battery2.status or .battery3.status
+ * @return The current in deciAmpere, positive while charging
+ */
+#ifndef SMALL_FLASH_DEVICE
+int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status);  // Never inline: see battery_aggregate.cpp
+#else
+static inline int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  return status.current_dA;
+}
+#endif  // SMALL_FLASH_DEVICE
+
+/**
+ * @brief A pack's power, the same way: from the sensor's current where pack_current_dA() takes
+ * that.
+ *
+ * @param[in] status datalayer.battery.status, .battery2.status or .battery3.status
+ * @return The power in Watts, positive while charging
+ */
+#ifndef SMALL_FLASH_DEVICE
+int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status);  // Never inline: see battery_aggregate.cpp
+#else
+static inline int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  return status.active_power_W;
+}
+#endif  // SMALL_FLASH_DEVICE
+
+/**
+ * @brief The current of the whole installation: the sensor's while it has a reading, else the
+ * sum of what the packs report (0 for the ones not used).
+ *
+ * @return The current in deciAmpere, positive while charging
+ */
+static inline int16_t installation_current_dA() {
+#ifndef SMALL_FLASH_DEVICE
+  if (shunt_replaces_battery_current()) {
+    return shunt_current_dA();
+  }
+#endif  // SMALL_FLASH_DEVICE
+  return datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
+         datalayer.battery3.status.current_dA;
+}
+
 /**
  * @brief Scale one pack's SOC and capacity into its own reported_ fields.
  *
