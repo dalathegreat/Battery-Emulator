@@ -815,6 +815,7 @@ TEST_F(UdsCanBatteryTest, ReadDtcParsesSingleFrameResponse) {
   datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
 
   battery->read_DTC();
+  EXPECT_TRUE(datalayer.battery.dtc.dtc_read_in_progress);
   tick(1000);
 
   // 19 02 09 (reportDTCByStatusMask) went out.
@@ -827,11 +828,62 @@ TEST_F(UdsCanBatteryTest, ReadDtcParsesSingleFrameResponse) {
   feed_response({0x59, 0x02, 0xFF, 0xC1, 0x9B, 0x00, 0xFF});
 
   EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_in_progress);
   ASSERT_EQ(datalayer.battery.dtc.dtc_count, 1);
   EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xC19B00u);
   EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0xFF);
   EXPECT_NE(datalayer.battery.dtc.dtc_last_read_millis, 0u);
   EXPECT_FALSE(battery->uds_is_busy());
+}
+
+TEST_F(UdsCanBatteryTest, ReadDtcParsesExactFiskerResponse) {
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+
+  battery->read_DTC();
+  tick(1000);
+  feed_response({0x59, 0x02, 0x7B, 0xC2, 0x55, 0x83, 0x2B});
+
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_in_progress);
+  ASSERT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xC25583u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0x2B);
+}
+
+TEST_F(UdsCanBatteryTest, ReadDtcTimeoutIsReported) {
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+
+  battery->read_DTC();
+  tick(1000);
+  for (unsigned long now = 1100; now <= 7000; now += 100) {
+    tick(now);
+  }
+
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_in_progress);
+  EXPECT_TRUE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_NE(datalayer.battery.dtc.dtc_last_read_millis, 0u);
+}
+
+TEST_F(UdsCanBatteryTest, ReadDtcTakesPriorityAfterCurrentPidTimeout) {
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+  const uint16_t pids[] = {0x2003};
+  battery->set_pid_scan_list(pids, 1);
+
+  tick(1000);
+  ASSERT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x22);
+
+  battery->read_DTC();
+  tick(1100);
+  tick(1200);
+  tick(1300);
+
+  ASSERT_GE(get_transmitted_frames().size(), 2u);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x19);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[2], 0x02);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[3], 0x09);
 }
 
 TEST_F(UdsCanBatteryTest, ReadDtcParsesMultiFrameResponse) {
