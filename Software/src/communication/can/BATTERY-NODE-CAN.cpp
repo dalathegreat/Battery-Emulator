@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
+#include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../communication/Transmitter.h"
 #include "../../datalayer/datalayer.h"
@@ -127,9 +128,13 @@ static bool node_event_active(EVENTS_ENUM_TYPE e) {
   return p != nullptr && (p->state == EVENT_STATE_ACTIVE || p->state == EVENT_STATE_ACTIVE_LATCHED);
 }
 
+/* The node is set up as this unit's inverter, so like every inverter protocol it reports the
+   installation behind it (datalayer.aggregate) rather than pack 1 alone. With a single pack the
+   aggregate is a plain copy of datalayer.battery, so the frames are unchanged. Double/triple
+   battery on a node then reaches the controller as one combined node. */
+
 uint8_t BatteryNodeCan::build_fault_flags() {
   uint8_t flags = 0;
-  const auto& status = datalayer.battery.status;
 
   // BMS fault (set by any ERROR-level event on the node)
   if (datalayer.system.status.system_status == FAULT) {
@@ -143,7 +148,7 @@ uint8_t BatteryNodeCan::build_fault_flags() {
   if (node_event_active(EVENT_CELL_UNDER_VOLTAGE)) {
     flags |= IU_FAULT_CELL_UNDERVOLTAGE;
   }
-  if (status.temperature_max_dC > 550) {  // IU_FAULT_OVERTEMPERATURE is defined as >55°C
+  if (datalayer.aggregate.temperature_max_dC > 550) {  // IU_FAULT_OVERTEMPERATURE is defined as >55°C
     flags |= IU_FAULT_OVERTEMPERATURE;
   }
   // Any other active WARNING (e.g. cell/temp deviation) still needs to surface. If no specific
@@ -152,7 +157,9 @@ uint8_t BatteryNodeCan::build_fault_flags() {
     flags |= IU_FAULT_CELL_UNDERVOLTAGE;  // generic warning placeholder
   }
   // Battery CAN timeout (battery went offline at node)
-  if (status.CAN_battery_still_alive == 0) {
+  if (datalayer.battery.status.CAN_battery_still_alive == 0 ||
+      (battery2 && datalayer.battery2.status.CAN_battery_still_alive == 0) ||
+      (battery3 && datalayer.battery3.status.CAN_battery_still_alive == 0)) {
     flags |= IU_FAULT_BATTERY_TIMEOUT;
   }
   // Contactor engaged confirmation
@@ -164,25 +171,27 @@ uint8_t BatteryNodeCan::build_fault_flags() {
 
 void BatteryNodeCan::send_status_frame() {
   const uint8_t node_id = datalayer.system.status.battery_node_id;
-  const auto& status = datalayer.battery.status;
+  const auto& agg = datalayer.aggregate;
 
   CAN_frame frame = {};
   frame.ID = IU_NODE_STATUS_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 
-  // [0..1] voltage_dV
-  frame.data.u8[0] = (status.voltage_dV >> 8) & 0xFF;
-  frame.data.u8[1] = status.voltage_dV & 0xFF;
+  // [0..1] voltage_dV — pack 1's measured link voltage, NOT agg.voltage_dV: the aggregate swaps in a
+  // 370/330 V placeholder while the pack reads 0, which would fool the controller's voltage match.
+  const uint16_t voltage_dV = datalayer.battery.status.voltage_dV;
+  frame.data.u8[0] = (voltage_dV >> 8) & 0xFF;
+  frame.data.u8[1] = voltage_dV & 0xFF;
   // [2] reported_soc (0.01%) scaled to 0.5% steps on the wire (freed a byte for the CRC)
-  uint16_t soc_wire = status.reported_soc / IU_SOC_WIRE_SCALE;
+  uint16_t soc_wire = agg.reported_soc / IU_SOC_WIRE_SCALE;
   frame.data.u8[2] = (soc_wire > 255u) ? 255u : (uint8_t)soc_wire;
-  // [3..4] current_dA (signed)
-  uint16_t current_raw = (uint16_t)status.current_dA;
+  // [3..4] current_dA (signed), sum of every pack
+  uint16_t current_raw = (uint16_t)agg.current_dA;
   frame.data.u8[3] = (current_raw >> 8) & 0xFF;
   frame.data.u8[4] = current_raw & 0xFF;
   // [5] temp_max in °C (divide dC by 10, clamp to int8)
-  int8_t temp_max = (int8_t)((int16_t)(status.temperature_max_dC / 10));
+  int8_t temp_max = (int8_t)((int16_t)(agg.temperature_max_dC / 10));
   frame.data.u8[5] = (uint8_t)temp_max;
   // [6] flags (bit7 = toggle, alternates each frame so controller can detect stale data)
   static bool _toggle = false;
@@ -196,7 +205,7 @@ void BatteryNodeCan::send_status_frame() {
 
 void BatteryNodeCan::send_power_frame() {
   const uint8_t node_id = datalayer.system.status.battery_node_id;
-  const auto& status = datalayer.battery.status;
+  const auto& agg = datalayer.aggregate;
 
   CAN_frame frame = {};
   frame.ID = IU_NODE_POWER_ID(node_id);
@@ -204,9 +213,8 @@ void BatteryNodeCan::send_power_frame() {
   frame.ext_ID = false;
 
   // Clamp power values to uint16_t range
-  uint16_t max_chg = (status.max_charge_power_W > 65535u) ? 65535u : (uint16_t)status.max_charge_power_W;
-  uint16_t max_dch = (status.max_discharge_power_W > 65535u) ? 65535u : (uint16_t)status.max_discharge_power_W;
-  uint16_t rem_wh = (status.remaining_capacity_Wh > 65535u) ? 65535u : (uint16_t)status.remaining_capacity_Wh;
+  uint16_t max_chg = (agg.max_charge_power_W > 65535u) ? 65535u : (uint16_t)agg.max_charge_power_W;
+  uint16_t max_dch = (agg.max_discharge_power_W > 65535u) ? 65535u : (uint16_t)agg.max_discharge_power_W;
 
   // [0..1] max_charge_W
   frame.data.u8[0] = (max_chg >> 8) & 0xFF;
@@ -214,17 +222,19 @@ void BatteryNodeCan::send_power_frame() {
   // [2..3] max_discharge_W
   frame.data.u8[2] = (max_dch >> 8) & 0xFF;
   frame.data.u8[3] = max_dch & 0xFF;
-  // [4..5] rem_word: bits0..14 = remaining_Wh in 2 Wh steps, bit15 = offline-balancing flag.
+  // [4..5] rem_word: bits0..14 = remaining_Wh in 10 Wh steps, bit15 = offline-balancing flag.
   // (The old dedicated pflags byte was reclaimed for the CRC.) Online balancing (e.g. BMW IX)
   // does NOT set the flag — that node stays in aggregation.
-  uint16_t rem_word = (uint16_t)((rem_wh / IU_REM_WH_WIRE_SCALE) & IU_NODE_REM_VALUE_MASK);
-  if (status.offline_balancing) {
+  const uint32_t rem_wire = agg.remaining_capacity_Wh / IU_REM_WH_WIRE_SCALE;
+  uint16_t rem_word = (rem_wire > IU_NODE_REM_VALUE_MASK) ? IU_NODE_REM_VALUE_MASK : (uint16_t)rem_wire;
+  if (datalayer.battery.status.offline_balancing || (battery2 && datalayer.battery2.status.offline_balancing) ||
+      (battery3 && datalayer.battery3.status.offline_balancing)) {
     rem_word |= IU_NODE_REM_BALANCING_BIT;
   }
   frame.data.u8[4] = (rem_word >> 8) & 0xFF;
   frame.data.u8[5] = rem_word & 0xFF;
   // [6] temp_min in °C
-  int8_t temp_min = (int8_t)((int16_t)(status.temperature_min_dC / 10));
+  int8_t temp_min = (int8_t)((int16_t)(agg.temperature_min_dC / 10));
   frame.data.u8[6] = (uint8_t)temp_min;
   // [7] CRC
   iu_crc_stamp(frame.ID, frame.data.u8, frame.DLC);
@@ -234,26 +244,27 @@ void BatteryNodeCan::send_power_frame() {
 
 void BatteryNodeCan::send_info_frame() {
   const uint8_t node_id = datalayer.system.status.battery_node_id;
-  const auto& info = datalayer.battery.info;
+  const auto& agg = datalayer.aggregate;
 
   CAN_frame frame = {};
   frame.ID = IU_NODE_INFO_ID(node_id);
   frame.DLC = 8;
   frame.ext_ID = false;
 
-  uint16_t total_wh = (info.total_capacity_Wh > 65535u) ? 65535u : (uint16_t)info.total_capacity_Wh;
+  const uint32_t cap_wire = agg.total_capacity_Wh / IU_CAP_WH_WIRE_SCALE;
+  uint16_t total_wire = (cap_wire > 65535u) ? 65535u : (uint16_t)cap_wire;
 
-  // [0..1] total_capacity_Wh
-  frame.data.u8[0] = (total_wh >> 8) & 0xFF;
-  frame.data.u8[1] = total_wh & 0xFF;
+  // [0..1] total_capacity_Wh in 10 Wh steps
+  frame.data.u8[0] = (total_wire >> 8) & 0xFF;
+  frame.data.u8[1] = total_wire & 0xFF;
   // [2..3] max_design_voltage_dV
-  frame.data.u8[2] = (info.max_design_voltage_dV >> 8) & 0xFF;
-  frame.data.u8[3] = info.max_design_voltage_dV & 0xFF;
+  frame.data.u8[2] = (agg.max_design_voltage_dV >> 8) & 0xFF;
+  frame.data.u8[3] = agg.max_design_voltage_dV & 0xFF;
   // [4..5] min_design_voltage_dV
-  frame.data.u8[4] = (info.min_design_voltage_dV >> 8) & 0xFF;
-  frame.data.u8[5] = info.min_design_voltage_dV & 0xFF;
+  frame.data.u8[4] = (agg.min_design_voltage_dV >> 8) & 0xFF;
+  frame.data.u8[5] = agg.min_design_voltage_dV & 0xFF;
   // [6] soh_pptt (0.01%) scaled to 0.5% steps on the wire (freed a byte for the CRC)
-  uint16_t soh_wire = datalayer.battery.status.soh_pptt / IU_SOH_WIRE_SCALE;
+  uint16_t soh_wire = agg.soh_pptt / IU_SOH_WIRE_SCALE;
   frame.data.u8[6] = (soh_wire > 255u) ? 255u : (uint8_t)soh_wire;
   // [7] CRC
   iu_crc_stamp(frame.ID, frame.data.u8, frame.DLC);
@@ -269,8 +280,8 @@ void BatteryNodeCan::send_cell_frame() {
   frame.DLC = 5;
   frame.ext_ID = false;
 
-  uint16_t max_mv = datalayer.battery.status.cell_max_voltage_mV;
-  uint16_t min_mv = datalayer.battery.status.cell_min_voltage_mV;
+  uint16_t max_mv = datalayer.aggregate.cell_max_voltage_mV;
+  uint16_t min_mv = datalayer.aggregate.cell_min_voltage_mV;
 
   frame.data.u8[0] = (max_mv >> 8) & 0xFF;
   frame.data.u8[1] = max_mv & 0xFF;
@@ -322,8 +333,9 @@ void BatteryNodeCan::send_ident_frame() {
   uint16_t btype = (uint16_t)user_selected_battery_type;
   frame.data.u8[2] = (btype >> 8) & 0xFF;
   frame.data.u8[3] = btype & 0xFF;
-  // [4..6] reserved (must be 0 — controller validates this)
-  frame.data.u8[4] = 0;
+  // [4] protocol version — the controller ignores an IDENT from a different wire layout
+  frame.data.u8[4] = IU_PROTOCOL_VERSION;
+  // [5..6] reserved (must be 0 — controller validates this)
   frame.data.u8[5] = 0;
   frame.data.u8[6] = 0;
   // [7] CRC

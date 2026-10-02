@@ -20,6 +20,8 @@ A Battery Emulator can be configured as **Controller** or **Battery Node** via t
 
 Up to **24 battery nodes** are supported (Node ID 1–24).
 
+A node reports what an inverter connected to it would see: the combined values of its own packs (`datalayer.aggregate`), not pack 1 alone. So a node with **double battery** enabled appears on the controller as one node with the summed capacity/current, the lowest SOC/limits and the widest cell/temperature extremes. The link voltage is pack 1's measured voltage. Capacity travels in 10 Wh steps, so a node can report up to 327 kWh remaining / 655 kWh total.
+
 The whole feature is compiled out on `SMALL_FLASH_DEVICE` builds (LilyGo T-CAN485, ESP32 DevKit), so the controller and every node must run on a larger board (e.g. LilyGo T-2CAN, Stark CMR).
 
 CAN bus, **500 kbps**: the controller runs the inter-unit protocol on its **battery** interface (`BATTCOMM`), the node on its **inverter** interface (`INVCOMM`). There is no separate inter-unit bus.
@@ -95,7 +97,7 @@ Node 1 = 5 ms, Node 2 = 10 ms, ..., Node 24 = 120 ms.
 > byte**, computed by `iu_crc8()` over the preceding bytes seeded with the CAN ID's low byte. The
 > receiver re-checks it and drops any frame that fails. Because STATUS/POWER/INFO were already 8
 > bytes full, a few fields are packed tighter on the wire (SOC/SOH in 0.5% steps, remaining_Wh in
-> 2 Wh steps) to free the CRC byte; the receiver rescales them back to internal units. See
+> 10 Wh steps) to free the CRC byte; the receiver rescales them back to internal units. See
 > [Frame Integrity (CRC)](#8-frame-integrity-crc) below.
 
 ### Heartbeat — `0x300` (1 byte)
@@ -149,7 +151,7 @@ Carries no other payload — used only to signal that the controller is online.
 |-------|------|---------|
 | [0–1] | uint16 | Max charge power in Watts |
 | [2–3] | uint16 | Max discharge power in Watts |
-| [4–5] | uint16 | `rem_word`: bit 15 = offline-balancing flag (`IU_NODE_REM_BALANCING_BIT`), bits 0–14 = remaining capacity ÷ 2 (2 Wh steps, receiver ×2 → Wh) |
+| [4–5] | uint16 | `rem_word`: bit 15 = offline-balancing flag (`IU_NODE_REM_BALANCING_BIT`), bits 0–14 = remaining capacity ÷ 10 (10 Wh steps, receiver ×10 → Wh) |
 | [6] | int8 | Min temperature in °C |
 | [7] | uint8 | CRC |
 
@@ -159,7 +161,7 @@ Carries no other payload — used only to signal that the controller is online.
 
 | Bytes | Type | Content |
 |-------|------|---------|
-| [0–1] | uint16 | Total pack capacity in Wh |
+| [0–1] | uint16 | Total capacity ÷ 10 (10 Wh steps, receiver ×10 → Wh) |
 | [2–3] | uint16 | Max design voltage in dV |
 | [4–5] | uint16 | Min design voltage in dV |
 | [6] | uint8 | SOH ÷ 50 (0.5% steps on the wire; receiver ×50 → 0.01%) |
@@ -194,7 +196,8 @@ Only sent if the node is connected to WiFi.
 |-------|------|---------|
 | [0–1] | uint16 | Firmware version: `(major << 8) | minor` — e.g. 10.6 = `0x0A06` |
 | [2–3] | uint16 | Battery type ID (`BatteryType` enum cast to uint16) |
-| [4–6] | — | Reserved (must be 0) |
+| [4] | uint8 | Protocol version (`IU_PROTOCOL_VERSION`, currently 3). The controller only accepts an IDENT carrying its own version, so a node on an older wire layout never verifies and its contactor stays open. |
+| [5–6] | — | Reserved (must be 0) |
 | [7] | uint8 | CRC |
 
 ---
@@ -324,9 +327,9 @@ The receiver re-checks the CRC **before using any field** and drops a frame that
 
 CRC mismatches are counted and logged on each side.
 
-Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few fields are packed tighter on the wire to free the CRC byte — SOC and SOH travel in 0.5% steps (1 byte), `remaining_Wh` in 2 Wh steps (15 bits, with the offline-balancing flag in bit 15). The receiver rescales these back to the internal 0.01%/Wh units, so aggregation and the web UI are unchanged.
+Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few fields are packed tighter on the wire to free the CRC byte — SOC and SOH travel in 0.5% steps (1 byte), `remaining_Wh` in 10 Wh steps (15 bits, with the offline-balancing flag in bit 15). The receiver rescales these back to the internal 0.01%/Wh units, so aggregation and the web UI are unchanged.
 
-> **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline. Flash the controller and all nodes together.
+> **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2; v3 moved capacity to 10 Wh steps and puts the protocol version in IDENT byte [4]. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline, and a v2 node's IDENT is rejected by a v3 controller (and vice versa), so it is never verified and its contactor is never allowed. Flash the controller and all nodes together.
 
 This complements — and does not replace — the toggle-bit stale detection (#3): a CRC-valid frame can still carry frozen data, which only the toggle bit catches.
 

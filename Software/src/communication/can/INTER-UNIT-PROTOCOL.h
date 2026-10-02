@@ -74,15 +74,18 @@ inline uint16_t iu_fw_version_num() {
 
 /* ---- Protocol version ---- */
 // Bumped when the on-wire layout changes incompatibly. v2 = per-frame application CRC.
+// v3 = remaining/total capacity in 10 Wh steps, so a node with large or double packs is not clipped.
 // Informational/documentation only — all units run the same firmware (hard cutover).
-#define IU_PROTOCOL_VERSION 2u
+#define IU_PROTOCOL_VERSION 3u
 
 /* ---- On-wire field scaling (to free a byte for the CRC on full 8-byte frames) ---- */
 // STATUS soc / INFO soh travel as 1 byte in 0.5% steps; receiver multiplies back to 0.01% units.
 #define IU_SOC_WIRE_SCALE 50u  // wire 0..200  <->  real_soc 0..10000 (0.01%)
 #define IU_SOH_WIRE_SCALE 50u  // wire 0..198  <->  soh_pptt 0..9900 (0.01%)
-// POWER remaining_Wh travels as a 15-bit value in 2 Wh steps (bit15 reused as the balancing flag).
-#define IU_REM_WH_WIRE_SCALE 2u  // wire 0..32767  <->  remaining_Wh 0..65534
+// POWER remaining_Wh travels as a 15-bit value in 10 Wh steps (bit15 reused as the balancing flag).
+#define IU_REM_WH_WIRE_SCALE 10u  // wire 0..32767  <->  remaining_Wh 0..327670
+// INFO total_capacity_Wh travels as a 16-bit value in 10 Wh steps.
+#define IU_CAP_WH_WIRE_SCALE 10u  // wire 0..65535  <->  total_capacity_Wh 0..655350
 
 /* ---- Application CRC ---- */
 // CRC8 (SAE J1850, poly 0x1D) over data[0..len-1], seeded with the CAN ID's low byte so a frame
@@ -186,12 +189,12 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
  *   [0..1] : uint16_t  max_charge_W      — max charge power in Watts
  *   [2..3] : uint16_t  max_discharge_W   — max discharge power in Watts
  *   [4..5] : uint16_t  rem_word          — bit15 = balancing (IU_NODE_REM_BALANCING_BIT),
- *                                          bits0..14 = remaining_Wh / IU_REM_WH_WIRE_SCALE (2 Wh)
+ *                                          bits0..14 = remaining_Wh / IU_REM_WH_WIRE_SCALE (10 Wh)
  *   [6]    : int8_t    temp_min_dC       — min temperature (°C, as int8)
  *   [7]    : uint8_t   CRC
  *
  * INFO message layout — IU_NODE_INFO_ID(n), 8 bytes:
- *   [0..1] : uint16_t  total_capacity_Wh     — total pack capacity in Wh
+ *   [0..1] : uint16_t  capacity_wire         — total_capacity_Wh / IU_CAP_WH_WIRE_SCALE (10 Wh steps)
  *   [2..3] : uint16_t  max_design_voltage_dV — max design voltage in dV
  *   [4..5] : uint16_t  min_design_voltage_dV — min design voltage in dV
  *   [6]    : uint8_t   soh_wire              — soh_pptt / IU_SOH_WIRE_SCALE (0.5% steps; *50 -> 0.01%)
@@ -209,7 +212,8 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
  * IDENT message layout — IU_NODE_IDENT_ID(n), 8 bytes (startup only):
  *   [0..1] : uint16_t  fw_version_num   — (major << 8) | minor, e.g. 10.6 -> 0x0A06
  *   [2..3] : uint16_t  battery_type_id  — BatteryType enum cast to uint16_t
- *   [4..6] : reserved (must be 0)
+ *   [4]    : uint8_t   protocol version — IU_PROTOCOL_VERSION; controller rejects any other value
+ *   [5..6] : reserved (must be 0)
  *   [7]    : uint8_t   CRC
  */
 

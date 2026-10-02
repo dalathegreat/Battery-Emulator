@@ -394,8 +394,8 @@ struct BATTERY_NODE_TYPE {
   int8_t temp_min_dC = 0;              // Min temperature
   uint16_t max_charge_W = 0;           // Max allowed charge power in Watts
   uint16_t max_discharge_W = 0;        // Max allowed discharge power in Watts
-  uint16_t remaining_Wh = 0;           // Remaining capacity in Wh
-  uint16_t total_capacity_Wh = 0;      // Total capacity in Wh
+  uint32_t remaining_Wh = 0;           // Remaining capacity in Wh
+  uint32_t total_capacity_Wh = 0;      // Total capacity in Wh
   uint16_t max_design_voltage_dV = 0;  // Max design voltage in dV
   uint16_t min_design_voltage_dV = 0;  // Min design voltage in dV
   uint16_t soh_pptt = 9900;            // State of health
