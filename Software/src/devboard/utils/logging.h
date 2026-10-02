@@ -43,6 +43,7 @@ class Logging : public Print {
 // Mock implementation for tests
 #include <cstdarg>
 #include <cstdio>
+#include <string>
 
 class Logging {
  public:
@@ -50,9 +51,38 @@ class Logging {
   size_t write(const uint8_t* buffer, size_t size) { return size; }
   size_t write(uint8_t) { return 0; }
 
+  /* Opt-in capture of printf output, so a test can assert on the log lines it expects. Off by
+     default: with it off the format string is not even evaluated, so every other test behaves
+     exactly as before. Bounded, since some tests run long loops. */
+  static bool& capture_enabled() {
+    static bool enabled = false;
+    return enabled;
+  }
+  static std::string& captured() {
+    static std::string text;
+    return text;
+  }
+  static void start_capture() {
+    captured().clear();
+    capture_enabled() = true;
+  }
+  static void stop_capture() { capture_enabled() = false; }
+
   static void printf(const char* fmt, ...) {
-    // Empty implementation - silence unused parameter warnings
-    (void)fmt;
+    if (!capture_enabled()) {
+      (void)fmt;
+      return;
+    }
+    char line[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(line, sizeof(line), fmt, args);
+    va_end(args);
+    std::string& text = captured();
+    text += line;
+    if (text.size() > 64 * 1024) {
+      text.erase(0, text.size() - 32 * 1024);
+    }
   }
 
   // Overloaded print methods for different data types
