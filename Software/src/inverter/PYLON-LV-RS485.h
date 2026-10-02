@@ -10,7 +10,7 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   bool setup() override;
   void receive();
   void update_values();
-  static constexpr const char* Name = "Pylon low voltage via RS485";
+  static constexpr const char* Name = "Pylontech LV battery over RS485";
 
  private:
   /* How many value updates we can go without inverter gets reported as missing
