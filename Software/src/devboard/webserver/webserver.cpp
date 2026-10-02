@@ -560,8 +560,8 @@ void init_webserver() {
             for (int b = a + 1; b < batteryCount; b++) {
               if (isCan(batteryComm[a]) && batteryComm[a] == batteryComm[b]) {
                 request->send(400, "text/plain",
-                              "Two or more batteries are assigned to the same CAN interface. "
-                              "Each battery needs its own CAN interface.");
+                              "Multiple batteries are assigned to the same CAN interface. "
+                              "Each battery needs its own.");
                 return;
               }
             }
