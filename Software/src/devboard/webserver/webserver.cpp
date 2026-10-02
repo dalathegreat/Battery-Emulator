@@ -19,6 +19,7 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
 #include "../network/hostname.h"
@@ -485,6 +486,9 @@ void init_webserver() {
       "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
       "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
       "SYSLOGFAC",  "PERBMSRESETH",
+#ifndef SMALL_FLASH_DEVICE
+      "QNHIPN",     "QNHVO",
+#endif  // SMALL_FLASH_DEVICE
   };
 
   const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
@@ -687,6 +691,17 @@ void init_webserver() {
             settings.saveBool(boolSetting, value);
           }
         }
+
+#ifndef SMALL_FLASH_DEVICE
+        // The QNHCK2-16's automatic calibration is on unless switched off, and only the off
+        // state is stored: switching it back on removes the key rather than storing true.
+        auto qnhAutoCalParam = request->getParam("QNHAUTOCAL", true);
+        if (qnhAutoCalParam != nullptr && qnhAutoCalParam->value() == "on") {
+          settings.removeKey("QNHAUTOCAL");
+        } else {
+          settings.saveBool("QNHAUTOCAL", false);
+        }
+#endif  // SMALL_FLASH_DEVICE
 
         // The double/triple battery checkboxes are hidden in the UI for integrations
         // that don't implement parallel batteries. Make sure a previously stored
@@ -1012,6 +1027,48 @@ void init_webserver() {
     request->send(200, "text/plain", "OK");
   });
 
+#ifndef SMALL_FLASH_DEVICE
+  // Route for the QNHCK2-16 zero current calibration by hand, while the automatic one is off. The
+  // sensor's output averaged over the last second becomes its zero point, in use right away without
+  // a reboot. Stored unless it is the nominal 1.65 V, which is what an unstored zero point falls
+  // back to.
+  def_route_with_auth("/calibrateShuntZero", server, HTTP_POST, [](AsyncWebServerRequest* request) {
+    if (!shunt || user_selected_shunt_type != ShuntType::Qnhck2_16) {
+      request->send(409, "text/plain",
+                    "The QNHCK2-16 is not running yet. Select it as the shunt, save the settings and reboot first.");
+      return;
+    }
+    if (qnhck_auto_calibration) {
+      request->send(409, "text/plain",
+                    "Automatic calibration is running. Untick it, save the settings and reboot to calibrate by hand.");
+      return;
+    }
+    uint16_t reading_mV = 0;
+    if (!shunt->calibrate_zero(reading_mV)) {
+      if (reading_mV == 0) {
+        request->send(409, "text/plain",
+                      "No reading from the sensor. It needs a second after booting, and 3.3 V on its red wire. "
+                      "If this persists, check the Events page.");
+      } else {
+        request->send(422, "text/plain",
+                      "GPIO" + String((int)esp32hal->SHUNT_ADC_PIN()) + " reads " + String(reading_mV / 1000.0f, 3) +
+                          " V, too far from 1.65 V to be the sensor's zero point. Check that its output (yellow) is "
+                          "on that pin and it has 3.3 V, and that no current flows through it.");
+      }
+      return;
+    }
+    BatteryEmulatorSettingsStore settings;
+    if (reading_mV == QNHCK_NOMINAL_ZERO_MV) {
+      settings.removeKey("QNHZERO");
+    } else {
+      settings.saveUInt("QNHZERO", reading_mV);
+    }
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("QNHCK2-16 zero point calibrated to %u mV\n", (unsigned)reading_mV);
+    request->send(200, "text/plain", qnhck_zero_text(reading_mV));
+  });
+#endif  // SMALL_FLASH_DEVICE
+
   // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab.
   // Runtime values like before, so nothing is stored.
   def_route_with_auth("/updateFakeBattery", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -1183,7 +1240,7 @@ static void fill_card_view(BatteryCardView& v, const DATALAYER_BATTERY_TYPE& pac
     v.max_charge_current_dA = power_W_to_current_dA(v.max_charge_power_W, pack.status.voltage_dV);
     v.max_discharge_current_dA = power_W_to_current_dA(v.max_discharge_power_W, pack.status.voltage_dV);
   }
-  v.active_power_W = pack.status.active_power_W;
+  v.active_power_W = pack_power_W(pack.status);
   v.real_soc = pack.status.real_soc;
   v.reported_soc = pack.status.reported_soc;
   v.soh_pptt = pack.status.soh_pptt;
@@ -1192,7 +1249,7 @@ static void fill_card_view(BatteryCardView& v, const DATALAYER_BATTERY_TYPE& pac
   v.cell_max_voltage_mV = pack.status.cell_max_voltage_mV;
   v.cell_min_voltage_mV = pack.status.cell_min_voltage_mV;
   v.max_cell_voltage_deviation_mV = pack.info.max_cell_voltage_deviation_mV;
-  v.current_dA = pack.status.current_dA;
+  v.current_dA = pack_current_dA(pack.status);
   v.temperature_max_dC = pack.status.temperature_max_dC;
   v.temperature_min_dC = pack.status.temperature_min_dC;
 }
@@ -1552,8 +1609,14 @@ static bool render_live(CheckedHtml& content) {
       }
 
       if (user_selected_shunt_type != ShuntType::None) {
-        content += "<h4 style='color: white;'>Shunt protocol: ";
+        content += "<h4 style='color: white;'>Measurement: ";
         content += datalayer.system.info.shunt_protocol;
+#ifndef SMALL_FLASH_DEVICE
+        if (user_selected_shunt_type == ShuntType::Qnhck2_16) {
+          // Whether its reading is what the inverter gets: running, calibrated and within range
+          content += datalayer.shunt.available ? " <span>✓</span>" : " <span style='color: red;'>✗</span>";
+        }
+#endif  // SMALL_FLASH_DEVICE
         content += "</h4>";
       }
 

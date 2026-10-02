@@ -11,6 +11,7 @@
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
+#include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
 
 #include <map>
@@ -349,6 +350,16 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
         (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
         name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
   }
+
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "QNHIPN") {
+    return options_from_map(settings.getUInt("QNHIPN", QNHCK_DEFAULT_RATED_CURRENT_A), QNHCK_RATED_CURRENTS);
+  }
+
+  if (var == "QNHVO") {
+    return options_from_map(settings.getUInt("QNHVO", QNHCK_DEFAULT_RATED_OUTPUT_MV), QNHCK_RATED_OUTPUTS);
+  }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "EQSTOP") {
     return options_for_enum_with_none(
@@ -1133,6 +1144,18 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "QNHZERO") {
+    // What calibration by hand uses: the stored zero point, or the nominal one. Not the running
+    // value, which the automatic calibration may have measured since.
+    return qnhck_zero_text(settings.getUInt("QNHZERO", QNHCK_NOMINAL_ZERO_MV));
+  }
+
+  if (var == "QNHAUTOCAL") {
+    return settings.getBool("QNHAUTOCAL", true) ? "checked" : "";
+  }
+#endif  // SMALL_FLASH_DEVICE
+
   if (var == "DALYPWRPCT") {
     return String(settings.getUInt("DALYPWRPCT", 50));
   }
@@ -1184,6 +1207,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       return "UNKNOWN";
   }
 }
+
+#ifndef SMALL_FLASH_DEVICE
+String qnhck_zero_text(uint16_t zero_mV) {
+  return String(zero_mV / 1000.0f, 3) + (zero_mV == QNHCK_NOMINAL_ZERO_MV ? " V (default)" : " V (calibrated)");
+}
+#endif  // SMALL_FLASH_DEVICE
 
 #ifdef HW_LILYGO2CAN
 #define GPIOOPT1_SETTING \
@@ -1269,6 +1298,51 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #else
 #define SD_SETTING_HTML ""
 #endif  // SDCARD
+
+#ifndef SMALL_FLASH_DEVICE
+// QNHCK2-16 current sensor: its rows in the Optional components card, their CSS, and the script
+// behind the manual calibration's Start button
+#define QNHCK_SETTINGS_HTML \
+  R"rawliteral(
+        <div class="if-qnhck">
+          <label>Rated current: </label>
+          <select name='QNHIPN'>
+          %QNHIPN%
+          </select>
+
+          <label>Rated output: </label>
+          <select name='QNHVO'>
+          %QNHVO%
+          </select>
+
+          <label>Automatic calibration: </label>
+          <input type='checkbox' name='QNHAUTOCAL' value='on' %QNHAUTOCAL% />
+
+          <div class="if-qnhmanual">
+          <label>Manual calibration: </label>
+          <span class='settings-value' data-h=qnhzero><span id='qnhzero'>%QNHZERO%</span>
+          <button type='button' onclick='calibrateQnhZero()' style='margin:0 0 0 10px;padding:3px 14px'>Start</button></span>
+          </div>
+        </div>)rawliteral"
+#define QNHCK_SETTINGS_STYLE \
+  R"rawliteral(
+    form[data-shunttype="4"] .if-shunt,
+    form[data-shunttype="4"] .if-ctclamp { display: none; }
+    form .if-qnhck { display: none; }
+    form[data-shunttype="4"] .if-qnhck { display: contents; }
+    form .if-qnhmanual { display: none; }
+    form[data-qnhautocal="false"] .if-qnhmanual { display: contents; }
+    )rawliteral"
+#define QNHCK_SETTINGS_SCRIPT \
+  R"rawliteral(
+
+        function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure its zero point now?')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/calibrateShuntZero',true);xhr.send();}})rawliteral"
+#else
+#define QNHCK_SETTINGS_HTML ""
+#define QNHCK_SETTINGS_STYLE ""
+#define QNHCK_SETTINGS_SCRIPT ""
+#endif  // SMALL_FLASH_DEVICE
 
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
@@ -1359,7 +1433,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
         function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
         xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
-
+)rawliteral" QNHCK_SETTINGS_SCRIPT R"rawliteral(
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
     
@@ -1499,7 +1573,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     /* Shunt types the selected battery/inverter can't use.
        Rules are generated at runtime from the shunt capability predicates. */
     %SHUNTCAPCSS%
-    
+    )rawliteral" QNHCK_SETTINGS_STYLE R"rawliteral(
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms,
@@ -2176,12 +2250,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </select>
         </div>
 
-        <label>Shunt: </label><select name='shunttype'>
+        <label>Measurement: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
 
         <div class="if-shunt">
-        <label>Shunt interface: </label><select name='SHUNTCOMM'>
+        <label>Interface: </label><select name='SHUNTCOMM'>
         %SHUNTCOMM%
         </select>
         </div>
@@ -2206,7 +2280,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
           <label>Invert CT current: </label>
           <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
-          </div>
+          </div>)rawliteral" QNHCK_SETTINGS_HTML R"rawliteral(
         </div>
 
         </div>
@@ -2419,7 +2493,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 
       <h4 class="%INVCLASS%">Inverter interface: <span id='Inverter'>%INVINTF%</span></h4>
 
-      <h4 class="%SHUNTCLASS%">Shunt interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
+      <h4 class="%SHUNTCLASS%">Measurement interface: <span id='Shunt'>%SHUNTINTF%</span></h4>
 
     </div>
 
