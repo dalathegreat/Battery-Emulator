@@ -138,6 +138,6 @@ private:
     bool reset();
     bool configure(const MCP2515_Lite_Speed& speed, bool loopback);
     bool setup(const MCP2515_Lite_Speed& speed, bool loopback);
-    void applySpeedConfig(const MCP2515_Lite_Speed& speed);
+    bool applySpeedConfig(const MCP2515_Lite_Speed& speed);
 
 };
