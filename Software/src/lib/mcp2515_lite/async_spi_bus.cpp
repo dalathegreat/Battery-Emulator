@@ -1,4 +1,5 @@
 #include "async_spi_bus.h"
+#include "async_spi_clock.h"
 
 #include "driver/gpio.h"
 #include "esp_cpu.h"
@@ -123,23 +124,9 @@ void AsyncSpiBus::remove(AsyncSpiDevice* dev) {
   hold(false);
 }
 
-// Set the SPI clock for a device, derived from the 80MHz APB clock. We can
-// avoid searching since all clocks we use divide the APB clock exactly.
-// Others round the divisor up, so the clock is never faster than asked.
+// Set the SPI clock for a device, derived from the 80MHz APB clock.
 void AsyncSpiBus::setClock(AsyncSpiDevice* dev, uint32_t clock_hz) {
-  const uint32_t div = (APB_CLK_FREQ + clock_hz - 1) / clock_hz;
-  uint32_t reg;
-  if (div <= 1) {
-    reg = 1u << 31;  // CLK_EQU_SYSCLK: the APB clock itself
-  } else {
-    const uint32_t pre = (div + 63) / 64;
-    // We want n to be as large as possible for the best duty cycle
-    const uint32_t n = (div + pre - 1) / pre;
-    const uint32_t h = n / 2;  // High for half the cycle (rounded down, as per IDF)
-    // CLKDIV_PRE from bit 18, CLKCNT_N from 12, CLKCNT_H from 6, CLKCNT_L from 0 (= N)
-    reg = (pre - 1) << 18 | (n - 1) << 12 | (h - 1) << 6 | (n - 1);
-  }
-  dev->clock_reg = reg;  // Gets applied from its next transfer
+  dev->clock_reg = asyncSpiClockReg(APB_CLK_FREQ, clock_hz);  // Gets applied from its next transfer
 }
 
 // The bus must be idle when attaching an interrupt to a device.

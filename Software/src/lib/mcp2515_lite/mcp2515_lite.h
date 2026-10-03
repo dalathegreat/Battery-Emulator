@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "async_spi_bus.h"
+#include "mcp2515_lite_util.h"
 
 /* MCP2515_Lite: Minimal interrupt-driven MCP2515 driver.
 
@@ -73,38 +74,7 @@ private:
     volatile bool _rx_overflow = false;
     volatile bool _errors = false;
 
-    // A ring buffer for storing frames (in the chip's format, so they can go
-    // straight to/from SPI). Single producer, single consumer.
-    struct FrameRing {
-        static constexpr uint32_t SIZE = 32;  // Frames (power of two)
-        uint8_t slots[SIZE][14];
-        volatile uint32_t head = 0, tail = 0;  // Free-running
-
-        // Get the next slot to write to, or nullptr if the ring is
-        // full. Call push() after filling it to enqueue.
-        uint8_t* writeSlot() { return head - tail < SIZE ? slots[head % SIZE] : nullptr; }
-        void push() { __atomic_store_n(&head, head + 1, __ATOMIC_RELEASE); }
-
-        // Get the next slot to write to, even if the ring is full (in which
-        // case it reuses the last slot). pushKeepingSpare() won't push the last
-        // slot so the frame effectively gets dropped. Used in the RX interrupt,
-        // which always needs a slot to write the incoming frame.
-        uint8_t* spareSlot() { return slots[head % SIZE]; }
-        bool pushKeepingSpare() {
-            if (head - tail >= SIZE - 1) {
-                return false;
-            }
-            push();
-            return true;
-        }
-
-        // Read the oldest frame in the ring, or nullptr if empty. Call pop()
-        // after processing it to release the slot.
-        uint8_t* readSlot() {
-            return __atomic_load_n(&head, __ATOMIC_ACQUIRE) != tail ? slots[tail % SIZE] : nullptr;
-        }
-        void pop() { __atomic_store_n(&tail, tail + 1, __ATOMIC_RELEASE); }
-    };
+    typedef MCP2515_Lite_FrameRing FrameRing;
     FrameRing _rx, _tx;
     portMUX_TYPE _tx_lock = portMUX_INITIALIZER_UNLOCKED;
 
