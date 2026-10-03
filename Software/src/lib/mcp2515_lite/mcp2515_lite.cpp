@@ -54,36 +54,27 @@ MCP2515_Lite::~MCP2515_Lite() {
     }
 }
 
+// Calculate the CNF1..CNF3 register values (into cnf[0..2]) for a CAN bitrate
+// from oscillator f_osc. Uses the most Tq per bit (16 down to 8) that gives the
+// exact bitrate, with a ~75% sample point. Returns false if none does.
 static bool calculateMCP2515Config(uint32_t f_osc, uint32_t can_rate, uint8_t *cnf) {
-    if (!cnf || can_rate == 0 || f_osc == 0) return false;
+    if (!cnf || can_rate == 0) return false;
 
-    // Calculate for TQ = 16 (will fail for 500kbit@8MHz)
-    uint32_t div16 = 32 * can_rate;
-    uint32_t brp16 = (f_osc + (div16 / 2)) / div16; // Integer rounding
-    if (brp16 < 1) brp16 = 1; else if (brp16 > 64) brp16 = 64;
-    uint32_t rate16 = f_osc / (32 * brp16);
-    uint32_t err16 = (rate16 > can_rate) ? (rate16 - can_rate) : (can_rate - rate16);
-    
-    // Calculate for TQ = 8 (lower resolution)
-    uint32_t div8 = 16 * can_rate;
-    uint32_t brp8 = (f_osc + (div8 / 2)) / div8; // Integer rounding
-    if (brp8 < 1) brp8 = 1; else if (brp8 > 64) brp8 = 64;
-    uint32_t rate8  = f_osc / (16 * brp8);
-    uint32_t err8  = (rate8 > can_rate)  ? (rate8 - can_rate)  : (can_rate - rate8);
-
-    if (err8 < err16) {
-        // TQ=8 has lower error, use that
-        cnf[0] = (uint8_t)(brp8 - 1);
-        cnf[1] = 0x8A; // BTLMODE=1, SAM=0, PHSEG1=1, PRSEG=2
-        cnf[2] = 0x01; // PHSEG2=1
-    } else {
-        // otherwise use TQ=16
-        cnf[0] = (uint8_t)(brp16 - 1);
-        cnf[1] = 0xA5; // BTLMODE=1, SAM=0, PHSEG1=4, PRSEG=5
-        cnf[2] = 0x03; // PHSEG2=3
+    for (uint32_t tq = 16; tq >= 8; tq--) {
+        const uint32_t div = 2 * tq * can_rate;  // Tq = 2 * BRP / f_osc
+        const uint32_t brp = f_osc / div;
+        if (brp < 1 || brp > 64 || brp * div != f_osc) {
+            continue;
+        }
+        const uint32_t phseg2 = tq / 4;
+        const uint32_t phseg1 = (tq - 1 - phseg2) / 2;
+        const uint32_t prseg = tq - 1 - phseg2 - phseg1;
+        cnf[0] = (uint8_t)(brp - 1);                                      // SJW=1
+        cnf[1] = (uint8_t)(0x80 | (phseg1 - 1) << 3 | (prseg - 1));       // BTLMODE=1, SAM=0
+        cnf[2] = (uint8_t)(phseg2 - 1);
+        return true;
     }
-
-    return true;
+    return false;
 }
 
 bool MCP2515_Lite::joinBus() {
@@ -96,8 +87,8 @@ bool MCP2515_Lite::joinBus() {
 }
 
 uint32_t MCP2515_Lite::autodetectOscillatorFrequency() {
-    // 7813 baud at 8MHz is 128us per bit
-    if (!joinBus() || !configure({7813, 8000000}, true)) {
+    // 8000 baud at 8MHz is ~125us per bit. A 16MHz chip will take half the time.
+    if (!joinBus() || !configure({8000, 8000000}, true)) {
         return 0;
     }
 
@@ -206,11 +197,11 @@ bool MCP2515_Lite::setup(const MCP2515_Lite_Speed& speed, bool loopback) {
         // Interrupts for RX0 and TX0 (errors are picked up with them)
         writeRegister(REG_CANINTE, 0x05);
 
-        applySpeedConfig(speed);
+        ok = applySpeedConfig(speed);
         _loopback = loopback;
         _txb0_free = true;
         _paused = false;
-        ok = setMode(runMode());
+        ok = ok && setMode(runMode());
     }
     return ok;
 }
@@ -365,13 +356,16 @@ bool MCP2515_Lite::reset() {
     return true;
 }
 
-void MCP2515_Lite::applySpeedConfig(const MCP2515_Lite_Speed& speed) {
+// Returns false (leaving the speed unchanged) if the bitrate isn't possible
+bool MCP2515_Lite::applySpeedConfig(const MCP2515_Lite_Speed& speed) {
     uint8_t cnf[3];
-    if (calculateMCP2515Config(speed.f_osc, speed.bitrate, cnf)) {
-        writeRegister(REG_CNF1, cnf[0]);
-        writeRegister(REG_CNF2, cnf[1]);
-        writeRegister(REG_CNF3, cnf[2]);
+    if (!calculateMCP2515Config(speed.f_osc, speed.bitrate, cnf)) {
+        return false;
     }
+    writeRegister(REG_CNF1, cnf[0]);
+    writeRegister(REG_CNF2, cnf[1]);
+    writeRegister(REG_CNF3, cnf[2]);
+    return true;
 }
 
 
