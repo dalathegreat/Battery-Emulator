@@ -5,7 +5,7 @@
 #include "esp_timer.h"
 
 #include "../mcp2515_lite/async_spi_bus.h"
-#include "ringbuf.h"
+#include "mcp2518fd_lite_util.h"
 
 /* MCP2518FD_Lite: Minimal interrupt-driven MCP2518FD (CAN FD) driver.
 
@@ -104,42 +104,11 @@ class MCP2518FD_Lite : public AsyncSpiDevice {
   volatile bool _rx_overflow = false;
   volatile bool _errors = false;
 
-  // A frame as stored in the rings, although we only store the actual payload needed.
-  struct RingRecord {
-    uint32_t id;
-    uint8_t len;    // Payload bytes (0-64)
-    uint8_t flags;  // RECORD_EXT, RECORD_FD
-    uint8_t reserved[2];
-    uint8_t payload[64];
-  };
-  static constexpr uint8_t RECORD_EXT = 0x01;
-  static constexpr uint8_t RECORD_FD = 0x02;
-  static constexpr size_t RECORD_HEADER_LEN = 8;
-
-  // Single producer, single consumer. Always inlined, so step()'s uses stay in
-  // IRAM with it.
+  using RingRecord = MCP2518FD_Lite_RingRecord;
+  static constexpr uint8_t RECORD_EXT = RingRecord::EXT;
+  static constexpr uint8_t RECORD_FD = RingRecord::FD;
   template <size_t Size>
-  struct RecordRing {
-    struct ringbuf rb;
-    alignas(uint32_t) uint8_t storage[Size];
-    RecordRing() { ringbuf_init(&rb, storage, Size); }
-
-    // Add a record to the ring buffer. Returns false if there isn't enough room.
-    __attribute__((always_inline)) bool write(const RingRecord& r) {
-      return ringbuf_write(&rb, reinterpret_cast<const uint8_t*>(&r), RECORD_HEADER_LEN + r.len) != 0;
-    }
-    // Check if the ring buffer is empty.
-    __attribute__((always_inline)) bool empty() { return Size - ringbuf_free_space(&rb) < RECORD_HEADER_LEN; }
-    // Read a record from the ring buffer. Returns false if the buffer is empty.
-    __attribute__((always_inline)) bool read(RingRecord& r) {
-      if (empty()) {
-        return false;
-      }
-      ringbuf_read(&rb, reinterpret_cast<uint8_t*>(&r), RECORD_HEADER_LEN);
-      ringbuf_read(&rb, r.payload, r.len);
-      return true;
-    }
-  };
+  using RecordRing = MCP2518FD_Lite_RecordRing<Size>;
   RecordRing<MCP2518FD_LITE_TX_BUF_SIZE> _tx;
   RecordRing<MCP2518FD_LITE_RX_BUF_SIZE> _rx;
 #if MCP2518FD_LITE_TX_LOCK

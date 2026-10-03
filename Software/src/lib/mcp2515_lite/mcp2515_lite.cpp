@@ -38,12 +38,6 @@
 #define EFLG_EWARN       0x01
 
 
-static inline void packExtendedId(uint8_t* buffer, uint32_t id);
-static inline uint32_t unpackExtendedId(const uint8_t* buffer);
-static inline void packStandardId(uint8_t* buffer, uint32_t id);
-static inline uint32_t unpackStandardId(const uint8_t* buffer);
-
-
 MCP2515_Lite::MCP2515_Lite(spi_host_device_t host, int sck, int mosi, int miso, int cs, int int_pin)
     : AsyncSpiDevice(stepDevice), _host(host), _sck(sck), _mosi(mosi), _miso(miso), _cs(cs), _int_pin(int_pin) {}
 
@@ -52,29 +46,6 @@ MCP2515_Lite::~MCP2515_Lite() {
         bus->detachInt(this);
         bus->remove(this);
     }
-}
-
-// Calculate the CNF1..CNF3 register values (into cnf[0..2]) for a CAN bitrate
-// from oscillator f_osc. Uses the most Tq per bit (16 down to 8) that gives the
-// exact bitrate, with a ~75% sample point. Returns false if none does.
-static bool calculateMCP2515Config(uint32_t f_osc, uint32_t can_rate, uint8_t *cnf) {
-    if (!cnf || can_rate == 0) return false;
-
-    for (uint32_t tq = 16; tq >= 8; tq--) {
-        const uint32_t div = 2 * tq * can_rate;  // Tq = 2 * BRP / f_osc
-        const uint32_t brp = f_osc / div;
-        if (brp < 1 || brp > 64 || brp * div != f_osc) {
-            continue;
-        }
-        const uint32_t phseg2 = tq / 4;
-        const uint32_t phseg1 = (tq - 1 - phseg2) / 2;
-        const uint32_t prseg = tq - 1 - phseg2 - phseg1;
-        cnf[0] = (uint8_t)(brp - 1);                                      // SJW=1
-        cnf[1] = (uint8_t)(0x80 | (phseg1 - 1) << 3 | (prseg - 1));       // BTLMODE=1, SAM=0
-        cnf[2] = (uint8_t)(phseg2 - 1);
-        return true;
-    }
-    return false;
 }
 
 bool MCP2515_Lite::joinBus() {
@@ -473,30 +444,4 @@ bool IRAM_ATTR ASYNC_SPI_BUS_HOT MCP2515_Lite::step() {
             }
         }
     }
-}
-
-// Utility functions
-
-static inline void packExtendedId(uint8_t* buffer, uint32_t id) {
-    buffer[0] = id >> 21;
-    buffer[1] = (((id >> 13) & 0xE0) | 0x08 | ((id >> 16) & 0x03));
-    buffer[2] = id >> 8;
-    buffer[3] = id;
-}
-
-static inline uint32_t unpackExtendedId(const uint8_t* buffer) {
-    return ((uint32_t)buffer[0] << 21) |
-           ((uint32_t)(buffer[1] & 0xE0) << 13) |
-           ((uint32_t)(buffer[1] & 0x03) << 16) |
-           ((uint32_t)buffer[2] << 8) |
-           buffer[3];
-}
-
-static inline void packStandardId(uint8_t* buffer, uint32_t id) {
-    buffer[0] = id >> 3;
-    buffer[1] = (id & 0x07) << 5;
-}
-
-static inline uint32_t unpackStandardId(const uint8_t* buffer) {
-    return ((uint32_t)buffer[0] << 3) | (buffer[1] >> 5);
 }
