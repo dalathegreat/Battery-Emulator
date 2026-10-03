@@ -67,7 +67,7 @@ Because a node is set up as its unit's *inverter*, it reports the same combined 
 | Current | Sum of all packs |
 | Total / remaining capacity | Sum of all packs |
 | SOC | Lowest joined pack, blending towards the fullest one above 90% |
-| SOH | Lowest pack that reports one |
+| SOH | Lowest pack that reports one (standard Battery Emulator behaviour; the controller then averages across nodes, see [Node Data Aggregation](#7-node-data-aggregation-to-inverter)) |
 | Max charge / discharge power | **Lowest** joined pack's limit (same rule the inverter gets without a node) |
 | Cell max/min, temperature max/min | Highest max / lowest min across the packs |
 | Design voltage max / min | Lowest max / highest min across the packs |
@@ -338,6 +338,8 @@ The controller combines data from all online nodes whose contactor is actually *
 | Temperature max/min | Highest max, lowest min across all engaged nodes |
 | Max design voltage | **Lowest** across all engaged nodes (protects against overcharge) |
 | Min design voltage | **Highest** across all engaged nodes (protects against over-discharge) |
+
+**Why SOH is averaged:** SOH is informational only. Nothing in the protection path uses it: power limits, design voltages and SOC already follow the weakest node, so a degraded pack is protected whatever SOH is reported. The inverter sees the whole installation as one battery, and an average describes that battery better than the weakest pack does. Reporting the minimum would make the whole bank look degraded because of one older pack. Each node's own SOH is still shown on the controller's web page.
 
 ---
 
