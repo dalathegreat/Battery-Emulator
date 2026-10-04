@@ -6,8 +6,41 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"  //For debug logging
+#include "BATTERIES.h"
 
 /* Do not change code below unless you are sure what you are doing */
+
+// BMW i3 60Ah cell characterization data (96 cells in series).
+// Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
+static const uint16_t bmwi3_voltage_table_60ah[] = {4107, 4081, 4063, 4050, 4029, 4009, 3994, 3980, 3953,
+                                                    3923, 3901, 3877, 3855, 3835, 3819, 3802, 3785, 3763,
+                                                    3737, 3707, 3684, 3665, 3642, 3603, 3578, 3554, 3542};
+static const uint16_t bmwi3_soc_table_60ah[] = {10000, 9800, 9600, 9400, 9000, 8500, 8000, 7500, 7000,
+                                                6500,  6000, 5500, 5000, 4500, 4000, 3500, 3000, 2500,
+                                                2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
+static constexpr uint8_t BMWI3_TABLE_SIZE_60AH = sizeof(bmwi3_voltage_table_60ah) / sizeof(bmwi3_voltage_table_60ah[0]);
+
+// BMW i3 94Ah cell characterization data (96 cells in series).
+// Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
+static const uint16_t bmwi3_voltage_table_94ah[] = {4145, 4113, 4092, 4073, 4035, 3990, 3946, 3904, 3863,
+                                                    3821, 3776, 3737, 3701, 3669, 3644, 3625, 3608, 3592,
+                                                    3575, 3555, 3541, 3529, 3515, 3491, 3478, 3466, 3460};
+static const uint16_t bmwi3_soc_table_94ah[] = {10000, 9800, 9600, 9400, 9000, 8500, 8000, 7500, 7000,
+                                                6500,  6000, 5500, 5000, 4500, 4000, 3500, 3000, 2500,
+                                                2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
+static constexpr uint8_t BMWI3_TABLE_SIZE_94AH = sizeof(bmwi3_voltage_table_94ah) / sizeof(bmwi3_voltage_table_94ah[0]);
+
+// BMW i3 120Ah cell characterization data (96 cells in series).
+// Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
+static const uint16_t bmwi3_voltage_table_120ah[] = {4200, 4123, 4102, 4081, 4041, 3993, 3946, 3901, 3859,
+                                                     3817, 3775, 3733, 3684, 3649, 3625, 3608, 3593, 3579,
+                                                     3564, 3546, 3530, 3518, 3504, 3476, 3453, 3438, 3434};
+static const uint16_t bmwi3_soc_table_120ah[] = {10000, 9800, 9600, 9400, 9000, 8500, 8000, 7500, 7000,
+                                                 6500,  6000, 5500, 5000, 4500, 4000, 3500, 3000, 2500,
+                                                 2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
+static constexpr uint8_t BMWI3_TABLE_SIZE_120AH =
+    sizeof(bmwi3_voltage_table_120ah) / sizeof(bmwi3_voltage_table_120ah[0]);
 
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
@@ -39,6 +72,90 @@ void BmwI3Battery::end_balancing() {
   cmdState = SOC;
   battery_info_available = false;
   set_event(EVENT_BALANCING_END, 0, battery_index);
+}
+
+void BmwI3Battery::calculate_soc_havrla() {
+  if (!battery_awake || !battery_info_available) {
+    return;
+  }
+
+  // Determine cell voltage to use (mV)
+  uint16_t cell_v_mV;
+  uint16_t cell_min = datalayer_battery->status.cell_min_voltage_mV;
+  uint16_t cell_max = datalayer_battery->status.cell_max_voltage_mV;
+  uint16_t avg_mV = (battery_volts * 10) / NUMBER_OF_CELLS;  // dV/cells → mV per cell
+
+  if (cell_min == 3700 && cell_max == 3700) {
+    // Defaults not yet updated from CAN; fall back to pack average
+    cell_v_mV = avg_mV;
+  } else if (avg_mV > 3800) {
+    cell_v_mV = cell_max;
+  } else {
+    cell_v_mV = cell_min;
+  }
+
+  // Apply current correction: V_oc ≈ V_measured + I * (R_pack + R_offset) / cells
+  // pack_resistance_uV_per_dA is µV/dA per pack, divide by cells to get per-cell
+  // havrla_correction_offset_mOhm × 100 = µV/dA
+  int32_t total_r_uV_per_dA = (int32_t)pack_resistance_uV_per_dA + (int32_t)havrla_correction_offset_mOhm * 100;
+  // correction per cell in mV: (total_r_uV/dA * I_dA) / cells / 1000
+  int32_t correction_mV = (total_r_uV_per_dA * (int32_t)battery_current) / (int32_t)NUMBER_OF_CELLS / 1000;
+  int32_t corrected_v = (int32_t)cell_v_mV + correction_mV;
+
+  // Select lookup table based on detected battery variant.
+  const uint16_t* vtab;
+  const uint16_t* stab;
+  uint8_t tsize;
+  if (detectedBattery == BATTERY_120AH) {
+    vtab = bmwi3_voltage_table_120ah;
+    stab = bmwi3_soc_table_120ah;
+    tsize = BMWI3_TABLE_SIZE_120AH;
+  } else if (detectedBattery == BATTERY_94AH) {
+    vtab = bmwi3_voltage_table_94ah;
+    stab = bmwi3_soc_table_94ah;
+    tsize = BMWI3_TABLE_SIZE_94AH;
+  } else {
+    vtab = bmwi3_voltage_table_60ah;
+    stab = bmwi3_soc_table_60ah;
+    tsize = BMWI3_TABLE_SIZE_60AH;
+  }
+
+  // Clamp to table range
+  if (corrected_v >= (int32_t)vtab[0]) {
+    soc_havrla_pptt = stab[0];
+    return;
+  }
+  if (corrected_v <= (int32_t)vtab[tsize - 1]) {
+    soc_havrla_pptt = stab[tsize - 1];
+    return;
+  }
+
+  // Linear interpolation between table points
+  uint16_t soc_raw = 0;
+  for (uint8_t i = 0; i < tsize - 1; i++) {
+    if (corrected_v <= (int32_t)vtab[i] && corrected_v >= (int32_t)vtab[i + 1]) {
+      int32_t v_hi = vtab[i];
+      int32_t v_lo = vtab[i + 1];
+      int32_t s_hi = stab[i];
+      int32_t s_lo = stab[i + 1];
+      soc_raw = (uint16_t)(s_lo + (corrected_v - v_lo) * (s_hi - s_lo) / (v_hi - v_lo));
+      break;
+    }
+  }
+
+  // EWMA damping (α = 1/20) to smooth sudden jumps
+  // Accumulator is kept scaled by 20 to avoid integer truncation
+  static int32_t soc_ewma = -1;
+  if (soc_ewma < 0) {
+    soc_ewma = (int32_t)soc_raw * 20;
+    DEBUG_PRINTF("[SOC_Havrla] INIT: raw_soc=%u pptt, cell_v=%d mV, corr_v=%ld mV, R=%lu uV/dA\n", soc_raw,
+                 (int16_t)cell_v_mV, corrected_v, pack_resistance_uV_per_dA);
+  } else {
+    soc_ewma += (int32_t)soc_raw - soc_ewma / 20;
+  }
+  soc_havrla_pptt = (uint16_t)(soc_ewma / 20);
+  DEBUG_PRINTF("[SOC_Havrla] UPDATE: raw=%u, final=%u pptt, battery_I=%d dA\n", soc_raw, soc_havrla_pptt,
+               battery_current);
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -74,7 +191,26 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     return;
   }
 
-  datalayer_battery->status.real_soc = (battery_display_SOC * 50);
+  calculate_soc_havrla();
+
+  if (user_selected_bmw_i3_soc_havrla == 2) {
+    // Enable: always use Havrla voltage-based SOC
+    datalayer_battery->status.real_soc = soc_havrla_pptt;
+  } else if (user_selected_bmw_i3_soc_havrla == 1) {
+    // Auto: use Havrla if it differs from BMS SOC by more than 3% (300 pptt)
+    uint16_t bms_soc = battery_display_SOC * 50;
+    int32_t diff = (int32_t)soc_havrla_pptt - (int32_t)bms_soc;
+    if (diff < 0)
+      diff = -diff;
+    if (diff > 300) {
+      datalayer_battery->status.real_soc = soc_havrla_pptt;
+    } else {
+      datalayer_battery->status.real_soc = bms_soc;
+    }
+  } else {
+    // Disable: use BMS SOC
+    datalayer_battery->status.real_soc = (battery_display_SOC * 50);
+  }
 
   datalayer_battery->status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -514,6 +650,13 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     // Watchdog: recover the battery if it refuses to engage the contactor (e.g. precharge error)
     monitor_contactor_engagement(currentMillis);
 
+    // Capture 50ms voltage/current snapshots (used for resistance estimation)
+    if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+      previousMillis50 = currentMillis;
+      last_current_dA_50ms = battery_current;
+      last_volts_dV_50ms = battery_volts;
+    }
+
     // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
@@ -567,6 +710,59 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       transmit_can_frame(&BMW_108);  // Actual Charging Electronics Data
       transmit_can_frame(&BMW_12F);
+
+      // Internal resistance estimation (ΔV/ΔI EWMA)
+      if (battery_awake && battery_info_available && battery_volts >= 2500 && battery_volts <= 4200) {
+        int32_t dI = (int32_t)last_current_dA_50ms - (int32_t)prev_I_100ms_dA;
+
+        if (rstep_cooldown_ticks > 0) {
+          rstep_cooldown_ticks--;
+        } else if (!rstep_armed) {
+          // Detect load step: current changed by at least RSTEP_MIN_DELTA_I_DA
+          if (dI > RSTEP_MIN_DELTA_I_DA || dI < -RSTEP_MIN_DELTA_I_DA) {
+            DEBUG_PRINTF("[Resistance] LOAD STEP DETECTED: dI=%ld dA, V_before=%u dV, I_before=%d dA\n", dI,
+                         prev_V_100ms_dV, prev_I_100ms_dA);
+            rstep_I_before_dA = prev_I_100ms_dA;
+            rstep_V_before_dV = prev_V_100ms_dV;
+            rstep_post_delay_ticks = RSTEP_POST_DELAY_TICKS;
+            rstep_armed = 1;
+          }
+        } else {
+          // Armed: waiting for voltage to settle after step
+          if (rstep_post_delay_ticks > 0) {
+            rstep_post_delay_ticks--;
+          } else {
+            int32_t step_dI = (int32_t)last_current_dA_50ms - (int32_t)rstep_I_before_dA;
+            int32_t step_dV = (int32_t)last_volts_dV_50ms - (int32_t)rstep_V_before_dV;
+            // R = ΔV/ΔI; voltage in dV, current in dA: result in dV/dA = 100 mΩ => convert to µV/dA (*100)
+            // Signed: samples with wrong sign are rejected by the sanity check below
+            if (step_dI != 0 && step_dV != 0) {
+              int32_t r_sample = (step_dV * 100) / step_dI;  // µV/dA
+              // Sanity check: drop out-of-range samples
+              if (r_sample >= R_MIN_UV_PER_DA && r_sample <= R_MAX_UV_PER_DA) {
+                if (!r_est_inited) {
+                  r_est_ewma_uV_per_dA = r_sample * R_EWMA_DEN;
+                  r_est_inited = 1;
+                  DEBUG_PRINTF("[Resistance] INIT EWMA: r_sample=%ld uV/dA (%.1f mΩ)\n", r_sample, r_sample / 100.0f);
+                } else {
+                  // EWMA with accumulator scaled by R_EWMA_DEN to avoid integer truncation
+                  r_est_ewma_uV_per_dA += r_sample - (r_est_ewma_uV_per_dA / R_EWMA_DEN);
+                }
+                pack_resistance_uV_per_dA = (uint32_t)(r_est_ewma_uV_per_dA / R_EWMA_DEN);
+                DEBUG_PRINTF("[Resistance] UPDATE EWMA: new_sample=%.1f, ewma=%.1f mΩ\n", r_sample / 100.0f,
+                             pack_resistance_uV_per_dA / 100.0f);
+              } else {
+                DEBUG_PRINTF("[Resistance] SAMPLE OUT OF RANGE: r_sample=%ld uV/dA (min=%ld, max=%ld)\n", r_sample,
+                             R_MIN_UV_PER_DA, R_MAX_UV_PER_DA);
+              }
+            }
+            rstep_armed = 0;
+            rstep_cooldown_ticks = RSTEP_COOLDOWN_TICKS;
+          }
+        }
+        prev_I_100ms_dA = last_current_dA_50ms;
+        prev_V_100ms_dV = last_volts_dV_50ms;
+      }
 
       // Send 200ms CAN Message
     } else if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {

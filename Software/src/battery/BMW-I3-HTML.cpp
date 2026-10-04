@@ -114,6 +114,8 @@ String BmwI3HtmlRenderer::get_status_html() {
   content +=
       "<h4>Balancing status: " + String(safeArrayAccess(balancingText, 16, batt.ST_balancing_status())) + "</h4>";
   content += "<h4>Charge abort request: " + String(batt.get_abort_charging_string()) + "</h4>";
+  content += "<h4>Internal resistance: " + String(batt.pack_resistance_mOhm()) + " m\u03a9</h4>";
+  content += "<h4>SOC Havrla: " + String(batt.SOC_havrla() / 100.0f, 1) + " %</h4>";
 
   return content;
 }

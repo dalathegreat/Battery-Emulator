@@ -165,6 +165,10 @@ void init_stored_settings() {
   user_selected_use_estimated_SOC = settings.getBool("SOCESTIMATED", false);
   user_selected_use_estimated_charge_limits = settings.getBool("CHGESTIMATED", false);
   user_selected_tesla_digital_HVIL = settings.getBool("DIGITALHVIL", false);
+  user_selected_bmw_i3_soc_havrla = settings.getUInt("BMWI3SOCHAVR", user_selected_bmw_i3_soc_havrla);
+  if (user_selected_bmw_i3_soc_havrla > 2) {
+    user_selected_bmw_i3_soc_havrla = 0;
+  }
   user_selected_tesla_GTW_country = settings.getUInt("GTWCOUNTRY", user_selected_tesla_GTW_country);
   user_selected_tesla_GTW_rightHandDrive = settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive);
   user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);

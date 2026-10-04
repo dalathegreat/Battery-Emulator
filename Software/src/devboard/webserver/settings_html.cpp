@@ -1146,6 +1146,24 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
 
+  if (var == "BMWI3SOCHAVR") {
+    uint8_t val = settings.getUInt("BMWI3SOCHAVR", 0);
+    String sel = "";
+    if (val == 0)
+      sel +=
+          "<option value='0' selected>Disable (use BMS SOC)</option><option value='1'>Auto (use Havrla if &gt;3% "
+          "difference)</option><option value='2'>Enable (always use Havrla)</option>";
+    else if (val == 1)
+      sel +=
+          "<option value='0'>Disable (use BMS SOC)</option><option value='1' selected>Auto (use Havrla if &gt;3% "
+          "difference)</option><option value='2'>Enable (always use Havrla)</option>";
+    else
+      sel +=
+          "<option value='0'>Disable (use BMS SOC)</option><option value='1'>Auto (use Havrla if &gt;3% "
+          "difference)</option><option value='2' selected>Enable (always use Havrla)</option>";
+    return sel;
+  }
+
   if (var == "GTWRHD") {
     // Boots true when unset, so it must also render checked when unset.
     return settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive) ? "checked" : "";
@@ -1702,6 +1720,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
+    form .if-bmw-i3 { display: none; }
+    form[data-battery="2"] .if-bmw-i3 {
+      display: contents;
+    }
+
     form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
@@ -2112,6 +2135,14 @@ String qnhck_zero_text(uint16_t zero_mV) {
           </select>
           <label for='GTWPACK'>Pack type: </label><select name='GTWPACK' id='GTWPACK'>
           %GTWPACK%
+          </select>
+        </div>
+
+        <div class="if-bmw-i3">
+          <label for='BMWI3SOCHAVR'>SOC Havrla: </label>
+          <select name='BMWI3SOCHAVR' id='BMWI3SOCHAVR'
+            title="Voltage-based SOC with internal resistance correction">
+          %BMWI3SOCHAVR%
           </select>
         </div>
 
