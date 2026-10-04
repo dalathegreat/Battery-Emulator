@@ -479,17 +479,20 @@ void NissanLeafBattery::
 //Whether this pack's contactor is known to be open. Only contactor control can tell: without it
 //contactors_engaged never leaves its start-up 0, and learning then would take the load current for
 //an offset. Pack 1's contactors are open until precharge starts (0) and once a fault has latched
-//them open (2). Packs 2 and 3 have one contactor each, only ever closed once pack 1's are.
+//them open (2). Packs 2 and 3 have one contactor each, only ever closed once pack 1's are. They are
+//taken as closed from the first step of pack 1's closing sequence (3) as well, as its contactors can
+//put a spike on long cable runs to them too. One that is left open learns again once it has completed.
 bool NissanLeafBattery::contactor_open() {
+  const uint8_t state = datalayer.system.status.contactors_engaged;
   switch (battery_index) {
-    case 1: {
-      const uint8_t state = datalayer.system.status.contactors_engaged;
+    case 1:
       return contactor_control_enabled && (state == 0 || state == 2);
-    }
     case 2:
-      return contactor_control_enabled_double_battery && !datalayer.system.status.contactors_battery2_engaged;
+      return contactor_control_enabled_double_battery && !datalayer.system.status.contactors_battery2_engaged &&
+             state != 3;
     case 3:
-      return contactor_control_enabled_triple_battery && !datalayer.system.status.contactors_battery3_engaged;
+      return contactor_control_enabled_triple_battery && !datalayer.system.status.contactors_battery3_engaged &&
+             state != 3;
     default:
       return false;
   }
@@ -508,8 +511,8 @@ void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
   auto_offset_last_sample_ms = now;
 
   if (!contactor_open()) {
-    //The samples still held back came in the last AUTO_OFFSET_HOLD_BACK_MS before it closed, and are
-    //dropped
+    //The samples still held back came in the last AUTO_OFFSET_HOLD_BACK_MS before a contactor closed,
+    //and are dropped
     auto_offset_held_back = 0;
     auto_offset_open = false;
     auto_offset_new_period = true;

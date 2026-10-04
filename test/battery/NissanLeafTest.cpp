@@ -1554,6 +1554,42 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLearnASecondPackFromItsOwnContact
   EXPECT_EQ(datalayer.battery.status.current_dA, -100);
 }
 
+// A second pack stops at the first step of pack 1's closing sequence, whose contactors can put a
+// spike on its cables too, leaving out the 300 ms before it as when its own contactor closes. One
+// that joins right after the sequence keeps what it measured: it is still settling then.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldStopASecondPackAsPackOnesContactorsStartClosing) {
+  battery->battery_index = 2;
+  contactor_control_enabled_double_battery = true;
+  run_seconds(battery, 4, 2);
+  feed_current(battery, 4, 700);
+  feed_current(battery, 40, 300);                  // A spike as pack 1's first contactor closes
+  datalayer.system.status.contactors_engaged = 3;  // Its closing sequence has started
+  feed_current(battery, 40, 300);
+  battery->update_values();
+  run_seconds(battery, 40, 1);  // Pack 1 still closing, this pack's own contactor still open
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 20);  // 68 learning on through it
+
+  datalayer.system.status.contactors_engaged = 1;
+  feed_current(battery, 40, 10);  // This pack's contactor closes on the next 10 ms tick
+  datalayer.system.status.contactors_battery2_engaged = true;
+  run_seconds(battery, 40, 1);
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 20);
+}
+
+// One left open, as one that cannot join the DC link, learns afresh once the sequence has completed.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLetASecondPackLeftOpenLearnAgainAfterTheSequence) {
+  battery->battery_index = 2;
+  contactor_control_enabled_double_battery = true;
+  run_seconds(battery, 4, 2);
+  datalayer.system.status.contactors_engaged = 3;
+  run_seconds(battery, 40, 2);
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 20);  // 110 learning on through it
+
+  datalayer.system.status.contactors_engaged = 1;  // Pack 1 closed, this one left open
+  run_seconds(battery, 6, 2);
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 30);
+}
+
 // The safety layer gets the extremes less the offset too, so it judges the same current that is
 // published.
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldTakeTheOffsetOffTheSafetyExtremesToo) {

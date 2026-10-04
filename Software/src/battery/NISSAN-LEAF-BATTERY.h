@@ -137,7 +137,8 @@ class NissanLeafBattery : public CanBattery {
      Closing a contactor can put a spike on a long cable run even with no load behind it, and when
      the contactor actually moves is not known to the frame. So each sample is held back until
      AUTO_OFFSET_HOLD_BACK_MS of newer frames are in, and those still held back when the contactor
-     closes are dropped. Counted in the LBC's 10 ms frames: a lost one only holds back longer. */
+     closes are dropped. Counted in the LBC's 10 ms frames: a lost one only holds back longer. Packs
+     2 and 3 stop the same way at the first step of pack 1's closing sequence, see contactor_open(). */
   static const uint8_t AUTO_OFFSET_TRIM = 20;
   static const uint8_t AUTO_OFFSET_BUCKETS = 10;
   static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
