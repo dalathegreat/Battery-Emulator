@@ -106,7 +106,7 @@ String options_from_map(int selected, const TMap& value_name_map) {
 // placeholder rather than repeated in the HTML template, so it only occupies flash once.
 static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d))";
 
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
 static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
                                                 {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
 #else
@@ -157,7 +157,7 @@ const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
       return nullptr;
   }
 }
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
 const char* name_for_gpioopt1(GPIOOPT1 option) {
   switch (option) {
     case GPIOOPT1::DEFAULT_OPT:
@@ -432,7 +432,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("INVICNT", 0), contactor_modes);
   }
 
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
   if (var == "GPIOOPT1") {
     return options_for_enum_with_none((GPIOOPT1)settings.getUInt("GPIOOPT1", (int)GPIOOPT1::DEFAULT_OPT),
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
@@ -1119,6 +1119,19 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
   }
 
+  if (var == "VWISOMEAS") {
+    return settings.getBool("VWISOMEAS") ? "checked" : "";
+  }
+
+  if (var == "VWDCDC") {
+    return settings.getBool("VWDCDC") ? "checked" : "";
+  }
+
+  // Stored in mV, entered and shown in volts.
+  if (var == "VWDCDCV") {
+    return String(static_cast<float>(settings.getUInt("VWDCDCV", 13300)) / 1000.0f, 3);
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1214,7 +1227,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 }
 #endif  // SMALL_FLASH_DEVICE
 
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
 #define GPIOOPT1_SETTING \
   R"rawliteral(
     <label for="GPIOOPT1">Configurable port:</label>
@@ -1498,6 +1511,30 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
           var iu=document.getElementById('invutc'),ie=iu?+iu.textContent:0;
           if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
+          /* The HIA4V1 circuit and the VW DC-DC converter both precharge the HV link, so only one of
+             them may be in charge of it. Whichever is ticked greys out the other. A ticked box is never
+             disabled, so a conflict stored by an older firmware can still be resolved by the user, and a
+             disabled box is always unticked - which is what gets submitted for it. */
+          (function() {
+            var dcdc = document.querySelector("input[name='VWDCDC']");
+            var extpre = document.querySelector("input[name='EXTPRECHARGE']");
+            var dcdcv = document.querySelector("input[name='VWDCDCV']");
+            var batt = document.querySelector("select[name='battery']");
+            if (!dcdc || !extpre) { return; }
+            function syncPrecharge() {
+              /* offsetParent is null while the DC-DC option is hidden (non-VW battery selected); it
+                 must not block external precharge then. */
+              var dcdcOn = dcdc.checked && dcdc.offsetParent !== null;
+              extpre.disabled = dcdcOn && !extpre.checked;
+              dcdc.disabled = extpre.checked && !dcdc.checked;
+              /* The 12V setpoint only reaches the converter when there is one. */
+              if (dcdcv) { dcdcv.disabled = !dcdc.checked; }
+            }
+            dcdc.addEventListener('change', syncPrecharge);
+            extpre.addEventListener('change', syncPrecharge);
+            if (batt) { batt.addEventListener('change', syncPrecharge); }
+            syncPrecharge();
+          })();
     </script>
 )rawliteral"
 
@@ -1591,6 +1628,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     form .if-nissan { display: none; }
     form[data-battery="21"] .if-nissan {
+      display: contents;
+    }
+
+    form .if-vw { display: none; }
+    form[data-battery="19"] .if-vw, form[data-battery="55"] .if-vw {
       display: contents;
     }
 
@@ -1984,6 +2026,16 @@ String qnhck_zero_text(uint16_t zero_mV) {
           if (sel) { sel.dataset.initial = sel.value; }
         })();
         </script>
+        <div class="if-vw">
+            <label for='vwisomeas'>Isolation measurement: </label>
+            <input type='checkbox' name='VWISOMEAS' id='vwisomeas' value='on' %VWISOMEAS% />
+
+            <label for='vwdcdc'>DC-DC voltage converter: </label>
+            <input type='checkbox' name='VWDCDC' id='vwdcdc' value='on' %VWDCDC% />
+
+            <label for='vwdcdcv'>DC-DC Low voltage setting (V): </label>
+            <input name='VWDCDCV' id='vwdcdcv' type='number' min='10.6' max='14.5' step='0.025' value='%VWDCDCV%' />
+        </div>
 
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
