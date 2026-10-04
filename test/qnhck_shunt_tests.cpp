@@ -235,9 +235,44 @@ TEST_F(QnhckAutoCalibrationTest, EveryOpeningMeasuresAfresh) {
 TEST_F(QnhckAutoCalibrationTest, ALongOpeningKeepsTheLatestTenSeconds) {
   Qnhck2_16Shunt sensor;
   feed(sensor, 1, 10000, 1600);
-  feed(sensor, 10001, 20000, 1680);
+  // One second more than ten: the newest 300 ms is held back, so the first second of 1680 mV
+  // still closes with the last 300 ms of 1600 mV in it
+  feed(sensor, 10001, 21000, 1680);
 
   EXPECT_EQ(qnhck_zero_mV, 1680);
+}
+
+// Closing a contactor can put a spike on a long cable run even with no load behind it, and the
+// exact moment is not known, so the last 300 ms before the contactors close is left out.
+TEST_F(QnhckAutoCalibrationTest, TheLast300msBeforeTheContactorsCloseAreLeftOut) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  feed(sensor, 2001, 2300, 1700);  // A spike as they close
+  close_contactors();
+  feed(sensor, 2301, 4000, 1765);
+
+  EXPECT_EQ(qnhck_zero_mV, 1640);  // 1649 with those 300 samples in
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 10000);
+}
+
+TEST_F(QnhckAutoCalibrationTest, OnlyTheLast300msAreLeftOut) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  feed(sensor, 2001, 2400, 1700);  // The first 100 more than 300 ms before the contactors close
+  close_contactors();
+  feed(sensor, 2401, 3000, 1765);
+
+  EXPECT_EQ(qnhck_zero_mV, 1643);  // 1700 samples of 1640 mV after settling, and 100 of 1700 mV
+}
+
+TEST_F(QnhckAutoCalibrationTest, AnOpeningNoLongerThanSettlingAndHoldingBackMeasuresNothing) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 600, 1640);  // 300 ms settling, then 300 ms held back when they close
+  close_contactors();
+  feed(sensor, 601, 3000, 1640);
+
+  EXPECT_FALSE(datalayer.shunt.available);
+  EXPECT_EQ(qnhck_zero_mV, QNHCK_NOMINAL_ZERO_MV);
 }
 
 TEST_F(QnhckAutoCalibrationTest, AZeroPointThatCannotBeIsNotTaken) {

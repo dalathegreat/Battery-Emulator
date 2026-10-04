@@ -124,24 +124,33 @@ class NissanLeafBattery : public CanBattery {
 
   /* Automatic current offset correction. With the pack's contactor open no current can flow, so
      whatever 0x1DB reports then is the sensor's offset. The samples from AUTO_OFFSET_SETTLE_MS
-     after the contactor opened until it closes again are gathered in 1 s buckets, filled like the
-     window above and closed by update_values(), and the offset is the mean of the last
-     AUTO_OFFSET_BUCKETS of them: all of a short opening, the latest 10 s of a pack that stays open
-     because it cannot join the DC link. It holds while the contactor is closed, and the next
-     opening measures afresh. When the LBC starts up, at boot or powered back on after a BMS reset,
-     with the contactor open since before, nothing has flowed and only the LBC's start needs to
-     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Each
-     bucket holds what is left of its second once the lowest and highest AUTO_OFFSET_TRIM of a full
-     second are left out: 20 of 100, or a fifth of however many it had. Sums and counts signed, for
-     the reason above. */
+     after the contactor opened until AUTO_OFFSET_HOLD_BACK_MS before it closes again are gathered
+     in 1 s buckets, filled like the window above and closed by update_values(), and the offset is
+     the mean of the last AUTO_OFFSET_BUCKETS of them: all of a short opening, the latest 10 s of a
+     pack that stays open because it cannot join the DC link. It holds while the contactor is
+     closed, and the next opening measures afresh. When the LBC starts up, at boot or powered back
+     on after a BMS reset, with the contactor open since before, nothing has flowed and only the
+     LBC's start needs to settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS
+     power went on. Each bucket holds what is left of its second once the lowest and highest
+     AUTO_OFFSET_TRIM of a full second are left out: 20 of 100, or a fifth of however many it had.
+     Sums and counts signed, for the reason above.
+     Closing a contactor can put a spike on a long cable run even with no load behind it, and when
+     the contactor actually moves is not known to the frame. So each sample is held back until
+     AUTO_OFFSET_HOLD_BACK_MS of newer frames are in, and those still held back when the contactor
+     closes are dropped. Counted in the LBC's 10 ms frames: a lost one only holds back longer. */
   static const uint8_t AUTO_OFFSET_TRIM = 20;
   static const uint8_t AUTO_OFFSET_BUCKETS = 10;
   static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
   static const uint32_t AUTO_OFFSET_POWER_ON_SETTLE_MS = 30;
+  static const uint32_t AUTO_OFFSET_HOLD_BACK_MS = 300;
+  static const uint8_t AUTO_OFFSET_HOLD_BACK = SAMPLES_PER_SECOND * AUTO_OFFSET_HOLD_BACK_MS / 1000;  //Frames
   int32_t auto_offset_bucket_sum_raw[AUTO_OFFSET_BUCKETS] = {};
   int32_t auto_offset_bucket_count[AUTO_OFFSET_BUCKETS] = {};
   uint8_t auto_offset_next_bucket = 0;
-  CurrentWindow auto_offset_window;  //The bucket being filled
+  CurrentWindow auto_offset_window;                               //The bucket being filled
+  int16_t auto_offset_held_back_raw[AUTO_OFFSET_HOLD_BACK] = {};  //The newest samples, a ring
+  uint8_t auto_offset_held_back = 0;                              //How many it holds
+  uint8_t auto_offset_held_back_next = 0;  //Where the next one goes, which is the oldest once it is full
   uint32_t auto_offset_open_since_ms = 0;
   uint32_t auto_offset_settle_ms = AUTO_OFFSET_SETTLE_MS;
   uint32_t auto_offset_last_sample_ms = 0;

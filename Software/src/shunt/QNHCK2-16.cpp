@@ -175,7 +175,9 @@ bool Qnhck2_16Shunt::no_current_can_flow() {
 void Qnhck2_16Shunt::track_zero(uint32_t now, uint32_t sample_mV) {
   if (!no_current_can_flow()) {
     if (auto_zero_open) {
-      // The contactors have just closed, which completes this opening's measurement
+      // The contactors have just closed, which completes this opening's measurement. The samples
+      // still held back came in the last AUTO_ZERO_HOLD_BACK_MS before they closed, and are dropped.
+      auto_zero_held_back = 0;
       close_zero_bucket();
       if (auto_zero_period_result) {
         LOG_SET_NEXT_SEVERITY(5);  // notice
@@ -204,9 +206,19 @@ void Qnhck2_16Shunt::track_zero(uint32_t now, uint32_t sample_mV) {
     auto_zero_next_bucket = 0;
     auto_zero_sum_mV = 0;
     auto_zero_samples = 0;
+    auto_zero_held_back = 0;
+    auto_zero_held_back_next = 0;
   }
-  auto_zero_sum_mV += sample_mV;
-  auto_zero_samples++;
+  // Once the ring is full, its oldest sample has AUTO_ZERO_HOLD_BACK_MS newer ones behind it with
+  // this one, and joins the bucket being filled as this one takes its place
+  if (auto_zero_held_back == AUTO_ZERO_HOLD_BACK_MS) {
+    auto_zero_sum_mV += auto_zero_held_back_mV[auto_zero_held_back_next];
+    auto_zero_samples++;
+  } else {
+    auto_zero_held_back++;
+  }
+  auto_zero_held_back_mV[auto_zero_held_back_next] = (uint16_t)sample_mV;
+  auto_zero_held_back_next = (auto_zero_held_back_next + 1) % AUTO_ZERO_HOLD_BACK_MS;
 }
 
 // Closes the bucket filled since the previous call and works the zero point out afresh

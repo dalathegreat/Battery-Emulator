@@ -508,6 +508,9 @@ void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
   auto_offset_last_sample_ms = now;
 
   if (!contactor_open()) {
+    //The samples still held back came in the last AUTO_OFFSET_HOLD_BACK_MS before it closed, and are
+    //dropped
+    auto_offset_held_back = 0;
     auto_offset_open = false;
     auto_offset_new_period = true;
     return;
@@ -532,8 +535,18 @@ void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
     memset(auto_offset_bucket_count, 0, sizeof(auto_offset_bucket_count));
     auto_offset_next_bucket = 0;
     auto_offset_window.clear();
+    auto_offset_held_back = 0;
+    auto_offset_held_back_next = 0;
   }
-  auto_offset_window.add(sample_raw);
+  //Once the ring is full, its oldest sample has AUTO_OFFSET_HOLD_BACK_MS of newer frames behind it
+  //with this one, and joins the bucket being filled as this one takes its place
+  if (auto_offset_held_back == AUTO_OFFSET_HOLD_BACK) {
+    auto_offset_window.add(auto_offset_held_back_raw[auto_offset_held_back_next]);
+  } else {
+    auto_offset_held_back++;
+  }
+  auto_offset_held_back_raw[auto_offset_held_back_next] = sample_raw;
+  auto_offset_held_back_next = (auto_offset_held_back_next + 1) % AUTO_OFFSET_HOLD_BACK;
 }
 
 //Closes the bucket filled since the previous update_values() and works the offset out afresh

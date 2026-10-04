@@ -102,18 +102,27 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   /* Automatic calibration: 
      While every contactor the emulator drives is open, no current can flow through the clamp, 
      so what it reads then is its zero point. The samples from AUTO_ZERO_SETTLE_MS after the contactors
-     opened until they close again are gathered in 1 s buckets, closed with each window, and the
-     zero point is the mean of the last AUTO_ZERO_BUCKETS of them: all of a short opening, the
-     latest 10 s of one that lasts. It holds while the contactors are closed, and the next opening
-     measures afresh. At boot the contactors are open, so it is known within the first seconds.
-     Until then the reading is not passed on. */
+     opened until AUTO_ZERO_HOLD_BACK_MS before they close again are gathered in 1 s buckets, closed
+     with each window, and the zero point is the mean of the last AUTO_ZERO_BUCKETS of them: all of
+     a short opening, the latest 10 s of one that lasts. It holds while the contactors are closed,
+     and the next opening measures afresh. At boot the contactors are open, so it is known within
+     the first seconds. Until then the reading is not passed on.
+     Closing a contactor can put a spike on a long cable run even with no load behind it, and when
+     the contactor actually moves is not known to the millisecond. So each sample is held back
+     until AUTO_ZERO_HOLD_BACK_MS newer ones are in, and those still held back when the contactors
+     close are dropped. transmit() takes one sample per millisecond at most, so the samples held
+     back always span at least AUTO_ZERO_HOLD_BACK_MS. */
   static const uint8_t AUTO_ZERO_BUCKETS = 10;
   static const uint32_t AUTO_ZERO_SETTLE_MS = 300;
+  static const uint16_t AUTO_ZERO_HOLD_BACK_MS = 300;
   uint32_t auto_zero_bucket_sum_mV[AUTO_ZERO_BUCKETS] = {};
   uint16_t auto_zero_bucket_count[AUTO_ZERO_BUCKETS] = {};
   uint8_t auto_zero_next_bucket = 0;
   uint32_t auto_zero_sum_mV = 0;  // The bucket being filled
   uint16_t auto_zero_samples = 0;
+  uint16_t auto_zero_held_back_mV[AUTO_ZERO_HOLD_BACK_MS] = {};  // The newest samples, a ring
+  uint16_t auto_zero_held_back = 0;                              // How many it holds
+  uint16_t auto_zero_held_back_next = 0;  // Where the next one goes, which is the oldest once it is full
   uint32_t auto_zero_open_since_ms = 0;
   bool auto_zero_open = false;           // Contactors seen open at the previous sample
   bool auto_zero_new_period = true;      // The next settled sample starts a new measurement
