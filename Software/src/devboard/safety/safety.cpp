@@ -216,7 +216,7 @@ void update_remote_limit_expiry(uint32_t currentMillis) {
   }
 }
 
-void update_machineryprotection() {
+void update_machineryprotection(uint32_t currentMillis) {
   //Check if we start to get low on memory
   static uint8_t hysteresisHeapSeconds = 0;
   if (datalayer.system.info.CPU_free_heap < 62000) {
@@ -572,7 +572,7 @@ void update_machineryprotection() {
 
     // If this is the start of the emergency recovery charge period, capture the current time
     if (datalayer.battery_settings.recovery_charge_start_time_ms == 0) {
-      datalayer.battery_settings.recovery_charge_start_time_ms = millis();
+      datalayer.battery_settings.recovery_charge_start_time_ms = currentMillis;
       set_event(EVENT_RECOVERY_START, 0);
     } else {
       clear_event(EVENT_RECOVERY_START);
@@ -601,14 +601,14 @@ void update_machineryprotection() {
   if (datalayer.battery_settings.user_requests_balancing) {
     // If this is the start of the balancing period, capture the current time
     if (datalayer.battery_settings.balancing_start_time_ms == 0) {
-      datalayer.battery_settings.balancing_start_time_ms = millis();
+      datalayer.battery_settings.balancing_start_time_ms = currentMillis;
       set_event(EVENT_BALANCING_START, 0, 1);
     } else {
       clear_event(EVENT_BALANCING_START, 1);
     }
 
     // Check if the elapsed time exceeds the balancing time
-    if (millis() - datalayer.battery_settings.balancing_start_time_ms >=
+    if (currentMillis - datalayer.battery_settings.balancing_start_time_ms >=
         datalayer.battery_settings.balancing_max_time_ms) {
       datalayer.battery_settings.user_requests_balancing = false;
       datalayer.battery_settings.balancing_start_time_ms = 0;  // Reset the start time
