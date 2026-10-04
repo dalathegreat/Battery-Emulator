@@ -5,6 +5,9 @@
 #include <freertos/FreeRTOS.h>
 #include <src/communication/nvm/comm_nvm.h>
 #include "../../battery/BATTERIES.h"
+#ifndef SMALL_FLASH_DEVICE
+#include "../../battery/BMW-I3-BATTERY.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
@@ -269,6 +272,25 @@ static bool tesla_soc_reset_available(Battery* unused) {
   return tesla_software_reset(TeslaReset::SOC, false) > 0;
 }
 
+#ifndef SMALL_FLASH_DEVICE
+static bool supports_bmwi3_soc_havrla(Battery* b) {
+  return b != nullptr && user_selected_battery_type == BatteryType::BmwI3;
+}
+
+static const char* bmwi3_soc_havrla_mode_text(uint8_t mode) {
+  switch (mode) {
+    case 0:
+      return "Disabled";
+    case 1:
+      return "Auto";
+    case 2:
+      return "Enabled";
+    default:
+      return "Unknown";
+  }
+}
+#endif  // SMALL_FLASH_DEVICE
+
 // Emulator-level condition: the heap diagnostics are opt-in from the MQTT settings page.
 static bool heap_metrics_enabled(Battery* b) {
   return mqtt_publish_heap_metrics;
@@ -316,6 +338,11 @@ static const SensorConfig batterySensorConfigTemplate[] = {
     {"leaf_vbat", "VBAT +12 level", "V", "voltage", supports_leaf_metrics},
     {"leaf_capacity_ah", "Actual capacity (Ah)", "Ah", "", supports_leaf_metrics},
     {"leaf_capacity", "Actual capacity", "kWh", "energy_storage", supports_leaf_metrics},
+#ifndef SMALL_FLASH_DEVICE
+    {"bmwi3_pack_resistance_mohm", "Pack Internal Resistance", "mΩ", "", supports_bmwi3_soc_havrla},
+    {"bmwi3_soc_havrla", "SoC Havrla", "%", "battery", supports_bmwi3_soc_havrla},
+    {"bmwi3_soc_havrla_mode", "SoC Havrla Mode", "", "", supports_bmwi3_soc_havrla},
+#endif  // SMALL_FLASH_DEVICE
     {"charge_session", "BYD Charge: Session", "", "", supports_byd_autocal_metrics},
     {"charge_grant", "BYD Charge: Grant From Battery", "", "", supports_byd_autocal_metrics},
     {"charge_bms_mode", "BYD Charge: Battery Mode", "", "", supports_byd_autocal_metrics},
@@ -431,11 +458,18 @@ enum ButtonCommand {
   BTN_SET_LIMITS,
   BTN_ESPNOW_RUN,
   BTN_SET_SCALESOC,
+#ifndef SMALL_FLASH_DEVICE
+  BTN_SET_BMWI3_SOCHAVR,
+#endif  // SMALL_FLASH_DEVICE
   BTN_COUNT
 };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET",   "PAUSE",           "RESUME",          "RESTART",
-                                                 "STOP",       "TESLA_BMS_RESET", "TESLA_SOC_RESET", "SET_LIMITS",
-                                                 "ESPNOW_RUN", "SET_SCALESOC"};
+static const char* button_commands[BTN_COUNT] = {
+    "BMSRESET",          "PAUSE",           "RESUME",     "RESTART",    "STOP",
+    "TESLA_BMS_RESET",   "TESLA_SOC_RESET", "SET_LIMITS", "ESPNOW_RUN", "SET_SCALESOC",
+#ifndef SMALL_FLASH_DEVICE
+    "SET_BMWI3_SOCHAVR",
+#endif  // SMALL_FLASH_DEVICE
+};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -698,6 +732,18 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
       doc["leaf_capacity"] = (capacity_Ah * nominal_V) / 1000.0f;
     }
   }
+#ifndef SMALL_FLASH_DEVICE
+  if (supports_bmwi3_soc_havrla(::battery)) {
+    // A BMW i3 setup makes every pack a BmwI3Battery (there is no triple i3)
+    Battery* bat = (battery_index == 3) ? ::battery3 : (battery_index == 2) ? ::battery2 : ::battery;
+    if (bat != nullptr) {
+      BmwI3Battery* i3 = static_cast<BmwI3Battery*>(bat);
+      doc["bmwi3_pack_resistance_mohm"] = i3->pack_resistance_mOhm();
+      doc["bmwi3_soc_havrla"] = ((float)i3->SOC_havrla()) / 100.0f;
+      doc["bmwi3_soc_havrla_mode"] = bmwi3_soc_havrla_mode_text(user_selected_bmw_i3_soc_havrla);
+    }
+  }
+#endif  // SMALL_FLASH_DEVICE
 }
 
 static std::vector<EventData> order_events;
@@ -713,7 +759,7 @@ static const char* sensor_discovery_icon(const char* entity_id, const char* devi
     if (strcmp(entity_id, "bms_status") == 0) {
       return "mdi:information-box-outline";
     }
-    if (strcmp(entity_id, "insulation_resistance") == 0) {
+    if (strcmp(entity_id, "insulation_resistance") == 0 || strcmp(entity_id, "bmwi3_pack_resistance_mohm") == 0) {
       return "mdi:resistor";
     }
     if (strcmp(entity_id, "state_of_health") == 0 || strcmp(entity_id, "leaf_soh_raw") == 0) {
@@ -815,6 +861,11 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   // state_class assignment above. Mark it as a measurement and display it as a whole
   // number of kOhm.
   if (strcmp(config.entity_id, "insulation_resistance") == 0) {
+    doc["state_class"] = "measurement";
+    doc["suggested_display_precision"] = 0;
+  }
+  // Same for the BMW i3 pack resistance estimate, a whole number of mOhm
+  if (strcmp(config.entity_id, "bmwi3_pack_resistance_mohm") == 0) {
     doc["state_class"] = "measurement";
     doc["suggested_display_precision"] = 0;
   }
@@ -1415,6 +1466,37 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
       }
     }
   }
+
+#ifndef SMALL_FLASH_DEVICE
+  // BMW i3 SOC Havrla mode: "0"/"disable", "1"/"auto" or "2"/"enable". Stored like the
+  // setting on the web page, so it survives a reboot.
+  if (strcmp(topic, button_command_topics[BTN_SET_BMWI3_SOCHAVR].c_str()) == 0) {
+    char* data_str = strndup(data, data_len);
+    String value(data_str);
+    free(data_str);
+    value.trim();
+    value.toLowerCase();
+
+    int mode = -1;
+    if (value == "0" || value == "disable" || value == "disabled") {
+      mode = 0;
+    } else if (value == "1" || value == "auto") {
+      mode = 1;
+    } else if (value == "2" || value == "enable" || value == "enabled") {
+      mode = 2;
+    }
+
+    if (mode < 0) {
+      logging.printf("MQTT: invalid SET_BMWI3_SOCHAVR payload [%.*s], expected 0/disable, 1/auto or 2/enable\n",
+                     data_len, data);
+    } else {
+      user_selected_bmw_i3_soc_havrla = (uint8_t)mode;
+      BatteryEmulatorSettingsStore settings;
+      settings.saveUInt("BMWI3SOCHAVR", user_selected_bmw_i3_soc_havrla);
+      logging.printf("MQTT: BMW i3 SOC Havrla mode set to %s\n", bmwi3_soc_havrla_mode_text(mode));
+    }
+  }
+#endif  // SMALL_FLASH_DEVICE
 
   free(topic);
 }
