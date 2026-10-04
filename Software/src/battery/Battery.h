@@ -117,8 +117,10 @@ class Battery {
   virtual bool supports_toggle_SOC_method() { return false; }
   virtual bool supports_energy_saving_mode_reset() { return false; }
   virtual bool supports_factory_mode_method() { return false; }
+#ifndef SMALL_FLASH_DEVICE
   virtual bool supports_chademo_restart() { return false; }
   virtual bool supports_chademo_stop() { return false; }
+#endif  // SMALL_FLASH_DEVICE
   virtual bool supports_balancing() { return false; }
   virtual bool is_balancing_active() { return false; }
   virtual const char* get_balancing_state_string() { return nullptr; }
@@ -146,8 +148,10 @@ class Battery {
   virtual void toggle_SOC_method() {}
   virtual void reset_energy_saving_mode() {}
   virtual void set_factory_mode() {}
+#ifndef SMALL_FLASH_DEVICE
   virtual void chademo_restart() {}
   virtual void chademo_stop() {}
+#endif  // SMALL_FLASH_DEVICE
   virtual void initiate_balancing() {}
   virtual void end_balancing() {}
   virtual void handle_precharge() {}

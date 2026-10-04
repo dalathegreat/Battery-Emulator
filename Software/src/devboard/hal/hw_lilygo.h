@@ -38,6 +38,7 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
 
+#ifndef SMALL_FLASH_DEVICE
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_12; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_5; }
@@ -49,6 +50,8 @@ class LilyGoHal : public Esp32Hal {
   // 0 A whenever Wi-Fi (STA or AP) is up. GPIO15 is also a strapping pin and is shared with the
   // SD card MOSI, the SSD1306 SDA and the second battery contactor output.
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_15; }  // ADC2_CH3
+
+#endif  // SMALL_FLASH_DEVICE
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
