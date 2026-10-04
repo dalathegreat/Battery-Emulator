@@ -2028,16 +2028,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </script>
         <div class="if-vw">
             <label for='vwisomeas'>Isolation measurement: </label>
-            <input type='checkbox' name='VWISOMEAS' id='vwisomeas' value='on' %VWISOMEAS%
-            title="Periodic BMS measurements of the HV isolation resistance. Some inverters don't like it." />
+            <input type='checkbox' name='VWISOMEAS' id='vwisomeas' value='on' %VWISOMEAS% />
 
             <label for='vwdcdc'>DC-DC voltage converter: </label>
-            <input type='checkbox' name='VWDCDC' id='vwdcdc' value='on' %VWDCDC%
-            title="Enable if a VW DC-DC converter is present on the bus. It then performs the HV precharge and supplies the 12V rail. When disabled, the emulator's own precharge circuit is used instead." />
+            <input type='checkbox' name='VWDCDC' id='vwdcdc' value='on' %VWDCDC% />
 
             <label for='vwdcdcv'>DC-DC Low voltage setting (V): </label>
-            <input name='VWDCDCV' id='vwdcdcv' type='number' min='10.6' max='14.5' step='0.025' value='%VWDCDCV%'
-            title="Set charging voltage for the 12V battery. Range 10.6 - 14.5 V. The value 10.6V puts DC-DC into standby." />
+            <input name='VWDCDCV' id='vwdcdcv' type='number' min='10.6' max='14.5' step='0.025' value='%VWDCDCV%' />
         </div>
 
         <div class="if-daly">
