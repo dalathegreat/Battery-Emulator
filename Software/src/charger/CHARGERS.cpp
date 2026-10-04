@@ -31,6 +31,8 @@ extern const char* name_for_charger_type(ChargerType type) {
       return ChevyVoltCharger::Name;
     case ChargerType::NissanLeaf:
       return NissanLeafCharger::Name;
+    case ChargerType::TeslaModel3YPcs:
+      return "Tesla Model 3/Y PCS charger";
     case ChargerType::None:
     case ChargerType::Highest:
       return "None";
@@ -47,6 +49,10 @@ void setup_charger() {
       break;
     case ChargerType::NissanLeaf:
       charger = new NissanLeafCharger();
+      break;
+    case ChargerType::TeslaModel3YPcs:
+      // The PCS charge profile is integrated into TeslaBattery because it
+      // replaces overlapping battery CAN frames on the same interface.
       break;
     case ChargerType::None:
     case ChargerType::Highest:

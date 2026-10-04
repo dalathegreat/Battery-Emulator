@@ -19,6 +19,16 @@
 #define BUILD_VERSION GIT_ANCESTOR_TAG "dev-" GIT_SHORT_SHA
 #endif
 
+#elif defined(GIT_SHORT_SHA)
+// Forks and shallow source archives may contain valid Git metadata without an
+// ancestor release tag. Preserve the commit identity instead of reporting an
+// unverifiable "unknown" firmware version.
+#if defined(GIT_BRANCH)
+#define BUILD_VERSION GIT_SHORT_SHA " (" GIT_BRANCH ")"
+#else
+#define BUILD_VERSION GIT_SHORT_SHA
+#endif
+
 #else
 #define BUILD_VERSION "unknown"
 #endif

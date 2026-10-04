@@ -1558,7 +1558,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
-    form[data-charger="0"] .if-charger { display: none; }
+    form[data-charger="0"] .if-charger,
+    form[data-charger="3"] .if-charger { display: none; }
     form[data-shunttype="0"] .if-shunt,
     form[data-shunttype="3"] .if-shunt { 
       display: none; 

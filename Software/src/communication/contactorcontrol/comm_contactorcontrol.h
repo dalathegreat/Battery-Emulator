@@ -25,6 +25,17 @@ extern uint16_t pwm_hold_duty;
 // BMS reset. Stays 0 without BMS power control, the LBC then being powered from before boot.
 extern uint32_t bms_power_on_ms;
 
+enum ContactorState {
+  DISCONNECTED,
+  START_PRECHARGE,
+  PRECHARGE,
+  POSITIVE,
+  PRECHARGE_OFF,
+  COMPLETED,
+  SHUTDOWN_REQUESTED
+};
+extern ContactorState contactorStatus;
+
 /**
  * @brief Handle BMS power output
  *

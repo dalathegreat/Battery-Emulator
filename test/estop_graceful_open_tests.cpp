@@ -8,11 +8,6 @@
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
 
-// Mirrors the file-scope contactor FSM in comm_contactorcontrol.cpp so the
-// tests can place it in a known state. Must match the definition there.
-enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
-extern State contactorStatus;
-
 // Regression tests for #1750: equipment stop used to jump COMPLETED ->
 // DISCONNECTED in the same 10 ms tick that zeroed the power limits - faster
 // than any inverter can ramp down, so the contactors opened under load.
