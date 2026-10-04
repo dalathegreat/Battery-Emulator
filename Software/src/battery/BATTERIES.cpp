@@ -13,9 +13,9 @@
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
+#ifndef SMALL_FLASH_DEVICE  // CHAdeMO is left out of the small flash devices
 #include "CHADEMO-BATTERY.h"
-#include "CHADEMO-CT.h"
-#include "CHADEMO-SHUNTS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "CHARGEBYTE-CCS.h"
 #include "CMFA-EV-BATTERY.h"
 #include "CMP-SMART-CAR-BATTERY.h"
@@ -115,8 +115,10 @@ const char* name_for_battery_type(BatteryType type) {
       return BydAttoBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Chademo:
       return ChademoBattery::Name;
+#endif  // SMALL_FLASH_DEVICE
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
@@ -269,8 +271,10 @@ Battery* create_battery(BatteryType type) {
       return new BydAttoBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Chademo:
       return new ChademoBattery();
+#endif  // SMALL_FLASH_DEVICE
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:

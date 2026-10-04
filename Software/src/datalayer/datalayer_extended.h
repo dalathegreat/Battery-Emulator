@@ -268,6 +268,7 @@ struct DATALAYER_INFO_CELLPOWER {
   bool warning_Charger_not_responding;
 };
 
+#ifndef SMALL_FLASH_DEVICE
 struct DATALAYER_INFO_CHADEMO {
   uint8_t CHADEMO_Status;
   uint8_t ControlProtocolNumberEV;
@@ -279,6 +280,7 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryUnderVoltage;
   bool FaultBatteryOverVoltage;
 };
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_INFO_FORD_MACH_E {
   int16_t pid_hvb_temp;
@@ -918,7 +920,9 @@ class DataLayerExtended {
     DATALAYER_INFO_BMWPHEV bmwphev;
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
+#ifndef SMALL_FLASH_DEVICE
     DATALAYER_INFO_CHADEMO chademo;
+#endif  // SMALL_FLASH_DEVICE
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
     struct {
