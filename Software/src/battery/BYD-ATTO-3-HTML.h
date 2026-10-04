@@ -331,12 +331,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += label_td;
       content += "Grant from battery:</td>";
       content += value_td;
-      // Only zero versus non-zero is decoded, so lead with that. The raw value is kept for
-      // diagnostics but means nothing on its own: it ramps and sawtooths without the charger
-      // ever following it.
+      // Only ended (0x00, or 0x01 on the PW4) versus live is decoded, so lead with that. The raw value
+      // is kept for diagnostics but means nothing on its own: it ramps and sawtooths without the
+      // charger ever following it.
       if (byd_datalayer->charge_session_state == 0) {
         content += "<span style='color:#8b949e'>&mdash;</span>";
-      } else if (byd_datalayer->charge_grant > 0) {
+      } else if (byd_datalayer->charge_grant > 0x01) {
         content += "<span style='color:#3fb950'>Granted</span>";
         content +=
             "<span style='font-weight:normal;color:#8b949e'> (" + String(byd_datalayer->charge_grant) + ")</span>";

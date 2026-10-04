@@ -44,6 +44,10 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_7() { return GPIO_NUM_34; }
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_35; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_18; }
+  // CT clamp input ("Custom Clamp" shunt type). GPIO15 is ADC2_CH3: on the classic ESP32, ADC2
+  // cannot be sampled while Wi-Fi is running, so analogReadMilliVolts() fails and the current reads
+  // 0 A whenever Wi-Fi (STA or AP) is up. GPIO15 is also a strapping pin and is shared with the
+  // SD card MOSI, the SSD1306 SDA and the second battery contactor output.
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_15; }  // ADC2_CH3
 
   // Contactor handling

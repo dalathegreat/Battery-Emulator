@@ -29,6 +29,7 @@ class CmfaEvBattery : public UdsCanBattery {
   static constexpr const char* Name = "CMFA platform, 27 kWh battery";
 
   String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "cmfa_dacia_spring_renault_kze_dtc.json"; }
 
  protected:
   // Called by the UDS superclass for each successful PID query response.

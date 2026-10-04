@@ -137,6 +137,10 @@ class BatteryHtmlRenderer {
   // filename:  Single JSON filename under base_url, e.g. "meb_dtc.json"
   //   On a successful GitHub fetch the file picker is hidden automatically.
   //   On failure the file picker is revealed so the user can load a local copy.
+  //   Devices without SMALL_FLASH_DEVICE also carry the files the firmware was built with
+  //   (tools/embed_dtc_json.py) as /dtc/<filename>: with nothing cached that copy is shown at
+  //   once, GitHub's replaces it when it answers, and the file picker only appears when neither
+  //   could be loaded.
   static String get_dtc_json_loader_html(const char* base_url = "", const char* filename = "") {
     CheckedHtml s;
     s.reserve(4096);  // avoid repeated 16-byte realloc steps while building the loader
@@ -163,8 +167,8 @@ class BatteryHtmlRenderer {
     //
     // Identifier map (minified -> readable):
     //   u=url  k=cacheKey  S=statusEl  C=fileContainer  I=fileInput
-    //   A=applyDtcs  P=showFilePicker  F=fetchFromGitHub
-    //   a=arr b=fromCache m=map L=cells n=matched t=td/text e=entry d=desc-html
+    //   A=applyDtcs  P=showFilePicker  F=fetchFromGitHub  B=loadUncached  o=shown
+    //   a=arr b=sourceLabel m=map L=cells n=matched t=td/text e=entry d=desc-html
     //   g=cached f=file R=reader v=ev x=ex
     //
     // ORIGINAL (readable) JAVASCRIPT:
@@ -176,8 +180,9 @@ class BatteryHtmlRenderer {
       var statusEl = document.getElementById('dtcJsonStatus');
       var fileContainer = document.getElementById('dtcJsonFileContainer');
       var fileInput = document.getElementById('dtcJsonFile');
+      var shown = 0;                          // 1: built-in copy shown, 2: GitHub's
 
-      function applyDtcs(arr, fromCache) {
+      function applyDtcs(arr, sourceLabel) {
         var map = {};
         // Key by decimal code and/or DTC string, whichever the entry has.
         arr.forEach(function(e){
@@ -196,15 +201,15 @@ class BatteryHtmlRenderer {
             matched++;
           }
         });
-        var src = fromCache ? ' (cached)' : ' (fetched)';
         statusEl.innerHTML = 'Loaded ' + arr.length + ' entries, ' + matched + '/' + cells.length +
-          ' DTCs matched' + src +
+          ' DTCs matched' + sourceLabel +
           '. <a href=\'#\' id=\'dtcRefresh\' style=\'color:#aaa;font-size:0.85em;\'>Refresh</a>';
         statusEl.style.color = matched > 0 ? '#4CAF50' : '#ff9800';
         document.getElementById('dtcRefresh').addEventListener('click', function(e){
           e.preventDefault();
           try { localStorage.removeItem(cacheKey); } catch(ex) {}
-          fetchFromGitHub();
+          shown = 0;
+          loadUncached();
         });
       }
 
@@ -222,19 +227,36 @@ class BatteryHtmlRenderer {
           return r.text();
         }).then(function(text){
           try { localStorage.setItem(cacheKey, text); } catch(ex) {}
-          applyDtcs(JSON.parse(text), false);
+          shown = 2;
+          applyDtcs(JSON.parse(text), ' (fetched)');
         }).catch(function(err){
-          showFilePicker('GitHub unavailable (' + err.message + ') - load from local file:');
+          if (!shown) showFilePicker('GitHub unavailable (' + err.message + ') - load from local file:');
         });
       }
+
+      // Without SMALL_FLASH_DEVICE: the device's own copy, unless GitHub's is already shown.
+      function loadUncached() {
+        fetch('/dtc/' + filename).then(function(r){
+          if (!r.ok) throw 0;
+          return r.json();
+        }).then(function(arr){
+          if (shown < 2) {
+            shown = 1;
+            fileContainer.style.display = 'none';
+            applyDtcs(arr, ' (built-in)');
+          }
+        }).catch(function(){});
+        fetchFromGitHub();
+      }
+      // With SMALL_FLASH_DEVICE it is only: function loadUncached() { fetchFromGitHub(); }
 
       if (url.length > 0) {
         var cached = null;
         try { cached = localStorage.getItem(cacheKey); } catch(ex) {}
         if (cached) {
-          try { applyDtcs(JSON.parse(cached), true); } catch(ex) { fetchFromGitHub(); }
+          try { applyDtcs(JSON.parse(cached), ' (cached)'); } catch(ex) { loadUncached(); }
         } else {
-          fetchFromGitHub();
+          loadUncached();
         }
       } else {
         fileContainer.style.display = '';
@@ -247,7 +269,7 @@ class BatteryHtmlRenderer {
         statusEl.style.color = '#aaa';
         var reader = new FileReader();
         reader.onload = function(ev){
-          try { applyDtcs(JSON.parse(ev.target.result), false); }
+          try { applyDtcs(JSON.parse(ev.target.result), ' (fetched)'); }
           catch(err) {
             statusEl.textContent = 'Parse error: ' + err.message;
             statusEl.style.color = '#d32f2f';
@@ -269,28 +291,36 @@ class BatteryHtmlRenderer {
     s += "';var k='dtcJson:'+u;"
          "var S=document.getElementById('dtcJsonStatus');"
          "var C=document.getElementById('dtcJsonFileContainer');"
-         "var I=document.getElementById('dtcJsonFile');"
+         "var I=document.getElementById('dtcJsonFile');var o=0;"
          "function A(a,b){"
          "var m={};a.forEach(function(e){if(e.code!=null)m[e.code]=e;if(e.dtc)m[e.dtc]=e;});"
          "var L=document.querySelectorAll('[data-dtc-code]');var n=0;"
          "L.forEach(function(t){var e=m[t.getAttribute('data-dtc-code')];"
          "if(e){var d=e.l_dsc;if(e.s_dsc)d+='<br /><em "
          "style=\\'color:#aaa;font-size:0.85em\\'>'+e.s_dsc+'</em>';t.innerHTML=d;n++;}});"
-         "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+(b?' (cached)':' (fetched)')+"
+         "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+b+"
          "'. <a href=\\'#\\' id=\\'dtcRefresh\\' style=\\'color:#aaa;font-size:0.85em;\\'>Refresh</a>';"
          "S.style.color=n>0?'#4CAF50':'#ff9800';"
          "document.getElementById('dtcRefresh').addEventListener('click',function(e){"
-         "e.preventDefault();try{localStorage.removeItem(k);}catch(x){}F();});}"
+         "e.preventDefault();try{localStorage.removeItem(k);}catch(x){}o=0;B();});}"
          "function P(msg){S.textContent=msg;S.style.color='#ff9800';C.style.display='';}"
          "function F(){S.textContent='Fetching DTC descriptions from GitHub...';S.style.color='#aaa';"
          "fetch(u).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})"
-         ".then(function(t){try{localStorage.setItem(k,t);}catch(x){}A(JSON.parse(t),false);})"
-         ".catch(function(err){P('GitHub unavailable ('+err.message+') - load from local file:');});}"
+         ".then(function(t){try{localStorage.setItem(k,t);}catch(x){}o=2;A(JSON.parse(t),' (fetched)');})"
+         ".catch(function(err){if(!o)P('GitHub unavailable ('+err.message+') - load from local file:');});}"
+         "function B(){";
+#ifndef SMALL_FLASH_DEVICE
+    s += "fetch('/dtc/";
+    s += filename;
+    s += "').then(function(r){if(!r.ok)throw 0;return r.json();})"
+         ".then(function(a){if(o<2){o=1;C.style.display='none';A(a,' (built-in)');}}).catch(function(){});";
+#endif
+    s += "F();}"
          "if(u.length>0){var g=null;try{g=localStorage.getItem(k);}catch(x){}"
-         "if(g){try{A(JSON.parse(g),true);}catch(x){F();}}else{F();}}else{C.style.display='';}"
+         "if(g){try{A(JSON.parse(g),' (cached)');}catch(x){B();}}else{B();}}else{C.style.display='';}"
          "I.addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;"
          "S.textContent='Loading...';S.style.color='#aaa';var R=new FileReader();"
-         "R.onload=function(v){try{A(JSON.parse(v.target.result),false);}"
+         "R.onload=function(v){try{A(JSON.parse(v.target.result),' (fetched)');}"
          "catch(err){S.textContent='Parse error: '+err.message;S.style.color='#d32f2f';}};"
          "R.onerror=function(){S.textContent='File read error';S.style.color='#d32f2f';};"
          "R.readAsText(f);});})();</script>";

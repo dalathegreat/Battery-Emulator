@@ -1,4 +1,5 @@
 #include "led_handler.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "events.h"
@@ -154,10 +155,11 @@ void LED::classic_run(void) {
 
 void LED::flow_run(void) {
   // Determine how bright the LED should be
-  if (datalayer.battery.status.active_power_W < -50) {
+  const int32_t power_W = pack_power_W(datalayer.battery.status);
+  if (power_W < -50) {
     // Discharging
     brightness = max_brightness - up_down(950);
-  } else if (datalayer.battery.status.active_power_W > 50) {
+  } else if (power_W > 50) {
     // Charging
     brightness = up_down(950);
   } else {  // Idle

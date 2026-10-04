@@ -18,9 +18,9 @@ void ThunderstruckBMS::
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = DCLMax * (packvoltage_dV / 10);
+  datalayer.battery.status.max_discharge_power_W = ((uint32_t)packvoltage_dV * DCLMax) / 10;
 
-  datalayer.battery.status.max_charge_power_W = CCLMax * (packvoltage_dV / 10);
+  datalayer.battery.status.max_charge_power_W = ((uint32_t)packvoltage_dV * CCLMax) / 10;
 
   datalayer.battery.status.cell_max_voltage_mV = highest_cell_voltage / 10;
 

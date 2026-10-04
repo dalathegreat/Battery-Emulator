@@ -14,6 +14,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <string.h>
+#include <atomic>
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
@@ -68,7 +69,10 @@ static constexpr uint16_t calc_cells_per_chunk(size_t payload) {
 }
 static constexpr uint16_t cells_per_chunk = calc_cells_per_chunk(max_payload);
 
-static bool espnow_initialized = false;
+// Written only by the connectivity task, read from others (MQTT publishing).
+static std::atomic<bool> espnow_initialized{false};
+// Pending start/stop request from another task: -1 = none, 0 = stop, 1 = start.
+static std::atomic<int8_t> espnow_run_request{-1};
 static uint16_t emulator_id = 0;
 static uint8_t num_batteries = 1;
 
@@ -467,9 +471,10 @@ static void send_battery_frame(uint8_t index) {
       put_u16_field(ESPNOW_KEY_SOH_PPTT, d->status.soh_pptt);
     }
     put_u16_field(ESPNOW_KEY_VOLTAGE_DV, d->status.voltage_dV);
-    put_i16_field(ESPNOW_KEY_CURRENT_DA, d->status.current_dA);
+    // A current sensor fitted in place of the batteries' own stands in for these (pack_current_dA())
+    put_i16_field(ESPNOW_KEY_CURRENT_DA, pack_current_dA(d->status));
     put_i16_field(ESPNOW_KEY_REPORTED_CURRENT_DA, d->status.reported_current_dA);
-    put_i32_field(ESPNOW_KEY_ACTIVE_POWER_W, d->status.active_power_W);
+    put_i32_field(ESPNOW_KEY_ACTIVE_POWER_W, pack_power_W(d->status));
     put_u32_field(ESPNOW_KEY_REMAINING_CAPACITY_WH, d->status.remaining_capacity_Wh);
     put_u32_field(ESPNOW_KEY_REPORTED_REMAIN_WH, d->status.reported_remaining_capacity_Wh);
     /* A pack's max_charge_power_W is rewritten in place by the safety layer, the SOC taper and
@@ -524,7 +529,7 @@ static void send_battery_frame(uint8_t index) {
     /* Direction is genuinely this pack's: parallel packs at different SOC push current into each
        other. What is limiting the inverter is not - that is one answer for the installation, and
        it rides in ESPNOW_FRAME_AGGREGATE once there is more than one pack. */
-    const ChargingState charging_state = get_charging_state(d->status.current_dA);
+    const ChargingState charging_state = get_charging_state(pack_current_dA(d->status));
     put_enum_field(ESPNOW_KEY_CHARGING_STATE, static_cast<uint8_t>(charging_state));
     if (num_batteries == 1) {
       put_enum_field(ESPNOW_KEY_LIMITING_FACTOR, static_cast<uint8_t>(get_limiting_factor(
@@ -652,6 +657,10 @@ static void send_event_frame(EVENTS_ENUM_TYPE handle, const EVENTS_STRUCT_TYPE* 
 // ---------------------------------------------------------------------------------------
 
 void init_espnow() {
+  if (espnow_initialized) {
+    return;
+  }
+
   // Wi-Fi has to be up before ESP-NOW is initialized.
   if ((WiFi.getMode() != WIFI_AP_STA) && (WiFi.getMode() != WIFI_STA)) {
     logging.println("Wifi should be initialized before using ESPNow");
@@ -678,6 +687,7 @@ void init_espnow() {
     memcpy(peer.peer_addr, broadcast_mac, 6);
     if (esp_now_add_peer(&peer) != ESP_OK) {
       logging.println("Failed to add ESPNow broadcast peer");
+      esp_now_deinit();
       return;
     }
     memcpy(peer_macs[0], broadcast_mac, 6);
@@ -701,10 +711,41 @@ void init_espnow() {
   logging.printf("ESPNow: protocol v%d, max %u byte frames, %u cells per frame\n", ESPNOW_PROTOCOL_VERSION,
                  static_cast<unsigned>(max_payload), static_cast<unsigned>(cells_per_chunk));
 
+  // Start with a fresh cycle, also when ESP-NOW is restarted at runtime.
+  phase = PHASE_IDLE;
+
   espnow_initialized = true;
+  logging.println("ESPNow started");
+}
+
+static void stop_espnow() {
+  if (!espnow_initialized) {
+    return;
+  }
+  espnow_initialized = false;
+  // esp_now_deinit() also removes all registered peers.
+  esp_now_deinit();
+  peer_count = 0;
+  phase = PHASE_IDLE;
+  logging.println("ESPNow stopped");
+}
+
+void request_espnow_running(bool run) {
+  espnow_run_request = run ? 1 : 0;
+}
+
+bool espnow_is_running() {
+  return espnow_initialized;
 }
 
 void update_espnow() {
+  const int8_t request = espnow_run_request.exchange(-1);
+  if (request == 1) {
+    init_espnow();
+  } else if (request == 0) {
+    stop_espnow();
+  }
+
   if (!espnow_initialized || ota_active) {
     return;
   }

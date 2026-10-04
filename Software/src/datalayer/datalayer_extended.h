@@ -4,43 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 
-struct DATALAYER_INFO_BOLTAMPERA {
-  /** uint16_t */
-  /** PID polling parameters */
-  uint16_t battery_5V_ref;
-  uint16_t battery_capacity_my17_18;
-  uint16_t battery_capacity_my19plus;
-  uint16_t battery_SOC_display;
-  uint16_t battery_SOC_raw_highprec;
-  uint16_t battery_max_temperature;
-  uint16_t battery_min_temperature;
-  uint16_t battery_max_cell_voltage;
-  uint16_t battery_min_cell_voltage;
-  uint16_t battery_lowest_cell;
-  uint16_t battery_highest_cell;
-  uint16_t battery_internal_resistance;
-  uint16_t battery_voltage_polled;
-  uint16_t battery_vehicle_isolation;
-  uint16_t battery_isolation_kohm;
-  uint16_t battery_HV_locked;
-  uint16_t battery_crash_event;
-  uint16_t battery_HVIL;
-  uint16_t battery_HVIL_status;
-  uint16_t battery_cell_average_voltage;
-  uint16_t battery_cell_average_voltage_2;
-  uint16_t battery_terminal_voltage;
-  uint16_t battery_ignition_power_mode;
-
-  int16_t battery_module_temp_1;
-  int16_t battery_module_temp_2;
-  int16_t battery_module_temp_3;
-  int16_t battery_module_temp_4;
-  int16_t battery_module_temp_5;
-  int16_t battery_module_temp_6;
-  int16_t battery_current_7E7;
-  int16_t battery_current_7E4;
-};
-
 struct DATALAYER_INFO_BMWPHEV {
   uint64_t min_cell_voltage_data_age;
   uint64_t max_cell_voltage_data_age;
@@ -952,10 +915,6 @@ class DataLayerExtended {
     // All zero-initialized entries should go inside this union.
     // Double-battery repeats should go inside their own structs.
 
-    struct {
-      DATALAYER_INFO_BOLTAMPERA boltampera;
-      DATALAYER_INFO_BOLTAMPERA boltampera_2;
-    };
     DATALAYER_INFO_BMWPHEV bmwphev;
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
@@ -966,7 +925,10 @@ class DataLayerExtended {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
     };
-    DATALAYER_INFO_TESLA tesla;
+    struct {
+      DATALAYER_INFO_TESLA tesla;
+      DATALAYER_INFO_TESLA tesla_2;
+    };
     struct {
       DATALAYER_INFO_NISSAN_LEAF nissanleaf;
       DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;

@@ -1,0 +1,30 @@
+[
+  {
+    "dtc": "P1B0301",
+    "l_dsc": "Unknown, does not affect operation"
+  },
+  {
+    "dtc": "P1B1911",
+    "l_dsc": "x"
+  },
+  {
+    "dtc": "P1B1A11",
+    "l_dsc": "x"
+  },
+  {
+    "dtc": "P1B1E1C",
+    "l_dsc": "Unknown, does not affect operation"
+  },
+  {
+    "dtc": "P1B0016",
+    "l_dsc": "Unknown, does not affect operation"
+  },
+  {
+    "dtc": "U214387",
+    "l_dsc": "CAN communication fault"
+  },
+  {
+    "dtc": "U214381",
+    "l_dsc": "CAN communication fault"
+  }
+]

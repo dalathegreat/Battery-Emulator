@@ -211,22 +211,82 @@ TEST(GrowattLvCellVoltageFallback, Frame0x319AloneSetsCellMaxAndMin) {
   EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3398);
 }
 
-// Once any per-cell frame (0x315-0x318) has populated a cell, cell_max/min
-// must keep being derived from the per-cell data, even if 0x319 disagrees -
-// the fallback is for when there is no per-cell data at all.
-TEST(GrowattLvCellVoltageFallback, PerCellFramesTakePriorityOver0x319) {
-  datalayer = DataLayer();
-  GrowattLvBattery b;
-
-  // 0x319 claims 3500 mV max / 3300 mV min - deliberately different from the
-  // per-cell frames below, to prove it gets ignored once they're present.
-  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0D, 0xAC, 0x0C, 0xE4, 0x01, 0x10, 0x00}));
+// Feeds the same 16 per-cell values for each test below: 3400 mV, except
+// cell 5 at 3420 mV (the highest) and cell 12 at 3390 mV (the lowest).
+static void feed_per_cell_frames(GrowattLvBattery& b) {
   b.handle_incoming_can_frame(Frame(0x315, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));  // cells 1-4: 3400mV
   b.handle_incoming_can_frame(Frame(0x316, {0x0D, 0x5C, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));  // cell 5: 3420mV (max)
   b.handle_incoming_can_frame(Frame(0x317, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x3E}));  // cell 12: 3390mV (min)
   b.handle_incoming_can_frame(Frame(0x318, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));  // cells 13-16: 3400mV
+}
+
+// In a parallel bank, 0x315-0x318 can only carry the master pack's 16 cells,
+// while 0x319 counts every pack's cells. A slave pack's highest and lowest
+// cell must not be hidden by the master's per-cell frames.
+TEST(GrowattLvCellVoltageFallback, BankWide0x319WidensPerCellMaxAndMin) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+
+  // 0x319: bank max 3610 mV, bank min 3300 mV - both outside the master's cells.
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0E, 0x1A, 0x0C, 0xE4, 0x15, 0x20, 0x00}));
+  feed_per_cell_frames(b);
+  b.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3610);
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3300);
+}
+
+// A single pack's 0x319 agrees with (or sits inside) its own per-cell data,
+// so the per-cell max/min stand.
+TEST(GrowattLvCellVoltageFallback, PerCellMaxAndMinStandWhen0x319IsInsideThem) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+
+  // 0x319: 3410 mV max, 3395 mV min - inside the per-cell range.
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0D, 0x52, 0x0D, 0x43, 0x05, 0x0C, 0x00}));
+  feed_per_cell_frames(b);
   b.update_values();
 
   EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3420);
   EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3390);
+}
+
+// An implausible 0x319 max/min (here 0xFFFF / 0) is ignored, and the
+// per-cell data is used on its own.
+TEST(GrowattLvCellVoltageFallback, Implausible0x319IsIgnoredAlongsidePerCellFrames) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  feed_per_cell_frames(b);
+  b.update_values();
+
+  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 3420);
+  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3390);
+}
+
+// number_of_cells was never set, so the web UI cell view, MQTT and ESP-NOW
+// showed no cells even though 0x315-0x318 were arriving.
+TEST(GrowattLvCellCount, PerCellFrameSetsSixteenCells) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+  b.setup();
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 0);
+
+  b.handle_incoming_can_frame(Frame(0x315, {0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48, 0x0D, 0x48}));
+
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 16);
+}
+
+// A pack that sends only 0x319 (max/min, no per-cell frames) has no cell
+// array to show, so the count stays 0.
+TEST(GrowattLvCellCount, Frame0x319AloneLeavesCellCountAtZero) {
+  datalayer = DataLayer();
+  GrowattLvBattery b;
+  b.setup();
+
+  b.handle_incoming_can_frame(Frame(0x319, {0x00, 0x0D, 0x54, 0x0D, 0x46, 0x01, 0x10, 0x00}));
+  b.update_values();
+
+  EXPECT_EQ(datalayer.battery.info.number_of_cells, 0);
 }

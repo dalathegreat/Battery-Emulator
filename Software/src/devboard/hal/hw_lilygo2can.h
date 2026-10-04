@@ -106,6 +106,11 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_5; }  // ADC1_CH4
 
 #ifndef SMALL_FLASH_DEVICE
+  // Analog current sensor output, on IO01 of the configurable QWIIC port (ADC1 channel 0). Shared
+  // with the port's other functions (WUP1, I2C display SDA, equipment stop), so only one of them
+  // can be used at a time.
+  virtual gpio_num_t SHUNT_ADC_PIN() { return GPIO_NUM_1; }
+
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt1 == GPIOOPT1::I2C_DISPLAY_SSD1306) {
