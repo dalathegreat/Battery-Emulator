@@ -42,7 +42,11 @@ class BatteryHtmlRenderer {
     content +=
         "<h4 style='margin:20px auto 0;width:fit-content;color:#27b06c;border-bottom:2px solid #27b06c;"
         "padding-bottom:5px;'>&#128295; Diagnostic Trouble Codes</h4>";
-    if (dtc.dtc_last_read_millis == 0) {
+    if (dtc.dtc_read_in_progress) {
+      content +=
+          "<p style='color:#bbb;'>DTC scan in progress...</p>"
+          "<script>setTimeout(function(){location.reload();},1500);</script>";
+    } else if (dtc.dtc_last_read_millis == 0) {
       content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
     } else if (dtc.dtc_read_failed) {
       content += "<p style='color:#ff8a80;'>&#9888; Last DTC read failed or timed out.</p>";
