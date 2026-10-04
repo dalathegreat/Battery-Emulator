@@ -6,11 +6,14 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
+#ifndef SMALL_FLASH_DEVICE
 #include "../devboard/utils/logging.h"  //For debug logging
 #include "BATTERIES.h"
+#endif  // SMALL_FLASH_DEVICE
 
 /* Do not change code below unless you are sure what you are doing */
 
+#ifndef SMALL_FLASH_DEVICE
 // BMW i3 60Ah cell characterization data (96 cells in series).
 // Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
 static const uint16_t bmwi3_voltage_table_60ah[] = {4107, 4081, 4063, 4050, 4029, 4009, 3994, 3980, 3953,
@@ -41,6 +44,7 @@ static const uint16_t bmwi3_soc_table_120ah[] = {10000, 9800, 9600, 9400, 9000, 
                                                  2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
 static constexpr uint8_t BMWI3_TABLE_SIZE_120AH =
     sizeof(bmwi3_voltage_table_120ah) / sizeof(bmwi3_voltage_table_120ah[0]);
+#endif  // SMALL_FLASH_DEVICE
 
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
@@ -74,6 +78,7 @@ void BmwI3Battery::end_balancing() {
   set_event(EVENT_BALANCING_END, 0, battery_index);
 }
 
+#ifndef SMALL_FLASH_DEVICE
 void BmwI3Battery::calculate_soc_havrla() {
   if (!battery_awake || !battery_info_available) {
     return;
@@ -157,6 +162,7 @@ void BmwI3Battery::calculate_soc_havrla() {
   DEBUG_PRINTF("[SOC_Havrla] UPDATE: raw=%u, final=%u pptt, battery_I=%d dA\n", soc_raw, soc_havrla_pptt,
                battery_current);
 }
+#endif  // SMALL_FLASH_DEVICE
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (contactor_recovery_force_wakeup_low) {
@@ -191,6 +197,7 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     return;
   }
 
+#ifndef SMALL_FLASH_DEVICE
   calculate_soc_havrla();
 
   if (user_selected_bmw_i3_soc_havrla == 2) {
@@ -211,6 +218,9 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     // Disable: use BMS SOC
     datalayer_battery->status.real_soc = (battery_display_SOC * 50);
   }
+#else
+  datalayer_battery->status.real_soc = (battery_display_SOC * 50);
+#endif  // SMALL_FLASH_DEVICE
 
   datalayer_battery->status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -650,12 +660,14 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     // Watchdog: recover the battery if it refuses to engage the contactor (e.g. precharge error)
     monitor_contactor_engagement(currentMillis);
 
+#ifndef SMALL_FLASH_DEVICE
     // Capture 50ms voltage/current snapshots (used for resistance estimation)
     if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
       previousMillis50 = currentMillis;
       last_current_dA_50ms = battery_current;
       last_volts_dV_50ms = battery_volts;
     }
+#endif  // SMALL_FLASH_DEVICE
 
     // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
@@ -711,6 +723,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&BMW_108);  // Actual Charging Electronics Data
       transmit_can_frame(&BMW_12F);
 
+#ifndef SMALL_FLASH_DEVICE
       // Internal resistance estimation (ΔV/ΔI EWMA)
       if (battery_awake && battery_info_available && battery_volts >= 2500 && battery_volts <= 4200) {
         int32_t dI = (int32_t)last_current_dA_50ms - (int32_t)prev_I_100ms_dA;
@@ -763,6 +776,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
         prev_I_100ms_dA = last_current_dA_50ms;
         prev_V_100ms_dV = last_volts_dV_50ms;
       }
+#endif  // SMALL_FLASH_DEVICE
 
       // Send 200ms CAN Message
     } else if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {

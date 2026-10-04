@@ -96,10 +96,12 @@ class BmwI3Battery : public CanBattery {
         return "Signal invalid";
     }
   }
+#ifndef SMALL_FLASH_DEVICE
   // Pack internal resistance estimate in mΩ
   uint32_t pack_resistance_mOhm() { return pack_resistance_uV_per_dA / 100; }
   // Voltage-based SOC estimate in pptt (0-10000)
   uint16_t SOC_havrla() { return soc_havrla_pptt; }
+#endif  // SMALL_FLASH_DEVICE
 
   // Contactor-engagement watchdog state for the web UI
   const char* get_contactor_watchdog_string();
@@ -142,7 +144,6 @@ class BmwI3Battery : public CanBattery {
   gpio_num_t wakeup_pin;
 
   unsigned long previousMillis20 = 0;         // will store last time a 20ms CAN Message was send
-  unsigned long previousMillis50 = 0;         // will store last time a 50ms snapshot was taken
   unsigned long previousMillis100 = 0;        // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;        // will store last time a 200ms CAN Message was send
   unsigned long previousMillis500 = 0;        // will store last time a 500ms CAN Message was send
@@ -155,7 +156,9 @@ class BmwI3Battery : public CanBattery {
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
 
+#ifndef SMALL_FLASH_DEVICE
   // Internal resistance estimation (ΔV/ΔI EWMA)
+  unsigned long previousMillis50 = 0;         // will store last time a 50ms snapshot was taken
   int16_t last_current_dA_50ms = 0;           // current snapshot at previous 50ms tick
   uint16_t last_volts_dV_50ms = 0;            // voltage snapshot at previous 50ms tick
   int16_t rstep_I_before_dA = 0;              // current before detected load step
@@ -181,6 +184,7 @@ class BmwI3Battery : public CanBattery {
   uint16_t soc_havrla_pptt = 0;                // voltage-based SOC in pptt (0-10000)
 
   void calculate_soc_havrla();
+#endif  // SMALL_FLASH_DEVICE
 
   uint8_t increment_alive_counter(uint8_t counter);
 

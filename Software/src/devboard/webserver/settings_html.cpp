@@ -1146,6 +1146,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "BMWI3SOCHAVR") {
     uint8_t val = settings.getUInt("BMWI3SOCHAVR", 0);
     String sel = "";
@@ -1163,6 +1164,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
           "difference)</option><option value='2' selected>Enable (always use Havrla)</option>";
     return sel;
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "GTWRHD") {
     // Boots true when unset, so it must also render checked when unset.
@@ -1488,6 +1490,22 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define QNHCK_SETTINGS_HTML ""
 #define QNHCK_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_SCRIPT ""
+#endif  // SMALL_FLASH_DEVICE
+
+#ifndef SMALL_FLASH_DEVICE
+// BMW i3 SOC Havrla selector, left out on small flash devices together with the calculation
+#define BMWI3_SOCHAVR_SETTING_HTML \
+  R"rawliteral(
+        <div class="if-bmw-i3">
+          <label for='BMWI3SOCHAVR'>SOC Havrla: </label>
+          <select name='BMWI3SOCHAVR' id='BMWI3SOCHAVR'
+            title="Voltage-based SOC with internal resistance correction">
+          %BMWI3SOCHAVR%
+          </select>
+        </div>
+)rawliteral"
+#else
+#define BMWI3_SOCHAVR_SETTING_HTML ""
 #endif  // SMALL_FLASH_DEVICE
 
 #define SYSLOG_SETTING_HTML \
@@ -2138,14 +2156,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           </select>
         </div>
 
-        <div class="if-bmw-i3">
-          <label for='BMWI3SOCHAVR'>SOC Havrla: </label>
-          <select name='BMWI3SOCHAVR' id='BMWI3SOCHAVR'
-            title="Voltage-based SOC with internal resistance correction">
-          %BMWI3SOCHAVR%
-          </select>
-        </div>
-
+)rawliteral" BMWI3_SOCHAVR_SETTING_HTML R"rawliteral(
         <div class="if-estimated">
         <label>Manual charging power, watt: </label>
         <input type='number' name='CHGPOWER' value="%CHGPOWER%" 
