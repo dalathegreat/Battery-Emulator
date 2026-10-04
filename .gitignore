@@ -36,8 +36,14 @@ compile.bat
 # Ignore binary files
 *.bin
 
+# Ignore log files
+*.log
+
+# Ignore secret file
+USER_SECRETS.h
+
 # Ignore generated ESP-IDF component manifest
-Software/idf_component.yml
+idf_component.yml
 
 # Ignore generated version header (produced by tools/identify_build.py)
 Software/src/devboard/utils/version_autogen.h

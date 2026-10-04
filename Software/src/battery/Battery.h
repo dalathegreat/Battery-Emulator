@@ -62,6 +62,7 @@ enum class BatteryType {
   VAGMqbEvo = 55,
   Akasol = 56,
   GrowattLv = 57,
+  InterUnitController = 58,  // This node acts as Controller in a multi-unit setup
   Highest
 };
 

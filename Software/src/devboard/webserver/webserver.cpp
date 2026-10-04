@@ -9,6 +9,9 @@
 #include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
+#ifndef SMALL_FLASH_DEVICE
+#include "../../communication/can/INTER-UNIT-PROTOCOL.h"
+#endif
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -505,7 +508,7 @@ void init_webserver() {
       "INVSUNTYPE", "GPIOOPT4",     "CTVNOM",        "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
       "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
       "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
-      "SYSLOGFAC",  "PERBMSRESETH",
+      "SYSLOGFAC",  "PERBMSRESETH", "SLAVENODEID",
 #ifndef SMALL_FLASH_DEVICE
       "QNHIPN",     "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
@@ -1300,7 +1303,27 @@ static void fill_card_view_aggregate(BatteryCardView& v) {
 
 /* Card background colours, kept as small helpers so the four call sites stay readable */
 static String emulator_status_color() {
-  switch (get_emulator_status()) {
+  EMULATOR_STATUS emu_status = get_emulator_status();
+#ifndef SMALL_FLASH_DEVICE
+  // In controller mode, only show error color if ALL online nodes are faulted
+  if (emu_status == EMULATOR_STATUS::STATUS_ERROR && datalayer.system.status.node_mode == NODE_CONTROLLER) {
+    int node_online = 0, node_error = 0;
+    for (int j = 0; j < MAX_BATTERY_NODES; j++) {
+      const auto& sn = datalayer.system.battery_nodes[j];
+      if (!sn.online)
+        continue;
+      node_online++;
+      if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0)
+        node_error++;
+    }
+    if (node_online > 0 && node_error < node_online) {
+      // A single node fault must not paint the controller card red, but the
+      // controller's own warning state (e.g. paused) must still show as yellow.
+      emu_status = (emulator_pause_status != NORMAL) ? EMULATOR_STATUS::STATUS_WARNING : EMULATOR_STATUS::STATUS_OK;
+    }
+  }
+#endif  // SMALL_FLASH_DEVICE
+  switch (emu_status) {
     case EMULATOR_STATUS::STATUS_WARNING:
       return "#F5CC00;";
     case EMULATOR_STATUS::STATUS_ERROR:
@@ -1606,6 +1629,17 @@ static bool render_live(CheckedHtml& content) {
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
       // Display which components are used
+#ifndef SMALL_FLASH_DEVICE
+      if (datalayer.system.status.node_mode == NODE_BATTERY) {
+        const char* controller_dot = datalayer.system.status.controller_online ? "&#10003;" : "&#10060;";
+        const char* controller_color = datalayer.system.status.controller_online ? "color:lightgreen;" : "color:red;";
+        const char* contactor_text = datalayer.system.status.inverter_allows_contactor_closing ? "Allowed" : "Blocked";
+        content += "<h4 style='color:white;'>&#9889; Battery Node " + String(datalayer.system.status.battery_node_id) +
+                   " &nbsp;|&nbsp; Controller: <span style='" + String(controller_color) + "'>" +
+                   String(controller_dot) + "</span> &nbsp;|&nbsp; Contactor closing: " + String(contactor_text) +
+                   "</h4>";
+      }
+#endif  // SMALL_FLASH_DEVICE
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
         content += inverter->name();
@@ -1688,6 +1722,104 @@ static bool render_live(CheckedHtml& content) {
     }
     // Block for Contactor status and component request status
     // Start a new block with gray background color
+
+#ifndef SMALL_FLASH_DEVICE
+    // === CONTROLLER MODE: battery node status grid ===
+    if (datalayer.system.status.node_mode == NODE_CONTROLLER) {
+      const char* controller_bg;
+      if (get_emulator_status() == EMULATOR_STATUS::STATUS_UPDATING) {
+        controller_bg = "#2B35AF";
+      } else {
+        // Only turn red if ALL online nodes are in fault
+        int node_online = 0, node_error = 0;
+        for (int j = 0; j < MAX_BATTERY_NODES; j++) {
+          const auto& sn = datalayer.system.battery_nodes[j];
+          if (!sn.online)
+            continue;
+          node_online++;
+          if ((sn.fault_flags & IU_FAULT_ERROR_MASK) != 0)
+            node_error++;
+        }
+        bool all_faulted = (node_online > 0 && node_error == node_online);
+        controller_bg = all_faulted ? "#A70107" : "#303E47";
+      }
+      content += "<div style='background-color:" + String(controller_bg) +
+                 "; padding:10px; margin-bottom:10px; border-radius:20px;'>"
+                 "<h4 style='color:white;'>Battery Nodes</h4>"
+                 "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
+
+      bool any_node = false;
+      for (int i = 0; i < MAX_BATTERY_NODES; i++) {
+        const auto& s = datalayer.system.battery_nodes[i];
+        if (!s.online) {
+          continue;
+        }
+        any_node = true;
+        bool is_error = (s.fault_flags & IU_FAULT_ERROR_MASK) != 0;
+        bool is_warning = !is_error && (s.fault_flags & IU_FAULT_WARNING_MASK) != 0;
+        const char* bg = is_error ? "#A70107" : (is_warning ? "#F5CC00" : "#2D3F2F");
+        float v = s.voltage_dV / 10.0f;
+        float soc = s.real_soc / 100.0f;
+        float soh = s.soh_pptt / 100.0f;
+        float cur = s.current_dA / 10.0f;
+        float tmax = (float)s.temp_max_dC;
+        float tmin = (float)s.temp_min_dC;
+        float chg_kW = s.max_charge_W / 1000.0f;
+        float dis_kW = s.max_discharge_W / 1000.0f;
+        float power_kW = (v * cur) / 1000.0f;
+        int cell_delta_mV = (s.cell_max_voltage_mV > 0 && s.cell_min_voltage_mV > 0)
+                                ? (int)s.cell_max_voltage_mV - (int)s.cell_min_voltage_mV
+                                : -1;
+        const char* contactor_state = s.contactor_engaged ? "Engaged" : (s.prejoin_active ? "Prejoin" : "Open");
+        const char* contactor_color =
+            s.contactor_engaged ? "color:white;" : (s.prejoin_active ? "color:orange;" : "color:gray;");
+        content += "<div style='background-color:" + String(bg) + ";padding:10px;border-radius:12px;min-width:160px;'>";
+        if (s.ip_address != 0) {
+          IPAddress ip(s.ip_address);
+          content += "<h4 style='color:white;margin:2px 0;'><a href='http://" + ip.toString() +
+                     "' target='_blank' style='color:white;'>Battery " + String(i + 1) + " &#8599;</a></h4>";
+        } else {
+          content += "<h4 style='color:white;margin:2px 0;'>Battery " + String(i + 1) + "</h4>";
+        }
+        content += "<h4 style='margin:2px 0;'>SOC: " + String(soc, 1) + " %</h4>";
+        content += "<h4 style='margin:2px 0;'>SOH: " + String(soh, 1) + " %</h4>";
+        content += "<h4 style='margin:2px 0;'>Voltage: " + String(v, 1) + " V</h4>";
+        content += "<h4 style='margin:2px 0;'>Current: " + String(cur, 1) + " A</h4>";
+        content += "<h4 style='margin:2px 0;'>Power: " + String(power_kW, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Temp: " + String(tmin, 0) + " / " + String(tmax, 0) + " &deg;C</h4>";
+        if (cell_delta_mV >= 0) {
+          content += "<h4 style='margin:2px 0;'>Cell delta: " + String(cell_delta_mV) + " mV</h4>";
+        }
+        content += "<h4 style='margin:2px 0;'>Remaining: " + String(s.remaining_Wh / 1000.0f, 1) + " kWh</h4>";
+        content += "<h4 style='margin:2px 0;'>Max charge: " + String(chg_kW, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Max discharge: " + String(dis_kW, 1) + " kW</h4>";
+        content += "<h4 style='margin:2px 0;'>Contactor: <span style='" + String(contactor_color) + "'>" +
+                   String(contactor_state) + "</span></h4>";
+        if (s.balancing) {
+          content += "<h4 style='color:#00FFFF;margin:2px 0;'>&#9863; Offline Balancing</h4>";
+        }
+        if (is_error || is_warning) {
+          const char* label = is_error ? "FAULT" : "WARNING";
+          const char* labelColor = is_error ? "red" : "#cc8800";
+          if (s.ip_address != 0) {
+            IPAddress faultIp(s.ip_address);
+            content += "<h4 style='color:" + String(labelColor) + ";margin:2px 0;'><a href='http://" +
+                       faultIp.toString() + "/events' target='_blank' style='color:" + String(labelColor) +
+                       ";'>&#9888; " + String(label) + "</a></h4>";
+          } else {
+            content += "<h4 style='color:" + String(labelColor) + ";margin:2px 0;'>&#9888; " + String(label) + "</h4>";
+          }
+        }
+        content += "</div>";
+      }
+      if (!any_node) {
+        content += "<h4 style='color:gray;'>No battery nodes online</h4>";
+      }
+      content += "</div>";
+      content += "</div>";
+    }
+#endif  // SMALL_FLASH_DEVICE
+
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     content += "<h4>System status: ";

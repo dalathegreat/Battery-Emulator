@@ -472,6 +472,19 @@ void update_machineryprotection() {
     }
   }
 
+#ifndef SMALL_FLASH_DEVICE
+  if (datalayer.system.status.node_mode == NODE_BATTERY) {
+    // Check if the controller is still sending heartbeats. If we go 60s without one we raise a warning
+    if (!datalayer.system.status.CAN_controller_still_alive) {
+      set_event(EVENT_CAN_CONTROLLER_MISSING, can_config.inverter);
+      datalayer.system.status.controller_online = false;
+    } else {
+      datalayer.system.status.CAN_controller_still_alive--;
+      clear_event(EVENT_CAN_CONTROLLER_MISSING);
+    }
+  }
+#endif  // SMALL_FLASH_DEVICE
+
   if (charger) {
     // Assuming chargers are all CAN here.
     // Check that the charger has been seen and is still sending CAN messages.
