@@ -345,13 +345,13 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CTATTEN") {
     return options_for_enum_with_none(
         (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
         name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
   }
 
-#ifndef SMALL_FLASH_DEVICE
   if (var == "QNHIPN") {
     return options_from_map(settings.getUInt("QNHIPN", QNHCK_DEFAULT_RATED_CURRENT_A), QNHCK_RATED_CURRENTS);
   }
@@ -1128,6 +1128,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive) ? "checked" : "";
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CTOFFSET") {
     return settings.getString("CTOFFSET", "-1.0");
   }
@@ -1144,7 +1145,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
-#ifndef SMALL_FLASH_DEVICE
   if (var == "QNHZERO") {
     // What calibration by hand uses: the stored zero point, or the nominal one. Not the running
     // value, which the automatic calibration may have measured since.
@@ -1300,6 +1300,37 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #endif  // SDCARD
 
 #ifndef SMALL_FLASH_DEVICE
+// CHAdeMO CT clamp ("Custom Clamp" shunt type): its rows in the Optional components card and their CSS
+#define CTCLAMP_SETTINGS_HTML \
+  R"rawliteral(
+        <div class="if-ctclamp">
+          <label>CT Clamp offset (mV): </label>
+          <input type='number' name='CTOFFSET' value="%CTOFFSET%"
+          min="-1" max="3000" step="1" />
+
+          <label>CT Clamp nominal voltage (dV): </label>
+          <input type='number' name='CTVNOM' value="%CTVNOM%"
+          min="0" max="500" step="1" />
+
+          <label>CT Clamp nominal current (A): </label>
+          <input type='number' name='CTANOM' value="%CTANOM%"
+          min="0" max="200" step="1" />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
+          </div>)rawliteral"
+#define CTCLAMP_SETTINGS_STYLE \
+  R"rawliteral(
+    form[data-shunttype="3"] .if-shunt { display: none; }
+    form .if-ctclamp { display: none; }
+    form[data-shunttype="3"] .if-ctclamp { display: contents; }
+    )rawliteral"
+
 // QNHCK2-16 current sensor: its rows in the Optional components card, their CSS, and the script
 // behind the manual calibration's Start button
 #define QNHCK_SETTINGS_HTML \
@@ -1326,8 +1357,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>)rawliteral"
 #define QNHCK_SETTINGS_STYLE \
   R"rawliteral(
-    form[data-shunttype="4"] .if-shunt,
-    form[data-shunttype="4"] .if-ctclamp { display: none; }
+    form[data-shunttype="4"] .if-shunt { display: none; }
     form .if-qnhck { display: none; }
     form[data-shunttype="4"] .if-qnhck { display: contents; }
     form .if-qnhmanual { display: none; }
@@ -1339,6 +1369,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
         function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure its zero point now?')){var xhr=new XMLHttpRequest();
         xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/calibrateShuntZero',true);xhr.send();}})rawliteral"
 #else
+#define CTCLAMP_SETTINGS_HTML ""
+#define CTCLAMP_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_HTML ""
 #define QNHCK_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_SCRIPT ""
@@ -1559,21 +1591,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
-    form[data-shunttype="0"] .if-shunt,
-    form[data-shunttype="3"] .if-shunt { 
-      display: none; 
-    }
-    form[data-shunttype="0"] .if-ctclamp,
-    form[data-shunttype="1"] .if-ctclamp,
-    form[data-shunttype="2"] .if-ctclamp { 
-      display: none; 
-    }
-    form[data-shunttype="3"] .if-ctclamp { display: contents;}
+    form[data-shunttype="0"] .if-shunt { display: none; }
 
     /* Shunt types the selected battery/inverter can't use.
        Rules are generated at runtime from the shunt capability predicates. */
     %SHUNTCAPCSS%
-    )rawliteral" QNHCK_SETTINGS_STYLE R"rawliteral(
+    )rawliteral" CTCLAMP_SETTINGS_STYLE QNHCK_SETTINGS_STYLE R"rawliteral(
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms,
@@ -2258,29 +2281,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <label>Interface: </label><select name='SHUNTCOMM'>
         %SHUNTCOMM%
         </select>
-        </div>
-
-        <div class="if-ctclamp">
-          <label>CT Clamp offset (mV): </label>
-          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
-          min="-1" max="3000" step="1" />
-
-          <label>CT Clamp nominal voltage (dV): </label>
-          <input type='number' name='CTVNOM' value="%CTVNOM%" 
-          min="0" max="500" step="1" />
-
-          <label>CT Clamp nominal current (A): </label>
-          <input type='number' name='CTANOM' value="%CTANOM%" 
-          min="0" max="200" step="1" />
-
-          <label>ESP32 pin attenuation: </label>
-          <select name='CTATTEN'>
-          %CTATTEN%
-          </select>
-
-          <label>Invert CT current: </label>
-          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
-          </div>)rawliteral" QNHCK_SETTINGS_HTML R"rawliteral(
+        </div>)rawliteral" CTCLAMP_SETTINGS_HTML QNHCK_SETTINGS_HTML R"rawliteral(
         </div>
 
         </div>
