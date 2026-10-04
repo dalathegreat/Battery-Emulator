@@ -34,7 +34,8 @@
 
    Anything a battery driver raises belongs in this block: driver code is per-instance, so the
    same line runs for pack 1, 2 and 3. An event raised from a driver but left outside the block
-   is reported without saying which pack raised it. */
+   is reported without saying which pack raised it. The same holds for the checks safety.cpp runs
+   on every pack, such as the cell voltage limits. */
 #define EVENTS_ENUM_TYPE(XX)                 \
   XX(EVENT_CANMCP2518FD_INIT_FAILURE)        \
   XX(EVENT_CANMCP2515_INIT_FAILURE)          \
@@ -117,6 +118,21 @@
   XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)      \
   XX(EVENT_BATTERY2_TEMP_DEVIATION_HIGH)     \
   XX(EVENT_BATTERY3_TEMP_DEVIATION_HIGH)     \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)      \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE_BAT2) \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE_BAT3) \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)       \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE_BAT2)  \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE_BAT3)  \
+  XX(EVENT_CELL_UNDER_VOLTAGE)               \
+  XX(EVENT_CELL_UNDER_VOLTAGE_BAT2)          \
+  XX(EVENT_CELL_UNDER_VOLTAGE_BAT3)          \
+  XX(EVENT_CELL_OVER_VOLTAGE)                \
+  XX(EVENT_CELL_OVER_VOLTAGE_BAT2)           \
+  XX(EVENT_CELL_OVER_VOLTAGE_BAT3)           \
+  XX(EVENT_CELL_DEVIATION_HIGH)              \
+  XX(EVENT_CELL_DEVIATION_HIGH_BAT2)         \
+  XX(EVENT_CELL_DEVIATION_HIGH_BAT3)         \
   XX(EVENT_BALANCING_START)                  \
   XX(EVENT_BALANCING_START_BAT2)             \
   XX(EVENT_BALANCING_START_BAT3)             \
@@ -204,11 +220,6 @@
   XX(EVENT_MODBUS_INVERTER_DETECTED)         \
   XX(EVENT_NO_ENABLE_DETECTED)               \
   XX(EVENT_ERROR_OPEN_CONTACTOR)             \
-  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)      \
-  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)       \
-  XX(EVENT_CELL_UNDER_VOLTAGE)               \
-  XX(EVENT_CELL_OVER_VOLTAGE)                \
-  XX(EVENT_CELL_DEVIATION_HIGH)              \
   XX(EVENT_UNKNOWN_EVENT_SET)                \
   XX(EVENT_OTA_UPDATE)                       \
   XX(EVENT_OTA_UPDATE_TIMEOUT)               \

@@ -393,13 +393,13 @@ void update_calculated_values(uint32_t currentMillis) {
     }
   }
 
-  /* Calculate sum of all currents from all batteries. 0 if they are not used*/
-  datalayer.battery.status.reported_current_dA =
-      (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
-       datalayer.battery3.status.current_dA);
+  /* Calculate sum of all currents from all batteries. 0 if they are not used. A current sensor
+     fitted in place of their own measures exactly this, and stands in while it has a reading. */
+  datalayer.battery.status.reported_current_dA = installation_current_dA();
 
   /* Calculate if battery or inverter is limiting factor*/
-  if (datalayer.battery.status.current_dA == 0) {  //Battery idle
+  const int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
+  if (battery_current_dA == 0) {  //Battery idle
     if (datalayer.battery.status.max_discharge_current_dA > 0) {
       //We allow discharge, but inverter does nothing. Inverter is limiting
       datalayer.battery_settings.inverter_limits_discharge = true;
@@ -412,15 +412,15 @@ void update_calculated_values(uint32_t currentMillis) {
     } else {
       datalayer.battery_settings.inverter_limits_charge = false;
     }
-  } else if (datalayer.battery.status.current_dA < 0) {  //Battery discharging
-    if (-datalayer.battery.status.current_dA < datalayer.battery.status.max_discharge_current_dA) {
+  } else if (battery_current_dA < 0) {  //Battery discharging
+    if (-battery_current_dA < datalayer.battery.status.max_discharge_current_dA) {
       datalayer.battery_settings.inverter_limits_discharge = true;
     } else {
       datalayer.battery_settings.inverter_limits_discharge = false;
     }
   } else {  // > 0 Battery charging
     //If actual current is smaller than max we allow, inverter is limiting factor
-    if (datalayer.battery.status.current_dA < datalayer.battery.status.max_charge_current_dA) {
+    if (battery_current_dA < datalayer.battery.status.max_charge_current_dA) {
       datalayer.battery_settings.inverter_limits_charge = true;
     } else {
       datalayer.battery_settings.inverter_limits_charge = false;

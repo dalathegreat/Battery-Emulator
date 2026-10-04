@@ -1,13 +1,13 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 #include "../utils/ota_confirm_gate.h"
 
-static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_limit_failures = 0;
 static uint8_t discharge_limit_failures = 0;
 static bool battery_full_event_fired = false;
@@ -106,6 +106,102 @@ static void check_battery_temperatures(void) {
   }
 }
 
+/* Pack voltage against the pack's own design window, the same for every pack. The joined packs
+   share one link, but each has its own window, and the link must stay inside all of them. */
+static void check_pack_voltage(DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  // Battery voltage is over designed max voltage!
+  if (pack.status.voltage_dV > pack.info.max_design_voltage_dV) {
+    set_event(EVENT_BATTERY_OVERVOLTAGE, pack.status.voltage_dV, number);
+    pack.status.max_charge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_OVERVOLTAGE, number);
+  }
+
+  // Battery voltage is under designed min voltage! 0 means not decoded yet: nothing to
+  // discharge against, but nothing to report either
+  if (pack.status.voltage_dV < pack.info.min_design_voltage_dV) {
+    if (pack.status.voltage_dV > 0) {
+      set_event(EVENT_BATTERY_UNDERVOLTAGE, pack.status.voltage_dV, number);
+    }
+    pack.status.max_discharge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_UNDERVOLTAGE, number);
+  }
+}
+
+/* Cell voltage limits, the same for every pack. Each pack is held to its own limits and raises
+   its own events. update_aggregate_limits() hands the inverter the lowest limit of any joined
+   pack, so a zero written here stops the whole installation. That is what it has to do: every
+   joined pack takes its share of whatever current the inverter pushes or pulls, so one pack with
+   a cell at its limit is enough to stop charging or discharging. */
+static void check_cell_voltages(DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  // One charge latch per pack, so one pack releasing its block can never release another's
+  static bool overvoltage_charge_blocked[3] = {false, false, false};
+  bool& charge_blocked = overvoltage_charge_blocked[number - 1];
+
+  // Cell overvoltage, further charging not possible. Battery might be imbalanced.
+  if (pack.status.cell_max_voltage_mV >= pack.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0, number);
+    charge_blocked = true;  // Latch at the ceiling
+  } else if (pack.status.cell_max_voltage_mV < (pack.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
+    charge_blocked = false;  // Release only once well below the ceiling
+  }
+  if (charge_blocked) {
+    pack.status.max_charge_power_W = 0;
+  }
+  // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
+  if (pack.status.cell_max_voltage_mV >= (pack.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
+    set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0, number);
+  }
+
+  // Cell undervoltage. Further discharge not possible. Battery might be imbalanced.
+  if (pack.status.cell_min_voltage_mV <= pack.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0, number);
+    pack.status.max_discharge_power_W = 0;
+  }
+  //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
+  if (pack.status.cell_min_voltage_mV <= (pack.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
+    set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0, number);
+  }
+}
+
+/* Spread between the highest and the lowest cell. Each pack owns its own event, so this is a
+   plain per-pack set/clear: while the event was shared, a healthy pack cleared the warning
+   another pack had just raised in the same pass. */
+static void check_cell_deviation(const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  const uint16_t deviation_mV = std::abs(pack.status.cell_max_voltage_mV - pack.status.cell_min_voltage_mV);
+  if (deviation_mV > pack.info.max_cell_voltage_deviation_mV) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, (deviation_mV / 20), number);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH, number);
+  }
+}
+
+/* EVENT_SOH_DIFFERENCE is one event for the installation, so battery 2 and 3 are both compared
+   with battery 1 before it is set or cleared. Compared pack by pack, a battery 3 within range
+   cleared the warning battery 2 had just raised. 9900 is the power-on default, not a reading, so
+   a pack still holding it is not compared, and with nothing compared the event is left as is. */
+static void check_soh_difference(void) {
+  const DATALAYER_BATTERY_TYPE* others[2] = {battery2 ? &datalayer.battery2 : nullptr,
+                                             battery3 ? &datalayer.battery3 : nullptr};
+  bool compared = false;
+  bool too_large = false;
+  for (const DATALAYER_BATTERY_TYPE* pack : others) {
+    if (!pack || datalayer.battery.status.soh_pptt == 9900 || pack->status.soh_pptt == 9900) {
+      continue;
+    }
+    compared = true;
+    if (std::abs(datalayer.battery.status.soh_pptt - pack->status.soh_pptt) > MAX_SOH_DEVIATION_PPTT) {
+      too_large = true;
+    }
+  }
+  if (too_large) {
+    set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+  } else if (compared) {
+    clear_event(EVENT_SOH_DIFFERENCE);
+  }
+}
+
 /* Expire remote-set limits. Wrap-safe subtraction: the naive
    "currentMillis > timestamp + timeout" comparison both overflows near the 49.7-day
    millis() wrap (fresh limits expire immediately) and inverts after it (stale limits
@@ -196,53 +292,8 @@ void update_machineryprotection() {
     // Temperature checks for every configured battery are done together in
     // check_battery_temperatures(), called further down.
 
-    // Battery voltage is over designed max voltage!
-    if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
-      datalayer.battery.status.max_charge_power_W = 0;
-    } else {
-      clear_event(EVENT_BATTERY_OVERVOLTAGE, 1);
-    }
-
-    // Battery voltage is under designed min voltage! 0 means not decoded yet: nothing to
-    // discharge against, but nothing to report either
-    if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-      if (datalayer.battery.status.voltage_dV > 0) {
-        set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV, 1);
-      }
-      datalayer.battery.status.max_discharge_power_W = 0;
-    } else {
-      clear_event(EVENT_BATTERY_UNDERVOLTAGE, 1);
-    }
-
-    // Cell overvoltage, further charging not possible. Battery might be imbalanced.
-    static bool cell_overvoltage_charge_blocked = false;
-    if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      cell_overvoltage_charge_blocked = true;  // Latch at the ceiling
-    } else if (datalayer.battery.status.cell_max_voltage_mV <
-               (datalayer.battery.info.max_cell_voltage_mV - CELL_HYSTERESIS_MV)) {
-      cell_overvoltage_charge_blocked = false;  // Release only once well below the ceiling
-    }
-    if (cell_overvoltage_charge_blocked) {
-      datalayer.battery.status.max_charge_power_W = 0;
-    }
-    // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
-    if (datalayer.battery.status.cell_max_voltage_mV >=
-        (datalayer.battery.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
-      set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0);
-    }
-
-    // Cell undervoltage. Further discharge not possible. Battery might be imbalanced.
-    if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      datalayer.battery.status.max_discharge_power_W = 0;
-    }
-    //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
-    if (datalayer.battery.status.cell_min_voltage_mV <=
-        (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
-      set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
-    }
+    check_pack_voltage(datalayer.battery, 1);
+    check_cell_voltages(datalayer.battery, 1);
 
     //If user is requesting charge to stop at a specific voltage
     static bool charge_blocked = false;
@@ -314,14 +365,7 @@ void update_machineryprotection() {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
     }
 
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
+    check_cell_deviation(datalayer.battery, 1);
 
     /* Check that the inverter respects the charge/discharge limits we hand it.
        Skipped entirely while a pause is requested or a fault is active: those zero the
@@ -347,6 +391,13 @@ void update_machineryprotection() {
       if (battery) {
         battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
       }
+#ifndef SMALL_FLASH_DEVICE
+      // A current sensor fitted in place of the battery's own measures what actually flows. Its
+      // reading is a one second mean already, so it has no extremes of its own to hand over.
+      if (shunt_measures_battery1()) {
+        peak_charge_dA = peak_discharge_dA = shunt_current_dA();
+      }
+#endif  // SMALL_FLASH_DEVICE
       const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, datalayer.battery.status.voltage_dV);
       const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, datalayer.battery.status.voltage_dV);
 
@@ -456,39 +507,13 @@ void update_machineryprotection() {
     check_can_component_alive(datalayer.battery2.status.CAN_battery_still_alive, battery2_detected,
                               EVENT_CAN_BATTERY2_DETECTED, EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
 
-    // Cell overvoltage, critical latching error without automatic reset. Requires user action.
-    if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-    }
-    // Cell undervoltage, critical latching error without automatic reset. Requires user action.
-    if (datalayer.battery2.status.cell_min_voltage_mV <= datalayer.battery2.info.min_cell_voltage_mV) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-    }
-
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-
-    // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
-      // Both values available, check diff
-      uint16_t soh_diff_pptt;
-      if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
-        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
-      } else {
-        soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
-      }
-
-      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
-      } else {
-        clear_event(EVENT_SOH_DIFFERENCE);
-      }
+    /* Only once the pack has been heard on the bus. Until then it holds its power-on defaults,
+       3700 mV cells, which are not measurements: a pack whose cell ceiling is below that (LFP at
+       3650 mV) would latch an overvoltage before it ever spoke. Same gate the aggregate uses. */
+    if (battery2_detected) {
+      check_pack_voltage(datalayer.battery2, 2);
+      check_cell_voltages(datalayer.battery2, 2);
+      check_cell_deviation(datalayer.battery2, 2);
     }
   }
 
@@ -506,41 +531,15 @@ void update_machineryprotection() {
     check_can_component_alive(datalayer.battery3.status.CAN_battery_still_alive, battery3_detected,
                               EVENT_CAN_BATTERY3_DETECTED, EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
 
-    // Cell overvoltage, critical latching error without automatic reset. Requires user action.
-    if (datalayer.battery3.status.cell_max_voltage_mV >= datalayer.battery3.info.max_cell_voltage_mV) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-    }
-    // Cell undervoltage, critical latching error without automatic reset. Requires user action.
-    if (datalayer.battery3.status.cell_min_voltage_mV <= datalayer.battery3.info.min_cell_voltage_mV) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-    }
-
-    // Check diff between highest and lowest cell
-    cell_deviation_mV =
-        std::abs(datalayer.battery3.status.cell_max_voltage_mV - datalayer.battery3.status.cell_min_voltage_mV);
-    if (cell_deviation_mV > datalayer.battery3.info.max_cell_voltage_deviation_mV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-
-    // Check if SOH% between the packs is too large
-    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery3.status.soh_pptt != 9900)) {
-      // Both values available, check diff
-      uint16_t soh_diff_pptt;
-      if (datalayer.battery.status.soh_pptt > datalayer.battery3.status.soh_pptt) {
-        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery3.status.soh_pptt;
-      } else {
-        soh_diff_pptt = datalayer.battery3.status.soh_pptt - datalayer.battery.status.soh_pptt;
-      }
-
-      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
-      } else {
-        clear_event(EVENT_SOH_DIFFERENCE);
-      }
+    // Only once the pack has been heard on the bus, see battery 2 above
+    if (battery3_detected) {
+      check_pack_voltage(datalayer.battery3, 3);
+      check_cell_voltages(datalayer.battery3, 3);
+      check_cell_deviation(datalayer.battery3, 3);
     }
   }
+
+  check_soh_difference();
 
   // Temperature limits are shared by all batteries, so all of them are checked in one pass
   check_battery_temperatures();
@@ -727,7 +726,8 @@ void update_pause_state() {
     allowed_to_send_CAN = true;
   }
 
-  int16_t battery_current_dA = datalayer.battery.status.current_dA;
+  // Pack 1's through pack_current_dA(): a current sensor fitted in place of its own stands in
+  int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
   int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
   int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
   static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps

@@ -240,11 +240,11 @@ void init_events(void) {
   events.entries[EVENT_MODBUS_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_NO_ENABLE_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CELL_CRITICAL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CELL_CRITICAL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  set_battery_event_level(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_CELL_CRITICAL_OVER_VOLTAGE, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_CELL_UNDER_VOLTAGE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_CELL_OVER_VOLTAGE, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_CELL_DEVIATION_HIGH, EVENT_LEVEL_WARNING);
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
@@ -319,6 +319,9 @@ static_assert(EVENT_BATTERY2_OVERHEAT == EVENT_BATTERY_OVERHEAT + 1 &&
               "Per-battery event variants must stay contiguous and in 1,2,3 order");
 static_assert(EVENT_BATTERY2_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION_HIGH + 1 &&
                   EVENT_BATTERY3_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION_HIGH + 2,
+              "Per-battery event variants must stay contiguous and in 1,2,3 order");
+static_assert(EVENT_CELL_OVER_VOLTAGE_BAT2 == EVENT_CELL_OVER_VOLTAGE + 1 &&
+                  EVENT_CELL_OVER_VOLTAGE_BAT3 == EVENT_CELL_OVER_VOLTAGE + 2,
               "Per-battery event variants must stay contiguous and in 1,2,3 order");
 static_assert((EVENT_CAN_BATTERY3_MISSING - EVENT_BATTERY_EMPTY + 1) % 3 == 0,
               "The per-battery event block must consist of whole 1,2,3 triplets");
