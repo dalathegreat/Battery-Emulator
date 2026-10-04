@@ -64,9 +64,9 @@ class NissanLeafBattery : public CanBattery {
   uint8_t calculate_crc(CAN_frame& frame);
 
   /* The current published to the datalayer is a mean over the whole window, so the safety
-     layer is handed the two extremes seen inside it instead. Kept as a max/min pair rather
-     than a single worst-magnitude sample so a window holding both a charge and a discharge
-     excursion reports both. See update_values(). */
+     layer is handed the two extremes seen inside it instead, less the same automatic current
+     offset. Kept as a max/min pair rather than a single worst-magnitude sample so a window
+     holding both a charge and a discharge excursion reports both. See update_values(). */
   void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA) override {
     max_dA = battery_Current2_peak_max_published_dA;
     min_dA = battery_Current2_peak_min_published_dA;
@@ -116,9 +116,9 @@ class NissanLeafBattery : public CanBattery {
      mixed with what came before the silence. The extremes are kept per second, for safety. */
   static const uint8_t CURRENT_TRIM = 20;
   CurrentWindow battery_Current2_window;
-  uint8_t battery_Current2_new_samples = 0;  //Since the previous update, saturating
-  int16_t battery_Current2_peak_max_raw = 0;
-  int16_t battery_Current2_peak_min_raw = 0;
+  uint8_t battery_Current2_new_samples = 0;   //Since the previous update, saturating
+  int16_t battery_Current2_peak_max_raw = 0;  //Highest and lowest sample since the previous update,
+  int16_t battery_Current2_peak_min_raw = 0;  //set by its first one
   int16_t battery_Current2_peak_max_published_dA = 0;
   int16_t battery_Current2_peak_min_published_dA = 0;
 

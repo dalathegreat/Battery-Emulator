@@ -111,22 +111,22 @@ void NissanLeafBattery::
     const uint8_t left_out = (uint16_t)battery_Current2_window.count * CURRENT_TRIM / CurrentWindow::CAPACITY;
     battery_Current2_window.trim(left_out, sum_raw, kept);
     datalayer_battery->status.current_dA = mean_current_dA(sum_raw, kept) - auto_offset_dA;
+
+    // Publish the extremes of the samples since the previous update for safety checks, less the
+    // same offset. Kept separate from current_dA so short excursions are not hidden by averaging.
+    // Neither may cross zero, so a second with current in one direction only reports zero for the
+    // other, which is the neutral value for both comparisons.
+    // update_machineryprotection() runs later in the same core loop and consumes them.
+    const int32_t peak_max_dA = battery_Current2_peak_max_raw * 5 - auto_offset_dA;
+    const int32_t peak_min_dA = battery_Current2_peak_min_raw * 5 - auto_offset_dA;
+    battery_Current2_peak_max_published_dA = peak_max_dA > 0 ? peak_max_dA : 0;
+    battery_Current2_peak_min_published_dA = peak_min_dA < 0 ? peak_min_dA : 0;
   } else {
     battery_Current2_window.clear();
+    battery_Current2_peak_max_published_dA = 0;
+    battery_Current2_peak_min_published_dA = 0;
   }
-  battery_Current2_new_samples = 0;
-
-  // Publish the extremes captured over the same window for safety checks. Kept separate
-  // from current_dA so short excursions are not hidden by averaging. Both accumulators
-  // start at zero, so a window with current in one direction only reports zero for the
-  // other, which is the neutral value for both comparisons.
-  battery_Current2_peak_max_published_dA = battery_Current2_peak_max_raw * 5;
-  battery_Current2_peak_min_published_dA = battery_Current2_peak_min_raw * 5;
-
-  // Start the next window of extremes. update_machineryprotection() runs later
-  // in the same core loop and therefore consumes the values published above.
-  battery_Current2_peak_max_raw = 0;
-  battery_Current2_peak_min_raw = 0;
+  battery_Current2_new_samples = 0;  //Also what makes the next sample start the next extremes
 
   //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
   //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
@@ -587,15 +587,15 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Keep every 0x1DB sample for the 1 s published mean, and track the highest and
       // lowest sample separately so a charge and a discharge excursion inside the same
       // window both reach the safety path, untouched by the trimming.
+      if (battery_Current2_new_samples == 0 || battery_Current2 > battery_Current2_peak_max_raw) {
+        battery_Current2_peak_max_raw = battery_Current2;
+      }
+      if (battery_Current2_new_samples == 0 || battery_Current2 < battery_Current2_peak_min_raw) {
+        battery_Current2_peak_min_raw = battery_Current2;
+      }
       battery_Current2_window.add(battery_Current2);
       if (battery_Current2_new_samples < UINT8_MAX) {
         battery_Current2_new_samples++;
-      }
-      if (battery_Current2 > battery_Current2_peak_max_raw) {
-        battery_Current2_peak_max_raw = battery_Current2;
-      }
-      if (battery_Current2 < battery_Current2_peak_min_raw) {
-        battery_Current2_peak_min_raw = battery_Current2;
       }
       if (user_selected_LEAF_auto_current_offset) {
         learn_current_offset(battery_Current2);

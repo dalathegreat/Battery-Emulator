@@ -1554,14 +1554,36 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLearnASecondPackFromItsOwnContact
   EXPECT_EQ(datalayer.battery.status.current_dA, -100);
 }
 
-// The safety layer still gets the extremes as the LBC sent them.
-TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLeaveTheSafetyExtremesAlone) {
-  run_seconds(battery, 5, 1);
-  int16_t max_dA = 0;
-  int16_t min_dA = 0;
+// The safety layer gets the extremes less the offset too, so it judges the same current that is
+// published.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldTakeTheOffsetOffTheSafetyExtremesToo) {
+  run_seconds(battery, 5, 1);  // 2.5 A with nothing able to flow: no excursion either way
+  int16_t max_dA = -1;
+  int16_t min_dA = -1;
   battery->safety_current_range_dA(max_dA, min_dA);
-  EXPECT_EQ(max_dA, 25);
+  EXPECT_EQ(max_dA, 0);
   EXPECT_EQ(min_dA, 0);
+
+  datalayer.system.status.contactors_engaged = 1;
+  feed_current(battery, 25, 980);  // 10 A charging, read as 12.5 A
+  feed_current(battery, -15, 10);  // A 10 A discharge for one frame, read as 7.5 A
+  feed_current(battery, 25, 10);
+  battery->update_values();
+  battery->safety_current_range_dA(max_dA, min_dA);
+  EXPECT_EQ(max_dA, 100);
+  EXPECT_EQ(min_dA, -100);
+}
+
+// A reading on the charging side that is a discharge once the offset is off counts as one.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldJudgeTheSafetyExtremesWithTheOffsetOff) {
+  run_seconds(battery, 5, 1);
+  datalayer.system.status.contactors_engaged = 1;
+  run_seconds(battery, 3, 1);  // Read as 1.5 A charging, which is 1 A discharging
+  int16_t max_dA = -1;
+  int16_t min_dA = -1;
+  battery->safety_current_range_dA(max_dA, min_dA);
+  EXPECT_EQ(max_dA, 0);
+  EXPECT_EQ(min_dA, -10);
 }
 
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldShowTheOffsetOnTheStatusCard) {
