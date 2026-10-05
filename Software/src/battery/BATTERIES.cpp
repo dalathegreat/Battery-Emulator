@@ -459,6 +459,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::SamsungSdiLv:
     case BatteryType::SimpBms:
     case BatteryType::Sono:
+    case BatteryType::StellantisProOne:
     case BatteryType::TeslaLegacy:
     case BatteryType::TeslaModel3Y:
     case BatteryType::TeslaModelSX:
