@@ -574,10 +574,10 @@ void core_loop(void*) {
         check_parallel_battery_safety(3);
       }
       update_calculated_values(currentMillis);
-      update_machineryprotection();  // Check safeties
-      filter_charge_taper_soc();     // Taper charge limit near full SOC (runs after safeties, before LPF)
-      filter_inverter_limits();      // Smooth limits towards inverter (runs after safeties on purpose)
-      update_aggregate_limits();     // Fold pack 2/3 into the inverter limits, after every filter
+      update_machineryprotection(currentMillis);  // Check safeties
+      filter_charge_taper_soc();                  // Taper charge limit near full SOC (runs after safeties, before LPF)
+      filter_inverter_limits();                   // Smooth limits towards inverter (runs after safeties on purpose)
+      update_aggregate_limits();                  // Fold pack 2/3 into the inverter limits, after every filter
 
       // Update values heading towards inverter
       if (inverter) {

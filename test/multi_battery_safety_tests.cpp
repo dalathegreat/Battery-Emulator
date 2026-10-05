@@ -66,7 +66,7 @@ class MultiBatterySafetyTest : public ::testing::Test {
         pack->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Still talking
       }
     }
-    update_machineryprotection();
+    update_machineryprotection(0);
     update_aggregate_limits();
   }
 
