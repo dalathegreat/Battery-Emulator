@@ -13,9 +13,9 @@ void EnnoidBms::update_values() {
 
   datalayer.battery.status.soh_pptt = SOH;
 
-  datalayer.battery.status.voltage_dV = packVoltage;
+  datalayer.battery.status.voltage_dV = (uint16_t)lroundf(packVoltage * 10.0f);
 
-  datalayer.battery.status.current_dA = (int16_t)packCurrent1;
+  datalayer.battery.status.current_dA = (int16_t)lroundf(packCurrent * 10.0f);
 
   // Charge power is manually set
   if (datalayer.battery.status.real_soc > 9900) {
@@ -32,55 +32,128 @@ void EnnoidBms::update_values() {
   // Discharge power is manually set
   datalayer.battery.status.max_discharge_power_W = datalayer.battery.status.override_discharge_power_W;
 
-  datalayer.battery.status.temperature_min_dC = tBattHi;
+  datalayer.battery.status.temperature_min_dC = (tBms_cC / 10);
 
-  datalayer.battery.status.temperature_max_dC = tBattHi - 1;
+  datalayer.battery.status.temperature_max_dC = (tBms_cC / 10) - 1;
 
-  datalayer.battery.info.number_of_cells = NoOfCells;  // 1-192S
+  datalayer.battery.info.number_of_cells = numberOfCells;  // 1-192S
 
-  //datalayer.battery.info.max_design_voltage_dV;  // TODO: Set according to cells?
+  datalayer.battery.status.cell_max_voltage_mV = cellVoltageMax_mV;
 
-  //datalayer.battery.info.min_design_voltage_dV;  // TODO: Set according to cells?
+  datalayer.battery.status.cell_min_voltage_mV = cellVoltageLow_mV;
 
-  datalayer.battery.status.cell_max_voltage_mV = cellVoltageHigh;
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellVoltages_mV,
+         datalayer.battery.info.number_of_cells * sizeof(uint16_t));
 
-  datalayer.battery.status.cell_min_voltage_mV = cellVoltageLow;
+  datalayer.battery.status.total_discharged_battery_Wh = (int32_t)lroundf(totalDischargeWh);
+
+  datalayer.battery.status.total_charged_battery_Wh = (int32_t)lroundf(totalChargeWh);
+}
+
+static inline uint16_t be_u16(const uint8_t* d) {
+  return (uint16_t)((d[0] << 8) | d[1]);
+}
+
+static inline int16_t be_i16(const uint8_t* d) {
+  return (int16_t)be_u16(d);
+}
+
+static inline float be_f32(const uint8_t* d) {
+  uint32_t raw = ((uint32_t)d[0] << 24) | ((uint32_t)d[1] << 16) | ((uint32_t)d[2] << 8) | (uint32_t)d[3];
+  float f;
+  memcpy(&f, &raw, sizeof(f));
+  return f;
 }
 
 void EnnoidBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
-    case 0x2b0a:
-      NoOfCells = rx_frame.data.u8[1];
-      break;
     case 0x260a:
-      packVoltage =
-          (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+    case 0x260:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      packVoltage = be_f32(&rx_frame.data.u8[0]);
       break;
+
     case 0x270a:
-      packCurrent1 =
-          (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      packCurrent2 =
-          (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+    case 0x270:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      packCurrent = be_f32(&rx_frame.data.u8[0]);
       break;
+
     case 0x280a:
-      //Ah_counter = (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      //Wh_counter = (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+    case 0x280:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // All zeros after BMS restart/counter reset until current flows
+      dischargeAh = be_f32(&rx_frame.data.u8[0]);
+      dischargeWh = be_f32(&rx_frame.data.u8[4]);
       break;
+
     case 0x290a:
-      //Most likely contains all cellvoltages, but DBC was not clear on how this is muxed. CAN log needed!
+    case 0x290: {
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      uint8_t seq = rx_frame.data.u8[0];  // 0, 3, 6, ...
+      numberOfCells = rx_frame.data.u8[1];
+      for (uint8_t i = 0; i < 3; i++) {
+        uint16_t idx = seq + i;
+        if (idx < numberOfCells && idx < 180) {
+          cellVoltages_mV[idx] = be_u16(&rx_frame.data.u8[2 + i * 2]);
+        }
+      }
       break;
+    }
+
     case 0x2a0a:
-      //Contains balancing shunt status, but DBC was not clear on how this is muxed. CAN log needed!
+    case 0x2a0:  //Unclear if this frame exists
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      numberOfCells = rx_frame.data.u8[0];
       break;
+
+    case 0x2b0a:
+    case 0x2b0: {
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      uint8_t seq = rx_frame.data.u8[0];
+      numberOfTempSensors = rx_frame.data.u8[1];
+      for (uint8_t i = 0; i < 3; i++) {
+        uint16_t idx = seq + i;
+        if (idx < numberOfTempSensors && idx < 50) {
+          temperatures_cC[idx] = be_i16(&rx_frame.data.u8[2 + i * 2]);
+        }
+      }
+      break;
+    }
+
+    case 0x2c0a:
+    case 0x2c0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      tBms_cC = be_i16(&rx_frame.data.u8[0]);
+      unknown2C0 = be_i16(&rx_frame.data.u8[4]);
+      break;
+
     case 0x2d0a:
-      cellVoltageLow = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
-      cellVoltageHigh = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+    case 0x2d0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      cellVoltageLow_mV = be_u16(&rx_frame.data.u8[0]);
+      cellVoltageMax_mV = be_u16(&rx_frame.data.u8[2]);
       SOC = rx_frame.data.u8[4] * 40;
       SOH = rx_frame.data.u8[5] * 40;
-      tBattHi = rx_frame.data.u8[6];
-      BitF = rx_frame.data.u8[7];
+      //tBattHi = rx_frame.data.u8[6];
+      //BitF = rx_frame.data.u8[7];
       break;
+
+    case 0x350a:
+    case 0x350:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      totalChargeAh = be_f32(&rx_frame.data.u8[0]);
+      totalChargeWh = be_f32(&rx_frame.data.u8[4]);
+      break;
+
+    case 0x360a:
+    case 0x360:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      totalDischargeAh = be_f32(&rx_frame.data.u8[0]);
+      totalDischargeWh = be_f32(&rx_frame.data.u8[4]);
+      break;
+
     default:
       break;
   }
