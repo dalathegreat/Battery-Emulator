@@ -53,6 +53,7 @@
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
+#include "STELLANTIS-PRO-ONE-BATTERY.h"
 #include "STELLANTIS-SMALL-WIDE-4x4.h"
 #include "TESLA-BATTERY.h"
 #include "TESLA-LEGACY-BATTERY.h"
@@ -143,6 +144,8 @@ const char* name_for_battery_type(BatteryType type) {
       return SonoBattery::Name;
     case BatteryType::StellantisEcmp:
       return EcmpBattery::Name;
+    case BatteryType::StellantisProOne:
+      return StellantisProOneBattery::Name;
     case BatteryType::ImievCZeroIon:
       return ImievCZeroIonBattery::Name;
     case BatteryType::JaguarIpace:
@@ -299,6 +302,8 @@ Battery* create_battery(BatteryType type) {
       return new SonoBattery();
     case BatteryType::StellantisEcmp:
       return new EcmpBattery();
+    case BatteryType::StellantisProOne:
+      return new StellantisProOneBattery();
     case BatteryType::ImievCZeroIon:
       return new ImievCZeroIonBattery();
     case BatteryType::JaguarIpace:
@@ -454,6 +459,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::SamsungSdiLv:
     case BatteryType::SimpBms:
     case BatteryType::Sono:
+    case BatteryType::StellantisProOne:
     case BatteryType::TeslaLegacy:
     case BatteryType::TeslaModel3Y:
     case BatteryType::TeslaModelSX:
