@@ -101,6 +101,7 @@ add_executable(tests
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
+    ../Software/src/datalayer/battery_aggregate.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
@@ -135,12 +136,12 @@ add_executable(tests
     ../Software/src/battery/FOXESS-BATTERY.cpp
     ../Software/src/battery/GEELY-GEOMETRY-C-BATTERY.cpp
     ../Software/src/battery/GROWATT-HV-ARK-BATTERY.cpp
+    ../Software/src/battery/GROWATT-LV-BATTERY.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY-HTML.cpp
     ../Software/src/battery/HYUNDAI-IONIQ-28-BATTERY.cpp
     ../Software/src/battery/IMIEV-CZERO-ION-BATTERY.cpp
     ../Software/src/battery/JAGUAR-IPACE-BATTERY.cpp
     ../Software/src/battery/KIA-E-GMP-BATTERY.cpp
-    ../Software/src/battery/KIA-E-GMP-HTML.cpp
     ../Software/src/battery/KIA-64FD-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-64-BATTERY.cpp
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
@@ -161,10 +162,13 @@ add_executable(tests
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
     ../Software/src/shunt/Shunts.cpp
+    ../Software/src/shunt/QNHCK2-16.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
+    ../Software/src/battery/STELLANTIS-PRO-ONE-BATTERY.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TESLA-HTML.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp
@@ -178,6 +182,7 @@ add_executable(tests
     ../Software/src/inverter/BYD-MODBUS.cpp
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
+    ../Software/src/inverter/FOXESS-EP-CAN.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp

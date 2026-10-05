@@ -100,8 +100,20 @@ jobs:
       with:
         python-version: '3.13'
 
+    # The core and the platform must agree on tool-scons, or the platform deletes
+    # the SCons the build is running from ("No module named
+    # 'SCons.Tool.FortranCommon'"). Core 6.2.0 and platform 55.03.312-1 both use
+    # 4.41101.0. The ESP-IDF pass (triggered by custom_sdkconfig) spawns its own
+    # penv and installs pioarduino into it, so constrain every pip/uv invocation
+    # in the job; move this pin together with the platform in platformio.ini.
+    - name: Constrain PlatformIO Core version
+      run: |
+        printf 'platformio==6.2.0\npioarduino==6.2.0\n' > "$RUNNER_TEMP/pio-constraints.txt"
+        echo "PIP_CONSTRAINT=$RUNNER_TEMP/pio-constraints.txt" >> "$GITHUB_ENV"
+        echo "UV_CONSTRAINT=$RUNNER_TEMP/pio-constraints.txt" >> "$GITHUB_ENV"
+
     - name: Install PlatformIO Core
-      run: pip install --upgrade platformio
+      run: pip install --upgrade "platformio==6.2.0"
 
     # Add a line to print out the hash check values, to help debug why
     # PlatformIO might trigger a rebuild.

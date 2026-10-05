@@ -63,8 +63,6 @@ static ACAN2517FD* canfd_2 = nullptr;
 static ACAN2517FDSettings* settings2517_2;
 
 static bool native_can_initialized = false;
-//CAN logging filter settings
-uint16_t user_selected_CAN_ID_cutoff_filter = 0;  //Messages below this ID will not be logged in webserver
 
 bool init_CAN() {
   // Native CAN (onboard the ESP32)
@@ -527,11 +525,6 @@ static void print_can_frame(CAN_frame frame, CAN_Interface interface, frameDirec
     }
   }
 
-  if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
-    if (frame.ID > user_selected_CAN_ID_cutoff_filter) {  //Only log the message if CAN ID is higher than user set value
-      dump_can_frame(frame, interface, msgDir);
-    }
-  }
   if (datalayer.system.info.can_streaming_active) {
     stream_can_frame(frame, interface, msgDir);
   }
@@ -642,23 +635,6 @@ size_t format_can_frame(char* buffer, size_t len, const CAN_frame& frame, CAN_In
   *ptr++ = '\n';
   *ptr = '\0';
   return (size_t)(ptr - buffer);
-}
-
-void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir) {
-  char* message_string = datalayer.system.info.logged_can_messages;
-  size_t offset =
-      datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-
-  size_t written = format_can_frame(message_string + offset, message_string_size - offset, frame, interface, msgDir);
-  if (written == 0 && offset != 0) {
-    // Not enough space left at the tail - wrap around and start from the beginning
-    offset = 0;
-    written = format_can_frame(message_string, message_string_size, frame, interface, msgDir);
-  }
-  if (written > 0) {
-    datalayer.system.info.logged_can_messages_offset = offset + written;  // Update offset in buffer
-  }
 }
 
 void stop_can() {

@@ -201,6 +201,7 @@ class BydAttoBattery : public CanBattery {
   static const uint16_t SESSION_CELL_CLAMP_MV =
       3780;  // backstop above full+overshoot; applies only while a session owns the top
   static const uint16_t SESSION_DELTA_LIMIT_MV = 400;     // real cars run 250-360mV of spread at the top
+  static const uint16_t SESSION_RAILS_MARGIN_MV = 20;     // rails release only once cells clear the stock limit
   static const uint32_t SESSION_OBC_CAP_W = 7000;         // donor OBC maximum offer (0x47E b4 = 0x47)
   static const int16_t SESSION_ARM_CURRENT_dA = 20;       // arm on 2.0A of charge current...
   static const uint32_t SESSION_ARM_DWELL_MS = 30000;     // ...sustained this long
@@ -212,7 +213,8 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t SESSION_RAMP_IDLE_HOLD_MS = 4000;     // 0x36D idle prearm before the work-mode ramp
   static const uint32_t SESSION_GRANT_MIRROR_MS = 1500;       // act without 0x345 if the mirror goes quiet
   static const uint32_t SESSION_MIRROR_FRESH_MS = 500;        // 0x345 must be this recent to fast-confirm
-  static const uint16_t SESSION_TERMINATION_FLOOR_MV = 3700;  // a grant-zero below this is an abort, not full
+  static const uint16_t SESSION_TERMINATION_FLOOR_MV = 3700;  // a grant end below this is an abort, not full
+  static const uint8_t SESSION_GRANT_END = 0x01;              // 0x347 b1 grant end: Atto 0x00, PW4 0x01
   static const uint32_t SESSION_FINISH_ACK_MS = 4000;
   static const uint32_t SESSION_DONE_TIMEOUT_MS = 30000;  // finish anyway if the charge flag lags the grant
   static const uint32_t SESSION_HOLD_SETTLE_MS = 2500;    // 0x24A 8C -> 80 once the pack is resting
@@ -370,6 +372,11 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
 
+  // Car ramps the link to pack over ~900ms: ~62% at 100ms, ~95% at 400ms
+  static const uint32_t PRECHARGE_RAMP_MS = 900;
+  static const uint8_t PRECHARGE_WAIT = 0;                 // closed, BMS hasn't started precharging
+  static const uint8_t PRECHARGE_RAMP = 1;                 // BMS moved, walking the link up to pack
+  static const uint8_t PRECHARGE_DONE = 2;                 // link at pack voltage, latched until the pack opens
   static const int16_t OPEN_MAX_CURRENT_dA = 25;           // Open only below 2.5A
   static const uint32_t ZERO_CURRENT_MIN_WAIT_MS = 5000;   // Let the inverter settle before trusting current
   static const uint32_t ZERO_CURRENT_TIMEOUT_MS = 10000;   // Force the open if current never drops
@@ -380,11 +387,14 @@ class BydAttoBattery : public CanBattery {
 
   uint8_t contactorState = CONTACTORS_CLOSING;  // Boot default: close right away, as before
   uint8_t contactor_feedback = 0;               // Raw 0x344 byte 0
+  uint8_t prechargeState = PRECHARGE_WAIT;
+  bool prechargeEdgeSeen = false;
+  unsigned long prechargeRampStartMillis = 0;
   unsigned long contactorStateEntryMillis = 0;
   unsigned long closeConfirmStartMillis = 0;
   unsigned long lastCurrentSampleMillis = 0;
   unsigned long lastContactorFeedbackMillis = 0;  // 0 = no 0x344 received yet
-  bool closeConfirmPending = false;               // Only for user closes, not the boot default
+  bool closeConfirmPending = false;               // Close awaiting 0x344 confirmation
   bool openTimeoutEventSent = false;              // Open-delay warning fired once per attempt
   bool requestContactorOpen = false;
   bool requestContactorClose = false;
@@ -453,7 +463,7 @@ class BydAttoBattery : public CanBattery {
   unsigned long last_35E_ms = 0;                // 0 = 0x35E not yet received (staleness)
   bool calibrationAH_seeded = false;
 
-  int16_t battery_daughterboard_temperatures[13] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
+  int16_t battery_daughterboard_temperatures[12] = {-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40};
   uint16_t battery_cellvoltages[MAX_AMOUNT_CELLS] = {0};
 
   /* Extra CAN info 

@@ -4,6 +4,7 @@
 #include "../../Software/src/battery/BYD-ATTO-3-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 #include "../../Software/src/datalayer/datalayer_extended.h"
+#include "../../Software/src/devboard/utils/events.h"
 
 #include "Arduino.h"
 
@@ -48,7 +49,7 @@ CAN_frame byd_corrupt_frame(uint32_t id, std::initializer_list<uint8_t> first7by
 // Clears the shared global datalayer between tests, so none sees values left by another.
 void reset_byd_state() {
   datalayer.battery.status = DATALAYER_BATTERY_STATUS_TYPE{};
-  datalayer.battery.settings.max_user_set_charge_dA = 300;
+  datalayer.battery_settings.max_user_set_charge_dA = 300;
   datalayer_extended.bydAtto3.chargePower = 0;
   datalayer_extended.bydAtto3.dischargePower = 0;
   datalayer_extended.bydAtto3.SOC_polled = 0;
@@ -422,4 +423,379 @@ TEST_F(BydAtto3BalanceTimeTest, TimesOutAfterOneRetry) {
   EXPECT_EQ(result.expected_cells, 1);
   EXPECT_EQ(result.received_cells, 0);
   EXPECT_EQ(result.scan_id, 1u);
+}
+
+// TX frame capture injected by the emulated CAN layer (see emul/can.cpp).
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
+
+namespace {
+
+const uint16_t kPackVolts = 426;  // 0x441 reports pack - 1
+const uint16_t kLowLink = 12;     // bytes 4-5 = 0x0C 0x00, the floating link
+const uint16_t kNo441 = 0xFFFF;
+
+const CAN_frame* last_transmitted_frame(uint32_t id) {
+  const std::vector<CAN_frame>& frames = get_transmitted_frames();
+  for (size_t i = frames.size(); i > 0; i--) {
+    if (frames[i - 1].ID == id) {
+      return &frames[i - 1];
+    }
+  }
+  return nullptr;
+}
+
+// 0x344 b0 = contactor feedback, b1 = BMS precharge state: 0x00 open, 0x40 moving, 0x41 running.
+CAN_frame contactor_state_frame(uint8_t b0, uint8_t b1) {
+  return byd_frame(0x344, {b0, b1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+}
+
+// 0x444 sets battery_voltage and BMS_voltage_available; without it 0x441 only ever reports the low link.
+CAN_frame pack_voltage_frame() {
+  return byd_checksummed_frame(
+      0x444, {(uint8_t)(kPackVolts & 0xFF), (uint8_t)((kPackVolts >> 8) & 0x0F), 0x88, 0x13, 0x64, 0x50, 0x00});
+}
+
+void byd_precharge_setup() {
+  init_events();
+  reset_all_events();
+  reset_byd_state();
+  clear_transmitted_frames();
+  datalayer.system.status.system_status = ACTIVE;
+  datalayer.system.status.inverter_allows_contactor_closing = true;
+  datalayer.system.info.equipment_stop_active = false;
+}
+
+// The RX edge stamps millis(), the ramp reads currentMillis; the test clock has to drive both.
+void rx_at(BydAttoBattery* battery, const CAN_frame& frame, uint32_t ms) {
+  set_millis64(ms);
+  battery->handle_incoming_can_frame(frame);
+}
+
+uint16_t link_on_tick(BydAttoBattery* battery, uint32_t ms) {
+  clear_transmitted_frames();
+  set_millis64(ms);
+  battery->transmit_can(ms);
+  const CAN_frame* frame = last_transmitted_frame(0x441);
+  return frame ? (uint16_t)((frame->data.u8[5] << 8) | frame->data.u8[4]) : kNo441;
+}
+
+// 0x441 is only computed once counter_100ms > 3, so run six 100ms ticks before asserting anything.
+uint16_t warmup(BydAttoBattery* battery, uint8_t b0, uint8_t b1, uint32_t start_ms) {
+  uint16_t link = kNo441;
+  for (uint32_t i = 0; i < 6; i++) {
+    const uint32_t ms = start_ms + i * 100;
+    rx_at(battery, contactor_state_frame(b0, b1), ms);
+    rx_at(battery, pack_voltage_frame(), ms);
+    link = link_on_tick(battery, ms);
+  }
+  return link;
+}
+
+}  // namespace
+
+// Rebooting into a live pack must not fake a precharge. The first 0x344 also carries b1 = 0x41, which
+// looks like a precharge edge, so b0's main-closed bit has to outrank it.
+TEST(BydAtto3PrechargeTests, BootIntoAClosedPackReportsPackVoltageWithoutRamping) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x84, 0x41, 0), kPackVolts - 1);
+
+  delete battery;
+}
+
+// Boot with the pack open is also CONTACTORS_CLOSING. Uptime alone must never make the reported link live.
+TEST(BydAtto3PrechargeTests, BootWithThePackOpenHoldsTheLowLinkThroughASlowBoot) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 4000), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 6000), kLowLink);
+
+  delete battery;
+}
+
+TEST(BydAtto3PrechargeTests, BootCloseTimeoutStartsAfterFirstContactorFeedback) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  clear_transmitted_frames();
+  set_millis64(20000);
+  battery->transmit_can(20000);
+  ASSERT_NE(last_transmitted_frame(0x12D), nullptr);
+  EXPECT_EQ(last_transmitted_frame(0x12D)->data.u8[0], 0xA0);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_MISMATCH)->state, EVENT_STATE_INACTIVE);
+
+  rx_at(battery, contactor_state_frame(0x00, 0x00), 20000);
+  battery->transmit_can(20050);
+  battery->transmit_can(35000);
+  EXPECT_EQ(last_transmitted_frame(0x12D)->data.u8[0], 0xA0);
+
+  clear_transmitted_frames();
+  set_millis64(35050);
+  battery->transmit_can(35050);
+  const CAN_frame* standby = last_transmitted_frame(0x12D);
+  ASSERT_NE(standby, nullptr);
+  EXPECT_EQ(standby->data.u8[0], 0x50);
+  EXPECT_EQ(standby->data.u8[1], 0x14);
+  EXPECT_EQ(standby->data.u8[2], 0x02);
+  EXPECT_EQ(standby->data.u8[3], 0x10);
+  EXPECT_EQ(standby->data.u8[4], 0x04);
+  EXPECT_EQ(standby->data.u8[5], 0x31);
+
+  delete battery;
+}
+
+TEST(BydAtto3ContactorTests, ReportsBlockedCloseReason) {
+  byd_precharge_setup();
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  battery->request_close_contactors();
+  battery->transmit_can(50);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->data, 2);
+
+  datalayer.system.status.inverter_allows_contactor_closing = true;
+  battery->transmit_can(100);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->state, EVENT_STATE_INACTIVE);
+
+  datalayer.system.info.equipment_stop_active = true;
+  battery->request_close_contactors();
+  battery->transmit_can(150);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->data, 1);
+
+  datalayer.system.info.equipment_stop_active = false;
+  battery->transmit_can(200);
+  set_event(EVENT_DUMMY_ERROR, 0);
+  battery->request_close_contactors();
+  battery->transmit_can(250);
+  EXPECT_EQ(get_event_pointer(EVENT_BYD_CONTACTOR_CLOSE_BLOCKED)->data, 4);
+  clear_event(EVENT_DUMMY_ERROR);
+
+  delete battery;
+}
+
+// A real close: b1 goes 0x40 well before b0 reports closed, and the car walks the link up over ~900ms.
+// Asserting pack voltage before the BMS has precharged reads as a stuck contactor - P1A3400.
+TEST(BydAtto3PrechargeTests, RampsTheLinkOnlyAfterTheBmsStartsPrecharging) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
+
+  rx_at(battery, contactor_state_frame(0x00, 0x40), 600);
+  EXPECT_EQ(link_on_tick(battery, 600), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 700), 268);
+  rx_at(battery, contactor_state_frame(0x40, 0x44), 700);
+  EXPECT_EQ(link_on_tick(battery, 1000), 404);
+  EXPECT_EQ(link_on_tick(battery, 1500), kPackVolts - 1);
+
+  delete battery;
+}
+
+TEST(BydAtto3PrechargeTests, AcceptsPackModeAsPrechargeStart) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
+
+  rx_at(battery, contactor_state_frame(0x40, 0x00), 600);
+  EXPECT_EQ(link_on_tick(battery, 600), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 700), 268);
+
+  delete battery;
+}
+
+// A slow BMS must still see the real floating link. Its eventual edge starts the normal ramp.
+TEST(BydAtto3PrechargeTests, WaitsForALateBmsResponseBeforeRamping) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  EXPECT_EQ(warmup(battery, 0x00, 0x00, 0), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 3300), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 3500), kLowLink);
+
+  rx_at(battery, contactor_state_frame(0x00, 0x40), 3600);
+  EXPECT_EQ(link_on_tick(battery, 3600), kLowLink);
+  EXPECT_EQ(link_on_tick(battery, 3700), 268);
+  EXPECT_EQ(link_on_tick(battery, 4000), 404);
+  EXPECT_EQ(link_on_tick(battery, 4500), kPackVolts - 1);
+
+  delete battery;
+}
+
+namespace {
+
+// 0x444 charging at 5A: b2:b3 = 5000 - 50.
+CAN_frame charging_current_frame() {
+  return byd_checksummed_frame(0x444, {0x58, 0x02, 0x56, 0x13, 0x64, 0x62, 0x00});
+}
+
+// 0x446: lowest cell 15 at 3494mV, highest cell 155 at max_mV.
+CAN_frame cell_extrema_frame(uint16_t max_mV) {
+  return byd_frame(0x446, {15, 0xA6, 0x0D, 0x00, 155, (uint8_t)(max_mV & 0xFF), (uint8_t)(max_mV >> 8), 0x00});
+}
+
+CAN_frame grant_mirror_frame(uint8_t grant) {
+  return byd_checksummed_frame(0x345, {0x00, 0x00, 0x00, 0x00, grant, 0x00, 0x00});
+}
+
+CAN_frame grant_frame(uint8_t grant) {
+  return byd_checksummed_frame(0x347, {0xCF, grant, 0x00, 0xF9, 0x03, 0x88, 0x13});
+}
+
+void tick(BydAttoBattery* battery, uint32_t ms) {
+  set_millis64(ms);
+  battery->update_values();
+  battery->transmit_can(ms);
+}
+
+// Boots into a closed pack drawing charge current until the session arms, then raises the charge flag.
+BydAttoBattery* charging_battery(uint32_t* ms) {
+  byd_precharge_setup();
+  datalayer_extended.bydAtto3.native_termination_enabled = true;
+  datalayer_extended.bydAtto3.balancing_enabled = false;
+  datalayer_extended.bydAtto3.termination_cell_max_mV = 0;
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  for (*ms = 0; *ms < 34000; *ms += 50) {
+    rx_at(battery, contactor_state_frame(*ms >= 32000 ? 0x85 : 0x84, 0x41), *ms);
+    rx_at(battery, charging_current_frame(), *ms);
+    rx_at(battery, cell_extrema_frame(3600), *ms);
+    tick(battery, *ms);
+  }
+  return battery;
+}
+
+// The mirror leads the grant by about a frame, as on the wire.
+void grant_step(BydAttoBattery* battery, uint8_t grant, uint32_t* ms) {
+  *ms += 20;
+  rx_at(battery, grant_mirror_frame(grant), *ms);
+  *ms += 60;
+  rx_at(battery, grant_frame(grant), *ms);
+}
+
+uint8_t charger_state_after_flag_clears(BydAttoBattery* battery, uint32_t* ms) {
+  for (int i = 0; i < 4; i++) {
+    *ms += 50;
+    rx_at(battery, contactor_state_frame(0x84, 0x41), *ms);
+    tick(battery, *ms);
+  }
+  const CAN_frame* frame = last_transmitted_frame(0x47E);
+  return frame ? frame->data.u8[2] : 0xFF;
+}
+
+}  // namespace
+
+TEST(BydAtto3TerminationTests, ReachesChargingInTheHarness) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  ASSERT_NE(last_transmitted_frame(0x24A), nullptr);
+  EXPECT_EQ(last_transmitted_frame(0x24A)->data.u8[0], 0x88);
+  delete battery;
+}
+
+// The 168-cell PW4 ends its grant on 0x01, not 0x00 (dioko81, 2026-09-26), and also sits at 0x01 when a
+// session opens.
+TEST(BydAtto3TerminationTests, Pw4EndsOnGrantOne) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  rx_at(battery, cell_extrema_frame(3751), ms);
+  tick(battery, ms);
+
+  for (uint8_t grant : {0x01, 0x14, 0x19, 0x55, 0x69, 0x2B, 0x19, 0x1D}) {
+    grant_step(battery, grant, &ms);
+  }
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+
+  grant_step(battery, 0x19, &ms);
+  grant_step(battery, 0x01, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3751);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_delta_mV, 3751 - 3494);
+  EXPECT_EQ(charger_state_after_flag_clears(battery, &ms), 0x0E);  // finishing, not resting at 0x0F
+
+  delete battery;
+}
+
+TEST(BydAtto3TerminationTests, AttoStillEndsOnGrantZero) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  rx_at(battery, cell_extrema_frame(3752), ms);
+  tick(battery, ms);
+
+  for (uint8_t grant : {0x5A, 0x1A, 0x16, 0x19, 0x16, 0x00}) {
+    grant_step(battery, grant, &ms);
+  }
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3752);
+  EXPECT_EQ(charger_state_after_flag_clears(battery, &ms), 0x0E);
+
+  delete battery;
+}
+
+// 2026-09-14: the emulator stood down first and the grant fell to 0x01 afterwards. Not a termination.
+TEST(BydAtto3TerminationTests, GrantEndAfterTheEmulatorStandsDownIsNotATermination) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  rx_at(battery, cell_extrema_frame(3755), ms);
+  tick(battery, ms);
+  grant_step(battery, 0x2D, &ms);
+
+  datalayer.system.info.equipment_stop_active = true;
+  for (int i = 0; i < 2; i++) {
+    ms += 50;
+    tick(battery, ms);
+  }
+  EXPECT_EQ(last_transmitted_frame(0x24A)->data.u8[0], 0x8C);
+
+  grant_step(battery, 0x01, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+
+  datalayer.system.info.equipment_stop_active = false;
+  delete battery;
+}
+
+TEST(BydAtto3TerminationTests, CorruptedGrantCannotEndTheCharge) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  rx_at(battery, cell_extrema_frame(3751), ms);
+  tick(battery, ms);
+  grant_step(battery, 0x1D, &ms);
+
+  ms += 20;
+  rx_at(battery, grant_mirror_frame(0x00), ms);
+  ms += 20;
+  rx_at(battery, byd_corrupt_frame(0x347, {0xCF, 0x00, 0x00, 0xF9, 0x03, 0x88, 0x13}), ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+
+  grant_step(battery, 0x00, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3751);
+
+  delete battery;
+}
+
+TEST(BydAtto3TerminationTests, CorruptedMirrorCannotConfirmTheEnd) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  rx_at(battery, cell_extrema_frame(3751), ms);
+  tick(battery, ms);
+  grant_step(battery, 0x1D, &ms);
+
+  ms += 20;
+  rx_at(battery, byd_corrupt_frame(0x345, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}), ms);
+  ms += 20;
+  rx_at(battery, grant_frame(0x00), ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);  // good mirror still reads 0x1D
+
+  grant_step(battery, 0x00, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3751);
+
+  delete battery;
 }

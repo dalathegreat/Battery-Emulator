@@ -1,6 +1,7 @@
 #ifndef TESLA_BATTERY_H
 #define TESLA_BATTERY_H
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
@@ -17,16 +18,19 @@ class TeslaBattery : public CanBattery {
  public:
   bool mandatory_charge_taper() { return true; }
   // Use the default constructor to create the first or single battery.
-  TeslaBattery() {
+  TeslaBattery() : renderer(&datalayer_extended.tesla, &datalayer.battery) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    previous_max_percentage = datalayer.battery.settings.max_percentage;
+    previous_max_percentage = datalayer.battery_settings.max_percentage;
+    datalayer_tesla = &datalayer_extended.tesla;
   }
-  // Use this constructor for the second or third battery.
-  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+  // Use this constructor for the second battery.
+  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_TESLA* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended, datalayer_ptr) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
-    previous_max_percentage = datalayer_ptr->settings.max_percentage;
+    previous_max_percentage = datalayer.battery_settings.max_percentage;
+    datalayer_tesla = extended;
   }
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -35,13 +39,13 @@ class TeslaBattery : public CanBattery {
 
   bool supports_clear_isolation() { return true; }
   bool supports_insulation_resistance() { return true; }
-  void clear_isolation() { datalayer_battery->settings.user_requests_tesla_isolation_clear = true; }
+  void clear_isolation() { datalayer.battery_settings.user_requests_tesla_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }
-  void reset_BMS() { datalayer_battery->settings.user_requests_tesla_bms_reset = true; }
+  void reset_BMS() { datalayer.battery_settings.user_requests_tesla_bms_reset = true; }
 
   bool supports_reset_SOC() { return true; }
-  void reset_SOC() { datalayer_battery->settings.user_requests_tesla_soc_reset = true; }
+  void reset_SOC() { datalayer.battery_settings.user_requests_tesla_soc_reset = true; }
 
   bool supports_charged_energy() { return true; }
 
@@ -54,6 +58,11 @@ class TeslaBattery : public CanBattery {
 
  private:
   TeslaHtmlRenderer renderer;
+
+  // Per-instance extended data for the "More Battery Info" webserver page.
+  // Points at datalayer_extended.tesla for the main battery, or datalayer_extended.tesla_2
+  // for the second battery, so double-battery setups no longer share one struct.
+  DATALAYER_INFO_TESLA* datalayer_tesla;
 
  protected:
   /* Do not change anything below this line! */
@@ -548,9 +557,11 @@ class TeslaBattery : public CanBattery {
   uint16_t BMS_max_voltage = 0;
   uint16_t BMS_min_voltage = 0;
   //0x2b4: 692 PCS_dcdcRailStatus
-  uint16_t battery_dcdcHvBusVolt = 0;        // Change name from battery_high_voltage to battery_dcdcHvBusVolt
-  uint16_t battery_dcdcLvBusVolt = 0;        // Change name from battery_low_voltage to battery_dcdcLvBusVolt
-  uint16_t battery_dcdcLvOutputCurrent = 0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
+  bool older_firmware = false;              // DLC 5 frame seen: firmware up to 2023.2.12
+  bool newer_firmware = false;              // 0x332 carries thermistorTAvg: firmware from 2023.12.1
+  uint16_t battery_dcdcHvBusVolt = 0;       // 0.1 V
+  uint16_t battery_dcdcLvBusVolt = 0;       // 10 mV
+  int16_t battery_dcdcLvOutputCurrent = 0;  // 0.1 A
   //0x292: 658 BMS_socStatus
   uint16_t battery_beginning_of_life = 0;  // kWh
   uint16_t battery_soc_min = 0;
@@ -560,7 +571,7 @@ class TeslaBattery : public CanBattery {
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
   uint32_t battery_packMass = 0;
-  uint32_t battery_platformMaxBusVoltage = 0;
+  uint32_t battery_platformMaxBusVoltage = 0;  // raw, scaled in update_values
   uint32_t battery_packConfigMultiplexer = 0;
   uint32_t battery_moduleType = 0;
   uint32_t battery_reservedConfig = 0;
@@ -718,38 +729,33 @@ class TeslaBattery : public CanBattery {
   uint32_t PCS_dcdc12vSupportLifetimekWh = 0;
   //0x7AA: //1962 HVP_debugMessage:
   uint8_t HVP_debugMessageMultiplexer = 0;
-  bool HVP_gpioPassivePyroDepl = false;       //Change to bool
-  bool HVP_gpioPyroIsoEn = false;             //Change to bool
-  bool HVP_gpioCpFaultIn = false;             //Change to bool
-  bool HVP_gpioPackContPowerEn = false;       //Change to bool
-  bool HVP_gpioHvCablesOk = false;            //Change to bool
-  bool HVP_gpioHvpSelfEnable = false;         //Change to bool
-  bool HVP_gpioLed = false;                   //Change to bool
-  bool HVP_gpioCrashSignal = false;           //Change to bool
-  bool HVP_gpioShuntDataReady = false;        //Change to bool
-  bool HVP_gpioFcContPosAux = false;          //Change to bool
-  bool HVP_gpioFcContNegAux = false;          //Change to bool
-  bool HVP_gpioBmsEout = false;               //Change to bool
-  bool HVP_gpioCpFaultOut = false;            //Change to bool
-  bool HVP_gpioPyroPor = false;               //Change to bool
-  bool HVP_gpioShuntEn = false;               //Change to bool
-  bool HVP_gpioHvpVerEn = false;              //Change to bool
-  bool HVP_gpioPackCoontPosFlywheel = false;  //Change to bool
-  bool HVP_gpioCpLatchEnable = false;         //Change to bool
-  bool HVP_gpioPcsEnable = false;             //Change to bool
-  bool HVP_gpioPcsDcdcPwmEnable = false;      //Change to bool
-  bool HVP_gpioPcsChargePwmEnable = false;    //Change to bool
-  bool HVP_gpioFcContPowerEnable = false;     //Change to bool
-  bool HVP_gpioHvilEnable = false;            //Change to bool
-  bool HVP_gpioSecDrdy = false;               //Change to bool
+  bool HVP_gpioPassivePyroDepl = false;  //Change to bool
+  bool HVP_gpioPyroIsoEn = false;        //Change to bool
+  bool HVP_gpioCpFaultIn = false;        //Change to bool
+  bool HVP_gpioPackContPowerEn = false;  //Change to bool
+  bool HVP_gpioHvCablesOk = false;       //Change to bool
+  bool HVP_gpioHvpSelfEnable = false;    //Change to bool
+  bool HVP_gpioLed = false;              //Change to bool
+  bool HVP_gpioCrashSignal = false;      //Change to bool
+  bool HVP_gpioShuntDataReady = false;   //Change to bool
+  bool HVP_gpioFcContPosAux = false;     //Change to bool
+  bool HVP_gpioFcContNegAux = false;     //Change to bool
+  bool HVP_gpioBmsEout = false;          //Change to bool
+  bool HVP_gpioCpFaultOut = false;       //Change to bool
+  bool HVP_gpioPyroPor = false;          //Change to bool
+  bool HVP_gpioShuntEn = false;          //Change to bool
+  bool HVP_gpioHvpVerEn = false;         //Change to bool
+  bool HVP_gpioFcContFlywheelEnable = false;
+  bool HVP_gpioCpLatchEnable = false;
+  bool HVP_gpioFcContPowerEnable = false;
+  bool HVP_gpioHvilEnable = false;
+  bool HVP_gpioPortSelSpiRdy = false;
+  bool HVP_gpioPyroUnlock = false;
   uint16_t HVP_hvp1v5Ref = 0;
   int16_t HVP_shuntCurrentDebug = 0;
-  bool HVP_packCurrentMia = false;           //Change to bool
-  bool HVP_auxCurrentMia = false;            //Change to bool
-  bool HVP_currentSenseMia = false;          //Change to bool
-  bool HVP_shuntRefVoltageMismatch = false;  //Change to bool
-  bool HVP_shuntThermistorMia = false;       //Change to bool
-  bool HVP_shuntHwMia = false;               //Change to bool
+  bool HVP_packCurrentMia = false;
+  bool HVP_auxCurrentMia = false;
+  bool HVP_currentSenseMia = false;
   uint16_t HVP_info_buildConfigId = 0;
   uint16_t HVP_info_hardwareId = 0;
   uint16_t HVP_info_componentId = 0;

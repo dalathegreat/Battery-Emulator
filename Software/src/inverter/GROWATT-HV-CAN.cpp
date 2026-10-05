@@ -39,19 +39,19 @@ void GrowattHvInverter::
     modules_in_series = 1;
   }
 
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+  if (datalayer.aggregate.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     // 0x3140 expects capacity in 10mAh units.
     // capacity_10mAh = Wh * 1000 / dV   (because V = dV/10, and 10mAh units = Ah*100)
-    const uint16_t v_dV = datalayer.battery.status.voltage_dV;
+    const uint16_t v_dV = datalayer.aggregate.voltage_dV;
 
-    uint32_t full_10mAh = (uint32_t)((uint64_t)datalayer.battery.info.reported_total_capacity_Wh * 1000ULL / v_dV);
+    uint32_t full_10mAh = (uint32_t)((uint64_t)datalayer.aggregate.reported_total_capacity_Wh * 1000ULL / v_dV);
 
     uint32_t rem_10mAh = 0;
-    if (datalayer.battery.status.reported_remaining_capacity_Wh > 0) {
-      rem_10mAh = (uint32_t)((uint64_t)datalayer.battery.status.reported_remaining_capacity_Wh * 1000ULL / v_dV);
+    if (datalayer.aggregate.reported_remaining_capacity_Wh > 0) {
+      rem_10mAh = (uint32_t)((uint64_t)datalayer.aggregate.reported_remaining_capacity_Wh * 1000ULL / v_dV);
     } else {
       // Fallback: derive remaining capacity from SOC if remaining Wh is not available.
-      const uint32_t soc_pct = (uint32_t)(datalayer.battery.status.reported_soc / 100);  // 0..100
+      const uint32_t soc_pct = (uint32_t)(datalayer.aggregate.reported_soc / 100);  // 0..100
       rem_10mAh = (uint32_t)((uint64_t)full_10mAh * soc_pct / 100ULL);
     }
 
@@ -66,37 +66,37 @@ void GrowattHvInverter::
 
   //Map values to CAN messages
   //Battery operating parameters and status information
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
     //User specified charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 0, MAX 1000V)
-    GROWATT_3110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
-    GROWATT_3110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
+    GROWATT_3110.data.u8[0] = (datalayer.battery_settings.max_user_set_charge_voltage_dV >> 8);
+    GROWATT_3110.data.u8[1] = (datalayer.battery_settings.max_user_set_charge_voltage_dV & 0x00FF);
   } else {
     //Battery max voltage used as charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 0, MAX 1000V)
-    GROWATT_3110.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-    GROWATT_3110.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+    GROWATT_3110.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+    GROWATT_3110.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
   }
   //Charge limited current, 125 =12.5A (0.1, A) (Min 0, Max 300A)
-  GROWATT_3110.data.u8[2] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  GROWATT_3110.data.u8[3] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  GROWATT_3110.data.u8[2] = (datalayer.aggregate.max_charge_current_dA >> 8);
+  GROWATT_3110.data.u8[3] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
-  GROWATT_3110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
-  GROWATT_3110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  GROWATT_3110.data.u8[4] = (datalayer.aggregate.max_discharge_current_dA >> 8);
+  GROWATT_3110.data.u8[5] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
   //Status bits (see documentation for all bits, most important are mapped
-  GROWATT_3110.data.u8[7] = 0x00;                      // Clear all bits
-  if (datalayer.battery.status.active_power_W < -1) {  // Discharging
+  GROWATT_3110.data.u8[7] = 0x00;                 // Clear all bits
+  if (datalayer.aggregate.active_power_W < -1) {  // Discharging
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000011);
-  } else if (datalayer.battery.status.active_power_W > 1) {  // Charging
+  } else if (datalayer.aggregate.active_power_W > 1) {  // Charging
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000010);
   } else {  //Idle
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000001);
   }
-  if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
+  if ((datalayer.aggregate.max_charge_current_dA == 0) || (datalayer.aggregate.reported_soc == 10000) ||
       (datalayer.system.status.system_status == FAULT)) {
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b01000000);  // No Charge
   } else {                                                             //continue using battery
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000000);  // Charge allowed
   }
-  if ((datalayer.battery.status.max_discharge_current_dA == 0) || (datalayer.battery.status.reported_soc == 0) ||
+  if ((datalayer.aggregate.max_discharge_current_dA == 0) || (datalayer.aggregate.reported_soc == 0) ||
       (datalayer.system.status.system_status == FAULT)) {
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00100000);  // No Discharge
   } else {                                                             //continue using battery
@@ -118,18 +118,18 @@ void GrowattHvInverter::
 
   //Battery operation information
   //Voltage of the pack (0.1V) [0-1000V]
-  GROWATT_3130.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
-  GROWATT_3130.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  GROWATT_3130.data.u8[0] = (datalayer.aggregate.voltage_dV >> 8);
+  GROWATT_3130.data.u8[1] = (datalayer.aggregate.voltage_dV & 0x00FF);
   //Total current (0.1A -300 to 300A)
-  GROWATT_3130.data.u8[2] = (datalayer.battery.status.reported_current_dA >> 8);
-  GROWATT_3130.data.u8[3] = (datalayer.battery.status.reported_current_dA & 0x00FF);
+  GROWATT_3130.data.u8[2] = (datalayer.aggregate.current_dA >> 8);
+  GROWATT_3130.data.u8[3] = (datalayer.aggregate.current_dA & 0x00FF);
   //Cell max temperature (0.1C) [-40 to 120*C]
-  GROWATT_3130.data.u8[4] = (datalayer.battery.status.temperature_max_dC >> 8);
-  GROWATT_3130.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  GROWATT_3130.data.u8[4] = (datalayer.aggregate.temperature_max_dC >> 8);
+  GROWATT_3130.data.u8[5] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
   //SOC (%) [0-100]
-  GROWATT_3130.data.u8[6] = (datalayer.battery.status.reported_soc / 100);
+  GROWATT_3130.data.u8[6] = (datalayer.aggregate.reported_soc / 100);
   //SOH (%) (Bit 0~ Bit6 SOH Counters) Bit7 SOH flag (Indicates that battery is in unsafe use)
-  GROWATT_3130.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
+  GROWATT_3130.data.u8[7] = (datalayer.aggregate.soh_pptt / 100);
 
   //Battery capacity information
   //Remaining capacity (10 mAh) [0.0 ~ 500000.0 mAH]
@@ -146,18 +146,18 @@ void GrowattHvInverter::
   GROWATT_3140.data.u8[7] = 0;
 
   //Battery working parameters and module number information
-  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+  if (datalayer.battery_settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
     //Use user specified voltage as Discharge cutoff voltage (0.1V) [0-1000V]
-    GROWATT_3150.data.u8[0] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
-    GROWATT_3150.data.u8[1] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
+    GROWATT_3150.data.u8[0] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV >> 8);
+    GROWATT_3150.data.u8[1] = (datalayer.battery_settings.max_user_set_discharge_voltage_dV & 0x00FF);
   } else {
     //Use battery min design voltage as Discharge cutoff voltage (0.1V) [0-1000V]
-    GROWATT_3150.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-    GROWATT_3150.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+    GROWATT_3150.data.u8[0] = (datalayer.aggregate.min_design_voltage_dV >> 8);
+    GROWATT_3150.data.u8[1] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
   }
   //Main control unit temperature (0.1C) [-40 to 120*C]
-  GROWATT_3150.data.u8[2] = (datalayer.battery.status.temperature_max_dC >> 8);
-  GROWATT_3150.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  GROWATT_3150.data.u8[2] = (datalayer.aggregate.temperature_max_dC >> 8);
+  GROWATT_3150.data.u8[3] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
   //Total number of cells
   GROWATT_3150.data.u8[4] = (total_cells >> 8);
   GROWATT_3150.data.u8[5] = (total_cells & 0x00FF);
@@ -179,8 +179,8 @@ void GrowattHvInverter::
   //Number of cell with the minimum cell voltage (1-128)
   GROWATT_3160.data.u8[5] = 2;
   //Minimum cell temperature (0.1C) [-40 to 120*C]
-  GROWATT_3160.data.u8[6] = (datalayer.battery.status.temperature_min_dC >> 8);
-  GROWATT_3160.data.u8[7] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  GROWATT_3160.data.u8[6] = (datalayer.aggregate.temperature_min_dC >> 8);
+  GROWATT_3160.data.u8[7] = (datalayer.aggregate.temperature_min_dC & 0x00FF);
 
   //Software version and temperature number information
   //Number of Module with the maximum cell temperature (1-32)
@@ -221,11 +221,11 @@ void GrowattHvInverter::
   //Battery status
   GROWATT_3190.data.u8[0] = 0;  //LFP, no forced charge
   //Maximum cell voltage (mV)
-  GROWATT_3190.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  GROWATT_3190.data.u8[2] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  GROWATT_3190.data.u8[1] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
+  GROWATT_3190.data.u8[2] = (datalayer.aggregate.cell_max_voltage_mV & 0x00FF);
   // Min cell voltage (mV)
-  GROWATT_3190.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  GROWATT_3190.data.u8[4] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  GROWATT_3190.data.u8[3] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
+  GROWATT_3190.data.u8[4] = (datalayer.aggregate.cell_min_voltage_mV & 0x00FF);
   //Reserved
   GROWATT_3190.data.u8[5] = 0;
   // Faulty battery pack number (1-16)
@@ -262,8 +262,8 @@ void GrowattHvInverter::
   //Forced discharge mark
   GROWATT_3220.data.u8[4] = 0;  //When you want to force charge battery, send 0xAA here
   //Battery rated energy information (Unit 0.1 kWh )  30kWh = 300 , so 30000Wh needs to be div by 100
-  GROWATT_3220.data.u8[5] = ((datalayer.battery.info.reported_total_capacity_Wh / 100) >> 8);
-  GROWATT_3220.data.u8[6] = ((datalayer.battery.info.reported_total_capacity_Wh / 100) & 0x00FF);
+  GROWATT_3220.data.u8[5] = ((datalayer.aggregate.reported_total_capacity_Wh / 100) >> 8);
+  GROWATT_3220.data.u8[6] = ((datalayer.aggregate.reported_total_capacity_Wh / 100) & 0x00FF);
   //Software subversion number
   GROWATT_3220.data.u8[7] = 0;
 

@@ -12,9 +12,23 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
   bool renders_own_battery_data() { return true; }
 
+  bool html_render_failed() const override { return render_failed; }
+
+  String get_dtc_html() override {
+    auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
+    String content = render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
+    render_failed = content.isEmpty();
+    return content;
+  }
+
   String get_status_html() {
-    String content;
-    content.reserve(9000);
+    render_failed = false;
+    CheckedHtml content;
+    const bool reserved = content.reserve(16000);
+    if (!reserved) {
+      render_failed = true;
+      return String();
+    }
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
     content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
@@ -128,45 +142,17 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
-    if (byd_datalayer->battery_temperatures[0] != 215) {
-      content += "<h4>Temperature sensor 1: " + String(byd_datalayer->battery_temperatures[0]) + " &deg;C</h4>";
+
+    static const size_t TEMPERATURE_SENSOR_COUNT =
+        sizeof(byd_datalayer->battery_temperatures) / sizeof(byd_datalayer->battery_temperatures[0]);
+    for (size_t i = 0; i < TEMPERATURE_SENSOR_COUNT; ++i) {
+      if (byd_datalayer->battery_temperatures[i] == 215) {
+        break;
+      }
+      content += "<h4>Temperature sensor " + String(i + 1) + ": " + String(byd_datalayer->battery_temperatures[i]) +
+                 " &deg;C</h4>";
     }
-    if (byd_datalayer->battery_temperatures[1] != 215) {
-      content += "<h4>Temperature sensor 2: " + String(byd_datalayer->battery_temperatures[1]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[2] != 215) {
-      content += "<h4>Temperature sensor 3: " + String(byd_datalayer->battery_temperatures[2]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[3] != 215) {
-      content += "<h4>Temperature sensor 4: " + String(byd_datalayer->battery_temperatures[3]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[4] != 215) {
-      content += "<h4>Temperature sensor 5: " + String(byd_datalayer->battery_temperatures[4]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[5] != 215) {
-      content += "<h4>Temperature sensor 6: " + String(byd_datalayer->battery_temperatures[5]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[6] != 215) {
-      content += "<h4>Temperature sensor 7: " + String(byd_datalayer->battery_temperatures[6]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[7] != 215) {
-      content += "<h4>Temperature sensor 8: " + String(byd_datalayer->battery_temperatures[7]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[8] != 215) {
-      content += "<h4>Temperature sensor 9: " + String(byd_datalayer->battery_temperatures[8]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[9] != 215) {
-      content += "<h4>Temperature sensor 10: " + String(byd_datalayer->battery_temperatures[9]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[10] != 215) {
-      content += "<h4>Temperature sensor 11: " + String(byd_datalayer->battery_temperatures[10]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[11] != 215) {
-      content += "<h4>Temperature sensor 12: " + String(byd_datalayer->battery_temperatures[11]) + " &deg;C</h4>";
-    }
-    if (byd_datalayer->battery_temperatures[12] != 215) {
-      content += "<h4>Temperature sensor 13: " + String(byd_datalayer->battery_temperatures[12]) + " &deg;C</h4>";
-    }
+
     content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";
     content += "<h4>Max charge (regen) power: " + String(BMS_maxChargePower) + " kW</h4>";
     content += "<h4>Total charged: " + String(byd_datalayer->total_charged_kwh) + " kWh</h4>";
@@ -209,12 +195,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     if (s.length() > 0) {
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      // Why is the "bydnative2" entry of web_data/help/help.json, behind the heading's help button.
       content +=
-          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
+          "<h4 data-h=bydnative2 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination "
+          "&amp; balancing</h4>";
       content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Not available on the second battery: "
-          "the inverter charge limit follows battery 1, so a termination here could not stop the "
-          "charge.</div>";
+          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Not available on the second battery.</div>";
       content += "</div>";
       content += "<hr>";
     } else {
@@ -249,13 +235,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
+      // The panel's explanation is the "bydnative" entry of web_data/help/help.json.
       content +=
-          "<h4 style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination &amp; balancing</h4>";
-      content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Native termination lets the battery "
-          "finish charging and recalibrate its own SOC and SOH, as it does in the car. Without balancing, the "
-          "pack remains closed and available for discharge. With balancing enabled, the contactors open for the "
-          "selected hold time before closing again &mdash; a cycle that appears to trigger balancing.</div>";
+          "<h4 data-h=bydnative style='margin:0 0 8px 0;color:white'>Native SOC calibration, charge termination "
+          "&amp; balancing</h4>";
       content += panel_table;
 
       content += "<tr>";
@@ -265,7 +248,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' id='nativeTerm" + s + "' ";
       content += (byd_datalayer->native_termination_enabled ? "checked" : "");
       content += " onchange='toggleNativeTermination" + s + "()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> default on</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -275,7 +257,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' id='balancingEnabled' ";
       content += (byd_datalayer->balancing_enabled ? "checked" : "");
       content += " onchange='toggleBalancingEnabled()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> open/reclose after charge</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -350,12 +331,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += label_td;
       content += "Grant from battery:</td>";
       content += value_td;
-      // Only zero versus non-zero is decoded, so lead with that. The raw value is kept for
-      // diagnostics but means nothing on its own: it ramps and sawtooths without the charger
-      // ever following it.
+      // Only ended (0x00, or 0x01 on the PW4) versus live is decoded, so lead with that. The raw value
+      // is kept for diagnostics but means nothing on its own: it ramps and sawtooths without the
+      // charger ever following it.
       if (byd_datalayer->charge_session_state == 0) {
         content += "<span style='color:#8b949e'>&mdash;</span>";
-      } else if (byd_datalayer->charge_grant > 0) {
+      } else if (byd_datalayer->charge_grant > 0x01) {
         content += "<span style='color:#3fb950'>Granted</span>";
         content +=
             "<span style='font-weight:normal;color:#8b949e'> (" + String(byd_datalayer->charge_grant) + ")</span>";
@@ -377,11 +358,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "</td></tr>";
 
       content += "</table>";
-      content +=
-          "<div style='margin:10px auto 0;font-size:0.9em;color:#8b949e'>The battery will not enter a "
-          "charge session while it reports an insulation fault. The isolation-monitor-disable option "
-          "(on by default) normally keeps that clear; otherwise the pack case must be isolated from "
-          "earth.</div>";
       content += "</div>";
       content += "<hr>";
     }
@@ -404,10 +380,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       // Dimmed while native calibration owns the job, so the panel reads as inactive at a glance
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white";
       content += byd_datalayer->native_termination_enabled ? ";opacity:0.45'>" : "'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Artificial SOC auto-calibration</h4>";
-      content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Battery Emulator decides the pack is full "
-          "and writes 100&percnt; SOC to the battery over UDS.</div>";
+      content += "<h4 data-h=bydautocal style='margin:0 0 8px 0;color:white'>Artificial SOC auto-calibration</h4>";
       content += panel_table;
 
       content += "<tr>";
@@ -417,7 +390,6 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "<input type='checkbox' style='margin:0;vertical-align:middle' id='autoCalEnabled" + s + "' ";
       content += (byd_datalayer->auto_calibrate_soc_enabled ? "checked" : "");
       content += " onchange='toggleAutoCalSOCEnabled" + s + "()'>";
-      content += "<span style='font-weight:normal;color:#8b949e'> default on, UDS write</span>";
       content += "</td></tr>";
 
       content += "<tr>";
@@ -518,10 +490,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
       content += "<hr>";
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Manual SOC &amp; capacity calibration</h4>";
-      content +=
-          "<div style='margin:0 0 10px;font-size:0.9em;color:#8b949e'>Values used by the Calibrate SOC button "
-          "below. Automatic calibration overwrites them when it runs.</div>";
+      content += "<h4 data-h=bydmancal style='margin:0 0 8px 0;color:white'>Manual SOC &amp; capacity calibration</h4>";
       content += panel_table;
 
       content += "<tr>";
@@ -555,7 +524,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       const char* iso_value_td = "<td style='padding:3px 0;color:white;font-weight:bold'>";
 
       content += "<div style='max-width:560px;margin:16px auto;text-align:center;color:white'>";
-      content += "<h4 style='margin:0 0 8px 0;color:white'>Isolation resistance monitor</h4>";
+      content += "<h4 data-h=bydiso style='margin:0 0 8px 0;color:white'>Isolation resistance monitor</h4>";
       content += "<table style='margin:0 auto;border-collapse:collapse;font-size:0.95em;text-align:left;color:white'>";
 
       // Monitoring status from 0x35E b0 bit0x80; only unambiguous when the pack is closed
@@ -730,14 +699,14 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
 
     append_balance_time_html(content);
 
-    auto& dtc = s.length() ? datalayer.battery2.dtc : datalayer.battery.dtc;
-    content += BatteryHtmlRenderer::render_dtc_section_html(dtc, "byd_atto3_dtc.json", true);
-
-    return content;
+    render_failed = !content.good();
+    return content.take();
   }
 
  private:
-  void append_balance_time_html(String& out) const {
+  bool render_failed = false;
+
+  void append_balance_time_html(CheckedHtml& out) const {
     out +=
         "<h4 style='margin-top:18px'><button onclick=\"window.location.href='/bydbalance'\">"
         "&#9889; Cell Balance Timers</button></h4>";

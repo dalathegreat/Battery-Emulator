@@ -153,6 +153,15 @@ struct ToneWrite {
 void clear_tone_writes();
 const std::vector<ToneWrite>& get_tone_writes();
 
+// A PWM duty write recorded by the emulated ledcWrite, so tests can tell a
+// contactor pulled in at full duty from one held at the economized duty.
+struct DutyWrite {
+  uint8_t pin;
+  uint32_t duty;
+};
+void clear_duty_writes();
+const std::vector<DutyWrite>& get_duty_writes();
+
 // A pin write recorded by the emulated digitalWrite, for tests that need to
 // assert on what was driven rather than only on state variables.
 struct PinWrite {

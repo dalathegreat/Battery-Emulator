@@ -331,9 +331,20 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     }
   }
 
-  const auto oscillator = inSettings.oscillator() == ACAN2517FDSettings::OSC_AUTODETECT
-    ?  autodetectCrystalFrequency ()
-    : inSettings.oscillator() ;
+  // The crystal can't change while running: measure it on the first successful
+  // begin() only, and reuse the result on later calls (e.g. restart after end()),
+  // sparing the 10 ms blocking measurement.
+  ACAN2517FDSettings::Oscillator oscillator = inSettings.oscillator () ;
+  if (oscillator == ACAN2517FDSettings::OSC_AUTODETECT) {
+    if (mDetectedOscillator != ACAN2517FDSettings::OSC_AUTODETECT) {
+      oscillator = mDetectedOscillator ;
+    }else{
+      oscillator = autodetectCrystalFrequency () ;
+      if (errorCode == 0) { // Only trust a measurement taken over a verified SPI link
+        mDetectedOscillator = oscillator ;
+      }
+    }
+  }
   // Create a new settings object with the new frequency (which recalculates the timings)
   const auto clockSettings = ACAN2517FDSettings(oscillator, inSettings.mDesiredArbitrationBitRate, inSettings.mDataBitRateFactor);
 
@@ -1334,7 +1345,8 @@ ACAN2517FDSettings::Oscillator ACAN2517FD::autodetectCrystalFrequency (void) {
   // Calculate frequency in 0.1MHz units
   const uint32_t freq_times_10 = ((c2 - c1) * 10) / (t2 - t1);
 
-  logging.printf("MCP2518FD autodetected crystal: %ddMHz\n", freq_times_10);
+  // freq_times_10 is in 0.1MHz units, round it to whole MHz for the log line
+  logging.printf("MCP2518FD autodetected crystal: %u MHz\n", (freq_times_10 + 5) / 10);
 
   // Disable TBC again
   writeRegister8 (C1TSCON_REGISTER_16_23, 0x00);
