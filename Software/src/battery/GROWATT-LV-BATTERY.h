@@ -30,6 +30,20 @@
 //    plausible voltage range (53.2-53.4V) through a real charge/discharge
 //    cycle; the 0.1V reading would imply ~530V.
 //
+// Only 0x311 refreshes CAN_battery_still_alive, and the charge/discharge
+// limits it carries are forced to zero if it goes missing for more than
+// LIMITS_STALE_MS while other frames keep arriving - a BMS emulating this
+// protocol less faithfully than a real GBLI6532 (e.g. Seplos/Pace-based
+// packs) could otherwise leave stale limits published forever with no
+// missing-event ever firing (github.com/dalathegreat/Battery-Emulator/issues/3034).
+//
+// From protocol V1.03, the per-cell frames 0x315-0x318 are optional and 0x319
+// carries the highest/lowest cell voltage. In a parallel bank 0x319 counts
+// every pack's cells, while 0x315-0x318 can only hold the master's 16, so the
+// reported max/min is the wider of the two. setup() also sets an LFP cell
+// voltage ceiling/floor (previously unset, so the generic cell over/under-
+// voltage checks in safety.cpp could never trigger on this pack).
+//
 // Protocol reference:
 //  Growatt BMS CAN-Bus protocol, low voltage V1.04. Standard (11-bit) CAN
 //  IDs, 500 kbit/s, big-endian.
@@ -55,6 +69,29 @@ class GrowattLvBattery : public CanBattery {
   // Solis accepts 40.0-60.0V; GBLI6532 datasheet range is 48.0-57.6V.
   static const int MAX_PACK_VOLTAGE_DV = 576;
   static const int MIN_PACK_VOLTAGE_DV = 480;
+
+  // GBLI6532 16S range is 48.0-57.6V; no generic cell ceiling/floor was set
+  // before, so the cell over/under-voltage checks in safety.cpp could never
+  // trigger on this LFP pack. Agreed with the driver's author in issue #3034.
+  static const int MAX_CELL_VOLTAGE_MV = 3650;
+  static const int MIN_CELL_VOLTAGE_MV = 2500;
+
+  // 0x311 arrives at 1 Hz along with the rest of the frame set. Five missed
+  // queries is generous slack for jitter while still reacting quickly once a
+  // BMS has stopped updating the limits it advertises (issue #3034).
+  // uint32_t (not unsigned long/millis()'s usual type) so the staleness check
+  // in update_values() wraps at the same 2^32ms boundary as millis() itself
+  // on every host, not just on a 32-bit "unsigned long" target.
+  static const uint32_t LIMITS_STALE_MS = 5000;
+
+  // Sanity bounds for 0x319's fallback max/min cell voltage (bytes 1-4):
+  // reject anything outside a plausible Li-ion cell range instead of trusting
+  // a garbage/zero reading.
+  static const uint16_t CELL_MV_PLAUSIBLE_MIN = 1000;
+  static const uint16_t CELL_MV_PLAUSIBLE_MAX = 5000;
+
+  // 0x315-0x318 carry exactly 16 cell voltages (cells 1-16).
+  static const uint8_t PER_CELL_FRAME_CELLS = 16;
 
   unsigned long previousMillis1000 = 0;
 
@@ -82,6 +119,8 @@ class GrowattLvBattery : public CanBattery {
   uint16_t dcl_dA = 0;
   uint16_t status_word = 0;
   bool have_311 = false;
+  // uint32_t, not unsigned long: see LIMITS_STALE_MS above.
+  uint32_t last_311_millis = 0;
 
   uint8_t prot1 = 0, prot2 = 0, warn1 = 0, warn2 = 0;
   uint8_t pack_count = 1;
@@ -102,6 +141,11 @@ class GrowattLvBattery : public CanBattery {
   bool discharge_en = false;
   bool force_chg_1 = false;
   bool force_chg_2 = false;
+
+  // 0x319 bytes 1-4: fallback max/min cell voltage (1 mV), used only when no
+  // per-cell frame (0x315-0x318) has populated a cell - see update_values().
+  uint16_t max_cell_mV_319 = 0;
+  uint16_t min_cell_mV_319 = 0;
 };
 
 #endif

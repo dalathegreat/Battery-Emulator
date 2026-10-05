@@ -42,7 +42,20 @@ int max(int a, int b) {
 bool ledcAttachChannel(uint8_t pin, uint32_t freq, uint8_t resolution, int8_t channel) {
   return true;
 }
+// Records every duty the firmware drove, so tests can assert on contactor
+// pull-in vs economized hold without reaching into internal state.
+std::vector<DutyWrite> g_emul_duty_writes;
+
+void clear_duty_writes() {
+  g_emul_duty_writes.clear();
+}
+
+const std::vector<DutyWrite>& get_duty_writes() {
+  return g_emul_duty_writes;
+}
+
 bool ledcWrite(uint8_t pin, uint32_t duty) {
+  g_emul_duty_writes.push_back({pin, duty});
   return true;
 }
 // Records the precharge PWM frequency the firmware asks for, so the regulation

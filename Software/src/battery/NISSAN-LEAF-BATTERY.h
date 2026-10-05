@@ -13,7 +13,7 @@ extern uint8_t user_selected_LEAF_chg_sta_rq;
 
 class NissanLeafBattery : public CanBattery {
  public:
-  // Use the default constructor to create the first or single battery.battery_Total_Voltage2
+  // Use the default constructor to create the first or single battery.
   NissanLeafBattery() : renderer(&datalayer.battery, &datalayer_extended.nissanleaf) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
@@ -26,8 +26,6 @@ class NissanLeafBattery : public CanBattery {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
-
-    battery_Total_Voltage2 = 0;  //Zero out pack voltage to avoid contactor closing before we know value via CAN
   }
 
   virtual void setup(void);
@@ -35,8 +33,16 @@ class NissanLeafBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+#ifndef SMALL_FLASH_DEVICE
   bool supports_reset_SOH();
-  void reset_SOH() { UserRequestSOHreset = true; }
+  //Checked again here rather than trusting the caller: the web route runs the command without
+  //asking whether the page would have offered it.
+  void reset_SOH() {
+    if (supports_reset_SOH()) {
+      UserRequestSOHreset = true;
+    }
+  }
+#endif
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
@@ -57,10 +63,96 @@ class NissanLeafBattery : public CanBattery {
 
   uint8_t calculate_crc(CAN_frame& frame);
 
+  /* The current published to the datalayer is a mean over the whole window, so the safety
+     layer is handed the two extremes seen inside it instead. Kept as a max/min pair rather
+     than a single worst-magnitude sample so a window holding both a charge and a discharge
+     excursion reports both. See update_values(). */
+  void safety_current_range_dA(int16_t& max_dA, int16_t& min_dA) override {
+    max_dA = battery_Current2_peak_max_published_dA;
+    min_dA = battery_Current2_peak_min_published_dA;
+  }
+
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
+#ifndef SMALL_FLASH_DEVICE
   bool UserRequestSOHreset = false;
+#endif
+
+  /* A window of the latest raw 0x1DB current samples, kept whole so that its mean can leave out the
+     lowest and highest ones: a stray reading then cannot pull the result. Room for 1.5 s of 10 ms
+     frames, the oldest giving way to new ones. trim() hands out the kept samples' raw sum and
+     count for pooling, leaving the window as it was. 32 bits is ample for the sum: 1.5 s of 10 ms
+     frames at the signal's full scale reaches about 153,000, four orders of magnitude below the
+     type, and it keeps the division out of the 64 bit helpers. Both the sum and the count are
+     signed on purpose - mixing a signed sum with an unsigned count promotes the rounding
+     arithmetic to unsigned, which turns every negative (discharge) window into a large positive
+     current. */
+  static const uint8_t SAMPLES_PER_SECOND = 100;  //0x1DB comes every 10 ms
+  struct CurrentWindow {
+    static const uint8_t CAPACITY = SAMPLES_PER_SECOND * 3 / 2;
+    int16_t samples[CAPACITY];
+    uint8_t count = 0;
+    uint8_t next = 0;
+    void add(int16_t sample) {
+      samples[next] = sample;
+      next = (next + 1) % CAPACITY;
+      if (count < CAPACITY) {
+        count++;
+      }
+    }
+    void clear() {
+      count = 0;
+      next = 0;
+    }
+    //Leaves out the lowest left_out samples and as many of the highest
+    void trim(uint8_t left_out, int32_t& sum_raw, int32_t& kept) const;
+  };
+
+  /* Current is sampled from every 0x1DB frame. The 1 s datalayer update publishes the mean of the
+     latest 1.5 s, so that each update overlaps the previous one by half a second, less the lowest
+     and highest CURRENT_TRIM of a full window: 20 of 150, or two fifteenths of however many the
+     window holds. A second without any samples empties the window, so a resumed stream is not
+     mixed with what came before the silence. The extremes are kept per second, for safety. */
+  static const uint8_t CURRENT_TRIM = 20;
+  CurrentWindow battery_Current2_window;
+  uint8_t battery_Current2_new_samples = 0;  //Since the previous update, saturating
+  int16_t battery_Current2_peak_max_raw = 0;
+  int16_t battery_Current2_peak_min_raw = 0;
+  int16_t battery_Current2_peak_max_published_dA = 0;
+  int16_t battery_Current2_peak_min_published_dA = 0;
+
+  /* Automatic current offset correction. With the pack's contactor open no current can flow, so
+     whatever 0x1DB reports then is the sensor's offset. The samples from AUTO_OFFSET_SETTLE_MS
+     after the contactor opened until it closes again are gathered in 1 s buckets, filled like the
+     window above and closed by update_values(), and the offset is the mean of the last
+     AUTO_OFFSET_BUCKETS of them: all of a short opening, the latest 10 s of a pack that stays open
+     because it cannot join the DC link. It holds while the contactor is closed, and the next
+     opening measures afresh. When the LBC starts up, at boot or powered back on after a BMS reset,
+     with the contactor open since before, nothing has flowed and only the LBC's start needs to
+     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Each
+     bucket holds what is left of its second once the lowest and highest AUTO_OFFSET_TRIM of a full
+     second are left out: 20 of 100, or a fifth of however many it had. Sums and counts signed, for
+     the reason above. */
+  static const uint8_t AUTO_OFFSET_TRIM = 20;
+  static const uint8_t AUTO_OFFSET_BUCKETS = 10;
+  static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
+  static const uint32_t AUTO_OFFSET_POWER_ON_SETTLE_MS = 30;
+  int32_t auto_offset_bucket_sum_raw[AUTO_OFFSET_BUCKETS] = {};
+  int32_t auto_offset_bucket_count[AUTO_OFFSET_BUCKETS] = {};
+  uint8_t auto_offset_next_bucket = 0;
+  CurrentWindow auto_offset_window;  //The bucket being filled
+  uint32_t auto_offset_open_since_ms = 0;
+  uint32_t auto_offset_settle_ms = AUTO_OFFSET_SETTLE_MS;
+  uint32_t auto_offset_last_sample_ms = 0;
+  uint32_t auto_offset_power_on_ms = 0;  //bms_power_on_ms as of the previous sample
+  bool auto_offset_open = true;          //Contactor seen open at the previous sample, or not closed since boot
+  bool auto_offset_first_sample = true;  //No 0x1DB seen since boot yet
+  bool auto_offset_new_period = true;    //The next settled sample starts a new measurement
+  int16_t auto_offset_dA = 0;            //Taken off the published current, 0 while disabled
+  bool contactor_open();
+  void learn_current_offset(int16_t sample_raw);
+  void update_current_offset();
 
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.
@@ -87,7 +179,9 @@ class NissanLeafBattery : public CanBattery {
   NissanLeafHtmlRenderer renderer;
 
   bool is_message_corrupt(CAN_frame rx_frame);
+#ifndef SMALL_FLASH_DEVICE
   void clearSOH(void);
+#endif
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;
@@ -258,7 +352,7 @@ class NissanLeafBattery : public CanBattery {
   //State of health in whole percent from broadcast 0x5BC, 0 until the pack has reported one.
   //No value is invented at boot: an SOH that has not been read is reported as unknown instead.
   uint16_t battery_StateOfHealth = 0;
-  uint16_t battery_Total_Voltage2 = 740;          //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+  uint16_t battery_Total_Voltage2 = 0;            //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
   int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
   int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C
   int16_t battery_HistData_Temperature_MIN = 86;  //-40 to 86*C
@@ -364,12 +458,12 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_temp_polled_min = 0;
   uint8_t BatterySerialNumber[16] = {0};  // 16 ASCII characters, not null-terminated
   uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
-  uint8_t stateMachineClearSOH = 0xFF;
 
 #ifndef SMALL_FLASH_DEVICE
 
   // Clear SOH values
 
+  uint8_t stateMachineClearSOH = 0xFF;
   uint32_t incomingChallenge = 0xFFFFFFFF;
   uint8_t solvedChallenge[8] = {0};
   bool challengeFailed = false;

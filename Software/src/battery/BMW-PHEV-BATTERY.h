@@ -35,9 +35,9 @@ class BmwPhevBattery : public CanBattery {
   //  - While balancing is ACTIVE the SME BLOCKS contactor close (precharge is inhibited until
   //    balancing finishes / is stopped). So requesting balancing prevents the pack from going online.
   bool supports_balancing_request() { return true; }
-  bool is_balancing_active() { return datalayer.battery.settings.user_requests_balancing; }
-  void initiate_balancing() { datalayer.battery.settings.user_requests_balancing = true; }
-  void end_balancing() { datalayer.battery.settings.user_requests_balancing = false; }
+  bool is_balancing_active() { return datalayer.battery_settings.user_requests_balancing; }
+  void initiate_balancing() { datalayer.battery_settings.user_requests_balancing = true; }
+  void end_balancing() { datalayer.battery_settings.user_requests_balancing = false; }
 
   // Isolation test - one-shot UDS startRoutine (0xAD61). Same one-shot pattern as DTC/BMS reset.
   bool supports_isolation_test() { return true; }

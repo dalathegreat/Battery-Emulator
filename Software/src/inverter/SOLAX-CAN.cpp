@@ -23,39 +23,37 @@ void SolaxInverter::update_values() {
     }
   }
   //Calculate the required values
-  temperature_average =
-      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
   //Put the values into the CAN messages
   //BMS_Limits
-  SOLAX_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
-  SOLAX_1872.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  SOLAX_1872.data.u8[2] = (uint8_t)datalayer.battery.info.min_design_voltage_dV;
-  SOLAX_1872.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  SOLAX_1872.data.u8[4] = (uint8_t)datalayer.battery.status.max_charge_current_dA;
-  SOLAX_1872.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  SOLAX_1872.data.u8[6] = (uint8_t)datalayer.battery.status.max_discharge_current_dA;
-  SOLAX_1872.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SOLAX_1872.data.u8[0] = (uint8_t)datalayer.aggregate.max_design_voltage_dV;
+  SOLAX_1872.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+  SOLAX_1872.data.u8[2] = (uint8_t)datalayer.aggregate.min_design_voltage_dV;
+  SOLAX_1872.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
+  SOLAX_1872.data.u8[4] = (uint8_t)datalayer.aggregate.max_charge_current_dA;
+  SOLAX_1872.data.u8[5] = (datalayer.aggregate.max_charge_current_dA >> 8);
+  SOLAX_1872.data.u8[6] = (uint8_t)datalayer.aggregate.max_discharge_current_dA;
+  SOLAX_1872.data.u8[7] = (datalayer.aggregate.max_discharge_current_dA >> 8);
 
   //BMS_PackData
-  SOLAX_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
-  SOLAX_1873.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
-  SOLAX_1873.data.u8[2] =
-      (int8_t)datalayer.battery.status.reported_current_dA;  // OK, Signed (Active current in Amps x 10)
-  SOLAX_1873.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
-  SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
+  SOLAX_1873.data.u8[0] = (uint8_t)datalayer.aggregate.voltage_dV;  // OK
+  SOLAX_1873.data.u8[1] = (datalayer.aggregate.voltage_dV >> 8);
+  SOLAX_1873.data.u8[2] = (int8_t)datalayer.aggregate.current_dA;  // OK, Signed (Active current in Amps x 10)
+  SOLAX_1873.data.u8[3] = (datalayer.aggregate.current_dA >> 8);
+  SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.aggregate.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
-  SOLAX_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
+  SOLAX_1873.data.u8[6] = (uint8_t)(datalayer.aggregate.reported_remaining_capacity_Wh / 10);
+  SOLAX_1873.data.u8[7] = ((datalayer.aggregate.reported_remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
-  SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
-  SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
-  SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  SOLAX_1874.data.u8[0] = (int8_t)datalayer.aggregate.temperature_max_dC;
+  SOLAX_1874.data.u8[1] = (datalayer.aggregate.temperature_max_dC >> 8);
+  SOLAX_1874.data.u8[2] = (int8_t)datalayer.aggregate.temperature_min_dC;
+  SOLAX_1874.data.u8[3] = (datalayer.aggregate.temperature_min_dC >> 8);
 
-  int32_t cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
-  int32_t cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  int32_t cell_max_voltage_mV = datalayer.aggregate.cell_max_voltage_mV;
+  int32_t cell_min_voltage_mV = datalayer.aggregate.cell_min_voltage_mV;
 
   // Fake values during startup?
   if (cell_max_voltage_mV == 0) {
@@ -88,15 +86,15 @@ void SolaxInverter::update_values() {
   SOLAX_1875.data.u8[4] = (uint8_t)0;                             // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
-  SOLAX_1876.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
-  SOLAX_1876.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SOLAX_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
-  SOLAX_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SOLAX_1876.data.u8[0] = (int8_t)datalayer.aggregate.temperature_max_dC;
+  SOLAX_1876.data.u8[1] = (datalayer.aggregate.temperature_max_dC >> 8);
+  SOLAX_1876.data.u8[2] = (uint8_t)datalayer.aggregate.cell_max_voltage_mV;
+  SOLAX_1876.data.u8[3] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
 
-  SOLAX_1876.data.u8[4] = (int8_t)datalayer.battery.status.temperature_min_dC;
-  SOLAX_1876.data.u8[5] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1876.data.u8[6] = (uint8_t)datalayer.battery.status.cell_min_voltage_mV;
-  SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SOLAX_1876.data.u8[4] = (int8_t)datalayer.aggregate.temperature_min_dC;
+  SOLAX_1876.data.u8[5] = (datalayer.aggregate.temperature_min_dC >> 8);
+  SOLAX_1876.data.u8[6] = (uint8_t)datalayer.aggregate.cell_min_voltage_mV;
+  SOLAX_1876.data.u8[7] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
 
   //Unknown
   SOLAX_1877.data.u8[4] = (uint8_t)configured_battery_type;  // Battery type (Default 0x50)
@@ -105,13 +103,13 @@ void SolaxInverter::update_values() {
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
-  SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
+  SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.aggregate.voltage_dV);
+  SOLAX_1878.data.u8[1] = ((datalayer.aggregate.voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)datalayer.battery.info.reported_total_capacity_Wh;
-  SOLAX_1878.data.u8[5] = (datalayer.battery.info.reported_total_capacity_Wh >> 8);
-  SOLAX_1878.data.u8[6] = (datalayer.battery.info.reported_total_capacity_Wh >> 16);
-  SOLAX_1878.data.u8[7] = (datalayer.battery.info.reported_total_capacity_Wh >> 24);
+  SOLAX_1878.data.u8[4] = (uint8_t)datalayer.aggregate.reported_total_capacity_Wh;
+  SOLAX_1878.data.u8[5] = (datalayer.aggregate.reported_total_capacity_Wh >> 8);
+  SOLAX_1878.data.u8[6] = (datalayer.aggregate.reported_total_capacity_Wh >> 16);
+  SOLAX_1878.data.u8[7] = (datalayer.aggregate.reported_total_capacity_Wh >> 24);
 
   // BMS_Answer
   SOLAX_1801.data.u8[0] = 2;
@@ -119,12 +117,12 @@ void SolaxInverter::update_values() {
   SOLAX_1801.data.u8[4] = 1;
 
   //Ultra messages
-  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.info.reported_total_capacity_Wh;
-  SOLAX_187E.data.u8[1] = (datalayer.battery.info.reported_total_capacity_Wh >> 8);
-  SOLAX_187E.data.u8[2] = (datalayer.battery.info.reported_total_capacity_Wh >> 16);
-  SOLAX_187E.data.u8[3] = (datalayer.battery.info.reported_total_capacity_Wh >> 24);
-  SOLAX_187E.data.u8[4] = (uint8_t)(datalayer.battery.status.soh_pptt / 100);
-  SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
+  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.aggregate.reported_total_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (datalayer.aggregate.reported_total_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = (datalayer.aggregate.reported_total_capacity_Wh >> 16);
+  SOLAX_187E.data.u8[3] = (datalayer.aggregate.reported_total_capacity_Wh >> 24);
+  SOLAX_187E.data.u8[4] = (uint8_t)(datalayer.aggregate.soh_pptt / 100);
+  SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.aggregate.reported_soc / 100);
 }
 
 void SolaxInverter::transmit_can(unsigned long currentMillis) {

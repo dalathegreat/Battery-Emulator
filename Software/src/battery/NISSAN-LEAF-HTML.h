@@ -6,6 +6,10 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/webserver/BatteryHtmlRenderer.h"
 
+//Automatic current offset correction, one setting for all packs. Declared here as the Status card
+//shows each pack's learned offset while it is enabled.
+extern bool user_selected_LEAF_auto_current_offset;
+
 class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
  public:
   NissanLeafHtmlRenderer(DATALAYER_BATTERY_TYPE* battery_dl, DATALAYER_INFO_NISSAN_LEAF* dl)
@@ -110,6 +114,12 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
                failsafe_names[nissan_dl->FailsafeStatus & 7]);
     status_row(content, "Relay cut request", nissan_dl->RelayCutRequest, seen & 0x01,
                nissan_dl->RelayCutRequest ? "Main relay off" : "None");
+    if (user_selected_LEAF_auto_current_offset) {
+      content += "<h4>Automatic current offset: " +
+                 (nissan_dl->AutoCurrentOffsetKnown ? String(nissan_dl->AutoCurrentOffset_dA / 10.0f, 1) + " A"
+                                                    : String("Unknown")) +
+                 "</h4>";
+    }
     content += "</div>";
 
     new_panel(content, "Health and lifetime usage");
@@ -224,6 +234,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
   //buttons the page adds next land in the same panel.
   String get_dtc_html() { return battery_dl ? render_dtc_section(battery_dl->dtc) : String(); }
 
+#ifndef SMALL_FLASH_DEVICE
   //The degradation reset gets a panel of its own: the challenge values its sequence fills in, above
   //the button that starts it.
   String get_command_prefix_html(const char* identifier) {
@@ -245,6 +256,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     }
     return content;
   }
+#endif
 
  private:
   //One status row, Unknown until the broadcast carrying it has arrived. A true/false flag shows as

@@ -4,43 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 
-struct DATALAYER_INFO_BOLTAMPERA {
-  /** uint16_t */
-  /** PID polling parameters */
-  uint16_t battery_5V_ref;
-  uint16_t battery_capacity_my17_18;
-  uint16_t battery_capacity_my19plus;
-  uint16_t battery_SOC_display;
-  uint16_t battery_SOC_raw_highprec;
-  uint16_t battery_max_temperature;
-  uint16_t battery_min_temperature;
-  uint16_t battery_max_cell_voltage;
-  uint16_t battery_min_cell_voltage;
-  uint16_t battery_lowest_cell;
-  uint16_t battery_highest_cell;
-  uint16_t battery_internal_resistance;
-  uint16_t battery_voltage_polled;
-  uint16_t battery_vehicle_isolation;
-  uint16_t battery_isolation_kohm;
-  uint16_t battery_HV_locked;
-  uint16_t battery_crash_event;
-  uint16_t battery_HVIL;
-  uint16_t battery_HVIL_status;
-  uint16_t battery_cell_average_voltage;
-  uint16_t battery_cell_average_voltage_2;
-  uint16_t battery_terminal_voltage;
-  uint16_t battery_ignition_power_mode;
-
-  int16_t battery_module_temp_1;
-  int16_t battery_module_temp_2;
-  int16_t battery_module_temp_3;
-  int16_t battery_module_temp_4;
-  int16_t battery_module_temp_5;
-  int16_t battery_module_temp_6;
-  int16_t battery_current_7E7;
-  int16_t battery_current_7E4;
-};
-
 struct DATALAYER_INFO_BMWPHEV {
   uint64_t min_cell_voltage_data_age;
   uint64_t max_cell_voltage_data_age;
@@ -305,6 +268,7 @@ struct DATALAYER_INFO_CELLPOWER {
   bool warning_Charger_not_responding;
 };
 
+#ifndef SMALL_FLASH_DEVICE
 struct DATALAYER_INFO_CHADEMO {
   uint8_t CHADEMO_Status;
   uint8_t ControlProtocolNumberEV;
@@ -316,107 +280,7 @@ struct DATALAYER_INFO_CHADEMO {
   bool FaultBatteryUnderVoltage;
   bool FaultBatteryOverVoltage;
 };
-
-struct DATALAYER_INFO_ECMP {
-
-  uint32_t pid_insulation_res_neg;
-  uint32_t pid_insulation_res_pos;
-  uint32_t pid_max_current_10s;
-  uint32_t pid_max_discharge_10s;
-  uint32_t pid_max_discharge_30s;
-  uint32_t pid_max_charge_10s;
-  uint32_t pid_max_charge_30s;
-  uint32_t pid_energy_capacity;
-  uint32_t pid_insulation_res;
-  uint32_t pid_crash_counter;
-  uint32_t pid_history_data;
-  uint32_t pid_last_can_failure_detail;
-  uint32_t pid_hw_version_num;
-  uint32_t pid_sw_version_num;
-  uint32_t pid_current_time;
-  uint32_t pid_time_sent_by_car;
-  uint32_t pid_vehicle_speed;
-  uint32_t pid_time_spent_over_55c;
-  uint32_t pid_contactor_closing_counter;
-  uint32_t pid_date_of_manufacture;
-
-  int32_t pid_current;
-
-  uint16_t pid_most_critical_fault;
-  uint16_t HV_BATT_FC_INSU_MINUS_RES;     //mysteryvan parameters
-  uint16_t HV_BATT_FC_INSU_PLUS_RES;      //mysteryvan parameters
-  uint16_t HV_BATT_FC_VHL_INSU_PLUS_RES;  //mysteryvan parameters
-  uint16_t HV_BATT_ONLY_INSU_MINUS_RES;   //mysteryvan parameters
-  uint16_t InsulationResistance;
-  uint16_t pid_avg_cell_voltage;
-  uint16_t pid_lowsoc_counter;
-  uint16_t pid_sum_of_cells;
-  uint16_t pid_cell_min_capacity;
-  uint16_t pid_pack_voltage;
-  uint16_t pid_high_cell_voltage;
-  uint16_t pid_low_cell_voltage;
-  uint16_t pid_SOH_cell_1;
-  uint16_t pid_12v;
-  uint16_t pid_hvil_in_voltage;
-  uint16_t pid_hvil_out_voltage;
-
-  uint8_t pid_bms_state;
-  uint8_t pid_hvil_state;
-  uint8_t pid_mainfuse_state;
-  uint8_t pid_precharge_short_circuit;
-  uint8_t pid_eservice_plug_state;
-  uint8_t pid_battery_state;
-  uint8_t pid_aux_fuse_state;
-  uint8_t pid_12v_abnormal;
-  uint8_t InsulationDiag;
-  uint8_t MainConnectorState;
-  uint8_t CONTACTOR_OPENING_REASON;  //mysteryvan parameters
-  uint8_t TBMU_FAULT_TYPE;           //mysteryvan parameters
-  uint8_t CONTACTORS_STATE;          //mysteryvan parameters
-  uint8_t pid_factory_mode_control;
-  uint8_t pid_welding_detection;
-  uint8_t pid_reason_open;
-  uint8_t pid_contactor_status;
-  uint8_t pid_negative_contactor_control;
-  uint8_t pid_negative_contactor_status;
-  uint8_t pid_positive_contactor_control;
-  uint8_t pid_positive_contactor_status;
-  uint8_t pid_contactor_negative;
-  uint8_t pid_contactor_positive;
-  uint8_t pid_precharge_relay_control;
-  uint8_t pid_precharge_relay_status;
-  uint8_t pid_recharge_status;
-  uint8_t pid_coldest_module;
-  uint8_t pid_hottest_module;
-  uint8_t pid_battery_energy;
-  uint8_t pid_wire_crash;
-  uint8_t pid_CAN_crash;
-  uint8_t pid_highest_cell_voltage_num;
-  uint8_t pid_lowest_cell_voltage_num;
-  uint8_t pid_cell_voltage_measurement_status;
-
-  int8_t pid_delta_temperature;
-  int8_t pid_lowest_temperature;
-  int8_t pid_average_temperature;
-  int8_t pid_highest_temperature;
-
-  bool MysteryVan;      //mysteryvan parameters
-  bool CrashMemorized;  //mysteryvan parameters
-  bool InterlockOpen;
-  bool ALERT_CELL_POOR_CONSIST;  //mysteryvan parameters
-  bool ALERT_OVERCHARGE;         //mysteryvan parameters
-  bool ALERT_BATT;               //mysteryvan parameters
-  bool ALERT_LOW_SOC;            //mysteryvan parameters
-  bool ALERT_HIGH_SOC;           //mysteryvan parameters
-  bool ALERT_SOC_JUMP;           //mysteryvan parameters
-  bool ALERT_TEMP_DIFF;          //mysteryvan parameters
-  bool ALERT_HIGH_TEMP;          //mysteryvan parameters
-  bool ALERT_OVERVOLTAGE;        //mysteryvan parameters
-  bool ALERT_CELL_OVERVOLTAGE;   //mysteryvan parameters
-  bool ALERT_CELL_UNDERVOLTAGE;  //mysteryvan parameters
-
-  uint8_t pid_battery_serial[13];
-};
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_INFO_FORD_MACH_E {
   int16_t pid_hvb_temp;
@@ -754,12 +618,14 @@ struct DATALAYER_INFO_TESLA {
 };
 
 struct DATALAYER_INFO_NISSAN_LEAF {
+#ifndef SMALL_FLASH_DEVICE
   /** Cryptographic challenge to be solved */
   uint32_t CryptoChallenge;
   /** Solution for crypto challenge, MSBs */
   uint32_t SolvedChallengeMSB;
   /** Solution for crypto challenge, LSBs */
   uint32_t SolvedChallengeLSB;
+#endif
   /** Energy equivalent of CapacityCAh at the pack's nominal voltage, in Wh. 0 until read.
    * Derived in the driver rather than at each display site so the per-generation nominal
    * voltage is stated once.
@@ -804,6 +670,10 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   int16_t temperature2;
   int16_t temperature3;  // This sensor not available on 2013+ packs
   int16_t temperature4;
+  /** What the current sensor reads with this pack's contactor open, in dA, learned by the automatic
+   * current offset correction and taken off the published current. Only valid once
+   * AutoCurrentOffsetKnown. */
+  int16_t AutoCurrentOffset_dA;
 
   /** Enum, ZE0, AZE0 = 1, ZE1 = 2 */
   uint8_t LEAF_gen;
@@ -828,12 +698,16 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool HeatingStart;
   /** Heat request sent*/
   bool HeaterSendRequest;
+  /** True once the automatic current offset correction has measured an offset for this pack */
+  bool AutoCurrentOffsetKnown;
   /** Which of the LBC's status broadcasts have arrived since boot, as the flags above mean nothing
    * until then: bit 0 0x1DB (relay cut request, failsafe status, main relay, full, interlock),
    * bit 1 0x55B (empty), bit 2 0x5C0 (the four heater flags). */
   uint8_t StatusSeen;
+#ifndef SMALL_FLASH_DEVICE
   /** True if the crypto challenge response from BMS is signalling a failed attempt*/
   bool challengeFailed;
+#endif
 
   /** Battery info, stores raw HEX values for ASCII chars. The serial number is 16 characters, not
    * null-terminated. */
@@ -968,14 +842,14 @@ struct DATALAYER_INFO_VOLVO_HYBRID {
 };
 
 struct DATALAYER_INFO_GEELY_SEA {
-  uint16_t soc_bms;
-  uint16_t soh_bms;
+  uint16_t soc_bms = 0;
+  uint16_t soh_bms = 0;
   uint16_t BECMsupplyVoltage;
   uint16_t BECMBatteryVoltage;
   uint16_t BatteryCurrent;
-  uint16_t CellTempHighest;
-  uint16_t CellTempAverage;
-  uint16_t CellTempLowest;
+  uint16_t CellTempHighest = 0;
+  uint16_t CellTempAverage = 0;
+  uint16_t CellTempLowest = 0;
   uint8_t Interlock;
   uint16_t CellVoltHighest;
   uint16_t CellVoltLowest;
@@ -1043,22 +917,22 @@ class DataLayerExtended {
     // All zero-initialized entries should go inside this union.
     // Double-battery repeats should go inside their own structs.
 
-    struct {
-      DATALAYER_INFO_BOLTAMPERA boltampera;
-      DATALAYER_INFO_BOLTAMPERA boltampera_2;
-    };
     DATALAYER_INFO_BMWPHEV bmwphev;
     DATALAYER_INFO_BMWIX bmwix;
     DATALAYER_INFO_CELLPOWER cellpower;
+#ifndef SMALL_FLASH_DEVICE
     DATALAYER_INFO_CHADEMO chademo;
-    DATALAYER_INFO_ECMP stellantisECMP;
+#endif  // SMALL_FLASH_DEVICE
     DATALAYER_INFO_FORD_MACH_E fordMachE;
     DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
     struct {
       DATALAYER_INFO_KIA64FD Kia64FD;
       DATALAYER_INFO_KIA64FD Kia64FD_2;
     };
-    DATALAYER_INFO_TESLA tesla;
+    struct {
+      DATALAYER_INFO_TESLA tesla;
+      DATALAYER_INFO_TESLA tesla_2;
+    };
     struct {
       DATALAYER_INFO_NISSAN_LEAF nissanleaf;
       DATALAYER_INFO_NISSAN_LEAF nissanleaf_2;

@@ -3,6 +3,7 @@
 #include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"     //For "More battery info" webpage
 #include "../devboard/utils/common_functions.h"  //For CRC table
@@ -10,6 +11,38 @@
 #include "../devboard/utils/logging.h"
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
+
+//Mean of raw 0x1DB current samples (0.5 A/bit) in dA. Scaled before dividing so the fraction of
+//the 0.5 A steps is kept, and rounded symmetrically around zero.
+static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
+  const int32_t sum_dA = sum_raw * 5;
+  return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
+}
+
+//Sorts a copy of the window, so the window itself keeps sliding, and sums what is left once
+//left_out samples are dropped at each end. Counted in samples rather than values, so the many
+//equal readings of the 0.5 A steps split correctly and the mean of what is kept still resolves
+//below one step. An insertion sort, as the window is short and a steady current leaves nearly
+//nothing to move.
+void NissanLeafBattery::CurrentWindow::trim(uint8_t left_out, int32_t& sum_raw, int32_t& kept) const {
+  int16_t sorted[CAPACITY];
+  for (uint8_t i = 0; i < count; i++) {
+    const int16_t sample = samples[i];
+    uint8_t j = i;
+    while (j > 0 && sorted[j - 1] > sample) {
+      sorted[j] = sorted[j - 1];
+      j--;
+    }
+    sorted[j] = sample;
+  }
+  sum_raw = 0;
+  for (uint8_t i = left_out; i < count - left_out; i++) {
+    sum_raw += sorted[i];
+  }
+  kept = count - 2 * left_out;
+}
+
+#ifndef SMALL_FLASH_DEVICE
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
 unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2);
@@ -18,19 +51,26 @@ short ShortMaskedSumAndProduct(short param_1, short param_2);
 unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
 unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 
-// Note this should only be allowed/used on 2011-2017 24/30kWh batteries!
+//The degradation reset is only for 2011-2017 24/30kWh ZE0/AZE0 packs, and only for one that is on
+//the bus right now. The generation defaults to ZE0 until a ZE1-only broadcast says otherwise, so
+//before this pack has sent anything it cannot be told apart from a ZE1. battery_can_alive latches on
+//its first 0x5BC; the alive counter alone is no proof, as it starts just short of CAN_STILL_ALIVE at
+//boot and only reaches zero a minute after the pack falls silent.
 bool NissanLeafBattery::supports_reset_SOH() {
-  return LEAF_battery_Type != ZE1_BATTERY;
+  return battery_can_alive && datalayer_battery->status.CAN_battery_still_alive &&
+         (LEAF_battery_Type == ZE0_BATTERY || LEAF_battery_Type == AZE0_BATTERY);
 }
+#endif
 
 void NissanLeafBattery::set_balancing_status(balancing_status_enum new_status) {
   if (new_status == datalayer_battery->status.balancing_status) {
     return;
   }
   if (new_status == BALANCING_STATUS_ACTIVE) {
-    set_event_latched(EVENT_BALANCING_START, 0);
+    set_event_latched(EVENT_BALANCING_START, 0, battery_index);
   } else if (datalayer_battery->status.balancing_status == BALANCING_STATUS_ACTIVE) {
-    set_event(EVENT_BALANCING_END, 0);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
+    set_event(EVENT_BALANCING_END, 0,
+              battery_index);  //Only fired when leaving ACTIVE, never on the initial UNKNOWN transition
   }
   datalayer_battery->status.balancing_status = new_status;
 }
@@ -56,8 +96,37 @@ void NissanLeafBattery::
   datalayer_battery->status.voltage_dV =
       (battery_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  datalayer_battery->status.current_dA =
-      (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  if (user_selected_LEAF_auto_current_offset) {
+    update_current_offset();
+  }
+
+  // Publish the mean current of the latest 1.5 s on the 0x1DB CAN stream, less the
+  // lowest and highest CURRENT_TRIM of a full window. The window is fed from every
+  // received frame, so this remains representative even though the normal datalayer
+  // update is 1 Hz. Less the sensor's offset, when the automatic correction has learned
+  // one. A second without samples holds the value and empties the window.
+  if (battery_Current2_new_samples > 0) {
+    int32_t sum_raw = 0;
+    int32_t kept = 0;
+    const uint8_t left_out = (uint16_t)battery_Current2_window.count * CURRENT_TRIM / CurrentWindow::CAPACITY;
+    battery_Current2_window.trim(left_out, sum_raw, kept);
+    datalayer_battery->status.current_dA = mean_current_dA(sum_raw, kept) - auto_offset_dA;
+  } else {
+    battery_Current2_window.clear();
+  }
+  battery_Current2_new_samples = 0;
+
+  // Publish the extremes captured over the same window for safety checks. Kept separate
+  // from current_dA so short excursions are not hidden by averaging. Both accumulators
+  // start at zero, so a window with current in one direction only reports zero for the
+  // other, which is the neutral value for both comparisons.
+  battery_Current2_peak_max_published_dA = battery_Current2_peak_max_raw * 5;
+  battery_Current2_peak_min_published_dA = battery_Current2_peak_min_raw * 5;
+
+  // Start the next window of extremes. update_machineryprotection() runs later
+  // in the same core loop and therefore consumes the values published above.
+  battery_Current2_peak_max_raw = 0;
+  battery_Current2_peak_min_raw = 0;
 
   //Capacity as new: the nameplate energy of this pack size, from the GID count the LBC reports at
   //full charge. It is a constant per pack (273 on ZE0, from the max mux in 0x5BC on the 30/40/62
@@ -96,7 +165,22 @@ void NissanLeafBattery::
     datalayer_battery->status.remaining_capacity_Wh =
         (uint32_t)(((uint64_t)battery_capacity_Wh * datalayer_battery->status.real_soc) / 10000u);
   } else {
-    //No measured capacity yet, so the GID count is all there is to go on.
+    //No measured capacity, which is either not asked for yet or asked for and not found. The second
+    //is a pack whose group 0x01 layout the capacity decode does not cover. Once every group has been
+    //asked for at least once since the pack came up, stop waiting: fall back to the SOH the LBC
+    //publishes, and work the total out from it the way it was done before a measured capacity was
+    //used at all, rather than leave the inverter on the datalayer's placeholder total.
+    //Waiting for the whole first pass instead of falling back at once is what keeps a pack that does
+    //report a capacity from publishing its own SOH for the seconds before the capacity arrives -
+    //which on a degradation-reset pack is exactly the 100% the measured capacity is there to avoid.
+    //The pass re-arms after a BMS reset; the last values simply hold until it completes.
+    if ((poll_burst_remaining == 0) && (battery_SOH_avg_pptt != 0)) {
+      datalayer_battery->status.soh_pptt = battery_SOH_avg_pptt;
+      datalayer_battery->status.soh_available = true;
+      datalayer_battery->info.total_capacity_Wh =
+          (uint32_t)(((uint64_t)capacity_as_new_Wh * battery_SOH_avg_pptt) / 10000u);
+    }
+    //Nothing measured to scale by, so the GID count is all there is to go on.
     datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
   }
 
@@ -216,9 +300,9 @@ void NissanLeafBattery::
   if (user_selected_LEAF_interlock_mandatory) {
     //If user requires both large 80kW and small 6kW interlock to be seated for operation
     if (!battery_Interlock) {
-      set_event(EVENT_HVIL_FAILURE, 0);
+      set_event(EVENT_HVIL_FAILURE, 0, battery_index);
     } else {
-      clear_event(EVENT_HVIL_FAILURE);
+      clear_event(EVENT_HVIL_FAILURE, battery_index);
     }
   }
 
@@ -229,14 +313,14 @@ void NissanLeafBattery::
   //so it still works now that the unreadable-cell sentinel is filtered out of the cell array.
   if (battery_vbat_mV > 0) {
     if (battery_vbat_mV < LOW_12V_THRESHOLD_MV) {
-      set_event(EVENT_12V_LOW, (int16_t)battery_vbat_mV);
+      set_event(EVENT_12V_LOW, (int16_t)battery_vbat_mV, battery_index);
     } else if (battery_vbat_mV > (LOW_12V_THRESHOLD_MV + LOW_12V_HYSTERESIS_MV)) {
-      clear_event(EVENT_12V_LOW);
+      clear_event(EVENT_12V_LOW, battery_index);
     }
   } else if (battery_cells_unreadable) {
-    set_event(EVENT_12V_LOW, 0);
+    set_event(EVENT_12V_LOW, 0, battery_index);
   } else {
-    clear_event(EVENT_12V_LOW);
+    clear_event(EVENT_12V_LOW, battery_index);
   }
 
   if (battery_HeatExist) {
@@ -379,19 +463,104 @@ void NissanLeafBattery::
         ((solvedChallenge[3] << 24) | (solvedChallenge[2] << 16) | (solvedChallenge[1] << 8) | solvedChallenge[0]);
     datalayer_nissan->challengeFailed = challengeFailed;
 
-    // Update requests from webserver datalayer
+    // Update requests from webserver datalayer. Asked again before starting, in case the pack
+    // turned out to be a ZE1 or went quiet since the request was accepted.
     if (UserRequestSOHreset) {
-      stateMachineClearSOH = 0;  //Start the statemachine
       UserRequestSOHreset = false;
+      if (supports_reset_SOH()) {
+        stateMachineClearSOH = 0;  //Start the statemachine
+      }
     }
 
 #endif
   }
 }
 
+//Whether this pack's contactor is known to be open. Only contactor control can tell: without it
+//contactors_engaged never leaves its start-up 0, and learning then would take the load current for
+//an offset. Pack 1's contactors are open until precharge starts (0) and once a fault has latched
+//them open (2). Packs 2 and 3 have one contactor each, only ever closed once pack 1's are.
+bool NissanLeafBattery::contactor_open() {
+  switch (battery_index) {
+    case 1: {
+      const uint8_t state = datalayer.system.status.contactors_engaged;
+      return contactor_control_enabled && (state == 0 || state == 2);
+    }
+    case 2:
+      return contactor_control_enabled_double_battery && !datalayer.system.status.contactors_battery2_engaged;
+    case 3:
+      return contactor_control_enabled_triple_battery && !datalayer.system.status.contactors_battery3_engaged;
+    default:
+      return false;
+  }
+}
+
+//Called for every 0x1DB sample while the automatic current offset correction is enabled
+void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
+  const uint32_t now = millis();
+  //The LBC has started since the previous sample: at boot, or powered back on after a BMS reset.
+  //Compared for a change rather than an order, so it holds however long the system has been up.
+  const bool lbc_started = auto_offset_first_sample || (bms_power_on_ms != auto_offset_power_on_ms);
+  auto_offset_first_sample = false;
+  auto_offset_power_on_ms = bms_power_on_ms;
+  //A stream that has been silent for any other reason settles again as after an opening
+  const bool resumed = !lbc_started && (now - auto_offset_last_sample_ms) > AUTO_OFFSET_SETTLE_MS;
+  auto_offset_last_sample_ms = now;
+
+  if (!contactor_open()) {
+    auto_offset_open = false;
+    auto_offset_new_period = true;
+    return;
+  }
+  if (lbc_started && auto_offset_open) {
+    //Open since before the LBC started, so nothing has flowed: only its start needs to settle
+    auto_offset_open_since_ms = bms_power_on_ms;
+    auto_offset_settle_ms = AUTO_OFFSET_POWER_ON_SETTLE_MS;
+  } else if (!auto_offset_open || resumed) {
+    auto_offset_open = true;
+    auto_offset_open_since_ms = now;
+    auto_offset_settle_ms = AUTO_OFFSET_SETTLE_MS;
+  }
+  if ((now - auto_offset_open_since_ms) < auto_offset_settle_ms) {
+    return;  //Let whatever was flowing as the contactor opened die away
+  }
+
+  if (auto_offset_new_period) {
+    //First settled sample since the contactor opened: what the previous opening measured goes
+    auto_offset_new_period = false;
+    memset(auto_offset_bucket_sum_raw, 0, sizeof(auto_offset_bucket_sum_raw));
+    memset(auto_offset_bucket_count, 0, sizeof(auto_offset_bucket_count));
+    auto_offset_next_bucket = 0;
+    auto_offset_window.clear();
+  }
+  auto_offset_window.add(sample_raw);
+}
+
+//Closes the bucket filled since the previous update_values() and works the offset out afresh
+void NissanLeafBattery::update_current_offset() {
+  if (auto_offset_window.count == 0) {
+    return;  //Nothing measured this second, so the offset holds
+  }
+  const uint8_t left_out = (uint16_t)auto_offset_window.count * AUTO_OFFSET_TRIM / SAMPLES_PER_SECOND;
+  auto_offset_window.trim(left_out, auto_offset_bucket_sum_raw[auto_offset_next_bucket],
+                          auto_offset_bucket_count[auto_offset_next_bucket]);
+  auto_offset_window.clear();
+  auto_offset_next_bucket = (auto_offset_next_bucket + 1) % AUTO_OFFSET_BUCKETS;
+
+  int32_t sum_raw = 0;
+  int32_t count = 0;
+  for (uint8_t i = 0; i < AUTO_OFFSET_BUCKETS; i++) {
+    sum_raw += auto_offset_bucket_sum_raw[i];
+    count += auto_offset_bucket_count[i];
+  }
+  auto_offset_dA = mean_current_dA(sum_raw, count);
+  datalayer_nissan->AutoCurrentOffset_dA = auto_offset_dA;
+  datalayer_nissan->AutoCurrentOffsetKnown = true;
+}
+
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x1DB:
+    case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
@@ -401,6 +570,23 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // negative so extend the sign bit
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
+
+      // Keep every 0x1DB sample for the 1 s published mean, and track the highest and
+      // lowest sample separately so a charge and a discharge excursion inside the same
+      // window both reach the safety path, untouched by the trimming.
+      battery_Current2_window.add(battery_Current2);
+      if (battery_Current2_new_samples < UINT8_MAX) {
+        battery_Current2_new_samples++;
+      }
+      if (battery_Current2 > battery_Current2_peak_max_raw) {
+        battery_Current2_peak_max_raw = battery_Current2;
+      }
+      if (battery_Current2 < battery_Current2_peak_min_raw) {
+        battery_Current2_peak_min_raw = battery_Current2;
+      }
+      if (user_selected_LEAF_auto_current_offset) {
+        learn_current_offset(battery_Current2);
+      }
 
       battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
       if (battery_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
@@ -415,6 +601,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       battery_status_seen |= 0x01;
       break;
+    }
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
@@ -1042,7 +1229,11 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   bool channel_idle = !uds_busy && (currentMillis - last_7bb_millis) > DTC_BUS_IDLE_MS;
   // The SOH clear runs its own multi-step exchange over the same request/response pair, so a DTC
   // request must not be slipped in between its steps either.
+#ifndef SMALL_FLASH_DEVICE
   bool soh_clear_running = stateMachineClearSOH < 255;
+#else
+  const bool soh_clear_running = false;
+#endif
   bool busy = dtc_read_in_progress || dtc_clear_in_progress || soh_clear_running;
 
   if (UserRequestDTCreadout && !busy && channel_idle) {
@@ -1263,9 +1454,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+#ifndef SMALL_FLASH_DEVICE
       if (stateMachineClearSOH < 255) {  // Enter the ClearSOH statemachine only if we request it
         clearSOH();
       }
+#endif
 
       //When battery requests heating pack status change, ack this
       if (battery_Batt_Heater_Mail_Send_Request) {
@@ -1423,8 +1616,9 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
 
-void NissanLeafBattery::clearSOH(void) {
 #ifndef SMALL_FLASH_DEVICE
+
+void NissanLeafBattery::clearSOH(void) {
   stop_battery_query = true;
   hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
 
@@ -1489,10 +1683,7 @@ void NissanLeafBattery::clearSOH(void) {
     default:
       break;
   }
-#endif
 }
-
-#ifndef SMALL_FLASH_DEVICE
 
 unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2) {
   bool bVar1;

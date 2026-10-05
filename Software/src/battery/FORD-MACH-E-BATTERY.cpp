@@ -135,7 +135,7 @@ void FordMachEBattery::update_values() {
 
   // Check vehicle specific safeties
   if (polled_12V < 11800) {
-    set_event(EVENT_12V_LOW, 0);
+    set_event(EVENT_12V_LOW, 0, battery_index);
   }
 
   //Update More Battery Info page

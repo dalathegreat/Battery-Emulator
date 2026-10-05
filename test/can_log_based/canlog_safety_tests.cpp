@@ -125,7 +125,7 @@ class CanLogTestFixture : public testing::Test {
     // the emulator this happens every 1s.
 
     dynamic_cast<CanBattery*>(battery)->update_values();
-    update_machineryprotection();
+    update_machineryprotection(0);
   }
 
   void HandleFramesAndUpdateValues() {

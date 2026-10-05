@@ -23,9 +23,15 @@
  * still inside the window.
  */
 
-// Report at boot whether the previous update failed to run. Call it early -
-// after init_events(), before anything that might itself fail - so the reason
-// is visible even if this boot goes badly too.
+// Report at boot whether the previous update failed to run.
+//
+// Call it after init_stored_settings() and before anything that can itself
+// fail. Both halves matter, and the first was learned the hard way: the log
+// sinks - web, USB, syslog, SD - are switched on from stored settings, so a
+// report made before that call writes to nothing and the user is left with an
+// OTA_ROLLBACK event whose text points at a line that was never emitted.
+// Reading settings is therefore the one step that comes first; everything else
+// still comes after, so the reason survives a boot that also goes badly.
 void report_ota_rollback(void);
 
 // The WRITE side of the gate, for ordinary main-task context: performs the

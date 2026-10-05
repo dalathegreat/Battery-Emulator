@@ -62,9 +62,9 @@ void FoxessEpCanInverter::transmit_cell_voltage_frame(uint32_t frame_id, uint16_
 void FoxessEpCanInverter::transmit_temperature_frame(uint32_t frame_id, uint8_t first_virtual_sensor_index) {
   FOXESS_CELLTEMPERATURES.ID = frame_id;
 
-  int16_t minimum_temperature_dC = datalayer.battery.status.temperature_min_dC;
+  int16_t minimum_temperature_dC = datalayer.aggregate.temperature_min_dC;
 
-  int16_t maximum_temperature_dC = datalayer.battery.status.temperature_max_dC;
+  int16_t maximum_temperature_dC = datalayer.aggregate.temperature_max_dC;
 
   // Preserve correct minimum/maximum ordering if an integration
   // temporarily supplies the values in reverse.
@@ -111,8 +111,7 @@ void FoxessEpCanInverter::
     update_values() {  //This function maps all the CAN values fetched from battery. It also checks some safeties.
 
   //Calculate the required values
-  temperature_average =
-      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
   // Common generic FoxESS EP readiness state.
   const bool foxess_ep_system_fault =
@@ -128,7 +127,7 @@ void FoxessEpCanInverter::
 
   constexpr int32_t FOXESS_EP_ACTIVITY_DEADBAND_dA = 10;
 
-  const int32_t foxess_ep_activity_current_dA = static_cast<int32_t>(datalayer.battery.status.reported_current_dA);
+  const int32_t foxess_ep_activity_current_dA = static_cast<int32_t>(datalayer.aggregate.current_dA);
 
   const bool foxess_ep_charging_active =
       foxess_ep_power_path_active && foxess_ep_activity_current_dA >= FOXESS_EP_ACTIVITY_DEADBAND_dA;
@@ -148,7 +147,7 @@ void FoxessEpCanInverter::
     unsigned long elapsed_ms = foxess_now_millis - foxess_previous_energy_millis;
     foxess_previous_energy_millis = foxess_now_millis;
 
-    int32_t signed_current_dA = (int32_t)datalayer.battery.status.reported_current_dA;
+    int32_t signed_current_dA = (int32_t)datalayer.aggregate.current_dA;
 
     int32_t absolute_current_dA = signed_current_dA;
 
@@ -157,7 +156,7 @@ void FoxessEpCanInverter::
     }
 
     uint64_t energy_increment =
-        (uint64_t)datalayer.battery.status.voltage_dV * (uint64_t)absolute_current_dA * (uint64_t)elapsed_ms;
+        (uint64_t)datalayer.aggregate.voltage_dV * (uint64_t)absolute_current_dA * (uint64_t)elapsed_ms;
 
     // dV x dA x milliseconds:
     // divide by 100 to obtain watts,
@@ -219,14 +218,14 @@ void FoxessEpCanInverter::
   uint16_t foxess_ep_max_discharge_current_dA = 0U;
 
   if (foxess_ep_battery_ready) {
-    foxess_ep_max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+    foxess_ep_max_charge_current_dA = datalayer.aggregate.max_charge_current_dA;
 
-    foxess_ep_max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
+    foxess_ep_max_discharge_current_dA = datalayer.aggregate.max_discharge_current_dA;
   }
-  FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
-  FOXESS_1872.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  FOXESS_1872.data.u8[2] = (uint8_t)datalayer.battery.info.min_design_voltage_dV;
-  FOXESS_1872.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  FOXESS_1872.data.u8[0] = (uint8_t)datalayer.aggregate.max_design_voltage_dV;
+  FOXESS_1872.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+  FOXESS_1872.data.u8[2] = (uint8_t)datalayer.aggregate.min_design_voltage_dV;
+  FOXESS_1872.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
   FOXESS_1872.data.u8[4] = static_cast<uint8_t>(foxess_ep_max_charge_current_dA);
   FOXESS_1872.data.u8[5] = static_cast<uint8_t>(foxess_ep_max_charge_current_dA >> 8);
   FOXESS_1872.data.u8[6] = static_cast<uint8_t>(foxess_ep_max_discharge_current_dA);
@@ -235,8 +234,8 @@ void FoxessEpCanInverter::
   // BMS_PackData - 0x1873
 
   // Bytes 0-1: live battery voltage in 0.1 V.
-  FOXESS_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;
-  FOXESS_1873.data.u8[1] = (uint8_t)(datalayer.battery.status.voltage_dV >> 8);
+  FOXESS_1873.data.u8[0] = (uint8_t)datalayer.aggregate.voltage_dV;
+  FOXESS_1873.data.u8[1] = (uint8_t)(datalayer.aggregate.voltage_dV >> 8);
 
   // Bytes 2-3: signed current in 0.1 A.
   // Battery-Emulator uses positive current while charging.
@@ -244,7 +243,7 @@ void FoxessEpCanInverter::
   int32_t foxess_ep_current_dA = 0;
 
   if (foxess_ep_power_path_active) {
-    foxess_ep_current_dA = -static_cast<int32_t>(datalayer.battery.status.reported_current_dA);
+    foxess_ep_current_dA = -static_cast<int32_t>(datalayer.aggregate.current_dA);
   }
 
   if (foxess_ep_current_dA > 32767) {
@@ -259,7 +258,7 @@ void FoxessEpCanInverter::
   FOXESS_1873.data.u8[3] = (uint8_t)(foxess_ep_current_dA_signed >> 8);
 
   // Bytes 4-5: SOC in whole percent.
-  uint16_t foxess_ep_pack_soc_percent = datalayer.battery.status.reported_soc / 100U;
+  uint16_t foxess_ep_pack_soc_percent = datalayer.aggregate.reported_soc / 100U;
 
   if (foxess_ep_pack_soc_percent > 100U) {
     foxess_ep_pack_soc_percent = 100U;
@@ -274,11 +273,11 @@ void FoxessEpCanInverter::
   // effective capacity, so convert it back to the equivalent
   // pre-SOH nominal value. Fox can then apply SOH once and recover
   // the accurate effective capacity.
-  const uint32_t foxess_ep_effective_energy_Wh = datalayer.battery.info.reported_total_capacity_Wh;
+  const uint32_t foxess_ep_effective_energy_Wh = datalayer.aggregate.reported_total_capacity_Wh;
 
-  uint32_t foxess_ep_nominal_energy_Wh = datalayer.battery.info.total_capacity_Wh;
+  uint32_t foxess_ep_nominal_energy_Wh = datalayer.aggregate.total_capacity_Wh;
 
-  uint32_t foxess_ep_soh_pptt_for_energy = datalayer.battery.status.soh_pptt;
+  uint32_t foxess_ep_soh_pptt_for_energy = datalayer.aggregate.soh_pptt;
 
   if (foxess_ep_soh_pptt_for_energy > 10000U) {
     foxess_ep_soh_pptt_for_energy = 10000U;
@@ -306,12 +305,12 @@ void FoxessEpCanInverter::
   // BMS_CellData - 0x1874
 
   // Bytes 0-1: maximum battery temperature in 0.1 C.
-  FOXESS_1874.data.u8[0] = (uint8_t)datalayer.battery.status.temperature_max_dC;
-  FOXESS_1874.data.u8[1] = (uint8_t)(datalayer.battery.status.temperature_max_dC >> 8);
+  FOXESS_1874.data.u8[0] = (uint8_t)datalayer.aggregate.temperature_max_dC;
+  FOXESS_1874.data.u8[1] = (uint8_t)(datalayer.aggregate.temperature_max_dC >> 8);
 
   // Bytes 2-3: minimum battery temperature in 0.1 C.
-  FOXESS_1874.data.u8[2] = (uint8_t)datalayer.battery.status.temperature_min_dC;
-  FOXESS_1874.data.u8[3] = (uint8_t)(datalayer.battery.status.temperature_min_dC >> 8);
+  FOXESS_1874.data.u8[2] = (uint8_t)datalayer.aggregate.temperature_min_dC;
+  FOXESS_1874.data.u8[3] = (uint8_t)(datalayer.aggregate.temperature_min_dC >> 8);
 
   // Bytes 4-5 and 6-7: 1-based positions of the
   // highest-voltage and lowest-voltage cells.
@@ -396,7 +395,7 @@ void FoxessEpCanInverter::
 
   const uint64_t foxess_cycle_throughput_Wh = foxess_cycle_charged_energy_Wh + foxess_cycle_discharged_energy_Wh;
 
-  const uint64_t foxess_cycle_denominator_Wh = static_cast<uint64_t>(datalayer.battery.info.total_capacity_Wh) * 2ULL;
+  const uint64_t foxess_cycle_denominator_Wh = static_cast<uint64_t>(datalayer.aggregate.total_capacity_Wh) * 2ULL;
 
   uint64_t foxess_equivalent_cycles = 0ULL;
 
@@ -416,20 +415,20 @@ void FoxessEpCanInverter::
   // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
   // when at 0 indicates charge is possible - additional note there is something more to it than this,
   // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
-  if (!foxess_ep_battery_ready || datalayer.battery.status.max_charge_current_dA == 0U ||
-      datalayer.battery.status.reported_soc >= 10000U) {
+  if (!foxess_ep_battery_ready || datalayer.aggregate.max_charge_current_dA == 0U ||
+      datalayer.aggregate.reported_soc >= 10000U) {
     FOXESS_1876.data.u8[0] = 0x01;
   } else {  //continue using battery
     FOXESS_1876.data.u8[0] = 0x00;
   }
 
   FOXESS_1876.data.u8[1] = (uint8_t)0;  //Unused
-  FOXESS_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
-  FOXESS_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  FOXESS_1876.data.u8[2] = (uint8_t)datalayer.aggregate.cell_max_voltage_mV;
+  FOXESS_1876.data.u8[3] = (datalayer.aggregate.cell_max_voltage_mV >> 8);
   FOXESS_1876.data.u8[4] = (uint8_t)0;  //Unused
   FOXESS_1876.data.u8[5] = (uint8_t)0;  //Unused
-  FOXESS_1876.data.u8[6] = (uint8_t)datalayer.battery.status.cell_min_voltage_mV;
-  FOXESS_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  FOXESS_1876.data.u8[6] = (uint8_t)datalayer.aggregate.cell_min_voltage_mV;
+  FOXESS_1876.data.u8[7] = (datalayer.aggregate.cell_min_voltage_mV >> 8);
 
   //BMS_ErrorsBrand
   //0x1877 b0 appears to be an error code, 0x02 when pack is in error.
@@ -465,7 +464,7 @@ void FoxessEpCanInverter::
   // bytes 4-5 = design capacity in 0.1 Ah
   // bytes 6-7 = BMS-reported full/effective capacity in 0.1 Ah
 
-  uint16_t foxess_soh_percent = datalayer.battery.status.soh_pptt / 100U;
+  uint16_t foxess_soh_percent = datalayer.aggregate.soh_pptt / 100U;
 
   if (foxess_soh_percent > 100U) {
     foxess_soh_percent = 100U;
@@ -476,9 +475,9 @@ void FoxessEpCanInverter::
   // Use the generic design-voltage range to estimate a stable
   // nominal pack voltage. Battery-Emulator does not currently
   // provide a dedicated generic nominal-voltage field.
-  const uint32_t foxess_min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  const uint32_t foxess_min_design_voltage_dV = datalayer.aggregate.min_design_voltage_dV;
 
-  const uint32_t foxess_max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  const uint32_t foxess_max_design_voltage_dV = datalayer.aggregate.max_design_voltage_dV;
 
   uint32_t foxess_nominal_voltage_dV = 0U;
 
@@ -487,13 +486,13 @@ void FoxessEpCanInverter::
   }
 
   // Rated/base energy prefers the generic total-capacity field.
-  const uint32_t foxess_rated_energy_Wh = datalayer.battery.info.total_capacity_Wh > 0U
-                                              ? datalayer.battery.info.total_capacity_Wh
-                                              : datalayer.battery.info.reported_total_capacity_Wh;
+  const uint32_t foxess_rated_energy_Wh = datalayer.aggregate.total_capacity_Wh > 0U
+                                              ? datalayer.aggregate.total_capacity_Wh
+                                              : datalayer.aggregate.reported_total_capacity_Wh;
 
   // Full/inverter-visible energy prefers the reported capacity.
-  const uint32_t foxess_full_energy_Wh = datalayer.battery.info.reported_total_capacity_Wh > 0U
-                                             ? datalayer.battery.info.reported_total_capacity_Wh
+  const uint32_t foxess_full_energy_Wh = datalayer.aggregate.reported_total_capacity_Wh > 0U
+                                             ? datalayer.aggregate.reported_total_capacity_Wh
                                              : foxess_rated_energy_Wh;
 
   const bool foxess_full_capacity_valid =
@@ -572,8 +571,8 @@ void FoxessEpCanInverter::
   // The Fox field is uint16, so clamp larger battery values.
   uint32_t foxess_ep_max_discharge_power_1902_W = 0U;
 
-  if (foxess_ep_battery_ready && datalayer.battery.status.max_discharge_current_dA > 0U) {
-    foxess_ep_max_discharge_power_1902_W = datalayer.battery.status.max_discharge_power_W;
+  if (foxess_ep_battery_ready && datalayer.aggregate.max_discharge_current_dA > 0U) {
+    foxess_ep_max_discharge_power_1902_W = datalayer.aggregate.max_discharge_power_W;
   }
 
   if (foxess_ep_max_discharge_power_1902_W > 65535U) {
@@ -595,8 +594,8 @@ void FoxessEpCanInverter::
 
   // Bytes 6-7 : filtered battery/model temperature (whole Â°C)
 
-  int32_t foxess_ep_filtered_temperature_1902_C = (static_cast<int32_t>(datalayer.battery.status.temperature_max_dC) +
-                                                   static_cast<int32_t>(datalayer.battery.status.temperature_min_dC)) /
+  int32_t foxess_ep_filtered_temperature_1902_C = (static_cast<int32_t>(datalayer.aggregate.temperature_max_dC) +
+                                                   static_cast<int32_t>(datalayer.aggregate.temperature_min_dC)) /
                                                   20;
 
   if (foxess_ep_filtered_temperature_1902_C < 0) {
@@ -667,7 +666,7 @@ void FoxessEpCanInverter::
 
   // Byte 2: primary whole-percent SOC.
   // Genuine EP12 sends zero until capacity data is valid.
-  uint16_t foxess_ep_primary_soc_1905 = datalayer.battery.status.reported_soc / 100U;
+  uint16_t foxess_ep_primary_soc_1905 = datalayer.aggregate.reported_soc / 100U;
 
   if (foxess_ep_primary_soc_1905 > 100U) {
     foxess_ep_primary_soc_1905 = 100U;
@@ -718,7 +717,7 @@ void FoxessEpCanInverter::
   uint32_t foxess_ep_fine_soc_permille_1907 = 0U;
 
   if (foxess_ep_capacity_model_ready) {
-    foxess_ep_fine_soc_permille_1907 = datalayer.battery.status.reported_soc / 10U;
+    foxess_ep_fine_soc_permille_1907 = datalayer.aggregate.reported_soc / 10U;
 
     if (foxess_ep_fine_soc_permille_1907 > 1000U) {
       foxess_ep_fine_soc_permille_1907 = 1000U;
@@ -798,7 +797,7 @@ void FoxessEpCanInverter::
   // EP12 captures show byte 1 tracking the individual unit SOC.
   // Bytes 4-7: cumulative absolute energy throughput in Wh.
 
-  uint16_t foxess_ep_unit_soc = datalayer.battery.status.reported_soc / 100U;
+  uint16_t foxess_ep_unit_soc = datalayer.aggregate.reported_soc / 100U;
 
   if (foxess_ep_unit_soc > 100U) {
     foxess_ep_unit_soc = 100U;
@@ -883,9 +882,9 @@ void FoxessEpCanInverter::
 
   // Individual EP temperature encoding.
   // Whole degrees Celsius with a +50 offset.
-  int16_t foxess_ep_max_temperature_encoded = (datalayer.battery.status.temperature_max_dC / 10) + 50;
+  int16_t foxess_ep_max_temperature_encoded = (datalayer.aggregate.temperature_max_dC / 10) + 50;
 
-  int16_t foxess_ep_min_temperature_encoded = (datalayer.battery.status.temperature_min_dC / 10) + 50;
+  int16_t foxess_ep_min_temperature_encoded = (datalayer.aggregate.temperature_min_dC / 10) + 50;
 
   if (foxess_ep_max_temperature_encoded < 0) {
     foxess_ep_max_temperature_encoded = 0;
@@ -911,7 +910,7 @@ void FoxessEpCanInverter::
   int32_t foxess_ep_unit_current_dA = 0;
 
   if (foxess_ep_power_path_active) {
-    foxess_ep_unit_current_dA = -static_cast<int32_t>(datalayer.battery.status.reported_current_dA);
+    foxess_ep_unit_current_dA = -static_cast<int32_t>(datalayer.aggregate.current_dA);
   }
 
   if (foxess_ep_unit_current_dA > INT16_MAX) {
@@ -936,8 +935,8 @@ void FoxessEpCanInverter::
 
   // Bytes 5-7: maximum and minimum cell voltages,
   // packed as two unsigned 12-bit millivolt values.
-  uint16_t foxess_ep_unit_max_cell_mV = datalayer.battery.status.cell_max_voltage_mV;
-  uint16_t foxess_ep_unit_min_cell_mV = datalayer.battery.status.cell_min_voltage_mV;
+  uint16_t foxess_ep_unit_max_cell_mV = datalayer.aggregate.cell_max_voltage_mV;
+  uint16_t foxess_ep_unit_min_cell_mV = datalayer.aggregate.cell_min_voltage_mV;
 
   if (foxess_ep_unit_max_cell_mV > 0x0FFFU) {
     foxess_ep_unit_max_cell_mV = 0x0FFFU;

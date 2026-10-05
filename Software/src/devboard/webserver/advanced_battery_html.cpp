@@ -18,10 +18,12 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
     {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
      [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
+#ifndef SMALL_FLASH_DEVICE
     {"chademoRestart", "Restart", "restart the V2X session?",
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
     {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
      [](Battery* b) { b->chademo_restart(); }},
+#endif  // SMALL_FLASH_DEVICE
     {"resetBMS", "BMS Reset", "Reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) { b->reset_BMS(); }},
     {"resetSOC", "SOC Reset", "Reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },
@@ -58,8 +60,10 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_close_contactors(); }},
     {"contactorOpen", "Open Contactors", "a contactor open request?",
      [](Battery* b) { return b && b->supports_contactor_close(); }, [](Battery* b) { b->request_open_contactors(); }},
+#ifndef SMALL_FLASH_DEVICE
     {"resetSOH", "Perform degradation reset", "reset degradation data?",
      [](Battery* b) { return b && b->supports_reset_SOH(); }, [](Battery* b) { b->reset_SOH(); }},
+#endif
     {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
      [](Battery* b) { return b && b->supports_factory_mode_method(); }, [](Battery* b) { b->set_factory_mode(); }},
     {"toggleSOC", "Toggle SOC method",
@@ -86,20 +90,14 @@ Battery* battery_at(unsigned index) {
   }
 }
 
-const char page_start[] = INDEX_HTML_HEADER R"html(
-<style>
-body{background:black;color:white}h4{margin:.6em 0;line-height:1.2}
-button,.battery-tab{background:#505E67;color:white;border:0;padding:10px 20px;margin:5px;
-cursor:pointer;border-radius:10px;display:inline-block;text-decoration:none;font:inherit}
-button:hover,.battery-tab:hover{background:#3A4A52}
-.battery-tab[aria-current=page]{background:#287c58;outline:2px solid #69c999}
-.battery-panel{background:#303E47;padding:10px;margin-bottom:10px;border-radius:24px}
+// The Cellmonitor link carries location.search along, so the pack selected here stays selected
+// there. Costs nothing in flash: the query string is read in the browser, not built on the ESP.
+// HELP_SCRIPT lets any renderer explain its panels with data-h attributes (texts in help.json).
+const char page_start[] =
+    INDEX_HTML_HEADER HELP_SCRIPT INDEX_HTML_SUBPAGE_STYLE R"html(h4{margin:.6em 0;line-height:1.2}
 </style>
-<script>
-function goToMainPage(){window.location.href='/';}
-function exportLog(){window.location.href='/export_log';}
-</script>
-<button onclick='goToMainPage()'>Back to main page</button>
+<button onclick="location.href='/'">Back to main page</button>
+<button onclick="location.href='/cellmonitor'+location.search">Cellmonitor</button>
 <nav aria-label='Battery selection'>
 )html";
 const char page_end[] = "</div>" INDEX_HTML_FOOTER;

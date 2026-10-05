@@ -101,6 +101,7 @@ add_executable(tests
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
+    ../Software/src/datalayer/battery_aggregate.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
@@ -160,11 +161,13 @@ add_executable(tests
     ../Software/src/battery/SAMSUNG-SDI-LV-BATTERY.cpp
     ../Software/src/battery/SANTA-FE-PHEV-BATTERY.cpp
     ../Software/src/shunt/Shunts.cpp
+    ../Software/src/shunt/QNHCK2-16.cpp
     ../Software/src/battery/SIMPBMS-BATTERY.cpp
     ../Software/src/battery/SONO-BATTERY.cpp
     ../Software/src/battery/STELLANTIS-SMALL-WIDE-4x4.cpp
     ../Software/src/battery/STELLANTIS-PRO-ONE-BATTERY.cpp
     ../Software/src/battery/TESLA-BATTERY.cpp
+    ../Software/src/battery/TESLA-HTML.cpp
     ../Software/src/battery/TESLA-LEGACY-BATTERY.cpp
     ../Software/src/battery/TEST-FAKE-BATTERY.cpp
     ../Software/src/battery/THINK-BATTERY.cpp

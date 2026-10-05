@@ -66,9 +66,9 @@ class SolArkLvOverCurrent : public ::testing::Test {
 // house. The charge over-current bit must stay clear: the pack is discharging,
 // which cannot be a charge over-current no matter what the charge limit is.
 TEST_F(SolArkLvOverCurrent, FullPackDischargingDoesNotClaimChargeOverCurrent) {
-  datalayer.battery.status.max_charge_current_dA = 0;
-  datalayer.battery.status.max_discharge_current_dA = 1000;
-  datalayer.battery.status.reported_current_dA = -300;  // 30.0 A out of the pack
+  datalayer.aggregate.max_charge_current_dA = 0;
+  datalayer.aggregate.max_discharge_current_dA = 1000;
+  datalayer.aggregate.current_dA = -300;  // 30.0 A out of the pack
 
   EXPECT_EQ(publish().data.u8[1] & kChargeOverCurrentBit, 0)
       << "a discharging pack must not raise the charge over-current bit";
@@ -76,9 +76,9 @@ TEST_F(SolArkLvOverCurrent, FullPackDischargingDoesNotClaimChargeOverCurrent) {
 
 // An idle pack draws no current at all. Neither bit may be set.
 TEST_F(SolArkLvOverCurrent, IdlePackRaisesNoOverCurrentBits) {
-  datalayer.battery.status.max_charge_current_dA = 0;
-  datalayer.battery.status.max_discharge_current_dA = 0;
-  datalayer.battery.status.reported_current_dA = 0;
+  datalayer.aggregate.max_charge_current_dA = 0;
+  datalayer.aggregate.max_discharge_current_dA = 0;
+  datalayer.aggregate.current_dA = 0;
 
   CAN_frame frame = publish();
   EXPECT_EQ(frame.data.u8[0] & kDischargeOverCurrentBit, 0);
@@ -86,17 +86,17 @@ TEST_F(SolArkLvOverCurrent, IdlePackRaisesNoOverCurrentBits) {
 }
 
 TEST_F(SolArkLvOverCurrent, ChargingPastTheChargeLimitRaisesChargeOverCurrent) {
-  datalayer.battery.status.max_charge_current_dA = 500;
-  datalayer.battery.status.max_discharge_current_dA = 500;
-  datalayer.battery.status.reported_current_dA = 500 + kMarginDA + 10;  // charging past the limit
+  datalayer.aggregate.max_charge_current_dA = 500;
+  datalayer.aggregate.max_discharge_current_dA = 500;
+  datalayer.aggregate.current_dA = 500 + kMarginDA + 10;  // charging past the limit
 
   EXPECT_EQ(publish().data.u8[1] & kChargeOverCurrentBit, kChargeOverCurrentBit);
 }
 
 TEST_F(SolArkLvOverCurrent, DischargingPastTheDischargeLimitRaisesDischargeOverCurrent) {
-  datalayer.battery.status.max_charge_current_dA = 500;
-  datalayer.battery.status.max_discharge_current_dA = 500;
-  datalayer.battery.status.reported_current_dA = -(500 + kMarginDA + 10);  // discharging past the limit
+  datalayer.aggregate.max_charge_current_dA = 500;
+  datalayer.aggregate.max_discharge_current_dA = 500;
+  datalayer.aggregate.current_dA = -(500 + kMarginDA + 10);  // discharging past the limit
 
   EXPECT_EQ(publish().data.u8[0] & kDischargeOverCurrentBit, kDischargeOverCurrentBit);
 }
@@ -104,17 +104,17 @@ TEST_F(SolArkLvOverCurrent, DischargingPastTheDischargeLimitRaisesDischargeOverC
 // Charging hard is not a discharge over-current, and discharging hard is not a
 // charge over-current. These are the two cross-checks the wrong signs failed.
 TEST_F(SolArkLvOverCurrent, HeavyChargingDoesNotClaimDischargeOverCurrent) {
-  datalayer.battery.status.max_charge_current_dA = 2000;
-  datalayer.battery.status.max_discharge_current_dA = 500;
-  datalayer.battery.status.reported_current_dA = 1500;  // well inside the charge limit
+  datalayer.aggregate.max_charge_current_dA = 2000;
+  datalayer.aggregate.max_discharge_current_dA = 500;
+  datalayer.aggregate.current_dA = 1500;  // well inside the charge limit
 
   EXPECT_EQ(publish().data.u8[0] & kDischargeOverCurrentBit, 0);
 }
 
 TEST_F(SolArkLvOverCurrent, HeavyDischargingDoesNotClaimChargeOverCurrent) {
-  datalayer.battery.status.max_charge_current_dA = 500;
-  datalayer.battery.status.max_discharge_current_dA = 2000;
-  datalayer.battery.status.reported_current_dA = -1500;  // well inside the discharge limit
+  datalayer.aggregate.max_charge_current_dA = 500;
+  datalayer.aggregate.max_discharge_current_dA = 2000;
+  datalayer.aggregate.current_dA = -1500;  // well inside the discharge limit
 
   EXPECT_EQ(publish().data.u8[1] & kChargeOverCurrentBit, 0);
 }
@@ -122,13 +122,13 @@ TEST_F(SolArkLvOverCurrent, HeavyDischargingDoesNotClaimChargeOverCurrent) {
 // Right at the limit is not yet over it: the margin exists so that a pack
 // sitting exactly on its own limit is not reported as protecting itself.
 TEST_F(SolArkLvOverCurrent, CurrentExactlyAtEitherLimitRaisesNothing) {
-  datalayer.battery.status.max_charge_current_dA = 500;
-  datalayer.battery.status.max_discharge_current_dA = 500;
+  datalayer.aggregate.max_charge_current_dA = 500;
+  datalayer.aggregate.max_discharge_current_dA = 500;
 
-  datalayer.battery.status.reported_current_dA = 500;
+  datalayer.aggregate.current_dA = 500;
   EXPECT_EQ(publish().data.u8[1] & kChargeOverCurrentBit, 0);
 
   clear_transmitted_frames();
-  datalayer.battery.status.reported_current_dA = -500;
+  datalayer.aggregate.current_dA = -500;
   EXPECT_EQ(publish().data.u8[0] & kDischargeOverCurrentBit, 0);
 }

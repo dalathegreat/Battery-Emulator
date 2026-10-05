@@ -71,6 +71,11 @@ class String {
     return true;
   }
 
+  bool concat(char rhs) {
+    data += rhs;
+    return true;
+  }
+
   String& operator+=(const String& rhs) {
     data += rhs.data;
     return *this;
