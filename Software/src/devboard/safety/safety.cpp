@@ -65,13 +65,18 @@ static void check_can_component_alive(uint8_t& still_alive_counter, bool& detect
    EVENT_CAN_CORRUPTED_WARNING block further down). The worst offender is the one reported.
    The battery number is only attached when more than one battery is configured, so
    single-battery systems keep their existing event text. */
-static void check_battery_temperatures(void) {
+static void check_battery_temperatures(uint32_t currentMillis) {
   /* Each pack owns its own set of events now, so this is a plain per-pack set/clear with no
      cross-pack reasoning: battery 1 and battery 2 can be overheating at the same time and both
      are reported. That was impossible while the three events were shared. */
   const DATALAYER_BATTERY_TYPE* packs[3] = {battery ? &datalayer.battery : nullptr,
                                             battery2 ? &datalayer.battery2 : nullptr,
                                             battery3 ? &datalayer.battery3 : nullptr};
+
+  if (currentMillis < INTERVAL_5_S) {
+    // Skip the first 5 seconds after boot, when the batteries are still potentially reporting invalid readings
+    return;
+  }
 
   for (uint8_t i = 0; i < 3; i++) {
     if (!packs[i]) {
@@ -216,7 +221,7 @@ void update_remote_limit_expiry(uint32_t currentMillis) {
   }
 }
 
-void update_machineryprotection() {
+void update_machineryprotection(uint32_t currentMillis) {
   //Check if we start to get low on memory
   static uint8_t hysteresisHeapSeconds = 0;
   if (datalayer.system.info.CPU_free_heap < 62000) {
@@ -529,7 +534,7 @@ void update_machineryprotection() {
   check_soh_difference();
 
   // Temperature limits are shared by all batteries, so all of them are checked in one pass
-  check_battery_temperatures();
+  check_battery_temperatures(currentMillis);
 
   // Too many malformed CAN messages received! EVENT_CAN_CORRUPTED_WARNING is shared by
   // all batteries; evaluate them together so one battery's clean state can no longer
@@ -572,7 +577,7 @@ void update_machineryprotection() {
 
     // If this is the start of the emergency recovery charge period, capture the current time
     if (datalayer.battery_settings.recovery_charge_start_time_ms == 0) {
-      datalayer.battery_settings.recovery_charge_start_time_ms = millis();
+      datalayer.battery_settings.recovery_charge_start_time_ms = currentMillis;
       set_event(EVENT_RECOVERY_START, 0);
     } else {
       clear_event(EVENT_RECOVERY_START);
@@ -601,14 +606,14 @@ void update_machineryprotection() {
   if (datalayer.battery_settings.user_requests_balancing) {
     // If this is the start of the balancing period, capture the current time
     if (datalayer.battery_settings.balancing_start_time_ms == 0) {
-      datalayer.battery_settings.balancing_start_time_ms = millis();
+      datalayer.battery_settings.balancing_start_time_ms = currentMillis;
       set_event(EVENT_BALANCING_START, 0, 1);
     } else {
       clear_event(EVENT_BALANCING_START, 1);
     }
 
     // Check if the elapsed time exceeds the balancing time
-    if (millis() - datalayer.battery_settings.balancing_start_time_ms >=
+    if (currentMillis - datalayer.battery_settings.balancing_start_time_ms >=
         datalayer.battery_settings.balancing_max_time_ms) {
       datalayer.battery_settings.user_requests_balancing = false;
       datalayer.battery_settings.balancing_start_time_ms = 0;  // Reset the start time
