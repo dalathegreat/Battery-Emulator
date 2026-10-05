@@ -55,6 +55,20 @@ extern uint16_t qnhck_zero_mV;
 // Measure the zero point whenever the contactors are open, instead of using the one set by hand.
 // On unless switched off, and only the off state is stored.
 extern bool qnhck_auto_calibration;
+// How far the sensor's zero point moves per °C, in uV, signed. With automatic calibration the
+// zero point measured while the contactors were open follows the batteries' temperature by this
+// much per degree, until the next opening measures it afresh. 0 is off, and only a value other
+// than that is stored. The datasheet gives no figure for a given sensor, only a limit:
+static constexpr int16_t QNHCK_MAX_TEMPCO_UV_PER_C = 1000;  // ±1 mV/°C
+extern int16_t qnhck_zero_tempco_uV_per_C;
+
+// The temperature the zero point is compensated by: midway between the coldest and the warmest
+// reading of the batteries, in deci-°C. False while no battery reports one, and for a reading
+// outside the sensor's operating range of -25 to +85 °C.
+bool qnhck_battery_temperature_dC(int16_t& temperature_dC);
+
+// How far the zero point has moved, in uV, since it was measured at baseline_dC
+int32_t qnhck_zero_drift_uV(int16_t tempco_uV_per_C, int16_t baseline_dC, int16_t now_dC);
 
 // Whether a reading taken with no current flowing can be the sensor's zero point.
 bool qnhck_zero_plausible(uint32_t zero_mV);
@@ -121,9 +135,15 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   bool auto_zero_rejected = false;       // This opening measured one that cannot be, already logged
   bool zero_known = false;               // Measured since boot. Only needed with automatic calibration
 
+  // The batteries' temperature as the zero point was measured, which the temperature compensation
+  // works from. Not known if no battery reported one then: the zero point is used as measured.
+  int16_t zero_temperature_dC = 0;
+  bool zero_temperature_known = false;
+
   static bool no_current_can_flow();
   void track_zero(uint32_t now, uint32_t sample_mV);
   void close_zero_bucket();
+  uint32_t compensated_output_uV() const;
 };
 
 #endif  // SMALL_FLASH_DEVICE

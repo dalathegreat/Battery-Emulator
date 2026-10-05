@@ -275,6 +275,144 @@ TEST_F(QnhckAutoCalibrationTest, ByHandTheStoredZeroPointIsUsedRightAway) {
   EXPECT_EQ(qnhck_zero_mV, 1640);
 }
 
+// --- The zero point following the batteries' temperature ---
+
+TEST(QnhckTemperatureTest, DriftIsTheCoefficientTimesTheChange) {
+  EXPECT_EQ(qnhck_zero_drift_uV(1000, 200, 300), 10000);   // 1 mV/°C, 20.0 -> 30.0 °C
+  EXPECT_EQ(qnhck_zero_drift_uV(1000, 300, 200), -10000);  // and back
+  EXPECT_EQ(qnhck_zero_drift_uV(-500, 200, 300), -5000);   // A sensor drifting the other way
+  EXPECT_EQ(qnhck_zero_drift_uV(300, -150, -145), 150);    // 0.5 °C below zero
+  EXPECT_EQ(qnhck_zero_drift_uV(0, 200, 850), 0);
+}
+
+class QnhckTemperatureCompensationTest : public QnhckAutoCalibrationTest {
+ protected:
+  void SetUp() override {
+    QnhckAutoCalibrationTest::SetUp();
+    battery_detected = true;  // The datalayer reset has left pack 1 alive
+    set_temperature(200);
+  }
+
+  void TearDown() override {
+    qnhck_zero_tempco_uV_per_C = 0;
+    battery_detected = false;
+    QnhckAutoCalibrationTest::TearDown();
+  }
+
+  // The batteries' coldest and warmest reading, 2 °C either side of temperature_dC
+  static void set_temperature(int16_t temperature_dC) {
+    datalayer.aggregate.temperature_min_dC = temperature_dC - 20;
+    datalayer.aggregate.temperature_max_dC = temperature_dC + 20;
+  }
+};
+
+TEST_F(QnhckTemperatureCompensationTest, TakesTheTemperatureMidwayBetweenTheBatteriesColdestAndWarmest) {
+  int16_t temperature_dC = 0;
+  EXPECT_TRUE(qnhck_battery_temperature_dC(temperature_dC));
+  EXPECT_EQ(temperature_dC, 200);
+
+  set_temperature(-250);  // The sensor's operating range ends here
+  EXPECT_TRUE(qnhck_battery_temperature_dC(temperature_dC));
+  EXPECT_EQ(temperature_dC, -250);
+  set_temperature(-251);
+  EXPECT_FALSE(qnhck_battery_temperature_dC(temperature_dC));
+  set_temperature(851);
+  EXPECT_FALSE(qnhck_battery_temperature_dC(temperature_dC));
+}
+
+TEST_F(QnhckTemperatureCompensationTest, NoTemperatureUntilTheBatteryIsHeardFrom) {
+  int16_t temperature_dC = 0;
+  battery_detected = false;
+  EXPECT_FALSE(qnhck_battery_temperature_dC(temperature_dC));
+
+  battery_detected = true;
+  datalayer.battery.status.CAN_battery_still_alive = 0;  // Detected once, silent since
+  EXPECT_FALSE(qnhck_battery_temperature_dC(temperature_dC));
+}
+
+TEST_F(QnhckTemperatureCompensationTest, TheZeroPointFollowsTheTemperatureUntilTheNextOpening) {
+  qnhck_zero_tempco_uV_per_C = 1000;  // 1 mV/°C: 10 °C warmer moves 1.640 V to 1.650 V
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);  // Measured at 20.0 °C
+  close_contactors();
+  set_temperature(300);
+  feed(sensor, 2001, 3000, 1650);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);  // Not 0.8 A
+  EXPECT_EQ(qnhck_zero_mV, 1640);                      // The measured zero point itself stays
+
+  // 125 mV above where the zero point has moved to is still 10 A
+  feed(sensor, 3001, 4000, 1775);
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 10000);
+
+  // The next opening measures afresh at the temperature it ends at, and starts over from there
+  open_contactors();
+  feed(sensor, 4001, 6000, 1650);
+  EXPECT_EQ(qnhck_zero_mV, 1650);
+  close_contactors();
+  feed(sensor, 6001, 7000, 1650);
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
+}
+
+TEST_F(QnhckTemperatureCompensationTest, ASensorDriftingTheOtherWay) {
+  qnhck_zero_tempco_uV_per_C = -500;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  set_temperature(300);
+  feed(sensor, 2001, 3000, 1635);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
+}
+
+TEST_F(QnhckTemperatureCompensationTest, OffByDefault) {
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  set_temperature(300);
+  feed(sensor, 2001, 3000, 1650);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 800);
+}
+
+TEST_F(QnhckTemperatureCompensationTest, NotWithoutATemperatureAsTheZeroPointWasMeasured) {
+  qnhck_zero_tempco_uV_per_C = 1000;
+  battery_detected = false;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  battery_detected = true;  // Heard from only once the contactors have closed
+  set_temperature(300);
+  feed(sensor, 2001, 3000, 1650);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 800);
+}
+
+TEST_F(QnhckTemperatureCompensationTest, NotWhileTheBatteriesGiveNoTemperature) {
+  qnhck_zero_tempco_uV_per_C = 1000;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  datalayer.battery.status.CAN_battery_still_alive = 0;
+  set_temperature(300);
+  feed(sensor, 2001, 3000, 1650);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 800);  // As measured, rather than a stale guess
+}
+
+TEST_F(QnhckTemperatureCompensationTest, NotForAZeroPointSetByHand) {
+  qnhck_zero_tempco_uV_per_C = 1000;
+  qnhck_auto_calibration = false;
+  contactor_control_enabled = false;
+  qnhck_zero_mV = 1640;
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 1000, 1640);
+  set_temperature(300);
+  feed(sensor, 1001, 2000, 1650);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 800);
+}
+
 // --- The inverter gets the measured current ---
 
 class QnhckAggregateTest : public ::testing::Test {
