@@ -414,8 +414,8 @@ void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
-  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC. Also passing true to isFD
-  setup_uds(0x7E4, 0x7EC, true);
+  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC
+  setup_uds(0x7E4, 0x7EC);
   static const uint16_t pid_scan_list[] = {
       POLL_GROUP_1, POLL_GROUP_2,  POLL_GROUP_3,    POLL_GROUP_4,     POLL_GROUP_5,
       POLL_GROUP_6, POLL_GROUP_11, POLL_ECU_SERIAL, POLL_ECU_VERSION,
