@@ -25,27 +25,26 @@ static bool rs485_de_active_high = true;
 
 #endif  // !SMALL_FLASH_DEVICE
 
-
 bool init_rs485() {
 
   auto en_pin = esp32hal->RS485_EN_PIN();
   auto se_pin = esp32hal->RS485_SE_PIN();
   auto pin_5v_en = esp32hal->PIN_5V_EN();
-  #ifndef SMALL_FLASH_DEVICE
-    rs485_de_pin = esp32hal->RS485_DE_PIN();
-    rs485_de_active_high = esp32hal->RS485_DE_ACTIVE_HIGH();
-  #endif
+#ifndef SMALL_FLASH_DEVICE
+  rs485_de_pin = esp32hal->RS485_DE_PIN();
+  rs485_de_active_high = esp32hal->RS485_DE_ACTIVE_HIGH();
+#endif
 
   if (!esp32hal->alloc_pins_ignore_unused("RS485", en_pin, se_pin, pin_5v_en)) {
-  DEBUG_PRINTF("RS485 failed to allocate static enable pins\n");
+    DEBUG_PRINTF("RS485 failed to allocate static enable pins\n");
 #ifndef SMALL_FLASH_DEVICE
-  // Leave RS485 DE disabled rather than bypassing HAL pin ownership later in rs485_begin().
-  rs485_de_pin = GPIO_NUM_NC;
+    // Leave RS485 DE disabled rather than bypassing HAL pin ownership later in rs485_begin().
+    rs485_de_pin = GPIO_NUM_NC;
 #endif
-  return true;
-}
+    return true;
+  }
 
-  #ifndef SMALL_FLASH_DEVICE
+#ifndef SMALL_FLASH_DEVICE
   if (rs485_de_pin != GPIO_NUM_NC && !esp32hal->alloc_pins("RS485 DE", rs485_de_pin)) {
     DEBUG_PRINTF("RS485 failed to allocate DE pin\n");
     // Do not let uart_set_pin() claim a pin that the HAL allocator rejected.
@@ -107,17 +106,13 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
 
 #ifndef UNIT_TEST
     // Configure UART2 RTS as RS485 driver-enable.
-    const esp_err_t pin_result =
-        uart_set_pin(RS485_UART_NUM, tx_pin, rx_pin, rs485_de_pin, UART_PIN_NO_CHANGE);
+    const esp_err_t pin_result = uart_set_pin(RS485_UART_NUM, tx_pin, rx_pin, rs485_de_pin, UART_PIN_NO_CHANGE);
 
-    const esp_err_t mode_result =
-        uart_set_mode(RS485_UART_NUM, UART_MODE_RS485_HALF_DUPLEX);
+    const esp_err_t mode_result = uart_set_mode(RS485_UART_NUM, UART_MODE_RS485_HALF_DUPLEX);
 
     if (pin_result != ESP_OK || mode_result != ESP_OK) {
-      DEBUG_PRINTF(
-          "RS485 UART half-duplex setup failed, pin_result=%d, mode_result=%d\n",
-          static_cast<int>(pin_result),
-          static_cast<int>(mode_result));
+      DEBUG_PRINTF("RS485 UART half-duplex setup failed, pin_result=%d, mode_result=%d\n", static_cast<int>(pin_result),
+                   static_cast<int>(mode_result));
       return false;
     }
 #else

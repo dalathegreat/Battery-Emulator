@@ -485,7 +485,7 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-note      "DBLBTR",       "CNTCTRL",       "CNTCTRLDBL", "PWMCNTCTRL",   "PERBMSRESET",   "STATICIP",       "REMBMSRESET",
+      note "DBLBTR",  "CNTCTRL",       "CNTCTRLDBL", "PWMCNTCTRL",   "PERBMSRESET",   "STATICIP",       "REMBMSRESET",
       "EXTPRECHARGE", "USBENABLED",    "CANLOGUSB",  "WEBENABLED",   "WIFIAPENABLED", "MQTTENABLED",    "NOINVDISC",
       "HADISC",       "MQTTCELLV",     "GTWRHD",     "DIGITALHVIL",  "PERFPROFILE",   "INTERLOCKREQ",   "SOCESTIMATED",
       "PYLONOFFSET",  "PYLONORDER",    "DEYEBYD",    "NCCONTACTOR",  "TRIBTR",        "CNTCTRLTRI",     "ESPNOWENABLED",
