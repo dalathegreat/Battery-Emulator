@@ -30,10 +30,8 @@ void StellantisProOneBattery::
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
-    datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;  //TODO: locate
-
-    datalayer.battery.status.max_discharge_power_W =
-        datalayer.battery.status.override_discharge_power_W;  //TODO: locate
+    datalayer.battery.status.max_discharge_power_W = (discharge_power * (pack_voltage / 10));
+    datalayer.battery.status.max_charge_power_W = (charge_power * (pack_voltage / 10));
   }
 
   if (pack_capacity_ah_tenths > 0) {
@@ -45,9 +43,6 @@ void StellantisProOneBattery::
     datalayer.battery.status.remaining_capacity_Wh =
         (uint32_t)((uint64_t)datalayer.battery.status.real_soc * datalayer.battery.info.total_capacity_Wh / 10000u);
   }
-
-  //datalayer.battery.status.max_discharge_power_W; //TODO: locate
-  //datalayer.battery.status.max_charge_power_W; //TODO: locate
 
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
@@ -105,12 +100,12 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>PID DA77: " << pid_unknown_180 << "</h4>"
               "<h4>PID DA78: " << pid_unknown_181 << "</h4>"
               "<h4>PID DA79: " << pid_unknown_182 << "</h4>"
-              "<h4>285_1chg?: " << unknown_285_0 << "</h4>"
-              "<h4>285_2chg?: " << unknown_285_1 << "</h4>"
-              "<h4>285_3chg?: " << unknown_285_2 << "</h4>"
-              "<h4>281_1: " << unknown_281_0 << "</h4>"
-              "<h4>281_2: " << unknown_281_1 << "</h4>"
-              "<h4>281_3: " << unknown_281_2 << "</h4>"
+              "<h4>Chg1: " << charge_power << "</h4>"
+              "<h4>Chg2: " << peak_charge_power << "</h4>"
+              "<h4>Chg3: " << sustained_charge_power << "</h4>"
+              "<h4>Dis1: " << discharge_power << "</h4>"
+              "<h4>Dis2: " << peak_discharge_power << "</h4>"
+              "<h4>Dis3: " << sustained_discharge_power << "</h4>"
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
               "<h4>Temperature sensors: </h4>"
@@ -190,17 +185,17 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltage_max_mV = (uint16_t)(rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltage_min_mV = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
-    case 0x281:
+    case 0x281:  //Allowed Discharge (Units still unknown)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      unknown_281_0 = rx_frame.data.u8[1];
-      unknown_281_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      unknown_281_2 = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      discharge_power = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+      peak_discharge_power = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+      sustained_discharge_power = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
-    case 0x285:  //Allowed Charge/Discharge?
+    case 0x285:  //Allowed Charge (Units still unknown)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      unknown_285_0 = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-      unknown_285_1 = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      unknown_285_2 = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
+      charge_power = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
+      peak_charge_power = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+      sustained_charge_power = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
