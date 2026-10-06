@@ -485,7 +485,7 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      note "DBLBTR",
+      "DBLBTR",
       "CNTCTRL",
       "CNTCTRLDBL",
       "PWMCNTCTRL",
