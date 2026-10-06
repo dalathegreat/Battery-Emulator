@@ -440,6 +440,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::BmwIX:
     case BatteryType::BmwPhev:
     case BatteryType::BoltAmpera:
+    case BatteryType::BYDBatteryBoxPremium:
     case BatteryType::Chademo:
     case BatteryType::ChargebyteCCSBattery:
     case BatteryType::CmfaEv:

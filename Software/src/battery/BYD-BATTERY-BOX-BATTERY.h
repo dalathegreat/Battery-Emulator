@@ -42,8 +42,11 @@ class BYDBatteryBoxBattery : public CanBattery {
                        .DLC = 8,
                        .ID = 0x191,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  unsigned long previousMillis1000 = 0;
+  unsigned long previousMillis60s = 0;
+  unsigned long previousMillis10s = 0;
 
+  uint16_t manufacturer[8] = {0};
+  uint16_t model[29] = {0};
   uint16_t voltage_dV = 3700;
   uint16_t SOC = 500;
   uint16_t SOH = 0;

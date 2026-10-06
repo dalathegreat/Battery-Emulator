@@ -17,18 +17,37 @@ void BYDBatteryBoxBattery::setup(void) {
 
 void BYDBatteryBoxBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x250:
+    case 0x250:  //FW version and capacity
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x290:
+    case 0x290:  //Unknown startup message
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x2D0:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      for (uint8_t i = 0; i < 7; i++) {
+        manufacturer[i] = rx_frame.data.u8[i + 1];
+      }
+      manufacturer[7] = '\0';
       we_have_identified_battery = true;
       break;
-    case 0x3D0:
+    case 0x3D0:  // Contains name of battery manufacturer / product
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.DLC < 8) {
+        break;  // Something is wrong. Abort processing
+      }
+      if (rx_frame.data.u8[0] <= 3) {  // 4 frames * 7 chars = 28 chars max
+        uint8_t offset = rx_frame.data.u8[0] * 7;
+
+        for (uint8_t i = 0; i < 7; i++) {
+          model[offset + i] = rx_frame.data.u8[i + 1];
+        }
+
+        // Last frame received: make sure the string is terminated
+        if (rx_frame.data.u8[0] == 3) {
+          model[28] = '\0';
+        }
+      }
       break;
     case 0x110:  //Limits (1 second)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -44,7 +63,7 @@ void BYDBatteryBoxBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       remaining_capacity_dAh = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       fullcharge_capacity_dAh = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
-    case 0x190:  //Alarm (60seconds)
+    case 0x190:  //Alarm (60seconds) Mappings unknown
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x1D0:  //Battery Info (10seconds)
@@ -80,13 +99,13 @@ void BYDBatteryBoxBattery::update_values() {
 
   datalayer.battery.status.max_charge_power_W = (maximum_charge_power_allowed_dA * voltage_dV) / 100;
 
-  //datalayer.battery.status.cell_max_voltage_mV = highest_cell_voltage / 10;
-
-  //datalayer.battery.status.cell_min_voltage_mV = lowest_cell_voltage / 10;
-
   datalayer.battery.status.temperature_min_dC = temperature_min_dC;
 
   datalayer.battery.status.temperature_max_dC = temperature_max_dC;
+
+  if (fullcharge_capacity_dAh > 0) {
+    datalayer.battery.info.total_capacity_Wh = (fullcharge_capacity_dAh * voltage_dV) / 100;
+  }
 
   if (target_charge_voltage_dV > 0) {
     datalayer.battery.info.max_design_voltage_dV = target_charge_voltage_dV;
@@ -98,9 +117,24 @@ void BYDBatteryBoxBattery::update_values() {
 }
 
 void BYDBatteryBoxBattery::transmit_can(unsigned long currentMillis) {
-  // Send 1000ms message
-  if (currentMillis - previousMillis1000 < INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
+
+  // Send 10s message
+  if (currentMillis - previousMillis10s < INTERVAL_10_S) {
+    previousMillis10s = currentMillis;
+
+    //TODO: Map 0x091 if needed. It contains voltage/current/temp
+    transmit_can_frame(&BYD_091);
+
+    BYD_0D1.data.u8[0] = (SOC >> 8) & 0xFF;
+    BYD_0D1.data.u8[1] = SOC & 0x00FF;
+    transmit_can_frame(&BYD_0D1);
+
+    //TODO: Send 0x111 if needed. It contains timestamp
+  }
+
+  // Send 60s message
+  if (currentMillis - previousMillis60s < INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
 
     if (!we_have_identified_battery) {
       BYD_151.data.u8[0] = 0x01;
