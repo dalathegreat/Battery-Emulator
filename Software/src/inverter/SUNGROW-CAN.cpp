@@ -733,58 +733,48 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  // ---- 10s group ----
+  // ---- 10s and 60s groups ----
+  // These are queued when due and then trickled out at most 3 frames per 20 ms tick
+  // (10s group first, then one module's serial number per tick). Sending them all at
+  // once could land on the same tick as a 19-frame 1 s batch and overflow the native
+  // CAN transmit queue (EVENT_CAN_NATIVE_BUFFER_FULL). Worst case per tick is now
+  // 19 + 3 + a 2-frame 0x1E0 reply = 24 frames.
   if ((int32_t)(currentMillis - previousMillis10s) >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    transmit_can_frame(&SUNGROW_707);
-    transmit_can_frame(&SUNGROW_708_00);
-    transmit_can_frame(&SUNGROW_708_01);
-    transmit_can_frame(&SUNGROW_709);
-    transmit_can_frame(&SUNGROW_70A_00);
-    transmit_can_frame(&SUNGROW_70A_01);
-    transmit_can_frame(&SUNGROW_70B);
-    transmit_can_frame(&SUNGROW_70D);
-    transmit_can_frame(&SUNGROW_70E);
+    group10s_index = 0;  // start a new round
   }
-
-  // ---- 60s group ----
   if ((int32_t)(currentMillis - previousMillis60s) >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    transmit_can_frame(&SUNGROW_71F_01_01);
-    transmit_can_frame(&SUNGROW_71F_01_02);
-    transmit_can_frame(&SUNGROW_71F_01_03);
-    transmit_can_frame(&SUNGROW_71F_02_01);
-    transmit_can_frame(&SUNGROW_71F_02_02);
-    transmit_can_frame(&SUNGROW_71F_02_03);
-    if (battery_config.module_count >= 3) {
-      transmit_can_frame(&SUNGROW_71F_03_01);
-      transmit_can_frame(&SUNGROW_71F_03_02);
-      transmit_can_frame(&SUNGROW_71F_03_03);
-    }
-    if (battery_config.module_count >= 4) {
-      transmit_can_frame(&SUNGROW_71F_04_01);
-      transmit_can_frame(&SUNGROW_71F_04_02);
-      transmit_can_frame(&SUNGROW_71F_04_03);
-    }
-    if (battery_config.module_count >= 5) {
-      transmit_can_frame(&SUNGROW_71F_05_01);
-      transmit_can_frame(&SUNGROW_71F_05_02);
-      transmit_can_frame(&SUNGROW_71F_05_03);
-    }
-    if (battery_config.module_count >= 6) {
-      transmit_can_frame(&SUNGROW_71F_06_01);
-      transmit_can_frame(&SUNGROW_71F_06_02);
-      transmit_can_frame(&SUNGROW_71F_06_03);
-    }
-    if (battery_config.module_count >= 7) {
-      transmit_can_frame(&SUNGROW_71F_07_01);
-      transmit_can_frame(&SUNGROW_71F_07_02);
-      transmit_can_frame(&SUNGROW_71F_07_03);
-    }
-    if (battery_config.module_count >= 8) {
-      transmit_can_frame(&SUNGROW_71F_08_01);
-      transmit_can_frame(&SUNGROW_71F_08_02);
-      transmit_can_frame(&SUNGROW_71F_08_03);
+    serial_module_index = 0;  // start a new round
+  }
+
+  CAN_frame* const group10s_frames[] = {&SUNGROW_707,    &SUNGROW_708_00, &SUNGROW_708_01,
+                                        &SUNGROW_709,    &SUNGROW_70A_00, &SUNGROW_70A_01,
+                                        &SUNGROW_70B,    &SUNGROW_70D,    &SUNGROW_70E};
+  constexpr uint8_t GROUP10S_COUNT = sizeof(group10s_frames) / sizeof(group10s_frames[0]);
+  const uint8_t serial_module_count =
+      (battery_config.module_count < 2) ? 2 : ((battery_config.module_count > 8) ? 8 : battery_config.module_count);
+
+  const bool slow_pending = (group10s_index < GROUP10S_COUNT) || (serial_module_index < serial_module_count);
+  if (slow_pending && (currentMillis - previousMillisSlow) >= delay_between_batches_ms) {
+    previousMillisSlow = currentMillis;
+    if (group10s_index < GROUP10S_COUNT) {
+      for (uint8_t i = 0; i < 3 && group10s_index < GROUP10S_COUNT; i++) {
+        transmit_can_frame(group10s_frames[group10s_index++]);
+      }
+    } else {
+      CAN_frame* const serial_frames[8][3] = {{&SUNGROW_71F_01_01, &SUNGROW_71F_01_02, &SUNGROW_71F_01_03},
+                                              {&SUNGROW_71F_02_01, &SUNGROW_71F_02_02, &SUNGROW_71F_02_03},
+                                              {&SUNGROW_71F_03_01, &SUNGROW_71F_03_02, &SUNGROW_71F_03_03},
+                                              {&SUNGROW_71F_04_01, &SUNGROW_71F_04_02, &SUNGROW_71F_04_03},
+                                              {&SUNGROW_71F_05_01, &SUNGROW_71F_05_02, &SUNGROW_71F_05_03},
+                                              {&SUNGROW_71F_06_01, &SUNGROW_71F_06_02, &SUNGROW_71F_06_03},
+                                              {&SUNGROW_71F_07_01, &SUNGROW_71F_07_02, &SUNGROW_71F_07_03},
+                                              {&SUNGROW_71F_08_01, &SUNGROW_71F_08_02, &SUNGROW_71F_08_03}};
+      transmit_can_frame(serial_frames[serial_module_index][0]);
+      transmit_can_frame(serial_frames[serial_module_index][1]);
+      transmit_can_frame(serial_frames[serial_module_index][2]);
+      serial_module_index++;
     }
   }
 }
