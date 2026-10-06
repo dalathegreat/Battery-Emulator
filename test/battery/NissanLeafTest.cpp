@@ -372,7 +372,7 @@ TEST(NissanLeafHealthTests, ShouldShowThePublishedStateOfHealthWhenTheDerivedOne
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   const std::string html = renderer.get_status_html().str();
-  EXPECT_NE(html.find("SOH avg: 99.00% (raw 98.50%)"), std::string::npos);
+  EXPECT_NE(html.find("SOH rep: 99.00% (raw 98.50%)"), std::string::npos);
   EXPECT_EQ(html.find("SOH der"), std::string::npos);
 }
 
@@ -392,7 +392,7 @@ TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthWhenThePublishedOne
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   const std::string html = renderer.get_status_html().str();
   EXPECT_NE(html.find("SOH der: 95.71% (raw 79.50%)"), std::string::npos);
-  EXPECT_EQ(html.find("SOH avg"), std::string::npos);
+  EXPECT_EQ(html.find("SOH rep"), std::string::npos);
 }
 
 // Builds a 0x55B carrying the given state of charge in tenths of a percent, signed with the CRC

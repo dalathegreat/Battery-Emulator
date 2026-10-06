@@ -143,8 +143,8 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
       content += String("<h4>Actual capacity: Unknown</h4>");
     }
     //The status page reports the lower of the two state of health figures, so this row carries the
-    //other one, named for which it is: "avg" for the filtered figure the LBC publishes for itself,
-    //"der" for the one derived from the capacities above. Between them they say why the status page
+    //other one, named for which it is: "rep" for the figure the LBC reports for itself, "der" for
+    //the one derived from the capacities above. Between them they say why the status page
     //shows what it does, without repeating the number it already shows. The unfiltered figure rides
     //along in the brackets either way: it moves first while a pack relearns after a degradation
     //reset, so the gap between it and the filtered one shows that relearning happening.
@@ -152,7 +152,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
         (nissan_dl->battery_SOHder_pptt == 0) ||
         ((nissan_dl->battery_SOHavg_pptt != 0) && (nissan_dl->battery_SOHavg_pptt < nissan_dl->battery_SOHder_pptt));
     const uint16_t shown_pptt = show_derived ? nissan_dl->battery_SOHder_pptt : nissan_dl->battery_SOHavg_pptt;
-    content += "<h4>SOH " + String(show_derived ? "der" : "avg") + ": " +
+    content += "<h4>SOH " + String(show_derived ? "der" : "rep") + ": " +
                (shown_pptt ? String(shown_pptt / 100.0f, 2) + "%" : String("Unknown")) + " (raw " +
                (nissan_dl->battery_SOHraw_pptt ? String(nissan_dl->battery_SOHraw_pptt / 100.0f, 2) + "%"
                                                : String("Unknown")) +
