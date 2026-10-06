@@ -179,23 +179,21 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x220:  //Cellvoltages avg/min/max
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //These are full 16-bit values. Cells pass 4095mV near full charge, where a 12-bit
-      //mask silently drops the top bit (4096mV would decode as 0mV).
       cellvoltage_average_mV = (uint16_t)(rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltage_max_mV = (uint16_t)(rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltage_min_mV = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     case 0x281:  //Allowed Discharge (Units still unknown)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      discharge_power = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-      peak_discharge_power = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
+      discharge_power = (uint16_t)((rx_frame.data.u8[0]) << 8) | rx_frame.data.u8[1];
+      peak_discharge_power = (uint16_t)((rx_frame.data.u8[2]) << 8) | rx_frame.data.u8[3];
       sustained_discharge_power = (uint16_t)(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     case 0x285:  //Allowed Charge (Units still unknown)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      charge_power = (uint16_t)((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
-      peak_charge_power = (uint16_t)((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[3];
-      sustained_charge_power = (uint16_t)((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
+      charge_power = (uint16_t)((rx_frame.data.u8[0]) << 8) | rx_frame.data.u8[1];
+      peak_charge_power = (uint16_t)((rx_frame.data.u8[2]) << 8) | rx_frame.data.u8[3];
+      sustained_charge_power = (uint16_t)((rx_frame.data.u8[4]) << 8) | rx_frame.data.u8[5];
       break;
     case 0x306:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
