@@ -1,717 +1,780 @@
-#ifndef SUNGROW_CAN_H
-#define SUNGROW_CAN_H
+#include "SUNGROW-CAN.h"
 
-#include "CanInverterProtocol.h"
+#include <cstring>
 
-// Sungrow battery configuration
-struct SungrowBatteryConfig {
-  uint16_t nameplate_wh;
-  uint8_t module_count;
-};
+#include "../communication/can/comm_can.h"
+#include "../datalayer/datalayer.h"
+#include "INVERTERS.h"
 
-class SungrowInverter : public CanInverterProtocol {
- public:
-  const char* name() override { return Name; }
-  // Constructor: request 250 kbps on the inverter CAN interface
-  SungrowInverter() : CanInverterProtocol(CAN_Speed::CAN_SPEED_250KBPS) {}
-  bool setup() override;
-  void update_values();
-  void transmit_can(unsigned long currentMillis);
-  void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "Sungrow SBRXXX emulation over CAN bus";
-  static constexpr uint8_t MODBUS_SLAVE_ADDR = 0x01;
-  static constexpr uint16_t MODBUS_REGISTER_BASE_ADDR = 0x4DE2;
-  static constexpr uint16_t MODBUS_REGISTER_QTY = 0x0006;
+/* TODO: 
+This protocol is still under development and should be considered beta quality.
+It can be used with caution.
+see the Wiki for more info on how to use your Sungrow inverter */
 
- private:
-  unsigned long previousMillisBatch = 0;
-  unsigned long previousMillis1s = 0;
-  unsigned long previousMillis10s = 0;
-  unsigned long previousMillis60s = 0;
-  unsigned long previousMillisSlow = 0;  // last tick a 10s/60s chunk was sent
-  uint8_t group10s_index = 0xFF;         // next 10s-group frame; 0xFF = none pending
-  uint8_t serial_module_index = 0xFF;    // 0xFF = no serial round in progress
-  bool transmit_can_init = true;
-  const uint8_t delay_between_batches_ms = INTERVAL_20_MS;
+/*
+Device Model: SBR096
+Current Version: SBRBCU-S_22011.01.26
+Battery Protocol: AA10
+Battery Protocol Version: V1.0.6
 
-  uint8_t mux = 0;
-  uint8_t version_char[14] = {0};
-  uint8_t manufacturer_char[14] = {0};
-  uint8_t model_char[14] = {0};
-  uint32_t remaining_wh = 0;
-  uint32_t capacity_wh = 0;
-  uint8_t batch_send_index = 0;
+Device S/N: S2310123456
+S/N of Module 1: EM032D2310123461DF
+S/N of Module 2: EM032D2310123462DF
+S/N of Module 3: EM032D2310123463DF
+*/
 
-  // Battery configuration (set via user_selected_inverter_sungrow_type = model 0-6)
-  SungrowBatteryConfig battery_config = {9600, 3};  // Default: SBR096
+// ---- Internal Modbus helper namespace for SBRXXX threshold block ----
+namespace {
 
-  // Returns config based on battery model (0=SBR064 through 6=SBR256)
-  // Model + 2 = module count, each module adds 3200Wh of capacity
-  static constexpr SungrowBatteryConfig get_config_for_model(uint16_t model) {
-    switch (model) {
-      case 0:
-        return {6400, 2};  // SBR064
-      case 2:
-        return {12800, 4};  // SBR128
-      case 3:
-        return {16000, 5};  // SBR160
-      case 4:
-        return {19200, 6};  // SBR192
-      case 5:
-        return {22400, 7};  // SBR224
-      case 6:
-        return {25600, 8};  // SBR256
-      case 1:
-      default:
-        return {9600, 3};  // SBR096
+// Modbus RTU constants for the SBRXXX battery on CAN ID 0x1E0.
+
+// SOC thresholds in percent * 100 (pptt).
+constexpr uint16_t MODBUS_SOC_CUTOFF_PPTT = 500;        // 5.00 %
+constexpr uint16_t MODBUS_SOC_EMERGENCY_PPTT = 300;     // 3.00 %
+constexpr uint16_t MODBUS_SOC_IDLE_TRIGGER_PPTT = 200;  // 2.00 %
+
+// Modbus function codes we care about.
+constexpr uint8_t MODBUS_FUNC_READ_HOLDING_REGS = 0x03;
+constexpr uint8_t MODBUS_FUNC_READ_INPUT_REGS = 0x04;
+
+// Backing store for 6 registers starting at 0x4DE2:
+//   Reg0: cutoff SOC of discharge (pptt)
+//   Reg1: reserved
+//   Reg2: emergency charging SOC (pptt)
+//   Reg3: reserved
+//   Reg4: trigger SOC of idle mode (pptt)
+//   Reg5: reserved
+constexpr uint16_t MODBUS_REGISTER_VALUES[SungrowInverter::MODBUS_REGISTER_QTY] = {
+    MODBUS_SOC_CUTOFF_PPTT, 0, MODBUS_SOC_EMERGENCY_PPTT, 0, MODBUS_SOC_IDLE_TRIGGER_PPTT, 0};
+
+// Maximum number of Modbus data bytes based on the virtual register window.
+constexpr uint8_t MODBUS_MAX_DATA_BYTES = static_cast<uint8_t>(SungrowInverter::MODBUS_REGISTER_QTY * 2);
+
+// Minimal Modbus RTU CRC16 (poly 0xA001, little-endian output).
+uint16_t modbus_crc(const uint8_t* data, uint8_t length) {
+  uint16_t crc = 0xFFFF;
+  for (uint8_t i = 0; i < length; ++i) {
+    crc ^= data[i];
+    for (uint8_t bit = 0; bit < 8; ++bit) {
+      if (crc & 0x0001) {
+        crc = (crc >> 1) ^ 0xA001;
+      } else {
+        crc >>= 1;
+      }
+    }
+  }
+  return crc;
+}
+
+}  // namespace
+
+bool SungrowInverter::setup() {
+  // Where to find a frame's bytes (convention):
+  //   - header .data{} initialiser -> bytes constant for every SBR (frame declaration + fixed payload)
+  //   - setup() (here)             -> bytes fixed for this run: battery_config-derived + version constants
+  //   - update_values()            -> per-cycle telemetry rebuilt from live datalayer values
+  //   - map_can_frame_to_variable() -> 0x1E0 Modbus reply, built on demand when the inverter polls
+
+  // Stored value is model (0-6), get_config_for_model handles default
+  battery_config = get_config_for_model(user_selected_inverter_sungrow_type);
+
+  // 0x707 - nameplate capacity + module count from battery_config (b4-6). Every other byte is constant
+  //         (firmware version in b0-3, b1-2 and b7 = 0) and set in the header .data{} initialiser.
+  // NOTE: must come after battery_config is assigned above, or it reads the default {9600, 3}.
+  SUNGROW_707.data.u8[4] = (battery_config.nameplate_wh & 0x00FF);  // Nameplate capacity (low)
+  SUNGROW_707.data.u8[5] = (battery_config.nameplate_wh >> 8);      // Nameplate capacity (high)
+  SUNGROW_707.data.u8[6] = battery_config.module_count;             // Num of modules
+
+  // 0x70F mux 0 b4-7 - max continuous power (W) = nominal voltage x 30 A. Per the SBR datasheet each
+  //                    module is 64 V nominal and the pack is 30 A continuous, so 1920 W per module
+  //                    (SBR096 = 5760, SBR160 = 9600, SBR224 = 13440). On a real battery this is a
+  //                    static rating - invariant across SoC and season - so it belongs here, not in
+  //                    update_values(). The live limits are reported separately in 0x701.
+  uint16_t max_power_w = 1920 * battery_config.module_count;
+  SUNGROW_70F_00.data.u8[4] = (max_power_w & 0x00FF);
+  SUNGROW_70F_00.data.u8[5] = (max_power_w >> 8);
+  SUNGROW_70F_00.data.u8[6] = (max_power_w & 0x00FF);
+  SUNGROW_70F_00.data.u8[7] = (max_power_w >> 8);
+
+  // Cell type for each active module
+  // 0x42 = IEC
+  // 0x44 = Non-IEC
+  for (uint8_t i = 0; i < battery_config.module_count && i < 8; i++) {
+    SUNGROW_71A.data.u8[i] = 0x44;
+  }
+
+  // Production date for active modules
+  // 0x71B: modules 1+2, 0x71C: modules 3+4, 0x71D: modules 5+6, 0x71E: modules 7+8
+  const uint8_t prod_date[4] = {0x3F, 0x7A, 0x6F, 0x01};
+  CAN_frame* prod_date_frames[4] = {&SUNGROW_71B, &SUNGROW_71C, &SUNGROW_71D, &SUNGROW_71E};
+  for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+    uint8_t frame_idx = m / 2;     // 0-1->0, 2-3->1, 4-5->2, 6-7->3
+    uint8_t offset = (m % 2) * 4;  // even->0, odd->4
+    memcpy(&prod_date_frames[frame_idx]->data.u8[offset], prod_date, 4);
+  }
+
+  // Serial numbers: base serial with incrementing module number
+  // Format: "EM03XY" + "231012" + "346NDF" where X=cell type, N=module number
+  // Fragment 1 byte 7 = cell type (same as 0x71A value)
+  CAN_frame* serial_frames[8][3] = {{&SUNGROW_71F_01_01, &SUNGROW_71F_01_02, &SUNGROW_71F_01_03},
+                                    {&SUNGROW_71F_02_01, &SUNGROW_71F_02_02, &SUNGROW_71F_02_03},
+                                    {&SUNGROW_71F_03_01, &SUNGROW_71F_03_02, &SUNGROW_71F_03_03},
+                                    {&SUNGROW_71F_04_01, &SUNGROW_71F_04_02, &SUNGROW_71F_04_03},
+                                    {&SUNGROW_71F_05_01, &SUNGROW_71F_05_02, &SUNGROW_71F_05_03},
+                                    {&SUNGROW_71F_06_01, &SUNGROW_71F_06_02, &SUNGROW_71F_06_03},
+                                    {&SUNGROW_71F_07_01, &SUNGROW_71F_07_02, &SUNGROW_71F_07_03},
+                                    {&SUNGROW_71F_08_01, &SUNGROW_71F_08_02, &SUNGROW_71F_08_03}};
+
+  for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+    // Fragment 1: "EM032" + cell_type (byte 7 special)
+    serial_frames[m][0]->data.u8[2] = 0x45;                    // 'E'
+    serial_frames[m][0]->data.u8[3] = 0x4D;                    // 'M'
+    serial_frames[m][0]->data.u8[4] = 0x30;                    // '0'
+    serial_frames[m][0]->data.u8[5] = 0x33;                    // '3'
+    serial_frames[m][0]->data.u8[6] = 0x32;                    // '2'
+    serial_frames[m][0]->data.u8[7] = SUNGROW_71A.data.u8[m];  // cell type
+
+    // Fragment 2: "231012"
+    serial_frames[m][1]->data.u8[2] = 0x32;  // '2'
+    serial_frames[m][1]->data.u8[3] = 0x33;  // '3'
+    serial_frames[m][1]->data.u8[4] = 0x31;  // '1'
+    serial_frames[m][1]->data.u8[5] = 0x30;  // '0'
+    serial_frames[m][1]->data.u8[6] = 0x31;  // '1'
+    serial_frames[m][1]->data.u8[7] = 0x32;  // '2'
+
+    // Fragment 3: "346NDF" where N = module number ('1'-'8')
+    serial_frames[m][2]->data.u8[2] = 0x33;     // '3'
+    serial_frames[m][2]->data.u8[3] = 0x34;     // '4'
+    serial_frames[m][2]->data.u8[4] = 0x36;     // '6'
+    serial_frames[m][2]->data.u8[5] = '1' + m;  // '1', '2', '3', ... '8'
+    serial_frames[m][2]->data.u8[6] = 0x44;     // 'D'
+    serial_frames[m][2]->data.u8[7] = 0x46;     // 'F'
+  }
+
+  return true;
+}
+
+void SungrowInverter::update_values() {
+  // Per-cycle telemetry only. Static / config-only frames are built once in setup() (see the
+  // convention note there); some constant frames live entirely in the header .data{} initialiser.
+  current_dA = datalayer.battery.status.reported_current_dA;
+
+  // 0x500 - BMS init message: b0-6 are static unknown values -> header .data{}. Only b7 (live SoC) here.
+  SUNGROW_500.data.u8[7] = (datalayer.battery.status.reported_soc / 100);  // Battery SoC, integer %
+
+  // Max voltage (eg 400.0V = 4000 , 16bits long)
+  SUNGROW_701.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  SUNGROW_701.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  // Min voltage (eg 300.0V = 3000 , 16bits long)
+  SUNGROW_701.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  SUNGROW_701.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  // Max Charging Current
+  SUNGROW_701.data.u8[4] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  SUNGROW_701.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  // Max Discharging Current
+  SUNGROW_701.data.u8[6] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  SUNGROW_701.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+
+  // SOC (100.0%)
+  SUNGROW_702.data.u8[0] = (datalayer.battery.status.reported_soc & 0x00FF);
+  SUNGROW_702.data.u8[1] = (datalayer.battery.status.reported_soc >> 8);
+  // SOH (100.00%)
+  SUNGROW_702.data.u8[2] = (datalayer.battery.status.soh_pptt & 0x00FF);
+  SUNGROW_702.data.u8[3] = (datalayer.battery.status.soh_pptt >> 8);
+  // Energy Remaining (Wh), clamped to 16-bit to avoid overflow on large packs
+  remaining_wh = datalayer.battery.status.reported_remaining_capacity_Wh;
+  if (remaining_wh > 0xFFFFu)
+    remaining_wh = 0xFFFFu;
+  SUNGROW_702.data.u8[4] = (remaining_wh & 0x00FF);
+  SUNGROW_702.data.u8[5] = (remaining_wh >> 8);
+  // Capacity max (Wh), clamped to 16-bit to avoid overflow on large packs
+  capacity_wh = datalayer.battery.info.reported_total_capacity_Wh;
+  if (capacity_wh > 0xFFFFu)
+    capacity_wh = 0xFFFFu;
+  SUNGROW_702.data.u8[6] = (capacity_wh & 0x00FF);
+  SUNGROW_702.data.u8[7] = (capacity_wh >> 8);
+
+  // Energy total charged (Wh)
+  SUNGROW_703.data.u8[0] = (datalayer.battery.status.total_charged_battery_Wh & 0x00FF);
+  SUNGROW_703.data.u8[1] = ((datalayer.battery.status.total_charged_battery_Wh >> 8) & 0x00FF);
+  SUNGROW_703.data.u8[2] = ((datalayer.battery.status.total_charged_battery_Wh >> 16) & 0x00FF);
+  SUNGROW_703.data.u8[3] = ((datalayer.battery.status.total_charged_battery_Wh >> 24) & 0x00FF);
+  // Energy total discharged (Wh)
+  SUNGROW_703.data.u8[4] = (datalayer.battery.status.total_discharged_battery_Wh & 0x00FF);
+  SUNGROW_703.data.u8[5] = ((datalayer.battery.status.total_discharged_battery_Wh >> 8) & 0x00FF);
+  SUNGROW_703.data.u8[6] = ((datalayer.battery.status.total_discharged_battery_Wh >> 16) & 0x00FF);
+  SUNGROW_703.data.u8[7] = ((datalayer.battery.status.total_discharged_battery_Wh >> 24) & 0x00FF);
+
+  // Vbat (eg 400.0V = 4000 , 16bits long)
+  SUNGROW_704.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SUNGROW_704.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+  // Current
+  SUNGROW_704.data.u8[2] = (current_dA & 0xFF);
+  SUNGROW_704.data.u8[3] = ((current_dA >> 8) & 0xFF);
+  // Another voltage. Different but similar
+  SUNGROW_704.data.u8[4] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SUNGROW_704.data.u8[5] = (datalayer.battery.status.voltage_dV >> 8);
+  // Temperature (signed int16_t in 0.1°C units)
+  SUNGROW_704.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_704.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+
+  // 0x705 - b0-2 and b7 (padding) are static -> header .data{}. Model id (b3-4) + voltage (b5-6) below.
+  uint16_t battery_model_id = 8420 + battery_config.module_count;  // SBR064=8422, SBR096=8423, etc.
+  SUNGROW_705.data.u8[3] = (battery_model_id & 0xFF);
+  SUNGROW_705.data.u8[4] = (battery_model_id >> 8);
+  // Vbat, again (eg 400.0V = 4000 , 16bits long)
+  SUNGROW_705.data.u8[5] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SUNGROW_705.data.u8[6] = (datalayer.battery.status.voltage_dV >> 8);
+
+  // Temperature Max (signed int16_t in 0.1°C units)
+  SUNGROW_706.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_706.data.u8[1] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
+  // Temperature Min (signed int16_t in 0.1°C units)
+  SUNGROW_706.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_706.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  // Cell voltage max
+  SUNGROW_706.data.u8[4] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  SUNGROW_706.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  // Cell voltage min
+  SUNGROW_706.data.u8[6] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  SUNGROW_706.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+
+  // Populate 0x70F_05/06/07 with module SOC based on module_count
+  // 0x70F_05: modules 1-3, 0x70F_06: modules 4-6, 0x70F_07: modules 7-8
+  {
+    CAN_frame* soc_frames[3] = {&SUNGROW_70F_05, &SUNGROW_70F_06, &SUNGROW_70F_07};
+    for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+      uint8_t frame_idx = m / 3;         // 0-2->0, 3-5->1, 6-7->2
+      uint8_t offset = (m % 3) * 2 + 2;  // 0->2, 1->4, 2->6
+      soc_frames[frame_idx]->data.u8[offset] = (datalayer.battery.status.real_soc & 0xFF);
+      soc_frames[frame_idx]->data.u8[offset + 1] = (datalayer.battery.status.real_soc >> 8);
     }
   }
 
-  // Cached signed current in deci-amps (range: int16_t)
-  int16_t current_dA = 0;
+  // 0x713 - Cell/module locations are static (header). Min/max cell temperatures here (int16_t, 0.1C):
+  SUNGROW_713.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0xFF);
+  SUNGROW_713.data.u8[3] = ((datalayer.battery.status.temperature_min_dC >> 8) & 0xFF);
+  SUNGROW_713.data.u8[6] = (datalayer.battery.status.temperature_max_dC & 0xFF);
+  SUNGROW_713.data.u8[7] = ((datalayer.battery.status.temperature_max_dC >> 8) & 0xFF);
 
-  // Clamp an int32 -> int16 safely
-  static constexpr int16_t clamp_i32_to_i16(int32_t value) {
-    if (value > 32767) {
-      return 32767;
+  // 0x714 - Cell/module locations are static (header, max-first). Max/min cell voltages here (0.1 mV = mV*10):
+  SUNGROW_714.data.u8[2] = ((datalayer.battery.status.cell_max_voltage_mV * 10) & 0x00FF);
+  SUNGROW_714.data.u8[3] = ((datalayer.battery.status.cell_max_voltage_mV * 10) >> 8);
+  SUNGROW_714.data.u8[6] = ((datalayer.battery.status.cell_min_voltage_mV * 10) & 0x00FF);
+  SUNGROW_714.data.u8[7] = ((datalayer.battery.status.cell_min_voltage_mV * 10) >> 8);
+
+  // 0x715-0x718 - Module Cell Voltage Overview (min/max per module)
+  // Each frame holds 2 modules: [min1, max1, min2, max2] in 0.1mV units
+  // 0x715: modules 1+2, 0x716: modules 3+4, 0x717: modules 5+6, 0x718: modules 7+8
+  {
+    const uint16_t cell_min_01mV = datalayer.battery.status.cell_min_voltage_mV * 10;
+    const uint16_t cell_max_01mV = datalayer.battery.status.cell_max_voltage_mV * 10;
+    CAN_frame* voltage_frames[4] = {&SUNGROW_715, &SUNGROW_716, &SUNGROW_717, &SUNGROW_718};
+
+    for (uint8_t m = 0; m < battery_config.module_count && m < 8; m++) {
+      uint8_t frame_idx = m / 2;     // 0-1->0, 2-3->1, 4-5->2, 6-7->3
+      uint8_t offset = (m % 2) * 4;  // even->0, odd->4
+      voltage_frames[frame_idx]->data.u8[offset + 0] = (cell_min_01mV & 0xFF);
+      voltage_frames[frame_idx]->data.u8[offset + 1] = (cell_min_01mV >> 8);
+      voltage_frames[frame_idx]->data.u8[offset + 2] = (cell_max_01mV & 0xFF);
+      voltage_frames[frame_idx]->data.u8[offset + 3] = (cell_max_01mV >> 8);
     }
-
-    if (value < -32768) {
-      return -32768;
-    }
-
-    return static_cast<int16_t>(value);
   }
 
-  // 0x005 byte 1 - Status_Battery_End_Stop. Inert (always 0) on the 0x505/0x705 copies of this
-  // frame, so it is applied to 0x005 only. Bits 0-1 are a state code, not a pair of independent
-  // end-stop bits; bit 4 is a separate maintenance flag that ORs with that code.
-  enum EndStop : uint8_t {
-    END_STOP_NORMAL = 0,       // Neither end reached
-    END_STOP_FULL = 1,         // Pack full. A real pack reads 0 A charge limit for every sample of this
-    END_STOP_EMPTY = 2,        // Pack at its SoC floor. It still permits discharge here (~30 A observed)
-    END_STOP_SUSPENDED = 3,    // Online but passing no current while still advertising its limits.
-                               // Never sent: a real SBR uses it for BMS restarts and module upgrades,
-                               // and our limits are always live, so it would misinform the inverter.
-    END_STOP_MAINTENANCE = 16  // Never sent, for the same reason.
-  };
+  // 0x719 is a static unknown value -> now in the header .data{}.
 
-  //Actual content messages
-  CAN_frame SUNGROW_000 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x000,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_001 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x001,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_002 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x002,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_003 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x003,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_004 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x004,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // A copy of 0x705 except byte 1, the end stop - both applied in update_values().
-  CAN_frame SUNGROW_005 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x005,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_006 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x006,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_007 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x007,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_008_00 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x008,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_008_01 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x008,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_009 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x009,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_00A_00 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x00A,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_00A_01 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x00A,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_00B = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x00B,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_00D = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x00D,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_00E = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x00E,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_013 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x013,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_014 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x014,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_015 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x015,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_016 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x016,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_017 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x017,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_018 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x018,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_019 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x019,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_01A = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x01A,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_01B = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x01B,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_01C = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x01C,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_01D = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x01D,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_01E = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x01E,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_401 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x401,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x402 - static .30 head frame (SBRBCU-S_22011.01.30). On the real bus it REPLACES 0x400 (both 0x400
-  //         and 0x1F0 stop when 0x402 starts). Payload is constant, byte 2 = 0x55. The emulator targets
-  //         .30, so this is sent every cycle in the head group (SoC is carried by 0x500/0x702).
-  CAN_frame SUNGROW_402 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x402,
-                           .data = {0x00, 0x00, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x1F0 - firmware-update channel (fw .27-era; on the real bus 23 Jan-13 Jun 2026, dropped on .30).
-  //         Irregular cadence, not steady telemetry - not emulated (no frame defined or transmitted).
-  // 0x500 - BMS init message. b0-6 = static unknown values (kept visible below); b7 = SoC (set in update_values).
-  CAN_frame SUNGROW_500 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x500,
-                           .data = {0x01,                    // Unknown (500_Unknown_0)
-                                    0x01, 0x03,              // Unknown (500_Unknown_1; b2 old guess: module count)
-                                    0xFF, 0x00, 0x01, 0x00,  // Unknown (500_Unknown_2)
-                                    0x00}};                  // Battery SoC integer % - set in update_values()
-  CAN_frame SUNGROW_501 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x501,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_502 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x502,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_503 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x503,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_504 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x504,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_505 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x505,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_506 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x506,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_512 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x512,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x700 - All Zero
-  CAN_frame SUNGROW_700 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x700,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x701 - Battery Operational Parameters
-  CAN_frame SUNGROW_701 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x701,
-                           .data = {0x00, 0x00,    // Battery MAX voltage
-                                    0x00, 0x00,    // Battery MIN voltage
-                                    0x00, 0x00,    // Battery MAX charge current
-                                    0x00, 0x00}};  // Battery MIN charge current
-  // 0x702 - Battery Charge Level Status
-  CAN_frame SUNGROW_702 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x702,
-                           .data = {0x00, 0x00,    // Battery SoC %
-                                    0x00, 0x00,    // Battery SoH %
-                                    0x00, 0x00,    // Battery remaining Wh
-                                    0x00, 0x00}};  // Battery total Wh
-  // 0x703 - Battery Energy Status
-  CAN_frame SUNGROW_703 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x703,
-                           .data = {0x00, 0x00, 0x00, 0x00,    // Energy charged
-                                    0x00, 0x00, 0x00, 0x00}};  // Energy discharged
-  // 0x704 - Battery Status
-  CAN_frame SUNGROW_704 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x704,
-                           .data = {0x00, 0x00,    // Battery voltage
-                                    0x00, 0x00,    // Battery current
-                                    0x00, 0x00,    // Another related battery voltage
-                                    0x00, 0x00}};  // Battery temperature
-  // 0x705 - Battery Status
-  CAN_frame SUNGROW_705 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x705,
-                           .data = {0x02,        // Battery status: 0=Unplugged, 1=Standby, 2=Run (always Run)
-                                    0x00,        // End stop, inert on this copy (705_End_Stop)
-                                    0x01,        // Always 1 (705_Always_1)
-                                    0x00, 0x00,  // Battery model id - set in update_values() from module_count
-                                    0x00, 0x00,  // Battery voltage - set in update_values()
-                                    0x00}};      // Padding (705_Padding)
-  // 0x706 - Battery Cell Status
-  CAN_frame SUNGROW_706 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x706,
-                           .data = {0x00, 0x00,    // Cell MAX temperature
-                                    0x00, 0x00,    // Cell MIN temperature
-                                    0x00, 0x00,    // Cell MAX voltage
-                                    0x00, 0x00}};  // Cell MIN voltage
-  // 0x707 - Battery Configuration
-  CAN_frame SUNGROW_707 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x707,
-                           .data = {0x30,        // BMS firmware patch (BCD .30)
-                                    0x00, 0x00,  // Always 0
-                                    0x01,        // BMS firmware minor (BCD .1)
-                                    0x00, 0x00,  // Nameplate capacity Wh - filled in setup() from battery_config
-                                    0x00,        // Module count - filled in setup() from battery_config
-                                    0x00}};      // Always 0
-  // 0x708 - Battery Serial Number (MUX)
-  CAN_frame SUNGROW_708_00 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x708,
-                              .data = {0x00,                                        // Fragment #
-                                       0x53, 0x32, 0x33, 0x31, 0x30, 0x31, 0x32}};  // "S231012"
-  CAN_frame SUNGROW_708_01 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x708,
-                              .data = {0x01,                                        // Fragment #
-                                       0x33, 0x34, 0x35, 0x36, 0x00, 0x00, 0x53}};  // "3456" S suffix
-  // 0x709 - All Zero
-  CAN_frame SUNGROW_709 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x709,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x70A - Battery Type (MUX)
-  CAN_frame SUNGROW_70A_00 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70A,
-                              .data = {0x00,                                        // Mux
-                                       0x53, 0x55, 0x4E, 0x47, 0x52, 0x4F, 0x57}};  // "SUNGROW"
-  CAN_frame SUNGROW_70A_01 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70A,
-                              .data = {0x01,                                        // Mux
-                                       0x00, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};  // "\0BRXXX\0"
-  // 0x70B - Battery Family
-  CAN_frame SUNGROW_70B = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x70B,
-                           .data = {0x00, 0x53, 0x42, 0x52, 0x58, 0x58, 0x58, 0x00}};  // "\0SBRXXX\0"
-  // 0x70D - TODO Modbus 3_10701
-  CAN_frame SUNGROW_70D = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x70D,
-                           .data = {0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00}};
-  // 0x70E - TODO Modbus 3_10705
-  CAN_frame SUNGROW_70E = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x70E,
-                           .data = {0x07, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x70F (MUX). Byte 0 = mux selector, byte 1 = 0. Mux 00 b4-7 = max continuous power (static
-  //             rating), filled in setup() from battery_config; mux 05/06/07 = per-module SoC, set
-  //             in update_values(). The remaining unknown bytes below are frozen snapshots from a
-  //             real-battery capture - kept visible so they aren't mistaken for decoded or live
-  //             values. "Cold-drift cluster" = the 16-bit unknowns at b2-3 of muxes 02/03/04: on a
-  //             real pack all three drift slowly *together* and read higher in the cold. Ruled out
-  //             as power/current limits (those derate in cold), and as SoC and SoH.
-  CAN_frame SUNGROW_70F_00 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x00,          // Mux selector
-                                       0x00,          // Always 0
-                                       0x88, 0x13,    // Unknown, fixed 5000 (static)
-                                       0x00, 0x00,    // Max continuous power W, live - set in setup()
-                                       0x00, 0x00}};  // Max continuous power W, rating - set in setup()
-  CAN_frame SUNGROW_70F_01 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              // Mux selector + padding: whole payload is 0 on a real pack
-                              .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_70F_02 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x02,          // Mux selector
-                                       0x00,          // Always 0
-                                       0x70, 0x20,    // Unknown 16-bit (cold-drift cluster)
-                                       0x00, 0x00,    // Padding (always 0)
-                                       0x92, 0x09}};  // Unknown 16-bit, near-constant (~5760)
-  CAN_frame SUNGROW_70F_03 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x03,          // Mux selector
-                                       0x00,          // Always 0
-                                       0xFD, 0x1D,    // Unknown 16-bit (cold-drift cluster)
-                                       0x00, 0x00,    // Padding (always 0)
-                                       0xCE, 0x26}};  // Unknown ~9980 (x0.01 = 99.8 %); not SoC, not SoH
-  CAN_frame SUNGROW_70F_04 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x04,              // Mux selector
-                                       0x00,              // Always 0
-                                       0x0C, 0x06,        // Unknown 16-bit (cold-drift cluster), not charge
-                                       0x00, 0x00, 0x00,  // Padding (always 0)
-                                       0x00}};            // Charge state: 0 = Normal, 2 = Stop Charge
-  CAN_frame SUNGROW_70F_05 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_70F_06 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_70F_07 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x70F,
-                              .data = {0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  // 0x713 - Battery Cell Temperature Overview. Cell/module locations are arbitrary static placeholders
-  //         (not the real min/max cell position); temperatures (b2-3, b6-7) set in update_values().
-  CAN_frame SUNGROW_713 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x713,
-                           .data = {0x02,          // Cell location, min temp (arbitrary)
-                                    0x01,          // Module location, min temp (arbitrary)
-                                    0x00, 0x00,    // Cell MIN temperature - set in update_values()
-                                    0x01,          // Cell location, max temp (arbitrary)
-                                    0x02,          // Module location, max temp (arbitrary)
-                                    0x00, 0x00}};  // Cell MAX temperature - set in update_values()
-  // 0x714 - Battery Cell Voltage Overview. Max-first: b0-3 = max cell, b4-7 = min cell (opposite of the
-  //         min-first 0x713/0x715/0x716; confirmed on a real SBR - b2-3 always > b6-7). Cell/module
-  //         locations are arbitrary static placeholders; voltages (b2-3, b6-7) set in update_values().
-  CAN_frame SUNGROW_714 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x714,
-                           .data = {0x05,          // Cell location, max voltage (arbitrary)
-                                    0x01,          // Module location, max voltage (arbitrary)
-                                    0x00, 0x00,    // Cell MAX voltage - set in update_values()
-                                    0x11,          // Cell location, min voltage (arbitrary)
-                                    0x02,          // Module location, min voltage (arbitrary)
-                                    0x00, 0x00}};  // Cell MIN voltage - set in update_values()
-  // 0x715 - Module 1+2 Cell Voltage Overview
-  CAN_frame SUNGROW_715 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x715,
-                           .data = {0x00, 0x00,    // Module 1 Cell MIN voltage
-                                    0x00, 0x00,    // Module 1 Cell MAX voltage
-                                    0x00, 0x00,    // Module 2 Cell MIN voltage
-                                    0x00, 0x00}};  // Module 2 Cell MAX voltage
-  // 0x716 - Module 2+3 Cell Voltage Overview
-  CAN_frame SUNGROW_716 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x716,
-                           .data = {0x00, 0x00,    // Module 3 Cell MIN voltage
-                                    0x00, 0x00,    // Module 3 Cell MAX voltage
-                                    0x00, 0x00,    // Module 4 Cell MIN voltage
-                                    0x00, 0x00}};  // Module 4 Cell MAX voltage
-  // 0x717 - Module 5+6 Cell Voltage Overview
-  CAN_frame SUNGROW_717 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x717,
-                           .data = {0x00, 0x00,    // Module 5 Cell MIN voltage
-                                    0x00, 0x00,    // Module 5 Cell MAX voltage
-                                    0x00, 0x00,    // Module 6 Cell MIN voltage
-                                    0x00, 0x00}};  // Module 6 Cell MAX voltage
-  // 0x718 - Module 7+8 Cell Voltage Overview
-  CAN_frame SUNGROW_718 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x718,
-                           .data = {0x00, 0x00,    // Module 7 Cell MIN voltage
-                                    0x00, 0x00,    // Module 7 Cell MAX voltage
-                                    0x00, 0x00,    // Module 8 Cell MIN voltage
-                                    0x00, 0x00}};  // Module 8 Cell MAX voltage
-  // 0x719 - POSSIBLY Status (3_10789) and Module fault (3_10790)
-  CAN_frame SUNGROW_719 = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x719,
-                           .data = {0x02,                                        // Unknown (static, possibly status)
-                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  // (zero)
-  // 0x71A - Module Cell Type (set in setup)
-  CAN_frame SUNGROW_71A = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x71A,
-                           .data = {0x00,    // Module 1 Cell type (set in setup)
-                                    0x00,    // Module 2 Cell type (set in setup)
-                                    0x00,    // Module 3 Cell type (set in setup)
-                                    0x00,    // Module 4 Cell type (set in setup)
-                                    0x00,    // Module 5 Cell type (set in setup)
-                                    0x00,    // Module 6 Cell type (set in setup)
-                                    0x00,    // Module 7 Cell type (set in setup)
-                                    0x00}};  // Module 8 Cell type (set in setup)
-  // 0x71B - Module 1+2 Production Date (set in setup)
-  CAN_frame SUNGROW_71B = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x71B,
-                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 1 production date
-                                    0x00, 0x00, 0x00, 0x00}};  // Module 2 production date
-  // 0x71C - Module 3+4 Production Date (set in setup)
-  CAN_frame SUNGROW_71C = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x71C,
-                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 3 production date
-                                    0x00, 0x00, 0x00, 0x00}};  // Module 4 production date
-  // 0x71D - Module 5+6 Production Date (set in setup)
-  CAN_frame SUNGROW_71D = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x71D,
-                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 5 production date
-                                    0x00, 0x00, 0x00, 0x00}};  // Module 6 production date
-  // 0x71E - Module 7+8 Production Date (set in setup)
-  CAN_frame SUNGROW_71E = {.FD = false,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x71E,
-                           .data = {0x00, 0x00, 0x00, 0x00,    // Module 7 production date
-                                    0x00, 0x00, 0x00, 0x00}};  // Module 8 production date
-  // 0x71F - Module Serial Number (MUX) - set in setup()
-  CAN_frame SUNGROW_71F_01_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_01_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_01_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_02_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_02_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_02_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_03_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_03_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_03_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_04_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_04_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x04, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_04_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_05_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_05_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x05, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_05_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x05, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_06_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x06, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_06_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x06, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_06_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_07_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x07, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_07_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x07, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_07_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x07, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_08_01 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_08_02 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x08, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame SUNGROW_71F_08_03 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x71F,
-                                 .data = {0x08, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-};
+  // Copy 7## content to 0## messages
+  // SUNGROW_000 all bytes 0x00
+  memcpy(SUNGROW_001.data.u8, SUNGROW_701.data.u8, 8);
+  memcpy(SUNGROW_002.data.u8, SUNGROW_702.data.u8, 8);
+  memcpy(SUNGROW_003.data.u8, SUNGROW_703.data.u8, 8);
+  memcpy(SUNGROW_004.data.u8, SUNGROW_704.data.u8, 8);
+  memcpy(SUNGROW_005.data.u8, SUNGROW_705.data.u8, 8);
+  memcpy(SUNGROW_006.data.u8, SUNGROW_706.data.u8, 8);
+  memcpy(SUNGROW_007.data.u8, SUNGROW_707.data.u8, 8);
+  memcpy(SUNGROW_008_00.data.u8, SUNGROW_708_00.data.u8, 8);
+  memcpy(SUNGROW_008_01.data.u8, SUNGROW_708_01.data.u8, 8);
+  // SUNGROW_009 all bytes 0x00
+  memcpy(SUNGROW_00A_00.data.u8, SUNGROW_70A_00.data.u8, 8);
+  memcpy(SUNGROW_00A_01.data.u8, SUNGROW_70A_01.data.u8, 8);
+  memcpy(SUNGROW_00B.data.u8, SUNGROW_70B.data.u8, 8);
+  memcpy(SUNGROW_00D.data.u8, SUNGROW_70D.data.u8, 8);
+  memcpy(SUNGROW_00E.data.u8, SUNGROW_70E.data.u8, 8);
+  memcpy(SUNGROW_013.data.u8, SUNGROW_713.data.u8, 8);
+  memcpy(SUNGROW_014.data.u8, SUNGROW_714.data.u8, 8);
+  memcpy(SUNGROW_015.data.u8, SUNGROW_715.data.u8, 8);
+  memcpy(SUNGROW_016.data.u8, SUNGROW_716.data.u8, 8);
+  memcpy(SUNGROW_017.data.u8, SUNGROW_717.data.u8, 8);
+  memcpy(SUNGROW_018.data.u8, SUNGROW_718.data.u8, 8);
+  memcpy(SUNGROW_019.data.u8, SUNGROW_719.data.u8, 8);
+  memcpy(SUNGROW_01A.data.u8, SUNGROW_71A.data.u8, 8);
+  memcpy(SUNGROW_01B.data.u8, SUNGROW_71B.data.u8, 8);
+  memcpy(SUNGROW_01C.data.u8, SUNGROW_71C.data.u8, 8);
+  memcpy(SUNGROW_01D.data.u8, SUNGROW_71D.data.u8, 8);
+  memcpy(SUNGROW_01E.data.u8, SUNGROW_71E.data.u8, 8);
 
+  //Copy 7## content to 5## messages
+  memcpy(SUNGROW_501.data.u8, SUNGROW_701.data.u8, 8);
+  memcpy(SUNGROW_502.data.u8, SUNGROW_702.data.u8, 8);
+  memcpy(SUNGROW_503.data.u8, SUNGROW_703.data.u8, 8);
+  memcpy(SUNGROW_504.data.u8, SUNGROW_704.data.u8, 8);
+  memcpy(SUNGROW_505.data.u8, SUNGROW_705.data.u8, 8);
+  memcpy(SUNGROW_506.data.u8, SUNGROW_706.data.u8, 8);
+
+  // 0x504 cannot be a straight copy: current must be the opposite sign
+  int32_t flipped = -(static_cast<int32_t>(current_dA));
+  int16_t current_dA_flipped = clamp_i32_to_i16(flipped);
+
+  SUNGROW_504.data.u8[2] = (current_dA_flipped & 0xFF);
+  SUNGROW_504.data.u8[3] = ((current_dA_flipped >> 8) & 0xFF);
+
+  // 0x005 cannot be a straight copy either: byte 1 carries the end stop, inert on 0x705/0x505.
+  // Full is limit-driven, since a real pack reads 0 A charge limit throughout. Empty is not - a
+  // real pack still advertises ~30 A while reporting it - so that end tracks the SoC floor.
+  uint8_t end_stop = END_STOP_NORMAL;
+  if (datalayer.battery.status.max_charge_current_dA == 0) {
+    end_stop = END_STOP_FULL;
+  } else if (datalayer.battery.status.reported_soc == 0) {
+    end_stop = END_STOP_EMPTY;
+  }
+  SUNGROW_005.data.u8[1] = end_stop;
+
+// TODO: This needs to do something useful
+#ifdef DEBUG_VIA_USB
+  if (inverter_sends_000) {
+    Serial.println("Inverter sends 0x000");
+  }
 #endif
+}
+
+void SungrowInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
+    case 0x100:
+      // SH10RS RUN @ ~1,250ms (group with one message every 250ms)
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x101:
+      // SH10RS init @ 13,000ms (SH15T as well?)
+      // System time as epoch in b0->b3
+      // b4->b7 all 0x00
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      transmit_can_init = true;
+      break;
+    case 0x102:
+      // SH10RS init @ 13,000ms
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x103:
+      // SH10RS init @ 13,000ms
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      mux = rx_frame.data.u8[0];
+      if (mux == 0) {
+        // Serial number byte1-7 (e.g. @23A229)
+        version_char[0] = rx_frame.data.u8[1];
+        version_char[1] = rx_frame.data.u8[2];
+        version_char[2] = rx_frame.data.u8[3];
+        version_char[3] = rx_frame.data.u8[4];
+        version_char[4] = rx_frame.data.u8[5];
+        version_char[5] = rx_frame.data.u8[6];
+        version_char[6] = rx_frame.data.u8[7];
+      }
+      if (mux == 1) {
+        // Serial number byte1-7 continued (e.g 2795)
+        version_char[7] = rx_frame.data.u8[1];
+        version_char[8] = rx_frame.data.u8[2];
+        version_char[9] = rx_frame.data.u8[3];
+        version_char[10] = rx_frame.data.u8[4];
+        version_char[11] = rx_frame.data.u8[5];
+        version_char[12] = rx_frame.data.u8[6];
+        version_char[13] = rx_frame.data.u8[7];
+      }
+      break;
+    case 0x104:
+      // SH10RS init @ 13,000ms
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      mux = rx_frame.data.u8[0];
+      if (mux == 0) {
+        // Manufacturer byte1-7 (e.g. SUNGROW)
+        manufacturer_char[0] = rx_frame.data.u8[1];
+        manufacturer_char[1] = rx_frame.data.u8[2];
+        manufacturer_char[2] = rx_frame.data.u8[3];
+        manufacturer_char[3] = rx_frame.data.u8[4];
+        manufacturer_char[4] = rx_frame.data.u8[5];
+        manufacturer_char[5] = rx_frame.data.u8[6];
+        manufacturer_char[6] = rx_frame.data.u8[7];
+      }
+      if (mux == 1) {
+        // Manufacturer byte1-7 continued (e.g )
+        manufacturer_char[7] = rx_frame.data.u8[1];
+        manufacturer_char[8] = rx_frame.data.u8[2];
+        manufacturer_char[9] = rx_frame.data.u8[3];
+        manufacturer_char[10] = rx_frame.data.u8[4];
+        manufacturer_char[11] = rx_frame.data.u8[5];
+        manufacturer_char[12] = rx_frame.data.u8[6];
+        manufacturer_char[13] = rx_frame.data.u8[7];
+      }
+      break;
+    case 0x105:
+      // SH10RS init @ 13,000ms
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      mux = rx_frame.data.u8[0];
+      if (mux == 0) {
+        // Model byte1-7 (e.g. SH10RT)
+        model_char[0] = rx_frame.data.u8[1];
+        model_char[1] = rx_frame.data.u8[2];
+        model_char[2] = rx_frame.data.u8[3];
+        model_char[3] = rx_frame.data.u8[4];
+        model_char[4] = rx_frame.data.u8[5];
+        model_char[5] = rx_frame.data.u8[6];
+        model_char[6] = rx_frame.data.u8[7];
+      }
+      if (mux == 1) {
+        // Model byte1-7 continued (e.g )
+        model_char[7] = rx_frame.data.u8[1];
+        model_char[8] = rx_frame.data.u8[2];
+        model_char[9] = rx_frame.data.u8[3];
+        model_char[10] = rx_frame.data.u8[4];
+        model_char[11] = rx_frame.data.u8[5];
+        model_char[12] = rx_frame.data.u8[6];
+        model_char[13] = rx_frame.data.u8[7];
+      }
+      break;
+    case 0x106:
+      // SH10RS init @ 13,000ms, or
+      // SH10RS run @ ~1,250ms (group with one message every 250ms)
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x108:
+      // SH10RS run @ ~1,250ms (group with one message every 250ms)
+      transmit_can_init = false;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x109:
+      // SH10RS run @ ~1,250ms (group with one message every 250ms)
+      transmit_can_init = false;
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x151:  //Only sent by SH15T (Inverter trying to use BYD CAN)
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      mux = rx_frame.data.u8[0];
+      if (mux == 0) {
+        // Manufacturer byte1-7 (e.g. SUNGROW)
+        manufacturer_char[0] = rx_frame.data.u8[1];
+        manufacturer_char[1] = rx_frame.data.u8[2];
+        manufacturer_char[2] = rx_frame.data.u8[3];
+        manufacturer_char[3] = rx_frame.data.u8[4];
+        manufacturer_char[4] = rx_frame.data.u8[5];
+        manufacturer_char[5] = rx_frame.data.u8[6];
+        manufacturer_char[6] = rx_frame.data.u8[7];
+      }
+      if (mux == 1) {
+        // Manufacturer byte1-7 continued (e.g )
+        manufacturer_char[7] = rx_frame.data.u8[1];
+        manufacturer_char[8] = rx_frame.data.u8[2];
+        manufacturer_char[9] = rx_frame.data.u8[3];
+        manufacturer_char[10] = rx_frame.data.u8[4];
+        manufacturer_char[11] = rx_frame.data.u8[5];
+        manufacturer_char[12] = rx_frame.data.u8[6];
+        manufacturer_char[13] = rx_frame.data.u8[7];
+      }
+      break;
+    case 0x191:  //Only sent by SH15T (Inverter trying to use BYD CAN)
+      // AU SH10RS inverter sends this but does not support a BYD battery.
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      transmit_can_init = true;  // We only see 0x191 when the inverter is searching for a battery.
+      break;
+    case 0x1E0: {
+      // Modbus RTU over CAN from inverter to battery.
+
+      // Inverter Request
+      // [8] 01 04 4D E2 00 02 C6 91
+      // Slave Addr: 0x01
+      // Function: 0x04
+      // Start Register: 0x4DE2
+      // Quantity: 0x0002 (2 registers)
+      // CRC16: 0x91C6
+
+      // Battery Response
+      // [8] 01 04 04 01 F4 00 00 BB | [1] 8A
+      // Slave Addr: 0x01
+      // Function: 0x04
+      // Byte Count = 0x04 (2 registers x 2 bytes)
+      // Data: 0x01F4, 0x0000 => Decimal 500, 0
+      // CRC16: 0x8ABB
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+
+      // We only handle 8-byte Modbus request frames here.
+      if (rx_frame.DLC != 8) {
+        break;
+      }
+
+      const uint8_t* p = rx_frame.data.u8;
+
+      // Validate Modbus RTU CRC16 (little-endian in bytes 6..7) over the first 6 bytes.
+      const uint16_t req_crc = static_cast<uint16_t>(p[6]) | (static_cast<uint16_t>(p[7]) << 8);
+      const uint16_t calc_crc = modbus_crc(p, 6);
+      if (req_crc != calc_crc) {
+        break;
+      }
+
+      const uint8_t addr = p[0];
+      const uint8_t func = p[1];
+      const uint16_t start_addr = (static_cast<uint16_t>(p[2]) << 8) | p[3];
+      const uint16_t quantity = (static_cast<uint16_t>(p[4]) << 8) | p[5];
+
+      if (addr != SungrowInverter::MODBUS_SLAVE_ADDR || start_addr != SungrowInverter::MODBUS_REGISTER_BASE_ADDR) {
+        break;
+      }
+
+      // Helper to construct a Modbus RTU response (addr/func/byteCount/data),
+      // append CRC, split into CAN frames of up to 8 bytes, and send them.
+      auto send_modbus_response = [this, &rx_frame](const uint8_t* payload, uint8_t payload_len) {
+        constexpr uint8_t MAX_PAYLOAD = 3 + MODBUS_MAX_DATA_BYTES;  // addr + func + byteCount + data bytes
+        constexpr uint8_t MAX_TOTAL = MAX_PAYLOAD + 2;              // + CRC16
+
+        if (payload_len > MAX_PAYLOAD) {
+          return;  // Defensive: ignore impossible lengths.
+        }
+
+        uint8_t frame_bytes[MAX_TOTAL];
+
+        // Copy payload (addr, func, byteCount, data...)
+        for (uint8_t i = 0; i < payload_len; ++i) {
+          frame_bytes[i] = payload[i];
+        }
+
+        // Append CRC16 (little-endian)
+        const uint16_t crc = modbus_crc(payload, payload_len);
+        const uint8_t crc_lo = static_cast<uint8_t>(crc & 0xFF);
+        const uint8_t crc_hi = static_cast<uint8_t>((crc >> 8) & 0xFF);
+
+        frame_bytes[payload_len] = crc_lo;
+        frame_bytes[payload_len + 1] = crc_hi;
+
+        uint8_t total_len = payload_len + 2;  // payload + CRC
+        uint8_t offset = 0;
+
+        while (total_len > 0) {
+          CAN_frame f = rx_frame;
+          const uint8_t chunk = (total_len > 8) ? 8 : total_len;
+          f.DLC = chunk;
+          for (uint8_t i = 0; i < chunk; ++i) {
+            f.data.u8[i] = frame_bytes[offset + i];
+          }
+          transmit_can_frame(&f);
+          offset += chunk;
+          total_len -= chunk;
+        }
+      };
+
+      auto send_modbus_registers = [send_modbus_response, addr, func](uint16_t quantity) {
+        if (quantity == 0 || quantity > SungrowInverter::MODBUS_REGISTER_QTY) {
+          return;
+        }
+
+        const uint8_t byte_count = static_cast<uint8_t>(quantity * 2);
+        uint8_t payload[3 + MODBUS_MAX_DATA_BYTES];  // addr, func, byteCount, data bytes
+
+        payload[0] = addr;
+        payload[1] = func;
+        payload[2] = byte_count;
+
+        uint8_t idx = 3;
+        for (uint16_t reg = 0; reg < quantity; ++reg) {
+          const uint16_t value = MODBUS_REGISTER_VALUES[reg];
+          payload[idx++] = static_cast<uint8_t>((value >> 8) & 0xFF);
+          payload[idx++] = static_cast<uint8_t>(value & 0xFF);
+        }
+
+        send_modbus_response(payload, idx);
+      };
+
+      // For now we only support 0x03/0x04 reads against this register window.
+      if (func == MODBUS_FUNC_READ_INPUT_REGS || func == MODBUS_FUNC_READ_HOLDING_REGS) {
+        send_modbus_registers(quantity);
+      }
+    } break;
+    default:
+      break;
+  }
+}
+
+void SungrowInverter::transmit_can(unsigned long currentMillis) {
+
+  if (transmit_can_init) {
+
+    // ---- INIT ----
+    if ((int32_t)(currentMillis - previousMillis1s) >= INTERVAL_1_S) {
+      previousMillis1s = currentMillis;
+
+      // Head messages (.30): 0x402, 0x500, 0x401
+      transmit_can_frame(&SUNGROW_402);
+      transmit_can_frame(&SUNGROW_500);
+      transmit_can_frame(&SUNGROW_401);
+
+      // Init specific messages
+      transmit_can_frame(&SUNGROW_007);
+      transmit_can_frame(&SUNGROW_008_00);
+      transmit_can_frame(&SUNGROW_008_01);
+      transmit_can_frame(&SUNGROW_009);
+      transmit_can_frame(&SUNGROW_00A_00);
+      transmit_can_frame(&SUNGROW_00A_01);
+      transmit_can_frame(&SUNGROW_00B);
+      transmit_can_frame(&SUNGROW_00D);
+      transmit_can_frame(&SUNGROW_00E);
+
+      // Tail messages
+      transmit_can_frame(&SUNGROW_512);
+      transmit_can_frame(&SUNGROW_501);
+      transmit_can_frame(&SUNGROW_502);
+      transmit_can_frame(&SUNGROW_503);
+      transmit_can_frame(&SUNGROW_504);
+      transmit_can_frame(&SUNGROW_505);
+      transmit_can_frame(&SUNGROW_506);
+    }
+    return;
+  }
+
+  // ---- RUN ----
+  // ---- 1s group ----
+  if ((int32_t)(currentMillis - previousMillis1s) >= INTERVAL_1_S) {
+    if ((currentMillis - previousMillisBatch) < delay_between_batches_ms) {
+      return;
+    }
+
+    previousMillisBatch = currentMillis;
+
+    switch (batch_send_index) {
+      case 0:
+        // Head messages (.30): 0x402, 0x500, 0x401
+        transmit_can_frame(&SUNGROW_402);
+        transmit_can_frame(&SUNGROW_500);
+        transmit_can_frame(&SUNGROW_401);
+        break;
+
+      case 1:
+        // Run batch A
+        transmit_can_frame(&SUNGROW_000);
+        transmit_can_frame(&SUNGROW_001);
+        transmit_can_frame(&SUNGROW_002);
+        transmit_can_frame(&SUNGROW_003);
+        transmit_can_frame(&SUNGROW_004);
+        transmit_can_frame(&SUNGROW_005);
+        transmit_can_frame(&SUNGROW_006);
+        transmit_can_frame(&SUNGROW_013);
+        transmit_can_frame(&SUNGROW_014);
+        transmit_can_frame(&SUNGROW_015);
+        transmit_can_frame(&SUNGROW_016);
+        transmit_can_frame(&SUNGROW_017);
+        transmit_can_frame(&SUNGROW_018);
+        transmit_can_frame(&SUNGROW_019);
+        transmit_can_frame(&SUNGROW_01A);
+        transmit_can_frame(&SUNGROW_01B);
+        transmit_can_frame(&SUNGROW_01C);
+        transmit_can_frame(&SUNGROW_01D);
+        transmit_can_frame(&SUNGROW_01E);
+        break;
+
+      case 2:
+        // Run batch B
+        transmit_can_frame(&SUNGROW_700);
+        transmit_can_frame(&SUNGROW_701);
+        transmit_can_frame(&SUNGROW_702);
+        transmit_can_frame(&SUNGROW_703);
+        transmit_can_frame(&SUNGROW_704);
+        transmit_can_frame(&SUNGROW_705);
+        transmit_can_frame(&SUNGROW_706);
+        transmit_can_frame(&SUNGROW_713);
+        transmit_can_frame(&SUNGROW_714);
+        transmit_can_frame(&SUNGROW_715);
+        transmit_can_frame(&SUNGROW_716);
+        transmit_can_frame(&SUNGROW_717);
+        transmit_can_frame(&SUNGROW_718);
+        transmit_can_frame(&SUNGROW_719);
+        break;
+
+      case 3:
+        // Run batch C
+        transmit_can_frame(&SUNGROW_70F_00);
+        transmit_can_frame(&SUNGROW_70F_01);
+        transmit_can_frame(&SUNGROW_70F_02);
+        transmit_can_frame(&SUNGROW_70F_03);
+        transmit_can_frame(&SUNGROW_70F_04);
+        transmit_can_frame(&SUNGROW_70F_05);  // Modules 1-3 SOC (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_70F_06);  // Modules 4-6 SOC (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_70F_07);  // Modules 7-8 SOC (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71A);
+        transmit_can_frame(&SUNGROW_71B);  // Modules 1+2 production date (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71C);  // Modules 3+4 production date (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71D);  // Modules 5+6 production date (zeros if unpopulated)
+        transmit_can_frame(&SUNGROW_71E);  // Modules 7+8 production date (zeros if unpopulated)
+        break;
+
+      case 4:
+        previousMillis1s = currentMillis;
+
+        // Tail messages
+        transmit_can_frame(&SUNGROW_512);
+        transmit_can_frame(&SUNGROW_501);
+        transmit_can_frame(&SUNGROW_502);
+        transmit_can_frame(&SUNGROW_503);
+        transmit_can_frame(&SUNGROW_504);
+        transmit_can_frame(&SUNGROW_505);
+        transmit_can_frame(&SUNGROW_506);
+        break;
+
+      default:
+        break;
+    }
+
+    batch_send_index++;
+    if (batch_send_index > 4) {
+      batch_send_index = 0;
+    }
+  }
+
+  // ---- 10s and 60s groups ----
+  // These are queued when due and then trickled out at most 3 frames per 20 ms tick
+  // (10s group first, then one module's serial number per tick). Sending them all at
+  // once could land on the same tick as a 19-frame 1 s batch and overflow the native
+  // CAN transmit queue (EVENT_CAN_NATIVE_BUFFER_FULL). Worst case per tick is now
+  // 19 + 3 + a 2-frame 0x1E0 reply = 24 frames.
+  if ((int32_t)(currentMillis - previousMillis10s) >= INTERVAL_10_S) {
+    previousMillis10s = currentMillis;
+    group10s_index = 0;  // start a new round
+  }
+  if ((int32_t)(currentMillis - previousMillis60s) >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    serial_module_index = 0;  // start a new round
+  }
+
+  CAN_frame* const group10s_frames[] = {&SUNGROW_707, &SUNGROW_708_00, &SUNGROW_708_01,
+                                        &SUNGROW_709, &SUNGROW_70A_00, &SUNGROW_70A_01,
+                                        &SUNGROW_70B, &SUNGROW_70D,    &SUNGROW_70E};
+  constexpr uint8_t GROUP10S_COUNT = sizeof(group10s_frames) / sizeof(group10s_frames[0]);
+  const uint8_t serial_module_count =
+      (battery_config.module_count < 2) ? 2 : ((battery_config.module_count > 8) ? 8 : battery_config.module_count);
+
+  const bool slow_pending = (group10s_index < GROUP10S_COUNT) || (serial_module_index < serial_module_count);
+  if (slow_pending && (currentMillis - previousMillisSlow) >= delay_between_batches_ms) {
+    previousMillisSlow = currentMillis;
+    if (group10s_index < GROUP10S_COUNT) {
+      for (uint8_t i = 0; i < 3 && group10s_index < GROUP10S_COUNT; i++) {
+        transmit_can_frame(group10s_frames[group10s_index++]);
+      }
+    } else {
+      CAN_frame* const serial_frames[8][3] = {{&SUNGROW_71F_01_01, &SUNGROW_71F_01_02, &SUNGROW_71F_01_03},
+                                              {&SUNGROW_71F_02_01, &SUNGROW_71F_02_02, &SUNGROW_71F_02_03},
+                                              {&SUNGROW_71F_03_01, &SUNGROW_71F_03_02, &SUNGROW_71F_03_03},
+                                              {&SUNGROW_71F_04_01, &SUNGROW_71F_04_02, &SUNGROW_71F_04_03},
+                                              {&SUNGROW_71F_05_01, &SUNGROW_71F_05_02, &SUNGROW_71F_05_03},
+                                              {&SUNGROW_71F_06_01, &SUNGROW_71F_06_02, &SUNGROW_71F_06_03},
+                                              {&SUNGROW_71F_07_01, &SUNGROW_71F_07_02, &SUNGROW_71F_07_03},
+                                              {&SUNGROW_71F_08_01, &SUNGROW_71F_08_02, &SUNGROW_71F_08_03}};
+      transmit_can_frame(serial_frames[serial_module_index][0]);
+      transmit_can_frame(serial_frames[serial_module_index][1]);
+      transmit_can_frame(serial_frames[serial_module_index][2]);
+      serial_module_index++;
+    }
+  }
+}
