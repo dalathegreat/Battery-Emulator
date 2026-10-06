@@ -157,6 +157,7 @@ class Esp32Hal {
   // Value for first MCP2517 CLKODIV register (default, divide by 10)
   virtual int MCP2517_CLKODIV() { return 0b11; }
 
+#ifndef SMALL_FLASH_DEVICE
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_NC; }
@@ -164,6 +165,11 @@ class Esp32Hal {
   virtual gpio_num_t CHADEMO_PIN_4() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_NC; }
+
+  // ADC input for an analog current sensor (the QNHCK2-16 Hall clamp). Only ADC1 pins qualify:
+  // ADC2 cannot be read while Wi-Fi is running.
+  virtual gpio_num_t SHUNT_ADC_PIN() { return GPIO_NUM_NC; }
+#endif  // SMALL_FLASH_DEVICE
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_NC; }

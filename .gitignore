@@ -30,6 +30,8 @@ logs
 managed_components/
 sdkconfig.*
 !sdkconfig.be_size.defaults
+CMakeLists.txt
+dependencies.lock
 
 # Ignore upload command (removes the need to re-compile after Verify when running Download, in e.g. VS Code)
 upload.bat
@@ -46,3 +48,6 @@ Software/src/devboard/utils/version_autogen.h
 
 # Ignore the embedded help texts (produced by tools/embed_help_json.py)
 Software/src/devboard/webserver/help_json_autogen.h
+
+# Ignore the embedded DTC descriptions (produced by tools/embed_dtc_json.py)
+Software/src/devboard/webserver/dtc_json_autogen.h

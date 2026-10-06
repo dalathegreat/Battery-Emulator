@@ -10,7 +10,7 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
   bool setup() override;
   void receive();
   void update_values();
-  static constexpr const char* Name = "Pylon low voltage via RS485";
+  static constexpr const char* Name = "Pylontech LV battery over RS485";
 
  private:
   /* How many value updates we can go without inverter gets reported as missing
@@ -27,9 +27,9 @@ class PylonLV485InverterProtocol : public Rs485InverterProtocol {
 
   // Helper functions
   void route_frame_request(const std::string& frame_str);
-  void handle_command_61();
-  void handle_command_62();
-  void handle_command_63();
+  void handle_get_analog_value();           // CID2 0x42
+  void handle_get_alarm_info();             // CID2 0x44
+  void handle_get_charge_discharge_info();  // CID2 0x92
   std::string calculate_checksum(const std::string& frame_data);
   std::string calculate_length_field(int info_len);
 

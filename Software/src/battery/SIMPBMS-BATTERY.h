@@ -26,8 +26,8 @@ class SimpBmsBattery : public CanBattery {
   uint16_t cellvoltage_min_mV = 3700;
   uint16_t charge_cutoff_voltage = 0;
   uint16_t discharge_cutoff_voltage = 0;
-  int16_t max_charge_current = 0;
-  int16_t max_discharge_current = 0;
+  int16_t max_charge_current_dA = 0;
+  int16_t max_discharge_current_dA = 0;
   uint8_t ensemble_info_ack = 0;
   uint8_t cells_in_series = 0;
   uint8_t voltage_level = 0;

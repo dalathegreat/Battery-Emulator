@@ -14,6 +14,7 @@
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
 #include "../../inverter/INVERTERS.h"
+#include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../contactorcontrol/comm_contactorcontrol.h"
 #include "../equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -115,6 +116,12 @@ void init_stored_settings() {
   user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
   user_selected_shunt_type = (ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None);
+#ifdef SMALL_FLASH_DEVICE
+  // A shunt type left out of this build (the CHAdeMO CT clamp) reads as none
+  if (user_selected_shunt_type >= ShuntType::Highest) {
+    user_selected_shunt_type = ShuntType::None;
+  }
+#endif  // SMALL_FLASH_DEVICE
   user_selected_max_pack_voltage_dV = settings.getUInt("BATTPVMAX", 0);
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
@@ -298,12 +305,26 @@ void init_stored_settings() {
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
-  // CT Clamp settings
+#ifndef SMALL_FLASH_DEVICE
+  // CHAdeMO CT Clamp settings
   ct_clamp_offset_mV = settings.getString("CTOFFSET", "-1.0").toFloat();
   ct_clamp_nominal_voltage_dV = settings.getUInt("CTVNOM", 40);
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
   ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
   ct_invert_current = settings.getBool("CTINVERT", false);
+
+  // QNHCK2-16 current sensor. Anything that is not one of its models, or a zero point it cannot
+  // have, falls back to the defaults. The zero point is only stored once calibrated away from
+  // the nominal 1.65 V.
+  temp = settings.getUInt("QNHIPN", QNHCK_DEFAULT_RATED_CURRENT_A);
+  qnhck_rated_current_A = qnhck_is_model(QNHCK_RATED_CURRENTS, temp) ? temp : QNHCK_DEFAULT_RATED_CURRENT_A;
+  temp = settings.getUInt("QNHVO", QNHCK_DEFAULT_RATED_OUTPUT_MV);
+  qnhck_rated_output_mV = qnhck_is_model(QNHCK_RATED_OUTPUTS, temp) ? temp : QNHCK_DEFAULT_RATED_OUTPUT_MV;
+  temp = settings.getUInt("QNHZERO", QNHCK_NOMINAL_ZERO_MV);
+  qnhck_zero_mV = qnhck_zero_plausible(temp) ? temp : QNHCK_NOMINAL_ZERO_MV;
+  // Only the off state of the automatic calibration is ever stored
+  qnhck_auto_calibration = settings.getBool("QNHAUTOCAL", true);
+#endif  // SMALL_FLASH_DEVICE
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
       constrain(settings.getUInt("BYDAUTOCALDRIFT", 5), 1u, 20u);

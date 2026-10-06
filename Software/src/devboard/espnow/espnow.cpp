@@ -471,9 +471,10 @@ static void send_battery_frame(uint8_t index) {
       put_u16_field(ESPNOW_KEY_SOH_PPTT, d->status.soh_pptt);
     }
     put_u16_field(ESPNOW_KEY_VOLTAGE_DV, d->status.voltage_dV);
-    put_i16_field(ESPNOW_KEY_CURRENT_DA, d->status.current_dA);
+    // A current sensor fitted in place of the batteries' own stands in for these (pack_current_dA())
+    put_i16_field(ESPNOW_KEY_CURRENT_DA, pack_current_dA(d->status));
     put_i16_field(ESPNOW_KEY_REPORTED_CURRENT_DA, d->status.reported_current_dA);
-    put_i32_field(ESPNOW_KEY_ACTIVE_POWER_W, d->status.active_power_W);
+    put_i32_field(ESPNOW_KEY_ACTIVE_POWER_W, pack_power_W(d->status));
     put_u32_field(ESPNOW_KEY_REMAINING_CAPACITY_WH, d->status.remaining_capacity_Wh);
     put_u32_field(ESPNOW_KEY_REPORTED_REMAIN_WH, d->status.reported_remaining_capacity_Wh);
     /* A pack's max_charge_power_W is rewritten in place by the safety layer, the SOC taper and
@@ -528,7 +529,7 @@ static void send_battery_frame(uint8_t index) {
     /* Direction is genuinely this pack's: parallel packs at different SOC push current into each
        other. What is limiting the inverter is not - that is one answer for the installation, and
        it rides in ESPNOW_FRAME_AGGREGATE once there is more than one pack. */
-    const ChargingState charging_state = get_charging_state(d->status.current_dA);
+    const ChargingState charging_state = get_charging_state(pack_current_dA(d->status));
     put_enum_field(ESPNOW_KEY_CHARGING_STATE, static_cast<uint8_t>(charging_state));
     if (num_batteries == 1) {
       put_enum_field(ESPNOW_KEY_LIMITING_FACTOR, static_cast<uint8_t>(get_limiting_factor(

@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // CHAdeMO is left out of the small flash devices
 /*  Portions of this file are an adaptation of the SimpleISA library, originally authored by Jack Rickard.
  *
  *  At present, this code supports the Scale IVT Modular current/voltage sensor device.  
@@ -420,3 +421,4 @@ void ISA_getINFO(uint8_t i) {
 
   transmit_can_frame(&outframe, can_config.battery);
 }
+#endif  // SMALL_FLASH_DEVICE

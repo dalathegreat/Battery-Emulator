@@ -13,9 +13,9 @@
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
 #include "CELLPOWER-BMS.h"
+#ifndef SMALL_FLASH_DEVICE  // CHAdeMO is left out of the small flash devices
 #include "CHADEMO-BATTERY.h"
-#include "CHADEMO-CT.h"
-#include "CHADEMO-SHUNTS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "CHARGEBYTE-CCS.h"
 #include "CMFA-EV-BATTERY.h"
 #include "CMP-SMART-CAR-BATTERY.h"
@@ -53,6 +53,7 @@
 #include "SANTA-FE-PHEV-BATTERY.h"
 #include "SIMPBMS-BATTERY.h"
 #include "SONO-BATTERY.h"
+#include "STELLANTIS-PRO-ONE-BATTERY.h"
 #include "STELLANTIS-SMALL-WIDE-4x4.h"
 #include "TESLA-BATTERY.h"
 #include "TESLA-LEGACY-BATTERY.h"
@@ -115,8 +116,10 @@ const char* name_for_battery_type(BatteryType type) {
       return BydAttoBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Chademo:
       return ChademoBattery::Name;
+#endif  // SMALL_FLASH_DEVICE
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
     case BatteryType::CmpSmartCar:
@@ -141,6 +144,8 @@ const char* name_for_battery_type(BatteryType type) {
       return SonoBattery::Name;
     case BatteryType::StellantisEcmp:
       return EcmpBattery::Name;
+    case BatteryType::StellantisProOne:
+      return StellantisProOneBattery::Name;
     case BatteryType::ImievCZeroIon:
       return ImievCZeroIonBattery::Name;
     case BatteryType::JaguarIpace:
@@ -269,8 +274,10 @@ Battery* create_battery(BatteryType type) {
       return new BydAttoBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
+#ifndef SMALL_FLASH_DEVICE
     case BatteryType::Chademo:
       return new ChademoBattery();
+#endif  // SMALL_FLASH_DEVICE
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
     case BatteryType::CmpSmartCar:
@@ -295,6 +302,8 @@ Battery* create_battery(BatteryType type) {
       return new SonoBattery();
     case BatteryType::StellantisEcmp:
       return new EcmpBattery();
+    case BatteryType::StellantisProOne:
+      return new StellantisProOneBattery();
     case BatteryType::ImievCZeroIon:
       return new ImievCZeroIonBattery();
     case BatteryType::JaguarIpace:
@@ -450,6 +459,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::SamsungSdiLv:
     case BatteryType::SimpBms:
     case BatteryType::Sono:
+    case BatteryType::StellantisProOne:
     case BatteryType::TeslaLegacy:
     case BatteryType::TeslaModel3Y:
     case BatteryType::TeslaModelSX:
