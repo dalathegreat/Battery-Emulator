@@ -328,6 +328,73 @@ TEST(NissanLeafHealthTests, ShouldIgnorePublishedStateOfHealthOnResetPack) {
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);                   // What it actually holds
 }
 
+// Whichever of the two readings is the more pessimistic is the one reported. Here the LBC has seen
+// wear the capacity reference has not, so its own figure wins over the derived one.
+TEST(NissanLeafHealthTests, ShouldReportTheLowerOfTheDerivedAndPublishedStateOfHealth) {
+  auto battery = battery_polling();
+
+  // Health block SOH 80.00 %, against a measured capacity that works out to 95.71 %.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
+  feed_pack_capacity(battery, 558900);  // 55.89 Ah, 20120 Wh of a 21021 Wh reference
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 8000u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8000u);
+  // The capacity rows keep reporting what was measured; only the SOH takes the lower figure.
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 20120u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityWh, 20120u);
+}
+
+// And with nothing published to compare against, the derived figure stands on its own.
+TEST(NissanLeafHealthTests, ShouldKeepTheDerivedStateOfHealthWhenThePackPublishesNone) {
+  auto battery = battery_polling();  // Leaves the broadcast SOH byte at zero
+
+  feed_pack_capacity(battery, 558900);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 0u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9571u);
+}
+
+// The info page carries whichever figure the status page is not showing, so the two together say
+// why the status page shows what it does. Here the derived figure is the lower one and went to the
+// status page, so the info page names the published one.
+TEST(NissanLeafHealthTests, ShouldShowThePublishedStateOfHealthWhenTheDerivedOneIsReported) {
+  auto battery = battery_polling();
+
+  // Health block: SOH 99.00 %, raw 98.50 %. Measured capacity works out to 56.71 %.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x26, 0xAC}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x26, 0x7A, 0x26, 0xAC, 0x03, 0x00}));
+  feed_pack_capacity(battery, 331250);
+  battery->update_values();
+
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // The derived one reached the status page
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  const std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("SOH avg: 99.00% (raw 98.50%)"), std::string::npos);
+  EXPECT_EQ(html.find("SOH der"), std::string::npos);
+}
+
+// And the other way round: the published figure is the lower one, so the info page names the
+// derived one instead.
+TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthWhenThePublishedOneIsReported) {
+  auto battery = battery_polling();
+
+  // Health block: SOH 80.00 %, raw 79.50 %. Measured capacity works out to 95.71 %.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x1F, 0x0E, 0x1F, 0x40, 0x03, 0x00}));
+  feed_pack_capacity(battery, 558900);
+  battery->update_values();
+
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 8000u);  // The published one reached the status page
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  const std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("SOH der: 95.71% (raw 79.50%)"), std::string::npos);
+  EXPECT_EQ(html.find("SOH avg"), std::string::npos);
+}
+
 // Builds a 0x55B carrying the given state of charge in tenths of a percent, signed with the CRC
 // the driver checks before it will read anything out of the frame.
 void feed_state_of_charge(NissanLeafBattery* battery, uint16_t tenths_percent) {
@@ -418,6 +485,22 @@ TEST(NissanLeafHealthTests, ShouldReplaceFallbackOnceCapacityIsRead) {
   battery->update_values();
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // What it actually holds
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 11923u);
+}
+
+// With no capacity read there is no derived figure, and the page says so rather than falling back
+// to naming the published one the status page is already showing.
+TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthAsUnknownWithoutACapacity) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x1F, 0x0E, 0x1F, 0x40, 0x03, 0x00}));
+  complete_first_poll_pass(battery);
+  battery->update_values();
+
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 8000u);  // The fallback put the published one up
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_NE(renderer.get_status_html().str().find("SOH der: Unknown (raw 79.50%)"), std::string::npos);
 }
 
 // The max GID count is broadcast with the mux bit set, and only by the 30/40/62 kWh packs.
@@ -1057,7 +1140,7 @@ TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
                             "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
                             "Capacity as new",
                             "Actual capacity",
-                            "SOH raw",
+                            "SOH ",  //Named for whichever figure the status page is not showing
                             "Hx:",
                             "QC charge count",
                             "AC charge count"};

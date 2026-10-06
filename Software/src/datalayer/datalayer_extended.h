@@ -652,6 +652,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
    * matter what the pack still holds. Shown for reference only.
    */
   uint16_t battery_SOHavg_pptt;
+  /** State of health derived from the measured capacity against the nameplate, in hundredths of a
+   * percent, capped at 100%. 0 until a capacity has been read. Survives a degradation reset, which
+   * the published figure above does not.
+   */
+  uint16_t battery_SOHder_pptt;
   /** Insulation resistance, most likely kOhm */
   uint16_t Insulation;
   /** Pack capacity in hundredths of an Ah (11544 = 115.44 Ah), 0 until read from the battery */
