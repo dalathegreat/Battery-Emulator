@@ -493,7 +493,7 @@ void init_webserver() {
       "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID", "CHGESTIMATED", "MQTTHEAP",      "HADISCFWU",      "INVACCREB",
       "LEAFAUTOOFS",
 #ifndef SMALL_FLASH_DEVICE
-      "CTINVERT",
+      "CTINVERT",      "UUGP_ALLOW"
 #endif  // SMALL_FLASH_DEVICE
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
@@ -509,7 +509,7 @@ void init_webserver() {
       "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",   "FOXESSSUBTYPE",
       "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
+      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",      "UUGP_PWRLIM", "UUGP_DSOC",    "UUGP_STARTMODE"
 #endif  // SMALL_FLASH_DEVICE
   };
 
