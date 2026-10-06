@@ -28,6 +28,9 @@ class SungrowInverter : public CanInverterProtocol {
   unsigned long previousMillis1s = 0;
   unsigned long previousMillis10s = 0;
   unsigned long previousMillis60s = 0;
+  unsigned long previousMillisSlow = 0;    // last tick a 10s/60s chunk was sent
+  uint8_t group10s_index = 0xFF;           // next 10s-group frame; 0xFF = none pending
+  uint8_t serial_module_index = 0xFF;  // 0xFF = no serial round in progress
   bool transmit_can_init = true;
   const uint8_t delay_between_batches_ms = INTERVAL_20_MS;
 
