@@ -58,8 +58,10 @@ extern bool qnhck_auto_calibration;
 // How far the sensor's zero point moves per °C, in uV, signed. With automatic calibration the
 // zero point measured while the contactors were open follows the batteries' temperature by this
 // much per degree, until the next opening measures it afresh. 0 is off, and only a value other
-// than that is stored. The datasheet gives no figure for a given sensor, only a limit:
-static constexpr int16_t QNHCK_MAX_TEMPCO_UV_PER_C = 1000;  // ±1 mV/°C
+// than that is stored. The datasheet limits the sensor's own drift to ±1 mV/°C, but what is
+// measured for this also takes in the ADC's and anything else that moves with temperature, so
+// the setting allows more:
+static constexpr int16_t QNHCK_MAX_TEMPCO_UV_PER_C = 5000;  // ±5 mV/°C
 extern int16_t qnhck_zero_tempco_uV_per_C;
 
 // The temperature the zero point is compensated by: midway between the coldest and the warmest

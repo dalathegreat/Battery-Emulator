@@ -283,6 +283,9 @@ TEST(QnhckTemperatureTest, DriftIsTheCoefficientTimesTheChange) {
   EXPECT_EQ(qnhck_zero_drift_uV(-500, 200, 300), -5000);   // A sensor drifting the other way
   EXPECT_EQ(qnhck_zero_drift_uV(300, -150, -145), 150);    // 0.5 °C below zero
   EXPECT_EQ(qnhck_zero_drift_uV(0, 200, 850), 0);
+  // The setting's limits across the whole operating range, -25 to +85 °C
+  EXPECT_EQ(qnhck_zero_drift_uV(QNHCK_MAX_TEMPCO_UV_PER_C, -250, 850), 550000);
+  EXPECT_EQ(qnhck_zero_drift_uV(-QNHCK_MAX_TEMPCO_UV_PER_C, -250, 850), -550000);
 }
 
 class QnhckTemperatureCompensationTest : public QnhckAutoCalibrationTest {
@@ -361,6 +364,17 @@ TEST_F(QnhckTemperatureCompensationTest, ASensorDriftingTheOtherWay) {
   close_contactors();
   set_temperature(300);
   feed(sensor, 2001, 3000, 1635);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
+}
+
+TEST_F(QnhckTemperatureCompensationTest, MoreThanTheDatasheetLimitForTheSensorAlone) {
+  qnhck_zero_tempco_uV_per_C = -2500;  // -2.5 mV/°C, the sensor and the ADC together
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  set_temperature(300);
+  feed(sensor, 2001, 3000, 1615);
 
   EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
 }

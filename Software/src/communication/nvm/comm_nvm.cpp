@@ -321,7 +321,7 @@ void init_stored_settings() {
   qnhck_zero_mV = qnhck_zero_plausible(temp) ? temp : QNHCK_NOMINAL_ZERO_MV;
   // Only the off state of the automatic calibration is ever stored
   qnhck_auto_calibration = settings.getBool("QNHAUTOCAL", true);
-  // The zero point's temperature drift, held to the datasheet's limit. Only stored when not 0.
+  // The zero point's temperature drift, within what the setting allows. Only stored when not 0.
   int32_t tempco = settings.getInt("QNHTC", 0);
   if (tempco > QNHCK_MAX_TEMPCO_UV_PER_C || tempco < -QNHCK_MAX_TEMPCO_UV_PER_C) {
     tempco = 0;
