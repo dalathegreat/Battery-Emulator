@@ -614,8 +614,8 @@ class TeslaBattery : public CanBattery {
   uint8_t battery_serialNumber[14] = {0};           // Stores raw HEX values for ASCII chars
   bool parsed_battery_serialNumber = false;
   char battery_manufactureDate[11] = {0};  // YYYY-MM-DD\0, owned per instance - see dayOfYearToDate()
-                                         //Via UDS
-  uint8_t battery_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+                                           //Via UDS
+  uint8_t battery_partNumber[12] = {0};    //stores raw HEX values for ASCII chars
   bool parsed_battery_partNumber = false;
   //Via UDS
   //static uint8_t BMS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
