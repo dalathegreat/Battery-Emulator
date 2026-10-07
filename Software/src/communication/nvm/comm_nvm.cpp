@@ -261,12 +261,15 @@ void init_stored_settings() {
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
-  // Battery 2 reuses battery 1's manual power settings: update_calculated_values() caps the
-  // combined system's max charge/discharge power to whichever battery reports less, so leaving
-  // these at their unset default of 0 would silently zero out the whole system for double-battery
-  // setups using the same "estimated power" integrations as above.
+  // Battery 2/3 reuse battery 1's manual power settings: battery_aggregate.cpp's
+  // update_aggregate_limits() caps the combined system's max charge/discharge power to whichever
+  // battery reports less, so leaving these at their unset default of 0 would silently zero out the
+  // whole system for double/triple-battery setups using the same "estimated power" integrations as
+  // above.
   datalayer.battery2.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery2.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+  datalayer.battery3.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery3.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
@@ -321,6 +324,12 @@ void init_stored_settings() {
   qnhck_zero_mV = qnhck_zero_plausible(temp) ? temp : QNHCK_NOMINAL_ZERO_MV;
   // Only the off state of the automatic calibration is ever stored
   qnhck_auto_calibration = settings.getBool("QNHAUTOCAL", true);
+  // The zero point's temperature drift, within what the setting allows. Only stored when not 0.
+  int32_t tempco = settings.getInt("QNHTC", 0);
+  if (tempco > QNHCK_MAX_TEMPCO_UV_PER_C || tempco < -QNHCK_MAX_TEMPCO_UV_PER_C) {
+    tempco = 0;
+  }
+  qnhck_zero_tempco_uV_per_C = (int16_t)tempco;
 #endif  // SMALL_FLASH_DEVICE
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =

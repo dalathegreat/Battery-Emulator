@@ -842,14 +842,14 @@ struct DATALAYER_INFO_VOLVO_HYBRID {
 };
 
 struct DATALAYER_INFO_GEELY_SEA {
-  uint16_t soc_bms;
-  uint16_t soh_bms;
+  uint16_t soc_bms = 0;
+  uint16_t soh_bms = 0;
   uint16_t BECMsupplyVoltage;
   uint16_t BECMBatteryVoltage;
   uint16_t BatteryCurrent;
-  uint16_t CellTempHighest;
-  uint16_t CellTempAverage;
-  uint16_t CellTempLowest;
+  uint16_t CellTempHighest = 0;
+  uint16_t CellTempAverage = 0;
+  uint16_t CellTempLowest = 0;
   uint8_t Interlock;
   uint16_t CellVoltHighest;
   uint16_t CellVoltLowest;

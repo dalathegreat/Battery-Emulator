@@ -48,11 +48,9 @@ void GeelySeaBattery::
     datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
   }
 
-  if (datalayer_extended.GeelySEA.CellTempHighest > 0) {
+  if ((datalayer_extended.GeelySEA.CellTempHighest > 0) && (datalayer_extended.GeelySEA.CellTempLowest > 0)) {
+    //Only write to datalayer when both values have been read once, otherwise large delta safeties will trigger
     datalayer.battery.status.temperature_max_dC = ((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0) * 10;
-  }
-
-  if (datalayer_extended.GeelySEA.CellTempLowest > 0) {
     datalayer.battery.status.temperature_min_dC = ((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0) * 10;
   }
 
