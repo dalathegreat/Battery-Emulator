@@ -48,7 +48,7 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
   static constexpr uint16_t REG_VBUS_LOWER = 0x4051;
   static constexpr uint16_t REG_PCS_STATUS = 0x4052;
 
-// Input registers
+  // Input registers
   static constexpr uint16_t REG_EV_VOLTAGE = 0x3020;
   static constexpr uint16_t REG_EV_CURRENT = 0x3021;
   static constexpr uint16_t REG_POWER_FACTOR = 0x3023;
