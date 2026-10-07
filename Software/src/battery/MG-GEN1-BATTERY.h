@@ -63,12 +63,13 @@ class MgGen1Battery : public UdsCanBattery {
   // PIDs read regularly
   static constexpr uint16_t UDS_STEADY_PID_LIST[] = {POLL_BATTERY_SOH};
 
-  static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x45443330;    // "ED30"
-  static const uint32_t BATTERY_TYPE_MG_ZS_44_NMC = 0x454c3130;  // "EL10"
-  static const uint32_t BATTERY_TYPE_MG5_50_LFP = 0x424b3430;    // "BK40"
-  static const uint32_t BATTERY_TYPE_MG5_52_NMC = 0x45443930;    // "ED90"
-  static const uint32_t BATTERY_TYPE_MG5_61_NMC = 0x45503243;    // "EP2C"
-  static const uint32_t BATTERY_TYPE_MG5_69_NMC = 0x454e3243;    // "EN2C"
+  // Pack identifier: NSTC bytes 3-6 (0-indexed [2]-[5]) as big-endian uint32.
+  static const uint32_t BATTERY_TYPE_MG_HS_PHEV = 0x46504544;    // "FPED" (0AFPED30)
+  static const uint32_t BATTERY_TYPE_MG_ZS_44_NMC = 0x4C50454C;  // "LPEL" (05LPEL10)
+  static const uint32_t BATTERY_TYPE_MG5_50_LFP = 0x3650424B;    // "6PBK" (066PBK40)
+  static const uint32_t BATTERY_TYPE_MG5_52_NMC = 0x36504544;    // "6PED" (066PED90)
+  static const uint32_t BATTERY_TYPE_MG5_61_NMC = 0x4C504550;    // "LPEP" (05LPEP2C)
+  static const uint32_t BATTERY_TYPE_MG5_69_NMC = 0x4C50454E;    // "LPEN" (05LPEN2C / 05LPEN10)
 
   uint32_t batteryType = 0;
 
