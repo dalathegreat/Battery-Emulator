@@ -206,31 +206,35 @@ void UUGPCharger::initialize_system_time() {
       break;
 
     case 2:
-      write_single(REG_DAY, static_cast<uint16_t>(local_time.tm_mday));
-      break;
-
+      write_single(REG_MONTH, local_time.tm_mon + 1);
+      break;
+    
     case 3:
-      write_single(REG_HOUR, static_cast<uint16_t>(local_time.tm_hour));
-      break;
-
+      write_single(REG_DAY, local_time.tm_mday);
+      break;
+    
     case 4:
-      write_single(REG_MINUTE, static_cast<uint16_t>(local_time.tm_min));
-      break;
-
+      write_single(REG_HOUR, local_time.tm_hour);
+      break;
+    
     case 5:
-      write_single(REG_SECOND, static_cast<uint16_t>(local_time.tm_sec));
-      break;
+      write_single(REG_MINUTE, local_time.tm_min);
+      break;
+    
+    case 6:
+      write_single(REG_SECOND, local_time.tm_sec);
+      break;
   }
 }
 
 void UUGPCharger::initialize_current_limiting() {
   switch (initialization_step) {
-    case 6:
+    case 7:
       // Never enable power during initialization. The charger must remain
       // stopped until all initialization commands have been acknowledged.
       write_single(REG_POWER_LIMIT, 0);
       break;
-    case 7: {
+    case 8: {
       uint16_t soc = uugp_discharge_cutoff_soc;
       if (soc < 10 || soc > 90) {
         soc = 80;
@@ -238,7 +242,7 @@ void UUGPCharger::initialize_current_limiting() {
       write_single(REG_DISCHARGE_CUTOFF_SOC, soc);
       break;
     }
-    case 8:
+    case 9:
       write_single(REG_CONTROL_MODE, 0);
       break;
   }
@@ -246,19 +250,15 @@ void UUGPCharger::initialize_current_limiting() {
 
 void UUGPCharger::initialize_pcs_information() {
   const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
-  const uint16_t pcs_model = max_voltage_dV < 5700 ? 0 : 1;
-
+  
   switch (initialization_step) {
-    case 9:
+    case 10:
       write_single(REG_VBUS_UPPER, max_voltage_dV);
       break;
-    case 10:
+    case 11:
       write_single(REG_VBUS_LOWER, max_voltage_dV);
       break;
-    case 11:
-      write_single(REG_PCS_MODEL, pcs_model);
-      break;
-  }
+    }
 }
 
 void UUGPCharger::initialize_start_mode() {
@@ -311,16 +311,16 @@ void UUGPCharger::initialize() {
     case 3:
     case 4:
     case 5:
+    case 6:
       initialize_system_time();
       break;
 
-    case 6:
     case 7:
     case 8:
+    case 9:
       initialize_current_limiting();
       break;
 
-    case 9:
     case 10:
     case 11:
       initialize_pcs_information();
@@ -390,7 +390,7 @@ void UUGPCharger::poll_status() {
        * DC-side block:
        * 302F..3031
        */
-      read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 3);
+      read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 1);
       status_step = 2;
       break;
 
@@ -452,11 +452,13 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
     datalayer.charger.uugp_ev_voltage_V = values[0];
     datalayer.charger.uugp_ev_current_A = values[1];
     datalayer.charger.uugp_power_factor = values[3];
-    datalayer.charger.uugp_max_output_voltage_V = values[6];
-    datalayer.charger.uugp_max_output_current_A = values[7];
-    datalayer.charger.uugp_rated_power_W = values[8];
-    return;
-  }
+   datalayer.charger.uugp_module_status = values[4];
+   datalayer.charger.uugp_module_temperature_C = values[5] * 0.1f;
+   datalayer.charger.uugp_max_output_voltage_V = values[6];
+   datalayer.charger.uugp_max_output_current_A = values[7];
+   datalayer.charger.uugp_rated_power_W = values[8];
+   return;
+ }
 
   if (address == REG_DC_VOLTAGE && count >= 3) {
     datalayer.charger.uugp_dc_voltage_V = values[0] * 0.1f;
