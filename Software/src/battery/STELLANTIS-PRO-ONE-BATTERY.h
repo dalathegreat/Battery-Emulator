@@ -53,10 +53,10 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const int MIN_CELL_VOLTAGE_MV =
       2900;  //Battery stops discharging if one cell goes below this (DTC set at 2.8V)
 
-  //Isolation (UDS 0xA016): the BMS flags a fault below 500 Ohm/V x 480V = 240kOhm.
-  //4194 is its "no valid result yet" marker, e.g. the system values before the contactors have closed.
-  static const uint16_t ISO_FAULT_KOHM = 240;
-  static const uint16_t ISO_INVALID = 4194;
+  //Isolation (UDS 0xA017): P0AA6 / P1E1B set below 350kOhm (service documentation).
+  //0x7FFF and 0xFFFE mark no result; real readings seen so far stay below 26 MOhm.
+  static const uint16_t ISO_FAULT_KOHM = 350;
+  static const uint16_t ISO_NO_RESULT = 0x7FFF;
 
   CAN_frame ONE_15A = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x15A, .data = {0x00, 0x00, 0x00, 0x00}};
   CAN_frame ONE_1D7 = {.FD = false,
@@ -121,8 +121,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_15 = 0xA010;
   static const uint16_t PID_UNKNOWN_16 = 0xA011;
   static const uint16_t PID_UNKNOWN_17 = 0xA014;
-  static const uint16_t PID_ISOLATION = 0xA016;
-  static const uint16_t PID_ISOLATION_SELFTEST = 0xA017;
+  static const uint16_t PID_ISOLATION = 0xA017;
   static const uint16_t PID_UNKNOWN_19 = 0xA019;
   static const uint16_t PID_UNKNOWN_20 = 0xA01A;
   static const uint16_t PID_UNKNOWN_21 = 0xA020;
@@ -358,9 +357,9 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint16_t cellvoltage_min_mV = 3700;
   uint16_t polled_max_cellvoltage_mV = 3700;
   uint16_t polled_min_cellvoltage_mV = 3700;
-  //0xA016 in kOhm: R+, R-, Riso with contactors closed (system), then the same three with them open (battery side)
-  uint16_t isolation_kOhm[6] = {ISO_INVALID, ISO_INVALID, ISO_INVALID, ISO_INVALID, ISO_INVALID, ISO_INVALID};
-  uint8_t isolation_selftest[10] = {0};  //0xA017 raw
+  //0xA017: state, R1, R2, state, R3, R4. R1 = system side, state 2 = valid result
+  uint8_t isolation_state[2] = {0};
+  uint16_t isolation_kOhm[4] = {ISO_NO_RESULT, ISO_NO_RESULT, ISO_NO_RESULT, ISO_NO_RESULT};
 };
 
 #endif

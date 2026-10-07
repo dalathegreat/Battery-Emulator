@@ -52,14 +52,14 @@ void StellantisProOneBattery::
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
 
-  //Isolation from UDS 0xA016: the system figure while the contactors are closed, the battery side while open.
-  //Not published while the monitor is suspended, as the BMS then stops measuring and the values go stale.
-  uint16_t isolation_now_kOhm = (contactor_status == CONTACTORS_ON) ? isolation_kOhm[2] : isolation_kOhm[5];
-  if (!user_selected_proone_suspend_isolation && isolation_now_kOhm != ISO_INVALID) {
-    datalayer.battery.status.insulation_resistance_kOhm = isolation_now_kOhm;
+  //Isolation from UDS 0xA017, R1. It tracks the system side: ~25 MOhm falling to ~6 MOhm once a charger was
+  //connected, and 0 while P0AA6 was latched. Other states than 2 carry stale values (seen frozen for whole logs),
+  //and nothing is published while the monitor is suspended.
+  if (!user_selected_proone_suspend_isolation && isolation_state[0] == 2 && isolation_kOhm[0] < ISO_NO_RESULT) {
+    datalayer.battery.status.insulation_resistance_kOhm = isolation_kOhm[0];
     datalayer.battery.status.insulation_resistance_available = true;
-    if (isolation_now_kOhm < ISO_FAULT_KOHM) {
-      set_event(EVENT_BATTERY_ISOLATION, isolation_now_kOhm);
+    if (isolation_kOhm[0] < ISO_FAULT_KOHM) {
+      set_event(EVENT_BATTERY_ISOLATION, isolation_kOhm[0]);
     } else {
       clear_event(EVENT_BATTERY_ISOLATION);
     }
@@ -127,29 +127,25 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
               "<h4>Isolation monitor: " << (user_selected_proone_suspend_isolation ? "suspended" : "active") << "</h4>";
-  static const char* const iso_names[6] = {"R+ system", "R- system", "Riso system",
-                                           "R+ battery side", "R- battery side", "Riso battery side"};
-  for (int i = 0; i < 6; i++) {
-    content << "<h4>" << iso_names[i] << ": ";
-    if (isolation_kOhm[i] == ISO_INVALID) {
-      content << "no result yet</h4>";
+  //0xA017: state, R1, R2, state, R3, R4. R1 = system side (hypothesis), state 2 = valid result
+  static const char* const iso_names[4] = {"R1 (system)", "R2", "R3", "R4"};
+  for (int i = 0; i < 4; i++) {
+    if (i % 2 == 0) {
+      content << "<h4>Isolation state: " << isolation_state[i / 2] << (isolation_state[i / 2] == 2 ? " (valid)" : "")
+              << "</h4>";
+    }
+    content << "<h4>Isolation " << iso_names[i] << ": ";
+    if (isolation_kOhm[i] >= ISO_NO_RESULT) {
+      content << "no result</h4>";
     } else {
       content << isolation_kOhm[i] << " kOhm";
       if (isolation_kOhm[i] < ISO_FAULT_KOHM) {
-        content << " (FAULT, below 240)";
+        content << " (below 350)";
       }
       content << "</h4>";
     }
   }
-  //0xA017 switch states: 1 resistor connected, 2 self-test OK, 3 fault
-  content << "<h4>Isolation self-test: window B state " << isolation_selftest[0]
-          << ", " << ((isolation_selftest[1] << 8) | isolation_selftest[2])
-          << "/" << ((isolation_selftest[3] << 8) | isolation_selftest[4]) << " kOhm"
-          << "; window A state " << isolation_selftest[5]
-          << ", R+ " << ((isolation_selftest[6] << 8) | isolation_selftest[7])
-          << " R- " << ((isolation_selftest[8] << 8) | isolation_selftest[9]) << " kOhm"
-          << " (1 connected, 2 OK, 3 fault)</h4>"
-              "<h4>Temperature sensors: </h4>"
+  content << "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
 for (int row = 0; row < 6; row++) {
@@ -342,16 +338,14 @@ uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const
       break;
     case PID_UNKNOWN_17:
       break;
-    case PID_ISOLATION:  //Six u16 BE in kOhm, see isolation_kOhm
-      if (length >= 12) {
-        for (int i = 0; i < 6; i++) {
-          isolation_kOhm[i] = (uint16_t)(data[i * 2] << 8) | data[i * 2 + 1];
-        }
-      }
-      break;
-    case PID_ISOLATION_SELFTEST:
+    case PID_ISOLATION:  //State, R1, R2, state, R3, R4 (u16 BE, kOhm)
       if (length >= 10) {
-        memcpy(isolation_selftest, data, 10);
+        isolation_state[0] = data[0];
+        isolation_state[1] = data[5];
+        isolation_kOhm[0] = (uint16_t)(data[1] << 8) | data[2];
+        isolation_kOhm[1] = (uint16_t)(data[3] << 8) | data[4];
+        isolation_kOhm[2] = (uint16_t)(data[6] << 8) | data[7];
+        isolation_kOhm[3] = (uint16_t)(data[8] << 8) | data[9];
       }
       break;
     case PID_UNKNOWN_19:
@@ -767,7 +761,6 @@ void StellantisProOneBattery::setup(void) {  // Performs one time setup at start
       PID_UNKNOWN_16,
       PID_UNKNOWN_17,
       PID_ISOLATION,
-      PID_ISOLATION_SELFTEST,
       PID_UNKNOWN_19,
       PID_UNKNOWN_20,
       PID_UNKNOWN_21,
