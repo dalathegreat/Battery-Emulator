@@ -7,21 +7,6 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../system_settings.h"
-namespace {
-constexpr uint8_t MAX_21A_LOG_ENTRIES = 50;
-
-struct Can21AByte4LogEntry {
-  uint32_t time_ms;
-  uint8_t value;
-};
-
-Can21AByte4LogEntry can21a_byte4_log[MAX_21A_LOG_ENTRIES] = {};
-uint8_t can21a_byte4_log_count = 0;
-uint8_t can21a_byte4_log_write_index = 0;
-
-uint8_t can21a_byte4_last_value = 0;
-bool can21a_byte4_valid = false;
-}  // namespace
 
 // Function to estimate SOC based on cell voltage
 uint16_t KiaEGmpBattery::estimateSOCFromCell(uint16_t cellVoltage) {
@@ -441,6 +426,24 @@ String KiaEGmpBattery::get_uds_info_html() {
   String content;
   content.reserve(1600);
 
+  const char* contactor_status = "Unknown (no 0x21A data)";
+  if (contactorStatus21AValid) {
+    switch (contactorStatus21A) {
+      case 0xFE:
+        contactor_status = "Open";
+        break;
+      case 0x03:
+        contactor_status = "Precharge";
+        break;
+      case 0x01:
+        contactor_status = "Closed";
+        break;
+      default:
+        contactor_status = "Unknown";
+        break;
+    }
+  }
+
   // clang-format off
   content << "<h3>BATTERY_MGMT</h3>"
               "<h4>Cells: " << String(datalayer.battery.info.number_of_cells) << "</h4>"
@@ -466,72 +469,21 @@ String KiaEGmpBattery::get_uds_info_html() {
               "<h4>Operation Time: " << String(opTime) << " s</h4>"
               "<h4>BMS ignition: " << String(BMS_ign) << "</h4>"
               "<h4>BMS Main Relay: " << String(batteryRelay) << "</h4>";
-  content << "<h3>0x21A BYTE 4 CHANGE LOG</h3>";
-
-  if (can21a_byte4_log_count == 0) {
-    content << "<h4>No changes recorded</h4>";
-  } else {
-    uint8_t start_index;
-
-    if (can21a_byte4_log_count < MAX_21A_LOG_ENTRIES) {
-      start_index = 0;
-    } else {
-      start_index = can21a_byte4_log_write_index;
+  content << "<h4>Contactor status (0x21A byte 4): " << contactor_status;
+  if (contactorStatus21AValid) {
+    content << " (0x";
+    if (contactorStatus21A < 0x10) {
+      content << "0";
     }
-
-    for (uint8_t n = 0; n < can21a_byte4_log_count; n++) {
-      uint8_t index =
-          (start_index + n) % MAX_21A_LOG_ENTRIES;
-
-      const Can21AByte4LogEntry& entry = can21a_byte4_log[index];
-
-      content << "<div>"
-              << String(entry.time_ms / 1000.0f, 1)
-              << "s - 0x";
-
-      if (entry.value < 0x10) {
-        content << "0";
-      }
-
-      content << String(entry.value, HEX)
-              << "</div>";
-    }
+    content << String(contactorStatus21A, HEX) << ")";
   }
-
+  content << "</h4>";
   return content;
 }
 
-void KiaEGmpBattery::handle_0x21A(const CAN_frame& rx_frame) {
-  if (rx_frame.DLC < 5) {
-    return;
-  }
-
-  // Byte 4 of the CAN frame.
-  const uint8_t value = rx_frame.data.u8[4];
-
-  // First received value establishes the baseline.
-  // Don't create a log entry until it actually changes.
-  if (can21a_byte4_valid && value == can21a_byte4_last_value) {
-    return;
-  }
-
-  can21a_byte4_last_value = value;
-  can21a_byte4_valid = true;
-
-  Can21AByte4LogEntry& entry =
-      can21a_byte4_log[can21a_byte4_log_write_index];
-
-  entry.time_ms = millis();
-  entry.value = value;
-
-  can21a_byte4_log_write_index++;
-
-  if (can21a_byte4_log_write_index >= MAX_21A_LOG_ENTRIES) {
-    can21a_byte4_log_write_index = 0;
-  }
-
-  if (can21a_byte4_log_count < MAX_21A_LOG_ENTRIES) {
-    can21a_byte4_log_count++;
+void KiaEGmpBattery::reset_BMS() {
+  if (!request_uds_soft_reset()) {
+    logging.println("UDS soft reset request could not be queued");
   }
 }
 
@@ -560,7 +512,10 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x21A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      handle_0x21A(rx_frame);
+      if (rx_frame.DLC >= 5) {
+        contactorStatus21A = rx_frame.data.u8[4];
+        contactorStatus21AValid = true;
+      }
       break;
     case 0x235:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

@@ -13,6 +13,8 @@ constexpr uint16_t UDS_PID_MAX_RETRIES = 10;
 // Traffic on 0x7DF (or on uds_address) that isn't ours implies an external
 // diagnostic tool is in use.
 constexpr uint16_t OBD2_REQUEST_ADDRESS = 0x7DF;
+constexpr uint32_t MIN_UDS_RESPONSE_ID = 0x780;
+constexpr uint32_t MAX_UDS_RESPONSE_ID = 0x7EF;
 // KWP2000 service for one-byte local identifier reads - not part of ISO 14229
 // UDS proper, but similar enough.
 constexpr uint8_t UDS_SID_READ_LOCAL_IDENTIFIER = 0x21;
@@ -430,6 +432,14 @@ void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const 
     case UDS_STATE_CLEAR_DTC:
       // Positive response (0x54): nothing to do, the sequence has ended.
       break;
+    case UDS_STATE_SOFT_RESET_START: {
+      const uint8_t reset_type = 0x03;
+      send_sequence_message(UDS_STATE_SOFT_RESET, SID::ECUReset, &reset_type, 1, 10, 0);
+      break;
+    }
+    case UDS_STATE_SOFT_RESET:
+      // The reset request is complete on either a positive or negative response.
+      break;
   }
 }
 
@@ -540,4 +550,8 @@ void UdsCanBattery::read_DTC() {
 
 void UdsCanBattery::reset_DTC() {
   start_sequence(UDS_STATE_CLEAR_DTC_START);
+}
+
+bool UdsCanBattery::request_uds_soft_reset() {
+  return !uds_is_busy() && start_sequence(UDS_STATE_SOFT_RESET_START);
 }
