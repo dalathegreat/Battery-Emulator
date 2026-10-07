@@ -12,6 +12,7 @@
 #include "BMW-PHEV-BATTERY.h"
 #include "BOLT-AMPERA-BATTERY.h"
 #include "BYD-ATTO-3-BATTERY.h"
+#include "BYD-BATTERY-BOX-BATTERY.h"
 #include "CELLPOWER-BMS.h"
 #ifndef SMALL_FLASH_DEVICE  // CHAdeMO is left out of the small flash devices
 #include "CHADEMO-BATTERY.h"
@@ -114,6 +115,8 @@ const char* name_for_battery_type(BatteryType type) {
       return BoltAmperaBattery::Name;
     case BatteryType::BydAtto3:
       return BydAttoBattery::Name;
+    case BatteryType::BYDBatteryBoxPremium:
+      return BYDBatteryBoxBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
 #ifndef SMALL_FLASH_DEVICE
@@ -272,6 +275,8 @@ Battery* create_battery(BatteryType type) {
       return new BoltAmperaBattery();
     case BatteryType::BydAtto3:
       return new BydAttoBattery();
+    case BatteryType::BYDBatteryBoxPremium:
+      return new BYDBatteryBoxBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
 #ifndef SMALL_FLASH_DEVICE
@@ -435,6 +440,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::BmwIX:
     case BatteryType::BmwPhev:
     case BatteryType::BoltAmpera:
+    case BatteryType::BYDBatteryBoxPremium:
     case BatteryType::Chademo:
     case BatteryType::ChargebyteCCSBattery:
     case BatteryType::CmfaEv:
