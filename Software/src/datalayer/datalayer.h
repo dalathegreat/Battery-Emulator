@@ -293,6 +293,8 @@ struct DATALAYER_CHARGER_TYPE {
   uint16_t uugp_ev_voltage_V = 0;
   uint16_t uugp_ev_current_A = 0;
   uint16_t uugp_power_factor = 0;
+  uint16_t uugp_module_status = 0;
+  float uugp_module_temperature_C = 0;
   uint16_t uugp_max_output_voltage_V = 0;
   uint16_t uugp_max_output_current_A = 0;
   uint16_t uugp_rated_power_W = 0;
