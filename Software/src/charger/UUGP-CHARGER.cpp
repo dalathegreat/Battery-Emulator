@@ -10,7 +10,6 @@
 volatile uint16_t uugp_power_limit_W = 10000;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
 volatile bool uugp_allow_discharge_to_home_grid = false;
-volatile uint8_t uugp_start_mode = 1;
 
 UUGPCharger::UUGPCharger() : Charger(ChargerType::UUGP) {
   register_transmitter(this);
@@ -261,22 +260,6 @@ void UUGPCharger::initialize_pcs_information() {
   }
 }
 
-void UUGPCharger::initialize_start_mode() {
-  /*
-   * 4033:
-   *
-   * 0 = Default 485
-   * 1 = Card swipe
-   * 2 = Plug & Charge
-   *
-   * Requested default = 1.
-   */
-  if (uugp_start_mode > 2) {
-    uugp_start_mode = 1;
-  }
-
-  write_single(REG_START_MODE, uugp_start_mode);
-}
 
 void UUGPCharger::initialize() {
   if (!ensure_serial()) {
@@ -294,7 +277,7 @@ void UUGPCharger::initialize() {
 
       ++initialization_step;
 
-      if (initialization_step > 12) {
+      if (initialization_step > 11) {
         initialization_complete = true;
       }
 
@@ -324,10 +307,6 @@ void UUGPCharger::initialize() {
     case 10:
     case 11:
       initialize_pcs_information();
-      break;
-
-    case 12:
-      initialize_start_mode();
       break;
 
     default:
