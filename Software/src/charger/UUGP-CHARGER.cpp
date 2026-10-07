@@ -206,24 +206,24 @@ void UUGPCharger::initialize_system_time() {
       break;
 
     case 2:
-        write_single(REG_MONTH, local_time.tm_mon + 1);
-        break;
+      write_single(REG_MONTH, local_time.tm_mon + 1);
+      break;
 
     case 3:
-        write_single(REG_DAY, local_time.tm_mday);
-        break;
+      write_single(REG_DAY, local_time.tm_mday);
+      break;
 
     case 4:
-        write_single(REG_HOUR, local_time.tm_hour);
-        break;
+      write_single(REG_HOUR, local_time.tm_hour);
+      break;
 
     case 5:
-        write_single(REG_MINUTE, local_time.tm_min);
-        break;
+      write_single(REG_MINUTE, local_time.tm_min);
+      break;
 
     case 6:
-        write_single(REG_SECOND, local_time.tm_sec);
-        break;
+       write_single(REG_SECOND, local_time.tm_sec);
+      break;
   }
 }
 
@@ -452,12 +452,12 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
     datalayer.charger.uugp_ev_voltage_V = values[0];
     datalayer.charger.uugp_ev_current_A = values[1];
     datalayer.charger.uugp_power_factor = values[3];
-      datalayer.charger.uugp_module_status = values[4];
-      datalayer.charger.uugp_module_temperature_C = values[5] * 0.1f;
-      datalayer.charger.uugp_max_output_voltage_V = values[6];
-      datalayer.charger.uugp_max_output_current_A = values[7];
-      datalayer.charger.uugp_rated_power_W = values[8];
-      return;
+    datalayer.charger.uugp_module_status = values[4];
+    datalayer.charger.uugp_module_temperature_C = values[5] * 0.1f;
+    datalayer.charger.uugp_max_output_voltage_V = values[6];
+    datalayer.charger.uugp_max_output_current_A = values[7];
+    datalayer.charger.uugp_rated_power_W = values[8];
+    return;
   }
 
   if (address == REG_DC_VOLTAGE && count >= 3) {
