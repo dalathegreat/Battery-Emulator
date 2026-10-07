@@ -260,7 +260,6 @@ void UUGPCharger::initialize_pcs_information() {
   }
 }
 
-
 void UUGPCharger::initialize() {
   if (!ensure_serial()) {
     return;
