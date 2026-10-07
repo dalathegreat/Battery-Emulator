@@ -29,9 +29,13 @@ void StellantisProOneBattery::
   if (contactor_status == CONTACTORS_OFF || contactor_status == CONTACTORS_PRECHARGE) {
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
-  } else {
-    datalayer.battery.status.max_discharge_power_W = ((discharge_power / 10) * (pack_voltage / 10));
-    datalayer.battery.status.max_charge_power_W = ((charge_power / 10) * (pack_voltage / 10));
+  } else {  //Figure out the lowest of the three charge/discharge readings, and map that
+
+    charge_power_dA = std::min({charge_power, peak_charge_power, sustained_charge_power});
+    discharge_power_dA = std::min({discharge_power, peak_discharge_power, sustained_discharge_power});
+
+    datalayer.battery.status.max_discharge_power_W = ((discharge_power_dA / 10) * (pack_voltage / 10));
+    datalayer.battery.status.max_charge_power_W = ((charge_power_dA / 10) * (pack_voltage / 10));
   }
 
   if (pack_capacity_ah_tenths > 0) {
@@ -100,12 +104,12 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>PID DA77: " << pid_unknown_180 << "</h4>"
               "<h4>PID DA78: " << pid_unknown_181 << "</h4>"
               "<h4>PID DA79: " << pid_unknown_182 << "</h4>"
-              "<h4>Chg1: " << charge_power << "</h4>"
-              "<h4>Chg2: " << peak_charge_power << "</h4>"
-              "<h4>Chg3: " << sustained_charge_power << "</h4>"
-              "<h4>Dis1: " << discharge_power << "</h4>"
-              "<h4>Dis2: " << peak_discharge_power << "</h4>"
-              "<h4>Dis3: " << sustained_discharge_power << "</h4>"
+              "<h4>Chg1: " << charge_power << " dA</h4>"
+              "<h4>Chg2: " << peak_charge_power << " dA</h4>"
+              "<h4>Chg3: " << sustained_charge_power << " dA</h4>"
+              "<h4>Dis1: " << discharge_power << " dA</h4>"
+              "<h4>Dis2: " << peak_discharge_power << " dA</h4>"
+              "<h4>Dis3: " << sustained_discharge_power << " dA</h4>"
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
               "<h4>Temperature sensors: </h4>"

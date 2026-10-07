@@ -330,6 +330,8 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint8_t pid_unknown_180 = 0;
   uint8_t pid_unknown_181 = 0;
   uint8_t pid_unknown_182 = 0;
+  uint16_t charge_power_dA = 0;
+  uint16_t discharge_power_dA = 0;
   uint16_t charge_power = 0;
   uint16_t peak_charge_power = 0;
   uint16_t sustained_charge_power = 0;
