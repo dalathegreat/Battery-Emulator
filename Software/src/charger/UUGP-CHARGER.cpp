@@ -222,7 +222,7 @@ void UUGPCharger::initialize_system_time() {
       break;
 
     case 6:
-       write_single(REG_SECOND, local_time.tm_sec);
+      write_single(REG_SECOND, local_time.tm_sec);
       break;
   }
 }
