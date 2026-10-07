@@ -163,6 +163,7 @@ void init_stored_settings() {
   user_selected_tesla_GTW_mapRegion = settings.getUInt("GTWMAPREG", user_selected_tesla_GTW_mapRegion);
   user_selected_tesla_GTW_chassisType = settings.getUInt("GTWCHASSIS", user_selected_tesla_GTW_chassisType);
   user_selected_tesla_GTW_packEnergy = settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy);
+  user_selected_proone_suspend_isolation = settings.getBool("PROONEISOOFF", false);
   user_selected_primo_gen24 = settings.getBool("PRIMOGEN24", false);
   user_selected_accept_inverter_reboot = settings.getBool("INVACCREB", false);
   // Watchdog period the inverter last told us about, or the default if it never has

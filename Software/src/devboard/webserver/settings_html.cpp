@@ -1119,6 +1119,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("LEAFAUTOOFS", true) ? "checked" : "";
   }
 
+  if (var == "PROONEISOOFF") {
+    return settings.getBool("PROONEISOOFF") ? "checked" : "";
+  }
+
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
@@ -1639,6 +1643,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
+    form .if-proone { display: none; }
+    form[data-battery="58"] .if-proone {
+      display: contents;
+    }
+
     form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
     form[data-battery="3"] .if-estimated, 
     form[data-battery="4"] .if-estimated, 
@@ -2061,6 +2070,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <label for='GTWPACK'>Pack type: </label><select name='GTWPACK' id='GTWPACK'>
           %GTWPACK%
           </select>
+        </div>
+
+        <div class="if-proone">
+          <label for='prooneisooff'>Suspend battery isolation monitor (only with an external IMD): </label>
+          <input type='checkbox' name='PROONEISOOFF' id='prooneisooff' value='on' %PROONEISOOFF% />
         </div>
 
         <div class="if-estimated">

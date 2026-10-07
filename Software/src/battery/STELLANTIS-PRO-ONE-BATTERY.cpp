@@ -52,6 +52,19 @@ void StellantisProOneBattery::
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
 
+  //Isolation from UDS 0xA016: the system figure while the contactors are closed, the battery side while open.
+  //Not published while the monitor is suspended, as the BMS then stops measuring and the values go stale.
+  uint16_t isolation_now_kOhm = (contactor_status == CONTACTORS_ON) ? isolation_kOhm[2] : isolation_kOhm[5];
+  if (!user_selected_proone_suspend_isolation && isolation_now_kOhm != ISO_INVALID) {
+    datalayer.battery.status.insulation_resistance_kOhm = isolation_now_kOhm;
+    datalayer.battery.status.insulation_resistance_available = true;
+    if (isolation_now_kOhm < ISO_FAULT_KOHM) {
+      set_event(EVENT_BATTERY_ISOLATION, isolation_now_kOhm);
+    } else {
+      clear_event(EVENT_BATTERY_ISOLATION);
+    }
+  }
+
   if (temperaturesSampledOnce) {
     int8_t min_temp = celltemperatures[0];
     int8_t max_temp = celltemperatures[0];
@@ -113,6 +126,29 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>281_3: " << unknown_281_2 << "</h4>"
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
+              "<h4>Isolation monitor: " << (user_selected_proone_suspend_isolation ? "suspended" : "active") << "</h4>";
+  static const char* const iso_names[6] = {"R+ system", "R- system", "Riso system",
+                                           "R+ battery side", "R- battery side", "Riso battery side"};
+  for (int i = 0; i < 6; i++) {
+    content << "<h4>" << iso_names[i] << ": ";
+    if (isolation_kOhm[i] == ISO_INVALID) {
+      content << "no result yet</h4>";
+    } else {
+      content << isolation_kOhm[i] << " kOhm";
+      if (isolation_kOhm[i] < ISO_FAULT_KOHM) {
+        content << " (FAULT, below 240)";
+      }
+      content << "</h4>";
+    }
+  }
+  //0xA017 switch states: 1 resistor connected, 2 self-test OK, 3 fault
+  content << "<h4>Isolation self-test: window B state " << isolation_selftest[0]
+          << ", " << ((isolation_selftest[1] << 8) | isolation_selftest[2])
+          << "/" << ((isolation_selftest[3] << 8) | isolation_selftest[4]) << " kOhm"
+          << "; window A state " << isolation_selftest[5]
+          << ", R+ " << ((isolation_selftest[6] << 8) | isolation_selftest[7])
+          << " R- " << ((isolation_selftest[8] << 8) | isolation_selftest[9]) << " kOhm"
+          << " (1 connected, 2 OK, 3 fault)</h4>"
               "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
@@ -306,7 +342,17 @@ uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const
       break;
     case PID_UNKNOWN_17:
       break;
-    case PID_UNKNOWN_18:
+    case PID_ISOLATION:  //Six u16 BE in kOhm, see isolation_kOhm
+      if (length >= 12) {
+        for (int i = 0; i < 6; i++) {
+          isolation_kOhm[i] = (uint16_t)(data[i * 2] << 8) | data[i * 2 + 1];
+        }
+      }
+      break;
+    case PID_ISOLATION_SELFTEST:
+      if (length >= 10) {
+        memcpy(isolation_selftest, data, 10);
+      }
       break;
     case PID_UNKNOWN_19:
       break;
@@ -620,7 +666,12 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ONE_108);
     //transmit_can_frame(&ONE_0F2);
     //transmit_can_frame(&ONE_0F0);
-    //transmit_can_frame(&ONE_0B4);
+    if (user_selected_proone_suspend_isolation) {
+      //Counter in byte 5 high nibble, CRC over bytes 0-5 in byte 6
+      ONE_0B4.data.u8[5] = (counter_10ms << 4) | 0x01;
+      ONE_0B4.data.u8[6] = CalculateCRC8SAEJ1850(ONE_0B4, 6);
+      transmit_can_frame(&ONE_0B4);
+    }
 
     ONE_175.data.u8[3] = 0x2E;
   }
@@ -715,7 +766,8 @@ void StellantisProOneBattery::setup(void) {  // Performs one time setup at start
       PID_UNKNOWN_15,
       PID_UNKNOWN_16,
       PID_UNKNOWN_17,
-      PID_UNKNOWN_18,
+      PID_ISOLATION,
+      PID_ISOLATION_SELFTEST,
       PID_UNKNOWN_19,
       PID_UNKNOWN_20,
       PID_UNKNOWN_21,
