@@ -34,6 +34,7 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
 
   static constexpr uint16_t REG_TIMEZONE = 0x4001;
   static constexpr uint16_t REG_YEAR = 0x4002;
+  static constexpr uint16_t REG_MONTH = 0x4003;
   static constexpr uint16_t REG_DAY = 0x4004;
   static constexpr uint16_t REG_HOUR = 0x4005;
   static constexpr uint16_t REG_MINUTE = 0x4006;
@@ -43,28 +44,45 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
   static constexpr uint16_t REG_DISCHARGE_CUTOFF_SOC = 0x4012;
   static constexpr uint16_t REG_CONTROL_MODE = 0x4013;
 
-  static constexpr uint16_t REG_START_MODE = 0x4033;
-
   static constexpr uint16_t REG_VBUS_UPPER = 0x4050;
   static constexpr uint16_t REG_VBUS_LOWER = 0x4051;
-  static constexpr uint16_t REG_PCS_MODEL = 0x4052;
+  static constexpr uint16_t REG_PCS_STATUS = 0x4052;
 
+// Input registers
   static constexpr uint16_t REG_EV_VOLTAGE = 0x3020;
   static constexpr uint16_t REG_EV_CURRENT = 0x3021;
   static constexpr uint16_t REG_POWER_FACTOR = 0x3023;
+  static constexpr uint16_t REG_MODULE_STATUS = 0x3024;
+  static constexpr uint16_t REG_MODULE_TEMPERATURE = 0x3025;
   static constexpr uint16_t REG_MAX_OUTPUT_VOLTAGE = 0x3026;
   static constexpr uint16_t REG_MAX_OUTPUT_CURRENT = 0x3027;
   static constexpr uint16_t REG_RATED_POWER = 0x3028;
 
   static constexpr uint16_t REG_DC_VOLTAGE = 0x302F;
-  static constexpr uint16_t REG_DC_CURRENT = 0x3030;
-  static constexpr uint16_t REG_DC_DERATING = 0x3031;
 
   static constexpr uint16_t REG_CHARGE_MODE = 0x3040;
   static constexpr uint16_t REG_CHARGE_VOLTAGE = 0x3041;
   static constexpr uint16_t REG_CHARGE_CURRENT = 0x3042;
   static constexpr uint16_t REG_ACTIVE_POWER = 0x3043;
   static constexpr uint16_t REG_VEHICLE_SOC = 0x3044;
+
+  static constexpr uint16_t REG_CHARGE_PROTOCOL = 0x3050;
+  static constexpr uint16_t REG_REMAINING_TIME = 0x3051;
+  static constexpr uint16_t REG_REQUIRED_VOLTAGE = 0x3052;
+  static constexpr uint16_t REG_CURRENT_DEMAND = 0x3053;
+  static constexpr uint16_t REG_MAX_ALLOWABLE_VOLTAGE = 0x3054;
+  static constexpr uint16_t REG_MAX_ALLOWABLE_CURRENT = 0x3055;
+  static constexpr uint16_t REG_MAX_CELL_TEMPERATURE = 0x3056;
+  static constexpr uint16_t REG_MIN_CELL_TEMPERATURE = 0x3057;
+  static constexpr uint16_t REG_MAX_CELL_VOLTAGE = 0x3058;
+  static constexpr uint16_t REG_MIN_CELL_VOLTAGE = 0x3059;
+  static constexpr uint16_t REG_DC_PLUS_TEMPERATURE = 0x305A;
+  static constexpr uint16_t REG_DC_MINUS_TEMPERATURE = 0x305B;
+
+  static constexpr uint16_t REG_PM_STATUS = 0x3070;
+  static constexpr uint16_t REG_FAULT_STATUS_1 = 0x3071;
+  static constexpr uint16_t REG_FAULT_STATUS_2 = 0x3073;
+  static constexpr uint16_t REG_FAULT_STATUS_3 = 0x3075;
 
   static constexpr uint32_t BAUDRATE = 9600;
 
