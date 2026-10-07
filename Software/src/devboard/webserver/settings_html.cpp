@@ -1154,6 +1154,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "QNHAUTOCAL") {
     return settings.getBool("QNHAUTOCAL", true) ? "checked" : "";
   }
+
+  if (var == "QNHTC") {
+    return String(settings.getInt("QNHTC", 0) / 1000.0f, 1);  // Stored in uV/°C, shown in mV/°C
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   if (var == "DALYPWRPCT") {
@@ -1373,6 +1377,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <label>Automatic calibration: </label>
           <input type='checkbox' name='QNHAUTOCAL' value='on' %QNHAUTOCAL% />
 
+          <div class="if-qnhauto">
+          <label>Zero point drift (mV/°C): </label>
+          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.1' />
+          </div>
+
           <div class="if-qnhmanual">
           <label>Manual calibration: </label>
           <span class='settings-value' data-h=qnhzero><span id='qnhzero'>%QNHZERO%</span>
@@ -1386,6 +1395,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form[data-shunttype="4"] .if-qnhck { display: contents; }
     form .if-qnhmanual { display: none; }
     form[data-qnhautocal="false"] .if-qnhmanual { display: contents; }
+    form .if-qnhauto { display: contents; }
+    form[data-qnhautocal="false"] .if-qnhauto { display: none; }
     )rawliteral"
 #define QNHCK_SETTINGS_SCRIPT \
   R"rawliteral(
