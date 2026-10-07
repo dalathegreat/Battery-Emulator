@@ -10,6 +10,7 @@
 volatile uint16_t uugp_power_limit_W = 10000;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
 volatile bool uugp_allow_discharge_to_home_grid = false;
+volatile uint8_t uugp_start_mode = 1;
 
 UUGPCharger::UUGPCharger() : Charger(ChargerType::UUGP) {
   register_transmitter(this);
