@@ -30,8 +30,8 @@ void StellantisProOneBattery::
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
-    datalayer.battery.status.max_discharge_power_W = (discharge_power * (pack_voltage / 10));
-    datalayer.battery.status.max_charge_power_W = (charge_power * (pack_voltage / 10));
+    datalayer.battery.status.max_discharge_power_W = ((discharge_power / 10) * (pack_voltage / 10));
+    datalayer.battery.status.max_charge_power_W = ((charge_power / 10) * (pack_voltage / 10));
   }
 
   if (pack_capacity_ah_tenths > 0) {
