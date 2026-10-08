@@ -21,6 +21,9 @@ class StellantisProOneBattery : public UdsCanBattery {
 
   //BPCM codes from the 2024 ProMaster EV service documentation.
   const char* get_dtc_json_filename() override { return "stellantis_pro_one_dtc.json"; }
+  //All codes, also those whose test has not completed this cycle (status 0x50): shows whether the isolation
+  //monitor ran at all while 0xA017 stays frozen.
+  uint8_t get_dtc_status_mask() override { return 0xFF; }
 
   String get_uds_info_html() override;
 
@@ -98,6 +101,8 @@ class StellantisProOneBattery : public UdsCanBattery {
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
+  unsigned long previousMillisDtc = 0;   // will store last time the DTCs were read
+  static const unsigned long INTERVAL_DTC_MS = 15000;
   uint8_t expectedCRC = 0;
   uint8_t counter_10ms = 0;        //Counter for the 10ms CAN message, goes from 0-0xF and starts over
   uint8_t counter_20ms = 0;        //Counter for the 20ms CAN message, goes from 0-0xF and starts over

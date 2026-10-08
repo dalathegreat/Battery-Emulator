@@ -727,6 +727,13 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ONE_3D2);
   }
 
+  //Read the DTCs every 15s, so CAN logs have the DTC status next to the 0xA017 isolation values
+  //(a frozen 0xA017 was only explained by a manual readout showing P0AA6 latched)
+  if (currentMillis - previousMillisDtc >= INTERVAL_DTC_MS) {
+    previousMillisDtc = currentMillis;
+    read_DTC();
+  }
+
   // UDS PID polling and DTC handling
   transmit_uds_can(currentMillis);
 }
