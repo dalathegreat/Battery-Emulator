@@ -288,22 +288,28 @@ void IRAM_ATTR __attribute__((noinline)) AsyncSpiBus::readChunk(uint8_t* rx, siz
 void IRAM_ATTR ASYNC_SPI_BUS_HOT AsyncSpiBus::run() {
   for (;;) {
     if (_cur && _cur->step(_cur)) {
-      return;  // Transaction started: continues in isr()
+      // A transaction is active and we've stepped it, the rest happens in the ISR.
+      return;
     }
-    // Run over (or none going): next device wanting one, round robin
+    // Find the next device wanting a go
     AsyncSpiDevice* next = nullptr;
     portENTER_CRITICAL_SAFE(&_mux);
     for (int k = 1; k <= ASYNC_SPI_BUS_MAX_DEVICES && !_holds && !next; k++) {
       uint8_t i = (_last + k) % ASYNC_SPI_BUS_MAX_DEVICES;
       if (_devs[i] && _devs[i]->pending) {
+        // Found one
         next = _devs[i];
         next->pending = false;
         _last = i;
       }
     }
+    // It is crucial that we update busy and _cur whilst still inside the
+    // critical section. Otherwise the _cur write could conflict with one from
+    // an interrupt and get overwritten with nullptr, and run() never gets
+    // called again, and _busy never gets cleared.
     _busy = next != nullptr;
-    portEXIT_CRITICAL_SAFE(&_mux);
     _cur = next;
+    portEXIT_CRITICAL_SAFE(&_mux);
     if (!next) {
       return;
     }
