@@ -1909,7 +1909,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
         <label>SSID: </label>
         <input type='text' name='SSID' value="%SSID%" 
-        pattern="[ -~]{1,63}"/>
+        pattern="[ -~]{1,32}"/>
 
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" autocomplete="new-password"
         pattern="[ -~]{8,63}" placeholder='Leave blank to keep unchanged' />
