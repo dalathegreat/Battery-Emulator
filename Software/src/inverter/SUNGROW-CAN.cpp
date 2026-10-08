@@ -733,7 +733,7 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     }
   }
 
-    // ---- 10s and 60s groups ----
+  // ---- 10s and 60s groups ----
   // Only sent in the idle gap between 1s cycles, 20 ms clear of the last batch, and never
   // together. Sending them independently could land a 9-24 frame burst on the same tick as
   // a 19-frame batch and overflow the native CAN TX queue (EVENT_CAN_NATIVE_BUFFER_FULL).
