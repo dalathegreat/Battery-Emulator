@@ -1170,7 +1170,7 @@ void init_webserver() {
         "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
         [](String value) {
           float val = value.toFloat();
-          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery_settings.max_user_set_charge_dA) &&
+          return (val <= CHARGER_MAX_A) && (val * 10.0f <= datalayer.battery_settings.max_user_set_charge_dA) &&
                  (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
         });
 
