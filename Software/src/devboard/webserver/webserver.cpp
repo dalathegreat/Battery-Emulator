@@ -1106,9 +1106,22 @@ void init_webserver() {
   });
 #endif  // SMALL_FLASH_DEVICE
 
-  // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab.
-  // Runtime values like before, so nothing is stored.
+  // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab, and
+  // its SOH low event checkbox. Runtime values like before, so nothing is stored.
   def_route_with_auth("/updateFakeBattery", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    // The SOH low event checkbox under battery 1's SOH. One flag for the installation, like the event
+    const AsyncWebParameter* soh_low_off = request->getParam("SOHLowOff");
+    if (soh_low_off) {
+      if (user_selected_battery_type != BatteryType::TestFake) {
+        request->send(400, "text/plain", "Fake battery only");
+        return;
+      }
+      const bool disabled = soh_low_off->value().toInt() != 0;
+      datalayer.battery_settings.user_disables_soh_low_event = disabled;
+      logging.printf("Fake battery: SOH low event %s\n", disabled ? "disabled until reboot" : "enabled");
+      request->send(200, "text/plain", "Updated successfully");
+      return;
+    }
     Battery* const packs[] = {battery, battery2, battery3};
     const long index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
     Battery* const batt = (index >= 1 && index <= 3) ? packs[index - 1] : nullptr;

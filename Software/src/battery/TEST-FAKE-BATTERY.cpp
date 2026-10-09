@@ -99,6 +99,11 @@ static const char fake_battery_edit_script[] =
     "else{alert(x.responseText);}};x.open('GET','/updateFakeBattery?battery='+b+'&'+n+'='+v,true);x.send();}"
     "else{alert('Invalid value. Please enter a value between 0 and '+max);}}}</script>";
 
+// Opening of the SOH low event checkbox under battery 1's SOH, completed with " checked" and "></label></h4>"
+static const char fake_battery_soh_low_checkbox[] =
+    "<h4><label>Disable SOH low event until reboot: <input type='checkbox' onchange=\"fetch('/updateFakeBattery?"
+    "SOHLowOff='+(this.checked?1:0)).then(r=>{if(!r.ok)throw 0}).catch(()=>location.reload())\"";
+
 // More Battery Info page, one per pack. The info panel is closed and the blue card, which edits this
 // pack's own voltage and SOH, opens as the next panel under it; the page closes the last panel itself.
 String TestFakeBattery::get_status_html() {
@@ -125,8 +130,16 @@ String TestFakeBattery::get_status_html() {
            (unsigned)battery_index, (unsigned)(datalayer_battery->status.soh_pptt / 100),
            (unsigned)(datalayer_battery->status.soh_pptt % 100), (unsigned)battery_index);
   CheckedHtml content;
-  content.reserve(strlen(html) + sizeof(fake_battery_edit_script));
+  content.reserve(strlen(html) + sizeof(fake_battery_soh_low_checkbox) + sizeof(fake_battery_edit_script));
   content += html;
+  // EVENT_SOH_LOW watches battery 1 only, so the checkbox is only offered under battery 1's SOH
+  if (battery_index == 1) {
+    content += fake_battery_soh_low_checkbox;
+    if (datalayer.battery_settings.user_disables_soh_low_event) {
+      content += " checked";
+    }
+    content += "></label></h4>";
+  }
   content += fake_battery_edit_script;
   return content.take();
 }

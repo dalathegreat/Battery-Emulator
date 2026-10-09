@@ -360,7 +360,10 @@ void update_machineryprotection(uint32_t currentMillis) {
     }
 
     // Battery is extremely degraded, not fit for secondlifestorage!
-    if (datalayer.battery.status.soh_pptt < 2500) {
+    // The fake battery can hold this off from its More Battery Info page; a real battery never can.
+    const bool soh_low_event_disabled =
+        datalayer.battery_settings.user_disables_soh_low_event && user_selected_battery_type == BatteryType::TestFake;
+    if (datalayer.battery.status.soh_pptt < 2500 && !soh_low_event_disabled) {
       set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
     } else {
       clear_event(EVENT_SOH_LOW);
