@@ -34,6 +34,7 @@ class RelionBattery : public CanBattery {
   uint16_t estimateSOCfromCellvoltage(uint16_t cellVoltage);
 
   bool* allows_contactor_closing;
+  bool contactors_commanded_closed = false;  // Last contactor command sent to the pack
 
   static const int MAX_PACK_VOLTAGE_DV = 584;  //58.4V recommended charge voltage. BMS protection steps in at 60.8V
   static const int MIN_PACK_VOLTAGE_DV = 440;  //44.0V Recommended LV disconnect. BMS protection steps in at 40.0V
