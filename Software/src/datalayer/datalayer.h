@@ -231,6 +231,10 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
    * Great caution must be taken while in this mode to avoid a battery fire, since we override any BMS value.
   */
   bool user_requests_forced_charging_recovery_mode = false;
+  /** Fake battery testing aid, ticked under its SOH on the More Battery Info page: holds EVENT_SOH_LOW
+   * off, so any SOH can be tried without faulting. Honoured only while the fake battery is selected.
+   * NOT persisted to memory */
+  bool user_disables_soh_low_event = false;
   /** User specified discharge/charge voltages in use. Set to true to use user specified values */
   /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
   bool user_set_voltage_limits_active = false;

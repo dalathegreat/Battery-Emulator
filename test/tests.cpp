@@ -35,7 +35,9 @@ class DataLayerResetListener : public ::testing::EmptyTestEventListener {
     delete inverter;
     inverter = nullptr;
 
-    // Selection globals must be owned by each test's own fixture.
+    // Selection globals must be owned by each test's own fixture. The battery type too: the
+    // aggregate and the safety layer treat a fake battery's SOH differently from a real one's.
+    user_selected_battery_type = BatteryType::None;
     user_selected_second_battery = false;
     user_selected_triple_battery = false;
 

@@ -99,28 +99,47 @@ static const char fake_battery_edit_script[] =
     "else{alert(x.responseText);}};x.open('GET','/updateFakeBattery?battery='+b+'&'+n+'='+v,true);x.send();}"
     "else{alert('Invalid value. Please enter a value between 0 and '+max);}}}</script>";
 
+// Opening of the SOH low event checkbox under battery 1's SOH, completed with " checked" and "></label></h4>"
+static const char fake_battery_soh_low_checkbox[] =
+    "<h4><label>Disable SOH low event until reboot: <input type='checkbox' onchange=\"fetch('/updateFakeBattery?"
+    "SOHLowOff='+(this.checked?1:0)).then(r=>{if(!r.ok)throw 0}).catch(()=>location.reload())\"";
+
 // More Battery Info page, one per pack. The info panel is closed and the blue card, which edits this
 // pack's own voltage and SOH, opens as the next panel under it; the page closes the last panel itself.
 String TestFakeBattery::get_status_html() {
-  char html[512];
+  char html[512];  // Worst case, every field at its widest, is 500 characters
   snprintf(html, sizeof(html),
            "<h4>Capacity: %lu Wh</h4>"
            "<h4>Number of cells: %u</h4>"
            "<h4>Balancing above SOC: %u%%</h4>"
+           "<h4>Max battery voltage: %u.%u V</h4>"
+           "<h4>Min battery voltage: %u.%u V</h4>"
            "<h4>Total charged: %ld Wh</h4>"
            "<h4>Total discharged: %ld Wh</h4>"
            "</div><div class='battery-panel' style='background:#2E37AD'>"
            "<h4><span>Voltage: %u.%u V </span> <button onclick=\"editFake(%u,'Voltage',5000)\">Edit</button></h4>"
            "<h4><span>SOH: %u.%02u%% </span> <button onclick=\"editFake(%u,'SOH',100)\">Edit</button></h4>",
            (unsigned long)datalayer_battery->info.total_capacity_Wh, (unsigned)datalayer_battery->info.number_of_cells,
-           (unsigned)(BALANCING_START_SOC_PPTT / 100), (long)datalayer_battery->status.total_charged_battery_Wh,
+           (unsigned)(BALANCING_START_SOC_PPTT / 100), (unsigned)(datalayer_battery->info.max_design_voltage_dV / 10),
+           (unsigned)(datalayer_battery->info.max_design_voltage_dV % 10),
+           (unsigned)(datalayer_battery->info.min_design_voltage_dV / 10),
+           (unsigned)(datalayer_battery->info.min_design_voltage_dV % 10),
+           (long)datalayer_battery->status.total_charged_battery_Wh,
            (long)datalayer_battery->status.total_discharged_battery_Wh,
            (unsigned)(datalayer_battery->status.voltage_dV / 10), (unsigned)(datalayer_battery->status.voltage_dV % 10),
            (unsigned)battery_index, (unsigned)(datalayer_battery->status.soh_pptt / 100),
            (unsigned)(datalayer_battery->status.soh_pptt % 100), (unsigned)battery_index);
   CheckedHtml content;
-  content.reserve(strlen(html) + sizeof(fake_battery_edit_script));
+  content.reserve(strlen(html) + sizeof(fake_battery_soh_low_checkbox) + sizeof(fake_battery_edit_script));
   content += html;
+  // EVENT_SOH_LOW watches battery 1 only, so the checkbox is only offered under battery 1's SOH
+  if (battery_index == 1) {
+    content += fake_battery_soh_low_checkbox;
+    if (datalayer.battery_settings.user_disables_soh_low_event) {
+      content += " checked";
+    }
+    content += "></label></h4>";
+  }
   content += fake_battery_edit_script;
   return content.take();
 }
@@ -144,7 +163,7 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer_battery->info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
   datalayer_battery->info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
