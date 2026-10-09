@@ -1180,6 +1180,125 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("DALYPWR0C", 800));
   }
 
+  // --- JK Active Balancer --- (stored percent x10 / amps x1000, shown as human values)
+  if (var == "JKCHGW") {
+    return String(settings.getUInt("JKCHGW", user_selected_jk_max_charge_W));
+  }
+  if (var == "JKDCHGW") {
+    return String(settings.getUInt("JKDCHGW", user_selected_jk_max_discharge_W));
+  }
+  if (var == "JKSOCMAX") {
+    return String(settings.getUInt("JKSOCMAX", user_selected_jk_soc_max_dpct) / 10.0f, 1);
+  }
+  if (var == "JKSOCMIN") {
+    return String(settings.getUInt("JKSOCMIN", user_selected_jk_soc_min_dpct) / 10.0f, 1);
+  }
+  if (var == "JKDEADBAND") {
+    return String(settings.getUInt("JKDEADBAND", user_selected_jk_deadband_mA) / 1000.0f, 2);
+  }
+  if (var == "JKRESTMS") {
+    return String(settings.getUInt("JKRESTMS", user_selected_jk_recal_rest_ms));
+  }
+  if (var == "JKRESTMA") {
+    return String(settings.getUInt("JKRESTMA", user_selected_jk_recal_rest_mA) / 1000.0f, 2);
+  }
+  if (var == "JKRCBOT") {
+    return String(settings.getUInt("JKRCBOT", user_selected_jk_recal_soc_bottom_dpct) / 10.0f, 1);
+  }
+  if (var == "JKRCTOP") {
+    return String(settings.getUInt("JKRCTOP", user_selected_jk_recal_soc_top_dpct) / 10.0f, 1);
+  }
+  if (var == "JKDRAMP") {
+    return String(settings.getUInt("JKDRAMP", user_selected_jk_dis_ramp_dpct) / 10.0f, 1);
+  }
+  if (var == "JKDRBOT") {
+    return String(settings.getUInt("JKDRBOT", user_selected_jk_dis_ramp_bottom_dpct) / 10.0f, 1);
+  }
+  if (var == "JKDMINW") {
+    return String(settings.getUInt("JKDMINW", user_selected_jk_dis_min_W));
+  }
+  if (var == "JKDCHYST") {
+    return String(settings.getUInt("JKDCHYST", user_selected_jk_dis_cutoff_hyst_dV) / 10.0f, 1);
+  }
+  if (var == "JKCRAMP") {
+    return String(settings.getUInt("JKCRAMP", user_selected_jk_chg_ramp_dpct) / 10.0f, 1);
+  }
+  if (var == "JKCMINW") {
+    return String(settings.getUInt("JKCMINW", user_selected_jk_chg_min_W));
+  }
+  if (var == "JKMAXBAL") {
+    return String(settings.getUInt("JKMAXBAL", user_selected_jk_max_balancers));
+  }
+  if (var == "JKREVCUR") {
+    return settings.getBool("JKREVCUR", user_selected_jk_reverse_current) ? "checked" : "";
+  }
+  if (var == "JKCABID" || var == "JKCABID2") {  // CAB500 variants and their frame IDs, battery 1 and 2
+    static const uint16_t ids[] = {0x3C1, 0x3C2, 0x3C3, 0x3C4, 0x3C5, 0x3C0};
+    static const char* names[] = {"CAB500-1 (0x3C1)", "CAB500-2 (0x3C2)", "CAB500-3 (0x3C3)",
+                                  "CAB500-4 (0x3C4)", "CAB500-5 (0x3C5)", "CAB500-9 (0x3C0)"};
+    uint32_t current = (var == "JKCABID") ? settings.getUInt("JKCABID", user_selected_jk_cab500_can_id)
+                                          : settings.getUInt("JKCABID2", user_selected_jk2_cab500_can_id);
+    String options;
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+      options += "<option value='" + String(ids[i]) + "'" + (current == ids[i] ? " selected" : "") + ">" + names[i] +
+                 "</option>";
+    }
+    return options;
+  }
+  if (var == "JKLFP") {
+    return settings.getBool("JKLFP", user_selected_jk_lfp) ? "checked" : "";
+  }
+  if (var == "JKCELLMAX") {
+    return String(settings.getUInt("JKCELLMAX", user_selected_jk_cell_max_mV));
+  }
+  if (var == "JKCELLMIN") {
+    return String(settings.getUInt("JKCELLMIN", user_selected_jk_cell_min_mV));
+  }
+  if (var == "JKCELLDEV") {
+    return String(settings.getUInt("JKCELLDEV", user_selected_jk_cell_dev_mV));
+  }
+  if (var == "JKPACKMAX") {
+    return String(settings.getUInt("JKPACKMAX", user_selected_jk_pack_max_mVpc));
+  }
+  if (var == "JKPACKMIN") {
+    return String(settings.getUInt("JKPACKMIN", user_selected_jk_pack_min_mVpc));
+  }
+  if (var == "JKVFON") {
+    return String(settings.getUInt("JKVFON", user_selected_jk_vfull_on_mV));
+  }
+  if (var == "JKVFOFF") {
+    return String(settings.getUInt("JKVFOFF", user_selected_jk_vfull_off_mV));
+  }
+  if (var == "JKVEMON") {
+    return String(settings.getUInt("JKVEMON", user_selected_jk_vempty_on_mV));
+  }
+  if (var == "JKVEMOFF") {
+    return String(settings.getUInt("JKVEMOFF", user_selected_jk_vempty_off_mV));
+  }
+  if (var == "JKCELLS") {
+    return String(settings.getUInt("JKCELLS", user_selected_jk_cells));
+  }
+  if (var == "JKCPB") {
+    return String(settings.getUInt("JKCPB", user_selected_jk_cells_per_balancer));
+  }
+  if (var == "JKLOWV") {
+    return settings.getBool("JKLOWV", user_selected_jk_low_voltage) ? "checked" : "";
+  }
+  if (var == "JKBRIDGE") {
+    return settings.getBool("JKBRIDGE", user_selected_jk_bridge) ? "checked" : "";
+  }
+  if (var == "JKFWVER") {
+    return String(settings.getUInt("JKFWVER", user_selected_jk_fw_version));
+  }
+  if (var == "JKFWMASK") {
+    return String(settings.getUInt("JKFWMASK", user_selected_jk_fw_mask));
+  }
+  if (var.startsWith("JKFWB")) {  // JKFWB1..JKFWB15: balancer n = bit (16 - n) of the mask
+    int n = var.substring(5).toInt();
+    uint32_t mask = settings.getUInt("JKFWMASK", user_selected_jk_fw_mask);
+    return (n >= 1 && n <= 15 && ((mask >> (16 - n)) & 0x01)) ? "checked" : "";
+  }
+
   if (var == "FOXESSTYPE") {
     return String(settings.getUInt("FOXESSTYPE", 0));
   }
@@ -1634,6 +1753,15 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
+    form .if-jk { display: none; } /* JK Active Balancer */
+    form[data-battery="60"] .if-jk {
+      display: contents;
+    }
+    form .if-jk2 { display: none; } /* JK second battery fields, only with Second battery ticked */
+    form[data-dblbtr="true"] .if-jk2 {
+      display: contents;
+    }
+
     form .if-tesla { display: none; }
     form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
       display: contents;
@@ -2043,6 +2171,146 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
           min="0" max="100000" step="1" />
         </div>
+
+        <div class="if-jk">
+          <p style='grid-column: span 2; color:#ccc; margin:4px 0;'>JK Active Balancer: settings take effect after a reboot. The chemistry box below
+          selects the SOC table and overrides the chemistry dropdown above. Set the target discharge voltage
+          (Battery settings on the main page) to your pack cut-off: discharge is 0 W below it.</p>
+
+          <label>Max charge power (W): </label>
+          <input type='number' name='JKCHGW' value="%JKCHGW%" min="1000" max="200000" step="1" />
+          <label>Max discharge power (W): </label>
+          <input type='number' name='JKDCHGW' value="%JKDCHGW%" min="1000" max="200000" step="1" />
+
+          <label>SOC max (&#37;): </label>
+          <input type='number' name='JKSOCMAX' value="%JKSOCMAX%" min="50" max="100" step="0.1" />
+          <label>SOC min (&#37;): </label>
+          <input type='number' name='JKSOCMIN' value="%JKSOCMIN%" min="0" max="50" step="0.1" />
+          <label>Current deadband (A): </label>
+          <input type='number' name='JKDEADBAND' value="%JKDEADBAND%" min="0" max="5" step="0.01" />
+          <label>Rest time before SOC recalibration (ms): </label>
+          <input type='number' name='JKRESTMS' value="%JKRESTMS%" min="1000" max="3600000" step="1" />
+          <label>Rest current threshold (A): </label>
+          <input type='number' name='JKRESTMA' value="%JKRESTMA%" min="0" max="5" step="0.01" />
+          <label>Recalibrate below SOC (&#37;): </label>
+          <input type='number' name='JKRCBOT' value="%JKRCBOT%" min="0" max="50" step="0.1" />
+          <label>Recalibrate above SOC (&#37;): </label>
+          <input type='number' name='JKRCTOP' value="%JKRCTOP%" min="50" max="100" step="0.1" />
+
+          <label>Discharge ramp width (&#37; SOC): </label>
+          <input type='number' name='JKDRAMP' value="%JKDRAMP%" min="0.5" max="20" step="0.1" />
+          <label>Discharge ramp bottom, 0 W at this SOC (&#37;): </label>
+          <input type='number' name='JKDRBOT' value="%JKDRBOT%" min="0" max="50" step="0.1" />
+          <label>Discharge ramp minimum power (W): </label>
+          <input type='number' name='JKDMINW' value="%JKDMINW%" min="0" max="200000" step="1" />
+          <label>Discharge cut-off hysteresis (V): </label>
+          <input type='number' name='JKDCHYST' value="%JKDCHYST%" min="0" max="50" step="0.1" />
+          <label>Charge ramp width below SOC max (&#37; SOC): </label>
+          <input type='number' name='JKCRAMP' value="%JKCRAMP%" min="0.5" max="20" step="0.1" />
+          <label>Charge ramp minimum power (W): </label>
+          <input type='number' name='JKCMINW' value="%JKCMINW%" min="0" max="200000" step="1" />
+
+          <label>Max balancers polled: </label>
+          <input type='number' name='JKMAXBAL' value="%JKMAXBAL%" min="1" max="15" step="1" />
+          <label for='JKREVCUR'>Reverse current sensor direction: </label>
+          <input type='checkbox' name='JKREVCUR' id='JKREVCUR' value='on' %JKREVCUR% />
+          <label for='JKCABID'>CAB500 variant (CAN frame ID): </label>
+          <select name='JKCABID' id='JKCABID'>
+          %JKCABID%
+          </select>
+          <div class="if-jk2">
+          <label for='JKCABID2'>Second battery CAB500 variant (CAN frame ID): </label>
+          <select name='JKCABID2' id='JKCABID2'>
+          %JKCABID2%
+          </select>
+          </div>
+          <label for='JKLFP'>LFP chemistry (unticked = NCM): </label>
+          <input type='checkbox' name='JKLFP' id='JKLFP' value='on' %JKLFP% />
+
+          <label>Max cell voltage (mV): </label>
+          <input type='number' name='JKCELLMAX' id='JKCELLMAX' value="%JKCELLMAX%" min="2000" max="4300" step="1" />
+          <label>Min cell voltage (mV): </label>
+          <input type='number' name='JKCELLMIN' id='JKCELLMIN' value="%JKCELLMIN%" min="2000" max="4300" step="1" />
+          <label>Max cell deviation (mV): </label>
+          <input type='number' name='JKCELLDEV' id='JKCELLDEV' value="%JKCELLDEV%" min="10" max="500" step="1" />
+          <label>Pack max voltage per cell (mV): </label>
+          <input type='number' name='JKPACKMAX' id='JKPACKMAX' value="%JKPACKMAX%" min="2000" max="4300" step="1" />
+          <label>Pack min voltage per cell (mV): </label>
+          <input type='number' name='JKPACKMIN' id='JKPACKMIN' value="%JKPACKMIN%" min="2000" max="4300" step="1" />
+          <label>SOC full: enter at cell (mV): </label>
+          <input type='number' name='JKVFON' id='JKVFON' value="%JKVFON%" min="2000" max="4300" step="1" />
+          <label>SOC full: re-arm below cell (mV): </label>
+          <input type='number' name='JKVFOFF' id='JKVFOFF' value="%JKVFOFF%" min="2000" max="4300" step="1" />
+          <label>SOC empty: enter at cell (mV): </label>
+          <input type='number' name='JKVEMON' id='JKVEMON' value="%JKVEMON%" min="2000" max="4300" step="1" />
+          <label>SOC empty: re-arm above cell (mV): </label>
+          <input type='number' name='JKVEMOFF' id='JKVEMOFF' value="%JKVEMOFF%" min="2000" max="4300" step="1" />
+          <p style='grid-column: span 2; color:#ccc; margin:4px 0;'>Order required: min cell &lt; empty on &lt; empty off &lt; full off &lt; full on &lt; max cell,
+          and pack min &lt; pack max. Otherwise the battery does not run (see More battery info).</p>
+
+          <label>Number of cells: </label>
+          <input type='number' name='JKCELLS' value="%JKCELLS%" min="1" max="192" step="1" />
+          <label>Cells per balancer: </label>
+          <input type='number' name='JKCPB' value="%JKCPB%" min="1" max="24" step="1" />
+          <label for='JKLOWV'>Low-voltage mode (parallel packs, one balancer each): </label>
+          <input type='checkbox' name='JKLOWV' id='JKLOWV' value='on' %JKLOWV% />
+          <label for='JKBRIDGE'>Bridge mode (balancers chained in series): </label>
+          <input type='checkbox' name='JKBRIDGE' id='JKBRIDGE' value='on' %JKBRIDGE% />
+          <label>Firmware version (1 = all V11.55, 2 = all V11.56, 3 = mixed, per balancer below): </label>
+          <input type='number' name='JKFWVER' value="%JKFWVER%" min="1" max="3" step="1" />
+          <input type='hidden' name='JKFWMASK' id='JKFWMASK' value="%JKFWMASK%" />
+            <label for='JKFWB1'>Balancer 1 is V11.55: </label>
+            <input type='checkbox' name='JKFWB1' id='JKFWB1' value='on' class='jkfwb' data-bit='15' %JKFWB1% />
+            <label for='JKFWB2'>Balancer 2 is V11.55: </label>
+            <input type='checkbox' name='JKFWB2' id='JKFWB2' value='on' class='jkfwb' data-bit='14' %JKFWB2% />
+            <label for='JKFWB3'>Balancer 3 is V11.55: </label>
+            <input type='checkbox' name='JKFWB3' id='JKFWB3' value='on' class='jkfwb' data-bit='13' %JKFWB3% />
+            <label for='JKFWB4'>Balancer 4 is V11.55: </label>
+            <input type='checkbox' name='JKFWB4' id='JKFWB4' value='on' class='jkfwb' data-bit='12' %JKFWB4% />
+            <label for='JKFWB5'>Balancer 5 is V11.55: </label>
+            <input type='checkbox' name='JKFWB5' id='JKFWB5' value='on' class='jkfwb' data-bit='11' %JKFWB5% />
+            <label for='JKFWB6'>Balancer 6 is V11.55: </label>
+            <input type='checkbox' name='JKFWB6' id='JKFWB6' value='on' class='jkfwb' data-bit='10' %JKFWB6% />
+            <label for='JKFWB7'>Balancer 7 is V11.55: </label>
+            <input type='checkbox' name='JKFWB7' id='JKFWB7' value='on' class='jkfwb' data-bit='9' %JKFWB7% />
+            <label for='JKFWB8'>Balancer 8 is V11.55: </label>
+            <input type='checkbox' name='JKFWB8' id='JKFWB8' value='on' class='jkfwb' data-bit='8' %JKFWB8% />
+            <label for='JKFWB9'>Balancer 9 is V11.55: </label>
+            <input type='checkbox' name='JKFWB9' id='JKFWB9' value='on' class='jkfwb' data-bit='7' %JKFWB9% />
+            <label for='JKFWB10'>Balancer 10 is V11.55: </label>
+            <input type='checkbox' name='JKFWB10' id='JKFWB10' value='on' class='jkfwb' data-bit='6' %JKFWB10% />
+            <label for='JKFWB11'>Balancer 11 is V11.55: </label>
+            <input type='checkbox' name='JKFWB11' id='JKFWB11' value='on' class='jkfwb' data-bit='5' %JKFWB11% />
+            <label for='JKFWB12'>Balancer 12 is V11.55: </label>
+            <input type='checkbox' name='JKFWB12' id='JKFWB12' value='on' class='jkfwb' data-bit='4' %JKFWB12% />
+            <label for='JKFWB13'>Balancer 13 is V11.55: </label>
+            <input type='checkbox' name='JKFWB13' id='JKFWB13' value='on' class='jkfwb' data-bit='3' %JKFWB13% />
+            <label for='JKFWB14'>Balancer 14 is V11.55: </label>
+            <input type='checkbox' name='JKFWB14' id='JKFWB14' value='on' class='jkfwb' data-bit='2' %JKFWB14% />
+            <label for='JKFWB15'>Balancer 15 is V11.55: </label>
+            <input type='checkbox' name='JKFWB15' id='JKFWB15' value='on' class='jkfwb' data-bit='1' %JKFWB15% />
+        </div>
+
+        <script> //JK: chemistry box fills the voltage defaults; firmware boxes build the JKFWMASK bit mask
+        (function() {
+          var lfp = document.getElementById('JKLFP');
+          var ids = ['JKCELLMAX','JKCELLMIN','JKCELLDEV','JKPACKMAX','JKPACKMIN','JKVFON','JKVFOFF','JKVEMON','JKVEMOFF'];
+          var ncm = [4220,2700,150,4190,2900,4130,4100,3350,3400];
+          var lfpv = [3650,2800,230,3510,3000,3420,3350,2900,3050];
+          if (lfp) { lfp.addEventListener('change', function() {
+            var v = lfp.checked ? lfpv : ncm;
+            ids.forEach(function(id, i) { var e = document.getElementById(id); if (e) { e.value = v[i]; } });
+          }); }
+          var boxes = document.querySelectorAll('.jkfwb');
+          function mask() {
+            var m = 0;
+            boxes.forEach(function(b) { if (b.checked) { m |= (1 << parseInt(b.dataset.bit)); } });
+            var h = document.getElementById('JKFWMASK'); if (h) { h.value = m; }
+          }
+          boxes.forEach(function(b) { b.addEventListener('change', mask); });
+          mask();
+        })();
+        </script>
 
         <div class="if-tesla">
           <label for='digitalhvil'>Digital HVIL (2024+): </label>

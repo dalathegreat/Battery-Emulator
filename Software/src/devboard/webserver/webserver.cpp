@@ -495,6 +495,7 @@ void init_webserver() {
 #ifndef SMALL_FLASH_DEVICE
       "CTINVERT",
 #endif  // SMALL_FLASH_DEVICE
+      "JKREVCUR",     "JKLFP",         "JKLOWV",     "JKBRIDGE",
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
@@ -507,7 +508,10 @@ void init_webserver() {
       "GTWMAPREG",     "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",     "GPIOOPT3",
       "INVSUNTYPE",    "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",    "DALYDVSTART",
       "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",   "FOXESSSUBTYPE",
-      "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH",
+      "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH", "JKCHGW",
+      "JKDCHGW",       "JKRESTMS",      "JKDMINW",       "JKCMINW",    "JKMAXBAL",    "JKCELLMAX",    "JKCELLMIN",
+      "JKCELLDEV",     "JKPACKMAX",     "JKPACKMIN",     "JKVFON",     "JKVFOFF",     "JKVEMON",      "JKVEMOFF",
+      "JKCELLS",       "JKCPB",         "JKFWVER",       "JKFWMASK",   "JKCABID",     "JKCABID2",
 #ifndef SMALL_FLASH_DEVICE
       "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
@@ -618,6 +622,13 @@ void init_webserver() {
           } else if (p->name() == "BATTPVMIN") {
             auto type = p->value().toFloat() * 10.0f;
             settings.saveUInt("BATTPVMIN", (int)type);
+            // --- JK Active Balancer --- percent fields stored x10, amp fields x1000
+          } else if (p->name() == "JKSOCMAX" || p->name() == "JKSOCMIN" || p->name() == "JKRCBOT" ||
+                     p->name() == "JKRCTOP" || p->name() == "JKDRAMP" || p->name() == "JKDRBOT" ||
+                     p->name() == "JKCRAMP" || p->name() == "JKDCHYST") {
+            settings.saveUInt(p->name().c_str(), (uint32_t)lroundf(p->value().toFloat() * 10.0f));
+          } else if (p->name() == "JKDEADBAND" || p->name() == "JKRESTMA") {
+            settings.saveUInt(p->name().c_str(), (uint32_t)lroundf(p->value().toFloat() * 1000.0f));
           } else if (p->name() == "charger") {
             auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
             settings.saveUInt("CHGTYPE", (int)type);
