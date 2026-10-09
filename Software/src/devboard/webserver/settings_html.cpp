@@ -308,6 +308,19 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return capability_css("if-dblcapable", battery_supports_double) +
            capability_css("if-tricapable", battery_supports_triple);
   }
+  if (var == "JKCABID" || var == "JKCABID2") {  // CAB500 variants and their frame IDs, battery 1 and 2
+    static const uint16_t ids[] = {0x3C1, 0x3C2, 0x3C3, 0x3C4, 0x3C5, 0x3C0};
+    static const char* names[] = {"CAB500-1 (0x3C1)", "CAB500-2 (0x3C2)", "CAB500-3 (0x3C3)",
+                                  "CAB500-4 (0x3C4)", "CAB500-5 (0x3C5)", "CAB500-9 (0x3C0)"};
+    uint32_t current = (var == "JKCABID") ? settings.getUInt("JKCABID", user_selected_jk_cab500_can_id)
+                                          : settings.getUInt("JKCABID2", user_selected_jk2_cab500_can_id);
+    String options;
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+      options += "<option value='" + String(ids[i]) + "'" + (current == ids[i] ? " selected" : "") + ">" + names[i] +
+                 "</option>";
+    }
+    return options;
+  }
   if (var == "BATTCHEM") {
     return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
                             name_for_chemistry);
@@ -1231,19 +1244,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
   if (var == "JKREVCUR") {
     return settings.getBool("JKREVCUR", user_selected_jk_reverse_current) ? "checked" : "";
-  }
-  if (var == "JKCABID" || var == "JKCABID2") {  // CAB500 variants and their frame IDs, battery 1 and 2
-    static const uint16_t ids[] = {0x3C1, 0x3C2, 0x3C3, 0x3C4, 0x3C5, 0x3C0};
-    static const char* names[] = {"CAB500-1 (0x3C1)", "CAB500-2 (0x3C2)", "CAB500-3 (0x3C3)",
-                                  "CAB500-4 (0x3C4)", "CAB500-5 (0x3C5)", "CAB500-9 (0x3C0)"};
-    uint32_t current = (var == "JKCABID") ? settings.getUInt("JKCABID", user_selected_jk_cab500_can_id)
-                                          : settings.getUInt("JKCABID2", user_selected_jk2_cab500_can_id);
-    String options;
-    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
-      options += "<option value='" + String(ids[i]) + "'" + (current == ids[i] ? " selected" : "") + ">" + names[i] +
-                 "</option>";
-    }
-    return options;
   }
   if (var == "JKLFP") {
     return settings.getBool("JKLFP", user_selected_jk_lfp) ? "checked" : "";
