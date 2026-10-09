@@ -50,7 +50,6 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j
 This code uses the following excellent libraries: 
 - [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
 - [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
-- [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
 - [ESP32Async/AsyncTCP](https://github.com/ESP32Async/AsyncTCP) LGPL-3.0 license
 - [ESP32Async/ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) LGPL-3.0 license
