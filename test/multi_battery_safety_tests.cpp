@@ -52,6 +52,7 @@ class MultiBatterySafetyTest : public ::testing::Test {
       pack->status.cell_max_voltage_mV = 3800;
       pack->status.cell_min_voltage_mV = 3750;
     }
+    datalayer.aggregate.real_soc = 5000;
     datalayer.aggregate.reported_soc = 5000;
 
     // The charge latches are statics inside safety.cpp: one healthy pass releases any that an
@@ -371,4 +372,66 @@ TEST_F(MultiBatterySafetyTest, PauseClearsADischargeLimitAlertOnPack3) {
   emulator_pause_request_ON = false;
 
   EXPECT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_INACTIVE);
+}
+
+// Battery full follows the SOC the inverter is sent, which a full pack 2 can bring to 100 % on its
+// own. The event is about the installation and names no pack, and charging stops for all of them.
+TEST_F(MultiBatterySafetyTest, FullInstallationNamesNoPack) {
+  datalayer.battery_settings.soc_scaling_active = false;
+  datalayer.battery.status.real_soc = 9950;
+  datalayer.battery2.status.real_soc = 10000;
+  datalayer.battery3.status.real_soc = 9950;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_ACTIVE);
+  const std::string message = get_event_message_string(EVENT_BATTERY_FULL).c_str();
+  EXPECT_EQ(message.find("(Battery"), std::string::npos) << message;
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 5000u);
+}
+
+TEST_F(MultiBatterySafetyTest, EmptyInstallationNamesNoPack) {
+  datalayer.battery_settings.soc_scaling_active = false;
+  datalayer.battery3.status.real_soc = 0;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY_EMPTY), EVENT_STATE_ACTIVE);
+  const std::string message = get_event_message_string(EVENT_BATTERY_EMPTY).c_str();
+  EXPECT_EQ(message.find("(Battery"), std::string::npos) << message;
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
+}
+
+// A BMS can report its pack full whatever the SOC reads, as the LEAF's does at 92-96 %. A pack on
+// the DC link reporting so raises the installation's event, one held out of the link does not, and
+// the event clears once no pack on the link reports it any more.
+TEST_F(MultiBatterySafetyTest, BmsReportedFullRaisesBatteryFullForPacksOnTheLink) {
+  datalayer.system.status.battery3_allowed_contactor_closing = false;
+  datalayer.battery3.status.bms_reports_full = true;
+  run_cycle();
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_INACTIVE);
+
+  datalayer.battery2.status.bms_reports_full = true;
+  run_cycle();
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+
+  datalayer.battery2.status.bms_reports_full = false;
+  run_cycle();
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
+}
+
+TEST_F(MultiBatterySafetyTest, BmsReportedEmptyRaisesBatteryEmpty) {
+  datalayer.battery2.status.bms_reports_empty = true;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY_EMPTY), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
 }

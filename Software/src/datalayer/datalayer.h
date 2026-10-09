@@ -165,6 +165,13 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    */
   bool soh_available = true;
 
+  /** The pack's own BMS reports it fully charged, whatever its SOC reads. Not available for all
+   * battery types. The safety layer raises the installation's EVENT_BATTERY_FULL from this as
+   * well as from the SOC the inverter is sent, while the pack is on the DC link */
+  bool bms_reports_full = false;
+  /** The pack's own BMS reports it completely discharged. See bms_reports_full */
+  bool bms_reports_empty = false;
+
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
    */

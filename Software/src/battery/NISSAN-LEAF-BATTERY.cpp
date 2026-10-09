@@ -226,23 +226,21 @@ void NissanLeafBattery::
   /*Extra safety functions below*/
   if (battery_GIDS < 10)  //700Wh left in battery!
   {                       //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
-    set_event(EVENT_BATTERY_EMPTY, 0, battery_index);
     datalayer_battery->status.real_soc = 0;
     datalayer_battery->status.max_discharge_power_W = 0;
   }
 
+  /* Battery full/empty are the installation's events, raised by the safety layer from these flags
+     and the SOC together, so the driver no longer sets or clears them itself */
+  datalayer_battery->status.bms_reports_full = battery_Full_CHARGE_flag;
+  datalayer_battery->status.bms_reports_empty = battery_Capacity_Empty;
+
   if (battery_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
-    set_event(EVENT_BATTERY_FULL, 0, battery_index);
     datalayer_battery->status.max_charge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_FULL, battery_index);
   }
 
   if (battery_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
-    set_event(EVENT_BATTERY_EMPTY, 0, battery_index);
     datalayer_battery->status.max_discharge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_EMPTY, battery_index);
   }
 
   if (battery_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable

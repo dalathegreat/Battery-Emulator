@@ -141,6 +141,19 @@ TEST_F(PerBatteryEventsTest, CanAliveEventsShareOneMessageAndKeepTheirLevels) {
   EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY3_MISSING), "WARNING");
 }
 
+/* Battery full and empty describe the installation: they name no pack however many are
+   configured, and cannot be raised for one. */
+TEST_F(PerBatteryEventsTest, FullAndEmptyNameNoPack) {
+  for (EVENTS_ENUM_TYPE event : {EVENT_BATTERY_FULL, EVENT_BATTERY_EMPTY}) {
+    const std::string msg = get_event_message_string(event).c_str();
+    EXPECT_FALSE(msg.empty()) << get_event_enum_string(event) << " has no message text";
+    EXPECT_EQ(msg.find("(Battery"), std::string::npos) << get_event_enum_string(event) << ": " << msg;
+
+    set_event(event, 0, 2);
+    EXPECT_EQ(state_of(event), EVENT_STATE_INACTIVE) << get_event_enum_string(event);
+  }
+}
+
 // An out of range pack number must not land on an unrelated event.
 TEST_F(PerBatteryEventsTest, InvalidPackNumberIsRejected) {
   set_event(EVENT_12V_LOW, 0, 0);

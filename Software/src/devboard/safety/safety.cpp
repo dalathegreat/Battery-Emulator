@@ -180,6 +180,23 @@ static void check_cell_deviation(const DATALAYER_BATTERY_TYPE& pack, uint8_t num
   }
 }
 
+/* Whether the BMS of a pack on the DC link reports the pack full, or empty, whatever its SOC reads.
+   A pack held out of the link cannot stop the installation, the same rule the aggregate applies to
+   SOC and limits. Pack 1 is always on it. */
+static void bms_reports_full_or_empty(bool& full, bool& empty) {
+  full = datalayer.battery.status.bms_reports_full;
+  empty = datalayer.battery.status.bms_reports_empty;
+  const DATALAYER_BATTERY_TYPE* joined[2] = {
+      (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) ? &datalayer.battery2 : nullptr,
+      (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) ? &datalayer.battery3 : nullptr};
+  for (const DATALAYER_BATTERY_TYPE* pack : joined) {
+    if (pack) {
+      full = full || pack->status.bms_reports_full;
+      empty = empty || pack->status.bms_reports_empty;
+    }
+  }
+}
+
 /* Only a pack's own integration can tell whether the SOC it reports is plausible, so every pack
    is asked, and the one that answers no is the one named in the event. */
 static void check_soc_plausibility(Battery* integration, const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
@@ -401,33 +418,41 @@ void update_machineryprotection(uint32_t currentMillis) {
       }
     }
 
+    /* Full and empty are about the installation and name no pack. They follow the SOC the inverter
+       is sent, which with a single battery is pack 1's own, and a BMS on the DC link reporting its
+       pack full or empty. Raised here only, so no pack can clear what another one raised. Pack 1's
+       limit caps what the inverter is allowed, so zeroing it stops the whole installation. */
+    bool bms_full = false;
+    bool bms_empty = false;
+    bms_reports_full_or_empty(bms_full, bms_empty);
+
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.aggregate.reported_soc == 10000 ||
-        datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
+    if (datalayer.aggregate.reported_soc == 10000 || datalayer.aggregate.real_soc == 10000 ||
+        bms_full)  //Either Scaled OR Real SOC% value is 100.00%, or the BMS says so
     {
       if (!battery_full_event_fired) {
-        set_event(EVENT_BATTERY_FULL, 0, 1);
+        set_event(EVENT_BATTERY_FULL, 0);
         battery_full_event_fired = true;
       }
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_FULL, 1);
+      clear_event(EVENT_BATTERY_FULL);
       battery_full_event_fired = false;
     }
 
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
     if (datalayer.system.status.system_status == ACTIVE) {
-      if (datalayer.aggregate.reported_soc == 0 ||
-          datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
+      if (datalayer.aggregate.reported_soc == 0 || datalayer.aggregate.real_soc == 0 ||
+          bms_empty) {  //Either Scaled OR Real SOC% value is 0.00%, or the BMS says so, time to stop
         if (!battery_empty_event_fired) {
-          set_event(EVENT_BATTERY_EMPTY, 0, 1);
+          set_event(EVENT_BATTERY_EMPTY, 0);
           battery_empty_event_fired = true;
         }
         datalayer.battery.status.max_discharge_power_W = 0;
       } else {
-        clear_event(EVENT_BATTERY_EMPTY, 1);
+        clear_event(EVENT_BATTERY_EMPTY);
         battery_empty_event_fired = false;
       }
     }
