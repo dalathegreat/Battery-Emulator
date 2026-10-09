@@ -1645,3 +1645,20 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldIgnoreASpikeWhileLearning) {
   battery->update_values();
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 25);
 }
+
+// A LEAF judges the plausibility of its SOC against its own pack voltage. Every instance used to
+// read pack 1's, so a second LEAF was judged on the first one's voltage.
+TEST(NissanLeafSocPlausibilityTests, ShouldJudgeASecondPackOnItsOwnVoltage) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  feed_state_of_charge(&pack2, 400);  // 40.0 %, too low for a pack sitting near its maximum voltage
+  datalayer.battery.info.max_design_voltage_dV = 4040;
+  datalayer.battery2.info.max_design_voltage_dV = 4040;
+
+  datalayer.battery.status.voltage_dV = 3600;
+  datalayer.battery2.status.voltage_dV = 4000;
+  EXPECT_FALSE(pack2.soc_plausible());
+
+  datalayer.battery.status.voltage_dV = 4000;
+  datalayer.battery2.status.voltage_dV = 3600;
+  EXPECT_TRUE(pack2.soc_plausible());
+}

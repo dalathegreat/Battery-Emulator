@@ -182,6 +182,14 @@ static void check_cell_deviation(const DATALAYER_BATTERY_TYPE& pack, uint8_t num
   }
 }
 
+/* Only a pack's own integration can tell whether the SOC it reports is plausible, so every pack
+   is asked, and the one that answers no is the one named in the event. */
+static void check_soc_plausibility(Battery* integration, const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  if (!integration->soc_plausible()) {
+    set_event(EVENT_SOC_PLAUSIBILITY_ERROR, pack.status.real_soc, number);
+  }
+}
+
 /* EVENT_SOH_DIFFERENCE is one event for the installation, so battery 2 and 3 are both compared
    with battery 1 before it is set or cleared. Compared pack by pack, a battery 3 within range
    cleared the warning battery 2 had just raised. 9900 is the power-on default, not a reading, so
@@ -367,10 +375,7 @@ void update_machineryprotection(uint32_t currentMillis) {
       clear_event(EVENT_SOH_LOW);
     }
 
-    if (battery && !battery->soc_plausible()) {
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
-    }
-
+    check_soc_plausibility(battery, datalayer.battery, 1);
     check_cell_deviation(datalayer.battery, 1);
 
     /* Check that the inverter respects the charge/discharge limits we hand it.
@@ -506,6 +511,7 @@ void update_machineryprotection(uint32_t currentMillis) {
     if (battery2_detected) {
       check_pack_voltage(datalayer.battery2, 2);
       check_cell_voltages(datalayer.battery2, 2);
+      check_soc_plausibility(battery2, datalayer.battery2, 2);
       check_cell_deviation(datalayer.battery2, 2);
     }
   }
@@ -528,6 +534,7 @@ void update_machineryprotection(uint32_t currentMillis) {
     if (battery3_detected) {
       check_pack_voltage(datalayer.battery3, 3);
       check_cell_voltages(datalayer.battery3, 3);
+      check_soc_plausibility(battery3, datalayer.battery3, 3);
       check_cell_deviation(datalayer.battery3, 3);
     }
   }

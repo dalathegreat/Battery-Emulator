@@ -18,6 +18,13 @@
 
 namespace {
 
+// A pack whose integration finds its own SOC implausible, as the LEAF's can
+class ImplausibleSocBattery : public TestFakeBattery {
+ public:
+  explicit ImplausibleSocBattery(DATALAYER_BATTERY_TYPE* pack) : TestFakeBattery(pack, CAN_Interface::CAN_NATIVE) {}
+  bool soc_plausible() override { return false; }
+};
+
 class MultiBatterySafetyTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -309,4 +316,19 @@ TEST_F(MultiBatterySafetyTest, UndecodedSohDoesNotRaiseTheLowSohError) {
   run_cycle();
 
   EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_INACTIVE);
+}
+
+// Every pack's integration is asked whether its SOC is plausible, and the pack that answers no is
+// the one named. Only pack 1 used to be asked.
+TEST_F(MultiBatterySafetyTest, ImplausibleSocOnPack3IsReportedForPack3) {
+  delete battery3;
+  battery3 = new ImplausibleSocBattery(&datalayer.battery3);
+  datalayer.battery3.status.real_soc = 4200;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR_BAT3), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_PLAUSIBILITY_ERROR_BAT3)->data, 4200);
+  EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR_BAT2), EVENT_STATE_INACTIVE);
 }
