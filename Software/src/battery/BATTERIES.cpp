@@ -32,6 +32,7 @@
 #include "HYUNDAI-IONIQ-28-BATTERY.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "JAGUAR-IPACE-BATTERY.h"
+#include "JK-ACTIVE-BALANCER.h"
 #include "KIA-64FD-BATTERY.h"
 #include "KIA-E-GMP-BATTERY.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
@@ -149,6 +150,8 @@ const char* name_for_battery_type(BatteryType type) {
       return EcmpBattery::Name;
     case BatteryType::StellantisProOne:
       return StellantisProOneBattery::Name;
+    case BatteryType::JkActiveBalancer:
+      return JKActiveBalancer::Name;
     case BatteryType::ImievCZeroIon:
       return ImievCZeroIonBattery::Name;
     case BatteryType::JaguarIpace:
@@ -309,6 +312,8 @@ Battery* create_battery(BatteryType type) {
       return new EcmpBattery();
     case BatteryType::StellantisProOne:
       return new StellantisProOneBattery();
+    case BatteryType::JkActiveBalancer:
+      return new JKActiveBalancer();
     case BatteryType::ImievCZeroIon:
       return new ImievCZeroIonBattery();
     case BatteryType::JaguarIpace:
@@ -407,6 +412,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::RenaultZoe1:
     case BatteryType::RenaultZoe2:
     case BatteryType::TestFake:
+    case BatteryType::JkActiveBalancer:
     case BatteryType::TeslaModel3Y:
     case BatteryType::TeslaModelSX:
       return true;
@@ -561,6 +567,12 @@ void setup_battery() {
         case BatteryType::TeslaModelSX:
           battery2 = new TeslaBattery(&datalayer.battery2, &datalayer_extended.tesla_2, can_config.battery_double);
           break;
+        // --- JK Active Balancer --- (double only: two CAB500 share CAN ID 0x3C2, one per interface)
+        case BatteryType::JkActiveBalancer:
+          battery2 = new JKActiveBalancer(&datalayer.battery2, &datalayer_extended.jk_active_balancer_2,
+                                          &datalayer.system.status.battery2_allowed_contactor_closing,
+                                          can_config.battery_double);
+          break;
         default:
           break;
       }
@@ -631,6 +643,43 @@ int user_selected_daly_power_per_dV = 50;
 int user_selected_daly_power_per_dV_start = 20;
 int user_selected_daly_power_per_degree_C = 60;
 int user_selected_daly_power_at_0_degree_C = 800;
+// --- JK Active Balancer ---
+/* User-selected JK Active Balancer settings (NCM). Layout defaults: 96S, 4 balancers x 24 cells, series, V11.56 */
+uint32_t user_selected_jk_max_charge_W = 20000;
+uint32_t user_selected_jk_max_discharge_W = 20000;
+uint16_t user_selected_jk_soc_max_dpct = 990;  // 99.0 %
+uint16_t user_selected_jk_soc_min_dpct = 10;   // 1.0 %
+uint16_t user_selected_jk_deadband_mA = 100;   // CAB500: |offset| <= 0.2 A (3 sigma) + margin
+uint32_t user_selected_jk_recal_rest_ms = 10000;
+uint16_t user_selected_jk_recal_rest_mA = 100;
+uint16_t user_selected_jk_recal_soc_bottom_dpct = 100;  // 10.0 %
+uint16_t user_selected_jk_recal_soc_top_dpct = 950;     // 95.0 %
+uint16_t user_selected_jk_dis_ramp_dpct = 30;           // 3.0 %
+uint16_t user_selected_jk_dis_ramp_bottom_dpct = 70;    // 7.0 %, SOC where discharge power reaches zero
+uint32_t user_selected_jk_dis_min_W = 0;
+uint16_t user_selected_jk_dis_cutoff_hyst_dV = 30;  // 3.0 V above the discharge target before discharge resumes
+uint16_t user_selected_jk_chg_ramp_dpct = 50;       // 5.0 %
+uint32_t user_selected_jk_chg_min_W = 4000;
+uint8_t user_selected_jk_max_balancers = 8;
+bool user_selected_jk_reverse_current = false;
+uint16_t user_selected_jk_cab500_can_id = 0x3C2;   // CAB500 variant frame ID: 0x3C0..0x3C5
+uint16_t user_selected_jk2_cab500_can_id = 0x3C2;  // same for the second battery's sensor
+bool user_selected_jk_lfp = false;
+uint16_t user_selected_jk_cell_max_mV = 4220;
+uint16_t user_selected_jk_cell_min_mV = 2700;
+uint16_t user_selected_jk_cell_dev_mV = 150;
+uint16_t user_selected_jk_pack_max_mVpc = 4190;
+uint16_t user_selected_jk_pack_min_mVpc = 2900;
+uint16_t user_selected_jk_vfull_on_mV = 4130;
+uint16_t user_selected_jk_vfull_off_mV = 4100;
+uint16_t user_selected_jk_vempty_on_mV = 3350;
+uint16_t user_selected_jk_vempty_off_mV = 3400;
+uint8_t user_selected_jk_cells = 96;
+uint8_t user_selected_jk_cells_per_balancer = 24;
+bool user_selected_jk_low_voltage = false;
+bool user_selected_jk_bridge = false;
+uint8_t user_selected_jk_fw_version = 2;
+uint16_t user_selected_jk_fw_mask = 0xF000;
 /* User-selected EGMP+others settings */
 bool user_selected_use_estimated_SOC = false;
 bool user_selected_use_estimated_charge_limits = false;
