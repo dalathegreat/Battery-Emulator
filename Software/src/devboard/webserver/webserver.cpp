@@ -488,29 +488,31 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET",   "STATICIP",     "REMBMSRESET",
-      "EXTPRECHARGE", "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",
-      "HADISC",       "MQTTCELLV",    "GTWRHD",        "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",
-      "PYLONOFFSET",  "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",
-      "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
-      "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
-      "INVACCREB",    "LEAFAUTOOFS",
+      "DBLBTR",       "CNTCTRL",       "CNTCTRLDBL", "PWMCNTCTRL",   "PERBMSRESET",   "STATICIP",       "REMBMSRESET",
+      "EXTPRECHARGE", "USBENABLED",    "CANLOGUSB",  "WEBENABLED",   "WIFIAPENABLED", "MQTTENABLED",    "NOINVDISC",
+      "HADISC",       "MQTTCELLV",     "GTWRHD",     "DIGITALHVIL",  "PERFPROFILE",   "INTERLOCKREQ",   "SOCESTIMATED",
+      "PYLONOFFSET",  "PYLONORDER",    "DEYEBYD",    "NCCONTACTOR",  "TRIBTR",        "CNTCTRLTRI",     "ESPNOWENABLED",
+      "PRIMOGEN24",   "LOWPASSFILTER", "WEBAUTH",    "SLOWCANINV",   "CHGTAPERSOC",   "MEASURECPUTEMP", "SYSLOGEN",
+      "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID", "CHGESTIMATED", "MQTTHEAP",      "HADISCFWU",      "INVACCREB",
+      "LEAFAUTOOFS",
+#ifndef SMALL_FLASH_DEVICE
+      "CTINVERT",
+#endif  // SMALL_FLASH_DEVICE
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",    "MAXPRETIME",    "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",     "CHGPOWER",
-      "MQTTPORT",   "MQTTTIMEOUT",  "SOFAR_ID",      "PYLONSEND",     "INVCELLS",      "INVMODULES",    "INVCELLSPER",
-      "INVVLEVEL",  "INVCAPACITY",  "INVBTYPE",      "PRECHGMS",      "PWMFREQ",       "PWMHOLD",       "GTWCOUNTRY",
-      "GTWMAPREG",  "GTWCHASSIS",   "GTWPACK",       "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",      "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",     "CTVNOM",        "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
-      "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
-      "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
-      "SYSLOGFAC",  "PERBMSRESETH", "SLAVENODEID",
+      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME",    "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",    "CHGPOWER",
+      "MQTTPORT",      "MQTTTIMEOUT",   "SOFAR_ID",      "PYLONSEND",  "INVCELLS",    "INVMODULES",   "INVCELLSPER",
+      "INVVLEVEL",     "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",     "PWMHOLD",      "GTWCOUNTRY",
+      "GTWMAPREG",     "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",     "GPIOOPT3",
+      "INVSUNTYPE",    "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",    "DALYDVSTART",
+      "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",   "FOXESSSUBTYPE",
+      "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH", "SLAVENODEID",
 #ifndef SMALL_FLASH_DEVICE
-      "QNHIPN",     "QNHVO",
+      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
   };
 
@@ -651,12 +653,27 @@ void init_webserver() {
           } else if (p->name() == "SHUNTCOMM") {
             auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
             settings.saveUInt("SHUNTCOMM", (int)type);
+#ifndef SMALL_FLASH_DEVICE
           } else if (p->name() == "CTOFFSET") {
             // allow negative offsets so save as string
             settings.saveString("CTOFFSET", p->value().c_str());
           } else if (p->name() == "CTATTEN") {
             auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
             settings.saveUInt("CTATTEN", (int)type);
+          } else if (p->name() == "QNHTC") {
+            // Entered in mV/°C with one decimal and signed, stored in uV/°C. 0 is off, and removed.
+            int32_t tempco = lroundf(p->value().toFloat() * 10.0f) * 100;
+            if (tempco > QNHCK_MAX_TEMPCO_UV_PER_C) {
+              tempco = QNHCK_MAX_TEMPCO_UV_PER_C;
+            } else if (tempco < -QNHCK_MAX_TEMPCO_UV_PER_C) {
+              tempco = -QNHCK_MAX_TEMPCO_UV_PER_C;
+            }
+            if (tempco == 0) {
+              settings.removeKey("QNHTC");
+            } else {
+              settings.saveInt("QNHTC", tempco);
+            }
+#endif  // SMALL_FLASH_DEVICE
           } else if (p->name() == "CPUTEMPOFFSET") {
             // allow negative offsets so save as number
             settings.saveInt("CPUTEMPOFFSET", atoi(p->value().c_str()));
@@ -1156,7 +1173,7 @@ void init_webserver() {
         "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
         [](String value) {
           float val = value.toFloat();
-          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery_settings.max_user_set_charge_dA) &&
+          return (val <= CHARGER_MAX_A) && (val * 10.0f <= datalayer.battery_settings.max_user_set_charge_dA) &&
                  (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
         });
 
