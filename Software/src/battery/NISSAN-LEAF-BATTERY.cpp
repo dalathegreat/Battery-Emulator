@@ -154,7 +154,8 @@ void NissanLeafBattery::
       //healthy pack. Reporting more than 100% would also put a figure on the wire that several
       //inverter protocols have no room for.
       const uint32_t soh_pptt = (uint32_t)(((uint64_t)battery_capacity_Wh * 10000ull) / capacity_as_new_Wh);
-      datalayer_battery->status.soh_pptt = (uint16_t)((soh_pptt > 10000u) ? 10000u : soh_pptt);
+      battery_SOH_der_pptt = (uint16_t)((soh_pptt > 10000u) ? 10000u : soh_pptt);
+      datalayer_battery->status.soh_pptt = battery_SOH_der_pptt;
       datalayer_battery->status.soh_available = true;
     }
 
@@ -182,6 +183,16 @@ void NissanLeafBattery::
     }
     //Nothing measured to scale by, so the GID count is all there is to go on.
     datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
+  }
+
+  //With both figures settled, the lower one is what gets reported. Each can be flattering in a way
+  //the other is not: the LBC's own SOH goes back to 100% when the degradation data is erased, while
+  //the derived figure is only as good as the max GID count behind it and is capped at 100% on top,
+  //so a pack understating how many GIDs it held when new comes out looking healthy either way.
+  //Taking the pessimistic one means neither source can hide wear the other has already seen.
+  if (datalayer_battery->status.soh_available && (battery_SOH_avg_pptt != 0) &&
+      (battery_SOH_avg_pptt < datalayer_battery->status.soh_pptt)) {
+    datalayer_battery->status.soh_pptt = battery_SOH_avg_pptt;
   }
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
@@ -448,6 +459,7 @@ void NissanLeafBattery::
     datalayer_nissan->StatusSeen = battery_status_seen;
     datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
     datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
+    datalayer_nissan->battery_SOHder_pptt = battery_SOH_der_pptt;
     datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
     datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
     datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
