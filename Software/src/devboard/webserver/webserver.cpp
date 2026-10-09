@@ -18,7 +18,6 @@
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
-#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
@@ -1224,14 +1223,51 @@ void init_ElegantOTA() {
   ElegantOTA.onEnd(onOTAEnd);
 }
 
+static void append_json_string_contents(String& output, const char* value) {
+  static const char hex[] = "0123456789abcdef";
+  for (const unsigned char* p = reinterpret_cast<const unsigned char*>(value); *p != '\0'; ++p) {
+    switch (*p) {
+      case '"':
+        output += "\\\"";
+        break;
+      case '\\':
+        output += "\\\\";
+        break;
+      case '\b':
+        output += "\\b";
+        break;
+      case '\f':
+        output += "\\f";
+        break;
+      case '\n':
+        output += "\\n";
+        break;
+      case '\r':
+        output += "\\r";
+        break;
+      case '\t':
+        output += "\\t";
+        break;
+      default:
+        if (*p < 0x20) {
+          output += "\\u00";
+          output += hex[*p >> 4];
+          output += hex[*p & 0x0f];
+        } else {
+          output += static_cast<char>(*p);
+        }
+        break;
+    }
+  }
+}
+
 String get_firmware_info_processor(const String& var) {
   if (var == "X") {
-    String content = "";
-    static JsonDocument doc;
-
-    doc["hardware"] = esp32hal->name();
-    doc["firmware"] = String(version_number);
-    serializeJson(doc, content);
+    String content = "{\"hardware\":\"";
+    append_json_string_contents(content, esp32hal->name());
+    content += "\",\"firmware\":\"";
+    append_json_string_contents(content, version_number);
+    content += "\"}";
     return content;
   }
   return String();
