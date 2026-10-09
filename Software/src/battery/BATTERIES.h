@@ -57,4 +57,43 @@ extern int user_selected_daly_power_per_dV_start;
 extern int user_selected_daly_power_per_degree_C;
 extern int user_selected_daly_power_at_0_degree_C;
 
+// --- JK Active Balancer ---
+/* User-selected JK Active Balancer settings. Percent values are stored x10 (dpct),
+   currents x1000 (mA); the driver converts them back in setup(). */
+extern uint32_t user_selected_jk_max_charge_W;
+extern uint32_t user_selected_jk_max_discharge_W;
+extern uint16_t user_selected_jk_soc_max_dpct;
+extern uint16_t user_selected_jk_soc_min_dpct;
+extern uint16_t user_selected_jk_deadband_mA;
+extern uint32_t user_selected_jk_recal_rest_ms;
+extern uint16_t user_selected_jk_recal_rest_mA;
+extern uint16_t user_selected_jk_recal_soc_bottom_dpct;
+extern uint16_t user_selected_jk_recal_soc_top_dpct;
+extern uint16_t user_selected_jk_dis_ramp_dpct;
+extern uint16_t user_selected_jk_dis_ramp_bottom_dpct;
+extern uint32_t user_selected_jk_dis_min_W;
+extern uint16_t user_selected_jk_dis_cutoff_hyst_dV;
+extern uint16_t user_selected_jk_chg_ramp_dpct;
+extern uint32_t user_selected_jk_chg_min_W;
+extern uint8_t user_selected_jk_max_balancers;
+extern bool user_selected_jk_reverse_current;
+extern uint16_t user_selected_jk_cab500_can_id;
+extern uint16_t user_selected_jk2_cab500_can_id;
+extern bool user_selected_jk_lfp;
+extern uint16_t user_selected_jk_cell_max_mV;
+extern uint16_t user_selected_jk_cell_min_mV;
+extern uint16_t user_selected_jk_cell_dev_mV;
+extern uint16_t user_selected_jk_pack_max_mVpc;
+extern uint16_t user_selected_jk_pack_min_mVpc;
+extern uint16_t user_selected_jk_vfull_on_mV;
+extern uint16_t user_selected_jk_vfull_off_mV;
+extern uint16_t user_selected_jk_vempty_on_mV;
+extern uint16_t user_selected_jk_vempty_off_mV;
+extern uint8_t user_selected_jk_cells;
+extern uint8_t user_selected_jk_cells_per_balancer;
+extern bool user_selected_jk_low_voltage;
+extern bool user_selected_jk_bridge;
+extern uint8_t user_selected_jk_fw_version;
+extern uint16_t user_selected_jk_fw_mask;
+
 #endif

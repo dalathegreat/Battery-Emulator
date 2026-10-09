@@ -202,6 +202,17 @@ void init_events(void) {
   set_battery_event_level(EVENT_BATTERY_CHG_STOP_REQ, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_BATTERY_DISCHG_STOP_REQ, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, EVENT_LEVEL_ERROR);
+  // --- JK Active Balancer --- all latched by the driver until reboot
+  set_battery_event_level(EVENT_JK_CAB500_COMM_FAULT, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_CAB500_HW_ERROR, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_BALANCER_COMM_FAULT, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_CELL_COUNT_MISMATCH, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_WIRE_RESISTANCE, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_CONFIG_ERROR, EVENT_LEVEL_ERROR);
+  // Missed frames before the 10 s fault, cleared on their own when frames return
+  set_battery_event_level(EVENT_JK_CAB500_COMM_WARNING, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_JK_BALANCER_COMM_WARNING, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_JK_CELL_DEVIATION, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_OVERHEAT, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_BATTERY_OVERVOLTAGE, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_UNDERVOLTAGE, EVENT_LEVEL_WARNING);
@@ -493,6 +504,34 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
       return "Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
+    // --- JK Active Balancer ---
+    case EVENT_JK_CAB500_COMM_FAULT:
+      return "JK: CAB500 current sensor silent for 10 s. Latched until reboot. Check its supply, CAN wiring and that "
+             "it runs at 250 kbps";
+    case EVENT_JK_CAB500_HW_ERROR:
+      return "JK: CAB500 current sensor reports a hardware error. Latched until reboot. Data = error code: 0x41 "
+             "overcurrent, 0x42 reference voltage, 0x44 signal lost, 0x46 supply voltage";
+    case EVENT_JK_BALANCER_COMM_FAULT:
+      return "JK: balancer silent for 10 s. Latched until reboot. Check its supply and CAN wiring. Data = balancer "
+             "number";
+    case EVENT_JK_CELL_COUNT_MISMATCH:
+      return "JK: cell count mismatch, a cell tap is open or the cell layout settings are wrong. Latched until "
+             "reboot. Data = balancer number (0 = a cell voltage went missing)";
+    case EVENT_JK_WIRE_RESISTANCE:
+      return "JK: balancer reports a wire resistance alarm, check the balance leads. Latched until reboot. Data = "
+             "balancer number";
+    case EVENT_JK_CONFIG_ERROR:
+      return "JK: settings are inconsistent, battery not run. Fix them on the Settings page and reboot. Data = "
+             "reason code shown on More battery info";
+    case EVENT_JK_CAB500_COMM_WARNING:
+      return "JK: CAB500 current sensor missed frames for more than a second. Clears when frames return, becomes a "
+             "latched fault after 10 s";
+    case EVENT_JK_BALANCER_COMM_WARNING:
+      return "JK: a balancer did not answer a poll for more than a second. Clears when it answers, becomes a "
+             "latched fault after 10 s. Data = balancer number";
+    case EVENT_JK_CELL_DEVIATION:
+      return "JK: cell spread above the deviation setting, charge and discharge power are reduced linearly down to "
+             "50 W at setting + 50 mV. Clears when the spread shrinks. Data = deviation in mV";
     case EVENT_BATTERY_REQUESTS_HEAT:
       return "COLD BATTERY! Battery requesting heating pads to activate!";
     case EVENT_BATTERY_WARMED_UP:

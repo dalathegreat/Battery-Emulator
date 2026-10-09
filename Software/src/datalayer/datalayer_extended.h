@@ -911,6 +911,66 @@ struct DATALAYER_INFO_ZOE_PH2 {
   bool UserRequestNVROLReset;
 };
 
+// --- JK Active Balancer ---
+/** Array size for the per-balancer web data. Must be >= JKActiveBalancer::MAX_BALANCERS (checked there) */
+#define MAX_BALANCERS_WEB 15
+struct DATALAYER_INFO_JK_ACTIVE_BALANCER {
+  /** uint32_t */
+  /** Coulomb counter BMS cycle counter, persisted in NVS */
+  uint32_t BMS_Cycles;
+  /** Calculated battery capacity in Wh after cycle degradation */
+  uint32_t Calc_capacity_Wh;
+  /** Capacity the coulomb counter works with, in mAh: rated = Wh / pack max voltage, calc = rated after cycle degradation */
+  uint32_t rated_capacity_mAh;
+  uint32_t calc_capacity_mAh;
+
+  /** int */
+  /** Number of balancers derived from the cell layout settings */
+  int number_of_balancers;
+  /** 1 fault per second without CAB500 frames, same idea as fault_counters */
+  int ct_cab500_fault_counter;
+  int fault_counters[MAX_BALANCERS_WEB];
+
+  /** int16_t / uint16_t */
+  int16_t balancer_temperatures_dC[MAX_BALANCERS_WEB];
+  uint16_t max_balance_current_mA[MAX_BALANCERS_WEB];
+  uint16_t balance_current_mA[MAX_BALANCERS_WEB];
+  uint16_t balancer_max_delta_mV[MAX_BALANCERS_WEB];
+  /** Pack voltage per balancer in 10 mV: V11.56 from its status frame, V11.55 summed from its cells */
+  uint16_t balancer_total_voltage_10mV[MAX_BALANCERS_WEB];
+  /** CAB500 CAN speed reconfiguration: requested speed and the speed the sensor was found at, in kbps */
+  uint16_t ct_cab500_speed_target_kbps;
+  uint16_t ct_cab500_speed_found_kbps;
+  /** CAN frame ID of the CAB500 this pack listens to (0x3C0..0x3C5, from the settings) */
+  uint16_t ct_cab500_can_id;
+
+  /** uint8_t */
+  /** JKConfigError from setup(): 0 = OK, otherwise the layout settings are inconsistent and the battery is not run */
+  uint8_t config_error;
+  /** Raw CAB500 error byte captured when the hardware error latched
+   * (0x41 overcurrent, 0x42 ref voltage, 0x44 signal lost, 0x46 supply voltage) */
+  uint8_t ct_cab500_error_code;
+  /** Cells each balancer detects, and the count configured in it */
+  uint8_t balancer_identified_cells[MAX_BALANCERS_WEB];
+  uint8_t balancer_set_cells[MAX_BALANCERS_WEB];
+  /** JKCab500SpeedState: progress / result of the CAB500 CAN speed reconfiguration */
+  uint8_t ct_cab500_speed_state;
+
+  /** bool */
+  bool is_connected[MAX_BALANCERS_WEB];
+  bool balance_switch_status[MAX_BALANCERS_WEB];
+  bool charge_balancing_status[MAX_BALANCERS_WEB];
+  bool discharge_balancing_status[MAX_BALANCERS_WEB];
+  bool cell_count_mismatch_alarm[MAX_BALANCERS_WEB];
+  bool wire_resistance_alarm[MAX_BALANCERS_WEB];
+  /** true when no CAB500 frames for MAX_FAULT_COUNT seconds (after the 30 s boot grace) */
+  bool ct_cab500_comms_fault;
+  /** true when the CAB500 ERROR_INDICATION bit persisted > 10 s. Latched until reboot */
+  bool ct_cab500_hardware_error;
+  /** true once CAB500 frames were received and there is no comms fault */
+  bool ct_cab500_is_connected;
+};
+
 class DataLayerExtended {
  public:
   union {
@@ -940,6 +1000,11 @@ class DataLayerExtended {
     };
     DATALAYER_INFO_MEB meb;
     DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
+    // --- JK Active Balancer ---
+    struct {
+      DATALAYER_INFO_JK_ACTIVE_BALANCER jk_active_balancer;
+      DATALAYER_INFO_JK_ACTIVE_BALANCER jk_active_balancer_2;
+    };
   };
 
   // Entries with non-zero default values should go here.
