@@ -33,9 +33,12 @@ class MultiBatterySafetyTest : public ::testing::Test {
     battery = new TestFakeBattery();
     battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
     battery3 = new TestFakeBattery(&datalayer.battery3, CAN_Interface::CAN_NATIVE);
+    battery2->battery_index = 2;  // Numbered as setup_battery() does, so each reads its own current
+    battery3->battery_index = 3;
     datalayer.system.info.configured_batteries = 3;
     datalayer.system.info.CPU_free_heap = 200000;  // Keep the low-heap check quiet
-    emulator_pause_request_ON = false;             // A global other suites leave behind
+    emulator_pause_request_ON = false;             // Globals other suites leave behind
+    emulator_pause_status = NORMAL;
     // The detection latches are globals with no reset inside safety.cpp
     battery_detected = true;
     battery2_detected = true;
@@ -331,4 +334,41 @@ TEST_F(MultiBatterySafetyTest, ImplausibleSocOnPack3IsReportedForPack3) {
   EXPECT_EQ(get_event_pointer(EVENT_SOC_PLAUSIBILITY_ERROR_BAT3)->data, 4200);
   EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR), EVENT_STATE_INACTIVE);
   EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR_BAT2), EVENT_STATE_INACTIVE);
+}
+
+// The inverter is held to every pack's own limits, and the pack it overruns is the one named.
+// Only pack 1 used to be checked.
+TEST_F(MultiBatterySafetyTest, ChargeLimitOverrunOnPack2IsReportedForPack2) {
+  datalayer.battery2.status.current_dA = 200;  // 7400 W into pack 2 at 370.0 V, its limit is 5000 W
+
+  for (uint8_t pass = 0; pass <= MAX_CHARGE_DISCHARGE_LIMIT_FAILURES + 1; pass++) {
+    run_cycle();
+  }
+
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED_BAT2), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT2), EVENT_STATE_INACTIVE);
+
+  // Back within its limit, pack 2's alert clears
+  datalayer.battery2.status.current_dA = 0;
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED_BAT2), EVENT_STATE_INACTIVE);
+}
+
+// A pause clears every pack's alert on the way in, not only pack 1's
+TEST_F(MultiBatterySafetyTest, PauseClearsADischargeLimitAlertOnPack3) {
+  datalayer.battery3.status.current_dA = -200;  // 7400 W out of pack 3, its limit is 5000 W
+
+  for (uint8_t pass = 0; pass <= MAX_CHARGE_DISCHARGE_LIMIT_FAILURES + 1; pass++) {
+    run_cycle();
+  }
+  ASSERT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_ACTIVE);
+
+  emulator_pause_request_ON = true;
+  run_cycle();
+  emulator_pause_request_ON = false;
+
+  EXPECT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_INACTIVE);
 }

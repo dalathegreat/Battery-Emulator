@@ -8,8 +8,6 @@
 #include "../utils/events.h"
 #include "../utils/ota_confirm_gate.h"
 
-static uint8_t charge_limit_failures = 0;
-static uint8_t discharge_limit_failures = 0;
 static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
@@ -187,6 +185,73 @@ static void check_cell_deviation(const DATALAYER_BATTERY_TYPE& pack, uint8_t num
 static void check_soc_plausibility(Battery* integration, const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
   if (!integration->soc_plausible()) {
     set_event(EVENT_SOC_PLAUSIBILITY_ERROR, pack.status.real_soc, number);
+  }
+}
+
+/* Check that the inverter respects the charge/discharge limits a pack hands it. Every joined pack
+   carries its own share of the current and has limits of its own, so each pack is checked on its
+   own current, keeps its own failure counts and raises its own events.
+   Skipped entirely while a pause is requested or a fault is active: those zero the
+   limits instantly, but the inverter only reads the new values on its next
+   poll and then still needs time to ramp down, so comparing during that window
+   blames it for a limit it cannot have seen yet. Counters and events are reset on
+   the way in, so the pause never leaves a stale alert behind.
+   The limits are unsigned, so cast before comparing against the signed power. */
+static void check_limits_respected(Battery* integration, const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  static uint8_t charge_limit_failures[3] = {0, 0, 0};
+  static uint8_t discharge_limit_failures[3] = {0, 0, 0};
+  uint8_t& charge_failures = charge_limit_failures[number - 1];
+  uint8_t& discharge_failures = discharge_limit_failures[number - 1];
+
+  if (emulator_pause_request_ON || emulator_pause_status != NORMAL || datalayer.system.status.system_status == FAULT) {
+    charge_failures = 0;
+    discharge_failures = 0;
+    clear_event(EVENT_CHARGE_LIMIT_EXCEEDED, number);
+    clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, number);
+    return;
+  }
+
+  /* A driver that publishes a mean current would average short excursions away before
+     the comparison below ever sees them, so ask the pack for the extremes of its own
+     window instead. The default implementation returns that pack's published current,
+     which is what this check used before, so nothing changes for drivers that do not
+     override it. */
+  int16_t peak_charge_dA = 0;
+  int16_t peak_discharge_dA = 0;
+  integration->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
+#ifndef SMALL_FLASH_DEVICE
+  // A current sensor fitted in place of the battery's own measures what actually flows. It stands
+  // in for pack 1 only, when pack 1 is the whole installation. Its reading is a one second mean
+  // already, so it has no extremes of its own to hand over.
+  if (number == 1 && shunt_measures_battery1()) {
+    peak_charge_dA = peak_discharge_dA = shunt_current_dA();
+  }
+#endif  // SMALL_FLASH_DEVICE
+  const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, pack.status.voltage_dV);
+  const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, pack.status.voltage_dV);
+
+  // Inverter is charging with more power than the pack wants!
+  if (charge_power_W > (int32_t)(pack.status.max_charge_power_W + 2000)) {
+    if (charge_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
+      set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0, number);  // Alert when 2kW over requested max
+    } else {
+      charge_failures++;
+    }
+  } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
+    clear_event(EVENT_CHARGE_LIMIT_EXCEEDED, number);
+    charge_failures = 0;
+  }
+
+  // Inverter is pulling too much power from the pack!
+  if (-discharge_power_W > (int32_t)(pack.status.max_discharge_power_W + 2000)) {
+    if (discharge_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
+      set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0, number);  // Alert when 2kW over requested max
+    } else {
+      discharge_failures++;
+    }
+  } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
+    clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, number);
+    discharge_failures = 0;
   }
 }
 
@@ -377,65 +442,7 @@ void update_machineryprotection(uint32_t currentMillis) {
 
     check_soc_plausibility(battery, datalayer.battery, 1);
     check_cell_deviation(datalayer.battery, 1);
-
-    /* Check that the inverter respects the charge/discharge limits we hand it.
-       Skipped entirely while a pause is requested or a fault is active: those zero the
-       limits above instantly, but the inverter only reads the new values on its next
-       poll and then still needs time to ramp down, so comparing during that window
-       blames it for a limit it cannot have seen yet. Counters and events are reset on
-       the way in, so the pause never leaves a stale alert behind.
-       The limits are unsigned, so cast before comparing against the signed power. */
-    if (emulator_pause_request_ON || emulator_pause_status != NORMAL ||
-        datalayer.system.status.system_status == FAULT) {
-      charge_limit_failures = 0;
-      discharge_limit_failures = 0;
-      clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
-      clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
-    } else {
-      /* A driver that publishes a mean current would average short excursions away before
-         the comparison below ever sees them, so ask the pack for the extremes of its own
-         window instead. The default implementation returns that pack's published current,
-         which is what this check used before, so nothing changes for drivers that do not
-         override it. */
-      int16_t peak_charge_dA = 0;
-      int16_t peak_discharge_dA = 0;
-      if (battery) {
-        battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
-      }
-#ifndef SMALL_FLASH_DEVICE
-      // A current sensor fitted in place of the battery's own measures what actually flows. Its
-      // reading is a one second mean already, so it has no extremes of its own to hand over.
-      if (shunt_measures_battery1()) {
-        peak_charge_dA = peak_discharge_dA = shunt_current_dA();
-      }
-#endif  // SMALL_FLASH_DEVICE
-      const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, datalayer.battery.status.voltage_dV);
-      const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, datalayer.battery.status.voltage_dV);
-
-      // Inverter is charging with more power than battery wants!
-      if (charge_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
-        if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
-          set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
-        } else {
-          charge_limit_failures++;
-        }
-      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
-        clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
-        charge_limit_failures = 0;
-      }
-
-      // Inverter is pulling too much power from battery!
-      if (-discharge_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
-        if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
-          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
-        } else {
-          discharge_limit_failures++;
-        }
-      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
-        clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
-        discharge_limit_failures = 0;
-      }
-    }
+    check_limits_respected(battery, datalayer.battery, 1);
 
     // Check that the BMS has been seen and is still sending CAN messages.
     // If we go 60s without messages we raise an error
@@ -513,6 +520,7 @@ void update_machineryprotection(uint32_t currentMillis) {
       check_cell_voltages(datalayer.battery2, 2);
       check_soc_plausibility(battery2, datalayer.battery2, 2);
       check_cell_deviation(datalayer.battery2, 2);
+      check_limits_respected(battery2, datalayer.battery2, 2);
     }
   }
 
@@ -536,6 +544,7 @@ void update_machineryprotection(uint32_t currentMillis) {
       check_cell_voltages(datalayer.battery3, 3);
       check_soc_plausibility(battery3, datalayer.battery3, 3);
       check_cell_deviation(datalayer.battery3, 3);
+      check_limits_respected(battery3, datalayer.battery3, 3);
     }
   }
 

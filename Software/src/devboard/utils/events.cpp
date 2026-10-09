@@ -185,8 +185,8 @@ void init_events(void) {
   set_battery_event_level(EVENT_CONTACTOR_WELDED, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_CONTACTOR_OPEN, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_WATER_INGRESS, EVENT_LEVEL_ERROR);
-  events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_CHARGE_LIMIT_EXCEEDED, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_DISCHARGE_LIMIT_EXCEEDED, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_12V_LOW, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_SOC_PLAUSIBILITY_ERROR, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_SOC_UNAVAILABLE, EVENT_LEVEL_WARNING);
