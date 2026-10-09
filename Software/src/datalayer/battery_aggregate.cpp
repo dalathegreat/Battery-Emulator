@@ -85,6 +85,13 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack) {
   }
 }
 
+/* Whether a pack's state of health counts towards the installation's. Zero is what an integration
+   that has not decoded one yet reads, so it is skipped - except on the fake battery, whose SOH is
+   whatever the user set on its More Battery Info page, 0% included. */
+static bool pack_has_soh(const DATALAYER_BATTERY_TYPE& pack) {
+  return pack.status.soh_available && (pack.status.soh_pptt > 0 || user_selected_battery_type == BatteryType::TestFake);
+}
+
 /* Apply the SOC window to the installation. Same arithmetic scale_pack_values() uses, run once
    on the summed figures, so the reported SOC and the reported energy agree with each other. */
 static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
@@ -160,7 +167,7 @@ void update_aggregate_values() {
   /* Health only from packs that have actually decoded one. Pack 1's soh_pptt is the fallback
      when none has: it is a safe default and it still has to feed the inverter, but it is not a
      reading, so soh_available says so. */
-  bool soh_found = datalayer.battery.status.soh_available && datalayer.battery.status.soh_pptt > 0;
+  bool soh_found = pack_has_soh(datalayer.battery);
   uint16_t lowest_soh = soh_found ? datalayer.battery.status.soh_pptt : 0;
   agg.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   agg.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
@@ -206,7 +213,7 @@ void update_aggregate_values() {
       /* Health follows the weakest pack, like every other limit here. A pack that has not
          decoded one yet is skipped, rather than dragging the installation to its default or to
          zero. */
-      if (pack->status.soh_available && pack->status.soh_pptt > 0) {
+      if (pack_has_soh(*pack)) {
         lowest_soh = soh_found ? MIN(lowest_soh, pack->status.soh_pptt) : pack->status.soh_pptt;
         soh_found = true;
       }
