@@ -21,6 +21,7 @@ class UnreadVoltageTest : public ::testing::Test {
     datalayer.system.info.CPU_free_heap = 200000;  // Keep the low-heap check quiet
     emulator_pause_request_ON = false;             // A global other suites leave behind
     datalayer.battery.status.real_soc = 5000;
+    datalayer.aggregate.real_soc = 5000;
     datalayer.aggregate.reported_soc = 5000;
     datalayer.battery.status.max_discharge_power_W = 5000;
     datalayer.battery.status.max_charge_power_W = 5000;

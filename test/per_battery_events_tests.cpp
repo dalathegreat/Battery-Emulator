@@ -25,7 +25,9 @@ const EVENTS_ENUM_TYPE kDriverEventBases[] = {
     EVENT_INTERNAL_OPEN_FAULT,
     EVENT_STALE_VALUE,
     EVENT_SOC_UNAVAILABLE,
+    EVENT_SOC_PLAUSIBILITY_ERROR,
     EVENT_KWH_PLAUSIBILITY_ERROR,
+    EVENT_DISCHARGE_LIMIT_EXCEEDED,
     EVENT_PID_FAILED,
     EVENT_RJXZS_LOG,
     EVENT_BMS_RESET_REQ_SUCCESS,
@@ -137,6 +139,19 @@ TEST_F(PerBatteryEventsTest, CanAliveEventsShareOneMessageAndKeepTheirLevels) {
   EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY_MISSING), "ERROR");
   EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY2_MISSING), "WARNING");
   EXPECT_STREQ(get_event_level_string(EVENT_CAN_BATTERY3_MISSING), "WARNING");
+}
+
+/* Battery full and empty describe the installation: they name no pack however many are
+   configured, and cannot be raised for one. */
+TEST_F(PerBatteryEventsTest, FullAndEmptyNameNoPack) {
+  for (EVENTS_ENUM_TYPE event : {EVENT_BATTERY_FULL, EVENT_BATTERY_EMPTY}) {
+    const std::string msg = get_event_message_string(event).c_str();
+    EXPECT_FALSE(msg.empty()) << get_event_enum_string(event) << " has no message text";
+    EXPECT_EQ(msg.find("(Battery"), std::string::npos) << get_event_enum_string(event) << ": " << msg;
+
+    set_event(event, 0, 2);
+    EXPECT_EQ(state_of(event), EVENT_STATE_INACTIVE) << get_event_enum_string(event);
+  }
 }
 
 // An out of range pack number must not land on an unrelated event.

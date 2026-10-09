@@ -1645,3 +1645,50 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldIgnoreASpikeWhileLearning) {
   battery->update_values();
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 25);
 }
+
+// A LEAF judges the plausibility of its SOC against its own pack voltage. Every instance used to
+// read pack 1's, so a second LEAF was judged on the first one's voltage.
+TEST(NissanLeafSocPlausibilityTests, ShouldJudgeASecondPackOnItsOwnVoltage) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  feed_state_of_charge(&pack2, 400);  // 40.0 %, too low for a pack sitting near its maximum voltage
+  datalayer.battery.info.max_design_voltage_dV = 4040;
+  datalayer.battery2.info.max_design_voltage_dV = 4040;
+
+  datalayer.battery.status.voltage_dV = 3600;
+  datalayer.battery2.status.voltage_dV = 4000;
+  EXPECT_FALSE(pack2.soc_plausible());
+
+  datalayer.battery.status.voltage_dV = 4000;
+  datalayer.battery2.status.voltage_dV = 3600;
+  EXPECT_TRUE(pack2.soc_plausible());
+}
+
+// The LBC's own fully charged and empty flags reach the datalayer of the pack that reported them.
+// The safety layer raises the installation's battery full / empty events from there, so a LEAF
+// still shows them at the 92-96 % its BMS calls full.
+TEST(NissanLeafFullEmptyTests, ShouldReportItsBmsFlagsForItsOwnPack) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+
+  // 0x1DB at 360 V: main relay permitted, fully charged, interlock closed
+  CAN_frame status = leaf_frame(0x1DB, {0x00, 0x00, 0xB4, 0x38, 0x00, 0x00, 0x00, 0x00});
+  status.data.u8[7] = pack2.calculate_crc(status);
+  pack2.handle_incoming_can_frame(status);
+  pack2.update_values();
+
+  EXPECT_TRUE(datalayer.battery2.status.bms_reports_full);
+  EXPECT_FALSE(datalayer.battery2.status.bms_reports_empty);
+  EXPECT_FALSE(datalayer.battery.status.bms_reports_full);
+
+  // No longer full, and 0x55B at 5.0 % with the empty flag set
+  status = leaf_frame(0x1DB, {0x00, 0x00, 0xB4, 0x28, 0x00, 0x00, 0x00, 0x00});
+  status.data.u8[7] = pack2.calculate_crc(status);
+  pack2.handle_incoming_can_frame(status);
+  CAN_frame soc = leaf_frame(0x55B, {(uint8_t)(50 >> 2), (uint8_t)((50 & 0x03) << 6), 0x00, 0x00, 0x00, 0x00, 0x80});
+  soc.data.u8[7] = pack2.calculate_crc(soc);
+  pack2.handle_incoming_can_frame(soc);
+  pack2.update_values();
+
+  EXPECT_FALSE(datalayer.battery2.status.bms_reports_full);
+  EXPECT_TRUE(datalayer.battery2.status.bms_reports_empty);
+  EXPECT_FALSE(datalayer.battery.status.bms_reports_empty);
+}

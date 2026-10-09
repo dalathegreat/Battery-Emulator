@@ -185,17 +185,17 @@ void init_events(void) {
   set_battery_event_level(EVENT_CONTACTOR_WELDED, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_CONTACTOR_OPEN, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_WATER_INGRESS, EVENT_LEVEL_ERROR);
-  events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_CHARGE_LIMIT_EXCEEDED, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_DISCHARGE_LIMIT_EXCEEDED, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_12V_LOW, EVENT_LEVEL_WARNING);
-  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
+  set_battery_event_level(EVENT_SOC_PLAUSIBILITY_ERROR, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_SOC_UNAVAILABLE, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_STALE_VALUE, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_KWH_PLAUSIBILITY_ERROR, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_BALANCING_START, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_BALANCING_END, EVENT_LEVEL_INFO);
-  set_battery_event_level(EVENT_BATTERY_EMPTY, EVENT_LEVEL_INFO);
-  set_battery_event_level(EVENT_BATTERY_FULL, EVENT_LEVEL_INFO);
+  events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
   set_battery_event_level(EVENT_BATTERY_FUSE, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_FROZEN, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_BATTERY_CAUTION, EVENT_LEVEL_INFO);
@@ -304,7 +304,7 @@ void set_event(EVENTS_ENUM_TYPE event, int16_t data) {
    an entry inside the block fails the build here rather than silently misdirecting events at
    runtime. Checking the two ends plus one interior triplet is enough, because the block is
    generated as whole triplets and its length is checked too. */
-static_assert(EVENT_BATTERY2_EMPTY == EVENT_BATTERY_EMPTY + 1 && EVENT_BATTERY3_EMPTY == EVENT_BATTERY_EMPTY + 2,
+static_assert(EVENT_BATTERY2_FUSE == EVENT_BATTERY_FUSE + 1 && EVENT_BATTERY3_FUSE == EVENT_BATTERY_FUSE + 2,
               "Per-battery event variants must stay contiguous and in 1,2,3 order");
 static_assert(EVENT_BATTERY2_OVERHEAT == EVENT_BATTERY_OVERHEAT + 1 &&
                   EVENT_BATTERY3_OVERHEAT == EVENT_BATTERY_OVERHEAT + 2,
@@ -315,7 +315,7 @@ static_assert(EVENT_BATTERY2_TEMP_DEVIATION_HIGH == EVENT_BATTERY_TEMP_DEVIATION
 static_assert(EVENT_CELL_OVER_VOLTAGE_BAT2 == EVENT_CELL_OVER_VOLTAGE + 1 &&
                   EVENT_CELL_OVER_VOLTAGE_BAT3 == EVENT_CELL_OVER_VOLTAGE + 2,
               "Per-battery event variants must stay contiguous and in 1,2,3 order");
-static_assert((EVENT_CAN_BATTERY3_MISSING - EVENT_BATTERY_EMPTY + 1) % 3 == 0,
+static_assert((EVENT_CAN_BATTERY3_MISSING - EVENT_BATTERY_FUSE + 1) % 3 == 0,
               "The per-battery event block must consist of whole 1,2,3 triplets");
 static_assert(EVENT_BALANCING_START_BAT2 == EVENT_BALANCING_START + 1 &&
                   EVENT_BALANCING_START_BAT3 == EVENT_BALANCING_START + 2,
@@ -330,19 +330,19 @@ static_assert(EVENT_CAN_BATTERY2_MISSING == EVENT_CAN_BATTERY_MISSING + 1 &&
 /* Returns the pack a battery specific event belongs to (1/2/3), or 0 when the event is not
    battery specific. Derived from the enum, so it cannot disagree with the event that was set. */
 static uint8_t event_battery_number(EVENTS_ENUM_TYPE event) {
-  if (event < EVENT_BATTERY_EMPTY || event > EVENT_CAN_BATTERY3_MISSING) {
+  if (event < EVENT_BATTERY_FUSE || event > EVENT_CAN_BATTERY3_MISSING) {
     return 0;
   }
-  return static_cast<uint8_t>((event - EVENT_BATTERY_EMPTY) % 3 + 1);
+  return static_cast<uint8_t>((event - EVENT_BATTERY_FUSE) % 3 + 1);
 }
 
 /* Map any per-battery variant back to its pack 1 base, so callers that only care about what
    the event means (the message text) handle one case label per event instead of three. */
 static EVENTS_ENUM_TYPE battery_event_base(EVENTS_ENUM_TYPE event) {
-  if (event < EVENT_BATTERY_EMPTY || event > EVENT_CAN_BATTERY3_MISSING) {
+  if (event < EVENT_BATTERY_FUSE || event > EVENT_CAN_BATTERY3_MISSING) {
     return event;
   }
-  return static_cast<EVENTS_ENUM_TYPE>(event - (event - EVENT_BATTERY_EMPTY) % 3);
+  return static_cast<EVENTS_ENUM_TYPE>(event - (event - EVENT_BATTERY_FUSE) % 3);
 }
 
 /* Resolve the EVENT_BATTERY_* variant plus a pack number into the concrete event.
@@ -351,7 +351,7 @@ static EVENTS_ENUM_TYPE battery_event_base(EVENTS_ENUM_TYPE event) {
    returns EVENT_NOF_EVENTS, which callers report rather than acting on. */
 static EVENTS_ENUM_TYPE resolve_battery_event(EVENTS_ENUM_TYPE event, uint8_t battery) {
   const bool valid_base =
-      (event >= EVENT_BATTERY_EMPTY && event <= EVENT_CAN_BATTERY3_MISSING && (event - EVENT_BATTERY_EMPTY) % 3 == 0);
+      (event >= EVENT_BATTERY_FUSE && event <= EVENT_CAN_BATTERY3_MISSING && (event - EVENT_BATTERY_FUSE) % 3 == 0);
   if (!valid_base || battery < 1 || battery > 3) {
     DEBUG_PRINTF("Bad battery event %d for battery %u\n", (int)event, (unsigned)battery);
     return EVENT_NOF_EVENTS;

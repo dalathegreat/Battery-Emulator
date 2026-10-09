@@ -54,7 +54,7 @@ class NissanLeafBattery : public CanBattery {
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
-    return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
+    return !((datalayer_battery->status.voltage_dV > (datalayer_battery->info.max_design_voltage_dV - 100)) &&
              (battery_SOC < 650));
   }
 
