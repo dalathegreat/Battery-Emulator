@@ -359,9 +359,10 @@ void update_machineryprotection(uint32_t currentMillis) {
       }
     }
 
-    // Battery is extremely degraded, not fit for secondlifestorage!
-    if (datalayer.battery.status.soh_pptt < 2500) {
-      set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
+    /* Battery is extremely degraded, not fit for secondlifestorage! Judged on the SOH the inverter
+       is sent, which is the weakest pack's. With a single battery that is pack 1's own, as before. */
+    if (datalayer.aggregate.soh_pptt < 2500) {
+      set_event(EVENT_SOH_LOW, datalayer.aggregate.soh_pptt);
     } else {
       clear_event(EVENT_SOH_LOW);
     }

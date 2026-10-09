@@ -276,3 +276,37 @@ TEST_F(MultiBatterySafetyTest, Pack3WithinRangeDoesNotClearPack2SohDifference) {
 
   EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_INACTIVE);
 }
+
+// The low SOH error judges the SOH the inverter is sent, the weakest pack's. Pack 1 alone used to
+// decide, so a worn out pack 2 or 3 never raised it.
+TEST_F(MultiBatterySafetyTest, LowSohOnPack2RaisesTheLowSohError) {
+  datalayer.battery.status.soh_pptt = 9000;
+  datalayer.battery2.status.soh_pptt = 2000;
+  datalayer.battery3.status.soh_pptt = 8500;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_SOH_LOW)->data, 2000);
+
+  datalayer.battery2.status.soh_pptt = 8000;
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_INACTIVE);
+}
+
+// A pack that has not decoded its SOH yet is not part of what the inverter is sent, so it cannot
+// raise the error either
+TEST_F(MultiBatterySafetyTest, UndecodedSohDoesNotRaiseTheLowSohError) {
+  datalayer.battery.status.soh_pptt = 9000;
+  datalayer.battery2.status.soh_available = false;
+  datalayer.battery2.status.soh_pptt = 0;
+  datalayer.battery3.status.soh_pptt = 8500;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_INACTIVE);
+}
