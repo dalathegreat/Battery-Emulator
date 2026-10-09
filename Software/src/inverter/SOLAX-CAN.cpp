@@ -129,18 +129,36 @@ void SolaxInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-// Write 7 uppercase hex ASCII chars (D2..D8) from eFuse MAC, slot index, and frame half (0=1881, 1=1882).
+// Build the battery serial reported in frames 0x1881 / 0x1882.
+//
+// The X3-Hybrid G4 manual shows the LCD line as "BatBrand: BAK 6S012345012345", i.e. brand
+// plus a 14 character serial that begins "6S". The upstream comments show the same shape from
+// a real capture: 0x1881 "6SBMSFA", 0x1882 "23AB052".
+//
+// The previous generator emitted pure hex derived from the eFuse MAC, which can never produce
+// that prefix - 'S' is not a hex digit - so the serial was unparseable and BatBrand read "NA".
+// Now: "6S" plus 12 digits from the MAC, so it is well formed, stable across reboots and
+// unique per board. 0x1881 carries characters 1-7 and 0x1882 characters 8-14.
 void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half, uint8_t out[7]) {
-  static const char hex[] = "0123456789ABCDEF";
-  uint8_t mix[4] = {
-      (uint8_t)(mac[0] ^ slot ^ (half * 0x11u)),
-      (uint8_t)(mac[1] ^ slot ^ (half * 0x22u)),
-      (uint8_t)(mac[2] ^ slot ^ (half * 0x33u)),
-      (uint8_t)(mac[3] ^ slot ^ (half * 0x44u)),
-  };
+  char serial[14];
+  serial[0] = '6';
+  serial[1] = 'S';
+
+  uint32_t seed = ((uint32_t)mac[0] << 24) | ((uint32_t)mac[1] << 16) | ((uint32_t)mac[2] << 8) | (uint32_t)mac[3];
+  seed ^= (((uint32_t)mac[4] << 8) | (uint32_t)mac[5]);
+  seed += (uint32_t)slot * 7919u;
+
+  for (int i = 2; i < 14; i++) {
+    if (seed == 0) {
+      seed = 2166136261u + (uint32_t)mac[i % 6] * 16777619u + (uint32_t)slot + (uint32_t)i;
+    }
+    serial[i] = (char)('0' + (char)(seed % 10u));
+    seed /= 10u;
+  }
+
+  const int base = half ? 7 : 0;
   for (int i = 0; i < 7; i++) {
-    uint8_t b = mix[i >> 1];
-    out[i] = hex[(b >> ((1 - (i & 1)) * 4)) & 0x0F];
+    out[i] = (uint8_t)serial[base + i];
   }
 }
 
