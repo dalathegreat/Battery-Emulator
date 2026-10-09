@@ -271,8 +271,8 @@ TEST_F(MultiBatterySafetyTest, HealthyPackDoesNotClearAnotherPacksCellDeviation)
   EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH_BAT2), EVENT_STATE_ACTIVE);
 }
 
-// Battery 2 and 3 are each compared with battery 1 for the one shared SOH difference event. A
-// battery 3 within range used to clear the warning battery 2 had just raised.
+// Every pair of packs is compared for the one shared SOH difference event. A battery 3 within
+// range used to clear the warning battery 2 had just raised.
 TEST_F(MultiBatterySafetyTest, Pack3WithinRangeDoesNotClearPack2SohDifference) {
   datalayer.battery.status.soh_pptt = 9000;
   datalayer.battery2.status.soh_pptt = 6000;  // 30 % apart, the limit is 25 %
@@ -286,6 +286,35 @@ TEST_F(MultiBatterySafetyTest, Pack3WithinRangeDoesNotClearPack2SohDifference) {
   run_cycle();
 
   EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_INACTIVE);
+}
+
+// Battery 2 and 3 are compared with each other too. Each is within range of battery 1 here, but
+// they are 40 % apart, which only comparing them with battery 1 never caught.
+TEST_F(MultiBatterySafetyTest, SohDifferenceBetweenPack2AndPack3IsReported) {
+  datalayer.battery.status.soh_pptt = 7000;
+  datalayer.battery2.status.soh_pptt = 5000;
+  datalayer.battery3.status.soh_pptt = 9000;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
+}
+
+// A pack still holding the 9900 power-on default is left out, and the packs with a reading are
+// still compared. With no pair left to compare, the event stays as it was.
+TEST_F(MultiBatterySafetyTest, SohDifferenceLeavesOutAPackAtItsDefault) {
+  datalayer.battery.status.soh_pptt = 9900;
+  datalayer.battery2.status.soh_pptt = 6000;  // 30 % apart from pack 3
+  datalayer.battery3.status.soh_pptt = 9000;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
+
+  datalayer.battery3.status.soh_pptt = 9900;
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
 }
 
 // The low SOH error judges the SOH the inverter is sent, the weakest pack's. Pack 1 alone used to

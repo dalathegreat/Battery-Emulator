@@ -272,22 +272,25 @@ static void check_limits_respected(Battery* integration, const DATALAYER_BATTERY
   }
 }
 
-/* EVENT_SOH_DIFFERENCE is one event for the installation, so battery 2 and 3 are both compared
-   with battery 1 before it is set or cleared. Compared pack by pack, a battery 3 within range
-   cleared the warning battery 2 had just raised. 9900 is the power-on default, not a reading, so
-   a pack still holding it is not compared, and with nothing compared the event is left as is. */
+/* EVENT_SOH_DIFFERENCE is one event for the installation, so every pair of packs, battery 2 with
+   battery 3 included, is compared before it is set or cleared. Compared pack by pack, a battery 3
+   within range cleared the warning battery 2 had just raised. 9900 is the power-on default, not a
+   reading, so a pack still holding it is not compared, and with nothing compared the event is
+   left as is. */
 static void check_soh_difference(void) {
-  const DATALAYER_BATTERY_TYPE* others[2] = {battery2 ? &datalayer.battery2 : nullptr,
-                                             battery3 ? &datalayer.battery3 : nullptr};
+  const DATALAYER_BATTERY_TYPE* packs[3] = {&datalayer.battery, battery2 ? &datalayer.battery2 : nullptr,
+                                            battery3 ? &datalayer.battery3 : nullptr};
   bool compared = false;
   bool too_large = false;
-  for (const DATALAYER_BATTERY_TYPE* pack : others) {
-    if (!pack || datalayer.battery.status.soh_pptt == 9900 || pack->status.soh_pptt == 9900) {
-      continue;
-    }
-    compared = true;
-    if (std::abs(datalayer.battery.status.soh_pptt - pack->status.soh_pptt) > MAX_SOH_DEVIATION_PPTT) {
-      too_large = true;
+  for (uint8_t i = 0; i < 3; i++) {
+    for (uint8_t j = i + 1; j < 3; j++) {
+      if (!packs[i] || !packs[j] || packs[i]->status.soh_pptt == 9900 || packs[j]->status.soh_pptt == 9900) {
+        continue;
+      }
+      compared = true;
+      if (std::abs(packs[i]->status.soh_pptt - packs[j]->status.soh_pptt) > MAX_SOH_DEVIATION_PPTT) {
+        too_large = true;
+      }
     }
   }
   if (too_large) {
