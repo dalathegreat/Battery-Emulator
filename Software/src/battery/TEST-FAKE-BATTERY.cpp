@@ -102,18 +102,24 @@ static const char fake_battery_edit_script[] =
 // More Battery Info page, one per pack. The info panel is closed and the blue card, which edits this
 // pack's own voltage and SOH, opens as the next panel under it; the page closes the last panel itself.
 String TestFakeBattery::get_status_html() {
-  char html[512];
+  char html[512];  // Worst case, every field at its widest, is 500 characters
   snprintf(html, sizeof(html),
            "<h4>Capacity: %lu Wh</h4>"
            "<h4>Number of cells: %u</h4>"
            "<h4>Balancing above SOC: %u%%</h4>"
+           "<h4>Max battery voltage: %u.%u V</h4>"
+           "<h4>Min battery voltage: %u.%u V</h4>"
            "<h4>Total charged: %ld Wh</h4>"
            "<h4>Total discharged: %ld Wh</h4>"
            "</div><div class='battery-panel' style='background:#2E37AD'>"
            "<h4><span>Voltage: %u.%u V </span> <button onclick=\"editFake(%u,'Voltage',5000)\">Edit</button></h4>"
            "<h4><span>SOH: %u.%02u%% </span> <button onclick=\"editFake(%u,'SOH',100)\">Edit</button></h4>",
            (unsigned long)datalayer_battery->info.total_capacity_Wh, (unsigned)datalayer_battery->info.number_of_cells,
-           (unsigned)(BALANCING_START_SOC_PPTT / 100), (long)datalayer_battery->status.total_charged_battery_Wh,
+           (unsigned)(BALANCING_START_SOC_PPTT / 100), (unsigned)(datalayer_battery->info.max_design_voltage_dV / 10),
+           (unsigned)(datalayer_battery->info.max_design_voltage_dV % 10),
+           (unsigned)(datalayer_battery->info.min_design_voltage_dV / 10),
+           (unsigned)(datalayer_battery->info.min_design_voltage_dV % 10),
+           (long)datalayer_battery->status.total_charged_battery_Wh,
            (long)datalayer_battery->status.total_discharged_battery_Wh,
            (unsigned)(datalayer_battery->status.voltage_dV / 10), (unsigned)(datalayer_battery->status.voltage_dV % 10),
            (unsigned)battery_index, (unsigned)(datalayer_battery->status.soh_pptt / 100),
@@ -144,7 +150,7 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer_battery->info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
   datalayer_battery->info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
