@@ -625,6 +625,8 @@ bool user_selected_tesla_GTW_rightHandDrive = true;
 uint16_t user_selected_tesla_GTW_mapRegion = 2;
 uint16_t user_selected_tesla_GTW_chassisType = 2;
 uint16_t user_selected_tesla_GTW_packEnergy = 1;
+/* User-selected Stellantis Pro One settings */
+bool user_selected_proone_suspend_isolation = false;
 /* User-selected DALY BMS settings */
 int user_selected_daly_power_per_percent = 50;
 int user_selected_daly_power_per_dV = 50;

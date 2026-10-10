@@ -407,11 +407,12 @@ void UdsCanBattery::handle_sequence(uint16_t state, uint8_t sid, const uint8_t* 
 void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) {
   // Handle internal sequence responses.
   switch (state) {
-    case UDS_STATE_READ_DTC_START:
+    case UDS_STATE_READ_DTC_START: {
       // Start a DTC readout sequence
-      send_sequence_message(UDS_STATE_READ_DTC, SID::ReadDTCInformation, (const uint8_t*)"\x02\x09", 2,
-                            UDS_TIMEOUT_READ_DTC, 2);
+      const uint8_t request[2] = {0x02, get_dtc_status_mask()};
+      send_sequence_message(UDS_STATE_READ_DTC, SID::ReadDTCInformation, request, 2, UDS_TIMEOUT_READ_DTC, 2);
       break;
+    }
     case UDS_STATE_READ_DTC:
       if (sid == UDS_RESPONSE_SID_OF(SID::ReadDTCInformation)) {
         handle_dtc_response(data, len);

@@ -25,6 +25,7 @@
     "DALYPWRDV": "Max power per dV when approaching the discharge voltage limit. See [Daly BMS](battery/bms/daly_smartbms/#battery-emulator-configuration).",
     "DALYPWRDEG": "Max power added or removed per degree above or below 0°C. See [Daly BMS](battery/bms/daly_smartbms/#battery-emulator-configuration).",
     "DALYPWR0C": "Maximum allowed charge/discharge power at exactly 0°C. See [Daly BMS](battery/bms/daly_smartbms/#battery-emulator-configuration).",
+    "PROONEISOOFF": "Sends 0x0B4 the way the van does while driving, which stops the battery's own isolation measurement. Only for systems where the inverter runs its own isolation monitor continuously: two monitors on one HV system disturb each other, but with this on the battery no longer detects isolation faults. The battery keeps the last 0x0B4 it saw, so after switching this off again power-cycle the battery.",
     "CHGPOWER": "Continuous max charge power. Used since CAN data is not valid for this integration. Do not set too high!",
     "DCHGPOWER": "Continuous max discharge power. Used since CAN data is not valid for this integration. Do not set too high!",
     "SOCESTIMATED": "Switch to estimated State of Charge when accurate SOC data is not available from the battery.",

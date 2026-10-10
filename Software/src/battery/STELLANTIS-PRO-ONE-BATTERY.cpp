@@ -52,6 +52,19 @@ void StellantisProOneBattery::
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
 
+  //Isolation from UDS 0xA017, R1. It tracks the system side: ~25 MOhm falling to ~6 MOhm once a charger was
+  //connected, and 0 while P0AA6 was latched. Other states than 2 carry stale values (seen frozen for whole logs),
+  //and nothing is published while the monitor is suspended.
+  if (!user_selected_proone_suspend_isolation && isolation_state[0] == 2 && isolation_kOhm[0] < ISO_NO_RESULT) {
+    datalayer.battery.status.insulation_resistance_kOhm = isolation_kOhm[0];
+    datalayer.battery.status.insulation_resistance_available = true;
+    if (isolation_kOhm[0] < ISO_FAULT_KOHM) {
+      set_event(EVENT_BATTERY_ISOLATION, isolation_kOhm[0]);
+    } else {
+      clear_event(EVENT_BATTERY_ISOLATION);
+    }
+  }
+
   if (temperaturesSampledOnce) {
     int8_t min_temp = celltemperatures[0];
     int8_t max_temp = celltemperatures[0];
@@ -113,7 +126,26 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>281_3: " << unknown_281_2 << "</h4>"
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
-              "<h4>Temperature sensors: </h4>"
+              "<h4>Isolation monitor: " << (user_selected_proone_suspend_isolation ? "suspended" : "active") << "</h4>";
+  //0xA017: state, R1, R2, state, R3, R4. R1 = system side (hypothesis), state 2 = valid result
+  static const char* const iso_names[4] = {"R1 (system)", "R2", "R3", "R4"};
+  for (int i = 0; i < 4; i++) {
+    if (i % 2 == 0) {
+      content << "<h4>Isolation state: " << isolation_state[i / 2] << (isolation_state[i / 2] == 2 ? " (valid)" : "")
+              << "</h4>";
+    }
+    content << "<h4>Isolation " << iso_names[i] << ": ";
+    if (isolation_kOhm[i] >= ISO_NO_RESULT) {
+      content << "no result</h4>";
+    } else {
+      content << isolation_kOhm[i] << " kOhm";
+      if (isolation_kOhm[i] < ISO_FAULT_KOHM) {
+        content << " (below 350)";
+      }
+      content << "</h4>";
+    }
+  }
+  content << "<h4>Temperature sensors: </h4>"
            "<table style='border-collapse:collapse;font-size:0.85em;margin:auto'>";
 
 for (int row = 0; row < 6; row++) {
@@ -306,7 +338,15 @@ uint16_t StellantisProOneBattery::handle_pid(uint16_t pid, uint32_t value, const
       break;
     case PID_UNKNOWN_17:
       break;
-    case PID_UNKNOWN_18:
+    case PID_ISOLATION:  //State, R1, R2, state, R3, R4 (u16 BE, kOhm)
+      if (length >= 10) {
+        isolation_state[0] = data[0];
+        isolation_state[1] = data[5];
+        isolation_kOhm[0] = (uint16_t)(data[1] << 8) | data[2];
+        isolation_kOhm[1] = (uint16_t)(data[3] << 8) | data[4];
+        isolation_kOhm[2] = (uint16_t)(data[6] << 8) | data[7];
+        isolation_kOhm[3] = (uint16_t)(data[8] << 8) | data[9];
+      }
       break;
     case PID_UNKNOWN_19:
       break;
@@ -620,7 +660,12 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ONE_108);
     //transmit_can_frame(&ONE_0F2);
     //transmit_can_frame(&ONE_0F0);
-    //transmit_can_frame(&ONE_0B4);
+    if (user_selected_proone_suspend_isolation) {
+      //Counter in byte 5 high nibble, CRC over bytes 0-5 in byte 6
+      ONE_0B4.data.u8[5] = (counter_10ms << 4) | 0x01;
+      ONE_0B4.data.u8[6] = CalculateCRC8SAEJ1850(ONE_0B4, 6);
+      transmit_can_frame(&ONE_0B4);
+    }
 
     ONE_175.data.u8[3] = 0x2E;
   }
@@ -682,6 +727,13 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ONE_3D2);
   }
 
+  //Read the DTCs every 15s, so CAN logs have the DTC status next to the 0xA017 isolation values
+  //(a frozen 0xA017 was only explained by a manual readout showing P0AA6 latched)
+  if (currentMillis - previousMillisDtc >= INTERVAL_DTC_MS) {
+    previousMillisDtc = currentMillis;
+    read_DTC();
+  }
+
   // UDS PID polling and DTC handling
   transmit_uds_can(currentMillis);
 }
@@ -715,7 +767,7 @@ void StellantisProOneBattery::setup(void) {  // Performs one time setup at start
       PID_UNKNOWN_15,
       PID_UNKNOWN_16,
       PID_UNKNOWN_17,
-      PID_UNKNOWN_18,
+      PID_ISOLATION,
       PID_UNKNOWN_19,
       PID_UNKNOWN_20,
       PID_UNKNOWN_21,
