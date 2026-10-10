@@ -111,6 +111,12 @@ class Battery {
   virtual bool supports_calibrate_SOC() { return false; }
   virtual bool supports_contactor_close() { return false; }
   virtual bool supports_contactor_reset() { return false; }
+  /* True if the driver closes the pack's contactors (over CAN) only while
+     datalayer.system.status.inverter_allows_contactor_closing is set, opens them when it is cleared,
+     and reports the resulting state in datalayer.system.status.contactors_engaged (1 = closed).
+     A battery node without GPIO contactor control needs this, so the controller decides when the
+     pack joins the shared DC bus. Declare it only once both halves are in place. */
+  virtual bool reports_contactor_state() { return false; }
   virtual bool supports_manual_balancing() { return false; }
   virtual bool supports_real_BMS_status() { return false; }
   virtual bool supports_toggle_SOC_method() { return false; }

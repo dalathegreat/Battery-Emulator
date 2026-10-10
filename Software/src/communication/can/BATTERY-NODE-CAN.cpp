@@ -6,6 +6,7 @@
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
 #include "../../communication/Transmitter.h"
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
 #include "../../devboard/utils/logging.h"
@@ -165,11 +166,34 @@ uint8_t BatteryNodeCan::build_fault_flags() {
       (battery3 && datalayer.battery3.status.CAN_battery_still_alive == 0)) {
     flags |= IU_FAULT_BATTERY_TIMEOUT;
   }
-  // Contactor engaged confirmation
-  if (datalayer.system.status.contactors_engaged != 0) {
+  // The controller decides when this node joins the DC bus, so every pack here must actually
+  // follow the contactor command. If one cannot, report a contactor fault: the controller then
+  // never allows this node (IU_FAULT_CONTACTOR_FAILED is in IU_FAULT_ERROR_MASK).
+  if (!node_contactors_controllable()) {
+    set_event(EVENT_NODE_CONTACTOR_UNSUPPORTED, 0);
+    flags |= IU_FAULT_CONTACTOR_FAILED;
+  }
+  // Contactor engaged confirmation: only CLOSED (1). Not 2 (opened and latched after a fault) or
+  // 3 (precharge still running) — the controller uses this as the DC bus reference for joins.
+  if (datalayer.system.status.contactors_engaged == 1) {
     flags |= IU_FLAG_CONTACTOR_ENGAGED;
   }
   return flags;
+}
+
+bool node_contactors_controllable() {
+  // Each pack needs either GPIO contactor control for its slot, or a driver that closes over CAN
+  // only on command and reports the resulting state (Battery::reports_contactor_state()).
+  if (battery == nullptr || !(contactor_control_enabled || battery->reports_contactor_state())) {
+    return false;
+  }
+  if (battery2 && !(contactor_control_enabled_double_battery || battery2->reports_contactor_state())) {
+    return false;
+  }
+  if (battery3 && !(contactor_control_enabled_triple_battery || battery3->reports_contactor_state())) {
+    return false;
+  }
+  return true;
 }
 
 void BatteryNodeCan::send_status_frame() {

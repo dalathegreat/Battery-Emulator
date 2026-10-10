@@ -16,6 +16,9 @@ class StellantisProOneBattery : public UdsCanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Stellantis Pro One 110kWh (E-Ducato/ProMaster/Proace)";
 
+  // Closes only while the inverter allows it (0x1D8) and reports the 0x150 contactor status
+  bool reports_contactor_state() { return true; }
+
   //BPCM codes from the 2024 ProMaster EV service documentation.
   const char* get_dtc_json_filename() override { return "stellantis_pro_one_dtc.json"; }
 

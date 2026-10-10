@@ -323,7 +323,7 @@ How it works:
 
 If neither path can close the contactor (diff > 1.8 V, or the inverter is idle) the node remains blocked.
 
-The reference voltage is the DC bus itself: it is taken from a node that **reports its contactor closed** (`IU_FLAG_CONTACTOR_ENGAGED`) with fresh data — not from a node the controller has merely allowed, since an allowed node may not have closed. While another node is allowed but has not reported closed yet, further joins wait. A node that is sent ALLOW but does not report closed within 30 s has its permission revoked and must re-qualify (after a 30 s cool-down), so a stuck node cannot hold the others back.  
+The reference voltage is the DC bus itself: it is taken from a node that **reports its contactor closed** (`IU_FLAG_CONTACTOR_ENGAGED`) with fresh data — not from a node the controller has merely allowed, since an allowed node may not have closed. While another node is allowed but has not reported closed yet, further joins wait. A node that is sent ALLOW but does not report closed within 60 s has its permission revoked and must re-qualify (after a 60 s cool-down), so a stuck node cannot hold the others back. After 3 failed attempts in a row the node is left open instead of being cycled again (some packs, e.g. Tesla, do not tolerate repeated open/close well) until it goes offline or the controller restarts.  
 If no node is closed or closing, the node is the first one and is allowed directly.  
 All voltage checks are skipped during the startup grace period; when it ends, all online nodes at matching voltage are allowed together as before.
 
@@ -368,6 +368,18 @@ Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few f
 > **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2; v3 moved capacity to 10 Wh steps and puts the protocol version in IDENT byte [4]; v4 moved the power limits to 10 W steps. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline, and a node on an older protocol version has its IDENT rejected by the controller (and vice versa), so it is never verified and its contactor is never allowed. Flash the controller and all nodes together.
 
 This complements — and does not replace — the toggle-bit stale detection (#3): a CRC-valid frame can still carry frozen data, which only the toggle bit catches.
+
+---
+
+### 9. Contactor Command Must Be Followed
+
+Everything above relies on the node actually opening and closing its contactor when the controller says so, and reporting back when it is closed. Two layers make sure of that.
+
+**On the node — capability gate.** Each pack on the node must either use GPIO contactor control for its slot, or run a battery protocol that declares `reports_contactor_state()`: it closes its contactors over CAN only while `inverter_allows_contactor_closing` is set, and reports the result in `contactors_engaged`. Protocols declaring this today: BMW i3, Tesla Model 3/Y and Model S/X (`BMS_contactorState`; not the separate "Tesla Model S/X 2012-2020" protocol), Stellantis Pro One (0x150 contactor status) and Relion LV (commanded state, the pack has no feedback). Any other protocol can be added once it does both. If a pack does not qualify, the node raises `EVENT_NODE_CONTACTOR_UNSUPPORTED` (ERROR) and reports `IU_FAULT_CONTACTOR_FAILED`, so the controller never allows it.
+
+Only `contactors_engaged == 1` (closed) is reported as engaged — not a fault-latched open contactor or a running precharge — since the controller uses it as the DC bus reference.
+
+**On the controller — obedience check.** Once a node has had 10 s to act on an OPEN command, it must not report its contactor closed or carry more than 2 A. If it does for 5 s, `EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED` (WARNING) is raised and the whole pack is held at 0 W until it opens — that pack sits on the bus uncontrolled and outside the aggregation. This also catches a protocol that is declared but does not behave.
 
 ---
 

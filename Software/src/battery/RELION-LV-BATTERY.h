@@ -28,6 +28,10 @@ class RelionBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Relion LV protocol via 250kbps CAN";
 
+  // Closes only while the inverter allows it. The pack gives no contactor feedback, so the
+  // reported state is the commanded one (see update_values)
+  bool reports_contactor_state() { return true; }
+
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   uint16_t estimateSOC();

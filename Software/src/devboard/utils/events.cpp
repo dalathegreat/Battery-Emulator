@@ -188,6 +188,8 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_NODE_FAULT].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_IDENT_MISMATCH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_NODE_STATUS_STALE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_NODE_CONTACTOR_UNSUPPORTED].level = EVENT_LEVEL_ERROR;
 #endif  // SMALL_FLASH_DEVICE
   events.entries[EVENT_CAN_INVERTER_DETECTED].level = EVENT_LEVEL_INFO;
   set_battery_event_level(EVENT_CONTACTOR_WELDED, EVENT_LEVEL_WARNING);
@@ -477,6 +479,13 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BATTERY_NODE_STATUS_STALE:
       return "A battery node's STATUS data stopped refreshing. All power is held at 0 W while that node opens "
              "its contactor; the remaining nodes resume after 20 seconds.";
+    case EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED:
+      return "A battery node was commanded to open its contactor but still reports it closed or carries current. "
+             "All power is held at 0 W until it opens. Check that node's battery protocol!";
+    case EVENT_NODE_CONTACTOR_UNSUPPORTED:
+      return "This battery node cannot let the controller decide when its contactor closes: enable contactor "
+             "control (GPIO), or use a battery protocol that follows the contactor command and reports the "
+             "contactor state. The controller will not allow this node to join.";
 #endif  // SMALL_FLASH_DEVICE
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";

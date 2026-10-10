@@ -49,6 +49,9 @@ class BatteryNodeCan : public CanReceiver, public Transmitter {
 
 extern BatteryNodeCan battery_node_can;
 void setup_battery_node_can();
+/** True if every pack on this node follows the controller's contactor command: GPIO contactor
+ *  control for its slot, or a driver with Battery::reports_contactor_state(). */
+bool node_contactors_controllable();
 
 #endif  // SMALL_FLASH_DEVICE
 

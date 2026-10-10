@@ -36,12 +36,27 @@ static const uint8_t BALANCING_HOLD_SECONDS = 50u;
 static uint8_t balancing_hold_seconds[MAX_BATTERY_NODES] = {0};
 // A node that is sent ALLOW must report its contactor closed within this time, otherwise its
 // permission is revoked so it re-qualifies against the bus (and stops holding other joins).
-static const uint8_t JOIN_PENDING_TIMEOUT_S = 30u;
+// Generous on purpose: some packs (e.g. Tesla) are slow or reluctant to close.
+static const uint8_t JOIN_PENDING_TIMEOUT_S = 60u;
+// After this many failed attempts in a row the node is left open (no more open/close cycling,
+// which some packs do not tolerate well) until it goes offline or the controller restarts.
+static const uint8_t JOIN_MAX_ATTEMPTS = 3u;
 // Per-node seconds spent allowed (ALLOW actually sent) without reporting the contactor closed
 static uint8_t allowed_not_engaged_seconds[MAX_BATTERY_NODES] = {0};
 // Per-node cool-down after such a revoke: the node is not re-allowed meanwhile, so another node can
 // take the "first node" slot instead of the same stuck node grabbing it again straight away.
 static uint8_t join_revoke_cooldown_seconds[MAX_BATTERY_NODES] = {0};
+// Per-node failed join attempts in a row (reset once the node reports its contactor closed)
+static uint8_t join_failed_attempts[MAX_BATTERY_NODES] = {0};
+
+// A node that is commanded OPEN must stop reporting its contactor closed and stop carrying current.
+// Checked only after the node has had time to open, and confirmed over several seconds.
+static const uint8_t DISOBEY_OPEN_GRACE_S = 10u;               // time the node gets to open after the OPEN command
+static const uint8_t DISOBEY_CONFIRM_S = 5u;                   // condition must hold this long before flagging
+static const int16_t DISOBEY_CURRENT_dA = 20;                  // 2.0 A: current through a pack that should be open
+static uint8_t open_command_seconds[MAX_BATTERY_NODES] = {0};  // seconds since OPEN is being sent
+static uint8_t disobey_seconds[MAX_BATTERY_NODES] = {0};
+static bool node_disobeyed[MAX_BATTERY_NODES] = {false};
 // Per-node last transmitted contactor command for change logging
 static uint8_t last_contactor_command[MAX_BATTERY_NODES] = {0};
 // Per-node log-once flags — reset when the condition clears
@@ -95,6 +110,10 @@ void ControllerCan::begin() {
     balancing_hold_seconds[i] = 0;
     allowed_not_engaged_seconds[i] = 0;
     join_revoke_cooldown_seconds[i] = 0;
+    join_failed_attempts[i] = 0;
+    open_command_seconds[i] = 0;
+    disobey_seconds[i] = 0;
+    node_disobeyed[i] = false;
     last_contactor_command[i] = 0xFFu;
     stale_logged[i] = false;
     ident_mismatch_logged[i] = false;
@@ -400,6 +419,11 @@ void ControllerCan::update_values() {
     BATTERY_NODE_TYPE& node = datalayer.system.battery_nodes[i];
     if (!node.online) {
       reset_prejoin_state(i);
+      // A node that comes back has been away long enough to start over
+      join_failed_attempts[i] = 0;
+      open_command_seconds[i] = 0;
+      disobey_seconds[i] = 0;
+      node_disobeyed[i] = false;
       continue;
     }
 
@@ -438,23 +462,64 @@ void ControllerCan::update_values() {
     // node must report its contactor closed within JOIN_PENDING_TIMEOUT_S. Otherwise revoke the
     // permission: it holds other joins (see check_node_voltage_safety) and, if it closes much later,
     // it should be re-checked against the bus as it is then. A balancing node opens on its own
-    // and is handled by balancing_hold_seconds instead.
+    // and is handled by balancing_hold_seconds instead. After JOIN_MAX_ATTEMPTS failures in a row
+    // the node is left open rather than cycled again.
     if (join_revoke_cooldown_seconds[i] > 0) {
       join_revoke_cooldown_seconds[i]--;
     }
     const bool allow_being_sent =
         node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing && !estop_active;
+    if (node.contactor_engaged) {
+      join_failed_attempts[i] = 0;
+    }
     if (allow_being_sent && !node.contactor_engaged && !node.balancing) {
       allowed_not_engaged_seconds[i]++;
       if (allowed_not_engaged_seconds[i] >= JOIN_PENDING_TIMEOUT_S) {
         node.contactor_allowed = false;
         allowed_not_engaged_seconds[i] = 0;
         join_revoke_cooldown_seconds[i] = JOIN_PENDING_TIMEOUT_S;
-        logging.printf("Controller CAN: Node %d allowed but did not close within %us — permission revoked\n", i + 1,
-                       (unsigned)JOIN_PENDING_TIMEOUT_S);
+        if (join_failed_attempts[i] < JOIN_MAX_ATTEMPTS) {
+          join_failed_attempts[i]++;
+        }
+        logging.printf("Controller CAN: Node %d allowed but did not close within %us — permission revoked (%u/%u)\n",
+                       i + 1, (unsigned)JOIN_PENDING_TIMEOUT_S, join_failed_attempts[i], (unsigned)JOIN_MAX_ATTEMPTS);
+        if (join_failed_attempts[i] >= JOIN_MAX_ATTEMPTS) {
+          logging.printf("Controller CAN: Node %d left OPEN — restart the controller or the node to retry\n", i + 1);
+        }
       }
     } else {
       allowed_not_engaged_seconds[i] = 0;
+    }
+
+    // Contactor obedience: once a node has had DISOBEY_OPEN_GRACE_S to act on an OPEN command, it
+    // must not report its contactor closed or carry current. If it does (a battery protocol that
+    // ignores the command), that pack sits uncontrolled on the bus and outside the aggregation —
+    // update_node_aggregation() holds the whole pack at 0 W until it complies. Stale data is not
+    // judged here; the lost-link sequencing handles that.
+    if (allow_being_sent) {
+      open_command_seconds[i] = 0;
+    } else if (open_command_seconds[i] < 255u) {
+      open_command_seconds[i]++;
+    }
+    const bool status_fresh = node.status_stale_seconds <= IU_STATUS_STALE_SECONDS;
+    const bool closed_or_carrying =
+        node.contactor_engaged || node.current_dA >= DISOBEY_CURRENT_dA || node.current_dA <= -DISOBEY_CURRENT_dA;
+    if (status_fresh && open_command_seconds[i] >= DISOBEY_OPEN_GRACE_S && closed_or_carrying) {
+      if (disobey_seconds[i] < DISOBEY_CONFIRM_S) {
+        disobey_seconds[i]++;
+      }
+      if (disobey_seconds[i] >= DISOBEY_CONFIRM_S && !node_disobeyed[i]) {
+        node_disobeyed[i] = true;
+        logging.printf(
+            "Controller CAN: Node %d IGNORES the OPEN command (engaged=%u current=%d dA) — pack held at 0 W\n", i + 1,
+            node.contactor_engaged ? 1 : 0, (int)node.current_dA);
+      }
+    } else {
+      disobey_seconds[i] = 0;
+      if (node_disobeyed[i]) {
+        node_disobeyed[i] = false;
+        logging.printf("Controller CAN: Node %d contactor now open as commanded\n", i + 1);
+      }
     }
 
     // Check voltage safety first (may allow contactor based on voltage match)
@@ -544,6 +609,20 @@ void ControllerCan::update_values() {
       set_event(EVENT_BATTERY_NODE_FAULT, first_fault_node);
     } else {
       clear_event(EVENT_BATTERY_NODE_FAULT);
+    }
+  }
+  {
+    uint8_t first_disobeying_node = 0;
+    for (uint8_t i = 0; i < MAX_BATTERY_NODES; i++) {
+      if (node_disobeyed[i]) {
+        first_disobeying_node = i + 1;
+        break;
+      }
+    }
+    if (first_disobeying_node > 0) {
+      set_event(EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED, first_disobeying_node);
+    } else {
+      clear_event(EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED);
     }
   }
 
@@ -659,7 +738,8 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
     }
   }
 
-  if (!node.contactor_allowed && (join_pending || join_revoke_cooldown_seconds[idx] > 0)) {
+  if (!node.contactor_allowed &&
+      (join_pending || join_revoke_cooldown_seconds[idx] > 0 || join_failed_attempts[idx] >= JOIN_MAX_ATTEMPTS)) {
     voltage_diff_seconds[idx] = 0;
     reset_prejoin_state(idx);
     return;
@@ -823,6 +903,13 @@ void ControllerCan::update_node_aggregation() {
         charge_blocked = true;
         discharge_blocked = true;
       }
+      continue;
+    }
+    // A node that ignores its OPEN command sits on the bus uncontrolled: stop all power flow
+    // until it opens (see the contactor obedience check in update_values()).
+    if (node.online && node_disobeyed[i]) {
+      charge_blocked = true;
+      discharge_blocked = true;
       continue;
     }
     // Only aggregate nodes whose contactor is actually CLOSED (engaged). A node that is

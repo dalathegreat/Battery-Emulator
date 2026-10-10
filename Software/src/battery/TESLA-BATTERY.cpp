@@ -537,6 +537,23 @@ void TeslaBattery::
   // Guarded so the GPIO contactor state machine stays authoritative when enabled.
   if (!contactor_control_enabled) {
     datalayer.system.status.dc_bus_live = (battery_contactor == 4);
+    // Report the BMS contactor state (only the primary battery owns the system contactor status).
+    // OPENING (2) and WELDED (5) still count as closed: current can flow until the BMS reports OPEN.
+    if (datalayer_battery == &datalayer.battery) {
+      switch (battery_contactor) {
+        case 2:  // OPENING
+        case 4:  // CLOSED
+        case 5:  // WELDED
+          datalayer.system.status.contactors_engaged = 1;
+          break;
+        case 3:  // CLOSING
+          datalayer.system.status.contactors_engaged = 3;
+          break;
+        default:  // SNA, OPEN, BLOCKED
+          datalayer.system.status.contactors_engaged = 0;
+          break;
+      }
+    }
   }
 
   if (user_selected_tesla_GTW_chassisType > 1) {  //{{0, "Model S"}, {1, "Model X"}, {2, "Model 3"}, {3, "Model Y"}};

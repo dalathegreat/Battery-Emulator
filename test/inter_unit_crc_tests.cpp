@@ -4,11 +4,21 @@
 #include <initializer_list>
 #include <vector>
 
+#include "../Software/src/battery/BATTERIES.h"
+#include "../Software/src/battery/TEST-FAKE-BATTERY.h"
 #include "../Software/src/communication/can/BATTERY-NODE-CAN.h"
 #include "../Software/src/communication/can/CONTROLLER-CAN.h"
 #include "../Software/src/communication/can/INTER-UNIT-PROTOCOL.h"
+#include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
+
+// Points `battery` at a pack for the duration of a test and restores the previous one after.
+struct ScopedBattery {
+  explicit ScopedBattery(Battery* b) : saved(battery) { battery = b; }
+  ~ScopedBattery() { battery = saved; }
+  Battery* saved;
+};
 
 // TX capture hooks provided by the test emul (test/emul/can.cpp).
 void clear_transmitted_frames();
@@ -191,6 +201,8 @@ TEST(InterUnitEndToEnd, NodeStatusPowerFramesRoundTripThroughController) {
   set_millis64(0);  // deterministic reply timing regardless of test ordering
   controller_can.begin();
   battery_node_can.begin();
+  TestFakeBattery fake;  // follows the contactor command and reports it
+  ScopedBattery scoped(&fake);
 
   // The node reports the installation behind it (datalayer.aggregate), like any inverter would;
   // only the link voltage and the balancing flag come from the pack itself.
@@ -386,7 +398,7 @@ TEST_F(ControllerScenarioTest, JoinWaitsForPendingNodeThenUsesTheBus) {
   BATTERY_NODE_TYPE& joiner = add_node(2, 4000, false);  // matches the bus
 
   // Held while node 1 is allowed-but-not-closed...
-  for (uint8_t s = 0; s < 25; s++) {
+  for (uint8_t s = 0; s < 55; s++) {  // JOIN_PENDING_TIMEOUT_S is 60 s
     tick();
     EXPECT_FALSE(joiner.contactor_allowed);
   }
@@ -396,4 +408,146 @@ TEST_F(ControllerScenarioTest, JoinWaitsForPendingNodeThenUsesTheBus) {
   }
   EXPECT_TRUE(joiner.contactor_allowed);
   EXPECT_FALSE(stuck.contactor_allowed);
+}
+
+TEST_F(ControllerScenarioTest, JoinGivesUpAfterMaxAttemptsInsteadOfCycling) {
+  add_node(1, 4000, true);
+  finish_grace();
+  BATTERY_NODE_TYPE& stuck = add_node(0, 4000, false);  // matches the bus, but never closes
+
+  uint8_t allow_edges = 0;
+  bool was_allowed = stuck.contactor_allowed;
+  for (uint16_t s = 0; s < 600; s++) {
+    tick();
+    if (stuck.contactor_allowed && !was_allowed) {
+      allow_edges++;
+    }
+    was_allowed = stuck.contactor_allowed;
+  }
+  EXPECT_EQ(allow_edges, 3);  // JOIN_MAX_ATTEMPTS, then left open
+  EXPECT_FALSE(stuck.contactor_allowed);
+}
+
+TEST_F(ControllerScenarioTest, NodeIgnoringOpenCommandHoldsPackAtZero) {
+  add_node(0, 4000, true);
+  add_node(1, 4000, true);
+  finish_grace();
+  tick();
+  ASSERT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);
+
+  // Node 2 gets an OPEN command (e.g. a fault) but its battery protocol keeps the contactor closed.
+  BATTERY_NODE_TYPE& rogue = datalayer.system.battery_nodes[1];
+  rogue.fault_flags = IU_FAULT_BMS_FAULT;
+  tick();
+  ASSERT_FALSE(rogue.contactor_allowed);
+  // ...the fault stays, so the OPEN command stands, but the contactor never opens
+
+  bool flagged = false;
+  for (uint8_t s = 0; s < 20; s++) {
+    tick();
+    if (datalayer.battery.status.max_charge_power_W == 0u) {
+      flagged = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(flagged);
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_NODE_CONTACTOR_DISOBEYED)->state, EVENT_STATE_ACTIVE);
+
+  // Once it opens, the healthy node carries on.
+  rogue.contactor_engaged = false;
+  rogue.current_dA = 0;
+  tick();
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 5000u);
+}
+
+TEST_F(ControllerScenarioTest, NodeCarryingCurrentWhileCommandedOpenIsFlagged) {
+  add_node(0, 4000, true);
+  finish_grace();
+  // Node 2 was never allowed, reports its contactor open, yet current flows through it.
+  BATTERY_NODE_TYPE& rogue = add_node(1, 3500, false);
+  rogue.current_dA = -150;
+  for (uint8_t s = 0; s < 20; s++) {
+    tick();
+  }
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
+}
+
+// ---------------------------------------------------------------------------
+// Node: contactor capability gate and engaged flag
+// ---------------------------------------------------------------------------
+
+static uint8_t node_status_flags() {
+  CAN_frame hb = {};
+  hb.ID = IU_CONTROLLER_HEARTBEAT_ID;
+  hb.DLC = 1;
+  iu_crc_stamp(hb.ID, hb.data.u8, hb.DLC);
+  battery_node_can.receive_can_frame(&hb);
+  clear_transmitted_frames();
+  battery_node_can.transmit(1000000);
+  for (const CAN_frame& f : get_transmitted_frames()) {
+    if (f.ID == IU_NODE_STATUS_ID(datalayer.system.status.battery_node_id)) {
+      return f.data.u8[6];
+    }
+  }
+  ADD_FAILURE() << "no STATUS frame sent";
+  return 0;
+}
+
+class NodeContactorTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    init_events();
+    set_millis64(0);
+    battery_node_can.begin();
+    datalayer.system.status.battery_node_id = 1;
+    datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    saved_gpio = contactor_control_enabled;
+    contactor_control_enabled = false;
+  }
+  void TearDown() override {
+    contactor_control_enabled = saved_gpio;
+    datalayer.system.status.contactors_engaged = 0;
+  }
+  bool saved_gpio = false;
+};
+
+// A protocol that does not declare reports_contactor_state() (CanBattery default).
+class NoContactorFeedbackBattery : public TestFakeBattery {
+ public:
+  bool reports_contactor_state() override { return false; }
+};
+
+TEST_F(NodeContactorTest, CanControlledPackWithoutFeedbackIsReportedAsContactorFault) {
+  NoContactorFeedbackBattery pack;
+  ScopedBattery scoped(&pack);
+  EXPECT_FALSE(node_contactors_controllable());
+  EXPECT_TRUE(node_status_flags() & IU_FAULT_CONTACTOR_FAILED);
+  EXPECT_EQ(get_event_pointer(EVENT_NODE_CONTACTOR_UNSUPPORTED)->state, EVENT_STATE_ACTIVE);
+}
+
+TEST_F(NodeContactorTest, GpioContactorControlMakesAnyPackControllable) {
+  NoContactorFeedbackBattery pack;
+  ScopedBattery scoped(&pack);
+  contactor_control_enabled = true;
+  EXPECT_TRUE(node_contactors_controllable());
+  EXPECT_FALSE(node_status_flags() & IU_FAULT_CONTACTOR_FAILED);
+}
+
+TEST_F(NodeContactorTest, PackThatReportsContactorStateIsControllable) {
+  TestFakeBattery pack;
+  ScopedBattery scoped(&pack);
+  EXPECT_TRUE(node_contactors_controllable());
+  EXPECT_FALSE(node_status_flags() & IU_FAULT_CONTACTOR_FAILED);
+}
+
+TEST_F(NodeContactorTest, OnlyClosedCountsAsEngaged) {
+  TestFakeBattery pack;
+  ScopedBattery scoped(&pack);
+  datalayer.system.status.contactors_engaged = 1;  // closed
+  EXPECT_TRUE(node_status_flags() & IU_FLAG_CONTACTOR_ENGAGED);
+  datalayer.system.status.contactors_engaged = 2;  // opened and latched after a fault
+  EXPECT_FALSE(node_status_flags() & IU_FLAG_CONTACTOR_ENGAGED);
+  datalayer.system.status.contactors_engaged = 3;  // precharge running
+  EXPECT_FALSE(node_status_flags() & IU_FLAG_CONTACTOR_ENGAGED);
 }
