@@ -64,11 +64,22 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   // Map internal balancing state to datalayer balancing_status
   if (UserRequestBalancing == NONE) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
+#ifndef SMALL_FLASH_DEVICE
+    datalayer_battery->status.offline_balancing = false;
+#endif
   } else {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
+#ifndef SMALL_FLASH_DEVICE
+    datalayer_battery->status.offline_balancing = true;  // Inter-unit Controller/Node balancing is active.
+#endif
   }
 
   if (!battery_awake) {
+#ifndef SMALL_FLASH_DEVICE
+    if (datalayer_battery->status.offline_balancing) {
+      datalayer.system.status.contactors_engaged = 0;
+    }
+#endif
     return;
   }
 

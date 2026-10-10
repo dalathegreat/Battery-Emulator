@@ -33,6 +33,8 @@ class BmwI3Battery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "BMW i3";
 
+  // Closes only while the inverter allows it and reports the DC switch status (0x1FA)
+  bool reports_contactor_state() { return true; }
   bool supports_balancing() { return true; }
   bool is_balancing_active() { return UserRequestBalancing != NONE; }
   const char* get_balancing_state_string() {
