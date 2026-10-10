@@ -398,8 +398,8 @@ struct BATTERY_NODE_TYPE {
   int16_t current_dA = 0;              // Current in deciAmpere
   int8_t temp_max_dC = 0;              // Max temperature in deci-Celsius divided by 10
   int8_t temp_min_dC = 0;              // Min temperature
-  uint16_t max_charge_W = 0;           // Max allowed charge power in Watts
-  uint16_t max_discharge_W = 0;        // Max allowed discharge power in Watts
+  uint32_t max_charge_W = 0;           // Max allowed charge power in Watts
+  uint32_t max_discharge_W = 0;        // Max allowed discharge power in Watts
   uint32_t remaining_Wh = 0;           // Remaining capacity in Wh
   uint32_t total_capacity_Wh = 0;      // Total capacity in Wh
   uint16_t max_design_voltage_dV = 0;  // Max design voltage in dV
@@ -497,7 +497,7 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   node_mode_enum node_mode = NODE_STANDALONE;
   uint8_t battery_node_id = 1;     // 1-24, used when node_mode == NODE_BATTERY
   bool controller_online = false;  // true when controller heartbeat received within timeout (node mode only)
-  /** Watchdog counter for the controller heartbeat (node mode only). Reset to CAN_STILL_ALIVE on each
+  /** Watchdog counter for the controller heartbeat (node mode only). Reset to IU_NODE_CONTROLLER_TIMEOUT_S on each
    * heartbeat and decremented every second in safety.cpp; reaching 0 raises EVENT_CAN_CONTROLLER_MISSING.
    * Starts at CAN_STILL_ALIVE - 1 so the first heartbeat has time to arrive before we flag it missing. */
   uint8_t CAN_controller_still_alive = (CAN_STILL_ALIVE - 1);

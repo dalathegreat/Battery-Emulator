@@ -29,8 +29,9 @@
  *       Node 1 = 5ms, Node 2 = 10ms ... Node 8 = 40ms
  *   - Nodes send STATUS + POWER on every heartbeat
  *   - Nodes send INFO every 10th heartbeat (~10 seconds)
- *   - Safety: Node opens contactors if no heartbeat for 60 seconds
- *   - Safety: Controller marks node offline if no reply for 60 seconds
+ *   - Safety: Node opens contactors if no heartbeat for 15 seconds (IU_NODE_CONTROLLER_TIMEOUT_S)
+ *   - Safety: Controller holds the pack at 0 W while a node is stale, drops it after 20 s,
+ *             and marks it offline if no reply for 60 seconds
  *
  * CAN ID allocation:
  *   0x300        : Controller heartbeat broadcast
@@ -75,8 +76,9 @@ inline uint16_t iu_fw_version_num() {
 /* ---- Protocol version ---- */
 // Bumped when the on-wire layout changes incompatibly. v2 = per-frame application CRC.
 // v3 = remaining/total capacity in 10 Wh steps, so a node with large or double packs is not clipped.
+// v4 = max charge/discharge power in 10 W steps, so a node above 65.5 kW is not clipped.
 // Informational/documentation only — all units run the same firmware (hard cutover).
-#define IU_PROTOCOL_VERSION 3u
+#define IU_PROTOCOL_VERSION 4u
 
 /* ---- On-wire field scaling (to free a byte for the CRC on full 8-byte frames) ---- */
 // STATUS soc / INFO soh travel as 1 byte in 0.5% steps; receiver multiplies back to 0.01% units.
@@ -86,6 +88,8 @@ inline uint16_t iu_fw_version_num() {
 #define IU_REM_WH_WIRE_SCALE 10u  // wire 0..32767  <->  remaining_Wh 0..327670
 // INFO total_capacity_Wh travels as a 16-bit value in 10 Wh steps.
 #define IU_CAP_WH_WIRE_SCALE 10u  // wire 0..65535  <->  total_capacity_Wh 0..655350
+// POWER max_charge_W / max_discharge_W travel as 16-bit values in 10 W steps (rounded down).
+#define IU_POWER_W_WIRE_SCALE 10u  // wire 0..65535  <->  max_charge/discharge_W 0..655350
 
 /* ---- Application CRC ---- */
 // CRC8 (SAE J1850, poly 0x1D) over data[0..len-1], seeded with the CAN ID's low byte so a frame
@@ -158,6 +162,19 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
 /* ---- Stale data detection ---- */
 #define IU_STATUS_STALE_SECONDS 3u  // Flag stale if STATUS toggle has not changed for this many seconds
 
+/* ---- Lost-link sequencing ----
+ * When a node's link to the controller breaks, neither side can tell the other what it is doing,
+ * so both follow fixed timings that let the node open its contactor at no load:
+ *   stale > 3 s   controller drives the whole-pack power limit to 0 (inverter ramps down)
+ *   15 s          node has heard no heartbeat and opens its own contactor (current already ~0);
+ *                 controller also commands OPEN (reaches the node if only its STATUS data froze)
+ *   stale > 20 s  controller drops the node and the remaining nodes resume as N-1
+ * The node timeout must leave the inverter time to ramp down after the stale flag, and must be
+ * below the drop time so the node is open before the others resume. */
+#define IU_NODE_CONTROLLER_TIMEOUT_S 15u  // Node: no heartbeat for this long -> open contactor
+#define IU_STALE_OPEN_SECONDS 15u         // Controller: stale this long -> command the node OPEN
+#define IU_STALE_DROP_SECONDS 20u         // Controller: stale this long -> drop node, others resume
+
 /* ---- Delay constants ---- */
 #define IU_NODE_REPLY_DELAY_MS(node_id) ((node_id) * 5u)  // Collision avoidance
 #define IU_INFO_INTERVAL_HEARTBEATS 10u    // Send INFO every 10th heartbeat (heartbeat cadence = INTERVAL_1_S)
@@ -168,7 +185,7 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
        // before the inverter starts charging/discharging
 
 /*
- * Wire layouts (protocol v2). Every frame's LAST data byte is the iu_crc8() CRC.
+ * Wire layouts (protocol v4). Every frame's LAST data byte is the iu_crc8() CRC.
  *
  * HEARTBEAT — IU_CONTROLLER_HEARTBEAT_ID, 1 byte:
  *   [0]    : uint8_t   CRC
@@ -186,8 +203,8 @@ inline void iu_crc_stamp(uint32_t can_id, uint8_t* data, uint8_t dlc) {
  *   [7]    : uint8_t   CRC
  *
  * POWER message layout — IU_NODE_POWER_ID(n), 8 bytes:
- *   [0..1] : uint16_t  max_charge_W      — max charge power in Watts
- *   [2..3] : uint16_t  max_discharge_W   — max discharge power in Watts
+ *   [0..1] : uint16_t  max_charge_wire   — max_charge_W / IU_POWER_W_WIRE_SCALE (10 W steps)
+ *   [2..3] : uint16_t  max_dischg_wire   — max_discharge_W / IU_POWER_W_WIRE_SCALE (10 W steps)
  *   [4..5] : uint16_t  rem_word          — bit15 = balancing (IU_NODE_REM_BALANCING_BIT),
  *                                          bits0..14 = remaining_Wh / IU_REM_WH_WIRE_SCALE (10 Wh)
  *   [6]    : int8_t    temp_min_dC       — min temperature (°C, as int8)

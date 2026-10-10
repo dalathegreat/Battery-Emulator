@@ -60,7 +60,10 @@ void BatteryNodeCan::receive_can_frame(CAN_frame* rx_frame) {
     _last_heartbeat_ms = now;
     _controller_online = true;
     datalayer.system.status.controller_online = true;
-    datalayer.system.status.CAN_controller_still_alive = CAN_STILL_ALIVE;  // Reset watchdog
+    // Reset watchdog. Deliberately much shorter than CAN_STILL_ALIVE: on a lost link the controller
+    // has already driven the pack to 0 W, and we must open before it lets the others resume
+    // (see "Lost-link sequencing" in INTER-UNIT-PROTOCOL.h).
+    datalayer.system.status.CAN_controller_still_alive = IU_NODE_CONTROLLER_TIMEOUT_S;
     _heartbeat_count++;
 
     // Schedule reply after (node_id * 5ms) to avoid CAN collisions
@@ -212,14 +215,16 @@ void BatteryNodeCan::send_power_frame() {
   frame.DLC = 8;
   frame.ext_ID = false;
 
-  // Clamp power values to uint16_t range
-  uint16_t max_chg = (agg.max_charge_power_W > 65535u) ? 65535u : (uint16_t)agg.max_charge_power_W;
-  uint16_t max_dch = (agg.max_discharge_power_W > 65535u) ? 65535u : (uint16_t)agg.max_discharge_power_W;
+  // Power limits travel in 10 W steps, rounded down (never over-report) and clamped to uint16_t
+  const uint32_t chg_wire = agg.max_charge_power_W / IU_POWER_W_WIRE_SCALE;
+  const uint32_t dch_wire = agg.max_discharge_power_W / IU_POWER_W_WIRE_SCALE;
+  uint16_t max_chg = (chg_wire > 65535u) ? 65535u : (uint16_t)chg_wire;
+  uint16_t max_dch = (dch_wire > 65535u) ? 65535u : (uint16_t)dch_wire;
 
-  // [0..1] max_charge_W
+  // [0..1] max_charge_W / 10
   frame.data.u8[0] = (max_chg >> 8) & 0xFF;
   frame.data.u8[1] = max_chg & 0xFF;
-  // [2..3] max_discharge_W
+  // [2..3] max_discharge_W / 10
   frame.data.u8[2] = (max_dch >> 8) & 0xFF;
   frame.data.u8[3] = max_dch & 0xFF;
   // [4..5] rem_word: bits0..14 = remaining_Wh in 10 Wh steps, bit15 = offline-balancing flag.

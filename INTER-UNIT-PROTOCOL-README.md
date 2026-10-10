@@ -173,8 +173,8 @@ Carries no other payload — used only to signal that the controller is online.
 
 | Bytes | Type | Content |
 |-------|------|---------|
-| [0–1] | uint16 | Max charge power in Watts |
-| [2–3] | uint16 | Max discharge power in Watts |
+| [0–1] | uint16 | Max charge power ÷ 10 (10 W steps, rounded down; receiver ×10 → W) |
+| [2–3] | uint16 | Max discharge power ÷ 10 (10 W steps, rounded down; receiver ×10 → W) |
 | [4–5] | uint16 | `rem_word`: bit 15 = offline-balancing flag (`IU_NODE_REM_BALANCING_BIT`), bits 0–14 = remaining capacity ÷ 10 (10 Wh steps, receiver ×10 → Wh) |
 | [6] | int8 | Min temperature in °C |
 | [7] | uint8 | CRC |
@@ -220,7 +220,7 @@ Only sent if the node is connected to WiFi.
 |-------|------|---------|
 | [0–1] | uint16 | Firmware version: `(major << 8) | minor` — e.g. 10.6 = `0x0A06` |
 | [2–3] | uint16 | Battery type ID (`BatteryType` enum cast to uint16) |
-| [4] | uint8 | Protocol version (`IU_PROTOCOL_VERSION`, currently 3). The controller only accepts an IDENT carrying its own version, so a node on an older wire layout never verifies and its contactor stays open. |
+| [4] | uint8 | Protocol version (`IU_PROTOCOL_VERSION`, currently 4). The controller only accepts an IDENT carrying its own version, so a node on an older wire layout never verifies and its contactor stays open. |
 | [5–6] | — | Reserved (must be 0) |
 | [7] | uint8 | CRC |
 
@@ -245,16 +245,25 @@ When the counter reaches 0:
 - Contactor is **blocked**
 - Event `EVENT_BATTERY_NODE_MISSING` (WARNING) is raised
 
+On the node side, the controller heartbeat has its own, much shorter timeout: **15 seconds** (`IU_NODE_CONTROLLER_TIMEOUT_S`). When it runs out the node opens its contactor and raises `EVENT_CAN_CONTROLLER_MISSING`. See #3 for why it is timed this way.
+
 ---
 
-### 3. Stale Data Detection (Toggle Bit)
+### 3. Stale Data Detection (Toggle Bit) and Lost-Link Sequencing
 **Timeout:** 3 seconds (`IU_STATUS_STALE_SECONDS`)
 
 The STATUS message contains a toggle bit (bit 7) that flips on **every** frame.  
-The controller monitors whether bit 7 is changing. If it has not changed for 3 seconds the data is considered frozen (e.g. node software hung):
-- Contactor is **blocked**
-- Event `EVENT_BATTERY_NODE_STATUS_STALE` (WARNING) is raised
-- Automatically cleared when the toggle bit starts changing again
+The controller monitors whether bit 7 is changing. If it has not changed for 3 seconds the data is considered frozen (node software hung, or the CAN link to that node is broken). Event `EVENT_BATTERY_NODE_STATUS_STALE` (WARNING) is raised and the node is never newly allowed while stale.
+
+A stale node that was closed may still be on the DC bus, and if its link is broken it cannot receive commands. Both sides therefore follow fixed timings so the node opens at **no load**:
+
+| Time | Controller | Node |
+|------|------------|------|
+| stale > 3 s | Holds the **whole pack at 0 W** charge/discharge (inverter ramps down) | — |
+| 15 s | Commands the node OPEN (`IU_STALE_OPEN_SECONDS`) — reaches it if only its data froze | No heartbeat for 15 s → opens its own contactor (`IU_NODE_CONTROLLER_TIMEOUT_S`) |
+| stale > 20 s | Drops the node; the remaining nodes resume as N-1 (`IU_STALE_DROP_SECONDS`) | — |
+
+If the node's data recovers before 15 s it keeps its permission and the pack resumes with all nodes. Once the link is back after an open, the node rejoins through the normal voltage check.
 
 ---
 
@@ -314,8 +323,9 @@ How it works:
 
 If neither path can close the contactor (diff > 1.8 V, or the inverter is idle) the node remains blocked.
 
-The first node that comes online is used as the reference voltage and is always allowed.  
-All voltage checks are skipped during the startup grace period.
+The reference voltage is the DC bus itself: it is taken from a node that **reports its contactor closed** (`IU_FLAG_CONTACTOR_ENGAGED`) with fresh data — not from a node the controller has merely allowed, since an allowed node may not have closed. While another node is allowed but has not reported closed yet, further joins wait. A node that is sent ALLOW but does not report closed within 30 s has its permission revoked and must re-qualify (after a 30 s cool-down), so a stuck node cannot hold the others back.  
+If no node is closed or closing, the node is the first one and is allowed directly.  
+All voltage checks are skipped during the startup grace period; when it ends, all online nodes at matching voltage are allowed together as before.
 
 > **Safety override order:** Voltage safety runs first (may allow), then stale detection, IDENT mismatch, and fault flags each run afterwards — so any blocking condition always has the final say over `contactor_allowed`.
 
@@ -353,9 +363,9 @@ The receiver re-checks the CRC **before using any field** and drops a frame that
 
 CRC mismatches are counted and logged on each side.
 
-Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few fields are packed tighter on the wire to free the CRC byte — SOC and SOH travel in 0.5% steps (1 byte), `remaining_Wh` in 10 Wh steps (15 bits, with the offline-balancing flag in bit 15). The receiver rescales these back to the internal 0.01%/Wh units, so aggregation and the web UI are unchanged.
+Because three node frames (STATUS/POWER/INFO) were already 8 bytes full, a few fields are packed tighter on the wire to free the CRC byte — SOC and SOH travel in 0.5% steps (1 byte), `remaining_Wh` in 10 Wh steps (15 bits, with the offline-balancing flag in bit 15), and since v4 the power limits in 10 W steps. The receiver rescales these back to the internal 0.01%/Wh units, so aggregation and the web UI are unchanged.
 
-> **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2; v3 moved capacity to 10 Wh steps and puts the protocol version in IDENT byte [4]. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline, and a v2 node's IDENT is rejected by a v3 controller (and vice versa), so it is never verified and its contactor is never allowed. Flash the controller and all nodes together.
+> **Hard cutover:** the CRC is `IU_PROTOCOL_VERSION` 2; v3 moved capacity to 10 Wh steps and puts the protocol version in IDENT byte [4]; v4 moved the power limits to 10 W steps. All units run the same firmware, so there is no mixed-version compatibility: a node on older (CRC-less) firmware fails every CRC check at the controller and stays offline, and a node on an older protocol version has its IDENT rejected by the controller (and vice versa), so it is never verified and its contactor is never allowed. Flash the controller and all nodes together.
 
 This complements — and does not replace — the toggle-bit stale detection (#3): a CRC-valid frame can still carry frozen data, which only the toggle bit catches.
 

@@ -463,7 +463,7 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
 #ifndef SMALL_FLASH_DEVICE
     case EVENT_CAN_CONTROLLER_MISSING:
-      return "Controller unit not sending heartbeat via CAN for the last 60 seconds. Check wiring!";
+      return "Controller unit not sending heartbeat via CAN for the last 15 seconds. Contactor opened. Check wiring!";
     case EVENT_BATTERY_NODE_MISSING:
       return "A battery node stopped responding. Check inter-unit CAN wiring!";
     case EVENT_BATTERY_NODE_WARNING:
@@ -475,7 +475,8 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Battery node firmware version or battery type mismatch detected. That node is blocked from "
              "closing until resolved; an already-closed contactor stays closed.";
     case EVENT_BATTERY_NODE_STATUS_STALE:
-      return "A battery node's STATUS data stopped refreshing. That node is excluded until it recovers.";
+      return "A battery node's STATUS data stopped refreshing. All power is held at 0 W while that node opens "
+             "its contactor; the remaining nodes resume after 20 seconds.";
 #endif  // SMALL_FLASH_DEVICE
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";

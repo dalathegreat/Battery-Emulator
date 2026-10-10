@@ -34,6 +34,14 @@ static uint8_t voltage_diff_seconds[MAX_BATTERY_NODES] = {0};
 static const uint8_t BALANCING_HOLD_SECONDS = 50u;
 // Per-node countdown: while > 0, contactor_allowed is not yet forced false
 static uint8_t balancing_hold_seconds[MAX_BATTERY_NODES] = {0};
+// A node that is sent ALLOW must report its contactor closed within this time, otherwise its
+// permission is revoked so it re-qualifies against the bus (and stops holding other joins).
+static const uint8_t JOIN_PENDING_TIMEOUT_S = 30u;
+// Per-node seconds spent allowed (ALLOW actually sent) without reporting the contactor closed
+static uint8_t allowed_not_engaged_seconds[MAX_BATTERY_NODES] = {0};
+// Per-node cool-down after such a revoke: the node is not re-allowed meanwhile, so another node can
+// take the "first node" slot instead of the same stuck node grabbing it again straight away.
+static uint8_t join_revoke_cooldown_seconds[MAX_BATTERY_NODES] = {0};
 // Per-node last transmitted contactor command for change logging
 static uint8_t last_contactor_command[MAX_BATTERY_NODES] = {0};
 // Per-node log-once flags — reset when the condition clears
@@ -85,6 +93,8 @@ void ControllerCan::begin() {
   for (uint8_t i = 0; i < MAX_BATTERY_NODES; i++) {
     voltage_diff_seconds[i] = 0;
     balancing_hold_seconds[i] = 0;
+    allowed_not_engaged_seconds[i] = 0;
+    join_revoke_cooldown_seconds[i] = 0;
     last_contactor_command[i] = 0xFFu;
     stale_logged[i] = false;
     ident_mismatch_logged[i] = false;
@@ -167,8 +177,11 @@ void ControllerCan::receive_can_frame(CAN_frame* rx_frame) {
     }
     case 0x01:  // POWER message
     {
-      node.max_charge_W = ((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1];
-      node.max_discharge_W = ((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3];
+      // [0..3] max charge / discharge power in 10 W steps
+      node.max_charge_W =
+          (uint32_t)(((uint16_t)rx_frame->data.u8[0] << 8) | rx_frame->data.u8[1]) * IU_POWER_W_WIRE_SCALE;
+      node.max_discharge_W =
+          (uint32_t)(((uint16_t)rx_frame->data.u8[2] << 8) | rx_frame->data.u8[3]) * IU_POWER_W_WIRE_SCALE;
       // [4..5] rem_word: bit15 = offline-balancing flag, bits0..14 = remaining_Wh in 10 Wh steps
       uint16_t rem_word = ((uint16_t)rx_frame->data.u8[4] << 8) | rx_frame->data.u8[5];
       node.remaining_Wh = (uint32_t)(rem_word & IU_NODE_REM_VALUE_MASK) * IU_REM_WH_WIRE_SCALE;
@@ -421,22 +434,53 @@ void ControllerCan::update_values() {
       }
     }
 
+    // Join-pending watchdog: while ALLOW is actually being sent (see send_contactor_commands), the
+    // node must report its contactor closed within JOIN_PENDING_TIMEOUT_S. Otherwise revoke the
+    // permission: it holds other joins (see check_node_voltage_safety) and, if it closes much later,
+    // it should be re-checked against the bus as it is then. A balancing node opens on its own
+    // and is handled by balancing_hold_seconds instead.
+    if (join_revoke_cooldown_seconds[i] > 0) {
+      join_revoke_cooldown_seconds[i]--;
+    }
+    const bool allow_being_sent =
+        node.contactor_allowed && datalayer.system.status.inverter_allows_contactor_closing && !estop_active;
+    if (allow_being_sent && !node.contactor_engaged && !node.balancing) {
+      allowed_not_engaged_seconds[i]++;
+      if (allowed_not_engaged_seconds[i] >= JOIN_PENDING_TIMEOUT_S) {
+        node.contactor_allowed = false;
+        allowed_not_engaged_seconds[i] = 0;
+        join_revoke_cooldown_seconds[i] = JOIN_PENDING_TIMEOUT_S;
+        logging.printf("Controller CAN: Node %d allowed but did not close within %us — permission revoked\n", i + 1,
+                       (unsigned)JOIN_PENDING_TIMEOUT_S);
+      }
+    } else {
+      allowed_not_engaged_seconds[i] = 0;
+    }
+
     // Check voltage safety first (may allow contactor based on voltage match)
     // Skip entirely while e-stop is active — contactor must stay blocked
+    const bool allowed_before_voltage_check = node.contactor_allowed;
     if (!estop_active) {
       check_node_voltage_safety(i);
     }
 
     // Stale data detection: if STATUS toggle bit has not changed for IU_STATUS_STALE_SECONDS,
-    // this node's data is not refreshing — block its contactor and flag it. This is a
+    // this node's data is not refreshing (or its link is broken) — flag it. This is a
     // per-node (controller-internal) condition raised as a WARNING, not a global ERROR/FAULT:
     // one stale node must not fault the whole system. A genuine system-wide fault is raised
     // only when no node is usable (see InterUnitControllerBattery::update_values / any_node_usable).
+    // A stale node is never newly allowed. A node that was already allowed keeps its permission
+    // until IU_STALE_OPEN_SECONDS: meanwhile update_node_aggregation() holds the whole pack at 0 W,
+    // so the OPEN (ours, or the node's own heartbeat timeout) happens at no load.
     // Runs AFTER voltage safety so it always overrides any re-allow.
     if (node.online && node._last_status_toggle != 0xFF) {
-      node.status_stale_seconds++;
+      if (node.status_stale_seconds < 255u) {
+        node.status_stale_seconds++;
+      }
       if (node.status_stale_seconds > IU_STATUS_STALE_SECONDS) {
-        node.contactor_allowed = false;
+        if (!allowed_before_voltage_check || node.status_stale_seconds >= IU_STALE_OPEN_SECONDS) {
+          node.contactor_allowed = false;
+        }
         set_event(EVENT_BATTERY_NODE_STATUS_STALE, i + 1);
         if (!stale_logged[i]) {
           stale_logged[i] = true;
@@ -589,18 +633,36 @@ void ControllerCan::check_node_voltage_safety(uint8_t idx) {
     return;
   }
 
-  // First node to come online sets the reference voltage.
-  // Additional nodes must stay within the voltage threshold for
-  // VOLTAGE_DIFF_SECONDS_LIMIT consecutive update cycles before closing.
+  // The reference voltage is the DC bus this node would join: taken from a node that REPORTS its
+  // contactor closed (contactor_engaged) with fresh data. Our own permission (contactor_allowed) is
+  // not proof — a node can be allowed and still not have closed (fault, or still precharging), and
+  // comparing against that pack instead of the bus would be the wrong check.
+  // While another node is allowed but has not reported closed yet, the bus is in flux: hold this
+  // join until it settles (the join-pending watchdog in update_values() revokes a node that never
+  // closes, so this cannot block forever). Additional nodes must stay within the voltage threshold
+  // for VOLTAGE_DIFF_SECONDS_LIMIT consecutive update cycles before closing.
   uint16_t reference_voltage_dV = 0;
+  bool join_pending = false;
   for (uint8_t j = 0; j < MAX_BATTERY_NODES; j++) {
     if (j == idx)
       continue;
-    if (datalayer.system.battery_nodes[j].online && datalayer.system.battery_nodes[j].voltage_dV > 0 &&
-        datalayer.system.battery_nodes[j].contactor_allowed) {
-      reference_voltage_dV = datalayer.system.battery_nodes[j].voltage_dV;
-      break;
+    const BATTERY_NODE_TYPE& other = datalayer.system.battery_nodes[j];
+    if (!other.online || other.status_stale_seconds > IU_STATUS_STALE_SECONDS) {
+      continue;
     }
+    if (other.contactor_engaged) {
+      if (reference_voltage_dV == 0 && other.voltage_dV > 0) {
+        reference_voltage_dV = other.voltage_dV;
+      }
+    } else if (other.contactor_allowed && !other.balancing) {
+      join_pending = true;
+    }
+  }
+
+  if (!node.contactor_allowed && (join_pending || join_revoke_cooldown_seconds[idx] > 0)) {
+    voltage_diff_seconds[idx] = 0;
+    reset_prejoin_state(idx);
+    return;
   }
 
   if (reference_voltage_dV == 0) {
@@ -752,6 +814,17 @@ void ControllerCan::update_node_aggregation() {
 
   for (uint8_t i = 0; i < MAX_BATTERY_NODES; i++) {
     const BATTERY_NODE_TYPE& node = datalayer.system.battery_nodes[i];
+    // A stale node's data is not trusted, but if it was last seen engaged it may still be on the
+    // DC bus — and with a broken link it will open on its own heartbeat timeout. Hold the whole
+    // pack at 0 W until IU_STALE_DROP_SECONDS so that open happens at no load; after that the node
+    // is assumed open and the others resume as N-1 (see "Lost-link sequencing" in INTER-UNIT-PROTOCOL.h).
+    if (node.online && node.status_stale_seconds > IU_STATUS_STALE_SECONDS) {
+      if (node.contactor_engaged && node.status_stale_seconds <= IU_STALE_DROP_SECONDS) {
+        charge_blocked = true;
+        discharge_blocked = true;
+      }
+      continue;
+    }
     // Only aggregate nodes whose contactor is actually CLOSED (engaged). A node that is
     // merely allowed but has not physically closed its contactor is not part of the pack —
     // it reports max_charge_W/max_discharge_W = 0, which would otherwise trip charge_blocked/
