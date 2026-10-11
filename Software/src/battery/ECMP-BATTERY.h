@@ -383,6 +383,10 @@ class EcmpBattery : public UdsCanBattery {
   uint16_t battery_voltage = 0;
   uint16_t battery_soc = 0;
   uint16_t cellvoltages[108];
+  uint16_t cell_soh[108] = {0};
+  uint16_t min_cell_soh = NOT_SAMPLED_YET;
+  uint16_t max_cell_soh = NOT_SAMPLED_YET;
+  uint16_t avg_cell_soh = NOT_SAMPLED_YET;
   uint16_t battery_AllowedMaxChargeCurrent = 0;
   uint16_t battery_AllowedMaxDischargeCurrent = 0;
   uint16_t battery_insulationResistanceKOhm = 0;
@@ -399,7 +403,6 @@ class EcmpBattery : public UdsCanBattery {
   uint16_t pid_low_cell_voltage = NOT_SAMPLED_YET;
   uint16_t pid_12v = 12345;  //Initialized to over 12V to not trigger low 12V event
   uint16_t pid_hvil_in_voltage = NOT_SAMPLED_YET;
-  uint16_t pid_SOH_cell_1 = NOT_SAMPLED_YET;
   uint16_t SOE_MAX_CURRENT_TEMP = 0;
   uint16_t FRONT_MACHINE_POWER_LIMIT = 0;
   uint16_t REAR_MACHINE_POWER_LIMIT = 0;

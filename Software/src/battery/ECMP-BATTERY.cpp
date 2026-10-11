@@ -392,8 +392,12 @@ String EcmpBattery::get_uds_info_html() {
             pid_time_spent_over_55c, 255, " minutes");
     H4_COND("Contactor lifetime closing counter", 
             pid_contactor_closing_counter, 255, " cycles");
-    H4_COND("State of Health Cell-1", 
-            pid_SOH_cell_1, 255, "");
+    H4_COND("SOH Minimum Value", 
+            min_cell_soh, 255, "");
+    H4_COND("SOH Maximum Value", 
+            max_cell_soh, 255, "");
+    H4_COND("SOH Average Value", 
+            avg_cell_soh, 255, "");
 
     // ============================================================================
     // MysteryVan platform section (All parameters in ALLCAPS)
@@ -1091,10 +1095,34 @@ uint16_t EcmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* da
         memcpy(pid_battery_serial, data, 14);
       }
       break;
-    case PID_ALL_CELL_SOH:  //Multiframe
-      pid_SOH_cell_1 = data[0] << 8 | data[1];
-      //No need for us to read all 108 cells, we can just read the first one and assume the rest are similar
-      break;
+case PID_ALL_CELL_SOH: {  // Multiframe
+  uint16_t num_cells = length / 2;
+  if (num_cells > 108) {
+    num_cells = 108;  // never write past array size
+  }
+
+  if (num_cells == 0) {
+    break;  // nothing valid, leave previous values untouched
+  }
+
+  uint16_t min_val = 0xFFFF;
+  uint16_t max_val = 0;
+  uint32_t sum = 0;  // uint32_t so 108 * 65535 can't overflow
+
+  for (uint16_t i = 0; i < num_cells; i++) {
+    uint16_t v = (data[2 * i] << 8) | data[2 * i + 1];
+    cell_soh[i] = v;
+
+    if (v < min_val) min_val = v;
+    if (v > max_val) max_val = v;
+    sum += v;
+  }
+
+  min_cell_soh = min_val;
+  max_cell_soh = max_val;
+  avg_cell_soh = sum / num_cells;
+  break;
+}
     case PID_AUX_FUSE_STATE:
       pid_aux_fuse_state = value;
       break;

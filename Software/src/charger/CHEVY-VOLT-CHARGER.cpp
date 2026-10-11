@@ -120,7 +120,7 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     }
 
     if (setpoint_HV_IDC > CHARGER_MAX_A) {
-      setpoint_HV_VDC = CHEVYVOLT_MAX_AMP;
+      setpoint_HV_IDC = CHEVYVOLT_MAX_AMP;
     }
 
     /* if power overcommitted, back down to just below while maintaining voltage target */
