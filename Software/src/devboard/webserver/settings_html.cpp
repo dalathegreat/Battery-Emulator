@@ -65,7 +65,7 @@ String options_for_enum_with_none(TEnum selected, Func name_for_type, TEnum none
   auto values = enum_values_and_names<TEnum>(name_for_type, &none);
   for (const auto& [name, type] : values) {
     options +=
-        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">);
+        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
     options += name;
     options += "</option>";
   }
@@ -80,7 +80,7 @@ String options_for_enum(TEnum selected, Func name_for_type) {
     if (name[0] == '\0')
       continue;  // Don't show blank options
     options +=
-        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">);
+        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
     options += name;
     options += "</option>";
   }
