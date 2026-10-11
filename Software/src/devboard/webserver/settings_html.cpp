@@ -1321,7 +1321,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
 #ifndef SMALL_FLASH_DEVICE
 // CHAdeMO CT clamp ("Custom Clamp" shunt type): its rows in the Optional components card and their CSS
-  #define CTCLAMP_SETTINGS_HTML \
+#define CTCLAMP_SETTINGS_HTML \
   R"rawliteral(
         <div class="if-ctclamp">
           <label>CT Clamp offset (mV): </label>
@@ -1344,16 +1344,16 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <label>Invert CT current: </label>
           <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
           </div>)rawliteral"
-  #define CTCLAMP_SETTINGS_STYLE \
+#define CTCLAMP_SETTINGS_STYLE \
   R"rawliteral(
     form[data-shunttype="3"] .if-shunt { display: none; }
     form .if-ctclamp { display: none; }
     form[data-shunttype="3"] .if-ctclamp { display: contents; }
     )rawliteral"
 
-  // QNHCK2-16 current sensor: its rows in the Optional components card, their CSS, and the script
-  // behind the manual calibration's Start button
-  #define QNHCK_SETTINGS_HTML \
+// QNHCK2-16 current sensor: its rows in the Optional components card, their CSS, and the script
+// behind the manual calibration's Start button
+#define QNHCK_SETTINGS_HTML \
   R"rawliteral(
         <div class="if-qnhck">
           <label>Rated current: </label>
@@ -1380,7 +1380,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <button type='button' onclick='calibrateQnhZero()' style='margin:0 0 0 10px;padding:3px 14px'>Start</button></span>
           </div>
         </div>)rawliteral"
-  #define QNHCK_SETTINGS_STYLE \
+#define QNHCK_SETTINGS_STYLE \
   R"rawliteral(
     form[data-shunttype="4"] .if-shunt { display: none; }
     form .if-qnhck { display: none; }
@@ -1390,7 +1390,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form .if-qnhauto { display: contents; }
     form[data-qnhautocal="false"] .if-qnhauto { display: none; }
     )rawliteral"
-  #define QNHCK_SETTINGS_SCRIPT \
+#define QNHCK_SETTINGS_SCRIPT \
   R"rawliteral(
 
         function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure it[...]
