@@ -362,11 +362,12 @@ void init_stored_settings() {
 
   uugp_allow_discharge_to_home_grid = settings.getBool("UUGP_ALLOW", false);
 
-  uugp_start_mode = settings.getUInt("UUGP_STARTMODE", 1);
-
-  if (uugp_start_mode > 2) {
-    uugp_start_mode = 1;
+  uugp_ip = settings.getString("UUGP_IP", "").c_str();
+  uugp_port = settings.getUInt("UUGP_PORT", 502);
+  if (uugp_port == 0) {
+    uugp_port = 502;
   }
+  
 #endif
 }
 
@@ -442,6 +443,5 @@ void store_settings() {
   settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
   settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
   settings.saveBool("UUGP_ALLOW", uugp_allow_discharge_to_home_grid);
-  settings.saveUInt("UUGP_STARTMODE", uugp_start_mode);
 #endif
 }
