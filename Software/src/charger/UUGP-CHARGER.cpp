@@ -131,9 +131,8 @@ void UUGPCharger::send_frame(uint8_t function, const uint8_t* payload, size_t pa
   header[7] = function;
 
   if (!tcp_client.connected()) {
-      tcp_connected = false;
-      datalayer.charger.uugp_communication_ok = false;
-      return;
+    close_tcp_connection();
+    return;
   }
   if (tcp_client.write(header, sizeof(header)) != sizeof(header)) {
     close_tcp_connection();
@@ -462,10 +461,6 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 
   if (last_response_ms != 0 && millis() - last_response_ms > 3000) {
     datalayer.charger.uugp_communication_ok = false;
-  }
-
-  if (last_tcp_rx_ms != 0 && millis() - last_tcp_rx_ms > TCP_RESPONSE_TIMEOUT_MS) {
-      datalayer.charger.uugp_communication_ok = false;
   }
 
   if (!initialization_complete) {
