@@ -39,6 +39,8 @@ class TeslaBattery : public CanBattery {
 
   bool supports_clear_isolation() { return true; }
   bool supports_insulation_resistance() { return true; }
+  // Closes only while the inverter allows it (0x221 DRIVE state) and reports BMS_contactorState
+  bool reports_contactor_state() { return true; }
   void clear_isolation() { datalayer.battery_settings.user_requests_tesla_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }

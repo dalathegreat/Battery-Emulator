@@ -22,6 +22,9 @@ class TestFakeBattery : public CanBattery, public BatteryHtmlRenderer {
 
   static constexpr const char* Name = "Fake battery for testing purposes";
 
+  // Follows inverter_allows_contactor_closing and reports it in contactors_engaged (see update_values)
+  bool reports_contactor_state() { return true; }
+
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();

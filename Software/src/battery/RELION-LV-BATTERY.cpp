@@ -1,8 +1,10 @@
 #include "RELION-LV-BATTERY.h"
 #include "../battery/BATTERIES.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 /*CAN Type:CAN2.0(Extended)
 BPS:250kbps
 Data Length: 8
@@ -100,6 +102,13 @@ void RelionBattery::update_values() {
   datalayer_battery->status.cell_max_voltage_mV = max_cell_voltage;
 
   datalayer_battery->status.cell_min_voltage_mV = min_cell_voltage;
+
+  // The pack gives no known contactor feedback, so report the state we last commanded. Only the primary
+  // battery owns the system contactor status, and GPIO contactor control stays authoritative when enabled.
+  if (datalayer_battery == &datalayer.battery && !contactor_control_enabled) {
+    datalayer.system.status.contactors_engaged = contactors_commanded_closed ? 1 : 0;
+    datalayer.system.status.dc_bus_live = contactors_commanded_closed;
+  }
 }
 
 void RelionBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -111,6 +120,10 @@ void RelionBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x02028100:  //ID2 (Example frame 00 00 00 63 64 10 00 00)
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_total_current = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
+      if (rx_frame.data.u8[2] != system_state) {
+        // Logged to find out if this byte carries contactor feedback
+        logging.printf("Relion: system state 0x%02X -> 0x%02X\n", system_state, rx_frame.data.u8[2]);
+      }
       system_state = rx_frame.data.u8[2];
       battery_soc = rx_frame.data.u8[3];
       battery_soh = rx_frame.data.u8[4];
@@ -211,10 +224,13 @@ void RelionBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    if ((datalayer.system.status.system_status == FAULT) || !(*allows_contactor_closing)) {
-      RELION_CONTACTOR_MESSAGE.data.u8[0] = 0x02;  // Open contactors in case of fault
+    contactors_commanded_closed = (datalayer.system.status.system_status != FAULT) && *allows_contactor_closing &&
+                                  datalayer.system.status.inverter_allows_contactor_closing;
+
+    if (contactors_commanded_closed) {
+      RELION_CONTACTOR_MESSAGE.data.u8[0] = 0x01;  // Close contactors
     } else {
-      RELION_CONTACTOR_MESSAGE.data.u8[0] = 0x01;  // Close contactors if no fault
+      RELION_CONTACTOR_MESSAGE.data.u8[0] = 0x02;  // Open contactors: fault, or battery/inverter not ready
     }
 
     transmit_can_frame(&RELION_CONTACTOR_MESSAGE);
