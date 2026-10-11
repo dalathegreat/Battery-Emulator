@@ -434,10 +434,13 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_SOH_pptt_g61 = 0;
   uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read
   uint32_t battery_capacity_Wh = 0;   //Energy equivalent of the above at nominal voltage, 0 until read
-  //The state of health the LBC publishes, health block first and the 0x5BC broadcast otherwise, in
-  //hundredths of a percent. Shown on the info page beside the raw figure; the SOH the rest of the
-  //system uses is derived from the capacities instead, since this one is erased by a reset.
+  //The two state of health figures that get compared, both in hundredths of a percent, 0 until
+  //each can be worked out. battery_SOH_avg_pptt is the one the LBC publishes, health block first
+  //and the 0x5BC broadcast otherwise, which a degradation reset puts back to 100%.
+  //battery_SOH_der_pptt is the one derived from the measured capacity against the nameplate, which
+  //survives that reset. The lower of the two is what the rest of the system is told.
   uint16_t battery_SOH_avg_pptt = 0;
+  uint16_t battery_SOH_der_pptt = 0;
   uint16_t battery_vbat_mV = 0;  //12 V accessory battery level in mV, 0 until read
   //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
   //level on any pack that never reports one.
