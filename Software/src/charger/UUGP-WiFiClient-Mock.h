@@ -2,9 +2,9 @@
 #define UUGP_WIFI_CLIENT_MOCK_H
 
 #include <Arduino.h>
+#include <WiFi.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <WiFi.h>
 
 class WiFiClient {
  public:
