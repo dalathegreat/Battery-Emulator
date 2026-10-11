@@ -22,8 +22,6 @@ class UUGPCharger : public Charger, public Transmitter {
   void transmit(unsigned long currentMillis) override;
   void receive() override;
 
-  void UUGPCharger::receive() { receive_tcp(); }
-
  private:
   static constexpr uint8_t UNIT_ID = 0x01;
   static constexpr uint16_t MODBUS_TCP_PORT_DEFAULT = 502;
