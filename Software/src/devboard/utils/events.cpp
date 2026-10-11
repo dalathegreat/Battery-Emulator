@@ -224,6 +224,8 @@ void init_events(void) {
   set_battery_event_level(EVENT_HVIL_FAILURE, EVENT_LEVEL_ERROR);
   events.entries[EVENT_LOW_HEAP_MEMORY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
+  set_battery_event_level(EVENT_CONTACTOR_WATCHDOG_ACTIVE, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_CONTACTOR_WATCHDOG_FAILED, EVENT_LEVEL_WARNING);
   events.entries[EVENT_AUTOMATIC_PRECHARGE_FAILURE].level = EVENT_LEVEL_ERROR;
   set_battery_event_level(EVENT_INTERNAL_OPEN_FAULT, EVENT_LEVEL_ERROR);
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
@@ -549,6 +551,12 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Memory almost full. Inform developers.";
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
+    case EVENT_CONTACTOR_WATCHDOG_ACTIVE:
+      return "Contactor watchdog: battery did not report engaged in time, running a recovery pulse "
+             "(wakeup low/high) to clear the precharge error latch. Data: recovery attempt number.";
+    case EVENT_CONTACTOR_WATCHDOG_FAILED:
+      return "Contactor watchdog gave up: battery still failed to engage after all recovery attempts. "
+             "Inspect battery/contactors!";
     case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
       return "Automatic precharge FAILURE. Failed to reach target voltage or BMS timeout. Reboot emulator to retry!";
     case EVENT_INTERNAL_OPEN_FAULT:
