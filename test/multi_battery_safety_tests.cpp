@@ -18,6 +18,13 @@
 
 namespace {
 
+// A pack whose integration finds its own SOC implausible, as the LEAF's can
+class ImplausibleSocBattery : public TestFakeBattery {
+ public:
+  explicit ImplausibleSocBattery(DATALAYER_BATTERY_TYPE* pack) : TestFakeBattery(pack, CAN_Interface::CAN_NATIVE) {}
+  bool soc_plausible() override { return false; }
+};
+
 class MultiBatterySafetyTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -26,9 +33,12 @@ class MultiBatterySafetyTest : public ::testing::Test {
     battery = new TestFakeBattery();
     battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
     battery3 = new TestFakeBattery(&datalayer.battery3, CAN_Interface::CAN_NATIVE);
+    battery2->battery_index = 2;  // Numbered as setup_battery() does, so each reads its own current
+    battery3->battery_index = 3;
     datalayer.system.info.configured_batteries = 3;
     datalayer.system.info.CPU_free_heap = 200000;  // Keep the low-heap check quiet
-    emulator_pause_request_ON = false;             // A global other suites leave behind
+    emulator_pause_request_ON = false;             // Globals other suites leave behind
+    emulator_pause_status = NORMAL;
     // The detection latches are globals with no reset inside safety.cpp
     battery_detected = true;
     battery2_detected = true;
@@ -42,6 +52,7 @@ class MultiBatterySafetyTest : public ::testing::Test {
       pack->status.cell_max_voltage_mV = 3800;
       pack->status.cell_min_voltage_mV = 3750;
     }
+    datalayer.aggregate.real_soc = 5000;
     datalayer.aggregate.reported_soc = 5000;
 
     // The charge latches are statics inside safety.cpp: one healthy pass releases any that an
@@ -260,8 +271,8 @@ TEST_F(MultiBatterySafetyTest, HealthyPackDoesNotClearAnotherPacksCellDeviation)
   EXPECT_EQ(state(EVENT_CELL_DEVIATION_HIGH_BAT2), EVENT_STATE_ACTIVE);
 }
 
-// Battery 2 and 3 are each compared with battery 1 for the one shared SOH difference event. A
-// battery 3 within range used to clear the warning battery 2 had just raised.
+// Every pair of packs is compared for the one shared SOH difference event. A battery 3 within
+// range used to clear the warning battery 2 had just raised.
 TEST_F(MultiBatterySafetyTest, Pack3WithinRangeDoesNotClearPack2SohDifference) {
   datalayer.battery.status.soh_pptt = 9000;
   datalayer.battery2.status.soh_pptt = 6000;  // 30 % apart, the limit is 25 %
@@ -275,4 +286,181 @@ TEST_F(MultiBatterySafetyTest, Pack3WithinRangeDoesNotClearPack2SohDifference) {
   run_cycle();
 
   EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_INACTIVE);
+}
+
+// Battery 2 and 3 are compared with each other too. Each is within range of battery 1 here, but
+// they are 40 % apart, which only comparing them with battery 1 never caught.
+TEST_F(MultiBatterySafetyTest, SohDifferenceBetweenPack2AndPack3IsReported) {
+  datalayer.battery.status.soh_pptt = 7000;
+  datalayer.battery2.status.soh_pptt = 5000;
+  datalayer.battery3.status.soh_pptt = 9000;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
+}
+
+// A pack still holding the 9900 power-on default is left out, and the packs with a reading are
+// still compared. With no pair left to compare, the event stays as it was.
+TEST_F(MultiBatterySafetyTest, SohDifferenceLeavesOutAPackAtItsDefault) {
+  datalayer.battery.status.soh_pptt = 9900;
+  datalayer.battery2.status.soh_pptt = 6000;  // 30 % apart from pack 3
+  datalayer.battery3.status.soh_pptt = 9000;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
+
+  datalayer.battery3.status.soh_pptt = 9900;
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_DIFFERENCE), EVENT_STATE_ACTIVE);
+}
+
+// The low SOH error judges the SOH the inverter is sent, the weakest pack's. Pack 1 alone used to
+// decide, so a worn out pack 2 or 3 never raised it.
+TEST_F(MultiBatterySafetyTest, LowSohOnPack2RaisesTheLowSohError) {
+  datalayer.battery.status.soh_pptt = 9000;
+  datalayer.battery2.status.soh_pptt = 2000;
+  datalayer.battery3.status.soh_pptt = 8500;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_SOH_LOW)->data, 2000);
+
+  datalayer.battery2.status.soh_pptt = 8000;
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_INACTIVE);
+}
+
+// A pack that has not decoded its SOH yet is not part of what the inverter is sent, so it cannot
+// raise the error either
+TEST_F(MultiBatterySafetyTest, UndecodedSohDoesNotRaiseTheLowSohError) {
+  datalayer.battery.status.soh_pptt = 9000;
+  datalayer.battery2.status.soh_available = false;
+  datalayer.battery2.status.soh_pptt = 0;
+  datalayer.battery3.status.soh_pptt = 8500;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOH_LOW), EVENT_STATE_INACTIVE);
+}
+
+// Every pack's integration is asked whether its SOC is plausible, and the pack that answers no is
+// the one named. Only pack 1 used to be asked.
+TEST_F(MultiBatterySafetyTest, ImplausibleSocOnPack3IsReportedForPack3) {
+  delete battery3;
+  battery3 = new ImplausibleSocBattery(&datalayer.battery3);
+  datalayer.battery3.status.real_soc = 4200;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR_BAT3), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_PLAUSIBILITY_ERROR_BAT3)->data, 4200);
+  EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_SOC_PLAUSIBILITY_ERROR_BAT2), EVENT_STATE_INACTIVE);
+}
+
+// The inverter is held to every pack's own limits, and the pack it overruns is the one named.
+// Only pack 1 used to be checked.
+TEST_F(MultiBatterySafetyTest, ChargeLimitOverrunOnPack2IsReportedForPack2) {
+  datalayer.battery2.status.current_dA = 200;  // 7400 W into pack 2 at 370.0 V, its limit is 5000 W
+
+  for (uint8_t pass = 0; pass <= MAX_CHARGE_DISCHARGE_LIMIT_FAILURES + 1; pass++) {
+    run_cycle();
+  }
+
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED_BAT2), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT2), EVENT_STATE_INACTIVE);
+
+  // Back within its limit, pack 2's alert clears
+  datalayer.battery2.status.current_dA = 0;
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_CHARGE_LIMIT_EXCEEDED_BAT2), EVENT_STATE_INACTIVE);
+}
+
+// A pause clears every pack's alert on the way in, not only pack 1's
+TEST_F(MultiBatterySafetyTest, PauseClearsADischargeLimitAlertOnPack3) {
+  datalayer.battery3.status.current_dA = -200;  // 7400 W out of pack 3, its limit is 5000 W
+
+  for (uint8_t pass = 0; pass <= MAX_CHARGE_DISCHARGE_LIMIT_FAILURES + 1; pass++) {
+    run_cycle();
+  }
+  ASSERT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_ACTIVE);
+
+  emulator_pause_request_ON = true;
+  run_cycle();
+  emulator_pause_request_ON = false;
+
+  EXPECT_EQ(state(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT3), EVENT_STATE_INACTIVE);
+}
+
+// Battery full follows the SOC the inverter is sent, which a full pack 2 can bring to 100 % on its
+// own. The event is about the installation and names no pack, and charging stops for all of them.
+TEST_F(MultiBatterySafetyTest, FullInstallationNamesNoPack) {
+  datalayer.battery_settings.soc_scaling_active = false;
+  datalayer.battery.status.real_soc = 9950;
+  datalayer.battery2.status.real_soc = 10000;
+  datalayer.battery3.status.real_soc = 9950;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_ACTIVE);
+  const std::string message = get_event_message_string(EVENT_BATTERY_FULL).c_str();
+  EXPECT_EQ(message.find("(Battery"), std::string::npos) << message;
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 5000u);
+}
+
+TEST_F(MultiBatterySafetyTest, EmptyInstallationNamesNoPack) {
+  datalayer.battery_settings.soc_scaling_active = false;
+  datalayer.battery3.status.real_soc = 0;
+
+  update_aggregate_values();
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY_EMPTY), EVENT_STATE_ACTIVE);
+  const std::string message = get_event_message_string(EVENT_BATTERY_EMPTY).c_str();
+  EXPECT_EQ(message.find("(Battery"), std::string::npos) << message;
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
+}
+
+// A BMS can report its pack full whatever the SOC reads, as the LEAF's does at 92-96 %. A pack on
+// the DC link reporting so raises the installation's event, one held out of the link does not, and
+// the event clears once no pack on the link reports it any more.
+TEST_F(MultiBatterySafetyTest, BmsReportedFullRaisesBatteryFullForPacksOnTheLink) {
+  datalayer.system.status.battery3_allowed_contactor_closing = false;
+  datalayer.battery3.status.bms_reports_full = true;
+  run_cycle();
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_INACTIVE);
+
+  datalayer.battery2.status.bms_reports_full = true;
+  run_cycle();
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+
+  datalayer.battery2.status.bms_reports_full = false;
+  run_cycle();
+  EXPECT_EQ(state(EVENT_BATTERY_FULL), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
+}
+
+TEST_F(MultiBatterySafetyTest, BmsReportedEmptyRaisesBatteryEmpty) {
+  datalayer.battery2.status.bms_reports_empty = true;
+
+  run_cycle();
+
+  EXPECT_EQ(state(EVENT_BATTERY_EMPTY), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 5000u);
 }
