@@ -4,13 +4,7 @@
 #include <Arduino.h>
 #include <stddef.h>
 #include <stdint.h>
-
-class IPAddress {
- public:
-  IPAddress() = default;
-
-  bool fromString(const char*) { return false; }
-};
+#include "../../../test/emul/WiFi.h"
 
 class WiFiClient {
  public:
