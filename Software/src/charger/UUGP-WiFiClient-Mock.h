@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "../../../test/emul/WiFi.h"
 
 class WiFiClient {
  public:
@@ -17,5 +16,4 @@ class WiFiClient {
   int available() { return 0; }
   int read() { return -1; }
 };
-
 #endif
