@@ -218,6 +218,9 @@ static bool supports_byd_metrics(Battery* b) {
 static bool supports_insulation(Battery* b) {
   return b != nullptr && b->supports_insulation_resistance();
 }
+static bool supports_balancing_cmd(Battery* b) {
+  return b != nullptr && (b->supports_balancing() || b->supports_balancing_request());
+}
 static bool supports_leaf_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
 }
@@ -365,6 +368,13 @@ static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, 
                                              {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
                                              {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
 
+// Per-battery buttons. All packs share one command topic; the button of pack N sends payload
+// "N" (see balancing_target_from_payload()), so the topic list stays fixed however many packs
+// there are. Only published for packs whose protocol implements balancing control.
+static const SensorConfig batteryButtonConfigs[] = {
+    {"STARTBALANCING", "Start balancing", nullptr, nullptr, supports_balancing_cmd},
+    {"STOPBALANCING", "Stop balancing", nullptr, nullptr, supports_balancing_cmd}};
+
 // All commands the emulator subscribes to. The matching topics are precomputed once in
 // init_mqtt() so that mqtt_message_received() does not rebuild temporary Strings on
 // every received message.
@@ -374,13 +384,16 @@ enum ButtonCommand {
   BTN_RESUME,
   BTN_RESTART,
   BTN_STOP,
+  BTN_STARTBALANCING,
+  BTN_STOPBALANCING,
   BTN_SET_LIMITS,
   BTN_ESPNOW_RUN,
   BTN_SET_SCALESOC,
   BTN_COUNT
 };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE",      "RESUME",     "RESTART",
-                                                 "STOP",     "SET_LIMITS", "ESPNOW_RUN", "SET_SCALESOC"};
+static const char* button_commands[BTN_COUNT] = {"BMSRESET",   "PAUSE",          "RESUME",        "RESTART",
+                                                 "STOP",       "STARTBALANCING", "STOPBALANCING", "SET_LIMITS",
+                                                 "ESPNOW_RUN", "SET_SCALESOC"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -712,6 +725,10 @@ static const char* button_discovery_icon(const char* command) {
     return "mdi:battery-sync-outline";
   if (strcmp(command, "STOP") == 0)
     return "mdi:battery-remove-outline";
+  if (strcmp(command, "STARTBALANCING") == 0)
+    return "mdi:scale-balance";
+  if (strcmp(command, "STOPBALANCING") == 0)
+    return "mdi:stop-circle-outline";
   return nullptr;
 }
 
@@ -1205,6 +1222,38 @@ static bool publish_buttons_discovery(void) {
         }
         doc.clear();
       }
+      for (const auto& target : battery_targets) {
+        Battery* bat = *target.bat;
+        if (bat == nullptr) {
+          continue;
+        }
+        for (const auto& config : batteryButtonConfigs) {
+          if (!config.condition(bat)) {
+            continue;
+          }
+          char entity_id[32];
+          char name_buf[48];
+          char payload[2] = {(char)('0' + target.index), ' '};
+          snprintf(entity_id, sizeof(entity_id), "%s%s", config.entity_id, target.id_suffix);
+          snprintf(name_buf, sizeof(name_buf), "%s%s", config.name, display_name_suffix(target));
+          doc["name"] = name_buf;
+          doc["unique_id"] = default_entity_id_prefix + entity_id;
+          doc["command_topic"] = generateButtonTopic(config.entity_id);
+          doc["payload_press"] = payload;
+          {
+            const char* icon = button_discovery_icon(config.entity_id);
+            if (icon != nullptr) {
+              doc["icon"] = icon;
+            }
+          }
+          set_common_discovery_attributes(doc);
+          serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+          if (!mqtt_publish(generateButtonAutoConfigTopic(entity_id).c_str(), mqtt_msg, true)) {
+            return false;
+          }
+          doc.clear();
+        }
+      }
       // Only mark done once ALL button configs went out. The old code set the flag on the
       // first successful publish, so a mid-loop failure left the remaining buttons
       // undiscovered forever.
@@ -1216,6 +1265,41 @@ static bool publish_buttons_discovery(void) {
 
 static void subscribe() {
   esp_mqtt_client_subscribe(client, (topic_name + "/command/+").c_str(), 1);
+}
+
+// Resolves the pack a STARTBALANCING/STOPBALANCING command is meant for. An empty payload or
+// "1" means battery 1, "2" and "3" the other packs. "PRESS" (Home Assistant's default button
+// payload) is also taken as battery 1, for hand-made buttons. Returns nullptr, with a log line,
+// for any other payload or a pack that is absent or cannot balance.
+static Battery* balancing_target_from_payload(const char* command, const char* data, int data_len) {
+  int start = 0;
+  while (start < data_len && isspace((unsigned char)data[start])) {
+    start++;
+  }
+  int end = data_len;
+  while (end > start && isspace((unsigned char)data[end - 1])) {
+    end--;
+  }
+  const int len = end - start;
+  int index = 0;
+  if (len == 0 || (len == 5 && strncmp(data + start, "PRESS", 5) == 0)) {
+    index = 1;
+  } else if (len == 1 && data[start] >= '1' && data[start] <= '3') {
+    index = data[start] - '0';
+  } else {
+    logging.printf("MQTT: invalid %s payload [%.*s], expected 1, 2 or 3
+", command, data_len, data);
+    return nullptr;
+  }
+  Battery* bat = *battery_targets[index - 1].bat;
+  if (!supports_balancing_cmd(bat)) {
+    logging.printf("MQTT: %s ignored, battery %d is not present or does not support balancing
+", command, index);
+    return nullptr;
+  }
+  logging.printf("MQTT: %s on battery %d
+", command, index);
+  return bat;
 }
 
 void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len) {
@@ -1246,6 +1330,20 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, button_command_topics[BTN_STOP].c_str()) == 0) {
     setBatteryPause(true, false, EquipmentStop::STOP);
+  }
+
+  if (strcmp(topic, button_command_topics[BTN_STARTBALANCING].c_str()) == 0) {
+    Battery* bat = balancing_target_from_payload("STARTBALANCING", data, data_len);
+    if (bat != nullptr) {
+      bat->initiate_balancing();
+    }
+  }
+
+  if (strcmp(topic, button_command_topics[BTN_STOPBALANCING].c_str()) == 0) {
+    Battery* bat = balancing_target_from_payload("STOPBALANCING", data, data_len);
+    if (bat != nullptr) {
+      bat->end_balancing();
+    }
   }
 
   // "1" starts ESP-NOW if it is not running, "0" stops it if it is. Runtime only: the
