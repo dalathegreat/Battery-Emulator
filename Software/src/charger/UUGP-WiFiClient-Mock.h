@@ -5,6 +5,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+class IPAddress {
+ public:
+  IPAddress() = default;
+
+  bool fromString(const char*) { return false; }
+};
+
 class WiFiClient {
  public:
   bool connected() { return false; }
