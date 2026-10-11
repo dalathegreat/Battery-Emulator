@@ -2,7 +2,9 @@
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CanCharger.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
@@ -111,7 +113,9 @@ void init_stored_settings() {
   user_selected_battery_chemistry =
       (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA);
   user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
+#ifndef SMALL_FLASH_DEVICE
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
+#endif  // SMALL_FLASH_DEVICE
   user_selected_shunt_type = (ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None);
 #ifdef SMALL_FLASH_DEVICE
   // A shunt type left out of this build (the CHAdeMO CT clamp) reads as none
@@ -194,7 +198,9 @@ void init_stored_settings() {
   can_config.battery_double = readIf("BATT2COMM");
   can_config.battery_triple = readIf("BATT3COMM");
   can_config.inverter = readIf("INVCOMM");
+#ifndef SMALL_FLASH_DEVICE
   can_config.charger = readIf("CHGCOMM");
+#endif  // SMALL_FLASH_DEVICE
   can_config.shunt = readIf("SHUNTCOMM");
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);

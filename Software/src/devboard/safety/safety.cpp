@@ -1,6 +1,8 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
@@ -33,7 +35,9 @@ static uint32_t emulator_restart_request_millis = 0;
 bool battery_detected = false;
 bool battery2_detected = false;
 bool battery3_detected = false;
+#ifndef SMALL_FLASH_DEVICE
 bool charger_detected = false;
+#endif  // SMALL_FLASH_DEVICE
 bool inverter_detected = false;
 
 battery_pause_status emulator_pause_status = NORMAL;
@@ -477,6 +481,7 @@ void update_machineryprotection(uint32_t currentMillis) {
     }
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (charger) {
     // Assuming chargers are all CAN here.
     // Check that the charger has been seen and is still sending CAN messages.
@@ -484,6 +489,7 @@ void update_machineryprotection(uint32_t currentMillis) {
     check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
                               EVENT_CAN_CHARGER_MISSING, charger->interface());
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // Additional Double-Battery safeties are checked here
   if (battery2) {

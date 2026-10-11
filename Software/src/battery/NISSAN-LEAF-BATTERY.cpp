@@ -1,7 +1,9 @@
 #include "NISSAN-LEAF-BATTERY.h"
 #include <cstring>  //For unit test
+#ifndef SMALL_FLASH_DEVICE
 #include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
@@ -17,6 +19,15 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
   const int32_t sum_dA = sum_raw * 5;
   return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
+}
+
+//The Nissan LEAF PDM charger sends its own 0x1D4 and 0x1F2, which would collide with ours
+static bool leaf_pdm_charger_in_use() {
+#ifndef SMALL_FLASH_DEVICE
+  return charger && charger->type() == ChargerType::NissanLeaf;
+#else
+  return false;  // Chargers are left out of the small flash devices
+#endif  // SMALL_FLASH_DEVICE
 }
 
 //Sorts a copy of the window, so the window itself keeps sliding, and sums what is left once
@@ -1324,9 +1335,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
-      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+      if (!leaf_pdm_charger_in_use()) {
         transmit_can_frame(&LEAF_1D4);
       }
 
@@ -1431,9 +1442,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       LEAF_1F2.data.u8[7] =
           (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
 
-      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
-      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+      if (!leaf_pdm_charger_in_use()) {
         transmit_can_frame(&LEAF_1F2);
       }
 
