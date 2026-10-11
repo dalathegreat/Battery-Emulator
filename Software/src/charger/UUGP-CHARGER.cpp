@@ -10,7 +10,9 @@
 volatile uint16_t uugp_power_limit_W = 10000;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
 volatile bool uugp_allow_discharge_to_home_grid = false;
-volatile uint8_t uugp_start_mode = 1;
+
+std::string uugp_ip = "";
+volatile uint16_t uugp_port = 502;
 
 UUGPCharger::UUGPCharger() : Charger(ChargerType::UUGP) {
   register_transmitter(this);
@@ -33,12 +35,48 @@ float UUGPCharger::HVDC_output_current() {
   return datalayer.charger.uugp_charging_current_A;
 }
 
-bool UUGPCharger::ensure_serial() {
-  if (serial_initialized) {
-    return true;
-  }
-  serial_initialized = rs485_begin(Name, serial, 9600, SERIAL_8N1);
-  return serial_initialized;
+bool UUGPCharger::ensure_tcp_connection() {
+   if (tcp_client.connected()) {
+     tcp_connected = true;
+     return true;
+   }
+   tcp_connected = false;
+   if (!wifi_connected()) {
+     return false;
+   }
+   if (uugp_ip.empty()) {
+     return false;
+   }
+   const uint32_t now = millis();
+   if (now - last_tcp_connect_attempt_ms < TCP_RECONNECT_INTERVAL_MS) {
+     return false;
+   }
+   last_tcp_connect_attempt_ms = now;
+   IPAddress address;
+   if (!address.fromString(uugp_ip.c_str())) {
+     DEBUG_PRINTF("UUGP invalid IP address: %s\n", uugp_ip.c_str());
+     return false;
+   }
+   tcp_client.setConnectionTimeout(TCP_CONNECT_TIMEOUT_MS);
+   if (!tcp_client.connect(address, uugp_port)) {
+     tcp_client.stop();
+     return false;
+   }
+   tcp_connected = true;
+   last_tcp_rx_ms = now;
+   DEBUG_PRINTF("UUGP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+   return true;
+}
+
+void UUGPCharger::close_tcp_connection() {
+   if (tcp_client.connected()) {
+     tcp_client.stop();
+   }
+   tcp_connected = false;
+   initialization_waiting_for_ack = false;
+   expected_transaction_id = 0;
+   last_ack_transaction_id = 0;
+   datalayer.charger.uugp_communication_ok = false;
 }
 
 uint16_t UUGPCharger::next_transaction() {
@@ -85,13 +123,22 @@ void UUGPCharger::send_frame(uint8_t function, const uint8_t* payload, size_t pa
   header[6] = UNIT_ID;
   header[7] = function;
 
-  serial.write(header, sizeof(header));
-
-  if (payload_length > 0) {
-    serial.write(payload, payload_length);
+  if (!tcp_client.connected()) {
+     tcp_connected = false;
+     datalayer.charger.uugp_communication_ok = false;
+     return;
   }
-
-  serial.flush();
+  if (tcp_client.write(header, sizeof(header)) != sizeof(header)) {
+    close_tcp_connection();
+    return;
+ }
+ if (payload_length > 0) {
+   if (tcp_client.write(payload, payload_length) != payload_length) {
+     close_tcp_connection();
+     return;
+   }
+  }
+  tcp_client.flush();
 }
 
 void UUGPCharger::read_registers(uint8_t function, uint16_t address, uint16_t count) {
@@ -262,9 +309,9 @@ void UUGPCharger::initialize_pcs_information() {
 }
 
 void UUGPCharger::initialize() {
-  if (!ensure_serial()) {
-    return;
-  }
+    if (!ensure_tcp_connection()) {
+      return;
+    }
 
   /*
      * Every initialization write must be acknowledged before moving to
@@ -369,7 +416,7 @@ void UUGPCharger::poll_status() {
        * DC-side block:
        * 302F..3031
        */
-      read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 1);
+      read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 3);
       status_step = 2;
       break;
 
@@ -396,12 +443,22 @@ void UUGPCharger::poll_status() {
 void UUGPCharger::transmit(unsigned long currentMillis) {
   (void)currentMillis;
 
-  if (!ensure_serial()) {
+  if (!ensure_tcp_connection()) {
+    datalayer.charger.uugp_communication_ok = false;
+    return;
+  }
+
+  if (!tcp_client.connected()) {
+    close_tcp_connection();
     return;
   }
 
   if (last_response_ms != 0 && millis() - last_response_ms > 3000) {
     datalayer.charger.uugp_communication_ok = false;
+  }
+  
+  if (last_tcp_rx_ms != 0 && millis() - last_tcp_rx_ms > TCP_RESPONSE_TIMEOUT_MS) {
+   datalayer.charger.uugp_communication_ok = false;
   }
 
   if (!initialization_complete) {
@@ -552,53 +609,45 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
   datalayer.charger.uugp_communication_ok = true;
 }
 
-void UUGPCharger::receive() {
-  if (!serial_initialized) {
-    return;
-  }
-
-  while (serial.available() > 0 && rx_length < sizeof(rx_buffer)) {
-    rx_buffer[rx_length++] = static_cast<uint8_t>(serial.read());
-  }
-
-  while (rx_length >= 8) {
-    /*
-     * Resynchronize to protocol identifier 0x0000.
-     */
-    if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
-
-      memmove(rx_buffer, rx_buffer + 1, --rx_length);
-
-      continue;
-    }
-
-    const uint16_t length = (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
-
-    /*
-     * length includes Unit ID + Function + data.
-     */
-    const size_t frame_length = 6 + length;
-
-    if (length < 2 || frame_length > sizeof(rx_buffer)) {
-
-      memmove(rx_buffer, rx_buffer + 1, --rx_length);
-
-      continue;
-    }
-
-    if (rx_length < frame_length) {
-      return;
-    }
-
-    process_response(rx_buffer, frame_length);
-
-    const size_t remaining = rx_length - frame_length;
-
-    if (remaining > 0) {
-      memmove(rx_buffer, rx_buffer + frame_length, remaining);
-    }
-
-    rx_length = remaining;
-  }
-}
+void UUGPCharger::receive_tcp() {
+   if (!tcp_client.connected()) {
+     if (tcp_connected) {
+       close_tcp_connection();
+     }
+     return;
+   }
+   while (tcp_client.available() > 0 && rx_length < sizeof(rx_buffer)) {
+     const int value = tcp_client.read();
+     if (value < 0) {
+       break;
+     }
+     rx_buffer[rx_length++] = static_cast<uint8_t>(value);
+   }
+   if (!tcp_client.connected()) {
+     close_tcp_connection();
+     return;
+   }
+   while (rx_length >= 8) {
+     if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
+       memmove(rx_buffer, rx_buffer + 1, --rx_length);
+       continue;
+     }
+     const uint16_t length =
+         (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
+     const size_t frame_length = 6 + length;
+     if (length < 2 || frame_length > sizeof(rx_buffer)) {
+       memmove(rx_buffer, rx_buffer + 1, --rx_length);
+       continue;
+     }
+     if (rx_length < frame_length) {
+       return;
+     }
+     process_response(rx_buffer, frame_length);
+     const size_t remaining = rx_length - frame_length;
+     if (remaining > 0) {
+       memmove(rx_buffer, rx_buffer + frame_length, remaining);
+     }
+     rx_length = remaining;
+   }
+ }
 #endif  // !SMALL_FLASH_DEVICE
