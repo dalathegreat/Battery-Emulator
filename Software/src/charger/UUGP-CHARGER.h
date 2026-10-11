@@ -20,7 +20,6 @@ class UUGPCharger : public Charger, public Transmitter {
   float HVDC_output_current() override;
 
   void transmit(unsigned long currentMillis) override;
-  void receive() override;
 
  private:
   static constexpr uint8_t UNIT_ID = 0x01;
