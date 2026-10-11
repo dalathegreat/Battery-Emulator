@@ -13,7 +13,6 @@
 #include "src/inverter/INVERTERS.h"
 #include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
-
 #include <map>
 
 extern bool settingsUpdated;
