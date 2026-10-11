@@ -549,13 +549,13 @@ void init_webserver() {
       "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",  "SYSLOGFAC",   "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
       "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",       "UUGP_PWRLIM", "UUGP_DSOC",
-      "UUGP_STARTMODE"
+      "UUGP_PORT"
 #endif  // SMALL_FLASH_DEVICE
   };
 
   const char* stringSettingNames[] = {"APPASSWORD", "HOSTNAME",    "MQTTSERVER", "MQTTUSER",  "MQTTPASSWORD",
                                       "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
-                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
+                                      "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS", "UUGP_IP"};
 
   // Handles the form POST from UI to save settings of the common image
   server.on(
