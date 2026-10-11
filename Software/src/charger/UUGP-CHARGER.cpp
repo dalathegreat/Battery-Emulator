@@ -448,7 +448,7 @@ void UUGPCharger::poll_status() {
 void UUGPCharger::transmit(unsigned long currentMillis) {
   (void)currentMillis;
   receive_tcp();
-  
+
   if (!ensure_tcp_connection()) {
       datalayer.charger.uugp_communication_ok = false;
       return;
