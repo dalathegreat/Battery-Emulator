@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
+#include "../hal/board_config.h"        // erase_board_config()
 #include "../hal/hal.h"                 // esp32hal / AP_BUTTON_PIN()
 #include "../network/hostname.h"        // active_hostname()
 #include "../network/network_status.h"  // network_bring_services_up()
@@ -221,6 +222,9 @@ static void check_ap_button() {
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
+#ifdef HW_UNIFIED_S3
+      erase_board_config();
+#endif
       LOG_SET_NEXT_SEVERITY(5);  // notice
       logging.println("Factory reset performed from the board button.");
       erase_phy_cal_data();
