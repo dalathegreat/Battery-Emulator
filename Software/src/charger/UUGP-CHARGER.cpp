@@ -6,6 +6,7 @@
 
 #include <cstring>
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/logging.h"
 
 volatile uint16_t uugp_power_limit_W = 10000;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
