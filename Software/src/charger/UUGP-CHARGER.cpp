@@ -43,7 +43,7 @@ bool UUGPCharger::ensure_tcp_connection() {
 
   tcp_connected = false;
 
-  if (!wifi_connected() || uugp_ip.empty()) {
+  if (uugp_ip.empty()) {
     return false;
   }
 
