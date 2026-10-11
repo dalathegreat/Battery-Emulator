@@ -1192,28 +1192,20 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("FOXESSMODULES", 0));
   }
 #ifndef SMALL_FLASH_DEVICE
+  if (var == "UUGP_IP") {
+   return settings.getString("UUGP_IP", "");
+  }
+  if (var == "UUGP_PORT") {
+   return String(settings.getUInt("UUGP_PORT", 502));
+  }
   if (var == "UUGP_PWRLIM") {
     return String(settings.getUInt("UUGP_PWRLIM", 10000));
   }
-
   if (var == "UUGP_DSOC") {
     return String(settings.getUInt("UUGP_DSOC", 80));
   }
-
   if (var == "UUGP_ALLOW") {
     return settings.getBool("UUGP_ALLOW", false) ? "checked" : "";
-  }
-
-  if (var == "UUGP_STARTMODE_0") {
-    return settings.getUInt("UUGP_STARTMODE", 1) == 0 ? "selected" : "";
-  }
-
-  if (var == "UUGP_STARTMODE_1") {
-    return settings.getUInt("UUGP_STARTMODE", 1) == 1 ? "selected" : "";
-  }
-
-  if (var == "UUGP_STARTMODE_2") {
-    return settings.getUInt("UUGP_STARTMODE", 1) == 2 ? "selected" : "";
   }
 #endif
   return String();
@@ -1431,42 +1423,54 @@ String qnhck_zero_text(uint16_t zero_mV) {
   )rawliteral"
 
 #ifndef SMALL_FLASH_DEVICE
-#define UUGP_SETTINGS_HTML \
-  R"rawliteral(
-<div class="if-uugp">
-        <label>Allow UUGP discharge to home/grid: </label>
-        <input type='checkbox'
-           name='UUGP_ALLOW'
-           value='on'
-           %UUGP_ALLOW%
-           title="When enabled, UUGP 0x4011 uses the configured power limit. When disabled, 0x4011 follows the BMS charge/discharge power limit." />
-        <label>UUGP power limit (W): </label>
-        <input type='number'
-           name='UUGP_PWRLIM'
-           value="%UUGP_PWRLIM%"
-           min="0"
-           max="22000"
-           step="1"
-           title="Maximum UUGP power when discharge to home/grid is allowed." />
-        <label>UUGP discharge cut-off SOC (%): </label>
-        <input type='number'
-           name='UUGP_DSOC'
-           value="%UUGP_DSOC%"
-           min="10"
-           max="90"
-           step="1"
-           title="UUGP discharge cut-off SOC." />
-        <label>UUGP start mode: </label>
-        <select name='UUGP_STARTMODE'>
-          <option value="0" %UUGP_STARTMODE_0%>Default RS485</option>
-          <option value="1" %UUGP_STARTMODE_1%>Card swipe</option>
-          <option value="2" %UUGP_STARTMODE_2%>Plug &amp; charge</option>
-        </select>
-        <p>
-        UUGP communication: RS485, 9600 baud, 8N1.
-        </p>
-        </div>
-  )rawliteral"
+#define UUGP_SETTINGS_HTML \ 
+  R"rawliteral(
+ <div class="if-uugp">
+         <label>UUGP IP address: </label>
+         <input type='text'
+            name='UUGP_IP'
+            value="%UUGP_IP%"
+            pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+            title="IPv4 address of the UUGP charger." /> 
+
+        <label>UUGP Modbus TCP port: </label>
+         <input type='number'
+            name='UUGP_PORT'
+            value="%UUGP_PORT%"
+            min="1"
+            max="65535"
+            step="1"
+            title="Modbus TCP port of the UUGP charger. Default: 502." /> 
+
+        <label>Allow UUGP discharge to home/grid: </label>
+         <input type='checkbox'
+            name='UUGP_ALLOW'
+            value='on'
+            %UUGP_ALLOW%
+            title="When enabled, UUGP 0x4011 uses the configured power limit. When disabled, 0x4011 follows the BMS charge/discharge power limit." />
+
+         <label>UUGP power limit (W): </label>
+         <input type='number'
+            name='UUGP_PWRLIM'
+            value="%UUGP_PWRLIM%"
+            min="0"
+            max="22000"
+            step="1"
+            title="Maximum UUGP power when discharge to home/grid is allowed." />
+
+         <label>UUGP discharge cut-off SOC (%): </label>
+         <input type='number'
+            name='UUGP_DSOC'
+            value="%UUGP_DSOC%"
+            min="10"
+            max="90"
+            step="1"
+            title="UUGP discharge cut-off SOC." />
+         <p>
+         UUGP communication: Modbus TCP.
+         </p>
+         </div>
+   )rawliteral"
 #else
 #define UUGP_SETTINGS_HTML ""
 #endif
