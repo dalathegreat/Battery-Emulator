@@ -10,6 +10,7 @@
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
+
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/shunt/QNHCK2-16.h"
