@@ -635,7 +635,7 @@ void UUGPCharger::receive_tcp() {
     if (!tcp_client.connected()) {
         close_tcp_connection();
         return;
-    }
+  }
     while (rx_length >= 8) {
         if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
             memmove(rx_buffer, rx_buffer + 1, --rx_length);
@@ -665,6 +665,6 @@ void UUGPCharger::receive_tcp() {
   }
 }
 void UUGPCharger::receive() {
-    receive_tcp();
+  receive_tcp();
 }
 #endif  // !SMALL_FLASH_DEVICE
