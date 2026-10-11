@@ -1193,10 +1193,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 #ifndef SMALL_FLASH_DEVICE
   if (var == "UUGP_IP") {
-   return settings.getString("UUGP_IP", "");
+      return settings.getString("UUGP_IP", "");
   }
   if (var == "UUGP_PORT") {
-   return String(settings.getUInt("UUGP_PORT", 502));
+      return String(settings.getUInt("UUGP_PORT", 502));
   }
   if (var == "UUGP_PWRLIM") {
     return String(settings.getUInt("UUGP_PWRLIM", 10000));
@@ -1423,8 +1423,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
   )rawliteral"
 
 #ifndef SMALL_FLASH_DEVICE
-#define UUGP_SETTINGS_HTML \ 
-  R"rawliteral(
+#define UUGP_SETTINGS_HTML \
+    R"rawliteral(
  <div class="if-uugp">
          <label>UUGP IP address: </label>
          <input type='text'

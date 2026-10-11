@@ -22,9 +22,7 @@ class UUGPCharger : public Charger, public Transmitter {
   void transmit(unsigned long currentMillis) override;
   void receive() override;
 
-  void UUGPCharger::receive() {
-   receive_tcp();
-  }
+  void UUGPCharger::receive() { receive_tcp(); }
 
  private:
   static constexpr uint8_t UNIT_ID = 0x01;
@@ -89,7 +87,7 @@ class UUGPCharger : public Charger, public Transmitter {
   static constexpr uint16_t REG_FAULT_STATUS_2 = 0x3073;
   static constexpr uint16_t REG_FAULT_STATUS_3 = 0x3075;
 
-    // UUGP specifies >=15 s between setting operations.
+  // UUGP specifies >=15 s between setting operations.
   static constexpr uint32_t SETTING_INTERVAL_MS = 15000;
 
   static constexpr uint32_t STATUS_INTERVAL_MS = 500;
@@ -137,7 +135,7 @@ class UUGPCharger : public Charger, public Transmitter {
   void initialize_system_time();
   void initialize_current_limiting();
   void initialize_pcs_information();
-  
+
   void poll_status();
 
   void process_response(const uint8_t* frame, size_t length);

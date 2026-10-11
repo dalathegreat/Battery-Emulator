@@ -367,7 +367,7 @@ void init_stored_settings() {
   if (uugp_port == 0) {
     uugp_port = 502;
   }
-  
+
 #endif
 }
 
