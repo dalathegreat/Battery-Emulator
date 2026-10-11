@@ -1,7 +1,7 @@
 #ifndef SMALL_FLASH_DEVICE
 
 #include "UUGP-CHARGER.h"
-
+#include "../devboard/wifi/wifi.h"
 #include <time.h>
 
 #include <cstring>
