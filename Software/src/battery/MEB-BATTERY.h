@@ -72,6 +72,8 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int MIN_PACK_VOLTAGE_84S_DV = 2520;
   static const int MAX_PACK_VOLTAGE_96S_DV = 4032;
   static const int MIN_PACK_VOLTAGE_96S_DV = 2880;
+  static const int MAX_PACK_VOLTAGE_104S_DV = 4368;
+  static const int MIN_PACK_VOLTAGE_104S_DV = 3120;
   static const int MAX_PACK_VOLTAGE_108S_DV = 4536;
   static const int MIN_PACK_VOLTAGE_108S_DV = 3240;
   static const int MAX_CELL_DEVIATION_MV = 150;
