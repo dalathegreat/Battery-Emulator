@@ -632,8 +632,7 @@ void UUGPCharger::receive_tcp() {
       memmove(rx_buffer, rx_buffer + 1, --rx_length);
       continue;
     }
-    const uint16_t length =
-        (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
+    const uint16_t length = (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
     const size_t frame_length = 6 + length;
     if (length < 2 || frame_length > sizeof(rx_buffer)) {
       memmove(rx_buffer, rx_buffer + 1, --rx_length);
