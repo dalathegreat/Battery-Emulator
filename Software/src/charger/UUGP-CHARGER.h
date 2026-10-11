@@ -3,9 +3,12 @@
 #define UUGP_CHARGER_H
 
 #include <Arduino.h>
-#include <WiFiClient.h>
 #include "../communication/Transmitter.h"
 #include "CanCharger.h"
+
+#ifdef ARDUINO
+#include <WiFiClient.h>
+#endif
 
 class UUGPCharger : public Charger, public Transmitter {
  public:
