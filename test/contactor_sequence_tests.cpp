@@ -2,6 +2,7 @@
 
 #include <Arduino.h>  // Emul: set_millis64() to control the test clock
 
+#include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/hal/hal.h"
@@ -37,6 +38,22 @@ constexpr unsigned long kPrechargeToEconomizeMs = 1000;
 constexpr unsigned long kFaultTicksBeforeShutdown = 1000;
 constexpr unsigned long kBootMs = 100000;  // Well past INTERVAL_10_S
 
+// Minimal Battery implementations for the permission gate. A real driver is not needed: the only
+// thing handle_contactors() asks of the pointer is whether it gates closing.
+class StubBattery : public Battery {
+ public:
+  void setup(void) override {}
+  void update_values() override {}
+  const char* interface_name() override { return "stub"; }
+};
+
+class GatingBattery : public StubBattery {
+ public:
+  bool gates_contactor_closing() override { return true; }
+};
+
+class NonGatingBattery : public StubBattery {};
+
 }  // namespace
 
 extern SeqState contactorStatus;
@@ -55,6 +72,10 @@ class ContactorSequenceTest : public ::testing::Test {
     datalayer.system.status.system_status = ACTIVE;
     datalayer.system.status.inverter_allows_contactor_closing = true;
     datalayer.system.info.equipment_stop_active = false;
+    // The permission gate only applies to drivers that opt in, and no driver is configured here
+    // unless a test installs one.
+    battery = nullptr;
+    datalayer.system.status.battery_allows_contactor_closing = true;
 
     // handle_contactors() counts consecutive faulted ticks in a file-static
     // that nothing resets, so a test that ran the system in FAULT would leave
@@ -66,6 +87,8 @@ class ContactorSequenceTest : public ::testing::Test {
   }
 
   void TearDown() override {
+    // The test doubles live on the stack of the test body, so the global must not outlive them.
+    battery = nullptr;
     contactor_control_enabled = false;
     contactorStatus = DISCONNECTED;
     emulator_pause_status = NORMAL;
@@ -118,6 +141,44 @@ TEST_F(ContactorSequenceTest, StaysDisconnectedWithoutInverterPermission) {
 
   EXPECT_EQ(contactorStatus, DISCONNECTED);
   EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedNone);
+}
+
+// A fault that is already standing must stop the ladder from starting at all. The shutdown latch
+// alone is not enough: it is a tick count, so a fault present from boot trips it only after the
+// startup inhibit has expired and the ladder has already closed everything.
+TEST_F(ContactorSequenceTest, StaysDisconnectedWhileSystemIsInFault) {
+  datalayer.system.status.system_status = FAULT;
+
+  tick_at(kBootMs);
+
+  EXPECT_EQ(contactorStatus, DISCONNECTED);
+  EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedNone);
+}
+
+// Drivers that opt in via gates_contactor_closing() can hold the ladder shut. Drivers that do not
+// opt in are unaffected however the flag reads, which is what keeps the packs that never assign it
+// working.
+TEST_F(ContactorSequenceTest, StaysDisconnectedWhileAGatingBatteryWithholdsPermission) {
+  GatingBattery gating;
+  battery = &gating;
+  datalayer.system.status.battery_allows_contactor_closing = false;
+
+  tick_at(kBootMs);
+  EXPECT_EQ(contactorStatus, DISCONNECTED) << "closed without the pack's permission";
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
+  tick_at(kBootMs + 1);
+  EXPECT_EQ(contactorStatus, PRECHARGE) << "did not close once permission was granted";
+}
+
+TEST_F(ContactorSequenceTest, IgnoresBatteryPermissionForDriversThatDoNotGate) {
+  NonGatingBattery non_gating;
+  battery = &non_gating;
+  datalayer.system.status.battery_allows_contactor_closing = false;
+
+  tick_at(kBootMs);
+
+  EXPECT_EQ(contactorStatus, PRECHARGE);
 }
 
 TEST_F(ContactorSequenceTest, StaysDisconnectedWhileEquipmentStopIsActive) {

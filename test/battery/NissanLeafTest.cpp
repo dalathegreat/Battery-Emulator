@@ -1,8 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
+#include "../../Software/src/devboard/hal/hal.h"
+#include "../../Software/src/devboard/safety/safety.h"
 
 #include <vector>
 
@@ -1644,4 +1647,901 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldIgnoreASpikeWhileLearning) {
   feed_current(battery, 5, 490);
   battery->update_values();
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 25);
+}
+
+// --- 293A0NDS25 contactor permission and relay signalling -------------------
+
+// Defined by the emulated CAN layer in test/emul/can.cpp. Declared at namespace scope so they
+// keep external linkage.
+void clear_transmitted_frames();
+const std::vector<CAN_frame>& get_transmitted_frames();
+
+namespace {
+
+// 0x5BC is what marks the pack as talking (battery_can_alive), which every other path depends on.
+CAN_frame leaf_5bc() {
+  return leaf_frame(0x5BC, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+}
+
+// 0x1DB with the fields the closing gate reads. frlyon is LB_FRLYON (byte 3 bit 5), fail is
+// LB_FAIL (byte 1 bits 4-3), interlock is LB_INTERLOCK (byte 3 bit 3). CRC is filled by the caller,
+// since only the driver instance can compute it.
+CAN_frame leaf_1db(bool frlyon, uint8_t fail, bool interlock) {
+  CAN_frame frame = leaf_frame(0x1DB, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  frame.data.u8[1] = (uint8_t)((fail & 0x03) << 3);
+  frame.data.u8[3] = (uint8_t)((frlyon ? 0x20 : 0x00) | (interlock ? 0x08 : 0x00));
+  return frame;
+}
+
+// Runs the driver far enough to have published a contactor permission.
+void feed(NissanLeafBattery* battery, CAN_frame frame) {
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  battery->handle_incoming_can_frame(frame);
+}
+
+const CAN_frame* find_frame(uint32_t id) {
+  for (const CAN_frame& frame : get_transmitted_frames()) {
+    if (frame.ID == id) {
+      return &frame;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+// 293A0NDS25 5.1.1 step 3): no relay is commanded on until the pack has said it is willing.
+TEST(NissanLeafContactorTests, WithholdsPermissionUntilTheLbcGrantsIt) {
+  datalayer = DataLayer();
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  battery->handle_incoming_can_frame(leaf_5bc());
+  feed(battery, leaf_1db(false, 0, true));  // LB_FRLYON = 0, No-Permission
+  battery->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+
+  feed(battery, leaf_1db(true, 0, true));
+  battery->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+// LB_FAIL is the pack asking for the main relays to be opened. It must also withdraw permission.
+TEST(NissanLeafContactorTests, WithdrawsPermissionOnRelayCutRequest) {
+  datalayer = DataLayer();
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+
+  battery->handle_incoming_can_frame(leaf_5bc());
+  feed(battery, leaf_1db(true, 0, true));
+  battery->update_values();
+  ASSERT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+
+  feed(battery, leaf_1db(true, 1, true));  // LB_FAIL = 01b, Main Relay OFF Request
+  battery->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+// 293A0NDS25 Status 2 / Status 6 / Status 8: with the relays open, BTONFN and RLYP are 0. They are
+// only asserted alongside the relay commands themselves.
+TEST(NissanLeafContactorTests, ClearsRelayBitsIn1D4WhileContactorsAreOpen) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  datalayer.system.status.contactors_engaged = 0;  // Open
+
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  const CAN_frame* frame = find_frame(0x1D4);
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(frame->data.u8[4] & 0x04, 0) << "BTONFN asserted with the contactors open";
+  EXPECT_EQ(frame->data.u8[5] & 0x40, 0) << "RLYP asserted with the contactors open";
+
+  CAN_frame copy = *frame;
+  EXPECT_EQ(copy.data.u8[7], battery->calculate_crc(copy)) << "CRC does not match the payload";
+
+  contactor_control_enabled = false;
+}
+
+// Closed and economized is the one state where the pack may be told high voltage is supplied.
+TEST(NissanLeafContactorTests, AssertsRelayBitsIn1D4OnceContactorsAreClosed) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  datalayer.system.status.contactors_engaged = 1;  // Closed and economized
+
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  const CAN_frame* frame = find_frame(0x1D4);
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(frame->data.u8[4] & 0x04, 0x04);
+  EXPECT_EQ(frame->data.u8[5] & 0x40, 0x40);
+  // The four CRCs that used to be hardcoded, reproduced by computation.
+  EXPECT_EQ(frame->data.u8[7], 0x12);
+
+  contactor_control_enabled = false;
+}
+
+// Without GPIO contactor control the relay states are unknown to this firmware, so the previous
+// always-on declaration is kept rather than guessed at.
+TEST(NissanLeafContactorTests, KeepsRelayBitsSetWhenContactorControlIsDisabled) {
+  datalayer = DataLayer();
+  contactor_control_enabled = false;
+  datalayer.system.status.contactors_engaged = 0;
+
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  const CAN_frame* frame = find_frame(0x1D4);
+  ASSERT_NE(frame, nullptr);
+  EXPECT_EQ(frame->data.u8[4] & 0x04, 0x04);
+  EXPECT_EQ(frame->data.u8[5] & 0x40, 0x40);
+}
+
+// --- 293A0NDS25 5.1.2 step 3): GoToSleep once BMS power is cut --------------
+
+namespace {
+
+// All 0x50B frames transmitted since the last clear, in order.
+std::vector<CAN_frame> transmitted_50b() {
+  std::vector<CAN_frame> out;
+  for (const CAN_frame& frame : get_transmitted_frames()) {
+    if (frame.ID == 0x50B) {
+      out.push_back(frame);
+    }
+  }
+  return out;
+}
+
+bool is_go_to_sleep(const CAN_frame& frame) {
+  return (frame.data.u8[3] & 0xC0) == 0x00;
+}
+
+bool canmask_set(const CAN_frame& frame) {
+  return (frame.data.u8[2] & 0x04) != 0;
+}
+
+// A pack that has been talking, as it is at the moment a reset starts.
+NissanLeafBattery* awake_pack(unsigned long now) {
+  datalayer = DataLayer();
+  set_millis64(now);
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_5bc());
+  return battery;
+}
+
+}  // namespace
+
+// Pin low is what POWERED_OFF means, and the first GoToSleep must not wait for the next 100 ms slot.
+TEST(NissanLeafSleepTests, SendsGoToSleepOnTheFirstPassAfterBmsPowerIsCut) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+
+  auto frames = transmitted_50b();
+  ASSERT_EQ(frames.size(), 1u);
+  EXPECT_TRUE(is_go_to_sleep(frames[0]));
+  EXPECT_FALSE(canmask_set(frames[0])) << "Status 9 clears CANMASK together with GoToSleep";
+  EXPECT_EQ(get_transmitted_frames().size(), 1u) << "nothing but GoToSleep goes out while powered off";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// While the pin is still high the pack is powered, so no GoToSleep yet: strictly after, never before.
+TEST(NissanLeafSleepTests, SendsNothingWhileWaitingToCutBmsPower) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);
+  battery->transmit_can(100200);
+
+  EXPECT_TRUE(transmitted_50b().empty());
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// 5.1.2 3)(3): keep sending at the normal period while the pack still talks, stop once it has been
+// quiet for 1 s.
+TEST(NissanLeafSleepTests, StopsOnceThePackHasBeenQuietForOneSecond) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+
+  clear_transmitted_frames();
+  battery->transmit_can(100000);  // First frame, on the edge
+  battery->transmit_can(100050);  // Too soon for the next one
+  EXPECT_EQ(transmitted_50b().size(), 1u);
+
+  battery->transmit_can(100100);
+  battery->transmit_can(100200);
+
+  // The pack is still on the bus for a little while, winding down.
+  set_millis64(100300);
+  battery->handle_incoming_can_frame(leaf_5bc());
+  battery->transmit_can(100300);
+  battery->transmit_can(101200);  // Pack last heard 900 ms ago, still within the window
+  const size_t sent_while_pack_talked = transmitted_50b().size();
+  EXPECT_EQ(sent_while_pack_talked, 5u);
+
+  battery->transmit_can(101300);  // Now 1 s of silence
+  battery->transmit_can(101400);
+  battery->transmit_can(105000);
+  EXPECT_EQ(transmitted_50b().size(), sent_while_pack_talked) << "kept transmitting after the pack went quiet";
+
+  for (const CAN_frame& frame : transmitted_50b()) {
+    EXPECT_TRUE(is_go_to_sleep(frame));
+  }
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// The GoToSleep frame is a copy: once the reset is over the regular 0x50B still commands WakeUp with
+// CANMASK set, and the next reset gets its own GoToSleep again.
+TEST(NissanLeafSleepTests, WakeUpResumesAfterResetAndTheNextResetSleepsAgain) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  battery->transmit_can(100000);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  set_millis64(133000);
+  battery->handle_incoming_can_frame(leaf_5bc());
+  clear_transmitted_frames();
+  battery->transmit_can(133100);
+
+  auto frames = transmitted_50b();
+  ASSERT_EQ(frames.size(), 1u);
+  EXPECT_EQ(frames[0].data.u8[3] & 0xC0, 0xC0) << "regular 0x50B no longer commands WakeUp";
+  EXPECT_TRUE(canmask_set(frames[0]));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+  battery->transmit_can(200000);
+  frames = transmitted_50b();
+  ASSERT_EQ(frames.size(), 1u);
+  EXPECT_TRUE(is_go_to_sleep(frames[0])) << "second reset did not send GoToSleep";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// --- 293A0NDS25 5.1.2 steps 1) and 2): ending sequence before BMS power is cut --
+
+namespace {
+
+uint8_t chg_sta_rq_of(const CAN_frame& f) {
+  return (f.data.u8[2] >> 5) & 0x03;
+}
+bool btonfn_of(const CAN_frame& f) {
+  return (f.data.u8[4] & 0x04) != 0;
+}
+bool rlyp_of(const CAN_frame& f) {
+  return (f.data.u8[5] & 0x40) != 0;
+}
+
+// Low nibble of byte 7 is the sum of every other nibble plus 2.
+bool nibble_checksum_ok(const CAN_frame& f) {
+  unsigned sum = 0;
+  for (int i = 0; i < 7; ++i) {
+    sum += (f.data.u8[i] >> 4) + (f.data.u8[i] & 0x0F);
+  }
+  sum += f.data.u8[7] >> 4;
+  return ((sum + 2) & 0x0F) == (f.data.u8[7] & 0x0F);
+}
+
+size_t first_index(const std::vector<CAN_frame>& frames, uint32_t id, bool (*pred)(const CAN_frame&)) {
+  for (size_t i = 0; i < frames.size(); ++i) {
+    if (frames[i].ID == id && pred(frames[i])) {
+      return i;
+    }
+  }
+  return SIZE_MAX;
+}
+
+}  // namespace
+
+/* End to end, with the real reset state machine: CHG_STA_RQ = 11b, then BTONFN = 0, then RLYP = 0,
+   all on the wire before BMS_POWER is driven low; GoToSleep only after it. The loop runs the core
+   loop's order - handle_BMSpower() then transmit - so a frame sent on the same pass as the cut
+   counts as after it, as it would on the device. */
+TEST(NissanLeafSleepTests, SendsEndingSequenceInOrderBeforeBmsPowerIsCut) {
+  init_hal();
+  auto leaf = awake_pack(1000000);
+  battery = leaf;
+  datalayer.system.info.equipment_stop_active = false;
+  remote_bms_reset = true;
+  periodic_bms_reset = false;
+  contactor_control_enabled = true;
+  datalayer.system.status.contactors_engaged = 1;  // Closed, so the bits start at 1
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 5000;
+  const uint8_t bms_pin = (uint8_t)esp32hal->BMS_POWER();
+
+  clear_transmitted_frames();
+  clear_pin_writes();
+  start_bms_reset();
+  ASSERT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+
+  size_t frames_at_cut = SIZE_MAX;
+  for (unsigned long t = 1000000; t < 1000000 + 12000; ++t) {
+    set_millis64(t);
+    handle_BMSpower();
+    if (frames_at_cut == SIZE_MAX) {
+      for (const PinWrite& w : get_pin_writes()) {
+        if (w.pin == bms_pin && w.value == LOW) {
+          frames_at_cut = get_transmitted_frames().size();
+        }
+      }
+    }
+    leaf->transmit_can(t);
+  }
+  ASSERT_NE(frames_at_cut, SIZE_MAX) << "BMS power was never cut";
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE) << "reset did not complete";
+
+  const auto& frames = get_transmitted_frames();
+  size_t stop_rq = first_index(frames, 0x1F2, [](const CAN_frame& f) { return chg_sta_rq_of(f) == 0x03; });
+  size_t btonfn_off = first_index(frames, 0x1D4, [](const CAN_frame& f) { return !btonfn_of(f); });
+  size_t rlyp_off = first_index(frames, 0x1D4, [](const CAN_frame& f) { return !rlyp_of(f); });
+  size_t sleep = first_index(frames, 0x50B, [](const CAN_frame& f) { return (f.data.u8[3] & 0xC0) == 0x00; });
+
+  ASSERT_NE(stop_rq, SIZE_MAX);
+  ASSERT_NE(btonfn_off, SIZE_MAX);
+  ASSERT_NE(rlyp_off, SIZE_MAX);
+  ASSERT_NE(sleep, SIZE_MAX);
+  EXPECT_LT(stop_rq, btonfn_off) << "BTONFN dropped before CHG_STA_RQ = 11b was sent";
+  EXPECT_LT(btonfn_off, rlyp_off) << "RLYP dropped before BTONFN";
+  EXPECT_LT(rlyp_off, frames_at_cut) << "BMS power cut before RLYP = 0 was sent";
+  EXPECT_GE(sleep, frames_at_cut) << "GoToSleep sent before BMS power was cut";
+
+  // RLYP only drops once BTONFN is already 0, and BTONFN only once CHG_STA_RQ is 11b.
+  for (size_t i = btonfn_off; i < frames_at_cut; ++i) {
+    if (frames[i].ID == 0x1D4) {
+      EXPECT_FALSE(btonfn_of(frames[i])) << "BTONFN came back on at frame " << i;
+    }
+  }
+  for (size_t i = stop_rq; i < frames_at_cut; ++i) {
+    if (frames[i].ID == 0x1F2) {
+      EXPECT_EQ(chg_sta_rq_of(frames[i]), 0x03) << "CHG_STA_RQ left 11b at frame " << i;
+      EXPECT_TRUE(nibble_checksum_ok(frames[i])) << "bad 0x1F2 checksum at frame " << i;
+    }
+    if (frames[i].ID == 0x1D4) {
+      CAN_frame copy = frames[i];
+      EXPECT_EQ(copy.data.u8[7], leaf->calculate_crc(copy)) << "bad 0x1D4 CRC at frame " << i;
+    }
+  }
+
+  // Once the reset is over the pack gets normal reporting back.
+  size_t after = SIZE_MAX;
+  for (size_t i = frames.size(); i-- > frames_at_cut;) {
+    if (frames[i].ID == 0x1D4) {
+      after = i;
+      break;
+    }
+  }
+  ASSERT_NE(after, SIZE_MAX) << "no 0x1D4 after the reset";
+  EXPECT_TRUE(btonfn_of(frames[after]));
+  EXPECT_TRUE(rlyp_of(frames[after]));
+  for (size_t i = frames.size(); i-- > frames_at_cut;) {
+    if (frames[i].ID == 0x1F2) {
+      EXPECT_EQ(chg_sta_rq_of(frames[i]), user_selected_LEAF_chg_sta_rq);
+      break;
+    }
+  }
+
+  battery = nullptr;
+  remote_bms_reset = false;
+  contactor_control_enabled = false;
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
+}
+
+// A pack that never talked has nothing to be told, so it must not delay the cut.
+TEST(NissanLeafSleepTests, ReadyForPowerOffAtOnceWhenThePackNeverTalked) {
+  datalayer = DataLayer();
+  auto leaf = new NissanLeafBattery();
+  leaf->setup();
+  EXPECT_TRUE(leaf->ready_for_bms_power_off());
+}
+
+// --- CAN errors are expected while the LBC is power cycled --------------------
+
+/* Nothing acknowledges frames while BMS power is off, so TX/RX errors on the pack's interface are
+   muted for the whole reset and a grace period after it. The window is refreshed by the driver on
+   every non-idle pass, so it is measured from the last such pass. Other interfaces are untouched. */
+TEST(NissanLeafSleepTests, MutesCanErrorsOnItsOwnInterfaceDuringAndJustAfterAReset) {
+  reset_all_events();
+  auto leaf = awake_pack(1000000);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  leaf->transmit_can(1000000);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  set_event(EVENT_CAN_NATIVE_BUFFER_FULL, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_INACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUFFER_FULL)->state, EVENT_STATE_INACTIVE);
+
+  // A different interface is not this pack's business.
+  set_event(EVENT_CANMCP2515_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CANMCP2515_BUS_ERROR)->state, EVENT_STATE_ACTIVE);
+
+  // Still muted late in the reset, well past the grace period measured from the start.
+  set_millis64(1029000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  leaf->transmit_can(1029000);
+  set_millis64(1032000);  // Last non-idle pass
+  leaf->transmit_can(1032000);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_INACTIVE);
+
+  // Reset over. Muted for the grace period, then reported again.
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  set_millis64(1033000);
+  leaf->transmit_can(1033000);
+  set_millis64(1032000 + 4999);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_INACTIVE);
+
+  set_millis64(1032000 + 5001);
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_ACTIVE)
+      << "a genuine wiring fault after the reset would stay hidden";
+
+  reset_all_events();
+}
+
+// Outside a reset nothing is muted: a Leaf on a healthy bus must still report real errors.
+TEST(NissanLeafSleepTests, DoesNotMuteCanErrorsOutsideAReset) {
+  reset_all_events();
+  auto leaf = awake_pack(2000000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  leaf->transmit_can(2000000);
+
+  set_millis64(2100000);  // Clear of any window left by an earlier test
+  set_event(EVENT_CAN_NATIVE_BUS_ERROR, 0);
+  EXPECT_EQ(get_event_pointer(EVENT_CAN_NATIVE_BUS_ERROR)->state, EVENT_STATE_ACTIVE);
+
+  reset_all_events();
+}
+
+// --- Confirmation that the pack really went off the bus ------------------------
+
+namespace {
+
+bool log_contains(const char* text) {
+  return Logging::captured().find(text) != std::string::npos;
+}
+
+}  // namespace
+
+namespace {
+
+// 0x55B with only LB_RefusetoSleep (byte 6, bits 5-4) set. The CRC is added by feed().
+CAN_frame leaf_55b_refuse(uint8_t value) {
+  CAN_frame frame = leaf_frame(0x55B, {0x00, 0x00, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00});
+  frame.data.u8[6] = (uint8_t)((value & 0x03) << 4);
+  return frame;
+}
+
+}  // namespace
+
+// The pack keeps talking for a while after GoToSleep, then goes quiet: one success line, with the
+// time of its last frame relative to the first GoToSleep.
+TEST(NissanLeafSleepTests, LogsSuccessOnceThePackHasGoneSilentAfterGoToSleep) {
+  auto battery = awake_pack(100000);
+  feed(battery, leaf_55b_refuse(0x01));  // Its last 0x55B before GoToSleep: RefuseToSleep
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+
+  battery->transmit_can(100000);  // First GoToSleep
+  set_millis64(100240);
+  battery->handle_incoming_can_frame(leaf_5bc());  // Still powered, winding down
+  battery->transmit_can(100300);
+  battery->transmit_can(101239);
+  EXPECT_FALSE(log_contains("went silent on CAN")) << "confirmed before a full second of silence";
+
+  battery->transmit_can(101240);
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): went silent on CAN (Refused), last frame +240 ms"))
+      << Logging::captured();
+
+  // Power comes back after a confirmed stop: no failure line.
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  EXPECT_FALSE(log_contains("not confirmed"));
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// A pack that went dark together with the power cut shows a last frame at or before the GoToSleep.
+TEST(NissanLeafSleepTests, LogsWhenThePackWentSilentWithThePowerCut) {
+  auto battery = awake_pack(99990);  // Last frame 10 ms before the cut
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+
+  battery->transmit_can(100000);
+  battery->transmit_can(100990);
+
+  EXPECT_TRUE(log_contains("last frame -10 ms")) << Logging::captured();
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// If BMS power returns while the pack is still talking, there is no proof it went off: say so.
+TEST(NissanLeafSleepTests, LogsWhenThePackNeverWentSilentBeforePowerReturned) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+
+  for (unsigned long t = 100000; t < 130000; t += 100) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());  // BMS_POWER is not feeding this LBC
+    battery->transmit_can(t);
+  }
+  EXPECT_FALSE(log_contains("went silent on CAN"));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): pack still on CAN when BMS power returned, GoToSleep not confirmed"))
+      << Logging::captured();
+
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+}
+
+// --- Nothing on the bus between the end of GoToSleep and BMS power returning ---
+
+// Test hooks of the emulated CAN layer (test/emul/can.cpp).
+bool emul_can_transmissions_held(CAN_Interface interface);
+int emul_can_abort_count();
+void emul_set_can_interface_shared(bool shared);
+
+/* 5.1.2 3)(3): once the pack has been quiet for 1 s, stop sending. The interface is held, which
+   drops whatever the controller is still retrying, and nothing - not even a user's DTC request -
+   reaches the bus until BMS power is back. */
+TEST(NissanLeafSleepTests, HoldsTheBusFromTheEndOfGoToSleepUntilBmsPowerReturns) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+
+  battery->transmit_can(100000);  // GoToSleep, pack already dark with the power cut
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+  battery->transmit_can(100999);
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE)) << "held before a full second of silence";
+
+  battery->transmit_can(101000);
+  EXPECT_TRUE(emul_can_transmissions_held(CAN_NATIVE));
+  EXPECT_EQ(emul_can_abort_count(), 1) << "pending retries were not dropped";
+
+  // Anything sent now is discarded, including a DTC readout requested from the web UI.
+  const size_t before = get_transmitted_frames().size();
+  battery->read_DTC();
+  for (unsigned long t = 101010; t < 130000; t += 10) {
+    battery->transmit_can(t);
+  }
+  EXPECT_EQ(get_transmitted_frames().size(), before) << "something reached the bus while held";
+
+  // BMS power back: released on the first pass, and normal traffic resumes once the reset is over.
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(133000);
+  EXPECT_GT(get_transmitted_frames().size(), before) << "bus not usable again after the reset";
+}
+
+// With another of our components on the same bus, that node acknowledges, nothing piles up, and its
+// own traffic must keep flowing: no hold.
+TEST(NissanLeafSleepTests, DoesNotHoldABusSharedWithAnotherComponent) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+  emul_set_can_interface_shared(true);
+
+  battery->transmit_can(100000);
+  battery->transmit_can(101000);
+
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+  EXPECT_EQ(emul_can_abort_count(), 0);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+}
+
+// A pack that is still talking is acknowledging, so there is nothing to drop and no reason to hold.
+TEST(NissanLeafSleepTests, DoesNotHoldWhileThePackIsStillTalking) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  clear_transmitted_frames();
+
+  for (unsigned long t = 100000; t < 130000; t += 100) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());
+    battery->transmit_can(t);
+  }
+  EXPECT_FALSE(emul_can_transmissions_held(CAN_NATIVE));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  battery->transmit_can(130000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+}
+
+// --- Extra packs publish their own LBC's permission ---------------------------
+
+/* 293A0NDS25 5.1.1 step 3) applies to every pack, not only the primary one. The second pack's
+   driver publishes its own permission, and logs it under its own number. */
+TEST(NissanLeafContactorTests, SecondPackPublishesAndLogsItsOwnPermission) {
+  datalayer = DataLayer();
+  set_millis64(100000);
+  auto pack2 = new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_NATIVE);
+  pack2->battery_index = 2;
+  pack2->setup();
+  datalayer.system.status.battery_allows_contactor_closing = true;  // Primary pack's, must stay untouched
+  Logging::start_capture();
+
+  pack2->handle_incoming_can_frame(leaf_5bc());
+  feed(pack2, leaf_1db(false, 0, true));
+  pack2->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery2_pack_permits_closing);
+  EXPECT_TRUE(log_contains("LEAF (Battery 2): contactor close held. FRLYON:0 FAIL:0")) << Logging::captured();
+
+  feed(pack2, leaf_1db(true, 0, true));
+  pack2->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery2_pack_permits_closing);
+  EXPECT_TRUE(log_contains("LEAF (Battery 2): pack permits contactor closing")) << Logging::captured();
+
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing) << "pack 2 wrote pack 1's permission";
+  EXPECT_FALSE(log_contains("LEAF (Battery 1)"));
+  Logging::stop_capture();
+}
+
+TEST(NissanLeafContactorTests, ThirdPackPublishesItsOwnPermission) {
+  datalayer = DataLayer();
+  auto pack3 = new NissanLeafBattery(&datalayer.battery3, &datalayer_extended.nissanleaf_3, CAN_NATIVE);
+  pack3->battery_index = 3;
+  pack3->setup();
+
+  pack3->handle_incoming_can_frame(leaf_5bc());
+  feed(pack3, leaf_1db(true, 0, true));
+  pack3->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery3_pack_permits_closing);
+  EXPECT_FALSE(datalayer.system.status.battery2_pack_permits_closing);
+}
+
+// A pack that talks but never grants permission must say so at once, not only after it has once
+// permitted. Nothing is logged before the pack has spoken at all.
+TEST(NissanLeafContactorTests, LogsAPackThatWithholdsPermissionFromTheStart) {
+  datalayer = DataLayer();
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  Logging::start_capture();
+
+  battery->update_values();  // Pack not heard yet
+  EXPECT_FALSE(log_contains("LEAF (Battery 1)")) << Logging::captured();
+
+  battery->handle_incoming_can_frame(leaf_5bc());
+  feed(battery, leaf_1db(false, 0, true));
+  battery->update_values();
+  EXPECT_TRUE(log_contains("LEAF (Battery 1): contactor close held. FRLYON:0 FAIL:0 interlock:1"))
+      << Logging::captured();
+
+  battery->update_values();  // Unchanged: logged once only
+  const std::string once = Logging::captured();
+  EXPECT_EQ(once.find("close held"), once.rfind("close held"));
+  Logging::stop_capture();
+}
+
+// --- Each pack declares its own relay state in 0x1D4 ---------------------------
+
+namespace {
+
+// Sends one 10 ms cycle from the given pack and returns its 0x1D4. Each call is a further 10 ms on,
+// or the driver's 10 ms timer would rightly send nothing on a repeat.
+CAN_frame sent_1d4(NissanLeafBattery* pack) {
+  static unsigned long now = 100000;
+  now += 10;
+  clear_transmitted_frames();
+  pack->transmit_can(now);
+  const CAN_frame* frame = find_frame(0x1D4);
+  EXPECT_NE(frame, nullptr);
+  return frame ? *frame : CAN_frame{};
+}
+
+NissanLeafBattery* awake_extra_pack(DATALAYER_BATTERY_TYPE* layer, DATALAYER_INFO_NISSAN_LEAF* extended,
+                                    uint8_t index) {
+  auto pack = new NissanLeafBattery(layer, extended, CAN_NATIVE);
+  pack->battery_index = index;
+  pack->setup();
+  pack->handle_incoming_can_frame(leaf_5bc());
+  return pack;
+}
+
+}  // namespace
+
+/* Main contactors closed, but parallel safety holds pack 2's own contactor open: pack 2 must be told
+   its relays are open, not inherit the main pair's state. */
+TEST(NissanLeafContactorTests, SecondPackReportsItsOwnContactorNotTheMainOnes) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = true;
+  datalayer.system.status.contactors_engaged = 1;  // Main pair closed
+  datalayer.system.status.contactors_battery2_engaged = false;
+  auto pack2 = awake_extra_pack(&datalayer.battery2, &datalayer_extended.nissanleaf_2, 2);
+
+  CAN_frame open = sent_1d4(pack2);
+  EXPECT_FALSE(btonfn_of(open)) << "pack 2 told HV is supplied while its contactor is open";
+  EXPECT_FALSE(rlyp_of(open));
+  EXPECT_EQ(open.data.u8[7], pack2->calculate_crc(open));
+
+  datalayer.system.status.contactors_battery2_engaged = true;
+  CAN_frame closed = sent_1d4(pack2);
+  EXPECT_TRUE(btonfn_of(closed));
+  EXPECT_TRUE(rlyp_of(closed));
+
+  contactor_control_enabled = false;
+  contactor_control_enabled_double_battery = false;
+}
+
+TEST(NissanLeafContactorTests, ThirdPackReportsItsOwnContactor) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_triple_battery = true;
+  datalayer.system.status.contactors_engaged = 1;
+  datalayer.system.status.contactors_battery2_engaged = true;  // Must not leak into pack 3
+  datalayer.system.status.contactors_battery3_engaged = false;
+  auto pack3 = awake_extra_pack(&datalayer.battery3, &datalayer_extended.nissanleaf_3, 3);
+
+  CAN_frame frame = sent_1d4(pack3);
+  EXPECT_FALSE(btonfn_of(frame));
+  EXPECT_FALSE(rlyp_of(frame));
+
+  contactor_control_enabled = false;
+  contactor_control_enabled_triple_battery = false;
+}
+
+// Without its own contactor control, an extra pack keeps following the main contactors as before.
+TEST(NissanLeafContactorTests, SecondPackWithoutItsOwnContactorFollowsTheMainOnes) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = false;
+  datalayer.system.status.contactors_engaged = 3;  // Main ladder closing, precharge on
+  datalayer.system.status.contactors_battery2_engaged = false;
+  auto pack2 = awake_extra_pack(&datalayer.battery2, &datalayer_extended.nissanleaf_2, 2);
+
+  CAN_frame frame = sent_1d4(pack2);
+  EXPECT_TRUE(rlyp_of(frame));
+  EXPECT_FALSE(btonfn_of(frame));
+
+  contactor_control_enabled = false;
+}
+
+// The primary pack is unchanged: it still reports the main ladder even when pack 2's contactor differs.
+TEST(NissanLeafContactorTests, PrimaryPackStillReportsTheMainLadder) {
+  datalayer = DataLayer();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = true;
+  datalayer.system.status.contactors_engaged = 1;
+  datalayer.system.status.contactors_battery2_engaged = false;
+  auto pack1 = new NissanLeafBattery();
+  pack1->setup();
+  pack1->handle_incoming_can_frame(leaf_5bc());
+
+  CAN_frame frame = sent_1d4(pack1);
+  EXPECT_TRUE(btonfn_of(frame));
+  EXPECT_TRUE(rlyp_of(frame));
+
+  contactor_control_enabled = false;
+  contactor_control_enabled_double_battery = false;
+}
+
+// --- LB_RefusetoSleep in the silent line, and no diagnostics during a reset ------
+
+namespace {
+
+// The silent line for a pack whose last 0x55B carried the given LB_RefusetoSleep, or none at all.
+std::string silent_line_for(int refuse_value) {
+  auto battery = awake_pack(100000);
+  if (refuse_value >= 0) {
+    feed(battery, leaf_55b_refuse((uint8_t)refuse_value));
+  }
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  Logging::start_capture();
+  battery->transmit_can(100000);
+  battery->transmit_can(101000);
+  std::string captured = Logging::captured();
+  Logging::stop_capture();
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  return captured;
+}
+
+size_t group_requests_sent() {
+  size_t n = 0;
+  for (const CAN_frame& f : get_transmitted_frames()) {
+    if (f.ID == 0x79B && f.data.u8[0] == 0x02 && f.data.u8[1] == 0x21) {
+      n++;
+    }
+  }
+  return n;
+}
+
+bool dtc_read_sent() {
+  for (const CAN_frame& f : get_transmitted_frames()) {
+    if (f.ID == 0x79B && f.data.u8[1] == 0x19) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+TEST(NissanLeafSleepTests, SilentLineNamesEachRefuseToSleepValue) {
+  EXPECT_NE(silent_line_for(0x01).find("went silent on CAN (Refused), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(0x02).find("went silent on CAN (Ready to sleep), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(0x00).find("went silent on CAN (res_00), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(0x03).find("went silent on CAN (res_11), last frame"), std::string::npos);
+  EXPECT_NE(silent_line_for(-1).find("went silent on CAN (not received), last frame"), std::string::npos);
+}
+
+// From the moment a reset starts until it has ended, no group polls go to the LBC. Polling picks up
+// again afterwards.
+TEST(NissanLeafSleepTests, PausesGroupPollingForTheWholeReset) {
+  auto battery = awake_pack(100000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  unsigned long t = 100000;
+  for (; t < 110000; t += 10) {
+    battery->transmit_can(t);
+  }
+  ASSERT_GT(group_requests_sent(), 0u) << "no polling before the reset, so the test proves nothing";
+
+  // Only the ending sequence transmits during a reset: every other state halts the driver entirely.
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  clear_transmitted_frames();
+  for (; t < 140000; t += 10) {
+    battery->transmit_can(t);
+  }
+  EXPECT_EQ(group_requests_sent(), 0u) << "group polled while the reset was taking the LBC to sleep";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  clear_transmitted_frames();
+  for (; t < 150000; t += 10) {
+    set_millis64(t);
+    battery->handle_incoming_can_frame(leaf_5bc());
+    battery->transmit_can(t);
+  }
+  EXPECT_GT(group_requests_sent(), 0u) << "polling did not resume after the reset";
+}
+
+// A DTC readout asked for during a reset is kept, and sent once the reset has ended.
+TEST(NissanLeafSleepTests, DefersADtcRequestMadeDuringTheReset) {
+  auto battery = awake_pack(200000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  clear_transmitted_frames();
+  battery->read_DTC();
+  for (unsigned long t = 200000; t < 205000; t += 10) {
+    battery->transmit_can(t);
+  }
+  EXPECT_FALSE(dtc_read_sent()) << "DTC request sent during the reset";
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  battery->transmit_can(205010);
+  EXPECT_TRUE(dtc_read_sent()) << "the deferred DTC request was lost";
 }

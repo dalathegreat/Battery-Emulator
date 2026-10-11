@@ -49,6 +49,9 @@ enum BMSResetState {
   BMS_RESET_WAITING_FOR_PAUSE,
   BMS_RESET_POWERED_OFF,
   BMS_RESET_POWERING_ON,
+  /* BMS power is about to be cut and a battery driver still has CAN to send first, see
+     Battery::ready_for_bms_power_off(). Appended so the existing values keep their numbers. */
+  BMS_RESET_PREPARING_POWER_OFF,
 };
 
 #define DISCHARGING 1

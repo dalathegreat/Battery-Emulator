@@ -16,7 +16,13 @@
 #define CANCTRL_REQOP_CONFIG    0x80
 #define CANCTRL_REQOP_LOOPBACK  0x40
 
+#define CANCTRL_ABAT            0x10
+
 #define REG_CANCTRL     0x0F
+#define REG_TXB0CTRL    0x30
+#define REG_TXB1CTRL    0x40
+#define REG_TXB2CTRL    0x50
+#define TXBCTRL_TXREQ   0x08
 #define REG_CNF1        0x2A
 #define REG_CNF2        0x29
 #define REG_CNF3        0x28
@@ -205,6 +211,12 @@ void MCP2515_Lite::pause(bool paused) {
     xTaskNotifyGive(_can_task_handle);
 }
 
+void MCP2515_Lite::abortPendingTransmissions() {
+    _abort_tx_requested = true;
+    // Wake the task, which owns the SPI bus and the transmit buffers
+    xTaskNotifyGive(_can_task_handle);
+}
+
 
 static const SPISettings spiSettings(10000000, MSBFIRST, SPI_MODE0);
 
@@ -333,6 +345,27 @@ void MCP2515_Lite::canTask(void* pvParameters) {
                 self->applySpeedConfig(self->_next_speed);
                 self->modifyRegister(REG_CANCTRL, 0xE0, CANCTRL_REQOP_NORMAL);
                 self->_speed_change_pending = false;
+            }
+
+            // 5b. Abort everything pending if requested. The queue is emptied, and ABAT asks the
+            // controller to drop whatever is loaded in its buffers; a frame already on the wire is
+            // let finish its current attempt. Aborted buffers raise no TXnIF, so they are marked free
+            // here or they would never be used again.
+
+            if (self->_abort_tx_requested) {
+                xQueueReset(self->_tx_queue);
+                self->modifyRegister(REG_CANCTRL, CANCTRL_ABAT, CANCTRL_ABAT);
+                for (int wait_ms = 0; wait_ms < 10; wait_ms++) {
+                    const uint8_t pending = (self->readRegister(REG_TXB0CTRL) | self->readRegister(REG_TXB1CTRL) |
+                                             self->readRegister(REG_TXB2CTRL)) & TXBCTRL_TXREQ;
+                    if (pending == 0) {
+                        break;
+                    }
+                    vTaskDelay(pdMS_TO_TICKS(1));
+                }
+                self->modifyRegister(REG_CANCTRL, CANCTRL_ABAT, 0x00);  // ABAT stays set until cleared
+                tx_free_mask = 0x07;
+                self->_abort_tx_requested = false;
             }
 
             // 6. Transmit any pending messages (if we have free buffers)

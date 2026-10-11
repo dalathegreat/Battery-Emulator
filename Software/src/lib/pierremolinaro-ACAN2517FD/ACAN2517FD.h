@@ -81,6 +81,18 @@ class ACAN2517FD {
   public: bool end (void) ;
 
 //······················································································································
+//    Drop every frame not yet on the wire, without leaving the current mode: the driver's queue is
+//    emptied, pending transmissions are aborted and the transmit FIFO is reset, so the aborted
+//    messages are not sent later together with the next one. Reception is not affected.
+//    Returns false if the abort did not complete within inTimeoutMs; the controller is then left
+//    transmitting as before, never stopped.
+//    Unlike end() followed by begin(), it needs no mode change, keeps the interrupt handler task,
+//    and cannot fail into an unconfigured controller.
+//······················································································································
+
+  public: bool abortPendingTransmissions (const uint32_t inTimeoutMs = 5) ;
+
+//······················································································································
 //   Send a message
 //······················································································································
 
