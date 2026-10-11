@@ -1192,10 +1192,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 #ifndef SMALL_FLASH_DEVICE
   if (var == "UUGP_IP") {
-     return settings.getString("UUGP_IP", "");
+    return settings.getString("UUGP_IP", "");
   }
   if (var == "UUGP_PORT") {
-     return String(settings.getUInt("UUGP_PORT", 502));
+    return String(settings.getUInt("UUGP_PORT", 502));
   }
   if (var == "UUGP_PWRLIM") {
     return String(settings.getUInt("UUGP_PWRLIM", 10000));
