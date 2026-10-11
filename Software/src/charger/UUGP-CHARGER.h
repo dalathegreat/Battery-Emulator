@@ -6,7 +6,9 @@
 #include "../communication/Transmitter.h"
 #include "CanCharger.h"
 
-#ifdef ARDUINO
+#ifdef UNIT_TEST
+#include "UUGP-WiFiClient-Mock.h"
+#else
 #include <WiFiClient.h>
 #endif
 
