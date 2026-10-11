@@ -3,13 +3,11 @@
 #define UUGP_CHARGER_H
 
 #include <Arduino.h>
-#include <HardwareSerial.h>
-
+#include <WiFiClient.h>
 #include "../communication/Transmitter.h"
-#include "../communication/rs485/comm_rs485.h"
 #include "CanCharger.h"
 
-class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
+class UUGPCharger : public Charger, public Transmitter {
  public:
   static constexpr const char* Name = "UUGP";
 
@@ -26,7 +24,10 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
 
  private:
   static constexpr uint8_t UNIT_ID = 0x01;
-
+  static constexpr uint16_t MODBUS_TCP_PORT_DEFAULT = 502;
+  static constexpr uint32_t TCP_CONNECT_TIMEOUT_MS = 1000;
+  static constexpr uint32_t TCP_RESPONSE_TIMEOUT_MS = 1000;
+  static constexpr uint32_t TCP_RECONNECT_INTERVAL_MS = 5000;
   static constexpr uint8_t FC_READ_HOLDING = 0x03;
   static constexpr uint8_t FC_READ_INPUT = 0x04;
   static constexpr uint8_t FC_WRITE_SINGLE = 0x06;
@@ -84,16 +85,15 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
   static constexpr uint16_t REG_FAULT_STATUS_2 = 0x3073;
   static constexpr uint16_t REG_FAULT_STATUS_3 = 0x3075;
 
-  static constexpr uint32_t BAUDRATE = 9600;
-
-  // UUGP specifies >=15 s between setting operations.
+    // UUGP specifies >=15 s between setting operations.
   static constexpr uint32_t SETTING_INTERVAL_MS = 15000;
 
   static constexpr uint32_t STATUS_INTERVAL_MS = 500;
 
-  HardwareSerial& serial = Serial2;
-
-  bool serial_initialized = false;
+  WiFiClient tcp_client;
+  bool tcp_connected = false;
+  uint32_t last_tcp_connect_attempt_ms = 0;
+  uint32_t last_tcp_rx_ms = 0;
   bool initialization_complete = false;
 
   uint8_t initialization_step = 0;
@@ -114,7 +114,9 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
   uint8_t rx_buffer[256] = {};
   size_t rx_length = 0;
 
-  bool ensure_serial();
+  bool ensure_tcp_connection();
+  void close_tcp_connection();
+  void receive_tcp();
 
   uint16_t next_transaction();
 
@@ -131,8 +133,7 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
   void initialize_system_time();
   void initialize_current_limiting();
   void initialize_pcs_information();
-  void initialize_start_mode();
-
+  
   void poll_status();
 
   void process_response(const uint8_t* frame, size_t length);
@@ -151,7 +152,9 @@ class UUGPCharger : public Charger, public Transmitter, public Rs485Receiver {
 extern volatile uint16_t uugp_power_limit_W;
 extern volatile uint16_t uugp_discharge_cutoff_soc;
 extern volatile bool uugp_allow_discharge_to_home_grid;
-extern volatile uint8_t uugp_start_mode;
+
+extern std::string uugp_ip;
+extern volatile uint16_t uugp_port;
 
 #endif
 #endif
