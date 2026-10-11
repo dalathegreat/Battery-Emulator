@@ -16,7 +16,6 @@ volatile uint16_t uugp_port = 502;
 
 UUGPCharger::UUGPCharger() : Charger(ChargerType::UUGP) {
   register_transmitter(this);
-  register_receiver(this);
 }
 
 const char* UUGPCharger::name() {
@@ -448,7 +447,8 @@ void UUGPCharger::poll_status() {
 
 void UUGPCharger::transmit(unsigned long currentMillis) {
   (void)currentMillis;
-
+  receive_tcp();
+  
   if (!ensure_tcp_connection()) {
       datalayer.charger.uugp_communication_ok = false;
       return;
@@ -658,8 +658,5 @@ void UUGPCharger::receive_tcp() {
         rx_length = remaining;
      
   }
-}
-void UUGPCharger::receive() {
-  receive_tcp();
 }
 #endif  // !SMALL_FLASH_DEVICE
