@@ -35,42 +35,43 @@ float UUGPCharger::HVDC_output_current() {
 }
 
 bool UUGPCharger::ensure_tcp_connection() {
-    if (tcp_client.connected()) {
-        tcp_connected = true;
-        return true;
-     
+  if (tcp_client.connected()) {
+    tcp_connected = true;
+    return true;
   }
-    tcp_connected = false;
-    if (!wifi_connected()) {
-        return false;
-     
+
+  tcp_connected = false;
+
+  if (!wifi_connected() || uugp_ip.empty()) {
+    return false;
   }
-    if (uugp_ip.empty()) {
-        return false;
-     
+
+  const uint32_t now = millis();
+
+  if (now - last_tcp_connect_attempt_ms < TCP_RECONNECT_INTERVAL_MS) {
+    return false;
   }
-    const uint32_t now = millis();
-    if (now - last_tcp_connect_attempt_ms < TCP_RECONNECT_INTERVAL_MS) {
-        return false;
-     
+
+  last_tcp_connect_attempt_ms = now;
+
+  IPAddress address;
+  if (!address.fromString(uugp_ip.c_str())) {
+    DEBUG_PRINTF("UUGP invalid IP address: %s\n", uugp_ip.c_str());
+    return false;
   }
-    last_tcp_connect_attempt_ms = now;
-    IPAddress address;
-    if (!address.fromString(uugp_ip.c_str())) {
-        DEBUG_PRINTF("UUGP invalid IP address: %s\n", uugp_ip.c_str());
-        return false;
-     
+
+  tcp_client.setConnectionTimeout(TCP_CONNECT_TIMEOUT_MS);
+
+  if (!tcp_client.connect(address, uugp_port)) {
+    tcp_client.stop();
+    return false;
   }
-    tcp_client.setConnectionTimeout(TCP_CONNECT_TIMEOUT_MS);
-    if (!tcp_client.connect(address, uugp_port)) {
-        tcp_client.stop();
-        return false;
-     
-  }
-    tcp_connected = true;
-    last_tcp_rx_ms = now;
-    DEBUG_PRINTF("UUGP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
-    return true;
+
+  tcp_connected = true;
+  last_tcp_rx_ms = now;
+
+  DEBUG_PRINTF("UUGP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+  return true;
 }
 
 void UUGPCharger::close_tcp_connection() {
