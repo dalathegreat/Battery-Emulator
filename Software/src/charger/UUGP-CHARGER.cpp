@@ -75,15 +75,14 @@ bool UUGPCharger::ensure_tcp_connection() {
 }
 
 void UUGPCharger::close_tcp_connection() {
-    if (tcp_client.connected()) {
-        tcp_client.stop();
-     
+  if (tcp_client.connected()) {
+    tcp_client.stop();
   }
-    tcp_connected = false;
-    initialization_waiting_for_ack = false;
-    expected_transaction_id = 0;
-    last_ack_transaction_id = 0;
-    datalayer.charger.uugp_communication_ok = false;
+  tcp_connected = false;
+  initialization_waiting_for_ack = false;
+  expected_transaction_id = 0;
+  last_ack_transaction_id = 0;
+  datalayer.charger.uugp_communication_ok = false;
 }
 
 uint16_t UUGPCharger::next_transaction() {
@@ -139,9 +138,9 @@ void UUGPCharger::send_frame(uint8_t function, const uint8_t* payload, size_t pa
     return;
   }
   if (payload_length > 0) {
-      if (tcp_client.write(payload, payload_length) != payload_length) {
-          close_tcp_connection();
-          return;
+    if (tcp_client.write(payload, payload_length) != payload_length) {
+      close_tcp_connection();
+      return;
     }
   }
   tcp_client.flush();
@@ -316,14 +315,14 @@ void UUGPCharger::initialize_pcs_information() {
 
 void UUGPCharger::initialize() {
   if (!ensure_tcp_connection()) {
-      return;
+    return;
   }
 
   /*
-     * Every initialization write must be acknowledged before moving to
-     * the next step. If the response never arrives, the same step is
-     * retried after SETTING_INTERVAL_MS.
-     */
+   * Every initialization write must be acknowledged before moving to
+   * the next step. If the response never arrives, the same step is
+   * retried after SETTING_INTERVAL_MS.
+   */
   if (initialization_waiting_for_ack) {
     if (last_ack_transaction_id == expected_transaction_id) {
       initialization_waiting_for_ack = false;
@@ -373,10 +372,10 @@ void UUGPCharger::initialize() {
 
 void UUGPCharger::update_power_limit() {
   /*
-     * If communication has not been verified, never send a non-zero
-     * power limit. The UUGP may otherwise retain a previously accepted
-     * power setting.
-     */
+   * If communication has not been verified, never send a non-zero
+   * power limit. The UUGP may otherwise retain a previously accepted
+   * power setting.
+   */
   if (!datalayer.charger.uugp_communication_ok) {
     write_single(REG_POWER_LIMIT, 0);
     return;
@@ -386,9 +385,9 @@ void UUGPCharger::update_power_limit() {
   uint16_t power_limit = bms_limit;
 
   /*
-     * User configuration can reduce the BMS limit, but can never
-     * increase it. The BMS/safety layer remains authoritative.
-     */
+   * User configuration can reduce the BMS limit, but can never
+   * increase it. The BMS/safety layer remains authoritative.
+   */
   if (uugp_allow_discharge_to_home_grid && uugp_power_limit_W < power_limit) {
     power_limit = uugp_power_limit_W;
   }
@@ -451,8 +450,8 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
   receive_tcp();
 
   if (!ensure_tcp_connection()) {
-      datalayer.charger.uugp_communication_ok = false;
-      return;
+    datalayer.charger.uugp_communication_ok = false;
+    return;
   }
 
   if (!tcp_client.connected()) {
@@ -486,7 +485,6 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 }
 
 void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* values, uint16_t count) {
-
   if (address == REG_EV_VOLTAGE && count >= 9) {
     datalayer.charger.uugp_ev_voltage_V = values[0];
     datalayer.charger.uugp_ev_current_A = values[1];
@@ -525,7 +523,6 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
 }
 
 void UUGPCharger::process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count) {
-
   if (address == REG_CONTROL_MODE && count >= 1) {
     datalayer.charger.uugp_control_mode = values[0];
   }
@@ -545,17 +542,17 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
   const uint8_t function = frame[7];
 
   /*
-     * Only accept a response to the request currently outstanding.
-     * This is especially important for writes: a random/stale write
-     * response must never make communication_ok true.
-     */
+   * Only accept a response to the request currently outstanding.
+   * This is especially important for writes: a random/stale write
+   * response must never make communication_ok true.
+   */
   if (response_transaction != expected_transaction_id) {
     return;
   }
 
   /*
-     * Exception responses are never considered successful.
-     */
+   * Exception responses are never considered successful.
+   */
   if (function & 0x80) {
     return;
   }
@@ -566,10 +563,10 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
 
   if (function == FC_WRITE_SINGLE || function == FC_WRITE_MULTIPLE) {
     /*
-       * Both write responses contain:
-       * transaction + protocol + length + unit + function + 4 bytes data
-       * => 12 bytes total.
-       */
+     * Both write responses contain:
+     * transaction + protocol + length + unit + function + 4 bytes data
+     * => 12 bytes total.
+     */
     if (length != 12) {
       return;
     }
@@ -613,51 +610,44 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
 }
 
 void UUGPCharger::receive_tcp() {
-    if (!tcp_client.connected()) {
-        if (tcp_connected) {
-            close_tcp_connection();
+  if (!tcp_client.connected()) {
+    if (tcp_connected) {
+      close_tcp_connection();
     }
-        return;
+    return;
   }
-    while (tcp_client.available() > 0 && rx_length < sizeof(rx_buffer)) {
-        const int value = tcp_client.read();
-        if (value < 0) {
-            break;
-         
+  while (tcp_client.available() > 0 && rx_length < sizeof(rx_buffer)) {
+    const int value = tcp_client.read();
+    if (value < 0) {
+      break;
     }
-        rx_buffer[rx_length++] = static_cast<uint8_t>(value);
-     
+    rx_buffer[rx_length++] = static_cast<uint8_t>(value);
   }
-    if (!tcp_client.connected()) {
-        close_tcp_connection();
-        return;
+  if (!tcp_client.connected()) {
+    close_tcp_connection();
+    return;
   }
-    while (rx_length >= 8) {
-        if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
-            memmove(rx_buffer, rx_buffer + 1, --rx_length);
-            continue;
-         
+  while (rx_length >= 8) {
+    if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
+      memmove(rx_buffer, rx_buffer + 1, --rx_length);
+      continue;
     }
-        const uint16_t length =
-         (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
-        const size_t frame_length = 6 + length;
-        if (length < 2 || frame_length > sizeof(rx_buffer)) {
-            memmove(rx_buffer, rx_buffer + 1, --rx_length);
-            continue;
-         
+    const uint16_t length =
+        (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
+    const size_t frame_length = 6 + length;
+    if (length < 2 || frame_length > sizeof(rx_buffer)) {
+      memmove(rx_buffer, rx_buffer + 1, --rx_length);
+      continue;
     }
-        if (rx_length < frame_length) {
-            return;
-         
+    if (rx_length < frame_length) {
+      return;
     }
-        process_response(rx_buffer, frame_length);
-        const size_t remaining = rx_length - frame_length;
-        if (remaining > 0) {
-            memmove(rx_buffer, rx_buffer + frame_length, remaining);
-         
+    process_response(rx_buffer, frame_length);
+    const size_t remaining = rx_length - frame_length;
+    if (remaining > 0) {
+      memmove(rx_buffer, rx_buffer + frame_length, remaining);
     }
-        rx_length = remaining;
-     
+    rx_length = remaining;
   }
 }
 #endif  // !SMALL_FLASH_DEVICE
