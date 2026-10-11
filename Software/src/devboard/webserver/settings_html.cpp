@@ -1,5 +1,6 @@
 ﻿#include "settings_html.h"
 #include <Arduino.h>
+#include <map>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "../../charger/CHARGERS.h"
@@ -13,7 +14,6 @@
 #include "src/inverter/INVERTERS.h"
 #include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
-#include <map>
 
 extern bool settingsUpdated;
 
