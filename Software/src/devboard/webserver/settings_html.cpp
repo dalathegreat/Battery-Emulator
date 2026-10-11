@@ -1370,7 +1370,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <input type='checkbox' name='QNHAUTOCAL' value='on' %QNHAUTOCAL% />
 
           <div class="if-qnhauto">
-          <label>Zero point drift (mV/C): </label>
+          <label>Zero point drift (mV/°C): </label>
           <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.1' />
           </div>
 
@@ -1393,14 +1393,14 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define QNHCK_SETTINGS_SCRIPT \
   R"rawliteral(
 
-        function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure it[...]
-        xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText[...]
+        function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure its zero point now?')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/calibrateShuntZero',true);xhr.send();}})rawliteral"
 #else
-  #define CTCLAMP_SETTINGS_HTML ""
-  #define CTCLAMP_SETTINGS_STYLE ""
-  #define QNHCK_SETTINGS_HTML ""
-  #define QNHCK_SETTINGS_STYLE ""
-  #define QNHCK_SETTINGS_SCRIPT ""
+#define CTCLAMP_SETTINGS_HTML ""
+#define CTCLAMP_SETTINGS_STYLE ""
+#define QNHCK_SETTINGS_HTML ""
+#define QNHCK_SETTINGS_STYLE ""
+#define QNHCK_SETTINGS_SCRIPT ""
 #endif  // SMALL_FLASH_DEVICE
 
 #define SYSLOG_SETTING_HTML \
