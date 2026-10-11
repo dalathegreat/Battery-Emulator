@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <WiFi.h>
 
 class WiFiClient {
  public:
