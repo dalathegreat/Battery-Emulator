@@ -1222,11 +1222,11 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   char* topic = strndup(topic_raw, topic_len);
 
-  logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
+  //logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 
   if (remote_bms_reset) {
     if (strcmp(topic, button_command_topics[BTN_BMSRESET].c_str()) == 0) {
-      logging.println("Triggering BMS reset");
+      logging.println("MQTT: Triggering BMS reset");
       start_bms_reset();
     }
   }
@@ -1260,13 +1260,13 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
       end--;
     }
     if (end - start == 1 && data[start] == '1') {
-      logging.println("MQTT: starting ESPNow");
+      //logging.println("MQTT: starting ESPNow");
       request_espnow_running(true);
     } else if (end - start == 1 && data[start] == '0') {
-      logging.println("MQTT: stopping ESPNow");
+      //logging.println("MQTT: stopping ESPNow");
       request_espnow_running(false);
     } else {
-      logging.printf("MQTT: invalid ESPNOW_RUN payload [%.*s], expected 1 or 0\n", data_len, data);
+      //logging.printf("MQTT: invalid ESPNOW_RUN payload [%.*s], expected 1 or 0\n", data_len, data);
     }
   }
 
@@ -1315,7 +1315,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
       free(data_str);
 
       if (err) {
-        logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
+        //logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
       } else {
         // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
         if (doc["max_pct"].is<float>()) {
