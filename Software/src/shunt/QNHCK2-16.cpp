@@ -109,12 +109,12 @@ void Qnhck2_16Shunt::setup() {
   datalayer.shunt.replaces_battery_current = true;
 
   if (qnhck_auto_calibration) {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point measured while the contactors are open\n", (int)pin,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point measured while contactors are open\n", (int)pin,
                    (unsigned)qnhck_rated_current_A, output_V);
     if (qnhck_zero_tempco_uV_per_C != 0) {
       char drift_mV[8];
       format_tenths(drift_mV, sizeof(drift_mV), qnhck_zero_tempco_uV_per_C / 100);
-      logging.printf("QNHCK2-16: zero point follows the batteries' temperature by %s mV/°C\n", drift_mV);
+      logging.printf("QNHCK2-16: zero point follows the temperature by %s mV/°C\n", drift_mV);
     }
     const bool all_contactors_ours = contactor_control_enabled &&
                                      (!battery2 || contactor_control_enabled_double_battery) &&
@@ -122,11 +122,10 @@ void Qnhck2_16Shunt::setup() {
     if (!all_contactors_ours) {
       LOG_SET_NEXT_SEVERITY(4);  // warning
       logging.println(
-          "QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery. Its reading is not "
-          "used until then.");
+          "QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery!");
     }
   } else {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
                    output_V, (unsigned)qnhck_zero_mV);
   }
 }
