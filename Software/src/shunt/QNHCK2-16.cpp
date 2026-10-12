@@ -89,10 +89,11 @@ void Qnhck2_16Shunt::setup() {
   snprintf(datalayer.system.info.shunt_protocol, sizeof(datalayer.system.info.shunt_protocol), "QNHCK2-16 (%uA ±%sV)",
            (unsigned)qnhck_rated_current_A, output_V);
 
-  pin = esp32hal->SHUNT_ADC_PIN();
-  if (!esp32hal->alloc_pins(Name, pin)) {
-    return;  // alloc_pins() has raised the event that says why
+  const gpio_num_t adc_pin = esp32hal->SHUNT_ADC_PIN();
+  if (!esp32hal->alloc_pins(Name, adc_pin)) {
+    return;  // alloc_pins() has raised the event that says why. Nothing is sampled.
   }
+  pin = adc_pin;
   snprintf(interface_label, sizeof(interface_label), "ADC (GPIO%d)", (int)pin);
 
   // The first read sets the pin up as an ADC input, which setting its attenuation needs. 11 dB
@@ -103,35 +104,35 @@ void Qnhck2_16Shunt::setup() {
 
   window_start_ms = millis();
   last_sample_ms = window_start_ms;
-  register_transmitter(this);
 
   // The inverter is given this current instead of what the batteries report
   datalayer.shunt.replaces_battery_current = true;
 
   if (qnhck_auto_calibration) {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point measured while the contactors are open\n", (int)pin,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point measured while contactors are open\n", (int)pin,
                    (unsigned)qnhck_rated_current_A, output_V);
     if (qnhck_zero_tempco_uV_per_C != 0) {
       char drift_mV[8];
       format_tenths(drift_mV, sizeof(drift_mV), qnhck_zero_tempco_uV_per_C / 100);
-      logging.printf("QNHCK2-16: zero point follows the batteries' temperature by %s mV/°C\n", drift_mV);
+      logging.printf("QNHCK2-16: zero point follows the temperature by %s mV/°C\n", drift_mV);
     }
     const bool all_contactors_ours = contactor_control_enabled &&
                                      (!battery2 || contactor_control_enabled_double_battery) &&
                                      (!battery3 || contactor_control_enabled_triple_battery);
     if (!all_contactors_ours) {
       LOG_SET_NEXT_SEVERITY(4);  // warning
-      logging.println(
-          "QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery. Its reading is not "
-          "used until then.");
+      logging.println("QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery!");
     }
   } else {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
                    output_V, (unsigned)qnhck_zero_mV);
   }
 }
 
-void Qnhck2_16Shunt::transmit(unsigned long currentMillis) {
+void Qnhck2_16Shunt::sample(unsigned long currentMillis) {
+  if (pin == GPIO_NUM_NC) {
+    return;  // Not ours: no ADC pin on this board, or something else has it
+  }
   const uint32_t now = (uint32_t)currentMillis;
   if (now == last_sample_ms) {
     return;  // One sample per millisecond

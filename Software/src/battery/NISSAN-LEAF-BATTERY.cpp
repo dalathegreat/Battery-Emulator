@@ -1,7 +1,9 @@
 #include "NISSAN-LEAF-BATTERY.h"
 #include <cstring>  //For unit test
+#ifndef SMALL_FLASH_DEVICE
 #include "../charger/CHARGERS.h"
 #include "../charger/CanCharger.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../communication/can/comm_can.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
@@ -17,6 +19,15 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
   const int32_t sum_dA = sum_raw * 5;
   return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
+}
+
+//The Nissan LEAF PDM charger sends its own 0x1D4 and 0x1F2, which would collide with ours
+static bool leaf_pdm_charger_in_use() {
+#ifndef SMALL_FLASH_DEVICE
+  return charger && charger->type() == ChargerType::NissanLeaf;
+#else
+  return false;  // Chargers are left out of the small flash devices
+#endif  // SMALL_FLASH_DEVICE
 }
 
 //Sorts a copy of the window, so the window itself keeps sliding, and sums what is left once
@@ -154,7 +165,8 @@ void NissanLeafBattery::
       //healthy pack. Reporting more than 100% would also put a figure on the wire that several
       //inverter protocols have no room for.
       const uint32_t soh_pptt = (uint32_t)(((uint64_t)battery_capacity_Wh * 10000ull) / capacity_as_new_Wh);
-      datalayer_battery->status.soh_pptt = (uint16_t)((soh_pptt > 10000u) ? 10000u : soh_pptt);
+      battery_SOH_der_pptt = (uint16_t)((soh_pptt > 10000u) ? 10000u : soh_pptt);
+      datalayer_battery->status.soh_pptt = battery_SOH_der_pptt;
       datalayer_battery->status.soh_available = true;
     }
 
@@ -182,6 +194,16 @@ void NissanLeafBattery::
     }
     //Nothing measured to scale by, so the GID count is all there is to go on.
     datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
+  }
+
+  //With both figures settled, the lower one is what gets reported. Each can be flattering in a way
+  //the other is not: the LBC's own SOH goes back to 100% when the degradation data is erased, while
+  //the derived figure is only as good as the max GID count behind it and is capped at 100% on top,
+  //so a pack understating how many GIDs it held when new comes out looking healthy either way.
+  //Taking the pessimistic one means neither source can hide wear the other has already seen.
+  if (datalayer_battery->status.soh_available && (battery_SOH_avg_pptt != 0) &&
+      (battery_SOH_avg_pptt < datalayer_battery->status.soh_pptt)) {
+    datalayer_battery->status.soh_pptt = battery_SOH_avg_pptt;
   }
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
@@ -226,23 +248,21 @@ void NissanLeafBattery::
   /*Extra safety functions below*/
   if (battery_GIDS < 10)  //700Wh left in battery!
   {                       //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
-    set_event(EVENT_BATTERY_EMPTY, 0, battery_index);
     datalayer_battery->status.real_soc = 0;
     datalayer_battery->status.max_discharge_power_W = 0;
   }
 
+  /* Battery full/empty are the installation's events, raised by the safety layer from these flags
+     and the SOC together, so the driver no longer sets or clears them itself */
+  datalayer_battery->status.bms_reports_full = battery_Full_CHARGE_flag;
+  datalayer_battery->status.bms_reports_empty = battery_Capacity_Empty;
+
   if (battery_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
-    set_event(EVENT_BATTERY_FULL, 0, battery_index);
     datalayer_battery->status.max_charge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_FULL, battery_index);
   }
 
   if (battery_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
-    set_event(EVENT_BATTERY_EMPTY, 0, battery_index);
     datalayer_battery->status.max_discharge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_EMPTY, battery_index);
   }
 
   if (battery_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
@@ -448,6 +468,7 @@ void NissanLeafBattery::
     datalayer_nissan->StatusSeen = battery_status_seen;
     datalayer_nissan->battery_SOHraw_pptt = battery_SOHraw_pptt;
     datalayer_nissan->battery_SOHavg_pptt = battery_SOH_avg_pptt;
+    datalayer_nissan->battery_SOHder_pptt = battery_SOH_der_pptt;
     datalayer_nissan->battery_HX_pptt = battery_HX_pptt;
     datalayer_nissan->ChargeCountQC = battery_charge_count_qc;
     datalayer_nissan->ChargeCountL1L2 = battery_charge_count_l1l2;
@@ -1324,9 +1345,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
-      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+      if (!leaf_pdm_charger_in_use()) {
         transmit_can_frame(&LEAF_1D4);
       }
 
@@ -1431,9 +1452,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       LEAF_1F2.data.u8[7] =
           (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
 
-      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
-      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+      if (!leaf_pdm_charger_in_use()) {
         transmit_can_frame(&LEAF_1F2);
       }
 

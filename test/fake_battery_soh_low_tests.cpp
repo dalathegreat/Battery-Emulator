@@ -5,6 +5,7 @@
 
 #include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/battery/TEST-FAKE-BATTERY.h"
+#include "../Software/src/datalayer/battery_aggregate.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
@@ -31,8 +32,12 @@ class FakeBatterySohLowTest : public ::testing::Test {
 
   void TearDown() override { user_selected_battery_type = BatteryType::None; }
 
+  // The core loop's order: the packs are rolled up into the aggregate, whose SOH is what
+  // EVENT_SOH_LOW judges, and then the safety layer runs
   static void run_cycle() {
     datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    scale_pack_values(datalayer.battery);
+    update_aggregate_values();
     update_machineryprotection(0);
   }
 
