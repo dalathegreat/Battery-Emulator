@@ -22,7 +22,9 @@ volatile CAN_Configuration can_config = {.battery = CAN_NATIVE,
                                          .inverter = CAN_NATIVE,
                                          .battery_double = CAN_ADDON_MCP2515,
                                          .battery_triple = CAN_ADDON_MCP2515,
+#ifndef SMALL_FLASH_DEVICE
                                          .charger = CAN_NATIVE,
+#endif  // SMALL_FLASH_DEVICE
                                          .shunt = CAN_NATIVE};
 
 struct CanReceiverRegistration {
