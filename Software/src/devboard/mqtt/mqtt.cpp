@@ -2,8 +2,14 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_heap_caps.h>
+#include <float.h>
 #include <freertos/FreeRTOS.h>
+#include <limits.h>
+#include <math.h>
 #include <src/communication/nvm/comm_nvm.h>
+#include <stdlib.h>
+#include <string>
+#include <type_traits>
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/battery_aggregate.h"
@@ -14,7 +20,6 @@
 #include "../../devboard/network/hostname.h"
 #include "../../devboard/network/network_status.h"
 #include "../../devboard/safety/safety.h"
-#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
 #include "../webserver/webserver.h"
@@ -123,10 +128,231 @@ static bool ha_buttons_published = false;
 // and mqtt_msg concurrently with the publish cycle running on the MQTT task.
 static volatile bool pending_buttons_discovery = false;
 
-// One JsonDocument shared by all publish functions. They are only ever called sequentially
-// from the MQTT task, never concurrently, so sharing is safe and caps the retained
-// ArduinoJson pool to the single largest payload instead of one pool per publish function.
-static JsonDocument shared_doc;
+// JSON messages are built directly into the MQTT transmit buffer, avoiding a second
+// document-sized allocation on the constrained devices.
+class JsonObjectWriter {
+ public:
+  JsonObjectWriter(char* buffer, size_t capacity) : buffer_(buffer), capacity_(capacity) { clear(); }
+
+  class Value {
+   public:
+    Value(JsonObjectWriter& writer, const char* key) : writer_(writer), key_(key) {}
+    Value& operator=(const String& value) {
+      writer_.addString(key_, value.c_str());
+      return *this;
+    }
+    Value& operator=(const std::string& value) {
+      writer_.addString(key_, value.c_str());
+      return *this;
+    }
+    Value& operator=(const char* value) {
+      writer_.addString(key_, value == nullptr ? "" : value);
+      return *this;
+    }
+    Value& operator=(bool value) {
+      writer_.addBoolean(key_, value);
+      return *this;
+    }
+    Value& operator=(float value) {
+      writer_.addFloat(key_, value);
+      return *this;
+    }
+    Value& operator=(double value) {
+      writer_.addDouble(key_, value);
+      return *this;
+    }
+    template <typename T>
+    typename std::enable_if<std::is_integral<T>::value && !std::is_same<T, bool>::value, Value&>::type operator=(
+        T value) {
+      writer_.addInteger(key_, value);
+      return *this;
+    }
+
+   private:
+    JsonObjectWriter& writer_;
+    const char* key_;
+  };
+
+  Value operator[](const char* key) { return Value(*this, key); }
+
+  void clear() {
+    length_ = 0;
+    first_ = true;
+    valid_ = capacity_ >= 3;
+    if (valid_) {
+      buffer_[0] = '{';
+      buffer_[1] = '\0';
+      length_ = 1;
+    } else if (capacity_ != 0) {
+      buffer_[0] = '\0';
+    }
+  }
+
+  void addStringArray(const char* key, const char* value) {
+    beginValue(key);
+    append("[");
+    appendEscapedString(value);
+    append("]");
+  }
+
+  void addObjectStringArray(const char* key, const char* object_key, const char* value) {
+    beginValue(key);
+    append("[{");
+    appendEscapedString(object_key);
+    append(":");
+    appendEscapedString(value);
+    append("}]");
+  }
+
+  void addRaw(const char* key, const char* value) {
+    beginValue(key);
+    append(value);
+  }
+
+  bool finish() {
+    if (!valid_) {
+      return false;
+    }
+    append("}");
+    return valid_;
+  }
+
+ private:
+  void append(const char* text) {
+    const size_t size = strlen(text);
+    if (!valid_ || size > capacity_ - length_ - 1) {
+      valid_ = false;
+      return;
+    }
+    memcpy(buffer_ + length_, text, size);
+    length_ += size;
+    buffer_[length_] = '\0';
+  }
+
+  void appendChar(char value) {
+    if (!valid_ || length_ + 1 >= capacity_) {
+      valid_ = false;
+      return;
+    }
+    buffer_[length_++] = value;
+    buffer_[length_] = '\0';
+  }
+
+  void appendEscapedString(const char* value) {
+    static const char hex[] = "0123456789abcdef";
+    appendChar('"');
+    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(value); *p != '\0'; ++p) {
+      switch (*p) {
+        case '"':
+          append("\\\"");
+          break;
+        case '\\':
+          append("\\\\");
+          break;
+        case '\b':
+          append("\\b");
+          break;
+        case '\f':
+          append("\\f");
+          break;
+        case '\n':
+          append("\\n");
+          break;
+        case '\r':
+          append("\\r");
+          break;
+        case '\t':
+          append("\\t");
+          break;
+        default:
+          if (*p < 0x20) {
+            append("\\u00");
+            appendChar(hex[*p >> 4]);
+            appendChar(hex[*p & 0x0f]);
+          } else {
+            appendChar(static_cast<char>(*p));
+          }
+          break;
+      }
+    }
+    appendChar('"');
+  }
+
+  void beginValue(const char* key) {
+    if (!valid_) {
+      return;
+    }
+    if (!first_) {
+      append(",");
+    }
+    first_ = false;
+    appendEscapedString(key);
+    append(":");
+  }
+
+  void addString(const char* key, const char* value) {
+    beginValue(key);
+    appendEscapedString(value);
+  }
+
+  void addBoolean(const char* key, bool value) {
+    beginValue(key);
+    append(value ? "true" : "false");
+  }
+
+  template <typename T>
+  void addInteger(const char* key, T value) {
+    char number[24];
+    if (std::is_signed<T>::value) {
+      snprintf(number, sizeof(number), "%lld", static_cast<long long>(value));
+    } else {
+      snprintf(number, sizeof(number), "%llu", static_cast<unsigned long long>(value));
+    }
+    beginValue(key);
+    append(number);
+  }
+
+  void addFloat(const char* key, float value) {
+    if (!isfinite(value)) {
+      beginValue(key);
+      append("null");
+      return;
+    }
+    char number[24];
+    snprintf(number, sizeof(number), "%.9g", static_cast<double>(value));
+    beginValue(key);
+    append(number);
+  }
+
+  void addDouble(const char* key, double value) {
+    if (!isfinite(value)) {
+      beginValue(key);
+      append("null");
+      return;
+    }
+    char number[32];
+    snprintf(number, sizeof(number), "%.17g", value);
+    beginValue(key);
+    append(number);
+  }
+
+  char* buffer_;
+  size_t capacity_;
+  size_t length_ = 0;
+  bool first_ = true;
+  bool valid_ = false;
+};
+
+static JsonObjectWriter shared_doc(mqtt_msg, sizeof(mqtt_msg));
+
+static bool serialize_mqtt_json(JsonObjectWriter& doc) {
+  if (!doc.finish()) {
+    mqtt_msg[0] = '\0';
+    logging.println("MQTT JSON message exceeds buffer");
+    return false;
+  }
+  return true;
+}
 
 // FNV-1a over the version string. A hash rather than the string itself keeps this to a
 // single primitive NVS entry, which is all that is needed to tell "same firmware as when
@@ -159,12 +385,10 @@ static void store_autodiscovery_done(void) {
   logging.println("Home Assistant autodiscovery published");
 }
 
-// RAII guard: clears the shared document on scope entry and exit, so every early return
-// (e.g. a failed publish mid-loop) releases the document memory instead of keeping a full
-// payload allocated until the next successful cycle.
+// RAII guard resets the shared writer on scope entry and exit.
 struct DocClearGuard {
-  JsonDocument& doc;
-  explicit DocClearGuard(JsonDocument& d) : doc(d) { doc.clear(); }
+  JsonObjectWriter& doc;
+  explicit DocClearGuard(JsonObjectWriter& d) : doc(d) { doc.clear(); }
   ~DocClearGuard() { doc.clear(); }
 };
 
@@ -351,9 +575,8 @@ static const BatteryTarget battery_targets[] = {
 
 // Per-battery state topics: "<name>/info", "<name>/info_2", "<name>/info_3".
 // Built once in init_mqtt(). Publishing each battery to its own topic (with identical,
-// un-suffixed JSON keys) keeps the JSON document and payload size constant per battery
-// instead of growing with the battery count, and lets ArduinoJson store all keys as
-// zero-copy const char* literals.
+// un-suffixed JSON keys) keeps the payload size constant per battery instead of growing
+// with the battery count.
 static String info_topics[3];
 
 // "<name>/info_multi", following the "<name>/info_2" pattern. Only used with several batteries.
@@ -404,24 +627,30 @@ static String generateSensorDefaultEntityId(const String& object_id) {
   return "sensor." + object_id;
 }
 
-void set_common_discovery_attributes(JsonDocument& doc) {
-  doc["device"]["identifiers"][0] = device_id;
-  doc["device"]["model"] = "Battery Emulator";
-  doc["device"]["manufacturer"] = "FOSS";
-  doc["device"]["name"] = device_name;
-  // Board name and firmware version, shown in the Home Assistant device information panel.
-  // Both are string literals with static storage duration, so ArduinoJson keeps them
-  // zero-copy (stored by pointer) instead of allocating them in the document pool.
-  doc["device"]["hw_version"] = esp32hal->name();
-  doc["device"]["sw_version"] = version_number;
-  doc["device"]["configuration_url"] = "http://" + network_localIP().toString();
-  doc["availability"][0]["topic"] = lwt_topic;
+bool set_common_discovery_attributes(JsonObjectWriter& doc) {
+  char device_json[512];
+  JsonObjectWriter device(device_json, sizeof(device_json));
+  device.addStringArray("identifiers", device_id.c_str());
+  device["model"] = "Battery Emulator";
+  device["manufacturer"] = "FOSS";
+  device["name"] = device_name;
+  device["hw_version"] = esp32hal->name();
+  device["sw_version"] = version_number;
+  const String configuration_url = "http://" + network_localIP().toString();
+  device["configuration_url"] = configuration_url;
+  if (!device.finish()) {
+    logging.println("MQTT discovery device JSON exceeds buffer");
+    return false;
+  }
+  doc.addRaw("device", device_json);
+  doc.addObjectStringArray("availability", "topic", lwt_topic.c_str());
   doc["payload_available"] = "online";
   doc["payload_not_available"] = "offline";
   doc["enabled_by_default"] = true;
+  return true;
 }
 
-void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
+void set_battery_voltage_attributes(JsonObjectWriter& doc, int i, int cellNumber, const String& state_topic,
                                     const String& default_entity_id_prefix, const String& battery_name_suffix) {
   const String default_entity_object_id = default_entity_id_prefix + "battery_voltage_cell" + String(cellNumber);
   doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
@@ -458,12 +687,11 @@ static const char* get_balancing_status_text(balancing_status_enum status) {
 }
 
 // Fills the document with the state values for one battery. All keys are un-suffixed
-// const char* literals: ArduinoJson stores those by pointer (zero copy), whereas the old
-// "key" + suffix String keys were each heap-allocated and then copied into the document
-// pool — on every publish cycle, for every battery.
+// string literals, avoiding a temporary String allocation for every metric on every
+// publish cycle and for every battery.
 // Fills the document with datalayer.aggregate: the installation, not a pack. Keys match the
 // per-battery ones where the meaning is the same, so a value_template reads the same either way.
-static void set_aggregate_attributes(JsonDocument& doc) {
+static void set_aggregate_attributes(JsonObjectWriter& doc) {
   const DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
   doc["SOC"] = ((float)a.reported_soc) / 100.0f;
   doc["SOC_real"] = ((float)a.real_soc) / 100.0f;
@@ -499,7 +727,7 @@ static void set_aggregate_attributes(JsonDocument& doc) {
       datalayer.battery_settings.user_settings_limit_discharge));
 }
 
-void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
+void set_battery_attributes(JsonObjectWriter& doc, const DATALAYER_BATTERY_TYPE& battery_data, int battery_index,
                             bool battery_supports_charged) {
   // Scaled figures are only a pack's own where that pack is the whole installation. With
   // several batteries the window is applied to datalayer.aggregate and published on its own
@@ -732,19 +960,23 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   // The state topics are per-battery, so the value_template key is the base id for every battery
   snprintf(value_template, sizeof(value_template), "{{ value_json.%s | default(none) }}", config.entity_id);
 
-  JsonDocument& doc = shared_doc;
+  JsonObjectWriter& doc = shared_doc;
   doc["name"] = name_buf;
   doc["state_topic"] = state_topic;
   doc["unique_id"] = topic_name + "_" + String(entity_id);
   const String default_entity_object_id = default_entity_id_prefix + String(entity_id);
   doc["default_entity_id"] = generateSensorDefaultEntityId(default_entity_object_id);
   doc["value_template"] = value_template;
+  const bool capacity_sensor = strncmp(config.entity_id, "total_capacity", strlen("total_capacity")) == 0 ||
+                               strncmp(config.entity_id, "remaining_capacity", strlen("remaining_capacity")) == 0;
+  const bool lifetime_energy =
+      strcmp(config.entity_id, "charged_energy") == 0 || strcmp(config.entity_id, "discharged_energy") == 0;
   if (config.unit != nullptr && strlen(config.unit) > 0) {
     doc["unit_of_measurement"] = config.unit;
   }
   if (config.device_class != nullptr && strlen(config.device_class) > 0) {
-    doc["device_class"] = config.device_class;
-    doc["state_class"] = "measurement";
+    doc["device_class"] = capacity_sensor ? "energy_storage" : config.device_class;
+    doc["state_class"] = lifetime_energy ? "total_increasing" : "measurement";
   }
   // "balancing_active_cells" is a numeric count with no device_class, so it misses the
   // state_class assignment above. Mark it as a measurement explicitly so Home Assistant
@@ -778,12 +1010,6 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   // stored amount, so use "energy_storage" (compatible with "measurement") instead. The
   // charged/discharged sensors are genuine lifetime totals, so keep "energy" but use
   // "total_increasing".
-  if (strncmp(config.entity_id, "total_capacity", strlen("total_capacity")) == 0 ||
-      strncmp(config.entity_id, "remaining_capacity", strlen("remaining_capacity")) == 0) {
-    doc["device_class"] = "energy_storage";
-  } else if (strcmp(config.entity_id, "charged_energy") == 0 || strcmp(config.entity_id, "discharged_energy") == 0) {
-    doc["state_class"] = "total_increasing";
-  }
   // Cell min/max voltages: show 3 decimals in HA so they don't round to the same integer
   // on display. Precision is intentionally not applied to battery_voltage. (Icons are
   // handled centrally below.)
@@ -820,8 +1046,9 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
   if (diagnostic) {
     doc["entity_category"] = "diagnostic";
   }
-  set_common_discovery_attributes(doc);
-  serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+  if (!set_common_discovery_attributes(doc) || !serialize_mqtt_json(doc)) {
+    return false;
+  }
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
   doc.clear();
   return ok;
@@ -879,7 +1106,7 @@ static bool publish_common_info(void) {
     // so single-battery setups and raw-topic consumers of battery #1 see no change.
     {
       DocClearGuard guard(shared_doc);
-      JsonDocument& doc = shared_doc;
+      JsonObjectWriter& doc = shared_doc;
       doc["bms_status"] = getBMSStatus(datalayer.system.status.system_status);
       doc["pause_status"] = get_emulator_pause_status();
 
@@ -921,7 +1148,9 @@ static bool publish_common_info(void) {
         }
       }
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      if (!serialize_mqtt_json(doc)) {
+        return false;
+      }
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Common info");
         return false;
@@ -932,7 +1161,9 @@ static bool publish_common_info(void) {
     if (datalayer.system.info.configured_batteries > 1) {
       DocClearGuard guard(shared_doc);
       set_aggregate_attributes(shared_doc);
-      serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+      if (!serialize_mqtt_json(shared_doc)) {
+        return false;
+      }
       if (mqtt_publish(aggregate_topic.c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Aggregate info");
         return false;
@@ -951,7 +1182,9 @@ static bool publish_common_info(void) {
           esp32hal->system_booted_up()) {
         DocClearGuard guard(shared_doc);
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
-        serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+        if (!serialize_mqtt_json(shared_doc)) {
+          return false;
+        }
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
           log_publish_failure("Common info");
           return false;
@@ -966,9 +1199,7 @@ static bool publish_common_info(void) {
 //
 // The cell voltage and balancing state payloads are the largest recurring messages (up to
 // ~100+ elements per battery) but structurally trivial: {"key":[...]}. Serializing them
-// with snprintf straight into mqtt_msg avoids building an ArduinoJson document for the
-// biggest transient allocation of every publish cycle. Discovery (one-shot, deeply
-// structured) keeps using ArduinoJson.
+// with snprintf straight into mqtt_msg avoids extra work beyond the output buffer.
 
 // Both arrays are the same length, sourced from the same snapshot and published on the
 // same cadence, so they go out as one message on the spec_data topic:
@@ -1036,14 +1267,21 @@ static bool publish_cell_voltage_discovery(const DATALAYER_BATTERY_TYPE& battery
     return true;
   }
 
-  JsonDocument& doc = shared_doc;
+  JsonObjectWriter& doc = shared_doc;
   for (int i = 0; i < battery_data.info.number_of_cells; i++) {
     int cellNumber = i + 1;
     set_battery_voltage_attributes(doc, i, cellNumber, state_topic, entity_prefix, battery_name_suffix);
-    set_common_discovery_attributes(doc);
+    if (!set_common_discovery_attributes(doc)) {
+      return false;
+    }
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-    if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, topic_suffix).c_str(), mqtt_msg, true) == false) {
+    if (!serialize_mqtt_json(doc)) {
+      return false;
+    }
+    const bool published =
+        mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, topic_suffix).c_str(), mqtt_msg, true);
+    doc.clear();
+    if (!published) {
       return false;
     }
   }
@@ -1108,7 +1346,7 @@ bool publish_events() {
   static String state_topic = topic_name + "/events";
   if (ha_autodiscovery_enabled && !ha_events_published) {
     DocClearGuard guard(shared_doc);
-    JsonDocument& doc = shared_doc;
+    JsonObjectWriter& doc = shared_doc;
 
     doc["name"] = "Event";
     doc["state_topic"] = state_topic;
@@ -1121,8 +1359,9 @@ bool publish_events() {
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     doc["icon"] = "mdi:information-outline";
     doc["entity_category"] = "diagnostic";
-    set_common_discovery_attributes(doc);
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    if (!set_common_discovery_attributes(doc) || !serialize_mqtt_json(doc)) {
+      return false;
+    }
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
       ha_events_published = true;
     } else {
@@ -1130,7 +1369,7 @@ bool publish_events() {
     }
   } else {
     DocClearGuard guard(shared_doc);
-    JsonDocument& doc = shared_doc;
+    JsonObjectWriter& doc = shared_doc;
     const EVENTS_STRUCT_TYPE* event_pointer;
 
     //clear the vector
@@ -1161,7 +1400,9 @@ bool publish_events() {
       doc["message"] = get_event_message_string(event_handle);
       doc["millis"] = String(event_pointer->timestamp);
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      if (!serialize_mqtt_json(doc)) {
+        return false;
+      }
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
         log_publish_failure("Event");
         return false;
@@ -1181,7 +1422,7 @@ static bool publish_buttons_discovery(void) {
   if (ha_autodiscovery_enabled) {
     if (ha_buttons_published == false) {
       DocClearGuard guard(shared_doc);
-      JsonDocument& doc = shared_doc;
+      JsonObjectWriter& doc = shared_doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         const SensorConfig& config = buttonConfigs[i];
         doc["name"] = config.name;
@@ -1198,8 +1439,9 @@ static bool publish_buttons_discovery(void) {
         if (strcmp(config.entity_id, "RESTART") == 0) {
           doc["entity_category"] = "diagnostic";
         }
-        set_common_discovery_attributes(doc);
-        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+        if (!set_common_discovery_attributes(doc) || !serialize_mqtt_json(doc)) {
+          return false;
+        }
         if (!mqtt_publish(generateButtonAutoConfigTopic(config.entity_id).c_str(), mqtt_msg, true)) {
           return false;
         }
@@ -1217,6 +1459,344 @@ static bool publish_buttons_discovery(void) {
 static void subscribe() {
   esp_mqtt_client_subscribe(client, (topic_name + "/command/+").c_str(), 1);
 }
+
+struct MqttJsonNumber {
+  bool is_number = false;
+  bool is_integer = false;
+  bool is_int = false;
+  bool is_float = false;
+  float value = 0.0f;
+  int value_as_int = 0;
+};
+
+class MqttCommandJsonParser {
+ public:
+  MqttCommandJsonParser(const char* input, size_t length) : input_(input), length_(length) {}
+
+  bool parse() {
+    skipWhitespace();
+    if (peek() == '{') {
+      if (!parseObject(0, true)) {
+        return false;
+      }
+    } else if (!skipValue(0)) {
+      return false;
+    }
+    skipWhitespace();
+    return position_ == length_;
+  }
+
+  MqttJsonNumber max_charge;
+  MqttJsonNumber max_discharge;
+  MqttJsonNumber timeout;
+  MqttJsonNumber max_pct;
+  MqttJsonNumber min_pct;
+
+ private:
+  char peek() const { return position_ < length_ ? input_[position_] : '\0'; }
+
+  void skipWhitespace() {
+    while (position_ < length_ && (input_[position_] == ' ' || input_[position_] == '\t' || input_[position_] == '\n' ||
+                                   input_[position_] == '\r')) {
+      ++position_;
+    }
+  }
+
+  bool consume(char expected) {
+    if (peek() != expected) {
+      return false;
+    }
+    ++position_;
+    return true;
+  }
+
+  bool parseString(char* decoded, size_t decoded_capacity) {
+    if (!consume('"')) {
+      return false;
+    }
+    size_t decoded_length = 0;
+    bool decoded_overflow = false;
+    while (position_ < length_) {
+      unsigned char current = static_cast<unsigned char>(input_[position_++]);
+      if (current == '"') {
+        if (decoded != nullptr && decoded_capacity != 0) {
+          decoded[decoded_length] = '\0';
+        }
+        return true;
+      }
+      if (current < 0x20) {
+        return false;
+      }
+      if (current == '\\') {
+        if (position_ >= length_) {
+          return false;
+        }
+        const char escape = input_[position_++];
+        switch (escape) {
+          case '"':
+          case '\\':
+          case '/':
+            current = static_cast<unsigned char>(escape);
+            break;
+          case 'b':
+            current = '\b';
+            break;
+          case 'f':
+            current = '\f';
+            break;
+          case 'n':
+            current = '\n';
+            break;
+          case 'r':
+            current = '\r';
+            break;
+          case 't':
+            current = '\t';
+            break;
+          case 'u': {
+            uint16_t codepoint;
+            if (!parseHexCodepoint(codepoint)) {
+              return false;
+            }
+            if (codepoint >= 0xd800 && codepoint <= 0xdbff) {
+              if (position_ + 2 > length_ || input_[position_] != '\\' || input_[position_ + 1] != 'u') {
+                return false;
+              }
+              position_ += 2;
+              uint16_t low;
+              if (!parseHexCodepoint(low) || low < 0xdc00 || low > 0xdfff) {
+                return false;
+              }
+              codepoint = '?';
+            } else if (codepoint >= 0xdc00 && codepoint <= 0xdfff) {
+              return false;
+            }
+            current = codepoint <= 0x7f ? static_cast<unsigned char>(codepoint) : '?';
+            break;
+          }
+          default:
+            return false;
+        }
+      }
+      if (decoded != nullptr && decoded_capacity != 0) {
+        if (current == '\0') {
+          current = '?';
+        }
+        if (decoded_length + 1 < decoded_capacity) {
+          decoded[decoded_length++] = static_cast<char>(current);
+        } else {
+          decoded_overflow = true;
+        }
+      }
+    }
+    (void)decoded_overflow;
+    return false;
+  }
+
+  bool parseHexCodepoint(uint16_t& codepoint) {
+    if (position_ + 4 > length_) {
+      return false;
+    }
+    codepoint = 0;
+    for (int i = 0; i < 4; ++i) {
+      const char digit = input_[position_++];
+      uint8_t value;
+      if (digit >= '0' && digit <= '9') {
+        value = static_cast<uint8_t>(digit - '0');
+      } else if (digit >= 'a' && digit <= 'f') {
+        value = static_cast<uint8_t>(digit - 'a' + 10);
+      } else if (digit >= 'A' && digit <= 'F') {
+        value = static_cast<uint8_t>(digit - 'A' + 10);
+      } else {
+        return false;
+      }
+      codepoint = static_cast<uint16_t>((codepoint << 4) | value);
+    }
+    return true;
+  }
+
+  MqttJsonNumber* fieldForKey(const char* key) {
+    if (strcmp(key, "max_charge") == 0) {
+      return &max_charge;
+    }
+    if (strcmp(key, "max_discharge") == 0) {
+      return &max_discharge;
+    }
+    if (strcmp(key, "timeout") == 0) {
+      return &timeout;
+    }
+    if (strcmp(key, "max_pct") == 0) {
+      return &max_pct;
+    }
+    if (strcmp(key, "min_pct") == 0) {
+      return &min_pct;
+    }
+    return nullptr;
+  }
+
+  bool parseNumber(MqttJsonNumber* result) {
+    const size_t start = position_;
+    consume('-');
+    if (consume('0')) {
+      if (peek() >= '0' && peek() <= '9') {
+        return false;
+      }
+    } else {
+      if (peek() < '1' || peek() > '9') {
+        return false;
+      }
+      do {
+        ++position_;
+      } while (peek() >= '0' && peek() <= '9');
+    }
+
+    bool integer = true;
+    if (consume('.')) {
+      integer = false;
+      if (peek() < '0' || peek() > '9') {
+        return false;
+      }
+      do {
+        ++position_;
+      } while (peek() >= '0' && peek() <= '9');
+    }
+    if (peek() == 'e' || peek() == 'E') {
+      integer = false;
+      ++position_;
+      if (peek() == '+' || peek() == '-') {
+        ++position_;
+      }
+      if (peek() < '0' || peek() > '9') {
+        return false;
+      }
+      do {
+        ++position_;
+      } while (peek() >= '0' && peek() <= '9');
+    }
+
+    if (result == nullptr) {
+      return true;
+    }
+    result->is_number = true;
+    result->is_integer = integer;
+    const size_t token_length = position_ - start;
+    if (token_length >= 64) {
+      return true;
+    }
+    char token[64];
+    memcpy(token, input_ + start, token_length);
+    token[token_length] = '\0';
+    char* end = nullptr;
+    const double parsed = strtod(token, &end);
+    if (end == token + token_length && isfinite(parsed) && parsed <= FLT_MAX && parsed >= -FLT_MAX) {
+      result->value = static_cast<float>(parsed);
+      result->is_float = true;
+    }
+    if (integer) {
+      char* int_end = nullptr;
+      const long long integer_value = strtoll(token, &int_end, 10);
+      if (int_end == token + token_length && integer_value >= INT_MIN && integer_value <= INT_MAX) {
+        result->is_int = true;
+        result->value_as_int = static_cast<int>(integer_value);
+      }
+    }
+    return true;
+  }
+
+  bool parseObject(unsigned int depth, bool extract_fields) {
+    if (depth > 16 || !consume('{')) {
+      return false;
+    }
+    skipWhitespace();
+    if (consume('}')) {
+      return true;
+    }
+    while (position_ < length_) {
+      char key[32] = {};
+      if (!parseString(key, sizeof(key))) {
+        return false;
+      }
+      skipWhitespace();
+      if (!consume(':')) {
+        return false;
+      }
+      skipWhitespace();
+      MqttJsonNumber* field = extract_fields ? fieldForKey(key) : nullptr;
+      if (field != nullptr) {
+        *field = MqttJsonNumber();
+      }
+      if (peek() == '-' || (peek() >= '0' && peek() <= '9')) {
+        if (!parseNumber(field)) {
+          return false;
+        }
+      } else if (!skipValue(depth + 1)) {
+        return false;
+      }
+      skipWhitespace();
+      if (consume('}')) {
+        return true;
+      }
+      if (!consume(',')) {
+        return false;
+      }
+      skipWhitespace();
+    }
+    return false;
+  }
+
+  bool skipValue(unsigned int depth) {
+    if (depth > 16) {
+      return false;
+    }
+    skipWhitespace();
+    if (peek() == '"') {
+      return parseString(nullptr, 0);
+    }
+    if (peek() == '{') {
+      return parseObject(depth + 1, false);
+    }
+    if (consume('[')) {
+      skipWhitespace();
+      if (consume(']')) {
+        return true;
+      }
+      while (position_ < length_) {
+        if (!skipValue(depth + 1)) {
+          return false;
+        }
+        skipWhitespace();
+        if (consume(']')) {
+          return true;
+        }
+        if (!consume(',')) {
+          return false;
+        }
+        skipWhitespace();
+      }
+      return false;
+    }
+    if (peek() == '-' || (peek() >= '0' && peek() <= '9')) {
+      return parseNumber(nullptr);
+    }
+    if (matchLiteral("true") || matchLiteral("false") || matchLiteral("null")) {
+      return true;
+    }
+    return false;
+  }
+
+  bool matchLiteral(const char* literal) {
+    const size_t literal_length = strlen(literal);
+    if (position_ + literal_length > length_ || memcmp(input_ + position_, literal, literal_length) != 0) {
+      return false;
+    }
+    position_ += literal_length;
+    return true;
+  }
+
+  const char* input_;
+  size_t length_;
+  size_t position_ = 0;
+};
 
 void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len) {
 
@@ -1271,35 +1851,35 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   }
 
   if (strcmp(topic, button_command_topics[BTN_SET_LIMITS].c_str()) == 0) {
-    JsonDocument doc;
-    char* data_str = strndup(data, data_len);
-    deserializeJson(doc, data_str);
+    MqttCommandJsonParser parser(data, data_len > 0 ? static_cast<size_t>(data_len) : 0u);
+    const bool valid_json = data_len >= 0 && parser.parse();
+    if (!valid_json) {
+      logging.printf("MQTT: SET_LIMITS has invalid JSON payload [%.*s]\n", data_len, data);
+    }
 
-    if (doc["max_charge"].is<int>()) {
-      datalayer.battery_settings.max_remote_set_charge_dA = doc["max_charge"];
+    if (valid_json && parser.max_charge.is_int) {
+      datalayer.battery_settings.max_remote_set_charge_dA = parser.max_charge.value_as_int;
       datalayer.battery_settings.remote_settings_limit_charge = true;
     } else {
       datalayer.battery_settings.max_remote_set_charge_dA = 0;
       datalayer.battery_settings.remote_settings_limit_charge = false;
     }
 
-    if (doc["max_discharge"].is<int>()) {
-      datalayer.battery_settings.max_remote_set_discharge_dA = doc["max_discharge"];
+    if (valid_json && parser.max_discharge.is_int) {
+      datalayer.battery_settings.max_remote_set_discharge_dA = parser.max_discharge.value_as_int;
       datalayer.battery_settings.remote_settings_limit_discharge = true;
     } else {
       datalayer.battery_settings.max_remote_set_discharge_dA = 0;
       datalayer.battery_settings.remote_settings_limit_discharge = false;
     }
 
-    if (doc["timeout"].is<int>()) {
-      datalayer.battery_settings.remote_set_timeout = doc["timeout"].as<int>() * 1000;
+    if (valid_json && parser.timeout.is_int) {
+      datalayer.battery_settings.remote_set_timeout = static_cast<uint32_t>(parser.timeout.value_as_int) * 1000u;
     } else {
       datalayer.battery_settings.remote_set_timeout = 30000;
     }
 
     datalayer.battery_settings.remote_set_timestamp = millis();
-
-    free(data_str);
   }
 
   // Runtime change of the SOC rescale limits. Payload: {"max_pct": 50.0-100.0, "min_pct": -10.0-50.0}.
@@ -1309,25 +1889,22 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     if (!datalayer.battery_settings.soc_scaling_active) {
       // Limits have no effect without "Rescale SOC", so the command is ignored.
     } else {
-      JsonDocument doc;
-      char* data_str = strndup(data, data_len);
-      DeserializationError err = deserializeJson(doc, data_str);
-      free(data_str);
-
-      if (err) {
+      MqttCommandJsonParser parser(data, data_len > 0 ? static_cast<size_t>(data_len) : 0u);
+      const bool valid_json = data_len >= 0 && parser.parse();
+      if (!valid_json) {
         logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
       } else {
         // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
-        if (doc["max_pct"].is<float>()) {
-          float max_pct = doc["max_pct"].as<float>();
+        if (parser.max_pct.is_float) {
+          float max_pct = parser.max_pct.value;
           if (max_pct >= 50.0f && max_pct <= 100.0f) {
             datalayer.battery_settings.max_percentage = (uint16_t)lroundf(max_pct * 100.0f);
           } else {
             logging.printf("MQTT: SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
           }
         }
-        if (doc["min_pct"].is<float>()) {
-          float min_pct = doc["min_pct"].as<float>();
+        if (parser.min_pct.is_float) {
+          float min_pct = parser.min_pct.value;
           if (min_pct >= -10.0f && min_pct <= 50.0f) {
             datalayer.battery_settings.min_percentage = (int16_t)lroundf(min_pct * 100.0f);
           } else {
