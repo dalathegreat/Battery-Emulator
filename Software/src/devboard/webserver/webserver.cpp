@@ -1113,7 +1113,7 @@ void init_webserver() {
   // Route for the fake battery's Voltage and SOH, edited per pack on its More Battery Info tab, and
   // its SOH low event checkbox. Runtime values like before, so nothing is stored.
   def_route_with_auth("/updateFakeBattery", server, HTTP_GET, [](AsyncWebServerRequest* request) {
-    // The SOH low event checkbox under battery 1's SOH. One flag for the installation, like the event
+    // The SOH low event checkbox under each pack's SOH. One flag for the installation, like the event
     const AsyncWebParameter* soh_low_off = request->getParam("SOHLowOff");
     if (soh_low_off) {
       if (user_selected_battery_type != BatteryType::TestFake) {

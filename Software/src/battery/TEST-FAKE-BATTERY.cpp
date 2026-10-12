@@ -99,7 +99,7 @@ static const char fake_battery_edit_script[] =
     "else{alert(x.responseText);}};x.open('GET','/updateFakeBattery?battery='+b+'&'+n+'='+v,true);x.send();}"
     "else{alert('Invalid value. Please enter a value between 0 and '+max);}}}</script>";
 
-// Opening of the SOH low event checkbox under battery 1's SOH, completed with " checked" and "></label></h4>"
+// Opening of the SOH low event checkbox under the SOH, completed with " checked" and "></label></h4>"
 static const char fake_battery_soh_low_checkbox[] =
     "<h4><label>Disable SOH low event until reboot: <input type='checkbox' onchange=\"fetch('/updateFakeBattery?"
     "SOHLowOff='+(this.checked?1:0)).then(r=>{if(!r.ok)throw 0}).catch(()=>location.reload())\"";
@@ -132,14 +132,13 @@ String TestFakeBattery::get_status_html() {
   CheckedHtml content;
   content.reserve(strlen(html) + sizeof(fake_battery_soh_low_checkbox) + sizeof(fake_battery_edit_script));
   content += html;
-  // EVENT_SOH_LOW watches battery 1 only, so the checkbox is only offered under battery 1's SOH
-  if (battery_index == 1) {
-    content += fake_battery_soh_low_checkbox;
-    if (datalayer.battery_settings.user_disables_soh_low_event) {
-      content += " checked";
-    }
-    content += "></label></h4>";
+  /* EVENT_SOH_LOW judges the weakest pack, so any pack's SOH can raise it and every pack's tab offers
+     the checkbox. It is the one installation-wide flag, like the event, so each tab shows the same state */
+  content += fake_battery_soh_low_checkbox;
+  if (datalayer.battery_settings.user_disables_soh_low_event) {
+    content += " checked";
   }
+  content += "></label></h4>";
   content += fake_battery_edit_script;
   return content.take();
 }

@@ -30,13 +30,20 @@ class FakeBatterySohLowTest : public ::testing::Test {
     datalayer.aggregate.reported_soc = 5000;
   }
 
-  void TearDown() override { user_selected_battery_type = BatteryType::None; }
+  void TearDown() override {
+    user_selected_battery_type = BatteryType::None;
+    battery2_detected = false;  // A detection latch, global in safety.cpp
+  }
 
   // The core loop's order: the packs are rolled up into the aggregate, whose SOH is what
   // EVENT_SOH_LOW judges, and then the safety layer runs
   static void run_cycle() {
     datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
     scale_pack_values(datalayer.battery);
+    if (battery2) {
+      datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      scale_pack_values(datalayer.battery2);
+    }
     update_aggregate_values();
     update_machineryprotection(0);
   }
@@ -85,7 +92,25 @@ TEST_F(FakeBatterySohLowTest, FlagIsIgnoredForARealBattery) {
   EXPECT_EQ(soh_low_state(), EVENT_STATE_ACTIVE);
 }
 
-TEST_F(FakeBatterySohLowTest, MoreBatteryInfoShowsVoltageRangeAndCheckboxOnBattery1Only) {
+// EVENT_SOH_LOW judges the weakest pack, so a worn fake pack 2 raises it as well, and the one
+// installation-wide checkbox holds it off for every pack
+TEST_F(FakeBatterySohLowTest, CheckboxAlsoHoldsOffALowSohOnPack2) {
+  battery2 = new TestFakeBattery(&datalayer.battery2, CAN_Interface::CAN_NATIVE);
+  battery2->battery_index = 2;
+  battery2->setup();
+  datalayer.system.info.configured_batteries = 2;
+  battery2_detected = true;
+  battery2->set_fake_soh(10.0f);  // pack 1 stays on its 99.00%
+
+  run_cycle();
+  ASSERT_EQ(soh_low_state(), EVENT_STATE_ACTIVE);
+
+  datalayer.battery_settings.user_disables_soh_low_event = true;
+  run_cycle();
+  EXPECT_NE(soh_low_state(), EVENT_STATE_ACTIVE);
+}
+
+TEST_F(FakeBatterySohLowTest, MoreBatteryInfoShowsVoltageRangeAndCheckboxOnEveryPack) {
   using ::testing::HasSubstr;
   using ::testing::Not;
 
@@ -104,5 +129,6 @@ TEST_F(FakeBatterySohLowTest, MoreBatteryInfoShowsVoltageRangeAndCheckboxOnBatte
   pack2.setup();
   html = pack2.get_status_html().str();
   EXPECT_THAT(html, HasSubstr("Max battery voltage: 404.0 V"));
-  EXPECT_THAT(html, Not(HasSubstr("SOHLowOff")));
+  EXPECT_THAT(html, HasSubstr("SOHLowOff"));
+  EXPECT_THAT(html, HasSubstr(" checked>"));  // the same flag battery 1's tab ticked
 }
