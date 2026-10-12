@@ -29,6 +29,7 @@
     "DCHGPOWER": "Continuous max discharge power. Used since CAN data is not valid for this integration. Do not set too high!",
     "SOCESTIMATED": "Switch to estimated State of Charge when accurate SOC data is not available from the battery.",
     "CHGESTIMATED": "Switch to estimated charge/discharge limits when accurate data is not available from the battery.",
+    "BATTCHEM": "Whether the pack is LFP. If it is, the FoxESS, Afore and Ferroamp inverter protocols send the real cell voltages instead of LFP-like ones, BYD HVM over Modbus sends temperatures below -9°C as measured, and Tesla Model 3/Y and MG Gen1 use LFP voltage limits. Geely SEA does not detect the chemistry: choose LFP for the EX30 LFP pack (120 cells), NMC for the EX30 69kWh (107 cells) or Zeekr 100kWh (110 cells) pack. Any other choice keeps the 321-465V start-up window, which reaches above the maximum of both EX30 packs. See [Volvo SEA](battery/volvo_sea_ex30/#volvo-ex30-battery-specifications-serial-numbers).",
     "PYLONBAUD": "CAN bus baudrate: 500kbps for most batteries, 250kbps for some configurations.",
     "BATTPVMAX": "Maximum safe voltage for the entire battery pack in volts. Used as charge target and protection limits.",
     "BATTPVMIN": "Minimum safe voltage for the entire battery pack in volts. Further discharge not possible below this limit.",
