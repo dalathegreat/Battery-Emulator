@@ -29,6 +29,14 @@ bool battery_supports_triple(BatteryType type);
 // hides the row instead of offering an edit that does not stick.
 bool battery_detects_capacity(BatteryType type);
 
+// Returns true if the integration uses the "Battery chemistry" setting: either its
+// voltage limits switch between LFP and other chemistries, or it cannot know the
+// chemistry of the pack behind it (custom BMSes, CHAdeMO/CCS vehicles, the fake
+// battery), where the setting is what tells the inverter an LFP pack is LFP. Every
+// other integration has a fixed chemistry, so the web UI hides the selector and
+// setup_battery() leaves the stored value unused.
+bool battery_supports_chemistry_selection(BatteryType type);
+
 bool byd_cell_balance_times_available(uint8_t index);
 bool request_byd_cell_balance_times(uint8_t index);
 String byd_cell_balance_times_json(uint8_t index);
