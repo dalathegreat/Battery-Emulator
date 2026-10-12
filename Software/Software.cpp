@@ -524,6 +524,11 @@ void core_loop(void*) {
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
+#ifndef SMALL_FLASH_DEVICE
+    if (shunt) {
+      shunt->sample(millis());  // A shunt read directly, e.g. the QNHCK2-16 on an ADC pin
+    }
+#endif  // SMALL_FLASH_DEVICE
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 
