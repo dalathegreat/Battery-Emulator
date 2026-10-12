@@ -238,10 +238,10 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; ✓
 const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; ✗
 
-// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
-// only for the battery integrations that actually implement parallel batteries.
-// Generated from battery_supports_double()/battery_supports_triple() so the UI
-// can never drift out of sync with what setup_battery() is able to instantiate.
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable / .if-chemcapable
+// blocks only for the battery integrations that actually implement parallel batteries
+// resp. use the chemistry setting. Generated from the battery_supports_*() predicates
+// so the UI can never drift out of sync with what setup_battery() does with them.
 static String capability_css(const char* className, bool (*supported)(BatteryType)) {
   String selectors;
 
@@ -306,7 +306,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
   if (var == "BTRCAPCSS") {
     return capability_css("if-dblcapable", battery_supports_double) +
-           capability_css("if-tricapable", battery_supports_triple);
+           capability_css("if-tricapable", battery_supports_triple) +
+           capability_css("if-chemcapable", battery_supports_chemistry_selection);
   }
   if (var == "BATTCHEM") {
     return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
@@ -1675,7 +1676,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
-    /* Integrations that support running two/three batteries in parallel.
+    /* Integrations that support double/triple batteries or use the chemistry setting.
        Rules are generated at runtime from the battery capability predicates. */
     %BTRCAPCSS%
 
@@ -2088,9 +2089,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %BATTCOMM%
         </select>
 
+        <div class="if-chemcapable">
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
         </select>
+        </div>
         </div>
 
         <div class="if-pylon-battery">
