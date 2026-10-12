@@ -198,7 +198,7 @@ void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         if (protecting_historical_logs == 0x01) {
           // Overcurrent protection
-          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // could also be EVENT_CHARGE_LIMIT_EXCEEDED
+          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0, battery_index);  // could also be EVENT_CHARGE_LIMIT_EXCEEDED
         } else if (protecting_historical_logs == 0x02) {
           // over discharge protection
           set_event(EVENT_BATTERY_UNDERVOLTAGE, 0, battery_index);
