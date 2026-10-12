@@ -530,308 +530,309 @@ void update_machineryprotection(uint32_t currentMillis) {
     // CAN chargers only. UUGP communicates over RS485.
     // If we go 60s without CAN messages we raise a warning.
 #ifndef SMALL_FLASH_DEVICE
-  if (charger) {
-    // Assuming chargers are all CAN here.
-    // Check that the charger has been seen and is still sending CAN messages.
-    // If we go 60s without messages we raise a warning
-    check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
-                              EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
-  }
+    if (charger) {
+      // Assuming chargers are all CAN here.
+      // Check that the charger has been seen and is still sending CAN messages.
+      // If we go 60s without messages we raise a warning
+      check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
+                                EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
+    }
 
 #ifndef SMALL_FLASH_DEVICE
-  // UUGP communicates over RS485, so the CAN charger watchdog above
-  // does not apply. If UUGP communication is not verified, force the
-  // battery-side power limits to zero.
-  //
-  // This is intentionally done before the final current-limit conversion
-  // later in this function, which will also zero the corresponding current
-  // limits.
-  if (charger && charger->type() == ChargerType::UUGP && !datalayer.charger.uugp_communication_ok) {
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
-  }
+    // UUGP communicates over RS485, so the CAN charger watchdog above
+    // does not apply. If UUGP communication is not verified, force the
+    // battery-side power limits to zero.
+    //
+    // This is intentionally done before the final current-limit conversion
+    // later in this function, which will also zero the corresponding current
+    // limits.
+    if (charger && charger->type() == ChargerType::UUGP && !datalayer.charger.uugp_communication_ok) {
+      datalayer.battery.status.max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
+    }
 #endif
 #endif  // SMALL_FLASH_DEVICE
 
-  // Additional Double-Battery safeties are checked here
-  if (battery2) {
-    // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
+    // Additional Double-Battery safeties are checked here
+    if (battery2) {
+      // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
 
-    // Pause function is on
-    if (emulator_pause_request_ON) {
-      datalayer.battery2.status.max_discharge_power_W = 0;
-      datalayer.battery2.status.max_charge_power_W = 0;
-    }
+      // Pause function is on
+      if (emulator_pause_request_ON) {
+        datalayer.battery2.status.max_discharge_power_W = 0;
+        datalayer.battery2.status.max_charge_power_W = 0;
+      }
 
-    // Check that the Battery 2 BMS has been seen and is still sending CAN messages
-    check_can_component_alive(datalayer.battery2.status.CAN_battery_still_alive, battery2_detected,
-                              EVENT_CAN_BATTERY2_DETECTED, EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
+      // Check that the Battery 2 BMS has been seen and is still sending CAN messages
+      check_can_component_alive(datalayer.battery2.status.CAN_battery_still_alive, battery2_detected,
+                                EVENT_CAN_BATTERY2_DETECTED, EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
 
-    /* Only once the pack has been heard on the bus. Until then it holds its power-on defaults,
+      /* Only once the pack has been heard on the bus. Until then it holds its power-on defaults,
        3700 mV cells, which are not measurements: a pack whose cell ceiling is below that (LFP at
        3650 mV) would latch an overvoltage before it ever spoke. Same gate the aggregate uses. */
-    if (battery2_detected) {
-      check_pack_voltage(datalayer.battery2, 2);
-      check_cell_voltages(datalayer.battery2, 2);
-      check_soc_plausibility(battery2, datalayer.battery2, 2);
-      check_cell_deviation(datalayer.battery2, 2);
-      check_limits_respected(battery2, datalayer.battery2, 2);
-    }
-  }
-
-  // Additional Triple-Battery safeties are checked here
-  if (battery3) {
-    // Check if the Battery 3 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
-
-    // Pause function is on
-    if (emulator_pause_request_ON) {
-      datalayer.battery3.status.max_discharge_power_W = 0;
-      datalayer.battery3.status.max_charge_power_W = 0;
+      if (battery2_detected) {
+        check_pack_voltage(datalayer.battery2, 2);
+        check_cell_voltages(datalayer.battery2, 2);
+        check_soc_plausibility(battery2, datalayer.battery2, 2);
+        check_cell_deviation(datalayer.battery2, 2);
+        check_limits_respected(battery2, datalayer.battery2, 2);
+      }
     }
 
-    // Check that the Battery 3 BMS has been seen and is still sending CAN messages
-    check_can_component_alive(datalayer.battery3.status.CAN_battery_still_alive, battery3_detected,
-                              EVENT_CAN_BATTERY3_DETECTED, EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
+    // Additional Triple-Battery safeties are checked here
+    if (battery3) {
+      // Check if the Battery 3 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
 
-    // Only once the pack has been heard on the bus, see battery 2 above
-    if (battery3_detected) {
-      check_pack_voltage(datalayer.battery3, 3);
-      check_cell_voltages(datalayer.battery3, 3);
-      check_soc_plausibility(battery3, datalayer.battery3, 3);
-      check_cell_deviation(datalayer.battery3, 3);
-      check_limits_respected(battery3, datalayer.battery3, 3);
+      // Pause function is on
+      if (emulator_pause_request_ON) {
+        datalayer.battery3.status.max_discharge_power_W = 0;
+        datalayer.battery3.status.max_charge_power_W = 0;
+      }
+
+      // Check that the Battery 3 BMS has been seen and is still sending CAN messages
+      check_can_component_alive(datalayer.battery3.status.CAN_battery_still_alive, battery3_detected,
+                                EVENT_CAN_BATTERY3_DETECTED, EVENT_CAN_BATTERY3_MISSING, can_config.battery_triple);
+
+      // Only once the pack has been heard on the bus, see battery 2 above
+      if (battery3_detected) {
+        check_pack_voltage(datalayer.battery3, 3);
+        check_cell_voltages(datalayer.battery3, 3);
+        check_soc_plausibility(battery3, datalayer.battery3, 3);
+        check_cell_deviation(datalayer.battery3, 3);
+        check_limits_respected(battery3, datalayer.battery3, 3);
+      }
     }
-  }
 
-  check_soh_difference();
+    check_soh_difference();
 
-  // Temperature limits are shared by all batteries, so all of them are checked in one pass
-  check_battery_temperatures(currentMillis);
+    // Temperature limits are shared by all batteries, so all of them are checked in one pass
+    check_battery_temperatures(currentMillis);
 
-  // Too many malformed CAN messages received! EVENT_CAN_CORRUPTED_WARNING is shared by
-  // all batteries; evaluate them together so one battery's clean state can no longer
-  // clear another battery's active warning. Event data = first offending channel.
-  bool can_corrupted = false;
-  uint8_t corrupted_channel = can_config.battery;
-  if (battery && datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    can_corrupted = true;
-  }
-  if (battery2 && !can_corrupted && datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    can_corrupted = true;
-    corrupted_channel = can_config.battery_double;
-  }
-  if (battery3 && !can_corrupted && datalayer.battery3.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    can_corrupted = true;
-    corrupted_channel = can_config.battery_triple;
-  }
-  if (can_corrupted) {
-    set_event(EVENT_CAN_CORRUPTED_WARNING, corrupted_channel);
-  } else {
-    clear_event(EVENT_CAN_CORRUPTED_WARNING);
-  }
-
-  //Safeties verified, Zero charge/discharge ampere values incase any safety wrote the W to 0
-  if (datalayer.battery.status.max_discharge_power_W == 0) {
-    datalayer.battery.status.max_discharge_current_dA = 0;
-  }
-  if (datalayer.battery.status.max_charge_power_W == 0) {
-    datalayer.battery.status.max_charge_current_dA = 0;
-  }
-  //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
-  if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
-
-    //We allow the user set value as long as it does not exceed MAX_CHARGEPOWER_RECOVERY_CHARGE_DA
-    if (datalayer.battery_settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
-      datalayer.battery.status.max_charge_current_dA = MAX_CHARGEPOWER_RECOVERY_CHARGE_DA;
+    // Too many malformed CAN messages received! EVENT_CAN_CORRUPTED_WARNING is shared by
+    // all batteries; evaluate them together so one battery's clean state can no longer
+    // clear another battery's active warning. Event data = first offending channel.
+    bool can_corrupted = false;
+    uint8_t corrupted_channel = can_config.battery;
+    if (battery && datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      can_corrupted = true;
+    }
+    if (battery2 && !can_corrupted && datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      can_corrupted = true;
+      corrupted_channel = can_config.battery_double;
+    }
+    if (battery3 && !can_corrupted && datalayer.battery3.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      can_corrupted = true;
+      corrupted_channel = can_config.battery_triple;
+    }
+    if (can_corrupted) {
+      set_event(EVENT_CAN_CORRUPTED_WARNING, corrupted_channel);
     } else {
-      datalayer.battery.status.max_charge_current_dA = datalayer.battery_settings.max_user_set_charge_dA;
+      clear_event(EVENT_CAN_CORRUPTED_WARNING);
     }
 
-    // If this is the start of the emergency recovery charge period, capture the current time
-    if (datalayer.battery_settings.recovery_charge_start_time_ms == 0) {
-      datalayer.battery_settings.recovery_charge_start_time_ms = currentMillis;
-      set_event(EVENT_RECOVERY_START, 0);
-    } else {
-      clear_event(EVENT_RECOVERY_START);
+    //Safeties verified, Zero charge/discharge ampere values incase any safety wrote the W to 0
+    if (datalayer.battery.status.max_discharge_power_W == 0) {
+      datalayer.battery.status.max_discharge_current_dA = 0;
+    }
+    if (datalayer.battery.status.max_charge_power_W == 0) {
+      datalayer.battery.status.max_charge_current_dA = 0;
+    }
+    //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
+    if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
+
+      //We allow the user set value as long as it does not exceed MAX_CHARGEPOWER_RECOVERY_CHARGE_DA
+      if (datalayer.battery_settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
+        datalayer.battery.status.max_charge_current_dA = MAX_CHARGEPOWER_RECOVERY_CHARGE_DA;
+      } else {
+        datalayer.battery.status.max_charge_current_dA = datalayer.battery_settings.max_user_set_charge_dA;
+      }
+
+      // If this is the start of the emergency recovery charge period, capture the current time
+      if (datalayer.battery_settings.recovery_charge_start_time_ms == 0) {
+        datalayer.battery_settings.recovery_charge_start_time_ms = currentMillis;
+        set_event(EVENT_RECOVERY_START, 0);
+      } else {
+        clear_event(EVENT_RECOVERY_START);
+      }
+
+      // Check if the elapsed time exceeds the max recovery charge time
+      if (millis() - datalayer.battery_settings.recovery_charge_start_time_ms >=
+          datalayer.battery_settings.recovery_charge_max_time_ms) {
+        datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
+        datalayer.battery_settings.recovery_charge_start_time_ms = 0;  // Reset the start time
+        set_event(EVENT_RECOVERY_END, 0);
+      } else {
+        clear_event(EVENT_RECOVERY_END);
+      }
+
+      //Check if cellvoltage is too low to safely start recovery. If so, abort!
+      if (datalayer.battery.status.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
+        datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
+        set_event(EVENT_RECOVERY_END, 255);
+      }
     }
 
-    // Check if the elapsed time exceeds the max recovery charge time
-    if (millis() - datalayer.battery_settings.recovery_charge_start_time_ms >=
-        datalayer.battery_settings.recovery_charge_max_time_ms) {
-      datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
-      datalayer.battery_settings.recovery_charge_start_time_ms = 0;  // Reset the start time
-      set_event(EVENT_RECOVERY_END, 0);
-    } else {
-      clear_event(EVENT_RECOVERY_END);
-    }
-
-    //Check if cellvoltage is too low to safely start recovery. If so, abort!
-    if (datalayer.battery.status.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
-      datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
-      set_event(EVENT_RECOVERY_END, 255);
-    }
-  }
-
-  /* Decrement the forced balancing timer incase user requested it. User requested balancing is
+    /* Decrement the forced balancing timer incase user requested it. User requested balancing is
      driven from datalayer.battery.settings, which is pack 1 only, so the events are raised
      against pack 1. Driver reported balancing names its own pack via battery_index. */
-  if (datalayer.battery_settings.user_requests_balancing) {
-    // If this is the start of the balancing period, capture the current time
-    if (datalayer.battery_settings.balancing_start_time_ms == 0) {
-      datalayer.battery_settings.balancing_start_time_ms = currentMillis;
-      set_event(EVENT_BALANCING_START, 0, 1);
+    if (datalayer.battery_settings.user_requests_balancing) {
+      // If this is the start of the balancing period, capture the current time
+      if (datalayer.battery_settings.balancing_start_time_ms == 0) {
+        datalayer.battery_settings.balancing_start_time_ms = currentMillis;
+        set_event(EVENT_BALANCING_START, 0, 1);
+      } else {
+        clear_event(EVENT_BALANCING_START, 1);
+      }
+
+      // Check if the elapsed time exceeds the balancing time
+      if (currentMillis - datalayer.battery_settings.balancing_start_time_ms >=
+          datalayer.battery_settings.balancing_max_time_ms) {
+        datalayer.battery_settings.user_requests_balancing = false;
+        datalayer.battery_settings.balancing_start_time_ms = 0;  // Reset the start time
+        set_event(EVENT_BALANCING_END, 0, 1);
+      } else {
+        clear_event(EVENT_BALANCING_END, 1);
+      }
+    }
+  }
+
+  //battery pause status begin
+  void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
+    DEBUG_PRINTF("Battery pause sequence %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
+
+    // First handle equipment stop / resume
+    if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
+      datalayer.system.info.equipment_stop_active = true;
+      if (store_settings) {
+        store_settings_equipment_stop();
+      }
+
+      set_event(EVENT_EQUIPMENT_STOP, 1);
+    } else if (equipment_stop == RESUME && datalayer.system.info.equipment_stop_active) {
+      datalayer.system.info.equipment_stop_active = false;
+      if (store_settings) {
+        store_settings_equipment_stop();
+      }
+      clear_event(EVENT_EQUIPMENT_STOP);
+    }
+
+    emulator_pause_CAN_send_ON = pause_CAN;
+
+    if (pause_battery) {
+
+      set_event(EVENT_PAUSE_BEGIN, 1);
+      emulator_pause_request_ON = true;
+      emulator_pause_status = PAUSING;
+      datalayer.battery.status.max_discharge_power_W = 0;
+      datalayer.battery.status.max_charge_power_W = 0;
+      if (battery2) {
+        datalayer.battery2.status.max_discharge_power_W = 0;
+        datalayer.battery2.status.max_charge_power_W = 0;
+      }
+      if (battery3) {
+        datalayer.battery3.status.max_discharge_power_W = 0;
+        datalayer.battery3.status.max_charge_power_W = 0;
+      }
+
     } else {
-      clear_event(EVENT_BALANCING_START, 1);
+      clear_event(EVENT_PAUSE_BEGIN);
+      set_event(EVENT_PAUSE_END, 0);
+      emulator_pause_request_ON = false;
+      emulator_pause_CAN_send_ON = false;
+      emulator_pause_status = RESUMING;
+      clear_event(EVENT_PAUSE_END);
     }
 
-    // Check if the elapsed time exceeds the balancing time
-    if (currentMillis - datalayer.battery_settings.balancing_start_time_ms >=
-        datalayer.battery_settings.balancing_max_time_ms) {
-      datalayer.battery_settings.user_requests_balancing = false;
-      datalayer.battery_settings.balancing_start_time_ms = 0;  // Reset the start time
-      set_event(EVENT_BALANCING_END, 0, 1);
-    } else {
-      clear_event(EVENT_BALANCING_END, 1);
-    }
-  }
-}
-
-//battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment_stop, bool store_settings) {
-  DEBUG_PRINTF("Battery pause sequence %d %d %d %d\n", pause_battery, pause_CAN, equipment_stop, store_settings);
-
-  // First handle equipment stop / resume
-  if (equipment_stop == STOP && !datalayer.system.info.equipment_stop_active) {
-    datalayer.system.info.equipment_stop_active = true;
-    if (store_settings) {
-      store_settings_equipment_stop();
-    }
-
-    set_event(EVENT_EQUIPMENT_STOP, 1);
-  } else if (equipment_stop == RESUME && datalayer.system.info.equipment_stop_active) {
-    datalayer.system.info.equipment_stop_active = false;
-    if (store_settings) {
-      store_settings_equipment_stop();
-    }
-    clear_event(EVENT_EQUIPMENT_STOP);
+    //immediate check if we can send CAN messages
+    update_pause_state();
   }
 
-  emulator_pause_CAN_send_ON = pause_CAN;
+  void graceful_restart() {
+    // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
 
-  if (pause_battery) {
+    set_event(EVENT_RESTARTING, 0);
 
-    set_event(EVENT_PAUSE_BEGIN, 1);
-    emulator_pause_request_ON = true;
-    emulator_pause_status = PAUSING;
-    datalayer.battery.status.max_discharge_power_W = 0;
-    datalayer.battery.status.max_charge_power_W = 0;
-    if (battery2) {
-      datalayer.battery2.status.max_discharge_power_W = 0;
-      datalayer.battery2.status.max_charge_power_W = 0;
-    }
-    if (battery3) {
-      datalayer.battery3.status.max_discharge_power_W = 0;
-      datalayer.battery3.status.max_charge_power_W = 0;
-    }
-
-  } else {
-    clear_event(EVENT_PAUSE_BEGIN);
-    set_event(EVENT_PAUSE_END, 0);
-    emulator_pause_request_ON = false;
-    emulator_pause_CAN_send_ON = false;
-    emulator_pause_status = RESUMING;
-    clear_event(EVENT_PAUSE_END);
-  }
-
-  //immediate check if we can send CAN messages
-  update_pause_state();
-}
-
-void graceful_restart() {
-  // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
-
-  set_event(EVENT_RESTARTING, 0);
-
-  /* An intentional restart must not throw away a fresh update. The board was
+    /* An intentional restart must not throw away a fresh update. The board was
      well enough to be asked for one, which is the health this needs; without
      this, restarting inside the 42 s window - the very thing a user does after
      an update - would silently revert it. Armed at the REQUEST rather than at
      the reboot, because the pause below buys 5-10 s, which is what lets the
      write happen where every other runtime flash write happens instead of from
      the 1 ms tick. */
-  ota_confirm_request();
+    ota_confirm_request();
 
-  // Stop charge/discharge so we don't damage the contactors
-  setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
+    // Stop charge/discharge so we don't damage the contactors
+    setBatteryPause(true, false, EquipmentStop::UNCHANGED, false);
 
-  uint32_t now = millis();
-  emulator_restart_request_millis = now > 0 ? now : 1;
-}
-
-void update_restart_progress() {
-  // If is a restart has been requested, check the time and restart if the
-  // conditions are met.
-
-  if (emulator_restart_request_millis > 0) {
     uint32_t now = millis();
-    uint32_t elapsed = now - emulator_restart_request_millis;
-    // Restart after 5s if the emulator has paused. Always restart after 10s.
-    if ((elapsed > INTERVAL_5_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_10_S) {
-      ESP.restart();
+    emulator_restart_request_millis = now > 0 ? now : 1;
+  }
+
+  void update_restart_progress() {
+    // If is a restart has been requested, check the time and restart if the
+    // conditions are met.
+
+    if (emulator_restart_request_millis > 0) {
+      uint32_t now = millis();
+      uint32_t elapsed = now - emulator_restart_request_millis;
+      // Restart after 5s if the emulator has paused. Always restart after 10s.
+      if ((elapsed > INTERVAL_5_S && emulator_pause_status == PAUSED) || elapsed > INTERVAL_10_S) {
+        ESP.restart();
+      }
     }
   }
-}
 
-/// @brief handle emulator pause status and CAN sending allowed
-void update_pause_state() {
-  bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
+  /// @brief handle emulator pause status and CAN sending allowed
+  void update_pause_state() {
+    bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
 
-  if (emulator_pause_status == NORMAL) {
-    allowed_to_send_CAN = true;
+    if (emulator_pause_status == NORMAL) {
+      allowed_to_send_CAN = true;
+    }
+
+    // Pack 1's through pack_current_dA(): a current sensor fitted in place of its own stands in
+    int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
+    int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
+    int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
+    static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps
+
+    // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
+    if (emulator_pause_request_ON && emulator_pause_status == PAUSING &&
+        abs(battery_current_dA) < CURRENT_THRESHOLD_dA && abs(battery2_current_dA) < CURRENT_THRESHOLD_dA &&
+        abs(battery3_current_dA) < CURRENT_THRESHOLD_dA) {
+      emulator_pause_status = PAUSED;
+    }
+
+    if (!emulator_pause_request_ON && emulator_pause_status == RESUMING) {
+      emulator_pause_status = NORMAL;
+      allowed_to_send_CAN = true;
+    }
+
+    allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
+
+    if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
+      DEBUG_PRINTF("Safety: Pausing CAN sending\n");
+      //completely force stop the CAN communication
+      stop_can();
+    } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
+      //resume CAN communication
+      DEBUG_PRINTF("Safety: Resuming CAN sending\n");
+      restart_can();
+    }
   }
 
-  // Pack 1's through pack_current_dA(): a current sensor fitted in place of its own stands in
-  int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
-  int16_t battery2_current_dA = datalayer.battery2.status.current_dA;  // Should be 0 if no battery2
-  int16_t battery3_current_dA = datalayer.battery3.status.current_dA;  // Should be 0 if no battery3
-  static const int16_t CURRENT_THRESHOLD_dA = 18;                      // 1.8A in deciAmps
-
-  // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
-  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && abs(battery_current_dA) < CURRENT_THRESHOLD_dA &&
-      abs(battery2_current_dA) < CURRENT_THRESHOLD_dA && abs(battery3_current_dA) < CURRENT_THRESHOLD_dA) {
-    emulator_pause_status = PAUSED;
+  std::string get_emulator_pause_status() {
+    switch (emulator_pause_status) {
+      case NORMAL:
+        return "RUNNING";
+      case PAUSING:
+        return "PAUSING";
+      case PAUSED:
+        return "PAUSED";
+      case RESUMING:
+        return "RESUMING";
+      default:
+        return "UNKNOWN";
+    }
   }
-
-  if (!emulator_pause_request_ON && emulator_pause_status == RESUMING) {
-    emulator_pause_status = NORMAL;
-    allowed_to_send_CAN = true;
-  }
-
-  allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
-
-  if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
-    DEBUG_PRINTF("Safety: Pausing CAN sending\n");
-    //completely force stop the CAN communication
-    stop_can();
-  } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
-    //resume CAN communication
-    DEBUG_PRINTF("Safety: Resuming CAN sending\n");
-    restart_can();
-  }
-}
-
-std::string get_emulator_pause_status() {
-  switch (emulator_pause_status) {
-    case NORMAL:
-      return "RUNNING";
-    case PAUSING:
-      return "PAUSING";
-    case PAUSED:
-      return "PAUSED";
-    case RESUMING:
-      return "RESUMING";
-    default:
-      return "UNKNOWN";
-  }
-}
-//battery pause status
+  //battery pause status
