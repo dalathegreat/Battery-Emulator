@@ -84,7 +84,7 @@ int32_t qnhck_current_mA(uint32_t output_uV, uint16_t zero_mV, uint16_t rated_cu
 // all - an unpowered one reads 0 V, which is -2.64 x Ipn on the ±0.625 V model.
 bool qnhck_current_in_range(int32_t current_mA, uint16_t rated_current_A);
 
-class Qnhck2_16Shunt : public Shunt, public Transmitter {
+class Qnhck2_16Shunt : public Shunt {
  public:
   static constexpr const char* Name = "QNHCK2-16 Clamp";
 
@@ -92,14 +92,14 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   const char* interface_name() override { return interface_label; }
   bool calibrate_zero(uint16_t& reading_mV) override;
 
-  // Called on every pass of the core task. Nothing is transmitted: the tick paces the sampling.
-  void transmit(unsigned long currentMillis) override;
+  // One ADC reading per millisecond, paced by the core task. Nothing until setup() has the pin.
+  void sample(unsigned long currentMillis) override;
 
-  // One ADC reading, taken at now. transmit() feeds these; public so the host tests can too.
+  // One ADC reading, taken at now. sample() feeds these; public so the host tests can too.
   void add_sample(uint32_t now, uint32_t sample_mV);
 
  private:
-  gpio_num_t pin = GPIO_NUM_NC;
+  gpio_num_t pin = GPIO_NUM_NC;  // Only set once it is ours
   char interface_label[16] = "ADC";
 
   // One sample per millisecond, averaged over one second. A whole second holds whole periods of

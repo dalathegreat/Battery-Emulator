@@ -7,7 +7,9 @@
 #include "freertos/task.h"
 
 #include "src/battery/BATTERIES.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "src/charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
@@ -523,6 +525,11 @@ void core_loop(void*) {
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
+#ifndef SMALL_FLASH_DEVICE
+    if (shunt) {
+      shunt->sample(millis());  // A shunt read directly, e.g. the QNHCK2-16 on an ADC pin
+    }
+#endif  // SMALL_FLASH_DEVICE
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 
@@ -697,7 +704,9 @@ void setup() {
 
     init_rs485();
 
+#ifndef SMALL_FLASH_DEVICE
     setup_charger();
+#endif  // SMALL_FLASH_DEVICE
     setup_inverter();
     setup_battery();
 

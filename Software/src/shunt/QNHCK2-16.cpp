@@ -89,10 +89,11 @@ void Qnhck2_16Shunt::setup() {
   snprintf(datalayer.system.info.shunt_protocol, sizeof(datalayer.system.info.shunt_protocol), "QNHCK2-16 (%uA ±%sV)",
            (unsigned)qnhck_rated_current_A, output_V);
 
-  pin = esp32hal->SHUNT_ADC_PIN();
-  if (!esp32hal->alloc_pins(Name, pin)) {
-    return;  // alloc_pins() has raised the event that says why
+  const gpio_num_t adc_pin = esp32hal->SHUNT_ADC_PIN();
+  if (!esp32hal->alloc_pins(Name, adc_pin)) {
+    return;  // alloc_pins() has raised the event that says why. Nothing is sampled.
   }
+  pin = adc_pin;
   snprintf(interface_label, sizeof(interface_label), "ADC (GPIO%d)", (int)pin);
 
   // The first read sets the pin up as an ADC input, which setting its attenuation needs. 11 dB
@@ -103,7 +104,6 @@ void Qnhck2_16Shunt::setup() {
 
   window_start_ms = millis();
   last_sample_ms = window_start_ms;
-  register_transmitter(this);
 
   // The inverter is given this current instead of what the batteries report
   datalayer.shunt.replaces_battery_current = true;
@@ -131,7 +131,10 @@ void Qnhck2_16Shunt::setup() {
   }
 }
 
-void Qnhck2_16Shunt::transmit(unsigned long currentMillis) {
+void Qnhck2_16Shunt::sample(unsigned long currentMillis) {
+  if (pin == GPIO_NUM_NC) {
+    return;  // Not ours: no ADC pin on this board, or something else has it
+  }
   const uint32_t now = (uint32_t)currentMillis;
   if (now == last_sample_ms) {
     return;  // One sample per millisecond
