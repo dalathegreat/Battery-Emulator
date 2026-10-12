@@ -265,6 +265,7 @@ typedef struct {
   DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 struct DATALAYER_CHARGER_TYPE {
   /** Charger setpoint voltage */
   float charger_setpoint_HV_VDC = 0;
@@ -321,6 +322,7 @@ struct DATALAYER_CHARGER_TYPE {
   bool uugp_communication_ok = false;
 #endif
 };
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_SHUNT_TYPE {
   /** measured battery voltage in mV (S-BOX) **/
@@ -591,7 +593,9 @@ class DataLayer {
    * whenever it ran as the second or third pack */
   DATALAYER_BATTERY_SETTINGS_TYPE battery_settings;
   DATALAYER_SHUNT_TYPE shunt;
+#ifndef SMALL_FLASH_DEVICE
   DATALAYER_CHARGER_TYPE charger;
+#endif  // SMALL_FLASH_DEVICE
   DATALAYER_SYSTEM_TYPE system;
 };
 

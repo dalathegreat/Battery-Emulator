@@ -478,16 +478,50 @@ bool battery_detects_capacity(BatteryType type) {
   }
 }
 
+// The integrations that use the "Battery chemistry" setting. Keep in sync with the
+// drivers: list one whose limits depend on info.chemistry, or whose pack may be LFP
+// or not while its driver never sets info.chemistry. A driver for a pack that is
+// always LFP declares that in setup() instead of being listed here.
+bool battery_supports_chemistry_selection(BatteryType type) {
+  switch (type) {
+    // Voltage limits switch between LFP and other chemistries
+    case BatteryType::GeelySea:
+    case BatteryType::MgGen1:
+    case BatteryType::TeslaModel3Y:
+    // The chemistry of the pack behind it is unknown to the integration
+    case BatteryType::CellPowerBms:
+    case BatteryType::Chademo:
+    case BatteryType::ChargebyteCCSBattery:
+    case BatteryType::DalyBms:
+    case BatteryType::EnnoidBMS:
+    case BatteryType::GrowattHvArk:
+    case BatteryType::OrionBms:
+    case BatteryType::Pylon:
+    case BatteryType::RjxzsBms:
+    case BatteryType::SimpBms:
+    case BatteryType::TestFake:
+    case BatteryType::ThunderstruckBMS:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void setup_battery() {
   if (battery) {
     // Let's not create the battery again.
     return;
   }
 
-  // Set the chemistry to the user selected value, the battery can override.
-  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
-  datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
-  datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+  // Set the chemistry to the user selected value where the integration uses it, the
+  // battery can override. Elsewhere the selector is hidden: a value stored for another
+  // integration stays out, and the non-LFP default holds unless the driver declares
+  // the chemistry itself.
+  if (battery_supports_chemistry_selection(user_selected_battery_type)) {
+    datalayer.battery.info.chemistry = user_selected_battery_chemistry;
+    datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
+    datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+  }
 
   battery = create_battery(user_selected_battery_type);
 

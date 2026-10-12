@@ -3,7 +3,9 @@
 #include <map>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
@@ -238,10 +240,10 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; check mark
 const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; cross mark
 
-// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
-// only for the battery integrations that actually implement parallel batteries.
-// Generated from battery_supports_double()/battery_supports_triple() so the UI
-// can never drift out of sync with what setup_battery() is able to instantiate.
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable / .if-chemcapable
+// blocks only for the battery integrations that actually implement parallel batteries
+// resp. use the chemistry setting. Generated from the battery_supports_*() predicates
+// so the UI can never drift out of sync with what setup_battery() does with them.
 static String capability_css(const char* className, bool (*supported)(BatteryType)) {
   String selectors;
 
@@ -306,7 +308,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
   if (var == "BTRCAPCSS") {
     return capability_css("if-dblcapable", battery_supports_double) +
-           capability_css("if-tricapable", battery_supports_triple);
+           capability_css("if-tricapable", battery_supports_triple) +
+           capability_css("if-chemcapable", battery_supports_chemistry_selection);
   }
   if (var == "BATTCHEM") {
     return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
@@ -321,6 +324,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CHGTYPE") {
     return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
                                       name_for_charger_type, ChargerType::None);
@@ -329,6 +333,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "SHUNTTYPE") {
     return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
@@ -560,11 +565,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CHARGERCLASS") {
     if (!charger) {
       return "hidden";
     }
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "DBLBTR") {
     return settings.getBool("DBLBTR") ? "checked" : "";
@@ -972,6 +979,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CHARGER_CLASS") {
     if (!charger) {
       return "hidden";
@@ -1017,6 +1025,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "CHG_CURRENT_SETPOINT") {
     return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "SOFAR_ID") {
     return String(settings.getUInt("SOFAR_ID", 0));
@@ -1320,6 +1329,64 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #endif  // SDCARD
 
 #ifndef SMALL_FLASH_DEVICE
+// Chargers: their rows in the Optional components card and their CSS, the card with the
+// charger's outputs and setpoints, and the scripts behind that card's Edit buttons
+#define CHARGER_SETTINGS_HTML \
+  R"rawliteral(
+        <label>Charger: </label><select name='charger'>
+        %CHGTYPE%
+        </select>
+
+        <div class="if-charger">
+        <label>Charger interface: </label><select name='CHGCOMM'>
+        %CHGCOMM%
+        </select>
+        </div>)rawliteral"
+#define CHARGER_SETTINGS_STYLE \
+  R"rawliteral(
+    form .if-charger { display: contents; }
+    form[data-charger="0"] .if-charger { display: none; }
+    )rawliteral"
+#define CHARGER_CARD_HTML \
+  R"rawliteral(
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+
+      <h4>
+        Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
+        <button onclick='editChargerHVDCEnabled()'>Edit</button>
+      </h4>
+
+      <h4>
+        Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
+        <button onclick='editChargerAux12vEnabled()'>Edit</button>
+      </h4>
+
+      <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
+
+      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+
+      </div>)rawliteral"
+#define CHARGER_SETTINGS_SCRIPT \
+  R"rawliteral(
+          function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
+          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
+
+          function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
+          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or 0');}}}
+
+          function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 200 to 420.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointV?value='+value,true);xhr.send();}else{
+            alert('Invalid value. Please enter a value between 0 and 1000');}}}
+
+          function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 48.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
+              alert('Invalid value. Please enter a value between 0 and 100');}}}
+
+          function editChargerSetpointEndI(){
+            var value=prompt('Set amperage that terminates charge as being sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new 
+          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}})rawliteral"
+
 // CHAdeMO CT clamp ("Custom Clamp" shunt type): its rows in the Optional components card and their CSS
 #define CTCLAMP_SETTINGS_HTML \
   R"rawliteral(
@@ -1396,6 +1463,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
         function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure its zero point now?')){var xhr=new XMLHttpRequest();
         xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/calibrateShuntZero',true);xhr.send();}})rawliteral"
 #else
+#define CHARGER_SETTINGS_HTML ""
+#define CHARGER_SETTINGS_STYLE ""
+#define CHARGER_CARD_HTML ""
+#define CHARGER_SETTINGS_SCRIPT ""
 #define CTCLAMP_SETTINGS_HTML ""
 #define CTCLAMP_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_HTML ""
@@ -1657,7 +1728,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     border-bottom: 1px solid #4d5f69;
   }
 
-    form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
+    form .if-battery, form .if-inverter, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
     form[data-charger="0"] .if-charger { display: none; }
@@ -1677,7 +1748,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     /* Shunt types the selected battery/inverter can't use.
        Rules are generated at runtime from the shunt capability predicates. */
     %SHUNTCAPCSS%
-    )rawliteral" CTCLAMP_SETTINGS_STYLE QNHCK_SETTINGS_STYLE R"rawliteral(
+    )rawliteral" CHARGER_SETTINGS_STYLE CTCLAMP_SETTINGS_STYLE QNHCK_SETTINGS_STYLE R"rawliteral(
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms,
@@ -1745,7 +1816,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
-    /* Integrations that support running two/three batteries in parallel.
+    /* Integrations that support double/triple batteries or use the chemistry setting.
        Rules are generated at runtime from the battery capability predicates. */
     %BTRCAPCSS%
 
@@ -2158,9 +2229,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %BATTCOMM%
         </select>
 
+        <div class="if-chemcapable">
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
         </select>
+        </div>
         </div>
 
         <div class="if-pylon-battery">
@@ -2346,16 +2419,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <div class="settings-card">
         <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label>Charger: </label><select name='charger'>
-        %CHGTYPE%
-        </select>
-
-        <div class="if-charger">
-        <label>Charger interface: </label><select name='CHGCOMM'>
-        %CHGCOMM%
-        </select>
-        </div>
+)rawliteral" CHARGER_SETTINGS_HTML R"rawliteral(
 
         )rawliteral" UUGP_SETTINGS_HTML R"rawliteral(
 
@@ -2633,24 +2697,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <h4 class="%BALANCING_CLASS%"><span>Max cell voltage deviation: %BAL_MAX_DEV_CELL_VOLTAGE% mV</span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>
 
     </div>
-
-     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
-
-      <h4>
-        Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
-        <button onclick='editChargerHVDCEnabled()'>Edit</button>
-      </h4>
-
-      <h4>
-        Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
-        <button onclick='editChargerAux12vEnabled()'>Edit</button>
-      </h4>
-
-      <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
-
-      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
-
-      </div>
+)rawliteral" CHARGER_CARD_HTML R"rawliteral(
     
   </div>
 

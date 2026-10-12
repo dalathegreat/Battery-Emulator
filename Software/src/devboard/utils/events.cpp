@@ -445,10 +445,12 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Successfully communicating with battery. Battery detected!";
     case EVENT_CAN_BATTERY_MISSING:
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+#ifndef SMALL_FLASH_DEVICE  // Only a charger raises these, and chargers are left out of the small flash devices
     case EVENT_CAN_CHARGER_DETECTED:
       return "Successfully communicating with charger. Charger detected!";
     case EVENT_CAN_CHARGER_MISSING:
       return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
+#endif  // SMALL_FLASH_DEVICE
     case EVENT_CAN_INVERTER_DETECTED:
       return "Successfully communicating with inverter. Inverter detected!";
     case EVENT_CAN_INVERTER_MISSING:

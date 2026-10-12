@@ -21,7 +21,9 @@ typedef struct {
   CAN_Interface inverter;
   CAN_Interface battery_double;
   CAN_Interface battery_triple;
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
   CAN_Interface charger;
+#endif  // SMALL_FLASH_DEVICE
   CAN_Interface shunt;
 } CAN_Configuration;
 

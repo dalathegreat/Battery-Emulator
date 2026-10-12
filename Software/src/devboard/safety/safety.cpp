@@ -1,6 +1,8 @@
 #include "safety.h"
 #include "../../battery/BATTERIES.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/logging.h"
@@ -31,7 +33,9 @@ static uint32_t emulator_restart_request_millis = 0;
 bool battery_detected = false;
 bool battery2_detected = false;
 bool battery3_detected = false;
+#ifndef SMALL_FLASH_DEVICE
 bool charger_detected = false;
+#endif  // SMALL_FLASH_DEVICE
 bool inverter_detected = false;
 
 battery_pause_status emulator_pause_status = NORMAL;
@@ -525,6 +529,11 @@ void update_machineryprotection(uint32_t currentMillis) {
   ) {
     // CAN chargers only. UUGP communicates over RS485.
     // If we go 60s without CAN messages we raise a warning.
+#ifndef SMALL_FLASH_DEVICE
+  if (charger) {
+    // Assuming chargers are all CAN here.
+    // Check that the charger has been seen and is still sending CAN messages.
+    // If we go 60s without messages we raise a warning
     check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
                               EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
   }
@@ -542,6 +551,7 @@ void update_machineryprotection(uint32_t currentMillis) {
     datalayer.battery.status.max_discharge_power_W = 0;
   }
 #endif
+#endif  // SMALL_FLASH_DEVICE
 
   // Additional Double-Battery safeties are checked here
   if (battery2) {

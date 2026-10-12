@@ -117,12 +117,25 @@ TEST(QnhckBoardTest, SetupWithoutAnAdcPinRaisesAnEventAndLeavesTheBatteriesInCha
   EXPECT_EQ(qnhck_zero_mV, QNHCK_NOMINAL_ZERO_MV);
 }
 
-// The host ADC reads 0 V, which is what an unpowered or disconnected sensor gives: a current far
-// beyond its range, which must not reach the inverter.
+// No samples are taken from a pin that is not the sensor's. Had they been, the host ADC's 0 V
+// would read as -132 A.
+TEST(QnhckBoardTest, NothingIsSampledWithoutItsPin) {
+  Qnhck2_16Shunt sensor;
+  sensor.setup();
+  for (uint32_t ms = 1; ms <= 2 * INTERVAL_1_S; ms++) {
+    sensor.sample(ms);
+  }
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
+  EXPECT_FALSE(datalayer.shunt.available);
+}
+
+// 0 V is what an unpowered or disconnected sensor gives: a current far beyond its range, which
+// must not reach the inverter.
 TEST(QnhckBoardTest, AnUnpoweredSensorIsNotPassedOn) {
   Qnhck2_16Shunt sensor;
   for (uint32_t ms = 1; ms <= INTERVAL_1_S; ms++) {
-    sensor.transmit(ms);
+    sensor.add_sample(ms, 0);
   }
 
   EXPECT_EQ(datalayer.shunt.measured_amperage_mA, -132000);  // -2.64 x 50 A
