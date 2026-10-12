@@ -40,7 +40,10 @@
 // From protocol V1.03, the per-cell frames 0x315-0x318 are optional and 0x319
 // carries the highest/lowest cell voltage. In a parallel bank 0x319 counts
 // every pack's cells, while 0x315-0x318 can only hold the master's 16, so the
-// reported max/min is the wider of the two. setup() also sets an LFP cell
+// reported max/min is the wider of the two. Seplos BMSs (as in Fogstar's
+// packs) don't send 0x315-0x318 at all in a parallel bank, only 0x319, which
+// Seplos confirmed covers every pack; a standalone Seplos pack sends all 16
+// cells on 0x315-0x318. setup() also sets an LFP cell
 // voltage ceiling/floor (previously unset, so the generic cell over/under-
 // voltage checks in safety.cpp could never trigger on this pack).
 //

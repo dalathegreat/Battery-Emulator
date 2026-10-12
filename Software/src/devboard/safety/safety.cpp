@@ -8,8 +8,6 @@
 #include "../utils/events.h"
 #include "../utils/ota_confirm_gate.h"
 
-static uint8_t charge_limit_failures = 0;
-static uint8_t discharge_limit_failures = 0;
 static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
@@ -182,22 +180,117 @@ static void check_cell_deviation(const DATALAYER_BATTERY_TYPE& pack, uint8_t num
   }
 }
 
-/* EVENT_SOH_DIFFERENCE is one event for the installation, so battery 2 and 3 are both compared
-   with battery 1 before it is set or cleared. Compared pack by pack, a battery 3 within range
-   cleared the warning battery 2 had just raised. 9900 is the power-on default, not a reading, so
-   a pack still holding it is not compared, and with nothing compared the event is left as is. */
+/* Whether the BMS of a pack on the DC link reports the pack full, or empty, whatever its SOC reads.
+   A pack held out of the link cannot stop the installation, the same rule the aggregate applies to
+   SOC and limits. Pack 1 is always on it. */
+static void bms_reports_full_or_empty(bool& full, bool& empty) {
+  full = datalayer.battery.status.bms_reports_full;
+  empty = datalayer.battery.status.bms_reports_empty;
+  const DATALAYER_BATTERY_TYPE* joined[2] = {
+      (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) ? &datalayer.battery2 : nullptr,
+      (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) ? &datalayer.battery3 : nullptr};
+  for (const DATALAYER_BATTERY_TYPE* pack : joined) {
+    if (pack) {
+      full = full || pack->status.bms_reports_full;
+      empty = empty || pack->status.bms_reports_empty;
+    }
+  }
+}
+
+/* Only a pack's own integration can tell whether the SOC it reports is plausible, so every pack
+   is asked, and the one that answers no is the one named in the event. */
+static void check_soc_plausibility(Battery* integration, const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  if (!integration->soc_plausible()) {
+    set_event(EVENT_SOC_PLAUSIBILITY_ERROR, pack.status.real_soc, number);
+  }
+}
+
+/* Check that the inverter respects the charge/discharge limits a pack hands it. Every joined pack
+   carries its own share of the current and has limits of its own, so each pack is checked on its
+   own current, keeps its own failure counts and raises its own events.
+   Skipped entirely while a pause is requested or a fault is active: those zero the
+   limits instantly, but the inverter only reads the new values on its next
+   poll and then still needs time to ramp down, so comparing during that window
+   blames it for a limit it cannot have seen yet. Counters and events are reset on
+   the way in, so the pause never leaves a stale alert behind.
+   The limits are unsigned, so cast before comparing against the signed power. */
+static void check_limits_respected(Battery* integration, const DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
+  static uint8_t charge_limit_failures[3] = {0, 0, 0};
+  static uint8_t discharge_limit_failures[3] = {0, 0, 0};
+  uint8_t& charge_failures = charge_limit_failures[number - 1];
+  uint8_t& discharge_failures = discharge_limit_failures[number - 1];
+
+  if (emulator_pause_request_ON || emulator_pause_status != NORMAL || datalayer.system.status.system_status == FAULT) {
+    charge_failures = 0;
+    discharge_failures = 0;
+    clear_event(EVENT_CHARGE_LIMIT_EXCEEDED, number);
+    clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, number);
+    return;
+  }
+
+  /* A driver that publishes a mean current would average short excursions away before
+     the comparison below ever sees them, so ask the pack for the extremes of its own
+     window instead. The default implementation returns that pack's published current,
+     which is what this check used before, so nothing changes for drivers that do not
+     override it. */
+  int16_t peak_charge_dA = 0;
+  int16_t peak_discharge_dA = 0;
+  integration->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
+#ifndef SMALL_FLASH_DEVICE
+  // A current sensor fitted in place of the battery's own measures what actually flows. It stands
+  // in for pack 1 only, when pack 1 is the whole installation. Its reading is a one second mean
+  // already, so it has no extremes of its own to hand over.
+  if (number == 1 && shunt_measures_battery1()) {
+    peak_charge_dA = peak_discharge_dA = shunt_current_dA();
+  }
+#endif  // SMALL_FLASH_DEVICE
+  const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, pack.status.voltage_dV);
+  const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, pack.status.voltage_dV);
+
+  // Inverter is charging with more power than the pack wants!
+  if (charge_power_W > (int32_t)(pack.status.max_charge_power_W + 2000)) {
+    if (charge_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
+      set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0, number);  // Alert when 2kW over requested max
+    } else {
+      charge_failures++;
+    }
+  } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
+    clear_event(EVENT_CHARGE_LIMIT_EXCEEDED, number);
+    charge_failures = 0;
+  }
+
+  // Inverter is pulling too much power from the pack!
+  if (-discharge_power_W > (int32_t)(pack.status.max_discharge_power_W + 2000)) {
+    if (discharge_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
+      set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0, number);  // Alert when 2kW over requested max
+    } else {
+      discharge_failures++;
+    }
+  } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
+    clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, number);
+    discharge_failures = 0;
+  }
+}
+
+/* EVENT_SOH_DIFFERENCE is one event for the installation, so every pair of packs, battery 2 with
+   battery 3 included, is compared before it is set or cleared. Compared pack by pack, a battery 3
+   within range cleared the warning battery 2 had just raised. 9900 is the power-on default, not a
+   reading, so a pack still holding it is not compared, and with nothing compared the event is
+   left as is. */
 static void check_soh_difference(void) {
-  const DATALAYER_BATTERY_TYPE* others[2] = {battery2 ? &datalayer.battery2 : nullptr,
-                                             battery3 ? &datalayer.battery3 : nullptr};
+  const DATALAYER_BATTERY_TYPE* packs[3] = {&datalayer.battery, battery2 ? &datalayer.battery2 : nullptr,
+                                            battery3 ? &datalayer.battery3 : nullptr};
   bool compared = false;
   bool too_large = false;
-  for (const DATALAYER_BATTERY_TYPE* pack : others) {
-    if (!pack || datalayer.battery.status.soh_pptt == 9900 || pack->status.soh_pptt == 9900) {
-      continue;
-    }
-    compared = true;
-    if (std::abs(datalayer.battery.status.soh_pptt - pack->status.soh_pptt) > MAX_SOH_DEVIATION_PPTT) {
-      too_large = true;
+  for (uint8_t i = 0; i < 3; i++) {
+    for (uint8_t j = i + 1; j < 3; j++) {
+      if (!packs[i] || !packs[j] || packs[i]->status.soh_pptt == 9900 || packs[j]->status.soh_pptt == 9900) {
+        continue;
+      }
+      compared = true;
+      if (std::abs(packs[i]->status.soh_pptt - packs[j]->status.soh_pptt) > MAX_SOH_DEVIATION_PPTT) {
+        too_large = true;
+      }
     }
   }
   if (too_large) {
@@ -328,108 +421,56 @@ void update_machineryprotection(uint32_t currentMillis) {
       }
     }
 
+    /* Full and empty are about the installation and name no pack. They follow the SOC the inverter
+       is sent, which with a single battery is pack 1's own, and a BMS on the DC link reporting its
+       pack full or empty. Raised here only, so no pack can clear what another one raised. Pack 1's
+       limit caps what the inverter is allowed, so zeroing it stops the whole installation. */
+    bool bms_full = false;
+    bool bms_empty = false;
+    bms_reports_full_or_empty(bms_full, bms_empty);
+
     // Battery is fully charged. Dont allow any more power into it
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-    if (datalayer.aggregate.reported_soc == 10000 ||
-        datalayer.battery.status.real_soc == 10000)  //Either Scaled OR Real SOC% value is 100.00%
+    if (datalayer.aggregate.reported_soc == 10000 || datalayer.aggregate.real_soc == 10000 ||
+        bms_full)  //Either Scaled OR Real SOC% value is 100.00%, or the BMS says so
     {
       if (!battery_full_event_fired) {
-        set_event(EVENT_BATTERY_FULL, 0, 1);
+        set_event(EVENT_BATTERY_FULL, 0);
         battery_full_event_fired = true;
       }
       datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_FULL, 1);
+      clear_event(EVENT_BATTERY_FULL);
       battery_full_event_fired = false;
     }
 
     // Battery is empty. Do not allow further discharge.
     // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
     if (datalayer.system.status.system_status == ACTIVE) {
-      if (datalayer.aggregate.reported_soc == 0 ||
-          datalayer.battery.status.real_soc == 0) {  //Either Scaled OR Real SOC% value is 0.00%, time to stop
+      if (datalayer.aggregate.reported_soc == 0 || datalayer.aggregate.real_soc == 0 ||
+          bms_empty) {  //Either Scaled OR Real SOC% value is 0.00%, or the BMS says so, time to stop
         if (!battery_empty_event_fired) {
-          set_event(EVENT_BATTERY_EMPTY, 0, 1);
+          set_event(EVENT_BATTERY_EMPTY, 0);
           battery_empty_event_fired = true;
         }
         datalayer.battery.status.max_discharge_power_W = 0;
       } else {
-        clear_event(EVENT_BATTERY_EMPTY, 1);
+        clear_event(EVENT_BATTERY_EMPTY);
         battery_empty_event_fired = false;
       }
     }
 
-    // Battery is extremely degraded, not fit for secondlifestorage!
-    if (datalayer.battery.status.soh_pptt < 2500) {
-      set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
+    /* Battery is extremely degraded, not fit for secondlifestorage! Judged on the SOH the inverter
+       is sent, which is the weakest pack's. With a single battery that is pack 1's own, as before. */
+    if (datalayer.aggregate.soh_pptt < 2500) {
+      set_event(EVENT_SOH_LOW, datalayer.aggregate.soh_pptt);
     } else {
       clear_event(EVENT_SOH_LOW);
     }
 
-    if (battery && !battery->soc_plausible()) {
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
-    }
-
+    check_soc_plausibility(battery, datalayer.battery, 1);
     check_cell_deviation(datalayer.battery, 1);
-
-    /* Check that the inverter respects the charge/discharge limits we hand it.
-       Skipped entirely while a pause is requested or a fault is active: those zero the
-       limits above instantly, but the inverter only reads the new values on its next
-       poll and then still needs time to ramp down, so comparing during that window
-       blames it for a limit it cannot have seen yet. Counters and events are reset on
-       the way in, so the pause never leaves a stale alert behind.
-       The limits are unsigned, so cast before comparing against the signed power. */
-    if (emulator_pause_request_ON || emulator_pause_status != NORMAL ||
-        datalayer.system.status.system_status == FAULT) {
-      charge_limit_failures = 0;
-      discharge_limit_failures = 0;
-      clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
-      clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
-    } else {
-      /* A driver that publishes a mean current would average short excursions away before
-         the comparison below ever sees them, so ask the pack for the extremes of its own
-         window instead. The default implementation returns that pack's published current,
-         which is what this check used before, so nothing changes for drivers that do not
-         override it. */
-      int16_t peak_charge_dA = 0;
-      int16_t peak_discharge_dA = 0;
-      if (battery) {
-        battery->safety_current_range_dA(peak_charge_dA, peak_discharge_dA);
-      }
-#ifndef SMALL_FLASH_DEVICE
-      // A current sensor fitted in place of the battery's own measures what actually flows. Its
-      // reading is a one second mean already, so it has no extremes of its own to hand over.
-      if (shunt_measures_battery1()) {
-        peak_charge_dA = peak_discharge_dA = shunt_current_dA();
-      }
-#endif  // SMALL_FLASH_DEVICE
-      const int32_t charge_power_W = current_dA_to_power_W(peak_charge_dA, datalayer.battery.status.voltage_dV);
-      const int32_t discharge_power_W = current_dA_to_power_W(peak_discharge_dA, datalayer.battery.status.voltage_dV);
-
-      // Inverter is charging with more power than battery wants!
-      if (charge_power_W > (int32_t)(datalayer.battery.status.max_charge_power_W + 2000)) {
-        if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
-          set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
-        } else {
-          charge_limit_failures++;
-        }
-      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
-        clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
-        charge_limit_failures = 0;
-      }
-
-      // Inverter is pulling too much power from battery!
-      if (-discharge_power_W > (int32_t)(datalayer.battery.status.max_discharge_power_W + 2000)) {
-        if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
-          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
-        } else {
-          discharge_limit_failures++;
-        }
-      } else {  // Also taken when idle at 0W, so a stopped inverter always clears the alert
-        clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
-        discharge_limit_failures = 0;
-      }
-    }
+    check_limits_respected(battery, datalayer.battery, 1);
 
     // Check that the BMS has been seen and is still sending CAN messages.
     // If we go 60s without messages we raise an error
@@ -505,7 +546,9 @@ void update_machineryprotection(uint32_t currentMillis) {
     if (battery2_detected) {
       check_pack_voltage(datalayer.battery2, 2);
       check_cell_voltages(datalayer.battery2, 2);
+      check_soc_plausibility(battery2, datalayer.battery2, 2);
       check_cell_deviation(datalayer.battery2, 2);
+      check_limits_respected(battery2, datalayer.battery2, 2);
     }
   }
 
@@ -527,7 +570,9 @@ void update_machineryprotection(uint32_t currentMillis) {
     if (battery3_detected) {
       check_pack_voltage(datalayer.battery3, 3);
       check_cell_voltages(datalayer.battery3, 3);
+      check_soc_plausibility(battery3, datalayer.battery3, 3);
       check_cell_deviation(datalayer.battery3, 3);
+      check_limits_respected(battery3, datalayer.battery3, 3);
     }
   }
 
