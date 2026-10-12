@@ -121,8 +121,7 @@ void Qnhck2_16Shunt::setup() {
                                      (!battery3 || contactor_control_enabled_triple_battery);
     if (!all_contactors_ours) {
       LOG_SET_NEXT_SEVERITY(4);  // warning
-      logging.println(
-          "QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery!");
+      logging.println("QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery!");
     }
   } else {
     logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
