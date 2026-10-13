@@ -268,34 +268,19 @@ void BydAttoBattery::
   datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;
   datalayer_battery->status.total_charged_battery_Wh = BMS_total_charged_kwh * 1000;
 
-  // Count detected cells based on which cell voltage readings are nonzero, up to the max supported by datalayer
-  for (uint8_t cell_num = 0; cell_num < MAX_AMOUNT_CELLS; cell_num++) {
-    if (battery_cellvoltages[cell_num] > 0) {
-      datalayer_battery->info.number_of_cells = cell_num + 1;
-    } else {
-      break;  // Stop counting at the first zero reading, assuming cells are numbered sequentially from 1
-    }
-  }
-
   //Map all cell voltages to the global array
-  if (datalayer_battery->info.number_of_cells < MAX_AMOUNT_CELLS) {  //Sanity check
+  if (datalayer_battery->info.number_of_cells <= MAX_AMOUNT_CELLS) {  //Sanity check
     memcpy(datalayer_battery->status.cell_voltages_mV, battery_cellvoltages,
            datalayer_battery->info.number_of_cells * sizeof(uint16_t));
   }
 
-  //After some time has passed after startup, we assume we have read all cellvoltages at least once, so we can trust the cell count and calculated design voltage limits.
-  //Before that, we keep the limits wide to avoid cutting off the battery in case cell count is not read correctly yet.
-  if (secondsSinceStartup > 120) {
-    //Based on the number of cells, calculate the max and min design voltage of the pack.
-    if (datalayer_battery->info.number_of_cells >
-        80) {  //Sanity check to avoid setting wrong limits in case cell count is not read correctly
-      datalayer_battery->info.max_design_voltage_dV =
-          (datalayer_battery->info.number_of_cells * datalayer_battery->info.max_cell_voltage_mV) / 100;
-      datalayer_battery->info.min_design_voltage_dV =
-          (datalayer_battery->info.number_of_cells * MIN_CELL_VOLTAGE_MV) / 100;
-    }
-  } else {
-    secondsSinceStartup++;
+  //Based on the number of cells reported in 0x43A, calculate the max and min design voltage of the pack.
+  if (datalayer_battery->info.number_of_cells >
+      80) {  //Sanity check to avoid setting wrong limits in case cell count is not read correctly
+    datalayer_battery->info.max_design_voltage_dV =
+        (datalayer_battery->info.number_of_cells * datalayer_battery->info.max_cell_voltage_mV) / 100;
+    datalayer_battery->info.min_design_voltage_dV =
+        (datalayer_battery->info.number_of_cells * MIN_CELL_VOLTAGE_MV) / 100;
   }
 
   if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {
@@ -609,6 +594,9 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x43A:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        if (rx_frame.data.u8[0] > 0 && rx_frame.data.u8[0] <= MAX_AMOUNT_CELLS) {
+          datalayer_battery->info.number_of_cells = rx_frame.data.u8[0];  //b0 = cells, b1 = modules
+        }
         battery_insulation_ohm_per_volt = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
         battery_insulation_valid = true;
       } else {
@@ -641,9 +629,9 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
-      if (battery_frame_index < (MAX_AMOUNT_CELLS / 3)) {
+      if (battery_frame_index * 3 < MAX_AMOUNT_CELLS) {
         uint8_t base_index = battery_frame_index * 3;
-        for (uint8_t i = 0; i < 3; i++) {
+        for (uint8_t i = 0; i < 3 && base_index + i < MAX_AMOUNT_CELLS; i++) {
           uint16_t cell_voltage = (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
           if (cell_voltage != 0xFFF) {  //Some packs have unpopulated modules at the end
             battery_cellvoltages[base_index + i] = cell_voltage;
