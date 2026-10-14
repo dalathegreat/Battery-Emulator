@@ -3,9 +3,12 @@
 #include "../datalayer/datalayer.h"
 #include "UdsCanBattery.h"
 
+extern bool user_selected_proone_suspend_isolation;
+
 class StellantisProOneBattery : public UdsCanBattery {
  public:
   bool mandatory_charge_taper() { return true; }  //TODO: Remove once charge limits found
+  bool supports_insulation_resistance() { return true; }
   StellantisProOneBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
     dtc = &datalayer_battery->dtc;
@@ -18,6 +21,9 @@ class StellantisProOneBattery : public UdsCanBattery {
 
   //BPCM codes from the 2024 ProMaster EV service documentation.
   const char* get_dtc_json_filename() override { return "stellantis_pro_one_dtc.json"; }
+  //All codes, also those whose test has not completed this cycle (status 0x50): shows whether the isolation
+  //monitor ran at all while 0xA017 stays frozen.
+  uint8_t get_dtc_status_mask() override { return 0xFF; }
 
   String get_uds_info_html() override;
 
@@ -50,6 +56,11 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const int MIN_CELL_VOLTAGE_MV =
       2900;  //Battery stops discharging if one cell goes below this (DTC set at 2.8V)
 
+  //Isolation (UDS 0xA017): P0AA6 / P1E1B set below 350kOhm (service documentation).
+  //0x7FFF and 0xFFFE mark no result; real readings seen so far stay below 26 MOhm.
+  static const uint16_t ISO_FAULT_KOHM = 350;
+  static const uint16_t ISO_NO_RESULT = 0x7FFF;
+
   CAN_frame ONE_15A = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x15A, .data = {0x00, 0x00, 0x00, 0x00}};
   CAN_frame ONE_1D7 = {.FD = false,
                        .ext_ID = false,
@@ -71,6 +82,13 @@ class StellantisProOneBattery : public UdsCanBattery {
                        .DLC = 8,
                        .ID = 0x1D8,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Vehicle state, as the van sends it while READY. Byte 1 bit 3 set suspends the battery's own isolation
+  //measurement (the van does this while driving). Only sent when the user suspends the monitor.
+  CAN_frame ONE_0B4 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 7,
+                       .ID = 0x0B4,
+                       .data = {0x00, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00}};
   //Sending 3D2 removes P056200 (Contains 12V measurement from car)
   CAN_frame ONE_3D2 = {.FD = false,
                        .ext_ID = false,
@@ -83,6 +101,8 @@ class StellantisProOneBattery : public UdsCanBattery {
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
+  unsigned long previousMillisDtc = 0;   // will store last time the DTCs were read
+  static const unsigned long INTERVAL_DTC_MS = 15000;
   uint8_t expectedCRC = 0;
   uint8_t counter_10ms = 0;        //Counter for the 10ms CAN message, goes from 0-0xF and starts over
   uint8_t counter_20ms = 0;        //Counter for the 20ms CAN message, goes from 0-0xF and starts over
@@ -106,7 +126,7 @@ class StellantisProOneBattery : public UdsCanBattery {
   static const uint16_t PID_UNKNOWN_15 = 0xA010;
   static const uint16_t PID_UNKNOWN_16 = 0xA011;
   static const uint16_t PID_UNKNOWN_17 = 0xA014;
-  static const uint16_t PID_UNKNOWN_18 = 0xA017;
+  static const uint16_t PID_ISOLATION = 0xA017;
   static const uint16_t PID_UNKNOWN_19 = 0xA019;
   static const uint16_t PID_UNKNOWN_20 = 0xA01A;
   static const uint16_t PID_UNKNOWN_21 = 0xA020;
@@ -342,6 +362,9 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint16_t cellvoltage_min_mV = 3700;
   uint16_t polled_max_cellvoltage_mV = 3700;
   uint16_t polled_min_cellvoltage_mV = 3700;
+  //0xA017: state, R1, R2, state, R3, R4. R1 = system side, state 2 = valid result
+  uint8_t isolation_state[2] = {0};
+  uint16_t isolation_kOhm[4] = {ISO_NO_RESULT, ISO_NO_RESULT, ISO_NO_RESULT, ISO_NO_RESULT};
 };
 
 #endif

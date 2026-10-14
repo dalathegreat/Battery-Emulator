@@ -66,9 +66,11 @@ class TestUdsBattery : public UdsCanBattery {
   void on_uds_sequence_timeout(uint16_t state) override { seq_timeouts.push_back(state); }
 
   String get_uds_info_html() override { return String("<h4>TEST-INFO</h4>"); }
+  uint8_t get_dtc_status_mask() override { return dtc_status_mask; }
 
   // --- Test hooks ---------------------------------------------------------
   uint16_t detour_pid = 0;
+  uint8_t dtc_status_mask = 0x09;  // Superclass default
 
   std::vector<PidCall> pid_calls;
   std::vector<SeqCall> seq_calls;
@@ -832,6 +834,20 @@ TEST_F(UdsCanBatteryTest, ReadDtcParsesSingleFrameResponse) {
   EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0xFF);
   EXPECT_NE(datalayer.battery.dtc.dtc_last_read_millis, 0u);
   EXPECT_FALSE(battery->uds_is_busy());
+}
+
+TEST_F(UdsCanBatteryTest, ReadDtcSendsSubclassStatusMask) {
+  battery->dtc = &datalayer.battery.dtc;
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+  battery->dtc_status_mask = 0xFF;
+
+  battery->read_DTC();
+  tick(1000);
+
+  // 19 02 FF: all codes, also those whose test has not completed.
+  ASSERT_EQ(get_transmitted_frames().size(), 1u);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[1], 0x19);
+  EXPECT_EQ(last_frame(get_transmitted_frames()).data.u8[3], 0xFF);
 }
 
 TEST_F(UdsCanBatteryTest, ReadDtcParsesMultiFrameResponse) {

@@ -137,6 +137,9 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   virtual String get_uds_info_html() { return String(); }
   virtual const char* get_dtc_json_filename() { return ""; }
   virtual bool get_dtc_standard_code_string() { return true; }
+  // Status mask sent with the DTC readout (0x19 0x02 <mask>). The default 0x09
+  // (testFailed | confirmedDTC) lists active and stored faults only.
+  virtual uint8_t get_dtc_status_mask() { return 0x09; }
 
   // The built-in generic renderer. Override to provide a fully custom page.
   virtual BatteryHtmlRenderer& get_status_renderer() override { return uds_renderer; }
