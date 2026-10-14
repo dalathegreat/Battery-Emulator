@@ -39,13 +39,13 @@ class TeslaBattery : public CanBattery {
 
   bool supports_clear_isolation() { return true; }
   bool supports_insulation_resistance() { return true; }
-  void clear_isolation() { datalayer.battery_settings.user_requests_tesla_isolation_clear = true; }
+  void clear_isolation() { user_requests_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }
-  void reset_BMS() { datalayer.battery_settings.user_requests_tesla_bms_reset = true; }
+  void reset_BMS() { user_requests_bms_reset = true; }
 
   bool supports_reset_SOC() { return true; }
-  void reset_SOC() { datalayer.battery_settings.user_requests_tesla_soc_reset = true; }
+  void reset_SOC() { user_requests_soc_reset = true; }
 
   bool supports_charged_energy() { return true; }
 
@@ -515,6 +515,12 @@ class TeslaBattery : public CanBattery {
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
   uint8_t stateMachineSOCReset = 0xFF;
+  // Per-pack, not datalayer.battery_settings: that struct is shared by every pack, so with two
+  // or three Tesla packs a command meant for one pack could be picked up by whichever instance's
+  // update_values() happens to run next, not necessarily the one the user selected.
+  bool user_requests_isolation_clear = false;
+  bool user_requests_bms_reset = false;
+  bool user_requests_soc_reset = false;
   uint8_t stateMachineBMSQuery = 0xFF;
   uint16_t battery_cell_max_v = 3300;
   uint16_t battery_cell_min_v = 3300;
