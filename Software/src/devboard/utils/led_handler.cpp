@@ -33,6 +33,7 @@ static uint32_t scale_color(uint32_t color, uint8_t brightness) {
 #define FLOW_IDLE_BAND_W 200
 /* Energy Flow's charge/discharge ramp: 2.91 s one way, 0.09 s the other, of the 3 s period */
 #define FLOW_RAMP_SCALED 970  // 0.97 * 1000
+uint8_t user_selected_led_count = 0;
 
 static LED* led = nullptr;
 
@@ -71,7 +72,10 @@ bool led_init(void) {
     return false;
   }
 
-  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), esp32hal->LED_COUNT());
+  // A user-set strip length overrides the board default, so one build suits any strip.
+  const uint8_t led_count = user_selected_led_count > 0 ? user_selected_led_count : esp32hal->LED_COUNT();
+
+  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), led_count);
 
   return true;
 }
@@ -89,6 +93,14 @@ void LED::exe(void) {
   if (led_override_active && led_override_period_ms > 0) {
     const bool on = (millis() / (led_override_period_ms / 2)) % 2;
     pixels.setPixelColor(on ? led_override_color : 0);
+    pixels.show();
+    return;
+  }
+
+  // SOC bar owns the whole strip: length shows charge level, colour shows what the pack is
+  // doing. It writes every pixel itself, so it skips the status/indicator handling below.
+  if (mode == led_mode_enum::SOC_BAR) {
+    soc_bar_run();
     pixels.show();
     return;
   }
@@ -153,6 +165,64 @@ void LED::exe(void) {
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.
+}
+
+void LED::soc_bar_run(void) {
+  // Colour says what the pack is doing; bar length says how full it is.
+  uint32_t hue = LED_COLOR_WHITE;
+  bool blink = false;
+
+  switch (get_emulator_status()) {
+    case EMULATOR_STATUS::STATUS_ERROR:
+      hue = COLOR_RED(0xFF);
+      blink = true;
+      break;
+    case EMULATOR_STATUS::STATUS_WARNING:
+      hue = COLOR_YELLOW(0xFF);
+      break;
+    case EMULATOR_STATUS::STATUS_UPDATING:
+      hue = COLOR_BLUE(0xFF);
+      blink = true;
+      break;
+    default:
+      if (datalayer.battery.status.active_power_W > 50) {
+        hue = COLOR_GREEN(0xFF);  // charging
+      } else if (datalayer.battery.status.active_power_W < -50) {
+        hue = COLOR_BLUE(0xFF);  // discharging
+      }  // otherwise idle, leave it white
+      break;
+  }
+
+  // Faults and firmware updates blink the whole bar, so they read as "look at me" rather than
+  // as a charge level.
+  if (blink && ((millis() / 500) % 2) == 0) {
+    for (uint8_t i = 0; i < num_leds; i++) {
+      pixels.setPixelColor(i, 0);
+    }
+    return;
+  }
+
+  // Each pixel is one 1/num_leds slice of the pack. The pixel the level currently sits in is
+  // dimmed in proportion to how far into its slice the SOC has got, giving sub-slice resolution
+  // instead of the bar jumping a whole pixel at a time.
+  const uint32_t scaled = (uint32_t)datalayer.battery.status.reported_soc * num_leds;  // soc is 0-10000
+  const uint8_t filled = (uint8_t)(scaled / 10000);
+  const uint32_t partial = scaled % 10000;
+
+  for (uint8_t i = 0; i < num_leds; i++) {
+    uint8_t level;
+    if (i < filled) {
+      level = max_brightness;
+    } else if (i == filled) {
+      level = (uint8_t)((uint32_t)max_brightness * partial / 10000);
+      if (level < 2) {
+        level = 2;  // keep the first pixel faintly lit at 0 %, so the strip never looks dead
+      }
+    } else {
+      level = 0;
+    }
+    pixels.setPixelColor(i, level > 0 ? scale_color(hue, level) : 0);
+  }
 }
 
 void LED::classic_run(void) {

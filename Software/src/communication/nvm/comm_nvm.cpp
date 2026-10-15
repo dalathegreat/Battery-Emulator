@@ -1,4 +1,5 @@
 #include "comm_nvm.h"
+#include "../../devboard/utils/led_handler.h"
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
@@ -267,6 +268,7 @@ void init_stored_settings() {
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
   syslog_facility = settings.getUInt("SYSLOGFAC", 1);
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
+  user_selected_led_count = settings.getUInt("LEDCOUNT", 0);
 
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
