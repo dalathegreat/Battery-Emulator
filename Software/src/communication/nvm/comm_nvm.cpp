@@ -269,6 +269,7 @@ void init_stored_settings() {
   syslog_facility = settings.getUInt("SYSLOGFAC", 1);
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
   user_selected_led_count = settings.getUInt("LEDCOUNT", 0);
+  user_selected_led_pin = settings.getUInt("LEDPIN", 255);
 
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
