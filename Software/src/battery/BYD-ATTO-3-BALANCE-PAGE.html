@@ -39,7 +39,7 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child
 <div class="prog" id="prog" hidden><i></i></div><div class="msg" id="msg"></div>
 <div class="pair" id="summary" hidden>
  <div class="box now"><div class="k">Completed Charges</div><div class="n" id="chgN">-</div><div class="s" id="chgS"></div></div>
- <div class="box sp"><div class="k">Spread at Full</div><div class="n" id="spN">-</div><div class="s" id="spS"></div></div>
+ <div class="box sp"><div class="k">Delta at Full</div><div class="n" id="spN">-</div><div class="s" id="spS"></div></div>
  <div class="box bal"><div class="k">Cells Balanced</div><div class="n" id="balN">-</div><div class="s" id="balS"></div></div>
  <div class="box hi"><div class="k">Most Balanced</div><div class="n" id="hiN">-</div><div class="s" id="hiS"></div></div>
  <div class="box lo"><div class="k">Least Balanced</div><div class="n" id="loN">-</div><div class="s" id="loS"></div></div>
@@ -52,7 +52,7 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child
  <div class="head subhead" style="justify-content:flex-start;margin-top:10px"><label id="chargeLabel"><select id="charge" aria-label="Charge"></select></label>
  <span class="dim" id="period" style="font-size:13px"></span></div><div class="grid" id="grid"></div><div class="key" id="key"></div></div>
 <div class="card" id="historyCard" hidden><div class="head"><h3>Charge history</h3><button id="export">Export CSV</button></div><div class="tablewrap">
- <table><thead><tr><th>After charge</th><th>Completed</th><th>Read</th><th>Cells balanced</th><th>Spread at full</th></tr></thead><tbody id="history"></tbody></table></div></div>
+ <table><thead><tr><th>After charge</th><th>Completed</th><th>Read</th><th>Cells balanced</th><th>Delta at full</th></tr></thead><tbody id="history"></tbody></table></div></div>
 <div class="dim" id="foot" style="font-size:12.5px" hidden>History is kept in this browser. The device keeps the last three charges until it restarts.</div>
 </div><script>(function(){
 var E=function(x){return document.getElementById(x)},packs=[],bat=0,data=null,hist=[],reads=[],view=null,selected=null,byHrs=false;
@@ -80,7 +80,7 @@ function dose(r){var c=(r.d||[]).filter(function(x){return x>0});if(!c.length)re
 function unread(r){return r.active&&!r.rt}
 function readAt(r){return r.active?r.rt:r.ft}
 function mv(v){return v==null?'-':v+' mV'}
-// Spread at full charge against the previous charge that measured it: falling means balancing is working.
+// Cell delta at full charge against the previous charge that measured it: falling means balancing is working.
 function trend(rs,i,s){if(rs[i].sp==null)return'';for(var j=i+1;j<rs.length;j++)if(rs[j].sp!=null){var c=rs[i].sp-rs[j].sp;
  return'<span class="'+(c>0?'up':c<0?'down':'')+'">'+(c?(c<0?'▼ ':'▲ ')+Math.abs(c)+' mV':'no change')+'</span>'+(s?'':' vs charge '+rs[j].cy)}return''}
 function state(r){if(r.n==null)return'Latest reading incomplete';if(unread(r))return'Not read since the charge completed';var g=dose(r);
@@ -137,7 +137,7 @@ E('autoBtn').onclick=function(){setAuto(!data.a.en)};E('sort').onclick=function(
 Array.prototype.forEach.call(document.querySelectorAll('[data-view]'),function(b){b.onclick=function(){view=b.dataset.view;setView();render()}});
 // One row per charge: a balancing log that opens cleanly in any spreadsheet.
 function iso(t){if(!t)return'';var d=new Date(t),p=function(n){return(n<10?'0':'')+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())}
-function csv(){var rows=['Charge,Completed,Read,Status,Cells balanced,Hours each,Spread at full (mV),Cells'],prev=null;
+function csv(){var rows=['Charge,Completed,Read,Status,Cells balanced,Hours each,Delta at full (mV),Cells'],prev=null;
  records().forEach(function(r){if(prev!=null&&prev-r.cy>1)rows.push((r.cy+1)+(prev-r.cy>2?' to '+(prev-1):'')+',,,Not recorded,,,,');prev=r.cy;
   var g=dose(r),c=[];(r.d||[]).forEach(function(x,i){if(x>0)c.push(i+1)});
   rows.push([r.cy,iso(r.bt),iso(readAt(r)),r.n==null?'Incomplete':unread(r)?'Not read':!g?'None':g.done?'Finished':'Still running',
