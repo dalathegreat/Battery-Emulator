@@ -125,18 +125,14 @@ E('scan').onclick=function(){var b=bat;E('scan').disabled=true;E('scan').textCon
 function setAuto(en){var b=bat;E('autoBtn').disabled=true;fetch('/bydCellBalanceAutomation?battery='+b+'&enabled='+(en?1:0),{method:'PUT'}).then(function(x){if(!x.ok)return x.text().then(function(t){throw Error(t)});refresh()}).catch(function(e){fail(b,e)}).then(function(){E('autoBtn').disabled=false})}
 E('autoBtn').onclick=function(){setAuto(!data.a.en)};E('sort').onclick=function(){byHrs=!byHrs;this.classList.toggle('on',byHrs);render()};E('charge').onchange=function(){selected=this.value;render()};
 Array.prototype.forEach.call(document.querySelectorAll('[data-view]'),function(b){b.onclick=function(){view=b.dataset.view;setView();render()}});
-// One row per cell, one column per charge, so it opens as a grid in any spreadsheet.
-function q(v){return'"'+String(v).replace(/"/g,'""')+'"'}
-function csv(){var hrs=data.v||[],rs=records(),rd=readDelta(),
- head=['Cell','Lifetime hours'];
- if(rd)head.push('Since last read ('+fmt(reads[1].at)+' to '+fmt(reads[0].at)+')');
- rs.forEach(function(r){head.push('After charge '+r.cy+' (completed '+fmt(r.bt)+(readAt(r)?', read '+fmt(readAt(r)):'')+')')});
- var rows=[head.map(q).join(',')],n=Math.max(hrs.length,data.e||0);
- for(var i=0;i<n;i++){var row=[i+1,hrs[i]==null?'':hrs[i]];
-  if(rd)row.push(rd[i]==null?'':rd[i]);
-  rs.forEach(function(r){row.push(r.d&&r.d[i]!=null?r.d[i]:'')});
-  rows.push(row.join(','))}
- return'﻿'+rows.join('\r\n')+'\r\n'}
+// One row per charge: a balancing log that opens cleanly in any spreadsheet.
+function iso(t){if(!t)return'';var d=new Date(t),p=function(n){return(n<10?'0':'')+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())}
+function csv(){var rows=['Charge,Completed,Read,Status,Cells balanced,Hours each,Cells'],prev=null;
+ records().forEach(function(r){if(prev!=null&&prev-r.cy>1)rows.push((r.cy+1)+(prev-r.cy>2?' to '+(prev-1):'')+',,,Not recorded,,,');prev=r.cy;
+  var g=dose(r),c=[];(r.d||[]).forEach(function(x,i){if(x>0)c.push(i+1)});
+  rows.push([r.cy,iso(r.bt),iso(readAt(r)),r.n==null?'Incomplete':unread(r)?'Not read':!g?'None':g.done?'Finished':'Still running',
+   unread(r)||r.n==null?'':r.n,g?(g.lo===g.hi?g.lo:g.lo+' to '+g.hi):'',c.join(' ')].join(','))});
+ return'\ufeff'+rows.join('\r\n')+'\r\n'}
 E('export').onclick=function(){if(!data)return;var a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([csv()],{type:'text/csv'}));
  a.download='byd-balance-battery-'+(bat+1)+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href)};
