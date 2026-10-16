@@ -3,33 +3,34 @@
 :root{--card:#1d2a32;--edge:#50616b;--dim:#aebbc3;--faint:#7f8f9a;--cyan:#00d9df;--amber:#ffc45c;
 --green:#6fd18a;--chip:#26343d;--red:#ff6b70;--blue:#6fa8dc}
 *{box-sizing:border-box}body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0;padding:16px}
-.page{max-width:900px;margin:0 auto}.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;
+.page{max-width:1000px;margin:0 auto}.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;
 padding:16px;margin-bottom:14px}h1{font-size:21px;margin:0}h3{font-size:15px;margin:0}.dim{color:var(--dim)}
 .top,.head,.auto,.key{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.top,.head{justify-content:space-between}
 .top{margin-bottom:14px}.tabs{display:flex;gap:6px;margin-bottom:12px}.pair{display:grid;
-grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.box{border-radius:10px;padding:13px 14px;
-border:1px solid;min-width:0}.box .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:bold}
-.box .n{font-size:27px;font-weight:bold;line-height:1.15;margin:4px 0 2px;font-family:monospace}.box .s{font-size:12px;line-height:1.4}
+grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}.box{border-radius:10px;padding:13px 14px;
+border:1px solid;min-width:0}.box .k{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:bold}
+.box .n{font-size:27px;font-weight:bold;line-height:1.15;margin:4px 0 2px;font-family:monospace}.box .s{font-size:13px;line-height:1.4}
 .box.now{background:#14241b;border-color:#3a6b4c}.box.now .k{color:var(--green)}.box.bal{background:#2a2114;border-color:#5c451c}
 .box.bal .k,.box.bal .n{color:var(--amber)}.box.hi{background:#2a1a1b;border-color:#5c2c2f}.box.hi .k,.box.hi .n{color:var(--red)}
 .box.lo{background:#16232e;border-color:#2f4a5e}.box.lo .k,.box.lo .n{color:var(--blue)}
+.box.sp{background:#0f2a2d;border-color:#1f6468}.box.sp .k,.box.sp .n{color:var(--cyan)}.up{color:var(--amber)}.down{color:var(--green)}
 .auto{justify-content:space-between}
-.status{color:var(--cyan);font-size:12.5px}.toggle{min-width:62px}.controls{display:flex;gap:6px;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;margin-top:12px}.cell{background:var(--chip);
-border:1px solid #313f49;border-radius:6px;padding:5px 2px;text-align:center;min-height:43px;display:flex;flex-direction:column;
-justify-content:center}.cell .i{font-size:9px;color:var(--faint);font-weight:bold}.cell .h{font-family:monospace;font-size:15px;font-weight:bold;line-height:1.35}
+.status{color:var(--cyan);font-size:13px}.toggle{min-width:62px}.controls{display:flex;gap:6px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;margin-top:12px}.cell{background:var(--chip);
+border:1px solid #313f49;border-radius:6px;padding:5px 2px;text-align:center;min-height:48px;display:flex;flex-direction:column;
+justify-content:center}.cell .i{font-size:11px;color:var(--faint);font-weight:bold}.cell .h{font-family:monospace;font-size:16px;font-weight:bold;line-height:1.35}
 .cell.sel{background:#3a2c14;border-color:var(--amber)}.cell.sel .h{color:var(--amber)}.cell.most{border-color:var(--red)}
 .cell.most .h{color:var(--red)}.cell.least{border-color:var(--blue)}.cell.least .h{color:var(--blue)}
 /* Reserved so the grid keeps its place when a view has no picker, no period or no legend */
-.subhead{min-height:36px}.key{margin-top:12px;color:var(--dim);font-size:12px;min-height:16px}.key i{width:12px;height:12px;border-radius:3px;display:inline-block;
-vertical-align:-2px;margin-right:6px}.note{font-size:12px;line-height:1.5;margin-top:10px;color:var(--dim)}button,select{background:#505e67;
+.subhead{min-height:36px}.key{margin-top:12px;color:var(--dim);font-size:13px;min-height:16px}.key i{width:12px;height:12px;border-radius:3px;display:inline-block;
+vertical-align:-2px;margin-right:6px}.note{font-size:13px;line-height:1.5;margin-top:10px;color:var(--dim)}button,select{background:#505e67;
 color:#fff;border:0;padding:9px 14px;border-radius:8px;font-size:13px}select{border:1px solid var(--edge);background:#17232a}button{cursor:pointer}
 button.on{background:#00aeb4;color:#071416}button:disabled{opacity:.55;cursor:default}.prog{height:5px;background:#10171b;
 border-radius:3px;overflow:hidden;margin-bottom:12px}.prog i{display:block;height:5px;background:var(--cyan);width:0;transition:width .3s}
 .msg{color:var(--dim);font-size:13px;margin-bottom:12px}.msg.err{color:#ff9295}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;
-font-size:12.5px;margin-top:10px}th,td{text-align:left;padding:9px;border-bottom:1px solid #43535d;white-space:nowrap}th{color:var(--dim);font-size:11px}
+font-size:13.5px;margin-top:10px}th,td{text-align:left;padding:9px;border-bottom:1px solid #43535d;white-space:nowrap}th{color:var(--dim);font-size:12px}
 tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child{border-left:3px solid var(--cyan);font-weight:bold}
-@media(max-width:780px){.pair{grid-template-columns:repeat(2,minmax(0,1fr))}.auto{align-items:flex-start}}
+@media(max-width:780px){.pair{grid-template-columns:repeat(2,minmax(0,1fr))}.box.now{grid-column:span 2}.auto{align-items:flex-start}}
 @media(max-width:480px){body{padding:10px}.card{padding:12px}.pair{grid-template-columns:1fr 1fr}.box .n{font-size:22px}}
 </style></head><body><div class="page">
 <div style="margin-bottom:12px"><button onclick="location.href='/advanced'">&#8592; Battery Info</button></div>
@@ -38,9 +39,10 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child
 <div class="prog" id="prog" hidden><i></i></div><div class="msg" id="msg"></div>
 <div class="pair" id="summary" hidden>
  <div class="box now"><div class="k">Completed Charges</div><div class="n" id="chgN">-</div><div class="s" id="chgS"></div></div>
+ <div class="box sp"><div class="k">Spread at Full</div><div class="n" id="spN">-</div><div class="s" id="spS"></div></div>
  <div class="box bal"><div class="k">Cells Balanced</div><div class="n" id="balN">-</div><div class="s" id="balS"></div></div>
- <div class="box hi"><div class="k">Most Balancing Time</div><div class="n" id="hiN">-</div><div class="s" id="hiS"></div></div>
- <div class="box lo"><div class="k">Least Balancing Time</div><div class="n" id="loN">-</div><div class="s" id="loS"></div></div>
+ <div class="box hi"><div class="k">Most Balanced</div><div class="n" id="hiN">-</div><div class="s" id="hiS"></div></div>
+ <div class="box lo"><div class="k">Least Balanced</div><div class="n" id="loN">-</div><div class="s" id="loS"></div></div>
 </div>
 <div class="card" id="autoCard" hidden><div class="auto">
  <div><div class="head" style="justify-content:flex-start"><h3>Automatic readings</h3><button class="toggle" id="autoBtn">Off</button></div>
@@ -48,10 +50,10 @@ tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child
  </div><div class="status" id="autoStatus"></div></div></div>
 <div class="card" id="cellsCard" hidden><div class="head"><h3>Cells</h3><div class="controls"><button data-view="charge">By Charge</button><button data-view="read">Since Last Read</button><button data-view="life">Lifetime</button><button id="sort">Sort by hours</button></div></div>
  <div class="head subhead" style="justify-content:flex-start;margin-top:10px"><label id="chargeLabel"><select id="charge" aria-label="Charge"></select></label>
- <span class="dim" id="period" style="font-size:12px"></span></div><div class="grid" id="grid"></div><div class="key" id="key"></div></div>
+ <span class="dim" id="period" style="font-size:13px"></span></div><div class="grid" id="grid"></div><div class="key" id="key"></div></div>
 <div class="card" id="historyCard" hidden><div class="head"><h3>Charge history</h3><button id="export">Export CSV</button></div><div class="tablewrap">
- <table><thead><tr><th>After charge</th><th>Completed</th><th>Read</th><th>Cells balanced</th></tr></thead><tbody id="history"></tbody></table></div></div>
-<div class="dim" id="foot" style="font-size:11.5px" hidden>History is kept in this browser. The device keeps the last three charges until it restarts.</div>
+ <table><thead><tr><th>After charge</th><th>Completed</th><th>Read</th><th>Cells balanced</th><th>Spread at full</th></tr></thead><tbody id="history"></tbody></table></div></div>
+<div class="dim" id="foot" style="font-size:12.5px" hidden>History is kept in this browser. The device keeps the last three charges until it restarts.</div>
 </div><script>(function(){
 var E=function(x){return document.getElementById(x)},packs=[],bat=0,data=null,hist=[],reads=[],view=null,selected=null,byHrs=false;
 function key(i){return'be.bydBalance.charge.v1.'+i}
@@ -59,7 +61,7 @@ function load(i){try{var x=JSON.parse(localStorage.getItem(key(i)));return Array
 function save(i,h){try{localStorage.setItem(key(i),JSON.stringify(h.slice(0,20)))}catch(e){}}
 function stamp(age){return Date.now()-(age||0)*1000}
 function merge(d){var h=load(bat);if(d.cy!=null)h=h.filter(function(o){return o.cy<=d.cy});(d.a.h||[]).forEach(function(r){
- var x={cy:r.cy,bt:stamp(r.ba),ft:stamp(r.fa),n:r.n,d:r.d};h=h.filter(function(o){return o.cy!==x.cy});h.push(x)
+ var x={cy:r.cy,bt:stamp(r.ba),ft:stamp(r.fa),sp:r.sp,n:r.n,d:r.d};h=h.filter(function(o){return o.cy!==x.cy});h.push(x)
  });h.sort(function(a,b){return b.cy-a.cy});h=h.slice(0,20);save(bat,h);hist=h}
 function rkey(i){return'be.bydBalance.reads.v1.'+i}
 function same(a,b){if(a.length!==b.length)return false;for(var i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true}
@@ -70,14 +72,19 @@ function track(d){var h;try{h=JSON.parse(localStorage.getItem(rkey(bat)))}catch(
   h.unshift({at:Date.now(),v:d.v});h=h.slice(0,2);try{localStorage.setItem(rkey(bat),JSON.stringify(h))}catch(e){}}
  reads=h}
 function fmt(t){if(!t)return'Pending';return new Date(t).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
-function active(){var a=data.a;if(a.ac==null||!a.cur)return null;return{cy:a.cur.cy,bt:stamp(a.cur.ba),ft:null,rt:a.cur.ra==null?null:stamp(a.cur.ra),n:a.cur.n,d:a.cur.d||[],active:true}}
+function active(){var a=data.a;if(a.ac==null||!a.cur)return null;return{cy:a.cur.cy,bt:stamp(a.cur.ba),ft:null,rt:a.cur.ra==null?null:stamp(a.cur.ra),sp:a.cur.sp,n:a.cur.n,d:a.cur.d||[],active:true}}
 function count(n){return n==null?'-':n}
 // A balanced cell gets a fixed ~17 h dose, so once every moved cell has it, balancing for that charge is over.
 var DOSE=17;
 function dose(r){var c=(r.d||[]).filter(function(x){return x>0});if(!c.length)return null;var lo=Math.min.apply(null,c),hi=Math.max.apply(null,c);return{n:c.length,lo:lo,hi:hi,done:lo>=DOSE}}
 function unread(r){return r.active&&!r.rt}
 function readAt(r){return r.active?r.rt:r.ft}
-function state(r){if(r.n==null)return'Latest reading incomplete';if(unread(r))return'Not read since the charge completed';var g=dose(r);if(!g)return'No cells balanced';
+function mv(v){return v==null?'-':v+' mV'}
+// Spread at full charge against the previous charge that measured it: falling means balancing is working.
+function trend(rs,i,s){if(rs[i].sp==null)return'';for(var j=i+1;j<rs.length;j++)if(rs[j].sp!=null){var c=rs[i].sp-rs[j].sp;
+ return'<span class="'+(c>0?'up':c<0?'down':'')+'">'+(c?(c<0?'▼ ':'▲ ')+Math.abs(c)+' mV':'no change')+'</span>'+(s?'':' vs charge '+rs[j].cy)}return''}
+function state(r){if(r.n==null)return'Latest reading incomplete';if(unread(r))return'Not read since the charge completed';var g=dose(r);
+ if(!g)return r.active&&readAt(r)-r.bt<36e5?'No cells balanced yet':'No cells balanced. The BMS only balances once the contactors have been open for 5+ minutes after a full charge: see "Balancing enabled" on Battery Info';
  return(g.done?'Balancing finished: ':'Balancing may still be running: ')+g.n+' cells, '+(g.lo===g.hi?g.lo:g.lo+'–'+g.hi)+' h each'}
 function readDelta(){return reads.length>1?reads[0].v.map(function(x,i){var y=reads[1].v[i];return x!=null&&y!=null?x-y:null}):null}
 function records(){var a=active(),h=hist.slice();if(a)h=h.filter(function(x){return x.cy!==a.cy});return a?[a].concat(h):h}
@@ -98,6 +105,9 @@ function render(){if(!data)return;var d=data,hrs=d.v||[],vals=hrs.filter(functio
  E('autoStatus').textContent=!d.a.ph?'Automation off':d.a.ph===2?'Reading the timers...':'Waiting for the next completed charge';
  var rs=records();E('charge').innerHTML=rs.length?rs.map(function(r){return'<option value="'+r.cy+'">After charge '+r.cy+(r.active?' (latest)':'')+'</option>'}).join(''):'<option>No charges recorded</option>';
  if(rec){selected=rec.cy;E('charge').value=String(rec.cy)}
+ var ri=rec?rs.map(function(r){return r.cy}).indexOf(rec.cy):-1,tr=ri<0?'':trend(rs,ri);
+ E('spN').textContent=rec?mv(rec.sp):'-';
+ E('spS').innerHTML=!rec?'No charge recorded yet':rec.sp==null?'Not measured for charge '+rec.cy:'After charge '+rec.cy+(tr?' · '+tr:'');
  E('period').textContent=view==='charge'?(!rec?'Waiting for the first completed charge':state(rec)+' · charge completed '+fmt(rec.bt)+(readAt(rec)?' · read '+fmt(readAt(rec)):'')):
   view==='read'?(pair?fmt(reads[1].at)+' → '+fmt(reads[0].at):reads.length?'One reading saved. Read again later to compare.':'No complete reading yet'):'';
  var delta=view!=='life',arr=view==='charge'?(rec&&rec.d.length?rec.d:new Array(d.e)):view==='read'?(rd||new Array(d.e)):hrs,ord=[];
@@ -107,10 +117,10 @@ function render(){if(!data)return;var d=data,hrs=d.v||[],vals=hrs.filter(functio
  E('key').innerHTML=view==='life'?(mx===mn?'':'<span><i style="border:1px solid var(--red)"></i>Most, '+mx+'h</span><span><i style="border:1px solid var(--blue)"></i>Least, '+mn+'h</span>'):
   '<span><i style="background:#3a2c14;border:1px solid var(--amber)"></i>'+(view==='read'?'Balanced since previous reading':'Balanced after this charge')+'</span>';
  // A jump in charge numbers means records were lost (device restart) or automation was off.
- var h='',prev=null;rs.forEach(function(r){if(prev!=null&&prev-r.cy>1)h+='<tr><td colspan="4" class="dim">'+(prev-r.cy>2?'Charges '+(r.cy+1)+'–'+(prev-1):'Charge '+(r.cy+1))+' not recorded</td></tr>';
+ var h='',prev=null;rs.forEach(function(r,i){if(prev!=null&&prev-r.cy>1)h+='<tr><td colspan="5" class="dim">'+(prev-r.cy>2?'Charges '+(r.cy+1)+'–'+(prev-1):'Charge '+(r.cy+1))+' not recorded</td></tr>';
   prev=r.cy;var g=dose(r),t=readAt(r);h+='<tr class="pick '+(rec&&r.cy===rec.cy?'active':'')+'" data-cy="'+r.cy+'"><td>'+r.cy+'</td><td>'+fmt(r.bt)+'</td><td>'+(t?fmt(t):'Not yet')+
-  '</td><td>'+(unread(r)?'-':count(r.n)+(r.active&&g&&!g.done?' so far':''))+'</td></tr>'});
- E('history').innerHTML=h||'<tr><td colspan="4" class="dim">No charges recorded yet.</td></tr>';
+  '</td><td>'+(unread(r)?'-':count(r.n)+(r.active&&g&&!g.done?' so far':''))+'</td><td>'+mv(r.sp)+' '+trend(rs,i,1)+'</td></tr>'});
+ E('history').innerHTML=h||'<tr><td colspan="5" class="dim">No charges recorded yet.</td></tr>';
  Array.prototype.forEach.call(document.querySelectorAll('[data-cy]'),function(row){row.onclick=function(){selected=row.dataset.cy;view='charge';setView();render()}})
 }
 function setView(){Array.prototype.forEach.call(document.querySelectorAll('[data-view]'),function(b){b.classList.toggle('on',b.dataset.view===view)})}
@@ -127,11 +137,11 @@ E('autoBtn').onclick=function(){setAuto(!data.a.en)};E('sort').onclick=function(
 Array.prototype.forEach.call(document.querySelectorAll('[data-view]'),function(b){b.onclick=function(){view=b.dataset.view;setView();render()}});
 // One row per charge: a balancing log that opens cleanly in any spreadsheet.
 function iso(t){if(!t)return'';var d=new Date(t),p=function(n){return(n<10?'0':'')+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())}
-function csv(){var rows=['Charge,Completed,Read,Status,Cells balanced,Hours each,Cells'],prev=null;
- records().forEach(function(r){if(prev!=null&&prev-r.cy>1)rows.push((r.cy+1)+(prev-r.cy>2?' to '+(prev-1):'')+',,,Not recorded,,,');prev=r.cy;
+function csv(){var rows=['Charge,Completed,Read,Status,Cells balanced,Hours each,Spread at full (mV),Cells'],prev=null;
+ records().forEach(function(r){if(prev!=null&&prev-r.cy>1)rows.push((r.cy+1)+(prev-r.cy>2?' to '+(prev-1):'')+',,,Not recorded,,,,');prev=r.cy;
   var g=dose(r),c=[];(r.d||[]).forEach(function(x,i){if(x>0)c.push(i+1)});
   rows.push([r.cy,iso(r.bt),iso(readAt(r)),r.n==null?'Incomplete':unread(r)?'Not read':!g?'None':g.done?'Finished':'Still running',
-   unread(r)||r.n==null?'':r.n,g?(g.lo===g.hi?g.lo:g.lo+' to '+g.hi):'',c.join(' ')].join(','))});
+   unread(r)||r.n==null?'':r.n,g?(g.lo===g.hi?g.lo:g.lo+' to '+g.hi):'',r.sp==null?'':r.sp,c.join(' ')].join(','))});
  return'\ufeff'+rows.join('\r\n')+'\r\n'}
 E('export').onclick=function(){if(!data)return;var a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([csv()],{type:'text/csv'}));

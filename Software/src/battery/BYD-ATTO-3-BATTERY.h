@@ -45,8 +45,12 @@ struct BydCellBalanceTimeData {
   }
 };
 
+// A charge whose cell spread was not measured because the pack did not end that charge itself.
+constexpr uint16_t BYD_CELL_SPREAD_UNKNOWN = 0xFFFF;
+
 struct BydCellBalanceChargeRecord {
   uint16_t charge_cycles = 0;
+  uint16_t spread_mV = BYD_CELL_SPREAD_UNKNOWN;
   uint8_t cell_count = 0;
   uint8_t changed_cells = 0;
   uint32_t baseline_millis = 0;
@@ -296,6 +300,11 @@ class BydAttoBattery : public CanBattery {
   unsigned long cell_balance_time_request_millis = 0;
   unsigned long cell_balance_baseline_millis = 0;
   uint32_t cell_balance_baseline_scan_id = 0;
+  // The counter poll and the termination can land in either order, so they pair within a window.
+  static const uint32_t CELL_BALANCE_SPREAD_WINDOW_MS = 600000;
+  unsigned long cell_balance_term_millis = 0;
+  uint16_t cell_balance_term_spread_mV = BYD_CELL_SPREAD_UNKNOWN;
+  uint16_t cell_balance_active_spread_mV = BYD_CELL_SPREAD_UNKNOWN;
   uint8_t cell_balance_time_cell = 0;
   uint8_t cell_balance_time_retries = 0;
   uint8_t cell_balance_history_count = 0;
@@ -328,7 +337,9 @@ class BydAttoBattery : public CanBattery {
   void handle_automatic_scan_result(unsigned long currentMillis);
   bool save_cell_balance_charge_record(unsigned long currentMillis);
   void start_cell_balance_charge_record(unsigned long currentMillis);
+  void note_termination_spread(uint16_t spread_mV);
   void append_cell_balance_deltas_json(String& json, const uint8_t* values, uint8_t cells) const;
+  void append_cell_spread_json(String& json, uint16_t spread_mV) const;
 
   int16_t battery_temperature_ambient = 0;
   int16_t battery_calc_min_temperature = 0;

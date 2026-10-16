@@ -446,6 +446,7 @@ TEST_F(BydAtto3BalanceTimeTest, NextChargeBaselineClosesRecordAndManualReadDoesN
   EXPECT_NE(after_baseline.str().find("\"ac\":42"), std::string::npos);
   EXPECT_NE(after_baseline.str().find("\"h\":[]"), std::string::npos);
   EXPECT_NE(after_baseline.str().find("\"ra\":null"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"sp\":null"), std::string::npos);  // no termination, no spread
 
   const uint32_t manual_time = 5UL * 3600000UL;
   ASSERT_TRUE(battery->request_cell_balance_times());

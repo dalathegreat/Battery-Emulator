@@ -937,6 +937,7 @@ void BydAttoBattery::confirm_charge_termination() {
       balancingStateMillis = millis();
     }
   }
+  note_termination_spread(spread_mV);
   set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10), battery_index);
   DEBUG_PRINTF("[BYD] Battery ended the charge at %umV, cell spread %umV\n", cell_max_mV, spread_mV);
 }
@@ -1617,6 +1618,7 @@ String BydAttoBattery::cell_balance_times_json() const {
         snapshot.state == BydCellBalanceTimeState::COMPLETE && snapshot.expected_cells == cell_balance_baseline_cells;
     json += "{\"cy\":" + String(cell_balance_active_charge);
     json += ",\"ba\":" + String((millis() - cell_balance_baseline_millis) / 1000);
+    append_cell_spread_json(json, cell_balance_active_spread_mV);
     if (comparable) {
       // Age of an interim reading taken after the baseline; null while the baseline is the latest.
       json += ",\"ra\":";
@@ -1656,12 +1658,18 @@ String BydAttoBattery::cell_balance_times_json() const {
     json += "{\"cy\":" + String(record.charge_cycles);
     json += ",\"ba\":" + String((now - record.baseline_millis) / 1000);
     json += ",\"fa\":" + String((now - record.final_millis) / 1000);
+    append_cell_spread_json(json, record.spread_mV);
     json += ",\"n\":" + String(record.changed_cells) + ",\"d\":[";
     append_cell_balance_deltas_json(json, record.delta, record.cell_count);
     json += "]}";
   }
   json += "]}}";
   return json;
+}
+
+void BydAttoBattery::append_cell_spread_json(String& json, uint16_t spread_mV) const {
+  json += ",\"sp\":";
+  json += spread_mV == BYD_CELL_SPREAD_UNKNOWN ? String("null") : String(spread_mV);
 }
 
 void BydAttoBattery::append_cell_balance_deltas_json(String& json, const uint8_t* values, uint8_t cells) const {
@@ -1716,6 +1724,7 @@ bool BydAttoBattery::save_cell_balance_charge_record(unsigned long currentMillis
   BydCellBalanceChargeRecord& record = cell_balance_history[0];
   record = BydCellBalanceChargeRecord{};
   record.charge_cycles = cell_balance_active_charge;
+  record.spread_mV = cell_balance_active_spread_mV;
   record.cell_count = cell_balance_baseline_cells;
   record.baseline_millis = cell_balance_baseline_millis;
   record.final_millis = currentMillis;
@@ -1742,8 +1751,21 @@ void BydAttoBattery::start_cell_balance_charge_record(unsigned long currentMilli
   cell_balance_active_charge = cell_balance_pending_charge;
   cell_balance_baseline_millis = currentMillis;
   cell_balance_baseline_scan_id = cell_balance_time_data.scan_id;
+  cell_balance_active_spread_mV = currentMillis - cell_balance_term_millis < CELL_BALANCE_SPREAD_WINDOW_MS
+                                      ? cell_balance_term_spread_mV
+                                      : BYD_CELL_SPREAD_UNKNOWN;
   cell_balance_session_active = true;
   cell_balance_baseline_pending = false;
+}
+
+// Termination can also land just after the baseline; it still belongs to that charge.
+void BydAttoBattery::note_termination_spread(uint16_t spread_mV) {
+  cell_balance_term_spread_mV = spread_mV;
+  cell_balance_term_millis = millis();
+  if (cell_balance_session_active && cell_balance_active_spread_mV == BYD_CELL_SPREAD_UNKNOWN &&
+      cell_balance_term_millis - cell_balance_baseline_millis < CELL_BALANCE_SPREAD_WINDOW_MS) {
+    cell_balance_active_spread_mV = spread_mV;
+  }
 }
 
 // Each baseline also closes the previous charge's record, so one record spans charge to charge.
