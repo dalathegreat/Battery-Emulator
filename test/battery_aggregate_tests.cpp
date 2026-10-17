@@ -279,6 +279,30 @@ TEST_F(BatteryAggregateTest, UndecodedSohIsIgnored) {
   EXPECT_EQ(datalayer.aggregate.soh_pptt, 7560);
 }
 
+// The fake battery's SOH is whatever the user set on its More Battery Info page, so 0% is a
+// reading there and has to reach the inverter, alone or as the weakest of several packs.
+TEST_F(BatteryAggregateTest, FakeBatteryZeroSohReachesTheInverter) {
+  user_selected_battery_type = BatteryType::TestFake;
+  datalayer.battery.status.soh_pptt = 0;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 0);
+  EXPECT_TRUE(datalayer.aggregate.soh_available);
+
+  add_second_pack();
+  add_third_pack();
+  battery2_detected = true;
+  battery3_detected = true;
+
+  scale_all();
+  update_aggregate_values();
+
+  EXPECT_EQ(datalayer.aggregate.soh_pptt, 0);  // packs 2 and 3 still on their 99.00%
+  EXPECT_TRUE(datalayer.aggregate.soh_available);
+}
+
 // A 19.0 A ceiling has to survive the trip out through Watts and back.
 TEST_F(BatteryAggregateTest, UserCurrentLimitSurvivesTheRoundTrip) {
   datalayer.battery.status.voltage_dV = 3525;
