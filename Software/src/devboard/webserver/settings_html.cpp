@@ -1430,10 +1430,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define GPIOOPT4_SETTING ""
 #endif
 
-/* T-CAN485: pins 14 and 15 are shared by the µSD slot, the 2nd battery contactors and the
-   equipment stop, and pin 35 is both the equipment stop and the MCP2515 INT. The page only offers
-   the stop pins that are free, refuses to save a clash, and hides SD logging when the slot's pins
-   are taken. The firmware checks the same at boot. */
+/* T-CAN485: most pins have more than one possible user (CAN add-on, GPIO contactors, BMS power,
+   SMA enable, external precharge, equipment stop, µSD slot). A pin claimed twice fails at boot
+   with GPIO_CONFLICT, so the page greys out the choices that are taken, refuses to save a clash,
+   and hides SD logging when the slot's pins 14/15 are used for something else. */
 #ifdef HW_LILYGO
 #define GPIOOPT7_SETTING \
   R"rawliteral(
@@ -1467,45 +1467,79 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form[data-sdblocked="true"] .if-sdfree { display: none; }
   </style>
   <script>
-  //GPIOOPT7/GPIOOPT8 option values to pin numbers, see types.h
-  const lgContPin = {'0': 15, '1': 14};
-  const lgStopPin = {'0': 35, '1': 15, '2': 14};
+  //Option values of the pin selects to pin numbers, see GPIOOPT2/3/7/8 in types.h and hw_lilygo.h
+  const lgPinOf = {GPIOOPT2: {'0': 18, '1': 25}, GPIOOPT3: {'0': 5, '1': 33}, GPIOOPT7: {'0': 15, '1': 14},
+                   GPIOOPT8: {'0': 35, '1': 15, '2': 14}};
+  const lgQ = (n) => document.querySelector('[name="' + n + '"]');
+  const lgChecked = (n) => !!lgQ(n) && lgQ(n).checked;
+  const lgPin = (n) => lgQ(n) ? lgPinOf[n][lgQ(n).value] : undefined;
+  //The pins each enabled feature claims at boot, as the firmware does (hw_lilygo.h). sel names the
+  //pin select that moves the feature, if any.
+  function lilygoUsers() {
+    const u = [];
+    const ifaces = ['BATTCOMM', 'BATT2COMM', 'BATT3COMM', 'INVCOMM', 'SHUNTCOMM'].map(lgQ).filter(
+        (s) => !!s && s.offsetParent !== null);
+    if (ifaces.some((s) => s.value === '5')) {  //comm_interface::CanAddonMcp2515
+      u.push({name: 'MCP2515 CAN add-on', pins: [5, 12, 18, 34, 35]});
+    }
+    if (ifaces.some((s) => s.value === '6')) {  //comm_interface::CanFdAddonMcp2518
+      u.push({name: 'MCP2518FD CAN add-on', pins: [5, 12, 18, 34, 35]});
+    }
+    if (lgChecked('CNTCTRL')) {
+      u.push({name: 'Contactor control via GPIO', pins: [32, 33, 25]});
+    }
+    if (lgChecked('CNTCTRLDBL')) {  //driven whenever ticked, shown or not
+      u.push({name: '2nd battery contactors', pins: [lgPin('GPIOOPT7')], sel: 'GPIOOPT7'});
+    }
+    if (lgChecked('PERBMSRESET') || lgChecked('REMBMSRESET')) {
+      u.push({name: 'BMS power', pins: [lgPin('GPIOOPT2')], sel: 'GPIOOPT2'});
+    }
+    const inv = lgQ('inverter');
+    if (inv && ['14', '16', '24'].includes(inv.value)) {  //SMA protocols using the enable input
+      u.push({name: 'SMA inverter enable', pins: [lgPin('GPIOOPT3')], sel: 'GPIOOPT3'});
+    }
+    if (lgChecked('EXTPRECHARGE')) {
+      u.push({name: 'External precharge via HIA4V1', pins: [25, 32]});
+    }
+    if (lgQ('EQSTOP') && lgQ('EQSTOP').value !== '0') {
+      u.push({name: 'Equipment stop', pins: [lgPin('GPIOOPT8')], sel: 'GPIOOPT8'});
+    }
+    return u;
+  }
   function lilygoPins() {
-    const q = (n) => document.querySelector('[name="' + n + '"]');
     const form = document.querySelector('form[action=saveSettings]');
-    const stop = q('GPIOOPT8'), eq = q('EQSTOP'), dbl = q('CNTCTRLDBL');
-    if (!form || !stop || !eq || !dbl) {
-      return null;
+    if (!form) {
+      return [];
     }
-    //MCP2515 (comm_interface 5) on any interface that is in use; its INT is pin 35
-    const mcp = ['BATTCOMM', 'BATT2COMM', 'BATT3COMM', 'INVCOMM', 'SHUNTCOMM'].some((n) => {
-      const s = q(n);
-      return !!s && s.offsetParent !== null && s.value === '5';
+    const u = lilygoUsers();
+    //Grey out the choices of each pin select that another enabled feature already uses
+    Object.keys(lgPinOf).forEach((sel) => {
+      const s = lgQ(sel);
+      if (!s) {
+        return;
+      }
+      const taken = u.filter((x) => x.sel !== sel).flatMap((x) => x.pins);
+      for (const o of s.options) {
+        o.disabled = taken.includes(lgPinOf[sel][o.value]);
+      }
     });
-    //The firmware drives the 2nd contactors whenever the box is ticked, shown or not
-    const s = {mcp: mcp, dblOn: dbl.checked, cpin: lgContPin[q('GPIOOPT7').value], eqOn: eq.value !== '0',
-               epin: lgStopPin[stop.value]};
-    for (const o of stop.options) {
-      const p = lgStopPin[o.value];
-      o.disabled = (p === 35 && s.mcp) || (s.dblOn && p === s.cpin);
-    }
-    form.setAttribute('data-sdblocked', s.dblOn || (s.eqOn && s.epin !== 35));
-    return s;
+    //Pins 14 and 15 are also the SD slot; the firmware does not start the SD card then
+    form.setAttribute('data-sdblocked', u.some((x) => x.pins.includes(14) || x.pins.includes(15)));
+    return u;
   }
   function validateLilygoPins() {
-    const s = lilygoPins();
-    if (!s || !s.eqOn) {
-      return true;
-    }
-    if (s.epin === 35 && s.mcp) {
-      alert('Equipment stop on Pin 35 cannot be used with the MCP2515 CAN add-on, Pin 35 is its interrupt.\nChoose Pin 15 or Pin 14 for the equipment stop.');
-      document.querySelector('[name="GPIOOPT8"]').focus();
-      return false;
-    }
-    if (s.dblOn && s.epin === s.cpin) {
-      alert('Equipment stop and 2nd battery contactors cannot both use Pin ' + s.cpin + '.');
-      document.querySelector('[name="GPIOOPT8"]').focus();
-      return false;
+    const owner = {};
+    for (const x of lilygoPins()) {
+      for (const p of x.pins) {
+        if (owner[p] && owner[p] !== x.name) {
+          alert('Pin ' + p + ' cannot be used by both ' + owner[p] + ' and ' + x.name + '.\nChoose another pin in Hardware config, or turn one of them off.');
+          if (x.sel) {
+            lgQ(x.sel).focus();
+          }
+          return false;
+        }
+        owner[p] = x.name;
+      }
     }
     return true;
   }
