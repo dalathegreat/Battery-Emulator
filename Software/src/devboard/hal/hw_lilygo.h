@@ -79,10 +79,16 @@ class LilyGoHal : public Esp32Hal {
 
   // SMA CAN contactor pins (Modifiable via Webserver)
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() {
-    if (user_selected_gpioopt3 == GPIOOPT3::DEFAULT_SMA_ENABLE_05) {
-      return GPIO_NUM_5;
-    }  //Else user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_33
-    return GPIO_NUM_33;
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_33) {
+      return GPIO_NUM_33;
+    }
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_15) {
+      return GPIO_NUM_15;
+    }
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_14) {
+      return GPIO_NUM_14;
+    }  //Else user_selected_gpioopt3 == GPIOOPT3::DEFAULT_SMA_ENABLE_05
+    return GPIO_NUM_5;
   }
 
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }

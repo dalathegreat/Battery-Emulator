@@ -160,6 +160,10 @@ enum class GPIOOPT3 {
   DEFAULT_SMA_ENABLE_05 = 0,
   // T-CAN485: Move SMA inverter pin to PIN33
   SMA_ENABLE_33 = 1,
+  // T-CAN485: Move SMA inverter pin to PIN15
+  SMA_ENABLE_15 = 2,
+  // T-CAN485: Move SMA inverter pin to PIN14
+  SMA_ENABLE_14 = 3,
   Highest
 };
 enum class GPIOOPT4 {

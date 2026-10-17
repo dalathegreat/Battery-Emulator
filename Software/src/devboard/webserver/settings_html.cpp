@@ -191,6 +191,10 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
       return "Pin 5";
     case GPIOOPT3::SMA_ENABLE_33:
       return "Pin 33";
+    case GPIOOPT3::SMA_ENABLE_15:
+      return "Pin 15";
+    case GPIOOPT3::SMA_ENABLE_14:
+      return "Pin 14";
     default:
       return nullptr;
   }
@@ -1468,7 +1472,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
   </style>
   <script>
   //Option values of the pin selects to pin numbers, see GPIOOPT2/3/7/8 in types.h and hw_lilygo.h
-  const lgPinOf = {GPIOOPT2: {'0': 18, '1': 25}, GPIOOPT3: {'0': 5, '1': 33}, GPIOOPT7: {'0': 15, '1': 14},
+  const lgPinOf = {GPIOOPT2: {'0': 18, '1': 25}, GPIOOPT3: {'0': 5, '1': 33, '2': 15, '3': 14}, GPIOOPT7: {'0': 15, '1': 14},
                    GPIOOPT8: {'0': 35, '1': 15, '2': 14}};
   const lgQ = (n) => document.querySelector('[name="' + n + '"]');
   const lgChecked = (n) => !!lgQ(n) && lgQ(n).checked;
