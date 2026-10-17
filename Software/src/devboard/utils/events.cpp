@@ -1,6 +1,5 @@
 #include "events.h"
 #include <Arduino.h>
-#include <string.h>  // memchr, for the notice_events lookup
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/utils/logging.h"
@@ -86,10 +85,11 @@ static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
    which drives the LED pattern, the web UI status and inverter behaviour. Marking, say,
    EVENT_MQTT_CONNECT as UPDATE would park the emulator in UPDATING forever.
 
-   Stored as a flat uint8_t table so it costs one byte per entry and a single memchr,
-   rather than the ~8 bytes of compare-and-branch per case a switch would emit. */
-static_assert(EVENT_NOF_EVENTS <= 256, "notice_events[] indexes events as uint8_t");
-static const uint8_t notice_events[] = {
+   Stored as a flat uint16_t table so it costs two bytes per entry and a short loop,
+   rather than the ~8 bytes of compare-and-branch per case a switch would emit.
+   uint8_t would be smaller but there are more than 256 events. */
+static_assert(EVENT_NOF_EVENTS <= 65536, "notice_events[] indexes events as uint16_t");
+static const uint16_t notice_events[] = {
     // Peer detection - latched in check_can_component_alive(), so one line per boot
     EVENT_CAN_BATTERY_DETECTED,
     EVENT_CAN_BATTERY2_DETECTED,
@@ -130,8 +130,12 @@ static const uint8_t notice_events[] = {
 // event to warning or error later cannot be silently undone here.
 static uint8_t event_syslog_severity(EVENTS_ENUM_TYPE event) {
   uint8_t sev = event_level_to_syslog(effective_level(event));
-  if (sev > 5 && memchr(notice_events, (uint8_t)event, sizeof(notice_events)) != nullptr) {
-    sev = 5;  // notice
+  if (sev > 5) {
+    for (uint16_t e : notice_events) {
+      if (e == event) {
+        return 5;  // notice
+      }
+    }
   }
   return sev;
 }
