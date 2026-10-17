@@ -911,7 +911,7 @@ bool compareEventsByTimestampAsc(const EventData& a, const EventData& b) {
 
 static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
-  for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
+  for (uint16_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
       temporary_level = (EVENTS_LEVEL_TYPE)max(effective_level((EVENTS_ENUM_TYPE)i), temporary_level);
     }
