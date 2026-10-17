@@ -17,7 +17,7 @@
     "HTTPPASSCONFIRM": "Repeat the web interface password. Max 63 characters, printable ASCII only.",
 
     "battery": "The battery integration to use. Every supported battery has its own page with wiring and settings: see [Batteries](battery/).",
-    "CHGSTARQ": "Sent to the LBC as CHG_STA_RQ in 0x1F2: Aggressive = 00b, Conservative = 01b (normal charge), Off = 10b (quick charge). The 2nd and 3rd pack have their own, under their interface. The LBC only acts on it while starting up, so a BMS reset is needed to apply a change. See [Nissan LEAF](battery/nissan_leaf_e_nv200/#software-configuration).",
+    "CHGSTARQ": "Sent to the BMS as CHG_STA_RQ in 0x1F2: Aggressive = 00b (drive), Conservative = 01b (normal charge), Off = 10b (quick charge). The 2nd and 3rd pack have their own, under their interface. The BMS only acts on it while starting up, so a BMS reset is needed to apply a change. See [Nissan LEAF](battery/nissan_leaf_e_nv200/#software-configuration).",
     "LEAFAUTOOFS": "Each pack learns what its current sensor reads while its contactor is open, and subtracts that from the measured current. Needs contactor control.",
     "INTERLOCKREQ": "On a ZE0 (2011-2012 24kWh) battery, checks that the original high voltage connectors and SDS are properly seated before starting. On AZE0 and ZE1 batteries both HV plugs would have to be seated. See [Nissan LEAF](battery/nissan_leaf_e_nv200/#software-configuration).",
     "DALYPWRPCT": "Below 20% and above 80% SOC, limit power to this value * SOC% (e.g. 50 W/% means 150W at 3%, 500W at 10%). See [Daly BMS](battery/bms/daly_smartbms/#battery-emulator-configuration).",
