@@ -655,6 +655,56 @@ bool ACAN2517FD::tryToSend (const CANFDMessage & inMessage) {
 
 //----------------------------------------------------------------------------------------------------------------------
 
+//----------------------------------------------------------------------------------------------------------------------
+//    ABORT PENDING TRANSMISSIONS
+//    Sequence from the MCP25XXFD family reference manual (DS20005678), "Aborting a Transmission" and
+//    "Resetting a Transmit FIFO": set CiCON.ABAT; the frame currently on the wire finishes its attempt
+//    and every TXREQ then clears. ABAT must then be cleared by software, or no new message can be
+//    transmitted. Aborted messages stay in the FIFO and the FIFO index does not move, so the FIFO is
+//    reset with FRESET, which is only allowed once no transmission is pending.
+//----------------------------------------------------------------------------------------------------------------------
+
+bool ACAN2517FD::abortPendingTransmissions (const uint32_t inTimeoutMs) {
+//--- Empty the driver queue and stop the "FIFO not full" interrupt from refilling the controller, then
+//    request the abort. Under the SPI transaction with interrupts masked, as tryToSend does, so the
+//    interrupt handler task cannot interleave.
+  mSPI.beginTransaction (mSPISettings) ;
+    turnOffInterrupts () ;
+      mDriverTransmitBuffer.clear () ;
+      uint8_t data8 = 1 << 7 ; // FIFO is a transmit FIFO
+      data8 |= 1 << 4 ; // TXATIE, as configured by begin(); TFNRFNIE ("FIFO not full") left off
+      writeRegister8Assume_SPI_transaction (FIFOCON_REGISTER (TRANSMIT_FIFO_INDEX), data8) ;
+      mHardwareTxFIFOFull = false ;
+      writeRegister8Assume_SPI_transaction (CON_REGISTER + 3, mTXBWS_RequestedMode | (1 << 3)) ; // ABAT
+    turnOnInterrupts () ;
+  mSPI.endTransaction () ;
+//--- Wait until nothing is pending in the transmit FIFO or the TXQ (TXREQ, bit 1 of byte 1). Normally one
+//    frame time plus an error frame; bounded so a stuck controller cannot hold the caller.
+  bool aborted = false ;
+  const uint32_t abortStart = millis () ;
+  do {
+    const uint8_t pending = (readRegister8 (FIFOCON_REGISTER (TRANSMIT_FIFO_INDEX) + 1)
+                           | readRegister8 (TXQCON_REGISTER + 1)) & (1 << 1) ;
+    aborted = pending == 0 ;
+  }while (!aborted && ((millis () - abortStart) <= inTimeoutMs)) ;
+//--- Clear ABAT in every case, keeping the requested mode and TXBWS: left set, it would block every
+//    later transmission. After a timeout this lets the pending frame carry on as before.
+  writeRegister8 (CON_REGISTER + 3, mTXBWS_RequestedMode) ;
+//--- Reset the transmit FIFO so the aborted messages are gone, and wait for the reset to complete
+  if (aborted) {
+    writeRegister8 (FIFOCON_REGISTER (TRANSMIT_FIFO_INDEX) + 1, 1 << 2) ; // FRESET
+    bool reset = false ;
+    const uint32_t resetStart = millis () ;
+    do {
+      reset = (readRegister8 (FIFOCON_REGISTER (TRANSMIT_FIFO_INDEX) + 1) & (1 << 2)) == 0 ;
+    }while (!reset && ((millis () - resetStart) <= inTimeoutMs)) ;
+    aborted = reset ;
+  }
+  return aborted ;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool ACAN2517FD::enterInTransmitBuffer (const CANFDMessage & inMessage) {
   bool result ;
   if (mHardwareTxFIFOFull) {
