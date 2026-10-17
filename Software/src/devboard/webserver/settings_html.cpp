@@ -118,11 +118,10 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
-// CHG_STA_RQ transmitted in 0x1F2 while the LBC starts up. The key is the two-bit signal value
-// itself, which is what gets stored; 11b (charge stop request) is deliberately not offered.
-static const std::map<int, String> leaf_chg_sta_rq = {{0, "other (default)"},
-                                                      {1, "normal charge (experimental)"},
-                                                      {2, "quick charge (experimental)"}};
+// Balancing strategy of a LEAF pack, sent to its LBC as CHG_STA_RQ in 0x1F2 while it starts up.
+// The key is the two-bit signal value itself, which is what gets stored: 00b (no request), 01b
+// (normal charge), 10b (quick charge). 11b (charge stop request) is deliberately not offered.
+static const std::map<int, String> leaf_chg_sta_rq = {{0, "Aggressive"}, {1, "Conservative"}, {2, "Off"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -452,8 +451,17 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy), tesla_pack);
   }
 
+  // One per pack. Unsaved, the 2nd and 3rd show what their pack is running with, i.e. pack 1's.
   if (var == "CHGSTARQ") {
-    return options_from_map(settings.getUInt("CHGSTARQ", user_selected_LEAF_chg_sta_rq), leaf_chg_sta_rq);
+    return options_from_map(settings.getUInt("CHGSTARQ", user_selected_LEAF_chg_sta_rq[0]), leaf_chg_sta_rq);
+  }
+
+  if (var == "CHGSTARQ2") {
+    return options_from_map(settings.getUInt("CHGSTARQ2", user_selected_LEAF_chg_sta_rq[1]), leaf_chg_sta_rq);
+  }
+
+  if (var == "CHGSTARQ3") {
+    return options_from_map(settings.getUInt("CHGSTARQ3", user_selected_LEAF_chg_sta_rq[2]), leaf_chg_sta_rq);
   }
 
   if (var == "CHGSTARQCANRESET") {
@@ -2228,20 +2236,23 @@ String qnhck_zero_text(uint16_t zero_mV) {
     return true;
   }
 
-  //The LBC latches the starting sequence request as it powers up, so a change to it is inert
-  //until the BMS is reset. Offer to do that right away rather than leaving the setting saved
-  //but not in effect.
+  //An LBC latches its balancing strategy as it powers up, so a change to one is inert until the
+  //BMS is reset. Offer to do that right away rather than leaving the setting saved but not in
+  //effect. The reset restarts every pack, so one question covers the strategies of all three.
+  //A strategy counts as changed when its shown select no longer holds the option the page was
+  //served with, which is the one marked selected.
   function confirmBmsRestart() {
-    const sel = document.getElementById('CHGSTARQ');
     const flag = document.getElementById('CHGSTARQRESET');
-    if (!sel || !flag || sel.value === sel.dataset.initial) {
+    const changed = [...document.querySelectorAll('select[name^="CHGSTARQ"]')].some(
+      (sel) => sel.offsetParent !== null && !sel.options[sel.selectedIndex].defaultSelected);
+    if (!flag || !changed) {
       return true;
     }
     if (flag.dataset.canreset !== '1') {
-      alert('The BMS only reads the starting sequence request while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
+      alert('The BMS only reads the balancing strategy while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
       return true;
     }
-    flag.value = window.confirm('The BMS only reads the starting sequence request while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
+    flag.value = window.confirm('The BMS only reads the balancing strategy while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
     return true;
   }
 
@@ -2359,26 +2370,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </select>
 
         <div class="if-nissan">
-            <label for='CHGSTARQ'>BMS starting sequence request: </label>
-            <select name='CHGSTARQ' id='CHGSTARQ'>
-            %CHGSTARQ%
-            </select>
-            <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
-            data-canreset='%CHGSTARQCANRESET%' />
-
             <label for='LEAFAUTOOFS'>Automatic current offset correction: </label>
             <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS% />
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
-
-        <script> //Remember what the LBC is currently being sent, so a change can be spotted on save
-        (function() {
-          const sel = document.getElementById('CHGSTARQ');
-          if (sel) { sel.dataset.initial = sel.value; }
-        })();
-        </script>
 
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
@@ -2586,6 +2583,15 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %BATTCOMM%
         </select>
 
+        <div class="if-nissan">
+            <label for='CHGSTARQ'>Balancing strategy: </label>
+            <select name='CHGSTARQ' id='CHGSTARQ'>
+            %CHGSTARQ%
+            </select>
+            <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
+            data-canreset='%CHGSTARQCANRESET%' />
+        </div>
+
         <div class="if-chemcapable">
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
@@ -2622,6 +2628,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
                 %BATT2COMM%
             </select>
 
+            <div class="if-nissan">
+            <label for='CHGSTARQ2'>Balancing strategy: </label>
+            <select name='CHGSTARQ2' id='CHGSTARQ2'>
+                %CHGSTARQ2%
+            </select>
+            </div>
+
         <div class="if-tricapable">
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% />
@@ -2631,6 +2644,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
+
+        <div class="if-nissan">
+        <label for='CHGSTARQ3'>Balancing strategy: </label>
+        <select name='CHGSTARQ3' id='CHGSTARQ3'>
+            %CHGSTARQ3%
+        </select>
+        </div>
         </div>
 
         </div>
