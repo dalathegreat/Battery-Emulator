@@ -165,6 +165,13 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    */
   bool soh_available = true;
 
+  /** The pack's own BMS reports it fully charged, whatever its SOC reads. Not available for all
+   * battery types. The safety layer raises the installation's EVENT_BATTERY_FULL from this as
+   * well as from the SOC the inverter is sent, while the pack is on the DC link */
+  bool bms_reports_full = false;
+  /** The pack's own BMS reports it completely discharged. See bms_reports_full */
+  bool bms_reports_empty = false;
+
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
    */
@@ -247,9 +254,6 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
-  bool user_requests_tesla_isolation_clear = false;
-  bool user_requests_tesla_bms_reset = false;
-  bool user_requests_tesla_soc_reset = false;
 };
 
 typedef struct {
@@ -258,6 +262,7 @@ typedef struct {
   DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 struct DATALAYER_CHARGER_TYPE {
   /** Charger setpoint voltage */
   float charger_setpoint_HV_VDC = 0;
@@ -289,6 +294,7 @@ struct DATALAYER_CHARGER_TYPE {
   /** True if the 12V DC/DC output is enabled */
   bool charger_aux12V_enabled = false;
 };
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_SHUNT_TYPE {
   /** measured battery voltage in mV (S-BOX) **/
@@ -559,7 +565,9 @@ class DataLayer {
    * whenever it ran as the second or third pack */
   DATALAYER_BATTERY_SETTINGS_TYPE battery_settings;
   DATALAYER_SHUNT_TYPE shunt;
+#ifndef SMALL_FLASH_DEVICE
   DATALAYER_CHARGER_TYPE charger;
+#endif  // SMALL_FLASH_DEVICE
   DATALAYER_SYSTEM_TYPE system;
 };
 

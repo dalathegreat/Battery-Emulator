@@ -173,10 +173,12 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else if (byd_datalayer->servicemode == 2) {
       content += "<h4>ServiceMode: APPROVED! </h4>";
     }
-    content += "<h4>Capacity orignal: " + String((byd_datalayer->BMS_capacity_original_calibration) / 100) + "AH</h4>";
-    content += "<h4>Capacity current: " + String((byd_datalayer->BMS_capacity_current_calibration) / 100) + "AH</h4>";
-    content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration) + "&percnt;</h4>";
-    content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration) + "&percnt;</h4>";
+    content +=
+        "<h4>Capacity orignal: " + String((byd_datalayer->BMS_capacity_original_calibration) / 100.0f) + "AH</h4>";
+    content +=
+        "<h4>Capacity current: " + String((byd_datalayer->BMS_capacity_current_calibration) / 100.0f) + "AH</h4>";
+    content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration / 100.0f) + "&percnt;</h4>";
+    content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration / 100.0f) + "&percnt;</h4>";
 
     // Shared geometry for the three calibration panels below, so they line up with each other.
     // Percent widths are written as &percnt; so no literal '%' reaches the template engine, which would

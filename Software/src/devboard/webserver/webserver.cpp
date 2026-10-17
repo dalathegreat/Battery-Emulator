@@ -8,7 +8,9 @@
 #include "../../battery/BATTERIES.h"
 #include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -629,9 +631,6 @@ void init_webserver() {
             settings.saveUInt(p->name().c_str(), (uint32_t)lroundf(p->value().toFloat() * 10.0f));
           } else if (p->name() == "JKDEADBAND" || p->name() == "JKRESTMA") {
             settings.saveUInt(p->name().c_str(), (uint32_t)lroundf(p->value().toFloat() * 1000.0f));
-          } else if (p->name() == "charger") {
-            auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
-            settings.saveUInt("CHGTYPE", (int)type);
           } else if (p->name() == "CHGSTARQ") {
             // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
             // is not offered, so anything else falls back to "no request".
@@ -643,9 +642,14 @@ void init_webserver() {
             // Unlike the other settings this one is taken into use without a reboot, so the
             // reset offered below sends the newly chosen request rather than the old one.
             user_selected_LEAF_chg_sta_rq = request;
+#ifndef SMALL_FLASH_DEVICE
+          } else if (p->name() == "charger") {
+            auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+            settings.saveUInt("CHGTYPE", (int)type);
           } else if (p->name() == "CHGCOMM") {
             auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
             settings.saveUInt("CHGCOMM", (int)type);
+#endif  // SMALL_FLASH_DEVICE
           } else if (p->name() == "EQSTOP") {
             auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
             settings.saveUInt("EQSTOP", (int)type);
@@ -1167,6 +1171,7 @@ void init_webserver() {
     datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
+#ifndef SMALL_FLASH_DEVICE
   if (charger) {
     // Route for editing ChargerTargetV
     update_string_setting(
@@ -1197,6 +1202,7 @@ void init_webserver() {
     update_int_setting("/updateChargerAux12vEnabled",
                        [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // Send a GET request to <ESP_IP>/update
   def_route_with_auth("/debug", server, HTTP_GET,
@@ -1629,7 +1635,12 @@ static bool render_live(CheckedHtml& content) {
     // Close the block
     content += "</div>";
 
-    if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
+#ifndef SMALL_FLASH_DEVICE
+    const bool charger_in_use = charger != nullptr;
+#else
+    const bool charger_in_use = false;  // Chargers are left out of the small flash devices
+#endif  // SMALL_FLASH_DEVICE
+    if (inverter || battery || charger_in_use || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
@@ -1668,11 +1679,13 @@ static bool render_live(CheckedHtml& content) {
         content += "</h4>";
       }
 
+#ifndef SMALL_FLASH_DEVICE
       if (charger) {
         content += "<h4 style='color: white;'>Charger protocol: ";
         content += charger->name();
         content += "</h4>";
       }
+#endif  // SMALL_FLASH_DEVICE
 
       // Close the block
       content += "</div>";
@@ -1847,6 +1860,7 @@ static bool render_live(CheckedHtml& content) {
     // Close the block
     content += "</div>";
 
+#ifndef SMALL_FLASH_DEVICE
     if (charger) {
       // Start a new block with orange background color
       content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -1893,6 +1907,7 @@ static bool render_live(CheckedHtml& content) {
 
       content += "</div>";
     }
+#endif  // SMALL_FLASH_DEVICE
   }
   return content.good();
 }
