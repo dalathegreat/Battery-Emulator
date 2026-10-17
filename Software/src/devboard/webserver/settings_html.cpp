@@ -209,6 +209,32 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
   }
 }
 
+#ifdef HW_LILYGO
+const char* name_for_gpioopt7(GPIOOPT7 option) {
+  switch (option) {
+    case GPIOOPT7::DEFAULT_BAT2_CONTACTORS_15:
+      return "Pin 15";
+    case GPIOOPT7::BAT2_CONTACTORS_14:
+      return "Pin 14";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_gpioopt8(GPIOOPT8 option) {
+  switch (option) {
+    case GPIOOPT8::DEFAULT_ESTOP_35:
+      return "Pin 35";
+    case GPIOOPT8::ESTOP_15:
+      return "Pin 15";
+    case GPIOOPT8::ESTOP_14:
+      return "Pin 14";
+    default:
+      return nullptr;
+  }
+}
+#endif  // HW_LILYGO
+
 #ifdef HW_STARK
 const char* name_for_gpioopt5(GPIOOPT5 option) {
   switch (option) {
@@ -470,6 +496,16 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
+#ifdef HW_LILYGO
+  if (var == "GPIOOPT7") {
+    return options_for_enum_with_none((GPIOOPT7)settings.getUInt("GPIOOPT7", (int)GPIOOPT7::DEFAULT_BAT2_CONTACTORS_15),
+                                      name_for_gpioopt7, GPIOOPT7::DEFAULT_BAT2_CONTACTORS_15);
+  }
+  if (var == "GPIOOPT8") {
+    return options_for_enum_with_none((GPIOOPT8)settings.getUInt("GPIOOPT8", (int)GPIOOPT8::DEFAULT_ESTOP_35),
+                                      name_for_gpioopt8, GPIOOPT8::DEFAULT_ESTOP_35);
+  }
+#endif  // HW_LILYGO
 #ifdef HW_STARK
   if (var == "GPIOOPT5") {
     return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
@@ -1394,6 +1430,100 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define GPIOOPT4_SETTING ""
 #endif
 
+/* T-CAN485: pins 14 and 15 are shared by the µSD slot, the 2nd battery contactors and the
+   equipment stop, and pin 35 is both the equipment stop and the MCP2515 INT. The page only offers
+   the stop pins that are free, refuses to save a clash, and hides SD logging when the slot's pins
+   are taken. The firmware checks the same at boot. */
+#ifdef HW_LILYGO
+#define GPIOOPT7_SETTING \
+  R"rawliteral(
+            <div class="if-cntctrldbl">
+            <label for="GPIOOPT7">2ⁿᵈ battery contactor pin: </label>
+            <select id="GPIOOPT7" name="GPIOOPT7">
+            %GPIOOPT7%
+            </select>
+            </div>
+  )rawliteral"
+#define GPIOOPT8_SETTING \
+  R"rawliteral(
+        <div class="if-eqstop">
+        <label for="GPIOOPT8">Equipment stop pin: </label>
+        <select id="GPIOOPT8" name="GPIOOPT8">
+        %GPIOOPT8%
+        </select>
+        </div>
+  )rawliteral"
+#define LILYGO_SD_OPEN "<div class='if-sdfree'>"
+#define LILYGO_SD_CLOSE "</div>"
+#define LILYGO_PIN_SUBMIT " && validateLilygoPins()"
+#define LILYGO_PIN_SCRIPT \
+  R"rawliteral(
+  <style>
+    form .if-cntctrldbl, form .if-eqstop { display: none; }
+    form[data-cntctrldbl="true"] .if-cntctrldbl,
+    form[data-eqstop="1"] .if-eqstop,
+    form[data-eqstop="2"] .if-eqstop { display: contents; }
+    form .if-sdfree { display: contents; }
+    form[data-sdblocked="true"] .if-sdfree { display: none; }
+  </style>
+  <script>
+  //GPIOOPT7/GPIOOPT8 option values to pin numbers, see types.h
+  const lgContPin = {'0': 15, '1': 14};
+  const lgStopPin = {'0': 35, '1': 15, '2': 14};
+  function lilygoPins() {
+    const q = (n) => document.querySelector('[name="' + n + '"]');
+    const form = document.querySelector('form[action=saveSettings]');
+    const stop = q('GPIOOPT8'), eq = q('EQSTOP'), dbl = q('CNTCTRLDBL');
+    if (!form || !stop || !eq || !dbl) {
+      return null;
+    }
+    //MCP2515 (comm_interface 5) on any interface that is in use; its INT is pin 35
+    const mcp = ['BATTCOMM', 'BATT2COMM', 'BATT3COMM', 'INVCOMM', 'SHUNTCOMM'].some((n) => {
+      const s = q(n);
+      return !!s && s.offsetParent !== null && s.value === '5';
+    });
+    //The firmware drives the 2nd contactors whenever the box is ticked, shown or not
+    const s = {mcp: mcp, dblOn: dbl.checked, cpin: lgContPin[q('GPIOOPT7').value], eqOn: eq.value !== '0',
+               epin: lgStopPin[stop.value]};
+    for (const o of stop.options) {
+      const p = lgStopPin[o.value];
+      o.disabled = (p === 35 && s.mcp) || (s.dblOn && p === s.cpin);
+    }
+    form.setAttribute('data-sdblocked', s.dblOn || (s.eqOn && s.epin !== 35));
+    return s;
+  }
+  function validateLilygoPins() {
+    const s = lilygoPins();
+    if (!s || !s.eqOn) {
+      return true;
+    }
+    if (s.epin === 35 && s.mcp) {
+      alert('Equipment stop on Pin 35 cannot be used with the MCP2515 CAN add-on, Pin 35 is its interrupt.\nChoose Pin 15 or Pin 14 for the equipment stop.');
+      document.querySelector('[name="GPIOOPT8"]').focus();
+      return false;
+    }
+    if (s.dblOn && s.epin === s.cpin) {
+      alert('Equipment stop and 2nd battery contactors cannot both use Pin ' + s.cpin + '.');
+      document.querySelector('[name="GPIOOPT8"]').focus();
+      return false;
+    }
+    return true;
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('select,input').forEach(function(el) { el.addEventListener('change', lilygoPins); });
+    lilygoPins();
+  });
+  </script>
+  )rawliteral"
+#else
+#define GPIOOPT7_SETTING ""
+#define GPIOOPT8_SETTING ""
+#define LILYGO_SD_OPEN ""
+#define LILYGO_SD_CLOSE ""
+#define LILYGO_PIN_SUBMIT ""
+#define LILYGO_PIN_SCRIPT ""
+#endif  // HW_LILYGO
+
 #ifdef HW_STARK
 #define GPIOOPT5_SETTING \
   R"rawliteral(
@@ -1994,7 +2124,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY \
+#define SETTINGS_HTML_BODY                                                                                                                                \
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
@@ -2075,9 +2205,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
     document.querySelector('input[name="HTTPPASSCONFIRM"]').type = fieldType;
   }
   </script>
+)rawliteral" LILYGO_PIN_SCRIPT R"rawliteral(
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && validateBatteryInterfaces() && confirmBmsRestart()'>
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && validateBatteryInterfaces())rawliteral" LILYGO_PIN_SUBMIT \
+  R"rawliteral( && confirmBmsRestart()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
           <p>Settings saved. Reboot to take the new settings into use.<p> <button type='button' onclick='askReboot()'>Reboot</button>
@@ -2618,8 +2750,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Equipment stop button: </label><select name='EQSTOP'>
-        %EQSTOP%  
+        %EQSTOP%
         </select>
+        )rawliteral" GPIOOPT8_SETTING R"rawliteral(
 
         <label>Contactor control via GPIO: </label>
         <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
@@ -2627,6 +2760,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <div class="if-dblbtr">
             <label>2ⁿᵈ battery contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
+            )rawliteral" GPIOOPT7_SETTING R"rawliteral(
             <div class="if-tribtr">
                 <label>3ʳᵈ battery contactor control via GPIO: </label>
                 <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
@@ -2799,7 +2933,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <label>CAN message logging via USB serial: </label>
         <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB% />
 
-        )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
+        )rawliteral" LILYGO_SD_OPEN SD_SETTING_HTML LILYGO_SD_CLOSE SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
         </div>

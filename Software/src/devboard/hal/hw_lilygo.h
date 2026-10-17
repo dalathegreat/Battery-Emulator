@@ -65,7 +65,12 @@ class LilyGoHal : public Esp32Hal {
   }
   // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
   virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
-  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
+  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() {  // (Modifiable via Webserver)
+    if (user_selected_gpioopt7 == GPIOOPT7::BAT2_CONTACTORS_14) {
+      return GPIO_NUM_14;
+    }  //Else user_selected_gpioopt7 == GPIOOPT7::DEFAULT_BAT2_CONTACTORS_15
+    return GPIO_NUM_15;
+  }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_25; }
@@ -114,8 +119,16 @@ class LilyGoHal : public Esp32Hal {
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
 
-  // Equipment stop pin
-  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_35; }
+  // Equipment stop pin (Modifiable via Webserver). PIN35 is also the MCP2515 INT.
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() {
+    if (user_selected_gpioopt8 == GPIOOPT8::ESTOP_15) {
+      return GPIO_NUM_15;
+    }
+    if (user_selected_gpioopt8 == GPIOOPT8::ESTOP_14) {
+      return GPIO_NUM_14;
+    }  //Else user_selected_gpioopt8 == GPIOOPT8::DEFAULT_ESTOP_35
+    return GPIO_NUM_35;
+  }
 
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }

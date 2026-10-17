@@ -514,6 +514,9 @@ void init_webserver() {
       "JKDCHGW",       "JKRESTMS",      "JKDMINW",       "JKCMINW",    "JKMAXBAL",    "JKCELLMAX",    "JKCELLMIN",
       "JKCELLDEV",     "JKPACKMAX",     "JKPACKMIN",     "JKVFON",     "JKVFOFF",     "JKVEMON",      "JKVEMOFF",
       "JKCELLS",       "JKCPB",         "JKFWVER",       "JKFWMASK",   "JKCABID",     "JKCABID2",
+#ifdef HW_LILYGO
+      "GPIOOPT7",      "GPIOOPT8",
+#endif  // HW_LILYGO
 #ifndef SMALL_FLASH_DEVICE
       "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
