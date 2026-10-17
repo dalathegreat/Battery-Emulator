@@ -7,9 +7,10 @@
 #include "NISSAN-LEAF-HTML.h"
 
 extern bool user_selected_LEAF_interlock_mandatory;
-//CHG_STA_RQ value transmitted in 0x1F2 as the BMS starts up: 0 = 00b (no request), 1 = 01b
-//(normal charge), 2 = 10b (quick charge). Only ever holds one of those three.
-extern uint8_t user_selected_LEAF_chg_sta_rq;
+//Balancing strategy of each pack, indexed by battery_index - 1: the CHG_STA_RQ value its LBC is
+//sent in 0x1F2 as it starts up. 0 = 00b (aggressive, no request), 1 = 01b (conservative, normal
+//charge), 2 = 10b (off, quick charge). Only ever holds one of those three.
+extern uint8_t user_selected_LEAF_chg_sta_rq[3];
 
 class NissanLeafBattery : public CanBattery {
  public:
@@ -210,8 +211,8 @@ class NissanLeafBattery : public CanBattery {
 
   // These CAN messages need to be sent towards the battery to keep it alive
   //Byte 2 carries CHG_STA_RQ (Charge_StatusTransitionRequest) in bits 6-5, left at 00b here and
-  //overwritten from the user setting on every transmission. The low nibble of byte 7 is the
-  //message checksum, so the constants in this file are the ones that go with 00b.
+  //overwritten from this pack's balancing strategy on every transmission. The low nibble of byte 7
+  //is the message checksum, so the constants in this file are the ones that go with 00b.
   CAN_frame LEAF_1F2 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
