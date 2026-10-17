@@ -440,6 +440,7 @@ bool battery_supports_triple(BatteryType type) {
 // so the settings page stops offering a capacity the driver will overwrite.
 bool battery_detects_capacity(BatteryType type) {
   switch (type) {
+    case BatteryType::AiwaysU5:
     case BatteryType::Akasol:
     case BatteryType::BmwI3:
     case BatteryType::BmwIX:
