@@ -104,13 +104,10 @@ const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
-<<<<<<< HEAD
     case BatteryType::AiwaysU5:
       return AiwaysU5Battery::Name;
-=======
     case BatteryType::Akasol:
       return AkasolBattery::Name;
->>>>>>> main
     case BatteryType::BmwI3:
       return BmwI3Battery::Name;
     case BatteryType::BmwIX:
