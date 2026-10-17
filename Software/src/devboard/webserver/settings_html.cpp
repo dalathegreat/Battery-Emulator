@@ -181,6 +181,8 @@ const char* name_for_gpioopt2(GPIOOPT2 option) {
       return "Pin 18";
     case GPIOOPT2::BMS_POWER_25:
       return "Pin 25";
+    case GPIOOPT2::BMS_POWER_02:
+      return "Pin 2";
     default:
       return nullptr;
   }
@@ -195,6 +197,8 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
       return "Pin 15";
     case GPIOOPT3::SMA_ENABLE_14:
       return "Pin 14";
+    case GPIOOPT3::SMA_ENABLE_02:
+      return "Pin 2";
     default:
       return nullptr;
   }
@@ -220,6 +224,8 @@ const char* name_for_gpioopt7(GPIOOPT7 option) {
       return "Pin 15";
     case GPIOOPT7::BAT2_CONTACTORS_14:
       return "Pin 14";
+    case GPIOOPT7::BAT2_CONTACTORS_02:
+      return "Pin 2";
     default:
       return nullptr;
   }
@@ -233,6 +239,8 @@ const char* name_for_gpioopt8(GPIOOPT8 option) {
       return "Pin 15";
     case GPIOOPT8::ESTOP_14:
       return "Pin 14";
+    case GPIOOPT8::ESTOP_02:
+      return "Pin 2";
     default:
       return nullptr;
   }
@@ -1472,8 +1480,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
   </style>
   <script>
   //Option values of the pin selects to pin numbers, see GPIOOPT2/3/7/8 in types.h and hw_lilygo.h
-  const lgPinOf = {GPIOOPT2: {'0': 18, '1': 25}, GPIOOPT3: {'0': 5, '1': 33, '2': 15, '3': 14}, GPIOOPT7: {'0': 15, '1': 14},
-                   GPIOOPT8: {'0': 35, '1': 15, '2': 14}};
+  const lgPinOf = {GPIOOPT2: {'0': 18, '1': 25, '2': 2}, GPIOOPT3: {'0': 5, '1': 33, '2': 15, '3': 14, '4': 2},
+                   GPIOOPT7: {'0': 15, '1': 14, '2': 2}, GPIOOPT8: {'0': 35, '1': 15, '2': 14, '3': 2}};
   const lgQ = (n) => document.querySelector('[name="' + n + '"]');
   const lgChecked = (n) => !!lgQ(n) && lgQ(n).checked;
   const lgPin = (n) => lgQ(n) ? lgPinOf[n][lgQ(n).value] : undefined;
@@ -1527,8 +1535,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
         o.disabled = taken.includes(lgPinOf[sel][o.value]);
       }
     });
-    //Pins 14 and 15 are also the SD slot; the firmware does not start the SD card then
-    form.setAttribute('data-sdblocked', u.some((x) => x.pins.includes(14) || x.pins.includes(15)));
+    //Pins 2, 14 and 15 are also the SD slot; the firmware does not start the SD card then
+    form.setAttribute('data-sdblocked', u.some((x) => x.pins.some((p) => p === 2 || p === 14 || p === 15)));
     return u;
   }
   function validateLilygoPins() {

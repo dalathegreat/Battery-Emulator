@@ -680,22 +680,25 @@ void setup() {
 
 #ifdef SDCARD
 #ifdef HW_LILYGO
-  // IO14/IO15 are shared by the SD slot, the 2nd battery contactors, the equipment stop and the SMA
-  // enable input. The SD card is set up from its own task while init_contactors() and
-  // setup_inverter() run, so it is not started at all when either pin belongs to something else.
+  // IO2/IO14/IO15 are shared by the SD slot, the 2nd battery contactors, BMS power, the equipment
+  // stop and the SMA enable input. The SD card is set up from its own task while init_contactors()
+  // and setup_inverter() run, so it is not started at all when one of them belongs to something else.
   {
-    auto stop_pin = esp32hal->EQUIPMENT_STOP_PIN();
-    bool stop_on_sd_pin = equipment_stop_behavior != STOP_BUTTON_BEHAVIOR::NOT_CONNECTED &&
-                          (stop_pin == GPIO_NUM_14 || stop_pin == GPIO_NUM_15);
-    auto sma_pin = esp32hal->INVERTER_CONTACTOR_ENABLE_PIN();
-    bool sma_on_sd_pin = (user_selected_inverter_protocol == InverterProtocolType::SmaBydH ||
-                          user_selected_inverter_protocol == InverterProtocolType::SmaBydHvs ||
-                          user_selected_inverter_protocol == InverterProtocolType::SmaSBSByd) &&
-                         (sma_pin == GPIO_NUM_14 || sma_pin == GPIO_NUM_15);
-    if ((contactor_control_enabled_double_battery || stop_on_sd_pin || sma_on_sd_pin) &&
-        (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active)) {
+    auto on_sd_pin = [](gpio_num_t pin) {
+      return pin == GPIO_NUM_2 || pin == GPIO_NUM_14 || pin == GPIO_NUM_15;
+    };
+    bool sma_protocol = user_selected_inverter_protocol == InverterProtocolType::SmaBydH ||
+                        user_selected_inverter_protocol == InverterProtocolType::SmaBydHvs ||
+                        user_selected_inverter_protocol == InverterProtocolType::SmaSBSByd;
+    bool pins_taken =
+        (contactor_control_enabled_double_battery && on_sd_pin(esp32hal->SECOND_BATTERY_CONTACTORS_PIN())) ||
+        (bms_power_is_active() && on_sd_pin(esp32hal->BMS_POWER())) ||
+        (equipment_stop_behavior != STOP_BUTTON_BEHAVIOR::NOT_CONNECTED && on_sd_pin(esp32hal->EQUIPMENT_STOP_PIN())) ||
+        (sma_protocol && on_sd_pin(esp32hal->INVERTER_CONTACTOR_ENABLE_PIN()));
+    if (pins_taken && (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active)) {
       logging.println(
-          "SD card not started: its pins are used by the 2nd battery contactors, equipment stop or SMA enable");
+          "SD card not started: its pins are used by the 2nd battery contactors, BMS power, equipment stop or SMA "
+          "enable");
       datalayer.system.info.SD_logging_active = false;
       datalayer.system.info.CAN_SD_logging_active = false;
     }
