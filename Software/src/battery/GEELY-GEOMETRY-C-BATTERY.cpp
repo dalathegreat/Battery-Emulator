@@ -100,9 +100,9 @@ void GeelyGeometryCBattery::update_values() {
   datalayer_battery->status.temperature_max_dC = maximum_temperature * 10;
 
   if (HVIL_signal > 0) {
-    set_event(EVENT_HVIL_FAILURE, HVIL_signal);
+    set_event(EVENT_HVIL_FAILURE, HVIL_signal, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   //Update webserver more battery info page

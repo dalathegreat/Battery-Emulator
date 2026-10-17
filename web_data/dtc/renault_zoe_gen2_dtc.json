@@ -1,0 +1,442 @@
+[
+  {
+    "dtc": "P1B00",
+    "l_dsc": "Low voltage supply input"
+  },
+  {
+    "dtc": "P1B01",
+    "l_dsc": "Cell input lines"
+  },
+  {
+    "dtc": "P1B02",
+    "l_dsc": "Battery pack voltage"
+  },
+  {
+    "dtc": "P1B03",
+    "l_dsc": "Current sensor input"
+  },
+  {
+    "dtc": "P1B04",
+    "l_dsc": "Few module thermistors in failure"
+  },
+  {
+    "dtc": "P1B05",
+    "l_dsc": "Many module thermistors in failure"
+  },
+  {
+    "dtc": "P1B06",
+    "l_dsc": "All module thermistors in failure"
+  },
+  {
+    "dtc": "P1B07",
+    "l_dsc": "Cooling thermistor input"
+  },
+  {
+    "dtc": "P1B08",
+    "l_dsc": "FAN speed input"
+  },
+  {
+    "dtc": "P1B09",
+    "l_dsc": "FAN control output"
+  },
+  {
+    "dtc": "P1B0A",
+    "l_dsc": "Main relay control output"
+  },
+  {
+    "dtc": "P1B0B",
+    "l_dsc": "Precharge relay control output"
+  },
+  {
+    "dtc": "P1B0C",
+    "l_dsc": "Battery pack temperature"
+  },
+  {
+    "dtc": "P1B0D",
+    "l_dsc": "Internal memory RAM/ROM"
+  },
+  {
+    "dtc": "P1B0E",
+    "l_dsc": "External NV memory (EEPROM, FLASH)"
+  },
+  {
+    "dtc": "P1B0F",
+    "l_dsc": "Analog to Digital Converter"
+  },
+  {
+    "dtc": "P1B10",
+    "l_dsc": "Master CPU/Slave Communication"
+  },
+  {
+    "dtc": "P1B12",
+    "l_dsc": "Main ASSP"
+  },
+  {
+    "dtc": "P1B14",
+    "l_dsc": "Relay 3 control output"
+  },
+  {
+    "dtc": "P1B15",
+    "l_dsc": "Temp 2 thermistor input"
+  },
+  {
+    "dtc": "P1B16",
+    "l_dsc": "MCPU/PCB temperature sensor"
+  },
+  {
+    "dtc": "P1B17",
+    "l_dsc": "Air/Ambient thermistor input"
+  },
+  {
+    "dtc": "P1B18",
+    "l_dsc": "Interlock1"
+  },
+  {
+    "dtc": "P1B19",
+    "l_dsc": "Interlock2"
+  },
+  {
+    "dtc": "P1B1A",
+    "l_dsc": "Interlock3"
+  },
+  {
+    "dtc": "P1B1B",
+    "l_dsc": "Interlock4"
+  },
+  {
+    "dtc": "P1B1C",
+    "l_dsc": "Busbar"
+  },
+  {
+    "dtc": "P1B1D",
+    "l_dsc": "Current sensor 5V supply"
+  },
+  {
+    "dtc": "P1B1E",
+    "l_dsc": "Current sensor 12V supply"
+  },
+  {
+    "dtc": "P1B1F",
+    "l_dsc": "CAN current sensor (MCPU)"
+  },
+  {
+    "dtc": "P1B20",
+    "l_dsc": "Relay 4 control output"
+  },
+  {
+    "dtc": "P1B21",
+    "l_dsc": "Flash memory failure (FOTA)"
+  },
+  {
+    "dtc": "P1B30",
+    "l_dsc": "Module thermistor 1"
+  },
+  {
+    "dtc": "P1B31",
+    "l_dsc": "Module thermistor 2"
+  },
+  {
+    "dtc": "P1B32",
+    "l_dsc": "Module thermistor 3"
+  },
+  {
+    "dtc": "P1B33",
+    "l_dsc": "Module thermistor 4"
+  },
+  {
+    "dtc": "P1B34",
+    "l_dsc": "Module thermistor 5"
+  },
+  {
+    "dtc": "P1B35",
+    "l_dsc": "Module thermistor 6"
+  },
+  {
+    "dtc": "P1B36",
+    "l_dsc": "Module thermistor 7"
+  },
+  {
+    "dtc": "P1B37",
+    "l_dsc": "Module thermistor 8"
+  },
+  {
+    "dtc": "P1B38",
+    "l_dsc": "Module thermistor 9"
+  },
+  {
+    "dtc": "P1B39",
+    "l_dsc": "Module thermistor 10"
+  },
+  {
+    "dtc": "P1B3A",
+    "l_dsc": "Module thermistor 11"
+  },
+  {
+    "dtc": "P1B3B",
+    "l_dsc": "Module thermistor 12"
+  },
+  {
+    "dtc": "P1B3C",
+    "l_dsc": "Module thermistor 13"
+  },
+  {
+    "dtc": "P1B3D",
+    "l_dsc": "Module thermistor 14"
+  },
+  {
+    "dtc": "P1B3E",
+    "l_dsc": "Module thermistor 15"
+  },
+  {
+    "dtc": "P1B3F",
+    "l_dsc": "Module thermistor 16"
+  },
+  {
+    "dtc": "P1B40",
+    "l_dsc": "Module thermistor 17"
+  },
+  {
+    "dtc": "P1B41",
+    "l_dsc": "Module thermistor 18"
+  },
+  {
+    "dtc": "P1B42",
+    "l_dsc": "Module thermistor 19"
+  },
+  {
+    "dtc": "P1B43",
+    "l_dsc": "Module thermistor 20"
+  },
+  {
+    "dtc": "P1B44",
+    "l_dsc": "Module thermistor 21"
+  },
+  {
+    "dtc": "P1B45",
+    "l_dsc": "Module thermistor 22"
+  },
+  {
+    "dtc": "P1B46",
+    "l_dsc": "Module thermistor 23"
+  },
+  {
+    "dtc": "P1B47",
+    "l_dsc": "Module thermistor 24"
+  },
+  {
+    "dtc": "P1B48",
+    "l_dsc": "Module thermistor 25"
+  },
+  {
+    "dtc": "P1B49",
+    "l_dsc": "Module thermistor 26"
+  },
+  {
+    "dtc": "P1B4A",
+    "l_dsc": "Module thermistor 27"
+  },
+  {
+    "dtc": "P1B4B",
+    "l_dsc": "Module thermistor 28"
+  },
+  {
+    "dtc": "P1B4C",
+    "l_dsc": "Module thermistor 29"
+  },
+  {
+    "dtc": "P1B4D",
+    "l_dsc": "Module thermistor 30"
+  },
+  {
+    "dtc": "P1B4E",
+    "l_dsc": "Module thermistor 31"
+  },
+  {
+    "dtc": "P1B4F",
+    "l_dsc": "Module thermistor 32"
+  },
+  {
+    "dtc": "P1B60",
+    "l_dsc": "Cell sensing lines - Module 1"
+  },
+  {
+    "dtc": "P1B61",
+    "l_dsc": "Cell sensing lines - Module 2"
+  },
+  {
+    "dtc": "P1B62",
+    "l_dsc": "Cell sensing lines - Module 3"
+  },
+  {
+    "dtc": "P1B63",
+    "l_dsc": "Cell sensing lines - Module 4"
+  },
+  {
+    "dtc": "P1B64",
+    "l_dsc": "Cell sensing lines - Module 5"
+  },
+  {
+    "dtc": "P1B65",
+    "l_dsc": "Cell sensing lines - Module 6"
+  },
+  {
+    "dtc": "P1B66",
+    "l_dsc": "Cell sensing lines - Module 7"
+  },
+  {
+    "dtc": "P1B67",
+    "l_dsc": "Cell sensing lines - Module 8"
+  },
+  {
+    "dtc": "P1B68",
+    "l_dsc": "Cell sensing lines - Module 9"
+  },
+  {
+    "dtc": "P1B69",
+    "l_dsc": "Cell sensing lines - Module 10"
+  },
+  {
+    "dtc": "P1B6A",
+    "l_dsc": "Cell sensing lines - Module 11"
+  },
+  {
+    "dtc": "P1B6B",
+    "l_dsc": "Cell sensing lines - Module 12"
+  },
+  {
+    "dtc": "P1B6C",
+    "l_dsc": "Cell sensing lines - Module 13"
+  },
+  {
+    "dtc": "P1B6D",
+    "l_dsc": "Cell sensing lines - Module 14"
+  },
+  {
+    "dtc": "P1B6E",
+    "l_dsc": "Cell sensing lines - Module 15"
+  },
+  {
+    "dtc": "P1B6F",
+    "l_dsc": "Cell sensing lines - Module 16"
+  },
+  {
+    "dtc": "P1B70",
+    "l_dsc": "Cell sensing lines - Module 17"
+  },
+  {
+    "dtc": "P1B71",
+    "l_dsc": "Cell sensing lines - Module 18"
+  },
+  {
+    "dtc": "P1B72",
+    "l_dsc": "Cell sensing lines - Module 19"
+  },
+  {
+    "dtc": "P1B73",
+    "l_dsc": "Cell sensing lines - Module 20"
+  },
+  {
+    "dtc": "P1B74",
+    "l_dsc": "Cell sensing lines - Module 21"
+  },
+  {
+    "dtc": "P1B80",
+    "l_dsc": "State of Charge Estimation"
+  },
+  {
+    "dtc": "P1B81",
+    "l_dsc": "State of Health Estimation"
+  },
+  {
+    "dtc": "P1B82",
+    "l_dsc": "Available Power"
+  },
+  {
+    "dtc": "P1B83",
+    "l_dsc": "Cell SOHP"
+  },
+  {
+    "dtc": "P1BA0",
+    "l_dsc": "Low voltage supply input (SCPU)"
+  },
+  {
+    "dtc": "P1BA1",
+    "l_dsc": "Cell input lines (SCPU)"
+  },
+  {
+    "dtc": "P1BA2",
+    "l_dsc": "Insulation Resistance measurement circuit"
+  },
+  {
+    "dtc": "P1BA3",
+    "l_dsc": "SCPU/PCB temperature sensor"
+  },
+  {
+    "dtc": "P1BA4",
+    "l_dsc": "Current sensor input1"
+  },
+  {
+    "dtc": "P1BAD",
+    "l_dsc": "Internal memory RAM/ROM (SCPU)"
+  },
+  {
+    "dtc": "P1BAE",
+    "l_dsc": "External NV memory (EEPROM, FLASH)1"
+  },
+  {
+    "dtc": "P1BAF",
+    "l_dsc": "ADC (Analog-To-Digital ) Conversion Failure - BMS2"
+  },
+  {
+    "dtc": "P1BB1",
+    "l_dsc": "Safety CPU/Slave Communication"
+  },
+  {
+    "dtc": "P1BB2",
+    "l_dsc": "ASIC (redundancy)"
+  },
+  {
+    "dtc": "P1BB3",
+    "l_dsc": "Hot Spot (SPARE) sensor"
+  },
+  {
+    "dtc": "P1BB4",
+    "l_dsc": "Pack module temperature sensor (SCPU)"
+  },
+  {
+    "dtc": "P1BB5",
+    "l_dsc": "CAN current sensor (SCPU)1"
+  },
+  {
+    "dtc": "P1BB6",
+    "l_dsc": "Flash memory failure (FOTA) (SCPU)"
+  },
+  {
+    "dtc": "PE140",
+    "l_dsc": "CAN from HECM"
+  },
+  {
+    "dtc": "PE142",
+    "l_dsc": "CAN from Inverter"
+  },
+  {
+    "dtc": "PE143",
+    "l_dsc": "CAN from EVC/HEVC"
+  },
+  {
+    "dtc": "PE144",
+    "l_dsc": "CAN from BMS1"
+  },
+  {
+    "dtc": "PEA0D",
+    "l_dsc": "CAN controller (MCPU)"
+  },
+  {
+    "dtc": "PFD00",
+    "l_dsc": "FOTA : SW bloc"
+  },
+  {
+    "dtc": "PFD01",
+    "l_dsc": "FOTA : Calibration bloc"
+  }
+]

@@ -34,7 +34,7 @@ void HyundaiIoniq28Battery::
   memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
 
   if (leadAcidBatteryVoltage < 110) {
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
   }
 }
 

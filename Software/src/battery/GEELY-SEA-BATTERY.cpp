@@ -48,11 +48,9 @@ void GeelySeaBattery::
     datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
   }
 
-  if (datalayer_extended.GeelySEA.CellTempHighest > 0) {
+  if ((datalayer_extended.GeelySEA.CellTempHighest > 0) && (datalayer_extended.GeelySEA.CellTempLowest > 0)) {
+    //Only write to datalayer when both values have been read once, otherwise large delta safeties will trigger
     datalayer.battery.status.temperature_max_dC = ((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0) * 10;
-  }
-
-  if (datalayer_extended.GeelySEA.CellTempLowest > 0) {
     datalayer.battery.status.temperature_min_dC = ((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0) * 10;
   }
 
@@ -87,9 +85,9 @@ void GeelySeaBattery::
   /* Check safeties */
   if (datalayer_extended.GeelySEA.BECMsupplyVoltage > 0) {
     if (datalayer_extended.GeelySEA.BECMsupplyVoltage < 11800) {  // 11.8 V
-      set_event(EVENT_12V_LOW, (datalayer_extended.GeelySEA.BECMsupplyVoltage / 10));
+      set_event(EVENT_12V_LOW, (datalayer_extended.GeelySEA.BECMsupplyVoltage / 10), battery_index);
     } else {
-      clear_event(EVENT_12V_LOW);
+      clear_event(EVENT_12V_LOW, battery_index);
     }
   }
 }

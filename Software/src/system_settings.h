@@ -36,7 +36,7 @@
  * Description:
  * Basically the length of the array used to hold individual cell voltages
 */
-#define MAX_AMOUNT_CELLS 192
+#define MAX_AMOUNT_CELLS 200
 
 // AsyncTCP should only need a 4k stack (default is 16k)
 #define CONFIG_ASYNC_TCP_STACK_SIZE 4096

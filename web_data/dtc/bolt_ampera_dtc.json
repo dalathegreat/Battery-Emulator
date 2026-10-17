@@ -1,0 +1,2030 @@
+[
+  {
+    "dtc": "P0A0C",
+    "l_dsc": "High Voltage System Interlock Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0A0D",
+    "l_dsc": "High Voltage System Interlock Circuit High Voltage"
+  },
+  {
+    "dtc": "P0A7F",
+    "l_dsc": "Hybrid/EV Battery Pack Life"
+  },
+  {
+    "dtc": "P0AA1",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Circuit Stuck Closed"
+  },
+  {
+    "dtc": "P0AA4",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Circuit Stuck Closed"
+  },
+  {
+    "dtc": "P0AD9",
+    "l_dsc": "Hybrid/EV Battery Positive Contactor Control Circuit"
+  },
+  {
+    "dtc": "P0ADD",
+    "l_dsc": "Hybrid/EV Battery Negative Contactor Control Circuit"
+  },
+  {
+    "dtc": "P0AE4",
+    "l_dsc": "Hybrid/EV Battery Precharge Contactor Control Circuit"
+  },
+  {
+    "dtc": "P0D0A",
+    "l_dsc": "Battery Charging System Positive Contactor Control Circuit"
+  },
+  {
+    "dtc": "P0D09",
+    "l_dsc": "Battery Charging System Positive Contactor Stuck Open"
+  },
+  {
+    "dtc": "P1EBD",
+    "l_dsc": "Battery Charging System Contactor (s) Stuck Open"
+  },
+  {
+    "dtc": "P1EC0",
+    "l_dsc": "Hybrid/EV Battery System Contactor (s) Stuck Open"
+  },
+  {
+    "dtc": "P1EC3",
+    "l_dsc": "Hybrid/EV Battery Pack Heater Transistor Control Circuit"
+  },
+  {
+    "dtc": "P0AA6",
+    "l_dsc": "Hybrid/EV Battery Voltage System Isolation Lost"
+  },
+  {
+    "dtc": "P1AE6",
+    "l_dsc": "Battery Energy Control Module Hybrid/EV Battery Voltage Isolation Sensor Circuit"
+  },
+  {
+    "dtc": "P0ABB",
+    "l_dsc": "Hybrid/EV Battery Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P0ABC",
+    "l_dsc": "Hybrid/EV Battery Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0ABD",
+    "l_dsc": "Hybrid/EV Battery Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P0AC1",
+    "l_dsc": "Hybrid/EV Battery Low Resolution Current Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0AC2",
+    "l_dsc": "Hybrid/EV Battery Low Resolution Current Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B10",
+    "l_dsc": "Hybrid/EV Battery High Resolution Current Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B11",
+    "l_dsc": "Hybrid/EV Battery High Resolution Current Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B13",
+    "l_dsc": "Hybrid/EV Battery Low Resolution Current Sensor - High Resolution Current Sensor Not Plausible"
+  },
+  {
+    "dtc": "P1EBA",
+    "l_dsc": "Hybrid/EV Battery Low Resolution Current Sensor Exceeded Learning Limit"
+  },
+  {
+    "dtc": "P1EBB",
+    "l_dsc": "Hybrid/EV Battery High Resolution Current Sensor Exceeded Learning Limit"
+  },
+  {
+    "dtc": "P0AF8",
+    "l_dsc": "Hybrid System Voltage"
+  },
+  {
+    "dtc": "P0AFA",
+    "l_dsc": "Hybrid/EV Battery System Voltage Low Voltage"
+  },
+  {
+    "dtc": "P0AFB",
+    "l_dsc": "Hybrid/EV Battery System Voltage High Voltage"
+  },
+  {
+    "dtc": "P0B3B",
+    "l_dsc": "Hybrid/EV Battery 1 Circuit"
+  },
+  {
+    "dtc": "P0B3C",
+    "l_dsc": "Hybrid/EV Battery 1 Circuit Performance"
+  },
+  {
+    "dtc": "P0B3D",
+    "l_dsc": "Hybrid/EV Battery 1 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B3E",
+    "l_dsc": "Hybrid/EV Battery 1 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B40",
+    "l_dsc": "Hybrid/EV Battery 2 Circuit"
+  },
+  {
+    "dtc": "P0B41",
+    "l_dsc": "Hybrid/EV Battery 2 Circuit Performance"
+  },
+  {
+    "dtc": "P0B42",
+    "l_dsc": "Hybrid/EV Battery 2 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B43",
+    "l_dsc": "Hybrid/EV Battery 2 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B45",
+    "l_dsc": "Hybrid/EV Battery 3 Circuit"
+  },
+  {
+    "dtc": "P0B46",
+    "l_dsc": "Hybrid/EV Battery 3 Circuit Performance"
+  },
+  {
+    "dtc": "P0B47",
+    "l_dsc": "Hybrid/EV Battery 3 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B48",
+    "l_dsc": "Hybrid/EV Battery 3 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B4A",
+    "l_dsc": "Hybrid/EV Battery 4 Circuit"
+  },
+  {
+    "dtc": "P0B4B",
+    "l_dsc": "Hybrid/EV Battery 4 Circuit Performance"
+  },
+  {
+    "dtc": "P0B4C",
+    "l_dsc": "Hybrid/EV Battery 4 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B4D",
+    "l_dsc": "Hybrid/EV Battery 4 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B4F",
+    "l_dsc": "Hybrid/EV Battery 5 Circuit"
+  },
+  {
+    "dtc": "P0B50",
+    "l_dsc": "Hybrid/EV Battery 5 Circuit Performance"
+  },
+  {
+    "dtc": "P0B51",
+    "l_dsc": "Hybrid/EV Battery 5 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B52",
+    "l_dsc": "Hybrid/EV Battery 5 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B54",
+    "l_dsc": "Hybrid/EV Battery 6 Circuit"
+  },
+  {
+    "dtc": "P0B55",
+    "l_dsc": "Hybrid/EV Battery 6 Circuit Performance"
+  },
+  {
+    "dtc": "P0B56",
+    "l_dsc": "Hybrid/EV Battery 6 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B57",
+    "l_dsc": "Hybrid/EV Battery 6 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B59",
+    "l_dsc": "Hybrid/EV Battery 7 Circuit"
+  },
+  {
+    "dtc": "P0B5A",
+    "l_dsc": "Hybrid/EV Battery 7 Circuit Performance"
+  },
+  {
+    "dtc": "P0B5B",
+    "l_dsc": "Hybrid/EV Battery 7 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B5C",
+    "l_dsc": "Hybrid/EV Battery 7 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B5E",
+    "l_dsc": "Hybrid/EV Battery 8 Circuit"
+  },
+  {
+    "dtc": "P0B5F",
+    "l_dsc": "Hybrid/EV Battery 8 Circuit Performance"
+  },
+  {
+    "dtc": "P0B60",
+    "l_dsc": "Hybrid/EV Battery 8 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B61",
+    "l_dsc": "Hybrid/EV Battery 8 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B63",
+    "l_dsc": "Hybrid/EV Battery 9 Circuit"
+  },
+  {
+    "dtc": "P0B64",
+    "l_dsc": "Hybrid/EV Battery 9 Circuit Performance"
+  },
+  {
+    "dtc": "P0B65",
+    "l_dsc": "Hybrid/EV Battery 9 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B66",
+    "l_dsc": "Hybrid/EV Battery 9 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B68",
+    "l_dsc": "Hybrid/EV Battery 10 Circuit"
+  },
+  {
+    "dtc": "P0B69",
+    "l_dsc": "Hybrid/EV Battery 10 Circuit Performance"
+  },
+  {
+    "dtc": "P0B6A",
+    "l_dsc": "Hybrid/EV Battery 10 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B6B",
+    "l_dsc": "Hybrid/EV Battery 10 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B6D",
+    "l_dsc": "Hybrid/EV Battery 11 Circuit"
+  },
+  {
+    "dtc": "P0B6E",
+    "l_dsc": "Hybrid/EV Battery 11 Circuit Performance"
+  },
+  {
+    "dtc": "P0B6F",
+    "l_dsc": "Hybrid/EV Battery 11 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B70",
+    "l_dsc": "Hybrid/EV Battery 11 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B72",
+    "l_dsc": "Hybrid/EV Battery 12 Circuit"
+  },
+  {
+    "dtc": "P0B73",
+    "l_dsc": "Hybrid/EV Battery 12 Circuit Performance"
+  },
+  {
+    "dtc": "P0B74",
+    "l_dsc": "Hybrid/EV Battery 12 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B75",
+    "l_dsc": "Hybrid/EV Battery 12 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B77",
+    "l_dsc": "Hybrid/EV Battery 13 Circuit"
+  },
+  {
+    "dtc": "P0B78",
+    "l_dsc": "Hybrid/EV Battery 13 Circuit Performance"
+  },
+  {
+    "dtc": "P0B79",
+    "l_dsc": "Hybrid/EV Battery 13 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B7A",
+    "l_dsc": "Hybrid/EV Battery 13 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B7C",
+    "l_dsc": "Hybrid/EV Battery 14 Circuit"
+  },
+  {
+    "dtc": "P0B7D",
+    "l_dsc": "Hybrid/EV Battery 14 Circuit Performance"
+  },
+  {
+    "dtc": "P0B7E",
+    "l_dsc": "Hybrid/EV Battery 14 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B7F",
+    "l_dsc": "Hybrid/EV Battery 14 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B81",
+    "l_dsc": "Hybrid/EV Battery 15 Circuit"
+  },
+  {
+    "dtc": "P0B82",
+    "l_dsc": "Hybrid/EV Battery 15 Circuit Performance"
+  },
+  {
+    "dtc": "P0B83",
+    "l_dsc": "Hybrid/EV Battery 15 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B84",
+    "l_dsc": "Hybrid/EV Battery 15 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B86",
+    "l_dsc": "Hybrid/EV Battery 16 Circuit"
+  },
+  {
+    "dtc": "P0B87",
+    "l_dsc": "Hybrid/EV Battery 16 Circuit Performance"
+  },
+  {
+    "dtc": "P0B88",
+    "l_dsc": "Hybrid/EV Battery 16 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B89",
+    "l_dsc": "Hybrid/EV Battery 16 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B8B",
+    "l_dsc": "Hybrid/EV Battery 17 Circuit"
+  },
+  {
+    "dtc": "P0B8C",
+    "l_dsc": "Hybrid/EV Battery 17 Circuit Performance"
+  },
+  {
+    "dtc": "P0B8D",
+    "l_dsc": "Hybrid/EV Battery 17 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B8E",
+    "l_dsc": "Hybrid/EV Battery 17 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B90",
+    "l_dsc": "Hybrid/EV Battery 18 Circuit"
+  },
+  {
+    "dtc": "P0B91",
+    "l_dsc": "Hybrid/EV Battery 18 Circuit Performance"
+  },
+  {
+    "dtc": "P0B92",
+    "l_dsc": "Hybrid/EV Battery 18 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B93",
+    "l_dsc": "Hybrid/EV Battery 18 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B95",
+    "l_dsc": "Hybrid/EV Battery 19 Circuit"
+  },
+  {
+    "dtc": "P0B96",
+    "l_dsc": "Hybrid/EV Battery 19 Circuit Performance"
+  },
+  {
+    "dtc": "P0B97",
+    "l_dsc": "Hybrid/EV Battery 19 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B98",
+    "l_dsc": "Hybrid/EV Battery 19 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B9A",
+    "l_dsc": "Hybrid/EV Battery 20 Circuit"
+  },
+  {
+    "dtc": "P0B9B",
+    "l_dsc": "Hybrid/EV Battery 20 Circuit Performance"
+  },
+  {
+    "dtc": "P0B9C",
+    "l_dsc": "Hybrid/EV Battery 20 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0B9D",
+    "l_dsc": "Hybrid/EV Battery 20 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0B9F",
+    "l_dsc": "Hybrid/EV Battery 21 Circuit"
+  },
+  {
+    "dtc": "P0BA0",
+    "l_dsc": "Hybrid/EV Battery 21 Circuit Performance"
+  },
+  {
+    "dtc": "P0BA1",
+    "l_dsc": "Hybrid/EV Battery 21 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0BA2",
+    "l_dsc": "Hybrid/EV Battery 21 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0BA4",
+    "l_dsc": "Hybrid/EV Battery 22 Circuit"
+  },
+  {
+    "dtc": "P0BA5",
+    "l_dsc": "Hybrid/EV Battery 22 Circuit Performance"
+  },
+  {
+    "dtc": "P0BA6",
+    "l_dsc": "Hybrid/EV Battery 22 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0BA7",
+    "l_dsc": "Hybrid/EV Battery 22 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0BA9",
+    "l_dsc": "Hybrid/EV Battery 23 Circuit"
+  },
+  {
+    "dtc": "P0BAA",
+    "l_dsc": "Hybrid/EV Battery 23 Circuit Performance"
+  },
+  {
+    "dtc": "P0BAB",
+    "l_dsc": "Hybrid/EV Battery 23 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0BAC",
+    "l_dsc": "Hybrid/EV Battery 23 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0BAE",
+    "l_dsc": "Hybrid/EV Battery 24 Circuit"
+  },
+  {
+    "dtc": "P0BAF",
+    "l_dsc": "Hybrid/EV Battery 24 Circuit Performance"
+  },
+  {
+    "dtc": "P0BB0",
+    "l_dsc": "Hybrid/EV Battery 24 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0BB1",
+    "l_dsc": "Hybrid/EV Battery 24 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0BB3",
+    "l_dsc": "Hybrid/EV Battery 25 Circuit"
+  },
+  {
+    "dtc": "P0BB4",
+    "l_dsc": "Hybrid/EV Battery 25 Circuit Performance"
+  },
+  {
+    "dtc": "P0BB5",
+    "l_dsc": "Hybrid/EV Battery 25 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0BB6",
+    "l_dsc": "Hybrid/EV Battery 25 Circuit High Voltage"
+  },
+  {
+    "dtc": "P0BB8",
+    "l_dsc": "Hybrid/EV Battery 26 Circuit"
+  },
+  {
+    "dtc": "P0BB9",
+    "l_dsc": "Hybrid/EV Battery 26 Circuit Performance"
+  },
+  {
+    "dtc": "P0BBA",
+    "l_dsc": "Hybrid/EV Battery 26 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P0BBB",
+    "l_dsc": "Hybrid/EV Battery 26 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B16",
+    "l_dsc": "Hybrid/EV Battery 27 Circuit Performance"
+  },
+  {
+    "dtc": "P1B17",
+    "l_dsc": "Hybrid/EV Battery 27 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B18",
+    "l_dsc": "Hybrid/EV Battery 27 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B19",
+    "l_dsc": "Hybrid/EV Battery 28 Circuit Performance"
+  },
+  {
+    "dtc": "P1B1A",
+    "l_dsc": "Hybrid/EV Battery 28 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B1B",
+    "l_dsc": "Hybrid/EV Battery 28 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B1C",
+    "l_dsc": "Hybrid/EV Battery 29 Circuit Performance"
+  },
+  {
+    "dtc": "P1B1D",
+    "l_dsc": "Hybrid/EV Battery 29 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B1E",
+    "l_dsc": "Hybrid/EV Battery 29 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B1F",
+    "l_dsc": "Hybrid/EV Battery 30 Circuit Performance"
+  },
+  {
+    "dtc": "P1B20",
+    "l_dsc": "Hybrid/EV Battery 30 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B21",
+    "l_dsc": "Hybrid/EV Battery 30 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B22",
+    "l_dsc": "Hybrid/EV Battery 31 Circuit Performance"
+  },
+  {
+    "dtc": "P1B23",
+    "l_dsc": "Hybrid/EV Battery 31 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B24",
+    "l_dsc": "Hybrid/EV Battery 31 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B25",
+    "l_dsc": "Hybrid/EV Battery 32 Circuit Performance"
+  },
+  {
+    "dtc": "P1B26",
+    "l_dsc": "Hybrid/EV Battery 32 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B27",
+    "l_dsc": "Hybrid/EV Battery 32 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B28",
+    "l_dsc": "Hybrid/EV Battery 27 Circuit"
+  },
+  {
+    "dtc": "P1B29",
+    "l_dsc": "Hybrid/EV Battery 28 Circuit"
+  },
+  {
+    "dtc": "P1B2A",
+    "l_dsc": "Hybrid/EV Battery 29 Circuit"
+  },
+  {
+    "dtc": "P1B2B",
+    "l_dsc": "Hybrid/EV Battery 30 Circuit"
+  },
+  {
+    "dtc": "P1B2C",
+    "l_dsc": "Hybrid/EV Battery 31 Circuit"
+  },
+  {
+    "dtc": "P1B2D",
+    "l_dsc": "Hybrid/EV Battery 32 Circuit"
+  },
+  {
+    "dtc": "P1B45",
+    "l_dsc": "Hybrid/EV Battery 33 Circuit Performance"
+  },
+  {
+    "dtc": "P1B46",
+    "l_dsc": "Hybrid/EV Battery 33 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B47",
+    "l_dsc": "Hybrid/EV Battery 33 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B48",
+    "l_dsc": "Hybrid/EV Battery 34 Circuit Performance"
+  },
+  {
+    "dtc": "P1B49",
+    "l_dsc": "Hybrid/EV Battery 34 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B4A",
+    "l_dsc": "Hybrid/EV Battery 34 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B4B",
+    "l_dsc": "Hybrid/EV Battery 35 Circuit Performance"
+  },
+  {
+    "dtc": "P1B4C",
+    "l_dsc": "Hybrid/EV Battery 35 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B4D",
+    "l_dsc": "Hybrid/EV Battery 35 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B4E",
+    "l_dsc": "Hybrid/EV Battery 36 Circuit Performance"
+  },
+  {
+    "dtc": "P1B4F",
+    "l_dsc": "Hybrid/EV Battery 36 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B50",
+    "l_dsc": "Hybrid/EV Battery 36 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B51",
+    "l_dsc": "Hybrid/EV Battery 37 Circuit Performance"
+  },
+  {
+    "dtc": "P1B52",
+    "l_dsc": "Hybrid/EV Battery 37 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B53",
+    "l_dsc": "Hybrid/EV Battery 37 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B54",
+    "l_dsc": "Hybrid/EV Battery 38 Circuit Performance"
+  },
+  {
+    "dtc": "P1B55",
+    "l_dsc": "Hybrid/EV Battery 38 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B56",
+    "l_dsc": "Hybrid/EV Battery 38 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B57",
+    "l_dsc": "Hybrid/EV Battery 39 Circuit Performance"
+  },
+  {
+    "dtc": "P1B58",
+    "l_dsc": "Hybrid/EV Battery 39 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B59",
+    "l_dsc": "Hybrid/EV Battery 39 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B5A",
+    "l_dsc": "Hybrid/EV Battery 40 Circuit Performance"
+  },
+  {
+    "dtc": "P1B5B",
+    "l_dsc": "Hybrid/EV Battery 40 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B5C",
+    "l_dsc": "Hybrid/EV Battery 40 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B5D",
+    "l_dsc": "Hybrid/EV Battery 41 Circuit Performance"
+  },
+  {
+    "dtc": "P1B5E",
+    "l_dsc": "Hybrid/EV Battery 41 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B5F",
+    "l_dsc": "Hybrid/EV Battery 41 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B60",
+    "l_dsc": "Hybrid/EV Battery 42 Circuit Performance"
+  },
+  {
+    "dtc": "P1B61",
+    "l_dsc": "Hybrid/EV Battery 42 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B62",
+    "l_dsc": "Hybrid/EV Battery 42 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B63",
+    "l_dsc": "Hybrid/EV Battery 43 Circuit Performance"
+  },
+  {
+    "dtc": "P1B64",
+    "l_dsc": "Hybrid/EV Battery 43 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B65",
+    "l_dsc": "Hybrid/EV Battery 43 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B66",
+    "l_dsc": "Hybrid/EV Battery 44 Circuit Performance"
+  },
+  {
+    "dtc": "P1B67",
+    "l_dsc": "Hybrid/EV Battery 44 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B68",
+    "l_dsc": "Hybrid/EV Battery 44 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B69",
+    "l_dsc": "Hybrid/EV Battery 45 Circuit Performance"
+  },
+  {
+    "dtc": "P1B6A",
+    "l_dsc": "Hybrid/EV Battery 45 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B6B",
+    "l_dsc": "Hybrid/EV Battery 45 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B6C",
+    "l_dsc": "Hybrid/EV Battery 46 Circuit Performance"
+  },
+  {
+    "dtc": "P1B6D",
+    "l_dsc": "Hybrid/EV Battery 46 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B6E",
+    "l_dsc": "Hybrid/EV Battery 46 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B6F",
+    "l_dsc": "Hybrid/EV Battery 47 Circuit Performance"
+  },
+  {
+    "dtc": "P1B70",
+    "l_dsc": "Hybrid/EV Battery 47 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B71",
+    "l_dsc": "Hybrid/EV Battery 47 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B72",
+    "l_dsc": "Hybrid/EV Battery 48 Circuit Performance"
+  },
+  {
+    "dtc": "P1B73",
+    "l_dsc": "Hybrid/EV Battery 48 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B74",
+    "l_dsc": "Hybrid/EV Battery 48 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B75",
+    "l_dsc": "Hybrid/EV Battery 49 Circuit Performance"
+  },
+  {
+    "dtc": "P1B76",
+    "l_dsc": "Hybrid/EV Battery 49 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B77",
+    "l_dsc": "Hybrid/EV Battery 49 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B78",
+    "l_dsc": "Hybrid/EV Battery 50 Circuit Performance"
+  },
+  {
+    "dtc": "P1B79",
+    "l_dsc": "Hybrid/EV Battery 50 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B7A",
+    "l_dsc": "Hybrid/EV Battery 50 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B7B",
+    "l_dsc": "Hybrid/EV Battery 51 Circuit Performance"
+  },
+  {
+    "dtc": "P1B7C",
+    "l_dsc": "Hybrid/EV Battery 51 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B7D",
+    "l_dsc": "Hybrid/EV Battery 51 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B7E",
+    "l_dsc": "Hybrid/EV Battery 52 Circuit Performance"
+  },
+  {
+    "dtc": "P1B7F",
+    "l_dsc": "Hybrid/EV Battery 52 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B80",
+    "l_dsc": "Hybrid/EV Battery 52 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B81",
+    "l_dsc": "Hybrid/EV Battery 53 Circuit Performance"
+  },
+  {
+    "dtc": "P1B82",
+    "l_dsc": "Hybrid/EV Battery 53 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B83",
+    "l_dsc": "Hybrid/EV Battery 53 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B84",
+    "l_dsc": "Hybrid/EV Battery 54 Circuit Performance"
+  },
+  {
+    "dtc": "P1B85",
+    "l_dsc": "Hybrid/EV Battery 54 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B86",
+    "l_dsc": "Hybrid/EV Battery 54 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B87",
+    "l_dsc": "Hybrid/EV Battery 55 Circuit Performance"
+  },
+  {
+    "dtc": "P1B88",
+    "l_dsc": "Hybrid/EV Battery 55 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B89",
+    "l_dsc": "Hybrid/EV Battery 55 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B8A",
+    "l_dsc": "Hybrid/EV Battery 56 Circuit Performance"
+  },
+  {
+    "dtc": "P1B8B",
+    "l_dsc": "Hybrid/EV Battery 56 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B8C",
+    "l_dsc": "Hybrid/EV Battery 56 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B8D",
+    "l_dsc": "Hybrid/EV Battery 57 Circuit Performance"
+  },
+  {
+    "dtc": "P1B8E",
+    "l_dsc": "Hybrid/EV Battery 57 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B8F",
+    "l_dsc": "Hybrid/EV Battery 57 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B90",
+    "l_dsc": "Hybrid/EV Battery 58 Circuit Performance"
+  },
+  {
+    "dtc": "P1B91",
+    "l_dsc": "Hybrid/EV Battery 58 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B92",
+    "l_dsc": "Hybrid/EV Battery 58 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B93",
+    "l_dsc": "Hybrid/EV Battery 59 Circuit Performance"
+  },
+  {
+    "dtc": "P1B94",
+    "l_dsc": "Hybrid/EV Battery 59 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B95",
+    "l_dsc": "Hybrid/EV Battery 59 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B96",
+    "l_dsc": "Hybrid/EV Battery 60 Circuit Performance"
+  },
+  {
+    "dtc": "P1B97",
+    "l_dsc": "Hybrid/EV Battery 60 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B98",
+    "l_dsc": "Hybrid/EV Battery 60 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B99",
+    "l_dsc": "Hybrid/EV Battery 61 Circuit Performance"
+  },
+  {
+    "dtc": "P1B9A",
+    "l_dsc": "Hybrid/EV Battery 61 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B9B",
+    "l_dsc": "Hybrid/EV Battery 61 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B9C",
+    "l_dsc": "Hybrid/EV Battery 62 Circuit Performance"
+  },
+  {
+    "dtc": "P1B9D",
+    "l_dsc": "Hybrid/EV Battery 62 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1B9E",
+    "l_dsc": "Hybrid/EV Battery 62 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1B9F",
+    "l_dsc": "Hybrid/EV Battery 63 Circuit Performance"
+  },
+  {
+    "dtc": "P1BA0",
+    "l_dsc": "Hybrid/EV Battery 63 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BA1",
+    "l_dsc": "Hybrid/EV Battery 63 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BA2",
+    "l_dsc": "Hybrid/EV Battery 64 Circuit Performance"
+  },
+  {
+    "dtc": "P1BA3",
+    "l_dsc": "Hybrid/EV Battery 64 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BA4",
+    "l_dsc": "Hybrid/EV Battery 64 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BA5",
+    "l_dsc": "Hybrid/EV Battery 65 Circuit Performance"
+  },
+  {
+    "dtc": "P1BA6",
+    "l_dsc": "Hybrid/EV Battery 65 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BA7",
+    "l_dsc": "Hybrid/EV Battery 65 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BA8",
+    "l_dsc": "Hybrid/EV Battery 66 Circuit Performance"
+  },
+  {
+    "dtc": "P1BA9",
+    "l_dsc": "Hybrid/EV Battery 66 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BAA",
+    "l_dsc": "Hybrid/EV Battery 66 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BAB",
+    "l_dsc": "Hybrid/EV Battery 67 Circuit Performance"
+  },
+  {
+    "dtc": "P1BAC",
+    "l_dsc": "Hybrid/EV Battery 67 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BAD",
+    "l_dsc": "Hybrid/EV Battery 67 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BAE",
+    "l_dsc": "Hybrid/EV Battery 68 Circuit Performance"
+  },
+  {
+    "dtc": "P1BAF",
+    "l_dsc": "Hybrid/EV Battery 68 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BB0",
+    "l_dsc": "Hybrid/EV Battery 68 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BB1",
+    "l_dsc": "Hybrid/EV Battery 69 Circuit Performance"
+  },
+  {
+    "dtc": "P1BB2",
+    "l_dsc": "Hybrid/EV Battery 69 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BB3",
+    "l_dsc": "Hybrid/EV Battery 69 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BB4",
+    "l_dsc": "Hybrid/EV Battery 70 Circuit Performance"
+  },
+  {
+    "dtc": "P1BB5",
+    "l_dsc": "Hybrid/EV Battery 70 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BB6",
+    "l_dsc": "Hybrid/EV Battery 70 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BB7",
+    "l_dsc": "Hybrid/EV Battery 71 Circuit Performance"
+  },
+  {
+    "dtc": "P1BB8",
+    "l_dsc": "Hybrid/EV Battery 71 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BB9",
+    "l_dsc": "Hybrid/EV Battery 71 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BBA",
+    "l_dsc": "Hybrid/EV Battery 72 Circuit Performance"
+  },
+  {
+    "dtc": "P1BBB",
+    "l_dsc": "Hybrid/EV Battery 72 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BBC",
+    "l_dsc": "Hybrid/EV Battery 72 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BBD",
+    "l_dsc": "Hybrid/EV Battery 73 Circuit Performance"
+  },
+  {
+    "dtc": "P1BBE",
+    "l_dsc": "Hybrid/EV Battery 73 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BBF",
+    "l_dsc": "Hybrid/EV Battery 73 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BC0",
+    "l_dsc": "Hybrid/EV Battery 74 Circuit Performance"
+  },
+  {
+    "dtc": "P1BC1",
+    "l_dsc": "Hybrid/EV Battery 74 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BC2",
+    "l_dsc": "Hybrid/EV Battery 74 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BC3",
+    "l_dsc": "Hybrid/EV Battery 75 Circuit Performance"
+  },
+  {
+    "dtc": "P1BC4",
+    "l_dsc": "Hybrid/EV Battery 75 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BC5",
+    "l_dsc": "Hybrid/EV Battery 75 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BC6",
+    "l_dsc": "Hybrid/EV Battery 76 Circuit Performance"
+  },
+  {
+    "dtc": "P1BC7",
+    "l_dsc": "Hybrid/EV Battery 76 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BC8",
+    "l_dsc": "Hybrid/EV Battery 76 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BC9",
+    "l_dsc": "Hybrid/EV Battery 77 Circuit Performance"
+  },
+  {
+    "dtc": "P1BCA",
+    "l_dsc": "Hybrid/EV Battery 77 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BCB",
+    "l_dsc": "Hybrid/EV Battery 77 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BCC",
+    "l_dsc": "Hybrid/EV Battery 78 Circuit Performance"
+  },
+  {
+    "dtc": "P1BCD",
+    "l_dsc": "Hybrid/EV Battery 78 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BCE",
+    "l_dsc": "Hybrid/EV Battery 78 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BCF",
+    "l_dsc": "Hybrid/EV Battery 79 Circuit Performance"
+  },
+  {
+    "dtc": "P1BD0",
+    "l_dsc": "Hybrid/EV Battery 79 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BD1",
+    "l_dsc": "Hybrid/EV Battery 79 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BD2",
+    "l_dsc": "Hybrid/EV Battery 80 Circuit Performance"
+  },
+  {
+    "dtc": "P1BD3",
+    "l_dsc": "Hybrid/EV Battery 80 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BD4",
+    "l_dsc": "Hybrid/EV Battery 80 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BD5",
+    "l_dsc": "Hybrid/EV Battery 81 Circuit Performance"
+  },
+  {
+    "dtc": "P1BD6",
+    "l_dsc": "Hybrid/EV Battery 81 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BD7",
+    "l_dsc": "Hybrid/EV Battery 81 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BD8",
+    "l_dsc": "Hybrid/EV Battery 82 Circuit Performance"
+  },
+  {
+    "dtc": "P1BD9",
+    "l_dsc": "Hybrid/EV Battery 82 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BDA",
+    "l_dsc": "Hybrid/EV Battery 82 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BDB",
+    "l_dsc": "Hybrid/EV Battery 83 Circuit Performance"
+  },
+  {
+    "dtc": "P1BDC",
+    "l_dsc": "Hybrid/EV Battery 83 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BDD",
+    "l_dsc": "Hybrid/EV Battery 83 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BDE",
+    "l_dsc": "Hybrid/EV Battery 84 Circuit Performance"
+  },
+  {
+    "dtc": "P1BDF",
+    "l_dsc": "Hybrid/EV Battery 84 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BE0",
+    "l_dsc": "Hybrid/EV Battery 84 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BE1",
+    "l_dsc": "Hybrid/EV Battery 85 Circuit Performance"
+  },
+  {
+    "dtc": "P1BE2",
+    "l_dsc": "Hybrid/EV Battery 85 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BE3",
+    "l_dsc": "Hybrid/EV Battery 85 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BE4",
+    "l_dsc": "Hybrid/EV Battery 86 Circuit Performance"
+  },
+  {
+    "dtc": "P1BE5",
+    "l_dsc": "Hybrid/EV Battery 86 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BE6",
+    "l_dsc": "Hybrid/EV Battery 86 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BE7",
+    "l_dsc": "Hybrid/EV Battery 87 Circuit Performance"
+  },
+  {
+    "dtc": "P1BE8",
+    "l_dsc": "Hybrid/EV Battery 87 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BE9",
+    "l_dsc": "Hybrid/EV Battery 87 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BEA",
+    "l_dsc": "Hybrid/EV Battery 88 Circuit Performance"
+  },
+  {
+    "dtc": "P1BEB",
+    "l_dsc": "Hybrid/EV Battery 88 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BEC",
+    "l_dsc": "Hybrid/EV Battery 88 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BED",
+    "l_dsc": "Hybrid/EV Battery 89 Circuit Performance"
+  },
+  {
+    "dtc": "P1BEE",
+    "l_dsc": "Hybrid/EV Battery 89 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BEF",
+    "l_dsc": "Hybrid/EV Battery 89 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BF0",
+    "l_dsc": "Hybrid/EV Battery 90 Circuit Performance"
+  },
+  {
+    "dtc": "P1BF1",
+    "l_dsc": "Hybrid/EV Battery 90 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BF2",
+    "l_dsc": "Hybrid/EV Battery 90 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BF3",
+    "l_dsc": "Hybrid/EV Battery 91 Circuit Performance"
+  },
+  {
+    "dtc": "P1BF4",
+    "l_dsc": "Hybrid/EV Battery 91 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BF5",
+    "l_dsc": "Hybrid/EV Battery 91 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BF6",
+    "l_dsc": "Hybrid/EV Battery 92 Circuit Performance"
+  },
+  {
+    "dtc": "P1BF7",
+    "l_dsc": "Hybrid/EV Battery 92 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BF8",
+    "l_dsc": "Hybrid/EV Battery 92 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BF9",
+    "l_dsc": "Hybrid/EV Battery 93 Circuit Performance"
+  },
+  {
+    "dtc": "P1BFA",
+    "l_dsc": "Hybrid/EV Battery 93 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BFB",
+    "l_dsc": "Hybrid/EV Battery 93 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1BFC",
+    "l_dsc": "Hybrid/EV Battery 94 Circuit Performance"
+  },
+  {
+    "dtc": "P1BFD",
+    "l_dsc": "Hybrid/EV Battery 94 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1BFE",
+    "l_dsc": "Hybrid/EV Battery 94 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1E01",
+    "l_dsc": "Hybrid/EV Battery 95 Circuit Performance"
+  },
+  {
+    "dtc": "P1E02",
+    "l_dsc": "Hybrid/EV Battery 95 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1E03",
+    "l_dsc": "Hybrid/EV Battery 95 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1E04",
+    "l_dsc": "Hybrid/EV Battery 96 Circuit Performance"
+  },
+  {
+    "dtc": "P1E05",
+    "l_dsc": "Hybrid/EV Battery 96 Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1E06",
+    "l_dsc": "Hybrid/EV Battery 96 Circuit High Voltage"
+  },
+  {
+    "dtc": "P1E4C",
+    "l_dsc": "Hybrid/EV Battery 33 Circuit"
+  },
+  {
+    "dtc": "P1E4D",
+    "l_dsc": "Hybrid/EV Battery 34 Circuit"
+  },
+  {
+    "dtc": "P1E4E",
+    "l_dsc": "Hybrid/EV Battery 35 Circuit"
+  },
+  {
+    "dtc": "P1E4F",
+    "l_dsc": "Hybrid/EV Battery 36 Circuit"
+  },
+  {
+    "dtc": "P1E50",
+    "l_dsc": "Hybrid/EV Battery 37 Circuit"
+  },
+  {
+    "dtc": "P1E51",
+    "l_dsc": "Hybrid/EV Battery 38 Circuit"
+  },
+  {
+    "dtc": "P1E52",
+    "l_dsc": "Hybrid/EV Battery 39 Circuit"
+  },
+  {
+    "dtc": "P1E53",
+    "l_dsc": "Hybrid/EV Battery 40 Circuit"
+  },
+  {
+    "dtc": "P1E54",
+    "l_dsc": "Hybrid/EV Battery 41 Circuit"
+  },
+  {
+    "dtc": "P1E55",
+    "l_dsc": "Hybrid/EV Battery 42 Circuit"
+  },
+  {
+    "dtc": "P1E56",
+    "l_dsc": "Hybrid/EV Battery 43 Circuit"
+  },
+  {
+    "dtc": "P1E57",
+    "l_dsc": "Hybrid/EV Battery 44 Circuit"
+  },
+  {
+    "dtc": "P1E58",
+    "l_dsc": "Hybrid/EV Battery 45 Circuit"
+  },
+  {
+    "dtc": "P1E59",
+    "l_dsc": "Hybrid/EV Battery 46 Circuit"
+  },
+  {
+    "dtc": "P1E5A",
+    "l_dsc": "Hybrid/EV Battery 47 Circuit"
+  },
+  {
+    "dtc": "P1E5B",
+    "l_dsc": "Hybrid/EV Battery 48 Circuit"
+  },
+  {
+    "dtc": "P1E5C",
+    "l_dsc": "Hybrid/EV Battery 49 Circuit"
+  },
+  {
+    "dtc": "P1E5D",
+    "l_dsc": "Hybrid/EV Battery 50 Circuit"
+  },
+  {
+    "dtc": "P1E5E",
+    "l_dsc": "Hybrid/EV Battery 51 Circuit"
+  },
+  {
+    "dtc": "P1E5F",
+    "l_dsc": "Hybrid/EV Battery 52 Circuit"
+  },
+  {
+    "dtc": "P1E60",
+    "l_dsc": "Hybrid/EV Battery 53 Circuit"
+  },
+  {
+    "dtc": "P1E61",
+    "l_dsc": "Hybrid/EV Battery 54 Circuit"
+  },
+  {
+    "dtc": "P1E62",
+    "l_dsc": "Hybrid/EV Battery 55 Circuit"
+  },
+  {
+    "dtc": "P1E63",
+    "l_dsc": "Hybrid/EV Battery 56 Circuit"
+  },
+  {
+    "dtc": "P1E64",
+    "l_dsc": "Hybrid/EV Battery 57 Circuit"
+  },
+  {
+    "dtc": "P1E65",
+    "l_dsc": "Hybrid/EV Battery 58 Circuit"
+  },
+  {
+    "dtc": "P1E66",
+    "l_dsc": "Hybrid/EV Battery 59 Circuit"
+  },
+  {
+    "dtc": "P1E67",
+    "l_dsc": "Hybrid/EV Battery 60 Circuit"
+  },
+  {
+    "dtc": "P1E68",
+    "l_dsc": "Hybrid/EV Battery 61 Circuit"
+  },
+  {
+    "dtc": "P1E69",
+    "l_dsc": "Hybrid/EV Battery 62 Circuit"
+  },
+  {
+    "dtc": "P1E6A",
+    "l_dsc": "Hybrid/EV Battery 63 Circuit"
+  },
+  {
+    "dtc": "P1E6B",
+    "l_dsc": "Hybrid/EV Battery 64 Circuit"
+  },
+  {
+    "dtc": "P1E6C",
+    "l_dsc": "Hybrid/EV Battery 65 Circuit"
+  },
+  {
+    "dtc": "P1E6D",
+    "l_dsc": "Hybrid/EV Battery 66 Circuit"
+  },
+  {
+    "dtc": "P1E6E",
+    "l_dsc": "Hybrid/EV Battery 67 Circuit"
+  },
+  {
+    "dtc": "P1E6F",
+    "l_dsc": "Hybrid/EV Battery 68 Circuit"
+  },
+  {
+    "dtc": "P1E70",
+    "l_dsc": "Hybrid/EV Battery 69 Circuit"
+  },
+  {
+    "dtc": "P1E71",
+    "l_dsc": "Hybrid/EV Battery 70 Circuit"
+  },
+  {
+    "dtc": "P1E72",
+    "l_dsc": "Hybrid/EV Battery 71 Circuit"
+  },
+  {
+    "dtc": "P1E73",
+    "l_dsc": "Hybrid/EV Battery 72 Circuit"
+  },
+  {
+    "dtc": "P1E74",
+    "l_dsc": "Hybrid/EV Battery 73 Circuit"
+  },
+  {
+    "dtc": "P1E75",
+    "l_dsc": "Hybrid/EV Battery 74 Circuit"
+  },
+  {
+    "dtc": "P1E76",
+    "l_dsc": "Hybrid/EV Battery 75 Circuit"
+  },
+  {
+    "dtc": "P1E77",
+    "l_dsc": "Hybrid/EV Battery 76 Circuit"
+  },
+  {
+    "dtc": "P1E78",
+    "l_dsc": "Hybrid/EV Battery 77 Circuit"
+  },
+  {
+    "dtc": "P1E79",
+    "l_dsc": "Hybrid/EV Battery 78 Circuit"
+  },
+  {
+    "dtc": "P1E7A",
+    "l_dsc": "Hybrid/EV Battery 79 Circuit"
+  },
+  {
+    "dtc": "P1E7B",
+    "l_dsc": "Hybrid/EV Battery 80 Circuit"
+  },
+  {
+    "dtc": "P1E7C",
+    "l_dsc": "Hybrid/EV Battery 81 Circuit"
+  },
+  {
+    "dtc": "P1E7D",
+    "l_dsc": "Hybrid/EV Battery 82 Circuit"
+  },
+  {
+    "dtc": "P1E7E",
+    "l_dsc": "Hybrid/EV Battery 83 Circuit"
+  },
+  {
+    "dtc": "P1E7F",
+    "l_dsc": "Hybrid/EV Battery 84 Circuit"
+  },
+  {
+    "dtc": "P1E80",
+    "l_dsc": "Hybrid/EV Battery 85 Circuit"
+  },
+  {
+    "dtc": "P1E81",
+    "l_dsc": "Hybrid/EV Battery 86 Circuit"
+  },
+  {
+    "dtc": "P1E82",
+    "l_dsc": "Hybrid/EV Battery 87 Circuit"
+  },
+  {
+    "dtc": "P1E83",
+    "l_dsc": "Hybrid/EV Battery 88 Circuit"
+  },
+  {
+    "dtc": "P1E84",
+    "l_dsc": "Hybrid/EV Battery 89 Circuit"
+  },
+  {
+    "dtc": "P1E85",
+    "l_dsc": "Hybrid/EV Battery 90 Circuit"
+  },
+  {
+    "dtc": "P1E86",
+    "l_dsc": "Hybrid/EV Battery 91 Circuit"
+  },
+  {
+    "dtc": "P1E87",
+    "l_dsc": "Hybrid/EV Battery 92 Circuit"
+  },
+  {
+    "dtc": "P1E88",
+    "l_dsc": "Hybrid/EV Battery 93 Circuit"
+  },
+  {
+    "dtc": "P1E89",
+    "l_dsc": "Hybrid/EV Battery 94 Circuit"
+  },
+  {
+    "dtc": "P1E8A",
+    "l_dsc": "Hybrid/EV Battery 95 Circuit"
+  },
+  {
+    "dtc": "P1E8B",
+    "l_dsc": "Hybrid/EV Battery 96 Circuit"
+  },
+  {
+    "dtc": "P0BBD",
+    "l_dsc": "Hybrid/Electric Vehicle Battery Pack Voltage Variation Exceeded Limit"
+  },
+  {
+    "dtc": "P0BBE",
+    "l_dsc": "Hybrid/Electric Vehicle Battery Pack Voltage Variation"
+  },
+  {
+    "dtc": "P0C78",
+    "l_dsc": "Hybrid/EV Battery System Precharge Time Too Long"
+  },
+  {
+    "dtc": "P3061",
+    "l_dsc": "Hybrid/EV Battery Precharge High Current"
+  },
+  {
+    "dtc": "P1A07",
+    "l_dsc": "Battery Energy Control Module 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1E93",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1E99",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1E9F",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1EA5",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1FC3",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1FC4",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1FC5",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1FC6",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1FC7",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1FC8",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P3035",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P3040",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 5 V Reference Circuit"
+  },
+  {
+    "dtc": "P1B3F",
+    "l_dsc": "High Voltage System Interlock Circuit 2 Low Voltage"
+  },
+  {
+    "dtc": "P1B40",
+    "l_dsc": "High Voltage System Interlock Circuit 2 High Voltage"
+  },
+  {
+    "dtc": "P1E92",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1E98",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1E9E",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1EA4",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1FC9",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1FCA",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1FCB",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1FCC",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1FCD",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1FCE",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P3036",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P3041",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 Cell Balancing Circuit"
+  },
+  {
+    "dtc": "P1EAB",
+    "l_dsc": "Battery Energy Control Module Hybrid/EV Battery Cell High Voltage"
+  },
+  {
+    "dtc": "P1EAC",
+    "l_dsc": "Hybrid/EV Battery Cell Overvoltage Signal Circuit Performance"
+  },
+  {
+    "dtc": "P1EAD",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P1EAE",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P1EAF",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P1EB0",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P3240",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3241",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3242",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3243",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3244",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3245",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P3246",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3247",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P3248",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3249",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P324A",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 Cell Overvoltage"
+  },
+  {
+    "dtc": "P324B",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P324C",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 Cell Overvoltage"
+  },
+  {
+    "dtc": "P324D",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P324E",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 Cell Overvoltage"
+  },
+  {
+    "dtc": "P324F",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P3250",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3251",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P3252",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 Cell Overvoltage"
+  },
+  {
+    "dtc": "P3253",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 Cell Overvoltage Signal Circuit"
+  },
+  {
+    "dtc": "P1F17",
+    "l_dsc": "System Isolation / Impact Sensor Fault - Hybrid/EV Battery System Contactors Open"
+  },
+  {
+    "dtc": "P1FD5",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FD6",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FD7",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FD8",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FD9",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FDA",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FDB",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FDC",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FDD",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FDE",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P1FDF",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE0",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE1",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE2",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE3",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE4",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE5",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE6",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE7",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE8",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P1FE9",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 1 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FEA",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 2 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FEB",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 3 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FEC",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 4 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FED",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 5 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FEE",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 6 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FEF",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 7 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FF0",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 8 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FF1",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 9 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P1FF2",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 10 Voltage Sensor Performance"
+  },
+  {
+    "dtc": "P3038",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P3039",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P303A",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 11 Voltage Sensor Circuit Performance"
+  },
+  {
+    "dtc": "P3043",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 Voltage Sensor Circuit Low Voltage"
+  },
+  {
+    "dtc": "P3044",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 Voltage Sensor Circuit High Voltage"
+  },
+  {
+    "dtc": "P3045",
+    "l_dsc": "Hybrid/EV Battery Interface Control Module 12 Voltage Sensor Circuit Performance"
+  },
+  {
+    "dtc": "P1FF4",
+    "l_dsc": "System Isolation / Impact Sensor Fault - Hybrid/EV Battery System Contactors Open"
+  }
+]

@@ -6,6 +6,11 @@
 
 class BydModbusInverter : public ModbusInverterProtocol {
  public:
+  /** The Fronius Gen24 stops charge and discharge below -10 degrees C, because the pack it was
+   * designed for is LFP. Caps a reading between -9.0 and -20.0 C to -9.0 C, and leaves anything
+   * else alone: colder than -20 C is a fault, not weather. Pure, so it can be tested directly */
+  static int16_t clamp_cold_temperature(int16_t temperature_dC);
+
   BydModbusInverter() : ModbusInverterProtocol(21) {}
   const char* name() override { return Name; }
   bool setup() override;
@@ -15,7 +20,14 @@ class BydModbusInverter : public ModbusInverterProtocol {
  private:
   void handle_static_data();
   void verify_temperature();
+  // What this inverter reports, after the cold-weather cap. Kept here rather than written back
+  // into the datalayer, which every other consumer reads.
+  int16_t reported_temperature_min_dC = 0;
+  int16_t reported_temperature_max_dC = 0;
   void verify_inverter_modbus();
+  // Consumes the ControlData block the inverter writes: WatchDogTimeout (402), UTC (403-406)
+  // and RebootCommand (407)
+  void handle_inverter_control_data();
   void handle_update_data_modbusp201_byd();
   void handle_update_data_modbusp301_byd();
   int16_t byd_power_W();
@@ -35,6 +47,12 @@ class BydModbusInverter : public ModbusInverterProtocol {
   uint32_t max_charge_W = 0;
   uint16_t register_401_history[5] = {0};
   uint8_t history_index = 0;
+  uint16_t last_register_407 = 0;  // Last RebootCommand seen, so only changes are acted on
+  uint16_t last_register_408 = 0;  // Last DarkstartEnable seen, so only changes are logged
+  // Bounds for a WatchDogTimeout accepted from register 402. 0 means the inverter is not using the
+  // field, and an implausibly large value would push inverter-missing detection out of usefulness.
+  static const uint32_t WATCHDOG_TIMEOUT_MIN_S = 5;
+  static const uint32_t WATCHDOG_TIMEOUT_MAX_S = 3600;
   uint16_t bms_char_dis_status = BYD_MODE_IDLE;
   bool all_401_values_equal = false;
 };

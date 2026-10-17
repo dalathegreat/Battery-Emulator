@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // CHAdeMO is left out of the small flash devices
 #include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -961,3 +962,4 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
+#endif  // SMALL_FLASH_DEVICE

@@ -13,17 +13,6 @@ extern std::string http_username;
 extern std::string http_password;
 extern bool webserver_auth;
 
-// Common charger parameters
-extern float charger_stat_HVcur;
-extern float charger_stat_HVvol;
-extern float charger_stat_ACcur;
-extern float charger_stat_ACvol;
-extern float charger_stat_LVcur;
-extern float charger_stat_LVvol;
-
-//LEAF charger
-extern uint16_t OBC_Charge_Power;
-
 // OTA status
 extern bool ota_active;
 
@@ -56,14 +45,6 @@ void init_webserver();
  */
 void init_ElegantOTA();
 
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String processor(const String& var);
 String get_firmware_info_processor(const String& var);
 
 /**

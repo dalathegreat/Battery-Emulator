@@ -3,9 +3,6 @@
 
 #include "../../devboard/utils/types.h"
 
-extern uint16_t user_selected_CAN_ID_cutoff_filter;
-
-void dump_can_frame(CAN_frame& frame, CAN_Interface interface, frameDirection msgDir);
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface);
 
 // Format CAN logs to the given buffer. Returns the number of bytes written, or
@@ -24,7 +21,9 @@ typedef struct {
   CAN_Interface inverter;
   CAN_Interface battery_double;
   CAN_Interface battery_triple;
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
   CAN_Interface charger;
+#endif  // SMALL_FLASH_DEVICE
   CAN_Interface shunt;
 } CAN_Configuration;
 

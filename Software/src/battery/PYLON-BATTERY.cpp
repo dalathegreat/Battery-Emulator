@@ -17,9 +17,9 @@ void PylonBattery::update_values() {
 
   datalayer_battery->status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
 
-  datalayer_battery->status.max_charge_power_W = ((max_charge_current_dA / 10) * (voltage_dV / 10));
+  datalayer_battery->status.max_charge_power_W = current_dA_to_power_W(max_charge_current_dA, voltage_dV);
 
-  datalayer_battery->status.max_discharge_power_W = ((max_discharge_current_dA / 10) * (voltage_dV / 10));
+  datalayer_battery->status.max_discharge_power_W = current_dA_to_power_W(max_discharge_current_dA, voltage_dV);
 
   if (total_capacity_Wh > 0) {
     //real Data from Dyness battery

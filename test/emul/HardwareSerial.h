@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <cstddef>
+#include <string>
 #include "Print.h"
 #include "Stream.h"
 
@@ -35,10 +36,18 @@ enum SerialConfig {
 
 class HardwareSerial : public Stream {
  public:
+  std::string rx_buffer;
+  std::string tx_buffer;
   // Implement ALL pure virtual functions from base classes
-  int available() override { return 0; }
-  int read() override { return -1; }
-  int peek() override { return -1; }
+  int available() override { return rx_buffer.size(); }
+  int read() override {
+    if (rx_buffer.empty())
+      return -1;
+    unsigned char byte = rx_buffer.front();
+    rx_buffer.erase(0, 1);
+    return byte;
+  }
+  int peek() override { return rx_buffer.empty() ? -1 : static_cast<unsigned char>(rx_buffer.front()); }
   void flush() override {}                      // Implement flush from Print
   size_t write(uint8_t) override { return 0; }  // Implement write from Print
 
@@ -52,9 +61,8 @@ class HardwareSerial : public Stream {
 
   // Add the buffer write method
   size_t write(const uint8_t* buffer, size_t size) override {
-    (void)buffer;
-    (void)size;
-    return 0;
+    tx_buffer.append(reinterpret_cast<const char*>(buffer), size);
+    return size;
   }
 };
 extern HardwareSerial Serial;

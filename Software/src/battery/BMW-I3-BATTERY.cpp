@@ -38,12 +38,14 @@ void BmwI3Battery::end_balancing() {
   BMW_12F.data.u8[3] = BMW_12F_BYTE3_ACTIVE;  // Restore active state
   cmdState = SOC;
   battery_info_available = false;
-  set_event(EVENT_BALANCING_END, 0);
+  set_event(EVENT_BALANCING_END, 0, battery_index);
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
-      UserRequestBalancing == EXECUTING) {
+  if (contactor_recovery_force_wakeup_low) {
+    digitalWrite(wakeup_pin, LOW);  // Contactor watchdog recovery: pulse wakeup low to reset precharge latch
+  } else if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
+             UserRequestBalancing == EXECUTING) {
     digitalWrite(wakeup_pin, LOW);         // Turn off wakeup pin
   } else if (millis64() > INTERVAL_1_S) {  // millis64: plain millis() wraps after 49.7 days
     digitalWrite(wakeup_pin, HIGH);        // Wake up the battery
@@ -119,14 +121,14 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
 
   // Perform other safety checks
   if (battery_status_error_locking == 2) {  // HVIL seated?
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 0, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
   if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
-    set_event(EVENT_CONTACTOR_WELDED, 0);
+    set_event(EVENT_CONTACTOR_WELDED, 0, battery_index);
   } else {
-    clear_event(EVENT_CONTACTOR_WELDED);
+    clear_event(EVENT_CONTACTOR_WELDED, battery_index);
   }
 
   // Map BMW I3 DC switch status to system datalayer
@@ -317,6 +319,7 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
         switch (cmdState) {
           case CELL_VOLTAGE_MINMAX:
+          case CELL_VOLTAGE_MINMAX2:
             if (next_data >= 4) {
               cellvoltage_temp_mV = (message_data[0] << 8 | message_data[1]);
               if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
@@ -347,6 +350,107 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     default:
+      break;
+  }
+}
+
+const char* BmwI3Battery::get_contactor_watchdog_string() {
+  if (cw_state == CW_RECOVERY_OPEN_LOW) {
+    return "Recovering";
+  }
+  if (cw_recovery_attempts >= MAX_CONTACTOR_RECOVERY_ATTEMPTS) {
+    return "Failed (gave up)";
+  }
+  return "Monitoring";
+}
+
+// Watchdog: if a contactor close is being commanded but the battery never reports "engaged"
+// within CONTACTOR_ENGAGE_TIMEOUT_MS (typically because it latched "Error precharge blocked"),
+// pulse the wakeup pin low while sending an open command on CAN, then wakeup high and resume
+// the close command. This power-cycle resets the battery's precharge error latch.
+void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
+  // Contactors are intentionally open during balancing - disarm the watchdog.
+  if (UserRequestBalancing != NONE) {
+    cw_state = CW_MONITOR;
+    cw_close_request_start = 0;
+    cw_recovery_attempts = 0;
+    cw_gave_up_event_sent = false;
+    contactor_recovery_force_open = false;
+    contactor_recovery_force_wakeup_low = false;
+    return;
+  }
+
+  // inverter_wants_close is the inverter's actual close request - use it to detect a genuine
+  // withdraw (re-arm condition). emitting_close keys off the actually last-sent BMW_10B nibble:
+  // startup, FAULT, master-not-ready and our own recovery pulse all force 0x00, so the 5s timer
+  // only runs while we are truly commanding close. The two are kept separate so the transient
+  // forced-open during/after a recovery pulse does not reset the attempt counter.
+  bool inverter_wants_close = datalayer.system.status.inverter_allows_contactor_closing;
+  bool emitting_close = (BMW_10B.data.u8[1] & 0xF0) == 0x10;
+  bool engaged = (battery_status_disconnecting_switch == 2);
+
+  // Success: contactor engaged - clear everything and re-arm.
+  if (engaged) {
+    cw_state = CW_MONITOR;
+    cw_close_request_start = 0;
+    cw_recovery_attempts = 0;
+    cw_gave_up_event_sent = false;
+    contactor_recovery_force_open = false;
+    contactor_recovery_force_wakeup_low = false;
+    return;
+  }
+
+  switch (cw_state) {
+    case CW_MONITOR:
+      contactor_recovery_force_open = false;
+      contactor_recovery_force_wakeup_low = false;
+      if (!inverter_wants_close) {
+        // Inverter withdrew the close request - re-arm for next time.
+        cw_close_request_start = 0;
+        cw_recovery_attempts = 0;
+        cw_gave_up_event_sent = false;
+        break;
+      }
+      if (!emitting_close) {
+        // Inverter still wants close but we are temporarily holding open (startup / FAULT /
+        // master-not-ready / just after a recovery pulse). Pause the timer but keep attempts.
+        cw_close_request_start = 0;
+        break;
+      }
+      if (cw_recovery_attempts >= MAX_CONTACTOR_RECOVERY_ATTEMPTS) {
+        if (!cw_gave_up_event_sent) {
+          // All recovery attempts exhausted and the battery still won't report engaged.
+          set_event(EVENT_CONTACTOR_WATCHDOG_FAILED, cw_recovery_attempts, battery_index);
+          cw_gave_up_event_sent = true;
+        }
+        break;  // Gave up; wait for the inverter to withdraw the request (or engage) to re-arm.
+      }
+      if (cw_close_request_start == 0) {
+        cw_close_request_start = currentMillis ? currentMillis : 1;
+      } else if (currentMillis - cw_close_request_start >= CONTACTOR_ENGAGE_TIMEOUT_MS) {
+        // Timed out waiting for engage - start the recovery pulse.
+        set_event(EVENT_CONTACTOR_WATCHDOG_ACTIVE, cw_recovery_attempts, battery_index);
+        cw_recovery_attempts++;
+        cw_state = CW_RECOVERY_OPEN_LOW;
+        cw_recovery_phase_start = currentMillis;
+        contactor_recovery_force_open = true;
+        contactor_recovery_force_wakeup_low = true;
+        digitalWrite(wakeup_pin, LOW);  // Immediate, don't wait for next update_values()
+      }
+      break;
+
+    case CW_RECOVERY_OPEN_LOW:
+      contactor_recovery_force_open = true;
+      contactor_recovery_force_wakeup_low = true;
+      digitalWrite(wakeup_pin, LOW);
+      if (currentMillis - cw_recovery_phase_start >= RECOVERY_WAKEUP_LOW_MS) {
+        // Pulse done: wake the battery back up and let the close command resume.
+        contactor_recovery_force_open = false;
+        contactor_recovery_force_wakeup_low = false;
+        digitalWrite(wakeup_pin, HIGH);
+        cw_close_request_start = 0;  // Restart the 5s monitor for the fresh close attempt
+        cw_state = CW_MONITOR;
+      }
       break;
   }
 }
@@ -388,7 +492,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     }
     if (UserRequestBalancing == STARTING && elapsed_time >= INTERVAL_30_S) {
       UserRequestBalancing = EXECUTING;
-      set_event(EVENT_BALANCING_START, 0);
+      set_event(EVENT_BALANCING_START, 0, battery_index);
     }
 
     // Stop all CAN communication after ~96s (battery sleeps), ~42s after contactors open
@@ -407,6 +511,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
   // battery_awake flips false at EXECUTING - the real car keeps sending 0x10B
   // (with contactors open) and all keepalive frames until CAN stops at ~96s.
   if (battery_awake || balancing_mode_active) {
+    // Watchdog: recover the battery if it refuses to engage the contactor (e.g. precharge error)
+    monitor_contactor_engagement(currentMillis);
+
     // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
@@ -418,6 +525,8 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       if (contactors_should_open) {
         BMW_10B.data.u8[1] = 0x00;  // Open contactors - balancing shutdown sequence
+      } else if (contactor_recovery_force_open) {
+        BMW_10B.data.u8[1] = 0x00;  // Open contactors - watchdog recovery pulse (precharge reset)
       } else if (datalayer.system.status.system_status == FAULT) {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - fault condition
       } else if (startup_counter_contactor < 160) {
@@ -443,10 +552,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
         *allows_contactor_closing = !contactors_should_open;
       }
       transmit_can_frame(&BMW_10B);  // Always send 10B - content (0x00/0x10) controlled by logic above
-    }
 
-    // Send 100ms CAN Message
-    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+      // Send 100ms CAN Message
+    } else if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
       // Always operate the BMW i3 in Charge/Calibration mode (0x35).
@@ -459,9 +567,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       transmit_can_frame(&BMW_108);  // Actual Charging Electronics Data
       transmit_can_frame(&BMW_12F);
-    }
-    // Send 200ms CAN Message
-    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+
+      // Send 200ms CAN Message
+    } else if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
       previousMillis200 = currentMillis;
 
       BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
@@ -521,68 +629,13 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       transmit_can_frame(&BMW_19E);  // Subsystems Control
       transmit_can_frame(&BMW_30B);
-    }
-    // Send 640ms CAN Message
-    if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
+
+      // Send 640ms CAN Message
+    } else if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
       previousMillis640 = currentMillis;
 
       transmit_can_frame(&BMW_512);  // Keep BMS alive
       transmit_can_frame(&BMW_5F8);
-    }
-    // Send 1000ms CAN Message
-    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-      previousMillis1000 = currentMillis;
-      //BMW_328 byte0-3 = Second Counter (T_SEC_COU_REL) time_second_counter_relative
-      // This signal shows the time in seconds since the system time was started (typically in the factory)
-      BMW_328_seconds++;  // Used to increment seconds
-      BMW_328.data.u8[0] = (uint8_t)(BMW_328_seconds & 0xFF);
-      BMW_328.data.u8[1] = (uint8_t)((BMW_328_seconds >> 8) & 0xFF);
-      BMW_328.data.u8[2] = (uint8_t)((BMW_328_seconds >> 16) & 0xFF);
-      BMW_328.data.u8[3] = (uint8_t)((BMW_328_seconds >> 24) & 0xFF);
-      //BMW_328 byte 4-5 = Day Counter (T_DAY_COU_ABSL) time_day_counter_absolute
-      //This value goes from 1 ... 65543
-      // Day 1 = 1.1.2000 ... Day 65543 = year 2179
-      BMS_328_seconds_to_day++;
-      if (BMS_328_seconds_to_day > 86400) {
-        BMW_328_days++;
-        BMS_328_seconds_to_day = 0;
-      }
-      BMW_328.data.u8[4] = (uint8_t)(BMW_328_days & 0xFF);
-      BMW_328.data.u8[5] = (uint8_t)((BMW_328_days >> 8) & 0xFF);
-
-      BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
-
-      BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
-
-      BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
-
-      BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
-      BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
-
-      alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
-
-      transmit_can_frame(&BMW_3E8);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_328);
-      transmit_can_frame(&BMW_3F9);
-      transmit_can_frame(&BMW_2E2);
-      transmit_can_frame(&BMW_41D);
-      transmit_can_frame(&BMW_3D0);
-      transmit_can_frame(&BMW_3CA);
-      transmit_can_frame(&BMW_3A7);
-      transmit_can_frame(&BMW_2CA);
-      transmit_can_frame(&BMW_3FB);
-      transmit_can_frame(&BMW_418);
-      transmit_can_frame(&BMW_1D0);
-      transmit_can_frame(&BMW_3EC);
-      transmit_can_frame(&BMW_192);
-      transmit_can_frame(&BMW_13E);
-      transmit_can_frame(&BMW_433);
-
-      BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
-      BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
 
       if (UserRequestDTCreset) {
         cmdState = CLEAR_DTC;
@@ -599,6 +652,11 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           transmit_can_frame(&BMW_6F1_SOH);
           cmdState = SOH;
           break;
+        case CELL_VOLTAGE_MINMAX2:
+          BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
+          transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
+          cmdState = CELL_VOLTAGE_CELLNO;
+          break;
         case SOH:
           transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG);
           cmdState = CELL_VOLTAGE_CELLNO;
@@ -609,6 +667,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           current_cell_polled++;
           if (current_cell_polled > 96) {
             cmdState = CELL_VOLTAGE_CELLNO_LAST;
+          } else if (current_cell_polled % 6 == 0) {
+            transmit_can_frame(&BMW_6F1_CELL);
+            cmdState = CELL_VOLTAGE_MINMAX2;
           } else {
             cmdState = CELL_VOLTAGE_CELLNO;
 
@@ -631,9 +692,70 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
           cmdState = SOC;
           break;
       }
-    }
-    // Send 5000ms CAN Message
-    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+
+      // Send 1000ms CAN Message
+    } else if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
+      //BMW_328 byte0-3 = Second Counter (T_SEC_COU_REL) time_second_counter_relative
+      // This signal shows the time in seconds since the system time was started (typically in the factory)
+      BMW_328_seconds++;  // Used to increment seconds
+      BMW_328.data.u8[0] = (uint8_t)(BMW_328_seconds & 0xFF);
+      BMW_328.data.u8[1] = (uint8_t)((BMW_328_seconds >> 8) & 0xFF);
+      BMW_328.data.u8[2] = (uint8_t)((BMW_328_seconds >> 16) & 0xFF);
+      BMW_328.data.u8[3] = (uint8_t)((BMW_328_seconds >> 24) & 0xFF);
+      //BMW_328 byte 4-5 = Day Counter (T_DAY_COU_ABSL) time_day_counter_absolute
+      //This value goes from 1 ... 65543
+      // Day 1 = 1.1.2000 ... Day 65543 = year 2179
+      BMS_328_seconds_to_day++;
+      if (BMS_328_seconds_to_day > 86400) {
+        BMW_328_days++;
+        BMS_328_seconds_to_day = 0;
+      }
+      BMW_328.data.u8[4] = (uint8_t)(BMW_328_days & 0xFF);
+      BMW_328.data.u8[5] = (uint8_t)((BMW_328_days >> 8) & 0xFF);
+
+      BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
+
+      BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
+
+      alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
+
+      transmit_can_frame(&BMW_3E8);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_328);
+      transmit_can_frame(&BMW_3F9);
+      transmit_can_frame(&BMW_2E2);
+      transmit_can_frame(&BMW_41D);
+      transmit_can_frame(&BMW_3D0);
+      transmit_can_frame(&BMW_3CA);
+      transmit_can_frame(&BMW_3A7);
+
+      BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
+
+      // Send 1000ms CAN Message
+    } else if (currentMillis - previousMillis1000Part2 >= INTERVAL_1_S) {
+      previousMillis1000Part2 = currentMillis;
+
+      BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
+
+      BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
+
+      transmit_can_frame(&BMW_2CA);
+      transmit_can_frame(&BMW_3FB);
+      transmit_can_frame(&BMW_418);
+      transmit_can_frame(&BMW_1D0);
+      transmit_can_frame(&BMW_3EC);
+      transmit_can_frame(&BMW_192);
+      transmit_can_frame(&BMW_13E);
+      transmit_can_frame(&BMW_433);
+
+      BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
+
+      // Send 5000ms CAN Message
+    } else if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
       previousMillis5000 = currentMillis;
 
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
@@ -651,9 +773,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&BMW_380);  // This message stops after 3 times on startup
         BMW_380_counter++;
       }
-    }
-    // Send 10000ms CAN Message
-    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
+
+      // Send 10000ms CAN Message
+    } else if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
 
       transmit_can_frame(&BMW_3E5);  //Order comes from CAN logs
@@ -669,6 +791,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     previousMillis500 = currentMillis;
     previousMillis640 = currentMillis;
     previousMillis1000 = currentMillis;
+    previousMillis1000Part2 = currentMillis;
     previousMillis5000 = currentMillis;
     previousMillis10000 = currentMillis;
   }

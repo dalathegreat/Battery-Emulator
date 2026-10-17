@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // CHAdeMO is left out of the small flash devices
 /*  Uses a simple CT clamp to measure current
  *  ESP32 ADCs are not very accurate outside of linear region
  *  To start in the linear region use a 150mV offset
@@ -107,3 +108,4 @@ void setup_ct(void) {
   strncpy(datalayer.system.info.shunt_protocol, shunt_protocol, 31);
   datalayer.system.info.shunt_protocol[31] = '\0';
 }
+#endif  // SMALL_FLASH_DEVICE

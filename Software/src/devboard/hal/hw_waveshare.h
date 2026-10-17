@@ -57,6 +57,10 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() { return GPIO_NUM_9; }
 
 #ifndef SMALL_FLASH_DEVICE
+  // Analog current sensor output, on the 4-pin SH1.0 connector (ADC1 channel 0). Shared with the
+  // I2C display's SDA, so the two cannot be used at the same time.
+  virtual gpio_num_t SHUNT_ADC_PIN() { return GPIO_NUM_1; }
+
   // i2c display
   virtual gpio_num_t DISPLAY_SDA_PIN() {
     if (user_selected_gpioopt6 == GPIOOPT6::I2C_DISPLAY_SSD1306) {

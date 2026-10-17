@@ -14,8 +14,8 @@ class VoltageSyncTest : public ::testing::Test {
     // 10 and the next run in the same process starts mid-fault - a plain
     // --gtest_repeat=2 fails without this. They are not reachable from a
     // fixture; one in-sync pass through the public API is the reset (the
-    // <=1.5V branch zeroes the counter). 3750 dodges the 3700-startup-default
-    // guard, which returns before touching the counter.
+    // <=1.5V branch zeroes the counter). Any decoded, i.e. non-zero, voltage
+    // gets there.
     battery2_detected = true;
     battery3_detected = true;
     datalayer.battery.status.voltage_dV = 3750;
@@ -23,10 +23,10 @@ class VoltageSyncTest : public ::testing::Test {
     datalayer.battery3.status.voltage_dV = 3750;
     check_parallel_battery_safety(2);
     check_parallel_battery_safety(3);
-    // Reset datalayer to known state
-    datalayer.battery.status.voltage_dV = 3700;   // 370.0V
-    datalayer.battery2.status.voltage_dV = 3700;  // 370.0V
-    datalayer.battery3.status.voltage_dV = 3700;  // 370.0V
+    // Reset datalayer to known state: no pack has decoded a voltage yet
+    datalayer.battery.status.voltage_dV = 0;
+    datalayer.battery2.status.voltage_dV = 0;
+    datalayer.battery3.status.voltage_dV = 0;
     datalayer.system.status.system_status = ACTIVE;
     datalayer.system.status.battery2_allowed_contactor_closing = false;
     datalayer.system.status.battery3_allowed_contactor_closing = false;
@@ -37,9 +37,9 @@ class VoltageSyncTest : public ::testing::Test {
 
 // Test: When battery is powered OFF (no CAN comm), the allowed closing should be false
 TEST_F(VoltageSyncTest, Battery2NotPoweredOn) {
-  battery2_detected = false;                    //Not detected via CAN
-  datalayer.battery.status.voltage_dV = 3700;   //Default startup voltage
-  datalayer.battery2.status.voltage_dV = 3700;  //Default startup voltage
+  battery2_detected = false;                   //Not detected via CAN
+  datalayer.battery.status.voltage_dV = 3750;  //Voltages in sync, so detection alone holds it back
+  datalayer.battery2.status.voltage_dV = 3750;
 
   check_parallel_battery_safety(2);
 
@@ -106,6 +106,37 @@ TEST_F(VoltageSyncTest, Battery3DisconnectedAfterVoltageDriftTimeout) {
 
   check_parallel_battery_safety(3);
   EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
+}
+
+// Test: every pack reads 0 until its integration has decoded a voltage, and nothing may join
+// before both sides of the comparison have one
+TEST_F(VoltageSyncTest, UndecodedVoltagesHoldBatteriesBack) {
+  check_parallel_battery_safety(2);
+  check_parallel_battery_safety(3);
+  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+  EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
+
+  // Pack 2 and 3 decoded, pack 1 not yet
+  datalayer.battery2.status.voltage_dV = 3750;
+  datalayer.battery3.status.voltage_dV = 3750;
+  check_parallel_battery_safety(2);
+  check_parallel_battery_safety(3);
+  EXPECT_FALSE(datalayer.system.status.battery2_allowed_contactor_closing);
+  EXPECT_FALSE(datalayer.system.status.battery3_allowed_contactor_closing);
+}
+
+// Test: 370.0V is an ordinary reading, so packs genuinely there (e.g. the fake battery) join
+// straight away, battery3 exactly like battery2
+TEST_F(VoltageSyncTest, BatteriesAt370VJoin) {
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery2.status.voltage_dV = 3700;
+  datalayer.battery3.status.voltage_dV = 3700;
+
+  check_parallel_battery_safety(2);
+  check_parallel_battery_safety(3);
+
+  EXPECT_TRUE(datalayer.system.status.battery2_allowed_contactor_closing);
+  EXPECT_TRUE(datalayer.system.status.battery3_allowed_contactor_closing);
 }
 
 // Test: Battery1 fault disengages battery2 even when voltages match

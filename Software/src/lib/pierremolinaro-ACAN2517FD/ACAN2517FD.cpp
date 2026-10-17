@@ -210,15 +210,11 @@ static inline void turnOnInterrupts() {
 
 ACAN2517FD::ACAN2517FD (const uint8_t inCS, // CS input of MCP2517FD
                         SPIClass & inSPI, // Hardware SPI object
-                        const uint8_t inINT, // INT output of MCP2517FD
-                        const uint8_t inINT0,
-                        const uint8_t inINT1) :
+                        const uint8_t inINT) : // INT output of MCP2517FD
 mSPISettings (),
 mSPI (inSPI),
 mCS (inCS),
 mINT (inINT),
-mINT0 (inINT0),
-mINT1 (inINT1),
 mUsesTXQ (false),
 mHardwareTxFIFOFull (false),
 mRxInterruptEnabled (true),
@@ -258,18 +254,12 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   if ((mINT != 255) && (itPin == NOT_AN_INTERRUPT)) {
     errorCode = kINTPinIsNotAnInterrupt ;
   }
-  const int8_t itPin0 = digitalPinToInterrupt (mINT0) ;
-  const int8_t itPin1 = digitalPinToInterrupt (mINT1) ;
-  if((mINT0 != 255 && itPin0 == NOT_AN_INTERRUPT) || (mINT1 != 255 && itPin1 == NOT_AN_INTERRUPT)) {
-    errorCode = kINTPinIsNotAnInterrupt ;
-  }
-
 //----------------------------------- Check interrupt service routine is not null
-  if ((mINT != 255 || mINT0 != 255 || mINT1 != 255) && (inInterruptServiceRoutine == NULL)) {
+  if ((mINT != 255) && (inInterruptServiceRoutine == NULL)) {
     errorCode |= kISRIsNull ;
   }
 //----------------------------------- Check consistency between ISR and INT pin
-  if ((mINT == 255) && (mINT0 == 255) && (mINT1 == 255) && (inInterruptServiceRoutine != NULL)) {
+  if ((mINT == 255) && (inInterruptServiceRoutine != NULL)) {
     errorCode |= kISRNotNullAndNoIntPin ;
   }
 //----------------------------------- Check TXQ size is <= 32
@@ -312,12 +302,6 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     if (mINT != 255) { // 255 means interrupt is not used (thanks to Tyler Lewis)
       pinMode (mINT, INPUT_PULLUP) ;
     }
-    if (mINT0 != 255) {
-      pinMode (mINT0, INPUT_PULLUP) ;
-    }
-    if (mINT1 != 255) {
-      pinMode (mINT1, INPUT_PULLUP) ;
-    }
     initCS () ;
   //----------------------------------- Set SPI clock to 800 kHz
     mSPISettings = SPISettings (800UL * 1000, MSBFIRST, SPI_MODE0) ;
@@ -347,9 +331,20 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     }
   }
 
-  const auto oscillator = inSettings.oscillator() == ACAN2517FDSettings::OSC_AUTODETECT
-    ?  autodetectCrystalFrequency ()
-    : inSettings.oscillator() ;
+  // The crystal can't change while running: measure it on the first successful
+  // begin() only, and reuse the result on later calls (e.g. restart after end()),
+  // sparing the 10 ms blocking measurement.
+  ACAN2517FDSettings::Oscillator oscillator = inSettings.oscillator () ;
+  if (oscillator == ACAN2517FDSettings::OSC_AUTODETECT) {
+    if (mDetectedOscillator != ACAN2517FDSettings::OSC_AUTODETECT) {
+      oscillator = mDetectedOscillator ;
+    }else{
+      oscillator = autodetectCrystalFrequency () ;
+      if (errorCode == 0) { // Only trust a measurement taken over a verified SPI link
+        mDetectedOscillator = oscillator ;
+      }
+    }
+  }
   // Create a new settings object with the new frequency (which recalculates the timings)
   const auto clockSettings = ACAN2517FDSettings(oscillator, inSettings.mDesiredArbitrationBitRate, inSettings.mDataBitRateFactor);
 
@@ -440,12 +435,6 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     }
     if (inSettings.mINTIsOpenDrain) {
       data8 |= 1 << 6 ; // INTOD
-    }
-    if (mINT0 != 255) {
-      data8 &= ~(1 << 0) ; // PM0
-    }
-    if (mINT1 != 255) {
-      data8 &= ~(1 << 1) ; // PM1
     }
     writeRegister8 (IOCON_REGISTER_24_31, data8) ; // DS20005688B, page 24
   //----------------------------------- Configure ISO CRC Enable bit
@@ -581,15 +570,6 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
         attachInterrupt (itPin, inInterruptServiceRoutine, LOW) ; // Thank to Flole998
         mSPI.usingInterrupt (itPin) ; // usingInterrupt is not implemented in Arduino ESP32
       #endif
-    } else if( mINT0 != 255 && mINT1 != 255 ) {
-      const int8_t itPin0 = digitalPinToInterrupt (mINT0) ;
-      const int8_t itPin1 = digitalPinToInterrupt (mINT1) ;
-      #ifdef ARDUINO_ARCH_ESP32
-        attachInterrupt (itPin0, inInterruptServiceRoutine, FALLING) ;
-        attachInterrupt (itPin1, inInterruptServiceRoutine, FALLING) ;
-      #else
-        #error Unsupported
-      #endif
     }
   // If you begin() multiple times without constructor,
   // mHardwareTxFIFOFull = true will block the transmitter.
@@ -611,11 +591,6 @@ bool ACAN2517FD::end (void) {
     if (mINT != 255) { // 255 means interrupt is not used
       const int8_t itPin = digitalPinToInterrupt (mINT) ;
       detachInterrupt (itPin) ; // Available for ESP32 and Arduino
-    } else if( mINT0 != 255 && mINT1 != 255 ) {
-      const int8_t itPin0 = digitalPinToInterrupt (mINT0) ;
-      const int8_t itPin1 = digitalPinToInterrupt (mINT1) ;
-      detachInterrupt (itPin0) ;
-      detachInterrupt (itPin1) ;
     }
   //--- Request configuration mode
     bool wait = true ;
@@ -857,7 +832,7 @@ bool ACAN2517FD::receive (CANFDMessage & outMessage) {
       turnOffInterrupts () ;
       const bool hasReceivedMessage = mDriverReceiveBuffer.remove (outMessage) ;
     //--- If receive interrupt is disabled, enable it (added in release 2.17)
-      if (mINT == 255 && mINT0 == 255 && mINT1 == 255) { // No interrupt is used
+      if (mINT == 255) { // No interrupt pin
         mRxInterruptEnabled = true ;
         isr_poll_core () ; // Perform polling
       }else if (!mRxInterruptEnabled) {
@@ -1059,7 +1034,7 @@ void ACAN2517FD::receiveInterrupt (void) {
 //--- If mDriverReceiveBuffer is full, disable receive interrupt (added in release 2.17)
   if (mDriverReceiveBuffer.isFull ()) {
     mRxInterruptEnabled = false ;
-    if (mINT != 255 || mINT0 != 255 || mINT1 != 255) {
+    if (mINT != 255) {
       uint8_t data8 = readRegister8Assume_SPI_transaction (INT_REGISTER + 2) ;
       data8 &= ~ (1 << 1) ; // Receive FIFO Interrupt disable
       writeRegister8Assume_SPI_transaction (INT_REGISTER + 2, data8) ;
@@ -1370,7 +1345,8 @@ ACAN2517FDSettings::Oscillator ACAN2517FD::autodetectCrystalFrequency (void) {
   // Calculate frequency in 0.1MHz units
   const uint32_t freq_times_10 = ((c2 - c1) * 10) / (t2 - t1);
 
-  logging.printf("MCP2518FD autodetected crystal: %ddMHz\n", freq_times_10);
+  // freq_times_10 is in 0.1MHz units, round it to whole MHz for the log line
+  logging.printf("MCP2518FD autodetected crystal: %u MHz\n", (freq_times_10 + 5) / 10);
 
   // Disable TBC again
   writeRegister8 (C1TSCON_REGISTER_16_23, 0x00);

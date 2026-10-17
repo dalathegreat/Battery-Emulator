@@ -1,15 +1,14 @@
 #ifndef CELLMONITOR_H
 #define CELLMONITOR_H
 
-#include <WString.h>
+class AsyncWebServerRequest;
 
 /**
- * @brief Replaces placeholder with content section in web page
+ * @brief Renders the cell monitor page for the battery given in the "battery" query parameter
+ *        (1-3, defaults to the first pack).
  *
- * @param[in] var
- *
- * @return String
+ * @param[in] request
  */
-String cellmonitor_processor(const String& var);
+void send_cellmonitor_page(AsyncWebServerRequest* request);
 
 #endif

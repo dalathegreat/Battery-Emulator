@@ -1,0 +1,442 @@
+[
+  {
+    "dtc": "P33E2",
+    "l_dsc": "Battery High Temperature Diagnosis"
+  },
+  {
+    "dtc": "P33E3",
+    "l_dsc": "Battery Low Temperature Diagnosis"
+  },
+  {
+    "dtc": "P0A1F",
+    "l_dsc": "BATTERY ENERGY CONTROL MODULE"
+  },
+  {
+    "dtc": "P3332",
+    "l_dsc": "Cell 2nd Over voltage happens"
+  },
+  {
+    "dtc": "P33C1",
+    "l_dsc": "Temperature Sensor 14 out of range"
+  },
+  {
+    "dtc": "P33C0",
+    "l_dsc": "Temperature Sensor 13 out of range"
+  },
+  {
+    "dtc": "P33C2",
+    "l_dsc": "Temperature Sensor 15 out of range"
+  },
+  {
+    "dtc": "P33C4",
+    "l_dsc": "Temperature Sensor 17 out of ange"
+  },
+  {
+    "dtc": "P33C5",
+    "l_dsc": "Temperature Sensor 18 out of range"
+  },
+  {
+    "dtc": "P33C6",
+    "l_dsc": "Temperature Sensor 19 out of range"
+  },
+  {
+    "dtc": "P33C7",
+    "l_dsc": "Temperature Sensor 20 out of range"
+  },
+  {
+    "dtc": "P33C8",
+    "l_dsc": "Temperature Sensor 21 out of range"
+  },
+  {
+    "dtc": "P33C9",
+    "l_dsc": "Temperature Sensor 22 out of range"
+  },
+  {
+    "dtc": "P33CB",
+    "l_dsc": "Temperature Sensor 24 out of range"
+  },
+  {
+    "dtc": "P33CA",
+    "l_dsc": "Temperature Sensor 23 out of range"
+  },
+  {
+    "dtc": "P33D3",
+    "l_dsc": "Temperature Sensor 12 out of range"
+  },
+  {
+    "dtc": "P33D2",
+    "l_dsc": "Temperature Sensor 11 out of range"
+  },
+  {
+    "dtc": "P33D0",
+    "l_dsc": "Temperature Sensor 9 out of range"
+  },
+  {
+    "dtc": "P33D1",
+    "l_dsc": "Temperature Sensor 10 out of range"
+  },
+  {
+    "dtc": "P33D8",
+    "l_dsc": "Temperature Sensor 5 out of range"
+  },
+  {
+    "dtc": "P33DD",
+    "l_dsc": "Temperature Sensor 4 out of range"
+  },
+  {
+    "dtc": "P33DB",
+    "l_dsc": "Temperature Sensor 3 out of range"
+  },
+  {
+    "dtc": "P33D9",
+    "l_dsc": "Temperature Sensor 2 out of range"
+  },
+  {
+    "dtc": "P33D7",
+    "l_dsc": "Temperature Sensor 1 out of range"
+  },
+  {
+    "dtc": "P33DC",
+    "l_dsc": "Temperature Sensor 7 out of range"
+  },
+  {
+    "dtc": "P33DE",
+    "l_dsc": "Temperature Sensor 8 out of range"
+  },
+  {
+    "dtc": "P33DA",
+    "l_dsc": "Temperature Sensor 6 out of range"
+  },
+  {
+    "dtc": "P33D4",
+    "l_dsc": "Battery State of Health Power has low value"
+  },
+  {
+    "dtc": "P33D6",
+    "l_dsc": "CS (Current Sensing) Supply Failure"
+  },
+  {
+    "dtc": "P308B",
+    "l_dsc": "Cell Line Failure (ASIC1)"
+  },
+  {
+    "dtc": "P308C",
+    "l_dsc": "Cell Line Failure (ASIC2)"
+  },
+  {
+    "dtc": "P308D",
+    "l_dsc": "Cell Line Failure (ASIC3)"
+  },
+  {
+    "dtc": "P308E",
+    "l_dsc": "Cell Line Failure (ASIC4)"
+  },
+  {
+    "dtc": "P308F",
+    "l_dsc": "Cell Line Failure (ASIC5)"
+  },
+  {
+    "dtc": "P3090",
+    "l_dsc": "Cell Line Failure (ASIC6)"
+  },
+  {
+    "dtc": "P3092",
+    "l_dsc": "Cell Line Failure (ASIC8)"
+  },
+  {
+    "dtc": "P3093",
+    "l_dsc": "Cell Line Failure (ASIC9)"
+  },
+  {
+    "dtc": "P3094",
+    "l_dsc": "Cell Line Failure (ASIC10)"
+  },
+  {
+    "dtc": "P3095",
+    "l_dsc": "Cell Line Failure (ASIC11)"
+  },
+  {
+    "dtc": "P3096",
+    "l_dsc": "Cell Line Failure (ASIC12)"
+  },
+  {
+    "dtc": "P3091",
+    "l_dsc": "Cell Line Failure (ASIC7)"
+  },
+  {
+    "dtc": "P0A0A",
+    "l_dsc": "HV Interlock circuit failure"
+  },
+  {
+    "dtc": "P0A0D",
+    "l_dsc": "SD interlock circuit failure"
+  },
+  {
+    "dtc": "P3020",
+    "l_dsc": "Private CAN Failure"
+  },
+  {
+    "dtc": "P3062",
+    "l_dsc": "cell balancing circuit failure"
+  },
+  {
+    "dtc": "P3063",
+    "l_dsc": "Cell Voltage measurement Failure"
+  },
+  {
+    "dtc": "P3064",
+    "l_dsc": "Second protection circuit failure"
+  },
+  {
+    "dtc": "P30F4",
+    "l_dsc": "Pack Voltage Out of Range"
+  },
+  {
+    "dtc": "P30F5",
+    "l_dsc": "Pack Voltage Measurement Failure"
+  },
+  {
+    "dtc": "P30FC",
+    "l_dsc": "Pack over Current"
+  },
+  {
+    "dtc": "P30FE",
+    "l_dsc": "Aux V has a Failure"
+  },
+  {
+    "dtc": "P3300",
+    "l_dsc": "Pack Over Voltage"
+  },
+  {
+    "dtc": "P3302",
+    "l_dsc": "Cell Over Voltage (Module1)"
+  },
+  {
+    "dtc": "P3303",
+    "l_dsc": "Cell Over Voltage (Module2)"
+  },
+  {
+    "dtc": "P3304",
+    "l_dsc": "Cell Over Voltage (Module3)"
+  },
+  {
+    "dtc": "P3305",
+    "l_dsc": "Cell Over Voltage (Module4)"
+  },
+  {
+    "dtc": "P3306",
+    "l_dsc": "Cell Over Voltage (Module5)"
+  },
+  {
+    "dtc": "P3307",
+    "l_dsc": "Cell Over Voltage (Module6)"
+  },
+  {
+    "dtc": "P3308",
+    "l_dsc": "Cell Over Voltage (Module7)"
+  },
+  {
+    "dtc": "P3309",
+    "l_dsc": "Cell Over Voltage (Module8)"
+  },
+  {
+    "dtc": "P330A",
+    "l_dsc": "Cell Over Voltage (Module9)"
+  },
+  {
+    "dtc": "P330B",
+    "l_dsc": "Cell Over Voltage (Module10)"
+  },
+  {
+    "dtc": "P330C",
+    "l_dsc": "Cell Over Voltage (Module11)"
+  },
+  {
+    "dtc": "P330D",
+    "l_dsc": "Cell Over Voltage (Module12)"
+  },
+  {
+    "dtc": "P3373",
+    "l_dsc": "Pack Under Voltage"
+  },
+  {
+    "dtc": "P3375",
+    "l_dsc": "Cell UnderVoltage module 1"
+  },
+  {
+    "dtc": "P3376",
+    "l_dsc": "Cell UnderVoltage module 2"
+  },
+  {
+    "dtc": "P3377",
+    "l_dsc": "Cell UnderVoltage module 3"
+  },
+  {
+    "dtc": "P3378",
+    "l_dsc": "Cell UnderVoltagemodule 4"
+  },
+  {
+    "dtc": "P3379",
+    "l_dsc": "Cell UnderVoltage module 5"
+  },
+  {
+    "dtc": "P337A",
+    "l_dsc": "Cell UnderVoltage module 6"
+  },
+  {
+    "dtc": "P337B",
+    "l_dsc": "Cell UnderVoltage module 7"
+  },
+  {
+    "dtc": "P337C",
+    "l_dsc": "Cell UnderVoltage module 8"
+  },
+  {
+    "dtc": "P337D",
+    "l_dsc": "Cell UnderVoltage module 9"
+  },
+  {
+    "dtc": "P337E",
+    "l_dsc": "Cell UnderVoltage module 10"
+  },
+  {
+    "dtc": "P337F",
+    "l_dsc": "Cell UnderVoltage module 11"
+  },
+  {
+    "dtc": "P3380",
+    "l_dsc": "Cell UnderVoltage module 12"
+  },
+  {
+    "dtc": "P33B1",
+    "l_dsc": "Battery System has many failure on thermistors (1-12)"
+  },
+  {
+    "dtc": "P33B2",
+    "l_dsc": "Battery System has many failure on thermistors (13-24)"
+  },
+  {
+    "dtc": "P33D5",
+    "l_dsc": "CS (Current Sensing) Offset high"
+  },
+  {
+    "dtc": "P33C3",
+    "l_dsc": "Temperature Sensor 16 out of range"
+  },
+  {
+    "dtc": "P33E1",
+    "l_dsc": "IR Measurement Circuit Failure"
+  },
+  {
+    "dtc": "P33E6",
+    "l_dsc": "Pack Unbalanced"
+  },
+  {
+    "dtc": "P33ED",
+    "l_dsc": "Bus Bar Fixing Failure"
+  },
+  {
+    "dtc": "PD000",
+    "l_dsc": "Loss of Communication CAN"
+  },
+  {
+    "dtc": "UD000",
+    "l_dsc": "Loss of Communication CAN"
+  },
+  {
+    "dtc": "P330E",
+    "l_dsc": "Cell Over Voltage (Module13)"
+  },
+  {
+    "dtc": "P330F",
+    "l_dsc": "Cell Over Voltage (Module14)"
+  },
+  {
+    "dtc": "P3310",
+    "l_dsc": "Cell Over Voltage (Module15)"
+  },
+  {
+    "dtc": "P3311",
+    "l_dsc": "Cell Over Voltage (Module16)"
+  },
+  {
+    "dtc": "P3312",
+    "l_dsc": "Cell Over Voltage (Module17)"
+  },
+  {
+    "dtc": "P3313",
+    "l_dsc": "Cell Over Voltage (Module18)"
+  },
+  {
+    "dtc": "P3314",
+    "l_dsc": "Cell Over Voltage (Module19)"
+  },
+  {
+    "dtc": "P3315",
+    "l_dsc": "Cell Over Voltage (Module20)"
+  },
+  {
+    "dtc": "P3316",
+    "l_dsc": "Cell Over Voltage (Module21)"
+  },
+  {
+    "dtc": "P3317",
+    "l_dsc": "Cell Over Voltage (Module22)"
+  },
+  {
+    "dtc": "P3318",
+    "l_dsc": "Cell Over Voltage (Module23)"
+  },
+  {
+    "dtc": "P3319",
+    "l_dsc": "Cell Over Voltage (Module24)"
+  },
+  {
+    "dtc": "P3381",
+    "l_dsc": "Cell UnderVoltage module 13"
+  },
+  {
+    "dtc": "P3382",
+    "l_dsc": "Cell UnderVoltage module 14"
+  },
+  {
+    "dtc": "P3383",
+    "l_dsc": "Cell UnderVoltage module 15"
+  },
+  {
+    "dtc": "P3384",
+    "l_dsc": "Cell UnderVoltagemodule 16"
+  },
+  {
+    "dtc": "P3385",
+    "l_dsc": "Cell UnderVoltage module 17"
+  },
+  {
+    "dtc": "P3386",
+    "l_dsc": "Cell UnderVoltage module 18"
+  },
+  {
+    "dtc": "P3387",
+    "l_dsc": "Cell UnderVoltage module 19"
+  },
+  {
+    "dtc": "P3388",
+    "l_dsc": "Cell UnderVoltage module 20"
+  },
+  {
+    "dtc": "P3389",
+    "l_dsc": "Cell UnderVoltage module 21"
+  },
+  {
+    "dtc": "P338A",
+    "l_dsc": "Cell UnderVoltage module 22"
+  },
+  {
+    "dtc": "P338B",
+    "l_dsc": "Cell UnderVoltage module 23"
+  },
+  {
+    "dtc": "P338C",
+    "l_dsc": "Cell UnderVoltage module 24"
+  }
+]

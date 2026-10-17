@@ -100,10 +100,12 @@ static bool wifi_sta_configured() {
   return !ssid.empty() && !password.empty();
 }
 
-// The WiFi radio only needs to come up if either the AP is broadcast or STA
-// credentials are configured
+// The WiFi radio only needs to come up when
+// AP is enabled
+// STA credentials are configured
+// ESPNow is enabled
 static bool wifi_required() {
-  return wifiap_enabled || wifi_sta_configured();
+  return wifiap_enabled || wifi_sta_configured() || espnow_enabled;
 }
 
 void init_WiFi() {

@@ -23,6 +23,24 @@ Battery* create_battery(BatteryType type);
 bool battery_supports_double(BatteryType type);
 bool battery_supports_triple(BatteryType type);
 
+// Returns true if the integration writes datalayer.battery.info.total_capacity_Wh
+// itself, either from the BMS or from a model specific constant. For those the
+// stored "Battery capacity" setting is overwritten by the driver, so the web UI
+// hides the row instead of offering an edit that does not stick.
+bool battery_detects_capacity(BatteryType type);
+
+// Returns true if the integration uses the "Battery chemistry" setting: either its
+// voltage limits switch between LFP and other chemistries, or it cannot know the
+// chemistry of the pack behind it (custom BMSes, CHAdeMO/CCS vehicles, the fake
+// battery), where the setting is what tells the inverter an LFP pack is LFP. Every
+// other integration has a fixed chemistry, so the web UI hides the selector and
+// setup_battery() leaves the stored value unused.
+bool battery_supports_chemistry_selection(BatteryType type);
+
+bool byd_cell_balance_times_available(uint8_t index);
+bool request_byd_cell_balance_times(uint8_t index);
+String byd_cell_balance_times_json(uint8_t index);
+
 extern uint16_t user_selected_max_pack_voltage_dV;
 extern uint16_t user_selected_min_pack_voltage_dV;
 extern uint16_t user_selected_max_cell_voltage_mV;
@@ -30,6 +48,8 @@ extern uint16_t user_selected_min_cell_voltage_mV;
 extern bool user_selected_use_estimated_SOC;
 extern bool user_selected_use_estimated_charge_limits;
 extern bool user_selected_LEAF_interlock_mandatory;
+extern uint8_t user_selected_LEAF_chg_sta_rq[3];
+extern bool user_selected_LEAF_auto_current_offset;
 extern bool user_selected_tesla_digital_HVIL;
 extern uint16_t user_selected_tesla_GTW_country;
 extern bool user_selected_tesla_GTW_rightHandDrive;

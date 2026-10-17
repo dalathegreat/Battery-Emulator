@@ -23,7 +23,7 @@ extern bool battery3_detected;
 
 extern void store_settings_equipment_stop();
 
-void update_machineryprotection();
+void update_machineryprotection(uint32_t currentMillis);
 void update_remote_limit_expiry(uint32_t currentMillis);
 void graceful_restart();
 void update_restart_progress();

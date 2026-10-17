@@ -28,16 +28,16 @@ void DalyBms::update_values() {
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
   datalayer.battery.status.remaining_capacity_Wh = (remaining_capacity_mAh * (uint32_t)voltage_dV) / 10000;
 
-  datalayer.battery.status.max_charge_power_W = (datalayer.battery.settings.max_user_set_charge_dA * voltage_dV) / 100;
+  datalayer.battery.status.max_charge_power_W = (datalayer.battery_settings.max_user_set_charge_dA * voltage_dV) / 100;
   datalayer.battery.status.max_discharge_power_W =
-      (datalayer.battery.settings.max_user_set_discharge_dA * voltage_dV) / 100;
+      (datalayer.battery_settings.max_user_set_discharge_dA * voltage_dV) / 100;
 
   // limit power when reaching discharge voltage limit
   uint32_t voltage_power_limit = 999999;
   uint16_t min_voltage = datalayer.battery.info.min_design_voltage_dV;
-  if (datalayer.battery.settings.user_set_voltage_limits_active &&
-      datalayer.battery.settings.max_user_set_discharge_voltage_dV > min_voltage)
-    min_voltage = datalayer.battery.settings.max_user_set_discharge_voltage_dV;
+  if (datalayer.battery_settings.user_set_voltage_limits_active &&
+      datalayer.battery_settings.max_user_set_discharge_voltage_dV > min_voltage)
+    min_voltage = datalayer.battery_settings.max_user_set_discharge_voltage_dV;
   if (voltage_dV - min_voltage < user_selected_daly_power_per_dV_start)
     voltage_power_limit = (uint32_t)(voltage_dV - min_voltage) * user_selected_daly_power_per_dV;
   if (voltage_power_limit < datalayer.battery.status.max_discharge_power_W)

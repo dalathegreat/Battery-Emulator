@@ -584,6 +584,10 @@
     "l_dsc": "Lost Communication with Secondary Axle Motor Controller (SAC)"
   },
   {
+    "dtc": "U015187",
+    "l_dsc": "Lost Communication with Sensing Diagnostic Module (SDM)"
+  },
+  {
     "dtc": "U156217",
     "l_dsc": "Battery Voltage High"
   },

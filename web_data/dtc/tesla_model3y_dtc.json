@@ -92,8 +92,8 @@
   {
     "code": 115,
     "dtc": "BMS_a041",
-    "s_dsc": "BMS_a041_SW_Power_On_Reset",
-    "l_dsc": "Power On Reset"
+    "s_dsc": "BMS_a041_SW_Destructive_Reset_Source",
+    "l_dsc": "Destructive Reset Source (earlier firmware: Power On Reset)"
   },
   {
     "code": 116,
@@ -134,8 +134,8 @@
   {
     "code": 122,
     "dtc": "BMS_a048",
-    "s_dsc": "BMS_a048_SW_Log_Upload_Request",
-    "l_dsc": "Log Upload Request"
+    "s_dsc": "BMS_a048_SW_Watch_Dog_Warning",
+    "l_dsc": "Watch Dog Warning (earlier firmware: Log Upload Request)"
   },
   {
     "code": 123,
@@ -188,8 +188,8 @@
   {
     "code": 131,
     "dtc": "BMS_a061",
-    "s_dsc": "BMS_a061_robinBrickOverVoltage",
-    "l_dsc": "Robin Brick Over Voltage"
+    "s_dsc": "BMS_a061_SW_BrickV_Change",
+    "l_dsc": "Brick V Change (earlier firmware: Robin Brick Over Voltage)"
   },
   {
     "code": 132,
@@ -482,8 +482,8 @@
   {
     "code": 180,
     "dtc": "BMS_a157",
-    "s_dsc": "BMS_a157_SW_HVP_HVS_Comms",
-    "l_dsc": "HVP HVS Comms"
+    "s_dsc": "BMS_a157_SW_Hist_Update_Missed",
+    "l_dsc": "Hist Update Missed (earlier firmware: HVP HVS Comms)"
   },
   {
     "code": 181,
@@ -500,8 +500,8 @@
   {
     "code": 183,
     "dtc": "BMS_a161",
-    "s_dsc": "BMS_a161_SW_DI_Open_Request",
-    "l_dsc": "DI Open Request"
+    "s_dsc": "BMS_a161_SW_BMB_Vref_warning",
+    "l_dsc": "BMB Vref Warning (earlier firmware: DI Open Request)"
   },
   {
     "code": 184,
@@ -512,8 +512,8 @@
   {
     "code": 185,
     "dtc": "BMS_a163",
-    "s_dsc": "BMS_a163_SW_Contactor_Mismatch",
-    "l_dsc": "Contactor Mismatch"
+    "s_dsc": "BMS_a163_GridFormAborted",
+    "l_dsc": "Grid Form Aborted (earlier firmware: Contactor Mismatch)"
   },
   {
     "code": 186,
@@ -566,8 +566,8 @@
   {
     "code": 194,
     "dtc": "BMS_a173",
-    "s_dsc": "BMS_a173_SW_Charge_Component_Fault",
-    "l_dsc": "Charge Component Fault"
+    "s_dsc": "BMS_a173_FullPackEnergyDegraded",
+    "l_dsc": "Full Pack Energy Degraded (earlier firmware: Charge Component Fault)"
   },
   {
     "code": 195,
@@ -590,8 +590,8 @@
   {
     "code": 198,
     "dtc": "BMS_a179",
-    "s_dsc": "BMS_a179_SW_Hvp_12V_Fault",
-    "l_dsc": "Hvp 12 V Fault"
+    "s_dsc": "BMS_a179_HvpGpoRequestActive",
+    "l_dsc": "Hvp Gpo Request Active (earlier firmware: Hvp 12 V Fault)"
   },
   {
     "code": 199,
@@ -788,8 +788,8 @@
   {
     "code": 231,
     "dtc": "PCS_a032",
-    "s_dsc": "PCS_a032_gtwMia",
-    "l_dsc": "Gtw Mia"
+    "s_dsc": "PCS_a032_excessiveGridTransientsDetected",
+    "l_dsc": "Excessive Grid Transients Detected (earlier firmware: Gtw Mia)"
   },
   {
     "code": 232,
@@ -878,14 +878,14 @@
   {
     "code": 246,
     "dtc": "PCS_a047",
-    "s_dsc": "PCS_a047_lvBusLowImpedance",
-    "l_dsc": "Lv Bus Low Impedance"
+    "s_dsc": "PCS_a047_bootloaderCrcMismatch",
+    "l_dsc": "Bootloader Crc Mismatch (earlier firmware: Lv Bus Low Impedance)"
   },
   {
     "code": 247,
     "dtc": "PCS_a048",
-    "s_dsc": "PCS_a048_lvBusHighImpedance",
-    "l_dsc": "Lv Bus High Impedance"
+    "s_dsc": "PCS_a048_softwareAssertion",
+    "l_dsc": "Software Assertion (earlier firmware: Lv Bus High Impedance)"
   },
   {
     "code": 248,
@@ -926,14 +926,14 @@
   {
     "code": 254,
     "dtc": "PCS_a055",
-    "s_dsc": "PCS_a055_chgLineImedanceHigh",
-    "l_dsc": "Chg Line Imedance High"
+    "s_dsc": "PCS_a055_chgLineImpedanceHigh",
+    "l_dsc": "Chg Line Impedance High (earlier firmware: Chg Line Imedance High)"
   },
   {
     "code": 255,
     "dtc": "PCS_a056",
-    "s_dsc": "PCS_a056_chgLineImedanceTooHigh",
-    "l_dsc": "Chg Line Imedance Too High"
+    "s_dsc": "PCS_a056_chgLineImpedanceTooHigh",
+    "l_dsc": "Chg Line Impedance Too High (earlier firmware: Chg Line Imedance Too High)"
   },
   {
     "code": 256,
@@ -1058,8 +1058,8 @@
   {
     "code": 276,
     "dtc": "PCS_a077",
-    "s_dsc": "PCS_a077_microGridEnergyLow",
-    "l_dsc": "Micro Grid Energy Low"
+    "s_dsc": "PCS_a077_microGridWobbleDetected",
+    "l_dsc": "Micro Grid Wobble Detected (earlier firmware: Micro Grid Energy Low)"
   },
   {
     "code": 277,
@@ -1100,8 +1100,8 @@
   {
     "code": 283,
     "dtc": "PCS_a084",
-    "s_dsc": "PCS_a084_dcdcPchgStartVoltages",
-    "l_dsc": "Dcdc Pchg Start Voltages"
+    "s_dsc": "PCS_a084_vDropFastInParasiticDiodeRegion",
+    "l_dsc": "V Drop Fast In Parasitic Diode Region (earlier firmware: Dcdc Pchg Start Voltages)"
   },
   {
     "code": 284,
@@ -1124,8 +1124,8 @@
   {
     "code": 287,
     "dtc": "PCS_a088",
-    "s_dsc": "PCS_a088_pchgParameters",
-    "l_dsc": "Pchg Parameters"
+    "s_dsc": "PCS_a088_gridFreqDroopDetected",
+    "l_dsc": "Grid Freq Droop Detected (earlier firmware: Pchg Parameters)"
   },
   {
     "code": 288,
@@ -1214,8 +1214,8 @@
   {
     "code": 308,
     "dtc": "CP_a009",
-    "s_dsc": "CP_a009_coverOpen",
-    "l_dsc": "Cover Open"
+    "s_dsc": "CP_a009_coverOpenAllChgBlocked",
+    "l_dsc": "Cover Open All Chg Blocked (until 2022.36.20: Cover Open)"
   },
   {
     "code": 309,
@@ -1472,8 +1472,8 @@
   {
     "code": 351,
     "dtc": "CP_a052",
-    "s_dsc": "CP_a052_evseNotSupported",
-    "l_dsc": "Evse Not Supported"
+    "s_dsc": "CP_a052_chademoNotSupported",
+    "l_dsc": "Chademo Not Supported (until 2023.38.9.1: Evse Not Supported)"
   },
   {
     "code": 352,
@@ -1502,14 +1502,14 @@
   {
     "code": 356,
     "dtc": "CP_a057",
-    "s_dsc": "CP_a057_evseFaulted",
-    "l_dsc": "Evse Faulted"
+    "s_dsc": "CP_a057_ccs1AdapterBtnPress",
+    "l_dsc": "Ccs1 Adapter Btn Press (until 2022.12.3.16: Deprecated Alert57) (earlier firmware: Evse Faulted)"
   },
   {
     "code": 357,
     "dtc": "CP_a058",
-    "s_dsc": "CP_a058_acChargingBlocked",
-    "l_dsc": "Ac Charging Blocked"
+    "s_dsc": "CP_a058_acChargeRetryPending",
+    "l_dsc": "Ac Charge Retry Pending (until 2024.33.5: Ac Charging Blocked)"
   },
   {
     "code": 358,
@@ -1664,8 +1664,8 @@
   {
     "code": 383,
     "dtc": "CP_a084",
-    "s_dsc": "CP_a084_proximityPeDisconnected",
-    "l_dsc": "Proximity Pe Disconnected"
+    "s_dsc": "CP_a084_proxPeDisconnected_gb",
+    "l_dsc": "Prox Pe Disconnected Gb (earlier firmware: Proximity Pe Disconnected)"
   },
   {
     "code": 384,
@@ -1738,5 +1738,1541 @@
     "dtc": "CP_a096",
     "s_dsc": "CP_a096_pilotWake",
     "l_dsc": "Pilot Wake"
+  },
+  {
+    "code": 396,
+    "dtc": "BMS_a002",
+    "s_dsc": "BMS_a002_Pack_Performance_Config_Mismatch",
+    "l_dsc": "Pack Performance Config Mismatch (until 2021.24.6: Pack Mass Config Mismatch)"
+  },
+  {
+    "code": 397,
+    "dtc": "BMS_a003",
+    "s_dsc": "BMS_a003_SW_Pack_Birth_Date_Missing",
+    "l_dsc": "Pack Birth Date Missing"
+  },
+  {
+    "code": 398,
+    "dtc": "BMS_a004",
+    "s_dsc": "BMS_a004_Cal_Vs_Serial_Birth_Date_Mismatch",
+    "l_dsc": "Cal Vs Serial Birth Date Mismatch (until 2022.40.4.2: Incomplete Hot Seal Test)"
+  },
+  {
+    "code": 399,
+    "dtc": "BMS_a007",
+    "s_dsc": "BMS_a007_SW_Slowed_Chg_Batt_Cold",
+    "l_dsc": "Slowed Chg Batt Cold"
+  },
+  {
+    "code": 400,
+    "dtc": "BMS_a016",
+    "s_dsc": "BMS_a016_Pack_Module_Id_Mismatch",
+    "l_dsc": "Pack Module Id Mismatch"
+  },
+  {
+    "code": 401,
+    "dtc": "BMS_a020",
+    "s_dsc": "BMS_a020_SW_Brick_Instability",
+    "l_dsc": "Brick Instability"
+  },
+  {
+    "code": 402,
+    "dtc": "BMS_a027",
+    "s_dsc": "BMS_a027_SW_Repeated_Isolation_Failure_In_Drive",
+    "l_dsc": "Repeated Isolation Failure In Drive"
+  },
+  {
+    "code": 403,
+    "dtc": "BMS_a028",
+    "s_dsc": "BMS_a028_ShuntAsicCurrentOffsetDeviation",
+    "l_dsc": "Shunt Asic Current Offset Deviation"
+  },
+  {
+    "code": 404,
+    "dtc": "BMS_a029",
+    "s_dsc": "BMS_a029_dSoc_Limiting",
+    "l_dsc": "D Soc Limiting"
+  },
+  {
+    "code": 405,
+    "dtc": "BMS_a030",
+    "s_dsc": "BMS_a030_Impedance_Deviation",
+    "l_dsc": "Impedance Deviation (until 2022.4.5.18: Impedance Deviation)"
+  },
+  {
+    "code": 406,
+    "dtc": "BMS_a031",
+    "s_dsc": "BMS_a031_AlertsSetDuringSleep",
+    "l_dsc": "Alerts Set During Sleep"
+  },
+  {
+    "code": 407,
+    "dtc": "BMS_a032",
+    "s_dsc": "BMS_a032_VoltageLoss",
+    "l_dsc": "Voltage Loss"
+  },
+  {
+    "code": 408,
+    "dtc": "BMS_a033",
+    "s_dsc": "BMS_a033_VoltageDeviation",
+    "l_dsc": "Voltage Deviation"
+  },
+  {
+    "code": 409,
+    "dtc": "BMS_a040",
+    "s_dsc": "BMS_a040_SW_Watch_Dog_HW_Triggered",
+    "l_dsc": "Watch Dog HW Triggered"
+  },
+  {
+    "code": 410,
+    "dtc": "BMS_a049",
+    "s_dsc": "BMS_a049_SW_Thermal_Event",
+    "l_dsc": "Thermal Event"
+  },
+  {
+    "code": 411,
+    "dtc": "BMS_a056",
+    "s_dsc": "BMS_a056_SW_Standby_Supply_Fault",
+    "l_dsc": "Standby Supply Fault"
+  },
+  {
+    "code": 412,
+    "dtc": "BMS_a057",
+    "s_dsc": "BMS_a057_SW_Bandolier_Model_Warning",
+    "l_dsc": "Bandolier Model Warning"
+  },
+  {
+    "code": 413,
+    "dtc": "BMS_a058",
+    "s_dsc": "BMS_a058_SW_Bandolier_Model_Reset",
+    "l_dsc": "Bandolier Model Reset"
+  },
+  {
+    "code": 414,
+    "dtc": "BMS_a065",
+    "s_dsc": "BMS_a065_SW_CAC_Imbalance",
+    "l_dsc": "CAC Imbalance"
+  },
+  {
+    "code": 415,
+    "dtc": "BMS_a066",
+    "s_dsc": "BMS_a066_SOC_Imbalance_Warning",
+    "l_dsc": "SOC Imbalance Warning"
+  },
+  {
+    "code": 416,
+    "dtc": "BMS_a067",
+    "s_dsc": "BMS_a067_CAC_Imbalance_Limiting",
+    "l_dsc": "CAC Imbalance Limiting"
+  },
+  {
+    "code": 417,
+    "dtc": "BMS_a068",
+    "s_dsc": "BMS_a068_CAC_Imbalance_Limp",
+    "l_dsc": "CAC Imbalance Limp"
+  },
+  {
+    "code": 418,
+    "dtc": "BMS_a070",
+    "s_dsc": "BMS_a070_BrickV_Imbalance_Limiting",
+    "l_dsc": "Brick V Imbalance Limiting"
+  },
+  {
+    "code": 419,
+    "dtc": "BMS_a072",
+    "s_dsc": "BMS_a072_Module_Brick_Split",
+    "l_dsc": "Module Brick Split (until 2022.28.1: CAC Imbalance On Edge Brick)"
+  },
+  {
+    "code": 420,
+    "dtc": "BMS_a073",
+    "s_dsc": "BMS_a073_Unexpected_Loss_Of_Lv",
+    "l_dsc": "Unexpected Loss Of Lv"
+  },
+  {
+    "code": 421,
+    "dtc": "BMS_a074",
+    "s_dsc": "BMS_a074_Max_Charge_Level_Reduced",
+    "l_dsc": "Max Charge Level Reduced (until 2022.24.8: Max Charge Level Limited)"
+  },
+  {
+    "code": 422,
+    "dtc": "BMS_a078",
+    "s_dsc": "BMS_a078_Rapid_Dch_While_Charging",
+    "l_dsc": "Rapid Dch While Charging"
+  },
+  {
+    "code": 423,
+    "dtc": "BMS_a079",
+    "s_dsc": "BMS_a079_Max_Charge_Level_Exceeded",
+    "l_dsc": "Max Charge Level Exceeded"
+  },
+  {
+    "code": 424,
+    "dtc": "BMS_a080",
+    "s_dsc": "BMS_a080_SW_Pack_Ctr_Impedance",
+    "l_dsc": "Pack Ctr Impedance"
+  },
+  {
+    "code": 425,
+    "dtc": "BMS_a085",
+    "s_dsc": "BMS_a085_SW_Pack_Contactor_Mismatch",
+    "l_dsc": "Pack Contactor Mismatch"
+  },
+  {
+    "code": 426,
+    "dtc": "BMS_a086",
+    "s_dsc": "BMS_a086_SW_FC_Contactor_Mismatch",
+    "l_dsc": "FC Contactor Mismatch"
+  },
+  {
+    "code": 427,
+    "dtc": "BMS_a095",
+    "s_dsc": "BMS_a095_SW_UI_MIA",
+    "l_dsc": "UI MIA"
+  },
+  {
+    "code": 428,
+    "dtc": "BMS_a097",
+    "s_dsc": "BMS_a097_SW_BMB_Over_CAN_Communication",
+    "l_dsc": "BMB Over CAN Communication"
+  },
+  {
+    "code": 429,
+    "dtc": "BMS_a098",
+    "s_dsc": "BMS_a098_SW_BMB_Data_Integrity_Loss",
+    "l_dsc": "BMB Data Integrity Loss"
+  },
+  {
+    "code": 430,
+    "dtc": "BMS_a100",
+    "s_dsc": "BMS_a100_ThermalEventSuspected",
+    "l_dsc": "Thermal Event Suspected"
+  },
+  {
+    "code": 431,
+    "dtc": "BMS_a108",
+    "s_dsc": "BMS_a108_SW_BMB_Device_OT",
+    "l_dsc": "BMB Device OT"
+  },
+  {
+    "code": 432,
+    "dtc": "BMS_a109",
+    "s_dsc": "BMS_a109_HW_BMB_Mute_Status_Mismatch",
+    "l_dsc": "HW BMB Mute Status Mismatch"
+  },
+  {
+    "code": 433,
+    "dtc": "BMS_a110",
+    "s_dsc": "BMS_a110_LifeModel_AvgOffset_Change",
+    "l_dsc": "Life Model Avg Offset Change"
+  },
+  {
+    "code": 434,
+    "dtc": "BMS_a111",
+    "s_dsc": "BMS_a111_LifeModel_Spread_Change",
+    "l_dsc": "Life Model Spread Change"
+  },
+  {
+    "code": 435,
+    "dtc": "BMS_a112",
+    "s_dsc": "BMS_a112_LifeModel_Discontinuity",
+    "l_dsc": "Life Model Discontinuity"
+  },
+  {
+    "code": 436,
+    "dtc": "BMS_a115",
+    "s_dsc": "BMS_a115_Energy_Rubberbanding_Reset",
+    "l_dsc": "Energy Rubberbanding Reset (until 2023.44.30.30: Soe Display Error Deviation; until 2024.2.2.1: Soe Rubberbanding Reset)"
+  },
+  {
+    "code": 437,
+    "dtc": "BMS_a116",
+    "s_dsc": "BMS_a116_Soe_T_Display_Error_Deviation",
+    "l_dsc": "Soe T Display Error Deviation"
+  },
+  {
+    "code": 438,
+    "dtc": "BMS_a117",
+    "s_dsc": "BMS_a117_SW_Delta_SOC_Weak_Short",
+    "l_dsc": "Delta SOC Weak Short"
+  },
+  {
+    "code": 439,
+    "dtc": "BMS_a118",
+    "s_dsc": "BMS_a118_SW_SOC_Balance_Required",
+    "l_dsc": "SOC Balance Required"
+  },
+  {
+    "code": 440,
+    "dtc": "BMS_a119",
+    "s_dsc": "BMS_a119_Fast_Open_Vsh_Detected",
+    "l_dsc": "Fast Open Vsh Detected"
+  },
+  {
+    "code": 441,
+    "dtc": "BMS_a124",
+    "s_dsc": "BMS_a124_Battery_Coolant_Flood",
+    "l_dsc": "Battery Coolant Flood"
+  },
+  {
+    "code": 442,
+    "dtc": "BMS_a133",
+    "s_dsc": "BMS_a133_IO_CAN_Bus_Off",
+    "l_dsc": "IO CAN Bus Off"
+  },
+  {
+    "code": 443,
+    "dtc": "BMS_a140",
+    "s_dsc": "BMS_a140_HW_BMB_Status_Fault",
+    "l_dsc": "HW BMB Status Fault"
+  },
+  {
+    "code": 444,
+    "dtc": "BMS_a142",
+    "s_dsc": "BMS_a142_SW_Isolation_Degradation",
+    "l_dsc": "Isolation Degradation"
+  },
+  {
+    "code": 445,
+    "dtc": "BMS_a147",
+    "s_dsc": "BMS_a147_SW_SOC_High_Ah_Error",
+    "l_dsc": "SOC High Ah Error"
+  },
+  {
+    "code": 446,
+    "dtc": "BMS_a148",
+    "s_dsc": "BMS_a148_SW_Unsupported_BMB_ASIC_Type",
+    "l_dsc": "Unsupported BMB ASIC Type"
+  },
+  {
+    "code": 447,
+    "dtc": "BMS_a150",
+    "s_dsc": "BMS_a150_SW_Missing_Part_Number",
+    "l_dsc": "Missing Part Number"
+  },
+  {
+    "code": 448,
+    "dtc": "BMS_a152",
+    "s_dsc": "BMS_a152_Isolation_In_Dc_Charge",
+    "l_dsc": "Isolation In Dc Charge"
+  },
+  {
+    "code": 449,
+    "dtc": "BMS_a153",
+    "s_dsc": "BMS_a153_GridFormFaulted",
+    "l_dsc": "Grid Form Faulted (until 2026.2.6: Cp Grid Form Fault)"
+  },
+  {
+    "code": 450,
+    "dtc": "BMS_a154",
+    "s_dsc": "BMS_a154_SW_Brick_OV_Warning_Stop_Charge",
+    "l_dsc": "Brick OV Warning Stop Charge"
+  },
+  {
+    "code": 451,
+    "dtc": "BMS_a160",
+    "s_dsc": "BMS_a160_SW_FC_Ctr_Clean_Failed",
+    "l_dsc": "FC Ctr Clean Failed"
+  },
+  {
+    "code": 452,
+    "dtc": "BMS_a172",
+    "s_dsc": "BMS_a172_SW_Isolation_Failure_In_Drive_Warning",
+    "l_dsc": "Isolation Failure In Drive Warning"
+  },
+  {
+    "code": 453,
+    "dtc": "BMS_a175",
+    "s_dsc": "BMS_a175_Charge_Failure_External",
+    "l_dsc": "Charge Failure External"
+  },
+  {
+    "code": 454,
+    "dtc": "BMS_a177",
+    "s_dsc": "BMS_a177_SW_Energy_Buffer_Size",
+    "l_dsc": "Energy Buffer Size"
+  },
+  {
+    "code": 455,
+    "dtc": "BMS_a181",
+    "s_dsc": "BMS_a181_SW_Shunt_Over_Temperature",
+    "l_dsc": "Shunt Over Temperature"
+  },
+  {
+    "code": 456,
+    "dtc": "BMS_a182",
+    "s_dsc": "BMS_a182_LifeModel_NoCurrentLoss_Change",
+    "l_dsc": "Life Model No Current Loss Change"
+  },
+  {
+    "code": 457,
+    "dtc": "BMS_a183",
+    "s_dsc": "BMS_a183_LifeModel_StoDcrGrowth_Change",
+    "l_dsc": "Life Model Sto Dcr Growth Change"
+  },
+  {
+    "code": 458,
+    "dtc": "BMS_a184",
+    "s_dsc": "BMS_a184_LifeModel_CyclingLoss_Change",
+    "l_dsc": "Life Model Cycling Loss Change"
+  },
+  {
+    "code": 459,
+    "dtc": "BMS_a185",
+    "s_dsc": "BMS_a185_LifeModel_CyclingDcrGrowth_Change",
+    "l_dsc": "Life Model Cycling Dcr Growth Change"
+  },
+  {
+    "code": 460,
+    "dtc": "BMS_a186",
+    "s_dsc": "BMS_a186_RippleHeatingChargeFault",
+    "l_dsc": "Ripple Heating Charge Fault"
+  },
+  {
+    "code": 461,
+    "dtc": "BMS_a187",
+    "s_dsc": "BMS_a187_RippleHeatingEmergencyShutdown",
+    "l_dsc": "Ripple Heating Emergency Shutdown"
+  },
+  {
+    "code": 462,
+    "dtc": "BMS_a188",
+    "s_dsc": "BMS_a188_PowershareChargeCurrentViolation",
+    "l_dsc": "Powershare Charge Current Violation (until 2025.20.8: Dtc Confirmed)"
+  },
+  {
+    "code": 463,
+    "dtc": "BMS_a189",
+    "s_dsc": "BMS_a189_PowershareDischargeCurrentViolation",
+    "l_dsc": "Powershare Discharge Current Violation"
+  },
+  {
+    "code": 464,
+    "dtc": "BMS_a190",
+    "s_dsc": "BMS_a190_PowershareMaxVoltageViolation",
+    "l_dsc": "Powershare Max Voltage Violation"
+  },
+  {
+    "code": 465,
+    "dtc": "BMS_a191",
+    "s_dsc": "BMS_a191_PowershareMinVoltageViolation",
+    "l_dsc": "Powershare Min Voltage Violation"
+  },
+  {
+    "code": 466,
+    "dtc": "BMS_a192",
+    "s_dsc": "BMS_a192_PowershareExternalChargeRegulation",
+    "l_dsc": "Powershare External Charge Regulation"
+  },
+  {
+    "code": 467,
+    "dtc": "BMS_a193",
+    "s_dsc": "BMS_a193_PowershareMaxBrickVoltageViolation",
+    "l_dsc": "Powershare Max Brick Voltage Violation"
+  },
+  {
+    "code": 468,
+    "dtc": "BMS_a194",
+    "s_dsc": "BMS_a194_PowershareLimitViolation",
+    "l_dsc": "Powershare Limit Violation"
+  },
+  {
+    "code": 469,
+    "dtc": "BMS_a195",
+    "s_dsc": "BMS_a195_SW_DeltaTempOverThreshold",
+    "l_dsc": "Delta Temp Over Threshold"
+  },
+  {
+    "code": 470,
+    "dtc": "BMS_a196",
+    "s_dsc": "BMS_a196_SW_PackVoltageUnderThreshold",
+    "l_dsc": "Pack Voltage Under Threshold"
+  },
+  {
+    "code": 471,
+    "dtc": "BMS_a197",
+    "s_dsc": "BMS_a197_SW_High_SOC_OV",
+    "l_dsc": "High SOC OV"
+  },
+  {
+    "code": 472,
+    "dtc": "BMS_a198",
+    "s_dsc": "BMS_a198_SW_SOC_Abrupt_Change",
+    "l_dsc": "SOC Abrupt Change"
+  },
+  {
+    "code": 473,
+    "dtc": "PCS_a095",
+    "s_dsc": "PCS_a095_dcdcSensorlessModeActive",
+    "l_dsc": "Dcdc Sensorless Mode Active"
+  },
+  {
+    "code": 474,
+    "dtc": "PCS_a096",
+    "s_dsc": "PCS_a096_microGridOverLoaded",
+    "l_dsc": "Micro Grid Over Loaded"
+  },
+  {
+    "code": 475,
+    "dtc": "PCS_a097",
+    "s_dsc": "PCS_a097_rebootPhaseDetected",
+    "l_dsc": "Reboot Phase Detected"
+  },
+  {
+    "code": 476,
+    "dtc": "PCS_a098",
+    "s_dsc": "PCS_a098_gridFreqDroopDetectedSilent",
+    "l_dsc": "Grid Freq Droop Detected Silent"
+  },
+  {
+    "code": 477,
+    "dtc": "PCS_a099",
+    "s_dsc": "PCS_a099_microGridOverLoadedSilent",
+    "l_dsc": "Micro Grid Over Loaded Silent"
+  },
+  {
+    "code": 478,
+    "dtc": "PCS_a100",
+    "s_dsc": "PCS_a100_suspectedViperChipIssue",
+    "l_dsc": "Suspected Viper Chip Issue"
+  },
+  {
+    "code": 479,
+    "dtc": "PCS_a101",
+    "s_dsc": "PCS_a101_phMachineModelIrrational",
+    "l_dsc": "Ph Machine Model Irrational"
+  },
+  {
+    "code": 480,
+    "dtc": "PCS_a102",
+    "s_dsc": "PCS_a102_resetWithDCDCCmdAsserted",
+    "l_dsc": "Reset With DCDC Cmd Asserted"
+  },
+  {
+    "code": 481,
+    "dtc": "PCS_a103",
+    "s_dsc": "PCS_a103_pchgWithLowLvDetected",
+    "l_dsc": "Pchg With Low Lv Detected"
+  },
+  {
+    "code": 482,
+    "dtc": "PCS_a104",
+    "s_dsc": "PCS_a104_ambientTempRationality",
+    "l_dsc": "Ambient Temp Rationality"
+  },
+  {
+    "code": 483,
+    "dtc": "PCS_a105",
+    "s_dsc": "PCS_a105_redundantVoltageSourceIrrational",
+    "l_dsc": "Redundant Voltage Source Irrational"
+  },
+  {
+    "code": 484,
+    "dtc": "PCS_a106",
+    "s_dsc": "PCS_a106_clockSourceNotFromExternalCrystal",
+    "l_dsc": "Clock Source Not From External Crystal"
+  },
+  {
+    "code": 485,
+    "dtc": "PCS_a107",
+    "s_dsc": "PCS_a107_vcPcsDCDCInterfaceMia",
+    "l_dsc": "Vc Pcs DCDC Interface Mia"
+  },
+  {
+    "code": 486,
+    "dtc": "PCS_a108",
+    "s_dsc": "PCS_a108_misconfigurationDetected",
+    "l_dsc": "Misconfiguration Detected"
+  },
+  {
+    "code": 487,
+    "dtc": "PCS_a109",
+    "s_dsc": "PCS_a109_deltaChargingL2L3SwappedDetected",
+    "l_dsc": "Delta Charging L 2 L 3 Swapped Detected"
+  },
+  {
+    "code": 488,
+    "dtc": "CP_a097",
+    "s_dsc": "CP_a097_modeTransitionFailure",
+    "l_dsc": "Mode Transition Failure"
+  },
+  {
+    "code": 489,
+    "dtc": "CP_a098",
+    "s_dsc": "CP_a098_proximityWake",
+    "l_dsc": "Proximity Wake"
+  },
+  {
+    "code": 490,
+    "dtc": "CP_a099",
+    "s_dsc": "CP_a099_cableStateUnknown",
+    "l_dsc": "Cable State Unknown"
+  },
+  {
+    "code": 491,
+    "dtc": "CP_a100",
+    "s_dsc": "CP_a100_inletHarnessIdIrrational",
+    "l_dsc": "Inlet Harness Id Irrational"
+  },
+  {
+    "code": 492,
+    "dtc": "CP_a101",
+    "s_dsc": "CP_a101_wcFoldbackActive",
+    "l_dsc": "Wc Foldback Active"
+  },
+  {
+    "code": 493,
+    "dtc": "CP_a102",
+    "s_dsc": "CP_a102_wcOvertempFault",
+    "l_dsc": "Wc Overtemp Fault"
+  },
+  {
+    "code": 494,
+    "dtc": "CP_a103",
+    "s_dsc": "CP_a103_proximityPeDisconnected",
+    "l_dsc": "Proximity Pe Disconnected"
+  },
+  {
+    "code": 495,
+    "dtc": "CP_a104",
+    "s_dsc": "CP_a104_uhfResetSuccessful",
+    "l_dsc": "Uhf Reset Successful"
+  },
+  {
+    "code": 496,
+    "dtc": "CP_a105",
+    "s_dsc": "CP_a105_hwUnableToSleep",
+    "l_dsc": "Hw Unable To Sleep"
+  },
+  {
+    "code": 497,
+    "dtc": "CP_a106",
+    "s_dsc": "CP_a106_uhfReceiverReset",
+    "l_dsc": "Uhf Receiver Reset"
+  },
+  {
+    "code": 498,
+    "dtc": "CP_a107",
+    "s_dsc": "CP_a107_chademoFoldbackActive",
+    "l_dsc": "Chademo Foldback Active"
+  },
+  {
+    "code": 499,
+    "dtc": "CP_a108",
+    "s_dsc": "CP_a108_chademoOvertempFault",
+    "l_dsc": "Chademo Overtemp Fault"
+  },
+  {
+    "code": 500,
+    "dtc": "CP_a109",
+    "s_dsc": "CP_a109_thermistorIrrational",
+    "l_dsc": "Thermistor Irrational"
+  },
+  {
+    "code": 501,
+    "dtc": "CP_a110",
+    "s_dsc": "CP_a110_thermalVelocityHigh",
+    "l_dsc": "Thermal Velocity High"
+  },
+  {
+    "code": 502,
+    "dtc": "CP_a111",
+    "s_dsc": "CP_a111_inletHeaterUnableToHeat",
+    "l_dsc": "Inlet Heater Unable To Heat"
+  },
+  {
+    "code": 503,
+    "dtc": "CP_a112",
+    "s_dsc": "CP_a112_inletHeaterIrrationalTemperature",
+    "l_dsc": "Inlet Heater Irrational Temperature"
+  },
+  {
+    "code": 504,
+    "dtc": "CP_a113",
+    "s_dsc": "CP_a113_inletHeaterShortCircuit",
+    "l_dsc": "Inlet Heater Short Circuit"
+  },
+  {
+    "code": 505,
+    "dtc": "CP_a114",
+    "s_dsc": "CP_a114_ccsEvseFailed",
+    "l_dsc": "Ccs Evse Failed (until 2022.16.3: Deprecated Alert1)"
+  },
+  {
+    "code": 506,
+    "dtc": "CP_a115",
+    "s_dsc": "CP_a115_unexpectedTcan1145State",
+    "l_dsc": "Unexpected Tcan1145 State (until 2023.7.30: Deprecated Alert2)"
+  },
+  {
+    "code": 507,
+    "dtc": "CP_a116",
+    "s_dsc": "CP_a116_misconfigurationDetected",
+    "l_dsc": "Misconfiguration Detected"
+  },
+  {
+    "code": 508,
+    "dtc": "CP_a117",
+    "s_dsc": "CP_a117_inletHeaterUnableToRegulate",
+    "l_dsc": "Inlet Heater Unable To Regulate"
+  },
+  {
+    "code": 509,
+    "dtc": "CP_a118",
+    "s_dsc": "CP_a118_iecComboLockUp",
+    "l_dsc": "Iec Combo Lock Up"
+  },
+  {
+    "code": 510,
+    "dtc": "CP_a119",
+    "s_dsc": "CP_a119_plcTransmitFailure",
+    "l_dsc": "Plc Transmit Failure"
+  },
+  {
+    "code": 511,
+    "dtc": "CP_a120",
+    "s_dsc": "CP_a120_comboAdapterFoldback",
+    "l_dsc": "Combo Adapter Foldback"
+  },
+  {
+    "code": 512,
+    "dtc": "CP_a121",
+    "s_dsc": "CP_a121_PLCRLY_lostCommsCP",
+    "l_dsc": "PLCRLY Lost Comms CP"
+  },
+  {
+    "code": 513,
+    "dtc": "CP_a122",
+    "s_dsc": "CP_a122_plcModemFailure",
+    "l_dsc": "Plc Modem Failure"
+  },
+  {
+    "code": 514,
+    "dtc": "CP_a123",
+    "s_dsc": "CP_a123_latchPotIrrational",
+    "l_dsc": "Latch Pot Irrational"
+  },
+  {
+    "code": 515,
+    "dtc": "CP_a124",
+    "s_dsc": "CP_a124_ivledFault",
+    "l_dsc": "Ivled Fault"
+  },
+  {
+    "code": 516,
+    "dtc": "CP_a125",
+    "s_dsc": "CP_a125_unexpectedLVJuiceState",
+    "l_dsc": "Unexpected LV Juice State"
+  },
+  {
+    "code": 517,
+    "dtc": "CP_a126",
+    "s_dsc": "CP_a126_wakeOnUhfFault",
+    "l_dsc": "Wake On Uhf Fault"
+  },
+  {
+    "code": 518,
+    "dtc": "CP_a127",
+    "s_dsc": "CP_a127_lostCommsHVLINK",
+    "l_dsc": "Lost Comms HVLINK"
+  },
+  {
+    "code": 519,
+    "dtc": "CP_a128",
+    "s_dsc": "CP_a128_lostCommsVC",
+    "l_dsc": "Lost Comms VC"
+  },
+  {
+    "code": 520,
+    "dtc": "CP_a129",
+    "s_dsc": "CP_a129_bldcDriverCommsFailed",
+    "l_dsc": "Bldc Driver Comms Failed"
+  },
+  {
+    "code": 521,
+    "dtc": "CP_a130",
+    "s_dsc": "CP_a130_bldcDriverCommsRecovered",
+    "l_dsc": "Bldc Driver Comms Recovered"
+  },
+  {
+    "code": 522,
+    "dtc": "CP_a131",
+    "s_dsc": "CP_a131_evseCommTimeout",
+    "l_dsc": "Evse Comm Timeout"
+  },
+  {
+    "code": 523,
+    "dtc": "CP_a132",
+    "s_dsc": "CP_a132_contractAuthTimeout",
+    "l_dsc": "Contract Auth Timeout"
+  },
+  {
+    "code": 524,
+    "dtc": "CP_a133",
+    "s_dsc": "CP_a133_proxNeverLatched",
+    "l_dsc": "Prox Never Latched"
+  },
+  {
+    "code": 525,
+    "dtc": "CP_a134",
+    "s_dsc": "CP_a134_plcModemNotExpected",
+    "l_dsc": "Plc Modem Not Expected"
+  },
+  {
+    "code": 526,
+    "dtc": "CP_a135",
+    "s_dsc": "CP_a135_sdpAttemptsFailed",
+    "l_dsc": "Sdp Attempts Failed"
+  },
+  {
+    "code": 527,
+    "dtc": "CP_a136",
+    "s_dsc": "CP_a136_sdpSideReqFailed",
+    "l_dsc": "Sdp Side Req Failed (until 2023.38.9.1: Sc Sdp Comms Failure)"
+  },
+  {
+    "code": 528,
+    "dtc": "CP_a137",
+    "s_dsc": "CP_a137_plcForwardError",
+    "l_dsc": "Plc Forward Error"
+  },
+  {
+    "code": 529,
+    "dtc": "CP_a138",
+    "s_dsc": "CP_a138_swcanCommsAcEvseFaulted",
+    "l_dsc": "Swcan Comms Ac Evse Faulted"
+  },
+  {
+    "code": 530,
+    "dtc": "CP_a139",
+    "s_dsc": "CP_a139_pilotFaulted",
+    "l_dsc": "Pilot Faulted"
+  },
+  {
+    "code": 531,
+    "dtc": "CP_a140",
+    "s_dsc": "CP_a140_superchargerFaulted",
+    "l_dsc": "Supercharger Faulted"
+  },
+  {
+    "code": 532,
+    "dtc": "CP_a141",
+    "s_dsc": "CP_a141_chademoAdapterFault",
+    "l_dsc": "Chademo Adapter Fault"
+  },
+  {
+    "code": 533,
+    "dtc": "CP_a142",
+    "s_dsc": "CP_a142_gbdcScConnFault",
+    "l_dsc": "Gbdc Sc Conn Fault"
+  },
+  {
+    "code": 534,
+    "dtc": "CP_a143",
+    "s_dsc": "CP_a143_unsupportedChargeAdapter",
+    "l_dsc": "Unsupported Charge Adapter"
+  },
+  {
+    "code": 535,
+    "dtc": "CP_a144",
+    "s_dsc": "CP_a144_nvmInitFailed",
+    "l_dsc": "Nvm Init Failed"
+  },
+  {
+    "code": 536,
+    "dtc": "CP_a145",
+    "s_dsc": "CP_a145_modemAppLoadFailedNA",
+    "l_dsc": "Modem App Load Failed NA"
+  },
+  {
+    "code": 537,
+    "dtc": "CP_a146",
+    "s_dsc": "CP_a146_ccsEvseMalfunction",
+    "l_dsc": "Ccs Evse Malfunction"
+  },
+  {
+    "code": 538,
+    "dtc": "CP_a147",
+    "s_dsc": "CP_a147_inductiveRecoveredMia",
+    "l_dsc": "Inductive Recovered Mia"
+  },
+  {
+    "code": 539,
+    "dtc": "CP_a148",
+    "s_dsc": "CP_a148_bldcTachFeedbackMia",
+    "l_dsc": "Bldc Tach Feedback Mia"
+  },
+  {
+    "code": 540,
+    "dtc": "CP_a149",
+    "s_dsc": "CP_a149_pilotPeriodInvalid",
+    "l_dsc": "Pilot Period Invalid"
+  },
+  {
+    "code": 541,
+    "dtc": "CP_a150",
+    "s_dsc": "CP_a150_railToggleTimeout",
+    "l_dsc": "Rail Toggle Timeout"
+  },
+  {
+    "code": 542,
+    "dtc": "CP_a151",
+    "s_dsc": "CP_a151_badPilotDiodeDetected",
+    "l_dsc": "Bad Pilot Diode Detected"
+  },
+  {
+    "code": 543,
+    "dtc": "CP_a152",
+    "s_dsc": "CP_a152_pilotEdgeDetectionFailed",
+    "l_dsc": "Pilot Edge Detection Failed"
+  },
+  {
+    "code": 544,
+    "dtc": "CP_a153",
+    "s_dsc": "CP_a153_thermalAcLimitActive",
+    "l_dsc": "Thermal Ac Limit Active"
+  },
+  {
+    "code": 545,
+    "dtc": "CP_a154",
+    "s_dsc": "CP_a154_acChargingStoppedOT",
+    "l_dsc": "Ac Charging Stopped OT"
+  },
+  {
+    "code": 546,
+    "dtc": "CP_a155",
+    "s_dsc": "CP_a155_hallPresenceRationality",
+    "l_dsc": "Hall Presence Rationality"
+  },
+  {
+    "code": 547,
+    "dtc": "CP_a156",
+    "s_dsc": "CP_a156_gbdcPrechargingConcern",
+    "l_dsc": "Gbdc Precharging Concern"
+  },
+  {
+    "code": 548,
+    "dtc": "CP_a157",
+    "s_dsc": "CP_a157_doorOpenRateLimiter",
+    "l_dsc": "Door Open Rate Limiter"
+  },
+  {
+    "code": 549,
+    "dtc": "CP_a158",
+    "s_dsc": "CP_a158_doorCloseRateLimiter",
+    "l_dsc": "Door Close Rate Limiter"
+  },
+  {
+    "code": 550,
+    "dtc": "CP_a159",
+    "s_dsc": "CP_a159_swcanHealthCheckFailed",
+    "l_dsc": "Swcan Health Check Failed"
+  },
+  {
+    "code": 551,
+    "dtc": "CP_a160",
+    "s_dsc": "CP_a160_latchDisengageInDcCharge",
+    "l_dsc": "Latch Disengage In Dc Charge"
+  },
+  {
+    "code": 552,
+    "dtc": "CP_a161",
+    "s_dsc": "CP_a161_badPilotDiodeDetectedCN",
+    "l_dsc": "Bad Pilot Diode Detected CN"
+  },
+  {
+    "code": 553,
+    "dtc": "CP_a162",
+    "s_dsc": "CP_a162_pilotEdgeDetectionFailedCN",
+    "l_dsc": "Pilot Edge Detection Failed CN"
+  },
+  {
+    "code": 554,
+    "dtc": "CP_a163",
+    "s_dsc": "CP_a163_coverOpenDcChgBlocked",
+    "l_dsc": "Cover Open Dc Chg Blocked"
+  },
+  {
+    "code": 555,
+    "dtc": "CP_a164",
+    "s_dsc": "CP_a164_latchRedisengageRequested",
+    "l_dsc": "Latch Redisengage Requested"
+  },
+  {
+    "code": 556,
+    "dtc": "CP_a165",
+    "s_dsc": "CP_a165_proxWiggleDetected",
+    "l_dsc": "Prox Wiggle Detected"
+  },
+  {
+    "code": 557,
+    "dtc": "CP_a166",
+    "s_dsc": "CP_a166_faultLineMismatchDetected",
+    "l_dsc": "Fault Line Mismatch Detected"
+  },
+  {
+    "code": 558,
+    "dtc": "CP_a167",
+    "s_dsc": "CP_a167_doorIdIrrational",
+    "l_dsc": "Door Id Irrational"
+  },
+  {
+    "code": 559,
+    "dtc": "CP_a168",
+    "s_dsc": "CP_a168_pilotHSDFaulted",
+    "l_dsc": "Pilot HSD Faulted"
+  },
+  {
+    "code": 560,
+    "dtc": "CP_a172",
+    "s_dsc": "CP_a172_triggerOdin",
+    "l_dsc": "Trigger Odin"
+  },
+  {
+    "code": 561,
+    "dtc": "CP_a173",
+    "s_dsc": "CP_a173_coverOpenAcChgBlocked",
+    "l_dsc": "Cover Open Ac Chg Blocked"
+  },
+  {
+    "code": 562,
+    "dtc": "CP_a174",
+    "s_dsc": "CP_a174_fwdedMsgLoadWarning",
+    "l_dsc": "Fwded Msg Load Warning"
+  },
+  {
+    "code": 563,
+    "dtc": "CP_a175",
+    "s_dsc": "CP_a175_fwdedMsgDropped",
+    "l_dsc": "Fwded Msg Dropped"
+  },
+  {
+    "code": 564,
+    "dtc": "CP_a176",
+    "s_dsc": "CP_a176_lostCommsV2l",
+    "l_dsc": "Lost Comms V 2l"
+  },
+  {
+    "code": 565,
+    "dtc": "CP_a177",
+    "s_dsc": "CP_a177_incompatibleV2lDeviceDetected",
+    "l_dsc": "Incompatible V 2l Device Detected"
+  },
+  {
+    "code": 566,
+    "dtc": "CP_a178",
+    "s_dsc": "CP_a178_v2xPlcCommsFault",
+    "l_dsc": "V2x Plc Comms Fault"
+  },
+  {
+    "code": 567,
+    "dtc": "CP_a179",
+    "s_dsc": "CP_a179_evseCommsTlsError",
+    "l_dsc": "Evse Comms Tls Error"
+  },
+  {
+    "code": 568,
+    "dtc": "CP_a182",
+    "s_dsc": "CP_a182_pncdCommsError",
+    "l_dsc": "Pncd Comms Error"
+  },
+  {
+    "code": 569,
+    "dtc": "CP_a183",
+    "s_dsc": "CP_a183_certManagerError",
+    "l_dsc": "Cert Manager Error"
+  },
+  {
+    "code": 570,
+    "dtc": "CP_a184",
+    "s_dsc": "CP_a184_certChangeEvent",
+    "l_dsc": "Cert Change Event"
+  },
+  {
+    "code": 571,
+    "dtc": "CP_a185",
+    "s_dsc": "CP_a185_pncAuthRejection",
+    "l_dsc": "Pnc Auth Rejection"
+  },
+  {
+    "code": 572,
+    "dtc": "CP_a186",
+    "s_dsc": "CP_a186_spiDmaFailure",
+    "l_dsc": "Spi Dma Failure"
+  },
+  {
+    "code": 573,
+    "dtc": "CP_a187",
+    "s_dsc": "CP_a187_highStackUsage",
+    "l_dsc": "High Stack Usage"
+  },
+  {
+    "code": 574,
+    "dtc": "CP_a188",
+    "s_dsc": "CP_a188_v2lEvseRequiresUpdate",
+    "l_dsc": "V2l Evse Requires Update"
+  },
+  {
+    "code": 575,
+    "dtc": "CP_a189",
+    "s_dsc": "CP_a189_resistivePresenceRationality",
+    "l_dsc": "Resistive Presence Rationality"
+  },
+  {
+    "code": 576,
+    "dtc": "CP_a201",
+    "s_dsc": "CP_a201_uhfDoorOpenRepeatedlyOverLimit",
+    "l_dsc": "Uhf Door Open Repeatedly Over Limit"
+  },
+  {
+    "code": 577,
+    "dtc": "CP_a202",
+    "s_dsc": "CP_a202_failedToEstablishV2gComm2",
+    "l_dsc": "Failed To Establish V 2g Comm2"
+  },
+  {
+    "code": 578,
+    "dtc": "CP_a203",
+    "s_dsc": "CP_a203_evseCommTimeout2",
+    "l_dsc": "Evse Comm Timeout2"
+  },
+  {
+    "code": 579,
+    "dtc": "CP_a204",
+    "s_dsc": "CP_a204_sdpAttemptsFailed2",
+    "l_dsc": "Sdp Attempts Failed2"
+  },
+  {
+    "code": 580,
+    "dtc": "CP_a205",
+    "s_dsc": "CP_a205_doorPositionUndetectable",
+    "l_dsc": "Door Position Undetectable"
+  },
+  {
+    "code": 581,
+    "dtc": "CP_a206",
+    "s_dsc": "CP_a206_peToChassisDisconnected",
+    "l_dsc": "Pe To Chassis Disconnected"
+  },
+  {
+    "code": 582,
+    "dtc": "HVP_w001",
+    "s_dsc": "HVP_w001_WatchdogReset",
+    "l_dsc": "Watchdog Reset"
+  },
+  {
+    "code": 583,
+    "dtc": "HVP_w002",
+    "s_dsc": "HVP_w002_UnusedAlert2",
+    "l_dsc": "Unused Alert2"
+  },
+  {
+    "code": 584,
+    "dtc": "HVP_w003",
+    "s_dsc": "HVP_w003_SwAssertion",
+    "l_dsc": "Sw Assertion"
+  },
+  {
+    "code": 585,
+    "dtc": "HVP_w004",
+    "s_dsc": "HVP_w004_CrashEvent",
+    "l_dsc": "Crash Event"
+  },
+  {
+    "code": 586,
+    "dtc": "HVP_w005",
+    "s_dsc": "HVP_w005_OverDchgCurrentFault",
+    "l_dsc": "Over Dchg Current Fault"
+  },
+  {
+    "code": 587,
+    "dtc": "HVP_w006",
+    "s_dsc": "HVP_w006_OverChargeCurrentFault",
+    "l_dsc": "Over Charge Current Fault"
+  },
+  {
+    "code": 588,
+    "dtc": "HVP_w007",
+    "s_dsc": "HVP_w007_OverCurrentFault",
+    "l_dsc": "Over Current Fault"
+  },
+  {
+    "code": 589,
+    "dtc": "HVP_w008",
+    "s_dsc": "HVP_w008_OverTemperatureFault",
+    "l_dsc": "Over Temperature Fault"
+  },
+  {
+    "code": 590,
+    "dtc": "HVP_w009",
+    "s_dsc": "HVP_w009_OverVoltageFault",
+    "l_dsc": "Over Voltage Fault"
+  },
+  {
+    "code": 591,
+    "dtc": "HVP_w010",
+    "s_dsc": "HVP_w010_UnderVoltageFault",
+    "l_dsc": "Under Voltage Fault"
+  },
+  {
+    "code": 592,
+    "dtc": "HVP_w011",
+    "s_dsc": "HVP_w011_PrimaryBmbMiaFault",
+    "l_dsc": "Primary Bmb Mia Fault"
+  },
+  {
+    "code": 593,
+    "dtc": "HVP_w012",
+    "s_dsc": "HVP_w012_BmbDataIntegrityLoss",
+    "l_dsc": "Bmb Data Integrity Loss"
+  },
+  {
+    "code": 594,
+    "dtc": "HVP_w013",
+    "s_dsc": "HVP_w013_BmbCommunication",
+    "l_dsc": "Bmb Communication"
+  },
+  {
+    "code": 595,
+    "dtc": "HVP_w014",
+    "s_dsc": "HVP_w014_BmsMiaOnHviFault",
+    "l_dsc": "Bms Mia On Hvi Fault"
+  },
+  {
+    "code": 596,
+    "dtc": "HVP_w015",
+    "s_dsc": "HVP_w015_CpMiaFault",
+    "l_dsc": "Cp Mia Fault"
+  },
+  {
+    "code": 597,
+    "dtc": "HVP_w016",
+    "s_dsc": "HVP_w016_PcsMiaFault",
+    "l_dsc": "Pcs Mia Fault"
+  },
+  {
+    "code": 598,
+    "dtc": "HVP_w017",
+    "s_dsc": "HVP_w017_GtwMiaFault",
+    "l_dsc": "Gtw Mia Fault"
+  },
+  {
+    "code": 599,
+    "dtc": "HVP_w018",
+    "s_dsc": "HVP_w018_powerCyclingPcs",
+    "l_dsc": "Power Cycling Pcs"
+  },
+  {
+    "code": 600,
+    "dtc": "HVP_w019",
+    "s_dsc": "HVP_w019_CpFault",
+    "l_dsc": "Cp Fault"
+  },
+  {
+    "code": 601,
+    "dtc": "HVP_w020",
+    "s_dsc": "HVP_w020_ShuntHwMiaFault",
+    "l_dsc": "Shunt Hw Mia Fault"
+  },
+  {
+    "code": 602,
+    "dtc": "HVP_w021",
+    "s_dsc": "HVP_w021_PyroMiaFault",
+    "l_dsc": "Pyro Mia Fault"
+  },
+  {
+    "code": 603,
+    "dtc": "HVP_w022",
+    "s_dsc": "HVP_w022_PyroMiaWarning",
+    "l_dsc": "Pyro Mia Warning"
+  },
+  {
+    "code": 604,
+    "dtc": "HVP_w023",
+    "s_dsc": "HVP_w023_BmbResetRecovery",
+    "l_dsc": "Bmb Reset Recovery (until 2022.44.30.10: Bmb Comms Recovery)"
+  },
+  {
+    "code": 605,
+    "dtc": "HVP_w024",
+    "s_dsc": "HVP_w024_Supply12vFault",
+    "l_dsc": "Supply12v Fault"
+  },
+  {
+    "code": 606,
+    "dtc": "HVP_w025",
+    "s_dsc": "HVP_w025_VerSupplyFault",
+    "l_dsc": "Ver Supply Fault"
+  },
+  {
+    "code": 607,
+    "dtc": "HVP_w026",
+    "s_dsc": "HVP_w026_HvilFault",
+    "l_dsc": "Hvil Fault"
+  },
+  {
+    "code": 608,
+    "dtc": "HVP_w027",
+    "s_dsc": "HVP_w027_BmsMiaOnHvsFault",
+    "l_dsc": "Bms Mia On Hvs Fault"
+  },
+  {
+    "code": 609,
+    "dtc": "HVP_w028",
+    "s_dsc": "HVP_w028_PackVoltMismatchFault",
+    "l_dsc": "Pack Volt Mismatch Fault"
+  },
+  {
+    "code": 610,
+    "dtc": "HVP_w029",
+    "s_dsc": "HVP_w029_EnsMiaFault",
+    "l_dsc": "Ens Mia Fault"
+  },
+  {
+    "code": 611,
+    "dtc": "HVP_w030",
+    "s_dsc": "HVP_w030_PackPosCtrArcFault",
+    "l_dsc": "Pack Pos Ctr Arc Fault"
+  },
+  {
+    "code": 612,
+    "dtc": "HVP_w031",
+    "s_dsc": "HVP_w031_packNegCtrArcFault",
+    "l_dsc": "Pack Neg Ctr Arc Fault"
+  },
+  {
+    "code": 613,
+    "dtc": "HVP_w032",
+    "s_dsc": "HVP_w032_ShuntHwAndBmsMiaFault",
+    "l_dsc": "Shunt Hw And Bms Mia Fault"
+  },
+  {
+    "code": 614,
+    "dtc": "HVP_w033",
+    "s_dsc": "HVP_w033_fcContHwFault",
+    "l_dsc": "Fc Cont Hw Fault"
+  },
+  {
+    "code": 615,
+    "dtc": "HVP_w034",
+    "s_dsc": "HVP_w034_cpMismatchFault",
+    "l_dsc": "Cp Mismatch Fault"
+  },
+  {
+    "code": 616,
+    "dtc": "HVP_w035",
+    "s_dsc": "HVP_w035_packContHwFault",
+    "l_dsc": "Pack Cont Hw Fault"
+  },
+  {
+    "code": 617,
+    "dtc": "HVP_w036",
+    "s_dsc": "HVP_w036_pyroFuseBlown",
+    "l_dsc": "Pyro Fuse Blown"
+  },
+  {
+    "code": 618,
+    "dtc": "HVP_w037",
+    "s_dsc": "HVP_w037_pyroFuseFailedToBlow",
+    "l_dsc": "Pyro Fuse Failed To Blow"
+  },
+  {
+    "code": 619,
+    "dtc": "HVP_w038",
+    "s_dsc": "HVP_w038_CpilFault",
+    "l_dsc": "Cpil Fault"
+  },
+  {
+    "code": 620,
+    "dtc": "HVP_w039",
+    "s_dsc": "HVP_w039_PackContactorFellOpen",
+    "l_dsc": "Pack Contactor Fell Open"
+  },
+  {
+    "code": 621,
+    "dtc": "HVP_w040",
+    "s_dsc": "HVP_w040_FcContactorFellOpen",
+    "l_dsc": "Fc Contactor Fell Open"
+  },
+  {
+    "code": 622,
+    "dtc": "HVP_w041",
+    "s_dsc": "HVP_w041_packCtrCloseBlocked",
+    "l_dsc": "Pack Ctr Close Blocked"
+  },
+  {
+    "code": 623,
+    "dtc": "HVP_w042",
+    "s_dsc": "HVP_w042_fcCtrCloseBlocked",
+    "l_dsc": "Fc Ctr Close Blocked"
+  },
+  {
+    "code": 624,
+    "dtc": "HVP_w043",
+    "s_dsc": "HVP_w043_packContactorForceOpen",
+    "l_dsc": "Pack Contactor Force Open"
+  },
+  {
+    "code": 625,
+    "dtc": "HVP_w044",
+    "s_dsc": "HVP_w044_fcContactorForceOpen",
+    "l_dsc": "Fc Contactor Force Open"
+  },
+  {
+    "code": 626,
+    "dtc": "HVP_w045",
+    "s_dsc": "HVP_w045_dcLinkOverVoltage",
+    "l_dsc": "Dc Link Over Voltage"
+  },
+  {
+    "code": 627,
+    "dtc": "HVP_w046",
+    "s_dsc": "HVP_w046_shuntOverTemperature",
+    "l_dsc": "Shunt Over Temperature"
+  },
+  {
+    "code": 628,
+    "dtc": "HVP_w047",
+    "s_dsc": "HVP_w047_passivePyroDeploy",
+    "l_dsc": "Passive Pyro Deploy"
+  },
+  {
+    "code": 629,
+    "dtc": "HVP_w048",
+    "s_dsc": "HVP_w048_swUnsupportedBmbAsicType",
+    "l_dsc": "Sw Unsupported Bmb Asic Type"
+  },
+  {
+    "code": 630,
+    "dtc": "HVP_w049",
+    "s_dsc": "HVP_w049_packCtrCloseFailed",
+    "l_dsc": "Pack Ctr Close Failed"
+  },
+  {
+    "code": 631,
+    "dtc": "HVP_w050",
+    "s_dsc": "HVP_w050_fcCtrCloseFailed",
+    "l_dsc": "Fc Ctr Close Failed"
+  },
+  {
+    "code": 632,
+    "dtc": "HVP_w051",
+    "s_dsc": "HVP_w051_shuntThermistorMia",
+    "l_dsc": "Shunt Thermistor Mia"
+  },
+  {
+    "code": 633,
+    "dtc": "HVP_w052",
+    "s_dsc": "HVP_w052_BmbStatusRegError",
+    "l_dsc": "Bmb Status Reg Error"
+  },
+  {
+    "code": 634,
+    "dtc": "HVP_w053",
+    "s_dsc": "HVP_w053_hvVoltageSensorRationality",
+    "l_dsc": "Hv Voltage Sensor Rationality"
+  },
+  {
+    "code": 635,
+    "dtc": "HVP_w054",
+    "s_dsc": "HVP_w054_swMissingConfigBlock",
+    "l_dsc": "Sw Missing Config Block"
+  },
+  {
+    "code": 636,
+    "dtc": "HVP_w055",
+    "s_dsc": "HVP_w055_swMissingPartNumber",
+    "l_dsc": "Sw Missing Part Number"
+  },
+  {
+    "code": 637,
+    "dtc": "HVP_w056",
+    "s_dsc": "HVP_w056_contactorFailedToOpen",
+    "l_dsc": "Contactor Failed To Open"
+  },
+  {
+    "code": 638,
+    "dtc": "HVP_w057",
+    "s_dsc": "HVP_w057_BatmanDiagnosticsError",
+    "l_dsc": "Batman Diagnostics Error"
+  },
+  {
+    "code": 639,
+    "dtc": "HVP_w058",
+    "s_dsc": "HVP_w058_BmbVrefBad",
+    "l_dsc": "Bmb Vref Bad"
+  },
+  {
+    "code": 640,
+    "dtc": "HVP_w059",
+    "s_dsc": "HVP_w059_BmbVrefWarning",
+    "l_dsc": "Bmb Vref Warning"
+  },
+  {
+    "code": 641,
+    "dtc": "HVP_w060",
+    "s_dsc": "HVP_w060_StackVoltageSense",
+    "l_dsc": "Stack Voltage Sense"
+  },
+  {
+    "code": 642,
+    "dtc": "HVP_w061",
+    "s_dsc": "HVP_w061_ShuntCurrentRationality",
+    "l_dsc": "Shunt Current Rationality"
+  },
+  {
+    "code": 643,
+    "dtc": "HVP_w062",
+    "s_dsc": "HVP_w062_BmbOtpConfigError",
+    "l_dsc": "Bmb Otp Config Error"
+  },
+  {
+    "code": 644,
+    "dtc": "HVP_w063",
+    "s_dsc": "HVP_w063_BmbBrickVRationality",
+    "l_dsc": "Bmb Brick V Rationality"
+  },
+  {
+    "code": 645,
+    "dtc": "HVP_w064",
+    "s_dsc": "HVP_w064_BmbAuxVRationality",
+    "l_dsc": "Bmb Aux V Rationality"
+  },
+  {
+    "code": 646,
+    "dtc": "HVP_w065",
+    "s_dsc": "HVP_w065_FastOpenVshDetected",
+    "l_dsc": "Fast Open Vsh Detected"
+  },
+  {
+    "code": 647,
+    "dtc": "HVP_w067",
+    "s_dsc": "HVP_w067_HvilCalNodeMismatch",
+    "l_dsc": "Hvil Cal Node Mismatch"
+  },
+  {
+    "code": 648,
+    "dtc": "HVP_w068",
+    "s_dsc": "HVP_w068_shuntUnexpectedThermistor",
+    "l_dsc": "Shunt Unexpected Thermistor"
+  },
+  {
+    "code": 649,
+    "dtc": "HVP_w069",
+    "s_dsc": "HVP_w069_hviCanFrameRxDropped",
+    "l_dsc": "Hvi Can Frame Rx Dropped"
+  },
+  {
+    "code": 650,
+    "dtc": "HVP_w070",
+    "s_dsc": "HVP_w070_hvsCanFrameRxDropped",
+    "l_dsc": "Hvs Can Frame Rx Dropped"
+  },
+  {
+    "code": 651,
+    "dtc": "HVP_w071",
+    "s_dsc": "HVP_w071_PassivePyroVrefRationality",
+    "l_dsc": "Passive Pyro Vref Rationality"
   }
 ]
