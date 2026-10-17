@@ -101,7 +101,7 @@ static const char fake_battery_edit_script[] =
 
 // Opening of the SOH low event checkbox under the SOH, completed with " checked" and "></label></h4>"
 static const char fake_battery_soh_low_checkbox[] =
-    "<h4><label>Disable SOH low event until reboot: <input type='checkbox' onchange=\"fetch('/updateFakeBattery?"
+    "<h4><label>Disable SOH low event: <input type='checkbox' onchange=\"fetch('/updateFakeBattery?"
     "SOHLowOff='+(this.checked?1:0)).then(r=>{if(!r.ok)throw 0}).catch(()=>location.reload())\"";
 
 // More Battery Info page, one per pack. The info panel is closed and the blue card, which edits this
