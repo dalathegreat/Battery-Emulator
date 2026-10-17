@@ -7,6 +7,8 @@
 // can assert what the firmware actually put on the wire (UDS requests, ISO-TP
 // flow control / consecutive frames, heartbeat frames, ...).
 std::vector<CAN_frame> g_emul_transmitted_frames;
+// The interface each of those frames went out on, at the same index.
+std::vector<CAN_Interface> g_emul_transmitted_interfaces;
 
 // Transmit hold, as in comm_can.cpp: held interfaces drop what is sent to them.
 static uint8_t g_emul_held_mask = 0;
@@ -17,6 +19,7 @@ static bool g_emul_interface_shared = false;
 // cannot silence the next one.
 void clear_transmitted_frames() {
   g_emul_transmitted_frames.clear();
+  g_emul_transmitted_interfaces.clear();
   g_emul_held_mask = 0;
   g_emul_abort_count = 0;
   g_emul_interface_shared = false;
@@ -56,12 +59,17 @@ const std::vector<CAN_frame>& get_transmitted_frames() {
   return g_emul_transmitted_frames;
 }
 
+const std::vector<CAN_Interface>& get_transmitted_interfaces() {
+  return g_emul_transmitted_interfaces;
+}
+
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
   if (interface < NO_CAN_INTERFACE && (g_emul_held_mask & (1u << interface)) != 0) {
     return;
   }
   if (tx_frame != nullptr) {
     g_emul_transmitted_frames.push_back(*tx_frame);
+    g_emul_transmitted_interfaces.push_back(interface);
   }
 }
 

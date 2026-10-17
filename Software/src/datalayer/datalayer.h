@@ -254,9 +254,6 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
-  bool user_requests_tesla_isolation_clear = false;
-  bool user_requests_tesla_bms_reset = false;
-  bool user_requests_tesla_soc_reset = false;
 };
 
 typedef struct {

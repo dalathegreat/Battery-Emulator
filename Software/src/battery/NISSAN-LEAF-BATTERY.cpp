@@ -1680,6 +1680,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
+         Each pack is sent the balancing strategy chosen for it, on its own bus.
          Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
          other nibble in the message: the request adds 0x00, 0x20, 0x40 or 0x60 to byte 2, i.e. 0,
          2, 4 or 6 to that sum, so the constants above are corrected by twice the value sent rather
@@ -1687,7 +1688,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
          293A0NDS25 5.1.2 step 1) "Preparation of battery controller stop" overrides the selected
          value with 11b ahead of a BMS power cut. It is the first step of the ending sequence, so
          BTONFN and RLYP only drop after it has been sent. */
-      uint8_t chg_sta_rq = (ending_step >= ENDING_CHG_STA_RQ_STOP) ? 0x03 : user_selected_LEAF_chg_sta_rq;
+      const uint8_t chg_sta_rq =
+          (ending_step >= ENDING_CHG_STA_RQ_STOP) ? 0x03 : user_selected_LEAF_chg_sta_rq[battery_index - 1];
       LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (chg_sta_rq << 5);
       LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (chg_sta_rq << 1)) & 0x0F);
 

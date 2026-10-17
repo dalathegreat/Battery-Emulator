@@ -519,10 +519,13 @@ void init_webserver() {
                                       "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
                                       "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
 
+  // Balancing strategy of the 1st, 2nd and 3rd Nissan LEAF pack
+  const char* leafChgStaRqNames[] = {"CHGSTARQ", "CHGSTARQ2", "CHGSTARQ3"};
+
   // Handles the form POST from UI to save settings of the common image
   server.on(
       "/saveSettings", HTTP_POST,
-      [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+      [boolSettingNames, stringSettingNames, uintSettingNames, leafChgStaRqNames](AsyncWebServerRequest* request) {
         BatteryEmulatorSettingsStore settings;
         auto webAuthParam = request->getParam("WEBAUTH", true);
         auto httpUserParam = request->getParam("HTTPUSER", true);
@@ -620,17 +623,6 @@ void init_webserver() {
           } else if (p->name() == "BATTPVMIN") {
             auto type = p->value().toFloat() * 10.0f;
             settings.saveUInt("BATTPVMIN", (int)type);
-          } else if (p->name() == "CHGSTARQ") {
-            // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
-            // is not offered, so anything else falls back to "no request".
-            uint8_t request = atoi(p->value().c_str());
-            if (request > 2) {
-              request = 0;
-            }
-            settings.saveUInt("CHGSTARQ", request);
-            // Unlike the other settings this one is taken into use without a reboot, so the
-            // reset offered below sends the newly chosen request rather than the old one.
-            user_selected_LEAF_chg_sta_rq = request;
 #ifndef SMALL_FLASH_DEVICE
           } else if (p->name() == "charger") {
             auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
@@ -689,6 +681,21 @@ void init_webserver() {
           } else if (p->name() == "MQTTPUBLISHMS") {
             auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
             settings.saveUInt("MQTTPUBLISHMS", interval);
+          }
+
+          for (uint8_t pack = 0; pack < 3; pack++) {
+            if (p->name() == leafChgStaRqNames[pack]) {
+              // Balancing strategy of a LEAF pack, stored as the CHG_STA_RQ bits themselves. 11b is
+              // the charge stop request and is not offered, so anything else falls back to 00b.
+              uint8_t request = atoi(p->value().c_str());
+              if (request > 2) {
+                request = 0;
+              }
+              settings.saveUInt(leafChgStaRqNames[pack], request);
+              // Unlike the other settings this one is taken into use without a reboot, so the
+              // reset offered below sends the newly chosen strategy rather than the old one.
+              user_selected_LEAF_chg_sta_rq[pack] = request;
+            }
           }
 
           for (auto& uintSetting : uintSettingNames) {
@@ -765,9 +772,9 @@ void init_webserver() {
           settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
         }
 
-        // The page offers a BMS reset when the starting sequence request was changed, since
-        // the LBC only reads that signal while it powers up. Done after every setting is
-        // stored so the reset runs against the saved configuration.
+        // The page offers a BMS reset when a balancing strategy was changed, since an LBC only
+        // reads it while it powers up. Done after every setting is stored so the reset runs
+        // against the saved configuration.
         auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
         if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
           if (periodic_bms_reset || remote_bms_reset) {
