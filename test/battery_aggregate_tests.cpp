@@ -434,7 +434,7 @@ TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotCapLimits) {
   EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
 }
 
-// The user's current ceiling still applies on top of the power derived value.
+// The user's current ceiling applies to the power as well as to the current derived from it.
 TEST_F(BatteryAggregateTest, UserCurrentLimitCapsTheAggregate) {
   datalayer.battery.status.voltage_dV = 3700;
   datalayer.battery.status.max_charge_power_W = 10000;  // would be 270 dA
@@ -446,7 +446,87 @@ TEST_F(BatteryAggregateTest, UserCurrentLimitCapsTheAggregate) {
   update_aggregate_limits();
 
   EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 100);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 3700u);  // 10.0 A at 370.0 V
   EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 270);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);  // the BMS limit is the lower one
+}
+
+// A remote limit lands on the power as well as on the current. BYD-Modbus, VCU-CAN and FoxESS-EP
+// hand their inverter the power, so a cap on the current alone never reached them - while the
+// main page, reading the current, showed it as applied.
+TEST_F(BatteryAggregateTest, RemoteLimitCapsThePowerToo) {
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery.status.max_charge_power_W = 10000;
+  datalayer.battery.status.max_discharge_power_W = 10000;
+  datalayer.battery_settings.remote_settings_limit_charge = true;
+  datalayer.battery_settings.max_remote_set_charge_dA = 50;
+  datalayer.battery_settings.remote_settings_limit_discharge = true;
+  datalayer.battery_settings.max_remote_set_discharge_dA = 0;  // Stop discharging altogether
+
+  update_aggregate_values();
+  update_aggregate_limits();
+
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 1850u);  // 5.0 A at 370.0 V
+  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 50);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 0);
+}
+
+// The setup it was reported on: two packs, the limit applies to the installation.
+TEST_F(BatteryAggregateTest, RemoteLimitCapsTheInstallationWithTwoPacks) {
+  add_second_pack();
+  battery2_detected = true;
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery2.status.voltage_dV = 3700;
+  datalayer.battery.status.max_charge_power_W = 10000;
+  datalayer.battery.status.max_discharge_power_W = 10000;
+  datalayer.battery2.status.max_charge_power_W = 8000;
+  datalayer.battery2.status.max_discharge_power_W = 9000;
+  datalayer.battery_settings.remote_settings_limit_charge = true;
+  datalayer.battery_settings.max_remote_set_charge_dA = 100;
+  datalayer.battery_settings.remote_settings_limit_discharge = true;
+  datalayer.battery_settings.max_remote_set_discharge_dA = 150;
+
+  update_aggregate_values();
+  update_aggregate_limits();
+
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 3700u);  // 10.0 A at 370.0 V
+  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 100);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 5550u);  // 15.0 A at 370.0 V
+  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 150);
+  // The packs keep their own numbers
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);
+  EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 8000u);
+}
+
+// While it lasts, a remote limit replaces the user one rather than combining with it, so it may
+// sit above it. Once it expires the user limit is back.
+TEST_F(BatteryAggregateTest, RemoteLimitReplacesTheUserLimitUntilItExpires) {
+  datalayer.battery.status.voltage_dV = 3700;
+  datalayer.battery.status.max_charge_power_W = 20000;
+  datalayer.battery.status.max_discharge_power_W = 20000;
+  datalayer.battery_settings.max_user_set_charge_dA = 100;
+  datalayer.battery_settings.max_user_set_discharge_dA = 100;
+  datalayer.battery_settings.remote_settings_limit_charge = true;
+  datalayer.battery_settings.max_remote_set_charge_dA = 200;
+  datalayer.battery_settings.remote_set_timestamp = 1000;
+  datalayer.battery_settings.remote_set_timeout = 30000;
+
+  update_remote_limit_expiry(2000);
+  update_aggregate_values();
+  update_aggregate_limits();
+
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 7400u);  // the remote 20.0 A
+  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 200);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 3700u);  // no remote discharge limit: user's 10.0 A
+  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 100);
+
+  update_remote_limit_expiry(31001);  // Just past the timeout
+  update_aggregate_limits();
+
+  EXPECT_FALSE(datalayer.battery_settings.remote_settings_limit_charge);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 3700u);  // back to the user's 10.0 A
+  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 100);
 }
 
 // The per-pack card shows what that pack's BMS asked for. The safety layer and the filters

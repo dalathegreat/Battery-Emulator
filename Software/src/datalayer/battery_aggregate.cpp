@@ -294,28 +294,32 @@ void update_aggregate_limits() {
     agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery3.status.max_discharge_power_W);
   }
 
-  /* Same power to current conversion and the same fallback as update_calculated_values() */
-  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
-  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
+  /* Same conversion voltage and the same fallback as update_calculated_values() */
   uint16_t conversion_voltage_dV = agg.voltage_dV;
   if (conversion_voltage_dV <= 10) {
     conversion_voltage_dV = agg.max_design_voltage_dV;
   }
+
+  /* The remote restriction while one is active, otherwise the user setting - on the power as well
+     as on the current. BYD-Modbus, VCU-CAN and FoxESS-EP hand their inverter a power limit, so a
+     cap on the current alone never reached them, while the main page showed it as applied.
+     Deriving the current from the capped power keeps the two in step for every protocol. */
+  const uint16_t charge_cap_dA = effective_charge_cap_dA();
+  const uint16_t discharge_cap_dA = effective_discharge_cap_dA();
+  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
   if (conversion_voltage_dV > 10) {
+    agg.max_charge_power_W = MIN(agg.max_charge_power_W, current_cap_to_power_W(charge_cap_dA, conversion_voltage_dV));
+    agg.max_discharge_power_W =
+        MIN(agg.max_discharge_power_W, current_cap_to_power_W(discharge_cap_dA, conversion_voltage_dV));
     agg.max_charge_current_dA = power_W_to_current_dA(agg.max_charge_power_W, conversion_voltage_dV);
     agg.max_discharge_current_dA = power_W_to_current_dA(agg.max_discharge_power_W, conversion_voltage_dV);
   }
-
-  /* Apply the remote restrictions if set, otherwise the user settings */
-  uint16_t charge_cap_dA = datalayer.battery_settings.remote_settings_limit_charge
-                               ? datalayer.battery_settings.max_remote_set_charge_dA
-                               : datalayer.battery_settings.max_user_set_charge_dA;
+  /* The power was rounded down, so the round trip cannot carry the current past the cap. With no
+     voltage to convert at, the power is left as it is and only the current can be capped. */
   if (agg.max_charge_current_dA > charge_cap_dA) {
     agg.max_charge_current_dA = charge_cap_dA;
   }
-  uint16_t discharge_cap_dA = datalayer.battery_settings.remote_settings_limit_discharge
-                                  ? datalayer.battery_settings.max_remote_set_discharge_dA
-                                  : datalayer.battery_settings.max_user_set_discharge_dA;
   if (agg.max_discharge_current_dA > discharge_cap_dA) {
     agg.max_discharge_current_dA = discharge_cap_dA;
   }
