@@ -574,33 +574,33 @@ void TeslaBattery::
   }
 
   // Check if user requests some action
-  if (datalayer.battery_settings.user_requests_tesla_isolation_clear) {
+  if (user_requests_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer.battery_settings.user_requests_tesla_isolation_clear = false;
+    user_requests_isolation_clear = false;
   }
-  if (datalayer.battery_settings.user_requests_tesla_bms_reset) {
+  if (user_requests_bms_reset) {
     if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
-      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
+      user_requests_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
       stateMachineBMSReset = 0xFF;
-      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
+      user_requests_bms_reset = false;
       set_event(EVENT_BMS_RESET_REQ_FAIL, 0, battery_index);  // also printing a log entry
       clear_event(EVENT_BMS_RESET_REQ_FAIL, battery_index);
     }
   }
-  if (datalayer.battery_settings.user_requests_tesla_soc_reset) {
+  if (user_requests_soc_reset) {
     if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
         battery_contactor == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
-      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
+      user_requests_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
       stateMachineSOCReset = 0xFF;
-      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
+      user_requests_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
       clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
     }

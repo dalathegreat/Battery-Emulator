@@ -1444,13 +1444,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
+         Each pack is sent the balancing strategy chosen for it, on its own bus.
          Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
          other nibble in the message: the request adds 0x00, 0x20 or 0x40 to byte 2, i.e. 0, 2 or
          4 to that sum, so the constants above are corrected by twice the selected value rather
          than recomputing the whole checksum on every message. */
-      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (user_selected_LEAF_chg_sta_rq << 5);
-      LEAF_1F2.data.u8[7] =
-          (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (user_selected_LEAF_chg_sta_rq << 1)) & 0x0F);
+      const uint8_t chg_sta_rq = user_selected_LEAF_chg_sta_rq[battery_index - 1];
+      LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (chg_sta_rq << 5);
+      LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (chg_sta_rq << 1)) & 0x0F);
 
       //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
