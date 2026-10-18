@@ -272,7 +272,8 @@ void update_aggregate_values() {
  * single pack's numbers, and nothing they zero can be walked back here - capping to the
  * weakest pack can only ever lower the result. Doing it here rather than before the safety
  * layer also means a pack 2 or pack 3 fault that zeroes that pack's limits now reaches the
- * inverter, which it did not when the cap ran first.
+ * inverter, which it did not when the cap ran first. The one deliberate exception is forced
+ * recovery charge, which exists to charge an installation its BMS will not.
  */
 void update_aggregate_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
@@ -322,5 +323,20 @@ void update_aggregate_limits() {
   }
   if (agg.max_discharge_current_dA > discharge_cap_dA) {
     agg.max_discharge_current_dA = discharge_cap_dA;
+  }
+
+  /* Forced recovery charge: a deeply discharged installation the BMS will not charge gets a small
+     current anyway, for as long as update_machineryprotection() keeps the mode on - 30 minutes at
+     most, ended at once by a cell below 2.0 V. It replaces what the packs allow, in either
+     direction, as it always has: 5.0 A, less if the manual limit or an active remote limit is
+     lower. Applied here, after every filter, as a power as well as a current, because anything
+     written earlier was overwritten above. A pause or an equipment stop still stops it. */
+  if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode && !emulator_pause_request_ON) {
+    uint16_t recovery_dA = MIN(MAX_CHARGEPOWER_RECOVERY_CHARGE_DA, datalayer.battery_settings.max_user_set_charge_dA);
+    recovery_dA = MIN(recovery_dA, charge_cap_dA);
+    agg.max_charge_current_dA = recovery_dA;
+    if (conversion_voltage_dV > 10) {
+      agg.max_charge_power_W = current_cap_to_power_W(recovery_dA, conversion_voltage_dV);
+    }
   }
 }

@@ -169,7 +169,8 @@ static inline uint32_t current_cap_to_power_W(uint16_t current_dA, uint16_t volt
  * Call last in the update chain, after the safety layer, the SOC taper and the low pass filter
  * have shaped datalayer.battery, and before the inverter is updated. Both the power and the
  * current limits come out capped to effective_charge_cap_dA() / effective_discharge_cap_dA(), so
- * a protocol reading either one honours it.
+ * a protocol reading either one honours it. While forced recovery charge is on, its small charge
+ * current replaces the charge limits, unless charging and discharging are paused.
  */
 void update_aggregate_limits();
 
