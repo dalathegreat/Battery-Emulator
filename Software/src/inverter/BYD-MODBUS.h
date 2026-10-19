@@ -15,7 +15,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   const char* name() override { return Name; }
   bool setup() override;
   void update_values();
-  static constexpr const char* Name = "BYD 11kWh HVM battery over Modbus RTU";
+  static constexpr const char* Name = "BYD HVS/HVM over Modbus";
 
  private:
   void handle_static_data();
