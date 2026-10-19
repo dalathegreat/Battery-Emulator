@@ -17,6 +17,9 @@
 // Always poll this often, in case an INT edge was missed
 #define MCP2515_LITE_POLL_TIMEOUT_MS 1000
 
+#define MCP2515_LITE_TX_BUF_FRAMES 32
+#define MCP2515_LITE_RX_BUF_FRAMES 32
+
 // This has the same layout as CAN_frame (with only 8 data bytes)
 typedef struct {
   union {
@@ -74,8 +77,8 @@ private:
     volatile bool _rx_overflow = false;
     volatile bool _errors = false;
 
-    typedef MCP2515_Lite_FrameRing FrameRing;
-    FrameRing _rx, _tx;
+    MCP2515_Lite_FrameRing<MCP2515_LITE_TX_BUF_FRAMES> _tx;
+    MCP2515_Lite_FrameRing<MCP2515_LITE_RX_BUF_FRAMES> _rx;
     portMUX_TYPE _tx_lock = portMUX_INITIALIZER_UNLOCKED;
 
     // State used by step()
