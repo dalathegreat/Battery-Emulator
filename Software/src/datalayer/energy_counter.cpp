@@ -104,11 +104,11 @@ void update_energy_counters(uint32_t now_ms) {
   }
   for (unsigned i = 0; i < 3; ++i) {
     auto* driver = pack_driver(i);
-    const bool joined = i == 0 || (i == 1 ? system.battery2_allowed_contactor_closing
-                                        : system.battery3_allowed_contactor_closing);
+    const bool joined =
+        i == 0 || (i == 1 ? system.battery2_allowed_contactor_closing : system.battery3_allowed_contactor_closing);
     const bool contactor_engaged =
         i == 0 || (i == 1 ? !contactor_control_enabled_double_battery || system.contactors_battery2_engaged
-                         : !contactor_control_enabled_triple_battery || system.contactors_battery3_engaged);
+                          : !contactor_control_enabled_triple_battery || system.contactors_battery3_engaged);
     auto& status = pack_status(i);
     if (!needs_calculated_counters(driver) || !joined || !contactor_engaged || !status.CAN_battery_still_alive ||
         status.real_bms_status == BMS_FAULT || status.voltage_dV == 0) {

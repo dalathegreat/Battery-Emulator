@@ -506,7 +506,7 @@ TEST_F(EnergyCounterTest, RestoreUsesOriginalNamespaceAndNumericTypes) {
   EXPECT_EQ(prefs.getInt(KEYS[0], -1), 1234567);
   EXPECT_EQ(prefs.getUInt(KEYS[0], 99), 99U);  // Signed key must remain signed.
   EXPECT_EQ(prefs.getUInt(KEYS[2], 0), 0xFEDCBA98U);
-  EXPECT_EQ(prefs.getInt(KEYS[2], -1), -1);    // Unsigned key must remain unsigned.
+  EXPECT_EQ(prefs.getInt(KEYS[2], -1), -1);  // Unsigned key must remain unsigned.
 }
 
 TEST_F(EnergyCounterTest, SinglePackUsesReplacementShuntAndFallsBackWhenUnavailable) {
@@ -632,7 +632,7 @@ TEST_F(EnergyCounterTest, NegativeNativeWhCannotCancelOtherPacksOrUndoSaturation
   battery3 = new CounterBattery(true, true, &datalayer.battery3);
   datalayer.system.info.configured_batteries = 3;
   const int32_t cases[][3] = {
-      {-100, 150, 200}, {150, -100, 200}, {150, 200, -100},
+      {-100, 150, 200},      {150, -100, 200},     {150, 200, -100},
       {INT32_MIN, -1, -100}, {INT32_MAX, 1, -100}, {-100, INT32_MAX, 1},
   };
   for (const auto& values : cases) {

@@ -180,8 +180,7 @@ void update_aggregate_values() {
   agg.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   agg.total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
   agg.remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  agg.total_charged_battery_Wh =
-      sum_lifetime_counter<int32_t>(0, datalayer.battery.status.total_charged_battery_Wh);
+  agg.total_charged_battery_Wh = sum_lifetime_counter<int32_t>(0, datalayer.battery.status.total_charged_battery_Wh);
   agg.total_discharged_battery_Wh =
       sum_lifetime_counter<int32_t>(0, datalayer.battery.status.total_discharged_battery_Wh);
   agg.total_charged_battery_dAh = datalayer.battery.status.total_charged_battery_dAh;
