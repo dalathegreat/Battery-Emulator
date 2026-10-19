@@ -623,8 +623,8 @@ void FoxessEpCanInverter::
   // 0x1903 bytes 6-7: SOC-scaled energy in 100 Wh units.
   // Integer truncation matches genuine FoxESS EP captures.
   const uint32_t foxess_ep_soc_scaled_energy_100Wh =
-      (static_cast<uint32_t>(foxess_ep_nominal_energy_10Wh) *
-       static_cast<uint32_t>(foxess_ep_pack_soc_percent)) / 1000U;
+      (static_cast<uint32_t>(foxess_ep_nominal_energy_10Wh) * static_cast<uint32_t>(foxess_ep_pack_soc_percent)) /
+      1000U;
 
   FOXESS_1903.data.u8[6] = static_cast<uint8_t>(foxess_ep_soc_scaled_energy_100Wh);
   FOXESS_1903.data.u8[7] = static_cast<uint8_t>(foxess_ep_soc_scaled_energy_100Wh >> 8);
