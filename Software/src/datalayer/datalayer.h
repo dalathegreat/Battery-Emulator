@@ -469,6 +469,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
  * two or three packs the energy figures are summed, the cell and temperature figures are the
  * extremes across the packs that are talking, and the power limits are capped to the weakest
  * pack - the same rule update_calculated_values() used to apply on top of datalayer.battery.
+ * Either way the four limit fields also carry the remote or manual current limit, in Watts as
+ * well as in Amperes.
  *
  * Keeping it separate is the point: datalayer.battery, .battery2 and .battery3 now only ever
  * hold the data of their own pack, so the per-pack cards, MQTT topics and ESP-NOW frames stop

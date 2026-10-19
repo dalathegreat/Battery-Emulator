@@ -98,18 +98,6 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   } else {  //Positive value = Charging
     bms_char_dis_status = BYD_MODE_CHARGING;
   }
-  // Convert max discharge Amp value to max Watt
-  user_configured_max_discharge_W =
-      ((datalayer.battery_settings.max_user_set_discharge_dA * datalayer.aggregate.voltage_dV) / 100);
-  // Use the smaller value, battery reported value OR user configured value
-  max_discharge_W = std::min(datalayer.aggregate.max_discharge_power_W, user_configured_max_discharge_W);
-
-  // Convert max charge Amp value to max Watt
-  user_configured_max_charge_W =
-      ((datalayer.battery_settings.max_user_set_charge_dA * datalayer.aggregate.voltage_dV) / 100);
-  // Use the smaller value, battery reported value OR user configured value
-  max_charge_W = std::min(datalayer.aggregate.max_charge_power_W, user_configured_max_charge_W);
-
   // Don't advertise ACTIVE to the inverter until the DC bus is actually live. During the boot-gate +
   // precharge window the emulator drives contactors on its own schedule (BYD-Modbus has no inverter
   // handshake), so a polling Fronius would otherwise see an ACTIVE battery against a dead DC input and
@@ -140,10 +128,12 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   // so no per-battery addition is needed here.
   mbPV[304] = std::min(datalayer.aggregate.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
   mbPV[305] = std::min(datalayer.aggregate.reported_remaining_capacity_Wh,
-                       static_cast<uint32_t>(57960u));                   //Cap to 58kWh
-  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
-  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
-  mbPV[310] = datalayer.aggregate.voltage_dV;                            // DC inner voltage, UDC_internal uint16
+                       static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  // The power limits already carry the remote or manual current limit, applied by
+  // update_aggregate_limits() for every protocol, so it is not applied again here.
+  mbPV[306] = std::min(datalayer.aggregate.max_discharge_power_W, static_cast<uint32_t>(30000u));  //Cap to 30000
+  mbPV[307] = std::min(datalayer.aggregate.max_charge_power_W, static_cast<uint32_t>(30000u));     //Cap to 30000
+  mbPV[310] = datalayer.aggregate.voltage_dV;  // DC inner voltage, UDC_internal uint16
   mbPV[311] = byd_power_W();  // DC inner power (before contactors), same inverted sign as mbPV[309], PDC_internal int16
   mbPV[312] = reported_temperature_min_dC;  //TCellMin
   mbPV[313] = reported_temperature_max_dC;  //TCellMax
