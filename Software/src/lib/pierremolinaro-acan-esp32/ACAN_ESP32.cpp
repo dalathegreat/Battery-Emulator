@@ -31,7 +31,7 @@ static portMUX_TYPE portMux = portMUX_INITIALIZER_UNLOCKED ;
   ACAN_ESP32::ACAN_ESP32 (const uint32_t inBaseAddress,
                           const uint32_t inTxPinIndexSelector,
                           const uint32_t inRxPinIndexSelector,
-                          const periph_module_t inPeriphModule,
+                          const int inPeriphModule,
                           const periph_interrupt_t inInterruptSource,
                           const uint32_t inClockEnableAddress) :
   twaiBaseAddress (inBaseAddress),
@@ -215,7 +215,7 @@ uint32_t ACAN_ESP32::begin (const ACAN_ESP32_Settings & inSettings,
 //     Serial.println (ACAN_PCR_TWAI0_FUNC_CLK_CONF_REG, HEX) ;
   #endif
 //--------------------------------- Enable CAN module
-  periph_module_enable (twaiPeriphModule) ;
+ twai_periph_enable (twaiPeriphModule) ;
 //--------------------------------- Set GPIO pins
   setGPIOPins (inSettings.mTxPin, inSettings.mRxPin);
 //--------------------------------- Required: It is must to enter RESET Mode to write the Configuration Registers
@@ -294,7 +294,7 @@ void ACAN_ESP32::end (void) {
   }
 
 //--------------------------------- Disable CAN module
-  periph_module_disable (PERIPH_TWAI_MODULE) ;
+  twai_periph_disable (twaiPeriphModule) ;
 }
 
 //------------------------------------------------------------------------------
@@ -508,13 +508,13 @@ void ACAN_ESP32::internalSendMessage (const CANMessage & inFrame) {
   ACAN_ESP32 ACAN_ESP32::can  (DR_REG_TWAI0_BASE,
                                TWAI0_TX_IDX,
                                TWAI0_RX_IDX,
-                               PERIPH_TWAI0_MODULE,
+                               0,
                                ETS_TWAI0_INTR_SOURCE,
                                PCR_TWAI0_FUNC_CLK_CONF_REG) ;
   ACAN_ESP32 ACAN_ESP32::can1 (DR_REG_TWAI1_BASE,
                                TWAI1_TX_IDX,
                                TWAI1_RX_IDX,
-                               PERIPH_TWAI1_MODULE,
+                               1,
                                ETS_TWAI1_INTR_SOURCE,
                                PCR_TWAI1_FUNC_CLK_CONF_REG) ;
 #endif

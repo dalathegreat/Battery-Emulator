@@ -636,7 +636,7 @@ static uint32_t init_native_can(CAN_Speed speed, gpio_num_t tx_pin, gpio_num_t r
 
   // TODO: check whether this is necessary? It seems to help with
   // reinitialization.
-  periph_module_reset(PERIPH_TWAI_MODULE);
+  twai_periph_reset(0);
 
   if (settingsespcan != nullptr) {
     delete settingsespcan;
