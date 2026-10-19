@@ -457,8 +457,8 @@ void FoxessEpCanInverter::
   // byte 0     = SOH in whole percent
   // byte 1     = operating state
   //              0x04 initialising
-  //              0x02 charging
-  //              0x01 discharging
+  //              0x01 charging
+  //              0x02 discharging
   //              0x00 idle
   // bytes 2-3 = reserved, zero
   // bytes 4-5 = design capacity in 0.1 Ah
@@ -525,9 +525,9 @@ void FoxessEpCanInverter::
   if (!foxess_ep_battery_ready) {
     FOXESS_187B.data.u8[1] = 0x04;
   } else if (foxess_ep_charging_active) {
-    FOXESS_187B.data.u8[1] = 0x02;
-  } else if (foxess_ep_discharging_active) {
     FOXESS_187B.data.u8[1] = 0x01;
+  } else if (foxess_ep_discharging_active) {
+    FOXESS_187B.data.u8[1] = 0x02;
   } else {
     FOXESS_187B.data.u8[1] = 0x00;
   }
@@ -610,7 +610,7 @@ void FoxessEpCanInverter::
 
   FOXESS_1902.data.u8[7] = static_cast<uint8_t>(foxess_ep_filtered_temperature_1902_raw >> 8);
 
-  // 0x1903 - system nominal energy
+  // 0x1903 - SOC-scaled nominal energy
 
   // Bytes 0-5: reserved/zero in all captured EP12 operation.
   FOXESS_1903.data.u8[0] = 0x00;
@@ -620,17 +620,14 @@ void FoxessEpCanInverter::
   FOXESS_1903.data.u8[4] = 0x00;
   FOXESS_1903.data.u8[5] = 0x00;
 
-  // Bytes 6-7: total installed nominal energy in 200 Wh units.
-  // Genuine EP12 behaviour uses integer truncation.
-  uint32_t foxess_ep_nominal_energy_200Wh = foxess_ep_nominal_energy_Wh / 200U;
+  // 0x1903 bytes 6-7: SOC-scaled energy in 100 Wh units.
+  // Integer truncation matches genuine FoxESS EP captures.
+  const uint32_t foxess_ep_soc_scaled_energy_100Wh =
+      (static_cast<uint32_t>(foxess_ep_nominal_energy_10Wh) *
+       static_cast<uint32_t>(foxess_ep_pack_soc_percent)) / 1000U;
 
-  if (foxess_ep_nominal_energy_200Wh > 65535U) {
-    foxess_ep_nominal_energy_200Wh = 65535U;
-  }
-
-  FOXESS_1903.data.u8[6] = static_cast<uint8_t>(foxess_ep_nominal_energy_200Wh);
-
-  FOXESS_1903.data.u8[7] = static_cast<uint8_t>(foxess_ep_nominal_energy_200Wh >> 8);
+  FOXESS_1903.data.u8[6] = static_cast<uint8_t>(foxess_ep_soc_scaled_energy_100Wh);
+  FOXESS_1903.data.u8[7] = static_cast<uint8_t>(foxess_ep_soc_scaled_energy_100Wh >> 8);
 
   // 0x1904 - extreme measurement locations
 
