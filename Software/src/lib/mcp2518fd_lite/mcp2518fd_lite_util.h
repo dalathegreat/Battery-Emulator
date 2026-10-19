@@ -156,4 +156,7 @@ struct MCP2518FD_Lite_RecordRing {
     ringbuf_read(&rb, r.payload, r.len);
     return true;
   }
+  // Drop every record waiting to be read. Consumer side, like read(): the producer only ever
+  // publishes whole records, so this drops whole records, and one written after it is kept.
+  __attribute__((always_inline)) void clear() { ringbuf_read(&rb, nullptr, Size); }
 };

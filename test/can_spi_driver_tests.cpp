@@ -352,6 +352,33 @@ TEST(RecordRingTest, MixedLengthsRoundTripInOrder) {
   EXPECT_TRUE(ring.empty());
 }
 
+// abortPendingTransmissions() empties the TX ring: whole records only, so what is written afterwards
+// reads back intact, even when the ring had wrapped.
+TEST(RecordRingTest, ClearDropsEverythingQueuedAndKeepsWorking) {
+  MCP2518FD_Lite_RecordRing<256> ring;
+  MCP2518FD_Lite_RingRecord r;
+  for (uint32_t i = 0; i < 3; i++) {
+    ASSERT_TRUE(ring.write(makeRecord(i, 48)));
+  }
+  ASSERT_TRUE(ring.read(r));  // Move the read index off the start, so later writes wrap
+  ring.clear();
+  EXPECT_TRUE(ring.empty());
+  EXPECT_FALSE(ring.read(r));
+
+  // A full ring's worth again (three 72 byte records), and back intact and in order
+  for (uint32_t i = 10; i < 13; i++) {
+    ASSERT_TRUE(ring.write(makeRecord(i, 64))) << i;
+  }
+  for (uint32_t i = 10; i < 13; i++) {
+    ASSERT_TRUE(ring.read(r)) << i;
+    expectRecord(r, i, 64);
+  }
+  EXPECT_TRUE(ring.empty());
+
+  ring.clear();  // On an empty ring it does nothing
+  EXPECT_TRUE(ring.empty());
+}
+
 TEST(RecordRingTest, FullRingRejectsWithoutCorrupting) {
   MCP2518FD_Lite_RecordRing<256> ring;
   // 72 byte records: three fit (216 bytes), the fourth doesn't
@@ -408,6 +435,38 @@ TEST(FrameRingTest, FillsToCapacityAndPreservesOrder) {
       ring.pop();
     }
     EXPECT_EQ(ring.readSlot(), nullptr);
+  }
+}
+
+// abortPendingTransmissions() empties the TX ring: everything queued is gone, and frames queued
+// afterwards go out normally, in order. Also across the free-running counters' wrap.
+TEST(FrameRingTest, ClearDropsEverythingQueuedAndKeepsWorking) {
+  for (uint32_t start : {0u, 0xFFFFFFF0u}) {
+    SCOPED_TRACE(start);
+    MCP2515_Lite_FrameRing ring;
+    ring.head = start;
+    ring.tail = start;
+    for (uint32_t i = 0; i < 20; i++) {
+      fillSlot(ring.writeSlot(), i);
+      ring.push();
+    }
+    ring.pop();  // Partly consumed, as when a frame is already in TXB0
+
+    ring.clear();
+    EXPECT_EQ(ring.readSlot(), nullptr);
+
+    // Room for a full ring again, delivered in order
+    for (uint32_t i = 100; i < 100 + MCP2515_Lite_FrameRing::SIZE; i++) {
+      uint8_t* slot = ring.writeSlot();
+      ASSERT_NE(slot, nullptr) << i;
+      fillSlot(slot, i);
+      ring.push();
+    }
+    for (uint32_t i = 100; i < 100 + MCP2515_Lite_FrameRing::SIZE; i++) {
+      ASSERT_NE(ring.readSlot(), nullptr) << i;
+      EXPECT_EQ(slotSeq(ring.readSlot()), i);
+      ring.pop();
+    }
   }
 }
 

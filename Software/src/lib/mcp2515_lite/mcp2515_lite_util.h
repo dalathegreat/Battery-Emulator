@@ -86,4 +86,8 @@ struct MCP2515_Lite_FrameRing {
         return __atomic_load_n(&head, __ATOMIC_ACQUIRE) != tail ? slots[tail % SIZE] : nullptr;
     }
     void pop() { __atomic_store_n(&tail, tail + 1, __ATOMIC_RELEASE); }
+
+    // Drop every frame waiting to be read. Consumer side, like pop(): safe while the producer
+    // pushes, and a frame pushed after it is kept.
+    void clear() { __atomic_store_n(&tail, __atomic_load_n(&head, __ATOMIC_ACQUIRE), __ATOMIC_RELEASE); }
 };

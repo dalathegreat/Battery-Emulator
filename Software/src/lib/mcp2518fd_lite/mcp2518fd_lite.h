@@ -78,6 +78,13 @@ class MCP2518FD_Lite : public AsyncSpiDevice {
   // Pauses all communication (and stops acknowledging messages)
   void pause(bool paused);
 
+  // Drop every frame not yet on the wire: those waiting in the TX ring, and those in the
+  // controller's TX FIFO, which is set to retransmit indefinitely and otherwise retries for as long
+  // as nobody acknowledges. Reception carries on. Blocks briefly (a frame on the wire finishes its
+  // attempt first). Returns false if the controller did not let go within timeout_ms, in which case
+  // it carries on transmitting as before.
+  bool abortPendingTransmissions(uint32_t timeout_ms = 5);
+
   // Debugging: prints the chip's key registers and the driver's state
   int debugState(char* buf, size_t n);
 

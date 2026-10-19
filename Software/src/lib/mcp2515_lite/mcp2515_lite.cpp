@@ -29,6 +29,9 @@
 #define REG_CANINTE     0x2B
 #define REG_CANINTF     0x2C
 #define REG_RXB0CTRL    0x60
+#define REG_TXB0CTRL    0x30
+
+#define TXBCTRL_TXREQ    0x08
 
 #define CANINTF_RX0IF    0x01
 #define CANINTF_TX0IF    0x04
@@ -275,6 +278,32 @@ void MCP2515_Lite::pause(bool paused) {
     setMode(paused ? CANCTRL_REQOP_CONFIG : runMode());
     _paused = paused;
     enableStepping();
+}
+
+// With stepping disabled step() is idle, so the TX ring's consumer side and TXB0 are ours. ABAT
+// drops what TXB0 holds once any attempt on the wire has ended, and stays set (blocking every later
+// frame) until cleared. An aborted buffer raises no TX0IF, so it is marked free here, as setMode()
+// does after its own abort.
+bool MCP2515_Lite::abortPendingTransmissions() {
+    if (!bus) {
+        return false;
+    }
+    disableStepping();
+    _tx.clear();
+    modifyRegister(REG_CANCTRL, CANCTRL_ABAT, CANCTRL_ABAT);
+    bool aborted = false;
+    for (int i = 0; i <= 10 && !aborted; i++) {
+        aborted = (readRegister(REG_TXB0CTRL) & TXBCTRL_TXREQ) == 0;
+        if (!aborted) {
+            vTaskDelay(1);
+        }
+    }
+    modifyRegister(REG_CANCTRL, CANCTRL_ABAT, 0);
+    if (aborted) {
+        _txb0_free = true;
+    }
+    enableStepping();
+    return aborted;
 }
 
 int MCP2515_Lite::debugState(char* buf, size_t n) {

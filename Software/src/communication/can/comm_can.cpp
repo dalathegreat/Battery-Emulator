@@ -639,10 +639,10 @@ void restart_can() {
    - Native TWAI: reinitialised, the same path already used after a bus-off. ACAN_ESP32::begin() frees
      its previous interrupt handler, so running it again is safe; it resets the controller, ending any
      retry, and recreates the driver's transmit buffer empty.
-   - MCP2515 / MCP2518FD: the add-on drivers were replaced on main (MCP2515_Lite rewritten,
-     MCP2518FD_Lite instead of ACAN2517FD). Their in-place abort is ported in the next commit; until
-     then only the hold applies to them, so nothing new is queued but a frame already loaded keeps
-     being retried.
+   - MCP2515 / MCP2518FD: aborted in place by the driver, see abortPendingTransmissions() in
+     MCP2515_Lite and MCP2518FD_Lite. Both empty their TX ring and abort what the controller holds
+     with ABAT, the same way their changeSpeed() and pause() reconfigure the chip, without a reset or
+     a mode change.
    Needed because an error-passive transmitter does not count failed acknowledgements, so a frame
    nobody acknowledges never takes the controller to bus-off; it is retried for as long as the bus
    stays empty, and everything queued behind it goes out the moment another node returns. */
@@ -651,6 +651,22 @@ static void abort_pending_can_transmissions(CAN_Interface interface) {
     case CAN_NATIVE:
       if (settingsespcan != nullptr) {
         change_can_speed(CAN_NATIVE, native_can_speed);
+      }
+      break;
+    case CAN_ADDON_MCP2515:
+      if (can2515 != nullptr && !can2515->abortPendingTransmissions()) {
+        logging.printf("MCP2515: pending transmissions could not be aborted\n");
+      }
+      break;
+    case CANFD_NATIVE:
+    case CANFD_ADDON_MCP2518:
+      if (canfd != nullptr && !canfd->abortPendingTransmissions()) {
+        logging.printf("CAN-FD: pending transmissions could not be aborted\n");
+      }
+      break;
+    case CANFD_ADDON_MCP2518_2:
+      if (canfd_2 != nullptr && !canfd_2->abortPendingTransmissions()) {
+        logging.printf("CAN-FD 2: pending transmissions could not be aborted\n");
       }
       break;
     default:

@@ -56,6 +56,12 @@ public:
     // Pauses all communication (and stops acknowledging messages)
     void pause(bool paused);
 
+    // Drop every frame not yet on the wire: those waiting in the TX ring, and the one loaded in TXB0,
+    // which the MCP2515 otherwise retries for as long as nobody acknowledges it. Reception carries
+    // on. Blocks briefly (a frame on the wire finishes its attempt first). Returns false if TXB0 did
+    // not let go of its frame within ~10 ms, in which case it carries on as before.
+    bool abortPendingTransmissions();
+
     inline bool hasErrors() { auto ret = _errors; _errors = false; return ret; }
 
     // Debugging: the chip's key registers and the driver's state, as text

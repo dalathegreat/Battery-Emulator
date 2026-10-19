@@ -53,6 +53,8 @@
 #define FIFOCON_TFNRFNIE 0x01    // Byte 0: interrupt while not full (TX) / not empty (RX)
 #define FIFOCON_UINC 0x01        // Byte 1
 #define FIFOCON_TXREQ 0x02       // Byte 1
+#define FIFOCON_FRESET 0x04      // Byte 1
+#define CICON_ABAT 0x08          // Byte 3 of CiCON (bit 27)
 #define FIFOSTA_TFNRFNIF 0x01    // Byte 0: not full (TX) / not empty (RX)
 #define FIFOSTA_RXOVIF 0x08      // Byte 0: the RX FIFO overflowed
 
@@ -311,6 +313,49 @@ void MCP2518FD_Lite::pause(bool paused) {
   requestMode(paused ? MODE_CONFIGURATION : _run_mode);
   _paused = paused;
   enableStepping();
+}
+
+/* Sequence from the MCP25xxFD family reference manual (DS20005678), "Aborting a Transmission" and
+   "Resetting a Transmit FIFO": CiCON.ABAT makes every pending TXREQ clear once any attempt on the
+   wire has ended, and must then be cleared by software or nothing more is transmitted. The aborted
+   objects stay in the FIFO and its index does not move, so the FIFO is reset with FRESET, which is
+   only allowed once nothing in it is pending. With stepping disabled step() is idle, so the TX
+   ring's consumer side and the TX FIFO are ours. */
+bool MCP2518FD_Lite::abortPendingTransmissions(uint32_t timeout_ms) {
+  if (!bus) {
+    return false;
+  }
+  disableStepping();
+  _tx.clear();
+  if (_tx_ie) {
+    // Nothing left to send: the not-full interrupt goes off, as step() does when its ring empties
+    writeReg8(REG_CiFIFOCON(CONTROLLER_TX_FIFO_INDEX), FIFOCON_TXEN);
+    _tx_ie = false;
+  }
+  // Byte 3 also holds REQOP and TXBWS, which are written back as they are
+  const uint8_t con3 = readReg8(REG_CiCON + 3) & (uint8_t)~CICON_ABAT;
+  writeReg8(REG_CiCON + 3, con3 | CICON_ABAT);
+  bool aborted = false;
+  for (uint32_t i = 0; i <= timeout_ms && !aborted; i++) {
+    aborted = (readReg8(REG_CiFIFOCON(CONTROLLER_TX_FIFO_INDEX) + 1) & FIFOCON_TXREQ) == 0;
+    if (!aborted) {
+      delay(1);
+    }
+  }
+  writeReg8(REG_CiCON + 3, con3);
+  if (aborted) {
+    writeReg8(REG_CiFIFOCON(CONTROLLER_TX_FIFO_INDEX) + 1, FIFOCON_FRESET);
+    bool reset = false;
+    for (uint32_t i = 0; i <= timeout_ms && !reset; i++) {
+      reset = (readReg8(REG_CiFIFOCON(CONTROLLER_TX_FIFO_INDEX) + 1) & FIFOCON_FRESET) == 0;
+      if (!reset) {
+        delay(1);
+      }
+    }
+    aborted = reset;
+  }
+  enableStepping();
+  return aborted;
 }
 
 // Check for SERRIF (system error) and CERRIF (CAN bus error) flags
