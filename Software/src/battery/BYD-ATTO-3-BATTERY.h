@@ -64,6 +64,7 @@ class BydAttoBattery : public CanBattery {
   static constexpr const char* Name = "BYD Atto 3/Seal/Dolphin";
 
   bool supports_charged_energy() { return true; }
+  bool supports_directional_capacity() override { return true; }
   bool supports_reset_crash() { return true; }
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
   bool supports_calibrate_SOC() { return true; }

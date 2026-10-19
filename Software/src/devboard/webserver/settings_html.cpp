@@ -597,6 +597,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CHGESTIMATED") ? "checked" : "";
   }
 
+  if (var == "ENERGYPERSIST") {
+    return settings.getBool("ENERGYPERSIST", false) ? "checked" : "";
+  }
+
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
@@ -2129,6 +2133,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <div class="if-chgestimated">
         <label>Use estimated charge limits: </label>
         <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% />
+        </div>
+
+        <div>
+        <label for='ENERGYPERSIST'>Save lifetime energy counters to NVS: </label>
+        <input type='checkbox' name='ENERGYPERSIST' id='ENERGYPERSIST' value='on' %ENERGYPERSIST%
+          title="Save calculated lifetime Wh/Ah counters to internal flash approximately every 24 hours of runtime." />
+        <p><strong>Warning:</strong> Saving counters to internal flash may briefly interrupt CAN communication and cause CAN overruns on heavily loaded buses. Enable this only if you need lifetime energy counters to survive restarts. Changes take effect after a restart.</p>
         </div>
 
         <div class="if-battery">
