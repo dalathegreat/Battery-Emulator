@@ -371,7 +371,7 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
   while (count++ < 16 && ACAN_ESP32::can.available()) {
     if (ACAN_ESP32::can.receive(frame)) {
 
-      CAN_frame rx_frame;
+      CAN_frame rx_frame = {};
       rx_frame.ID = frame.id;
       rx_frame.ext_ID = frame.ext;
       rx_frame.DLC = frame.len;
