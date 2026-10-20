@@ -13,6 +13,7 @@ constexpr uint16_t UDS_PID_MAX_RETRIES = 10;
 // Traffic on 0x7DF (or on uds_address) that isn't ours implies an external
 // diagnostic tool is in use.
 constexpr uint16_t OBD2_REQUEST_ADDRESS = 0x7DF;
+// The range of response IDs (addresses) we'll accept UDS responses from if auto-detecting.
 constexpr uint32_t MIN_UDS_RESPONSE_ID = 0x780;
 constexpr uint32_t MAX_UDS_RESPONSE_ID = 0x7EF;
 // KWP2000 service for one-byte local identifier reads - not part of ISO 14229

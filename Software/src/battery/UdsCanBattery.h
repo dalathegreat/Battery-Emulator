@@ -242,26 +242,51 @@ class UdsCanBattery : public CanBattery, public IsoTp {
     uint8_t sid = 0;
     uint8_t data[16] = {};
     uint16_t len = 0;
-    uint32_t timeout_ticks = 0;
+    uint32_t timeout_ticks = 0;  // original timeout, re-applied on each retry
     uint8_t retries = 0;
     uint8_t max_retries = 0;
-    UdsPriority priority = UdsPriority::Sequence;
+    UdsPriority priority = UdsPriority::Sequence;  // pause priority of this step
   } seq_msg;
 
-  uint16_t seq_state = UDS_STATE_IDLE;
-  uint16_t pending_seq_state = UDS_STATE_IDLE;
-  uint16_t pid_scan_index = 0;
-  uint16_t pid_list_len = 0;
-  uint16_t next_pid = 0;
-  uint16_t pending_pid = 0;
-  uint16_t seq_pause_ticks = 0;
-  UdsPriority seq_pause_level = UdsPriority::PidScan;
   uint32_t previousUdsMillis100 = 0;
+  // The request SID and identifier width used by the PID scan, derived from
+  // the scan mode in set_pid_scan_mode() (default: UDS 0x22 / two bytes).
   uint8_t pid_scan_sid = static_cast<uint8_t>(SID::ReadDataByIdentifier);
   uint8_t pid_scan_id_bytes = 2;
+  // The list of PIDs to scan, in order. Set with set_pid_scan_list(). The list
+  // is walked from start to end, then wraps around to the beginning.
   const uint16_t* pid_list = nullptr;
+  // Number of PIDs in pid_list.
+  uint16_t pid_list_len = 0;
+  // Current position in the scan cycle. Advanced after each request completes,
+  // unless handle_pid() returned a detour PID (which is requested for one step
+  // first, before the scan list resumes here).
+  uint16_t pid_scan_index = 0;
+  // The next PID to request. 0 = pick the next entry from pid_list, nonzero =
+  // a one-shot detour PID returned by handle_pid(), requested before the scan
+  // list continues.
+  uint16_t next_pid = 0;
+  // The PID currently being requested.
+  uint16_t pending_pid = 0;
+  // How many times we've retried the current PID request.
   uint8_t pid_retries = 0;
+  // Current position in the active sequence, or UDS_STATE_IDLE if no sequence
+  // is active. Set by send_sequence_message(), cleared when the response is
+  // dispatched or the step's retry budget is exhausted.
+  uint16_t seq_state = UDS_STATE_IDLE;
+  // The pending next state to start a sequence. Set by start_sequence() and
+  // cleared when the sequence is started.
+  uint16_t pending_seq_state = UDS_STATE_IDLE;
+  // Number of 100ms ticks of quiet (new sends blocked) remaining, set by
+  // pause_uds().
+  uint16_t seq_pause_ticks = 0;
+  // The highest priority blocked by the current pause (pause_uds() second
+  // argument).
+  UdsPriority seq_pause_level = UdsPriority::PidScan;
+  // How many ticks left for the current request to complete, before it is
+  // retried (or given up).
   int32_t uds_transaction_timeout = 0;
+  // Should the PID message be sent with CAN-FD flag enabled?
   bool send_messages_asFD = false;
 
   UdsBatteryHtmlRenderer uds_renderer;
