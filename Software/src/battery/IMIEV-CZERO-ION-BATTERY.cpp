@@ -118,6 +118,9 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       pid_index = (rx_frame.ID) - 1761;
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
+      if (cmu_id < 1 || cmu_id > 12) {
+        break;  // index math below is only valid for CMU 1..12
+      }
       //
       if (rx_frame.data.u8[1] != 0) {  // Only update temperatures if value is available
         temp1 = rx_frame.data.u8[1] - 50.0f;
