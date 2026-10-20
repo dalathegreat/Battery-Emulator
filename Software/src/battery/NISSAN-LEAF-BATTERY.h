@@ -210,6 +210,14 @@ class NissanLeafBattery : public CanBattery {
   uint8_t counter_3B8 = 0;  //counter 0-14
   bool flip_3B8 = false;
 
+  /* RLYP (Relay_Plus_Output_Status, 0x1D4 byte 5 bit 6) is sent as 0 for the first RLYP_ON_DELAY_MS of
+     every LBC session and as 1 from then on. A session starts with the first frame sent after boot, and
+     again with the first one after BMS power has come back on from a BMS reset (bms_power_on_ms moved). */
+  static const unsigned long RLYP_ON_DELAY_MS = 3000;
+  bool lbc_session_started = false;
+  unsigned long lbc_session_start_ms = 0;
+  uint32_t lbc_session_power_on_ms = 0;  //bms_power_on_ms the current session started under
+
   static const uint8_t ZE0_BATTERY = 0;
   static const uint8_t AZE0_BATTERY = 1;
   static const uint8_t ZE1_BATTERY = 2;
@@ -233,11 +241,13 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 6,
                         .ID = 0x50C,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Bytes 4, 5 and 7 are rewritten on every transmission: the PRUN counter in byte 4, RLYP in byte 5 and
+  //the CRC in byte 7. Shown here with RLYP = 0, the value every LBC session starts with.
   CAN_frame LEAF_1D4 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x06, 0xE0, 0x8F}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,

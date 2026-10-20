@@ -1327,24 +1327,24 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
 
-      switch (mprun10) {
-        case 0:
-          LEAF_1D4.data.u8[4] = 0x07;
-          LEAF_1D4.data.u8[7] = 0x12;
-          break;
-        case 1:
-          LEAF_1D4.data.u8[4] = 0x47;
-          LEAF_1D4.data.u8[7] = 0xD5;
-          break;
-        case 2:
-          LEAF_1D4.data.u8[4] = 0x87;
-          LEAF_1D4.data.u8[7] = 0x19;
-          break;
-        case 3:
-          LEAF_1D4.data.u8[4] = 0xC7;
-          LEAF_1D4.data.u8[7] = 0xDE;
-          break;
+      //A new LBC session: the first frame since boot, or since BMS power came back on after a reset
+      if (!lbc_session_started || lbc_session_power_on_ms != bms_power_on_ms) {
+        lbc_session_started = true;
+        lbc_session_power_on_ms = bms_power_on_ms;
+        lbc_session_start_ms = currentMillis;
       }
+
+      /* Byte 4 carries the PRUN counter in bits 7-6, with BTONFN (StatusOfHighVoltagePowerSupply) in
+         bit 2 left at 1. Byte 5 bit 6 is RLYP (Relay_Plus_Output_Status): 0 for the first
+         RLYP_ON_DELAY_MS of the session, 1 from then on. Byte 7 is the CRC over bytes 0-6, which with
+         RLYP = 1 gives the 0x12 / 0xD5 / 0x19 / 0xDE this frame always carried. */
+      LEAF_1D4.data.u8[4] = (uint8_t)((mprun10 << 6) | 0x07);
+      if (currentMillis - lbc_session_start_ms >= RLYP_ON_DELAY_MS) {
+        LEAF_1D4.data.u8[5] |= 0x40;
+      } else {
+        LEAF_1D4.data.u8[5] &= (uint8_t)~0x40;
+      }
+      LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);
       //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!leaf_pdm_charger_in_use()) {

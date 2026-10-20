@@ -1870,3 +1870,116 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
 }
+
+// RLYP (0x1D4 byte 5 bit 6) starts every LBC session at 0 and goes to 1 three seconds after the
+// session's first frame. A session starts at boot, and again once BMS power is back from a reset.
+class NissanLeafRelayPlusTests : public ::testing::Test {
+ protected:
+  unsigned long t = 60000;
+  uint32_t saved_bms_power_on_ms = 0;
+  BMSResetState saved_reset_status = BMS_RESET_IDLE;
+
+  struct SentFrame {
+    unsigned long at;
+    CAN_frame frame;
+  };
+
+  void SetUp() override {
+    saved_bms_power_on_ms = bms_power_on_ms;
+    saved_reset_status = datalayer.system.status.bms_reset_status;
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    bms_power_on_ms = 59000;  //Powered on at boot, a second before the LBC first talks
+  }
+
+  void TearDown() override {
+    bms_power_on_ms = saved_bms_power_on_ms;
+    datalayer.system.status.bms_reset_status = saved_reset_status;
+  }
+
+  // Runs the pack in 10 ms steps for duration_ms and returns every 0x1D4 it sent.
+  std::vector<SentFrame> run_1d4(NissanLeafBattery& pack, unsigned long duration_ms) {
+    std::vector<SentFrame> sent;
+    for (unsigned long end = t + duration_ms; t < end;) {
+      t += 10;
+      set_millis64(t);
+      clear_transmitted_frames();
+      pack.transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        if (frame.ID == 0x1D4) {
+          sent.push_back({t, frame});
+        }
+      }
+    }
+    return sent;
+  }
+
+  static bool relay_plus(const CAN_frame& frame) { return (frame.data.u8[5] & 0x40) != 0; }
+
+  // RLYP off for the first 3 s of what was sent, on after, and every frame's CRC right.
+  void expect_session(NissanLeafBattery& pack, const std::vector<SentFrame>& sent) {
+    ASSERT_FALSE(sent.empty());
+    const unsigned long first = sent.front().at;
+    for (const SentFrame& s : sent) {
+      CAN_frame frame = s.frame;
+      EXPECT_EQ(relay_plus(frame), s.at - first >= 3000) << (s.at - first) << " ms into the session";
+      EXPECT_EQ(frame.data.u8[7], pack.calculate_crc(frame));
+      EXPECT_EQ(frame.data.u8[4] & 0x3F, 0x07);  //BTONFN and the low bits stay as they always were
+    }
+  }
+};
+
+TEST_F(NissanLeafRelayPlusTests, ShouldStartWithRelayPlusOffAndRaiseItThreeSecondsLater) {
+  NissanLeafBattery pack;
+  pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+
+  const std::vector<SentFrame> sent = run_1d4(pack, 5000);
+  EXPECT_EQ(sent.size(), 500u);
+  expect_session(pack, sent);
+}
+
+// Once RLYP is on, the frame is exactly the one this driver has always sent.
+TEST_F(NissanLeafRelayPlusTests, ShouldSendTheUsualFrameOnceRelayPlusIsOn) {
+  NissanLeafBattery pack;
+  pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  run_1d4(pack, 3000);
+
+  const uint8_t prun_byte[4] = {0x07, 0x47, 0x87, 0xC7};
+  const uint8_t crc[4] = {0x12, 0xD5, 0x19, 0xDE};
+  const std::vector<SentFrame> sent = run_1d4(pack, 40);
+  ASSERT_EQ(sent.size(), 4u);
+  for (const SentFrame& s : sent) {
+    const uint8_t prun = s.frame.data.u8[4] >> 6;
+    const uint8_t expected[8] = {0x6E, 0x6E, 0x00, 0x04, prun_byte[prun], 0x46, 0xE0, crc[prun]};
+    for (int i = 0; i < 8; i++) {
+      EXPECT_EQ(s.frame.data.u8[i], expected[i]) << "byte " << i << ", PRUN " << (int)prun;
+    }
+  }
+}
+
+// IGN off and on again through a BMS reset is a new session for the LBC, so RLYP starts at 0 again
+// from the first frame sent after the reset, not from when power came back.
+TEST_F(NissanLeafRelayPlusTests, ShouldStartAFreshSessionAfterABmsReset) {
+  NissanLeafBattery pack;
+  pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  run_1d4(pack, 4000);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  EXPECT_TRUE(run_1d4(pack, 30000).empty());  //Nothing goes out with BMS power off
+  bms_power_on_ms = t;
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  EXPECT_TRUE(run_1d4(pack, 3000).empty());  //Nor while it warms up
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  expect_session(pack, run_1d4(pack, 5000));
+}
+
+// Without a BMS power cycle the session simply carries on, RLYP staying on.
+TEST_F(NissanLeafRelayPlusTests, ShouldKeepRelayPlusOnWhileTheSessionLasts) {
+  NissanLeafBattery pack;
+  pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  run_1d4(pack, 3000);
+
+  for (const SentFrame& s : run_1d4(pack, 20000)) {
+    EXPECT_TRUE(relay_plus(s.frame));
+  }
+}
