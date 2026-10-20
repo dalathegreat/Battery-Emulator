@@ -1350,12 +1350,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         lbc_session_start_ms = currentMillis;
       }
 
-      /* Byte 4 carries the PRUN counter in bits 7-6, with BTONFN (StatusOfHighVoltagePowerSupply) in
-         bit 2 left at 1. Byte 5 bit 6 is RLYP (Relay_Plus_Output_Status): 0 for the first
-         RLYP_ON_DELAY_MS of the session, 1 from then on. Byte 7 is the CRC over bytes 0-6, which with
-         RLYP = 1 gives the 0x12 / 0xD5 / 0x19 / 0xDE this frame always carried. */
-      LEAF_1D4.data.u8[4] = (uint8_t)((mprun10 << 6) | 0x07);
-      if (currentMillis - lbc_session_start_ms >= RLYP_ON_DELAY_MS) {
+      /* Byte 4 carries the PRUN counter in bits 7-6 and BTONFN (StatusOfHighVoltagePowerSupply) in bit 2,
+         byte 5 bit 6 is RLYP (Relay_Plus_Output_Status). Both are 0 as the session starts, RLYP goes to 1
+         RLYP_ON_DELAY_MS into it and BTONFN BTONFN_ON_DELAY_MS after that. Byte 7 is the CRC over bytes
+         0-6, which with both at 1 gives the 0x12 / 0xD5 / 0x19 / 0xDE this frame always carried. */
+      const unsigned long session_ms = currentMillis - lbc_session_start_ms;
+      const bool hv_supplied = session_ms >= RLYP_ON_DELAY_MS + BTONFN_ON_DELAY_MS;
+      LEAF_1D4.data.u8[4] = (uint8_t)((mprun10 << 6) | (hv_supplied ? 0x07 : 0x03));
+      if (session_ms >= RLYP_ON_DELAY_MS) {
         LEAF_1D4.data.u8[5] |= 0x40;
       } else {
         LEAF_1D4.data.u8[5] &= (uint8_t)~0x40;

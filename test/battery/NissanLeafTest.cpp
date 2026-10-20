@@ -1874,8 +1874,9 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
 }
 
-// RLYP (0x1D4 byte 5 bit 6) starts every LBC session at 0 and goes to 1 three seconds after the
-// session's first frame. A session starts at boot, and again once BMS power is back from a reset.
+// RLYP (0x1D4 byte 5 bit 6) and BTONFN (byte 4 bit 2) start every LBC session at 0. RLYP goes to 1
+// three seconds after the session's first frame, BTONFN 200 ms after RLYP. A session starts at boot,
+// and again once BMS power is back from a reset.
 class NissanLeafRelayPlusTests : public ::testing::Test {
  protected:
   unsigned long t = 60000;
@@ -1917,21 +1918,24 @@ class NissanLeafRelayPlusTests : public ::testing::Test {
   }
 
   static bool relay_plus(const CAN_frame& frame) { return (frame.data.u8[5] & 0x40) != 0; }
+  static bool hv_supplied(const CAN_frame& frame) { return (frame.data.u8[4] & 0x04) != 0; }
 
-  // RLYP off for the first 3 s of what was sent, on after, and every frame's CRC right.
+  // RLYP off for the first 3 s of what was sent and on after, BTONFN off for the first 3.2 s and on
+  // after, and every frame's CRC right.
   void expect_session(NissanLeafBattery& pack, const std::vector<SentFrame>& sent) {
     ASSERT_FALSE(sent.empty());
     const unsigned long first = sent.front().at;
     for (const SentFrame& s : sent) {
       CAN_frame frame = s.frame;
       EXPECT_EQ(relay_plus(frame), s.at - first >= 3000) << (s.at - first) << " ms into the session";
+      EXPECT_EQ(hv_supplied(frame), s.at - first >= 3200) << (s.at - first) << " ms into the session";
       EXPECT_EQ(frame.data.u8[7], pack.calculate_crc(frame));
-      EXPECT_EQ(frame.data.u8[4] & 0x3F, 0x07);  //BTONFN and the low bits stay as they always were
+      EXPECT_EQ(frame.data.u8[4] & 0x3B, 0x03);  //The low bits stay as they always were
     }
   }
 };
 
-TEST_F(NissanLeafRelayPlusTests, ShouldStartWithRelayPlusOffAndRaiseItThreeSecondsLater) {
+TEST_F(NissanLeafRelayPlusTests, ShouldStartWithBothOffAndRaiseThemInOrder) {
   NissanLeafBattery pack;
   pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
 
@@ -1940,11 +1944,32 @@ TEST_F(NissanLeafRelayPlusTests, ShouldStartWithRelayPlusOffAndRaiseItThreeSecon
   expect_session(pack, sent);
 }
 
-// Once RLYP is on, the frame is exactly the one this driver has always sent.
-TEST_F(NissanLeafRelayPlusTests, ShouldSendTheUsualFrameOnceRelayPlusIsOn) {
+// High voltage is never declared supplied before the plus relay, and only follows it 200 ms later.
+TEST_F(NissanLeafRelayPlusTests, ShouldRaiseBtonfnOnly200msAfterRelayPlus) {
   NissanLeafBattery pack;
   pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
-  run_1d4(pack, 3000);
+
+  unsigned long relay_plus_at = 0;
+  unsigned long hv_supplied_at = 0;
+  for (const SentFrame& s : run_1d4(pack, 5000)) {
+    EXPECT_FALSE(hv_supplied(s.frame) && !relay_plus(s.frame)) << "BTONFN without RLYP at " << s.at;
+    if (relay_plus(s.frame) && relay_plus_at == 0) {
+      relay_plus_at = s.at;
+    }
+    if (hv_supplied(s.frame) && hv_supplied_at == 0) {
+      hv_supplied_at = s.at;
+    }
+  }
+  ASSERT_NE(relay_plus_at, 0u);
+  ASSERT_NE(hv_supplied_at, 0u);
+  EXPECT_EQ(hv_supplied_at - relay_plus_at, 200u);
+}
+
+// Once both are on, the frame is exactly the one this driver has always sent.
+TEST_F(NissanLeafRelayPlusTests, ShouldSendTheUsualFrameOnceBothAreOn) {
+  NissanLeafBattery pack;
+  pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  run_1d4(pack, 3200);
 
   const uint8_t prun_byte[4] = {0x07, 0x47, 0x87, 0xC7};
   const uint8_t crc[4] = {0x12, 0xD5, 0x19, 0xDE};
@@ -1959,8 +1984,8 @@ TEST_F(NissanLeafRelayPlusTests, ShouldSendTheUsualFrameOnceRelayPlusIsOn) {
   }
 }
 
-// IGN off and on again through a BMS reset is a new session for the LBC, so RLYP starts at 0 again
-// from the first frame sent after the reset, not from when power came back.
+// IGN off and on again through a BMS reset is a new session for the LBC, so RLYP and BTONFN start at 0
+// again from the first frame sent after the reset, not from when power came back.
 TEST_F(NissanLeafRelayPlusTests, ShouldStartAFreshSessionAfterABmsReset) {
   NissanLeafBattery pack;
   pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
@@ -1976,14 +2001,15 @@ TEST_F(NissanLeafRelayPlusTests, ShouldStartAFreshSessionAfterABmsReset) {
   expect_session(pack, run_1d4(pack, 5000));
 }
 
-// Without a BMS power cycle the session simply carries on, RLYP staying on.
-TEST_F(NissanLeafRelayPlusTests, ShouldKeepRelayPlusOnWhileTheSessionLasts) {
+// Without a BMS power cycle the session simply carries on, RLYP and BTONFN staying on.
+TEST_F(NissanLeafRelayPlusTests, ShouldKeepBothOnWhileTheSessionLasts) {
   NissanLeafBattery pack;
   pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
-  run_1d4(pack, 3000);
+  run_1d4(pack, 3200);
 
   for (const SentFrame& s : run_1d4(pack, 20000)) {
     EXPECT_TRUE(relay_plus(s.frame));
+    EXPECT_TRUE(hv_supplied(s.frame));
   }
 }
 

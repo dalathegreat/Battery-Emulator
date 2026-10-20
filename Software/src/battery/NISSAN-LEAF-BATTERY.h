@@ -220,10 +220,13 @@ class NissanLeafBattery : public CanBattery {
   uint8_t counter_3B8 = 0;  //counter 0-14
   bool flip_3B8 = false;
 
-  /* RLYP (Relay_Plus_Output_Status, 0x1D4 byte 5 bit 6) is sent as 0 for the first RLYP_ON_DELAY_MS of
-     every LBC session and as 1 from then on. A session starts with the first frame sent after boot, and
-     again with the first one after BMS power has come back on from a BMS reset (bms_power_on_ms moved). */
+  /* RLYP (Relay_Plus_Output_Status, 0x1D4 byte 5 bit 6) and BTONFN (StatusOfHighVoltagePowerSupply, byte 4
+     bit 2) are both sent as 0 when an LBC session starts. RLYP goes to 1 RLYP_ON_DELAY_MS after the
+     session's first frame, and BTONFN BTONFN_ON_DELAY_MS after RLYP, so the steps reach the LBC in order.
+     A session starts with the first frame sent after boot, and again with the first one after BMS power
+     has come back on from a BMS reset (bms_power_on_ms moved). */
   static const unsigned long RLYP_ON_DELAY_MS = 3000;
+  static const unsigned long BTONFN_ON_DELAY_MS = 200;
   bool lbc_session_started = false;
   unsigned long lbc_session_start_ms = 0;
   uint32_t lbc_session_power_on_ms = 0;  //bms_power_on_ms the current session started under
@@ -251,13 +254,13 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 6,
                         .ID = 0x50C,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  //Bytes 4, 5 and 7 are rewritten on every transmission: the PRUN counter in byte 4, RLYP in byte 5 and
-  //the CRC in byte 7. Shown here with RLYP = 0, the value every LBC session starts with.
+  //Bytes 4, 5 and 7 are rewritten on every transmission: the PRUN counter and BTONFN in byte 4, RLYP in
+  //byte 5 and the CRC in byte 7. Shown here with BTONFN = RLYP = 0, the values every LBC session starts with.
   CAN_frame LEAF_1D4 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x06, 0xE0, 0x8F}};
+                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x03, 0x06, 0xE0, 0x69}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,
