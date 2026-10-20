@@ -16,7 +16,8 @@
 // With no frame the minimum stays at its power-on value, which is that same
 // new-pack number, so SOH reads 100.00%. update_values() writes SOH before
 // it checks isolation. Isolation starts at 0 and raises its own event on
-// this pass; these tests leave that event alone and read SOH anyway.
+// this pass. The snapshot below checks that event. The CAC cases here only
+// read SOH.
 //
 // The pack is local and is not stored in the global battery pointer. The
 // test listener deletes that pointer before every test.
@@ -148,13 +149,6 @@ TEST_F(TeslaLegacyBatteryTest, NewPackCacIsOneHundredPercent) {
   EXPECT_EQ(SohFromRaw(2316), 10000);
 }
 
-// 200.0 Ah is not a round percentage of 231.6. 20000000 / 2316 truncates to 8635.
-TEST_F(TeslaLegacyBatteryTest, TwoHundredAmpHoursTruncatesStateOfHealth) {
-  PublishCac(0, 2000);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
-  EXPECT_EQ(SohFromRaw(2000), 8635);
-}
-
 // Raw 171 uses the low nibble (byte 2 = 0xB0, byte 3 = 0x0A). Dropping that nibble still
 // passes the 200.0 Ah case, whose low nibble is zero.
 TEST_F(TeslaLegacyBatteryTest, LowNibbleIsPartOfTheCac) {
@@ -178,7 +172,10 @@ TEST_F(TeslaLegacyBatteryTest, OtherMuxesLeaveTheMinimumAlone) {
 // Hardware id 74 is the 75 kWh pack, so 80.0% SOC is 60000 Wh. Id 79 is
 // the 100 kWh pack and moves the remaining energy on the next pass.
 // Charge and discharge power are voltage times the BMS current limits.
-// This driver has no user power cap.
+// This driver has no user power cap. Isolation starts at 0 and raises on
+// that first pass. A later healthy reading clears it, and a low reading
+// raises it again, without moving SOH. BMS state is applied on the
+// one-second transmit: welded, then open, and the welded event stays up.
 TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   pack_->handle_incoming_can_frame(LegacyHvBus(37030, 0xFFD4));
   pack_->handle_incoming_can_frame(LegacyBrickMinMax(2001, 1801, 101, 80));
@@ -199,35 +196,31 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 48100u);
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 20350u);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
+  EXPECT_EQ(SohFromRaw(2000), 8635);
   EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+  // Isolation is still 0, so this same pass raises the event.
+  EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_ACTIVE);
 
   pack_->handle_incoming_can_frame(LegacyHwId(79));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 100000u);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 80000u);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
-}
 
-// Isolation starts at 0, so the first publish raises the isolation event.
-// Byte 3 times 20 is the resistance: 100 clears the event, 80 raises it,
-// and neither pass changes the SOH already published. BMS state is applied
-// on the 1 second transmit. State 8 raises a welded contactor, state 7
-// raises an open contactor, and the welded event stays up.
-TEST_F(TeslaLegacyBatteryTest, IsolationAndBmsStateReachTheEventList) {
-  PublishCac(0, 2000);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
-  EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_ACTIVE);
-
-  pack_->handle_incoming_can_frame(LegacyStatus(0, 5));  // 100, the first healthy reading
+  // Byte 3 times 20 is the resistance. 100 is the first healthy reading and
+  // clears the event. 80 raises it again. SOH stays on the CAC already read.
+  pack_->handle_incoming_can_frame(LegacyStatus(0, 5));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_INACTIVE);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 
-  pack_->handle_incoming_can_frame(LegacyStatus(0, 4));  // 80
+  pack_->handle_incoming_can_frame(LegacyStatus(0, 4));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_ACTIVE);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 
+  // BMS state is applied on the 1 second transmit. State 8 raises a welded
+  // contactor, state 7 raises an open contactor, and the welded event stays up.
   pack_->handle_incoming_can_frame(LegacyStatus(8, 5));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_INACTIVE);

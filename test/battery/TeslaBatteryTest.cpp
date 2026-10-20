@@ -230,20 +230,10 @@ class TeslaBatteryTest : public ::testing::Test {
 };
 
 // The inverter stops at max_design_voltage_dV and min_design_voltage_dV.
-// On a Model 3/Y those limits follow the cell count. 96 cells stay on the
-// NCA/NCM window. More than 101 cells select LFP and a lower window, and a
-// later 96-cell scan leaves LFP in place. Autodetect runs only when the
-// configured chassis is a Model 3 or Model Y.
-
-// 32 full frames (mux 0..31) are 96 cells, the NCA/NCM Model 3/Y size.
-TEST_F(TeslaBatteryTest, NinetySixCellsKeepNcaLimits) {
-  ScanFullFrames(pack_, 31);
-  pack_->update_values();
-
-  EXPECT_EQ(datalayer.battery.info.number_of_cells, 96);
-  EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::NCA);
-  ExpectNca3YLimits();
-}
+// On a Model 3/Y those limits follow the cell count. More than 101 cells
+// select LFP and a lower window, and a later 96-cell scan leaves LFP in
+// place. The 96-cell NCA pack is the snapshot below. Autodetect runs only
+// when the configured chassis is a Model 3 or Model Y.
 
 // 36 full frames (mux 0..35) are 108 cells. The lower LFP window keeps the
 // inverter from charging that pack to the NCA voltage.
@@ -314,79 +304,6 @@ TEST_F(TeslaBatteryTest, StoredLfpSurvivesANinetySixCellScan) {
   ExpectLfpLimits();
 }
 
-// Measurements update_values() copies for the inverter. Each test changes
-// one reading. The expected value keeps the truncation the firmware does.
-
-// 2001 and 1801 raw counts are 4002 mV and 3602 mV. The cell-deviation check
-// compares these millivolts, so a scale that drops the 2 mV step fails.
-TEST_F(TeslaBatteryTest, BrickMinMaxReachTheDatalayerInMillivolts) {
-  pack_->handle_incoming_can_frame(CellMinMax(2001, 1801));
-  pack_->update_values();
-
-  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 4002);
-  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3602);
-}
-
-// 101 and 80 raw are 10.5 C and 0.0 C. Temperatures share 0x332 with the
-// cell voltages, on mux 0. The cell readings from mux 1 have to still be
-// there after the temperature frame.
-TEST_F(TeslaBatteryTest, BrickTemperaturesAreDeciCelsiusAndDoNotClearCellVoltages) {
-  pack_->handle_incoming_can_frame(CellMinMax(2001, 1801));
-  pack_->update_values();
-
-  pack_->handle_incoming_can_frame(BrickTemps(101, 80));
-  pack_->update_values();
-
-  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 105);
-  EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 0);
-  EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 4002);
-  EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3602);
-}
-
-// 37030 centivolts becomes 3703 dV. The current word is signed: 0xFFD4 is
-// -44 dA, a discharge, and 225 stays a positive charge. The sign is what
-// tells the inverter which way the pack is going.
-TEST_F(TeslaBatteryTest, PackVoltageAndSignedCurrent) {
-  pack_->handle_incoming_can_frame(HvBus(37030, 0xFFD4));
-  pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3703);
-  EXPECT_EQ(datalayer.battery.status.current_dA, -44);
-
-  pack_->handle_incoming_can_frame(HvBus(37030, 225));
-  pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.current_dA, 225);
-}
-
-// UI SOC is a 10-bit field in 0.1%. real_soc is that value in 0.01%, which
-// is what the inverter and the remaining-energy calculation read. The two
-// cases sit on either side of 50%, where the field crosses from byte 1 into
-// byte 2. This driver hardcodes SOH to 99% and does not read it from SOC.
-TEST_F(TeslaBatteryTest, SocBelowFiftyPercent) {
-  pack_->handle_incoming_can_frame(SocUi(123));  // 12.3%
-  pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.real_soc, 1230);
-}
-
-TEST_F(TeslaBatteryTest, SocAboveFiftyPercent) {
-  pack_->handle_incoming_can_frame(SocUi(800));  // 80.0%
-  pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
-}
-
-// Discharge power is the BMS current times the pack voltage, in whole amps
-// and whole volts. 430 raw * 0.128 A truncates to 55 A, and 3703 dV / 10
-// drops the 0.3 V. The user override starts at 0 and would hide that
-// product, so the test raises it first.
-TEST_F(TeslaBatteryTest, DischargePowerUsesIntegerVolts) {
-  datalayer.battery.status.override_discharge_power_W = 1000000;
-  pack_->handle_incoming_can_frame(HvBus(37030, 0));
-  pack_->handle_incoming_can_frame(DischargeLimit(430));
-  pack_->update_values();
-
-  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3703);
-  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 55u * 370u);
-}
-
 // Faults from the same update pass. The still-alive counter is what decides
 // the pack has gone quiet, and only a frame this driver recognizes refills
 // it. 0x001 leaves the counter at zero.
@@ -400,10 +317,13 @@ TEST_F(TeslaBatteryTest, RecognizedFrameRefreshesStillAlive) {
   EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
 }
 
-// State 4 is CLOSED, state 1 is OPEN, state 5 is WELDED. The bus is live
-// only while the BMS says closed. State 5 also raises a latched welded
-// contactor event. The bus is down while that state is present.
-TEST_F(TeslaBatteryTest, ContactorClosedMarksTheDcBusLive) {
+// State 4 is CLOSED, state 1 is OPEN, state 5 is WELDED. With contactor
+// control off, the bus is live only while the BMS says closed. State 5
+// latches the welded-contactor event, and the following OPEN leaves that
+// latch up. With contactor control on, the board owns dc_bus_live: a BMS
+// CLOSED frame leaves a dead bus dead, and a BMS OPEN frame leaves a live
+// bus live.
+TEST_F(TeslaBatteryTest, ContactorStatePublishesTheDcBusAndAWeldLatch) {
   pack_->handle_incoming_can_frame(BmsStatus(1));
   pack_->update_values();
   EXPECT_FALSE(datalayer.system.status.dc_bus_live);
@@ -416,6 +336,22 @@ TEST_F(TeslaBatteryTest, ContactorClosedMarksTheDcBusLive) {
   pack_->update_values();
   EXPECT_FALSE(datalayer.system.status.dc_bus_live);
   EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE_LATCHED);
+
+  pack_->handle_incoming_can_frame(BmsStatus(1));
+  pack_->update_values();
+  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
+  EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE_LATCHED);
+
+  contactor_control_enabled = true;
+  datalayer.system.status.dc_bus_live = false;
+  pack_->handle_incoming_can_frame(BmsStatus(4));
+  pack_->update_values();
+  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
+
+  datalayer.system.status.dc_bus_live = true;
+  pack_->handle_incoming_can_frame(BmsStatus(1));
+  pack_->update_values();
+  EXPECT_TRUE(datalayer.system.status.dc_bus_live);
 }
 
 // HVIL status 3 means a high-voltage cable was opened while the pack was in
@@ -462,12 +398,19 @@ TEST_F(TeslaBatteryTest, LowTwelveVoltRaisesOnlyWhilePackEndsAreZero) {
   EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_INACTIVE);
 }
 
-// The frames a Model 3 pack has on the bus, published in one pass. Pack
-// energy 1 is the 74 kWh gateway setting, so 80.0% SOC is 59200 Wh. The
-// discharge override is raised so the BMS product is what gets published.
-// The cap itself is covered by the next test. Switching the gateway setting
-// to 100 kWh and publishing again leaves the measurements in place and
-// moves the remaining energy.
+// The frames a Model 3 pack has on the bus, published in one pass. 37030
+// centivolts is 3703 dV. The current word is signed: 0xFFD4 is -44 dA, and
+// 225 stays a positive charge. 80.0% UI SOC is 8000, above the byte boundary
+// at 50%. 12.3% is checked when balancing restores the CAN SOC. Pack energy
+// 1 is 74 kWh, so 80.0% is 59200 Wh. Cell min/max use the 2 mV step, and the
+// temperature frame that follows them has to leave those cells in place.
+// Discharge power is whole amps times whole volts: 430 raw truncates to 55 A
+// and 3703 dV / 10 drops the 0.3 V. The override starts high enough to show
+// that product. The next pass lowers it, and 20350 W publishes as 5000 W.
+// Charge power is the user setting. A 1000 A charge limit on the same frame
+// does not change it, and before that setting is raised the charge power
+// stays 0. Switching the gateway setting to 100 kWh moves the remaining
+// energy and leaves the measurements and the cap in place.
 TEST_F(TeslaBatteryTest, Model3YSnapshotPublishesTheInverterPicture) {
   user_selected_tesla_GTW_packEnergy = 1;
   pack_->setup();
@@ -478,7 +421,7 @@ TEST_F(TeslaBatteryTest, Model3YSnapshotPublishesTheInverterPicture) {
   pack_->handle_incoming_can_frame(SocUi(800));
   pack_->handle_incoming_can_frame(CellMinMax(2001, 1801));
   pack_->handle_incoming_can_frame(BrickTemps(101, 80));
-  pack_->handle_incoming_can_frame(DischargeLimit(430));
+  pack_->handle_incoming_can_frame(CurrentLimits(10000, 430));
   pack_->update_values();
 
   EXPECT_EQ(datalayer.battery.status.voltage_dV, 3703);
@@ -492,10 +435,24 @@ TEST_F(TeslaBatteryTest, Model3YSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 105);
   EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 0);
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 55u * 370u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
   EXPECT_EQ(datalayer.battery.info.number_of_cells, 96);
   EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::NCA);
   ExpectNca3YLimits();
   EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+
+  pack_->handle_incoming_can_frame(HvBus(37030, 225));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3703);
+  EXPECT_EQ(datalayer.battery.status.current_dA, 225);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 55u * 370u);
+
+  datalayer.battery.status.override_discharge_power_W = 5000;
+  datalayer.battery.status.override_charge_power_W = 4000;
+  pack_->handle_incoming_can_frame(CurrentLimits(10000, 430));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 5000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
 
   user_selected_tesla_GTW_packEnergy = 3;
   pack_->setup();
@@ -505,23 +462,8 @@ TEST_F(TeslaBatteryTest, Model3YSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 80000u);
   EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
   EXPECT_EQ(datalayer.battery.status.voltage_dV, 3703);
-  ExpectNca3YLimits();
-}
-
-// Discharge power is the BMS product until it passes the user cap, and then
-// it is the cap. 55 A at 370 V is 20350 W, so a 5000 W cap is what the
-// inverter is allowed. Charge power is the user charge setting. The 1000 A
-// charge limit on the same frame does not change it.
-TEST_F(TeslaBatteryTest, UserLimitsCapDischargeAndSetChargePower) {
-  datalayer.battery.status.override_discharge_power_W = 5000;
-  datalayer.battery.status.override_charge_power_W = 4000;
-  pack_->handle_incoming_can_frame(HvBus(37030, 0));
-  pack_->handle_incoming_can_frame(CurrentLimits(10000, 430));
-  pack_->update_values();
-
-  EXPECT_EQ(datalayer.battery.status.voltage_dV, 3703);
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 5000u);
-  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+  ExpectNca3YLimits();
 }
 
 // A full 0x401 frame stores three cells at mux * 3. 37025 raw is 3702 mV.
@@ -540,37 +482,6 @@ TEST_F(TeslaBatteryTest, BrickVoltagesLandInTheCellArray) {
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[12], 1111);
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[13], 0);
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[14], 0);
-}
-
-// With contactor control on, this board owns dc_bus_live. A BMS CLOSED
-// frame leaves a dead bus dead, and a BMS OPEN frame leaves a live bus live.
-TEST_F(TeslaBatteryTest, BoardContactorControlKeepsTheDcBus) {
-  contactor_control_enabled = true;
-
-  datalayer.system.status.dc_bus_live = false;
-  pack_->handle_incoming_can_frame(BmsStatus(4));
-  pack_->update_values();
-  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
-
-  datalayer.system.status.dc_bus_live = true;
-  pack_->handle_incoming_can_frame(BmsStatus(1));
-  pack_->update_values();
-  EXPECT_TRUE(datalayer.system.status.dc_bus_live);
-}
-
-// State 5 latches the welded-contactor event. The following OPEN frame
-// takes the bus down and leaves the latch up. clear_event only clears an
-// active event, so the latch survives it.
-TEST_F(TeslaBatteryTest, WeldedContactorStaysLatchedAfterTheBmsOpens) {
-  pack_->handle_incoming_can_frame(BmsStatus(5));
-  pack_->update_values();
-  EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE_LATCHED);
-  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
-
-  pack_->handle_incoming_can_frame(BmsStatus(1));
-  pack_->update_values();
-  EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE_LATCHED);
-  EXPECT_FALSE(datalayer.system.status.dc_bus_live);
 }
 
 // BMS_a145 raises a latched SOC-recalibration event. BMS_a143 on the same
