@@ -108,10 +108,6 @@ class ACAN_ESP32 {
 
   public: inline void resetDriverTransmitBufferPeakCount (void) { mDriverTransmitBuffer.resetPeakCount () ; }
 
-//--- True when nothing is waiting to be sent and the last transmission completed successfully, i.e.
-//    every frame handed to tryToSend has been acknowledged on the bus
-  public: bool transmitComplete (void) const ;
-
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //    Error codes returned by begin
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

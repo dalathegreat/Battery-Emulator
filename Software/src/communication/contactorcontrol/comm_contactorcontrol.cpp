@@ -63,7 +63,7 @@ uint32_t bmsPowerOnTime = 0;
 const uint32_t bmsWarmupDuration = 3000;
 /* Start of BMS_RESET_PREPARING_POWER_OFF, and the most it may take. A driver that never reports
    ready must not hold the reset open, so power is cut regardless once this has passed. Generous: a
-   LEAF normally has its CHG_STA_RQ = 11b acknowledged within one 10 ms frame period. */
+   LEAF is ready 200 ms after it first sends CHG_STA_RQ = 11b. */
 static uint32_t bmsPreparePowerOffTime = 0;
 static const uint32_t BMS_PREPARE_POWER_OFF_TIMEOUT_MS = 2000;
 #define BMS_RESET_DEFER_SOC_PPTT 1500  // 15.00%, below this the low-SOC guard defers the periodic reset

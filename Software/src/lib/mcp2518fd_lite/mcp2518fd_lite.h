@@ -78,10 +78,6 @@ class MCP2518FD_Lite : public AsyncSpiDevice {
   // Pauses all communication (and stops acknowledging messages)
   void pause(bool paused);
 
-  // True when every queued frame has been transmitted, i.e. acknowledged on the bus. Reads the
-  // controller's TX FIFO status, so it blocks briefly (it waits for a run of steps in progress).
-  bool transmitComplete();
-
   // Debugging: prints the chip's key registers and the driver's state
   int debugState(char* buf, size_t n);
 

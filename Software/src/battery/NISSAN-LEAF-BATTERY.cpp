@@ -1304,24 +1304,19 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
 }
 
 /* Asked by the BMS reset before it cuts IGN. The pack is first sent CHG_STA_RQ = 11b, and IGN only goes
-   off once a frame carrying it has been acknowledged on CAN, so the request is known to have reached
-   the LBC while it still had IGN. A pack that never talked, or whose 0x1F2 the LEAF PDM charger sends
-   instead of this driver, has nothing to wait for. */
+   off CHG_STOP_HOLD_MS after the first frame carrying it, about 20 of them having gone out by then. A
+   pack that never talked, or whose 0x1F2 the LEAF PDM charger sends instead of this driver, has nothing
+   to wait for. */
 bool NissanLeafBattery::ready_for_bms_power_off() {
-  return !battery_can_alive || leaf_pdm_charger_in_use() || chg_stop == CHG_STOP_ACKNOWLEDGED;
+  return !battery_can_alive || leaf_pdm_charger_in_use() ||
+         (chg_stop_sent && millis() - chg_stop_sent_ms >= CHG_STOP_HOLD_MS);
 }
 
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   const BMSResetState bms_reset = datalayer.system.status.bms_reset_status;
 
-  /* Checked before this pass queues anything, so the queue found empty holds only frames queued on
-     earlier passes, the 0x1F2 carrying CHG_STA_RQ = 11b among them. */
   if (bms_reset != BMS_RESET_PREPARING_POWER_OFF) {
-    chg_stop = CHG_STOP_NONE;  //Re-armed for the next reset
-  } else if (chg_stop == CHG_STOP_QUEUED && can_tx_acknowledged(can_interface)) {
-    chg_stop = CHG_STOP_ACKNOWLEDGED;
-    logging.printf("LEAF (Battery %u): CHG_STA_RQ=11b acknowledged on CAN, ready for IGN off\n",
-                   (unsigned)battery_index);
+    chg_stop_sent = false;  //Re-armed for the next reset
   }
 
   handle_DTC_requests(currentMillis);
@@ -1479,9 +1474,10 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!leaf_pdm_charger_in_use()) {
-        //Only a frame the interface accepted can be acknowledged, see ready_for_bms_power_off()
-        if (transmit_can_frame(&LEAF_1F2) && chg_stop_requested && chg_stop == CHG_STOP_NONE) {
-          chg_stop = CHG_STOP_QUEUED;
+        transmit_can_frame(&LEAF_1F2);
+        if (chg_stop_requested && !chg_stop_sent) {
+          chg_stop_sent = true;  //The IGN cut is timed from this first one, see ready_for_bms_power_off()
+          chg_stop_sent_ms = currentMillis;
         }
       }
 

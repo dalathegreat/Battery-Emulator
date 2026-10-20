@@ -86,8 +86,4 @@ struct MCP2515_Lite_FrameRing {
         return __atomic_load_n(&head, __ATOMIC_ACQUIRE) != tail ? slots[tail % SIZE] : nullptr;
     }
     void pop() { __atomic_store_n(&tail, tail + 1, __ATOMIC_RELEASE); }
-
-    // True if every frame pushed has been popped. For the producer side: pairs with pop()'s release,
-    // so whatever the consumer did before popping the last frame is visible once this is true.
-    bool drained() const { return __atomic_load_n(&tail, __ATOMIC_ACQUIRE) == head; }
 };

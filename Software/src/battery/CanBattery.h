@@ -32,8 +32,7 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
   bool change_can_speed(CAN_Speed speed);
   void reset_can_speed();
 
-  // True if the interface accepted the frame for transmission
-  bool transmit_can_frame(const CAN_frame* frame) { return transmit_can_frame_to_interface(frame, can_interface); }
+  void transmit_can_frame(const CAN_frame* frame) { transmit_can_frame_to_interface(frame, can_interface); }
 
   // Overload these in subclasses that also inherit IsoTp to receive ISO-TP events.
   virtual void on_isotp_can_tx(uint32_t /*can_id*/, uint8_t* /*can_data*/, uint8_t /*can_dlc*/) {}

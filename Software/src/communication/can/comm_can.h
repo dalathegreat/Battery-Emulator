@@ -3,15 +3,7 @@
 
 #include "../../devboard/utils/types.h"
 
-// Queues a frame for transmission. Returns true if the interface accepted it, false if it was dropped
-// (CAN sending paused, transmit buffer full, or a frame the interface cannot carry).
-bool transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface);
-
-/* True once every frame queued on this interface has been transmitted. A CAN controller only
-   completes a transmission once another node has acknowledged the frame, and keeps retrying it
-   otherwise, so this is how a sender learns that what it queued has been received. On a bus shared
-   with other nodes, any of them may be the one that acknowledged. */
-bool can_tx_acknowledged(CAN_Interface interface);
+void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface);
 
 // Format CAN logs to the given buffer. Returns the number of bytes written, or
 // 0 if the buffer is too small.
