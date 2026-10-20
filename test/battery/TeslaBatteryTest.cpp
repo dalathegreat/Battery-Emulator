@@ -26,6 +26,8 @@
 //
 // Some tests send one frame. Others send the frames a pack would have on
 // the bus together, and check the picture one update_values() publishes.
+// A scan that has to start with no cell count uses its own pack. The full
+// scan publishes that count once per pack.
 
 namespace {
 
@@ -132,9 +134,13 @@ CAN_frame AlertMux2(bool cac_change, bool soc_change) {
 }
 
 // 0x212 BMS_status. Contactor state is the low 3 bits of byte 1.
-CAN_frame BmsStatus(uint8_t contactor_state) {
+// Isolation resistance is 10 bits at bit 19, in steps of 10 kOhm. The
+// datalayer stores that count times 10, in kOhm. Raw 16 is byte 2 = 128.
+CAN_frame BmsStatus(uint8_t contactor_state, uint16_t isolation_raw = 0) {
   CAN_frame frame = Frame(0x212);
   frame.data.u8[1] = (uint8_t)(contactor_state & 0x07);
+  frame.data.u8[2] = (uint8_t)((isolation_raw & 0x1F) << 3);
+  frame.data.u8[3] = (uint8_t)((isolation_raw >> 5) & 0x1F);
   return frame;
 }
 
@@ -180,6 +186,26 @@ void ExpectLfpLimits() {
   EXPECT_EQ(datalayer.battery.info.min_cell_voltage_mV, 2800);
   EXPECT_EQ(datalayer.battery.info.max_cell_voltage_deviation_mV, 400);
 }
+
+void ExpectSxLimits() {
+  EXPECT_EQ(datalayer.battery.info.max_design_voltage_dV, 4600);
+  EXPECT_EQ(datalayer.battery.info.min_design_voltage_dV, 2850);
+  EXPECT_EQ(datalayer.battery.info.max_cell_voltage_mV, 4250);
+  EXPECT_EQ(datalayer.battery.info.min_cell_voltage_mV, 2950);
+  EXPECT_EQ(datalayer.battery.info.max_cell_voltage_deviation_mV, 500);
+}
+
+// The fixture pack is counted by the first full scan. Later scans that must
+// start uncounted get their own object, and this deletes it.
+struct LocalPack {
+  TeslaBattery* pack;
+  LocalPack() : pack(new TeslaBattery()) { pack->setup(); }
+  ~LocalPack() { delete pack; }
+  LocalPack(const LocalPack&) = delete;
+  LocalPack& operator=(const LocalPack&) = delete;
+  TeslaBattery* get() const { return pack; }
+  TeslaBattery* operator->() const { return pack; }
+};
 
 EVENTS_STATE_TYPE EventState(EVENTS_ENUM_TYPE event) {
   return get_event_pointer(event)->state;
@@ -230,91 +256,99 @@ class TeslaBatteryTest : public ::testing::Test {
 };
 
 // The inverter stops at max_design_voltage_dV and min_design_voltage_dV.
-// On a Model 3/Y those limits follow the cell count. More than 101 cells
-// select LFP and a lower window, and a later 96-cell scan leaves LFP in
-// place. The 96-cell NCA pack is the snapshot below. Autodetect runs only
-// when the configured chassis is a Model 3 or Model Y.
-
-// 36 full frames (mux 0..35) are 108 cells. The lower LFP window keeps the
-// inverter from charging that pack to the NCA voltage.
-TEST_F(TeslaBatteryTest, HundredEightCellsSelectLfpLimits) {
+// On a Model 3 or Model Y, more than 101 cells selects LFP. Chassis 0 is
+// Model S and chassis 1 is Model X: a 108-cell scan still publishes the
+// count, and the 460 V window stays. Chassis 3 is Model Y and does select
+// LFP. A stored LFP chemistry stays LFP through a 96-cell scan. The 96-cell
+// NCA pack is the snapshot below.
+//
+// The 106-cell pack is the short last frame alone, mux 35. Two mux-0 frames
+// and nothing else publish 3 cells, which is too small to leave NCA.
+TEST_F(TeslaBatteryTest, CellCountAndChassisSelectTheVoltageWindow) {
   ScanFullFrames(pack_, 35);
   pack_->update_values();
 
   EXPECT_EQ(datalayer.battery.info.number_of_cells, 108);
   EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
   ExpectLfpLimits();
-}
 
-// A 106-cell pack reports itself with the short last frame, before a second
-// full scan has been seen. Mux 35 of that frame is cell 106, which is LFP.
-TEST_F(TeslaBatteryTest, PartialLastFrameSelectsLfpFromOneHundredSixCells) {
-  pack_->handle_incoming_can_frame(BrickFrame(35, 0x02));
-  pack_->update_values();
+  {
+    datalayer.battery.info.chemistry = battery_chemistry_enum::NCA;
+    LocalPack partial;
+    partial->handle_incoming_can_frame(BrickFrame(35, 0x02));
+    partial->update_values();
 
-  EXPECT_EQ(datalayer.battery.info.number_of_cells, 106);
-  EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
-  ExpectLfpLimits();
-}
+    EXPECT_EQ(datalayer.battery.info.number_of_cells, 106);
+    EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
+    ExpectLfpLimits();
+  }
 
-// Two mux-0 frames and nothing else. The count formula yields 3. That is too
-// small to be an LFP pack, so the NCA window stays.
-TEST_F(TeslaBatteryTest, TwoMuxZeroFramesReportThreeCellsAndStayNca) {
-  pack_->handle_incoming_can_frame(BrickFrame(0, 0x2A));
-  pack_->handle_incoming_can_frame(BrickFrame(0, 0x2A));
-  pack_->update_values();
+  {
+    datalayer.battery.info.chemistry = battery_chemistry_enum::NCA;
+    LocalPack three_cells;
+    three_cells->handle_incoming_can_frame(BrickFrame(0, 0x2A));
+    three_cells->handle_incoming_can_frame(BrickFrame(0, 0x2A));
+    three_cells->update_values();
 
-  EXPECT_EQ(datalayer.battery.info.number_of_cells, 3);
-  EXPECT_NE(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
-  ExpectNca3YLimits();
-}
+    EXPECT_EQ(datalayer.battery.info.number_of_cells, 3);
+    EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::NCA);
+    ExpectNca3YLimits();
+  }
 
-// An S/X pack keeps the wider 460 V window. A 108-cell scan still publishes
-// the cell count, and the chemistry stays off LFP.
-TEST_F(TeslaBatteryTest, ModelSChassisIgnoresCellCount) {
-  user_selected_battery_type = BatteryType::TeslaModelSX;
-  user_selected_tesla_GTW_chassisType = 0;
-  pack_->setup();
+  {
+    datalayer.battery.info.chemistry = battery_chemistry_enum::NCA;
+    user_selected_battery_type = BatteryType::TeslaModelSX;
+    user_selected_tesla_GTW_chassisType = 0;
+    LocalPack model_s;
+    ScanFullFrames(model_s.get(), 35);
+    model_s->update_values();
 
-  ScanFullFrames(pack_, 35);
-  pack_->update_values();
+    EXPECT_EQ(datalayer.battery.info.number_of_cells, 108);
+    EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::NCA);
+    ExpectSxLimits();
+  }
 
-  EXPECT_EQ(datalayer.battery.info.number_of_cells, 108);
-  EXPECT_NE(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
-  EXPECT_EQ(datalayer.battery.info.max_design_voltage_dV, 4600);
-  EXPECT_EQ(datalayer.battery.info.min_design_voltage_dV, 2850);
-  EXPECT_EQ(datalayer.battery.info.max_cell_voltage_mV, 4250);
-  EXPECT_EQ(datalayer.battery.info.min_cell_voltage_mV, 2950);
-  EXPECT_EQ(datalayer.battery.info.max_cell_voltage_deviation_mV, 500);
-}
+  {
+    datalayer.battery.info.chemistry = battery_chemistry_enum::NCA;
+    user_selected_battery_type = BatteryType::TeslaModelSX;
+    user_selected_tesla_GTW_chassisType = 1;
+    LocalPack model_x;
+    ScanFullFrames(model_x.get(), 35);
+    model_x->update_values();
 
-// A pack whose stored chemistry is already LFP keeps the LFP window. The
-// 96-cell scan still updates the cell count.
-TEST_F(TeslaBatteryTest, StoredLfpSurvivesANinetySixCellScan) {
-  user_selected_battery_chemistry = battery_chemistry_enum::LFP;
-  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  pack_->setup();
-  ExpectLfpLimits();
+    EXPECT_EQ(datalayer.battery.info.number_of_cells, 108);
+    EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::NCA);
+    ExpectSxLimits();
+  }
 
-  ScanFullFrames(pack_, 31);
-  pack_->update_values();
+  {
+    datalayer.battery.info.chemistry = battery_chemistry_enum::NCA;
+    user_selected_battery_type = BatteryType::TeslaModel3Y;
+    user_selected_tesla_GTW_chassisType = 3;
+    LocalPack model_y;
+    ScanFullFrames(model_y.get(), 35);
+    model_y->update_values();
 
-  EXPECT_EQ(datalayer.battery.info.number_of_cells, 96);
-  EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
-  ExpectLfpLimits();
-}
+    EXPECT_EQ(datalayer.battery.info.number_of_cells, 108);
+    EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
+    ExpectLfpLimits();
+  }
 
-// Faults from the same update pass. The still-alive counter is what decides
-// the pack has gone quiet, and only a frame this driver recognizes refills
-// it. 0x001 leaves the counter at zero.
+  {
+    user_selected_battery_chemistry = battery_chemistry_enum::LFP;
+    datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+    user_selected_battery_type = BatteryType::TeslaModel3Y;
+    user_selected_tesla_GTW_chassisType = 2;
+    LocalPack stored_lfp;
+    ExpectLfpLimits();
 
-TEST_F(TeslaBatteryTest, RecognizedFrameRefreshesStillAlive) {
-  datalayer.battery.status.CAN_battery_still_alive = 0;
-  pack_->handle_incoming_can_frame(Frame(0x001));
-  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 0);
+    ScanFullFrames(stored_lfp.get(), 31);
+    stored_lfp->update_values();
 
-  pack_->handle_incoming_can_frame(HvBus(37030, 0));
-  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+    EXPECT_EQ(datalayer.battery.info.number_of_cells, 96);
+    EXPECT_EQ(datalayer.battery.info.chemistry, battery_chemistry_enum::LFP);
+    ExpectLfpLimits();
+  }
 }
 
 // State 4 is CLOSED, state 1 is OPEN, state 5 is WELDED. With contactor
@@ -322,15 +356,28 @@ TEST_F(TeslaBatteryTest, RecognizedFrameRefreshesStillAlive) {
 // latches the welded-contactor event, and the following OPEN leaves that
 // latch up. With contactor control on, the board owns dc_bus_live: a BMS
 // CLOSED frame leaves a dead bus dead, and a BMS OPEN frame leaves a live
-// bus live.
+// bus live. Welded still latches on that path, and the bus stays as the
+// board left it. clear_event does not drop a latch, so that last pass
+// starts from a clear event list.
+//
+// setup() lets the inverter close this pack. The flag starts false.
+// Isolation is on this same frame, 10 kOhm per bit. Raw 0 publishes 0 kOhm
+// and still marks the reading available. Raw 16 publishes 160 kOhm.
 TEST_F(TeslaBatteryTest, ContactorStatePublishesTheDcBusAndAWeldLatch) {
+  datalayer.system.status.battery_allows_contactor_closing = false;
+  pack_->setup();
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+
   pack_->handle_incoming_can_frame(BmsStatus(1));
   pack_->update_values();
   EXPECT_FALSE(datalayer.system.status.dc_bus_live);
+  EXPECT_TRUE(datalayer.battery.status.insulation_resistance_available);
+  EXPECT_EQ(datalayer.battery.status.insulation_resistance_kOhm, 0);
 
-  pack_->handle_incoming_can_frame(BmsStatus(4));
+  pack_->handle_incoming_can_frame(BmsStatus(4, 16));
   pack_->update_values();
   EXPECT_TRUE(datalayer.system.status.dc_bus_live);
+  EXPECT_EQ(datalayer.battery.status.insulation_resistance_kOhm, 160);
 
   pack_->handle_incoming_can_frame(BmsStatus(5));
   pack_->update_values();
@@ -352,11 +399,37 @@ TEST_F(TeslaBatteryTest, ContactorStatePublishesTheDcBusAndAWeldLatch) {
   pack_->handle_incoming_can_frame(BmsStatus(1));
   pack_->update_values();
   EXPECT_TRUE(datalayer.system.status.dc_bus_live);
+
+  reset_all_events();
+  datalayer.system.status.dc_bus_live = true;
+  pack_->handle_incoming_can_frame(BmsStatus(5));
+  pack_->update_values();
+  EXPECT_TRUE(datalayer.system.status.dc_bus_live);
+  EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE_LATCHED);
 }
 
-// HVIL status 3 means a high-voltage cable was opened while the pack was in
-// use. Any other status clears the fault on the next pass.
-TEST_F(TeslaBatteryTest, HvilOpenRaisesInternalOpenFault) {
+// Still-alive, an opened HVIL, the pyro window, and the 12 V rail. 0x001 is
+// not a frame this driver counts, so the timer stays at zero until a pack
+// frame arrives. HVIL status 3 means a high-voltage cable was opened while
+// the pack was in use. Any other status clears that fault.
+//
+// The pyro window is 5 dV through 50 dV, including both ends. 40 raw is 4 dV
+// and stays clear. 50 raw is 5 dV and raises. 500 raw is 50 dV and stays
+// raised. 510 raw is 51 dV and clears, and so does a normal pack voltage.
+//
+// A 12 V reading of 0 is skipped. It does not raise the low-rail event, and
+// it does not clear one that is already up. 116 raw is 11.6 V and raises
+// while both pack ends are 0. 117 raw is 11.7 V, which is not under the
+// limit, so it clears. A non-zero pack end clears the event even while the
+// rail is still 11.6 V.
+TEST_F(TeslaBatteryTest, PackFaultsPublishTheEventList) {
+  datalayer.battery.status.CAN_battery_still_alive = 0;
+  pack_->handle_incoming_can_frame(Frame(0x001));
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 0);
+
+  pack_->handle_incoming_can_frame(HvBus(37030, 0));
+  EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
+
   pack_->handle_incoming_can_frame(HvilStatus(3));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_INTERNAL_OPEN_FAULT), EVENT_STATE_ACTIVE);
@@ -364,35 +437,52 @@ TEST_F(TeslaBatteryTest, HvilOpenRaisesInternalOpenFault) {
   pack_->handle_incoming_can_frame(HvilStatus(0));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_INTERNAL_OPEN_FAULT), EVENT_STATE_INACTIVE);
-}
 
-// 0.5 V to 5.0 V is the pyro-fuse window. 20.0 V is inside it. A normal
-// pack voltage clears the fault on the next pass.
-TEST_F(TeslaBatteryTest, PyroFuseVoltageRaisesBatteryFuse) {
-  pack_->handle_incoming_can_frame(HvBus(200, 0));  // 20.0 V
+  pack_->handle_incoming_can_frame(HvBus(40, 0));
   pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.voltage_dV, 20);
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 4);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
+
+  pack_->handle_incoming_can_frame(HvBus(50, 0));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 5);
   EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(HvBus(500, 0));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 50);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(HvBus(510, 0));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.voltage_dV, 51);
+  EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
 
   pack_->handle_incoming_can_frame(HvBus(37030, 0));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_BATTERY_FUSE), EVENT_STATE_INACTIVE);
-}
 
-// 116 raw is 11.6 V, under the 11.7 V contactor-supply limit. The check runs
-// while both pack ends still read 0 V, which is how this driver sees open
-// contactors. A low reading after an end goes non-zero clears the fault.
-TEST_F(TeslaBatteryTest, LowTwelveVoltRaisesOnlyWhilePackEndsAreZero) {
   pack_->handle_incoming_can_frame(PackEnds(0, 0));
-  pack_->handle_incoming_can_frame(TwelveVolt(116));
-  pack_->update_values();
-  EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_ACTIVE);
-
-  pack_->handle_incoming_can_frame(TwelveVolt(120));  // 12.0 V
+  pack_->handle_incoming_can_frame(TwelveVolt(0));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_INACTIVE);
 
   pack_->handle_incoming_can_frame(TwelveVolt(116));
+  pack_->update_values();
+  EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(TwelveVolt(0));
+  pack_->update_values();
+  EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(TwelveVolt(117));
+  pack_->update_values();
+  EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_INACTIVE);
+
+  pack_->handle_incoming_can_frame(TwelveVolt(116));
+  pack_->update_values();
+  EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_ACTIVE);
+
   pack_->handle_incoming_can_frame(PackEnds(1, 0));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_12V_LOW), EVENT_STATE_INACTIVE);
@@ -486,7 +576,9 @@ TEST_F(TeslaBatteryTest, BrickVoltagesLandInTheCellArray) {
 
 // BMS_a145 raises a latched SOC-recalibration event. BMS_a143 on the same
 // mux is only an alert bit: SOH stays at the hardcoded 99%, which is how
-// this driver says it has no CAC reading.
+// this driver says it has no CAC reading. A later frame with both bits
+// clear drops the matrix bits. clear_event only clears an active event, so
+// the latched recalibration stays up.
 TEST_F(TeslaBatteryTest, SocChangeAlertIsLatchedAndCacChangeIsOnlyAnAlert) {
   pack_->handle_incoming_can_frame(AlertMux2(true, false));
   pack_->update_values();
@@ -501,12 +593,23 @@ TEST_F(TeslaBatteryTest, SocChangeAlertIsLatchedAndCacChangeIsOnlyAnAlert) {
   EXPECT_TRUE(datalayer_extended.tesla.BMS_alertMatrixActive[72]);
   EXPECT_TRUE(datalayer_extended.tesla.BMS_alertMatrixActive[74]);
   EXPECT_EQ(EventState(EVENT_BATTERY_SOC_RECALIBRATION), EVENT_STATE_ACTIVE_LATCHED);
+
+  pack_->handle_incoming_can_frame(AlertMux2(false, false));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+  EXPECT_FALSE(datalayer_extended.tesla.BMS_alertMatrixActive[72]);
+  EXPECT_FALSE(datalayer_extended.tesla.BMS_alertMatrixActive[74]);
+  EXPECT_EQ(EventState(EVENT_BATTERY_SOC_RECALIBRATION), EVENT_STATE_ACTIVE_LATCHED);
 }
 
 // A balancing request is the pass that may step outside the chemistry
 // window. SOC becomes 99%, the max voltage limits and the charge power come
 // from the balancing settings, and the minimum limits stay. Clearing the
 // request publishes the CAN SOC, the NCA window, and the user charge power.
+//
+// That override sits inside the Model 3/Y chassis check. Model X is chassis
+// 1, the last chassis below it, so a request there leaves the CAN SOC, the
+// 460 V window, and the user charge power in place.
 TEST_F(TeslaBatteryTest, BalancingRequestReplacesTheSafetyWindow) {
   pack_->handle_incoming_can_frame(SocUi(123));
   datalayer.battery.status.override_charge_power_W = 4000;
@@ -530,5 +633,21 @@ TEST_F(TeslaBatteryTest, BalancingRequestReplacesTheSafetyWindow) {
 
   EXPECT_EQ(datalayer.battery.status.real_soc, 1230);
   ExpectNca3YLimits();
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+
+  user_selected_battery_type = BatteryType::TeslaModelSX;
+  user_selected_tesla_GTW_chassisType = 1;
+  pack_->setup();
+  pack_->handle_incoming_can_frame(SocUi(800));
+  datalayer.battery.status.override_charge_power_W = 4000;
+  datalayer.battery_settings.balancing_max_pack_voltage_dV = 4100;
+  datalayer.battery_settings.balancing_max_cell_voltage_mV = 4300;
+  datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV = 600;
+  datalayer.battery_settings.balancing_float_power_W = 1500;
+  datalayer.battery_settings.user_requests_balancing = true;
+  pack_->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
+  ExpectSxLimits();
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
 }
