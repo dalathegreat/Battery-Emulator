@@ -195,6 +195,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   static const int POLL_CELL_95 = 0x9083;
   volatile unsigned long startTimeNVROL = 0;
   bool balancing_status_cell[96] = {0};
+  bool time_to_sleep = false;
   uint8_t NVROLstateMachine = 0;
   uint8_t startup_counter = 0;
   uint16_t battery_soc = 0;
