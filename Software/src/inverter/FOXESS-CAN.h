@@ -11,7 +11,7 @@ class FoxessCanInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "FoxESS compatible HV2600/ECS4100";
+  static constexpr const char* Name = "FoxESS HV2600/ECS4100 over CAN";
 
  private:
   static const int FIRMWARE_VERSION_MAIN_BMS = 0x12;
