@@ -367,7 +367,8 @@ static void
 receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CANMessage frame;
 
-  if (ACAN_ESP32::can.available()) {
+  uint8_t count = 0;
+  while (count++ < 16 && ACAN_ESP32::can.available()) {
     if (ACAN_ESP32::can.receive(frame)) {
 
       CAN_frame rx_frame;
