@@ -11,7 +11,7 @@ class FoxessEpCanInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "FoxESS EP-Series battery";
+  static constexpr const char* Name = "FoxESS EP-Series";
 
  private:
   void transmit_cell_voltage_frame(uint32_t frame_id, uint16_t first_cell_index);
