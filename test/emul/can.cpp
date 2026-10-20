@@ -23,11 +23,35 @@ const std::vector<CAN_Interface>& get_transmitted_interfaces() {
   return g_emul_transmitted_interfaces;
 }
 
-void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
-  if (tx_frame != nullptr) {
-    g_emul_transmitted_frames.push_back(*tx_frame);
-    g_emul_transmitted_interfaces.push_back(interface);
+// Whether the emulated bus acknowledges what is sent, and per interface whether a frame sent is still
+// waiting for that. A real controller retries a frame nobody acknowledges, so it stays pending until
+// the bus acknowledges again. Acknowledging is the default; a test that turns it off turns it back on.
+static bool g_emul_bus_acknowledges = true;
+static bool g_emul_tx_pending[NO_CAN_INTERFACE] = {};
+
+void emul_set_bus_acknowledges(bool acknowledges) {
+  g_emul_bus_acknowledges = acknowledges;
+  if (acknowledges) {
+    for (bool& pending : g_emul_tx_pending) {
+      pending = false;
+    }
   }
+}
+
+bool transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
+  if (tx_frame == nullptr) {
+    return false;
+  }
+  g_emul_transmitted_frames.push_back(*tx_frame);
+  g_emul_transmitted_interfaces.push_back(interface);
+  if (!g_emul_bus_acknowledges && interface < NO_CAN_INTERFACE) {
+    g_emul_tx_pending[interface] = true;
+  }
+  return true;
+}
+
+bool can_tx_acknowledged(CAN_Interface interface) {
+  return interface < NO_CAN_INTERFACE && !g_emul_tx_pending[interface];
 }
 
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, CAN_Speed speed) {}

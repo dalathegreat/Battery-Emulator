@@ -1303,11 +1303,32 @@ void NissanLeafBattery::handle_DTC_requests(unsigned long currentMillis) {
   }
 }
 
+/* Asked by the BMS reset before it cuts IGN. The pack is first sent CHG_STA_RQ = 11b, and IGN only goes
+   off once a frame carrying it has been acknowledged on CAN, so the request is known to have reached
+   the LBC while it still had IGN. A pack that never talked, or whose 0x1F2 the LEAF PDM charger sends
+   instead of this driver, has nothing to wait for. */
+bool NissanLeafBattery::ready_for_bms_power_off() {
+  return !battery_can_alive || leaf_pdm_charger_in_use() || chg_stop == CHG_STOP_ACKNOWLEDGED;
+}
+
 void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
+  const BMSResetState bms_reset = datalayer.system.status.bms_reset_status;
+
+  /* Checked before this pass queues anything, so the queue found empty holds only frames queued on
+     earlier passes, the 0x1F2 carrying CHG_STA_RQ = 11b among them. */
+  if (bms_reset != BMS_RESET_PREPARING_POWER_OFF) {
+    chg_stop = CHG_STOP_NONE;  //Re-armed for the next reset
+  } else if (chg_stop == CHG_STOP_QUEUED && can_tx_acknowledged(can_interface)) {
+    chg_stop = CHG_STOP_ACKNOWLEDGED;
+    logging.printf("LEAF (Battery %u): CHG_STA_RQ=11b acknowledged on CAN, ready for IGN off\n",
+                   (unsigned)battery_index);
+  }
 
   handle_DTC_requests(currentMillis);
 
-  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+  /* BMS_RESET_PREPARING_POWER_OFF is the exception: IGN is still on and CHG_STA_RQ = 11b has to reach
+     the pack, so the normal frame set keeps going with that request in 0x1F2. */
+  if (bms_reset != BMS_RESET_IDLE && bms_reset != BMS_RESET_PREPARING_POWER_OFF) {
     // Transmitting towards battery is halted while BMS is being reset
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
@@ -1444,19 +1465,24 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       /* CHG_STA_RQ occupies bits 6-5 of byte 2, and byte 2 carries nothing else in this driver.
-         Each pack is sent the balancing strategy chosen for it, on its own bus.
+         Each pack is sent the balancing strategy chosen for it, on its own bus, and 11b once a BMS
+         reset is about to cut IGN, see ready_for_bms_power_off().
          Byte 7 holds the Nissan nibble checksum in its low nibble, which is a plain sum of every
-         other nibble in the message: the request adds 0x00, 0x20 or 0x40 to byte 2, i.e. 0, 2 or
-         4 to that sum, so the constants above are corrected by twice the selected value rather
+         other nibble in the message: the request adds 0x00, 0x20, 0x40 or 0x60 to byte 2, i.e. 0,
+         2, 4 or 6 to that sum, so the constants above are corrected by twice the value sent rather
          than recomputing the whole checksum on every message. */
-      const uint8_t chg_sta_rq = user_selected_LEAF_chg_sta_rq[battery_index - 1];
+      const bool chg_stop_requested = (bms_reset == BMS_RESET_PREPARING_POWER_OFF);
+      const uint8_t chg_sta_rq = chg_stop_requested ? 0x03 : user_selected_LEAF_chg_sta_rq[battery_index - 1];
       LEAF_1F2.data.u8[2] = (LEAF_1F2.data.u8[2] & ~0x60) | (chg_sta_rq << 5);
       LEAF_1F2.data.u8[7] = (LEAF_1F2.data.u8[7] & 0xF0) | ((LEAF_1F2.data.u8[7] + (chg_sta_rq << 1)) & 0x0F);
 
       //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!leaf_pdm_charger_in_use()) {
-        transmit_can_frame(&LEAF_1F2);
+        //Only a frame the interface accepted can be acknowledged, see ready_for_bms_power_off()
+        if (transmit_can_frame(&LEAF_1F2) && chg_stop_requested && chg_stop == CHG_STOP_NONE) {
+          chg_stop = CHG_STOP_QUEUED;
+        }
       }
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0

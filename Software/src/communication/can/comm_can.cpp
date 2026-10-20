@@ -275,9 +275,9 @@ static bool begin_canfd_2() {
   return true;
 }
 
-void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
+bool transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
   if (!allowed_to_send_CAN) {
-    return;
+    return false;
   }
   print_can_frame(*tx_frame, interface, frameDirection(MSG_TX));
 
@@ -287,6 +287,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
   }
 #endif
 
+  bool queued = false;
   switch (interface) {
     case CAN_NATIVE: {
       if (tx_frame->DLC > sizeof(CANMessage::data)) {
@@ -304,7 +305,8 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
         frame.data[i] = tx_frame->data.u8[i];
       }
 
-      if (!ACAN_ESP32::can.tryToSend(frame)) {
+      queued = ACAN_ESP32::can.tryToSend(frame);
+      if (!queued) {
         datalayer.system.info.can_native_send_fail = true;
       }
     } break;
@@ -317,7 +319,8 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2515_Lite_Frame mcp2515_frame;
       copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
 
-      if (can2515 == nullptr || !can2515->sendFrame(mcp2515_frame)) {
+      queued = can2515 != nullptr && can2515->sendFrame(mcp2515_frame);
+      if (!queued) {
         datalayer.system.info.can_2515_send_fail = true;
       }
     } break;
@@ -326,7 +329,8 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2518FD_Lite_Frame MCP2518Frame;
       copy_can_frame_to_mcp2518fd_lite_frame(*tx_frame, MCP2518Frame);
 
-      if (canfd == nullptr || !canfd->sendFrame(MCP2518Frame)) {
+      queued = canfd != nullptr && canfd->sendFrame(MCP2518Frame);
+      if (!queued) {
         datalayer.system.info.can_2518_send_fail = true;
       }
     } break;
@@ -334,13 +338,34 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2518FD_Lite_Frame MCP2518Frame;
       copy_can_frame_to_mcp2518fd_lite_frame(*tx_frame, MCP2518Frame);
 
-      if (canfd_2 == nullptr || !canfd_2->sendFrame(MCP2518Frame)) {
+      queued = canfd_2 != nullptr && canfd_2->sendFrame(MCP2518Frame);
+      if (!queued) {
         datalayer.system.info.can_2518_2_send_fail = true;
       }
     } break;
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up
       break;
+  }
+  return queued;
+}
+
+bool can_tx_acknowledged(CAN_Interface interface) {
+  if (!allowed_to_send_CAN) {
+    return false;  // The controllers are stopped, so they have nothing to tell
+  }
+  switch (interface) {
+    case CAN_NATIVE:
+      return native_can_initialized && ACAN_ESP32::can.transmitComplete();
+    case CAN_ADDON_MCP2515:
+      return can2515 != nullptr && can2515->transmitComplete();
+    case CANFD_NATIVE:
+    case CANFD_ADDON_MCP2518:
+      return canfd != nullptr && canfd->transmitComplete();
+    case CANFD_ADDON_MCP2518_2:
+      return canfd_2 != nullptr && canfd_2->transmitComplete();
+    default:
+      return false;
   }
 }
 

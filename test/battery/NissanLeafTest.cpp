@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/NISSAN-LEAF-BATTERY.h"
 #include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
@@ -7,6 +8,8 @@
 #include <vector>
 
 #include "../../Software/src/datalayer/datalayer_extended.h"
+#include "../../Software/src/devboard/hal/hal.h"
+#include "../../Software/src/devboard/safety/safety.h"
 #include "../../Software/src/devboard/utils/events.h"
 #include "Arduino.h"
 
@@ -14,6 +17,8 @@
 void clear_transmitted_frames();
 const std::vector<CAN_frame>& get_transmitted_frames();
 const std::vector<CAN_Interface>& get_transmitted_interfaces();
+// Whether the emulated bus acknowledges what is transmitted (test/emul/can.cpp).
+void emul_set_bus_acknowledges(bool acknowledges);
 
 namespace {
 
@@ -1982,4 +1987,188 @@ TEST_F(NissanLeafRelayPlusTests, ShouldKeepRelayPlusOnWhileTheSessionLasts) {
   for (const SentFrame& s : run_1d4(pack, 20000)) {
     EXPECT_TRUE(relay_plus(s.frame));
   }
+}
+
+// Ahead of a BMS reset's IGN cut a LEAF sends CHG_STA_RQ = 11b in place of its balancing strategy, and
+// reports ready for the cut only once a frame carrying it has been acknowledged on CAN.
+class NissanLeafChargeStopTests : public NissanLeafBalancingStrategyTests {
+ protected:
+  void SetUp() override {
+    NissanLeafBalancingStrategyTests::SetUp();
+    user_selected_LEAF_chg_sta_rq[0] = 1;  //Conservative, so the pack is not sent 11b anyway
+    emul_set_bus_acknowledges(true);
+  }
+
+  void TearDown() override {
+    emul_set_bus_acknowledges(true);
+    NissanLeafBalancingStrategyTests::TearDown();
+  }
+
+  static void make_alive(NissanLeafBattery& pack) {
+    pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  }
+
+  // One 1 ms pass of the core loop's transmit step. Returns the CHG_STA_RQ of the 0x1F2 it sent, or -1
+  // if it sent none, and checks the checksum of any it did send.
+  int pass(NissanLeafBattery& pack) {
+    t += 1;
+    set_millis64(t);
+    clear_transmitted_frames();
+    pack.transmit_can(t);
+    int chg_sta_rq = -1;
+    for (const CAN_frame& frame : get_transmitted_frames()) {
+      if (frame.ID == 0x1F2) {
+        chg_sta_rq = (frame.data.u8[2] >> 5) & 0x03;
+        EXPECT_EQ(frame.data.u8[7] & 0x0F, leaf_1f2_checksum(frame));
+      }
+    }
+    return chg_sta_rq;
+  }
+
+  // Passes until one sends a 0x1F2, and returns its CHG_STA_RQ
+  int until_1f2(NissanLeafBattery& pack) {
+    for (int i = 0; i < 20; i++) {
+      const int chg_sta_rq = pass(pack);
+      if (chg_sta_rq >= 0) {
+        return chg_sta_rq;
+      }
+    }
+    return -1;
+  }
+};
+
+TEST_F(NissanLeafChargeStopTests, ShouldRequestChargeStopOnlyWhileTheIgnCutIsBeingPrepared) {
+  NissanLeafBattery pack;
+  make_alive(pack);
+  EXPECT_EQ(until_1f2(pack), 1);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  for (int i = 0; i < 20; i++) {  //A whole cycle of the 0x1F2 pattern, every checksum checked
+    EXPECT_EQ(until_1f2(pack), 3);
+  }
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  for (int i = 0; i < 100; i++) {
+    EXPECT_EQ(pass(pack), -1);  //Nothing goes out with IGN off
+  }
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  EXPECT_EQ(until_1f2(pack), 1);  //Back to the balancing strategy once the reset is over
+}
+
+TEST_F(NissanLeafChargeStopTests, ShouldBeReadyForIgnOffOnlyOnceTheChargeStopIsAcknowledged) {
+  NissanLeafBattery pack;
+  make_alive(pack);
+  until_1f2(pack);
+  EXPECT_FALSE(pack.ready_for_bms_power_off());
+
+  emul_set_bus_acknowledges(false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  bool sent_charge_stop = false;
+  for (int i = 0; i < 100; i++) {
+    sent_charge_stop |= (pass(pack) == 3);
+    EXPECT_FALSE(pack.ready_for_bms_power_off());  //Sent, but nobody has acknowledged it
+  }
+  EXPECT_TRUE(sent_charge_stop);
+
+  emul_set_bus_acknowledges(true);  //The frames the controller kept retrying get through
+  pass(pack);
+  EXPECT_TRUE(pack.ready_for_bms_power_off());
+}
+
+// What counts is the acknowledgement of the 11b frame itself, not of what went out before it.
+TEST_F(NissanLeafChargeStopTests, ShouldNotTakeAnEarlierAcknowledgementForTheChargeStop) {
+  NissanLeafBattery pack;
+  make_alive(pack);
+  until_1f2(pack);  //Everything sent so far has been acknowledged
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  int chg_sta_rq = -1;
+  for (int i = 0; i < 20 && chg_sta_rq < 0; i++) {
+    chg_sta_rq = pass(pack);
+    EXPECT_FALSE(pack.ready_for_bms_power_off());
+  }
+  EXPECT_EQ(chg_sta_rq, 3);  //Not ready in the pass that queued it either
+
+  pass(pack);
+  EXPECT_TRUE(pack.ready_for_bms_power_off());
+}
+
+// Every reset waits for an acknowledgement of its own.
+TEST_F(NissanLeafChargeStopTests, ShouldWaitForTheChargeStopAgainOnTheNextReset) {
+  NissanLeafBattery pack;
+  make_alive(pack);
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  until_1f2(pack);
+  pass(pack);
+  EXPECT_TRUE(pack.ready_for_bms_power_off());
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  pass(pack);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  until_1f2(pack);
+
+  emul_set_bus_acknowledges(false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  for (int i = 0; i < 50; i++) {
+    pass(pack);
+  }
+  EXPECT_FALSE(pack.ready_for_bms_power_off());
+}
+
+// A pack that never talked has nothing to be told before IGN goes off.
+TEST_F(NissanLeafChargeStopTests, ShouldNotHoldTheIgnCutForAPackThatNeverTalked) {
+  NissanLeafBattery pack;
+  datalayer.system.status.bms_reset_status = BMS_RESET_PREPARING_POWER_OFF;
+  pass(pack);
+  EXPECT_TRUE(pack.ready_for_bms_power_off());
+}
+
+// End to end with the BMS reset: BMS power, i.e. IGN, stays on while the 11b frame goes unacknowledged,
+// and is cut once it has been acknowledged.
+TEST_F(NissanLeafChargeStopTests, ShouldCutIgnOnlyOnceTheChargeStopIsAcknowledged) {
+  auto pack = new NissanLeafBattery();  //Deleted by the test runner before the next test
+  battery = pack;
+  remote_bms_reset = true;
+  contactor_control_enabled = true;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
+  make_alive(*pack);
+  until_1f2(*pack);
+
+  const uint8_t bms_power_pin = (uint8_t)esp32hal->BMS_POWER();
+  auto ign_cut = [bms_power_pin]() {
+    for (const PinWrite& write : get_pin_writes()) {
+      if (write.pin == bms_power_pin && write.value == LOW) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  emul_set_bus_acknowledges(false);
+  clear_pin_writes();
+  start_bms_reset();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+
+  //A second of the core loop: the transmit step every 1 ms, the BMS reset every 10 ms
+  bool sent_charge_stop = false;
+  for (int i = 0; i < 1000; i++) {
+    sent_charge_stop |= (pass(*pack) == 3);
+    if (i % 10 == 0) {
+      handle_BMSpower();
+    }
+  }
+  EXPECT_TRUE(sent_charge_stop);
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_PREPARING_POWER_OFF);
+  EXPECT_FALSE(ign_cut());
+
+  emul_set_bus_acknowledges(true);
+  pass(*pack);
+  handle_BMSpower();
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERED_OFF);
+  EXPECT_TRUE(ign_cut());
+
+  remote_bms_reset = false;
+  contactor_control_enabled = false;  //Globals: left set, they change how later tests behave
+  setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 }

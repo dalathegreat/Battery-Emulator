@@ -56,6 +56,13 @@ public:
     // Pauses all communication (and stops acknowledging messages)
     void pause(bool paused);
 
+    // True when every queued frame has been transmitted: the TX ring is empty and TXB0 has been
+    // released by a TX0IF, which the chip only raises once a frame went out acknowledged.
+    bool transmitComplete() const {
+        // The ring first: step() claims TXB0 before it pops the frame it loads into it
+        return _tx.drained() && __atomic_load_n(&_txb0_free, __ATOMIC_ACQUIRE);
+    }
+
     inline bool hasErrors() { auto ret = _errors; _errors = false; return ret; }
 
     // Debugging: the chip's key registers and the driver's state, as text

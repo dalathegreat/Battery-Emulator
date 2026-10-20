@@ -463,6 +463,22 @@ bool ACAN_ESP32::tryToSend (const CANMessage & inMessage) {
 }
 
 //------------------------------------------------------------------------------
+// mDriverIsSending only drops back to false in the TX interrupt, once the transmit buffer has been
+// released with nothing more queued behind it. TX_BUF_ST and TX_COMPLETE together then say that the
+// last frame left successfully: the controller retransmits a frame until it is acknowledged, so a
+// frame nobody acknowledges keeps the buffer locked. Read under the ISR's lock, so the flag and the
+// status register describe the same moment.
+
+bool ACAN_ESP32::transmitComplete (void) const {
+  portENTER_CRITICAL (&portMux) ;
+    const uint32_t status = TWAI_STATUS_REG () ;
+    const bool complete = !mDriverIsSending
+      && ((status & (TWAI_TX_BUF_ST | TWAI_TX_COMPLETE)) == (TWAI_TX_BUF_ST | TWAI_TX_COMPLETE)) ;
+  portEXIT_CRITICAL (&portMux) ;
+  return complete ;
+}
+
+//------------------------------------------------------------------------------
 
 void ACAN_ESP32::internalSendMessage (const CANMessage & inFrame) {
 //--- DLC

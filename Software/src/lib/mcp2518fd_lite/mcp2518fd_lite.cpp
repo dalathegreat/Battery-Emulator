@@ -54,6 +54,7 @@
 #define FIFOCON_UINC 0x01        // Byte 1
 #define FIFOCON_TXREQ 0x02       // Byte 1
 #define FIFOSTA_TFNRFNIF 0x01    // Byte 0: not full (TX) / not empty (RX)
+#define FIFOSTA_TFERFFIF 0x04    // Byte 0: empty (TX) / full (RX)
 #define FIFOSTA_RXOVIF 0x08      // Byte 0: the RX FIFO overflowed
 
 // Message object flags word
@@ -311,6 +312,21 @@ void MCP2518FD_Lite::pause(bool paused) {
   requestMode(paused ? MODE_CONFIGURATION : _run_mode);
   _paused = paused;
   enableStepping();
+}
+
+// Every queued frame has gone out once the TX ring is empty and so is the controller's TX FIFO: a
+// message leaves that FIFO only when it has been sent, and with unlimited retransmission one nobody
+// acknowledges stays in it. Stepping is held for the check, so that no frame is on its way from the
+// ring into the FIFO while the FIFO is read.
+bool MCP2518FD_Lite::transmitComplete() {
+  if (!bus || _paused || !_tx.empty()) {
+    return false;
+  }
+  disableStepping();
+  const bool complete =
+      _tx.empty() && (readReg8(REG_CiFIFOSTA(CONTROLLER_TX_FIFO_INDEX)) & FIFOSTA_TFERFFIF) != 0;
+  enableStepping();
+  return complete;
 }
 
 // Check for SERRIF (system error) and CERRIF (CAN bus error) flags

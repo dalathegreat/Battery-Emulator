@@ -78,7 +78,16 @@ class NissanLeafBattery : public CanBattery {
     min_dA = battery_Current2_peak_min_published_dA;
   }
 
+  // Holds a BMS reset's IGN cut until CHG_STA_RQ = 11b has been acknowledged, see the definition.
+  bool ready_for_bms_power_off() override;
+
  private:
+  /* CHG_STA_RQ = 11b ahead of a BMS reset's IGN cut. NONE until a 0x1F2 carrying it has been accepted
+     for transmission, QUEUED until everything queued up to and including it has been acknowledged on
+     CAN, then ACKNOWLEDGED. Back to NONE once the reset has moved on. */
+  enum ChargeStopRequest : uint8_t { CHG_STOP_NONE, CHG_STOP_QUEUED, CHG_STOP_ACKNOWLEDGED };
+  ChargeStopRequest chg_stop = CHG_STOP_NONE;
+
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
 #ifndef SMALL_FLASH_DEVICE
