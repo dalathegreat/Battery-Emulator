@@ -1,5 +1,6 @@
 #ifndef KIA_E_GMP_BATTERY_H
 #define KIA_E_GMP_BATTERY_H
+#include <atomic>
 #include "UdsCanBattery.h"
 
 extern bool user_selected_use_estimated_SOC;
@@ -17,6 +18,9 @@ class KiaEGmpBattery : public UdsCanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  bool supports_contactor_close() override { return true; }
+  void request_open_contactors() override;
+  void request_close_contactors() override;
   bool supports_reset_BMS() override { return true; }
   void reset_BMS() override;
   void request_startup_sequence();
@@ -49,12 +53,18 @@ class KiaEGmpBattery : public UdsCanBattery {
   void set_voltage_minmax_limits();
   void set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber);
   void handle_0x215_cell_voltages(const CAN_frame& rx_frame);
+  bool contactor_close_traffic_allowed() const;
+  void update_contactor_events();
 
   static const int MAX_PACK_VOLTAGE_DV = 8064;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 4320;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4220;  //Battery stops allowing charging above this voltage
   static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery stops allowingn discharge below this voltage
+  static constexpr unsigned long CELL_VOLTAGE_STALE_MS = 5000;
+  static constexpr uint8_t CONTACTOR_STATUS_OPEN = 0xFE;
+  static constexpr uint8_t CONTACTOR_STATUS_PRECHARGE = 0x03;
+  static constexpr uint8_t CONTACTOR_STATUS_CLOSED = 0x01;
 
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
@@ -86,11 +96,17 @@ class KiaEGmpBattery : public UdsCanBattery {
   uint8_t batteryRelay = 0;
   uint8_t contactorStatus21A = 0;
   bool contactorStatus21AValid = false;
+  unsigned long contactorStatus21ALastRxMillis = 0;
+  std::atomic<bool> manualContactorOpenRequested{false};
+  std::atomic<bool> automaticResetAttempted{false};
   uint8_t waterleakageSensor = 164;
   bool startedUp = false;
   int8_t temperature_water_inlet = 20;
   int8_t heatertemp = 20;
   bool set_voltage_limits = false;
+  bool cellVoltageFrameSeen = false;
+  unsigned long cellVoltageRxMillis[MAX_AMOUNT_CELLS] = {};
+  bool cellVoltageReceived[MAX_AMOUNT_CELLS] = {};
 
   // Define the data points for %SOC depending on cell voltage
   const uint8_t numPoints = 100;
