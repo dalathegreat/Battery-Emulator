@@ -57,8 +57,9 @@ static inline uint32_t unpackStandardId(const uint8_t* buffer) {
 
 // A ring buffer for storing frames (in the chip's format, so they can go
 // straight to/from SPI). Single producer, single consumer.
+template <size_t Size>
 struct MCP2515_Lite_FrameRing {
-    static constexpr uint32_t SIZE = 32;  // Frames (power of two)
+    static constexpr uint32_t SIZE = Size;  // Frames (power of two)
     uint8_t slots[SIZE][14];
     volatile uint32_t head = 0, tail = 0;  // Free-running
 

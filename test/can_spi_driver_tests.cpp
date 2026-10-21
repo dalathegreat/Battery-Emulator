@@ -385,15 +385,16 @@ static uint32_t slotSeq(const uint8_t* slot) {
 }
 
 TEST(FrameRingTest, FillsToCapacityAndPreservesOrder) {
+  const uint32_t size = 32;
   // Start near the counters' wrap, which they are free-running across
   for (uint32_t start : {0u, 0xFFFFFFF0u}) {
     SCOPED_TRACE(start);
-    MCP2515_Lite_FrameRing ring;
+    MCP2515_Lite_FrameRing<size> ring;
     ring.head = start;
     ring.tail = start;
     EXPECT_EQ(ring.readSlot(), nullptr);
 
-    for (uint32_t i = 0; i < MCP2515_Lite_FrameRing::SIZE; i++) {
+    for (uint32_t i = 0; i < size; i++) {
       uint8_t* slot = ring.writeSlot();
       ASSERT_NE(slot, nullptr) << i;
       fillSlot(slot, i);
@@ -401,7 +402,7 @@ TEST(FrameRingTest, FillsToCapacityAndPreservesOrder) {
     }
     EXPECT_EQ(ring.writeSlot(), nullptr);
 
-    for (uint32_t i = 0; i < MCP2515_Lite_FrameRing::SIZE; i++) {
+    for (uint32_t i = 0; i < size; i++) {
       uint8_t* slot = ring.readSlot();
       ASSERT_NE(slot, nullptr) << i;
       EXPECT_EQ(slotSeq(slot), i);
@@ -412,7 +413,8 @@ TEST(FrameRingTest, FillsToCapacityAndPreservesOrder) {
 }
 
 TEST(FrameRingTest, PushKeepingSpareDropsWhenFull) {
-  MCP2515_Lite_FrameRing ring;
+  const uint32_t size = 32;
+  MCP2515_Lite_FrameRing<size> ring;
   // The RX interrupt always writes into spareSlot(), and keeps one slot back
   uint32_t accepted = 0;
   for (uint32_t i = 0; i < 40; i++) {
@@ -421,7 +423,7 @@ TEST(FrameRingTest, PushKeepingSpareDropsWhenFull) {
       accepted++;
     }
   }
-  EXPECT_EQ(accepted, MCP2515_Lite_FrameRing::SIZE - 1);
+  EXPECT_EQ(accepted, size - 1);
 
   // The oldest frames were kept, and the dropped ones never became visible
   for (uint32_t i = 0; i < accepted; i++) {
