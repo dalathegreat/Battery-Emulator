@@ -162,7 +162,7 @@ TEST_F(FoxessEpEnergyTest, DirectionEncodingKeepsExistingActivityDeadbandAndCurr
     SCOPED_TRACE(current);
     datalayer.battery.status.reported_current_dA = current;
     auto data = frames();
-    const uint8_t direction = current >= 10 ? 2 : (current <= -10 ? 1 : 0);
+    const uint8_t direction = current >= 10 ? 1 : (current <= -10 ? 2 : 0);
     EXPECT_EQ(data.at(0x187B).data.u8[1], direction);
     EXPECT_EQ(static_cast<int16_t>(le16(data.at(0x1873), 2)), -current);
   }
