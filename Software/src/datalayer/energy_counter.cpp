@@ -11,7 +11,6 @@ namespace {
 constexpr uint32_t CHECKPOINT_MS = 24UL * 60 * 60 * 1000;
 constexpr uint64_t WH_DIVISOR = 360000000ULL;  // dV * dA * ms per Wh
 constexpr uint64_t DAH_DIVISOR = 3600000ULL;   // dA * ms per 0.1 Ah
-constexpr int32_t CALCULATED_COUNTER_CURRENT_DEADBAND_dA = 5;
 
 // Pack 1 retains the v70 keys and types. Additional packs have independent totals
 // in the same namespace; every key fits NVS's 15-character limit.
@@ -120,7 +119,7 @@ void update_energy_counters(uint32_t now_ms) {
     // With multiple packs it keeps each pack's own current: the installation
     // shunt cannot apportion its reading. reported_current_dA is already a sum.
     const int32_t current_dA = pack_current_dA(status);
-    if (current_dA >= -CALCULATED_COUNTER_CURRENT_DEADBAND_dA && current_dA <= CALCULATED_COUNTER_CURRENT_DEADBAND_dA) {
+    if (current_dA == 0) {
       continue;
     }
     // Promote before negation, including INT16_MIN. Products plus remainders
