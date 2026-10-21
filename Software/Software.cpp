@@ -682,6 +682,16 @@ void setup() {
   }
 #endif  // SDCARD
 
+  // Allocate memory for logged CAN messages if web logging is active
+  if (datalayer.system.info.web_logging_active) {
+    static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
+    datalayer.system.info.logged_can_messages = (char*)calloc(1, LOGGED_CAN_MESSAGES_SIZE);
+    if (!datalayer.system.info.logged_can_messages) {
+      //Failed to allocate memory for logged CAN messages, disabling web logging
+      datalayer.system.info.web_logging_active = false;
+    }
+  }
+
   init_contactors();
 
   // Release any pins latched across the reboot. MUST run after init_contactors(), which

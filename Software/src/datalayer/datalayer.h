@@ -327,7 +327,7 @@ struct DATALAYER_SHUNT_TYPE {
 
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ring buffer with the debug log text, for displaying on the webserver /log page */
-  char logged_can_messages[15000] = {0};
+  char* logged_can_messages = nullptr;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
