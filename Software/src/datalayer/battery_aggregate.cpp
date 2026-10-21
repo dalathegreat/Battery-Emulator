@@ -16,6 +16,11 @@ static constexpr uint16_t SOC_BLEND_START_PPTT = 9000;
 static constexpr uint16_t PLACEHOLDER_LINK_VOLTAGE_DV = 3700;
 static constexpr uint16_t PLACEHOLDER_LINK_VOLTAGE_LFP_DV = 3300;
 
+/* The parallel charge limit is only raised while the installation draws at least this much of it,
+   in percent. Below that the inverter is not using what it has, so the split between the packs
+   says nothing about the limit - see parallel_charge_limit_W(). */
+static constexpr uint32_t PARALLEL_RAISE_MIN_DRAW_PCT = 95;
+
 /* The safety layer, the SOC taper and the low pass filter all rewrite a pack's power limits in
    place, so by the time the web page renders, what the BMS actually asked for is gone. Keep a
    copy while it is still the driver's own number. */
@@ -139,7 +144,8 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
  * that is about to join a moment early costs nothing, while SOC can halt the system outright in
  * either direction.
  *
- * The limit fields are deliberately not touched here - see update_aggregate_limits().
+ * The limit fields are deliberately not touched here - see combine_pack_limits() and
+ * update_aggregate_limits().
  */
 void update_aggregate_values() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
@@ -265,34 +271,145 @@ void update_aggregate_values() {
   apply_soc_window(agg);
 }
 
+/* The charge power the joined packs take together.
+ *
+ * The packs sit in parallel, so whatever the inverter pushes splits between them - by their
+ * internal resistance, not necessarily evenly, but never all into one. Holding the installation
+ * to the lowest pack limit therefore never lets that pack reach it: two alike packs each see half
+ * of it.
+ *
+ * So the lowest limit is only where it starts. While the installation draws what it has been
+ * allowed, the limit is raised by the headroom the tightest pack has left - its own limit minus
+ * the power it takes - and again later, so it climbs in steps until that pack's power meets its
+ * limit. A raise of that size cannot push any pack past its own limit, since each takes only its
+ * share of the extra. There is no raise while the installation draws less than it is allowed -
+ * not enough sun, the inverter's own limit, or the SOC taper, the low pass filter or a current
+ * cap holding it below - because the split then says nothing about the limit. Nor while a joined
+ * pack shows no charge power, which is also what a pack that does not report its current looks
+ * like.
+ *
+ * A pack that goes over its limit anyway, because the split moved or its limit dropped, cuts the
+ * limit at once to the total at which it would sit on its limit at the split measured now. Being
+ * worked out from what is flowing, the cut comes out the same again while the inverter has not
+ * followed yet, instead of cutting deeper every pass.
+ *
+ * After every raise or cut, and at the start of every charge session, the inverter is given
+ * PARALLEL_SETTLE_PASSES to follow before the next raise. Fronius over Modbus only reads the
+ * limits every 5 s, and every inverter needs time to ramp: measured any sooner, a raise would
+ * stack on top of the last one before it had been seen. Cuts are never held back.
+ *
+ * Never below the lowest pack limit, which is what was always sent, and never above the sum of
+ * the joined packs' limits. Back to the lowest whenever the installation stops charging or a
+ * joined pack allows no charge at all.
+ */
+static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const joined[], uint8_t count,
+                                        uint32_t lowest_W) {
+  uint32_t& limit_W = datalayer.aggregate.parallel_charge_limit_W;  // Carried from pass to pass
+  uint8_t& settle = datalayer.aggregate.parallel_settle_passes;
+
+  int32_t power_W[3];
+  uint64_t sum_W = 0;              // Every joined pack at its own limit
+  int64_t drawn_W = 0;             // What they take between them, positive while charging
+  int64_t headroom_W = INT64_MAX;  // The tightest pack's limit minus the power it takes
+  bool all_charging = true;
+  for (uint8_t i = 0; i < count; i++) {
+    power_W[i] = pack_power_W(joined[i]->status);
+    sum_W += joined[i]->status.max_charge_power_W;
+    drawn_W += power_W[i];
+    headroom_W = MIN(headroom_W, (int64_t)joined[i]->status.max_charge_power_W - power_W[i]);
+    all_charging = all_charging && (power_W[i] > 0);
+  }
+
+  if (lowest_W == 0 || drawn_W <= 0) {
+    limit_W = lowest_W;  // Start over
+    settle = PARALLEL_SETTLE_PASSES;
+    return limit_W;
+  }
+  if (settle > 0) {
+    settle--;
+  }
+
+  const uint64_t ceiling_W = MIN(sum_W, (uint64_t)UINT32_MAX);
+  uint64_t raised_W = CONSTRAIN((uint64_t)limit_W, (uint64_t)lowest_W, ceiling_W);
+  if (headroom_W < 0) {
+    for (uint8_t i = 0; i < count; i++) {
+      const uint32_t pack_limit_W = joined[i]->status.max_charge_power_W;
+      if (power_W[i] > (int64_t)pack_limit_W) {  // pack_limit_W >= lowest_W > 0, so power_W[i] > 0
+        raised_W = MIN(raised_W, (uint64_t)drawn_W * pack_limit_W / (uint64_t)power_W[i]);
+      }
+    }
+    settle = PARALLEL_SETTLE_PASSES;
+  } else if (settle == 0 && all_charging && (uint64_t)drawn_W * 100 >= raised_W * PARALLEL_RAISE_MIN_DRAW_PCT) {
+    raised_W += (uint64_t)headroom_W;
+    settle = PARALLEL_SETTLE_PASSES;
+  }
+  limit_W = (uint32_t)CONSTRAIN(raised_W, (uint64_t)lowest_W, ceiling_W);
+  return limit_W;
+}
+
+/* The installation's power limits, before the SOC taper and the low pass filter shape them.
+ *
+ * With a single battery pack 1 is the installation, and the filters shape its own limits as they
+ * always have, so there is nothing to do here: update_aggregate_limits() takes them over.
+ *
+ * With several, only the joined packs count. Same "joined" gate update_aggregate_values() uses
+ * for SOC, and for the same reason: a pack held out by the voltage check, or dropped after a
+ * fault, is still talking and still reporting real limits, but they are not limits on anything
+ * the inverter can charge or discharge. Letting an unjoined pack's 0 W through here would stop
+ * the installation on behalf of a battery that is not connected to it.
+ *
+ * Runs after the safety layer, so a zero it wrote on any joined pack stops the installation, and
+ * before the SOC taper and the low pass filter, so both have the last word over the combined
+ * limits - including the parallel raise on the charge side. Pack 2 and 3 used to be folded in
+ * only after both filters had run, past either of them.
+ */
+void combine_pack_limits() {
+  if (datalayer.system.info.configured_batteries < 2) {
+    return;
+  }
+  DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
+
+  const DATALAYER_BATTERY_TYPE* joined[3] = {&datalayer.battery, nullptr, nullptr};  // Pack 1 is always on the link
+  uint8_t count = 1;
+  if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
+    joined[count++] = &datalayer.battery2;
+  }
+  if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {
+    joined[count++] = &datalayer.battery3;
+  }
+
+  uint32_t lowest_charge_W = UINT32_MAX;
+  uint32_t lowest_discharge_W = UINT32_MAX;
+  for (uint8_t i = 0; i < count; i++) {
+    lowest_charge_W = MIN(lowest_charge_W, joined[i]->status.max_charge_power_W);
+    lowest_discharge_W = MIN(lowest_discharge_W, joined[i]->status.max_discharge_power_W);
+  }
+
+  agg.max_charge_power_W = parallel_charge_limit_W(joined, count, lowest_charge_W);
+  agg.max_discharge_power_W = lowest_discharge_W;
+  /* Pack 1's, with the manual or remote cap update_calculated_values() put on it. Only what
+     reaches the inverter when there is no voltage to derive the currents from the power at. */
+  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
+}
+
 /* The limits the inverter is finally told about.
  *
- * Runs last, after update_machineryprotection(), filter_charge_taper_soc() and
- * filter_inverter_limits() have all shaped datalayer.battery. Each of them keeps working on a
- * single pack's numbers, and nothing they zero can be walked back here - capping to the
- * weakest pack can only ever lower the result. Doing it here rather than before the safety
- * layer also means a pack 2 or pack 3 fault that zeroes that pack's limits now reaches the
- * inverter, which it did not when the cap ran first. The one deliberate exception is forced
- * recovery charge, which exists to charge an installation its BMS will not.
+ * Runs last, after update_machineryprotection(), combine_pack_limits(), filter_charge_taper_soc()
+ * and filter_inverter_limits(). With a single battery the filters shaped pack 1's own limits,
+ * which are taken over here. With several, combine_pack_limits() put the joined packs' limits
+ * into the aggregate before either filter ran, and the filters shaped them there. Either way only
+ * the current caps go on top, and nothing zeroed upstream is walked back - with one deliberate
+ * exception, forced recovery charge, which exists to charge an installation its BMS will not.
  */
 void update_aggregate_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
-  /* Cap max charge/discharge to the lowest battery's limits - joined packs only. Same "joined"
-     gate update_aggregate_values() uses for SOC, and for the same reason: a pack held out by
-     the voltage check, or dropped after a fault, is still talking and still reporting real
-     limits, but they are not limits on anything the inverter can charge or discharge. Letting
-     an unjoined pack's 0 W through here would stop the installation on behalf of a battery that
-     is not connected to it. */
-  agg.max_charge_power_W = datalayer.battery.status.max_charge_power_W;
-  agg.max_discharge_power_W = datalayer.battery.status.max_discharge_power_W;
-  if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
-    agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery2.status.max_charge_power_W);
-    agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery2.status.max_discharge_power_W);
-  }
-  if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {
-    agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery3.status.max_charge_power_W);
-    agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery3.status.max_discharge_power_W);
+  if (datalayer.system.info.configured_batteries < 2) {
+    agg.max_charge_power_W = datalayer.battery.status.max_charge_power_W;
+    agg.max_discharge_power_W = datalayer.battery.status.max_discharge_power_W;
+    agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+    agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
   }
 
   /* Same conversion voltage and the same fallback as update_calculated_values() */
@@ -307,8 +424,6 @@ void update_aggregate_limits() {
      Deriving the current from the capped power keeps the two in step for every protocol. */
   const uint16_t charge_cap_dA = effective_charge_cap_dA();
   const uint16_t discharge_cap_dA = effective_discharge_cap_dA();
-  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
-  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
   if (conversion_voltage_dV > 10) {
     agg.max_charge_power_W = MIN(agg.max_charge_power_W, current_cap_to_power_W(charge_cap_dA, conversion_voltage_dV));
     agg.max_discharge_power_W =
