@@ -499,6 +499,9 @@ struct DATALAYER_AGGREGATE_TYPE {
    * pass filter and the caps: the lowest pack limit, raised in steps while the installation
    * charges at it. Carried from one pass to the next by combine_pack_limits(). Multi-battery only */
   uint32_t parallel_charge_limit_W = 0;
+  /** The lowest charge limit each pack has reported lately, in Watts, pack 1 first: what a
+   * parallel raise may count on. Kept by combine_pack_limits() */
+  uint32_t parallel_held_limit_W[3] = {0, 0, 0};
 
   /** int32_t */
   /** Sum of every pack's instantaneous power, in Watts. Positive = charging */
@@ -553,6 +556,8 @@ struct DATALAYER_AGGREGATE_TYPE {
   /** Passes left before parallel_charge_limit_W may be raised again, so the inverter can follow
    * its last change before the packs are measured against it. Kept by combine_pack_limits() */
   uint8_t parallel_settle_passes = 0;
+  /** Passes left before each pack's held limit may follow its limit back up, pack 1 first */
+  uint8_t parallel_hold_passes[3] = {0, 0, 0};
 };
 
 struct DATALAYER_SYSTEM_TYPE {

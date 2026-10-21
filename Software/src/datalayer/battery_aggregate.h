@@ -170,6 +170,12 @@ static inline uint32_t current_cap_to_power_W(uint16_t current_dA, uint16_t volt
 static constexpr uint8_t PARALLEL_SETTLE_PASSES = 10;
 
 /**
+ * @brief Passes - seconds - a pack's charge limit has to stay up before a parallel raise counts on
+ * the higher value. A lower one counts at once. See combine_pack_limits().
+ */
+static constexpr uint8_t PARALLEL_LIMIT_HOLD_PASSES = 60;
+
+/**
  * @brief Fold the joined packs' power limits into datalayer.aggregate, with several batteries.
  *
  * Call once per second, after the safety layer and before the SOC taper and the low pass filter,

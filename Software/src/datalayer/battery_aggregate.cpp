@@ -288,6 +288,12 @@ void update_aggregate_values() {
  * pack shows no charge power, which is also what a pack that does not report its current looks
  * like.
  *
+ * The headroom is taken from the lowest limit the pack has reported lately rather than from the
+ * one it reports right now. A BMS that flips between two limits every few seconds - a LEAF can
+ * for half an hour before it settles - would otherwise have the limit raised on every high and
+ * be pushed over on every low. A new low counts at once, a higher limit only once nothing lower
+ * has come for PARALLEL_LIMIT_HOLD_PASSES.
+ *
  * A pack that goes over its limit anyway, because the split moved or its limit dropped, cuts the
  * limit at once to the total at which it would sit on its limit at the split measured now. Being
  * worked out from what is flowing, the cut comes out the same again while the inverter has not
@@ -302,21 +308,36 @@ void update_aggregate_values() {
  * the joined packs' limits. Back to the lowest whenever the installation stops charging or a
  * joined pack allows no charge at all.
  */
-static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const joined[], uint8_t count,
-                                        uint32_t lowest_W) {
-  uint32_t& limit_W = datalayer.aggregate.parallel_charge_limit_W;  // Carried from pass to pass
-  uint8_t& settle = datalayer.aggregate.parallel_settle_passes;
+static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const joined[], const uint8_t pack_index[],
+                                        uint8_t count, uint32_t lowest_W) {
+  DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
+  uint32_t& limit_W = agg.parallel_charge_limit_W;  // Carried from pass to pass
+  uint8_t& settle = agg.parallel_settle_passes;
 
   int32_t power_W[3];
   uint64_t sum_W = 0;              // Every joined pack at its own limit
   int64_t drawn_W = 0;             // What they take between them, positive while charging
-  int64_t headroom_W = INT64_MAX;  // The tightest pack's limit minus the power it takes
+  int64_t headroom_W = INT64_MAX;  // The tightest pack's held limit minus the power it takes
+  bool over_limit = false;         // Some pack takes more than it allows right now
   bool all_charging = true;
   for (uint8_t i = 0; i < count; i++) {
+    const uint32_t pack_limit_W = joined[i]->status.max_charge_power_W;
+    uint32_t& held_W = agg.parallel_held_limit_W[pack_index[i]];
+    uint8_t& hold = agg.parallel_hold_passes[pack_index[i]];
+    if (pack_limit_W <= held_W) {
+      held_W = pack_limit_W;  // A new low counts at once, and coming back to it keeps it...
+      hold = PARALLEL_LIMIT_HOLD_PASSES;
+    } else if (hold > 0) {
+      hold--;  // ...a higher limit once it has stayed up
+    } else {
+      held_W = pack_limit_W;
+    }
+
     power_W[i] = pack_power_W(joined[i]->status);
-    sum_W += joined[i]->status.max_charge_power_W;
+    sum_W += pack_limit_W;
     drawn_W += power_W[i];
-    headroom_W = MIN(headroom_W, (int64_t)joined[i]->status.max_charge_power_W - power_W[i]);
+    headroom_W = MIN(headroom_W, (int64_t)held_W - power_W[i]);
+    over_limit = over_limit || (power_W[i] > (int64_t)pack_limit_W);
     all_charging = all_charging && (power_W[i] > 0);
   }
 
@@ -331,7 +352,7 @@ static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const join
 
   const uint64_t ceiling_W = MIN(sum_W, (uint64_t)UINT32_MAX);
   uint64_t raised_W = CONSTRAIN((uint64_t)limit_W, (uint64_t)lowest_W, ceiling_W);
-  if (headroom_W < 0) {
+  if (over_limit) {  // Against the limit each pack reports right now
     for (uint8_t i = 0; i < count; i++) {
       const uint32_t pack_limit_W = joined[i]->status.max_charge_power_W;
       if (power_W[i] > (int64_t)pack_limit_W) {  // pack_limit_W >= lowest_W > 0, so power_W[i] > 0
@@ -339,7 +360,8 @@ static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const join
       }
     }
     settle = PARALLEL_SETTLE_PASSES;
-  } else if (settle == 0 && all_charging && (uint64_t)drawn_W * 100 >= raised_W * PARALLEL_RAISE_MIN_DRAW_PCT) {
+  } else if (settle == 0 && all_charging && headroom_W > 0 &&
+             (uint64_t)drawn_W * 100 >= raised_W * PARALLEL_RAISE_MIN_DRAW_PCT) {
     raised_W += (uint64_t)headroom_W;
     settle = PARALLEL_SETTLE_PASSES;
   }
@@ -370,11 +392,14 @@ void combine_pack_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
   const DATALAYER_BATTERY_TYPE* joined[3] = {&datalayer.battery, nullptr, nullptr};  // Pack 1 is always on the link
+  uint8_t pack_index[3] = {0, 0, 0};
   uint8_t count = 1;
   if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
+    pack_index[count] = 1;
     joined[count++] = &datalayer.battery2;
   }
   if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {
+    pack_index[count] = 2;
     joined[count++] = &datalayer.battery3;
   }
 
@@ -385,7 +410,7 @@ void combine_pack_limits() {
     lowest_discharge_W = MIN(lowest_discharge_W, joined[i]->status.max_discharge_power_W);
   }
 
-  agg.max_charge_power_W = parallel_charge_limit_W(joined, count, lowest_charge_W);
+  agg.max_charge_power_W = parallel_charge_limit_W(joined, pack_index, count, lowest_charge_W);
   agg.max_discharge_power_W = lowest_discharge_W;
   /* Pack 1's, with the manual or remote cap update_calculated_values() put on it. Only what
      reaches the inverter when there is no voltage to derive the currents from the power at. */

@@ -608,6 +608,36 @@ TEST_F(BatteryAggregateTest, ParallelChargeLimitNeedsEveryJoinedPackCharging) {
   EXPECT_EQ(settled_W(), 5000u);
 }
 
+// A LEAF can flip its limit between two values every couple of seconds for half an hour before it
+// settles. A raise counts only on the lowest limit a pack has reported lately, so the installation
+// settles where that pack sits on its low limit instead of being raised on every high and pushed
+// over on every low - and a limit that goes up and stays up counts once it has held.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitCountsOnTheLowestLimitLately) {
+  packs_allowing({3000, 6000});
+  told_W();
+  for (int pass = 0; pass < 300; pass++) {
+    datalayer.battery.status.max_charge_power_W = ((pass / 2) % 2) ? 4000 : 3000;  // Flips every 2 s
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});            // Followed at once
+    EXPECT_LE(datalayer.battery.status.active_power_W, 3000);
+    told_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 5900u);  // Pack 1 close to its 3000 W
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 6000u);
+
+  datalayer.battery.status.max_charge_power_W = 4000;  // Up, and staying up
+  for (int pass = 0; pass < PARALLEL_LIMIT_HOLD_PASSES - 5; pass++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    told_W();
+  }
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 6000u);  // Not yet counted on
+  for (int pass = 0; pass < 120; pass++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    told_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 7800u);  // Pack 1 close to its 4000 W
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 8000u);
+}
+
 // Every charge session starts from the lowest pack limit again, and a pack that allows nothing
 // stops the installation however far the limit had climbed.
 TEST_F(BatteryAggregateTest, ParallelChargeLimitStartsOverWhenChargingStops) {
