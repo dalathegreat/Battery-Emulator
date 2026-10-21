@@ -235,40 +235,45 @@ TEST_F(EnergyCounterTest, ChargedAndDischargedFractionsAreIndependent) {
   expect(1, 1);
 }
 
-TEST_F(EnergyCounterTest, CalculatedCountersIgnoreDeadbandAndCountFullCurrentAboveIt) {
+TEST_F(EnergyCounterTest, CalculatedCountersCountAllNonzeroCurrent) {
   step(0, 720000);
+  expect(0, 0);
+
   step(5, 720000);
   step(-5, 720000);
-  expect(0, 0);
+  expect(1, 1);
 
   step(6, 600000);
-  expect(1, 0);
+  expect(2, 1);
   step(-6, 600000);
-  expect(1, 1);
+  expect(2, 2);
 
-  // Also check +/-10 dA; upstream LEAF averaging can report finer values
-  // than its raw 5 dA CAN quantisation.
+  // Count currents below the former +/-0.5 A threshold as well.
+  step(1, 3600000);
+  expect(3, 2);
+  step(-1, 3600000);
+  expect(3, 3);
+
   step(10, 360000);
   step(-10, 360000);
-  expect(2, 2);
+  expect(4, 4);
 }
 
-TEST_F(EnergyCounterTest, DeadbandPreservesChargedAndDischargedFractionalRemainders) {
-  step(6, 300000);
-  step(-6, 300000);
+TEST_F(EnergyCounterTest, LowCurrentPreservesIndependentFractionalRemainders) {
+  step(1, 1800000);
+  step(-1, 1800000);
   expect(0, 0);
 
-  step(5, 720000);
-  step(-5, 720000);
+  step(0, 3600000);
   expect(0, 0);
 
-  step(6, 300000);
+  step(1, 1800000);
   expect(1, 0);
-  step(-6, 300000);
+  step(-1, 1800000);
   expect(1, 1);
 }
 
-TEST_F(EnergyCounterTest, DeadbandLeavesNativeAndCalculatedCapabilitiesIndependent) {
+TEST_F(EnergyCounterTest, LowCurrentLeavesNativeAndCalculatedCapabilitiesIndependent) {
   for (bool native_wh : {false, true}) {
     for (bool native_ah : {false, true}) {
       SCOPED_TRACE(testing::Message() << "native Wh=" << native_wh << " Ah=" << native_ah);
@@ -281,12 +286,12 @@ TEST_F(EnergyCounterTest, DeadbandLeavesNativeAndCalculatedCapabilitiesIndepende
       ready();
 
       step(5, 720000);
-      EXPECT_EQ(status.total_charged_battery_Wh, native_wh ? 101 : 0);
-      EXPECT_EQ(status.total_charged_battery_dAh, native_ah ? 103 : 0);
-
-      step(10, 360000);
       EXPECT_EQ(status.total_charged_battery_Wh, native_wh ? 101 : 1);
       EXPECT_EQ(status.total_charged_battery_dAh, native_ah ? 103 : 1);
+
+      step(10, 360000);
+      EXPECT_EQ(status.total_charged_battery_Wh, native_wh ? 101 : 2);
+      EXPECT_EQ(status.total_charged_battery_dAh, native_ah ? 103 : 2);
     }
   }
 }
