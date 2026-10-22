@@ -721,6 +721,51 @@ TEST(NissanLeafCellTests, ShouldKeepPreviousMinMaxWhenNoCellReports) {
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
 }
 
+// 0x1DC carries both power limits in 0.25 kW steps. A taper below 1 kW has to come through as such
+// rather than as no allowance, and the LBC's 0x3FF "not available" value is no allowance, not 255 kW.
+namespace {
+CAN_frame leaf_1dc_frame(NissanLeafBattery* battery, uint16_t discharge_raw, uint16_t charge_raw) {
+  CAN_frame frame =
+      leaf_frame(0x1DC, {(uint8_t)(discharge_raw >> 2), (uint8_t)(((discharge_raw & 0x03) << 6) | (charge_raw >> 4)),
+                         (uint8_t)((charge_raw & 0x0F) << 4)});
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  return frame;
+}
+}  // namespace
+
+TEST(NissanLeafPowerLimitTests, ShouldKeepQuarterKilowattSteps) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 3, 1));  // 0.75 kW / 0.25 kW
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 750u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 250u);
+  delete battery;
+}
+
+TEST(NissanLeafPowerLimitTests, ShouldDecodeFullScaleLimits) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 1016, 202));  // 254 kW / 50.5 kW
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 254000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 50500u);
+  delete battery;
+}
+
+TEST(NissanLeafPowerLimitTests, ShouldTreatUnavailableLimitsAsNoAllowance) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 0x3FF, 0x3FF));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  delete battery;
+}
+
 TEST(NissanLeafTests, ShouldReportVoltage) {
   auto battery = new NissanLeafBattery();
   battery->setup();
