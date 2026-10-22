@@ -2093,8 +2093,7 @@ void MebBattery::handle_dcdc_diag(unsigned long currentMillis) {
       if (!is_start && (currentMillis - dcdc_crash_wait_ms) < BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS) {
         break;
       }
-      uint8_t payload[4] = {RoutineControl,
-                            (uint8_t)(is_start ? Start : Stop),
+      uint8_t payload[4] = {RoutineControl, (uint8_t)(is_start ? Start : Stop),
                             (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER >> 8),
                             (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER & 0xFF)};
       dcdc_uds_send(payload, sizeof(payload), currentMillis);
