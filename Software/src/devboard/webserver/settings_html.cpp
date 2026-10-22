@@ -372,9 +372,9 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "BMWI3SOCHAVR") {
-    // Anything above 2 has always been treated as Enable.
+    // Out-of-range values boot as Disable (see init_stored_settings()), so show them that way.
     uint32_t mode = settings.getUInt("BMWI3SOCHAVR", 0);
-    return options_from_map(mode > 2 ? 2 : mode, bmw_i3_soc_havrla_modes);
+    return options_from_map(mode > 2 ? 0 : mode, bmw_i3_soc_havrla_modes);
   }
 #endif  // SMALL_FLASH_DEVICE
 
