@@ -236,9 +236,9 @@ void NissanLeafBattery::
     }
   }
 
-  datalayer_battery->status.max_discharge_power_W = (battery_Discharge_Power_Limit * 1000);  //kW to W
+  datalayer_battery->status.max_discharge_power_W = (battery_Discharge_Power_Limit * 250);  //0.25 kW steps to W
 
-  datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
+  datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 250);  //0.25 kW steps to W
 
   //Allow contactors to close
   if (battery_can_alive && allows_contactor_closing) {
@@ -628,8 +628,19 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      battery_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
-      battery_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 4 | rx_frame.data.u8[2] >> 4) / 4.0);
+      //LB_Discharge_Power_Limit and LB_Charge_Power_Limit, 10 bits each in 0.25 kW steps. Kept in those
+      //steps: rounding them down to whole kW turned every allowance under 1 kW, such as the taper near
+      //full, into no allowance at all. 0x3FF is the LBC's "not available" value (it clamps a real limit
+      //at 254 kW), so it is taken as no allowance rather than as 255.75 kW.
+      //Source: github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, cyclic CAN frames 0x1DC (3NA0D, 4NC0A, 5SH2D)
+      battery_Discharge_Power_Limit = (rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6);
+      if (battery_Discharge_Power_Limit == 0x3FF) {
+        battery_Discharge_Power_Limit = 0;
+      }
+      battery_Charge_Power_Limit = ((rx_frame.data.u8[1] & 0x3F) << 4) | (rx_frame.data.u8[2] >> 4);
+      if (battery_Charge_Power_Limit == 0x3FF) {
+        battery_Charge_Power_Limit = 0;
+      }
       battery_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
       break;
     case 0x55B:

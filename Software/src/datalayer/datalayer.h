@@ -329,9 +329,12 @@ struct DATALAYER_SHUNT_TYPE {
 #endif  // SMALL_FLASH_DEVICE
 };
 
+static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
+
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ring buffer with the debug log text, for displaying on the webserver /log page */
-  char logged_can_messages[15000] = {0};
+  /** allocated in setup() only when web logging is on; size is LOGGED_CAN_MESSAGES_SIZE */
+  char* logged_can_messages = nullptr;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
@@ -473,6 +476,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
  * two or three packs the energy figures are summed, the cell and temperature figures are the
  * extremes across the packs that are talking, and the power limits are capped to the weakest
  * pack - the same rule update_calculated_values() used to apply on top of datalayer.battery.
+ * Either way the four limit fields also carry the remote or manual current limit, in Watts as
+ * well as in Amperes.
  *
  * Keeping it separate is the point: datalayer.battery, .battery2 and .battery3 now only ever
  * hold the data of their own pack, so the per-pack cards, MQTT topics and ESP-NOW frames stop

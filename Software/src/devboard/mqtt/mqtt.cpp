@@ -38,7 +38,7 @@ int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
 #define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
-
+char* mqtt_msg = nullptr;
 // Cap on the esp-mqtt outbox, in bytes. QoS>0 traffic queues in the outbox while the broker
 // or Wi-Fi is unresponsive; without a limit it grows on the heap until OOM. With the limit,
 // enqueueing fails instead — a bounded, recoverable failure.
@@ -46,7 +46,6 @@ std::string mqtt_server = mqtt_server_default;
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
-char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(0);  // Will be configured with mqtt_publish_interval_ms on first use
 MyTimer check_global_timer(800);  // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 
@@ -821,7 +820,7 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
     doc["entity_category"] = "diagnostic";
   }
   set_common_discovery_attributes(doc);
-  serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+  serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
   doc.clear();
   return ok;
@@ -921,7 +920,7 @@ static bool publish_common_info(void) {
         }
       }
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Common info");
         return false;
@@ -932,7 +931,7 @@ static bool publish_common_info(void) {
     if (datalayer.system.info.configured_batteries > 1) {
       DocClearGuard guard(shared_doc);
       set_aggregate_attributes(shared_doc);
-      serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(shared_doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (mqtt_publish(aggregate_topic.c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Aggregate info");
         return false;
@@ -951,7 +950,7 @@ static bool publish_common_info(void) {
           esp32hal->system_booted_up()) {
         DocClearGuard guard(shared_doc);
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
-        serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+        serializeJson(shared_doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
           log_publish_failure("Common info");
           return false;
@@ -984,12 +983,12 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
   // balancing flags are valid as soon as the cell count is known.
   const bool voltages_valid = battery_data.status.cell_voltages_mV[battery_data.info.number_of_cells - 1] != 0u;
 
-  size_t len = snprintf(mqtt_msg, sizeof(mqtt_msg), "{");
+  size_t len = snprintf(mqtt_msg, MQTT_MSG_BUFFER_SIZE, "{");
 
   if (voltages_valid) {
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "\"cell_voltages\":[");
+    len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "\"cell_voltages\":[");
     for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
-      if (len >= sizeof(mqtt_msg) - 32) {  // headroom for this element plus the closing "]}"
+      if (len >= MQTT_MSG_BUFFER_SIZE - 32) {  // headroom for this element plus the closing "]}"
         logging.println("Cell data MQTT msg too large for buffer");
         return true;  // skip this payload, don't abort the publish cycle
       }
@@ -997,25 +996,25 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
       // 0.000 V. Sent as JSON null so the per-cell HA entity goes unknown and a chart drawn from
       // this array leaves a gap rather than a spike to the bottom of the scale.
       if (battery_data.status.cell_voltages_mV[i] == 0u) {
-        len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%snull", (i != 0u) ? "," : "");
+        len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%snull", (i != 0u) ? "," : "");
       } else {
-        len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%.3f", (i != 0u) ? "," : "",
+        len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%s%.3f", (i != 0u) ? "," : "",
                         ((float)battery_data.status.cell_voltages_mV[i]) / 1000.0f);
       }
     }
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "],");
+    len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "],");
   }
 
-  len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "\"cell_balancing\":[");
+  len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "\"cell_balancing\":[");
   for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
-    if (len >= sizeof(mqtt_msg) - 32) {  // headroom for this element plus the closing "]}"
+    if (len >= MQTT_MSG_BUFFER_SIZE - 32) {  // headroom for this element plus the closing "]}"
       logging.println("Cell data MQTT msg too large for buffer");
       return true;  // skip this payload, don't abort the publish cycle
     }
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%s", (i != 0u) ? "," : "",
+    len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%s%s", (i != 0u) ? "," : "",
                     battery_data.status.cell_balancing_status[i] ? "true" : "false");
   }
-  len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "]}");
+  len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "]}");
 
   if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
     log_publish_failure("Cell data");
@@ -1042,7 +1041,7 @@ static bool publish_cell_voltage_discovery(const DATALAYER_BATTERY_TYPE& battery
     set_battery_voltage_attributes(doc, i, cellNumber, state_topic, entity_prefix, battery_name_suffix);
     set_common_discovery_attributes(doc);
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
     if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, topic_suffix).c_str(), mqtt_msg, true) == false) {
       return false;
     }
@@ -1122,7 +1121,7 @@ bool publish_events() {
     doc["icon"] = "mdi:information-outline";
     doc["entity_category"] = "diagnostic";
     set_common_discovery_attributes(doc);
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
       ha_events_published = true;
     } else {
@@ -1161,7 +1160,7 @@ bool publish_events() {
       doc["message"] = get_event_message_string(event_handle);
       doc["millis"] = String(event_pointer->timestamp);
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
         log_publish_failure("Event");
         return false;
@@ -1199,7 +1198,7 @@ static bool publish_buttons_discovery(void) {
           doc["entity_category"] = "diagnostic";
         }
         set_common_discovery_attributes(doc);
-        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+        serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
         if (!mqtt_publish(generateButtonAutoConfigTopic(config.entity_id).c_str(), mqtt_msg, true)) {
           return false;
         }
@@ -1390,6 +1389,13 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 }
 
 bool init_mqtt(void) {
+
+  if (mqtt_msg == nullptr) {
+    mqtt_msg = (char*)malloc(MQTT_MSG_BUFFER_SIZE);
+    if (mqtt_msg == nullptr) {
+      return false;  // Out of memory, MQTT can't run
+    }
+  }
 
   if (battery == nullptr) {
     logging.println("ERROR: No battery selected. Aborting MQTT initialization");

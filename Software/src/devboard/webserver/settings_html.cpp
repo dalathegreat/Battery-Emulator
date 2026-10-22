@@ -1173,7 +1173,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "QNHTC") {
-    return String(settings.getInt("QNHTC", 0) / 1000.0f, 1);  // Stored in uV/°C, shown in mV/°C
+    return String(settings.getInt("QNHTC", 0) / 1000.0f, 2);  // Stored in uV/°C, shown in mV/°C
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1430,7 +1430,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
           <div class="if-qnhauto">
           <label>Zero point drift (mV/°C): </label>
-          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.1' />
+          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.01' />
           </div>
 
           <div class="if-qnhmanual">
