@@ -1419,13 +1419,16 @@ void MebBattery::high_voltage_coordinator_legacy(unsigned long currentMillis) {
   const auto bms_status = datalayer.battery.status.real_bms_status;
   const bool equipment_stop = datalayer.system.info.equipment_stop_active;
   const bool inverter_ok = datalayer.system.status.inverter_allows_contactor_closing;
-  const uint8_t precharge_bit = (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) ? 0x80 : 0x00;
+  uint8_t precharge_bit = (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) ? 0x80 : 0x00;
 
   // Our own precharge has brought the DC link within 20 V of the pack, so the BMS may close.
-  const bool precharge_matched =
+  bool precharge_matched =
       datalayer.battery.status.voltage_dV > 200 && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
       labs(((int32_t)datalayer.battery.status.voltage_dV) - ((int32_t)datalayer_meb->BMS_voltage_intermediate_dV)) <
           200;
+#ifdef MEB_EXPERIMENT_BLIND_PRECHARGE
+  experiment_blind_precharge(currentMillis, precharge_bit, precharge_matched);
+#endif
   // The BMS may be commanded to close when it is either already closed (BMS_ACTIVE, normal
   // operation) or standing by with precharge matched / HV already requested. FAULT and every other
   // state fall through to the HV_OFF branch below.
@@ -1464,9 +1467,11 @@ void MebBattery::high_voltage_coordinator_legacy(unsigned long currentMillis) {
     HVK_01_frame.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
   } else if (request_hv_off) {       //FAULT STATE, open contactors
 
+#ifndef MEB_EXPERIMENT_BLIND_PRECHARGE  // experiment never drives the precharge hardware
     if (datalayer.system.status.system_status != FAULT && bms_status == BMS_STANDBY && !equipment_stop) {
       datalayer.system.info.start_precharging = true;
     }
+#endif
 
     if (HVK_01_frame.data.u8[3] != BMS_TARGET_HV_OFF) {
       logging.printf("MEB: Requesting HV_OFF\n");
@@ -1491,6 +1496,73 @@ void MebBattery::high_voltage_coordinator_legacy(unsigned long currentMillis) {
 
   transmit_can_frame(&HVK_01_frame);
 }
+
+#ifdef MEB_EXPERIMENT_BLIND_PRECHARGE
+void MebBattery::experiment_blind_precharge(unsigned long currentMillis, uint8_t& precharge_bit,
+                                            bool& precharge_matched) {
+  // Replaces the real precharge handshake: the bit comes from this state machine instead of
+  // precharge_control, and "matched" is declared after a fixed delay instead of from
+  // BMS_voltage_intermediate_dV (which stays unmeasurable with no external voltage).
+  const auto bms_status = datalayer.battery.status.real_bms_status;
+  const bool conditions_ok = !datalayer.system.info.equipment_stop_active &&
+                             datalayer.system.status.inverter_allows_contactor_closing && !bms_reset_active &&
+                             first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000;
+
+  switch (exp_state) {
+    case ExpState::IDLE:
+      if (conditions_ok && bms_status == BMS_STANDBY && BMS_mode == BMS_TARGET_HV_OFF) {
+        exp_state = ExpState::PRECHARGE;
+        exp_ms = currentMillis;
+        logging.printf("MEB EXP: precharge bit ON (no external voltage), intermediate %d dV\n",
+                       datalayer_meb->BMS_voltage_intermediate_dV);
+      }
+      break;
+    case ExpState::PRECHARGE:
+      if (!conditions_ok || bms_status != BMS_STANDBY) {
+        exp_state = ExpState::IDLE;
+        logging.printf("MEB EXP: aborted during precharge phase (bms_status %d)\n", bms_status);
+      } else if (currentMillis - exp_ms >= MEB_EXP_PRECHARGE_DELAY_MS) {
+        exp_state = ExpState::REQUEST_HV;
+        logging.printf("MEB EXP: %lu ms after precharge bit -> requesting AC charging, intermediate %d dV\n",
+                       currentMillis - exp_ms, datalayer_meb->BMS_voltage_intermediate_dV);
+        exp_ms = currentMillis;
+      }
+      break;
+    case ExpState::REQUEST_HV:
+      if (bms_status == BMS_ACTIVE) {
+        exp_state = ExpState::DONE;
+        logging.printf("MEB EXP: RESULT contactors CLOSED %lu ms after request (BMS_mode %d, intermediate %d dV)\n",
+                       currentMillis - exp_ms, BMS_mode, datalayer_meb->BMS_voltage_intermediate_dV);
+      } else if (!conditions_ok || bms_status != BMS_STANDBY) {
+        exp_state = ExpState::DONE;
+        logging.printf("MEB EXP: RESULT not closed, BMS left standby after %lu ms (bms_status %d, BMS_mode %d)\n",
+                       currentMillis - exp_ms, bms_status, BMS_mode);
+      } else if (currentMillis - exp_ms >= MEB_EXP_CLOSE_TIMEOUT_MS) {
+        exp_state = ExpState::DONE;
+        logging.printf("MEB EXP: RESULT not closed within %lu ms (BMS_mode %d, intermediate %d dV)\n",
+                       MEB_EXP_CLOSE_TIMEOUT_MS, BMS_mode, datalayer_meb->BMS_voltage_intermediate_dV);
+      }
+      break;
+    case ExpState::DONE:
+      // One attempt per CAN session: re-arm only after a CAN dropout or BMS reset.
+      // if (first_can_msg_timestamp == 0 || bms_reset_active) {
+      // reset the state machine so can attempt precharge.
+      if (!conditions_ok) {
+        exp_state = ExpState::IDLE;
+      }
+      break;
+  }
+
+  // Keep the bit asserted through the HV request, like the real precharge does until the BMS closes.
+  precharge_bit = (exp_state == ExpState::PRECHARGE || exp_state == ExpState::REQUEST_HV) ? 0x80 : 0x00;
+  precharge_matched = (exp_state == ExpState::REQUEST_HV);
+  // hv_requested would otherwise latch the AC charging request after a timeout; only this state
+  // machine may keep the BMS request alive while the BMS is still in standby.
+  if (exp_state != ExpState::REQUEST_HV) {
+    hv_requested = false;
+  }
+}
+#endif
 
 void MebBattery::high_voltage_coordinator(unsigned long currentMillis) {
   // Brings HV up by sequencing the external DCDC converter through precharge (HV_On_Vorladen) and
