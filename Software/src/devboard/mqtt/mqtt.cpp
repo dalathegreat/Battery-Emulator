@@ -1246,7 +1246,7 @@ static bool publish_buttons_discovery(void) {
             }
           }
           set_common_discovery_attributes(doc);
-          serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+          serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
           if (!mqtt_publish(generateButtonAutoConfigTopic(entity_id).c_str(), mqtt_msg, true)) {
             return false;
           }
