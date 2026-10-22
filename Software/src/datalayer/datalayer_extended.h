@@ -636,7 +636,7 @@ struct DATALAYER_INFO_NISSAN_LEAF {
    */
   uint32_t CapacityAsNewWh;
 
-  /** 77Wh per gid. LEAF specific unit */
+  /** 80 Wh per gid (WH_PER_GID). LEAF specific unit */
   uint16_t GIDS;
   /** Max regen power in kW */
   uint16_t ChargePowerLimit;

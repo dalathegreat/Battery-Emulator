@@ -345,7 +345,14 @@ class NissanLeafBattery : public CanBattery {
   //Nissan LEAF battery parameters from constantly sent CAN
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
-#define WH_PER_GID 77                          //One GID is this amount of Watt hours
+//Energy of one GID, in Wh. 80 Wh is the unit the LBC firmware itself counts in: it keeps the remaining
+//energy in 0.01 Wh and divides it by 8000 for the GID count it sends on 0x5BC (LBC 21 0B d8-d11 on the
+//AZE0 4NC0A and ZE1 5SH2D firmwares), and the ZE0 3NA0D firmware builds the GID count as
+//SOH x 23 616 Wh x energy fraction, quantised in 80 Wh steps. The 77-77.5 Wh used before is a community
+//estimate of usable energy at the pack terminals, not the LBC's own unit.
+//Source: https://github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering (0x5BC in the cyclic CAN frame
+//documents, 21 0B in the diagnostic services documents)
+#define WH_PER_GID 80
   uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
   uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
   int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW

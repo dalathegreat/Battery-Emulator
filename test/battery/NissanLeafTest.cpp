@@ -311,9 +311,9 @@ TEST(NissanLeafHealthTests, ShouldDeriveStateOfHealthFromCapacityRatio) {
   feed_pack_capacity(battery, 331250);  // 33.125 Ah, half of a new 24 kWh pack
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 21021u);  // 273 GIDs at 77 Wh
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 21840u);  // 273 GIDs at 80 Wh
   EXPECT_TRUE(datalayer.battery.status.soh_available);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // 11923 Wh of 21021 Wh
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5459u);  // 11923 Wh of 21840 Wh
 }
 
 // The whole point of the change: a pack whose degradation has been reset publishes 100 %, while
@@ -326,7 +326,7 @@ TEST(NissanLeafHealthTests, ShouldIgnorePublishedStateOfHealthOnResetPack) {
   battery->update_values();
 
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 10000u);  // What the pack claims
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);                   // What it actually holds
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5459u);                   // What it actually holds
 }
 
 // Whichever of the two readings is the more pessimistic is the one reported. Here the LBC has seen
@@ -334,9 +334,9 @@ TEST(NissanLeafHealthTests, ShouldIgnorePublishedStateOfHealthOnResetPack) {
 TEST(NissanLeafHealthTests, ShouldReportTheLowerOfTheDerivedAndPublishedStateOfHealth) {
   auto battery = battery_polling();
 
-  // Health block SOH 80.00 %, against a measured capacity that works out to 95.71 %.
+  // Health block SOH 80.00 %, against a measured capacity that works out to 92.12 %.
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
-  feed_pack_capacity(battery, 558900);  // 55.89 Ah, 20120 Wh of a 21021 Wh reference
+  feed_pack_capacity(battery, 558900);  // 55.89 Ah, 20120 Wh of a 21840 Wh reference
   battery->update_values();
 
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 8000u);
@@ -354,7 +354,7 @@ TEST(NissanLeafHealthTests, ShouldKeepTheDerivedStateOfHealthWhenThePackPublishe
   battery->update_values();
 
   EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 0u);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9571u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9212u);
 }
 
 // The info page carries whichever figure the status page is not showing, so the two together say
@@ -363,13 +363,13 @@ TEST(NissanLeafHealthTests, ShouldKeepTheDerivedStateOfHealthWhenThePackPublishe
 TEST(NissanLeafHealthTests, ShouldShowThePublishedStateOfHealthWhenTheDerivedOneIsReported) {
   auto battery = battery_polling();
 
-  // Health block: SOH 99.00 %, raw 98.50 %. Measured capacity works out to 56.71 %.
+  // Health block: SOH 99.00 %, raw 98.50 %. Measured capacity works out to 54.59 %.
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x26, 0xAC}));
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x26, 0x7A, 0x26, 0xAC, 0x03, 0x00}));
   feed_pack_capacity(battery, 331250);
   battery->update_values();
 
-  ASSERT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // The derived one reached the status page
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 5459u);  // The derived one reached the status page
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   const std::string html = renderer.get_status_html().str();
@@ -382,7 +382,7 @@ TEST(NissanLeafHealthTests, ShouldShowThePublishedStateOfHealthWhenTheDerivedOne
 TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthWhenThePublishedOneIsReported) {
   auto battery = battery_polling();
 
-  // Health block: SOH 80.00 %, raw 79.50 %. Measured capacity works out to 95.71 %.
+  // Health block: SOH 80.00 %, raw 79.50 %. Measured capacity works out to 92.12 %.
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
   battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x1F, 0x0E, 0x1F, 0x40, 0x03, 0x00}));
   feed_pack_capacity(battery, 558900);
@@ -392,7 +392,7 @@ TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthWhenThePublishedOne
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   const std::string html = renderer.get_status_html().str();
-  EXPECT_NE(html.find("SOH der: 95.71% (raw 79.50%)"), std::string::npos);
+  EXPECT_NE(html.find("SOH der: 92.12% (raw 79.50%)"), std::string::npos);
   EXPECT_EQ(html.find("SOH rep"), std::string::npos);
 }
 
@@ -410,7 +410,7 @@ void feed_state_of_charge(NissanLeafBattery* battery, uint16_t tenths_percent) {
 TEST(NissanLeafHealthTests, ShouldCapDerivedStateOfHealthAtOneHundredPercent) {
   auto battery = battery_polling();
 
-  feed_pack_capacity(battery, 662500);  // 66.25 Ah is 23850 Wh against a 21021 Wh reference
+  feed_pack_capacity(battery, 662500);  // 66.25 Ah is 23850 Wh against a 21840 Wh reference
   battery->update_values();
 
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 23850u);  // Not capped, it is a measurement
@@ -439,7 +439,7 @@ TEST(NissanLeafHealthTests, ShouldFallBackToGidsForRemainingCapacityBeforeCapaci
   battery->update_values();
 
   // battery_polling() broadcasts 320 GIDs in 0x5BC.
-  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 24640u);  // 320 GIDs at 77 Wh
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 25600u);  // 320 GIDs at 80 Wh
 }
 
 // Runs the scheduler until every group has been asked for at least once since the pack came up,
@@ -468,8 +468,8 @@ TEST(NissanLeafHealthTests, ShouldFallBackToPublishedStateOfHealthWhenNoCapacity
   EXPECT_EQ(datalayer_extended.nissanleaf.CapacityCAh, 0u);  // Still no capacity to judge by
   EXPECT_TRUE(datalayer.battery.status.soh_available);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8500u);
-  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 17867u);        // 85 % of 273 GIDs at 77 Wh
-  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 24640u);  // 320 GIDs at 77 Wh
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 18564u);        // 85 % of 273 GIDs at 80 Wh
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 25600u);  // 320 GIDs at 80 Wh
 }
 
 // The fallback is a stand-in, not a latch: a capacity that turns up later takes over from it.
@@ -484,7 +484,7 @@ TEST(NissanLeafHealthTests, ShouldReplaceFallbackOnceCapacityIsRead) {
 
   feed_pack_capacity(battery, 331250);  // 33.12 Ah, 11923 Wh
   battery->update_values();
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // What it actually holds
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 5459u);  // What it actually holds
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 11923u);
 }
 
@@ -512,7 +512,7 @@ TEST(NissanLeafHealthTests, ShouldTakeCapacityAsNewFromBroadcastMaxGids) {
   battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x59, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 27412u);  // 356 GIDs at 77 Wh
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 28480u);  // 356 GIDs at 80 Wh
 }
 
 // Nothing has been read from the pack yet, so no state of health is invented.
