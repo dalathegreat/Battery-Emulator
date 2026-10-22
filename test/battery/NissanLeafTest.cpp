@@ -677,6 +677,39 @@ TEST(NissanLeafHealthTests, ShouldPreferReportedLevelOverUnreadableCells) {
   EXPECT_NE(get_event_pointer(EVENT_12V_LOW)->state, EVENT_STATE_ACTIVE);
 }
 
+// 0x1DB byte 6 bits 3-2 carry the AZE0 LBC's cell overvoltage limit level, next to the message
+// counter in bits 1-0. Level 3, a confirmed cell overvoltage fault, is reported to the safety layer.
+namespace {
+CAN_frame leaf_1db_frame(NissanLeafBattery* battery, uint8_t byte6) {
+  CAN_frame frame = leaf_frame(0x1DB, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, byte6});
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  return frame;
+}
+}  // namespace
+
+TEST(NissanLeafOvervoltageLevelTests, ShouldReportLevelThreeOnAze0) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));          // AZE0
+  battery->handle_incoming_can_frame(leaf_1db_frame(battery, 0x0E));  // Level 3, counter 2
+  battery->update_values();
+  EXPECT_TRUE(datalayer.battery.status.bms_reports_cell_critical_overvoltage);
+
+  battery->handle_incoming_can_frame(leaf_1db_frame(battery, 0x0B));  // Level 2, counter 3
+  battery->update_values();
+  EXPECT_FALSE(datalayer.battery.status.bms_reports_cell_critical_overvoltage);
+  delete battery;
+}
+
+TEST(NissanLeafOvervoltageLevelTests, ShouldIgnoreTheBitsOnOtherGenerations) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();  // No 0x59E: ZE0, which has no overvoltage limit level
+  battery->handle_incoming_can_frame(leaf_1db_frame(battery, 0x0C));
+  battery->update_values();
+  EXPECT_FALSE(datalayer.battery.status.bms_reports_cell_critical_overvoltage);
+  delete battery;
+}
+
 TEST(NissanLeafCellTests, ShouldTreatSentinelCellsAsUnknown) {
   auto battery = battery_polling();
 
@@ -1869,37 +1902,4 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
 
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
-}
-
-// 0x1DB byte 6 bits 3-2 carry the AZE0 LBC's cell overvoltage limit level, next to the message
-// counter in bits 1-0. Level 3, a confirmed cell overvoltage fault, is reported to the safety layer.
-namespace {
-CAN_frame leaf_1db_frame(NissanLeafBattery* battery, uint8_t byte6) {
-  CAN_frame frame = leaf_frame(0x1DB, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, byte6});
-  frame.data.u8[7] = battery->calculate_crc(frame);
-  return frame;
-}
-}  // namespace
-
-TEST(NissanLeafOvervoltageLevelTests, ShouldReportLevelThreeOnAze0) {
-  auto battery = new NissanLeafBattery();
-  battery->setup();
-  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));          // AZE0
-  battery->handle_incoming_can_frame(leaf_1db_frame(battery, 0x0E));  // Level 3, counter 2
-  battery->update_values();
-  EXPECT_TRUE(datalayer.battery.status.bms_reports_cell_critical_overvoltage);
-
-  battery->handle_incoming_can_frame(leaf_1db_frame(battery, 0x0B));  // Level 2, counter 3
-  battery->update_values();
-  EXPECT_FALSE(datalayer.battery.status.bms_reports_cell_critical_overvoltage);
-  delete battery;
-}
-
-TEST(NissanLeafOvervoltageLevelTests, ShouldIgnoreTheBitsOnOtherGenerations) {
-  auto battery = new NissanLeafBattery();
-  battery->setup();  // No 0x59E: ZE0, which has no overvoltage limit level
-  battery->handle_incoming_can_frame(leaf_1db_frame(battery, 0x0C));
-  battery->update_values();
-  EXPECT_FALSE(datalayer.battery.status.bms_reports_cell_critical_overvoltage);
-  delete battery;
 }
