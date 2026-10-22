@@ -325,9 +325,12 @@ struct DATALAYER_SHUNT_TYPE {
 #endif  // SMALL_FLASH_DEVICE
 };
 
+static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
+
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ring buffer with the debug log text, for displaying on the webserver /log page */
-  char logged_can_messages[15000] = {0};
+  /** allocated in setup() only when web logging is on; size is LOGGED_CAN_MESSAGES_SIZE */
+  char* logged_can_messages = nullptr;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
