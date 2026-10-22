@@ -659,6 +659,16 @@ void setup() {
 
   init_stored_settings();
 
+  // Allocate the web log buffer right after the settings turn web logging on, before anything
+  // can log (report_ota_rollback(), the connectivity task): logging writes straight into it.
+  if (datalayer.system.info.web_logging_active) {
+    datalayer.system.info.logged_can_messages = (char*)calloc(1, LOGGED_CAN_MESSAGES_SIZE);
+    if (!datalayer.system.info.logged_can_messages) {
+      //Failed to allocate memory for logged CAN messages, disabling web logging
+      datalayer.system.info.web_logging_active = false;
+    }
+  }
+
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
      Reported earlier, the warning line went nowhere: web, USB, syslog and SD
      logging are all switched on from stored settings, so a rollback report made
@@ -681,16 +691,6 @@ void setup() {
                             &logging_loop_task, esp32hal->WIFICORE());
   }
 #endif  // SDCARD
-
-  // Allocate memory for logged CAN messages if web logging is active
-  if (datalayer.system.info.web_logging_active) {
-    static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
-    datalayer.system.info.logged_can_messages = (char*)calloc(1, LOGGED_CAN_MESSAGES_SIZE);
-    if (!datalayer.system.info.logged_can_messages) {
-      //Failed to allocate memory for logged CAN messages, disabling web logging
-      datalayer.system.info.web_logging_active = false;
-    }
-  }
 
   init_contactors();
 
