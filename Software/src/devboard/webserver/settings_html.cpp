@@ -119,6 +119,12 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
+#ifndef SMALL_FLASH_DEVICE
+static const std::map<int, String> bmw_i3_soc_havrla_modes = {{0, "Disable (use BMS SOC)"},
+                                                              {1, "Auto (use Havrla if &gt;3% difference)"},
+                                                              {2, "Enable (always use Havrla)"}};
+#endif  // SMALL_FLASH_DEVICE
+
 // Balancing strategy of a LEAF pack, sent to its LBC as CHG_STA_RQ in 0x1F2 while it starts up.
 // The key is the two-bit signal value itself, which is what gets stored: 00b (no request), 01b
 // (normal charge), 10b (quick charge). 11b (charge stop request) is deliberately not offered.
@@ -363,6 +369,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "QNHVO") {
     return options_from_map(settings.getUInt("QNHVO", QNHCK_DEFAULT_RATED_OUTPUT_MV), QNHCK_RATED_OUTPUTS);
+  }
+
+  if (var == "BMWI3SOCHAVR") {
+    // Anything above 2 has always been treated as Enable.
+    uint32_t mode = settings.getUInt("BMWI3SOCHAVR", 0);
+    return options_from_map(mode > 2 ? 2 : mode, bmw_i3_soc_havrla_modes);
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1145,26 +1157,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "DIGITALHVIL") {
     return settings.getBool("DIGITALHVIL") ? "checked" : "";
   }
-
-#ifndef SMALL_FLASH_DEVICE
-  if (var == "BMWI3SOCHAVR") {
-    uint8_t val = settings.getUInt("BMWI3SOCHAVR", 0);
-    String sel = "";
-    if (val == 0)
-      sel +=
-          "<option value='0' selected>Disable (use BMS SOC)</option><option value='1'>Auto (use Havrla if &gt;3% "
-          "difference)</option><option value='2'>Enable (always use Havrla)</option>";
-    else if (val == 1)
-      sel +=
-          "<option value='0'>Disable (use BMS SOC)</option><option value='1' selected>Auto (use Havrla if &gt;3% "
-          "difference)</option><option value='2'>Enable (always use Havrla)</option>";
-    else
-      sel +=
-          "<option value='0'>Disable (use BMS SOC)</option><option value='1'>Auto (use Havrla if &gt;3% "
-          "difference)</option><option value='2' selected>Enable (always use Havrla)</option>";
-    return sel;
-  }
-#endif  // SMALL_FLASH_DEVICE
 
   if (var == "GTWRHD") {
     // Boots true when unset, so it must also render checked when unset.
