@@ -346,8 +346,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
-  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
-  uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
+  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in 0.25 kW steps, 0 while the LBC reports none
+  uint16_t battery_Charge_Power_Limit = 0;     //Limit in 0.25 kW steps, 0 while the LBC reports none
   int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
   int16_t battery_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
   uint16_t battery_TEMP = 0;                   //Temporary value used in status checks

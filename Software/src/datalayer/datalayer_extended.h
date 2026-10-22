@@ -638,7 +638,7 @@ struct DATALAYER_INFO_NISSAN_LEAF {
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
-  /** Max regen power in kW */
+  /** Max regen power in 0.25 kW steps, as 0x1DC carries it */
   uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;

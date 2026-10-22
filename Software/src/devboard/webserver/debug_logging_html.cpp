@@ -35,7 +35,7 @@ char* strnchr(const char* s, int c, size_t n) {
 String debug_logger_processor(void) {
   String content = String();
   // Reserve enough space for the content to avoid reallocations.
-  if (!content.reserve(1000 + sizeof(datalayer.system.info.logged_can_messages))) {
+  if (!content.reserve(1000 + LOGGED_CAN_MESSAGES_SIZE)) {
     if (content.reserve(15)) {
       content += "Out of memory.";
     }
@@ -68,27 +68,26 @@ String debug_logger_processor(void) {
   content += "<PRE style='text-align: left'>";
   size_t offset = datalayer.system.info.logged_can_messages_offset;
   // If we're mid-buffer, print the older part first.
-  if (offset > 0 && offset < (sizeof(datalayer.system.info.logged_can_messages) - 1)) {
+  if (offset > 0 && offset < (LOGGED_CAN_MESSAGES_SIZE - 1)) {
     // Find the next newline after the current offset. The offset will always be
     // before the penultimate character, so (offset + 1) will be the final '\0'
     // or earlier.
 
-    char* next_newline = strnchr(&datalayer.system.info.logged_can_messages[offset + 1], '\n',
-                                 sizeof(datalayer.system.info.logged_can_messages) - offset - 1);
+    char* next_newline =
+        strnchr(&datalayer.system.info.logged_can_messages[offset + 1], '\n', LOGGED_CAN_MESSAGES_SIZE - offset - 1);
 
     if (next_newline != NULL) {
       // We found a newline, so append from the character after that. We check
       // the string length to ensure we don't add any intermediate '\0'
       // characters.
-      content.concat(next_newline + 1,
-                     strnlen(next_newline + 1, sizeof(datalayer.system.info.logged_can_messages) - offset - 2));
+      content.concat(next_newline + 1, strnlen(next_newline + 1, LOGGED_CAN_MESSAGES_SIZE - offset - 2));
     } else {
       // No newline found, so append from the next character after the offset to
       // the end of the buffer. We check the string length to ensure we don't
       // add any intermediate '\0' characters.
-      content.concat(&datalayer.system.info.logged_can_messages[offset + 1],
-                     strnlen(&datalayer.system.info.logged_can_messages[offset + 1],
-                             sizeof(datalayer.system.info.logged_can_messages) - offset - 1));
+      content.concat(
+          &datalayer.system.info.logged_can_messages[offset + 1],
+          strnlen(&datalayer.system.info.logged_can_messages[offset + 1], LOGGED_CAN_MESSAGES_SIZE - offset - 1));
     }
   }
   // Append the first part of the buffer up to the current write offset (which
