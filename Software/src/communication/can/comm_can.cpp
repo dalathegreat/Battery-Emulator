@@ -228,7 +228,7 @@ bool init_CAN() {
     auto sdo_pin = esp32hal->MCP2517_SDO2();
     auto sdi_pin = esp32hal->MCP2517_SDI2();
 
-    // The same bus is shared by both CAN FD chips (the driver sets each bus up once)
+    // Don't init the pins twice if both buses are sharing
     if (esp32hal->MCP2517_BUS() != esp32hal->MCP2517_BUS2()) {
       if (!esp32hal->alloc_pins("CANFD2", sck_pin, sdo_pin, sdi_pin)) {
         return false;
@@ -367,10 +367,11 @@ static void
 receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CANMessage frame;
 
-  if (ACAN_ESP32::can.available()) {
+  uint8_t count = 0;
+  while (count++ < 16 && ACAN_ESP32::can.available()) {
     if (ACAN_ESP32::can.receive(frame)) {
 
-      CAN_frame rx_frame;
+      CAN_frame rx_frame = {};
       rx_frame.ID = frame.id;
       rx_frame.ext_ID = frame.ext;
       rx_frame.DLC = frame.len;

@@ -93,6 +93,8 @@ class UdsCanBattery : public CanBattery, public IsoTp {
     UDS_STATE_READ_DTC,  // 0x19 0x02
     UDS_STATE_CLEAR_DTC_START = UDS_STATE_INTERNAL | 0x03,
     UDS_STATE_CLEAR_DTC,  // 0x14 FF FF FF
+    UDS_STATE_SOFT_RESET_START = UDS_STATE_INTERNAL | 0x05,
+    UDS_STATE_SOFT_RESET,  // 0x11 0x03
   };
 
   // Priority levels for UDS traffic, used by pause_uds() and
@@ -159,6 +161,9 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   // Set (or change) the wire format used by the PID scan (default:
   // TwoByteDID).
   void set_pid_scan_mode(PidScanMode mode);
+
+  // Queue a one-shot UDS soft reset (0x11 0x03). The request is not retried.
+  bool request_uds_soft_reset();
 
   // Must be called by subclasses inside their `transmit_can` method.
   void transmit_uds_can(unsigned long currentMillis);
@@ -231,20 +236,17 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   void handle_sequence(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len);
   // Dispatches responses for superclass-internal sequence states.
   void handle_internal_sequence(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len);
+
   // The request currently in flight as part of a sequence.
   struct {
-    uint8_t sid;
-    uint8_t data[16];
-    uint8_t len;
-    uint16_t timeout_ticks;  // original timeout, re-applied on each retry
-    uint8_t retries;
-    uint8_t max_retries;
-    UdsPriority priority;  // pause priority of this step
+    uint8_t sid = 0;
+    uint8_t data[16] = {};
+    uint16_t len = 0;
+    uint32_t timeout_ticks = 0;  // original timeout, re-applied on each retry
+    uint8_t retries = 0;
+    uint8_t max_retries = 0;
+    UdsPriority priority = UdsPriority::Sequence;  // pause priority of this step
   } seq_msg;
-
-  // The range of response IDs (addresses) we'll accept UDS responses from if auto-detecting.
-  static const uint16_t MIN_UDS_RESPONSE_ID = 0x780;
-  static const uint16_t MAX_UDS_RESPONSE_ID = 0x7EF;
 
   uint32_t previousUdsMillis100 = 0;
   // The request SID and identifier width used by the PID scan, derived from
@@ -267,15 +269,15 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   // The PID currently being requested.
   uint16_t pending_pid = 0;
   // How many times we've retried the current PID request.
-  uint32_t pid_retries = 0;
+  uint8_t pid_retries = 0;
   // Current position in the active sequence, or UDS_STATE_IDLE if no sequence
   // is active. Set by send_sequence_message(), cleared when the response is
   // dispatched or the step's retry budget is exhausted.
   uint16_t seq_state = UDS_STATE_IDLE;
   // The pending next state to start a sequence. Set by start_sequence() and
   // cleared when the sequence is started.
-  std::atomic<uint16_t> pending_seq_state{UDS_STATE_IDLE};
-  // How many 100ms ticks of quiet (new sends blocked) remain, set by
+  uint16_t pending_seq_state = UDS_STATE_IDLE;
+  // Number of 100ms ticks of quiet (new sends blocked) remaining, set by
   // pause_uds().
   uint16_t seq_pause_ticks = 0;
   // The highest priority blocked by the current pause (pause_uds() second
