@@ -1135,7 +1135,7 @@ TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
                             "GIDS",
                             "Temperature 4",
                             "Insulation",
-                            "Heating stopped",
+                            "Too low to heat",
                             "Failsafe status",
                             "Relay cut request",
                             "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
@@ -1297,7 +1297,7 @@ TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
   std::string html = renderer.get_status_html().str();
   for (const char* label :
        {"Fully charged", "Battery empty", "Failsafe status", "Interlock", "Main relay ON", "Relay cut request",
-        "Heater present", "Heating requested", "Heating started", "Heating stopped"}) {
+        "Heater present", "Battery cold", "Heating requested", "Too low to heat"}) {
     EXPECT_NE(html.find(std::string("<h4>") + label + ": Unknown</h4>"), std::string::npos) << label;
   }
 }
@@ -1332,9 +1332,9 @@ TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   html = renderer.get_status_html().str();
   EXPECT_NE(html.find("<h4>Battery empty: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heater present: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Battery cold: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heating requested: &#10007;</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Heating started: &#10007;</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Heating stopped: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Too low to heat: &#10007;</h4>"), std::string::npos);
 }
 
 // The serial number is the 16 characters straight after the 61 84 header, starting in the first
@@ -1383,7 +1383,7 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
 
   // Last in the status list but for the automatic current offset, which is on by default
   std::string html = renderer.get_status_html().str();
-  EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
+  EXPECT_NE(html.find("<h4>Too low to heat: Unknown</h4><h4>Failsafe status: "), std::string::npos);
   EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4><h4>Automatic current offset: "),
             std::string::npos);
 }
@@ -1869,4 +1869,43 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
 
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
+}
+
+// 0x5C0 heater bits, as the LBC firmware sets them: byte 1 bit 0 is Batt_Heater_Mail_Send_Request
+// (the pack is cold), byte 0 bit 5 the heating start request (cold, with enough charge to heat) and
+// byte 0 bit 4 the stop request (cold, with too little charge to heat). LB_HEATEXIST, byte 4 bit 0,
+// is never set by the LBC, so the events must not depend on it.
+TEST(NissanLeafHeaterTests, ShouldRaiseColdEventWithoutHeatExist) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x01, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_COLD)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_COLD)->state, EVENT_STATE_ACTIVE);
+  delete battery;
+}
+
+TEST(NissanLeafHeaterTests, ShouldTellHeatingFromTooLowToHeat) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x20, 0x01, 0x00, 0x00, 0x00}));  // start request
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x10, 0x01, 0x00, 0x00, 0x00}));  // stop request
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+  delete battery;
 }

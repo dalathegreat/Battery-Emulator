@@ -343,13 +343,28 @@ void NissanLeafBattery::
     clear_event(EVENT_12V_LOW, battery_index);
   }
 
-  if (battery_HeatExist) {
-    if (battery_Heating_Stop) {
-      set_event(EVENT_BATTERY_WARMED_UP, 0, battery_index);
-    }
-    if (battery_Heating_Start) {
-      set_event(EVENT_BATTERY_REQUESTS_HEAT, 0, battery_index);
-    }
+  //Heater requests from 0x5C0. Not gated on LB_HEATEXIST: the LBC firmware never sets that bit (always 0 in
+  //4NC0A and 5SH2D), so gating on it kept these events from ever firing. Per the firmware, on AZE0:
+  //- Batt_Heater_Mail_Send_Request: the pack is cold (min temperature below -16 C, held until -10 C)
+  //- LB_Heating_Start_Send_Request: cold, and enough charge to heat (cell OCV at or above about 3.86 V)
+  //- LB_Heating_Stop_Send_Request: cold, and not enough charge to heat. It does not mean warmed up.
+  //The start/stop requests are only sent while 0x50B acknowledges the mail request, which transmit_can()
+  //does. ZE0 leaves all three bits at 0, and on ZE1 they are always 0.
+  //Source: github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, cyclic CAN frames 0x5C0 (3NA0D, 4NC0A, 5SH2D)
+  if (battery_Batt_Heater_Mail_Send_Request) {
+    set_event(EVENT_BATTERY_COLD, 0, battery_index);
+  } else {
+    clear_event(EVENT_BATTERY_COLD, battery_index);
+  }
+  if (battery_Heating_Start) {
+    set_event(EVENT_BATTERY_REQUESTS_HEAT, 0, battery_index);
+  } else {
+    clear_event(EVENT_BATTERY_REQUESTS_HEAT, battery_index);
+  }
+  if (battery_Heating_Stop) {
+    set_event(EVENT_BATTERY_TOO_LOW_TO_HEAT, 0, battery_index);
+  } else {
+    clear_event(EVENT_BATTERY_TOO_LOW_TO_HEAT, battery_index);
   }
 
   // Classify balancing from the per-cell shunt bits polled from LBC group 0x06. A populated bitmap on

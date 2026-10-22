@@ -95,9 +95,9 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
     status_row(content, "Interlock", nissan_dl->Interlock, seen & 0x01);
     status_row(content, "Main relay ON", nissan_dl->MainRelayOn, seen & 0x01);
     status_row(content, "Heater present", nissan_dl->HeatExist, seen & 0x04);
-    status_row(content, "Heating requested", nissan_dl->HeaterSendRequest, seen & 0x04);
-    status_row(content, "Heating started", nissan_dl->HeatingStart, seen & 0x04);
-    status_row(content, "Heating stopped", nissan_dl->HeatingStop, seen & 0x04);
+    status_row(content, "Battery cold", nissan_dl->HeaterSendRequest, seen & 0x04);
+    status_row(content, "Heating requested", nissan_dl->HeatingStart, seen & 0x04);
+    status_row(content, "Too low to heat", nissan_dl->HeatingStop, seen & 0x04);
     //The two wider fields of 0x1DB, named as in the Leaf CAN database (dalathegreat/leaf_can_bus_messages:
     //LB_Failsafe_Status, LB_Relay_Cut_Request). Failsafe status is three request bits: bit 0 normal
     //stop, which the driver reads as a discharge stop, bit 1 charging mode stop, bit 2 caution lamp.
