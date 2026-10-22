@@ -838,6 +838,11 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // is delivered to on_isotp_rx_complete() -> uds_response_handler().
       isotp_receive(rx_frame.data.u8, rx_frame.DLC, ISOTP_TATYPE_PHYSICAL);
       break;
+#ifdef DCDC_DIAG_SUPPORT
+    case ISO_DCDC_Resp_FD:  // Diag reply from the DC/DC — its own ISO-TP channel -> dcdc_uds_response_handler().
+      dcdc_isotp.isotp_receive(rx_frame.data.u8, rx_frame.DLC, ISOTP_TATYPE_PHYSICAL);
+      break;
+#endif
     default:
       break;
   }
@@ -850,6 +855,9 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void MebBattery::transmit_can(unsigned long currentMillis) {
   // Drive the ISO-TP timers/retransmissions. Should be called ~every 1 ms.
   IsoTp::isotp_poll();
+#ifdef DCDC_DIAG_SUPPORT
+  dcdc_isotp.isotp_poll();
+#endif
 
   // If no UDS response arrived within the timeout window, allow the next request.
   if (uds_request_pending && (currentMillis - uds_request_timestamp > UDS_REQUEST_TIMEOUT_MS)) {
@@ -871,6 +879,10 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   if (bms_reset_tx_suppressed) {
     return;
   }
+
+#ifdef DCDC_DIAG_SUPPORT
+  handle_dcdc_diag(currentMillis);
+#endif
 
   // DTC readout requested via WebUI: UDS ReadDTCInformation (0x19), report-type 0x02
   // (reportDTCByStatusMask) with status mask 0x09 to read only active/confirmed DTCs.
@@ -1202,6 +1214,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     if (basic_settings_state != BasicSettingsState::IDLE) {
       transmit_can_frame(&Tester_present_frame);  // Keep BMS in extended diagnostic session
     }
+#ifdef DCDC_DIAG_SUPPORT
+    if (dcdc_crash_state != BasicSettingsState::IDLE) {
+      transmit_can_frame(&Tester_present_DCDC_frame);  // Keep the DC/DC in extended diagnostic session
+    }
+#endif
   }
 
   // Isolation measurement request used in HVK_01: measure for 15 s, pause for 15 s, and so on, but
@@ -1947,38 +1964,8 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       datalayer_meb->dtc_read_in_progress = false;
       break;
     case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):  // DTC read positive response (0x59)
-      if (data[1] != 0x02) {
-        // Unexpected report type — treat as a failed readout.
-        datalayer_battery->dtc.dtc_read_failed = true;
-      } else {
-        datalayer_battery->dtc.dtc_read_failed = false;
-        int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
-        int availableBytes = len - dtcStartIndex;
-        int maxDtcCount = availableBytes / 4;
-
-        if (maxDtcCount > datalayer_battery->dtc.MAX_DTC_COUNT) {
-          maxDtcCount = datalayer_battery->dtc.MAX_DTC_COUNT;
-          logging.println("DTC count exceeds buffer, truncating");
-        }
-        if (maxDtcCount < 0)
-          maxDtcCount = 0;
-
-        for (int i = 0; i < maxDtcCount; i++) {
-          int offset = dtcStartIndex + (i * 4);
-          // Bounds check to ensure we don't read beyond the buffer
-          if (offset + 3 > len)
-            break;
-          // Combine 3 bytes into a single uint32
-          uint32_t dtcCode =
-              ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
-          uint8_t dtcStatus = data[offset + 3];
-          datalayer_battery->dtc.dtc_codes[i] = dtcCode;
-          datalayer_battery->dtc.dtc_status[i] = dtcStatus;
-        }
-        datalayer_battery->dtc.dtc_count = maxDtcCount;
-      }
+      parse_dtc_report(data, len, datalayer_battery->dtc);
       uds_request_pending = false;
-      datalayer_battery->dtc.dtc_last_read_millis = millis();
       datalayer_meb->dtc_read_in_progress = false;
       break;
     case (kNegativeResponseSid):  // Negative response (0x7F)
@@ -2006,6 +1993,208 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
   }
 }
 
+void MebBattery::parse_dtc_report(const uint8_t* data, int len, DATALAYER_BATTERY_DTC_TYPE& dtc) {
+  if (len < 2 || data[1] != 0x02) {
+    // Unexpected report type — treat as a failed readout.
+    dtc.dtc_read_failed = true;
+  } else {
+    dtc.dtc_read_failed = false;
+    int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
+    int availableBytes = len - dtcStartIndex;
+    int maxDtcCount = availableBytes / 4;
+
+    if (maxDtcCount > dtc.MAX_DTC_COUNT) {
+      maxDtcCount = dtc.MAX_DTC_COUNT;
+      logging.println("DTC count exceeds buffer, truncating");
+    }
+    if (maxDtcCount < 0)
+      maxDtcCount = 0;
+
+    for (int i = 0; i < maxDtcCount; i++) {
+      int offset = dtcStartIndex + (i * 4);
+      // Bounds check to ensure we don't read beyond the buffer
+      if (offset + 3 > len)
+        break;
+      // Combine 3 bytes into a single uint32
+      uint32_t dtcCode =
+          ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
+      uint8_t dtcStatus = data[offset + 3];
+      dtc.dtc_codes[i] = dtcCode;
+      dtc.dtc_status[i] = dtcStatus;
+    }
+    dtc.dtc_count = maxDtcCount;
+  }
+  dtc.dtc_last_read_millis = millis();
+}
+
+#ifdef DCDC_DIAG_SUPPORT
+void MebBattery::dcdc_uds_send(const uint8_t* payload, int len, unsigned long currentMillis) {
+  dcdc_isotp.isotp_send(payload, len);
+  dcdc_uds_request_pending = true;
+  dcdc_uds_request_timestamp = currentMillis;
+}
+
+void MebBattery::handle_dcdc_diag(unsigned long currentMillis) {
+  // The DC/DC has its own ISO-TP channel, so this runs independently of the BMS transactions.
+  if (dcdc_uds_request_pending) {
+    if (currentMillis - dcdc_uds_request_timestamp <= UDS_REQUEST_TIMEOUT_MS) {
+      return;
+    }
+    // No answer within the timeout: give up on this transaction.
+    dcdc_uds_request_pending = false;
+    if (dcdc_crash_state != BasicSettingsState::IDLE) {
+      dcdc_crash_state = BasicSettingsState::IDLE;
+      logging.println("MEB: DC/DC crash reset: UDS timeout, aborting");
+    }
+    if (dcdc_dtc_read_in_progress) {
+      dcdc_dtc_read_in_progress = false;
+      dcdc_dtc.dtc_read_failed = true;
+      dcdc_dtc.dtc_last_read_millis = currentMillis;  // shows the failure instead of "not read yet"
+    }
+  }
+
+  if (dcdc_crash_state == BasicSettingsState::IDLE) {
+    if (dcdc_crash_reset_requested) {
+      dcdc_crash_reset_requested = false;
+      dcdc_crash_state = BasicSettingsState::SEND_EXT_SESSION;
+      logging.println("MEB: DC/DC crash reset: starting");
+    } else if (dcdc_dtc_read_requested) {
+      // UDS ReadDTCInformation, reportDTCByStatusMask, active/confirmed only — as for the BMS.
+      dcdc_dtc_read_requested = false;
+      uint8_t payload[3] = {ReadDTCInformation, 0x02, 0x09};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_dtc_read_in_progress = true;
+      dcdc_dtc.dtc_read_failed = false;
+      return;
+    } else {
+      return;
+    }
+  }
+
+  // Crash unlock: same steps as handle_basic_settings() for the BMS, with the DC/DC login key.
+  switch (dcdc_crash_state) {
+    case BasicSettingsState::SEND_EXT_SESSION: {
+      uint8_t payload[2] = {DiagnosticSessionControl, ExtendedSession};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_crash_state = BasicSettingsState::WAIT_EXT_SESSION;
+      break;
+    }
+    case BasicSettingsState::SEND_SEED_REQ: {
+      // The response handler sends the key upon receiving 67 03.
+      uint8_t payload[2] = {SecurityAccess, 0x03};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_crash_state = BasicSettingsState::WAIT_SEED;
+      break;
+    }
+    case BasicSettingsState::SEND_ROUTINE_START:
+    case BasicSettingsState::SEND_ROUTINE_STOP: {
+      const bool is_start = (dcdc_crash_state == BasicSettingsState::SEND_ROUTINE_START);
+      // Give the DC/DC time to run the routine before asking it to stop.
+      if (!is_start && (currentMillis - dcdc_crash_wait_ms) < BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS) {
+        break;
+      }
+      uint8_t payload[4] = {RoutineControl,
+                            (uint8_t)(is_start ? Start : Stop),
+                            (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER >> 8),
+                            (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER & 0xFF)};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_crash_state = BasicSettingsState::WAIT_ROUTINE_RESULT;
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+void MebBattery::dcdc_uds_response_handler(const uint8_t* data, int len) {
+  if (len < 1)
+    return;
+  switch (data[0]) {
+    case (UDS_RESPONSE_SID_OF(DiagnosticSessionControl)):
+      dcdc_uds_request_pending = false;
+      if (dcdc_crash_state == BasicSettingsState::WAIT_EXT_SESSION) {
+        dcdc_crash_state = BasicSettingsState::SEND_SEED_REQ;
+      }
+      break;
+    case (UDS_RESPONSE_SID_OF(SecurityAccess)):
+      if (len >= 6 && data[1] == 0x03 && dcdc_crash_state == BasicSettingsState::WAIT_SEED) {
+        // Seed received: key = seed + DC/DC login key.
+        uint32_t seed = ((uint32_t)data[2] << 24) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 8) | data[5];
+        uint32_t key = seed + DCDC_SECURITY_LOGIN_KEY;
+        uint8_t key_payload[6] = {SecurityAccess,       0x04,
+                                  (uint8_t)(key >> 24), (uint8_t)(key >> 16),
+                                  (uint8_t)(key >> 8),  (uint8_t)(key & 0xFF)};
+        dcdc_uds_send(key_payload, sizeof(key_payload), millis());
+        dcdc_crash_state = BasicSettingsState::WAIT_KEY_RESP;
+      } else if (len >= 2 && data[1] == 0x04 && dcdc_crash_state == BasicSettingsState::WAIT_KEY_RESP) {
+        dcdc_uds_request_pending = false;
+        dcdc_crash_state = BasicSettingsState::SEND_ROUTINE_START;
+      } else {
+        dcdc_uds_request_pending = false;
+        if (dcdc_crash_state != BasicSettingsState::IDLE) {
+          dcdc_crash_state = BasicSettingsState::IDLE;
+          logging.println("MEB: DC/DC crash reset: unexpected SecurityAccess response, aborting");
+        }
+      }
+      break;
+    case (UDS_RESPONSE_SID_OF(RoutineControl)):
+      dcdc_uds_request_pending = false;
+      if (dcdc_crash_state == BasicSettingsState::WAIT_ROUTINE_RESULT && len >= 4 &&
+          data[2] == (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER >> 8) &&
+          data[3] == (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER & 0xFF)) {
+        if (data[1] == Start) {
+          dcdc_crash_wait_ms = millis();  // start timestamp before the stop request
+          dcdc_crash_state = BasicSettingsState::SEND_ROUTINE_STOP;
+        } else if (data[1] == Stop) {
+          // Unlocked: clear the stored DTCs (the functional clear reaches the BMS and the DC/DC).
+          datalayer_meb->UserRequestDTCreset = true;
+          dcdc_crash_state = BasicSettingsState::IDLE;
+          logging.println("MEB: DC/DC crash reset: done");
+        } else {
+          dcdc_crash_state = BasicSettingsState::IDLE;
+        }
+      }
+      break;
+    case (0x04 + kPositiveResponseOffset):  // the functional OBD clear sent for the BMS reached the DC/DC too
+      dcdc_dtc.dtc_read_failed = false;
+      dcdc_dtc.dtc_count = 0;
+      dcdc_dtc.dtc_last_read_millis = 0;
+      break;
+    case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):
+      parse_dtc_report(data, len, dcdc_dtc);
+      dcdc_uds_request_pending = false;
+      dcdc_dtc_read_in_progress = false;
+      break;
+    case (kNegativeResponseSid):
+      // data[1] = original request service id, data[2] = NRC
+      if (len < 3) {
+        break;
+      }
+      logging.printf("MEB: DC/DC UDS NRC 0x%02X for SID 0x%02X\n", data[2], data[1]);
+      if (data[1] == 0x04) {
+        break;  // answer to the functional clear, not to a DC/DC transaction of ours
+      }
+      if (data[2] == RequestCorrectlyReceived_ResponsePending) {
+        dcdc_uds_request_timestamp = millis();  // still processing: keep waiting
+        break;
+      }
+      dcdc_uds_request_pending = false;
+      if (data[1] == ReadDTCInformation) {
+        dcdc_dtc_read_in_progress = false;
+        dcdc_dtc.dtc_read_failed = true;
+        dcdc_dtc.dtc_last_read_millis = millis();
+      }
+      if (dcdc_crash_state != BasicSettingsState::IDLE) {
+        dcdc_crash_state = BasicSettingsState::IDLE;
+        logging.println("MEB: DC/DC crash reset: rejected, aborting");
+      }
+      break;
+    default:
+      break;
+  }
+}
+#endif
+
 void MebBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
@@ -2020,6 +2209,11 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   // ISO-TP transport for UDS diagnostics (PID polling, DTC read). Replies arrive on
   // ISO_Hybrid_01_Resp_FD and are fed to isotp_receive() in handle_incoming_can_frame().
   isotp_init(ISO_Hybrid_01_Req_FD);
+#ifdef DCDC_DIAG_SUPPORT
+  // DC/DC diagnostics on their own ISO-TP channel; replies arrive on ISO_DCDC_Resp_FD.
+  dcdc_isotp.isotp_init(ISO_DCDC_Req_FD);
+  renderer.dcdc_dtc = user_selected_VW_dcdc_converter ? &dcdc_dtc : nullptr;
+#endif
 
   // The BMS may still be asleep at power-on, so our first frames won't be ACKed. Ignore
   // this interface's transient CAN errors for a while so they don't clutter the event log.

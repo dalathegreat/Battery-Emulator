@@ -103,6 +103,7 @@ class Battery {
   virtual bool supports_reset_NVROL() { return false; }
   virtual bool supports_reset_DTC() { return false; }
   virtual bool supports_read_DTC() { return false; }
+  virtual bool supports_reset_DCDC_crash() { return false; }
 #ifndef SMALL_FLASH_DEVICE
   virtual bool supports_reset_SOH() { return false; }
 #endif
@@ -137,6 +138,7 @@ class Battery {
   virtual void reset_NVROL() {}
   virtual void reset_DTC() {}
   virtual void read_DTC() {}
+  virtual void reset_DCDC_crash() {}
 #ifndef SMALL_FLASH_DEVICE
   virtual void reset_SOH() {}
 #endif
