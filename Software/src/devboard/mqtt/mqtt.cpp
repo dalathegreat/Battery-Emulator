@@ -820,7 +820,7 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
     doc["entity_category"] = "diagnostic";
   }
   set_common_discovery_attributes(doc);
-  serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+  serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
   doc.clear();
   return ok;
@@ -920,7 +920,7 @@ static bool publish_common_info(void) {
         }
       }
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Common info");
         return false;
@@ -931,7 +931,7 @@ static bool publish_common_info(void) {
     if (datalayer.system.info.configured_batteries > 1) {
       DocClearGuard guard(shared_doc);
       set_aggregate_attributes(shared_doc);
-      serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(shared_doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (mqtt_publish(aggregate_topic.c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Aggregate info");
         return false;
@@ -950,7 +950,7 @@ static bool publish_common_info(void) {
           esp32hal->system_booted_up()) {
         DocClearGuard guard(shared_doc);
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
-        serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+        serializeJson(shared_doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
           log_publish_failure("Common info");
           return false;
@@ -1041,7 +1041,7 @@ static bool publish_cell_voltage_discovery(const DATALAYER_BATTERY_TYPE& battery
     set_battery_voltage_attributes(doc, i, cellNumber, state_topic, entity_prefix, battery_name_suffix);
     set_common_discovery_attributes(doc);
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
     if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, topic_suffix).c_str(), mqtt_msg, true) == false) {
       return false;
     }
@@ -1121,7 +1121,7 @@ bool publish_events() {
     doc["icon"] = "mdi:information-outline";
     doc["entity_category"] = "diagnostic";
     set_common_discovery_attributes(doc);
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
       ha_events_published = true;
     } else {
@@ -1160,7 +1160,7 @@ bool publish_events() {
       doc["message"] = get_event_message_string(event_handle);
       doc["millis"] = String(event_pointer->timestamp);
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
         log_publish_failure("Event");
         return false;
@@ -1198,7 +1198,7 @@ static bool publish_buttons_discovery(void) {
           doc["entity_category"] = "diagnostic";
         }
         set_common_discovery_attributes(doc);
-        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+        serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
         if (!mqtt_publish(generateButtonAutoConfigTopic(config.entity_id).c_str(), mqtt_msg, true)) {
           return false;
         }
