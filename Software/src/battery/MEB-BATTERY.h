@@ -6,6 +6,14 @@
 // Uncomment the next line to enable some debug logging.
 //#define MEB_DEBUG
 
+// EXPERIMENT (legacy coordinator only, i.e. no VW DC-DC converter): fake the precharge handshake
+// without any external DC-link voltage. Asserts the HVK_01 precharge bit, waits
+// MEB_EXP_PRECHARGE_DELAY_MS, then requests AC charging as if precharge had matched, to see whether
+// the BMS closes its contactors on its own. The emulator's precharge hardware is NOT driven.
+// WARNING: make sure nothing capacitive is connected to the HV terminals (no inverter DC link) —
+// if the BMS closes, there is no precharge in front of it.
+#define MEB_EXPERIMENT_BLIND_PRECHARGE
+
 extern bool user_selected_VW_iso_measurement;
 extern bool user_selected_VW_dcdc_converter;
 extern uint16_t user_selected_VW_dcdc_lv_setpoint_mV;
@@ -65,6 +73,15 @@ class MebBattery : public CanBattery, public IsoTp {
   void high_voltage_coordinator(unsigned long currentMillis);
   /* HV bring-up without a DC-DC converter, using the emulator's own precharge — called every 100 ms */
   void high_voltage_coordinator_legacy(unsigned long currentMillis);
+#ifdef MEB_EXPERIMENT_BLIND_PRECHARGE
+  /* experiment: fake precharge handshake without external voltage — overrides bit / matched */
+  void experiment_blind_precharge(unsigned long currentMillis, uint8_t& precharge_bit, bool& precharge_matched);
+  enum class ExpState : uint8_t { IDLE, PRECHARGE, REQUEST_HV, DONE };
+  ExpState exp_state = ExpState::IDLE;
+  unsigned long exp_ms = 0;
+  static constexpr unsigned long MEB_EXP_PRECHARGE_DELAY_MS = 200;  // precharge bit -> AC charging request (100..300)
+  static constexpr unsigned long MEB_EXP_CLOSE_TIMEOUT_MS = 5000;   // give up if BMS has not closed by then
+#endif
   /* IsoTp override: send a raw CAN frame */
   void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
