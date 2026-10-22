@@ -369,6 +369,7 @@ class NissanLeafBattery : public CanBattery {
       true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged
   bool battery_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
+  uint8_t battery_OV_limit_level = 0;     //AZE0 only: 0 none, 1 limit B, 2 limit A, 3 cell overvoltage fault
   bool battery_Capacity_Empty = false;    //battery_EMPTY, , Goes to 1 if battery is empty
   bool battery_HeatExist = false;      //battery_HEATEXIST, Specifies if battery pack is equipped with heating elements
   bool battery_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
