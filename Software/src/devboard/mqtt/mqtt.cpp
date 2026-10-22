@@ -1232,7 +1232,7 @@ static bool publish_buttons_discovery(void) {
           }
           char entity_id[32];
           char name_buf[48];
-          char payload[2] = {(char)('0' + target.index), ' '};
+          char payload[2] = {(char)('0' + target.index), '\0'};
           snprintf(entity_id, sizeof(entity_id), "%s%s", config.entity_id, target.id_suffix);
           snprintf(name_buf, sizeof(name_buf), "%s%s", config.name, display_name_suffix(target));
           doc["name"] = name_buf;
@@ -1286,18 +1286,15 @@ static Battery* balancing_target_from_payload(const char* command, const char* d
   } else if (len == 1 && data[start] >= '1' && data[start] <= '3') {
     index = data[start] - '0';
   } else {
-    logging.printf("MQTT: invalid %s payload [%.*s], expected 1, 2 or 3
-", command, data_len, data);
+    logging.printf("MQTT: invalid %s payload [%.*s], expected 1, 2 or 3\n", command, data_len, data);
     return nullptr;
   }
   Battery* bat = *battery_targets[index - 1].bat;
   if (!supports_balancing_cmd(bat)) {
-    logging.printf("MQTT: %s ignored, battery %d is not present or does not support balancing
-", command, index);
+    logging.printf("MQTT: %s ignored, battery %d is not present or does not support balancing\n", command, index);
     return nullptr;
   }
-  logging.printf("MQTT: %s on battery %d
-", command, index);
+  logging.printf("MQTT: %s on battery %d\n", command, index);
   return bat;
 }
 
