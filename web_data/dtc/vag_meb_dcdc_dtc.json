@@ -1,0 +1,1052 @@
+[
+  {
+    "code": 1,
+    "dtc": "P0D3200",
+    "l_dsc": "DC/DC Converter \"A\" Over Temperature"
+  },
+  {
+    "code": 2,
+    "dtc": "P0E3200",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 3,
+    "dtc": "P33CF00",
+    "l_dsc": "DC/DC converter, LV output voltage excessive voltage"
+  },
+  {
+    "code": 4,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 5,
+    "dtc": "P33D000",
+    "l_dsc": "DC/DC converter, LV output voltage low voltage"
+  },
+  {
+    "code": 6,
+    "dtc": "P0E5400",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit High"
+  },
+  {
+    "code": 8,
+    "dtc": "P0E5300",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit Low"
+  },
+  {
+    "code": 9,
+    "dtc": "P0E5700",
+    "l_dsc": "DC/DC Converter Input Voltage Too High"
+  },
+  {
+    "code": 10,
+    "dtc": "P0E5200",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 11,
+    "dtc": "P0E3700",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" Range/Performance"
+  },
+  {
+    "code": 12,
+    "dtc": "P0E5200",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 13,
+    "dtc": "P0E5600",
+    "l_dsc": "DC/DC Converter Input Voltage Too Low"
+  },
+  {
+    "code": 14,
+    "dtc": "P0EA300",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit High"
+  },
+  {
+    "code": 16,
+    "dtc": "P0EA200",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit Low"
+  },
+  {
+    "code": 18,
+    "dtc": "P0EA100",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 19,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 20,
+    "dtc": "P0EA100",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 21,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 22,
+    "dtc": "P0C3800",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"A\" Circuit"
+  },
+  {
+    "code": 23,
+    "dtc": "P0E9E00",
+    "l_dsc": "DC/DC Converter Current Sensor \"B\" Circuit High"
+  },
+  {
+    "code": 24,
+    "dtc": "P0C3900",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 26,
+    "dtc": "P0C3900",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 27,
+    "dtc": "P0E9C00",
+    "l_dsc": "DC/DC Converter Current Sensor \"B\" Circuit Range/Performance"
+  },
+  {
+    "code": 28,
+    "dtc": "P0C3D00",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"B\" Circuit"
+  },
+  {
+    "code": 30,
+    "dtc": "P0C3E00",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"B\" Range/Performance"
+  },
+  {
+    "code": 31,
+    "dtc": "P0E9C00",
+    "l_dsc": "DC/DC Converter Current Sensor \"B\" Circuit Range/Performance"
+  },
+  {
+    "code": 32,
+    "dtc": "P0C3E00",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"B\" Range/Performance"
+  },
+  {
+    "code": 33,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 34,
+    "dtc": "P0E9900",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"C\" Circuit High"
+  },
+  {
+    "code": 36,
+    "dtc": "P0E9800",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"C\" Circuit Low"
+  },
+  {
+    "code": 37,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 38,
+    "dtc": "P0E9700",
+    "l_dsc": "DC/DC converter voltage sensor 3 implausible signal"
+  },
+  {
+    "code": 40,
+    "dtc": "P0E9700",
+    "l_dsc": "DC/DC converter voltage sensor 3 implausible signal"
+  },
+  {
+    "code": 41,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 42,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 43,
+    "dtc": "U002800",
+    "l_dsc": "Vehicle Communication Bus A"
+  },
+  {
+    "code": 45,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 47,
+    "dtc": "P0E3300",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" Low"
+  },
+  {
+    "code": 48,
+    "dtc": "P056100",
+    "l_dsc": "System Voltage Unstable"
+  },
+  {
+    "code": 51,
+    "dtc": "P056100",
+    "l_dsc": "System Voltage Unstable"
+  },
+  {
+    "code": 53,
+    "dtc": "P0E3200",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 54,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 56,
+    "dtc": "P0E3200",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 57,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 58,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 59,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 61,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 62,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 65,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 66,
+    "dtc": "P168A00",
+    "l_dsc": "Reversible crash shut-off was triggered"
+  },
+  {
+    "code": 68,
+    "dtc": "P0CA300",
+    "l_dsc": "DC/DC Converter Step Up Voltage Performance"
+  },
+  {
+    "code": 69,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 70,
+    "dtc": "P0CA200",
+    "l_dsc": "DC/DC Converter Step Down Voltage Performance"
+  },
+  {
+    "code": 72,
+    "dtc": "P0E5200",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 73,
+    "dtc": "P0E3900",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" High"
+  },
+  {
+    "code": 74,
+    "dtc": "P0EA100",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 75,
+    "dtc": "P0E3800",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" Low"
+  },
+  {
+    "code": 76,
+    "dtc": "P0D3300",
+    "l_dsc": "DC/DC Converter Current High"
+  },
+  {
+    "code": 77,
+    "dtc": "P0E3900",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" High"
+  },
+  {
+    "code": 78,
+    "dtc": "P0D3300",
+    "l_dsc": "DC/DC Converter Current High"
+  },
+  {
+    "code": 79,
+    "dtc": "P0E3800",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" Low"
+  },
+  {
+    "code": 81,
+    "dtc": "P0E3700",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" Range/Performance"
+  },
+  {
+    "code": 82,
+    "dtc": "P2C8900",
+    "l_dsc": "Hybrid/EV Battery System Precharge Current Too High"
+  },
+  {
+    "code": 83,
+    "dtc": "P0E3700",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"B\" Range/Performance"
+  },
+  {
+    "code": 84,
+    "dtc": "P1BC300",
+    "l_dsc": "Onboard voltage supply High-voltage disruption detected"
+  },
+  {
+    "code": 86,
+    "dtc": "P218100",
+    "l_dsc": "Cooling System Performance"
+  },
+  {
+    "code": 87,
+    "dtc": "P0A0800",
+    "l_dsc": "DC/DC Converter Status Circuit"
+  },
+  {
+    "code": 88,
+    "dtc": "P0D3200",
+    "l_dsc": "DC/DC Converter \"A\" Over Temperature"
+  },
+  {
+    "code": 89,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 90,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 91,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 92,
+    "dtc": "U300100",
+    "l_dsc": "Control Module Improper Shutdown"
+  },
+  {
+    "code": 93,
+    "dtc": "U300100",
+    "l_dsc": "Control Module Improper Shutdown"
+  },
+  {
+    "code": 94,
+    "dtc": "U002900",
+    "l_dsc": "Vehicle Communication Bus A Performance"
+  },
+  {
+    "code": 95,
+    "dtc": "U045200",
+    "l_dsc": "Invalid Data Received From Restraints Control Module"
+  },
+  {
+    "code": 96,
+    "dtc": "U045200",
+    "l_dsc": "Invalid Data Received From Restraints Control Module"
+  },
+  {
+    "code": 97,
+    "dtc": "U015100",
+    "l_dsc": "Lost Communication With Restraints Control Module"
+  },
+  {
+    "code": 98,
+    "dtc": "U011100",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 99,
+    "dtc": "U011100",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 100,
+    "dtc": "U011100",
+    "l_dsc": "Lost Communication With Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 101,
+    "dtc": "U041200",
+    "l_dsc": "Invalid Data Received From Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 102,
+    "dtc": "U041200",
+    "l_dsc": "Invalid Data Received From Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 103,
+    "dtc": "U014600",
+    "l_dsc": "Lost Communication With Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 104,
+    "dtc": "U041600",
+    "l_dsc": "Invalid Data Received From Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 105,
+    "dtc": "U041600",
+    "l_dsc": "Invalid Data Received From Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 106,
+    "dtc": "U012200",
+    "l_dsc": "Lost Communication With Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 107,
+    "dtc": "U041600",
+    "l_dsc": "Invalid Data Received From Vehicle Dynamics Control Module"
+  },
+  {
+    "code": 108,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 109,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 110,
+    "dtc": "U010000",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 111,
+    "dtc": "U014600",
+    "l_dsc": "Lost Communication With Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 112,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 113,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 114,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 115,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 116,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 117,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 118,
+    "dtc": "U014600",
+    "l_dsc": "Lost Communication With Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 119,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 120,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 121,
+    "dtc": "P0E3200",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 122,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 123,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 124,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 125,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 126,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 129,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 130,
+    "dtc": "P33CF00",
+    "l_dsc": "DC/DC converter, LV output voltage excessive voltage"
+  },
+  {
+    "code": 131,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 132,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 133,
+    "dtc": "U010000",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 134,
+    "dtc": "U010000",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 135,
+    "dtc": "U014600",
+    "l_dsc": "Lost Communication With Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 137,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 138,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 139,
+    "dtc": "U014600",
+    "l_dsc": "Lost Communication With Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 140,
+    "dtc": "P0C7800",
+    "l_dsc": "Hybrid/EV Battery System Precharge Time Too Long"
+  },
+  {
+    "code": 141,
+    "dtc": "P060F00",
+    "l_dsc": "Internal Control Module Coolant Temperature Performance"
+  },
+  {
+    "code": 142,
+    "dtc": "P0B3600",
+    "l_dsc": "High Voltage Service Disconnect Circuit High"
+  },
+  {
+    "code": 143,
+    "dtc": "P0B3300",
+    "l_dsc": "High Voltage Service Disconnect Circuit"
+  },
+  {
+    "code": 144,
+    "dtc": "P0B3600",
+    "l_dsc": "High Voltage Service Disconnect Circuit High"
+  },
+  {
+    "code": 145,
+    "dtc": "P0B3500",
+    "l_dsc": "High Voltage Service Disconnect Circuit Low"
+  },
+  {
+    "code": 146,
+    "dtc": "P0B3400",
+    "l_dsc": "High Voltage Service Disconnect Circuit Performance"
+  },
+  {
+    "code": 147,
+    "dtc": "P0B3700",
+    "l_dsc": "High Voltage Service Disconnect Open"
+  },
+  {
+    "code": 148,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 149,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 150,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 153,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 154,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 155,
+    "dtc": "P160900",
+    "l_dsc": "Crash shut-off was triggered"
+  },
+  {
+    "code": 156,
+    "dtc": "U110300",
+    "l_dsc": "Production mode active"
+  },
+  {
+    "code": 157,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 160,
+    "dtc": "P056000",
+    "l_dsc": "System Voltage Malfunction"
+  },
+  {
+    "code": 161,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 162,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 163,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 164,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 165,
+    "dtc": "U044700",
+    "l_dsc": "Invalid Data Received From Serial Data Gateway Module \"A\""
+  },
+  {
+    "code": 166,
+    "dtc": "U041200",
+    "l_dsc": "Invalid Data Received From Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 167,
+    "dtc": "U041200",
+    "l_dsc": "Invalid Data Received From Battery Energy Control Module \"A\""
+  },
+  {
+    "code": 168,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 169,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 170,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 171,
+    "dtc": "U030100",
+    "l_dsc": "Software Incompatibility With ECM/PCM"
+  },
+  {
+    "code": 172,
+    "dtc": "P2C8900",
+    "l_dsc": "Hybrid/EV Battery System Precharge Current Too High"
+  },
+  {
+    "code": 173,
+    "dtc": "P168100",
+    "l_dsc": "Control module programming Programming not finished"
+  },
+  {
+    "code": 174,
+    "dtc": "P33CF00",
+    "l_dsc": "DC/DC converter, LV output voltage excessive voltage"
+  },
+  {
+    "code": 175,
+    "dtc": "P0C7800",
+    "l_dsc": "Hybrid/EV Battery System Precharge Time Too Long"
+  },
+  {
+    "code": 372,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 373,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 374,
+    "dtc": "P062F00",
+    "l_dsc": "Internal Control Module EEPROM Error"
+  },
+  {
+    "code": 378,
+    "dtc": "P062F00",
+    "l_dsc": "Internal Control Module EEPROM Error"
+  },
+  {
+    "code": 380,
+    "dtc": "P0EA200",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit Low"
+  },
+  {
+    "code": 384,
+    "dtc": "P0C3F00",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"B\" Low"
+  },
+  {
+    "code": 385,
+    "dtc": "P0E9D00",
+    "l_dsc": "DC/DC Converter Current Sensor \"B\" Circuit Low"
+  },
+  {
+    "code": 387,
+    "dtc": "P06B100",
+    "l_dsc": "Sensor Power Supply \"A\" Circuit Low"
+  },
+  {
+    "code": 388,
+    "dtc": "P0C4000",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"B\" High"
+  },
+  {
+    "code": 390,
+    "dtc": "P060A00",
+    "l_dsc": "Internal Control Module Monitoring Processor Performance"
+  },
+  {
+    "code": 392,
+    "dtc": "P0EA300",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit High"
+  },
+  {
+    "code": 393,
+    "dtc": "P0E3400",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" High"
+  },
+  {
+    "code": 394,
+    "dtc": "P06B200",
+    "l_dsc": "Sensor Power Supply \"A\" Circuit High"
+  },
+  {
+    "code": 396,
+    "dtc": "P0C3B00",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"A\" High"
+  },
+  {
+    "code": 400,
+    "dtc": "P060400",
+    "l_dsc": "Internal Contr.Module Random Access Memory (RAM) Error"
+  },
+  {
+    "code": 402,
+    "dtc": "P0E5200",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 429,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 430,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 431,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 432,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 434,
+    "dtc": "P0E5200",
+    "l_dsc": "DC/DC Converter Current Sensor \"A\" Circuit Range/Performance"
+  },
+  {
+    "code": 435,
+    "dtc": "P0EA100",
+    "l_dsc": "DC/DC Converter Current Sensor \"C\" Circuit Range/Performance"
+  },
+  {
+    "code": 441,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 442,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 443,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 444,
+    "dtc": "U300100",
+    "l_dsc": "Control Module Improper Shutdown"
+  },
+  {
+    "code": 445,
+    "dtc": "B184C00",
+    "l_dsc": "Activation active"
+  },
+  {
+    "code": 446,
+    "dtc": "P0C7800",
+    "l_dsc": "Hybrid/EV Battery System Precharge Time Too Long"
+  },
+  {
+    "code": 448,
+    "dtc": "P060600",
+    "l_dsc": "ECM/PCM Processor"
+  },
+  {
+    "code": 453,
+    "dtc": "P33CF00",
+    "l_dsc": "DC/DC converter, LV output voltage excessive voltage"
+  },
+  {
+    "code": 454,
+    "dtc": "P0E3200",
+    "l_dsc": "DC/DC Converter Voltage Sensor \"A\" Range/Performance"
+  },
+  {
+    "code": 455,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 456,
+    "dtc": "P0A9400",
+    "l_dsc": "DC/DC Converter Performance"
+  },
+  {
+    "code": 458,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 459,
+    "dtc": "U040100",
+    "l_dsc": "Invalid Data Received From ECM/PCM \"A\""
+  },
+  {
+    "code": 460,
+    "dtc": "U010000",
+    "l_dsc": "Lost Communication with ECM/PCM"
+  },
+  {
+    "code": 461,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 462,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 463,
+    "dtc": "P0C3A00",
+    "l_dsc": "DC/DC Converter Temperature Sensor \"A\" Low"
+  },
+  {
+    "code": 464,
+    "dtc": "P1F0700",
+    "l_dsc": "DC/DC converter voltage sensor 7 implausible signal"
+  },
+  {
+    "code": 465,
+    "dtc": "U36C800",
+    "l_dsc": "DC/DC converter voltage sensor 5 implausible signal"
+  },
+  {
+    "code": 466,
+    "dtc": "U36C300",
+    "l_dsc": "DC/DC converter voltage sensor 4 Short circuit to B+"
+  },
+  {
+    "code": 467,
+    "dtc": "P1F0700",
+    "l_dsc": "DC/DC converter voltage sensor 7 implausible signal"
+  },
+  {
+    "code": 468,
+    "dtc": "U36C800",
+    "l_dsc": "DC/DC converter voltage sensor 5 implausible signal"
+  },
+  {
+    "code": 469,
+    "dtc": "P1F0500",
+    "l_dsc": "DC/DC converter voltage sensor 7 Short circuit to B+"
+  },
+  {
+    "code": 470,
+    "dtc": "U36C600",
+    "l_dsc": "DC/DC converter voltage sensor 5 Short circuit to B+"
+  },
+  {
+    "code": 471,
+    "dtc": "U36C400",
+    "l_dsc": "DC/DC converter voltage sensor 4 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 472,
+    "dtc": "U36AA00",
+    "l_dsc": "DC/DC converter current sensor 4 Short circuit to B+"
+  },
+  {
+    "code": 473,
+    "dtc": "U36A800",
+    "l_dsc": "DC/DC converter current sensor 4 implausible signal"
+  },
+  {
+    "code": 474,
+    "dtc": "U36A900",
+    "l_dsc": "DC/DC converter current sensor 4 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 475,
+    "dtc": "P311C00",
+    "l_dsc": "DC/DC converter voltage sensor 6 upper limit exceeded"
+  },
+  {
+    "code": 477,
+    "dtc": "P1F0600",
+    "l_dsc": "DC/DC converter voltage sensor 7 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 478,
+    "dtc": "U36C700",
+    "l_dsc": "DC/DC converter voltage sensor 5 Short circuit to Ground (GND)"
+  },
+  {
+    "code": 480,
+    "dtc": "P1D8700",
+    "l_dsc": "DC/DC converter voltage sensor 6 implausible signal"
+  },
+  {
+    "code": 487,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 488,
+    "dtc": "P056200",
+    "l_dsc": "System Voltage Low Voltage"
+  },
+  {
+    "code": 489,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 490,
+    "dtc": "P056300",
+    "l_dsc": "System Voltage High Voltage"
+  },
+  {
+    "code": 491,
+    "dtc": "U192A00",
+    "l_dsc": "Online Remote Update No signal"
+  },
+  {
+    "code": 492,
+    "dtc": "U192B00",
+    "l_dsc": "Online Remote Update implausible signal"
+  },
+  {
+    "code": 493,
+    "dtc": "U192B00",
+    "l_dsc": "Online Remote Update implausible signal"
+  },
+  {
+    "code": 494,
+    "dtc": "U192B00",
+    "l_dsc": "Online Remote Update implausible signal"
+  }
+]

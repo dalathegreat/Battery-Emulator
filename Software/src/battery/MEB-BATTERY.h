@@ -1,5 +1,12 @@
 #ifndef MEB_BATTERY_H
 #define MEB_BATTERY_H
+
+// DC/DC converter diagnostics over its own ISO-TP channel: crash unlock (same routine as the BMS,
+// own login key) and a DTC table read together with the BMS one. Active only when the VW DC/DC
+// converter is selected in the settings. The functional OBD clear already reaches both ECUs.
+// Defined before MEB-HTML.h, which uses it too.
+#define DCDC_DIAG_SUPPORT
+
 #include "CanBattery.h"
 #include "MEB-HTML.h"
 
@@ -49,9 +56,20 @@ class MebBattery : public CanBattery, public IsoTp {
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.meb.UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
-  void read_DTC() { datalayer_extended.meb.UserRequestDTCreadout = true; }
+  void read_DTC() {
+    datalayer_extended.meb.UserRequestDTCreadout = true;
+#ifdef DCDC_DIAG_SUPPORT
+    if (user_selected_VW_dcdc_converter) {
+      dcdc_dtc_read_requested = true;
+    }
+#endif
+  }
   bool supports_reset_crash() { return true; }
   void reset_crash() { datalayer_extended.meb.UserRequestCrashReset = true; }
+#ifdef DCDC_DIAG_SUPPORT
+  bool supports_reset_DCDC_crash() { return user_selected_VW_dcdc_converter; }
+  void reset_DCDC_crash() { dcdc_crash_reset_requested = true; }
+#endif
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
   static constexpr const char* Name = "VW Group MEB platform via CAN-FD";
@@ -65,6 +83,8 @@ class MebBattery : public CanBattery, public IsoTp {
   void uds_read_data_by_id(const uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
   void uds_response_handler(const uint8_t* data, int len, enum isotp_tatype type);
+  /* store a ReadDTCInformation 59 02 response into dtc */
+  static void parse_dtc_report(const uint8_t* data, int len, DATALAYER_BATTERY_DTC_TYPE& dtc);
   /* drive basic settings state machine — called every transmit_can() tick */
   void handle_basic_settings(unsigned long currentMillis);
   /* drive the BMS reset state machine — called every transmit_can() tick */
@@ -251,6 +271,8 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int ISO_Hybrid_01_Req_FD = 0x1C40007B;
   static const int ISO_Hybrid_01_Resp_FD = 0x1C42007B;
   static const int ISO_Functional_Req_FD = 0x1C410000;
+  static const int ISO_DCDC_Req_FD = 0x1C4000B9;
+  static const int ISO_DCDC_Resp_FD = 0x1C4200B9;
   static const int BMS_04 = 0x5A2;
   static const int BMS_05 = 0x2AF;
   static const int BMS_07 = 0x5CA;
@@ -365,6 +387,46 @@ class MebBattery : public CanBattery, public IsoTp {
   uint32_t security_access_seed = 0;
   uint32_t security_login_key = 20103;       // MEB only, MQB Evo is set in setup() after determining the model.
   unsigned long basic_settings_wait_ms = 0;  // start timestamp between routine steps
+
+#ifdef DCDC_DIAG_SUPPORT
+  // Second ISO-TP channel for UDS to the DC/DC converter. The BMS channel stays on the inherited
+  // IsoTp; this one is a member because IsoTp can only be inherited once.
+  class DcdcIsoTp : public IsoTp {
+   public:
+    explicit DcdcIsoTp(MebBattery& owner) : owner(owner) {}
+
+   protected:
+    // Same CAN-FD 29-bit framing as the BMS channel.
+    void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override {
+      owner.on_isotp_can_tx(can_id, can_data, can_dlc);
+    }
+    void on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype /*tatype*/) override {
+      owner.dcdc_uds_response_handler(data, len);
+    }
+
+   private:
+    MebBattery& owner;
+  };
+  DcdcIsoTp dcdc_isotp{*this};
+
+  /* send a UDS request to the DC/DC and mark it outstanding */
+  void dcdc_uds_send(const uint8_t* payload, int len, unsigned long currentMillis);
+  /* drive the DC/DC crash unlock and DTC readout — called every transmit_can() tick */
+  void handle_dcdc_diag(unsigned long currentMillis);
+  /* handle a UDS response from the DC/DC */
+  void dcdc_uds_response_handler(const uint8_t* data, int len);
+
+  static constexpr uint32_t DCDC_SECURITY_LOGIN_KEY = 14190578;
+  bool dcdc_crash_reset_requested = false;  // set from the WebUI
+  bool dcdc_dtc_read_requested = false;     // set from the WebUI together with the BMS readout
+  bool dcdc_dtc_read_in_progress = false;
+  bool dcdc_uds_request_pending = false;  // one DC/DC transaction at a time, independent of the BMS
+  unsigned long dcdc_uds_request_timestamp = 0;
+  // Crash unlock runs the same steps as the BMS basic settings sequence.
+  BasicSettingsState dcdc_crash_state = BasicSettingsState::IDLE;
+  unsigned long dcdc_crash_wait_ms = 0;  // routine start response timestamp
+  DATALAYER_BATTERY_DTC_TYPE dcdc_dtc = {};
+#endif
 
   // BMS reset state machine. Pause the battery and wait for the current to drop,
   // request HV_OFF + KL15 off, go silent until the BMS sleeps, wait, then restart.
@@ -599,6 +661,14 @@ class MebBattery : public CanBattery, public IsoTp {
                                                      .DLC = 8,
                                                      .ID = ISO_Hybrid_01_Req_FD,
                                                      .data = {0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55}};
+#ifdef DCDC_DIAG_SUPPORT
+  // Same TesterPresent, to the DC/DC physical address, while its crash unlock runs.
+  static constexpr CAN_frame Tester_present_DCDC_frame = {.FD = true,
+                                                          .ext_ID = true,
+                                                          .DLC = 8,
+                                                          .ID = ISO_DCDC_Req_FD,
+                                                          .data = {0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55}};
+#endif
   //Messages needed for contactor closing
   CAN_frame Airbag_01_frame = {.FD = true,  // Airbag
                                .ext_ID = false,

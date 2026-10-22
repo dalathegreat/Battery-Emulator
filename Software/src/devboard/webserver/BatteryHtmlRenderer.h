@@ -32,16 +32,24 @@ class BatteryHtmlRenderer {
   // reworking a battery integration for double/triple support.
   virtual bool renders_own_battery_data() { return false; }
 
+  // title: section heading. id: suffix for the section's element ids, so a page can carry more than
+  // one DTC table (e.g. a second ECU) without the description loaders writing into each other.
   static String render_dtc_section_html(DATALAYER_BATTERY_DTC_TYPE& dtc, const char* json_filename,
-                                        bool standard_code_string) {
+                                        bool standard_code_string, const char* title = "Diagnostic Trouble Codes",
+                                        const char* id = "") {
     CheckedHtml content;
 
     // Reserve enough space to avoid reallocs
     content.reserve(3300 + dtc.dtc_count * 320);
+    content += "<div id='dtcSec";
+    content += id;
+    content += "'>";
     // Underline hugs the title instead of spanning the page
     content +=
         "<h4 style='margin:20px auto 0;width:fit-content;color:#27b06c;border-bottom:2px solid #27b06c;"
-        "padding-bottom:5px;'>&#128295; Diagnostic Trouble Codes</h4>";
+        "padding-bottom:5px;'>&#128295; ";
+    content += title;
+    content += "</h4>";
     if (dtc.dtc_last_read_millis == 0) {
       content += "<p style='color:#bbb;'>Not read yet &mdash; use the Read DTC button below to scan.</p>";
     } else if (dtc.dtc_read_failed) {
@@ -110,12 +118,13 @@ class BatteryHtmlRenderer {
         content += "' style='padding:8px 18px;border-top:1px solid #3a4750;'>Unknown</td></tr>";
       }
       content += "</tbody></table></div>";
-      String loader = get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, json_filename);
+      String loader = get_dtc_json_loader_html(GITHUB_RAW_BASE_URL, json_filename, id);
       if (loader.isEmpty()) {
         return String();
       }
       content += loader;
     }
+    content += "</div>";
 
     return content.take();
   }
@@ -141,18 +150,26 @@ class BatteryHtmlRenderer {
   //   (tools/embed_dtc_json.py) as /dtc/<filename>: with nothing cached that copy is shown at
   //   once, GitHub's replaces it when it answers, and the file picker only appears when neither
   //   could be loaded.
-  static String get_dtc_json_loader_html(const char* base_url = "", const char* filename = "") {
+  // id:        Suffix appended to the loader's element ids. When an element 'dtcSec' + id exists,
+  //   only the cells inside it are filled; otherwise every cell on the page is.
+  static String get_dtc_json_loader_html(const char* base_url = "", const char* filename = "", const char* id = "") {
     CheckedHtml s;
     s.reserve(4096);  // avoid repeated 16-byte realloc steps while building the loader
     s += "<div style='margin-top:15px;padding:12px;background:#1e1e2e;border:1px solid #444;border-radius:8px;'>";
-    s += "<p id='dtcJsonStatus' style='margin:0 0 8px 0;color:#aaa;font-size:.95em;'></p>";
-    s += "<div id='dtcJsonFileContainer' style='display:none;'>";
+    s += "<p id='dtcJsonStatus";
+    s += id;
+    s += "' style='margin:0 0 8px 0;color:#aaa;font-size:.95em;'></p>";
+    s += "<div id='dtcJsonFileContainer";
+    s += id;
+    s += "' style='display:none;'>";
     s += "<p style='margin:4px 0;color:#ccc;font-size:.9em;'><strong>Load DTC descriptions from a local JSON "
          "file</strong> ";
     s += "(e.g. <em>";
     s += filename;
     s += "</em>):</p>";
-    s += "<input type='file' id='dtcJsonFile' accept='.json' "
+    s += "<input type='file' id='dtcJsonFile";
+    s += id;
+    s += "' accept='.json' "
          "style='color:#ccc;background:#2a2a3e;border:1px solid #555;border-radius:4px;padding:4px "
          "8px;cursor:pointer;'>";
     s += "</div>";
@@ -166,7 +183,7 @@ class BatteryHtmlRenderer {
     // readable source in the comment block, re-minify, and replace the literal.
     //
     // Identifier map (minified -> readable):
-    //   u=url  k=cacheKey  S=statusEl  C=fileContainer  I=fileInput
+    //   u=url  q=id  k=cacheKey  S=statusEl  C=fileContainer  I=fileInput
     //   A=applyDtcs  P=showFilePicker  F=fetchFromGitHub  B=loadUncached  o=shown
     //   a=arr b=sourceLabel m=map L=cells n=matched t=td/text e=entry d=desc-html
     //   g=cached f=file R=reader v=ev x=ex
@@ -176,10 +193,11 @@ class BatteryHtmlRenderer {
     <script>
     (function(){
       var url = base_url + filename;          // injected at build time
+      var id = id;                            // injected at build time
       var cacheKey = 'dtcJson:' + url;
-      var statusEl = document.getElementById('dtcJsonStatus');
-      var fileContainer = document.getElementById('dtcJsonFileContainer');
-      var fileInput = document.getElementById('dtcJsonFile');
+      var statusEl = document.getElementById('dtcJsonStatus' + id);
+      var fileContainer = document.getElementById('dtcJsonFileContainer' + id);
+      var fileInput = document.getElementById('dtcJsonFile' + id);
       var shown = 0;                          // 1: built-in copy shown, 2: GitHub's
 
       function applyDtcs(arr, sourceLabel) {
@@ -189,7 +207,7 @@ class BatteryHtmlRenderer {
           if (e.code != null) map[e.code] = e;
           if (e.dtc) map[e.dtc] = e;
         });
-        var cells = document.querySelectorAll('[data-dtc-code]');
+        var cells = (document.getElementById('dtcSec' + id) || document).querySelectorAll('[data-dtc-code]');
         var matched = 0;
         cells.forEach(function(td){
           var e = map[td.getAttribute('data-dtc-code')];
@@ -203,9 +221,9 @@ class BatteryHtmlRenderer {
         });
         statusEl.innerHTML = 'Loaded ' + arr.length + ' entries, ' + matched + '/' + cells.length +
           ' DTCs matched' + sourceLabel +
-          '. <a href=\'#\' id=\'dtcRefresh\' style=\'color:#aaa;font-size:0.85em;\'>Refresh</a>';
+          '. <a href=\'#\' id=\'dtcRefresh' + id + '\' style=\'color:#aaa;font-size:0.85em;\'>Refresh</a>';
         statusEl.style.color = matched > 0 ? '#4CAF50' : '#ff9800';
-        document.getElementById('dtcRefresh').addEventListener('click', function(e){
+        document.getElementById('dtcRefresh' + id).addEventListener('click', function(e){
           e.preventDefault();
           try { localStorage.removeItem(cacheKey); } catch(ex) {}
           shown = 0;
@@ -288,20 +306,22 @@ class BatteryHtmlRenderer {
     s += "<script>(function(){var u='";
     s += base_url;
     s += filename;
-    s += "';var k='dtcJson:'+u;"
-         "var S=document.getElementById('dtcJsonStatus');"
-         "var C=document.getElementById('dtcJsonFileContainer');"
-         "var I=document.getElementById('dtcJsonFile');var o=0;"
+    s += "';var q='";
+    s += id;
+    s += "',k='dtcJson:'+u;"
+         "var S=document.getElementById('dtcJsonStatus'+q);"
+         "var C=document.getElementById('dtcJsonFileContainer'+q);"
+         "var I=document.getElementById('dtcJsonFile'+q);var o=0;"
          "function A(a,b){"
          "var m={};a.forEach(function(e){if(e.code!=null)m[e.code]=e;if(e.dtc)m[e.dtc]=e;});"
-         "var L=document.querySelectorAll('[data-dtc-code]');var n=0;"
+         "var L=(document.getElementById('dtcSec'+q)||document).querySelectorAll('[data-dtc-code]');var n=0;"
          "L.forEach(function(t){var e=m[t.getAttribute('data-dtc-code')];"
          "if(e){var d=e.l_dsc;if(e.s_dsc)d+='<br /><em "
          "style=\\'color:#aaa;font-size:0.85em\\'>'+e.s_dsc+'</em>';t.innerHTML=d;n++;}});"
          "S.innerHTML='Loaded '+a.length+' entries, '+n+'/'+L.length+' DTCs matched'+b+"
-         "'. <a href=\\'#\\' id=\\'dtcRefresh\\' style=\\'color:#aaa;font-size:0.85em;\\'>Refresh</a>';"
+         "'. <a href=\\'#\\' id=\\'dtcRefresh'+q+'\\' style=\\'color:#aaa;font-size:0.85em;\\'>Refresh</a>';"
          "S.style.color=n>0?'#4CAF50':'#ff9800';"
-         "document.getElementById('dtcRefresh').addEventListener('click',function(e){"
+         "document.getElementById('dtcRefresh'+q).addEventListener('click',function(e){"
          "e.preventDefault();try{localStorage.removeItem(k);}catch(x){}o=0;B();});}"
          "function P(msg){S.textContent=msg;S.style.color='#ff9800';C.style.display='';}"
          "function F(){S.textContent='Fetching DTC descriptions from GitHub...';S.style.color='#aaa';"
