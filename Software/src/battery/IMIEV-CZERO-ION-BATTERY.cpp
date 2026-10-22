@@ -141,6 +141,11 @@ void ImievCZeroIonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         voltage_index -= 4;
         temp_index -= 3;
       }
+      // CMU 6 and 12 only have 4 cells; a pid_index of 2/3 for them would index past the arrays
+      if (voltage_index + 1 >= (int)(sizeof(cell_voltages) / sizeof(cell_voltages[0])) ||
+          temp_index + 1 >= (int)(sizeof(cell_temperatures) / sizeof(cell_temperatures[0]))) {
+        break;
+      }
 
       if (voltage1 > 2.2f) {  // Only update cellvoltages incase we have a value
         cell_voltages[voltage_index] = voltage1;
