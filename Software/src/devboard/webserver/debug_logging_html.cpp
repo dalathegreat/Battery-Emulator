@@ -73,22 +73,21 @@ String debug_logger_processor(void) {
     // before the penultimate character, so (offset + 1) will be the final '\0'
     // or earlier.
 
-    char* next_newline = strnchr(&datalayer.system.info.logged_can_messages[offset + 1], '\n',
-                                 LOGGED_CAN_MESSAGES_SIZE - offset - 1);
+    char* next_newline =
+        strnchr(&datalayer.system.info.logged_can_messages[offset + 1], '\n', LOGGED_CAN_MESSAGES_SIZE - offset - 1);
 
     if (next_newline != NULL) {
       // We found a newline, so append from the character after that. We check
       // the string length to ensure we don't add any intermediate '\0'
       // characters.
-      content.concat(next_newline + 1,
-                     strnlen(next_newline + 1, LOGGED_CAN_MESSAGES_SIZE - offset - 2));
+      content.concat(next_newline + 1, strnlen(next_newline + 1, LOGGED_CAN_MESSAGES_SIZE - offset - 2));
     } else {
       // No newline found, so append from the next character after the offset to
       // the end of the buffer. We check the string length to ensure we don't
       // add any intermediate '\0' characters.
-      content.concat(&datalayer.system.info.logged_can_messages[offset + 1],
-                     strnlen(&datalayer.system.info.logged_can_messages[offset + 1],
-                             LOGGED_CAN_MESSAGES_SIZE - offset - 1));
+      content.concat(
+          &datalayer.system.info.logged_can_messages[offset + 1],
+          strnlen(&datalayer.system.info.logged_can_messages[offset + 1], LOGGED_CAN_MESSAGES_SIZE - offset - 1));
     }
   }
   // Append the first part of the buffer up to the current write offset (which
