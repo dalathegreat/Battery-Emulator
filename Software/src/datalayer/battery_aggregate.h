@@ -125,10 +125,52 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack);
 void update_aggregate_values();
 
 /**
+ * @brief The charge current ceiling the user has asked for: the MQTT SET_LIMITS value while one
+ * is active, otherwise the manual limit from the settings page.
+ *
+ * A remote limit replaces the manual one for as long as it lasts rather than combining with it,
+ * so it may sit above it. Either way it only ever lowers what the batteries allow.
+ *
+ * @return The ceiling in deciAmpere
+ */
+static inline uint16_t effective_charge_cap_dA() {
+  return datalayer.battery_settings.remote_settings_limit_charge ? datalayer.battery_settings.max_remote_set_charge_dA
+                                                                 : datalayer.battery_settings.max_user_set_charge_dA;
+}
+
+/**
+ * @brief The discharge counterpart of effective_charge_cap_dA().
+ *
+ * @return The ceiling in deciAmpere
+ */
+static inline uint16_t effective_discharge_cap_dA() {
+  return datalayer.battery_settings.remote_settings_limit_discharge
+             ? datalayer.battery_settings.max_remote_set_discharge_dA
+             : datalayer.battery_settings.max_user_set_discharge_dA;
+}
+
+/**
+ * @brief Convert a current ceiling to a power ceiling, rounding down.
+ *
+ * Rounding down keeps the power at or under the ceiling, and power_W_to_current_dA() rounds to
+ * nearest on the way back, so the current the user typed comes out of the round trip unchanged.
+ *
+ * @param[in] current_dA The ceiling in deciAmpere
+ * @param[in] voltage_dV Pack voltage in deciVolt
+ * @return The equivalent power in Watts
+ */
+static inline uint32_t current_cap_to_power_W(uint16_t current_dA, uint16_t voltage_dV) {
+  return ((uint32_t)current_dA * voltage_dV) / 100;
+}
+
+/**
  * @brief Fill the charge/discharge limits in datalayer.aggregate.
  *
  * Call last in the update chain, after the safety layer, the SOC taper and the low pass filter
- * have shaped datalayer.battery, and before the inverter is updated.
+ * have shaped datalayer.battery, and before the inverter is updated. Both the power and the
+ * current limits come out capped to effective_charge_cap_dA() / effective_discharge_cap_dA(), so
+ * a protocol reading either one honours it. While forced recovery charge is on, its small charge
+ * current replaces the charge limits, unless charging and discharging are paused.
  */
 void update_aggregate_limits();
 

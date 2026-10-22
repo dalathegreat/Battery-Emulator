@@ -7,18 +7,26 @@
 // can assert what the firmware actually put on the wire (UDS requests, ISO-TP
 // flow control / consecutive frames, heartbeat frames, ...).
 std::vector<CAN_frame> g_emul_transmitted_frames;
+// The interface each of those frames went out on, at the same index.
+std::vector<CAN_Interface> g_emul_transmitted_interfaces;
 
 void clear_transmitted_frames() {
   g_emul_transmitted_frames.clear();
+  g_emul_transmitted_interfaces.clear();
 }
 
 const std::vector<CAN_frame>& get_transmitted_frames() {
   return g_emul_transmitted_frames;
 }
 
+const std::vector<CAN_Interface>& get_transmitted_interfaces() {
+  return g_emul_transmitted_interfaces;
+}
+
 void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface interface) {
   if (tx_frame != nullptr) {
     g_emul_transmitted_frames.push_back(*tx_frame);
+    g_emul_transmitted_interfaces.push_back(interface);
   }
 }
 

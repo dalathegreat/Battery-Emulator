@@ -150,11 +150,14 @@ void init_stored_settings() {
   user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
-  // Stored as the two CHG_STA_RQ bits themselves. 11b is the charge stop request and is not
-  // offered, so anything outside 00b/01b/10b falls back to the default of no request.
-  user_selected_LEAF_chg_sta_rq = settings.getUInt("CHGSTARQ", 0);
-  if (user_selected_LEAF_chg_sta_rq > 2) {
-    user_selected_LEAF_chg_sta_rq = 0;
+  // Balancing strategy of each LEAF pack, stored as the two CHG_STA_RQ bits themselves. 11b is the
+  // charge stop request and is not offered, so anything outside 00b/01b/10b falls back to the
+  // default of no request. Packs 2 and 3 used to be sent pack 1's, so until a strategy of their
+  // own is saved they keep following it.
+  const char* const chg_sta_rq_keys[3] = {"CHGSTARQ", "CHGSTARQ2", "CHGSTARQ3"};
+  for (uint8_t pack = 0; pack < 3; pack++) {
+    const uint32_t request = settings.getUInt(chg_sta_rq_keys[pack], pack == 0 ? 0 : user_selected_LEAF_chg_sta_rq[0]);
+    user_selected_LEAF_chg_sta_rq[pack] = request > 2 ? 0 : request;
   }
   user_selected_LEAF_auto_current_offset = settings.getBool("LEAFAUTOOFS", true);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);

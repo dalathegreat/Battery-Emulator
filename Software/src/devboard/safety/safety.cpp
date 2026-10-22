@@ -19,7 +19,6 @@ static bool battery_empty_event_fired = false;
 #define INVERTER_STARTUP_GRACE_MS 300000  // 300 s
 #define CELL_CRITICAL_MV 100              // If cells go this much outside design voltage, shut battery down!
 #define LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV 2000  //If cells are below this, recovery charge not allowed
-#define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 #define HYSTERESIS_OFFSET_DV 20
 #define CELL_HYSTERESIS_MV 20  // Re-allow charge only once max cell drops this far below limit (avoids chatter at knee)
 
@@ -620,16 +619,10 @@ void update_machineryprotection(uint32_t currentMillis) {
   if (datalayer.battery.status.max_charge_power_W == 0) {
     datalayer.battery.status.max_charge_current_dA = 0;
   }
-  //One exception. If user has enabled the emergency recovery charge mode, still allow small amount of charging
+  /* Forced recovery charge. Its life cycle is kept here, while the small charge current it allows is
+     applied by update_aggregate_limits(), after every filter. Written into pack 1's current here,
+     as it used to be, it was overwritten on the way to the inverter. */
   if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
-
-    //We allow the user set value as long as it does not exceed MAX_CHARGEPOWER_RECOVERY_CHARGE_DA
-    if (datalayer.battery_settings.max_user_set_charge_dA > MAX_CHARGEPOWER_RECOVERY_CHARGE_DA) {
-      datalayer.battery.status.max_charge_current_dA = MAX_CHARGEPOWER_RECOVERY_CHARGE_DA;
-    } else {
-      datalayer.battery.status.max_charge_current_dA = datalayer.battery_settings.max_user_set_charge_dA;
-    }
-
     // If this is the start of the emergency recovery charge period, capture the current time
     if (datalayer.battery_settings.recovery_charge_start_time_ms == 0) {
       datalayer.battery_settings.recovery_charge_start_time_ms = currentMillis;
@@ -639,20 +632,26 @@ void update_machineryprotection(uint32_t currentMillis) {
     }
 
     // Check if the elapsed time exceeds the max recovery charge time
-    if (millis() - datalayer.battery_settings.recovery_charge_start_time_ms >=
+    if (currentMillis - datalayer.battery_settings.recovery_charge_start_time_ms >=
         datalayer.battery_settings.recovery_charge_max_time_ms) {
       datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
-      datalayer.battery_settings.recovery_charge_start_time_ms = 0;  // Reset the start time
       set_event(EVENT_RECOVERY_END, 0);
     } else {
       clear_event(EVENT_RECOVERY_END);
     }
 
-    //Check if cellvoltage is too low to safely start recovery. If so, abort!
-    if (datalayer.battery.status.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
+    /* Check if any cell is too low to safely start recovery. If so, abort! The lowest cell of every
+       pack that is talking, not just pack 1's: the charge reaches each pack on the DC link, and a
+       pack about to join has to be safe to charge as well. */
+    if (datalayer.aggregate.cell_min_voltage_mV < LOWEST_ALLOWED_CELLVOLTAGE_RECOVERY_CHARGE_MV) {
       datalayer.battery_settings.user_requests_forced_charging_recovery_mode = false;
       set_event(EVENT_RECOVERY_END, 255);
     }
+  }
+  /* Timed out, aborted or stopped by the user: the next start gets a full period of its own. A stop
+     or an abort used to leave the old start time behind, so a later start ended at once. */
+  if (!datalayer.battery_settings.user_requests_forced_charging_recovery_mode) {
+    datalayer.battery_settings.recovery_charge_start_time_ms = 0;
   }
 
   /* Decrement the forced balancing timer incase user requested it. User requested balancing is
