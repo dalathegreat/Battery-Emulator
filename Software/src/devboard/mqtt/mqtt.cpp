@@ -493,6 +493,12 @@ static String generateButtonAutoConfigTopic(const char* subtype) {
   return String(ha_autodiscovery_topic.c_str()) + "/button/" + topic_name + "/" + String(subtype) + "/config";
 }
 
+#ifndef SMALL_FLASH_DEVICE
+static String generateSelectAutoConfigTopic(const char* entity_id) {
+  return String(ha_autodiscovery_topic.c_str()) + "/select/" + topic_name + "/" + String(entity_id) + "/config";
+}
+#endif  // SMALL_FLASH_DEVICE
+
 static String generateSensorDefaultEntityId(const String& object_id) {
   return "sensor." + object_id;
 }
@@ -1323,6 +1329,28 @@ static bool publish_buttons_discovery(void) {
         }
         doc.clear();
       }
+#ifndef SMALL_FLASH_DEVICE
+      // SOC Havrla mode as a select. The options are the texts published in
+      // bmwi3_soc_havrla_mode, and SET_BMWI3_SOCHAVR accepts them as payload.
+      if (supports_bmwi3_soc_havrla(::battery)) {
+        doc["name"] = "SoC Havrla Mode Select";
+        doc["unique_id"] = topic_name + "_bmwi3_soc_havrla_mode_select";
+        doc["state_topic"] = info_topics[0];
+        doc["value_template"] = "{{ value_json.bmwi3_soc_havrla_mode | default(none) }}";
+        doc["command_topic"] = button_command_topics[BTN_SET_BMWI3_SOCHAVR];
+        doc["options"][0] = "Disabled";
+        doc["options"][1] = "Auto";
+        doc["options"][2] = "Enabled";
+        doc["icon"] = "mdi:battery-sync";
+        doc["entity_category"] = "config";
+        set_common_discovery_attributes(doc);
+        serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
+        if (!mqtt_publish(generateSelectAutoConfigTopic("bmwi3_soc_havrla_mode").c_str(), mqtt_msg, true)) {
+          return false;
+        }
+        doc.clear();
+      }
+#endif  // SMALL_FLASH_DEVICE
       // Only mark done once ALL button configs went out. The old code set the flag on the
       // first successful publish, so a mid-loop failure left the remaining buttons
       // undiscovered forever.
@@ -1619,11 +1647,11 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     value.toLowerCase();
 
     int mode = -1;
-    if (value == "0" || value == "disable" || value == "disabled") {
+    if (value == "0" || value == "disable" || value == "disabled" || value == "bms") {
       mode = 0;
     } else if (value == "1" || value == "auto") {
       mode = 1;
-    } else if (value == "2" || value == "enable" || value == "enabled") {
+    } else if (value == "2" || value == "enable" || value == "enabled" || value == "havrla") {
       mode = 2;
     }
 
