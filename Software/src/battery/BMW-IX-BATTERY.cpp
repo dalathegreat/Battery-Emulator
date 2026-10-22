@@ -297,6 +297,9 @@ void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
 
       // Store the FF payload (starts at data[3] for extended addressing)
       const uint8_t* ffPayload = &rx_frame.data.u8[3];
+      if (rx_frame.DLC < 3) {
+        return;  //Sanity check to avoid underflow
+      }
       uint8_t ffPayloadSize = rx_frame.DLC - 3;
       storeUDSPayload(ffPayload, ffPayloadSize);
 
@@ -320,6 +323,9 @@ void BmwIXBattery::handleISOTPFrame(CAN_frame& rx_frame) {
       // logging.println(gUDSContext.UDS_moduleID, HEX);
 
       // Store CF payload (starts at byte 2)
+      if (rx_frame.DLC < 2) {
+        return;  //Sanity check to avoid underflow
+      }
       storeUDSPayload(&rx_frame.data.u8[2], rx_frame.DLC - 2);
 
       // Increment batch counter
