@@ -287,7 +287,8 @@ void init_stored_settings() {
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
-  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
+  // Capped, so a value saved before the range was narrowed is taken into use within it.
+  mqtt_timeout_ms = mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000));
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   // Publish after a firmware update when asked to: the configs carry sw_version and can
