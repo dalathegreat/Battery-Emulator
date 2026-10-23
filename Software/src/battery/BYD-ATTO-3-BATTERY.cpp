@@ -683,7 +683,9 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x524:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x789:  // Type B diagnostic reply
     case 0x7EF:  //OBD2 PID reply from battery
+      diag_answered = true;
       // DTC reply (0x19 0x02 -> 0x59 0x02) is multi-frame. Reassemble it, ACK the first frame with
       // our own flow control, and parse once complete. Done before the single-frame PID parsing so
       // the consecutive frames aren't mistaken for PIDs.
@@ -1922,8 +1924,22 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
+    if (!diag_answered && ++diag_unanswered_polls >= DIAG_SWITCH_AFTER_POLLS) {
+      diag_unanswered_polls = 0;
+      set_diag_request_id(ATTO_3_7E7_POLL.ID == 0x7E7 ? 0x781 : 0x7E7);
+    }
     transmit_can_frame(&ATTO_3_7E7_POLL);
   }
+}
+
+// Type B packs (Tang, PC5B) ignore 0x7E7; OBD logs from a Tang show its BMS on 0x781
+void BydAttoBattery::set_diag_request_id(uint32_t id) {
+  ATTO_3_7E7_POLL.ID = id;
+  ATTO_3_7E7_ACK.ID = id;
+  ATTO_3_7E7_CLEAR_CRASH.ID = id;
+  ATTO_3_7E7_RESET_SOC.ID = id;
+  ATTO_3_7E7_READ_DTC.ID = id;
+  ATTO_3_7E7_DTC_FC.ID = id;
 }
 
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup

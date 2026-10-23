@@ -289,6 +289,7 @@ class BydAttoBattery : public CanBattery {
   bool handle_cell_balance_time_reply(const CAN_frame& frame);
   void advance_cell_balance_time_cell();
   void handle_cell_balance_time_poll(unsigned long currentMillis);
+  void set_diag_request_id(uint32_t id);
   void finish_cell_balance_time_scan();
 
   int16_t battery_temperature_ambient = 0;
@@ -443,6 +444,9 @@ class BydAttoBattery : public CanBattery {
 
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
+  static const uint8_t DIAG_SWITCH_AFTER_POLLS = 5;
+  uint8_t diag_unanswered_polls = 0;
+  bool diag_answered = false;  // first reply settles the diagnostic address
   uint8_t frame6_counter = 0xB;
   uint8_t BMS_SOH = 99;
   uint8_t BMS_min_cell_voltage_number = 0;
