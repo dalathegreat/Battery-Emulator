@@ -60,6 +60,10 @@ void NissanLeafBattery::CurrentWindow::trim(uint8_t left_out, int32_t& sum_raw, 
 }
 
 void NissanLeafBattery::PowerLimitWindow::close_bucket(uint32_t& discharge_W, uint32_t& charge_W) {
+  //A limit held at 0 for the whole second is a stop rather than a swing, so every earlier sample of
+  //it counts as 0 from now on. Samples are never negative, so a sum of 0 means every one was 0.
+  const bool discharge_stopped = (filling.samples > 0) && (filling.discharge_sum == 0);
+  const bool charge_stopped = (filling.samples > 0) && (filling.charge_sum == 0);
   buckets[next] = filling;
   filling = {};
   next = (next + 1) % POWER_LIMIT_WINDOW_S;
@@ -67,7 +71,13 @@ void NissanLeafBattery::PowerLimitWindow::close_bucket(uint32_t& discharge_W, ui
   uint32_t discharge_sum = 0;
   uint32_t charge_sum = 0;
   uint32_t samples = 0;
-  for (const Bucket& bucket : buckets) {
+  for (Bucket& bucket : buckets) {
+    if (discharge_stopped) {
+      bucket.discharge_sum = 0;
+    }
+    if (charge_stopped) {
+      bucket.charge_sum = 0;
+    }
     discharge_sum += bucket.discharge_sum;
     charge_sum += bucket.charge_sum;
     samples += bucket.samples;

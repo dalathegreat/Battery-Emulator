@@ -167,9 +167,13 @@ class NissanLeafBattery : public CanBattery {
      to the bucket being filled, and update_values() closes it into a ring of the latest
      POWER_LIMIT_WINDOW_S one second buckets and works out the means of every sample the ring holds.
      A second without frames takes its slot all the same, so the window keeps sliding through a
-     silence, and once it has all slid out the last means hold. Only the limits are averaged: the
-     LBC's full, empty and relay cut flags, and the safety layer, still zero them at once. Each pack
-     has a window of its own. More Battery Info still shows the charge limit of the latest frame, raw.
+     silence, and once it has all slid out the last means hold. A limit the LBC holds at 0 for one
+     whole bucket is taken as a stop rather than a swing: all of that limit's window is set to 0, so
+     it goes out as 0 at once and climbs back up through the window when the allowance returns. The
+     other limit carries on, and a second without frames, which says nothing, sets nothing to 0.
+     Only the limits are averaged: the LBC's full, empty and relay cut flags, and the safety layer,
+     still zero them at once. Each pack has a window of its own. More Battery Info still shows the
+     charge limit of the latest frame, raw.
      Sums are of raw 0.25 kW steps, at most 0x3FE each, so with the sample count saturating at 65535
      even the totals of the whole window stay well inside 32 bits. */
   static const uint8_t POWER_LIMIT_WINDOW_S = 15;
@@ -189,8 +193,9 @@ class NissanLeafBattery : public CanBattery {
         filling.samples++;
       }
     }
-    //Closes the second being collected and works out both means in W. With nothing in the whole
-    //window it leaves them as they were.
+    //Closes the second being collected and works out both means in W. A limit that was 0 for the
+    //whole second first sets all of its window to 0. With nothing in the whole window it leaves both
+    //means as they were.
     void close_bucket(uint32_t& discharge_W, uint32_t& charge_W);
   };
   PowerLimitWindow power_limit_window;
