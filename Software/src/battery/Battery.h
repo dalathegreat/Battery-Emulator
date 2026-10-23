@@ -171,6 +171,9 @@ class Battery {
   // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
   virtual bool supports_charged_energy() { return false; }
 
+  // Native cumulative charged/discharged throughput in 0.1 Ah, independent of Wh support.
+  virtual bool supports_directional_capacity() { return false; }
+
   // Battery reports insulation/isolation resistance via
   // datalayer status insulation_resistance_kOhm
   virtual bool supports_insulation_resistance() { return false; }
