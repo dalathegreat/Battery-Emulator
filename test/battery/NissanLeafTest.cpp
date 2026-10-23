@@ -818,6 +818,21 @@ TEST(NissanLeafDtcTests, ShouldParseMultiFrameReply) {
 
 // A healthy pack answers with the 3-byte header and nothing else, padded with FF. That is a
 // successful read of zero codes, not a failed read.
+// LB_Output_Power_Limit_Reason sits in 0x5BC byte 5 bits 7-5, above the max GID mux bit (bit 4).
+// Decoding and logging it must leave the GID decode alone.
+TEST(NissanLeafPowerLimitReasonTests, ShouldNotDisturbTheGidDecode) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00}));  // 3
+  battery->update_values();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));  // 0
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.GIDS, 320u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 273u * WH_PER_GID);  // Mux bit was never set
+  delete battery;
+}
+
 TEST(NissanLeafDtcTests, ShouldReportNoDtcsStored) {
   auto battery = battery_awaiting_dtc_reply();
 
