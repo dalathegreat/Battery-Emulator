@@ -498,9 +498,11 @@ struct DATALAYER_AGGREGATE_TYPE {
   uint32_t max_discharge_power_W = 0;
   /** Charge power the inverter is allowed to push into the installation, in Watts */
   uint32_t max_charge_power_W = 0;
-  /** Charge power the joined packs can take together, in Watts, before the SOC taper, the low
-   * pass filter and the caps: the lowest pack limit, raised in steps while the installation
-   * charges at it. Carried from one pass to the next by combine_pack_limits(). Multi-battery only */
+  /** Charge power the joined packs have been measured to take together, in Watts, before the SOC
+   * taper, the low pass filter and the caps: raised in steps while the installation charges at it,
+   * cut when a pack's limit drops or a pack goes over. 0 until the first raise of a charge session.
+   * What is sent is this, but never below the lowest pack limit nor above the sum of the limits.
+   * Carried from one pass to the next by combine_pack_limits(). Multi-battery only */
   uint32_t parallel_charge_limit_W = 0;
   /** The lowest charge limit each pack has reported lately, in Watts, pack 1 first: what a
    * parallel raise may count on. Kept by combine_pack_limits() */
