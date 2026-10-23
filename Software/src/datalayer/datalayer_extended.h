@@ -699,11 +699,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool MainRelayOn;
   /** True if heater exists */
   bool HeatExist;
-  /** Heater stopped */
+  /** Pack is cold, and its charge is too low to heat (LB_Heating_Stop_Send_Request) */
   bool HeatingStop;
-  /** Heater starting */
+  /** Pack is cold, and has enough charge to heat (LB_Heating_Start_Send_Request) */
   bool HeatingStart;
-  /** Heat request sent*/
+  /** Pack is cold (Batt_Heater_Mail_Send_Request) */
   bool HeaterSendRequest;
   /** True once the automatic current offset correction has measured an offset for this pack */
   bool AutoCurrentOffsetKnown;
