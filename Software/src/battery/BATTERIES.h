@@ -39,6 +39,7 @@ bool battery_supports_chemistry_selection(BatteryType type);
 
 bool byd_cell_balance_times_available(uint8_t index);
 bool request_byd_cell_balance_times(uint8_t index);
+bool set_byd_cell_balance_automation(uint8_t index, bool enabled);
 String byd_cell_balance_times_json(uint8_t index);
 
 extern uint16_t user_selected_max_pack_voltage_dV;
