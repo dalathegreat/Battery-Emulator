@@ -252,6 +252,28 @@ void NissanLeafBattery::
     datalayer_battery->status.max_discharge_power_W = 0;
   }
 
+  /* Why the LBC is limiting output power, LB_Output_Power_Limit_Reason in 0x5BC, written to the log
+     whenever it changes. Meanings as the ZE0 (3NA0D) and AZE0 (4NC0A) firmwares set them: 1 low cell
+     voltage, 2 a fault or other cause, 3 high temperature (max at or above 51 C, or modelled at or above
+     55.1 C), 4 low temperature (min below -10 C). The ZE1 (5SH2D) codes have not been traced, so only
+     the number is logged there.
+     Source: github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 0x5BC in the cyclic CAN frame documents */
+  if (battery_Output_Power_Limit_Reason != battery_Output_Power_Limit_Reason_logged) {
+    battery_Output_Power_Limit_Reason_logged = battery_Output_Power_Limit_Reason;
+    static const char* const reason_names[5] = {"not limited", "low cell voltage", "fault or other", "high temperature",
+                                                "low temperature"};
+    const char* reason = ((LEAF_battery_Type != ZE1_BATTERY) && (battery_Output_Power_Limit_Reason < 5))
+                             ? reason_names[battery_Output_Power_Limit_Reason]
+                             : "not decoded";
+    if (datalayer.system.info.configured_batteries > 1) {
+      logging.printf("Battery %u output power limit reason: %u, %s\n", (unsigned)battery_index,
+                     (unsigned)battery_Output_Power_Limit_Reason, reason);
+    } else {
+      logging.printf("Battery output power limit reason: %u, %s\n", (unsigned)battery_Output_Power_Limit_Reason,
+                     reason);
+    }
+  }
+
   /* Battery full/empty are the installation's events, raised by the safety layer from these flags
      and the SOC together, so the driver no longer sets or clears them itself */
   datalayer_battery->status.bms_reports_full = battery_Full_CHARGE_flag;
@@ -692,6 +714,8 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (battery_TEMP != 0) {
         battery_StateOfHealth = (uint8_t)battery_TEMP;  //Collect state of health from battery
       }
+
+      battery_Output_Power_Limit_Reason = rx_frame.data.u8[5] >> 5;  //LB_Output_Power_Limit_Reason, byte 5 bits 7-5
       break;
     case 0x5C0:
       //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations

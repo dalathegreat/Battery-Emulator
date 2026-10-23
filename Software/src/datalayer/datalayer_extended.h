@@ -183,6 +183,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool balancing_enabled;
   /** How long to hold the pack open for */
   uint16_t balancing_hold_minutes;
+  /** Read cell balance timers at each completed charge (persisted) */
+  bool balance_timer_auto_read;
   /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
   uint8_t balancing_state;
   /** Minutes left of the hold */
