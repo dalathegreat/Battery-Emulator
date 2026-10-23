@@ -356,6 +356,8 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
+  datalayer_extended.bydAtto3.balance_timer_auto_read = settings.getBool("BYDBALAUTO", false);
+  datalayer_extended.bydAtto3_2.balance_timer_auto_read = settings.getBool("BYDBALAUTO2", false);
 }
 
 void clear_wifi_sta_settings() {
@@ -426,4 +428,6 @@ void store_settings() {
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
+  settings.saveBool("BYDBALAUTO", datalayer_extended.bydAtto3.balance_timer_auto_read);
+  settings.saveBool("BYDBALAUTO2", datalayer_extended.bydAtto3_2.balance_timer_auto_read);
 }

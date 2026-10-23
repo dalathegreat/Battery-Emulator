@@ -254,6 +254,15 @@ bool request_byd_cell_balance_times(uint8_t index) {
   return target && target->request_cell_balance_times();
 }
 
+bool set_byd_cell_balance_automation(uint8_t index, bool enabled) {
+  BydAttoBattery* target = byd_battery_at(index);
+  if (!target) {
+    return false;
+  }
+  target->set_cell_balance_automation(enabled);
+  return true;
+}
+
 String byd_cell_balance_times_json(uint8_t index) {
   BydAttoBattery* target = byd_battery_at(index);
   return target ? target->cell_balance_times_json() : String();
