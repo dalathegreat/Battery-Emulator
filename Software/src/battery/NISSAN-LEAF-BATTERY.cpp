@@ -21,6 +21,12 @@ static int16_t mean_current_dA(int32_t sum_raw, int32_t count) {
   return (int16_t)((sum_dA >= 0 ? sum_dA + count / 2 : sum_dA - count / 2) / count);
 }
 
+//Mean of raw 0x1DC power limit samples (0.25 kW/bit) in W, rounded to the nearest W. Worked out in
+//64 bits, as a whole window's sum times 250 can pass 32.
+static uint32_t mean_power_W(uint32_t sum_raw, uint32_t samples) {
+  return (uint32_t)(((uint64_t)sum_raw * 250u + samples / 2) / samples);
+}
+
 //The Nissan LEAF PDM charger sends its own 0x1D4 and 0x1F2, which would collide with ours
 static bool leaf_pdm_charger_in_use() {
 #ifndef SMALL_FLASH_DEVICE
@@ -51,6 +57,26 @@ void NissanLeafBattery::CurrentWindow::trim(uint8_t left_out, int32_t& sum_raw, 
     sum_raw += sorted[i];
   }
   kept = count - 2 * left_out;
+}
+
+void NissanLeafBattery::PowerLimitWindow::close_bucket(uint32_t& discharge_W, uint32_t& charge_W) {
+  buckets[next] = filling;
+  filling = {};
+  next = (next + 1) % POWER_LIMIT_WINDOW_S;
+
+  uint32_t discharge_sum = 0;
+  uint32_t charge_sum = 0;
+  uint32_t samples = 0;
+  for (const Bucket& bucket : buckets) {
+    discharge_sum += bucket.discharge_sum;
+    charge_sum += bucket.charge_sum;
+    samples += bucket.samples;
+  }
+  if (samples == 0) {
+    return;  //Nothing heard for the whole window, so the previous means hold
+  }
+  discharge_W = mean_power_W(discharge_sum, samples);
+  charge_W = mean_power_W(charge_sum, samples);
 }
 
 #ifndef SMALL_FLASH_DEVICE
@@ -236,9 +262,11 @@ void NissanLeafBattery::
     }
   }
 
-  datalayer_battery->status.max_discharge_power_W = (battery_Discharge_Power_Limit * 250);  //0.25 kW steps to W
-
-  datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 250);  //0.25 kW steps to W
+  //Both power limits as their mean over the latest 15 s of 0x1DC frames, see PowerLimitWindow. The
+  //zeroing further down still acts at once, on top of the mean.
+  power_limit_window.close_bucket(battery_Discharge_Power_avg_W, battery_Charge_Power_avg_W);
+  datalayer_battery->status.max_discharge_power_W = battery_Discharge_Power_avg_W;
+  datalayer_battery->status.max_charge_power_W = battery_Charge_Power_avg_W;
 
   //Allow contactors to close
   if (battery_can_alive && allows_contactor_closing) {
@@ -470,7 +498,7 @@ void NissanLeafBattery::
       strcpy(datalayer.system.info.battery_protocol + sizeof("Nissan LEAF ") - 1, LEAF_gen_name[LEAF_battery_Type]);
     }
     datalayer_nissan->GIDS = battery_GIDS;
-    datalayer_nissan->ChargePowerLimit = battery_Charge_Power_Limit;
+    datalayer_nissan->ChargePowerLimit_W = battery_Charge_Power_avg_W;
     datalayer_nissan->MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
     datalayer_nissan->Interlock = battery_Interlock;
     datalayer_nissan->Insulation = battery_insulation;
@@ -645,7 +673,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_status_seen |= 0x01;
       break;
     }
-    case 0x1DC:
+    case 0x1DC: {
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
@@ -655,16 +683,19 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       //full, into no allowance at all. 0x3FF is the LBC's "not available" value (it clamps a real limit
       //at 254 kW), so it is taken as no allowance rather than as 255.75 kW.
       //Source: github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, cyclic CAN frames 0x1DC (3NA0D, 4NC0A, 5SH2D)
-      battery_Discharge_Power_Limit = (rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6);
-      if (battery_Discharge_Power_Limit == 0x3FF) {
-        battery_Discharge_Power_Limit = 0;
+      uint16_t discharge_limit = (rx_frame.data.u8[0] << 2) | (rx_frame.data.u8[1] >> 6);
+      if (discharge_limit == 0x3FF) {
+        discharge_limit = 0;
       }
-      battery_Charge_Power_Limit = ((rx_frame.data.u8[1] & 0x3F) << 4) | (rx_frame.data.u8[2] >> 4);
-      if (battery_Charge_Power_Limit == 0x3FF) {
-        battery_Charge_Power_Limit = 0;
+      uint16_t charge_limit = ((rx_frame.data.u8[1] & 0x3F) << 4) | (rx_frame.data.u8[2] >> 4);
+      if (charge_limit == 0x3FF) {
+        charge_limit = 0;
       }
+      //Straight into this pack's moving average, as only the means are published
+      power_limit_window.add(discharge_limit, charge_limit);
       battery_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
       break;
+    }
     case 0x55B:
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;

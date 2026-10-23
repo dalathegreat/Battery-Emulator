@@ -160,6 +160,40 @@ class NissanLeafBattery : public CanBattery {
   void learn_current_offset(int16_t sample_raw);
   void update_current_offset();
 
+  /* The power limits in 0x1DC, LB_Discharge_Power_Limit and LB_Charge_Power_Limit, go out as their
+     mean over the latest POWER_LIMIT_WINDOW_S seconds rather than as the latest frame. Near full or
+     empty the LBC can swing an allowance between nothing and a few kW every second or two, and the
+     inverter, MQTT, ESP-NOW and the web UI would otherwise follow every swing. Every frame is added
+     to the bucket being filled, and update_values() closes it into a ring of the latest
+     POWER_LIMIT_WINDOW_S one second buckets and works out the means of every sample the ring holds.
+     A second without frames takes its slot all the same, so the window keeps sliding through a
+     silence, and once it has all slid out the last means hold. Only the limits are averaged: the
+     LBC's full, empty and relay cut flags, and the safety layer, still zero them at once. Each pack
+     has a window of its own. Sums are of raw 0.25 kW steps, at most 0x3FE each, so with the sample
+     count saturating at 65535 even the totals of the whole window stay well inside 32 bits. */
+  static const uint8_t POWER_LIMIT_WINDOW_S = 15;
+  struct PowerLimitWindow {
+    struct Bucket {
+      uint32_t discharge_sum;
+      uint32_t charge_sum;
+      uint16_t samples;
+    };
+    Bucket buckets[POWER_LIMIT_WINDOW_S] = {};
+    Bucket filling = {};  //The second being collected
+    uint8_t next = 0;     //The oldest bucket, overwritten by the next close
+    void add(uint16_t discharge_raw, uint16_t charge_raw) {
+      if (filling.samples < UINT16_MAX) {
+        filling.discharge_sum += discharge_raw;
+        filling.charge_sum += charge_raw;
+        filling.samples++;
+      }
+    }
+    //Closes the second being collected and works out both means in W. With nothing in the whole
+    //window it leaves them as they were.
+    void close_bucket(uint32_t& discharge_W, uint32_t& charge_W);
+  };
+  PowerLimitWindow power_limit_window;
+
   // Parses a fully reassembled UDS ReadDTCInformation reply out of dtc_buffer into
   // datalayer_battery->dtc.
   void parseDTCResponse();
@@ -346,8 +380,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
-  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in 0.25 kW steps, 0 while the LBC reports none
-  uint16_t battery_Charge_Power_Limit = 0;     //Limit in 0.25 kW steps, 0 while the LBC reports none
+  uint32_t battery_Discharge_Power_avg_W = 0;  //15 s mean of the 0x1DC limit in W, see PowerLimitWindow
+  uint32_t battery_Charge_Power_avg_W = 0;     //15 s mean of the 0x1DC limit in W, see PowerLimitWindow
   int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
   int16_t battery_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
   uint16_t battery_TEMP = 0;                   //Temporary value used in status checks
