@@ -637,11 +637,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
    * than tracking wear, so it serves as the reference CapacityWh is compared against.
    */
   uint32_t CapacityAsNewWh;
-  /** Max regen power in W: the 15 s mean of the 0x1DC limit, as the driver publishes it */
-  uint32_t ChargePowerLimit_W;
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
+  /** Max regen power in 0.25 kW steps, as 0x1DC carries it */
+  uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;
   /** Unfiltered state of health from the health block, in hundredths of a percent. 0 until read.

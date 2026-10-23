@@ -163,14 +163,15 @@ class NissanLeafBattery : public CanBattery {
   /* The power limits in 0x1DC, LB_Discharge_Power_Limit and LB_Charge_Power_Limit, go out as their
      mean over the latest POWER_LIMIT_WINDOW_S seconds rather than as the latest frame. Near full or
      empty the LBC can swing an allowance between nothing and a few kW every second or two, and the
-     inverter, MQTT, ESP-NOW and the web UI would otherwise follow every swing. Every frame is added
+     inverter, MQTT, ESP-NOW and the main page would otherwise follow every swing. Every frame is added
      to the bucket being filled, and update_values() closes it into a ring of the latest
      POWER_LIMIT_WINDOW_S one second buckets and works out the means of every sample the ring holds.
      A second without frames takes its slot all the same, so the window keeps sliding through a
      silence, and once it has all slid out the last means hold. Only the limits are averaged: the
      LBC's full, empty and relay cut flags, and the safety layer, still zero them at once. Each pack
-     has a window of its own. Sums are of raw 0.25 kW steps, at most 0x3FE each, so with the sample
-     count saturating at 65535 even the totals of the whole window stay well inside 32 bits. */
+     has a window of its own. More Battery Info still shows the charge limit of the latest frame, raw.
+     Sums are of raw 0.25 kW steps, at most 0x3FE each, so with the sample count saturating at 65535
+     even the totals of the whole window stay well inside 32 bits. */
   static const uint8_t POWER_LIMIT_WINDOW_S = 15;
   struct PowerLimitWindow {
     struct Bucket {
@@ -382,6 +383,7 @@ class NissanLeafBattery : public CanBattery {
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
   uint32_t battery_Discharge_Power_avg_W = 0;  //15 s mean of the 0x1DC limit in W, see PowerLimitWindow
   uint32_t battery_Charge_Power_avg_W = 0;     //15 s mean of the 0x1DC limit in W, see PowerLimitWindow
+  uint16_t battery_Charge_Power_Limit = 0;     //Latest 0x1DC limit in 0.25 kW steps, for More Battery Info
   int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
   int16_t battery_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
   uint16_t battery_TEMP = 0;                   //Temporary value used in status checks

@@ -822,7 +822,7 @@ TEST(NissanLeafPowerLimitTests, ShouldLetAStepThroughOverExactly15Seconds) {
   delete battery;
 }
 
-// Each pack averages its own frames into its own datalayer, the More Battery Info page included.
+// Each pack averages its own frames into its own datalayer.
 TEST(NissanLeafPowerLimitTests, ShouldAverageEachPackOnItsOwn) {
   NissanLeafBattery pack1;
   NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
@@ -836,11 +836,20 @@ TEST(NissanLeafPowerLimitTests, ShouldAverageEachPackOnItsOwn) {
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
   EXPECT_EQ(datalayer.battery2.status.max_discharge_power_W, 3333u);
   EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 1333u);
+}
 
-  EXPECT_EQ(datalayer_extended.nissanleaf.ChargePowerLimit_W, 4000u);
-  EXPECT_EQ(datalayer_extended.nissanleaf_2.ChargePowerLimit_W, 1333u);
+// More Battery Info shows the charge limit of the latest frame, raw, while the datalayer behind the
+// main page gets the mean. Checked on a second pack, so its own page is the one that shows it.
+TEST(NissanLeafPowerLimitTests, ShouldShowTheLatestRawChargeLimitOnMoreBatteryInfo) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  pack2.setup();
+  run_power_limit_seconds(&pack2, 40, 16, 14);  // 10 kW / 4 kW
+  run_power_limit_seconds(&pack2, 40, 8, 1);    // then 2 kW
+
+  EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 3867u);   // (14 x 4 kW + 2 kW) / 15, rounded
+  EXPECT_EQ(datalayer_extended.nissanleaf_2.ChargePowerLimit, 8u);  // 0.25 kW steps, as 0x1DC carries it
   NissanLeafHtmlRenderer renderer(&datalayer.battery2, &datalayer_extended.nissanleaf_2);
-  EXPECT_NE(renderer.get_status_html().str().find("<h4>Regen kW: 1.33</h4>"), std::string::npos);
+  EXPECT_NE(renderer.get_status_html().str().find("<h4>Regen kW: 2.00</h4>"), std::string::npos);
 }
 
 // A second without frames still slides the window along, so the means close in on the latest frames.

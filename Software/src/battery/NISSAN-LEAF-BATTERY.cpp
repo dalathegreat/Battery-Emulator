@@ -498,7 +498,7 @@ void NissanLeafBattery::
       strcpy(datalayer.system.info.battery_protocol + sizeof("Nissan LEAF ") - 1, LEAF_gen_name[LEAF_battery_Type]);
     }
     datalayer_nissan->GIDS = battery_GIDS;
-    datalayer_nissan->ChargePowerLimit_W = battery_Charge_Power_avg_W;
+    datalayer_nissan->ChargePowerLimit = battery_Charge_Power_Limit;
     datalayer_nissan->MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
     datalayer_nissan->Interlock = battery_Interlock;
     datalayer_nissan->Insulation = battery_insulation;
@@ -691,8 +691,10 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (charge_limit == 0x3FF) {
         charge_limit = 0;
       }
-      //Straight into this pack's moving average, as only the means are published
+      //Straight into this pack's moving average, which is all the datalayer gets. More Battery Info
+      //shows the latest charge limit as it came.
       power_limit_window.add(discharge_limit, charge_limit);
+      battery_Charge_Power_Limit = charge_limit;
       battery_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
       break;
     }
