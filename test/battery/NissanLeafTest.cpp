@@ -1170,6 +1170,7 @@ TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
 // heading, then Status, Health and lifetime usage, the trouble codes and the degradation reset.
 TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  datalayer_extended.nissanleaf.LEAF_gen = 1;  // AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
 
@@ -1336,6 +1337,7 @@ TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
 // fields, failsafe status and relay cut request, by the names of their states.
 TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
   auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));  // AZE0, which shows every status row
   battery->update_values();
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
@@ -1349,6 +1351,7 @@ TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
 
 TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));  // AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
 
   // 0x1DB at 360 V: failsafe status 2 (charging mode stop request), no relay cut request, main
@@ -1404,6 +1407,7 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
   auto& leaf = datalayer_extended.nissanleaf;
   leaf.StatusSeen = 0x01;  //0x1DB has arrived
+  leaf.LEAF_gen = 1;       //AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
 
   const char* failsafe[] = {"Normal",
@@ -1431,6 +1435,26 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
   EXPECT_NE(html.find("<h4>Too low to heat: Unknown</h4><h4>Failsafe status: "), std::string::npos);
   EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4><h4>Automatic current offset: "),
             std::string::npos);
+}
+
+// The ZE0 LBC sends none of the 0x5C0 heater flags, so a ZE0 pack gets no heater rows at all,
+// while the flags of the same broadcast that it does send are still listed.
+TEST(NissanLeafStatusFlagTests, ShouldLeaveHeaterRowsOutOnZe0) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto& leaf = datalayer_extended.nissanleaf;
+  leaf.StatusSeen = 0x07;  //All three broadcasts have arrived
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
+
+  for (uint8_t gen = 0; gen < 3; gen++) {
+    leaf.LEAF_gen = gen;
+    const std::string html = renderer.get_status_html().str();
+    for (const char* label : {"Heater present", "Battery cold", "Heating requested", "Too low to heat"}) {
+      const bool shown = html.find(std::string("<h4>") + label + ":") != std::string::npos;
+      EXPECT_EQ(shown, gen != 0) << label << " on generation " << (int)gen;
+    }
+    EXPECT_NE(html.find("<h4>Fully charged: "), std::string::npos) << (int)gen;
+    EXPECT_NE(html.find("<h4>Failsafe status: "), std::string::npos) << (int)gen;
+  }
 }
 
 // Automatic current offset correction
