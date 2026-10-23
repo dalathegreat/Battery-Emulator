@@ -119,8 +119,8 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack);
 /**
  * @brief Roll every configured pack up into datalayer.aggregate.
  *
- * Call once per second, after every pack has been scaled. Fills everything except the four
- * limit fields, which update_aggregate_limits() owns.
+ * Call once per second, after every pack has been scaled. Fills everything except the limit
+ * fields, which combine_pack_limits() and update_aggregate_limits() own.
  */
 void update_aggregate_values();
 
@@ -164,13 +164,35 @@ static inline uint32_t current_cap_to_power_W(uint16_t current_dA, uint16_t volt
 }
 
 /**
+ * @brief Passes - seconds - the inverter is given to follow a change of the parallel charge limit
+ * before the packs' powers are measured against it again. See combine_pack_limits().
+ */
+static constexpr uint8_t PARALLEL_SETTLE_PASSES = 10;
+
+/**
+ * @brief Passes - seconds - a pack's charge limit has to stay up before a parallel raise counts on
+ * the higher value. A lower one counts at once. See combine_pack_limits().
+ */
+static constexpr uint8_t PARALLEL_LIMIT_HOLD_PASSES = 60;
+
+/**
+ * @brief Fold the joined packs' power limits into datalayer.aggregate, with several batteries.
+ *
+ * Call once per second, after the safety layer and before the SOC taper and the low pass filter,
+ * which then shape the combined limits instead of pack 1's. Discharge gets the lowest joined
+ * pack's limit. Charge starts there and is raised in steps, while the installation charges at it,
+ * until the tightest pack takes its own limit. Does nothing with a single battery.
+ */
+void combine_pack_limits();
+
+/**
  * @brief Fill the charge/discharge limits in datalayer.aggregate.
  *
- * Call last in the update chain, after the safety layer, the SOC taper and the low pass filter
- * have shaped datalayer.battery, and before the inverter is updated. Both the power and the
- * current limits come out capped to effective_charge_cap_dA() / effective_discharge_cap_dA(), so
- * a protocol reading either one honours it. While forced recovery charge is on, its small charge
- * current replaces the charge limits, unless charging and discharging are paused.
+ * Call last in the update chain, after the safety layer, combine_pack_limits(), the SOC taper and
+ * the low pass filter, and before the inverter is updated. Both the power and the current limits
+ * come out capped to effective_charge_cap_dA() / effective_discharge_cap_dA(), so a protocol
+ * reading either one honours it. While forced recovery charge is on, its small charge current
+ * replaces the charge limits, unless charging and discharging are paused.
  */
 void update_aggregate_limits();
 

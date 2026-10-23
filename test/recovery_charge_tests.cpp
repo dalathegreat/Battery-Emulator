@@ -64,6 +64,7 @@ class RecoveryChargeTest : public ::testing::Test {
     }
     update_aggregate_values();
     update_machineryprotection(now_ms);
+    combine_pack_limits();
     update_aggregate_limits();
   }
 

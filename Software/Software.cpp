@@ -163,15 +163,40 @@ void logging_loop(void*) {
 }
 #endif  // SDCARD
 
+/* The limits the SOC taper and the low pass filter shape - the installation's - and the voltage
+   they convert at. With a single battery that is pack 1 itself, exactly as before. With several it
+   is the aggregate, which combine_pack_limits() has just filled from the joined packs, the parallel
+   raise included, so both act on the combined limits and keep the last word over them. */
+struct InstallationLimits {
+  uint32_t& charge_W;
+  uint32_t& discharge_W;
+  uint16_t& charge_dA;
+  uint16_t& discharge_dA;
+  uint16_t voltage_dV;  // Live, or the design maximum while there is none: as update_calculated_values()
+};
+
+static InstallationLimits installation_limits(void) {
+  if (datalayer.system.info.configured_batteries > 1) {
+    DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
+    return {a.max_charge_power_W, a.max_discharge_power_W, a.max_charge_current_dA, a.max_discharge_current_dA,
+            (a.voltage_dV > 10) ? a.voltage_dV : a.max_design_voltage_dV};
+  }
+  DATALAYER_BATTERY_TYPE& b = datalayer.battery;
+  return {b.status.max_charge_power_W, b.status.max_discharge_power_W, b.status.max_charge_current_dA,
+          b.status.max_discharge_current_dA,
+          (b.status.voltage_dV > 10) ? b.status.voltage_dV : b.info.max_design_voltage_dV};
+}
+
 /* Linear charge power taper over the top of the SOC window: full power at
    (100.00% - band), reaching 0W at 100.00% scaled SOC. Battery integration
-   independent - operates on the datalayer limits every battery driver rewrites
-   each cycle, so in-place scaling never compounds. Runs AFTER
-   update_machineryprotection() so its input includes safety-layer zeroing, and
-   BEFORE filter_inverter_limits() so the reduction passes through the low pass
-   filter instantly (decrease path) while recovery after SOC falls back below
-   the band gets the ramp. Independent from the low pass filter setting - the
-   user can enable none, either or both. */
+   independent - operates on the installation's limits (installation_limits()),
+   which are rewritten from the battery drivers each cycle, so in-place scaling
+   never compounds. Runs AFTER update_machineryprotection() and
+   combine_pack_limits() so its input includes safety-layer zeroing and the
+   parallel raise, and BEFORE filter_inverter_limits() so the reduction passes
+   through the low pass filter instantly (decrease path) while recovery after SOC
+   falls back below the band gets the ramp. Independent from the low pass filter
+   setting - the user can enable none, either or both. */
 static void filter_charge_taper_soc(void) {
   static bool taper_engaged_logged = false;
   if (!charge_taper_soc || charge_taper_band_pptt == 0) {
@@ -186,17 +211,15 @@ static void filter_charge_taper_soc(void) {
     band = 10000;
   }
   if (soc >= (10000 - band)) {
-    uint32_t charge_W = datalayer.battery.status.max_charge_power_W;
+    InstallationLimits limits = installation_limits();
+    uint32_t charge_W = limits.charge_W;
 
     /* Apply the effective current cap (remote if active, otherwise user, same
        precedence as update_calculated_values()) to the taper input, so the
        band acts on the limit the inverter actually sees instead of on BMS
        headroom above the cap. Idempotent with the same cap applied again in
        filter_inverter_limits() and update_aggregate_limits(). */
-    uint16_t voltage_dV = datalayer.battery.status.voltage_dV;
-    if (voltage_dV <= 10) {
-      voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-    }
+    const uint16_t voltage_dV = limits.voltage_dV;
     if (voltage_dV > 10) {
       uint32_t cap_W = current_cap_to_power_W(effective_charge_cap_dA(), voltage_dV);
       if (charge_W > cap_W) {
@@ -205,7 +228,8 @@ static void filter_charge_taper_soc(void) {
     }
 
     uint32_t base_W = charge_W;  // Allowance entering the taper, after the user/remote cap
-    charge_W = (charge_W * (uint32_t)(10000 - soc)) / band;
+    // 64 bit: with several packs this can be their combined limit
+    charge_W = (uint32_t)(((uint64_t)charge_W * (uint32_t)(10000 - soc)) / band);
 
     /* Optional float charge power: hold a minimum charge power through the
        tail of the band, dropping to 0W only at 100.00% scaled SOC. Keeps
@@ -219,7 +243,7 @@ static void filter_charge_taper_soc(void) {
       charge_W = charge_taper_floor_W;
     }
 
-    datalayer.battery.status.max_charge_power_W = charge_W;
+    limits.charge_W = charge_W;
 
     /* Pull the derived current limit down too, so current-based inverters are
        covered when the low pass filter is disabled. min() only - the
@@ -227,14 +251,14 @@ static void filter_charge_taper_soc(void) {
        raised. */
     if (voltage_dV > 10) {
       uint32_t charge_dA_from_power = (charge_W * 100) / voltage_dV;
-      if (charge_dA_from_power < datalayer.battery.status.max_charge_current_dA) {
-        datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_dA_from_power;
+      if (charge_dA_from_power < limits.charge_dA) {
+        limits.charge_dA = (uint16_t)charge_dA_from_power;
       }
     }
 
     if (!taper_engaged_logged) {
       logging.printf("Charge power tapering based on SOC engaged at %.1f (real) %.1f (scaled)\n",
-                     datalayer.battery.status.real_soc / 100.0f, soc / 100.0f);
+                     datalayer.aggregate.real_soc / 100.0f, soc / 100.0f);
       taper_engaged_logged = true;
     }
   } else if (soc < (10000 - band - 50)) {  // 0.5% hysteresis before re-arming the log entry
@@ -246,9 +270,10 @@ static void filter_charge_taper_soc(void) {
    10% new / 90% old per 1s cycle, ~10s time constant). Decreases take effect immediately.
    Runs AFTER update_machineryprotection() so its input includes safety-layer zeroing
    (pause, fault, battery full, voltage/cell limits) - otherwise a safety block release
-   would expose a filter state that never saw the zero, skipping the ramp entirely.
-   Filter state is kept locally, since battery drivers and the safety layer rewrite the
-   datalayer values every cycle. */
+   would expose a filter state that never saw the zero, skipping the ramp entirely - and
+   after combine_pack_limits(), so each step of the parallel raise is ramped too.
+   Works on the installation's limits (installation_limits()). Filter state is kept
+   locally, since those are rewritten from the battery drivers every cycle. */
 static void filter_inverter_limits(void) {
   if (!inverter_low_pass_filter) {
     return;  // Datalayer values pass through untouched - identical to legacy behavior
@@ -262,12 +287,10 @@ static void filter_inverter_limits(void) {
      cap. Also makes runtime cap increases - an expiring remote limit included - ramp instead of
      jump, and lets a remote limit above the user one through. update_aggregate_limits() applies
      the same cap again, which is idempotent. */
-  uint32_t charge_in = datalayer.battery.status.max_charge_power_W;
-  uint32_t discharge_in = datalayer.battery.status.max_discharge_power_W;
-  uint16_t cap_voltage_dV = datalayer.battery.status.voltage_dV;
-  if (cap_voltage_dV <= 10) {
-    cap_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-  }
+  InstallationLimits limits = installation_limits();
+  uint32_t charge_in = limits.charge_W;
+  uint32_t discharge_in = limits.discharge_W;
+  const uint16_t cap_voltage_dV = limits.voltage_dV;
   if (cap_voltage_dV > 10) {
     const uint32_t charge_cap_W = current_cap_to_power_W(effective_charge_cap_dA(), cap_voltage_dV);
     const uint32_t discharge_cap_W = current_cap_to_power_W(effective_discharge_cap_dA(), cap_voltage_dV);
@@ -296,24 +319,21 @@ static void filter_inverter_limits(void) {
       discharge_power_W_filtered = discharge_in;
     }
   }
-  datalayer.battery.status.max_charge_power_W = charge_power_W_filtered;
-  datalayer.battery.status.max_discharge_power_W = discharge_power_W_filtered;
+  limits.charge_W = charge_power_W_filtered;
+  limits.discharge_W = discharge_power_W_filtered;
 
   /* Cap the derived currents with values from the filtered power. min() logic is used so the
      user/remote/safety clamps already applied to the _dA fields are never raised - both
      are upper bounds. Same voltage fallback logic as in update_calculated_values(). */
-  uint16_t conversion_voltage_dV = datalayer.battery.status.voltage_dV;
-  if (conversion_voltage_dV <= 10) {
-    conversion_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-  }
+  const uint16_t conversion_voltage_dV = limits.voltage_dV;
   if (conversion_voltage_dV > 10) {
     uint32_t charge_dA_from_power = power_W_to_current_dA(charge_power_W_filtered, conversion_voltage_dV);
     uint32_t discharge_dA_from_power = power_W_to_current_dA(discharge_power_W_filtered, conversion_voltage_dV);
-    if (charge_dA_from_power < datalayer.battery.status.max_charge_current_dA) {
-      datalayer.battery.status.max_charge_current_dA = (uint16_t)charge_dA_from_power;
+    if (charge_dA_from_power < limits.charge_dA) {
+      limits.charge_dA = (uint16_t)charge_dA_from_power;
     }
-    if (discharge_dA_from_power < datalayer.battery.status.max_discharge_current_dA) {
-      datalayer.battery.status.max_discharge_current_dA = (uint16_t)discharge_dA_from_power;
+    if (discharge_dA_from_power < limits.discharge_dA) {
+      limits.discharge_dA = (uint16_t)discharge_dA_from_power;
     }
   }
 }
@@ -579,9 +599,10 @@ void core_loop(void*) {
       }
       update_calculated_values(currentMillis);
       update_machineryprotection(currentMillis);  // Check safeties
-      filter_charge_taper_soc();                  // Taper charge limit near full SOC (runs after safeties, before LPF)
-      filter_inverter_limits();                   // Smooth limits towards inverter (runs after safeties on purpose)
-      update_aggregate_limits();                  // Fold pack 2/3 into the inverter limits, after every filter
+      combine_pack_limits();      // Fold pack 2/3 in, charge raised for parallel packs (after safeties, before filters)
+      filter_charge_taper_soc();  // Taper charge limit near full SOC (runs after safeties, before LPF)
+      filter_inverter_limits();   // Smooth limits towards inverter (runs after safeties on purpose)
+      update_aggregate_limits();  // Current caps and recovery charge on the inverter limits, after every filter
 
       // Update values heading towards inverter
       if (inverter) {
