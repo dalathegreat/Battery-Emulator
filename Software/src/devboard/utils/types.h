@@ -135,7 +135,7 @@ const char* limiting_factor_to_text(LimitingFactor factor);
 const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_charge, bool inverter_limits_discharge,
                                      bool user_settings_limit_charge, bool user_settings_limit_discharge);
 
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
 /* Configurable GPIO options (device specific) */
 enum class GPIOOPT1 {
   // T-2CAN: WUP1/WUP2 on GPIO1/GPIO2
