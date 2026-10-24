@@ -15,7 +15,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   const char* name() override { return Name; }
   bool setup() override;
   void update_values();
-  static constexpr const char* Name = "BYD 11kWh HVM battery over Modbus RTU";
+  static constexpr const char* Name = "BYD HVS/HVM over Modbus";
 
  private:
   void handle_static_data();
@@ -41,10 +41,6 @@ class BydModbusInverter : public ModbusInverterProtocol {
   static const uint8_t HISTORY_LENGTH =
       5;  // Amount of samples(minutes) that needs to match for register to be considered stale
   unsigned long previousMillis60s = 0;  // will store last time a 60s event occured
-  uint32_t user_configured_max_discharge_W = 0;
-  uint32_t user_configured_max_charge_W = 0;
-  uint32_t max_discharge_W = 0;
-  uint32_t max_charge_W = 0;
   uint16_t register_401_history[5] = {0};
   uint8_t history_index = 0;
   uint16_t last_register_407 = 0;  // Last RebootCommand seen, so only changes are acted on

@@ -346,8 +346,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
-  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
-  uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
+  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in 0.25 kW steps, 0 while the LBC reports none
+  uint16_t battery_Charge_Power_Limit = 0;     //Limit in 0.25 kW steps, 0 while the LBC reports none
   int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
   int16_t battery_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
   uint16_t battery_TEMP = 0;                   //Temporary value used in status checks
@@ -358,6 +358,9 @@ class NissanLeafBattery : public CanBattery {
   //State of health in whole percent from broadcast 0x5BC, 0 until the pack has reported one.
   //No value is invented at boot: an SOH that has not been read is reported as unknown instead.
   uint16_t battery_StateOfHealth = 0;
+  //LB_Output_Power_Limit_Reason from 0x5BC, and the value last written to the log
+  uint8_t battery_Output_Power_Limit_Reason = 0;
+  uint8_t battery_Output_Power_Limit_Reason_logged = 0;
   uint16_t battery_Total_Voltage2 = 0;            //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
   int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
   int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C

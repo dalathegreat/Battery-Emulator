@@ -327,7 +327,8 @@ void init_stored_settings() {
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
-  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
+  // Capped, so a value saved before the range was narrowed is taken into use within it.
+  mqtt_timeout_ms = mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000));
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   // Publish after a firmware update when asked to: the configs carry sw_version and can
@@ -395,6 +396,8 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
+  datalayer_extended.bydAtto3.balance_timer_auto_read = settings.getBool("BYDBALAUTO", false);
+  datalayer_extended.bydAtto3_2.balance_timer_auto_read = settings.getBool("BYDBALAUTO2", false);
 }
 
 void clear_wifi_sta_settings() {
@@ -465,4 +468,6 @@ void store_settings() {
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
+  settings.saveBool("BYDBALAUTO", datalayer_extended.bydAtto3.balance_timer_auto_read);
+  settings.saveBool("BYDBALAUTO2", datalayer_extended.bydAtto3_2.balance_timer_auto_read);
 }
