@@ -571,19 +571,20 @@ void MgGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void MgGen1Battery::got_battery_type(uint32_t type) {
-  // We've received a battery type code, which we can use to update the battery
+  // We've received a battery type code, which we use to update the battery
   // parameters.
 
-  // The type is the chemistry character plus the first three characters of the
-  // model code, from the Chinese "National Standard Traceability Code".
+  // The type is NSTC bytes 3-6 (0-indexed [2]-[5]) as big-endian uint32:
+  // the tail of the manufacturer code plus the model family, from the
+  // Chinese "National Standard Traceability Code".
 
   // These have been gathered from observed B18C serial numbers:
-  // 0AFPED30: HS NMC
-  // 05LPEL10: ZS 44kWh NMC
-  // 066PED90: MG5 52kWh NMC
-  // 066PBK40: MG5 50kWh LFP
-  // 05LPEP2C: MG5 61kWh NMC
-  // 05LPEN2C: MG5 69.9kWh NMC
+  // 0AFPED30 -> "FPED": HS NMC
+  // 05LPEL10 -> "LPEL": ZS 44kWh NMC
+  // 066PED90 -> "6PED": MG5 52kWh NMC
+  // 066PBK40 -> "6PBK": MG5 50kWh LFP
+  // 05LPEP2C -> "LPEP": MG5 61kWh NMC
+  // 05LPEN2C / 05LPEN10 -> "LPEN": MG5 69.9kWh NMC
 
   auto setup_battery = [&](uint32_t type, uint8_t number_of_cells, uint16_t max_power, uint32_t total_capacity_Wh) {
     batteryType = type;
@@ -622,7 +623,9 @@ void MgGen1Battery::got_battery_type(uint32_t type) {
     logging.println("[MG] Detected MG5 69.9kWh NMC (96s)");
     setup_battery(type, 96, 14000, 69900);
   } else {
-    logging.printf("[MG] Unknown battery type: %s\n", (const char*)pid_nstc_serial);
+    char buf[128];
+    print_chars_or_hex(buf, pid_nstc_serial, sizeof(pid_nstc_serial));
+    logging.printf("[MG] Unknown battery type: %s\n", buf);
   }
 
   datalayer_battery->info.max_design_voltage_dV =
@@ -647,15 +650,15 @@ uint16_t MgGen1Battery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
       break;
 
     case POLL_BATTERY_NSTC_SERIAL:
-      if (value == 0) {
-        // Retry until we get a valid number
+      if (value == 0 || length < 6) {
+        // Invalid or too short, retry
         return POLL_BATTERY_NSTC_SERIAL;
       }
+      // We extract a 'battery type' from the NSTC serial number: bytes
+      // 3-6 (0-indexed [2]-[5]) as big-endian uint32 (see got_battery_type).
       memcpy(pid_nstc_serial, data, length > sizeof(pid_nstc_serial) ? sizeof(pid_nstc_serial) : length);
-      // We extract a 'battery type' from the NSTC serial number, consisting of
-      // the chemistry plus the first three letters of the model code (big-endian).
-      got_battery_type((pid_nstc_serial[4] << 24) | (pid_nstc_serial[5] << 16) | (pid_nstc_serial[6] << 8) |
-                       pid_nstc_serial[7]);
+      got_battery_type(((uint32_t)pid_nstc_serial[2] << 24) | ((uint32_t)pid_nstc_serial[3] << 16) |
+                       ((uint32_t)pid_nstc_serial[4] << 8) | pid_nstc_serial[5]);
       break;
     case POLL_BATTERY_ECU_HW_NUMBER:
       memcpy(pid_ecu_hw_number, data, length > sizeof(pid_ecu_hw_number) ? sizeof(pid_ecu_hw_number) : length);

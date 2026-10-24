@@ -17,7 +17,7 @@ test/tests[1]_include.cmake
 *.exe
 **/.DS_Store
 
-# Ignore PlatformIO & compilation files
+#ignore platformio & compilation files
 .pioenvs
 .piolibdeps
 .clang_complete
@@ -29,6 +29,8 @@ managed_components/
 sdkconfig.*
 !sdkconfig.be_size.defaults
 !sdkconfig.waveshare.defaults
+CMakeLists.txt
+dependencies.lock
 
 # Ignore upload command (removes the need to re-compile after Verify when running Download, in e.g. VS Code)
 upload.bat

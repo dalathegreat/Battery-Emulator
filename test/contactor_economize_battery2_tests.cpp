@@ -20,10 +20,12 @@
 // setting is the current the coil ends up holding at, which no state variable
 // records.
 
-namespace {
-
 // Mirrors the file-scope FSM in comm_contactorcontrol.cpp. Must match it.
+// File scope on purpose: an enum in an anonymous namespace has no linkage,
+// and then extern contactorStatus cannot name the variable in that file.
 enum SeqState { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
+
+namespace {
 
 // Duties and timings from comm_contactorcontrol.cpp, where they are #defines and
 // so not reachable from here. Kept in step with it deliberately: if the ladder is

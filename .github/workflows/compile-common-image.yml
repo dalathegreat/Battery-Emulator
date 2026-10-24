@@ -18,10 +18,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # CI uses project-local packages, independently of any Windows-only path
-    # in platformio.ini. pioarduino bootstrap tools still live under ~/.platformio.
-    env:
-      PLATFORMIO_PACKAGES_DIR: ${{ github.workspace }}/.pio/packages
     
     strategy:
       fail-fast: false
@@ -39,8 +35,6 @@ jobs:
             pio_env: "BECom_330"
           - board_name: "Waveshare ESP32S3RS485CAN"
             pio_env: "waveshare_330"
-          - board_name: "Waveshare ESP32-S3 Touch LCD-5B"
-            pio_env: "waveshare_LCD_5B"
           - board_name: "DFRobot Edge101"
             pio_env: "dfrobot_edge101_330"
 
@@ -67,12 +61,11 @@ jobs:
       with:
         path: |
           ~/.cache/pip
-          .pio/packages
-          ~/.platformio/tools
+          ~/.platformio/packages
           ~/.platformio/platforms
           ~/.platformio/.cache
           sdkconfig.defaults
-        key: ${{ runner.os }}-pio-lcd5b-v1-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults', 'sdkconfig.waveshare.defaults', 'include/lv_conf.h', 'boards/*.json', '.github/workflows/compile-common-image.yml') }}-${{ matrix.pio_env }}
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
 
     # The env cache will miss if platformio.ini or the custom sdkconfig has
     # changed. In that case, we can use a fallback cache which just avoids
@@ -97,11 +90,11 @@ jobs:
     # preserve mtimes).
     - name: Pin sdkconfig mtime
       run: |
-        # Fail clearly if a required source config was omitted from Git.
-        test -f sdkconfig.be_size.defaults
-        test -f sdkconfig.waveshare.defaults
-        touch -m -d2026-01-01 sdkconfig.be_size.defaults sdkconfig.waveshare.defaults
-        ls -l --time-style=+"%s" sdkconfig.be_size.defaults sdkconfig.waveshare.defaults
+        # Fix the mtimes of the sdkconfig.be_size.defaults file to avoid unnecessary rebuilds.
+        touch -m -d2026-01-01 sdkconfig.be_size.defaults
+        # Check that the mtime is set correctly (in seconds since epoch).
+        ls -l sdkconfig.be_size.defaults
+        ls -l --time-style=+"%s" sdkconfig.be_size.defaults
 
     - uses: actions/setup-python@v7
       with:
@@ -121,6 +114,12 @@ jobs:
 
     - name: Install PlatformIO Core
       run: pip install --upgrade "platformio==6.2.0"
+
+    # Add a line to print out the hash check values, to help debug why
+    # PlatformIO might trigger a rebuild.
+    - name: Insert cache check debugging
+      run: |
+        sed -i "/if line\.split.*expected_hash:/i \                print('Hash check, sdkconfig has:', line.split(\"__\")[1].strip(), 'was expecting:', expected_hash, 'data is:', repr(custom_options.strip() + mcu))" ~/.platformio/platforms/espressif32/builder/frameworks/arduino.py || echo "sed failed"
 
     - name: Build image for ${{ matrix.board_name }}
       shell: bash
@@ -202,13 +201,13 @@ jobs:
     - name: Reduce size of cache
       run: |
         # Remove libs we don't use to keep the caches smaller
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32c3"
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32c5"
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32c6"
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32h2"
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32p4"
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32p4_es"
-        rm -rf "${PLATFORMIO_PACKAGES_DIR}/framework-arduinoespressif32-libs/esp32s2"
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c3
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c5
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32c6
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32h2
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32p4
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32p4_es
+        rm -rf ~/.platformio/packages/framework-arduinoespressif32-libs/esp32s2
         # Check sdkconfig mtimes for debugging purposes
         ls -l sdkconfig.* || echo "ls failed"
 
@@ -219,12 +218,11 @@ jobs:
       with:
         path: |
           ~/.cache/pip
-          .pio/packages
-          ~/.platformio/tools
+          ~/.platformio/packages
           ~/.platformio/platforms
           ~/.platformio/.cache
           sdkconfig.defaults
-        key: ${{ runner.os }}-pio-lcd5b-v1-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults', 'sdkconfig.waveshare.defaults', 'include/lv_conf.h', 'boards/*.json', '.github/workflows/compile-common-image.yml') }}-${{ matrix.pio_env }}
+        key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'sdkconfig.be_size.defaults') }}-${{ matrix.pio_env }}
     
     # Only save fallback cache if it was a miss. The always() means we'll still
     # save the fallback cache even if the build failed, since we want to avoid

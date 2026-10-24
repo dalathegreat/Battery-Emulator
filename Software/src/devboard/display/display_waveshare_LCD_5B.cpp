@@ -312,7 +312,7 @@ int soc_step_value(int value,bool minimum,bool increase) {
 }
 
 void refresh_soc() {
-  auto& settings=datalayer.battery.settings;
+  auto& settings=datalayer.battery_settings;
   text(scale_label,settings.soc_scaling_active?ui_text::scale_on:ui_text::scale_off);
   static int previous=-1;
   int active=settings.soc_scaling_active?1:0;
@@ -329,7 +329,7 @@ void refresh_soc() {
 }
 
 void open_soc() {
-  auto& s=datalayer.battery.settings;
+  auto& s=datalayer.battery_settings;
   soc_original_min=s.min_percentage;soc_original_max=s.max_percentage;
   soc_original_scaling=s.soc_scaling_active;
   // Opening never overwrites stored settings. Explicit preset loads 10/100.
@@ -357,7 +357,7 @@ void soc_action(int target) {
 }
 
 void enable_soc_scaling() {
-  auto& s=datalayer.battery.settings;
+  auto& s=datalayer.battery_settings;
   // User asked for command 1=yes, not a toggle or a one-shot calibration.
   if(s.soc_scaling_active || soc_pending)return;
   if(!valid_soc_window(s.min_percentage,s.max_percentage)){
@@ -369,7 +369,7 @@ void enable_soc_scaling() {
 void service_soc_save() {
   if(!soc_pending)return;
   unsigned operation=soc_pending;soc_pending=0;
-  auto& s=datalayer.battery.settings;
+  auto& s=datalayer.battery_settings;
   if(operation==1){
     // Do not overwrite an edit made through the web while this menu was open.
     // This is a best-effort conflict check, not a cross-task transaction.
@@ -651,7 +651,7 @@ void change_page() {
 }
 
 void adjust_limit(bool charge, bool increase) {
-  auto& settings = datalayer.battery.settings;
+  auto& settings = datalayer.battery_settings;
   uint16_t& target = charge ? settings.max_user_set_charge_dA : settings.max_user_set_discharge_dA;
   int old = target;
   // Values from other interfaces may be off-grid: preserve exact +/-5 A,
@@ -850,8 +850,8 @@ void refresh_data() {
       text(voltage_label, "-- V"); text(current_label, "-- A"); text(power_label, "-- kW");
       text(charge_effective, ui_text::available_missing); text(discharge_effective, ui_text::available_missing);
     }
-    snprintf(s, sizeof(s), "%.1f A", b.settings.max_user_set_charge_dA / 10.0); text(charge_label, s);
-    snprintf(s, sizeof(s), "%.1f A", b.settings.max_user_set_discharge_dA / 10.0); text(discharge_label, s);
+    snprintf(s, sizeof(s), "%.1f A", datalayer.battery_settings.max_user_set_charge_dA / 10.0); text(charge_label, s);
+    snprintf(s, sizeof(s), "%.1f A", datalayer.battery_settings.max_user_set_discharge_dA / 10.0); text(discharge_label, s);
   } else {
     unsigned n = b.info.number_of_cells;
     if (n > MAX_AMOUNT_CELLS) n = MAX_AMOUNT_CELLS;

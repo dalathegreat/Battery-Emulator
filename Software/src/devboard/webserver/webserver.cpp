@@ -8,7 +8,9 @@
 #include "../../battery/BATTERIES.h"
 #include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -22,6 +24,7 @@
 #include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
@@ -342,6 +345,24 @@ void init_webserver() {
     request->send(response);
   });
 
+  def_route_with_auth("/bydCellBalanceAutomation", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!request->hasParam("enabled")) {
+      request->send(400, "text/plain", "enabled is required");
+      return;
+    }
+    const bool enabled = request->getParam("enabled")->value().toInt() != 0;
+    if (!set_byd_cell_balance_automation(index, enabled)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool(index ? "BYDBALAUTO2" : "BYDBALAUTO", enabled);
+    prefs.end();
+    request->send(204);
+  });
+
   // Route for going to CAN tools web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_replay_processor()));
@@ -485,29 +506,31 @@ void init_webserver() {
   });
 
   const char* boolSettingNames[] = {
-      "DBLBTR",       "CNTCTRL",      "CNTCTRLDBL",    "PWMCNTCTRL",  "PERBMSRESET",   "STATICIP",     "REMBMSRESET",
-      "EXTPRECHARGE", "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",
-      "HADISC",       "MQTTCELLV",    "GTWRHD",        "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",
-      "PYLONOFFSET",  "PYLONORDER",   "DEYEBYD",       "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED",
-      "PRIMOGEN24",   "CTINVERT",     "LOWPASSFILTER", "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",  "MEASURECPUTEMP",
-      "SYSLOGEN",     "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID",  "CHGESTIMATED",  "MQTTHEAP",     "HADISCFWU",
-      "INVACCREB",    "LEAFAUTOOFS",
+      "DBLBTR",       "CNTCTRL",       "CNTCTRLDBL", "PWMCNTCTRL",   "PERBMSRESET",   "STATICIP",       "REMBMSRESET",
+      "EXTPRECHARGE", "USBENABLED",    "CANLOGUSB",  "WEBENABLED",   "WIFIAPENABLED", "MQTTENABLED",    "NOINVDISC",
+      "HADISC",       "MQTTCELLV",     "GTWRHD",     "DIGITALHVIL",  "PERFPROFILE",   "INTERLOCKREQ",   "SOCESTIMATED",
+      "PYLONOFFSET",  "PYLONORDER",    "DEYEBYD",    "NCCONTACTOR",  "TRIBTR",        "CNTCTRLTRI",     "ESPNOWENABLED",
+      "PRIMOGEN24",   "LOWPASSFILTER", "WEBAUTH",    "SLOWCANINV",   "CHGTAPERSOC",   "MEASURECPUTEMP", "SYSLOGEN",
+      "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID", "CHGESTIMATED", "MQTTHEAP",      "HADISCFWU",      "INVACCREB",
+      "LEAFAUTOOFS",
+#ifndef SMALL_FLASH_DEVICE
+      "CTINVERT",
+#endif  // SMALL_FLASH_DEVICE
 #ifdef SDCARD
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",  "BATTCVMIN",    "MAXPRETIME",    "MAXPREFREQ",    "WIFICHANNEL",   "DCHGPOWER",     "CHGPOWER",
-      "MQTTPORT",   "MQTTTIMEOUT",  "SOFAR_ID",      "PYLONSEND",     "INVCELLS",      "INVMODULES",    "INVCELLSPER",
-      "INVVLEVEL",  "INVCAPACITY",  "INVBTYPE",      "PRECHGMS",      "PWMFREQ",       "PWMHOLD",       "GTWCOUNTRY",
-      "GTWMAPREG",  "GTWCHASSIS",   "GTWPACK",       "LEDMODE",       "GPIOOPT1",      "GPIOOPT2",      "GPIOOPT3",
-      "INVSUNTYPE", "GPIOOPT4",     "CTVNOM",        "CTANOM",        "CTATTEN",       "PYLONBAUD",     "PYLONBRAND",
-      "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",
-      "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",
-      "SYSLOGFAC",  "PERBMSRESETH",
+      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL",  "DCHGPOWER",     "CHGPOWER",
+      "MQTTPORT",      "SOFAR_ID",      "PYLONSEND",  "INVCELLS",   "INVMODULES",   "INVCELLSPER",   "INVVLEVEL",
+      "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",    "PWMHOLD",      "GTWCOUNTRY",    "GTWMAPREG",
+      "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",   "GPIOOPT2",     "GPIOOPT3",      "INVSUNTYPE",
+      "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",
+      "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES",
+      "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",  "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "QNHIPN",     "QNHVO",
+      "CTVNOM",        "CTANOM",        "QNHIPN",     "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
   };
 
@@ -515,10 +538,13 @@ void init_webserver() {
                                       "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
                                       "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
 
+  // Balancing strategy of the 1st, 2nd and 3rd Nissan LEAF pack
+  const char* leafChgStaRqNames[] = {"CHGSTARQ", "CHGSTARQ2", "CHGSTARQ3"};
+
   // Handles the form POST from UI to save settings of the common image
   server.on(
       "/saveSettings", HTTP_POST,
-      [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+      [boolSettingNames, stringSettingNames, uintSettingNames, leafChgStaRqNames](AsyncWebServerRequest* request) {
         BatteryEmulatorSettingsStore settings;
         auto webAuthParam = request->getParam("WEBAUTH", true);
         auto httpUserParam = request->getParam("HTTPUSER", true);
@@ -616,23 +642,14 @@ void init_webserver() {
           } else if (p->name() == "BATTPVMIN") {
             auto type = p->value().toFloat() * 10.0f;
             settings.saveUInt("BATTPVMIN", (int)type);
+#ifndef SMALL_FLASH_DEVICE
           } else if (p->name() == "charger") {
             auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
             settings.saveUInt("CHGTYPE", (int)type);
-          } else if (p->name() == "CHGSTARQ") {
-            // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
-            // is not offered, so anything else falls back to "no request".
-            uint8_t request = atoi(p->value().c_str());
-            if (request > 2) {
-              request = 0;
-            }
-            settings.saveUInt("CHGSTARQ", request);
-            // Unlike the other settings this one is taken into use without a reboot, so the
-            // reset offered below sends the newly chosen request rather than the old one.
-            user_selected_LEAF_chg_sta_rq = request;
           } else if (p->name() == "CHGCOMM") {
             auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
             settings.saveUInt("CHGCOMM", (int)type);
+#endif  // SMALL_FLASH_DEVICE
           } else if (p->name() == "EQSTOP") {
             auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
             settings.saveUInt("EQSTOP", (int)type);
@@ -648,12 +665,22 @@ void init_webserver() {
           } else if (p->name() == "SHUNTCOMM") {
             auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
             settings.saveUInt("SHUNTCOMM", (int)type);
+#ifndef SMALL_FLASH_DEVICE
           } else if (p->name() == "CTOFFSET") {
             // allow negative offsets so save as string
             settings.saveString("CTOFFSET", p->value().c_str());
           } else if (p->name() == "CTATTEN") {
             auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
             settings.saveUInt("CTATTEN", (int)type);
+          } else if (p->name() == "QNHTC") {
+            // Entered in mV/°C with two decimals and signed, stored in uV/°C. 0 is off, and removed.
+            const int16_t tempco = qnhck_tempco_uV_per_C(p->value().toFloat());
+            if (tempco == 0) {
+              settings.removeKey("QNHTC");
+            } else {
+              settings.saveInt("QNHTC", tempco);
+            }
+#endif  // SMALL_FLASH_DEVICE
           } else if (p->name() == "CPUTEMPOFFSET") {
             // allow negative offsets so save as number
             settings.saveInt("CPUTEMPOFFSET", atoi(p->value().c_str()));
@@ -668,6 +695,23 @@ void init_webserver() {
           } else if (p->name() == "MQTTPUBLISHMS") {
             auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
             settings.saveUInt("MQTTPUBLISHMS", interval);
+          } else if (p->name() == "MQTTTIMEOUT") {
+            settings.saveUInt("MQTTTIMEOUT", mqtt_clamp_timeout_ms(atoi(p->value().c_str())));
+          }
+
+          for (uint8_t pack = 0; pack < 3; pack++) {
+            if (p->name() == leafChgStaRqNames[pack]) {
+              // Balancing strategy of a LEAF pack, stored as the CHG_STA_RQ bits themselves. 11b is
+              // the charge stop request and is not offered, so anything else falls back to 00b.
+              uint8_t request = atoi(p->value().c_str());
+              if (request > 2) {
+                request = 0;
+              }
+              settings.saveUInt(leafChgStaRqNames[pack], request);
+              // Unlike the other settings this one is taken into use without a reboot, so the
+              // reset offered below sends the newly chosen strategy rather than the old one.
+              user_selected_LEAF_chg_sta_rq[pack] = request;
+            }
           }
 
           for (auto& uintSetting : uintSettingNames) {
@@ -744,9 +788,9 @@ void init_webserver() {
           settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
         }
 
-        // The page offers a BMS reset when the starting sequence request was changed, since
-        // the LBC only reads that signal while it powers up. Done after every setting is
-        // stored so the reset runs against the saved configuration.
+        // The page offers a BMS reset when a balancing strategy was changed, since an LBC only
+        // reads it while it powers up. Done after every setting is stored so the reset runs
+        // against the saved configuration.
         auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
         if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
           if (periodic_bms_reset || remote_bms_reset) {
@@ -1139,6 +1183,7 @@ void init_webserver() {
     datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
+#ifndef SMALL_FLASH_DEVICE
   if (charger) {
     // Route for editing ChargerTargetV
     update_string_setting(
@@ -1153,7 +1198,7 @@ void init_webserver() {
         "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
         [](String value) {
           float val = value.toFloat();
-          return (val <= CHARGER_MAX_A) && (val <= datalayer.battery_settings.max_user_set_charge_dA) &&
+          return (val <= CHARGER_MAX_A) && (val * 10.0f <= datalayer.battery_settings.max_user_set_charge_dA) &&
                  (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
         });
 
@@ -1169,6 +1214,7 @@ void init_webserver() {
     update_int_setting("/updateChargerAux12vEnabled",
                        [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // Send a GET request to <ESP_IP>/update
   def_route_with_auth("/debug", server, HTTP_GET,
@@ -1601,7 +1647,12 @@ static bool render_live(CheckedHtml& content) {
     // Close the block
     content += "</div>";
 
-    if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
+#ifndef SMALL_FLASH_DEVICE
+    const bool charger_in_use = charger != nullptr;
+#else
+    const bool charger_in_use = false;  // Chargers are left out of the small flash devices
+#endif  // SMALL_FLASH_DEVICE
+    if (inverter || battery || charger_in_use || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
@@ -1640,11 +1691,13 @@ static bool render_live(CheckedHtml& content) {
         content += "</h4>";
       }
 
+#ifndef SMALL_FLASH_DEVICE
       if (charger) {
         content += "<h4 style='color: white;'>Charger protocol: ";
         content += charger->name();
         content += "</h4>";
       }
+#endif  // SMALL_FLASH_DEVICE
 
       // Close the block
       content += "</div>";
@@ -1819,6 +1872,7 @@ static bool render_live(CheckedHtml& content) {
     // Close the block
     content += "</div>";
 
+#ifndef SMALL_FLASH_DEVICE
     if (charger) {
       // Start a new block with orange background color
       content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -1865,6 +1919,7 @@ static bool render_live(CheckedHtml& content) {
 
       content += "</div>";
     }
+#endif  // SMALL_FLASH_DEVICE
   }
   return content.good();
 }

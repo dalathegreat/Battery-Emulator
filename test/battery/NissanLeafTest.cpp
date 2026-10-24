@@ -13,6 +13,7 @@
 // Recorder for everything the emulated CAN interface transmits (test/emul/can.cpp).
 void clear_transmitted_frames();
 const std::vector<CAN_frame>& get_transmitted_frames();
+const std::vector<CAN_Interface>& get_transmitted_interfaces();
 
 namespace {
 
@@ -328,6 +329,73 @@ TEST(NissanLeafHealthTests, ShouldIgnorePublishedStateOfHealthOnResetPack) {
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);                   // What it actually holds
 }
 
+// Whichever of the two readings is the more pessimistic is the one reported. Here the LBC has seen
+// wear the capacity reference has not, so its own figure wins over the derived one.
+TEST(NissanLeafHealthTests, ShouldReportTheLowerOfTheDerivedAndPublishedStateOfHealth) {
+  auto battery = battery_polling();
+
+  // Health block SOH 80.00 %, against a measured capacity that works out to 95.71 %.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
+  feed_pack_capacity(battery, 558900);  // 55.89 Ah, 20120 Wh of a 21021 Wh reference
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 8000u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8000u);
+  // The capacity rows keep reporting what was measured; only the SOH takes the lower figure.
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 20120u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityWh, 20120u);
+}
+
+// And with nothing published to compare against, the derived figure stands on its own.
+TEST(NissanLeafHealthTests, ShouldKeepTheDerivedStateOfHealthWhenThePackPublishesNone) {
+  auto battery = battery_polling();  // Leaves the broadcast SOH byte at zero
+
+  feed_pack_capacity(battery, 558900);
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.battery_SOHavg_pptt, 0u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9571u);
+}
+
+// The info page carries whichever figure the status page is not showing, so the two together say
+// why the status page shows what it does. Here the derived figure is the lower one and went to the
+// status page, so the info page names the published one.
+TEST(NissanLeafHealthTests, ShouldShowThePublishedStateOfHealthWhenTheDerivedOneIsReported) {
+  auto battery = battery_polling();
+
+  // Health block: SOH 99.00 %, raw 98.50 %. Measured capacity works out to 56.71 %.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x26, 0xAC}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x26, 0x7A, 0x26, 0xAC, 0x03, 0x00}));
+  feed_pack_capacity(battery, 331250);
+  battery->update_values();
+
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // The derived one reached the status page
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  const std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("SOH rep: 99.00% (raw 98.50%)"), std::string::npos);
+  EXPECT_EQ(html.find("SOH der"), std::string::npos);
+}
+
+// And the other way round: the published figure is the lower one, so the info page names the
+// derived one instead.
+TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthWhenThePublishedOneIsReported) {
+  auto battery = battery_polling();
+
+  // Health block: SOH 80.00 %, raw 79.50 %. Measured capacity works out to 95.71 %.
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x1F, 0x0E, 0x1F, 0x40, 0x03, 0x00}));
+  feed_pack_capacity(battery, 558900);
+  battery->update_values();
+
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 8000u);  // The published one reached the status page
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  const std::string html = renderer.get_status_html().str();
+  EXPECT_NE(html.find("SOH der: 95.71% (raw 79.50%)"), std::string::npos);
+  EXPECT_EQ(html.find("SOH rep"), std::string::npos);
+}
+
 // Builds a 0x55B carrying the given state of charge in tenths of a percent, signed with the CRC
 // the driver checks before it will read anything out of the frame.
 void feed_state_of_charge(NissanLeafBattery* battery, uint16_t tenths_percent) {
@@ -418,6 +486,22 @@ TEST(NissanLeafHealthTests, ShouldReplaceFallbackOnceCapacityIsRead) {
   battery->update_values();
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 5671u);  // What it actually holds
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 11923u);
+}
+
+// With no capacity read there is no derived figure, and the page says so rather than falling back
+// to naming the published one the status page is already showing.
+TEST(NissanLeafHealthTests, ShouldShowTheDerivedStateOfHealthAsUnknownWithoutACapacity) {
+  auto battery = battery_polling();
+
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x11, 0x4B, 0x61, 0x61, 0x27, 0x10, 0x1F, 0x40}));
+  battery->handle_incoming_can_frame(leaf_7bb_frame({0x21, 0x0C, 0x1F, 0x0E, 0x1F, 0x40, 0x03, 0x00}));
+  complete_first_poll_pass(battery);
+  battery->update_values();
+
+  ASSERT_EQ(datalayer.battery.status.soh_pptt, 8000u);  // The fallback put the published one up
+
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
+  EXPECT_NE(renderer.get_status_html().str().find("SOH der: Unknown (raw 79.50%)"), std::string::npos);
 }
 
 // The max GID count is broadcast with the mux bit set, and only by the 30/40/62 kWh packs.
@@ -637,6 +721,51 @@ TEST(NissanLeafCellTests, ShouldKeepPreviousMinMaxWhenNoCellReports) {
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[0], 0u);
 }
 
+// 0x1DC carries both power limits in 0.25 kW steps. A taper below 1 kW has to come through as such
+// rather than as no allowance, and the LBC's 0x3FF "not available" value is no allowance, not 255 kW.
+namespace {
+CAN_frame leaf_1dc_frame(NissanLeafBattery* battery, uint16_t discharge_raw, uint16_t charge_raw) {
+  CAN_frame frame =
+      leaf_frame(0x1DC, {(uint8_t)(discharge_raw >> 2), (uint8_t)(((discharge_raw & 0x03) << 6) | (charge_raw >> 4)),
+                         (uint8_t)((charge_raw & 0x0F) << 4)});
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  return frame;
+}
+}  // namespace
+
+TEST(NissanLeafPowerLimitTests, ShouldKeepQuarterKilowattSteps) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 3, 1));  // 0.75 kW / 0.25 kW
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 750u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 250u);
+  delete battery;
+}
+
+TEST(NissanLeafPowerLimitTests, ShouldDecodeFullScaleLimits) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 1016, 202));  // 254 kW / 50.5 kW
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 254000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 50500u);
+  delete battery;
+}
+
+TEST(NissanLeafPowerLimitTests, ShouldTreatUnavailableLimitsAsNoAllowance) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_1dc_frame(battery, 0x3FF, 0x3FF));
+  battery->update_values();
+
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  delete battery;
+}
+
 TEST(NissanLeafTests, ShouldReportVoltage) {
   auto battery = new NissanLeafBattery();
   battery->setup();
@@ -689,6 +818,21 @@ TEST(NissanLeafDtcTests, ShouldParseMultiFrameReply) {
 
 // A healthy pack answers with the 3-byte header and nothing else, padded with FF. That is a
 // successful read of zero codes, not a failed read.
+// LB_Output_Power_Limit_Reason sits in 0x5BC byte 5 bits 7-5, above the max GID mux bit (bit 4).
+// Decoding and logging it must leave the GID decode alone.
+TEST(NissanLeafPowerLimitReasonTests, ShouldNotDisturbTheGidDecode) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00}));  // 3
+  battery->update_values();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));  // 0
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.GIDS, 320u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 273u * WH_PER_GID);  // Mux bit was never set
+  delete battery;
+}
+
 TEST(NissanLeafDtcTests, ShouldReportNoDtcsStored) {
   auto battery = battery_awaiting_dtc_reply();
 
@@ -1057,7 +1201,7 @@ TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
                             "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
                             "Capacity as new",
                             "Actual capacity",
-                            "SOH raw",
+                            "SOH ",  //Named for whichever figure the status page is not showing
                             "Hx:",
                             "QC charge count",
                             "AC charge count"};
@@ -1644,4 +1788,145 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldIgnoreASpikeWhileLearning) {
   feed_current(battery, 5, 490);
   battery->update_values();
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 25);
+}
+
+// A LEAF judges the plausibility of its SOC against its own pack voltage. Every instance used to
+// read pack 1's, so a second LEAF was judged on the first one's voltage.
+TEST(NissanLeafSocPlausibilityTests, ShouldJudgeASecondPackOnItsOwnVoltage) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  feed_state_of_charge(&pack2, 400);  // 40.0 %, too low for a pack sitting near its maximum voltage
+  datalayer.battery.info.max_design_voltage_dV = 4040;
+  datalayer.battery2.info.max_design_voltage_dV = 4040;
+
+  datalayer.battery.status.voltage_dV = 3600;
+  datalayer.battery2.status.voltage_dV = 4000;
+  EXPECT_FALSE(pack2.soc_plausible());
+
+  datalayer.battery.status.voltage_dV = 4000;
+  datalayer.battery2.status.voltage_dV = 3600;
+  EXPECT_TRUE(pack2.soc_plausible());
+}
+
+// The LBC's own fully charged and empty flags reach the datalayer of the pack that reported them.
+// The safety layer raises the installation's battery full / empty events from there, so a LEAF
+// still shows them at the 92-96 % its BMS calls full.
+TEST(NissanLeafFullEmptyTests, ShouldReportItsBmsFlagsForItsOwnPack) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+
+  // 0x1DB at 360 V: main relay permitted, fully charged, interlock closed
+  CAN_frame status = leaf_frame(0x1DB, {0x00, 0x00, 0xB4, 0x38, 0x00, 0x00, 0x00, 0x00});
+  status.data.u8[7] = pack2.calculate_crc(status);
+  pack2.handle_incoming_can_frame(status);
+  pack2.update_values();
+
+  EXPECT_TRUE(datalayer.battery2.status.bms_reports_full);
+  EXPECT_FALSE(datalayer.battery2.status.bms_reports_empty);
+  EXPECT_FALSE(datalayer.battery.status.bms_reports_full);
+
+  // No longer full, and 0x55B at 5.0 % with the empty flag set
+  status = leaf_frame(0x1DB, {0x00, 0x00, 0xB4, 0x28, 0x00, 0x00, 0x00, 0x00});
+  status.data.u8[7] = pack2.calculate_crc(status);
+  pack2.handle_incoming_can_frame(status);
+  CAN_frame soc = leaf_frame(0x55B, {(uint8_t)(50 >> 2), (uint8_t)((50 & 0x03) << 6), 0x00, 0x00, 0x00, 0x00, 0x80});
+  soc.data.u8[7] = pack2.calculate_crc(soc);
+  pack2.handle_incoming_can_frame(soc);
+  pack2.update_values();
+
+  EXPECT_FALSE(datalayer.battery2.status.bms_reports_full);
+  EXPECT_TRUE(datalayer.battery2.status.bms_reports_empty);
+  EXPECT_FALSE(datalayer.battery.status.bms_reports_empty);
+}
+
+// The balancing strategy is a setting of each pack: every LEAF sends its own LBC, on its own bus,
+// the CHG_STA_RQ chosen for its battery index, with the checksum nibble corrected to match.
+class NissanLeafBalancingStrategyTests : public ::testing::Test {
+ protected:
+  unsigned long t = 60000;
+  uint8_t saved_strategy[3] = {};
+  DATALAYER_BATTERY_TYPE saved_battery[3];
+  BMSResetState saved_reset_status = BMS_RESET_IDLE;
+
+  void SetUp() override {
+    for (int i = 0; i < 3; i++) {
+      saved_strategy[i] = user_selected_LEAF_chg_sta_rq[i];
+    }
+    saved_battery[0] = datalayer.battery;
+    saved_battery[1] = datalayer.battery2;
+    saved_battery[2] = datalayer.battery3;
+    saved_reset_status = datalayer.system.status.bms_reset_status;
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;  // Nothing goes out during a reset
+  }
+
+  void TearDown() override {
+    for (int i = 0; i < 3; i++) {
+      user_selected_LEAF_chg_sta_rq[i] = saved_strategy[i];
+    }
+    datalayer.battery = saved_battery[0];
+    datalayer.battery2 = saved_battery[1];
+    datalayer.battery3 = saved_battery[2];
+    datalayer.system.status.bms_reset_status = saved_reset_status;
+  }
+
+  // The low nibble of byte 7 is the sum of every other nibble of the frame, plus 2. Every constant
+  // of the driver's 0x1F2 pattern follows it.
+  static uint8_t leaf_1f2_checksum(const CAN_frame& frame) {
+    uint8_t sum = 2 + (frame.data.u8[7] >> 4);
+    for (uint8_t i = 0; i < 7; i++) {
+      sum += (frame.data.u8[i] >> 4) + (frame.data.u8[i] & 0x0F);
+    }
+    return sum & 0x0F;
+  }
+
+  // Marks the pack alive, runs it through one whole 20-message cycle of the 0x1F2 pattern and
+  // checks every 0x1F2 it sends: on its bus, carrying the strategy, with a checksum to match.
+  void expect_strategy_sent(NissanLeafBattery& pack, CAN_Interface bus, uint8_t strategy) {
+    pack.handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+    int sent = 0;
+    for (int i = 0; i < 20; i++) {
+      t += 10;
+      set_millis64(t);
+      clear_transmitted_frames();
+      pack.transmit_can(t);
+      const std::vector<CAN_frame>& frames = get_transmitted_frames();
+      for (size_t f = 0; f < frames.size(); f++) {
+        if (frames[f].ID != 0x1F2) {
+          continue;
+        }
+        sent++;
+        EXPECT_EQ(get_transmitted_interfaces()[f], bus);
+        EXPECT_EQ((frames[f].data.u8[2] >> 5) & 0x03, strategy);
+        EXPECT_EQ(frames[f].data.u8[7] & 0x0F, leaf_1f2_checksum(frames[f]));
+      }
+    }
+    EXPECT_EQ(sent, 20);
+  }
+};
+
+TEST_F(NissanLeafBalancingStrategyTests, ShouldSendEachPackItsOwnStrategy) {
+  NissanLeafBattery pack1;
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_ADDON_MCP2515);
+  NissanLeafBattery pack3(&datalayer.battery3, &datalayer_extended.nissanleaf_3, CAN_Interface::CANFD_ADDON_MCP2518);
+  pack2.battery_index = 2;
+  pack3.battery_index = 3;
+  user_selected_LEAF_chg_sta_rq[0] = 1;  // Conservative
+  user_selected_LEAF_chg_sta_rq[1] = 2;  // Off
+  user_selected_LEAF_chg_sta_rq[2] = 0;  // Aggressive
+
+  expect_strategy_sent(pack1, can_config.battery, 1);
+  expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
+  expect_strategy_sent(pack3, CAN_Interface::CANFD_ADDON_MCP2518, 0);
+}
+
+// Saving the settings page puts a new strategy into use at once, so the BMS reset it offers
+// already sends it. The other packs' strategies stay out of it.
+TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFrame) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_ADDON_MCP2515);
+  pack2.battery_index = 2;
+  user_selected_LEAF_chg_sta_rq[0] = 0;
+  user_selected_LEAF_chg_sta_rq[1] = 1;
+  user_selected_LEAF_chg_sta_rq[2] = 0;
+  expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 1);
+
+  user_selected_LEAF_chg_sta_rq[1] = 2;
+  expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
 }

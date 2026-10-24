@@ -369,14 +369,15 @@ void generateTESLA_229(CAN_frame& f) {
 }
 
 void generateTESLA_213(CAN_frame& f) {
-  static uint8_t counter = 0;
-
-  // Increment counter (wrap at 16)
-  counter = (counter + 1) & 0xF;
-
   // Safety, only modify if ID is 0x213 and DLC is at least 2
   if (f.ID != 0x213 || f.DLC < 2)
     return;
+
+  // Counter lives in the frame itself (like generateTESLA_229), not a function-local static:
+  // each Tesla pack owns its own TESLA_213 frame, and with two packs a shared counter would skip
+  // values from each pack's own BMS's point of view.
+  uint8_t counter = (f.data.u8[0] >> 4) + 1;
+  counter &= 0xF;
 
   // Byte 0: counter in high nibble
   uint8_t value = counter << 4;
@@ -396,8 +397,10 @@ bool isLeapYear(int year) {
   return false;
 }
 
-// Function to convert year and day of year (i.e. Julian date) into human readable date
-char* dayOfYearToDate(int year, int dayOfYear) {
+// Function to convert year and day of year (i.e. Julian date) into human readable date.
+// Writes into the caller's own buffer rather than a shared static - each Tesla pack keeps its
+// own manufacture date, so with two packs one would otherwise silently overwrite the other's.
+void dayOfYearToDate(int year, int dayOfYear, char* out, size_t out_len) {
 
   // Arrays to hold the number of days in each month for standard/leap years
   int daysInMonthStandard[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -426,8 +429,6 @@ char* dayOfYearToDate(int year, int dayOfYear) {
     dayOfYear = daysInMonth[month];
   }
 
-  static char dateString[11];  // For "YYYY-MM-DD\0"
-
   // Clamp values to ensure they fit in the expected number of digits
   int safeYear = year % 10000;
   if (safeYear < 0)
@@ -448,8 +449,7 @@ char* dayOfYearToDate(int year, int dayOfYear) {
     safeDay = 31;
 
   // Format the date string in "YYYY-MM-DD" format
-  snprintf(dateString, sizeof(dateString), "%04d-%02d-%02d", safeYear, safeMonth, safeDay);
-  return dateString;
+  snprintf(out, out_len, "%04d-%02d-%02d", safeYear, safeMonth, safeDay);
 }
 
 void TeslaBattery::
@@ -574,33 +574,33 @@ void TeslaBattery::
   }
 
   // Check if user requests some action
-  if (datalayer.battery_settings.user_requests_tesla_isolation_clear) {
+  if (user_requests_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer.battery_settings.user_requests_tesla_isolation_clear = false;
+    user_requests_isolation_clear = false;
   }
-  if (datalayer.battery_settings.user_requests_tesla_bms_reset) {
+  if (user_requests_bms_reset) {
     if (battery_contactor == 1 && BMS_a180_SW_ECU_reset_blocked == false) {
       //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       stateMachineBMSReset = 0;
-      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
+      user_requests_bms_reset = false;
       logging.println("INFO: BMS reset requested");
     } else {
       stateMachineBMSReset = 0xFF;
-      datalayer.battery_settings.user_requests_tesla_bms_reset = false;
+      user_requests_bms_reset = false;
       set_event(EVENT_BMS_RESET_REQ_FAIL, 0, battery_index);  // also printing a log entry
       clear_event(EVENT_BMS_RESET_REQ_FAIL, battery_index);
     }
   }
-  if (datalayer.battery_settings.user_requests_tesla_soc_reset) {
+  if (user_requests_soc_reset) {
     if ((datalayer_battery->status.real_soc < 1500 || datalayer_battery->status.real_soc > 9000) &&
         battery_contactor == 1) {
       //Start the SOC reset statemachine, only if SOC less than 15% or greater than 90%, and contactors open
       stateMachineSOCReset = 0;
-      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
+      user_requests_soc_reset = false;
       logging.println("INFO: SOC reset requested");
     } else {
       stateMachineSOCReset = 0xFF;
-      datalayer.battery_settings.user_requests_tesla_soc_reset = false;
+      user_requests_soc_reset = false;
       set_event(EVENT_BATTERY_SOC_RESET_FAIL, 0, battery_index);  // also printing a log entry
       clear_event(EVENT_BATTERY_SOC_RESET_FAIL, battery_index);
     }
@@ -1540,6 +1540,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     //Brick1 m0 : 32|16@1+ (0.0001,0) [0|0] "V"
                                     //Brick2 m0 : 48|16@1+ (0.0001,0) [0|0] "V"
       // brick_volts, mux_zero_counter, mux_max are instance member variables (TESLA-BATTERY.h)
+      if (mux >= 64) {
+        break;  // never index past the cell array, will crash. mux is normally 0-31
+      }
       if (rx_frame.data.u8[1] == 0x2A)  // full frame, 3 cell voltages
       {
         brick_volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
@@ -2153,7 +2156,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         snprintf(dayStr, sizeof(dayStr), "%c%c%c", battery_serialNumber[5], battery_serialNumber[6],
                  battery_serialNumber[7]);
         int day = atoi(dayStr);
-        battery_manufactureDate = dayOfYearToDate(year, day);
+        dayOfYearToDate(year, day, battery_manufactureDate, sizeof(battery_manufactureDate));
         parsed_battery_serialNumber = true;
       }
       break;

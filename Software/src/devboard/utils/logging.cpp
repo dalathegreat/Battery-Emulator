@@ -252,7 +252,7 @@ void Logging::add_timestamp(size_t size) {
 
   size_t offset =
       datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  size_t message_string_size = LOGGED_CAN_MESSAGES_SIZE;
   unsigned long currentTime = millis();
   char* timestr;
   static char timestr_buffer[MAX_LENGTH_TIME_STR];
@@ -320,7 +320,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     char* message_string = datalayer.system.info.logged_can_messages;
     size_t offset =
         datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-    size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+    size_t message_string_size = LOGGED_CAN_MESSAGES_SIZE;
 
     if (offset + size > message_string_size) {
       offset = 0;
@@ -348,7 +348,7 @@ void Logging::printf(const char* fmt, ...) {
   }
 
   char* message_string = datalayer.system.info.logged_can_messages;
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  size_t message_string_size = LOGGED_CAN_MESSAGES_SIZE;
   size_t offset =
       datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   static char buffer[MAX_LINE_LENGTH_PRINTF];

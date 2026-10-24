@@ -147,9 +147,10 @@ class Esp32Hal {
 
   // 2nd CANFD Interface: MCP2517/8
   virtual uint8_t MCP2517_BUS2() { return DEFAULT_MCP2517_BUS; }
-  virtual gpio_num_t MCP2517_SCK2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDI2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDO2() { return GPIO_NUM_NC; }
+  // If the second controller shares the first's bus it must use the same pins.
+  virtual gpio_num_t MCP2517_SCK2() { return MCP2517_BUS2() == MCP2517_BUS() ? MCP2517_SCK() : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_SDI2() { return MCP2517_BUS2() == MCP2517_BUS() ? MCP2517_SDI() : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_SDO2() { return MCP2517_BUS2() == MCP2517_BUS() ? MCP2517_SDO() : GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_NC; }
   virtual uint32_t MCP2517_FREQ2() { return 0; }  // 0 means unknown
@@ -157,6 +158,7 @@ class Esp32Hal {
   // Value for first MCP2517 CLKODIV register (default, divide by 10)
   virtual int MCP2517_CLKODIV() { return 0b11; }
 
+#ifndef SMALL_FLASH_DEVICE
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_NC; }
@@ -165,7 +167,6 @@ class Esp32Hal {
   virtual gpio_num_t CHADEMO_LOCK() { return GPIO_NUM_NC; }
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_NC; }
 
-#ifndef SMALL_FLASH_DEVICE
   // ADC input for an analog current sensor (the QNHCK2-16 Hall clamp). Only ADC1 pins qualify:
   // ADC2 cannot be read while Wi-Fi is running.
   virtual gpio_num_t SHUNT_ADC_PIN() { return GPIO_NUM_NC; }

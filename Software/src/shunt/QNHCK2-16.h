@@ -55,6 +55,26 @@ extern uint16_t qnhck_zero_mV;
 // Measure the zero point whenever the contactors are open, instead of using the one set by hand.
 // On unless switched off, and only the off state is stored.
 extern bool qnhck_auto_calibration;
+// How far the sensor's zero point moves per °C, in uV, signed. With automatic calibration the
+// zero point measured while the contactors were open follows the batteries' temperature by this
+// much per degree, until the next opening measures it afresh. 0 is off, and only a value other
+// than that is stored. The datasheet limits the sensor's own drift to ±1 mV/°C, but what is
+// measured for this also takes in the ADC's and anything else that moves with temperature, so
+// the setting allows more:
+static constexpr int16_t QNHCK_MAX_TEMPCO_UV_PER_C = 5000;  // ±5 mV/°C
+extern int16_t qnhck_zero_tempco_uV_per_C;
+
+// The drift as entered on the settings page, in mV/°C with two decimals, as it is stored and used:
+// in uV/°C, held to the setting's limits.
+int16_t qnhck_tempco_uV_per_C(float mV_per_C);
+
+// The temperature the zero point is compensated by: midway between the coldest and the warmest
+// reading of the batteries, in deci-°C. False while no battery reports one, and for a reading
+// outside the sensor's operating range of -25 to +85 °C.
+bool qnhck_battery_temperature_dC(int16_t& temperature_dC);
+
+// How far the zero point has moved, in uV, since it was measured at baseline_dC
+int32_t qnhck_zero_drift_uV(int16_t tempco_uV_per_C, int16_t baseline_dC, int16_t now_dC);
 
 // Whether a reading taken with no current flowing can be the sensor's zero point.
 bool qnhck_zero_plausible(uint32_t zero_mV);
@@ -68,7 +88,7 @@ int32_t qnhck_current_mA(uint32_t output_uV, uint16_t zero_mV, uint16_t rated_cu
 // all - an unpowered one reads 0 V, which is -2.64 x Ipn on the ±0.625 V model.
 bool qnhck_current_in_range(int32_t current_mA, uint16_t rated_current_A);
 
-class Qnhck2_16Shunt : public Shunt, public Transmitter {
+class Qnhck2_16Shunt : public Shunt {
  public:
   static constexpr const char* Name = "QNHCK2-16 Clamp";
 
@@ -76,14 +96,14 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   const char* interface_name() override { return interface_label; }
   bool calibrate_zero(uint16_t& reading_mV) override;
 
-  // Called on every pass of the core task. Nothing is transmitted: the tick paces the sampling.
-  void transmit(unsigned long currentMillis) override;
+  // One ADC reading per millisecond, paced by the core task. Nothing until setup() has the pin.
+  void sample(unsigned long currentMillis) override;
 
-  // One ADC reading, taken at now. transmit() feeds these; public so the host tests can too.
+  // One ADC reading, taken at now. sample() feeds these; public so the host tests can too.
   void add_sample(uint32_t now, uint32_t sample_mV);
 
  private:
-  gpio_num_t pin = GPIO_NUM_NC;
+  gpio_num_t pin = GPIO_NUM_NC;  // Only set once it is ours
   char interface_label[16] = "ADC";
 
   // One sample per millisecond, averaged over one second. A whole second holds whole periods of
@@ -121,9 +141,15 @@ class Qnhck2_16Shunt : public Shunt, public Transmitter {
   bool auto_zero_rejected = false;       // This opening measured one that cannot be, already logged
   bool zero_known = false;               // Measured since boot. Only needed with automatic calibration
 
+  // The batteries' temperature as the zero point was measured, which the temperature compensation
+  // works from. Not known if no battery reported one then: the zero point is used as measured.
+  int16_t zero_temperature_dC = 0;
+  bool zero_temperature_known = false;
+
   static bool no_current_can_flow();
   void track_zero(uint32_t now, uint32_t sample_mV);
   void close_zero_bucket();
+  uint32_t compensated_output_uV() const;
 };
 
 #endif  // SMALL_FLASH_DEVICE

@@ -41,7 +41,7 @@ TEST(MillisWrapTest, InverterStartupGraceDoesNotRearmAfterWrap) {
   set_millis64(0x100000000ULL + 1000);
   datalayer.system.status.CAN_inverter_still_alive = 0;
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_EQ(get_event_pointer(EVENT_CAN_INVERTER_MISSING)->state, EVENT_STATE_ACTIVE)
       << "The startup grace window must not re-arm after the millis() wrap";

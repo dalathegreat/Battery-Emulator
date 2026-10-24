@@ -104,6 +104,7 @@ CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 # AVOID for this codebase
 # -----------------------------------------------------------------------------
 # CONFIG_NEWLIB_NANO_FORMAT=y
+# CONFIG_NEWLIB_NANO_FORMAT is not set
 #   Nano printf drops %f support. This firmware has ~32 float format specifiers
 #   in log/printf calls, so nano format would silently corrupt those lines.
 #   Only revisit after converting those sites to integer/fixed-point formatting.

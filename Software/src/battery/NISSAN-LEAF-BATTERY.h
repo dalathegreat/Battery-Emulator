@@ -7,9 +7,15 @@
 #include "NISSAN-LEAF-HTML.h"
 
 extern bool user_selected_LEAF_interlock_mandatory;
-//CHG_STA_RQ value transmitted in 0x1F2 as the BMS starts up: 0 = 00b (no request), 1 = 01b
-//(normal charge), 2 = 10b (quick charge). Only ever holds one of those three.
-extern uint8_t user_selected_LEAF_chg_sta_rq;
+
+//"Balancing strategy" of each pack, indexed by battery_index - 1: the CHG_STA_RQ value its LBC is
+//sent in 0x1F2 as it starts up. 0 = 00b (aggressive, BE historically default), 1 = 01b (conservative, normal
+//charge, Nissan recommended for stationary), 2 = 10b (off, quick charge). Only ever holds one of those three.
+//The Aggressive setting corresponds to the way the battery used to balance when in the car duing driving
+//Conservative is the way it used to balance during AC charging. Off corresponds to the balancing
+//strategy that used to be applied during quick charge of the car.
+//2nd_gen_CAN_Message_List.xls, 293A0NDS25_1_EV Pack unified controller specifications.pdf
+extern uint8_t user_selected_LEAF_chg_sta_rq[3];
 
 class NissanLeafBattery : public CanBattery {
  public:
@@ -54,7 +60,7 @@ class NissanLeafBattery : public CanBattery {
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
-    return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
+    return !((datalayer_battery->status.voltage_dV > (datalayer_battery->info.max_design_voltage_dV - 100)) &&
              (battery_SOC < 650));
   }
 
@@ -210,8 +216,8 @@ class NissanLeafBattery : public CanBattery {
 
   // These CAN messages need to be sent towards the battery to keep it alive
   //Byte 2 carries CHG_STA_RQ (Charge_StatusTransitionRequest) in bits 6-5, left at 00b here and
-  //overwritten from the user setting on every transmission. The low nibble of byte 7 is the
-  //message checksum, so the constants in this file are the ones that go with 00b.
+  //overwritten from this pack's balancing strategy on every transmission. The low nibble of byte 7
+  //is the message checksum, so the constants in this file are the ones that go with 00b.
   CAN_frame LEAF_1F2 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -340,8 +346,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
-  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
-  uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
+  uint16_t battery_Discharge_Power_Limit = 0;  //Limit in 0.25 kW steps, 0 while the LBC reports none
+  uint16_t battery_Charge_Power_Limit = 0;     //Limit in 0.25 kW steps, 0 while the LBC reports none
   int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
   int16_t battery_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
   uint16_t battery_TEMP = 0;                   //Temporary value used in status checks
@@ -352,6 +358,9 @@ class NissanLeafBattery : public CanBattery {
   //State of health in whole percent from broadcast 0x5BC, 0 until the pack has reported one.
   //No value is invented at boot: an SOH that has not been read is reported as unknown instead.
   uint16_t battery_StateOfHealth = 0;
+  //LB_Output_Power_Limit_Reason from 0x5BC, and the value last written to the log
+  uint8_t battery_Output_Power_Limit_Reason = 0;
+  uint8_t battery_Output_Power_Limit_Reason_logged = 0;
   uint16_t battery_Total_Voltage2 = 0;            //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
   int16_t battery_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
   int16_t battery_HistData_Temperature_MAX = 86;  //-40 to 86*C
@@ -434,10 +443,13 @@ class NissanLeafBattery : public CanBattery {
   uint16_t battery_SOH_pptt_g61 = 0;
   uint16_t battery_capacity_cAh = 0;  //Pack capacity in hundredths of an Ah, 0 until read
   uint32_t battery_capacity_Wh = 0;   //Energy equivalent of the above at nominal voltage, 0 until read
-  //The state of health the LBC publishes, health block first and the 0x5BC broadcast otherwise, in
-  //hundredths of a percent. Shown on the info page beside the raw figure; the SOH the rest of the
-  //system uses is derived from the capacities instead, since this one is erased by a reset.
+  //The two state of health figures that get compared, both in hundredths of a percent, 0 until
+  //each can be worked out. battery_SOH_avg_pptt is the one the LBC publishes, health block first
+  //and the 0x5BC broadcast otherwise, which a degradation reset puts back to 100%.
+  //battery_SOH_der_pptt is the one derived from the measured capacity against the nameplate, which
+  //survives that reset. The lower of the two is what the rest of the system is told.
   uint16_t battery_SOH_avg_pptt = 0;
+  uint16_t battery_SOH_der_pptt = 0;
   uint16_t battery_vbat_mV = 0;  //12 V accessory battery level in mV, 0 until read
   //Set when a complete cell reply came back with no readable cell at all. Stands in for the 12 V
   //level on any pack that never reports one.

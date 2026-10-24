@@ -2,10 +2,12 @@
 
 #include "QNHCK2-16.h"
 #include <Arduino.h>
+#include <cmath>
 #include "../battery/BATTERIES.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/hal/hal.h"
+#include "../devboard/safety/safety.h"
 #include "../devboard/utils/logging.h"
 
 #ifdef UNIT_TEST
@@ -17,6 +19,7 @@ uint16_t qnhck_rated_current_A = QNHCK_DEFAULT_RATED_CURRENT_A;
 uint16_t qnhck_rated_output_mV = QNHCK_DEFAULT_RATED_OUTPUT_MV;
 uint16_t qnhck_zero_mV = QNHCK_NOMINAL_ZERO_MV;
 bool qnhck_auto_calibration = true;
+int16_t qnhck_zero_tempco_uV_per_C = 0;
 
 bool qnhck_zero_plausible(uint32_t zero_mV) {
   constexpr uint32_t lowest_mV = QNHCK_NOMINAL_ZERO_MV - QNHCK_ZERO_TOLERANCE_MV;
@@ -40,6 +43,44 @@ bool qnhck_current_in_range(int32_t current_mA, uint16_t rated_current_A) {
   return current_mA >= -limit_mA && current_mA <= limit_mA;
 }
 
+bool qnhck_battery_temperature_dC(int16_t& temperature_dC) {
+  // Pack 1 is the one every installation has. Until it is heard from, its temperatures are the
+  // datalayer's defaults rather than readings. The aggregate takes in packs 2 and 3 once they
+  // are heard from too.
+  if (!battery_detected || !datalayer.battery.status.CAN_battery_still_alive) {
+    return false;
+  }
+  const int32_t midway_dC =
+      ((int32_t)datalayer.aggregate.temperature_min_dC + datalayer.aggregate.temperature_max_dC) / 2;
+  if (midway_dC < -250 || midway_dC > 850) {
+    return false;  // Beyond the sensor's operating range, which no zero point drift covers
+  }
+  temperature_dC = (int16_t)midway_dC;
+  return true;
+}
+
+int32_t qnhck_zero_drift_uV(int16_t tempco_uV_per_C, int16_t baseline_dC, int16_t now_dC) {
+  return (int32_t)tempco_uV_per_C * ((int32_t)now_dC - baseline_dC) / 10;
+}
+
+int16_t qnhck_tempco_uV_per_C(float mV_per_C) {
+  if (std::isnan(mV_per_C)) {
+    return 0;
+  }
+  const float limit = QNHCK_MAX_TEMPCO_UV_PER_C / 1000.0f;
+  const float held = mV_per_C > limit ? limit : (mV_per_C < -limit ? -limit : mV_per_C);
+  return (int16_t)(lroundf(held * 100.0f) * 10);  // Two decimals: 10 uV/°C steps
+}
+
+// A fixed point value for the log with one or two decimals: a temperature in deci-°C, a drift in
+// hundredths of a mV
+static void format_fixed(char* text, size_t size, int32_t value, uint8_t decimals) {
+  const int32_t scale = (decimals == 2) ? 100 : 10;
+  const int32_t magnitude = abs(value);
+  snprintf(text, size, (decimals == 2) ? "%s%ld.%02ld" : "%s%ld.%01ld", value < 0 ? "-" : "", (long)(magnitude / scale),
+           (long)(magnitude % scale));
+}
+
 // The rated output the way the models are labelled: 0.625, 1, 1.25, 1.5 or 1.65
 static void format_rated_output(char* text, size_t size) {
   snprintf(text, size, "%u.%03u", (unsigned)(qnhck_rated_output_mV / 1000), (unsigned)(qnhck_rated_output_mV % 1000));
@@ -61,10 +102,11 @@ void Qnhck2_16Shunt::setup() {
   snprintf(datalayer.system.info.shunt_protocol, sizeof(datalayer.system.info.shunt_protocol), "QNHCK2-16 (%uA ±%sV)",
            (unsigned)qnhck_rated_current_A, output_V);
 
-  pin = esp32hal->SHUNT_ADC_PIN();
-  if (!esp32hal->alloc_pins(Name, pin)) {
-    return;  // alloc_pins() has raised the event that says why
+  const gpio_num_t adc_pin = esp32hal->SHUNT_ADC_PIN();
+  if (!esp32hal->alloc_pins(Name, adc_pin)) {
+    return;  // alloc_pins() has raised the event that says why. Nothing is sampled.
   }
+  pin = adc_pin;
   snprintf(interface_label, sizeof(interface_label), "ADC (GPIO%d)", (int)pin);
 
   // The first read sets the pin up as an ADC input, which setting its attenuation needs. 11 dB
@@ -75,30 +117,35 @@ void Qnhck2_16Shunt::setup() {
 
   window_start_ms = millis();
   last_sample_ms = window_start_ms;
-  register_transmitter(this);
 
   // The inverter is given this current instead of what the batteries report
   datalayer.shunt.replaces_battery_current = true;
 
   if (qnhck_auto_calibration) {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point measured while the contactors are open\n", (int)pin,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point measured while contactors are open\n", (int)pin,
                    (unsigned)qnhck_rated_current_A, output_V);
+    if (qnhck_zero_tempco_uV_per_C != 0) {
+      char drift_mV[8];
+      format_fixed(drift_mV, sizeof(drift_mV), qnhck_zero_tempco_uV_per_C / 10, 2);
+      logging.printf("QNHCK2-16: zero point follows the temperature by %s mV/°C\n", drift_mV);
+    }
     const bool all_contactors_ours = contactor_control_enabled &&
                                      (!battery2 || contactor_control_enabled_double_battery) &&
                                      (!battery3 || contactor_control_enabled_triple_battery);
     if (!all_contactors_ours) {
       LOG_SET_NEXT_SEVERITY(4);  // warning
-      logging.println(
-          "QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery. Its reading is not "
-          "used until then.");
+      logging.println("QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery!");
     }
   } else {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
                    output_V, (unsigned)qnhck_zero_mV);
   }
 }
 
-void Qnhck2_16Shunt::transmit(unsigned long currentMillis) {
+void Qnhck2_16Shunt::sample(unsigned long currentMillis) {
+  if (pin == GPIO_NUM_NC) {
+    return;  // Not ours: no ADC pin on this board, or something else has it
+  }
   const uint32_t now = (uint32_t)currentMillis;
   if (now == last_sample_ms) {
     return;  // One sample per millisecond
@@ -124,7 +171,8 @@ void Qnhck2_16Shunt::add_sample(uint32_t now, uint32_t sample_mV) {
 
   // Averaged in uV, so the mean of a thousand whole mV samples keeps its fraction
   output_uV = (uint32_t)(((uint64_t)window_sum_mV * 1000 + window_samples / 2) / window_samples);
-  const int32_t current_mA = qnhck_current_mA(output_uV, qnhck_zero_mV, qnhck_rated_current_A, qnhck_rated_output_mV);
+  const int32_t current_mA =
+      qnhck_current_mA(compensated_output_uV(), qnhck_zero_mV, qnhck_rated_current_A, qnhck_rated_output_mV);
   datalayer.shunt.measured_amperage_mA = current_mA;
   datalayer.shunt.measured_avg1S_amperage_mA = current_mA;  // It is a one second mean already
 
@@ -179,7 +227,15 @@ void Qnhck2_16Shunt::track_zero(uint32_t now, uint32_t sample_mV) {
       close_zero_bucket();
       if (auto_zero_period_result) {
         LOG_SET_NEXT_SEVERITY(5);  // notice
-        logging.printf("QNHCK2-16 zero point calibrated to %u mV\n", (unsigned)qnhck_zero_mV);
+        if (zero_temperature_known) {
+          // Two of these at different temperatures give the drift: their difference in mV over
+          // their difference in °C
+          char temperature[8];
+          format_fixed(temperature, sizeof(temperature), zero_temperature_dC, 1);
+          logging.printf("QNHCK2-16 zero point calibrated to %u mV at %s °C\n", (unsigned)qnhck_zero_mV, temperature);
+        } else {
+          logging.printf("QNHCK2-16 zero point calibrated to %u mV\n", (unsigned)qnhck_zero_mV);
+        }
       }
     }
     auto_zero_open = false;
@@ -240,7 +296,24 @@ void Qnhck2_16Shunt::close_zero_bucket() {
   }
   qnhck_zero_mV = (uint16_t)zero_mV;
   zero_known = true;
+  // Taken with every second the zero point is worked out afresh, so as the contactors close it is
+  // the temperature at the end of the measurement
+  zero_temperature_known = qnhck_battery_temperature_dC(zero_temperature_dC);
   auto_zero_period_result = true;
+}
+
+/* The averaged output with the zero point's temperature drift since it was measured taken out of
+   it, which is the same as moving the zero point by that drift. Without a temperature from the
+   batteries, then or now, the zero point is used as measured. While the contactors are open it is
+   measured every second, so there is nothing to take out. */
+uint32_t Qnhck2_16Shunt::compensated_output_uV() const {
+  int16_t now_dC;
+  if (qnhck_zero_tempco_uV_per_C == 0 || !zero_temperature_known || !qnhck_battery_temperature_dC(now_dC)) {
+    return output_uV;
+  }
+  const int64_t compensated_uV =
+      (int64_t)output_uV - qnhck_zero_drift_uV(qnhck_zero_tempco_uV_per_C, zero_temperature_dC, now_dC);
+  return compensated_uV > 0 ? (uint32_t)compensated_uV : 0;
 }
 
 bool Qnhck2_16Shunt::calibrate_zero(uint16_t& reading_mV) {

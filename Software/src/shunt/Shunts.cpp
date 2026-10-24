@@ -33,10 +33,10 @@ void setup_shunt() {
         inverter->enable_shunt();
       }
       return;
+#ifndef SMALL_FLASH_DEVICE
     case ShuntType::CustomClamp:
       shunt = nullptr;
       return;
-#ifndef SMALL_FLASH_DEVICE
     case ShuntType::Qnhck2_16:
       shunt = new Qnhck2_16Shunt();
       shunt->setup();
@@ -48,9 +48,11 @@ void setup_shunt() {
 }
 
 bool shunt_type_supported_by_battery(ShuntType type, BatteryType battery_type) {
+#ifndef SMALL_FLASH_DEVICE
   if (type == ShuntType::CustomClamp) {
     return battery_type == BatteryType::Chademo;
   }
+#endif  // SMALL_FLASH_DEVICE
   return true;
 }
 
@@ -69,9 +71,9 @@ extern const char* name_for_shunt_type(ShuntType type) {
       return BmwSbox::Name;
     case ShuntType::Inverter:
       return "Using inverter values";
+#ifndef SMALL_FLASH_DEVICE
     case ShuntType::CustomClamp:
       return "Custom Clamp";
-#ifndef SMALL_FLASH_DEVICE
     case ShuntType::Qnhck2_16:
       return board_has_shunt_adc_pin() ? Qnhck2_16Shunt::Name : nullptr;
 #endif  // SMALL_FLASH_DEVICE

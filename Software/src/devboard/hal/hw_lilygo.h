@@ -19,7 +19,12 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_23; }
 
+  // Ensure that the CAN add-on and SD card use different SPI buses
+  enum : uint8_t { CAN_ADDON_SPI_BUS = HSPI, SD_CARD_SPI_BUS = VSPI };
+  static_assert(CAN_ADDON_SPI_BUS != SD_CARD_SPI_BUS, "SD card and CAN add-on SPI controllers clash");
+
   // CAN_ADDON
+  virtual uint8_t MCP2515_BUS() { return CAN_ADDON_SPI_BUS; }
   // SCK input of MCP2515
   virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
   // SDI input of MCP2515
@@ -32,12 +37,14 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_35; }
 
   // CANFD_ADDON defines for MCP2517
+  virtual uint8_t MCP2517_BUS() { return CAN_ADDON_SPI_BUS; }
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_12; }
   virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_5; }
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
 
+#ifndef SMALL_FLASH_DEVICE
   // CHAdeMO support pin dependencies
   virtual gpio_num_t CHADEMO_PIN_2() { return GPIO_NUM_12; }
   virtual gpio_num_t CHADEMO_PIN_10() { return GPIO_NUM_5; }
@@ -49,6 +56,8 @@ class LilyGoHal : public Esp32Hal {
   // 0 A whenever Wi-Fi (STA or AP) is up. GPIO15 is also a strapping pin and is shared with the
   // SD card MOSI, the SSD1306 SDA and the second battery contactor output.
   virtual gpio_num_t CHADEMO_CT_PIN() { return GPIO_NUM_15; }  // ADC2_CH3
+
+#endif  // SMALL_FLASH_DEVICE
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_32; }
@@ -81,7 +90,7 @@ class LilyGoHal : public Esp32Hal {
 
 #ifdef SDCARD
   // SD card
-  uint8_t SD_SPI_BUS() override { return VSPI; }
+  uint8_t SD_SPI_BUS() override { return SD_CARD_SPI_BUS; }
   virtual gpio_num_t SD_MISO_PIN() {
     if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_2;

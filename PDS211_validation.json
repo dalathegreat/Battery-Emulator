@@ -1,0 +1,27 @@
+{
+  "dala_source": "7d03ad5d07a5cd8b5fb1a0d6e5b8608b231f5184",
+  "files": 560,
+  "upstream_identical": 548,
+  "modified": [
+    ".gitignore",
+    "Software/Software.cpp",
+    "Software/src/devboard/display/display.cpp",
+    "Software/src/devboard/hal/hal.cpp",
+    "platformio.ini"
+  ],
+  "added": [
+    "Software/src/communication/pump/pump_link.cpp",
+    "Software/src/communication/pump/pump_link.h",
+    "Software/src/devboard/display/display_waveshare_LCD_5B.cpp",
+    "Software/src/devboard/display/waveshare_ui_text.h",
+    "Software/src/devboard/hal/hw_waveshare_LCD_5B.h",
+    "include/lv_conf.h",
+    "sdkconfig.waveshare.defaults"
+  ],
+  "deleted": [],
+  "ui_migration_exact": true,
+  "datalayer_probe": "PASS",
+  "probe_references": 19,
+  "platformio_build": "NOT RUN",
+  "hardware": "NOT TESTED"
+}

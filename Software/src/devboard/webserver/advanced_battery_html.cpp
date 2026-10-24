@@ -18,10 +18,12 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_clear_isolation(); }, [](Battery* b) { b->clear_isolation(); }},
     {"calibrateSOC", "Calibrate SOC", "calibrate SOC? Note this will calibrate BMS according to set targets",
      [](Battery* b) { return b && b->supports_calibrate_SOC(); }, [](Battery* b) { b->reset_SOC(); }},
+#ifndef SMALL_FLASH_DEVICE
     {"chademoRestart", "Restart", "restart the V2X session?",
      [](Battery* b) { return b && b->supports_chademo_restart(); }, [](Battery* b) { b->chademo_restart(); }},
     {"chademoStop", "Stop", "stop V2X?", [](Battery* b) { return b && b->supports_chademo_restart(); },
      [](Battery* b) { b->chademo_restart(); }},
+#endif  // SMALL_FLASH_DEVICE
     {"resetBMS", "BMS Reset", "Reset the BMS?", [](Battery* b) { return b && b->supports_reset_BMS(); },
      [](Battery* b) { b->reset_BMS(); }},
     {"resetSOC", "SOC Reset", "Reset SOC?", [](Battery* b) { return b && b->supports_reset_SOC(); },

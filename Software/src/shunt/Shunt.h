@@ -14,8 +14,8 @@
 #ifndef SMALL_FLASH_DEVICE
 enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Qnhck2_16 = 4, Highest };
 #else
-// The QNHCK2-16 (4) is left out of the small flash devices
-enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, CustomClamp = 3, Highest };
+// The CHAdeMO CT clamp (3) and the QNHCK2-16 (4) are left out of the small flash devices
+enum class ShuntType { None = 0, BmwSbox = 1, Inverter = 2, Highest };
 #endif  // SMALL_FLASH_DEVICE
 enum class BatteryType;
 
@@ -36,6 +36,10 @@ class Shunt {
     reading_mV = 0;
     return false;
   }
+
+  // Called on every pass of the core task, together with the other inputs, for a shunt the
+  // emulator reads itself, such as one on an ADC pin. One read over CAN has nothing to do here.
+  virtual void sample(unsigned long /*currentMillis*/) {}
 };
 
 class CanShunt : public Shunt, public Transmitter, CanReceiver {
@@ -83,6 +87,7 @@ extern bool shunt_type_supported_by_inverter(ShuntType type, InverterProtocolTyp
 extern const char* name_for_shunt_type(ShuntType type);
 extern ShuntType user_selected_shunt_type;
 
+#ifndef SMALL_FLASH_DEVICE
 // Updateable parameters for the Chademo CT Clamp shunt type. Stored in NVM and modifiable via the webserver.
 extern float ct_clamp_offset_mV;
 extern uint16_t ct_clamp_nominal_voltage_dV;
@@ -91,5 +96,6 @@ enum class adc_attenuation_enum { ADC_0db = 0, ADC_2_5db, ADC_6db, ADC_11db, Hig
 extern adc_attenuation_enum ct_clamp_pin_atten;
 extern const char* name_for_adc_attenuation(adc_attenuation_enum type);
 extern bool ct_invert_current;
+#endif  // SMALL_FLASH_DEVICE
 
 #endif

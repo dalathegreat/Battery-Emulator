@@ -2,7 +2,9 @@
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CanCharger.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/mqtt/mqtt.h"
@@ -111,8 +113,16 @@ void init_stored_settings() {
   user_selected_battery_chemistry =
       (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA);
   user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
+#ifndef SMALL_FLASH_DEVICE
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
+#endif  // SMALL_FLASH_DEVICE
   user_selected_shunt_type = (ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None);
+#ifdef SMALL_FLASH_DEVICE
+  // A shunt type left out of this build (the CHAdeMO CT clamp) reads as none
+  if (user_selected_shunt_type >= ShuntType::Highest) {
+    user_selected_shunt_type = ShuntType::None;
+  }
+#endif  // SMALL_FLASH_DEVICE
   user_selected_max_pack_voltage_dV = settings.getUInt("BATTPVMAX", 0);
   user_selected_min_pack_voltage_dV = settings.getUInt("BATTPVMIN", 0);
   user_selected_max_cell_voltage_mV = settings.getUInt("BATTCVMAX", 0);
@@ -137,11 +147,14 @@ void init_stored_settings() {
   user_selected_inverter_offgrid = settings.getBool("INVOFFGRID", false);
   user_selected_inverter_long_CAN_timeout = settings.getBool("SLOWCANINV", false);
   user_selected_LEAF_interlock_mandatory = settings.getBool("INTERLOCKREQ", false);
-  // Stored as the two CHG_STA_RQ bits themselves. 11b is the charge stop request and is not
-  // offered, so anything outside 00b/01b/10b falls back to the default of no request.
-  user_selected_LEAF_chg_sta_rq = settings.getUInt("CHGSTARQ", 0);
-  if (user_selected_LEAF_chg_sta_rq > 2) {
-    user_selected_LEAF_chg_sta_rq = 0;
+  // Balancing strategy of each LEAF pack, stored as the two CHG_STA_RQ bits themselves. 11b is the
+  // charge stop request and is not offered, so anything outside 00b/01b/10b falls back to the
+  // default of no request. Packs 2 and 3 used to be sent pack 1's, so until a strategy of their
+  // own is saved they keep following it.
+  const char* const chg_sta_rq_keys[3] = {"CHGSTARQ", "CHGSTARQ2", "CHGSTARQ3"};
+  for (uint8_t pack = 0; pack < 3; pack++) {
+    const uint32_t request = settings.getUInt(chg_sta_rq_keys[pack], pack == 0 ? 0 : user_selected_LEAF_chg_sta_rq[0]);
+    user_selected_LEAF_chg_sta_rq[pack] = request > 2 ? 0 : request;
   }
   user_selected_LEAF_auto_current_offset = settings.getBool("LEAFAUTOOFS", true);
   user_selected_daly_power_per_percent = settings.getUInt("DALYPWRPCT", 50);
@@ -188,7 +201,9 @@ void init_stored_settings() {
   can_config.battery_double = readIf("BATT2COMM");
   can_config.battery_triple = readIf("BATT3COMM");
   can_config.inverter = readIf("INVCOMM");
+#ifndef SMALL_FLASH_DEVICE
   can_config.charger = readIf("CHGCOMM");
+#endif  // SMALL_FLASH_DEVICE
   can_config.shunt = readIf("SHUNTCOMM");
 
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
@@ -255,12 +270,15 @@ void init_stored_settings() {
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
-  // Battery 2 reuses battery 1's manual power settings: update_calculated_values() caps the
-  // combined system's max charge/discharge power to whichever battery reports less, so leaving
-  // these at their unset default of 0 would silently zero out the whole system for double-battery
-  // setups using the same "estimated power" integrations as above.
+  // Battery 2/3 reuse battery 1's manual power settings: battery_aggregate.cpp's
+  // update_aggregate_limits() caps the combined system's max charge/discharge power to whichever
+  // battery reports less, so leaving these at their unset default of 0 would silently zero out the
+  // whole system for double/triple-battery setups using the same "estimated power" integrations as
+  // above.
   datalayer.battery2.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
   datalayer.battery2.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
+  datalayer.battery3.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
+  datalayer.battery3.status.override_discharge_power_W = settings.getUInt("DCHGPOWER", 1000);
 
   // WIFI AP is enabled by default unless disabled in the settings
   wifiap_enabled = settings.getBool("WIFIAPENABLED", true);
@@ -269,7 +287,8 @@ void init_stored_settings() {
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
-  mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
+  // Capped, so a value saved before the range was narrowed is taken into use within it.
+  mqtt_timeout_ms = mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000));
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);
   ha_autodiscovery_enabled = settings.getBool("HADISC", false);
   // Publish after a firmware update when asked to: the configs carry sw_version and can
@@ -296,14 +315,14 @@ void init_stored_settings() {
   mqtt_user = settings.getString("MQTTUSER").c_str();
   mqtt_password = settings.getString("MQTTPASSWORD").c_str();
 
-  // CT Clamp settings
+#ifndef SMALL_FLASH_DEVICE
+  // CHAdeMO CT Clamp settings
   ct_clamp_offset_mV = settings.getString("CTOFFSET", "-1.0").toFloat();
   ct_clamp_nominal_voltage_dV = settings.getUInt("CTVNOM", 40);
   ct_clamp_nominal_current_A = settings.getUInt("CTANOM", 100);
   ct_clamp_pin_atten = (adc_attenuation_enum)settings.getUInt("CTATTEN", 3);
   ct_invert_current = settings.getBool("CTINVERT", false);
 
-#ifndef SMALL_FLASH_DEVICE
   // QNHCK2-16 current sensor. Anything that is not one of its models, or a zero point it cannot
   // have, falls back to the defaults. The zero point is only stored once calibrated away from
   // the nominal 1.65 V.
@@ -315,6 +334,12 @@ void init_stored_settings() {
   qnhck_zero_mV = qnhck_zero_plausible(temp) ? temp : QNHCK_NOMINAL_ZERO_MV;
   // Only the off state of the automatic calibration is ever stored
   qnhck_auto_calibration = settings.getBool("QNHAUTOCAL", true);
+  // The zero point's temperature drift, within what the setting allows. Only stored when not 0.
+  int32_t tempco = settings.getInt("QNHTC", 0);
+  if (tempco > QNHCK_MAX_TEMPCO_UV_PER_C || tempco < -QNHCK_MAX_TEMPCO_UV_PER_C) {
+    tempco = 0;
+  }
+  qnhck_zero_tempco_uV_per_C = (int16_t)tempco;
 #endif  // SMALL_FLASH_DEVICE
 
   datalayer_extended.bydAtto3.auto_calibrate_soc_drift_percent =
@@ -331,6 +356,8 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.native_termination_enabled = settings.getBool("BYDNATTERM", true);
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
+  datalayer_extended.bydAtto3.balance_timer_auto_read = settings.getBool("BYDBALAUTO", false);
+  datalayer_extended.bydAtto3_2.balance_timer_auto_read = settings.getBool("BYDBALAUTO2", false);
 }
 
 void clear_wifi_sta_settings() {
@@ -401,4 +428,6 @@ void store_settings() {
   settings.saveBool("BYDNATTERM", datalayer_extended.bydAtto3.native_termination_enabled);
   settings.saveBool("BYDBALEN", datalayer_extended.bydAtto3.balancing_enabled);
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
+  settings.saveBool("BYDBALAUTO", datalayer_extended.bydAtto3.balance_timer_auto_read);
+  settings.saveBool("BYDBALAUTO2", datalayer_extended.bydAtto3_2.balance_timer_auto_read);
 }

@@ -2,10 +2,13 @@
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
@@ -116,11 +119,10 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
-// CHG_STA_RQ transmitted in 0x1F2 while the LBC starts up. The key is the two-bit signal value
-// itself, which is what gets stored; 11b (charge stop request) is deliberately not offered.
-static const std::map<int, String> leaf_chg_sta_rq = {{0, "other (default)"},
-                                                      {1, "normal charge (experimental)"},
-                                                      {2, "quick charge (experimental)"}};
+// Balancing strategy of a LEAF pack, sent to its LBC as CHG_STA_RQ in 0x1F2 while it starts up.
+// The key is the two-bit signal value itself, which is what gets stored: 00b (no request), 01b
+// (normal charge), 10b (quick charge). 11b (charge stop request) is deliberately not offered.
+static const std::map<int, String> leaf_chg_sta_rq = {{0, "Aggressive"}, {1, "Conservative"}, {2, "Off"}};
 
 static const std::map<int, String> tesla_countries = {
     {21843, "US (USA)"},     {17217, "CA (Canada)"},  {18242, "GB (UK & N Ireland)"},
@@ -238,10 +240,10 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; ✓
 const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; ✗
 
-// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
-// only for the battery integrations that actually implement parallel batteries.
-// Generated from battery_supports_double()/battery_supports_triple() so the UI
-// can never drift out of sync with what setup_battery() is able to instantiate.
+// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable / .if-chemcapable
+// blocks only for the battery integrations that actually implement parallel batteries
+// resp. use the chemistry setting. Generated from the battery_supports_*() predicates
+// so the UI can never drift out of sync with what setup_battery() does with them.
 static String capability_css(const char* className, bool (*supported)(BatteryType)) {
   String selectors;
 
@@ -306,7 +308,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
   if (var == "BTRCAPCSS") {
     return capability_css("if-dblcapable", battery_supports_double) +
-           capability_css("if-tricapable", battery_supports_triple);
+           capability_css("if-tricapable", battery_supports_triple) +
+           capability_css("if-chemcapable", battery_supports_chemistry_selection);
   }
   if (var == "BATTCHEM") {
     return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
@@ -321,6 +324,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CHGTYPE") {
     return options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
                                       name_for_charger_type, ChargerType::None);
@@ -329,6 +333,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "SHUNTTYPE") {
     return options_for_enum_with_none((ShuntType)settings.getUInt("SHUNTTYPE", (int)ShuntType::None),
@@ -345,13 +350,13 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                             name_for_comm_interface);
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CTATTEN") {
     return options_for_enum_with_none(
         (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
         name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
   }
 
-#ifndef SMALL_FLASH_DEVICE
   if (var == "QNHIPN") {
     return options_from_map(settings.getUInt("QNHIPN", QNHCK_DEFAULT_RATED_CURRENT_A), QNHCK_RATED_CURRENTS);
   }
@@ -396,8 +401,17 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_from_map(settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy), tesla_pack);
   }
 
+  // One per pack. Unsaved, the 2nd and 3rd show what their pack is running with, i.e. pack 1's.
   if (var == "CHGSTARQ") {
-    return options_from_map(settings.getUInt("CHGSTARQ", user_selected_LEAF_chg_sta_rq), leaf_chg_sta_rq);
+    return options_from_map(settings.getUInt("CHGSTARQ", user_selected_LEAF_chg_sta_rq[0]), leaf_chg_sta_rq);
+  }
+
+  if (var == "CHGSTARQ2") {
+    return options_from_map(settings.getUInt("CHGSTARQ2", user_selected_LEAF_chg_sta_rq[1]), leaf_chg_sta_rq);
+  }
+
+  if (var == "CHGSTARQ3") {
+    return options_from_map(settings.getUInt("CHGSTARQ3", user_selected_LEAF_chg_sta_rq[2]), leaf_chg_sta_rq);
   }
 
   if (var == "CHGSTARQCANRESET") {
@@ -560,11 +574,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     }
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CHARGERCLASS") {
     if (!charger) {
       return "hidden";
     }
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "DBLBTR") {
     return settings.getBool("DBLBTR") ? "checked" : "";
@@ -816,7 +832,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "MQTTTIMEOUT") {
-    return String(settings.getUInt("MQTTTIMEOUT", 2000));
+    // Capped like at load: an out-of-range saved value would otherwise block the form submit.
+    return String(mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000)));
   }
 
   if (var == "MQTTPUBLISHMS") {
@@ -972,6 +989,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CHARGER_CLASS") {
     if (!charger) {
       return "hidden";
@@ -1017,6 +1035,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "CHG_CURRENT_SETPOINT") {
     return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
   }
+#endif  // SMALL_FLASH_DEVICE
 
   if (var == "SOFAR_ID") {
     return String(settings.getUInt("SOFAR_ID", 0));
@@ -1128,6 +1147,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("GTWRHD", user_selected_tesla_GTW_rightHandDrive) ? "checked" : "";
   }
 
+#ifndef SMALL_FLASH_DEVICE
   if (var == "CTOFFSET") {
     return settings.getString("CTOFFSET", "-1.0");
   }
@@ -1144,7 +1164,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("CTINVERT") ? "checked" : "";
   }
 
-#ifndef SMALL_FLASH_DEVICE
   if (var == "QNHZERO") {
     // What calibration by hand uses: the stored zero point, or the nominal one. Not the running
     // value, which the automatic calibration may have measured since.
@@ -1153,6 +1172,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "QNHAUTOCAL") {
     return settings.getBool("QNHAUTOCAL", true) ? "checked" : "";
+  }
+
+  if (var == "QNHTC") {
+    return String(settings.getInt("QNHTC", 0) / 1000.0f, 2);  // Stored in uV/°C, shown in mV/°C
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1300,6 +1323,95 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #endif  // SDCARD
 
 #ifndef SMALL_FLASH_DEVICE
+// Chargers: their rows in the Optional components card and their CSS, the card with the
+// charger's outputs and setpoints, and the scripts behind that card's Edit buttons
+#define CHARGER_SETTINGS_HTML \
+  R"rawliteral(
+        <label>Charger: </label><select name='charger'>
+        %CHGTYPE%
+        </select>
+
+        <div class="if-charger">
+        <label>Charger interface: </label><select name='CHGCOMM'>
+        %CHGCOMM%
+        </select>
+        </div>)rawliteral"
+#define CHARGER_SETTINGS_STYLE \
+  R"rawliteral(
+    form .if-charger { display: contents; }
+    form[data-charger="0"] .if-charger { display: none; }
+    )rawliteral"
+#define CHARGER_CARD_HTML \
+  R"rawliteral(
+     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
+
+      <h4>
+        Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
+        <button onclick='editChargerHVDCEnabled()'>Edit</button>
+      </h4>
+
+      <h4>
+        Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
+        <button onclick='editChargerAux12vEnabled()'>Edit</button>
+      </h4>
+
+      <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
+
+      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+
+      </div>)rawliteral"
+#define CHARGER_SETTINGS_SCRIPT \
+  R"rawliteral(
+          function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
+          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
+
+          function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
+          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or 0');}}}
+
+          function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 200 to 420.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointV?value='+value,true);xhr.send();}else{
+            alert('Invalid value. Please enter a value between 0 and 1000');}}}
+
+          function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 48.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
+              alert('Invalid value. Please enter a value between 0 and 100');}}}
+
+          function editChargerSetpointEndI(){
+            var value=prompt('Set amperage that terminates charge as being sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new 
+          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}})rawliteral"
+
+// CHAdeMO CT clamp ("Custom Clamp" shunt type): its rows in the Optional components card and their CSS
+#define CTCLAMP_SETTINGS_HTML \
+  R"rawliteral(
+        <div class="if-ctclamp">
+          <label>CT Clamp offset (mV): </label>
+          <input type='number' name='CTOFFSET' value="%CTOFFSET%"
+          min="-1" max="3000" step="1" />
+
+          <label>CT Clamp nominal voltage (dV): </label>
+          <input type='number' name='CTVNOM' value="%CTVNOM%"
+          min="0" max="500" step="1" />
+
+          <label>CT Clamp nominal current (A): </label>
+          <input type='number' name='CTANOM' value="%CTANOM%"
+          min="0" max="200" step="1" />
+
+          <label>ESP32 pin attenuation: </label>
+          <select name='CTATTEN'>
+          %CTATTEN%
+          </select>
+
+          <label>Invert CT current: </label>
+          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
+          </div>)rawliteral"
+#define CTCLAMP_SETTINGS_STYLE \
+  R"rawliteral(
+    form[data-shunttype="3"] .if-shunt { display: none; }
+    form .if-ctclamp { display: none; }
+    form[data-shunttype="3"] .if-ctclamp { display: contents; }
+    )rawliteral"
+
 // QNHCK2-16 current sensor: its rows in the Optional components card, their CSS, and the script
 // behind the manual calibration's Start button
 #define QNHCK_SETTINGS_HTML \
@@ -1318,6 +1430,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <label>Automatic calibration: </label>
           <input type='checkbox' name='QNHAUTOCAL' value='on' %QNHAUTOCAL% />
 
+          <div class="if-qnhauto">
+          <label>Zero point drift (mV/°C): </label>
+          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.01' />
+          </div>
+
           <div class="if-qnhmanual">
           <label>Manual calibration: </label>
           <span class='settings-value' data-h=qnhzero><span id='qnhzero'>%QNHZERO%</span>
@@ -1326,12 +1443,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>)rawliteral"
 #define QNHCK_SETTINGS_STYLE \
   R"rawliteral(
-    form[data-shunttype="4"] .if-shunt,
-    form[data-shunttype="4"] .if-ctclamp { display: none; }
+    form[data-shunttype="4"] .if-shunt { display: none; }
     form .if-qnhck { display: none; }
     form[data-shunttype="4"] .if-qnhck { display: contents; }
     form .if-qnhmanual { display: none; }
     form[data-qnhautocal="false"] .if-qnhmanual { display: contents; }
+    form .if-qnhauto { display: contents; }
+    form[data-qnhautocal="false"] .if-qnhauto { display: none; }
     )rawliteral"
 #define QNHCK_SETTINGS_SCRIPT \
   R"rawliteral(
@@ -1339,6 +1457,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
         function calibrateQnhZero(){if(confirm('No current may flow through the sensor while it is measured: open the contactors, or take the clamp off the cable, and wait a few seconds.\n\nMeasure its zero point now?')){var xhr=new XMLHttpRequest();
         xhr.onload=function(){if(this.status==200){document.getElementById('qnhzero').textContent=this.responseText;}alert(this.status==200?'Zero point set to '+this.responseText+'.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/calibrateShuntZero',true);xhr.send();}})rawliteral"
 #else
+#define CHARGER_SETTINGS_HTML ""
+#define CHARGER_SETTINGS_STYLE ""
+#define CHARGER_CARD_HTML ""
+#define CHARGER_SETTINGS_SCRIPT ""
+#define CTCLAMP_SETTINGS_HTML ""
+#define CTCLAMP_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_HTML ""
 #define QNHCK_SETTINGS_STYLE ""
 #define QNHCK_SETTINGS_SCRIPT ""
@@ -1451,25 +1575,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     
         function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
-
-          function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
-          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
-
-          function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
-          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or 0');}}}
-
-          function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 200 to 420.');
-            if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointV?value='+value,true);xhr.send();}else{
-            alert('Invalid value. Please enter a value between 0 and 1000');}}}
-
-          function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 48.');
-            if(value!==null){if(value>=0&&value<=1000){var xhr=new           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
-              alert('Invalid value. Please enter a value between 0 and 100');}}}
-
-          function editChargerSetpointEndI(){
-            var value=prompt('Set amperage that terminates charge as being sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');
-            if(value!==null){if(value>=0&&value<=1000){var xhr=new 
-          XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}}
+)rawliteral" CHARGER_SETTINGS_SCRIPT R"rawliteral(
 
           function goToMainPage() { window.location.href = '/'; }
 
@@ -1555,25 +1661,15 @@ String qnhck_zero_text(uint16_t zero_mV) {
     border-bottom: 1px solid #4d5f69;
   }
 
-    form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
+    form .if-battery, form .if-inverter, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
-    form[data-charger="0"] .if-charger { display: none; }
-    form[data-shunttype="0"] .if-shunt,
-    form[data-shunttype="3"] .if-shunt { 
-      display: none; 
-    }
-    form[data-shunttype="0"] .if-ctclamp,
-    form[data-shunttype="1"] .if-ctclamp,
-    form[data-shunttype="2"] .if-ctclamp { 
-      display: none; 
-    }
-    form[data-shunttype="3"] .if-ctclamp { display: contents;}
+    form[data-shunttype="0"] .if-shunt { display: none; }
 
     /* Shunt types the selected battery/inverter can't use.
        Rules are generated at runtime from the shunt capability predicates. */
     %SHUNTCAPCSS%
-    )rawliteral" QNHCK_SETTINGS_STYLE R"rawliteral(
+    )rawliteral" CHARGER_SETTINGS_STYLE CTCLAMP_SETTINGS_STYLE QNHCK_SETTINGS_STYLE R"rawliteral(
 
     form .if-cbms { display: none; }
     form[data-battery="6"] .if-cbms,
@@ -1585,7 +1681,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form[data-battery="41"] .if-cbms,
     form[data-battery="48"] .if-cbms,
     form[data-battery="49"] .if-cbms,
-    form[data-battery="51"] .if-cbms {
+    form[data-battery="41"] .if-cbms,
+    form[data-battery="52"] .if-cbms {
       display: contents;
     }
 
@@ -1619,7 +1716,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form[data-battery="41"] .if-estimated,
     form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
-    form[data-battery="51"] .if-estimated {
+    form[data-battery="51"] .if-estimated,
+    form[data-battery="52"] .if-estimated {
       display: contents;
     }
 
@@ -1638,7 +1736,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
-    /* Integrations that support running two/three batteries in parallel.
+    /* Integrations that support double/triple batteries or use the chemistry setting.
        Rules are generated at runtime from the battery capability predicates. */
     %BTRCAPCSS%
 
@@ -1835,20 +1933,23 @@ String qnhck_zero_text(uint16_t zero_mV) {
     return true;
   }
 
-  //The LBC latches the starting sequence request as it powers up, so a change to it is inert
-  //until the BMS is reset. Offer to do that right away rather than leaving the setting saved
-  //but not in effect.
+  //An LBC latches its balancing strategy as it powers up, so a change to one is inert until the
+  //BMS is reset. Offer to do that right away rather than leaving the setting saved but not in
+  //effect. The reset restarts every pack, so one question covers the strategies of all three.
+  //A strategy counts as changed when its shown select no longer holds the option the page was
+  //served with, which is the one marked selected.
   function confirmBmsRestart() {
-    const sel = document.getElementById('CHGSTARQ');
     const flag = document.getElementById('CHGSTARQRESET');
-    if (!sel || !flag || sel.value === sel.dataset.initial) {
+    const changed = [...document.querySelectorAll('select[name^="CHGSTARQ"]')].some(
+      (sel) => sel.offsetParent !== null && !sel.options[sel.selectedIndex].defaultSelected);
+    if (!flag || !changed) {
       return true;
     }
     if (flag.dataset.canreset !== '1') {
-      alert('The BMS only reads the starting sequence request while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
+      alert('The BMS only reads the balancing strategy while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
       return true;
     }
-    flag.value = window.confirm('The BMS only reads the starting sequence request while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
+    flag.value = window.confirm('The BMS only reads the balancing strategy while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
     return true;
   }
 
@@ -1872,7 +1973,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
         <label>SSID: </label>
         <input type='text' name='SSID' value="%SSID%" 
-        pattern="[ -~]{1,63}"/>
+        pattern="[ -~]{1,32}"/>
 
         <label>Password: </label><input type='password' name='PASSWORD' value="%PASSWORD%" autocomplete="new-password"
         pattern="[ -~]{8,63}" placeholder='Leave blank to keep unchanged' />
@@ -1964,26 +2065,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </select>
 
         <div class="if-nissan">
-            <label for='CHGSTARQ'>BMS starting sequence request: </label>
-            <select name='CHGSTARQ' id='CHGSTARQ'>
-            %CHGSTARQ%
-            </select>
-            <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
-            data-canreset='%CHGSTARQCANRESET%' />
-
             <label for='LEAFAUTOOFS'>Automatic current offset correction: </label>
             <input type='checkbox' name='LEAFAUTOOFS' id='LEAFAUTOOFS' value='on' %LEAFAUTOOFS% />
 
             <label for='interlock'>Interlock required: </label>
             <input type='checkbox' name='INTERLOCKREQ' id='interlock' value='on' %INTERLOCKREQ% />
         </div>
-
-        <script> //Remember what the LBC is currently being sent, so a change can be spotted on save
-        (function() {
-          const sel = document.getElementById('CHGSTARQ');
-          if (sel) { sel.dataset.initial = sel.value; }
-        })();
-        </script>
 
         <div class="if-daly">
           <label>Power limit per percent SOC above 80 / below 20 (W/pct): </label>
@@ -2051,9 +2138,20 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %BATTCOMM%
         </select>
 
+        <div class="if-nissan">
+            <label for='CHGSTARQ'>Balancing strategy: </label>
+            <select name='CHGSTARQ' id='CHGSTARQ'>
+            %CHGSTARQ%
+            </select>
+            <input type='hidden' name='CHGSTARQRESET' id='CHGSTARQRESET' value='0'
+            data-canreset='%CHGSTARQCANRESET%' />
+        </div>
+
+        <div class="if-chemcapable">
         <label>Battery chemistry: </label><select name='BATTCHEM'>
         %BATTCHEM%
         </select>
+        </div>
         </div>
 
         <div class="if-pylon-battery">
@@ -2085,6 +2183,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
                 %BATT2COMM%
             </select>
 
+            <div class="if-nissan">
+            <label for='CHGSTARQ2'>Balancing strategy: </label>
+            <select name='CHGSTARQ2' id='CHGSTARQ2'>
+                %CHGSTARQ2%
+            </select>
+            </div>
+
         <div class="if-tricapable">
         <label>Triple battery: </label>
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% />
@@ -2094,6 +2199,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
+
+        <div class="if-nissan">
+        <label for='CHGSTARQ3'>Balancing strategy: </label>
+        <select name='CHGSTARQ3' id='CHGSTARQ3'>
+            %CHGSTARQ3%
+        </select>
+        </div>
         </div>
 
         </div>
@@ -2239,16 +2351,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <div class="settings-card">
         <h3>Optional components config</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
-
-        <label>Charger: </label><select name='charger'>
-        %CHGTYPE%
-        </select>
-
-        <div class="if-charger">
-        <label>Charger interface: </label><select name='CHGCOMM'>
-        %CHGCOMM%
-        </select>
-        </div>
+)rawliteral" CHARGER_SETTINGS_HTML R"rawliteral(
 
         <label>Measurement: </label><select name='shunttype'>
         %SHUNTTYPE%
@@ -2258,29 +2361,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <label>Interface: </label><select name='SHUNTCOMM'>
         %SHUNTCOMM%
         </select>
-        </div>
-
-        <div class="if-ctclamp">
-          <label>CT Clamp offset (mV): </label>
-          <input type='number' name='CTOFFSET' value="%CTOFFSET%" 
-          min="-1" max="3000" step="1" />
-
-          <label>CT Clamp nominal voltage (dV): </label>
-          <input type='number' name='CTVNOM' value="%CTVNOM%" 
-          min="0" max="500" step="1" />
-
-          <label>CT Clamp nominal current (A): </label>
-          <input type='number' name='CTANOM' value="%CTANOM%" 
-          min="0" max="200" step="1" />
-
-          <label>ESP32 pin attenuation: </label>
-          <select name='CTATTEN'>
-          %CTATTEN%
-          </select>
-
-          <label>Invert CT current: </label>
-          <input type='checkbox' name='CTINVERT' value='on' %CTINVERT% />
-          </div>)rawliteral" QNHCK_SETTINGS_HTML R"rawliteral(
+        </div>)rawliteral" CTCLAMP_SETTINGS_HTML QNHCK_SETTINGS_HTML R"rawliteral(
         </div>
 
         </div>
@@ -2409,7 +2490,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         pattern="[ -~]+" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
-        min="1" max="60000" step="1" />
+        min="2000" max="20000" step="1" />
         <label>MQTT publish interval (seconds): </label>
         <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
         min="1" max="300" step="1" />
@@ -2545,24 +2626,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <h4 class="%BALANCING_CLASS%"><span>Max cell voltage deviation: %BAL_MAX_DEV_CELL_VOLTAGE% mV</span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>
 
     </div>
-
-     <div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px' class="%CHARGER_CLASS%">
-
-      <h4>
-        Charger HVDC Enabled: <span class="%CHG_HV_CLASS%">%CHG_HV%</span>
-        <button onclick='editChargerHVDCEnabled()'>Edit</button>
-      </h4>
-
-      <h4>
-        Charger Aux12VDC Enabled: <span class="%CHG_AUX12V_CLASS%">%CHG_AUX12V%</span>
-        <button onclick='editChargerAux12vEnabled()'>Edit</button>
-      </h4>
-
-      <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
-
-      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
-
-      </div>
+)rawliteral" CHARGER_CARD_HTML R"rawliteral(
     
   </div>
 
