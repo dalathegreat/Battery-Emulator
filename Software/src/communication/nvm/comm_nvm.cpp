@@ -358,6 +358,7 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
   datalayer_extended.bydAtto3.balance_timer_auto_read = settings.getBool("BYDBALAUTO", false);
   datalayer_extended.bydAtto3_2.balance_timer_auto_read = settings.getBool("BYDBALAUTO2", false);
+  datalayer_extended.bydAtto3.full_charge_every_days = settings.getUInt("BYDFCDAYS", 0);
 }
 
 void clear_wifi_sta_settings() {
@@ -430,4 +431,5 @@ void store_settings() {
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
   settings.saveBool("BYDBALAUTO", datalayer_extended.bydAtto3.balance_timer_auto_read);
   settings.saveBool("BYDBALAUTO2", datalayer_extended.bydAtto3_2.balance_timer_auto_read);
+  settings.saveUInt("BYDFCDAYS", datalayer_extended.bydAtto3.full_charge_every_days);
 }
