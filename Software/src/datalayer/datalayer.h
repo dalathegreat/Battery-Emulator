@@ -244,6 +244,8 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** SOC scaling setting. Increases battery life. 
    * If true will rescale SOC between the configured min/max-percentage */
   bool soc_scaling_active = true;
+  /** Runtime only: scale up to 100% real SOC instead of max_percentage, so a full charge can finish */
+  bool soc_window_top_lifted = false;
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;

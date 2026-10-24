@@ -945,6 +945,21 @@ void init_webserver() {
     request->send(200, "text/plain", "OK");
   });
 
+  // Save full charge interval to RAM + NVM
+  def_route_with_auth("/editBydAtto3FullChargeDays", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      int value = request->getParam("value")->value().toInt();
+      if (value >= 0 && value <= 30) {
+        datalayer_extended.bydAtto3.full_charge_every_days = (uint8_t)value;
+        Preferences prefs;
+        prefs.begin("batterySettings", false);
+        prefs.putUInt("BYDFCDAYS", (uint8_t)value);
+        prefs.end();
+      }
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
   // Route for editing AH Calibration BYD
   update_string_setting("/editCalTargetAH", [](String value) {
     datalayer_extended.bydAtto3.calibrationTargetAH = static_cast<uint16_t>(value.toFloat());
@@ -1236,6 +1251,15 @@ void init_webserver() {
 
 void webserver_tick() {
   can_dump_drain_tick();
+
+  // Written here because the battery task cannot reach NVM
+  if (datalayer_extended.bydAtto3.full_charge_save_pending) {
+    datalayer_extended.bydAtto3.full_charge_save_pending = false;
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putUInt("BYDFCHRS", datalayer_extended.bydAtto3.full_charge_hours);
+    prefs.end();
+  }
 
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event

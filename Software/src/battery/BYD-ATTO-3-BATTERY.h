@@ -260,6 +260,7 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t BALANCING_CLOSE_BACKOFF_MS = 45000;
   static const uint32_t BALANCING_SETTLE_MS = 10000;         // session reaches rest ~5s after termination
   static const uint32_t BALANCING_MOVE_TIMEOUT_MS = 120000;  // give up if the pack will not move
+  static const uint32_t FULL_CHARGE_HOUR_MS = 3600000;
 
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
@@ -462,6 +463,8 @@ class BydAttoBattery : public CanBattery {
   bool contactorOpenOptional = false;
   bool balancingCycleDone = false;  // one cycle per real discharge, like the session re-arm
   unsigned long balancingDischargeSinceMillis = 0;
+  unsigned long fullChargeHourMillis = 0;
+  bool fullChargeTerminationSeen = false;
   bool chargeSessionTerminated = false;  // last session ended on a grant edge, not an interruption
   bool chargeTerminatedRails = false;    // rails stay lifted after the session ends, until cells relax
   bool chargeSessionHeartbeat = false;
@@ -484,6 +487,7 @@ class BydAttoBattery : public CanBattery {
 
   void handle_charge_session(unsigned long currentMillis);
   void handle_balancing(unsigned long currentMillis);
+  void handle_full_charge_schedule(unsigned long currentMillis);
   void handle_charge_grant(uint8_t grant);
   void confirm_charge_termination();
   void start_charge_session(unsigned long currentMillis);

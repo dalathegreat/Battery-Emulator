@@ -189,6 +189,11 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint8_t balancing_state;
   /** Minutes left of the hold */
   uint16_t balancing_remaining_min;
+  /** Lift the SOC window top after this many days without a termination, 0 off */
+  uint8_t full_charge_every_days;
+  /** Hours counted since the last termination, persisted */
+  uint16_t full_charge_hours;
+  bool full_charge_save_pending;
 
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
