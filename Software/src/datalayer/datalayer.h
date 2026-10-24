@@ -171,6 +171,10 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   bool bms_reports_full = false;
   /** The pack's own BMS reports it completely discharged. See bms_reports_full */
   bool bms_reports_empty = false;
+  /** The pack's own BMS reports a confirmed cell overvoltage fault. Not available for all battery
+   * types. The safety layer raises EVENT_CELL_CRITICAL_OVER_VOLTAGE for the pack from this as well
+   * as from its highest cell voltage */
+  bool bms_reports_cell_critical_overvoltage = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
