@@ -61,8 +61,10 @@ class JkActiveBalancerHtmlRenderer : public BatteryHtmlRenderer {
           "Firmware version must be 1, 2 or 3",
           "Voltage limits out of order (need min cell < empty on < empty off < full off < full on < max cell, "
           "and pack min < pack max)",
-          "SOC window invalid (SOC min must be below SOC max)"};
-      const char* txt = (jk_dl->config_error < 8) ? cfg_err[jk_dl->config_error] : "Unknown";
+          "SOC window invalid (SOC min must be below SOC max)",
+          "No contactors: enable Contactor control via GPIO (battery 1), 2nd or 3rd battery contactor control "
+          "(battery 2 or 3)"};
+      const char* txt = (jk_dl->config_error < 9) ? cfg_err[jk_dl->config_error] : "Unknown";
       content += "<div style='background-color: #7A1F1F; padding: 10px; margin-bottom: 10px; border-radius: 20px;'>";
       content += "<h4>BATTERY NOT RUNNING - JK settings are inconsistent: ";
       content += txt;

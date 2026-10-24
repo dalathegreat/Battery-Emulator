@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include "../communication/can/comm_can.h"
+#include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../communication/nvm/comm_nvm.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -46,6 +47,10 @@ void JKActiveBalancer::setup(void) {
     config_error = JK_CFG_BAD_VOLTAGE_ORDER;
   } else if (user_selected_jk_soc_min_dpct >= user_selected_jk_soc_max_dpct) {
     config_error = JK_CFG_BAD_SOC_WINDOW;
+  } else if (!((battery_index == 1)   ? contactor_control_enabled
+               : (battery_index == 2) ? contactor_control_enabled_double_battery
+                                      : contactor_control_enabled_triple_battery)) {
+    config_error = JK_CFG_NO_CONTACTOR;  // each pack needs its own GPIO contactors
   }
   if (config_error != JK_CFG_OK) {  // keep the arithmetic below safe
     JK_CELLS_BALANCER = MAX_CELLS_PER_BALANCER;

@@ -17,7 +17,8 @@
      2 = all balancers V11.56 : bits as documented (1 = ALARM, 0 = OK)
      3 = mixed: per balancer from user_selected_jk_fw_mask (bit 15 = balancer 1 ... bit 1 = balancer 15, 1 = V11.55)
    An inconsistent layout sets config_error: the battery is then not polled, contactors stay open and the
-   "More battery info" page shows the reason. */
+   "More battery info" page shows the reason. A balancer has no disconnect of its own, so running a pack
+   without its GPIO contactor control is a config error too. */
 enum JKConfigError : uint8_t {
   JK_CFG_OK = 0,
   JK_CFG_BRIDGE_AND_LOW_VOLTAGE = 1,
@@ -27,6 +28,7 @@ enum JKConfigError : uint8_t {
   JK_CFG_BAD_FW_VERSION = 5,
   JK_CFG_BAD_VOLTAGE_ORDER = 6,
   JK_CFG_BAD_SOC_WINDOW = 7,
+  JK_CFG_NO_CONTACTOR = 8,
 };
 
 class JKActiveBalancer : public CanBattery {

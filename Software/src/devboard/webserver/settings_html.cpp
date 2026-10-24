@@ -2179,7 +2179,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY                                                                                                                                \
+#define SETTINGS_HTML_BODY                                                                                                                                                          \
   R"rawliteral(
   <button onclick='goToMainPage()'>Back to main page</button>
   <button onclick="askFactoryReset()">Factory reset</button>
@@ -2197,6 +2197,32 @@ String qnhck_zero_text(uint16_t zero_mV) {
       return false;
     }
 
+    return true;
+  }
+
+  //A JK Active Balancer pack (battery type 60) has no disconnect of its own, so each pack needs its
+  //own GPIO contactor control. The firmware refuses to run it otherwise (JK_CFG_NO_CONTACTOR).
+  function validateJkContactors() {
+    const q = (n) => document.querySelector('[name="' + n + '"]');
+    const on = (n) => !!q(n) && q(n).checked;
+    const shown = (el, cls) => !!el && !!el.closest(cls) && getComputedStyle(el.closest(cls)).display !== 'none';
+    if (!q('battery') || q('battery').value !== '60') {
+      return true;
+    }
+    const missing = [];
+    if (!on('CNTCTRL')) {
+      missing.push('Contactor control via GPIO');
+    }
+    if (on('DBLBTR') && shown(q('DBLBTR'), '.if-dblcapable') && !on('CNTCTRLDBL')) {
+      missing.push('2nd battery contactor control via GPIO');
+    }
+    if (on('TRIBTR') && shown(q('TRIBTR'), '.if-tricapable') && !on('CNTCTRLTRI')) {
+      missing.push('3rd battery contactor control via GPIO');
+    }
+    if (missing.length) {
+      alert('JK Active Balancer packs must be disconnected by contactors.\nEnable in Hardware config: ' + missing.join(', ') + '.');
+      return false;
+    }
     return true;
   }
 
@@ -2266,7 +2292,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 )rawliteral" LILYGO_PIN_SCRIPT R"rawliteral(
 
 <div style='background-color: #404E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>
-        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && validateBatteryInterfaces())rawliteral" LILYGO_PIN_SUBMIT \
+        <form action='saveSettings' method='post' onsubmit='return validateWebAuthPassword() && validateBatteryInterfaces() && validateJkContactors())rawliteral" LILYGO_PIN_SUBMIT \
   R"rawliteral( && confirmBmsRestart()'>
 
         <div style='grid-column: span 2; text-align: center; padding-top: 10px;' class="%SAVEDCLASS%">
