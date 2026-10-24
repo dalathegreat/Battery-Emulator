@@ -410,6 +410,15 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
   }
+
+  if (time_to_sleep) {
+    if (ZOE_373.data.u8[0] == 0xC1) {
+      time_to_sleep = false;
+    }
+    // Stop sending CAN messages until next wakeup
+    return;
+  }
+
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
@@ -441,6 +450,11 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ZOE_373);  //HEVC Wakeup / Sleep message
     transmit_can_frame(&ZOE_375);  //HEVC Status message
     transmit_can_frame_376();      //HEVC Time and Date
+
+    if (ZOE_373.data.u8[0] == 0x01) {  //NVROL reset has entered time to sleep
+      //We have successfully sent a sleep message, so we can halt all CAN sending until next wakeup.
+      time_to_sleep = true;
+    }
   }
 
   // Send 200ms polling CAN Message (Only if not NVROL in progress)
@@ -547,12 +561,12 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       break;
     case 4:  //Wait 30s
       //While waiting, stop streaming 0x373 to make battery go to sleep
-      ZOE_373.data.u8[0] = 0x01;
+      ZOE_373.data.u8[0] = 0x01;  //Sleep
       if ((millis() - startTimeNVROL) > INTERVAL_30_S) {
         // after sleeping, set the nvrol reset flag to false, to continue normal operation of sending CAN messages
         datalayer_zoePH2->UserRequestNVROLReset = false;
         // Wake battery back up
-        ZOE_373.data.u8[0] = 0xC1;
+        ZOE_373.data.u8[0] = 0xC1;  //Wakeup
         // reset state machine, we are done!
         NVROLstateMachine = 0;
       }
