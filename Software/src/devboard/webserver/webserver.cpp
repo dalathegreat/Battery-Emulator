@@ -1252,15 +1252,6 @@ void init_webserver() {
 void webserver_tick() {
   can_dump_drain_tick();
 
-  // Written here because the battery task cannot reach NVM
-  if (datalayer_extended.bydAtto3.full_charge_save_pending) {
-    datalayer_extended.bydAtto3.full_charge_save_pending = false;
-    Preferences prefs;
-    prefs.begin("batterySettings", false);
-    prefs.putUInt("BYDFCHRS", datalayer_extended.bydAtto3.full_charge_hours);
-    prefs.end();
-  }
-
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);

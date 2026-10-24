@@ -1241,7 +1241,6 @@ void BydAttoBattery::handle_full_charge_schedule(unsigned long currentMillis) {
   }
   if (chargeSessionTerminated && !fullChargeTerminationSeen) {
     datalayer_bydatto->full_charge_hours = 0;
-    datalayer_bydatto->full_charge_save_pending = true;
   }
   fullChargeTerminationSeen = chargeSessionTerminated;
 
@@ -1254,7 +1253,6 @@ void BydAttoBattery::handle_full_charge_schedule(unsigned long currentMillis) {
   } else if (currentMillis - fullChargeHourMillis >= FULL_CHARGE_HOUR_MS) {
     fullChargeHourMillis += FULL_CHARGE_HOUR_MS;
     datalayer_bydatto->full_charge_hours++;
-    datalayer_bydatto->full_charge_save_pending = true;
   }
   datalayer.battery_settings.soc_window_top_lifted = lifted;
 }
