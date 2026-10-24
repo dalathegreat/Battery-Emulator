@@ -499,6 +499,7 @@ class BydAttoBattery : public CanBattery {
   bool diag_answered = false;  // first reply settles the diagnostic address
   uint8_t frame6_counter = 0xB;
   uint8_t BMS_SOH = 99;
+  uint8_t BMS_capacity_Ah = 0;
   uint8_t BMS_min_cell_voltage_number = 0;
   uint8_t BMS_min_temp_module_number = 0;
   uint8_t BMS_max_cell_voltage_number = 0;
