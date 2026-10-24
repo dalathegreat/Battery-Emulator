@@ -66,12 +66,24 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t BMS_POWER() {  //BMS power (Modifiable via Webserver)
     if (user_selected_gpioopt2 == GPIOOPT2::DEFAULT_OPT_BMS_POWER_18) {
       return GPIO_NUM_18;
+    }
+    if (user_selected_gpioopt2 == GPIOOPT2::BMS_POWER_02) {
+      return GPIO_NUM_2;
     }  //Else user_selected_gpioopt2 == GPIOOPT2::BMS_POWER_25
     return GPIO_NUM_25;
   }
   // Pins to be latched across a reset/OTA reboot (RTC-capable pins only): BMS_POWER can be GPIO25
-  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25}; }
-  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() { return GPIO_NUM_15; }
+  // or GPIO2. Only the one BMS power actually uses is held, see should_hold_pin().
+  virtual std::vector<gpio_num_t> reset_hold_pins() { return {GPIO_NUM_25, GPIO_NUM_2}; }
+  virtual gpio_num_t SECOND_BATTERY_CONTACTORS_PIN() {  // (Modifiable via Webserver)
+    if (user_selected_gpioopt7 == GPIOOPT7::BAT2_CONTACTORS_14) {
+      return GPIO_NUM_14;
+    }
+    if (user_selected_gpioopt7 == GPIOOPT7::BAT2_CONTACTORS_02) {
+      return GPIO_NUM_2;
+    }  //Else user_selected_gpioopt7 == GPIOOPT7::DEFAULT_BAT2_CONTACTORS_15
+    return GPIO_NUM_15;
+  }
 
   // Automatic precharging
   virtual gpio_num_t HIA4V1_PIN() { return GPIO_NUM_25; }
@@ -80,10 +92,19 @@ class LilyGoHal : public Esp32Hal {
 
   // SMA CAN contactor pins (Modifiable via Webserver)
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_PIN() {
-    if (user_selected_gpioopt3 == GPIOOPT3::DEFAULT_SMA_ENABLE_05) {
-      return GPIO_NUM_5;
-    }  //Else user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_33
-    return GPIO_NUM_33;
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_33) {
+      return GPIO_NUM_33;
+    }
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_15) {
+      return GPIO_NUM_15;
+    }
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_14) {
+      return GPIO_NUM_14;
+    }
+    if (user_selected_gpioopt3 == GPIOOPT3::SMA_ENABLE_02) {
+      return GPIO_NUM_2;
+    }  //Else user_selected_gpioopt3 == GPIOOPT3::DEFAULT_SMA_ENABLE_05
+    return GPIO_NUM_5;
   }
 
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
@@ -120,8 +141,19 @@ class LilyGoHal : public Esp32Hal {
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
 
-  // Equipment stop pin
-  virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_35; }
+  // Equipment stop pin (Modifiable via Webserver). PIN35 is also the MCP2515 INT.
+  virtual gpio_num_t EQUIPMENT_STOP_PIN() {
+    if (user_selected_gpioopt8 == GPIOOPT8::ESTOP_15) {
+      return GPIO_NUM_15;
+    }
+    if (user_selected_gpioopt8 == GPIOOPT8::ESTOP_14) {
+      return GPIO_NUM_14;
+    }
+    if (user_selected_gpioopt8 == GPIOOPT8::ESTOP_02) {
+      return GPIO_NUM_2;
+    }  //Else user_selected_gpioopt8 == GPIOOPT8::DEFAULT_ESTOP_35
+    return GPIO_NUM_35;
+  }
 
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }

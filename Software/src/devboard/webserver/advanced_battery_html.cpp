@@ -72,6 +72,24 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetEnergySavingMode", "Reset Energy Saving Mode", "reset energy saving mode to normal?",
      [](Battery* b) { return b && b->supports_energy_saving_mode_reset(); },
      [](Battery* b) { b->reset_energy_saving_mode(); }},
+    // --- JK Active Balancer ---
+    {"resetCycles", "Reset BMS cycles",
+     "reset the BMS cycle counter to zero? SOH returns to 100 percent and the capacity used for SOC is recalculated.",
+     [](Battery* b) { return b && b->supports_reset_cycles(); }, [](Battery* b) { b->reset_cycles(); }, true},
+    // CAB500 current sensor CAN speed (sensor ships at 500 kbps, driver needs 250)
+    {"cab500Speed125", "CAB500 to 125 kbps",
+     "reconfigure the CAB500 current sensor to 125 kbps? The battery CAN bus is switched for about 10 s.",
+     [](Battery* b) { return b && b->supports_cab500_speed_change(); },
+     [](Battery* b) { b->request_cab500_speed_change(125); }, true},
+    {"cab500Speed250", "CAB500 to 250 kbps",
+     "reconfigure the CAB500 current sensor to 250 kbps? The battery CAN bus is switched for about 10 s.",
+     [](Battery* b) { return b && b->supports_cab500_speed_change(); },
+     [](Battery* b) { b->request_cab500_speed_change(250); }, true},
+    {"cab500Speed500", "CAB500 to 500 kbps",
+     "reconfigure the CAB500 current sensor to 500 kbps (factory setting, this driver cannot use it)? The battery "
+     "CAN bus is switched for about 10 s.",
+     [](Battery* b) { return b && b->supports_cab500_speed_change(); },
+     [](Battery* b) { b->request_cab500_speed_change(500); }, true},
 };
 
 namespace {
