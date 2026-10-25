@@ -446,7 +446,7 @@ TEST(NissanLeafHealthTests, ShouldFallBackToGidsForRemainingCapacityBeforeCapaci
 // which is what the SOH fallback waits for before it concludes that no capacity is coming.
 void complete_first_poll_pass(NissanLeafBattery* battery) {
   unsigned long t = 50000;
-  for (int i = 0; i < 8; i++) {  //One per entry in PIDgroups
+  for (int i = 0; i < 9; i++) {  //One per entry in PIDgroups
     next_polled_group(battery, t);
   }
 }
@@ -1157,7 +1157,7 @@ TEST(NissanLeafUsageHistogramTests, ShouldNotDrawChartsBeforeGroupIsRead) {
 // rotation; a complete one takes it out as before. Nothing here depends on where 0x62 sits in
 // PIDgroups.
 TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
-  const size_t rotation = 8;  //Entries in PIDgroups, so the most one pass can take
+  const size_t rotation = 9;  //Entries in PIDgroups, so the most one pass can take
   for (size_t frames : {(size_t)5, (size_t)15, SIZE_MAX}) {
     const bool complete = (frames == SIZE_MAX);
     datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
@@ -2104,4 +2104,25 @@ TEST_F(NissanLeafCurrentZeroTests, ShouldWithholdContactorCloseUntilTheWindowHas
   set_millis64(anchor + 2000);
   pack->update_values();
   EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+}
+
+// The driver reads the LBC's own current-sensor zero from local identifier 0x07 and logs it, so a
+// learned (non-round) value can be told apart from the 649,000,000 default the LBC keeps when it
+// skips the learn. This pins the big-endian decode that sits behind that log line.
+TEST(NissanLeafCurrentZeroReadTests, ShouldDecodeTheLbcReportedZeroOffset) {
+  auto battery = battery_polling();
+
+  // Reply framing: 10 0A 61 07 RH RL Z3 Z2  then  21 Z1 Z0 LH LL FF FF FF, Z3..Z0 the big-endian u32.
+  auto feed_zero = [&](uint32_t ucounts) {
+    battery->handle_incoming_can_frame(
+        leaf_7bb_frame({0x10, 0x0A, 0x61, 0x07, 0x14, 0x00, (uint8_t)(ucounts >> 24), (uint8_t)(ucounts >> 16)}));
+    battery->handle_incoming_can_frame(
+        leaf_7bb_frame({0x21, (uint8_t)(ucounts >> 8), (uint8_t)ucounts, 0x14, 0x00, 0xFF, 0xFF, 0xFF}));
+  };
+
+  feed_zero(648375000u);  // a learned, trimmed-mean value: not round
+  EXPECT_EQ(battery->lbc_current_zero_ucounts(), 648375000u);
+
+  feed_zero(649000000u);  // the hard-coded default the LBC keeps when the learn is skipped
+  EXPECT_EQ(battery->lbc_current_zero_ucounts(), 649000000u);
 }

@@ -69,6 +69,10 @@ class NissanLeafBattery : public CanBattery {
 
   uint8_t calculate_crc(CAN_frame& frame);
 
+  //The LBC's reported current-sensor zero (local id 0x07), in micro-ADC-counts; 0 until first read.
+  //Exposed so a learned (non-round) value can be told apart from the skipped 649,000,000 default.
+  uint32_t lbc_current_zero_ucounts() const { return battery_current_zero_ucounts; }
+
   /* The current published to the datalayer is a mean over the whole window, so the safety
      layer is handed the two extremes seen inside it instead. Kept as a max/min pair rather
      than a single worst-magnitude sample so a window holding both a charge and a discharge
@@ -278,11 +282,12 @@ class NissanLeafBattery : public CanBattery {
   //state of health are built from, and neither is published until it has been read. It sits in
   //group 0x01 on ZE0/AZE0 and in the health block 0x61 on ZE1, so both lead the rotation and the
   //generation in use gets its answer on the first or second poll rather than most of a minute in.
-  //The three static groups (0x62 charge counters, 0x84 serial number, 0x83 part number) are read
-  //once and then skipped, leaving 0x01/0x61/0x04/0x02/0x06 as the recurring rotation. Group 0x61
-  //is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11 rather than
+  //The read-once groups (0x62 charge counters, 0x84 serial number, 0x83 part number, 0x07 current-
+  //sensor zero) are read once and then skipped, leaving 0x01/0x61/0x04/0x02/0x06 as the recurring
+  //rotation. 0x07 sits last so it is read well after the LBC has finished its own zero learn. Group
+  //0x61 is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11 rather than
   //0x10 - see the masked first-frame test in handle_incoming_can_frame().
-  uint8_t PIDgroups[8] = {0x01, 0x61, 0x62, 0x84, 0x04, 0x02, 0x06, 0x83};
+  uint8_t PIDgroups[9] = {0x01, 0x61, 0x62, 0x84, 0x04, 0x02, 0x06, 0x83, 0x07};
   //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
@@ -473,6 +478,12 @@ class NissanLeafBattery : public CanBattery {
   bool battery_cells_unreadable = false;
   //Set once the group 0x62 reply has arrived in full, down to its last frame
   bool battery_usage_history_read = false;
+  //The current-sensor zero the LBC reports from local identifier 0x07, in micro-ADC-counts (ADC
+  //count x 1,000,000), big-endian u32. 649,000,000 exactly means the LBC skipped its zero learn and
+  //kept the hard-coded default; a real learned zero is a trimmed mean and so almost never round.
+  //Read once per start and logged, to confirm the learn ran. 0 until the first read.
+  uint32_t battery_current_zero_ucounts = 0;
+  bool battery_current_zero_read = false;
   uint16_t battery_insulation = 0;         //Insulation resistance
   uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
   uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges

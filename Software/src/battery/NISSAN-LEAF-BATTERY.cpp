@@ -1203,6 +1203,22 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
+      if (group_7bb == 0x07) {  //Current-sensor zero (readDataByLocalIdentifier 0x07)
+        //Reply: 10 0A 61 07 RH RL Z3 Z2 | 21 Z1 Z0 LH LL FF FF FF. Z3..Z0 is the zero offset, a
+        //big-endian u32 in micro-ADC-counts; RH RL and LH LL are the 2.5 V reference at boot and live.
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame carries Z3 (u8[6]) and Z2 (u8[7])
+          battery_current_zero_ucounts = ((uint32_t)rx_frame.data.u8[6] << 24) | ((uint32_t)rx_frame.data.u8[7] << 16);
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  //Consecutive frame carries Z1 (u8[1]) and Z0 (u8[2])
+          battery_current_zero_ucounts |= ((uint32_t)rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+          battery_current_zero_read = true;
+          //Logged so it can be read off the bench: 649000000 exactly means the LBC skipped its zero
+          //learn and kept the default, a learned zero is a trimmed mean and so almost never round.
+          logging.printf("LEAF (Battery %u): LBC current-sensor zero (21 07) = %lu ucounts\n", (unsigned)battery_index,
+                         (unsigned long)battery_current_zero_ucounts);
+        }
+      }
+
       if (group_7bb == 0x83)  //BatteryPartNumber
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (101A6183334E4B32)
@@ -1618,7 +1634,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           PIDindex = (PIDindex + 1) % (sizeof(PIDgroups) / sizeof(PIDgroups[0]));
         } while (!repoll_static_groups && ((PIDgroups[PIDindex] == 0x62 && battery_usage_history_read) ||
                                            (PIDgroups[PIDindex] == 0x84 && BatterySerialNumber[0] != 0) ||
-                                           (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0)));
+                                           (PIDgroups[PIDindex] == 0x83 && BatteryPartNumber[0] != 0) ||
+                                           (PIDgroups[PIDindex] == 0x07 && battery_current_zero_read)));
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
         if (poll_burst_remaining) {
