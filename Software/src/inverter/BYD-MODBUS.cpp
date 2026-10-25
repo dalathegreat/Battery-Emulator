@@ -126,9 +126,12 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   // Both capacity registers report the scaled (reported_) values, matching mbPV[202] in the p201 block.
   // update_calculated_values() already sums battery 2 and 3 into the reported_ fields of battery 1,
   // so no per-battery addition is needed here.
-  mbPV[304] = std::min(datalayer.aggregate.reported_total_capacity_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
-  mbPV[305] = std::min(datalayer.aggregate.reported_remaining_capacity_Wh,
-                       static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  // Fronius derives SOC from remaining/total, so scale remaining by the same cap to keep the ratio.
+  const uint32_t total_Wh = datalayer.aggregate.reported_total_capacity_Wh;
+  const uint32_t capped_total_Wh = std::min(total_Wh, static_cast<uint32_t>(57960u));  //Cap to 58kWh
+  const uint32_t remaining_Wh = std::min(datalayer.aggregate.reported_remaining_capacity_Wh, total_Wh);
+  mbPV[304] = capped_total_Wh;
+  mbPV[305] = total_Wh ? (uint64_t)remaining_Wh * capped_total_Wh / total_Wh : 0;
   // The power limits already carry the remote or manual current limit, applied by
   // update_aggregate_limits() for every protocol, so it is not applied again here.
   mbPV[306] = std::min(datalayer.aggregate.max_discharge_power_W, static_cast<uint32_t>(30000u));  //Cap to 30000

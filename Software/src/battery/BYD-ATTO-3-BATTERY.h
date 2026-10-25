@@ -274,6 +274,8 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_highest_cell_voltage_mV = 3300;
   uint16_t BMS_allowed_charge_power = 0;
   uint16_t BMS_charge_times = 0;
+  uint8_t BMS_charge_time_remaining_h = 0xFF;  // 0x445, 0xFF = not available
+  uint8_t BMS_charge_time_remaining_min = 0xFF;
   uint16_t BMS_allowed_discharge_power = 0;
   uint16_t BMS_total_charged_ah = 0;
   uint16_t BMS_total_discharged_ah = 0;
@@ -499,6 +501,7 @@ class BydAttoBattery : public CanBattery {
   bool diag_answered = false;  // first reply settles the diagnostic address
   uint8_t frame6_counter = 0xB;
   uint8_t BMS_SOH = 99;
+  uint8_t BMS_capacity_Ah = 0;
   uint8_t BMS_min_cell_voltage_number = 0;
   uint8_t BMS_min_temp_module_number = 0;
   uint8_t BMS_max_cell_voltage_number = 0;
