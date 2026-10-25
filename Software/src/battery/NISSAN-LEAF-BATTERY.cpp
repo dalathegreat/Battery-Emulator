@@ -240,8 +240,11 @@ void NissanLeafBattery::
 
   datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 250);  //0.25 kW steps to W
 
-  //Allow contactors to close
-  if (battery_can_alive && allows_contactor_closing) {
+  //Allow contactors to close, but not before the current-sensor-zero learn window has passed, so the
+  //current from precharge / the first contactor close cannot get into the LBC's zero samples. The
+  //window is the same one that holds RLYP clear: CURRENT_ZERO_LEARN_MS after the pack's first 0x1DB.
+  const bool current_zero_learn_window_over = first_1DB_seen && (millis() - first_1DB_millis >= CURRENT_ZERO_LEARN_MS);
+  if (battery_can_alive && current_zero_learn_window_over && allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
 
@@ -607,6 +610,12 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (is_message_corrupt(rx_frame)) {
         datalayer_battery->status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
+      }
+      //Anchor the current-sensor-zero learn window on the pack's first 0x1DB of the session, see
+      //transmit_can(). Re-armed by a BMS reset, so the first frame after it anchors a fresh window.
+      if (!first_1DB_seen) {
+        first_1DB_seen = true;
+        first_1DB_millis = millis();
       }
       battery_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
       if (battery_Current2 & 0x0400) {
@@ -1353,6 +1362,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
        both are cleared from the polling code once the pass has actually been sent. */
     repoll_static_groups = true;
     poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
+    //The LBC is power-cycled by the reset, so it learns its current-sensor zero again. Re-arm the
+    //window: the first 0x1DB once it is back anchors it afresh, and RLYP is held clear until then.
+    first_1DB_seen = false;
     return;
   }
 
@@ -1362,24 +1374,26 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
 
-      switch (mprun10) {
-        case 0:
-          LEAF_1D4.data.u8[4] = 0x07;
-          LEAF_1D4.data.u8[7] = 0x12;
-          break;
-        case 1:
-          LEAF_1D4.data.u8[4] = 0x47;
-          LEAF_1D4.data.u8[7] = 0xD5;
-          break;
-        case 2:
-          LEAF_1D4.data.u8[4] = 0x87;
-          LEAF_1D4.data.u8[7] = 0x19;
-          break;
-        case 3:
-          LEAF_1D4.data.u8[4] = 0xC7;
-          LEAF_1D4.data.u8[7] = 0xDE;
-          break;
+      /* Byte 4 carries the PRUN counter in bits 7-6 and BTONFN (StatusOfHighVoltagePowerSupply) in
+         bit 2, byte 5 bit 6 is RLYP (Relay_Plus_Output_Status). Both are held 0 from the start of the
+         session so the LBC learns its current-sensor zero (see the header): 0 while the pack is silent,
+         then RLYP goes to 1 CURRENT_ZERO_LEARN_MS after its first 0x1DB and BTONFN BTONFN_AFTER_RLYP_MS
+         after that. Byte 7 is the CRC over bytes 0-6 (calculate_crc), which with both bits at 1 gives
+         the 0x12 / 0xD5 / 0x19 / 0xDE this frame carried before. */
+      bool relay_plus = false;
+      bool hv_supplied = false;
+      if (first_1DB_seen) {
+        const unsigned long since_first_1DB = currentMillis - first_1DB_millis;
+        relay_plus = (since_first_1DB >= CURRENT_ZERO_LEARN_MS);
+        hv_supplied = (since_first_1DB >= CURRENT_ZERO_LEARN_MS + BTONFN_AFTER_RLYP_MS);
       }
+      LEAF_1D4.data.u8[4] = (uint8_t)((mprun10 << 6) | (hv_supplied ? 0x07 : 0x03));
+      if (relay_plus) {
+        LEAF_1D4.data.u8[5] |= 0x40;
+      } else {
+        LEAF_1D4.data.u8[5] &= (uint8_t)~0x40;
+      }
+      LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);
       //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!leaf_pdm_charger_in_use()) {

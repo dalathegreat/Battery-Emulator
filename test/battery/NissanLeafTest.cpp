@@ -1930,3 +1930,159 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
 }
+
+// The LBC learns its Hall current-sensor zero once per start, but only while 0x1D4 byte 5 bit 6 (RLYP)
+// is still 0; if it is already 1 the LBC keeps a fixed default and the pack reads 0.5-1 A at rest. So
+// the driver holds RLYP, and the related BTONFN (byte 4 bit 2), clear from the start of each session:
+// while the pack is silent, then for 2 s after its first 0x1DB. RLYP rises at the end of that window,
+// BTONFN 200 ms later. The contactors may not close until the window has passed.
+class NissanLeafCurrentZeroTests : public ::testing::Test {
+ protected:
+  unsigned long t = 60000;
+  NissanLeafBattery* pack = nullptr;
+
+  void SetUp() override {
+    set_millis64(t);
+    contactor_control_enabled = false;
+    user_selected_LEAF_auto_current_offset = false;  // Off: it is unrelated and would read the 0x1DB too
+    pack = new NissanLeafBattery();
+    pack->setup();
+    // Alive, so 0x1D4 is transmitted, but no 0x1DB yet: the pack is silent on the current signal.
+    pack->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));
+  }
+
+  void TearDown() override {
+    delete pack;
+    contactor_control_enabled = false;
+    user_selected_LEAF_auto_current_offset = true;  // Its default
+  }
+
+  struct Sent {
+    unsigned long at;
+    CAN_frame frame;
+  };
+
+  // Advances duration_ms in 10 ms steps and returns every 0x1D4 transmitted.
+  std::vector<Sent> run(unsigned long duration_ms) {
+    std::vector<Sent> out;
+    for (unsigned long end = t + duration_ms; t < end;) {
+      t += 10;
+      set_millis64(t);
+      clear_transmitted_frames();
+      pack->transmit_can(t);
+      for (const CAN_frame& f : get_transmitted_frames()) {
+        if (f.ID == 0x1D4) {
+          out.push_back({t, f});
+        }
+      }
+    }
+    return out;
+  }
+
+  // One valid (CRC-correct) 0x1DB at the current clock, which anchors the learn window.
+  void feed_first_current_frame() { pack->handle_incoming_can_frame(leaf_current_frame(pack, 0)); }
+
+  static bool relay_plus(const CAN_frame& f) { return (f.data.u8[5] & 0x40) != 0; }
+  static bool hv_supplied(const CAN_frame& f) { return (f.data.u8[4] & 0x04) != 0; }
+};
+
+// While the pack has sent no 0x1DB, RLYP and BTONFN stay 0 however long we wait: the window has not
+// been anchored, so the learn is never declared done.
+TEST_F(NissanLeafCurrentZeroTests, ShouldHoldBothClearWhileThePackIsSilent) {
+  const std::vector<Sent> sent = run(5000);
+  ASSERT_FALSE(sent.empty());
+  for (const Sent& s : sent) {
+    CAN_frame f = s.frame;  // calculate_crc takes a non-const reference
+    EXPECT_FALSE(relay_plus(f)) << "RLYP set with no 0x1DB seen";
+    EXPECT_FALSE(hv_supplied(f)) << "BTONFN set with no 0x1DB seen";
+    EXPECT_EQ(f.data.u8[7], pack->calculate_crc(f));
+  }
+}
+
+// RLYP rises 2 s after the first 0x1DB, BTONFN 200 ms after that, and the rest of the frame is intact.
+TEST_F(NissanLeafCurrentZeroTests, ShouldRaiseRlypThenBtonfnAfterTheFirstCurrentFrame) {
+  feed_first_current_frame();
+  const unsigned long anchor = t;
+
+  for (const Sent& s : run(3000)) {
+    CAN_frame f = s.frame;  // calculate_crc takes a non-const reference
+    EXPECT_EQ(relay_plus(f), s.at - anchor >= 2000) << (s.at - anchor) << " ms after first 0x1DB";
+    EXPECT_EQ(hv_supplied(f), s.at - anchor >= 2200) << (s.at - anchor) << " ms after first 0x1DB";
+    EXPECT_EQ(f.data.u8[7], pack->calculate_crc(f));
+    EXPECT_EQ(f.data.u8[4] & 0x3B, 0x03);   // PRUN (bits 7-6) and BTONFN (bit 2) aside, byte 4 is fixed
+    EXPECT_EQ(f.data.u8[5] & ~0x40, 0x06);  // byte 5 apart from RLYP is unchanged
+  }
+}
+
+// High voltage is never declared supplied before the plus relay is commanded.
+TEST_F(NissanLeafCurrentZeroTests, ShouldNeverRaiseBtonfnBeforeRlyp) {
+  feed_first_current_frame();
+  unsigned long rlyp_at = 0;
+  unsigned long btonfn_at = 0;
+  for (const Sent& s : run(3000)) {
+    EXPECT_FALSE(hv_supplied(s.frame) && !relay_plus(s.frame)) << "BTONFN without RLYP at " << s.at;
+    if (relay_plus(s.frame) && rlyp_at == 0) {
+      rlyp_at = s.at;
+    }
+    if (hv_supplied(s.frame) && btonfn_at == 0) {
+      btonfn_at = s.at;
+    }
+  }
+  ASSERT_NE(rlyp_at, 0u);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_EQ(btonfn_at - rlyp_at, 200u);
+}
+
+// Once the window has passed, the frame is byte for byte the one the driver sent before this change.
+TEST_F(NissanLeafCurrentZeroTests, ShouldSendTheUsualFrameOnceTheWindowHasPassed) {
+  feed_first_current_frame();
+  run(2200);  // let RLYP and BTONFN both come up
+
+  const uint8_t prun_byte[4] = {0x07, 0x47, 0x87, 0xC7};
+  const uint8_t crc[4] = {0x12, 0xD5, 0x19, 0xDE};
+  const std::vector<Sent> sent = run(40);
+  ASSERT_EQ(sent.size(), 4u);
+  for (const Sent& s : sent) {
+    const uint8_t prun = s.frame.data.u8[4] >> 6;
+    const uint8_t expected[8] = {0x6E, 0x6E, 0x00, 0x04, prun_byte[prun], 0x46, 0xE0, crc[prun]};
+    for (int i = 0; i < 8; i++) {
+      EXPECT_EQ(s.frame.data.u8[i], expected[i]) << "byte " << i << ", PRUN " << (int)prun;
+    }
+  }
+}
+
+// A BMS reset power-cycles the LBC, so it learns the zero again: the window re-arms and RLYP is held
+// clear until 2 s after the first 0x1DB received once the reset is over.
+TEST_F(NissanLeafCurrentZeroTests, ShouldReArmTheWindowAfterABmsReset) {
+  feed_first_current_frame();
+  run(2300);  // both up
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  EXPECT_TRUE(run(30000).empty());  // nothing transmitted while the LBC is down
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+
+  feed_first_current_frame();
+  const unsigned long anchor = t;
+  for (const Sent& s : run(3000)) {
+    EXPECT_EQ(relay_plus(s.frame), s.at - anchor >= 2000) << (s.at - anchor) << " ms after the reset's first 0x1DB";
+  }
+}
+
+// The contactors may not be allowed to close until the learn window has passed.
+TEST_F(NissanLeafCurrentZeroTests, ShouldWithholdContactorCloseUntilTheWindowHasPassed) {
+  pack->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing) << "permitted while the pack was silent";
+
+  feed_first_current_frame();
+  const unsigned long anchor = t;
+  pack->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing) << "permitted as the window opened";
+
+  set_millis64(anchor + 1999);
+  pack->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+
+  set_millis64(anchor + 2000);
+  pack->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+}

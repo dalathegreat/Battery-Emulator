@@ -210,6 +210,20 @@ class NissanLeafBattery : public CanBattery {
   uint8_t counter_3B8 = 0;  //counter 0-14
   bool flip_3B8 = false;
 
+  /* The LBC learns its Hall current-sensor zero once per start, but only while 0x1D4 byte 5 bit 6
+     (RLYP, Relay_Plus_Output_Status) is still 0; if that bit is already 1 when the learn runs it keeps
+     a fixed default (~0.73 A/count, so the pack reads 0.5-1 A with no current). So both RLYP and the
+     related BTONFN (byte 4 bit 2, StatusOfHighVoltagePowerSupply) are held 0 from the start of each LBC
+     session: while the pack is silent, then for CURRENT_ZERO_LEARN_MS after its first 0x1DB, which is
+     the window the learn runs in. RLYP goes to 1 at the end of it, BTONFN BTONFN_AFTER_RLYP_MS later so
+     the start-up steps reach the LBC in order. A real car does the same: the VCM raises the bit only
+     once the LBC has started. A session starts with the first 0x1DB after boot, and again with the
+     first one after a BMS reset has power-cycled the LBC. */
+  static const unsigned long CURRENT_ZERO_LEARN_MS = 2000;
+  static const unsigned long BTONFN_AFTER_RLYP_MS = 200;
+  bool first_1DB_seen = false;         //A 0x1DB has been received since the session (re)started
+  unsigned long first_1DB_millis = 0;  //millis() at that first 0x1DB
+
   static const uint8_t ZE0_BATTERY = 0;
   static const uint8_t AZE0_BATTERY = 1;
   static const uint8_t ZE1_BATTERY = 2;
@@ -233,11 +247,13 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 6,
                         .ID = 0x50C,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Bytes 4, 5 and 7 are rewritten on every transmission: the PRUN counter and BTONFN in byte 4, RLYP
+  //in byte 5, the CRC in byte 7. Shown here with BTONFN = RLYP = 0, the values each session starts with.
   CAN_frame LEAF_1D4 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x03, 0x06, 0xE0, 0x69}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,
