@@ -1051,9 +1051,9 @@ void init_webserver() {
           }
           request->send(200, "text/plain", "Command performed.");
         });
-
-    register_dump_can_route(server);
   }
+
+  register_dump_can_route(server);
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
   update_int_setting("/updateUseVoltageLimit",
