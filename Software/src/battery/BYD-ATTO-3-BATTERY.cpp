@@ -329,6 +329,8 @@ void BydAttoBattery::
         (chargeSessionState == CHG_SESSION_IDLE) ? 0 : (uint32_t)((millis() - chargeSessionEntryMillis) / 1000);
     datalayer_bydatto->chargePower = BMS_allowed_charge_power;
     datalayer_bydatto->charge_times = BMS_charge_times;
+    datalayer_bydatto->charge_time_remaining_h = BMS_charge_time_remaining_h;
+    datalayer_bydatto->charge_time_remaining_min = BMS_charge_time_remaining_min;
     datalayer_bydatto->dischargePower = BMS_allowed_discharge_power;
     datalayer_bydatto->total_charged_ah = BMS_total_charged_ah;
     datalayer_bydatto->total_discharged_ah = BMS_total_discharged_ah;
@@ -660,6 +662,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x445:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        // BMS estimate at the present charge current, FF FF when not charging
+        BMS_charge_time_remaining_h = rx_frame.data.u8[2];
+        BMS_charge_time_remaining_min = rx_frame.data.u8[3];
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x446:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
