@@ -135,15 +135,16 @@ class NissanLeafBattery : public CanBattery {
      AUTO_OFFSET_BUCKETS of them: all of a short opening, the latest 10 s of a pack that stays open
      because it cannot join the DC link. It holds while the contactor is closed, and the next
      opening measures afresh. When the LBC starts up, at boot or powered back on after a BMS reset,
-     with the contactor open since before, nothing has flowed and only the LBC's start needs to
-     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Each
-     bucket holds what is left of its second once the lowest and highest AUTO_OFFSET_TRIM of a full
-     second are left out: 20 of 100, or a fifth of however many it had. Sums and counts signed, for
-     the reason above. */
+     with the contactor open since before, nothing has flowed - but the LBC spends the first couple of
+     seconds learning its own current-sensor zero, until it raises BTONFN (see transmit_can), and what
+     0x1DB reports changes when that finishes. So the gathering holds off until the end of that window,
+     CURRENT_ZERO_LEARN_MS + BTONFN_AFTER_RLYP_MS after the pack's first 0x1DB, rather than a brief
+     power-on settle, or the LBC's own pre-learn offset would be folded into ours. Each bucket holds
+     what is left of its second once the lowest and highest AUTO_OFFSET_TRIM of a full second are left
+     out: 20 of 100, or a fifth of however many it had. Sums and counts signed, for the reason above. */
   static const uint8_t AUTO_OFFSET_TRIM = 20;
   static const uint8_t AUTO_OFFSET_BUCKETS = 10;
   static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
-  static const uint32_t AUTO_OFFSET_POWER_ON_SETTLE_MS = 30;
   int32_t auto_offset_bucket_sum_raw[AUTO_OFFSET_BUCKETS] = {};
   int32_t auto_offset_bucket_count[AUTO_OFFSET_BUCKETS] = {};
   uint8_t auto_offset_next_bucket = 0;

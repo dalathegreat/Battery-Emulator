@@ -1504,11 +1504,19 @@ class NissanLeafAutoCurrentOffsetTests : public ::testing::Test {
     NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
     return renderer.get_status_html().str();
   }
+
+  // At a cold start the learner holds off until the LBC has learned its own zero - BTONFN up, which
+  // is CURRENT_ZERO_LEARN_MS + BTONFN_AFTER_RLYP_MS after the first 0x1DB. Feed exactly that window of
+  // gated frames so a measurement fed right after lands as a clean, full second.
+  static const uint32_t LBC_ZERO_LEARN_WINDOW_MS = 2200;
+  void pass_lbc_zero_learn_window() { feed_current(battery, 0, LBC_ZERO_LEARN_WINDOW_MS); }
 };
 
 // What the sensor reads with the contactors open is the offset, and it holds once they close.
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLearnWhileOpenAndHoldWhileClosed) {
-  run_seconds(battery, 5, 1);  // 2.5 A with nothing able to flow
+  //Gathering only begins once the LBC's own zero-learn window has passed (~2.2 s after the first
+  //0x1DB), so allow a few seconds; the reading is a steady 2.5 A with nothing able to flow.
+  run_seconds(battery, 5, 4);
   ASSERT_TRUE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 25);
   EXPECT_EQ(datalayer.battery.status.current_dA, 0);
@@ -1519,25 +1527,30 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLearnWhileOpenAndHoldWhileClosed)
   EXPECT_EQ(datalayer.battery.status.current_dA, 100);
 }
 
-// At boot nothing has flowed yet, so only 30 ms after the BMS power went on are left out.
-TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettleFor30msAfterBmsPowerAtBoot) {
-  feed_current(battery, 40, 30);  // 0, 10 and 20 ms: the LBC starting up
-  feed_current(battery, 3, 20);   // 30 and 40 ms, well inside the 300 ms an opening gets
+// At boot the LBC is still learning its own current-sensor zero until it raises BTONFN, so BE must
+// gather nothing until that window - the first 0x1DB plus ~2.2 s - has passed.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldNotGatherUntilBtonfnAtBoot) {
+  feed_current(battery, 6, 2200);  // the whole learn window: every sample held off
   battery->update_values();
-  // Just the two settled samples, too few to trim: a 300 ms settle would have none yet, and no
-  // settle at all 126 dA
+  EXPECT_FALSE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
+
+  feed_current(battery, 6, 1000);  // a full second now that BTONFN is up
+  battery->update_values();
   ASSERT_TRUE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
-  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 15);
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 30);  // 3.0 A, raw 6
 }
 
-// Timed from the BMS power going on, not from the first frame, so a late LBC starts at once.
-TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldTimeTheBootSettleFromBmsPower) {
-  bms_power_on_ms = 100000 - 800;
-  feed_current(battery, 7, 20);  // The LBC's first two frames, 800 ms after its power went on
+// The window is timed from the pack's first 0x1DB, not from when the BMS power went on, so an LBC
+// that was already powered still gets the full window from its first current frame.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldTimeTheWindowFromTheFirstCurrentFrame) {
+  bms_power_on_ms = 100000 - 10000;  // BMS power went on long ago
+  feed_current(battery, 6, 2000);    // 2.0 s since the first 0x1DB: BTONFN not up yet
   battery->update_values();
-  // Counted from the first frame instead, neither would be past the 30 ms yet
-  ASSERT_TRUE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
-  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 35);
+  EXPECT_FALSE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
+
+  feed_current(battery, 6, 400);  // past the window now
+  battery->update_values();
+  EXPECT_TRUE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
 }
 
 // Whatever was still flowing in the first 300 ms after the contactors opened is not learned.
@@ -1577,17 +1590,22 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldMeasureAfreshOnEachOpening) {
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 10);
 }
 
-// An LBC powered back on after a BMS reset, the contactor open throughout, settles as at boot.
-TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettle30msAfterBmsPowerOnAfterAReset) {
-  run_seconds(battery, 0, 2);          // 119 samples of 0 A kept: 97 and 100, each less a fifth per end
-  bms_power_on_ms = millis() + 5000;   // Powered back on at the end of the reset
-  set_millis64(bms_power_on_ms + 10);  // First frame 10 ms later
-  feed_current(battery, 300, 20);      // 10 and 20 ms: the LBC starting up
-  feed_current(battery, 100, 20);      // 30 and 40 ms
+// A BMS reset power-cycles the LBC, so it learns its zero again: BE re-arms its window too and holds
+// off until BTONFN is up once more, rather than carrying straight on from the pre-reset window.
+TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldReArmTheWindowAfterABmsReset) {
+  run_seconds(battery, 4, 4);  // boot: cross the window and learn a 2.0 A offset
+  ASSERT_TRUE(datalayer_extended.nissanleaf.AutoCurrentOffsetKnown);
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 20);
+
+  // The reset: transmit_can re-arms the window while BMS power is off, power-on moves bms_power_on_ms.
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  battery->transmit_can(millis());
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  bms_power_on_ms = millis();
+
+  feed_current(battery, 8, 2000);  // the LBC is learning again, so nothing may be gathered yet
   battery->update_values();
-  // Two samples of 50 A pooled with the 119: 200 / 121 x 5 dA rounds to 8, where a 300 ms settle
-  // from the first frame would keep 0 and no settle at all give 33
-  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 8);
+  EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 20);  // unchanged: the window re-armed
 }
 
 // A contactor that opened while the LBC was powered down gets the full 300 ms, not the power-on's.
@@ -1605,7 +1623,7 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettle300msWhenTheContactorOpened
 
 // A stream coming back after a silence without a BMS power cycle gets the full 300 ms to settle.
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldSettleAgainWhenTheStreamResumes) {
-  run_seconds(battery, 2, 2);
+  run_seconds(battery, 2, 4);  // boot: cross the learn window, settling on a 1.0 A offset
   set_millis64(millis() + 5000);
   battery->update_values();  // Nothing measured meanwhile, so the offset holds
   EXPECT_EQ(datalayer_extended.nissanleaf.AutoCurrentOffset_dA, 10);
@@ -1664,7 +1682,7 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLeaveTheSafetyExtremesAlone) {
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldShowTheOffsetOnTheStatusCard) {
   EXPECT_NE(status_html().find("<h4>Automatic current offset: Unknown</h4>"), std::string::npos);
 
-  run_seconds(battery, 5, 1);
+  run_seconds(battery, 5, 4);  // a few seconds, to cross the LBC zero-learn window before gathering
   // The last entry of the Status panel, right before the next panel opens
   const std::string html = status_html();
   const size_t offset = html.find("<h4>Automatic current offset: 2.5 A</h4></div>");
@@ -1773,7 +1791,7 @@ TEST(NissanLeafCurrentTests, ShouldKeepTheLatestSamplesOfAnOverlongWindow) {
 }
 
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLeaveOutAFifthAtEachEndOfEachSecondWhileLearning) {
-  bms_power_on_ms = 100000 - 1000;  // Long enough ago that the whole second counts
+  pass_lbc_zero_learn_window();  // so the second below is gathered in full, not held off at boot
   feed_current(battery, 10, 300);
   feed_current(battery, 20, 700);
   battery->update_values();
@@ -1783,6 +1801,7 @@ TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldLeaveOutAFifthAtEachEndOfEachSeco
 }
 
 TEST_F(NissanLeafAutoCurrentOffsetTests, ShouldIgnoreASpikeWhileLearning) {
+  pass_lbc_zero_learn_window();  // gather the second below, not the boot zero-learn window
   feed_current(battery, 5, 500);
   feed_current(battery, 400, 10);  // 200 A with the contactors open: a stray reading
   feed_current(battery, 5, 490);

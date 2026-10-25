@@ -559,9 +559,11 @@ void NissanLeafBattery::learn_current_offset(int16_t sample_raw) {
     return;
   }
   if (lbc_started && auto_offset_open) {
-    //Open since before the LBC started, so nothing has flowed: only its start needs to settle
-    auto_offset_open_since_ms = bms_power_on_ms;
-    auto_offset_settle_ms = AUTO_OFFSET_POWER_ON_SETTLE_MS;
+    //Open since before the LBC started, so nothing has flowed - but the LBC is still learning its own
+    //current-sensor zero and its 0x1DB reading changes when it raises BTONFN, so wait out that window
+    //rather than a brief power-on settle (see the header). first_1DB_millis is set from this frame.
+    auto_offset_open_since_ms = first_1DB_millis;
+    auto_offset_settle_ms = CURRENT_ZERO_LEARN_MS + BTONFN_AFTER_RLYP_MS;
   } else if (!auto_offset_open || resumed) {
     auto_offset_open = true;
     auto_offset_open_since_ms = now;
