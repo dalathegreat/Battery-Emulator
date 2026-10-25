@@ -137,6 +137,9 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       case 0x04:
         content += "Aborted";
         break;
+      case 0x0D:
+        content += "Paused";
+        break;
       case 0x0F:
         content += "None";
         break;
