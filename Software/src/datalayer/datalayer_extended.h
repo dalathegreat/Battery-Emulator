@@ -119,7 +119,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** All the temperature sensors inside the battery pack*/
   int16_t battery_temperatures[12];
 
-  uint8_t discharge_status;
+  /** 0x344 byte 2 low nibble: F none, 0 ready, 1 charging, 2 finished, 4 aborted */
+  uint8_t bms_charge_state;
   uint8_t BMS_min_cell_voltage_number;
   uint8_t BMS_min_temp_module_number;
   uint8_t BMS_max_cell_voltage_number;
@@ -969,7 +970,7 @@ class DataLayerExtended {
     auto initBydAtto3 = [](auto& data) {
       data.calibrationTargetSOC = 100;
       data.calibrationTargetAH = 150;
-      data.discharge_status = 14;
+      data.bms_charge_state = 0x0F;
       data.charge_time_remaining_h = 0xFF;
       data.charge_time_remaining_min = 0xFF;
       data.auto_calibrate_soc_enabled = true;
