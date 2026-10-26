@@ -14,6 +14,12 @@ class TeslaLegacyBattery : public CanBattery {
   void reset_BMS() { user_requests_bms_reset = true; }
 
  private:
+  void apply_series_limits(uint16_t series_cells);
+  // 0x6F2 cell-voltage mux tracking. Per instance: function-local statics were
+  // shared by every TeslaLegacyBattery (double-battery setups) and made the
+  // brick-count detection run once per firmware lifetime.
+  uint8_t mux_zero_counter = 0u;
+  uint8_t mux_max = 0u;
   static const int MAX_PACK_VOLTAGE_60_DV = 5000;  //TODO, set
   static const int MIN_PACK_VOLTAGE_60_DV = 3000;
   static const int MAX_PACK_VOLTAGE_70_DV = 5000;  //TODO, set
