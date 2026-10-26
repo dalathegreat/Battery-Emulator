@@ -20,18 +20,9 @@ class TeslaLegacyBattery : public CanBattery {
   // brick-count detection run once per firmware lifetime.
   uint8_t mux_zero_counter = 0u;
   uint8_t mux_max = 0u;
-  static const int MAX_PACK_VOLTAGE_60_DV = 5000;  //TODO, set
-  static const int MIN_PACK_VOLTAGE_60_DV = 3000;
-  static const int MAX_PACK_VOLTAGE_70_DV = 5000;  //TODO, set
-  static const int MIN_PACK_VOLTAGE_70_DV = 3000;
-  static const int MAX_PACK_VOLTAGE_75_DV = 5000;  //TODO, set
-  static const int MIN_PACK_VOLTAGE_75_DV = 3000;
-  static const int MAX_PACK_VOLTAGE_85_DV = 5000;  //TODO, set
-  static const int MIN_PACK_VOLTAGE_85_DV = 3000;
-  static const int MAX_PACK_VOLTAGE_90_DV = 5000;  //TODO, set
-  static const int MIN_PACK_VOLTAGE_90_DV = 3000;
-  static const int MAX_PACK_VOLTAGE_100_DV = 5000;  //TODO, set
-  static const int MIN_PACK_VOLTAGE_100_DV = 3000;
+  // Wide pack window used only until apply_series_limits() knows the brick count
+  static const int STARTUP_MAX_PACK_VOLTAGE_DV = 5000;
+  static const int STARTUP_MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4200;  //Charging stops when one cell reaches this value
   static const int MIN_CELL_VOLTAGE_MV = 3200;  //Discharge stops when one cell reaches this value2

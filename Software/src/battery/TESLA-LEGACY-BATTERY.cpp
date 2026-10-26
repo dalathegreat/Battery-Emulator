@@ -443,8 +443,8 @@ void TeslaLegacyBattery::setup(void) {  // Performs one time setup at startup
   // Defaults until the brick count is known: apply_series_limits() replaces them
   // after the first full 0x6F2 cycle (a few seconds). Until then a pack below
   // 300 V simply can't discharge yet; cell limits apply throughout.
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60_DV;
+  datalayer.battery.info.max_design_voltage_dV = STARTUP_MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = STARTUP_MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
