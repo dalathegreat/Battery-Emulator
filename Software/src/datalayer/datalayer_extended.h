@@ -488,8 +488,6 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_inletActiveCoolTargetT;
   uint16_t BMS_inletPassiveTargetT;
   uint16_t BMS_inletActiveHeatTargetT;
-  uint16_t BMS_packTMin;
-  uint16_t BMS_packTMax;
   uint16_t PCS_info_buildConfigId;
   uint16_t PCS_info_hardwareId;
   uint16_t PCS_info_componentId;
@@ -533,6 +531,7 @@ struct DATALAYER_INFO_TESLA {
   uint8_t BMS_info_platformType;
   uint8_t BMS_info_bootUdsProtoVersion;
   uint8_t battery_beginning_of_life;
+  bool temperature_seen;                  // 0x332 mux 0 received; false = the web pages show "no data"
   uint8_t battery_battTempPct;
   uint8_t battery_BrickVoltageMaxNum;
   uint8_t battery_BrickVoltageMinNum;

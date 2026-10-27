@@ -755,8 +755,8 @@ void TeslaBattery::
   datalayer_tesla->BMS_inletActiveCoolTargetT = BMS_inletActiveCoolTargetT;
   datalayer_tesla->BMS_inletPassiveTargetT = BMS_inletPassiveTargetT;
   datalayer_tesla->BMS_inletActiveHeatTargetT = BMS_inletActiveHeatTargetT;
-  datalayer_tesla->BMS_packTMin = BMS_packTMin;
-  datalayer_tesla->BMS_packTMax = BMS_packTMax;
+  // Pack temperature on the web page comes from status.temperature_min/max_dC (0x332 mux 0), not from 0x312
+  datalayer_tesla->temperature_seen = battery_temp_seen;
   datalayer_tesla->BMS_pcsNoFlowRequest = BMS_pcsNoFlowRequest;
   datalayer_tesla->BMS_noFlowRequest = BMS_noFlowRequest;
   //0x3C4
@@ -1432,6 +1432,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       if (mux == 0)  //Temperature sensors
       {              //BattBrickTempMax m0 : 16|8@1+ (0.5,-40) [0|0] "C" (_d[2] & (0xFFU));
+        battery_temp_seen = true;
         battery_max_temp = (rx_frame.data.u8[2] * 5) - 400;  //Temperature values have 40.0*C offset, 0.5*C /bit
         //BattBrickTempMin m0 : 24|8@1+ (0.5,-40) [0|0] "C" (_d[3] & (0xFFU));
         battery_min_temp =
@@ -1463,10 +1464,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                 ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
       BMS_inletActiveHeatTargetT = ((rx_frame.data.u8[5] & (0x0FU)) << 5) |
                                    ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
-      BMS_packTMin = ((rx_frame.data.u8[6] & (0x1FU)) << 4) |
-                     ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
-      BMS_packTMax = ((rx_frame.data.u8[7] & (0x3FU)) << 3) |
-                     ((rx_frame.data.u8[6] >> 5) & (0x07U));          //53|9@1+ (0.25,-25) [-25|100] "DegC"
+      // BMS_packTMin (44|9) and BMS_packTMax (53|9) are not decoded: the pack temperature comes from 0x332 mux 0.
       BMS_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
