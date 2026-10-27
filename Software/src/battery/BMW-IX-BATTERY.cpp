@@ -501,6 +501,9 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
       (datalayer_battery->status.cell_voltages_mV[78] < 1000)) {
     //If we detect cellvoltage on cell78, but nothing on 79, we can confirm we are on SE12
     detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW iX1
+  } else if ((datalayer_battery->status.cell_voltages_mV[87] > 1000) &&
+             (datalayer_battery->status.cell_voltages_mV[88] < 1000)) {
+    detected_number_of_cells = 88;  // 88s BMW ix1/ix3
   } else if ((datalayer_battery->status.cell_voltages_mV[89] > 1000) &&
              (datalayer_battery->status.cell_voltages_mV[90] < 1000)) {
     detected_number_of_cells = 90;
@@ -528,6 +531,9 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   if (detected_number_of_cells == 78) {
     datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_78S_DV;
     datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
+  } else if (detected_number_of_cells == 88) {
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_88S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_88S_DV;
   } else if (detected_number_of_cells == 90) {
     datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
     datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
