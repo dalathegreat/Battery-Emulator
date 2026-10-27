@@ -78,8 +78,8 @@ class TeslaLegacyBattery : public CanBattery {
   uint16_t battery_BrickVoltageMin = 3300;
   uint8_t battery_BrickTempMaxNum = 0;
   uint8_t battery_BrickTempMinNum = 0;
-  int16_t battery_BrickModelTMax = 0;
-  int16_t battery_BrickModelTMin = 0;
+  int16_t battery_BrickModelTMax = 0;  // 0.1 C
+  int16_t battery_BrickModelTMin = 0;  // 0.1 C
   uint8_t battery_BrickVoltageMaxNum = 0;
   uint8_t battery_BrickVoltageMinNum = 0;
   //0x5D2
