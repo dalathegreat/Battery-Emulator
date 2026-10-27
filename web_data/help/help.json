@@ -84,7 +84,7 @@
     "MQTTPORT": "Port number (1-65535).",
     "MQTTUSER": "MQTT username can only contain printable ASCII.",
     "MQTTPASSWORD": "MQTT password can only contain printable ASCII.",
-    "MQTTTIMEOUT": "Timeout in milliseconds (1-60000).",
+    "MQTTTIMEOUT": "Network timeout for connecting and sending to the broker, in milliseconds (2000-20000). Default: 2000.",
     "MQTTPUBLISHMS": "How often to publish MQTT messages in seconds (1-300, step 1). Default: 5.",
     "MQTTHEAP": "Publish free heap, largest free block, minimum free heap and heap fragmentation to the /info topic and to Home Assistant autodiscovery. Takes effect after a restart.",
     "REMBMSRESET": "Act on the BMSRESET command topic (the Reset BMS button in Home Assistant). When disabled, the command is ignored. See [Periodic BMS reset](setup/hardware/periodic_bms_reset/#remote-trigger-through-mqtt).",

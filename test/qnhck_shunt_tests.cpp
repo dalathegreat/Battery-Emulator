@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cmath>
 
 #include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/battery/TEST-FAKE-BATTERY.h"
@@ -301,6 +302,17 @@ TEST(QnhckTemperatureTest, DriftIsTheCoefficientTimesTheChange) {
   EXPECT_EQ(qnhck_zero_drift_uV(-QNHCK_MAX_TEMPCO_UV_PER_C, -250, 850), -550000);
 }
 
+TEST(QnhckTemperatureTest, TheSettingTakesTwoDecimals) {
+  EXPECT_EQ(qnhck_tempco_uV_per_C(1.37f), 1370);
+  EXPECT_EQ(qnhck_tempco_uV_per_C(-0.05f), -50);
+  EXPECT_EQ(qnhck_tempco_uV_per_C(0.006f), 10);  // Rounded to the second decimal
+  EXPECT_EQ(qnhck_tempco_uV_per_C(0.004f), 0);
+  EXPECT_EQ(qnhck_tempco_uV_per_C(5.0f), 5000);
+  EXPECT_EQ(qnhck_tempco_uV_per_C(7.5f), 5000);  // Held to the setting's limits
+  EXPECT_EQ(qnhck_tempco_uV_per_C(-12.0f), -5000);
+  EXPECT_EQ(qnhck_tempco_uV_per_C(NAN), 0);
+}
+
 class QnhckTemperatureCompensationTest : public QnhckAutoCalibrationTest {
  protected:
   void SetUp() override {
@@ -388,6 +400,17 @@ TEST_F(QnhckTemperatureCompensationTest, MoreThanTheDatasheetLimitForTheSensorAl
   close_contactors();
   set_temperature(300);
   feed(sensor, 2001, 3000, 1615);
+
+  EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
+}
+
+TEST_F(QnhckTemperatureCompensationTest, ACoefficientWithTwoDecimals) {
+  qnhck_zero_tempco_uV_per_C = 1250;  // 1.25 mV/°C: 8 °C warmer moves 1.640 V to 1.650 V
+  Qnhck2_16Shunt sensor;
+  feed(sensor, 1, 2000, 1640);
+  close_contactors();
+  set_temperature(280);
+  feed(sensor, 2001, 3000, 1650);
 
   EXPECT_EQ(datalayer.shunt.measured_amperage_mA, 0);
 }

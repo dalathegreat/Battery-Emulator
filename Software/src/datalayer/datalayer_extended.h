@@ -97,6 +97,9 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool insulation_valid;
   uint16_t chargePower;
   uint16_t charge_times;
+  /** BMS charge time remaining (0x445) in hours and minutes, 0xFF = not available */
+  uint8_t charge_time_remaining_h;
+  uint8_t charge_time_remaining_min;
   uint16_t dischargePower;
   uint16_t total_charged_ah;
   uint16_t total_discharged_ah;
@@ -183,6 +186,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool balancing_enabled;
   /** How long to hold the pack open for */
   uint16_t balancing_hold_minutes;
+  /** Read cell balance timers at each completed charge (persisted) */
+  bool balance_timer_auto_read;
   /** Hold state: 0 idle, 1 armed, 2 opening, 3 holding open, 4 closing, 5 close failed */
   uint8_t balancing_state;
   /** Minutes left of the hold */
@@ -638,7 +643,7 @@ struct DATALAYER_INFO_NISSAN_LEAF {
 
   /** 77Wh per gid. LEAF specific unit */
   uint16_t GIDS;
-  /** Max regen power in kW */
+  /** Max regen power in 0.25 kW steps, as 0x1DC carries it */
   uint16_t ChargePowerLimit;
   /** Pack conductance estimate (LeafSpy "Hx"), in hundredths of a percent */
   uint16_t battery_HX_pptt;
@@ -697,11 +702,11 @@ struct DATALAYER_INFO_NISSAN_LEAF {
   bool MainRelayOn;
   /** True if heater exists */
   bool HeatExist;
-  /** Heater stopped */
+  /** Pack is cold, and its charge is too low to heat (LB_Heating_Stop_Send_Request) */
   bool HeatingStop;
-  /** Heater starting */
+  /** Pack is cold, and has enough charge to heat (LB_Heating_Start_Send_Request) */
   bool HeatingStart;
-  /** Heat request sent*/
+  /** Pack is cold (Batt_Heater_Mail_Send_Request) */
   bool HeaterSendRequest;
   /** True once the automatic current offset correction has measured an offset for this pack */
   bool AutoCurrentOffsetKnown;
@@ -965,6 +970,8 @@ class DataLayerExtended {
       data.calibrationTargetSOC = 100;
       data.calibrationTargetAH = 150;
       data.discharge_status = 14;
+      data.charge_time_remaining_h = 0xFF;
+      data.charge_time_remaining_min = 0xFF;
       data.auto_calibrate_soc_enabled = true;
       data.auto_calibrate_soc_drift_percent = 5;
       data.native_termination_enabled = true;

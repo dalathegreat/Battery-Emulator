@@ -9,6 +9,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
@@ -831,7 +832,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "MQTTTIMEOUT") {
-    return String(settings.getUInt("MQTTTIMEOUT", 2000));
+    // Capped like at load: an out-of-range saved value would otherwise block the form submit.
+    return String(mqtt_clamp_timeout_ms(settings.getUInt("MQTTTIMEOUT", 2000)));
   }
 
   if (var == "MQTTPUBLISHMS") {
@@ -1173,7 +1175,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "QNHTC") {
-    return String(settings.getInt("QNHTC", 0) / 1000.0f, 1);  // Stored in uV/°C, shown in mV/°C
+    return String(settings.getInt("QNHTC", 0) / 1000.0f, 2);  // Stored in uV/°C, shown in mV/°C
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1446,7 +1448,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
           <div class="if-qnhauto">
           <label>Zero point drift (mV/°C): </label>
-          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.1' />
+          <input type='number' name='QNHTC' value='%QNHTC%' min='-5' max='5' step='0.01' />
           </div>
 
           <div class="if-qnhmanual">
@@ -2580,7 +2582,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         pattern="[ -~]+" placeholder='Leave blank to keep unchanged' />
         <label>MQTT timeout ms: </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
-        min="1" max="60000" step="1" />
+        min="2000" max="20000" step="1" />
         <label>MQTT publish interval (seconds): </label>
         <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
         min="1" max="300" step="1" />
