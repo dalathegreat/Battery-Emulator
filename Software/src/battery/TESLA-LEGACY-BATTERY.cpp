@@ -2,8 +2,10 @@
 #include <cstdint>
 #include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+#include "TESLA-BATTERY.h"
 
 /* `index` is the BMS state code, `battery` the pack this driver instance drives: the
    contactor events it raises have to name the pack, and a free function has no
@@ -179,6 +181,24 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     {
       if (rx_frame.data.u8[0] == 0) {
         BMS_CAC_min = (((rx_frame.data.u8[2] >> 4) & 0x0F) | ((rx_frame.data.u8[3]) << 4)) * 10000;
+        // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. Plausible: 20-400 Ah, min <= avg <= max.
+        const uint16_t cac_avg_x10 = tesla_le_bits(rx_frame.data.u8, 8, 12);
+        const uint16_t cac_min_x10 = tesla_le_bits(rx_frame.data.u8, 20, 12);
+        const uint16_t cac_max_x10 = tesla_le_bits(rx_frame.data.u8, 32, 12);
+        if (cac_min_x10 >= 200 && cac_min_x10 <= cac_avg_x10 && cac_avg_x10 <= cac_max_x10 && cac_max_x10 <= 4000) {
+          datalayer_extended.tesla.cac_min_x10 = cac_min_x10;
+          datalayer_extended.tesla.cac_avg_x10 = cac_avg_x10;
+          datalayer_extended.tesla.cac_max_x10 = cac_max_x10;
+          datalayer_extended.tesla.cac_valid = true;
+        }
+      }
+      if (rx_frame.data.u8[0] == 7) {
+        // Page 7: brick SOC max (bit 8) and min (bit 18), 10 bits, 0.1 %, 1023 = n/a. Same fields as the 3/Y, 0 = n/a.
+        const uint16_t soc_max_x10 = tesla_le_bits(rx_frame.data.u8, 8, 10);
+        const uint16_t soc_min_x10 = tesla_le_bits(rx_frame.data.u8, 18, 10);
+        const bool valid = soc_max_x10 <= 1000 && soc_min_x10 <= soc_max_x10;
+        datalayer_extended.tesla.battery_soc_max = valid ? soc_max_x10 : 0;
+        datalayer_extended.tesla.battery_soc_min = valid ? soc_min_x10 : 0;
       }
     } break;
     case 0x3D2:  //TotalChargeDischarge:
@@ -261,8 +281,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         // 10 bit fields in 0.1 %: SOC min (bit 0), SOC UI (bit 10). The pack SOC is the UI SOC (like the 3/Y). 1023 =
         // n/a: the last SOC is held (the pack sends 1023 for about 5 s). SOC min is only the initial value, until a
         // valid UI SOC has been seen: 0 would zero the discharge limit (battery empty) at startup.
-        const uint16_t soc_min_x10 = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0];
-        const uint16_t soc_ui_x10 = ((rx_frame.data.u8[2] & 0x0F) << 6) | (rx_frame.data.u8[1] >> 2);
+        const uint16_t soc_min_x10 = tesla_le_bits(rx_frame.data.u8, 0, 10);
+        const uint16_t soc_ui_x10 = tesla_le_bits(rx_frame.data.u8, 10, 10);
         if (soc_ui_x10 <= 1000) {
           battery_soc_ui = soc_ui_x10;
           soc_ui_seen = true;
