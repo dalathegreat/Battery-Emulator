@@ -9,6 +9,7 @@
 #include "../../inverter/INVERTERS.h"
 #include "../utils/events.h"
 #include "../utils/ota_confirm_gate.h"
+#include "parallel_safety.h"
 
 static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
@@ -580,6 +581,9 @@ void update_machineryprotection(uint32_t currentMillis) {
       check_limits_respected(battery3, datalayer.battery3, 3);
     }
   }
+
+  // A pack on the DC link that stops carrying current while the others take over its share
+  check_parallel_current_sharing();
 
   check_soh_difference();
 
