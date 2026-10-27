@@ -89,15 +89,36 @@ bool webserver_auth_is_ready() {
   return webserver_auth && !http_username.empty() && !http_password.empty();
 }
 
+// Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
+// the middleware chain and before the onRequest handler. Anything that acts on
+// body data must therefore check credentials itself. Headers are already parsed
+// at this point, so authenticate() works here.
+// Returns true if the request may proceed. If auth is enabled and the
+// credentials are missing or wrong, returns false; the caller must discard the
+// data and do nothing. The 401 is sent later by the middleware / onRequest.
+static bool webserver_request_authorized(AsyncWebServerRequest* request) {
+  if (!webserver_auth) {
+    return true;  // password protection not enabled by the user
+  }
+  if (!webserver_auth_is_ready()) {
+    return true;  // enabled but no credentials configured: same behaviour as the rest of the UI
+  }
+  return request->authenticate(http_username.c_str(), http_password.c_str());
+}
+
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
+  if (!webserver_request_authorized(request)) {
+    return;  // unauthenticated: do not buffer anything, do not touch importedLogs
+  }
   if (!index) {
     importedLogs = "";  // Clear previous logs
     logging.printf("Receiving file: %s\n", filename.c_str());
   }
 
   // Append received data to the string (RAM storage)
-  importedLogs += String((char*)data).substring(0, len);
+  // data is not NUL-terminated, so append exactly len bytes
+  importedLogs.concat((const char*)data, len);
 
   if (final) {
     logging.println("Upload Complete!");
@@ -1035,6 +1056,14 @@ void init_webserver() {
         },
         nullptr,
         [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+          // Body callbacks run before the middleware / onRequest auth check.
+          // Never execute the command unless the request is authenticated.
+          if (!webserver_request_authorized(request)) {
+            return;  // 401 is sent by the middleware / onRequest handler
+          }
+          if (index != 0) {
+            return;  // run the command once per request, not once per body chunk
+          }
           String battIndex = "";
           if (len > 0) {
             battIndex += (char)data[0];
