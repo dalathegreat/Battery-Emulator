@@ -124,6 +124,8 @@ void TeslaLegacyBattery::update_values() {
                                  datalayer_extended.tesla.battery_nominal_full_pack_energy,
                                  datalayer.battery.info.total_capacity_Wh);
 
+  datalayer_extended.tesla.battery_soc_ui = battery_soc_ui;  // web page only
+
   // SOH is the estimate: nominal full pack energy (0x382) over the configured capacity, the Model 3/Y calculation.
   // The reference is the capacity configured for the hardware ID, NOT the real capacity when new (the S/X does not send
   // it). A new pack whose real capacity is below the configured one shows a higher SOH than the true one, for example a
@@ -218,6 +220,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x332:  //min/max hist values //BattBrickMinMax:
       cellvoltagesRead = true;
+      datalayer_extended.tesla.temperature_seen = true;  // the main page shows "no data" until this frame arrives
 
       battery_BrickVoltageMax = (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;
       battery_BrickVoltageMin = (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;

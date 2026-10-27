@@ -216,6 +216,7 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
 
 // 0x7E2 mux 0, 12 bit fields in 0.1 Ah: avg at bit 8 (211.7), min at bit 20 (209.3) and max at bit 32 (213.1).
 TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
+  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("<h4>CAC: not received yet"), std::string::npos);
   CAN_frame frame = RealCac();
   pack_->handle_incoming_can_frame(frame);
 
@@ -223,6 +224,12 @@ TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
   EXPECT_EQ(datalayer_extended.tesla.cac_avg_x10, 2117);
   EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 2093);
   EXPECT_EQ(datalayer_extended.tesla.cac_max_x10, 2131);
+
+  std::string page = pack_->get_status_renderer().get_status_html().str();
+  // Same rows and order as the Model 3/Y page (no brick IDs here), with the imbalance of 3.8 Ah, 2 % of the average
+  EXPECT_NE(page.find("<h4>CAC Average: 211.7 Ah</h4><h4>CAC Min: 209.3 Ah</h4><h4>CAC Max: 213.1 Ah</h4>"
+                      "<h4>CAC Imbalance: 3.8 Ah (2%)</h4>"),
+            std::string::npos);
 
   // min > avg, or a value outside 20..400 Ah, is not plausible and is not taken over
   frame.data.u8[3] = 0x84;  // min 0x84D = 2125 > avg 2117
@@ -241,6 +248,9 @@ TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
 // 0x382 bits 0-9: nominal full pack energy, 0.1 kWh. Outside 38.0-150.0 kWh (the pack sends 1023 for 5 s) the last
 // plausible value stays, so the SOH and remaining capacity do not jump during that burst.
 TEST_F(TeslaLegacyBatteryTest, NominalFullPackEnergyFrom0x382) {
+  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("Energy: not received yet"),
+            std::string::npos);
+
   pack_->handle_incoming_can_frame(RealNominal());
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
 
@@ -253,6 +263,7 @@ TEST_F(TeslaLegacyBatteryTest, NominalFullPackEnergyFrom0x382) {
 // The SOH sent to the inverter is the estimate: 0x382 nominal full energy / configured capacity (id 70 is 85 kWh): 72.1
 // kWh is 84.8 %. Unknown (99 % to the inverter) without the energy or above 101 %, 100 % up to 101 %. CAC is ignored.
 TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity) {
+  auto page = [&]() { return pack_->get_status_renderer().get_status_html().str(); };
   auto feed = [&](uint16_t x10) {
     pack_->handle_incoming_can_frame(LegacyBytes(0x382, {(uint8_t)(x10 & 0xFF), (uint8_t)(x10 >> 8)}));
     pack_->update_values();  // the estimate is calculated here
@@ -261,20 +272,24 @@ TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity)
   pack_->handle_incoming_can_frame(RealCac());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 85000u);
+  EXPECT_NE(page().find("Estimate SOH: unknown (99% passed to inverter)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
 
   feed(721);
+  EXPECT_NE(page().find("Estimate SOH: 84.8% (72.1 kWh / 85.0 kWh)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);
   EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);
 
   feed(860);  // 86.0 kWh, 101.2 %
+  EXPECT_NE(page().find("Estimate SOH: unknown (99% passed to inverter)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
   feed(855);  // 85.5 kWh, 100.6 %
+  EXPECT_NE(page().find("Estimate SOH: 100.0% (85.5 kWh / 85.0 kWh)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
   feed(1023);  // not available: the last plausible energy stays
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
@@ -322,6 +337,8 @@ TEST_F(TeslaLegacyBatteryTest, SohReferenceIsTheConfiguredCapacityNotTheRealCapa
 TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
   CAN_frame frame = RealPage7();
   pack_->handle_incoming_can_frame(frame);
+  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("Max: 30.6%</h4><h4>Brick SOC Min: 30.0%</h4>"),
+            std::string::npos);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_min, 300u);
 
@@ -339,6 +356,29 @@ TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 0u);
 }
 
+// Main page rows come from the Model 3/Y hooks, without brick IDs and average SOC (the legacy pack reads none).
+TEST_F(TeslaLegacyBatteryTest, MainPageRowsMatchTheModel3YStyle) {
+  BatteryHtmlRenderer& renderer = pack_->get_status_renderer();
+  pack_->update_values();
+  EXPECT_EQ(renderer.get_main_view_soh_rows().str(), "<h4>Estimate SOH: unknown (99% passed to inverter)</h4>");
+  EXPECT_TRUE(renderer.get_main_view_capacity_rows().str().empty());
+  EXPECT_TRUE(renderer.get_main_view_cell_rows().str().empty());
+
+  pack_->handle_incoming_can_frame(LegacyHwId(70));
+  pack_->handle_incoming_can_frame(RealNominal());
+  pack_->handle_incoming_can_frame(RealCac());
+  pack_->handle_incoming_can_frame(RealPage7());
+  pack_->update_values();
+
+  EXPECT_EQ(renderer.get_main_view_soh_rows().str(), "<h4>Estimate SOH: 84.8% (72.1 kWh / 85.0 kWh)</h4>");
+  EXPECT_EQ(renderer.get_main_view_capacity_rows().str(), "<h4>Current capacity (reported by pack): 72.1 kWh</h4>");
+  EXPECT_EQ(renderer.get_main_view_cell_rows().str(),
+            "<h4>CAC: 209.3 Ah - 213.1 Ah</h4><h4>Brick SOC: 30.0% - 30.6%</h4>");
+  EXPECT_FALSE(renderer.has_temperature_data());  // no 0x332 yet: the main card shows "no data"
+  pack_->handle_incoming_can_frame(LegacyBytes(0x332, {0x0A, 0x17, 0xBE, 0x73, 0x08, 0x67, 0x5F, 0x72}));
+  EXPECT_TRUE(renderer.has_temperature_data());
+}
+
 // Temperatures keep the 0.5 C resolution of the frame: 0x73 is 17.5 C and 0x72 is 17.0 C (they used to truncate to 17).
 TEST_F(TeslaLegacyBatteryTest, TemperatureKeepsHalfDegrees) {
   pack_->handle_incoming_can_frame(LegacyBytes(0x332, {0x0A, 0x17, 0xBE, 0x73, 0x08, 0x67, 0x5F, 0x72}));
@@ -353,6 +393,8 @@ TEST_F(TeslaLegacyBatteryTest, PackSocIsTheUiSocAndIsHeldWhenNotAvailable) {
   pack_->handle_incoming_can_frame(RealSoc());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_ui, 271u);
+  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("<h4>Battery SOC UI: 27.1"), std::string::npos);
 
   // SOC min 300, SOC UI 1023, for 5 s
   for (int second = 0; second < 5; second++) {

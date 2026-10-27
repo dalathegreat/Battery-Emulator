@@ -1,6 +1,8 @@
 #ifndef TESLA_LEGACY_BATTERY_H
 #define TESLA_LEGACY_BATTERY_H
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
+#include "TESLA-HTML.h"
 
 class TeslaLegacyBattery : public CanBattery {
  public:
@@ -13,7 +15,10 @@ class TeslaLegacyBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { user_requests_bms_reset = true; }
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  TeslaLegacyHtmlRenderer renderer{&datalayer_extended.tesla, &datalayer.battery};
   void apply_series_limits(uint16_t series_cells);
   // 0x6F2 cell-voltage mux tracking. Per instance: function-local statics were
   // shared by every TeslaLegacyBattery (double-battery setups) and made the
