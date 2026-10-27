@@ -436,7 +436,12 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer_battery->status.real_soc = avg_soc_state;
 
-  datalayer_battery->status.voltage_dV = battery_voltage;
+  if (battery_voltage_cV < 65530) {
+    datalayer_battery->status.voltage_dV = (battery_voltage_cV / 10);  // Convert cV to dV
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_index);
+  } else {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0, battery_index);
+  }
 
   datalayer_battery->status.current_dA = battery_current;
 
@@ -624,7 +629,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Removed immediate cell voltage parsing blocks - now handled by ISO-TP multi-frame handler below
 
       if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0x4D)) {  //Main Battery Voltage (Pre Contactor)
-        battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+        battery_voltage_cV = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
       }
 
       if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0x4A)) {  //Main Battery Voltage (After Contactor)
