@@ -121,9 +121,10 @@ void TeslaLegacyBattery::update_values() {
 
   datalayer.battery.status.current_dA = (battery_amps * 10);  //13.0A
 
-  //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh =
+      TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc,
+                                 datalayer_extended.tesla.battery_nominal_full_pack_energy,
+                                 datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.max_charge_power_W = (datalayer.battery.status.voltage_dV * battery_max_charge_current) / 10;
 
@@ -292,6 +293,15 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
       break;
+    case 0x382:  // Nominal full pack energy, bits 0-9 in 0.1 kWh, the SOH estimate input (3/Y field)
+    {
+      const uint16_t nominal_full_x10 = tesla_le_bits(rx_frame.data.u8, 0, 10);
+      // 38.0 to 150.0 kWh is plausible, else the last plausible value stays (0 = never read). The pack sends 1023 for
+      // about 5 s while it is not available.
+      if (TeslaBattery::energy_x10_plausible_10bit(nominal_full_x10)) {
+        datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_x10;
+      }
+    } break;
     case 0x612: {
       uint8_t service = rx_frame.data.u8[1];
       bms_uds_response = service;
