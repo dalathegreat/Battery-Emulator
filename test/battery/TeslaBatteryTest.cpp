@@ -94,6 +94,16 @@ CAN_frame SocUi(uint16_t raw_tenth_percent) {
   return frame;
 }
 
+// 0x292 SOC min, UI SOC, brick SOC max and average, 10 bits each from bit 0, in 0.1 percent.
+CAN_frame SocFields(uint64_t min, uint64_t ui, uint64_t max, uint64_t ave) {
+  const uint64_t raw = min | (ui << 10) | (max << 20) | (ave << 30);
+  CAN_frame frame = Frame(0x292);
+  for (int i = 0; i < 5; i++) {
+    frame.data.u8[i] = (uint8_t)(raw >> (8 * i));
+  }
+  return frame;
+}
+
 // 0x2D2 discharge current limit, 14 bits from bit 48, scale 0.128 A.
 CAN_frame DischargeLimit(uint16_t raw) {
   CAN_frame frame = Frame(0x2D2);
@@ -650,4 +660,67 @@ TEST_F(TeslaBatteryTest, BalancingRequestReplacesTheSafetyWindow) {
   EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
   ExpectSxLimits();
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+}
+
+// 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
+// available (SOC min is not used, no jump from 27.1 to 30.0 %).
+TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
+  pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  for (int second = 0; second < 5; second++) {  // a 5 s burst
+    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 1023));
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  }
+
+  pack_->handle_incoming_can_frame(SocFields(1023, 1023, 1023, 1023));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  pack_->handle_incoming_can_frame(SocFields(310, 281, 306, 303));  // min above max
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2810);
+}
+
+// Before a valid UI SOC was ever seen SOC min is the initial SOC (0 would zero the discharge limit), a valid UI SOC
+// replaces it for good.
+TEST_F(TeslaBatteryTest, SocMinIsOnlyTheInitialSocBeforeAValidUiSoc) {
+  pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 3000);
+
+  pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+}
+
+// 30 s without a valid UI SOC raise EVENT_SOC_UNAVAILABLE (a WARNING), the SOC is still the last one. A valid UI SOC
+// clears it.
+TEST_F(TeslaBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc) {
+  clear_event(EVENT_SOC_UNAVAILABLE);
+  pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
+  pack_->update_values();
+
+  for (int second = 1; second <= 29; second++) {
+    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+    pack_->update_values();
+  }
+  EXPECT_NE(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);  // 29 s
+
+  pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);  // 30 s
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->data, 30);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->level, EVENT_LEVEL_WARNING);
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_INACTIVE);
 }

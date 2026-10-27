@@ -460,6 +460,20 @@ void TeslaBattery::
 
   datalayer_battery->status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
 
+  // Seconds without a valid UI SOC, counted while the pack is on the bus. EVENT_SOC_UNAVAILABLE is a WARNING.
+  if (soc_ui_fresh) {
+    soc_ui_fresh = false;
+    seconds_without_soc = 0;
+    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
+  } else if (datalayer_battery->status.CAN_battery_still_alive > 0) {
+    if (seconds_without_soc < INT16_MAX) {
+      seconds_without_soc++;
+    }
+    if (seconds_without_soc >= SocUnavailableDelay_s) {
+      set_event(EVENT_SOC_UNAVAILABLE, seconds_without_soc, battery_index);
+    }
+  }
+
   datalayer_battery->status.voltage_dV = battery_volts;
 
   datalayer_battery->status.current_dA = battery_amps;  //13.0A
@@ -1605,8 +1619,19 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_beginning_of_life =
           (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]) * 0.1;          //40|10@1+ (0.1,0) [0|102.3] "kWh"
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.1,0) [0|102.3] "%"
-      battery_soc_ui =
-          (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));  //10|10@1+ (0.1,0) [0|102.3] "%"
+      {
+        // 1023 = not available (the S/X pack does it for about 5 s): the pack SOC is the UI SOC, the last SOC is held
+        // while it is not available. SOC min is only the initial SOC until a valid UI SOC was seen: 0 would zero the
+        // discharge limit (battery empty) at startup.
+        const uint16_t soc_ui_x10 = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
+        if (soc_ui_x10 <= 1000) {
+          battery_soc_ui = soc_ui_x10;
+          soc_ui_seen = true;
+          soc_ui_fresh = true;
+        } else if (!soc_ui_seen && battery_soc_min <= 1000) {
+          battery_soc_ui = battery_soc_min;
+        }
+      }
       battery_soc_max =
           (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));  //20|10@1+ (0.1,0) [0|102.3] "%"
       battery_soc_ave =

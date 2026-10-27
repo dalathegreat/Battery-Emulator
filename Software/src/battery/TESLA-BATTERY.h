@@ -573,6 +573,12 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_soc_min = 0;
   uint16_t battery_soc_max = 0;
   uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui
+  // A UI SOC of 1023 is not available: the last SOC is held and EVENT_SOC_UNAVAILABLE (a WARNING) is raised after
+  // SocUnavailableDelay_s seconds without a valid UI SOC
+  static constexpr uint16_t SocUnavailableDelay_s = 30;
+  bool soc_ui_seen = false;   // a valid UI SOC was received at least once
+  bool soc_ui_fresh = false;  // a valid UI SOC was received since the last update_values()
+  uint16_t seconds_without_soc = 0;
   uint16_t battery_soc_ave = 0;
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
