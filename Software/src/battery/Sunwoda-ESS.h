@@ -19,31 +19,43 @@ starting point (most common default); change CAN_Speed below if the battery does
 appear on the bus.
 */
 /*
-Addressing helpers. These live at file scope rather than inside the class because a constexpr
-member function cannot be used in a constant initialiser within its own class definition.
-  priority | source node | destination node | object     (the BCMU is node 0x50)
-  0x10 = read request, 0x12 = the BCMU's reply, 0x14 = write.
+Addressing. A CAN ID is four bytes:
+  priority | source node | destination node | object
+The BCMU's node address is configurable (param 1004 + the front ADDR switch, see param 1032), so
+two packs can share one bus as 0x50 and 0x51. It is therefore a per-instance value and the ID
+helpers are member functions - which is why frames are dispatched on the OBJECT byte below rather
+than on the whole ID, since switch labels must be compile-time constants.
+  0x04 = write, 0x06 = write ack, 0x0C = broadcast, 0x10 = read request, 0x12 = read reply.
 */
-static constexpr uint8_t NODE_ADDR_BCMU = 0x50;
-static constexpr uint8_t NODE_ADDR_SELF = 0x64;
-static constexpr uint32_t request_id(uint8_t object) {
-  return 0x10000000UL | ((uint32_t)NODE_ADDR_SELF << 16) | ((uint32_t)NODE_ADDR_BCMU << 8) | object;
-}
-static constexpr uint32_t response_id(uint8_t object) {
-  return 0x12000000UL | ((uint32_t)NODE_ADDR_BCMU << 16) | ((uint32_t)NODE_ADDR_SELF << 8) | object;
-}
-static constexpr uint32_t write_id(uint8_t object) {
-  return 0x04000000UL | ((uint32_t)NODE_ADDR_SELF << 16) | ((uint32_t)NODE_ADDR_BCMU << 8) | object;
-}
-static constexpr uint32_t write_ack_id(uint8_t object) {
-  return 0x06000000UL | ((uint32_t)NODE_ADDR_BCMU << 16) | ((uint32_t)NODE_ADDR_SELF << 8) | object;
-}
+static constexpr uint8_t NODE_ADDR_BCMU_DEFAULT = 0x50;
+static constexpr uint8_t NODE_ADDR_SELF = 0x64;  // the address the vendor's own tool uses
+static constexpr uint8_t NODE_ADDR_BSMU = 0x6E;  // the master the BCMU reports to
+
+// Node address the SECOND BCMU is expected to answer to in a two-pack system. Set that unit's
+// config param 1032 to 0x000F and turn on its front ADDR switch 1 to move it here from 0x50.
+static constexpr uint8_t SUNWODA_SECOND_BCMU_ADDRESS = 0x51;
 
 class SunwodaBattery : public CanBattery {
  public:
   // V4.04 runs the host bus at 250 kbit/s (stock), V1.16 at 500. Start at 250 and let
   // autodetect_can_speed() find the other if needed.
-  SunwodaBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {}
+
+  // First or only battery: the default node address, and the primary datalayer.
+  SunwodaBattery() : CanBattery(CAN_Speed::CAN_SPEED_250KBPS) {
+    datalayer_battery = &datalayer.battery;
+    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    bcmu_addr = NODE_ADDR_BCMU_DEFAULT;
+  }
+
+  // Second battery. `address` must match what that BCMU answers to - set its param 1032 to 0x000F
+  // and turn on ADDR switch 1 to move it from 0x50 to 0x51, or the two will collide.
+  SunwodaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing, CAN_Interface targetCan,
+                 uint8_t address)
+      : CanBattery(targetCan, CAN_Speed::CAN_SPEED_250KBPS) {
+    datalayer_battery = datalayer_ptr;
+    allows_contactor_closing = contactor_closing;
+    bcmu_addr = address;
+  }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -72,8 +84,19 @@ class SunwodaBattery : public CanBattery {
   SunwodaExtendedData extended_data;
   SunwodaHtmlRenderer renderer = SunwodaHtmlRenderer(&extended_data);
 
-  // Base CAN ID for the BCMU broadcast frames. Actual IDs are this + <address>.
-  static const uint32_t SUNWODA_BASE_ID = 0x0C50FF00;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  bool* allows_contactor_closing;
+  uint8_t bcmu_addr;
+
+  bool is_primary() const { return datalayer_battery == &datalayer.battery; }
+
+  // CAN IDs for this instance's BCMU. See the addressing comment at the top of this file.
+  uint32_t request_id(uint8_t object) const {
+    return 0x10000000UL | ((uint32_t)NODE_ADDR_SELF << 16) | ((uint32_t)bcmu_addr << 8) | object;
+  }
+  uint32_t write_id(uint8_t object) const {
+    return 0x04000000UL | ((uint32_t)NODE_ADDR_SELF << 16) | ((uint32_t)bcmu_addr << 8) | object;
+  }
 
   /*
   ADDRESSING - confirmed 2026-09-24 from a capture of the vendor's own tool talking to a real BCMU.
@@ -82,9 +105,10 @@ class SunwodaBattery : public CanBattery {
 
       priority | source node | destination node | object
 
-  The BCMU's own node address is 0x50, so every 0x0C50FFxx frame is the BCMU BROADCASTING
-  (src 0x50, dst 0xFF) its own telemetry. Those are fine to receive, and the ID_* constants below
-  that decode incoming status still use SUNWODA_BASE_ID for exactly that reason.
+  A BCMU defaults to node 0x50, so every 0x0C50FFxx frame is that BCMU BROADCASTING
+  (src 0x50, dst 0xFF) its own telemetry. Those are fine to receive: handle_incoming_can_frame()
+  matches the source byte against this instance's bcmu_addr and then dispatches on the OBJ_*
+  object number in the low byte.
 
   They are useless for commanding it. Transmitting 0x0C50FF46 means "I am the BCMU, broadcasting
   object 0x46 to everyone" - which is why the BCMU never once replied to us and never acted on a
@@ -135,23 +159,25 @@ class SunwodaBattery : public CanBattery {
   */
   static const uint32_t ID_TIME_SYNC = ((uint32_t)NODE_ADDR_SELF << 16) | (0xFFUL << 8) | 0x00;
 
-  static const uint32_t ID_SYSTEM_STATUS = SUNWODA_BASE_ID + 0x32;   // gStateInfo_50
-  static const uint32_t ID_SWITCH_STATUS = SUNWODA_BASE_ID + 0x33;   // gIoSwhInfo_51 (contactors)
-  static const uint32_t ID_SYSTEM_CONTROL = request_id(70);  // gCtrlInfo_70, addressed to the BCMU
-  static const uint32_t ID_ALARM_INFO = SUNWODA_BASE_ID + 0x34;      // gAlarmInfo_52
-  static const uint32_t ID_FAULT_INFO = SUNWODA_BASE_ID + 0x35;      // gFaultInfo_53
-  static const uint32_t ID_CLUSTER_INFO = SUNWODA_BASE_ID + 0x36;    // gClusterInfo_54 (contactor self-test)
-  static const uint32_t ID_CELL_BALANCE_0 = SUNWODA_BASE_ID + 0x3C;  // gCellBalInfo_60 (cells 1-252)
-  static const uint32_t ID_MAIN_INFO = SUNWODA_BASE_ID + 0x50;       // gMainInfo_80
-  static const uint32_t ID_VOLT_CHARA = SUNWODA_BASE_ID + 0x51;      // gVoltChara_81
-  static const uint32_t ID_TEMP_CHARA = SUNWODA_BASE_ID + 0x52;      // gTempChara_82
-  static const uint32_t ID_CELL_VOLTAGE_0 = SUNWODA_BASE_ID + 0x55;  // gCellVolt_85 (cells 1-252, mV)
-  static const uint32_t ID_CURRENT_LIMIT = SUNWODA_BASE_ID + 0x5A;   // gCurrLimit_90
+  // Object numbers, not CAN IDs: incoming frames are dispatched on the low byte of the ID after
+  // the source address has been matched against this instance's bcmu_addr.
+  static const uint8_t OBJ_SYSTEM_STATUS = 0x32;   // gStateInfo_50
+  static const uint8_t OBJ_SWITCH_STATUS = 0x33;   // gIoSwhInfo_51 (contactors)
+  static const uint8_t OBJ_SYSTEM_CONTROL = 70;    // gCtrlInfo_70, written to the BCMU
+  static const uint8_t OBJ_ALARM_INFO = 0x34;      // gAlarmInfo_52
+  static const uint8_t OBJ_FAULT_INFO = 0x35;      // gFaultInfo_53
+  static const uint8_t OBJ_CLUSTER_INFO = 0x36;    // gClusterInfo_54 (contactor self-test)
+  static const uint8_t OBJ_CELL_BALANCE_0 = 0x3C;  // gCellBalInfo_60 (cells 1-252)
+  static const uint8_t OBJ_MAIN_INFO = 0x50;       // gMainInfo_80
+  static const uint8_t OBJ_VOLT_CHARA = 0x51;      // gVoltChara_81
+  static const uint8_t OBJ_TEMP_CHARA = 0x52;      // gTempChara_82
+  static const uint8_t OBJ_CELL_VOLTAGE_0 = 0x55;  // gCellVolt_85 (cells 1-252, mV)
+  static const uint8_t OBJ_CURRENT_LIMIT = 0x5A;   // gCurrLimit_90
 
   // Individual temperature sensor readings, gTempArray_87. See the comment on
   // SunwodaExtendedData::temperatures_dC in Sunwoda-ESS-HTML.h for how this was identified -
   // not confirmed against vendor documentation, only a real CAN capture.
-  static const uint32_t ID_TEMP_ARRAY_0 = SUNWODA_BASE_ID + 0x57;
+  static const uint8_t OBJ_TEMP_ARRAY_0 = 0x57;
 
   // Software/hardware version info. Not part of the gXxxInfo_NN / 0x0C50FF00+address family
   // above - the vendor's variable map (tools/SoftwareAddresses.txt) lists these as "Software
@@ -160,8 +186,9 @@ class SunwodaBattery : public CanBattery {
   // (tools/pcanOut.txt): they are the only frames that broadcast a small, constant value once
   // per second, which fits a version number far better than any other observed field. Treat as
   // a best-effort inference pending confirmation against real hardware.
-  static const uint32_t ID_SOFTWARE_VERSION = 0x0C506E07;
-  static const uint32_t ID_HARDWARE_VERSION = 0x0C506E1D;
+  // These two are addressed to the BSMU (0x0C <bcmu> 6E <obj>) rather than broadcast to 0xFF.
+  static const uint8_t OBJ_SOFTWARE_VERSION = 0x07;
+  static const uint8_t OBJ_HARDWARE_VERSION = 0x1D;
 
   /*
   MANUAL CONTACTOR CONTROL - verified on hardware 2026-09-25 (HWv2 / ES01 running BCMU V1.16).
@@ -180,13 +207,13 @@ class SunwodaBattery : public CanBattery {
   So every close is sent as 70/1 = 8 followed by the 71 write (request_vendor_command()).
   Contactor feedback arrives on ID_SWITCH_STATUS (0x0C50FF33) about once per second.
   */
-  static const uint32_t ID_CONTACTOR_CONTROL = request_id(71);  // gSwitchCtrl_71
+  static const uint8_t OBJ_CONTACTOR_CONTROL = 71;  // gSwitchCtrl_71
   static const uint16_t CONTACTOR_ENGAGE = 0x00F0;
   static const uint16_t CONTACTOR_DISENGAGE = 0x000F;
 
   struct VendorCommandDef {
     const char* identifier;  // matches the button/route identifier in advanced_battery_html.cpp
-    uint32_t can_id;         // low byte = object number
+    uint8_t object;          // object number; the CAN ID is built from bcmu_addr at send time
     uint8_t subindex;
     uint16_t value;
   };

@@ -13,57 +13,59 @@ address scheme. Fields not listed in the switch below have not been decoded yet.
 */
 
 void SunwodaBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, Name, 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+  if (is_primary()) {
+    strncpy(datalayer.system.info.battery_protocol, Name, 63);
+    datalayer.system.info.battery_protocol[63] = '\0';
+  }
 
-  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
 
   if (user_selected_max_pack_voltage_dV > 0) {
-    datalayer.battery.info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
+    datalayer_battery->info.max_design_voltage_dV = user_selected_max_pack_voltage_dV;
   }
   if (user_selected_min_pack_voltage_dV > 0) {
-    datalayer.battery.info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
+    datalayer_battery->info.min_design_voltage_dV = user_selected_min_pack_voltage_dV;
   }
   if (user_selected_max_cell_voltage_mV > 0) {
-    datalayer.battery.info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
+    datalayer_battery->info.max_cell_voltage_mV = user_selected_max_cell_voltage_mV;
   }
   if (user_selected_min_cell_voltage_mV > 0) {
-    datalayer.battery.info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
+    datalayer_battery->info.min_cell_voltage_mV = user_selected_min_cell_voltage_mV;
   }
 
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 void SunwodaBattery::update_values() {
-  datalayer.battery.status.real_soc = (uint16_t)(soc * 100);  // 98.3% -> 9830
+  datalayer_battery->status.real_soc = (uint16_t)(soc * 100);  // 98.3% -> 9830
 
-  datalayer.battery.status.soh_pptt = (uint16_t)(soh * 100);  // 100.0% -> 10000
+  datalayer_battery->status.soh_pptt = (uint16_t)(soh * 100);  // 100.0% -> 10000
 
-  datalayer.battery.status.voltage_dV = (uint16_t)(packVoltage * 10);  // 622.1V -> 6221
+  datalayer_battery->status.voltage_dV = (uint16_t)(packVoltage * 10);  // 622.1V -> 6221
 
-  datalayer.battery.status.current_dA = packCurrent_dA;  // positive = charging
-  datalayer.battery.status.active_power_W =
-      (int32_t)datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA / 100;
+  datalayer_battery->status.current_dA = packCurrent_dA;  // positive = charging
+  datalayer_battery->status.active_power_W =
+      (int32_t)datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA / 100;
 
-  datalayer.battery.status.cell_max_voltage_mV = maxCellVoltage;
-  datalayer.battery.status.cell_min_voltage_mV = minCellVoltage;
+  datalayer_battery->status.cell_max_voltage_mV = maxCellVoltage;
+  datalayer_battery->status.cell_min_voltage_mV = minCellVoltage;
 
-  datalayer.battery.status.temperature_min_dC = minTemperature * 10;  // whole degrees C -> deci-degrees
-  datalayer.battery.status.temperature_max_dC = maxTemperature * 10;
+  datalayer_battery->status.temperature_min_dC = minTemperature * 10;  // whole degrees C -> deci-degrees
+  datalayer_battery->status.temperature_max_dC = maxTemperature * 10;
 
   if (actual_cell_count > 0) {
-    datalayer.battery.info.number_of_cells = actual_cell_count;
+    datalayer_battery->info.number_of_cells = actual_cell_count;
   }
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
   // BCMU limits from gCurrLimit_90 (0x0C50FF5A), verified 2026-10-03 against the vendor sheet
   // and live data (HWv1 running: 201/201/61/61; HWv2 at SOC 0: 201/0/57/0).
-  datalayer.battery.status.max_charge_current_dA = bmsLimits[0];
-  datalayer.battery.status.max_discharge_current_dA = bmsLimits[1];
-  datalayer.battery.status.max_charge_power_W = (uint32_t)bmsLimits[2] * 100;
-  datalayer.battery.status.max_discharge_power_W = (uint32_t)bmsLimits[3] * 100;
+  datalayer_battery->status.max_charge_current_dA = bmsLimits[0];
+  datalayer_battery->status.max_discharge_current_dA = bmsLimits[1];
+  datalayer_battery->status.max_charge_power_W = (uint32_t)bmsLimits[2] * 100;
+  datalayer_battery->status.max_discharge_power_W = (uint32_t)bmsLimits[3] * 100;
 
   // Recovery charge: after a manual close in Debugging mode (BCMU in Stop) the BCMU reports zero
   // limits, so offer a small fixed charge (never discharge) until the highest cell nears full.
@@ -76,9 +78,9 @@ void SunwodaBattery::update_values() {
   }
   if (extended_data.operatingMode == 8 && extended_data.main_contactor_closed && !extended_data.faultActive &&
       bmsLimits[0] == 0 && maxCellVoltage > 0 && !recovery_charge_blocked) {
-    datalayer.battery.status.max_charge_current_dA = RECOVERY_CHARGE_CURRENT_DA;
-    datalayer.battery.status.max_charge_power_W =
-        (uint32_t)RECOVERY_CHARGE_CURRENT_DA * datalayer.battery.status.voltage_dV / 100;
+    datalayer_battery->status.max_charge_current_dA = RECOVERY_CHARGE_CURRENT_DA;
+    datalayer_battery->status.max_charge_power_W =
+        (uint32_t)RECOVERY_CHARGE_CURRENT_DA * datalayer_battery->status.voltage_dV / 100;
   }
 
   apply_charge_taper(millis());
@@ -100,17 +102,18 @@ void SunwodaBattery::update_values() {
   feedback). faultActive comes from ID_FAULT_INFO; alarmActive (caution-level) is
   intentionally not included here, matching the ERROR vs INFO split already used above.
   */
-  datalayer.battery.status.real_bms_status =
+  datalayer_battery->status.real_bms_status =
       extended_data.faultActive ? BMS_FAULT : (extended_data.main_contactor_closed ? BMS_ACTIVE : BMS_STANDBY);
 
-  datalayer.system.status.battery_allows_contactor_closing =
-      extended_data.main_contactor_closed && !extended_data.faultActive;
+  if (allows_contactor_closing) {
+    *allows_contactor_closing = extended_data.main_contactor_closed && !extended_data.faultActive;
+  }
 
   // Pack-internal contactors: the BCMU is the only thing that ever closes them (see comment
   // above), so it is also the only thing that knows the DC bus is actually energized. Guarded
   // so the GPIO contactor state machine (comm_contactorcontrol.cpp) stays the single writer
   // if the user also has emulator-driven relays enabled for some other part of the topology.
-  if (!contactor_control_enabled) {
+  if (!contactor_control_enabled && is_primary()) {
     datalayer.system.status.dc_bus_live = extended_data.main_contactor_closed && !extended_data.faultActive;
   }
 
@@ -120,18 +123,27 @@ void SunwodaBattery::update_values() {
 
 void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   // Any frame whose source node is the BCMU proves the current CAN speed is right.
-  if (((rx_frame.ID >> 16) & 0xFF) == NODE_ADDR_BCMU) {
-    last_bcmu_rx_ms = millis();
+  // Only this instance's BCMU. A frame is 0x0C <src> <dst> <object>: status objects are broadcast
+  // to 0xFF, the version replies are addressed to the BSMU (0x6E). Dispatch is on the object byte
+  // because the source address is a runtime value and switch labels must be constants.
+  if (((rx_frame.ID >> 16) & 0xFF) != bcmu_addr) {
+    return;
+  }
+  last_bcmu_rx_ms = millis();
+
+  const uint8_t dst = (rx_frame.ID >> 8) & 0xFF;
+  if (dst != 0xFF && dst != NODE_ADDR_BSMU) {
+    return;  // write acks / read replies come back addressed to us; nothing here decodes them
   }
 
-  switch (rx_frame.ID) {
-    case ID_MAIN_INFO:  // 0x0C50FF50 - Total voltage / current / power / SOC / SOH / avg temp
+  switch (rx_frame.ID & 0xFF) {
+    case OBJ_MAIN_INFO:  // 0x0C50FF50 - Total voltage / current / power / SOC / SOH / avg temp
 
       if (rx_frame.DLC < 8) {
         break;
       }
 
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
       /*
       Example:
@@ -158,7 +170,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
 
-    case ID_VOLT_CHARA:  // 0x0C50FF51 - Voltage characteristics (lowest/highest cell)
+    case OBJ_VOLT_CHARA:  // 0x0C50FF51 - Voltage characteristics (lowest/highest cell)
 
       if (rx_frame.DLC < 8) {
         break;
@@ -178,7 +190,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
 
-    case ID_CURRENT_LIMIT: {  // 0x0C50FF5A - Charge/discharge current and power limits
+    case OBJ_CURRENT_LIMIT: {  // 0x0C50FF5A - Charge/discharge current and power limits
       // Mux byte: low nibble = word count, data[1] = first subindex, then u16 LE words.
       const uint8_t count = rx_frame.data.u8[0] & 0x0F;
       const uint8_t first = rx_frame.data.u8[1];
@@ -191,7 +203,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     }
 
-    case ID_TEMP_CHARA:  // 0x0C50FF52 - Temperature characteristics (lowest/highest)
+    case OBJ_TEMP_CHARA:  // 0x0C50FF52 - Temperature characteristics (lowest/highest)
 
       if (rx_frame.DLC < 8) {
         break;
@@ -207,7 +219,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
 
-    case ID_SWITCH_STATUS: {  // 0x0C50FF33 - Contactor / IO switch status (gIoSwhInfo_51)
+    case OBJ_SWITCH_STATUS: {  // 0x0C50FF33 - Contactor / IO switch status (gIoSwhInfo_51)
 
       if (rx_frame.DLC < 8) {
         break;
@@ -240,7 +252,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     } break;
 
-    case ID_SYSTEM_STATUS: {  // 0x0C50FF32 - System status (gStateInfo_50)
+    case OBJ_SYSTEM_STATUS: {  // 0x0C50FF32 - System status (gStateInfo_50)
 
       /*
       Same subindex-multiplexed layout as ID_ALARM_INFO/ID_FAULT_INFO: byte0 is a mux marker
@@ -252,7 +264,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       operatingStatus (subindex 1) is the key diagnostic: the BCMU only closes its contactors once
       it reaches Running (3). Reaching Running requires the host to send a Start command (see
-      ID_SYSTEM_CONTROL / transmit_can() below) - without it the pack sits at Stop (1) forever,
+      OBJ_SYSTEM_CONTROL / transmit_can() below) - without it the pack sits at Stop (1) forever,
       which matches a real capture (tools/pcanOut.txt) showing operatingStatus stuck at 1 and the
       output switch status (0x0C50FF33) stuck at all-open for the whole log.
       */
@@ -288,7 +300,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     } break;
 
-    case ID_CLUSTER_INFO:  // 0x0C50FF36 - Contactor self-test status (gClusterInfo_54)
+    case OBJ_CLUSTER_INFO:  // 0x0C50FF36 - Contactor self-test status (gClusterInfo_54)
 
       if (rx_frame.DLC < 4) {
         break;
@@ -298,7 +310,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
 
-    case ID_ALARM_INFO: {  // 0x0C50FF34 - Alarm information (gAlarmInfo_52)
+    case OBJ_ALARM_INFO: {  // 0x0C50FF34 - Alarm information (gAlarmInfo_52)
 
       /*
       Multiplexed the same way as ID_SWITCH_STATUS/ID_VOLT_CHARA: byte0 is a mux marker (ignored),
@@ -338,7 +350,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     } break;
 
-    case ID_FAULT_INFO: {  // 0x0C50FF35 - Fault information (gFaultInfo_53)
+    case OBJ_FAULT_INFO: {  // 0x0C50FF35 - Fault information (gFaultInfo_53)
 
       // Same subindex-multiplexed layout as ID_ALARM_INFO above (4 subindices: external fault
       // 0/1, internal fault 0/1), confirmed from the vendor's BCMU_APP CAN variable map.
@@ -371,7 +383,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     } break;
 
-    case ID_CELL_VOLTAGE_0: {  // 0x0C50FF55 - Individual cell voltages, 3 cells per frame
+    case OBJ_CELL_VOLTAGE_0: {  // 0x0C50FF55 - Individual cell voltages, 3 cells per frame
 
       if (rx_frame.DLC < 8) {
         break;
@@ -388,7 +400,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (cell_mV == 0) {
           continue;
         }
-        datalayer.battery.status.cell_voltages_mV[cell_index] = cell_mV;
+        datalayer_battery->status.cell_voltages_mV[cell_index] = cell_mV;
         if ((uint8_t)(cell_index + 1) > actual_cell_count) {
           actual_cell_count = cell_index + 1;
         }
@@ -396,7 +408,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     } break;
 
-    case ID_TEMP_ARRAY_0: {  // 0x0C50FF57 - Individual temperature sensors, 3 per frame, 0.1 degC
+    case OBJ_TEMP_ARRAY_0: {  // 0x0C50FF57 - Individual temperature sensors, 3 per frame, 0.1 degC
 
       if (rx_frame.DLC < 8) {
         break;
@@ -418,7 +430,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     } break;
 
-    case ID_SOFTWARE_VERSION:  // 0x0C506E07 - Software version number (see comment in Sunwoda-ESS.h)
+    case OBJ_SOFTWARE_VERSION:  // 0x0C506E07 - Software version number (see comment in Sunwoda-ESS.h)
 
       if (rx_frame.DLC < 4) {
         break;
@@ -428,7 +440,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
 
-    case ID_HARDWARE_VERSION:  // 0x0C506E1D - Hardware version number (see comment in Sunwoda-ESS.h)
+    case OBJ_HARDWARE_VERSION:  // 0x0C506E1D - Hardware version number (see comment in Sunwoda-ESS.h)
 
       if (rx_frame.DLC < 4) {
         break;
@@ -438,7 +450,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       break;
 
-    case ID_CELL_BALANCE_0: {  // 0x0C50FF3C - Cell balancing status, 6 cells per frame
+    case OBJ_CELL_BALANCE_0: {  // 0x0C50FF3C - Cell balancing status, 6 cells per frame
 
       if (rx_frame.DLC < 8) {
         break;
@@ -452,7 +464,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           continue;
         }
         // 0: Idle, 1: Equalize charge, 2: Equalize discharge
-        datalayer.battery.status.cell_balancing_status[cell_index] = (rx_frame.data.u8[2 + i] != 0);
+        datalayer_battery->status.cell_balancing_status[cell_index] = (rx_frame.data.u8[2 + i] != 0);
       }
 
     } break;
@@ -468,23 +480,23 @@ The identifiers here must match the BatteryCommand identifiers in advanced_batte
 string is both the HTTP route and the key looked up here.
 */
 const SunwodaBattery::VendorCommandDef SunwodaBattery::VENDOR_COMMANDS[] = {
-    {"swNegativeClose", ID_CONTACTOR_CONTROL, 2, CONTACTOR_ENGAGE},
-    {"swNegativeOpen", ID_CONTACTOR_CONTROL, 2, CONTACTOR_DISENGAGE},
-    {"swPrechargeClose", ID_CONTACTOR_CONTROL, 1, CONTACTOR_ENGAGE},
-    {"swPrechargeOpen", ID_CONTACTOR_CONTROL, 1, CONTACTOR_DISENGAGE},
-    {"swMainClose", ID_CONTACTOR_CONTROL, 0, CONTACTOR_ENGAGE},
-    {"swMainOpen", ID_CONTACTOR_CONTROL, 0, CONTACTOR_DISENGAGE},
+    {"swNegativeClose", OBJ_CONTACTOR_CONTROL, 2, CONTACTOR_ENGAGE},
+    {"swNegativeOpen", OBJ_CONTACTOR_CONTROL, 2, CONTACTOR_DISENGAGE},
+    {"swPrechargeClose", OBJ_CONTACTOR_CONTROL, 1, CONTACTOR_ENGAGE},
+    {"swPrechargeOpen", OBJ_CONTACTOR_CONTROL, 1, CONTACTOR_DISENGAGE},
+    {"swMainClose", OBJ_CONTACTOR_CONTROL, 0, CONTACTOR_ENGAGE},
+    {"swMainOpen", OBJ_CONTACTOR_CONTROL, 0, CONTACTOR_DISENGAGE},
 };
 
 const uint8_t SunwodaBattery::VENDOR_COMMAND_COUNT =
     sizeof(SunwodaBattery::VENDOR_COMMANDS) / sizeof(SunwodaBattery::VENDOR_COMMANDS[0]);
 
-const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_DEBUG_MODE = {nullptr, ID_SYSTEM_CONTROL, 1, 8};
-const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_MAIN_OPEN = {nullptr, ID_CONTACTOR_CONTROL, 0,
+const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_DEBUG_MODE = {nullptr, OBJ_SYSTEM_CONTROL, 1, 8};
+const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_MAIN_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 0,
                                                                          CONTACTOR_DISENGAGE};
-const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_PRECHARGE_OPEN = {nullptr, ID_CONTACTOR_CONTROL, 1,
+const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_PRECHARGE_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 1,
                                                                               CONTACTOR_DISENGAGE};
-const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_NEGATIVE_OPEN = {nullptr, ID_CONTACTOR_CONTROL, 2,
+const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_NEGATIVE_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 2,
                                                                              CONTACTOR_DISENGAGE};
 
 const SunwodaBattery::VendorCommandDef* SunwodaBattery::find_vendor_command(const char* identifier) {
@@ -569,9 +581,9 @@ void SunwodaBattery::apply_charge_taper(unsigned long now) {
     }
     last_taper_step_ms = now;
   }
-  if (datalayer.battery.status.max_charge_current_dA > taper_cap_dA) {
-    datalayer.battery.status.max_charge_current_dA = taper_cap_dA;
-    datalayer.battery.status.max_charge_power_W = (uint32_t)taper_cap_dA * datalayer.battery.status.voltage_dV / 100;
+  if (datalayer_battery->status.max_charge_current_dA > taper_cap_dA) {
+    datalayer_battery->status.max_charge_current_dA = taper_cap_dA;
+    datalayer_battery->status.max_charge_power_W = (uint32_t)taper_cap_dA * datalayer_battery->status.voltage_dV / 100;
   }
   extended_data.charge_taper_dA = taper_cap_dA;
 }
@@ -625,7 +637,7 @@ void SunwodaBattery::transmit_can(unsigned long currentMillis) {
     }
     vendor_command_queue_count--;
 
-    uint8_t object = (uint8_t)(cmd->can_id & 0xFF);
+    const uint8_t object = cmd->object;
     CAN_frame frame = {.FD = false,
                        .ext_ID = true,
                        .DLC = 4,
