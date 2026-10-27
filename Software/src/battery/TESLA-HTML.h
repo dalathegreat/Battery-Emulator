@@ -19,9 +19,19 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
   String get_main_view_cell_rows();
   bool has_temperature_data() { return tesla_info->temperature_seen; }
 
- private:
+ protected:
   DATALAYER_INFO_TESLA* tesla_info;
   DATALAYER_BATTERY_TYPE* core_data;
+};
+
+// Status page for the legacy Model S/X (2012-2020) packs. The main page rows are the Model 3/Y ones (the legacy driver
+// fills the same datalayer fields).
+class TeslaLegacyHtmlRenderer : public TeslaHtmlRenderer {
+ public:
+  TeslaLegacyHtmlRenderer(DATALAYER_INFO_TESLA* extended, DATALAYER_BATTERY_TYPE* core)
+      : TeslaHtmlRenderer(extended, core) {}
+
+  String get_status_html();
 };
 
 #endif

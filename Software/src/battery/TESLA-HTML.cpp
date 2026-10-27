@@ -511,6 +511,35 @@ String TeslaHtmlRenderer::get_status_html() {
   return content;
 }
 
+String TeslaLegacyHtmlRenderer::get_status_html() {
+  const DATALAYER_INFO_TESLA& tesla = *tesla_info;
+  String content;
+
+  if (nominalFullPackKwh(tesla) > 0) {
+    content += "<h4>Nominal Full Pack Energy: " + String(nominalFullPackKwh(tesla), 1) + " kWh</h4>";
+  } else {
+    content += "<h4>Nominal Full Pack Energy: not received yet (0x382)</h4>";
+  }
+  content += sohEstimateRow(tesla, core_data->status);
+  content += "<h4>Battery SOC UI: " + String(static_cast<float>(tesla.battery_soc_ui) * 0.1f) + " </h4>";
+
+  // 0x7E2 page 7, same fields as the Model 3/Y brick SOC
+  if (tesla.battery_soc_max > 0) {
+    content += "<h4>Brick SOC Max: " + String(tesla.battery_soc_max * 0.1f, 1) + "%</h4>";
+    content += "<h4>Brick SOC Min: " + String(tesla.battery_soc_min * 0.1f, 1) + "%</h4>";
+  } else {
+    content += "<h4>Brick SOC Max/Min (0x7E2 page 7): not available</h4>";
+  }
+
+  if (tesla.cac_valid) {
+    content += cacRows(tesla);
+  } else {
+    content += "<h4>CAC: not received yet (frame 0x7E2 mux 0)</h4>";
+  }
+
+  return content;
+}
+
 // Main page: the SOH estimate, shown instead of the generic SOH row
 String TeslaHtmlRenderer::get_main_view_soh_rows() {
   return sohEstimateRow(*tesla_info, core_data->status);
