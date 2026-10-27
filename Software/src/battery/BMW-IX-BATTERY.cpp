@@ -972,6 +972,12 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
 }
 
 void BmwIXBattery::HandleIncomingUserRequest(void) {
+  //First of all, check if any equipment stop signal is active. If so, open contactors and ignore user request to close contactors
+  if (datalayer.system.info.equipment_stop_active) {
+    BmwIxOpenContactors();
+    return;  // Early return
+  }
+
   // Debug user request to open or close the contactors
   if (userRequestContactorClose) {
     logging.printf("User req. contactor close");
@@ -1001,6 +1007,12 @@ void BmwIXBattery::HandleIncomingUserRequest(void) {
 }
 
 void BmwIXBattery::HandleIncomingInverterRequest(void) {
+  //First of all, check if any equipment stop signal is active. If so, open contactors and ignore inverter request to close contactors
+  if (datalayer.system.info.equipment_stop_active) {
+    BmwIxOpenContactors();
+    return;  // Early return
+  }
+
   InverterContactorCloseRequest.present = datalayer.system.status.inverter_allows_contactor_closing;
   // Detect edge
   if (InverterContactorCloseRequest.previous == false && InverterContactorCloseRequest.present == true) {
