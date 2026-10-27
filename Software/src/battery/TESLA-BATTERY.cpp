@@ -697,6 +697,8 @@ void TeslaBattery::
   //0x332
   datalayer_tesla->battery_BrickVoltageMax = battery_BrickVoltageMax;
   datalayer_tesla->battery_BrickVoltageMin = battery_BrickVoltageMin;
+  datalayer_tesla->battery_BrickVoltageMaxNum = battery_BrickVoltageMaxNum;
+  datalayer_tesla->battery_BrickVoltageMinNum = battery_BrickVoltageMinNum;
   datalayer_tesla->battery_BrickTempMaxNum = battery_BrickTempMaxNum;
   datalayer_tesla->battery_BrickTempMinNum = battery_BrickTempMinNum;
   datalayer_tesla->battery_BrickModelTMax = battery_BrickModelTMax;
@@ -1202,6 +1204,42 @@ TeslaBattery::EnergyStatusNoMux TeslaBattery::decode_energy_status_no_mux(const 
   return e;
 }
 
+// 0x3B2 BMS_log2 mux 0: pack CAC (0.1 Ah) and min/max brick IDs (ID - 1). B was verified on a 2024.8.9+ pack, A not.
+struct CacLayout {
+  uint8_t avg, min, min_id, max, max_id;  // start bits: avg, min and max CAC 13 bits, brick IDs 7 bits
+};
+static const CacLayout kCacLayoutA = {6, 19, 32, 40, 56};  // 2022 era, mux 0|6
+static const CacLayout kCacLayoutB = {8, 24, 37, 44, 57};  // 2024.8.9+, mux 0|7
+
+// Decode one layout into out when plausible: min <= avg <= max, brick IDs 1..200, CAC 20.0 to 400.0 Ah
+static bool tesla_apply_cac_layout(const uint8_t* d, const CacLayout& l, uint8_t layout_id, DATALAYER_INFO_TESLA* out) {
+  const uint32_t cac_avg = tesla_le_bits(d, l.avg, 13);
+  const uint32_t cac_min = tesla_le_bits(d, l.min, 13);
+  const uint32_t cac_max = tesla_le_bits(d, l.max, 13);
+  const uint32_t min_id = tesla_le_bits(d, l.min_id, 7) + 1;
+  const uint32_t max_id = tesla_le_bits(d, l.max_id, 7) + 1;
+  if (!(cac_min <= cac_avg && cac_avg <= cac_max && min_id <= 200 && max_id <= 200 && cac_min >= 200 &&
+        cac_max <= 4000)) {
+    return false;
+  }
+  out->cac_layout = layout_id;
+  out->cac_avg_x10 = cac_avg;
+  out->cac_min_x10 = cac_min;
+  out->cac_max_x10 = cac_max;
+  out->cac_min_brick_id = min_id;
+  out->cac_max_brick_id = max_id;
+  out->cac_valid = true;
+  return true;
+}
+
+static void tesla_decode_cac_frame(const CAN_frame& rx_frame, DATALAYER_INFO_TESLA* out) {
+  const uint8_t* d = rx_frame.data.u8;
+  // B (7 bit mux, bit 6 = 0) is preferred, A is used when B is implausible. A frame that fits neither changes nothing.
+  if (!((d[0] & 0x7F) == 0 && tesla_apply_cac_layout(d, kCacLayoutB, 2, out))) {
+    tesla_apply_cac_layout(d, kCacLayoutA, 1, out);
+  }
+}
+
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   // mux, temp, mux0_read, mux1_read are instance member variables (TESLA-BATTERY.h)
 
@@ -1645,6 +1683,13 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));  //20|10@1+ (0.1,0) [0|102.3] "%"
       battery_soc_ave =
           ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6));  //30|10@1+ (0.1,0) [0|102.3] "%"
+      // Brick SOC: 0 = not available (1023, or min above max)
+      if (battery_soc_max > 1000 || battery_soc_min > battery_soc_max) {
+        battery_soc_min = battery_soc_max = 0;
+      }
+      if (battery_soc_ave > 1000) {
+        battery_soc_ave = 0;
+      }
       battery_battTempPct =
           (((rx_frame.data.u8[7] & 0x03) << 6) | (rx_frame.data.u8[6] & 0x3F) >> 2);  //50|8@1+ (0.4,0) [0|100] "%"
       break;
@@ -1665,6 +1710,13 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_reservedConfig =
             (rx_frame.data.u8[1] &
              (0x1F));  //8|5@1+ (1,0) [0|31] ""//0 "BMS_CONFIG_0" 1 "BMS_CONFIG_1" 10 "BMS_CONFIG_10" 11 "BMS_CONFIG_11" 12 "BMS_CONFIG_12" 13 "BMS_CONFIG_13" 14 "BMS_CONFIG_14" 15 "BMS_CONFIG_15" 16 "BMS_CONFIG_16" 17 "BMS_CONFIG_17" 18 "BMS_CONFIG_18" 19 "BMS_CONFIG_19" 2 "BMS_CONFIG_2" 20 "BMS_CONFIG_20" 21 "BMS_CONFIG_21" 22 "BMS_CONFIG_22" 23 "BMS_CONFIG_23" 24 "BMS_CONFIG_24" 25 "BMS_CONFIG_25" 26 "BMS_CONFIG_26" 27 "BMS_CONFIG_27" 28 "BMS_CONFIG_28" 29 "BMS_CONFIG_29" 3 "BMS_CONFIG_3" 30 "BMS_CONFIG_30" 31 "BMS_CONFIG_31" 4 "BMS_CONFIG_4" 5 "BMS_CONFIG_5" 6 "BMS_CONFIG_6" 7 "BMS_CONFIG_7" 8 "BMS_CONFIG_8" 9 "BMS_CONFIG_9" ;
+      }
+      break;
+    case 0x3B2:  // BMS_log2, multiplexed. Mux page 0 carries the pack CAC, a page is sent about every 30 s
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // Mux 0 has the low 6 bits zero in both layouts (bit 6 is checked in the decoder)
+      if ((rx_frame.data.u8[0] & 0x3F) == 0) {
+        tesla_decode_cac_frame(rx_frame, datalayer_tesla);
       }
       break;
     case 0x7AA:  //1962 HVP_debugMessage:

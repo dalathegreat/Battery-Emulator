@@ -5,6 +5,15 @@
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
+// Little-endian (Intel) signal from an 8 byte CAN payload: start bit and length as in a DBC "start|len@1+"
+inline uint32_t tesla_le_bits(const uint8_t* data, uint8_t start_bit, uint8_t length) {
+  uint64_t raw = 0;
+  for (int i = 7; i >= 0; i--) {
+    raw = (raw << 8) | data[i];
+  }
+  return (uint32_t)((raw >> start_bit) & ((1ULL << length) - 1ULL));
+}
+
 // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
 // These are user configurable from the Webserver UI
 extern bool user_selected_tesla_digital_HVIL;

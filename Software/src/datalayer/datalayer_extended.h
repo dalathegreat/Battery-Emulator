@@ -449,6 +449,10 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_expected_energy_remaining_m1;
   uint16_t battery_BrickVoltageMax;
   uint16_t battery_BrickVoltageMin;
+  // CAC (calculated capacity), 0.1 Ah. 3/Y: 0x3B2 mux 0. Legacy S/X: avg/min/max from 0x7E2 mux 0, no brick IDs.
+  uint16_t cac_avg_x10;
+  uint16_t cac_min_x10;
+  uint16_t cac_max_x10;
   uint16_t HVP_hvp1v5Ref;
   int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
@@ -535,6 +539,10 @@ struct DATALAYER_INFO_TESLA {
   uint8_t battery_battTempPct;
   uint8_t battery_BrickVoltageMaxNum;
   uint8_t battery_BrickVoltageMinNum;
+  uint8_t cac_min_brick_id;  // 1 based
+  uint8_t cac_max_brick_id;  // 1 based
+  uint8_t cac_layout;        // 0 = unknown, 1 = 2022 layout, 2 = 2024.8.9+ layout (3/Y)
+  bool cac_valid;            // A CAC frame has been decoded
   uint8_t battery_BrickTempMaxNum;
   uint8_t battery_BrickTempMinNum;
   uint8_t battery_BrickModelTMax;

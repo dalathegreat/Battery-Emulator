@@ -10,6 +10,24 @@ static void appendFault(String& string, const char* name, bool faultActive) {
   string += ": ACTIVE</h4>";
 }
 
+// Brick IDs are only given by Model 3/Y packs
+static String brick(uint8_t id) { return id > 0 ? " (brick " + String(id) + ")" : String(); }
+
+// Pack level CAC rows, shared by the Model 3/Y and the legacy S/X page
+static String cacRows(const DATALAYER_INFO_TESLA& tesla) {
+  String content;
+  content += "<h4>CAC Average: " + String(tesla.cac_avg_x10 * 0.1f, 1) + " Ah</h4>";
+  content += "<h4>CAC Min: " + String(tesla.cac_min_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_min_brick_id) + "</h4>";
+  content += "<h4>CAC Max: " + String(tesla.cac_max_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_max_brick_id) + "</h4>";
+  if (tesla.cac_max_x10 >= tesla.cac_min_x10 && tesla.cac_avg_x10 > 0) {
+    // Percentage is relative to the average CAC, rounded to a whole percent
+    uint16_t imbalance_x10 = tesla.cac_max_x10 - tesla.cac_min_x10;
+    uint32_t percent = ((uint32_t)imbalance_x10 * 100 + tesla.cac_avg_x10 / 2) / tesla.cac_avg_x10;
+    content += "<h4>CAC Imbalance: " + String(imbalance_x10 * 0.1f, 1) + " Ah (" + String(percent) + "%)</h4>";
+  }
+  return content;
+}
+
 String TeslaHtmlRenderer::get_status_html() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
   String content;
@@ -237,9 +255,9 @@ String TeslaHtmlRenderer::get_status_html() {
   //0x292 658 BMS_socStates
   content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " kWh</h4>";
   content += "<h4>Battery SOC UI: " + String(soc_ui) + " </h4>";
-  content += "<h4>Battery SOC Ave: " + String(soc_ave) + " </h4>";
-  content += "<h4>Battery SOC Max: " + String(soc_max) + " </h4>";
-  content += "<h4>Battery SOC Min: " + String(soc_min) + " </h4>";
+  content += "<h4>Brick SOC Ave: " + String(soc_ave, 1) + "%</h4>";
+  content += "<h4>Brick SOC Max: " + String(soc_max, 1) + "%</h4>";
+  content += "<h4>Brick SOC Min: " + String(soc_min, 1) + "%</h4>";
   content += "<h4>Battery Temp Percent: " + String(battTempPct) + " </h4>";
   //0x2B4 PCS_dcdcRailStatus
   content += "<h4>PCS Lv Output: " + String(dcdcLvOutputCurrent) + " A</h4>";
@@ -257,10 +275,23 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>Max Charge Current: " + String(max_charge_current) + " A</h4>";
   content += "<h4>Max Discharge Current: " + String(max_discharge_current) + " A</h4>";
   //0x332 818 BMS_bmbMinMax
-  content += "<h4>Brick Voltage Max: " + String(BrickVoltageMax) + " V</h4>";
-  content += "<h4>Brick Voltage Min: " + String(BrickVoltageMin) + " V</h4>";
+  content += "<h4>Brick Voltage Max: " + String(BrickVoltageMax) + " V (brick " +
+             String(tesla.battery_BrickVoltageMaxNum) + ")</h4>";
+  content += "<h4>Brick Voltage Min: " + String(BrickVoltageMin) + " V (brick " +
+             String(tesla.battery_BrickVoltageMinNum) + ")</h4>";
+  // Cell imbalance: brick voltage counts are 2 mV each
+  if (tesla.battery_BrickVoltageMax >= tesla.battery_BrickVoltageMin && tesla.battery_BrickVoltageMax > 0) {
+    content += "<h4>Cell Imbalance: " +
+               String((tesla.battery_BrickVoltageMax - tesla.battery_BrickVoltageMin) * 2) + " mV</h4>";
+  }
   content += "<h4>Brick Temp Max Num: " + String(tesla.battery_BrickTempMaxNum) + " </h4>";
   content += "<h4>Brick Temp Min Num: " + String(tesla.battery_BrickTempMinNum) + " </h4>";
+  //0x3B2 BMS_log2 mux 0, pack level CAC
+  if (tesla.cac_valid) {
+    content += cacRows(tesla);
+  } else {
+    content += "<h4>CAC: not received yet (frame 0x3B2 is slow, up to about 30 s)</h4>";
+  }
   //content += "<h4>Brick Model Temp Max: " + String(BrickModelTMax) + " C</h4>";// Not giving useable data
   //content += "<h4>Brick Model Temp Min: " + String(BrickModelTMin) + " C</h4>";// Not giving useable data
   //0x2A4 676 PCS_thermalStatus

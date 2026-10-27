@@ -662,6 +662,36 @@ TEST_F(TeslaBatteryTest, BalancingRequestReplacesTheSafetyWindow) {
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
 }
 
+// 0x3B2 mux 0 is the pack CAC (0.1 Ah): each frame fits only one of the 2022 and 2024.8.9+ layouts. Other mux pages are
+// ignored.
+TEST_F(TeslaBatteryTest, CacFrameIsDecodedInTheLayoutThatFits) {
+  const struct {
+    uint8_t bytes[8];
+    uint8_t layout;
+  } frames[] = {{{0x00, 0x72, 0x51, 0x2D, 0x0A, 0xDC, 0x05, 0x33}, 1},
+                {{0x00, 0xC8, 0x05, 0xAA, 0x45, 0xC1, 0x5D, 0x66}, 2}};
+  for (const auto& f : frames) {
+    memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));  // a pack on newer firmware is a fresh one
+    CAN_frame frame = Frame(0x3B2);
+    memcpy(frame.data.u8, f.bytes, 8);
+    pack_->handle_incoming_can_frame(frame);
+
+    EXPECT_TRUE(datalayer_extended.tesla.cac_valid);
+    EXPECT_EQ(datalayer_extended.tesla.cac_layout, f.layout);
+    EXPECT_EQ(datalayer_extended.tesla.cac_avg_x10, 1480);
+    EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 1450);
+    EXPECT_EQ(datalayer_extended.tesla.cac_max_x10, 1500);
+    EXPECT_EQ(datalayer_extended.tesla.cac_min_brick_id, 11);
+    EXPECT_EQ(datalayer_extended.tesla.cac_max_brick_id, 52);
+  }
+
+  memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
+  CAN_frame other_page = Frame(0x3B2);
+  other_page.data.u8[0] = 27;
+  pack_->handle_incoming_can_frame(other_page);
+  EXPECT_FALSE(datalayer_extended.tesla.cac_valid);
+}
+
 // Frame with the given payload (DLC 8)
 static CAN_frame FrameWith(uint32_t id, std::initializer_list<uint8_t> bytes) {
   CAN_frame f = Frame(id);
@@ -674,10 +704,12 @@ static CAN_frame FrameWith(uint32_t id, std::initializer_list<uint8_t> bytes) {
 
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
 // available (SOC min is not used, no jump from 27.1 to 30.0 %).
+// Brick SOC is 0 (not shown) when max is not available or min is above max.
 TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);
 
   for (int second = 0; second < 5; second++) {  // a 5 s burst
     pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 1023));
@@ -688,9 +720,12 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   pack_->handle_incoming_can_frame(SocFields(1023, 1023, 1023, 1023));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_min, 0u);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 0u);
 
   pack_->handle_incoming_can_frame(SocFields(310, 281, 306, 303));  // min above max
   pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 0u);
   EXPECT_EQ(datalayer.battery.status.real_soc, 2810);
 }
 
