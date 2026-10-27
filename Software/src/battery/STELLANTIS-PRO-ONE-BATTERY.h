@@ -71,6 +71,8 @@ class StellantisProOneBattery : public UdsCanBattery {
                        .DLC = 8,
                        .ID = 0x175,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Byte 6 bit 3 switches the battery's own isolation measurement off (from a firmware analysis, not yet tested on a
+  //pack); set only when the user suspends the monitor. Byte 6 high nibble = counter, byte 7 = CRC.
   CAN_frame ONE_108 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -81,13 +83,6 @@ class StellantisProOneBattery : public UdsCanBattery {
                        .DLC = 8,
                        .ID = 0x1D8,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  //Vehicle state, as the van sends it while READY. Byte 1 bit 3 set suspends the battery's own isolation
-  //measurement (the van does this while driving). Only sent when the user suspends the monitor.
-  CAN_frame ONE_0B4 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 7,
-                       .ID = 0x0B4,
-                       .data = {0x00, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00}};
   //Sending 3D2 removes P056200 (Contains 12V measurement from car)
   CAN_frame ONE_3D2 = {.FD = false,
                        .ext_ID = false,
@@ -363,9 +358,13 @@ class StellantisProOneBattery : public UdsCanBattery {
   uint16_t cellvoltage_min_mV = 3700;
   uint16_t polled_max_cellvoltage_mV = 3700;
   uint16_t polled_min_cellvoltage_mV = 3700;
-  //0xA017: state, R1, R2, state, R3, R4. R1 = system side, state 2 = valid result
+  //0xA017: state, R1, R2, state, R3, R4. R1 = system side (follows the charger in the logs), R2 = battery side,
+  //state 2 = valid result
   uint8_t isolation_state[2] = {0};
   uint16_t isolation_kOhm[4] = {ISO_NO_RESULT, ISO_NO_RESULT, ISO_NO_RESULT, ISO_NO_RESULT};
+  //0x150 byte 6: [1:0] and [3:2], 0 = no result, 1 = OK, 2 = fault. Per the firmware [1:0] = battery side and
+  //[3:2] = system side, still to be confirmed on a pack.
+  uint8_t isolation_status_can[2] = {0, 0};
 };
 
 #endif

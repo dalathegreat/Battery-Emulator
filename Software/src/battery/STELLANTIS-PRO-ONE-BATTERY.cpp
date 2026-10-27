@@ -54,12 +54,19 @@ void StellantisProOneBattery::
   //Isolation from UDS 0xA017, R1. It tracks the system side: ~25 MOhm falling to ~6 MOhm once a charger was
   //connected, and 0 while P0AA6 was latched. Other states than 2 carry stale values (seen frozen for whole logs),
   //and nothing is published while the monitor is suspended.
-  if (!user_selected_proone_suspend_isolation && isolation_state[0] == 2 && isolation_kOhm[0] < ISO_NO_RESULT) {
+  bool iso_valid =
+      !user_selected_proone_suspend_isolation && isolation_state[0] == 2 && isolation_kOhm[0] < ISO_NO_RESULT;
+  if (iso_valid) {
     datalayer.battery.status.insulation_resistance_kOhm = isolation_kOhm[0];
     datalayer.battery.status.insulation_resistance_available = true;
-    if (isolation_kOhm[0] < ISO_FAULT_KOHM) {
-      set_event(EVENT_BATTERY_ISOLATION, isolation_kOhm[0]);
-    } else {
+  }
+  //0x150 byte 6 is the battery's own verdict. It also covers a latched P0AA6, where 0xA017 only reports state 0
+  //and R1 = 0 (both fields read 2 in those logs, 1 with healthy 6-25 MOhm readings).
+  bool iso_fault_can = isolation_status_can[0] == 2 || isolation_status_can[1] == 2;
+  if (!user_selected_proone_suspend_isolation) {
+    if (iso_fault_can || (iso_valid && isolation_kOhm[0] < ISO_FAULT_KOHM)) {
+      set_event(EVENT_BATTERY_ISOLATION, iso_valid ? isolation_kOhm[0] : 0);
+    } else if (iso_valid || isolation_status_can[0] == 1 || isolation_status_can[1] == 1) {
       clear_event(EVENT_BATTERY_ISOLATION);
     }
   }
@@ -126,6 +133,10 @@ String StellantisProOneBattery::get_uds_info_html() {
               "<h4>Contactor state: " << contactor_status << " (8 off, 9 precharge, 10 on)</h4>"
               "<h4>Battery ready: " << (battery_ready ? "yes" : "no") << "</h4>"
               "<h4>Isolation monitor: " << (user_selected_proone_suspend_isolation ? "suspended" : "active") << "</h4>";
+  //0x150 byte 6: 0 = no result, 1 = OK, 2 = fault. Battery / system assignment from the firmware, not yet confirmed.
+  static const char* const iso_can_names[4] = {"no result", "OK", "fault", "?"};
+  content << "<h4>Isolation status, battery side (0x150): " << iso_can_names[isolation_status_can[0]] << "</h4>"
+          << "<h4>Isolation status, system side (0x150): " << iso_can_names[isolation_status_can[1]] << "</h4>";
   //0xA017: state, R1, R2, state, R3, R4. R1 = system side (hypothesis), state 2 = valid result
   static const char* const iso_names[4] = {"R1 (system)", "R2", "R3", "R4"};
   for (int i = 0; i < 4; i++) {
@@ -201,6 +212,8 @@ void StellantisProOneBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         //Message is valid, process it
         contactor_status = (rx_frame.data.u8[5] & 0x0F);
         battery_ready = (rx_frame.data.u8[3] & 0x40) != 0;
+        isolation_status_can[0] = rx_frame.data.u8[6] & 0x03;
+        isolation_status_can[1] = (rx_frame.data.u8[6] >> 2) & 0x03;
         if (contactor_status == CONTACTORS_OFF || contactor_status == CONTACTORS_PRECHARGE) {
           datalayer.battery.status.max_charge_power_W = 0;
           datalayer.battery.status.max_discharge_power_W = 0;
@@ -648,7 +661,8 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
     ONE_1D7.data.u8[7] = CalculateCRC8SAEJ1850(ONE_1D7, 7);
     ONE_175.data.u8[6] = (counter_10ms & 0x0F) << 4;
     ONE_175.data.u8[7] = CalculateCRC8SAEJ1850(ONE_175, 7);
-    ONE_108.data.u8[6] = (counter_10ms & 0x0F) << 4;
+    //Byte 6 bit 3 asks the battery to switch its isolation measurement off (see ONE_108 in the header)
+    ONE_108.data.u8[6] = ((counter_10ms & 0x0F) << 4) | (user_selected_proone_suspend_isolation ? 0x08 : 0x00);
     ONE_108.data.u8[7] = CalculateCRC8SAEJ1850(ONE_108, 7);
 
     transmit_can_frame(&ONE_15A);
@@ -657,12 +671,6 @@ void StellantisProOneBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ONE_108);
     //transmit_can_frame(&ONE_0F2);
     //transmit_can_frame(&ONE_0F0);
-    if (user_selected_proone_suspend_isolation) {
-      //Counter in byte 5 high nibble, CRC over bytes 0-5 in byte 6
-      ONE_0B4.data.u8[5] = (counter_10ms << 4) | 0x01;
-      ONE_0B4.data.u8[6] = CalculateCRC8SAEJ1850(ONE_0B4, 6);
-      transmit_can_frame(&ONE_0B4);
-    }
 
     ONE_175.data.u8[3] = 0x2E;
   }
