@@ -99,8 +99,6 @@ void TeslaLegacyBattery::update_values() {
       break;
   }
 
-  datalayer.battery.status.soh_pptt = BMS_CAC_min / 2316;  // uitgelezen minimale CAC / CAC bij nieuw (231,6 Ah)
-
   datalayer.battery.status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
 
   // Seconds without a valid UI SOC, counted while the pack is on the bus. EVENT_SOC_UNAVAILABLE is a WARNING.
@@ -125,6 +123,15 @@ void TeslaLegacyBattery::update_values() {
       TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc,
                                  datalayer_extended.tesla.battery_nominal_full_pack_energy,
                                  datalayer.battery.info.total_capacity_Wh);
+
+  // SOH is the estimate: nominal full pack energy (0x382) over the configured capacity, the Model 3/Y calculation.
+  // The reference is the capacity configured for the hardware ID, NOT the real capacity when new (the S/X does not send
+  // it). A new pack whose real capacity is below the configured one shows a higher SOH than the true one, for example a
+  // new 85 kWh pack reading 81 kWh nominal shows 95 %. Potential improvement: find a real capacity when new source.
+  datalayer_extended.tesla.battery_beginning_of_life = datalayer.battery.info.total_capacity_Wh / 100;  // 0.1 kWh
+  datalayer_extended.tesla.soh_estimate_known = TeslaBattery::apply_soh_estimate(
+      datalayer.battery.status, datalayer_extended.tesla.battery_nominal_full_pack_energy,
+      datalayer_extended.tesla.battery_beginning_of_life);
 
   datalayer.battery.status.max_charge_power_W = (datalayer.battery.status.voltage_dV * battery_max_charge_current) / 10;
 
@@ -178,10 +185,9 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       int16_t raw_amps = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
       battery_amps = raw_amps * 0.1;  // 16|16@1- (0.1,0) [-3276.7|3276.7] "A"
     } break;
-    case 0x7E2:  // read CACmin to determine SOH
+    case 0x7E2:  // CAC (page 0) and brick SOC (page 7), web page only
     {
       if (rx_frame.data.u8[0] == 0) {
-        BMS_CAC_min = (((rx_frame.data.u8[2] >> 4) & 0x0F) | ((rx_frame.data.u8[3]) << 4)) * 10000;
         // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. Plausible: 20-400 Ah, min <= avg <= max.
         const uint16_t cac_avg_x10 = tesla_le_bits(rx_frame.data.u8, 8, 12);
         const uint16_t cac_min_x10 = tesla_le_bits(rx_frame.data.u8, 20, 12);

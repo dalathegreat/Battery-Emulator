@@ -56,7 +56,6 @@ class TeslaLegacyBattery : public CanBattery {
   CAN_frame TESLA_408 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x408, .data = {0x00}};
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
-  uint32_t BMS_CAC_min = 23160000;
   uint16_t battery_soc_ui = 0;
   // A UI SOC of 1023 is not available: the last SOC is held and EVENT_SOC_UNAVAILABLE (a WARNING) is raised after
   // SocUnavailableDelay_s seconds without a valid UI SOC
