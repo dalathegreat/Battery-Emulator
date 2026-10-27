@@ -11,39 +11,15 @@
 
 // Host tests for the 2012-2020 Model S/X driver (TeslaLegacyBattery).
 //
-// A test sends 0x7E2 the way the CAN task does, then calls update_values().
-// The only CAC this driver stores is the minimum, and only from mux 0, in
-// 0.1 Ah. Maximum and average are not decoded. The stored minimum is
-// private, so the check is the SOH the rest of the firmware reads:
-// raw * 10000 / 2316. Raw 2316 is a new pack, 231.6 Ah.
+// A test sends frames the way the CAN task does, then calls update_values().
 //
-// With no frame the minimum stays at its power-on value, which is that same
-// new-pack number, so SOH reads 100.00%. update_values() writes SOH before
-// it checks isolation. Isolation starts at 0 and raises its own event on
-// this pass. The snapshot below checks that event, the whole-amp current,
-// and an unknown hardware id. The CAC case here only reads SOH.
+// Isolation starts at 0 and raises its own event on the first pass. The snapshot below checks that event, the
+// whole-amp current, and an unknown hardware id.
 //
 // The pack is local and is not stored in the global battery pointer. The
 // test listener deletes that pointer before every test.
 
 namespace {
-
-CAN_frame CacMin(uint8_t mux, uint16_t raw_tenth_ah) {
-  CAN_frame frame = {};
-  frame.ID = 0x7E2;
-  frame.DLC = 8;
-  frame.data.u8[0] = mux;
-  // Low 4 bits sit in the high nibble of byte 2. High 8 bits are byte 3.
-  frame.data.u8[2] = (uint8_t)((raw_tenth_ah & 0x0F) << 4);
-  frame.data.u8[3] = (uint8_t)((raw_tenth_ah >> 4) & 0xFF);
-  return frame;
-}
-
-// The same division update_values() applies, so a test can show the expected
-// SOH beside the value the datalayer actually got.
-uint16_t SohFromRaw(uint16_t raw_tenth_ah) {
-  return (uint16_t)((raw_tenth_ah * 10000u) / 2316u);
-}
 
 CAN_frame LegacyFrame(uint32_t id) {
   CAN_frame frame = {};
@@ -151,37 +127,8 @@ class TeslaLegacyBatteryTest : public ::testing::Test {
     pack_ = nullptr;
   }
 
-  // One CAC frame, then the publish pass. Mux 0 is the minimum. Any other
-  // mux is where a later maximum or average would arrive, and today it is ignored.
-  void PublishCac(uint8_t mux, uint16_t raw_tenth_ah) {
-    pack_->handle_incoming_can_frame(CacMin(mux, raw_tenth_ah));
-    pack_->update_values();
-  }
-
   TeslaLegacyBattery* pack_ = nullptr;
 };
-
-// BMS_CAC_min starts at 23160000, which is the new-pack reading. A missing
-// frame therefore looks like 100.00% SOH rather than an unknown pack.
-// Raw 2316 is 231.6 Ah, with both halves of the field in use. Raw 171 uses
-// the low nibble (byte 2 = 0xB0, byte 3 = 0x0A). Dropping that nibble still
-// passes a 200.0 Ah reading, whose low nibble is zero. A later mux is where
-// a maximum or average would arrive, and today it leaves the minimum alone.
-TEST_F(TeslaLegacyBatteryTest, CacMinimumPublishesStateOfHealth) {
-  pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
-
-  PublishCac(0, 2316);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
-  EXPECT_EQ(SohFromRaw(2316), 10000);
-
-  PublishCac(0, 171);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 738);
-  EXPECT_EQ(SohFromRaw(171), 738);
-
-  PublishCac(1, 2316);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 738);
-}
 
 // The frames an old S/X pack has on the bus, published in one pass.
 // Voltage and current are kept as whole volts and whole amps: 370.30 V
@@ -195,9 +142,8 @@ TEST_F(TeslaLegacyBatteryTest, CacMinimumPublishesStateOfHealth) {
 // Charge and discharge power are voltage times the BMS current limits.
 // This driver has no user power cap. Isolation starts at 0 and raises on
 // the first pass that still has no isolation frame. A later healthy reading
-// clears it, and a low reading raises it again, without moving SOH. BMS
-// state is applied on the one-second transmit: welded, then open, and the
-// welded event stays up.
+// clears it, and a low reading raises it again. BMS state is applied on the
+// one-second transmit: welded, then open, and the welded event stays up.
 TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 30000u);
@@ -208,7 +154,7 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   pack_->handle_incoming_can_frame(LegacySoc(800));
   pack_->handle_incoming_can_frame(LegacyCurrentLimits(1301, 430));
   pack_->handle_incoming_can_frame(LegacyHwId(74));
-  PublishCac(0, 2000);
+  pack_->update_values();
 
   EXPECT_EQ(datalayer.battery.status.voltage_dV, 3700);
   EXPECT_EQ(datalayer.battery.status.current_dA, -40);
@@ -221,8 +167,7 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 60000u);
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 48100u);
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 20350u);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
-  EXPECT_EQ(SohFromRaw(2000), 8635);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
   EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, CAN_STILL_ALIVE);
   // Isolation is still 0, so this same pass raises the event.
   EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_ACTIVE);
@@ -238,26 +183,22 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 100000u);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 80000u);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 
   pack_->handle_incoming_can_frame(LegacyHwId(1));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 100000u);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 80000u);
   EXPECT_EQ(EventState(EVENT_BATTERY_VALUE_UNAVAILABLE), EVENT_STATE_ACTIVE);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 
   // Byte 3 times 20 is the resistance. 100 is the first healthy reading and
-  // clears the event. 80 raises it again. SOH stays on the CAC already read.
+  // clears the event. 80 raises it again.
   pack_->handle_incoming_can_frame(LegacyStatus(0, 5));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_INACTIVE);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 
   pack_->handle_incoming_can_frame(LegacyStatus(0, 4));
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_BATTERY_ISOLATION), EVENT_STATE_ACTIVE);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 
   // BMS state is applied on the 1 second transmit. State 8 raises a welded
   // contactor, state 7 raises an open contactor, and the welded event stays up.
@@ -271,7 +212,6 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   pack_->transmit_can(2 * INTERVAL_1_S);
   EXPECT_EQ(EventState(EVENT_CONTACTOR_OPEN), EVENT_STATE_ACTIVE);
   EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
 }
 
 // 0x7E2 mux 0, 12 bit fields in 0.1 Ah: avg at bit 8 (211.7), min at bit 20 (209.3) and max at bit 32 (213.1).
@@ -308,6 +248,74 @@ TEST_F(TeslaLegacyBatteryTest, NominalFullPackEnergyFrom0x382) {
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
   pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
+}
+
+// The SOH sent to the inverter is the estimate: 0x382 nominal full energy / configured capacity (id 70 is 85 kWh): 72.1
+// kWh is 84.8 %. Unknown (99 % to the inverter) without the energy or above 101 %, 100 % up to 101 %. CAC is ignored.
+TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity) {
+  auto feed = [&](uint16_t x10) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x382, {(uint8_t)(x10 & 0xFF), (uint8_t)(x10 >> 8)}));
+    pack_->update_values();  // the estimate is calculated here
+  };
+  pack_->handle_incoming_can_frame(LegacyHwId(70));
+  pack_->handle_incoming_can_frame(RealCac());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 85000u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+
+  feed(721);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+
+  feed(860);  // 86.0 kWh, 101.2 %
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  feed(855);  // 85.5 kWh, 100.6 %
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
+  feed(1023);  // not available: the last plausible energy stays
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+}
+
+// An energy outside 38.0 to 150.0 kWh is not decoded, so the SOH stays unknown (99 % to the inverter) until a plausible
+// one arrives, never a tiny SOH.
+TEST_F(TeslaLegacyBatteryTest, SohEstimateStaysUnknownForAnImplausibleNominalEnergy) {
+  pack_->handle_incoming_can_frame(LegacyHwId(70));
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x14, 0x00}));  // 2.0 kWh
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 0);
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x7B, 0x01}));  // 37.9 kWh
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x7C, 0x01}));  // 38.0 kWh of 85.0 kWh
+  pack_->update_values();
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 4470);
+}
+
+// The reference is the capacity configured for the hardware ID, not the real capacity when new (known limitation): a
+// new pack of 81 kWh on an 85 kWh configuration shows 95 % instead of 100 %.
+TEST_F(TeslaLegacyBatteryTest, SohReferenceIsTheConfiguredCapacityNotTheRealCapacityWhenNew) {
+  pack_->handle_incoming_can_frame(LegacyHwId(70));
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x2A, 0x03}));  // 810 = 81.0 kWh
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 85000u);
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9529);
 }
 
 // 0x7E2 page 7: brick SOC max at bit 8 (30.6 %) and min at bit 18 (30.0 %). 1023, max > 100 % and min > max: rejected.
