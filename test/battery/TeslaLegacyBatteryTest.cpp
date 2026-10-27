@@ -5,6 +5,7 @@
 
 #include "../../Software/src/battery/TESLA-LEGACY-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
+#include "../../Software/src/datalayer/datalayer_extended.h"
 #include "../../Software/src/devboard/utils/events.h"
 #include "../../Software/src/devboard/utils/types.h"
 
@@ -58,6 +59,12 @@ CAN_frame LegacyBytes(uint32_t id, std::initializer_list<uint8_t> bytes) {
 }
 
 // Frames from a real pack
+CAN_frame RealCac() {  // 0x7E2 page 0: avg 211.7 Ah, min 209.3 Ah, max 213.1 Ah
+  return LegacyBytes(0x7E2, {0x00, 0x45, 0xD8, 0x82, 0x53, 0xB8, 0x82, 0xDF});
+}
+CAN_frame RealPage7() {  // 0x7E2 page 7: brick SOC max 30.6 %, min 30.0 %
+  return LegacyBytes(0x7E2, {0x07, 0x32, 0xB1, 0xA4, 0xF4, 0xD3, 0x3A, 0x49});
+}
 CAN_frame RealSoc() {  // 0x302: SOC min 30.0 %, SOC UI 27.1 %
   return LegacyBytes(0x302, {0x2C, 0x3D, 0x14, 0x00, 0xEA, 0x42, 0x31, 0x02});
 }
@@ -133,6 +140,7 @@ class TeslaLegacyBatteryTest : public ::testing::Test {
   void SetUp() override {
     pack_ = new TeslaLegacyBattery();
     pack_->setup();
+    memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));  // no state from earlier tests
   }
 
   void TearDown() override {
@@ -261,6 +269,51 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(EventState(EVENT_CONTACTOR_OPEN), EVENT_STATE_ACTIVE);
   EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
+}
+
+// 0x7E2 mux 0, 12 bit fields in 0.1 Ah: avg at bit 8 (211.7), min at bit 20 (209.3) and max at bit 32 (213.1).
+TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
+  CAN_frame frame = RealCac();
+  pack_->handle_incoming_can_frame(frame);
+
+  EXPECT_TRUE(datalayer_extended.tesla.cac_valid);
+  EXPECT_EQ(datalayer_extended.tesla.cac_avg_x10, 2117);
+  EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 2093);
+  EXPECT_EQ(datalayer_extended.tesla.cac_max_x10, 2131);
+
+  // min > avg, or a value outside 20..400 Ah, is not plausible and is not taken over
+  frame.data.u8[3] = 0x84;  // min 0x84D = 2125 > avg 2117
+  pack_->handle_incoming_can_frame(frame);
+  EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 2093);
+  frame.data.u8[3] = 0x82;
+  frame.data.u8[2] = 0x08;  // min 0x820 = 2080 is fine again, avg bits untouched
+  pack_->handle_incoming_can_frame(frame);
+  EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 2080);
+  frame.data.u8[2] = 0x28;  // min 0x022 = 34 (3.4 Ah)
+  frame.data.u8[3] = 0x00;
+  pack_->handle_incoming_can_frame(frame);
+  EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 2080);
+}
+
+// 0x7E2 page 7: brick SOC max at bit 8 (30.6 %) and min at bit 18 (30.0 %). 1023, max > 100 % and min > max: rejected.
+TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
+  CAN_frame frame = RealPage7();
+  pack_->handle_incoming_can_frame(frame);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_min, 300u);
+
+  frame.data.u8[1] = 0xFF;
+  frame.data.u8[2] = 0xB3;  // max 1023: not available
+  pack_->handle_incoming_can_frame(frame);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 0u);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_min, 0u);
+
+  pack_->handle_incoming_can_frame(RealPage7());
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);
+  frame = RealPage7();
+  frame.data.u8[1] = 0x28;  // max 0x128 = 296 < min 300
+  pack_->handle_incoming_can_frame(frame);
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 0u);
 }
 
 // Temperatures keep the 0.5 C resolution of the frame: 0x73 is 17.5 C and 0x72 is 17.0 C (they used to truncate to 17).
