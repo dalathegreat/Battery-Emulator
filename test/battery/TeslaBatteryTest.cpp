@@ -717,6 +717,14 @@ static CAN_frame Frame392Mux1(uint16_t x10) {
   return FrameWith(0x392, {0x01, 0, 0, 0, 0, (uint8_t)(x10 & 0xFF), (uint8_t)((x10 >> 8) & 0x03)});
 }
 
+static bool MainRowsContain(TeslaBattery& pack, const char* text) {
+  return pack.get_status_renderer().get_main_view_soh_rows().str().find(text) != std::string::npos;
+}
+
+static bool MainCapacityRowsContain(TeslaBattery& pack, const char* text) {
+  return pack.get_status_renderer().get_main_view_capacity_rows().str().find(text) != std::string::npos;
+}
+
 // The detail page prints battery_manufactureDate, which update_values() only sets from a UDS reply: give it a pointer
 static bool DetailPageContains(TeslaBattery& pack, const char* text) {
   static char manufacture_date[] = "";
@@ -739,6 +747,7 @@ TEST_F(TeslaBatteryTest, SohEstimateIsUnknownWhenNoPlausibleBeginningOfLife) {
 
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 0);
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 0);
+  EXPECT_TRUE(MainRowsContain(*pack_, "Estimate SOH: unknown (99% passed to inverter)"));
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
@@ -755,18 +764,22 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);
+  const auto cell_rows = [&]() { return pack_->get_status_renderer().get_main_view_cell_rows().str(); };
+  EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6% (Ave 30.3%)</h4>"), std::string::npos);
 
   for (int second = 0; second < 5; second++) {  // a 5 s burst
     pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 1023));
     pack_->update_values();
     EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   }
+  EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6%</h4>"), std::string::npos);
 
   pack_->handle_incoming_can_frame(SocFields(1023, 1023, 1023, 1023));
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_min, 0u);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 0u);
+  EXPECT_TRUE(cell_rows().find("Brick SOC") == std::string::npos);
 
   pack_->handle_incoming_can_frame(SocFields(310, 281, 306, 303));  // min above max
   pack_->update_values();
@@ -836,6 +849,10 @@ TEST_F(TeslaBatteryTest, SohEstimateUses0x292OnLegacyFirmware) {
   EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 1);
+  EXPECT_TRUE(MainRowsContain(*pack_, "kWh / 100.0 kWh)"));
+  // The SOH estimate has its own main card hook (instead of the SOH row), the capacity rows hold the current capacity
+  EXPECT_TRUE(MainCapacityRowsContain(*pack_, "<h4>Current capacity (reported by pack): 60.7 kWh</h4>"));
+  EXPECT_FALSE(MainCapacityRowsContain(*pack_, "Estimate SOH"));
   // Nominal Full Pack Energy, the estimate and the source are adjacent rows, in this order
   EXPECT_TRUE(DetailPageContains(*pack_,
                                  " kWh</h4><h4>Estimate SOH: 60.7% (60.7 kWh / 100.0 kWh)</h4>"
@@ -862,6 +879,7 @@ TEST_F(TeslaBatteryTest, Reference0x392BeatsLegacy0x292InBothArrivalOrders) {
   pack_->update_values();
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 2);
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 900);
+  EXPECT_TRUE(MainRowsContain(*pack_, "kWh / 90.0 kWh)"));
 
   // Same with 0x392 first, on a fresh pack
   delete pack_;
@@ -1063,4 +1081,17 @@ TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 65680u);
+}
+
+// "Total capacity when new" only while the pack reports that reference (not for the GTW fallback or other packs).
+TEST_F(TeslaBatteryTest, MainCardTotalCapacityLabelFollowsTheReferenceSource) {
+  memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
+  EXPECT_EQ(pack_->get_status_renderer().get_main_view_total_capacity_label().str(), "Total capacity");
+
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  pack_->update_values();
+  EXPECT_EQ(pack_->get_status_renderer().get_main_view_total_capacity_label().str(), "Total capacity when new");
+
+  BatteryDefaultRenderer generic;
+  EXPECT_EQ(generic.get_main_view_total_capacity_label().str(), "Total capacity");
 }

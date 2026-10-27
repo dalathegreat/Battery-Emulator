@@ -510,3 +510,39 @@ String TeslaHtmlRenderer::get_status_html() {
 
   return content;
 }
+
+// Main page: the SOH estimate, shown instead of the generic SOH row
+String TeslaHtmlRenderer::get_main_view_soh_rows() {
+  return sohEstimateRow(*tesla_info, core_data->status);
+}
+
+// Main page "Total capacity" is the capacity when new only while the pack reports that reference, else the setting
+String TeslaHtmlRenderer::get_main_view_total_capacity_label() {
+  return String(tesla_info->soh_reference_source != 0 ? "Total capacity when new" : "Total capacity");
+}
+
+// Main page, below "Total capacity": the pack's current capacity (nominal full pack energy)
+String TeslaHtmlRenderer::get_main_view_capacity_rows() {
+  const float kwh = nominalFullPackKwh(*tesla_info);
+  if (kwh <= 0.0f) {
+    return String();
+  }
+  return "<h4>Current capacity (reported by pack): " + String(kwh, 1) + " kWh</h4>";
+}
+
+// Main page, below "Cell delta": brick CAC min/max and brick SOC. Legacy S/X has no brick IDs and no average SOC.
+String TeslaHtmlRenderer::get_main_view_cell_rows() {
+  const DATALAYER_INFO_TESLA& tesla = *tesla_info;
+  String content;
+  if (tesla.cac_valid) {
+    content += "<h4>CAC: " + String(tesla.cac_min_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_min_brick_id) + " - " +
+               String(tesla.cac_max_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_max_brick_id) + "</h4>";
+  }
+  if (tesla.battery_soc_max > 0) {
+    content += "<h4>Brick SOC: " + String(tesla.battery_soc_min * 0.1f, 1) + "% - " +
+               String(tesla.battery_soc_max * 0.1f, 1) + "%" +
+               (tesla.battery_soc_ave > 0 ? " (Ave " + String(tesla.battery_soc_ave * 0.1f, 1) + "%)" : String()) +
+               "</h4>";
+  }
+  return content;
+}

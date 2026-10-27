@@ -13,6 +13,11 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
   bool renders_own_battery_data() { return true; }
 
   String get_status_html();
+  String get_main_view_total_capacity_label();
+  String get_main_view_soh_rows();
+  String get_main_view_capacity_rows();
+  String get_main_view_cell_rows();
+  bool has_temperature_data() { return tesla_info->temperature_seen; }
 
  private:
   DATALAYER_INFO_TESLA* tesla_info;
