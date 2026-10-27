@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <initializer_list>
+
 #include "../../Software/src/battery/TESLA-LEGACY-BATTERY.h"
 #include "../../Software/src/datalayer/datalayer.h"
 #include "../../Software/src/devboard/utils/events.h"
@@ -45,6 +48,12 @@ CAN_frame LegacyFrame(uint32_t id) {
   CAN_frame frame = {};
   frame.ID = id;
   frame.DLC = 8;
+  return frame;
+}
+
+CAN_frame LegacyBytes(uint32_t id, std::initializer_list<uint8_t> bytes) {
+  CAN_frame frame = LegacyFrame(id);
+  std::copy(bytes.begin(), bytes.end(), frame.data.u8);
   return frame;
 }
 
@@ -188,7 +197,7 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(datalayer.battery.status.current_dA, -40);
   EXPECT_EQ(datalayer.battery.status.cell_max_voltage_mV, 4002);
   EXPECT_EQ(datalayer.battery.status.cell_min_voltage_mV, 3602);
-  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 100);
+  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 105);  // raw 101 is 10.5 C
   EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 0);
   EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 75000u);
@@ -246,4 +255,12 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(EventState(EVENT_CONTACTOR_OPEN), EVENT_STATE_ACTIVE);
   EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8635);
+}
+
+// Temperatures keep the 0.5 C resolution of the frame: 0x73 is 17.5 C and 0x72 is 17.0 C (they used to truncate to 17).
+TEST_F(TeslaLegacyBatteryTest, TemperatureKeepsHalfDegrees) {
+  pack_->handle_incoming_can_frame(LegacyBytes(0x332, {0x0A, 0x17, 0xBE, 0x73, 0x08, 0x67, 0x5F, 0x72}));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 175);
+  EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 170);
 }

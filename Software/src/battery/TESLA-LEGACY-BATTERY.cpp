@@ -114,9 +114,9 @@ void TeslaLegacyBattery::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (datalayer.battery.status.voltage_dV * battery_max_discharge_current) / 10;
 
-  datalayer.battery.status.temperature_min_dC = (battery_BrickModelTMin * 10);
+  datalayer.battery.status.temperature_min_dC = battery_BrickModelTMin;
 
-  datalayer.battery.status.temperature_max_dC = (battery_BrickModelTMax * 10);
+  datalayer.battery.status.temperature_max_dC = battery_BrickModelTMax;
 
   datalayer.battery.status.cell_max_voltage_mV = battery_BrickVoltageMax;
 
@@ -180,8 +180,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       battery_BrickVoltageMax = (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;
       battery_BrickVoltageMin = (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;
-      battery_BrickModelTMax = ((rx_frame.data.u8[3] * 0.5) - 40);
-      battery_BrickModelTMin = ((rx_frame.data.u8[7] * 0.5) - 40);
+      battery_BrickModelTMax = rx_frame.data.u8[3] * 5 - 400;  // 0.5 C per count, offset -40 C, stored in 0.1 C
+      battery_BrickModelTMin = rx_frame.data.u8[7] * 5 - 400;
       break;
     case 0x5D2:
       if (rx_frame.data.u8[0] == 0x0A) {
