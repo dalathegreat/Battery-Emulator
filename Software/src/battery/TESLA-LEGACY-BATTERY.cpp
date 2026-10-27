@@ -101,6 +101,20 @@ void TeslaLegacyBattery::update_values() {
 
   datalayer.battery.status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
 
+  // Seconds without a valid UI SOC, counted while the pack is on the bus. EVENT_SOC_UNAVAILABLE is a WARNING.
+  if (soc_ui_fresh) {
+    soc_ui_fresh = false;
+    seconds_without_soc = 0;
+    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
+  } else if (datalayer.battery.status.CAN_battery_still_alive > 0) {
+    if (seconds_without_soc < INT16_MAX) {
+      seconds_without_soc++;
+    }
+    if (seconds_without_soc >= SocUnavailableDelay_s) {
+      set_event(EVENT_SOC_UNAVAILABLE, seconds_without_soc, battery_index);
+    }
+  }
+
   datalayer.battery.status.voltage_dV = (battery_volts * 10);  //One more decimal needed (370 -> 3700)
 
   datalayer.battery.status.current_dA = (battery_amps * 10);  //13.0A
@@ -243,7 +257,20 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     case 0x302:                                                            // BMS_socStatus (Nieuwe CAN-ID)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
-      battery_soc_ui = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0];  // 0|10@1+ (0.1,0) [0|102.2] "%"
+      {
+        // 10 bit fields in 0.1 %: SOC min (bit 0), SOC UI (bit 10). The pack SOC is the UI SOC (like the 3/Y). 1023 =
+        // n/a: the last SOC is held (the pack sends 1023 for about 5 s). SOC min is only the initial value, until a
+        // valid UI SOC has been seen: 0 would zero the discharge limit (battery empty) at startup.
+        const uint16_t soc_min_x10 = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0];
+        const uint16_t soc_ui_x10 = ((rx_frame.data.u8[2] & 0x0F) << 6) | (rx_frame.data.u8[1] >> 2);
+        if (soc_ui_x10 <= 1000) {
+          battery_soc_ui = soc_ui_x10;
+          soc_ui_seen = true;
+          soc_ui_fresh = true;
+        } else if (!soc_ui_seen && soc_min_x10 <= 1000) {
+          battery_soc_ui = soc_min_x10;
+        }
+      }
       break;
     case 0x612: {
       uint8_t service = rx_frame.data.u8[1];
