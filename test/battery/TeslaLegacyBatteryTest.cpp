@@ -65,6 +65,9 @@ CAN_frame RealCac() {  // 0x7E2 page 0: avg 211.7 Ah, min 209.3 Ah, max 213.1 Ah
 CAN_frame RealPage7() {  // 0x7E2 page 7: brick SOC max 30.6 %, min 30.0 %
   return LegacyBytes(0x7E2, {0x07, 0x32, 0xB1, 0xA4, 0xF4, 0xD3, 0x3A, 0x49});
 }
+CAN_frame RealNominal() {  // 0x382: nominal full pack energy 72.1 kWh
+  return LegacyBytes(0x382, {0xD1, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x1E});
+}
 CAN_frame RealSoc() {  // 0x302: SOC min 30.0 %, SOC UI 27.1 %
   return LegacyBytes(0x302, {0x2C, 0x3D, 0x14, 0x00, 0xEA, 0x42, 0x31, 0x02});
 }
@@ -295,6 +298,18 @@ TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
   EXPECT_EQ(datalayer_extended.tesla.cac_min_x10, 2080);
 }
 
+// 0x382 bits 0-9: nominal full pack energy, 0.1 kWh. Outside 38.0-150.0 kWh (the pack sends 1023 for 5 s) the last
+// plausible value stays, so the SOH and remaining capacity do not jump during that burst.
+TEST_F(TeslaLegacyBatteryTest, NominalFullPackEnergyFrom0x382) {
+  pack_->handle_incoming_can_frame(RealNominal());
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x7B, 0x01}));  // 379 = 37.9 kWh
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
+}
+
 // 0x7E2 page 7: brick SOC max at bit 8 (30.6 %) and min at bit 18 (30.0 %). 1023, max > 100 % and min > max: rejected.
 TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
   CAN_frame frame = RealPage7();
@@ -386,4 +401,22 @@ TEST_F(TeslaLegacyBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAVal
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_INACTIVE);
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+}
+
+// Remaining capacity is SOC x the 0x382 nominal full energy when readable (27.1 % of 72.1 kWh), else x the configured
+// capacity (27.1 % of 85 kWh).
+TEST_F(TeslaLegacyBatteryTest, RemainingCapacityUsesTheNominalFullEnergy) {
+  pack_->handle_incoming_can_frame(LegacyHwId(70));
+  pack_->handle_incoming_can_frame(LegacySoc(271));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 23035u);
+
+  pack_->handle_incoming_can_frame(RealNominal());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 85000u);  // the configured capacity is unchanged
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0x03}));  // 1023, not available
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
 }
