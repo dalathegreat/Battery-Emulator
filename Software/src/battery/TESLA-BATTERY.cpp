@@ -452,11 +452,24 @@ void dayOfYearToDate(int year, int dayOfYear, char* out, size_t out_len) {
   snprintf(out, out_len, "%04d-%02d-%02d", safeYear, safeMonth, safeDay);
 }
 
+uint32_t TeslaBattery::remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t total_capacity_Wh) {
+  const uint32_t base_Wh =
+      energy_x10_plausible(static_cast<uint16_t>(nominal_full_x10)) ? nominal_full_x10 * 100 : total_capacity_Wh;
+  return static_cast<uint32_t>((static_cast<double>(real_soc) / 10000) * base_Wh);
+}
+
 void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
+  // 0x352 with mux (mux 0 and 1 seen) counts 0.02 kWh, without mux 0.1 kWh
+  const uint32_t nominal_full_x10 =
+      BMS352_mux ? ((uint32_t)battery_nominal_full_pack_energy_m0 + 2) / 5 : battery_nominal_full_pack_energy;
   datalayer_battery->status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
+
+  // Total capacity: capacity when new (0x392 or 0x292), else the obsolete GTW setting (fallback_total_capacity_Wh)
+  datalayer_battery->info.total_capacity_Wh =
+      energy_x10_plausible(battery_beginning_of_life) ? battery_beginning_of_life * 100UL : fallback_total_capacity_Wh;
 
   datalayer_battery->status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
 
@@ -478,9 +491,8 @@ void TeslaBattery::
 
   datalayer_battery->status.current_dA = battery_amps;  //13.0A
 
-  //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh =
+      remaining_Wh(datalayer_battery->status.real_soc, nominal_full_x10, datalayer_battery->info.total_capacity_Wh);
 
   // Define the allowed discharge power
   datalayer_battery->status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
@@ -689,6 +701,7 @@ void TeslaBattery::
   datalayer_tesla->battery_max_discharge_current = battery_max_discharge_current;
   //0x292
   datalayer_tesla->battery_beginning_of_life = battery_beginning_of_life;
+  datalayer_tesla->soh_reference_source = battery_beginning_of_life_source;
   datalayer_tesla->battery_battTempPct = battery_battTempPct;
   datalayer_tesla->battery_soc_ave = battery_soc_ave;
   datalayer_tesla->battery_soc_max = battery_soc_max;
@@ -1663,8 +1676,13 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x292:  //BMS_socStatus
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_beginning_of_life =
-          (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]) * 0.1;          //40|10@1+ (0.1,0) [0|102.3] "kWh"
+      {
+        const uint16_t legacy_bol_x10 = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5];  //40|10@1+ kWh
+        if (energy_x10_plausible_10bit(legacy_bol_x10) && battery_beginning_of_life_source != SohReferenceNewFw) {
+          battery_beginning_of_life = legacy_bol_x10;
+          battery_beginning_of_life_source = SohReferenceLegacyFw;
+        }
+      }
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.1,0) [0|102.3] "%"
       {
         // 1023 = not available (the S/X pack does it for about 5 s): the pack SOC is the UI SOC, the last SOC is held
@@ -1705,6 +1723,12 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_platformMaxBusVoltage =
             (((rx_frame.data.u8[4] & 0x03) << 8) |
              (rx_frame.data.u8[3]));  //24|10@1+ (0.1,375) "V" up to 2022.45.15, (1,300) from 2023.2.12
+        // Full pack energy when new, 40|10@1+ (0.1,0) kWh, not in the public DBC. Wins over 0x292 whenever plausible.
+        const uint16_t new_fw_bol_x10 = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5];
+        if (energy_x10_plausible_10bit(new_fw_bol_x10)) {
+          battery_beginning_of_life = new_fw_bol_x10;
+          battery_beginning_of_life_source = SohReferenceNewFw;
+        }
       }
       if (mux == 0) {
         battery_reservedConfig =
@@ -3056,6 +3080,7 @@ void TeslaBattery::setup(void) {  // Performs one time setup at startup
   write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
   write_signal_value(&TESLA_7FF_Mux3, 32, 5, user_selected_tesla_GTW_packEnergy, false);
 
+  // OBSOLETE: this GTW pack energy setting is only the fallback_total_capacity_Wh now, see TESLA-BATTERY.h
   switch (
       user_selected_tesla_GTW_packEnergy) {  //static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
     case 0:
@@ -3073,6 +3098,7 @@ void TeslaBattery::setup(void) {  // Performs one time setup at startup
     default:
       break;
   }
+  fallback_total_capacity_Wh = datalayer_battery->info.total_capacity_Wh;
 
   //IF 3 / Y
   if (user_selected_battery_type == BatteryType::TeslaModel3Y) {

@@ -32,7 +32,7 @@ String TeslaHtmlRenderer::get_status_html() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
   String content;
 
-  float beginning_of_life = static_cast<float>(tesla.battery_beginning_of_life);
+  float beginning_of_life = static_cast<float>(tesla.battery_beginning_of_life) * 0.1f;
   float battTempPct = static_cast<float>(tesla.battery_battTempPct) * 0.4f;
   float dcdcLvBusVolt = static_cast<float>(tesla.battery_dcdcLvBusVolt) * 0.01f;
   float dcdcHvBusVolt = static_cast<float>(tesla.battery_dcdcHvBusVolt) * 0.1f;

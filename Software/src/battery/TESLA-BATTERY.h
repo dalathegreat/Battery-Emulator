@@ -62,6 +62,21 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  // Beginning of life energy (the capacity when new): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw). Values outside
+  // 38.0 to 150.0 kWh (0.1 kWh) are ignored, 0x292 reads 0 or 0.1 kWh on some firmware. Source 0 = unavailable.
+  // A raw 1023 in a 10 bit energy field (0x292, 0x392, legacy 0x382) is "not available".
+  static constexpr uint8_t SohReferenceLegacyFw = 1;
+  static constexpr uint8_t SohReferenceNewFw = 2;
+  // A garbage reading must not give an SOH below 25 % (EVENT_SOH_LOW is an ERROR): 38.0 / 150.0 = 25.3 %, so even a
+  // garbage pair (energy and reference) at the two limits stays above it. The smallest Tesla packs are ~54 kWh (3/Y
+  // SR) and 60 kWh (S/X), the largest ~100 kWh (S/X 100D, Plaid) and 82 kWh (3/Y), so 38 and 150 leave margin.
+  static constexpr uint16_t EnergyMin_x10 = 380;
+  static constexpr uint16_t EnergyMax_x10 = 1500;
+  static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
+  static constexpr bool energy_x10_plausible_10bit(uint16_t x10) { return energy_x10_plausible(x10) && x10 != 1023; }
+  // Remaining Wh = SOC (0.01 %) x the pack's nominal full energy (0.1 kWh) when plausible. OBSOLETE fallback: x total
+  static uint32_t remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t total_capacity_Wh);
+
   static constexpr const char* NameSX = "Tesla Model S/X";
   static constexpr const char* Name3Y = "Tesla Model 3/Y";
 
@@ -80,6 +95,11 @@ class TeslaBattery : public CanBattery {
 
  private:
   TeslaHtmlRenderer renderer;
+
+  // OBSOLETE fallback: total capacity from the user selected GTW pack energy (50/74/62/100 kWh), set once in setup().
+  // The pack's capacity when new (0x392/0x292) replaces it when readable. Used only when no plausible value is
+  // reported (legacy S/X packs report none).
+  uint32_t fallback_total_capacity_Wh = 0;
 
   // Per-instance extended data for the "More Battery Info" webserver page.
   // Points at datalayer_extended.tesla for the main battery, or datalayer_extended.tesla_2
@@ -592,7 +612,8 @@ class TeslaBattery : public CanBattery {
   int16_t battery_dcdcLvOutputCurrent = 0;  // 0.1 A
   //0x292: 658 BMS_socStatus
   bool battery_temp_seen = false;             // 0x332 mux 0 (thermistor min/max) received
-  uint16_t battery_beginning_of_life = 0;  // kWh
+  uint16_t battery_beginning_of_life = 0;         // 0.1 kWh, from 0x392 mux 1 else 0x292 (0 = unavailable)
+  uint8_t battery_beginning_of_life_source = 0;  // 0 = unavailable, SohReferenceLegacyFw or SohReferenceNewFw
   uint16_t battery_soc_min = 0;
   uint16_t battery_soc_max = 0;
   uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui

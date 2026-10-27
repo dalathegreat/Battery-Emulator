@@ -534,8 +534,9 @@ struct DATALAYER_INFO_TESLA {
   uint8_t BMS_info_assemblyId;
   uint8_t BMS_info_platformType;
   uint8_t BMS_info_bootUdsProtoVersion;
-  uint8_t battery_beginning_of_life;
+  uint16_t battery_beginning_of_life;     // 0.1 kWh, 0 = unavailable
   bool temperature_seen;                  // 0x332 mux 0 received; false = the web pages show "no data"
+  uint8_t soh_reference_source;           // beginning of life source: 0 = unavailable, 1 = 0x292, 2 = 0x392
   uint8_t battery_battTempPct;
   uint8_t battery_BrickVoltageMaxNum;
   uint8_t battery_BrickVoltageMinNum;
