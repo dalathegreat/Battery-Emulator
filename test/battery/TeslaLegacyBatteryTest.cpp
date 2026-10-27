@@ -57,6 +57,11 @@ CAN_frame LegacyBytes(uint32_t id, std::initializer_list<uint8_t> bytes) {
   return frame;
 }
 
+// Frames from a real pack
+CAN_frame RealSoc() {  // 0x302: SOC min 30.0 %, SOC UI 27.1 %
+  return LegacyBytes(0x302, {0x2C, 0x3D, 0x14, 0x00, 0xEA, 0x42, 0x31, 0x02});
+}
+
 // 0x102. The driver stores whole volts and whole amps, then update_values()
 // adds one decimal. 37030 raw is 370.30 V and becomes 3700 dV.
 CAN_frame LegacyHvBus(uint16_t raw_centivolts, uint16_t current_bits) {
@@ -81,11 +86,12 @@ CAN_frame LegacyBrickMinMax(uint16_t max_raw, uint16_t min_raw, uint8_t max_temp
   return frame;
 }
 
-// 0x302 UI SOC, 10 bits from bit 0, in 0.1 percent.
+// 0x302 SOC min (10 bits from bit 0) and UI SOC (10 bits from bit 10), both set to the same value, in 0.1 percent.
 CAN_frame LegacySoc(uint16_t raw_tenth_percent) {
   CAN_frame frame = LegacyFrame(0x302);
   frame.data.u8[0] = (uint8_t)(raw_tenth_percent & 0xFF);
-  frame.data.u8[1] = (uint8_t)((raw_tenth_percent >> 8) & 0x03);
+  frame.data.u8[1] = (uint8_t)(((raw_tenth_percent >> 8) & 0x03) | ((raw_tenth_percent & 0x3F) << 2));
+  frame.data.u8[2] = (uint8_t)(raw_tenth_percent >> 6);
   return frame;
 }
 
@@ -263,4 +269,68 @@ TEST_F(TeslaLegacyBatteryTest, TemperatureKeepsHalfDegrees) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 175);
   EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 170);
+}
+
+// The pack SOC is the UI SOC (0x302 bits 10-19, 27.1 %), not SOC min (bits 0-9, 30.0 %). While the UI SOC is 1023 (not
+// available, the pack does that for about 5 s) the last SOC is held, SOC min is not used: no jump from 27.1 to 30.0 %.
+TEST_F(TeslaLegacyBatteryTest, PackSocIsTheUiSocAndIsHeldWhenNotAvailable) {
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  // SOC min 300, SOC UI 1023, for 5 s
+  for (int second = 0; second < 5; second++) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  }
+  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02}));  // both 1023
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+}
+
+// Before a valid UI SOC was ever seen SOC min is the initial SOC (0 would zero the discharge limit), a valid UI SOC
+// replaces it for good.
+TEST_F(TeslaLegacyBatteryTest, SocMinIsOnlyTheInitialSocBeforeAValidUiSoc) {
+  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 3000);  // SOC min 30.0 %, UI SOC 1023
+
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+}
+
+// 30 s without a valid UI SOC raise EVENT_SOC_UNAVAILABLE (a WARNING), the SOC is still the last one. A valid UI SOC
+// clears it.
+TEST_F(TeslaLegacyBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc) {
+  clear_event(EVENT_SOC_UNAVAILABLE);
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+
+  for (int second = 1; second <= 29; second++) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+    pack_->update_values();
+  }
+  EXPECT_NE(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);  // 29 s
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->update_values();
+  EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);  // 30 s
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->data, 30);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->level, EVENT_LEVEL_WARNING);
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+  EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
 }
