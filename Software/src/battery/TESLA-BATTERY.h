@@ -582,6 +582,7 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_dcdcLvBusVolt = 0;       // 10 mV
   int16_t battery_dcdcLvOutputCurrent = 0;  // 0.1 A
   //0x292: 658 BMS_socStatus
+  bool battery_temp_seen = false;             // 0x332 mux 0 (thermistor min/max) received
   uint16_t battery_beginning_of_life = 0;  // kWh
   uint16_t battery_soc_min = 0;
   uint16_t battery_soc_max = 0;
@@ -704,8 +705,6 @@ class TeslaBattery : public CanBattery {
   uint16_t BMS_inletActiveCoolTargetT = 0;
   uint16_t BMS_inletPassiveTargetT = 0;
   uint16_t BMS_inletActiveHeatTargetT = 0;
-  uint16_t BMS_packTMin = 0;
-  uint16_t BMS_packTMax = 0;
   bool BMS_pcsNoFlowRequest = false;
   bool BMS_noFlowRequest = false;
   //0x3C4: PCS_info

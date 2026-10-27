@@ -782,3 +782,18 @@ TEST_F(TeslaBatteryTest, FullyChargedIsBit15OfTheMux1Frame) {
   pack_->update_values();
   EXPECT_FALSE(datalayer_extended.tesla.battery_fully_charged);
 }
+
+// Pack temperature is the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC), not the two frame types sharing ID 0x312.
+TEST_F(TeslaBatteryTest, PackTempMinMaxComeFromThermistorFrameNotFrom0x312) {
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.temperature_seen);  // the web pages show "no data" until 0x332 arrives
+
+  pack_->handle_incoming_can_frame(FrameWith(0x332, {0x04, 0x03, 0x7F, 0x78, 0x7B, 0x00}));
+  pack_->handle_incoming_can_frame(FrameWith(0x312, {0xA9, 0x21, 0x48, 0x17, 0x40, 0x8D, 0x00, 0x00}));
+  pack_->handle_incoming_can_frame(FrameWith(0x312, {0x00, 0xE5, 0x66, 0x04, 0x2B, 0xE1, 0x13, 0x00}));
+  pack_->update_values();
+
+  EXPECT_TRUE(datalayer_extended.tesla.temperature_seen);
+  EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 200);
+  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 235);
+}
