@@ -702,6 +702,21 @@ static CAN_frame FrameWith(uint32_t id, std::initializer_list<uint8_t> bytes) {
   return f;
 }
 
+// 0x352 mux 0 and mux 1 pages with the nominal full pack energy in 0.02 kWh counts
+static void FeedNominalFullPackEnergy(TeslaBattery& pack, uint16_t counts_002kwh) {
+  pack.handle_incoming_can_frame(
+      FrameWith(0x352, {0x00, 0x00, (uint8_t)(counts_002kwh & 0xFF), (uint8_t)(counts_002kwh >> 8)}));
+  pack.handle_incoming_can_frame(FrameWith(0x352, {0x01}));
+}
+
+// 0x292 beginning of life energy and 0x392 mux 1 energy when new, both 0.1 kWh in bits 40-49
+static CAN_frame Frame292(uint16_t x10) {
+  return FrameWith(0x292, {0, 0, 0, 0, 0, (uint8_t)(x10 & 0xFF), (uint8_t)((x10 >> 8) & 0x03)});
+}
+static CAN_frame Frame392Mux1(uint16_t x10) {
+  return FrameWith(0x392, {0x01, 0, 0, 0, 0, (uint8_t)(x10 & 0xFF), (uint8_t)((x10 >> 8) & 0x03)});
+}
+
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
 // available (SOC min is not used, no jump from 27.1 to 30.0 %).
 // Brick SOC is 0 (not shown) when max is not available or min is above max.
@@ -770,6 +785,56 @@ TEST_F(TeslaBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc)
   EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_INACTIVE);
 }
 
+// The plausible energy window is 38.0 to 150.0 kWh: 38.0 / 150.0 = 25.3 %, so a garbage value cannot give an SOH below
+// the 25 % ERROR limit.
+TEST_F(TeslaBatteryTest, PlausibleEnergyWindowIs38To150Kwh) {
+  EXPECT_FALSE(TeslaBattery::energy_x10_plausible(379));
+  EXPECT_TRUE(TeslaBattery::energy_x10_plausible(380));
+  // The lowest SOH the window allows (pptt) is above the EVENT_SOH_LOW limit
+  EXPECT_GT(TeslaBattery::EnergyMin_x10 * 10000 / TeslaBattery::EnergyMax_x10, 2500);
+  EXPECT_TRUE(TeslaBattery::energy_x10_plausible(1500));
+  EXPECT_FALSE(TeslaBattery::energy_x10_plausible(1501));
+  EXPECT_FALSE(TeslaBattery::energy_x10_plausible_10bit(1023));
+}
+
+// 0x392 mux 1 (new firmware) wins over 0x292 whatever the arrival order, and a later 0x292 does not overwrite it
+TEST_F(TeslaBatteryTest, Reference0x392BeatsLegacy0x292InBothArrivalOrders) {
+  FeedNominalFullPackEnergy(*pack_, 3034);
+  pack_->handle_incoming_can_frame(Frame292(1000));
+  pack_->handle_incoming_can_frame(Frame392Mux1(900));
+  pack_->handle_incoming_can_frame(Frame292(1000));
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 2);
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 900);
+
+  // Same with 0x392 first, on a fresh pack
+  delete pack_;
+  memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
+  pack_ = new TeslaBattery();
+  pack_->setup();
+  FeedNominalFullPackEnergy(*pack_, 3034);
+  pack_->handle_incoming_can_frame(Frame392Mux1(900));
+  pack_->handle_incoming_can_frame(Frame292(1000));
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 2);
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 900);
+}
+
+// Pack temperature is the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC), not the two frame types sharing ID 0x312.
+TEST_F(TeslaBatteryTest, PackTempMinMaxComeFromThermistorFrameNotFrom0x312) {
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.temperature_seen);  // the web pages show "no data" until 0x332 arrives
+
+  pack_->handle_incoming_can_frame(FrameWith(0x332, {0x04, 0x03, 0x7F, 0x78, 0x7B, 0x00}));
+  pack_->handle_incoming_can_frame(FrameWith(0x312, {0xA9, 0x21, 0x48, 0x17, 0x40, 0x8D, 0x00, 0x00}));
+  pack_->handle_incoming_can_frame(FrameWith(0x312, {0x00, 0xE5, 0x66, 0x04, 0x2B, 0xE1, 0x13, 0x00}));
+  pack_->update_values();
+
+  EXPECT_TRUE(datalayer_extended.tesla.temperature_seen);
+  EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 200);
+  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 235);
+}
+
 // Pre-2021 0x352 has no mux, 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, buffer at bit 55 (8 bits), fully
 // charged at bit 63. The frame is a real one from a 72.1 kWh pack at 27.1 % (ScanMyTesla: full 72.1, remaining 19.6,
 // buffer 6.0).
@@ -818,17 +883,55 @@ TEST_F(TeslaBatteryTest, FullyChargedIsBit15OfTheMux1Frame) {
   EXPECT_FALSE(datalayer_extended.tesla.battery_fully_charged);
 }
 
-// Pack temperature is the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC), not the two frame types sharing ID 0x312.
-TEST_F(TeslaBatteryTest, PackTempMinMaxComeFromThermistorFrameNotFrom0x312) {
+// Total is the capacity when new (0x392 mux 1 or legacy 0x292), else the GTW setting. Remaining is SOC x nominal full
+// energy (3053 counts of 0.02 kWh = 61.1 kWh) when plausible, else SOC x total.
+TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
+  user_selected_tesla_GTW_packEnergy = 1;
+  pack_->setup();
+  FeedNominalFullPackEnergy(*pack_, 3053);
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  pack_->handle_incoming_can_frame(SocUi(800));
   pack_->update_values();
-  EXPECT_FALSE(datalayer_extended.tesla.temperature_seen);  // the web pages show "no data" until 0x332 arrives
 
-  pack_->handle_incoming_can_frame(FrameWith(0x332, {0x04, 0x03, 0x7F, 0x78, 0x7B, 0x00}));
-  pack_->handle_incoming_can_frame(FrameWith(0x312, {0xA9, 0x21, 0x48, 0x17, 0x40, 0x8D, 0x00, 0x00}));
-  pack_->handle_incoming_can_frame(FrameWith(0x312, {0x00, 0xE5, 0x66, 0x04, 0x2B, 0xE1, 0x13, 0x00}));
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
+  EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);
+
+  // A new pack without a plausible reference or nominal energy
+  delete pack_;
+  pack_ = new TeslaBattery();
+  pack_->setup();
+  pack_->handle_incoming_can_frame(SocUi(800));
   pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 74000u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 59200u);
 
-  EXPECT_TRUE(datalayer_extended.tesla.temperature_seen);
-  EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 200);
-  EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 235);
+  FeedNominalFullPackEnergy(*pack_, 3053);
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 74000u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);
+
+  FeedNominalFullPackEnergy(*pack_, 1000);  // 20 kWh, below 38 kWh
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 74000u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 59200u);
+
+  FeedNominalFullPackEnergy(*pack_, 7600);  // 152 kWh, above 150 kWh
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 59200u);
+
+  FeedNominalFullPackEnergy(*pack_, 65535);  // far above 150 kWh
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 59200u);
+
+  // A reference without a nominal energy gives total and remaining; 29.9 kWh is not plausible; legacy 0x292 counts too.
+  pack_->handle_incoming_can_frame(Frame392Mux1(299));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 74000u);
+
+  pack_->handle_incoming_can_frame(Frame292(821));
+  pack_->handle_incoming_can_frame(SocUi(800));  // 0x292 also carries the SOC, Frame292 sends it as 0
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 65680u);
 }
