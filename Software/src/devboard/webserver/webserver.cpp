@@ -1419,7 +1419,31 @@ static void render_battery_card(String& content, const String& style, const Batt
   const bool system_card = (pack_index == 0) || !multi;
   const bool scaled = system_card && datalayer.battery_settings.soc_scaling_active;
 
-  content += "<div style='" + style + "'>";
+  /* The card is a container and a stacking context of its own, so the watermark can be sized
+     from the card's width and sit behind the text but in front of the card's background. */
+  content += "<div style='position: relative; isolation: isolate; container-type: inline-size; " + style + "'>";
+
+  if (system_card) {
+    /* Software version as a watermark, tilted 30 degrees. The font size is chosen so that the
+       rotated string fills about 90% of the card's width: an Arial character averages roughly
+       0.56 em, and a string of that length rotated by 30 degrees spans length * cos(30) plus
+       half a line height across. Cards that are not wide enough for container query units fall
+       back to the viewport width. */
+    const float text_em = strlen(version_number) * 0.56f;
+    const float width_em = text_em * 0.866f + 0.5f;
+    char watermark_style[260];
+    snprintf(watermark_style, sizeof(watermark_style),
+             "position: absolute; z-index: -1; top: 50%%; left: 50%%; "
+             "transform: translate(-50%%, -50%%) rotate(-30deg); white-space: nowrap; "
+             "font-weight: bold; font-size: %.1fvw; font-size: %.1fcqw; color: rgba(255, 255, 255, 0.15); "
+             "pointer-events: none; user-select: none;",
+             80.0f / width_em, 90.0f / width_em);
+    content += "<div aria-hidden='true' style='";
+    content += watermark_style;
+    content += "'>";
+    content += html_escape(version_number);
+    content += "</div>";
+  }
 
   if (scaled) {
     content += "<h4 style='color: white;'>Scaled SOC: " + String(v.reported_soc / 100.0f, 2) +
