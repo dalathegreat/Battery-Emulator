@@ -226,10 +226,10 @@ TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
   EXPECT_EQ(datalayer_extended.tesla.cac_max_x10, 2131);
 
   std::string page = pack_->get_status_renderer().get_status_html().str();
-  // Same rows and order as the Model 3/Y page (no brick IDs here), with the imbalance of 3.8 Ah, 2 % of the average
-  EXPECT_NE(page.find("<h4>CAC Average: 211.7 Ah</h4><h4>CAC Min: 209.3 Ah</h4><h4>CAC Max: 213.1 Ah</h4>"
-                      "<h4>CAC Imbalance: 3.8 Ah (2%)</h4>"),
+  // Same rows and order as the Model 3/Y page (no brick IDs here), raw values only: the imbalance is on the main card
+  EXPECT_NE(page.find("<h4>CAC Average: 211.7 Ah</h4><h4>CAC Min: 209.3 Ah</h4><h4>CAC Max: 213.1 Ah</h4>"),
             std::string::npos);
+  EXPECT_EQ(page.find("CAC Imbalance"), std::string::npos);
 
   // min > avg, or a value outside 20..400 Ah, is not plausible and is not taken over
   frame.data.u8[3] = 0x84;  // min 0x84D = 2125 > avg 2117
@@ -317,24 +317,24 @@ TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity)
   pack_->handle_incoming_can_frame(RealCac());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 85000u);
-  EXPECT_NE(page().find("Estimate SOH: unknown (99% passed to inverter)"), std::string::npos);
+  EXPECT_NE(page().find("Calculated SOH: unknown (99% passed to inverter)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
 
   feed(721);
-  EXPECT_NE(page().find("Estimate SOH: 84.8% (72.1 kWh / 85.0 kWh)"), std::string::npos);
+  EXPECT_NE(page().find("Calculated SOH: 84.8% (72.1 kWh / 85.0 kWh)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);
   EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);
 
   feed(860);  // 86.0 kWh, 101.2 %
-  EXPECT_NE(page().find("Estimate SOH: unknown (99% passed to inverter)"), std::string::npos);
+  EXPECT_NE(page().find("Calculated SOH: unknown (99% passed to inverter)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
   feed(855);                                            // 85.5 kWh, 100.6 %
-  EXPECT_NE(page().find("Estimate SOH: 100.0% (85.5 kWh / 85.0 kWh)"), std::string::npos);
+  EXPECT_NE(page().find("Calculated SOH: 100.0% (85.5 kWh / 85.0 kWh)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
   feed(1023);  // not available: the last plausible energy stays
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
@@ -422,8 +422,9 @@ TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
 TEST_F(TeslaLegacyBatteryTest, MainPageRowsMatchTheModel3YStyle) {
   BatteryHtmlRenderer& renderer = pack_->get_status_renderer();
   pack_->update_values();
-  EXPECT_EQ(renderer.get_main_view_soh_rows().str(), "<h4>Estimate SOH: unknown (99% passed to inverter)</h4>");
+  EXPECT_EQ(renderer.get_main_view_soh_rows().str(), "<h4>Calculated SOH: unknown (99% passed to inverter)</h4>");
   EXPECT_TRUE(renderer.get_main_view_capacity_rows().str().empty());
+  EXPECT_EQ(renderer.get_main_view_total_capacity_label().str(), "Total capacity when new");  // configured
   EXPECT_TRUE(renderer.get_main_view_cell_rows().str().empty());
 
   pack_->handle_incoming_can_frame(LegacyHwId(70));
@@ -432,10 +433,11 @@ TEST_F(TeslaLegacyBatteryTest, MainPageRowsMatchTheModel3YStyle) {
   pack_->handle_incoming_can_frame(RealPage7());
   pack_->update_values();
 
-  EXPECT_EQ(renderer.get_main_view_soh_rows().str(), "<h4>Estimate SOH: 84.8% (72.1 kWh / 85.0 kWh)</h4>");
-  EXPECT_EQ(renderer.get_main_view_capacity_rows().str(), "<h4>Current capacity (reported by pack): 72.1 kWh</h4>");
+  EXPECT_EQ(renderer.get_main_view_soh_rows().str(), "<h4>Calculated SOH: 84.8% (72.1 kWh / 85.0 kWh)</h4>");
+  EXPECT_EQ(renderer.get_main_view_capacity_rows().str(), "<h4>Current total capacity: 72.1 kWh</h4>");
   EXPECT_EQ(renderer.get_main_view_cell_rows().str(),
-            "<h4>CAC: 209.3 Ah - 213.1 Ah</h4><h4>Brick SOC: 30.0% - 30.6%</h4>");
+            "<h4>CAC: 209.3 Ah - 213.1 Ah</h4><h4>CAC Imbalance: 3.8 Ah (2%)</h4><h4>Brick SOC: 30.0% - 30.6%</h4>"
+            "<h4>Brick SOC Imbalance: 0.6%</h4>");
   EXPECT_FALSE(renderer.has_temperature_data());  // no 0x332 yet: the main card shows "no data"
   pack_->handle_incoming_can_frame(LegacyBytes(0x332, {0x0A, 0x17, 0xBE, 0x73, 0x08, 0x67, 0x5F, 0x72}));
   EXPECT_TRUE(renderer.has_temperature_data());
@@ -456,7 +458,8 @@ TEST_F(TeslaLegacyBatteryTest, PackSocIsTheUiSocAndIsHeldWhenNotAvailable) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_ui, 271u);
-  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("<h4>Battery SOC UI: 27.1"), std::string::npos);
+  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("<h4>Battery SOC UI: 27.1 </h4>"),
+            std::string::npos);
 
   // SOC min 300, SOC UI 1023, for 5 s
   for (int second = 0; second < 5; second++) {

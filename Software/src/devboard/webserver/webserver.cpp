@@ -1465,7 +1465,7 @@ static void render_battery_card(String& content, const String& style, const Batt
 
   // Unknown until the integration has decoded a state of health, rather than the soh_pptt default
   // shown as if it had been read from the pack. The combined card follows the same rule.
-  // A pack can show its own SOH row instead (Tesla: Estimate SOH).
+  // A pack can show its own SOH row instead (Tesla: Calculated SOH).
   const String soh_rows = card_pack ? card_pack->get_status_renderer().get_main_view_soh_rows() : String();
   if (soh_rows.length() > 0) {
     content += soh_rows;
