@@ -682,6 +682,17 @@ static std::string DetailPage(TeslaBattery& pack) {
   return pack.get_status_renderer().get_status_html().str();
 }
 
+// The block "Calculated values" at the top of the detail page: the rows between its header and the header of the raw
+// rows (empty when the page has no such block)
+static std::string CalculatedValues(const std::string& page) {
+  const std::string start = "<h3>Calculated values</h3>";
+  const size_t end = page.find("<h3>Raw values</h3>");
+  if (page.compare(0, start.size(), start) != 0 || end == std::string::npos) {
+    return std::string();
+  }
+  return page.substr(start.size(), end - start.size());
+}
+
 // 0x3B2 mux 0 is the pack CAC (0.1 Ah): each frame fits only one of the 2022 and 2024.8.9+ layouts. Other mux pages are
 // ignored.
 TEST_F(TeslaBatteryTest, CacFrameIsDecodedInTheLayoutThatFits) {
@@ -724,11 +735,11 @@ TEST_F(TeslaBatteryTest, CacFrameIsDecodedInTheLayoutThatFits) {
                         "<h4>CAC Max (0x3B2 layout " +
                         fit_layout + "): 150.0 Ah (brick 52)</h4>"),
               std::string::npos);
-    EXPECT_EQ(page.find("CAC Imbalance"), std::string::npos);
-    // The main card has the imbalance (5.0 Ah, 3 % of the average) right below the CAC row
-    EXPECT_NE(pack_->get_status_renderer().get_main_view_cell_rows().str().find(
+    // The calculated values have the imbalance (5.0 Ah, 3 % of the average) right below the CAC row, the raw rows not
+    EXPECT_NE(CalculatedValues(page).find(
                   "<h4>CAC: 145.0 Ah (brick 11) - 150.0 Ah (brick 52)</h4><h4>CAC Imbalance: 5.0 Ah (3%)</h4>"),
               std::string::npos);
+    EXPECT_EQ(page.find("CAC Imbalance", page.find("<h3>Raw values</h3>")), std::string::npos);
   }
 
   memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
@@ -742,7 +753,7 @@ TEST_F(TeslaBatteryTest, CacFrameIsDecodedInTheLayoutThatFits) {
 // ---- Detail page rows and the SOH estimate ----
 
 // Detail page CAC rows are raw: N/A until a frame was seen and for all ones (819.1 Ah), but implausible values (min >
-// max, 3.4 Ah) are shown as received and do not reach the main card. Layout B needs mux bit 6 = 0 (7 bit mux).
+// max, 3.4 Ah) are shown as received and do not reach the calculated values. Layout B needs mux bit 6 = 0 (7 bit mux).
 TEST_F(TeslaBatteryTest, DetailPageCacRowsAreRawAndNAWhenNotSeen) {
   memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
   auto page = [&]() {
@@ -771,7 +782,7 @@ TEST_F(TeslaBatteryTest, DetailPageCacRowsAreRawAndNAWhenNotSeen) {
   EXPECT_NE(page().find("<h4>CAC Max (0x3B2 layout A): N/A</h4>"), std::string::npos);
   EXPECT_FALSE(datalayer_extended.tesla.cac_valid);
 
-  // Implausible: layout A min 3.4 Ah, avg 148.0 Ah, max 150.0 Ah. Shown raw, not valid for the main card
+  // Implausible: layout A min 3.4 Ah, avg 148.0 Ah, max 150.0 Ah. Shown raw, not valid for the calculated values
   frame = cac_frame({0x00, 0x72, 0x11, 0x01, 0x0A, 0xDC, 0x05, 0x33});
   pack_->handle_incoming_can_frame(frame);
   EXPECT_FALSE(datalayer_extended.tesla.cac_valid);
@@ -812,12 +823,8 @@ static CAN_frame Frame392Mux1(uint16_t x10) {
   return FrameWith(0x392, {0x01, 0, 0, 0, 0, (uint8_t)(x10 & 0xFF), (uint8_t)((x10 >> 8) & 0x03)});
 }
 
-static bool MainRowsContain(TeslaBattery& pack, const char* text) {
-  return pack.get_status_renderer().get_main_view_soh_rows().str().find(text) != std::string::npos;
-}
-
-static bool MainCapacityRowsContain(TeslaBattery& pack, const char* text) {
-  return pack.get_status_renderer().get_main_view_capacity_rows().str().find(text) != std::string::npos;
+static bool CalculatedContains(TeslaBattery& pack, const char* text) {
+  return CalculatedValues(DetailPage(pack)).find(text) != std::string::npos;
 }
 
 static bool DetailPageContains(TeslaBattery& pack, const char* text) {
@@ -838,17 +845,16 @@ TEST_F(TeslaBatteryTest, SohEstimateIsUnknownWhenNoPlausibleBeginningOfLife) {
   pack_->update_values();
 
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 0);
-  EXPECT_TRUE(MainRowsContain(*pack_, "Calculated SOH: unknown (99% passed to inverter)"));
+  EXPECT_TRUE(CalculatedContains(*pack_, "Calculated SOH: unknown (99% passed to inverter)"));
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-  // The main card has no capacity when new: N/A, not the GTW setting. The detail page shows what each frame sent, even
-  // an implausible value, and has no calculated rows
-  EXPECT_TRUE(MainCapacityRowsContain(*pack_, "<h4>Total capacity when new: N/A</h4>"));
+  // The calculated values have no capacity when new: N/A, not the GTW setting. The raw rows show what each frame sent,
+  // even an implausible value
+  EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Total capacity when new: N/A</h4>"));
   EXPECT_TRUE(DetailPageContains(*pack_,
                                  "<h4>Total Capacity When New (0x392 mux 1): 37.9 kWh</h4>"
                                  "<h4>Total Capacity When New (0x292): 37.9 kWh</h4>"));
-  EXPECT_FALSE(DetailPageContains(*pack_, "Calculated SOH"));
 }
 
 // The detail page shows N/A for a capacity when new that was not received yet or is 1023
@@ -869,7 +875,7 @@ TEST_F(TeslaBatteryTest, DetailPageCapacityWhenNewIsNAUntilReceived) {
 
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
 // available (SOC min is not used, no jump from 27.1 to 30.0 %).
-// The main card does not show the brick SOC when max is not available or min is above max. The detail page shows the
+// The calculated values do not show the brick SOC when max is not available or min is above max. The detail page shows the
 // live raw values: N/A for 1023 and until the frame is received, an implausible value as it is.
 TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   pack_->update_values();  // nothing received yet
@@ -887,7 +893,7 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
                                  "<h4>Brick SOC Ave (0x292): 30.3%</h4><h4>Brick SOC Max (0x292): 30.6%</h4>"
                                  "<h4>Brick SOC Min (0x292): 30.0%</h4>"));
   const auto cell_rows = [&]() {
-    return pack_->get_status_renderer().get_main_view_cell_rows().str();
+    return CalculatedValues(DetailPage(*pack_));
   };
   EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6% (Ave 30.3%)</h4><h4>Brick SOC Imbalance: 0.6%</h4>"),
             std::string::npos);
@@ -895,7 +901,7 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   for (int second = 0; second < 5; second++) {  // a 5 s burst
     pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 1023));
     pack_->update_values();
-    EXPECT_EQ(datalayer.battery.status.real_soc, 2710);                       // held on the main card
+    EXPECT_EQ(datalayer.battery.status.real_soc, 2710);                       // held
     EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Battery SOC UI: N/A</h4>"));  // live on the detail page
     EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Brick SOC Ave (0x292): N/A</h4>"));
   }
@@ -911,7 +917,7 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
 
   pack_->handle_incoming_can_frame(SocFields(310, 281, 306, 303));  // min above max
   pack_->update_values();
-  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);  // raw, only the main card ignores it
+  EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);  // raw, only the calculated values ignore it
   EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Brick SOC Max (0x292): 30.6%</h4><h4>Brick SOC Min (0x292): 31.0%</h4>"));
   EXPECT_TRUE(cell_rows().find("Brick SOC") == std::string::npos);
   EXPECT_EQ(datalayer.battery.status.real_soc, 2810);
@@ -1027,15 +1033,12 @@ TEST_F(TeslaBatteryTest, SohEstimateUses0x292OnLegacyFirmware) {
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 6070);
   EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);
-  EXPECT_TRUE(MainRowsContain(*pack_, "kWh / 100.0 kWh)"));
-  // The SOH estimate has its own main card hook (instead of the SOH row), the capacity rows replace "Total capacity"
-  EXPECT_TRUE(MainCapacityRowsContain(
+  EXPECT_TRUE(CalculatedContains(*pack_, "kWh / 100.0 kWh)"));
+  EXPECT_TRUE(CalculatedContains(
       *pack_, "<h4>Total capacity when new: 100.0 kWh</h4><h4>Current total capacity: 60.7 kWh</h4>"));
-  EXPECT_FALSE(MainCapacityRowsContain(*pack_, "Calculated SOH"));
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 100000u);
-  // The detail page has the raw 0x292 value, no estimate and no source
+  // The raw rows have the 0x292 value, no source
   EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Total Capacity When New (0x292): 100.0 kWh</h4>"));
-  EXPECT_FALSE(DetailPageContains(*pack_, "Calculated SOH"));
   EXPECT_FALSE(DetailPageContains(*pack_, "source"));
 
   pack_->handle_incoming_can_frame(Frame292(380));
@@ -1061,7 +1064,7 @@ TEST_F(TeslaBatteryTest, Reference0x392BeatsLegacy0x292InBothArrivalOrders) {
   pack_->handle_incoming_can_frame(Frame292(1000));
   pack_->update_values();
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 900);
-  EXPECT_TRUE(MainRowsContain(*pack_, "kWh / 90.0 kWh)"));
+  EXPECT_TRUE(CalculatedContains(*pack_, "kWh / 90.0 kWh)"));
   // the detail page shows both frames
   EXPECT_TRUE(DetailPageContains(*pack_,
                                  "<h4>Total Capacity When New (0x392 mux 1): 90.0 kWh</h4>"
@@ -1089,25 +1092,25 @@ TEST_F(TeslaBatteryTest, SohEstimateUsesPackEnergyWhenNewFromPackConfigFrame) {
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 821);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 7393);
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
-  EXPECT_TRUE(MainCapacityRowsContain(*pack_, "<h4>Total capacity when new: 82.1 kWh</h4>"));
+  EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Total capacity when new: 82.1 kWh</h4>"));
   EXPECT_TRUE(DetailPageContains(*pack_,
                                  "<h4>Total Capacity When New (0x392 mux 1): 82.1 kWh</h4>"
                                  "<h4>Total Capacity When New (0x292): 0.1 kWh</h4>"));
 }
 
-// The main card shows N/A until the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC) is received.
+// The calculated values show N/A until the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC) is received.
 TEST_F(TeslaBatteryTest, TemperatureSeenAfterThermistorFrame) {
   pack_->update_values();
   EXPECT_FALSE(datalayer_extended.tesla.temperature_seen);
-  EXPECT_FALSE(pack_->get_status_renderer().has_temperature_data());
+  EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Temperature min/max: N/A</h4>"));
 
   pack_->handle_incoming_can_frame(FrameWith(0x332, {0x04, 0x03, 0x7F, 0x78, 0x7B, 0x00}));
   pack_->update_values();
 
   EXPECT_TRUE(datalayer_extended.tesla.temperature_seen);
-  EXPECT_TRUE(pack_->get_status_renderer().has_temperature_data());
   EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 200);
   EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 235);
+  EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Temperature min/max: 20.0 &deg;C / 23.5 &deg;C</h4>"));
 }
 
 // Pre-2021 0x352 has no mux, 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, buffer at bit 55 (8 bits), fully
@@ -1276,30 +1279,26 @@ TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 65680u);
 }
 
-// The main card always has the two capacity rows instead of "Total capacity": the capacity when new the pack reports
-// (N/A without one, not the GTW setting) and the current capacity, the nominal full pack energy (held for 30 s).
+// The calculated values always have the two capacity rows: the capacity when new the pack reports (N/A without one, not
+// the GTW setting) and the current capacity, the nominal full pack energy (held for 30 s).
 TEST_F(TeslaBatteryTest, MainCardAlwaysShowsTheTwoCapacityRows) {
   memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
-  EXPECT_EQ(pack_->get_status_renderer().get_main_view_capacity_rows().str(),
-            "<h4>Total capacity when new: N/A</h4><h4>Current total capacity: N/A</h4>");
+  EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Total capacity when new: N/A</h4><h4>Current total capacity: N/A</h4>"));
 
   pack_->handle_incoming_can_frame(Frame392Mux1(821));
   pack_->update_values();
-  EXPECT_EQ(pack_->get_status_renderer().get_main_view_capacity_rows().str(),
-            "<h4>Total capacity when new: 82.1 kWh</h4><h4>Current total capacity: N/A</h4>");
+  EXPECT_TRUE(
+      CalculatedContains(*pack_, "<h4>Total capacity when new: 82.1 kWh</h4><h4>Current total capacity: N/A</h4>"));
 
   FeedNominalFullPackEnergy(*pack_, 3053);
   pack_->update_values();
-  EXPECT_EQ(pack_->get_status_renderer().get_main_view_capacity_rows().str(),
-            "<h4>Total capacity when new: 82.1 kWh</h4><h4>Current total capacity: 61.1 kWh</h4>");
+  EXPECT_TRUE(CalculatedContains(
+      *pack_, "<h4>Total capacity when new: 82.1 kWh</h4><h4>Current total capacity: 61.1 kWh</h4>"));
 
-  // The held value is on the main card, the detail page shows the received one
+  // The held value is in the calculated values, the raw rows show the received one
   FeedNominalFullPackEnergy(*pack_, 65535);
   pack_->update_values();
-  EXPECT_TRUE(MainCapacityRowsContain(*pack_, "<h4>Current total capacity: 61.1 kWh</h4>"));
-
-  BatteryDefaultRenderer generic;  // other batteries keep the generic "Total capacity"
-  EXPECT_TRUE(generic.get_main_view_capacity_rows().str().empty());
+  EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Current total capacity: 61.1 kWh</h4>"));
 }
 
 // Detail page, nominal energy remaining of 0x352: both variants are always listed, N/A until received and for SNA
@@ -1482,7 +1481,7 @@ TEST_F(TeslaBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfter30Sec
     EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442) << second;
     EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u) << second;
     EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known) << second;
-    EXPECT_EQ(datalayer_extended.tesla.nominal_full_held_x10, 611) << second;  // the main page value is held
+    EXPECT_EQ(datalayer_extended.tesla.nominal_full_held_x10, 611) << second;  // the calculated value is held
   }
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy_m0, 65535);  // the detail page is not
   pack_->update_values();                                                          // 30 s

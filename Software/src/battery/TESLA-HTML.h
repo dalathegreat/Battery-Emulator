@@ -13,17 +13,13 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
   bool renders_own_battery_data() { return true; }
 
   String get_status_html();
-  String get_main_view_soh_rows();
-  String get_main_view_capacity_rows();
-  String get_main_view_cell_rows();
-  bool has_temperature_data() { return tesla_info->temperature_seen; }
 
  protected:
   DATALAYER_INFO_TESLA* tesla_info;
   DATALAYER_BATTERY_TYPE* core_data;
 };
 
-// Status page for the legacy Model S/X (2012-2020) packs. The main page rows are the Model 3/Y ones (the legacy driver
+// Status page for the legacy Model S/X (2012-2020) packs. The calculated values block is the Model 3/Y one (the legacy driver
 // fills the same datalayer fields).
 class TeslaLegacyHtmlRenderer : public TeslaHtmlRenderer {
  public:

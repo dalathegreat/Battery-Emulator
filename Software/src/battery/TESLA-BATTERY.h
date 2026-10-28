@@ -663,7 +663,7 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_soc_min = 1023;
   uint16_t battery_soc_max = 1023;
   uint16_t battery_soc_ui_raw = 1023;  // live UI SOC
-  uint16_t battery_soc_ui = 0;         // held UI SOC (main page): the last valid one, used for real_soc
+  uint16_t battery_soc_ui = 0;         // held UI SOC (inverter): the last valid one, used for real_soc
   uint16_t battery_soc_ave = 1023;
   // A UI SOC of 1023 is not available: the last SOC is held (up to SocHoldLimit_s), see SocUnavailableDelay_s
   bool soc_ui_seen = false;    // a valid UI SOC was received at least once

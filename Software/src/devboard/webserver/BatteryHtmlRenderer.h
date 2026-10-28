@@ -24,14 +24,6 @@ class BatteryHtmlRenderer {
   // Reports failure of the most recent status or diagnostics render.
   virtual bool html_render_failed() const { return false; }
 
-  // Optional extra <h4> rows for the main page battery card (empty = none): the SOH row (replaces the generic one),
-  // the capacity rows (replace the generic "Total capacity"), after "Cell delta"
-  virtual String get_main_view_soh_rows() { return String(); }
-  virtual String get_main_view_capacity_rows() { return String(); }
-  virtual String get_main_view_cell_rows() { return String(); }
-  // False until the pack has sent a temperature: the main page then shows N/A (display only)
-  virtual bool has_temperature_data() { return true; }
-
   // Returns true when this renderer reads the data of its own battery instance
   // (e.g. via a datalayer pointer supplied at construction), rather than the
   // hardcoded main-battery globals. The advanced battery page only renders
