@@ -662,6 +662,16 @@ TEST_F(TeslaBatteryTest, BalancingRequestReplacesTheSafetyWindow) {
   EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
 }
 
+// Frame with the given payload (DLC 8)
+static CAN_frame FrameWith(uint32_t id, std::initializer_list<uint8_t> bytes) {
+  CAN_frame f = Frame(id);
+  int i = 0;
+  for (uint8_t b : bytes) {
+    f.data.u8[i++] = b;
+  }
+  return f;
+}
+
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
 // available (SOC min is not used, no jump from 27.1 to 30.0 %).
 TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
@@ -723,4 +733,41 @@ TEST_F(TeslaBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc)
   pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
   pack_->update_values();
   EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_INACTIVE);
+}
+
+// Pre-2021 0x352 has no mux, 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, buffer at bit 55 (8 bits), fully
+// charged at bit 63. The frame is a real one from a 72.1 kWh pack at 27.1 % (ScanMyTesla: full 72.1, remaining 19.6,
+// buffer 6.0).
+TEST_F(TeslaBatteryTest, NoMuxEnergyStatusDecodesTheDbcFields) {
+  const uint8_t real[8] = {0xD1, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x1E};
+  const TeslaBattery::EnergyStatusNoMux e = TeslaBattery::decode_energy_status_no_mux(real);
+  EXPECT_EQ(e.nominal_full, 721);
+  EXPECT_EQ(e.nominal_remaining, 196);
+  EXPECT_EQ(e.expected_remaining, 193);
+  EXPECT_EQ(e.ideal_remaining, 193);
+  EXPECT_EQ(e.to_charge_complete, 0);
+  EXPECT_EQ(e.buffer, 60);
+  EXPECT_FALSE(e.fully_charged);
+
+  const uint8_t last_bit[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  const TeslaBattery::EnergyStatusNoMux all = TeslaBattery::decode_energy_status_no_mux(last_bit);
+  EXPECT_EQ(all.nominal_full, 2047);
+  EXPECT_EQ(all.to_charge_complete, 2047);
+  EXPECT_EQ(all.buffer, 255);
+  EXPECT_TRUE(all.fully_charged);
+}
+
+// The driver takes a frame as no mux format when the two low bits of byte 0 are 2 or 3 and no mux 0 or 1 frame was
+// seen. The real frame above has bits 01 in byte 0 (72.1 kWh) so this test uses 72.2 kWh. The values go to the web
+// page only.
+TEST_F(TeslaBatteryTest, NoMuxEnergyStatusReachesTheExtendedData) {
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x9E}));
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.BMS352_mux);
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 722);
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_energy_remaining, 196);
+  EXPECT_EQ(datalayer_extended.tesla.battery_ideal_energy_remaining, 193);
+  EXPECT_EQ(datalayer_extended.tesla.battery_energy_to_charge_complete, 0);
+  EXPECT_EQ(datalayer_extended.tesla.battery_energy_buffer, 60);
+  EXPECT_TRUE(datalayer_extended.tesla.battery_fully_charged);  // bit 63 is set in byte 7 (0x9E)
 }
