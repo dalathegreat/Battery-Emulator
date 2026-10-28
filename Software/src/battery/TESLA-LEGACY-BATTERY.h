@@ -2,6 +2,7 @@
 #define TESLA_LEGACY_BATTERY_H
 #include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
+#include "TESLA-BATTERY.h"
 #include "TESLA-HTML.h"
 
 class TeslaLegacyBattery : public CanBattery {
@@ -68,6 +69,8 @@ class TeslaLegacyBattery : public CanBattery {
   bool soc_ui_seen = false;   // a valid UI SOC was received at least once
   bool soc_ui_fresh = false;  // a valid UI SOC was received since the last update_values()
   uint16_t seconds_without_soc = 0;
+  uint16_t nominal_full_x10_received = 0;  // 0x382 bits 0-9, 1023 = not available
+  TeslaBattery::NominalFullHold nominal_full_hold;
   uint8_t battery_BMS_state = 0;
   bool cellvoltagesRead = false;
   //0x102: BMS_hvBusStatus

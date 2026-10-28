@@ -74,6 +74,15 @@ class TeslaBattery : public CanBattery {
   static constexpr uint16_t EnergyMax_x10 = 1500;
   static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
   static constexpr bool energy_x10_plausible_10bit(uint16_t x10) { return energy_x10_plausible(x10) && x10 != 1023; }
+  // The nominal full pack energy is not available for short bursts (the S/X pack sends 1023 for about 5 s). The last
+  // plausible value is held for NominalFullHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
+  // configured capacity. Called once a second (update_values) with the value received last.
+  static constexpr uint16_t NominalFullHold_s = 30;
+  struct NominalFullHold {
+    uint32_t x10 = 0;  // held value, 0.1 kWh, 0 = unknown
+    uint16_t seconds_not_plausible = 0;
+  };
+  static void hold_nominal_full(NominalFullHold& hold, uint32_t received_x10, bool plausible);
   // An SOH estimate above 101.00 % (0.01 %) is not credible and shown as Unknown; 100-101 % is shown as 100 %
   static constexpr uint32_t SohEstimateMax_pptt = 10100;
   // SOH sent to the inverter: nominal full pack energy / energy when new (both 0.1 kWh) as 0.01 %. When it cannot be
@@ -593,6 +602,7 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_nominal_energy_remaining_m0 = 0;   // kWh
   uint16_t battery_nominal_full_pack_energy = 0;      // Kwh
   uint16_t battery_nominal_full_pack_energy_m0 = 0;   // Kwh
+  NominalFullHold nominal_full_hold;                  // the value used for SOH and remaining Wh
   //0x132 306 HVBattAmpVolt
   uint16_t battery_volts = 0;                  // V
   int16_t battery_amps = 0;                    // A
