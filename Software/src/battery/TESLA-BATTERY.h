@@ -62,7 +62,7 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
-  // Beginning of life energy (the capacity when new): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw). Values outside
+  // Beginning of life energy (SOH estimate reference): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw). Values outside
   // 38.0 to 150.0 kWh (0.1 kWh) are ignored, 0x292 reads 0 or 0.1 kWh on some firmware. Source 0 = unavailable.
   // A raw 1023 in a 10 bit energy field (0x292, 0x392, legacy 0x382) is "not available".
   static constexpr uint8_t SohReferenceLegacyFw = 1;
@@ -74,6 +74,13 @@ class TeslaBattery : public CanBattery {
   static constexpr uint16_t EnergyMax_x10 = 1500;
   static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
   static constexpr bool energy_x10_plausible_10bit(uint16_t x10) { return energy_x10_plausible(x10) && x10 != 1023; }
+  // An SOH estimate above 101.00 % (0.01 %) is not credible and shown as Unknown; 100-101 % is shown as 100 %
+  static constexpr uint32_t SohEstimateMax_pptt = 10100;
+  // SOH sent to the inverter: nominal full pack energy / energy when new (both 0.1 kWh) as 0.01 %. When it cannot be
+  // calculated the inverter gets 99 % as on master (soh_available stays true, only the web card says unknown). Returns
+  // whether the estimate could be calculated.
+  static bool apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
+                                 uint32_t beginning_of_life_x10);
   // Remaining Wh = SOC (0.01 %) x the pack's nominal full energy (0.1 kWh) when plausible. OBSOLETE fallback: x total
   static uint32_t remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t total_capacity_Wh);
 

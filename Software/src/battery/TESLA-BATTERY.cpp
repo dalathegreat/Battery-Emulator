@@ -452,6 +452,21 @@ void dayOfYearToDate(int year, int dayOfYear, char* out, size_t out_len) {
   snprintf(out, out_len, "%04d-%02d-%02d", safeYear, safeMonth, safeDay);
 }
 
+bool TeslaBattery::apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
+                                      uint32_t beginning_of_life_x10) {
+  // Unknown without a plausible energy (38.0 to 150.0 kWh, a garbage nominal energy must not give a tiny SOH) or
+  // reference, and above 101 % (not credible); 100-101 % is sent as 100
+  const bool nominal_plausible = nominal_full_x10 <= UINT16_MAX && energy_x10_plausible(nominal_full_x10);
+  const uint32_t estimate =
+      nominal_plausible && beginning_of_life_x10 > 0 ? (nominal_full_x10 * 10000UL) / beginning_of_life_x10 : 0;
+  const bool valid = estimate > 0 && estimate <= SohEstimateMax_pptt;
+  // Master's contract: a Tesla always has an soh_pptt to send, 9900 when it is not known, and soh_available stays true
+  // (never cleared) so the aggregate, MQTT and ESP-NOW treat the pack as on master. "Known" is only for the web page.
+  status.soh_available = true;
+  status.soh_pptt = valid ? (uint16_t)std::min<uint32_t>(estimate, 10000) : 9900;
+  return valid;
+}
+
 uint32_t TeslaBattery::remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t total_capacity_Wh) {
   const uint32_t base_Wh =
       energy_x10_plausible(static_cast<uint16_t>(nominal_full_x10)) ? nominal_full_x10 * 100 : total_capacity_Wh;
@@ -462,10 +477,11 @@ void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
-  // 0x352 with mux (mux 0 and 1 seen) counts 0.02 kWh, without mux 0.1 kWh
+  // SOH is an estimate, see apply_soh_estimate. 0x352 with mux (mux 0 and 1 seen) counts 0.02 kWh, without mux 0.1 kWh
   const uint32_t nominal_full_x10 =
       BMS352_mux ? ((uint32_t)battery_nominal_full_pack_energy_m0 + 2) / 5 : battery_nominal_full_pack_energy;
-  datalayer_battery->status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
+  datalayer_tesla->soh_estimate_known =
+      apply_soh_estimate(datalayer_battery->status, nominal_full_x10, battery_beginning_of_life);
 
   // Total capacity: capacity when new (0x392 or 0x292), else the obsolete GTW setting (fallback_total_capacity_Wh)
   datalayer_battery->info.total_capacity_Wh =

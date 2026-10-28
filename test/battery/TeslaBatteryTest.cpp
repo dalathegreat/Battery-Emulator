@@ -585,8 +585,8 @@ TEST_F(TeslaBatteryTest, BrickVoltagesLandInTheCellArray) {
 }
 
 // BMS_a145 raises a latched SOC-recalibration event. BMS_a143 on the same
-// mux is only an alert bit: SOH stays at the hardcoded 99%, which is how
-// this driver says it has no CAC reading. A later frame with both bits
+// mux is only an alert bit: SOH stays at the 99% default, which is how
+// this driver says it has no SOH estimate. A later frame with both bits
 // clear drops the matrix bits. clear_event only clears an active event, so
 // the latched recalibration stays up.
 TEST_F(TeslaBatteryTest, SocChangeAlertIsLatchedAndCacChangeIsOnlyAnAlert) {
@@ -717,6 +717,36 @@ static CAN_frame Frame392Mux1(uint16_t x10) {
   return FrameWith(0x392, {0x01, 0, 0, 0, 0, (uint8_t)(x10 & 0xFF), (uint8_t)((x10 >> 8) & 0x03)});
 }
 
+// The detail page prints battery_manufactureDate, which update_values() only sets from a UDS reply: give it a pointer
+static bool DetailPageContains(TeslaBattery& pack, const char* text) {
+  static char manufacture_date[] = "";
+  datalayer_extended.tesla.battery_manufactureDate = manufacture_date;
+  return pack.get_status_renderer().get_status_html().str().find(text) != std::string::npos;
+}
+
+// 3034 counts of 0.02 kWh is 60.68 kWh. A beginning of life below 38 kWh (0x292 sends 0.1 kWh) is ignored: 99 %.
+TEST_F(TeslaBatteryTest, SohEstimateIsUnknownWhenNoPlausibleBeginningOfLife) {
+  pack_->update_values();  // nothing received yet: the 99 % default, estimate not known
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+
+  FeedNominalFullPackEnergy(*pack_, 3034);
+  pack_->handle_incoming_can_frame(Frame292(1));
+  pack_->handle_incoming_can_frame(Frame292(379));
+  pack_->handle_incoming_can_frame(Frame392Mux1(379));
+  pack_->update_values();
+
+  EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 0);
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 0);
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+  EXPECT_TRUE(DetailPageContains(*pack_, "Estimate SOH: unknown (99% passed to inverter)"));
+  EXPECT_TRUE(
+      DetailPageContains(*pack_, "Full Pack When New source: unavailable (no plausible value in 0x392 or 0x292)"));
+}
+
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
 // available (SOC min is not used, no jump from 27.1 to 30.0 %).
 // Brick SOC is 0 (not shown) when max is not available or min is above max.
@@ -797,6 +827,32 @@ TEST_F(TeslaBatteryTest, PlausibleEnergyWindowIs38To150Kwh) {
   EXPECT_FALSE(TeslaBattery::energy_x10_plausible_10bit(1023));
 }
 
+// A plausible 0x292 value is the reference on legacy firmware (380 is the lower limit, 1023 is not available).
+TEST_F(TeslaBatteryTest, SohEstimateUses0x292OnLegacyFirmware) {
+  FeedNominalFullPackEnergy(*pack_, 3034);
+  pack_->handle_incoming_can_frame(Frame292(1000));  // 100.0 kWh
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 6070);
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 1);
+  // Nominal Full Pack Energy, the estimate and the source are adjacent rows, in this order
+  EXPECT_TRUE(DetailPageContains(*pack_,
+                                 " kWh</h4><h4>Estimate SOH: 60.7% (60.7 kWh / 100.0 kWh)</h4>"
+                                 "<h4>Full Pack When New source: legacy firmware (0x292)</h4>"));
+
+  pack_->handle_incoming_can_frame(Frame292(380));
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 380);
+  pack_->handle_incoming_can_frame(Frame292(1023));
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 380);
+  pack_->handle_incoming_can_frame(Frame392Mux1(1023));  // not available in the 0x392 field too
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 380);
+  EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 1);
+}
+
 // 0x392 mux 1 (new firmware) wins over 0x292 whatever the arrival order, and a later 0x292 does not overwrite it
 TEST_F(TeslaBatteryTest, Reference0x392BeatsLegacy0x292InBothArrivalOrders) {
   FeedNominalFullPackEnergy(*pack_, 3034);
@@ -818,6 +874,19 @@ TEST_F(TeslaBatteryTest, Reference0x392BeatsLegacy0x292InBothArrivalOrders) {
   pack_->update_values();
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 2);
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 900);
+}
+
+// Real frame from a 2021 pack: 01 11 A4 67 10 35 03 00 -> 0x335 = 821 = 82.1 kWh
+TEST_F(TeslaBatteryTest, SohEstimateUsesPackEnergyWhenNewFromPackConfigFrame) {
+  FeedNominalFullPackEnergy(*pack_, 3034);
+  pack_->handle_incoming_can_frame(Frame292(1));  // bogus 0.1 kWh, as seen on the same pack
+  pack_->handle_incoming_can_frame(FrameWith(0x392, {0x01, 0x11, 0xA4, 0x67, 0x10, 0x35, 0x03, 0x00}));
+  pack_->update_values();
+
+  EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 821);
+  EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 2);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 7393);
+  EXPECT_TRUE(DetailPageContains(*pack_, "Full Pack When New source: new firmware (0x392)"));
 }
 
 // Pack temperature is the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC), not the two frame types sharing ID 0x312.
@@ -883,6 +952,63 @@ TEST_F(TeslaBatteryTest, FullyChargedIsBit15OfTheMux1Frame) {
   EXPECT_FALSE(datalayer_extended.tesla.battery_fully_charged);
 }
 
+// Up to 101 % is shown as 100 %. More than that is not credible (wrong reference or a BMS estimate in motion): Unknown.
+TEST_F(TeslaBatteryTest, SohEstimateAbove100PercentIsClampedUpTo101ThenUnknown) {
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  FeedNominalFullPackEnergy(*pack_, 4140);  // 82.8 kWh against 82.1 kWh = 100.85 %
+  pack_->update_values();
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
+
+  FeedNominalFullPackEnergy(*pack_, 4500);  // 90 kWh against 82.1 kWh
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+}
+
+// A nominal full energy outside 38.0 to 150.0 kWh (a garbage frame) is not an energy: the SOH is unknown (99 % to the
+// inverter), not a tiny valid SOH.
+TEST_F(TeslaBatteryTest, SohEstimateIsUnknownForAnImplausibleNominalFullEnergy) {
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  FeedNominalFullPackEnergy(*pack_, 100);  // 2.0 kWh would be 2.4 % of 82.1 kWh
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+
+  FeedNominalFullPackEnergy(*pack_, 1895);  // 37.9 kWh
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+
+  FeedNominalFullPackEnergy(*pack_, 1900);  // 38.0 kWh is the lowest accepted energy
+  pack_->update_values();
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 4628);  // 38.0 / 82.1
+
+  DATALAYER_BATTERY_STATUS_TYPE status = {};
+  EXPECT_FALSE(TeslaBattery::apply_soh_estimate(status, 1501, 1500));  // 150.1 kWh, 100.07 % would be credible
+  EXPECT_TRUE(status.soh_available);
+  EXPECT_EQ(status.soh_pptt, 9900);
+  EXPECT_FALSE(TeslaBattery::apply_soh_estimate(status, 65916, 8210));  // does not wrap to 38.0 kWh as a 16 bit value
+  EXPECT_TRUE(status.soh_available);
+  EXPECT_EQ(status.soh_pptt, 9900);
+}
+
+// A lone mux 0 frame does not make 0x352 muxed (pre-2021 packs: bits 0-1 are energy bits): the 0.1 kWh scale is used.
+TEST_F(TeslaBatteryTest, Nominal352ScaleNeedsBothMuxPagesBeforeUsingTheFineScale) {
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xF3, 0x02}));  // 0x2F3 = 755 -> 75.5 kWh, low bits read as mux 3
+  pack_->update_values();
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9196);  // 75.5 / 82.1
+}
+
 // Total is the capacity when new (0x392 mux 1 or legacy 0x292), else the GTW setting. Remaining is SOC x nominal full
 // energy (3053 counts of 0.02 kWh = 61.1 kWh) when plausible, else SOC x total.
 TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
@@ -896,6 +1022,9 @@ TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
   EXPECT_EQ(datalayer.battery.status.real_soc, 8000);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);  // 61.1 / 82.1
+  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
 
   // A new pack without a plausible reference or nominal energy
   delete pack_;
