@@ -53,6 +53,12 @@ CAN_frame RealNominal() {  // 0x382: nominal full pack energy 72.1 kWh
 CAN_frame RealSoc() {  // 0x302: SOC min 30.0 %, SOC UI 27.1 %
   return LegacyBytes(0x302, {0x2C, 0x3D, 0x14, 0x00, 0xEA, 0x42, 0x31, 0x02});
 }
+CAN_frame SocUiNotAvailable() {  // 0x302: SOC min 30.0 %, SOC UI 1023 (not available)
+  return LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00});
+}
+CAN_frame SocAllNotAvailable() {  // 0x302: SOC min and SOC UI both 1023
+  return LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02});
+}
 
 // 0x102. The driver stores whole volts and whole amps, then update_values()
 // adds one decimal. 37030 raw is 370.30 V and becomes 3700 dV.
@@ -134,7 +140,17 @@ class TeslaLegacyBatteryTest : public ::testing::Test {
   }
 
   TeslaLegacyBattery* pack_ = nullptr;
+
+  // One frame and one update_values() per second (the update runs at 1 Hz)
+  void FeedSeconds(int seconds, const CAN_frame& frame) {
+    for (int second = 1; second <= seconds; second++) {
+      pack_->handle_incoming_can_frame(frame);
+      pack_->update_values();
+    }
+  }
 };
+
+// ---- Pack snapshot ----
 
 // The frames an old S/X pack has on the bus, published in one pass.
 // Voltage and current are kept as whole volts and whole amps: 370.30 V
@@ -219,6 +235,8 @@ TEST_F(TeslaLegacyBatteryTest, LegacyPackSnapshotPublishesTheInverterPicture) {
   EXPECT_EQ(EventState(EVENT_CONTACTOR_OPEN), EVENT_STATE_ACTIVE);
   EXPECT_EQ(EventState(EVENT_CONTACTOR_WELDED), EVENT_STATE_ACTIVE);
 }
+
+// ---- CAC, nominal energy and the SOH estimate ----
 
 // 0x7E2 mux 0, 12 bit fields in 0.1 Ah: avg at bit 8 (211.7), min at bit 20 (209.3) and max at bit 32 (213.1).
 TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
@@ -446,6 +464,8 @@ TEST_F(TeslaLegacyBatteryTest, DetailPageShowsAGenuineZeroAsZero) {
             std::string::npos);
 }
 
+// ---- Brick SOC, main page and temperature ----
+
 // 0x7E2 page 7: brick SOC max at bit 8 (30.6 %) and min at bit 18 (30.0 %). The detail page shows them as received
 // (N/A for 1023 and until received), the main page ignores 1023, max > 100 % and min > max.
 TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
@@ -521,6 +541,8 @@ TEST_F(TeslaLegacyBatteryTest, TemperatureKeepsHalfDegrees) {
   EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 170);
 }
 
+// ---- SOC, the SOC unavailable event and the hold ----
+
 // The pack SOC is the UI SOC (0x302 bits 10-19, 27.1 %), not SOC min (bits 0-9, 30.0 %). While the UI SOC is 1023 (not
 // available, the pack does that for about 5 s) the last SOC is held, SOC min is not used: no jump from 27.1 to 30.0 %.
 TEST_F(TeslaLegacyBatteryTest, PackSocIsTheUiSocAndIsHeldWhenNotAvailable) {
@@ -539,13 +561,13 @@ TEST_F(TeslaLegacyBatteryTest, PackSocIsTheUiSocAndIsHeldWhenNotAvailable) {
 
   // SOC min 300, SOC UI 1023, for 5 s
   for (int second = 0; second < 5; second++) {
-    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+    pack_->handle_incoming_can_frame(SocUiNotAvailable());
     pack_->update_values();
     EXPECT_EQ(datalayer.battery.status.real_soc, 2710);  // held on the main card
     EXPECT_NE(page().find("<h4>Battery SOC UI (0x302): N/A</h4><h4>Brick SOC Min (0x302): 30.0%</h4>"),
               std::string::npos);  // live on the detail page
   }
-  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02}));  // both 1023
+  pack_->handle_incoming_can_frame(SocAllNotAvailable());  // both 1023
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_NE(page().find("<h4>Battery SOC UI (0x302): N/A</h4><h4>Brick SOC Min (0x302): N/A</h4>"), std::string::npos);
@@ -558,7 +580,7 @@ TEST_F(TeslaLegacyBatteryTest, PackSocIsTheUiSocAndIsHeldWhenNotAvailable) {
 // Before a valid UI SOC was ever seen SOC min is the initial SOC (0 would zero the discharge limit), a valid UI SOC
 // replaces it for good.
 TEST_F(TeslaLegacyBatteryTest, SocMinIsOnlyTheInitialSocBeforeAValidUiSoc) {
-  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->handle_incoming_can_frame(SocUiNotAvailable());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 3000);  // SOC min 30.0 %, UI SOC 1023
 
@@ -566,7 +588,7 @@ TEST_F(TeslaLegacyBatteryTest, SocMinIsOnlyTheInitialSocBeforeAValidUiSoc) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
 
-  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->handle_incoming_can_frame(SocUiNotAvailable());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
 }
@@ -579,13 +601,10 @@ TEST_F(TeslaLegacyBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAVal
   pack_->handle_incoming_can_frame(RealSoc());
   pack_->update_values();
 
-  for (int second = 1; second <= 29; second++) {
-    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
-    pack_->update_values();
-  }
+  FeedSeconds(29, SocUiNotAvailable());
   EXPECT_NE(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);  // 29 s
 
-  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->handle_incoming_can_frame(SocUiNotAvailable());
   pack_->update_values();
   EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);  // 30 s
   EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->data, 30);
@@ -609,14 +628,11 @@ TEST_F(TeslaLegacyBatteryTest, HeldSocIsClearedAfter30Minutes) {
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_GT(datalayer.battery.status.remaining_capacity_Wh, 0u);
 
-  for (int second = 1; second <= 1799; second++) {
-    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
-    pack_->update_values();
-  }
+  FeedSeconds(1799, SocUiNotAvailable());
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);  // 29 min 59 s: still held
   EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);
 
-  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->handle_incoming_can_frame(SocUiNotAvailable());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 0);  // 30 min: cleared
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 0u);
@@ -634,22 +650,18 @@ TEST_F(TeslaLegacyBatteryTest, HeldSocIsClearedAfter30Minutes) {
 TEST_F(TeslaLegacyBatteryTest, InitialSocMinIsNotClearedWhileItIsSent) {
   init_events();
   clear_event(EVENT_SOC_UNAVAILABLE);
-  for (int second = 1; second <= 1801; second++) {
-    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));  // min 30.0
-    pack_->update_values();
-  }
+  FeedSeconds(1801, SocUiNotAvailable());  // min 30.0
   EXPECT_EQ(datalayer.battery.status.real_soc, 3000);
   EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);
 
-  for (int second = 1; second <= 1799; second++) {
-    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02}));  // both n/a
-    pack_->update_values();
-  }
+  FeedSeconds(1799, SocAllNotAvailable());             // both n/a
   EXPECT_EQ(datalayer.battery.status.real_soc, 3000);  // 29 min 59 s: still held
-  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02}));
+  pack_->handle_incoming_can_frame(SocAllNotAvailable());
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 0);  // 30 min: cleared
 }
+
+// ---- Remaining capacity ----
 
 // Remaining capacity is the 0x382 nominal energy remaining when plausible (19.6 kWh in the real frame, SOC x full is
 // 27.1 % of 72.1 = 19.54 kWh), else SOC x the nominal full energy, else x the configured capacity (27.1 % of 85 kWh).

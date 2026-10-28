@@ -256,6 +256,14 @@ class TeslaBatteryTest : public ::testing::Test {
     contactor_control_enabled = saved_contactor_control_;
   }
 
+  // One frame and one update_values() per second (the update runs at 1 Hz)
+  void FeedSeconds(int seconds, const CAN_frame& frame) {
+    for (int second = 1; second <= seconds; second++) {
+      pack_->handle_incoming_can_frame(frame);
+      pack_->update_values();
+    }
+  }
+
   TeslaBattery* pack_ = nullptr;
 
   BatteryType saved_type_ = BatteryType::None;
@@ -265,6 +273,8 @@ class TeslaBatteryTest : public ::testing::Test {
   bool saved_balancing_ = false;
   bool saved_contactor_control_ = false;
 };
+
+// ---- Pack snapshot, contactors and faults ----
 
 // The inverter stops at max_design_voltage_dV and min_design_voltage_dV.
 // On a Model 3 or Model Y, more than 101 cells selects LFP. Chassis 0 is
@@ -585,6 +595,8 @@ TEST_F(TeslaBatteryTest, BrickVoltagesLandInTheCellArray) {
   EXPECT_EQ(datalayer.battery.status.cell_voltages_mV[14], 0);
 }
 
+// ---- Alerts, balancing and the CAC decode ----
+
 // BMS_a145 raises a latched SOC-recalibration event. BMS_a143 on the same
 // mux is only an alert bit: SOH stays at the 99% default, which is how
 // this driver says it has no SOH estimate. A later frame with both bits
@@ -727,6 +739,8 @@ TEST_F(TeslaBatteryTest, CacFrameIsDecodedInTheLayoutThatFits) {
   EXPECT_EQ(datalayer_extended.tesla.cac_raw_avg_x10[0], 0);
 }
 
+// ---- Detail page rows and the SOH estimate ----
+
 // Detail page CAC rows are raw: N/A until a frame was seen and for all ones (819.1 Ah), but implausible values (min >
 // max, 3.4 Ah) are shown as received and do not reach the main card. Layout B needs mux bit 6 = 0 (7 bit mux).
 TEST_F(TeslaBatteryTest, DetailPageCacRowsAreRawAndNAWhenNotSeen) {
@@ -851,6 +865,8 @@ TEST_F(TeslaBatteryTest, DetailPageCapacityWhenNewIsNAUntilReceived) {
                                  "<h4>Total Capacity When New (0x292): N/A</h4>"));
 }
 
+// ---- SOC, the SOC unavailable event and the hold ----
+
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
 // available (SOC min is not used, no jump from 27.1 to 30.0 %).
 // The main card does not show the brick SOC when max is not available or min is above max. The detail page shows the
@@ -925,10 +941,7 @@ TEST_F(TeslaBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc)
   pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
   pack_->update_values();
 
-  for (int second = 1; second <= 29; second++) {
-    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
-    pack_->update_values();
-  }
+  FeedSeconds(29, SocFields(300, 1023, 306, 303));
   EXPECT_NE(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);  // 29 s
 
   pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
@@ -953,10 +966,7 @@ TEST_F(TeslaBatteryTest, HeldSocIsClearedAfter30Minutes) {
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_GT(datalayer.battery.status.remaining_capacity_Wh, 0u);
 
-  for (int second = 1; second <= 1799; second++) {
-    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
-    pack_->update_values();
-  }
+  FeedSeconds(1799, SocFields(300, 1023, 306, 303));
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);  // 29 min 59 s: still held
   EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);
 
@@ -984,17 +994,11 @@ TEST_F(TeslaBatteryTest, HeldSocIsClearedAfter30Minutes) {
 TEST_F(TeslaBatteryTest, InitialSocFromTheBrickMinIsNotClearedWhileItIsSent) {
   init_events();
   clear_event(EVENT_SOC_UNAVAILABLE);
-  for (int second = 1; second <= 1801; second++) {
-    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
-    pack_->update_values();
-  }
+  FeedSeconds(1801, SocFields(300, 1023, 306, 303));
   EXPECT_EQ(datalayer.battery.status.real_soc, 3000);
   EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);
 
-  for (int second = 1; second <= 1799; second++) {
-    pack_->handle_incoming_can_frame(SocFields(1023, 1023, 306, 303));
-    pack_->update_values();
-  }
+  FeedSeconds(1799, SocFields(1023, 1023, 306, 303));
   EXPECT_EQ(datalayer.battery.status.real_soc, 3000);  // 29 min 59 s: still held
   pack_->handle_incoming_can_frame(SocFields(1023, 1023, 306, 303));
   pack_->update_values();
@@ -1012,6 +1016,8 @@ TEST_F(TeslaBatteryTest, PlausibleEnergyWindowIs38To150Kwh) {
   EXPECT_FALSE(TeslaBattery::energy_x10_plausible(1501));
   EXPECT_FALSE(TeslaBattery::energy_x10_plausible_10bit(1023));
 }
+
+// ---- 0x352 / 0x292 / 0x392 energy frames and the SOH estimate ----
 
 // A plausible 0x292 value is the reference on legacy firmware (380 is the lower limit, 1023 is not available).
 TEST_F(TeslaBatteryTest, SohEstimateUses0x292OnLegacyFirmware) {
@@ -1208,6 +1214,8 @@ TEST_F(TeslaBatteryTest, Nominal352ScaleNeedsBothMuxPagesBeforeUsingTheFineScale
   EXPECT_TRUE(datalayer.battery.status.soh_available);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9196);  // 75.5 / 82.1
 }
+
+// ---- Capacity and remaining capacity ----
 
 // Total is the capacity when new (0x392 mux 1 or legacy 0x292), else the GTW setting. Remaining is SOC x nominal full
 // energy (3053 counts of 0.02 kWh = 61.1 kWh) when plausible, else SOC x total.
