@@ -628,8 +628,8 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_dcdcLvBusVolt = 0;       // 10 mV
   int16_t battery_dcdcLvOutputCurrent = 0;  // 0.1 A
   //0x292: 658 BMS_socStatus
-  bool battery_temp_seen = false;             // 0x332 mux 0 (thermistor min/max) received
-  uint16_t battery_beginning_of_life = 0;         // 0.1 kWh, from 0x392 mux 1 else 0x292 (0 = unavailable)
+  bool battery_temp_seen = false;                // 0x332 mux 0 (thermistor min/max) received
+  uint16_t battery_beginning_of_life = 0;        // 0.1 kWh, from 0x392 mux 1 else 0x292 (0 = unavailable)
   uint8_t battery_beginning_of_life_source = 0;  // 0 = unavailable, SohReferenceLegacyFw or SohReferenceNewFw
   uint16_t battery_soc_min = 0;
   uint16_t battery_soc_max = 0;

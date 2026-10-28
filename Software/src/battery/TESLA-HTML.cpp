@@ -1,7 +1,7 @@
 #include "TESLA-HTML.h"
-#include "TESLA-BATTERY.h"
 #include <algorithm>
 #include <cstring>
+#include "TESLA-BATTERY.h"
 
 static void appendFault(String& string, const char* name, bool faultActive) {
   if (!faultActive) {
@@ -33,8 +33,7 @@ static String sohEstimateRow(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_
            "% passed to inverter)</h4>";
   }
   return "<h4>Estimate SOH: " + String(status.soh_pptt * 0.01f, 1) + "% (" + String(nominalFullPackKwh(tesla), 1) +
-         " kWh / " +
-         String(tesla.battery_beginning_of_life * 0.1f, 1) + " kWh)</h4>";
+         " kWh / " + String(tesla.battery_beginning_of_life * 0.1f, 1) + " kWh)</h4>";
 }
 
 // Detail page: the estimate and the source of its "full pack when new" value, below the nominal full pack energy
@@ -49,7 +48,9 @@ static String sohDetailRows(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_B
 }
 
 // Brick IDs are only given by Model 3/Y packs
-static String brick(uint8_t id) { return id > 0 ? " (brick " + String(id) + ")" : String(); }
+static String brick(uint8_t id) {
+  return id > 0 ? " (brick " + String(id) + ")" : String();
+}
 
 // Pack level CAC rows, shared by the Model 3/Y and the legacy S/X page
 static String cacRows(const DATALAYER_INFO_TESLA& tesla) {
@@ -315,8 +316,8 @@ String TeslaHtmlRenderer::get_status_html() {
              String(tesla.battery_BrickVoltageMinNum) + ")</h4>";
   // Cell imbalance: brick voltage counts are 2 mV each
   if (tesla.battery_BrickVoltageMax >= tesla.battery_BrickVoltageMin && tesla.battery_BrickVoltageMax > 0) {
-    content += "<h4>Cell Imbalance: " +
-               String((tesla.battery_BrickVoltageMax - tesla.battery_BrickVoltageMin) * 2) + " mV</h4>";
+    content += "<h4>Cell Imbalance: " + String((tesla.battery_BrickVoltageMax - tesla.battery_BrickVoltageMin) * 2) +
+               " mV</h4>";
   }
   content += "<h4>Brick Temp Max Num: " + String(tesla.battery_BrickTempMaxNum) + " </h4>";
   content += "<h4>Brick Temp Min Num: " + String(tesla.battery_BrickTempMinNum) + " </h4>";
