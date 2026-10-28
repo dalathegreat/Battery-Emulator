@@ -189,9 +189,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x6F2:
-      static uint16_t volts;
-      static uint8_t mux_zero_counter = 0u;
-      static uint8_t mux_max = 0u;
+      uint16_t volts;
 
       mux = rx_frame.data.u8[0];
 
@@ -216,8 +214,17 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (mux_zero_counter < 2 && mux == 0u) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
-            // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
-            datalayer.battery.info.number_of_cells = (4 * mux_max) + 4;
+            // One full mux cycle seen: the series brick count is the last slot that
+            // reported a voltage (a pack whose count isn't a multiple of 4, e.g. 83S,
+            // leaves the tail of the last frame at 0). Fall back to the whole frame span.
+            uint16_t n = (4 * mux_max) + 4;
+            while (n > 0 && datalayer.battery.status.cell_voltages_mV[n - 1] == 0) {
+              n--;
+            }
+            if (n == 0) {
+              n = (4 * mux_max) + 4;
+            }
+            apply_series_limits(n);
             mux_zero_counter++;
           }
         }
@@ -416,12 +423,28 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
+// Pack design limits follow the series brick count actually reported by the BMS
+// (96S full packs, 84S/83S on early/smaller packs) instead of a fixed 300-500 V,
+// which blocks discharge far too early on an 84S/83S pack and never trips on a
+// full 96S one (its real ceiling is 403.2 V).
+void TeslaLegacyBattery::apply_series_limits(uint16_t series_cells) {
+  datalayer.battery.info.number_of_cells = series_cells;
+  datalayer.battery.info.min_design_voltage_dV = (uint32_t)series_cells * MIN_CELL_VOLTAGE_MV / 100;
+  datalayer.battery.info.max_design_voltage_dV = (uint32_t)series_cells * MAX_CELL_VOLTAGE_MV / 100;
+  logging.printf("Tesla legacy: %u series bricks -> pack limits %u.%u-%u.%u V\n", series_cells,
+                 datalayer.battery.info.min_design_voltage_dV / 10, datalayer.battery.info.min_design_voltage_dV % 10,
+                 datalayer.battery.info.max_design_voltage_dV / 10, datalayer.battery.info.max_design_voltage_dV % 10);
+}
+
 void TeslaLegacyBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 14;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100_DV;  //Startup in wide range
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60_DV;   //Autodetect later
+  // Defaults until the brick count is known: apply_series_limits() replaces them
+  // after the first full 0x6F2 cycle (a few seconds). Until then a pack below
+  // 300 V simply can't discharge yet; cell limits apply throughout.
+  datalayer.battery.info.max_design_voltage_dV = STARTUP_MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = STARTUP_MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;

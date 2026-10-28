@@ -24,6 +24,7 @@
 #include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
@@ -88,15 +89,36 @@ bool webserver_auth_is_ready() {
   return webserver_auth && !http_username.empty() && !http_password.empty();
 }
 
+// Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
+// the middleware chain and before the onRequest handler. Anything that acts on
+// body data must therefore check credentials itself. Headers are already parsed
+// at this point, so authenticate() works here.
+// Returns true if the request may proceed. If auth is enabled and the
+// credentials are missing or wrong, returns false; the caller must discard the
+// data and do nothing. The 401 is sent later by the middleware / onRequest.
+static bool webserver_request_authorized(AsyncWebServerRequest* request) {
+  if (!webserver_auth) {
+    return true;  // password protection not enabled by the user
+  }
+  if (!webserver_auth_is_ready()) {
+    return true;  // enabled but no credentials configured: same behaviour as the rest of the UI
+  }
+  return request->authenticate(http_username.c_str(), http_password.c_str());
+}
+
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
+  if (!webserver_request_authorized(request)) {
+    return;  // unauthenticated: do not buffer anything, do not touch importedLogs
+  }
   if (!index) {
     importedLogs = "";  // Clear previous logs
     logging.printf("Receiving file: %s\n", filename.c_str());
   }
 
   // Append received data to the string (RAM storage)
-  importedLogs += String((char*)data).substring(0, len);
+  // data is not NUL-terminated, so append exactly len bytes
+  importedLogs.concat((const char*)data, len);
 
   if (final) {
     logging.println("Upload Complete!");
@@ -344,6 +366,24 @@ void init_webserver() {
     request->send(response);
   });
 
+  def_route_with_auth("/bydCellBalanceAutomation", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!request->hasParam("enabled")) {
+      request->send(400, "text/plain", "enabled is required");
+      return;
+    }
+    const bool enabled = request->getParam("enabled")->value().toInt() != 0;
+    if (!set_byd_cell_balance_automation(index, enabled)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool(index ? "BYDBALAUTO2" : "BYDBALAUTO", enabled);
+    prefs.end();
+    request->send(204);
+  });
+
   // Route for going to CAN tools web page
   def_route_with_auth("/canreplay", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(request->beginResponse(200, "text/html", can_replay_processor()));
@@ -503,15 +543,15 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME",    "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",    "CHGPOWER",
-      "MQTTPORT",      "MQTTTIMEOUT",   "SOFAR_ID",      "PYLONSEND",  "INVCELLS",    "INVMODULES",   "INVCELLSPER",
-      "INVVLEVEL",     "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",     "PWMHOLD",      "GTWCOUNTRY",
-      "GTWMAPREG",     "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",     "GPIOOPT3",
-      "INVSUNTYPE",    "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",    "DALYDVSTART",
-      "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",   "FOXESSSUBTYPE",
-      "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH",
+      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL",  "DCHGPOWER",     "CHGPOWER",
+      "MQTTPORT",      "SOFAR_ID",      "PYLONSEND",  "INVCELLS",   "INVMODULES",   "INVCELLSPER",   "INVVLEVEL",
+      "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",    "PWMHOLD",      "GTWCOUNTRY",    "GTWMAPREG",
+      "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",   "GPIOOPT2",     "GPIOOPT3",      "INVSUNTYPE",
+      "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",
+      "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES",
+      "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",  "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
+      "CTVNOM",        "CTANOM",        "QNHIPN",     "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
   };
 
@@ -676,6 +716,8 @@ void init_webserver() {
           } else if (p->name() == "MQTTPUBLISHMS") {
             auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
             settings.saveUInt("MQTTPUBLISHMS", interval);
+          } else if (p->name() == "MQTTTIMEOUT") {
+            settings.saveUInt("MQTTTIMEOUT", mqtt_clamp_timeout_ms(atoi(p->value().c_str())));
           }
 
           for (uint8_t pack = 0; pack < 3; pack++) {
@@ -1014,6 +1056,14 @@ void init_webserver() {
         },
         nullptr,
         [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+          // Body callbacks run before the middleware / onRequest auth check.
+          // Never execute the command unless the request is authenticated.
+          if (!webserver_request_authorized(request)) {
+            return;  // 401 is sent by the middleware / onRequest handler
+          }
+          if (index != 0) {
+            return;  // run the command once per request, not once per body chunk
+          }
           String battIndex = "";
           if (len > 0) {
             battIndex += (char)data[0];
@@ -1030,9 +1080,9 @@ void init_webserver() {
           }
           request->send(200, "text/plain", "Command performed.");
         });
-
-    register_dump_can_route(server);
   }
+
+  register_dump_can_route(server);
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
   update_int_setting("/updateUseVoltageLimit",
@@ -1369,7 +1419,36 @@ static void render_battery_card(String& content, const String& style, const Batt
   const bool system_card = (pack_index == 0) || !multi;
   const bool scaled = system_card && datalayer.battery_settings.soc_scaling_active;
 
-  content += "<div style='" + style + "'>";
+  /* The card is a stacking context of its own, so the watermark can sit behind the text but in
+     front of the card's background. */
+  content += "<div style='position: relative; isolation: isolate; " + style + "'>";
+
+  if (system_card) {
+    /* Software version as a watermark, tilted 30 degrees and kept 30 px inside the card's edges.
+       The frame holding it is absolutely positioned, so the card alone decides its size and it can
+       be a size container. The text, which has to carry the font size because a container's own
+       units refer to an outer container, gets the largest font for which the rotated string
+       fits the frame both across and down. An Arial character averages roughly 0.56 em, so the
+       string is text_em wide and one line high; rotated by 30 degrees it spans
+       text_em * cos(30) + sin(30) across and text_em * sin(30) + cos(30) down, in em. Browsers
+       without container query units use the viewport width instead. */
+    const float text_em = strlen(version_number) * 0.56f;
+    const float width_em = text_em * 0.866f + 0.5f;
+    const float height_em = text_em * 0.5f + 0.866f;
+    char text_style[120];
+    snprintf(text_style, sizeof(text_style),
+             "flex: none; transform: rotate(-30deg); font-size: %.1fvw; font-size: min(%.1fcqw, %.1fcqh);",
+             80.0f / width_em, 100.0f / width_em, 100.0f / height_em);
+    content +=
+        "<div aria-hidden='true' style='position: absolute; inset: 30px; z-index: -1; overflow: hidden; "
+        "container-type: size; display: flex; align-items: center; justify-content: center; "
+        "pointer-events: none; user-select: none; font-weight: bold; line-height: 1; white-space: nowrap; "
+        "color: rgba(255, 255, 255, 0.05);'><span style='";
+    content += text_style;
+    content += "'>";
+    content += html_escape(version_number);
+    content += "</span></div>";
+  }
 
   if (scaled) {
     content += "<h4 style='color: white;'>Scaled SOC: " + String(v.reported_soc / 100.0f, 2) +

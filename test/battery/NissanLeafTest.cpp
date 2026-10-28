@@ -851,6 +851,21 @@ TEST(NissanLeafDtcTests, ShouldParseMultiFrameReply) {
 
 // A healthy pack answers with the 3-byte header and nothing else, padded with FF. That is a
 // successful read of zero codes, not a failed read.
+// LB_Output_Power_Limit_Reason sits in 0x5BC byte 5 bits 7-5, above the max GID mux bit (bit 4).
+// Decoding and logging it must leave the GID decode alone.
+TEST(NissanLeafPowerLimitReasonTests, ShouldNotDisturbTheGidDecode) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00}));  // 3
+  battery->update_values();
+  battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}));  // 0
+  battery->update_values();
+
+  EXPECT_EQ(datalayer_extended.nissanleaf.GIDS, 320u);
+  EXPECT_EQ(datalayer_extended.nissanleaf.CapacityAsNewWh, 273u * WH_PER_GID);  // Mux bit was never set
+  delete battery;
+}
+
 TEST(NissanLeafDtcTests, ShouldReportNoDtcsStored) {
   auto battery = battery_awaiting_dtc_reply();
 
@@ -1203,6 +1218,7 @@ TEST(NissanLeafUsageHistogramTests, ShouldPollGroupAgainAfterTruncatedReply) {
 // heading, then Status, Health and lifetime usage, the trouble codes and the degradation reset.
 TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  datalayer_extended.nissanleaf.LEAF_gen = 1;  // AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
 
@@ -1213,7 +1229,7 @@ TEST(NissanLeafPageLayoutTests, ShouldSplitStatusIntoPanels) {
                             "GIDS",
                             "Temperature 4",
                             "Insulation",
-                            "Heating stopped",
+                            "Too low to heat",
                             "Failsafe status",
                             "Relay cut request",
                             "</div><div class='battery-panel'><h3>Health and lifetime usage</h3>",
@@ -1369,19 +1385,21 @@ TEST(NissanLeafPageLayoutTests, ShouldBalanceItsPanels) {
 // fields, failsafe status and relay cut request, by the names of their states.
 TEST(NissanLeafStatusFlagTests, ShouldShowUnknownUntilBroadcastsArrive) {
   auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));  // AZE0, which shows every status row
   battery->update_values();
 
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
   std::string html = renderer.get_status_html().str();
   for (const char* label :
        {"Fully charged", "Battery empty", "Failsafe status", "Interlock", "Main relay ON", "Relay cut request",
-        "Heater present", "Heating requested", "Heating started", "Heating stopped"}) {
+        "Heater present", "Battery cold", "Heating requested", "Too low to heat"}) {
     EXPECT_NE(html.find(std::string("<h4>") + label + ": Unknown</h4>"), std::string::npos) << label;
   }
 }
 
 TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   auto battery = battery_polling();
+  battery->handle_incoming_can_frame(leaf_frame(0x59E, {}));  // AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &datalayer_extended.nissanleaf);
 
   // 0x1DB at 360 V: failsafe status 2 (charging mode stop request), no relay cut request, main
@@ -1410,9 +1428,9 @@ TEST(NissanLeafStatusFlagTests, ShouldShowTicksAndCrossesPerBroadcast) {
   html = renderer.get_status_html().str();
   EXPECT_NE(html.find("<h4>Battery empty: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heater present: &#10003;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Battery cold: &#10007;</h4>"), std::string::npos);
   EXPECT_NE(html.find("<h4>Heating requested: &#10007;</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Heating started: &#10007;</h4>"), std::string::npos);
-  EXPECT_NE(html.find("<h4>Heating stopped: &#10007;</h4>"), std::string::npos);
+  EXPECT_NE(html.find("<h4>Too low to heat: &#10007;</h4>"), std::string::npos);
 }
 
 // The serial number is the 16 characters straight after the 61 84 header, starting in the first
@@ -1437,6 +1455,7 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
   datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
   auto& leaf = datalayer_extended.nissanleaf;
   leaf.StatusSeen = 0x01;  //0x1DB has arrived
+  leaf.LEAF_gen = 1;       //AZE0, which shows every status row
   NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
 
   const char* failsafe[] = {"Normal",
@@ -1461,9 +1480,29 @@ TEST(NissanLeafStatusFlagTests, ShouldNameFailsafeAndRelayCutStates) {
 
   // Last in the status list but for the automatic current offset, which is on by default
   std::string html = renderer.get_status_html().str();
-  EXPECT_NE(html.find("<h4>Heating stopped: Unknown</h4><h4>Failsafe status: "), std::string::npos);
+  EXPECT_NE(html.find("<h4>Too low to heat: Unknown</h4><h4>Failsafe status: "), std::string::npos);
   EXPECT_NE(html.find("<h4>Relay cut request: Main relay off (3)</h4><h4>Automatic current offset: "),
             std::string::npos);
+}
+
+// The ZE0 LBC sends none of the 0x5C0 heater flags, so a ZE0 pack gets no heater rows at all,
+// while the flags of the same broadcast that it does send are still listed.
+TEST(NissanLeafStatusFlagTests, ShouldLeaveHeaterRowsOutOnZe0) {
+  datalayer_extended.nissanleaf = DATALAYER_INFO_NISSAN_LEAF{};
+  auto& leaf = datalayer_extended.nissanleaf;
+  leaf.StatusSeen = 0x07;  //All three broadcasts have arrived
+  NissanLeafHtmlRenderer renderer(&datalayer.battery, &leaf);
+
+  for (uint8_t gen = 0; gen < 3; gen++) {
+    leaf.LEAF_gen = gen;
+    const std::string html = renderer.get_status_html().str();
+    for (const char* label : {"Heater present", "Battery cold", "Heating requested", "Too low to heat"}) {
+      const bool shown = html.find(std::string("<h4>") + label + ":") != std::string::npos;
+      EXPECT_EQ(shown, gen != 0) << label << " on generation " << (int)gen;
+    }
+    EXPECT_NE(html.find("<h4>Fully charged: "), std::string::npos) << (int)gen;
+    EXPECT_NE(html.find("<h4>Failsafe status: "), std::string::npos) << (int)gen;
+  }
 }
 
 // Automatic current offset correction
@@ -1947,4 +1986,43 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
 
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
+}
+
+// 0x5C0 heater bits, as the LBC firmware sets them: byte 1 bit 0 is Batt_Heater_Mail_Send_Request
+// (the pack is cold), byte 0 bit 5 the heating start request (cold, with enough charge to heat) and
+// byte 0 bit 4 the stop request (cold, with too little charge to heat). LB_HEATEXIST, byte 4 bit 0,
+// is never set by the LBC, so the events must not depend on it.
+TEST(NissanLeafHeaterTests, ShouldRaiseColdEventWithoutHeatExist) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x01, 0x00, 0x00, 0x00}));
+  battery->update_values();
+
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_COLD)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_COLD)->state, EVENT_STATE_ACTIVE);
+  delete battery;
+}
+
+TEST(NissanLeafHeaterTests, ShouldTellHeatingFromTooLowToHeat) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x20, 0x01, 0x00, 0x00, 0x00}));  // start request
+  battery->update_values();
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x10, 0x01, 0x00, 0x00, 0x00}));  // stop request
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_REQUESTS_HEAT)->state, EVENT_STATE_ACTIVE);
+  EXPECT_EQ(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+
+  battery->handle_incoming_can_frame(leaf_frame(0x5C0, {0x00, 0x00, 0x00, 0x00, 0x00}));
+  battery->update_values();
+  EXPECT_NE(get_event_pointer(EVENT_BATTERY_TOO_LOW_TO_HEAT)->state, EVENT_STATE_ACTIVE);
+  delete battery;
 }

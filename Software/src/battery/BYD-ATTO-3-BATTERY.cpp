@@ -44,8 +44,10 @@ static const uint8_t ATTO_3_36D_RAMP[][7] = {
     {0xA1, 0x01, 0x32, 0x7B, 0x7D, 0x00, 0x47}, {0xA2, 0x01, 0x32, 0x8A, 0x85, 0x02, 0x47},
 };
 static const uint8_t ATTO_3_36D_RAMP_ROWS = sizeof(ATTO_3_36D_RAMP) / sizeof(ATTO_3_36D_RAMP[0]);
-static const uint8_t ATTO_3_OFFER_CURRENT = 0x1F;  // 15.5A at 0.5A/bit
-static const uint8_t ATTO_3_OFFER_POWER = 0x47;    // 7.1kW at 0.1kW/bit
+// The charger the BMS is told about: AC input current at 0.5A/bit, AC input power at ~0.05kW/bit. The
+// BMS bases its charge time estimate on it.
+static const uint8_t ATTO_3_OFFER_CURRENT = 0x6E;  // 55A, 12.75kW at 230V
+static const uint8_t ATTO_3_OFFER_POWER = 0xFF;    // 12.75kW
 
 void BydAttoBattery::set_12D_payload(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) {
   ATTO_3_12D.data.u8[0] = b0;
@@ -71,6 +73,11 @@ void BydAttoBattery::
   datalayer_battery->status.soh_pptt = BMS_SOH * 100;
 
   datalayer_battery->status.current_dA = -battery_current_dA;
+
+  if (BMS_capacity_Ah > 0 && BMS_capacity_Ah < 0xFF && datalayer_battery->info.number_of_cells > 0) {
+    // Same as BYD's nameplate rating: Ah x cells x 3.2V nominal
+    datalayer_battery->info.total_capacity_Wh = BMS_capacity_Ah * datalayer_battery->info.number_of_cells * 32 / 10;
+  }
 
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
@@ -117,17 +124,15 @@ void BydAttoBattery::
   // Start from the user manual limit (deci-amps).
   uint16_t user_cap_dA = datalayer.battery_settings.max_user_set_charge_dA;
   // In the band, hold to what a real AC charger could deliver: that is the approach rate every
-  // captured native termination happened at. Never deliver above the transmitted 0x47E current
-  // offer either (0.5A per bit).
+  // captured native termination happened at.
   if (session_owns_power) {
     if (datalayer_battery->status.voltage_dV > 0) {
       const uint16_t obc_cap_dA = (uint16_t)(SESSION_OBC_CAP_W * 100 / datalayer_battery->status.voltage_dV);
       if (user_cap_dA > obc_cap_dA)
         user_cap_dA = obc_cap_dA;
     }
-    const uint16_t offer_cap_dA = (uint16_t)ATTO_3_OFFER_CURRENT * 5;
-    if (user_cap_dA > offer_cap_dA)
-      user_cap_dA = offer_cap_dA;
+    if (user_cap_dA > SESSION_BAND_CAP_dA)
+      user_cap_dA = SESSION_BAND_CAP_dA;
   }
   // The user limit is sovereign: a cap below the tail lowers the tail, never the other way round.
   if (tail_current_dA > user_cap_dA)
@@ -324,6 +329,8 @@ void BydAttoBattery::
         (chargeSessionState == CHG_SESSION_IDLE) ? 0 : (uint32_t)((millis() - chargeSessionEntryMillis) / 1000);
     datalayer_bydatto->chargePower = BMS_allowed_charge_power;
     datalayer_bydatto->charge_times = BMS_charge_times;
+    datalayer_bydatto->charge_time_remaining_h = BMS_charge_time_remaining_h;
+    datalayer_bydatto->charge_time_remaining_min = BMS_charge_time_remaining_min;
     datalayer_bydatto->dischargePower = BMS_allowed_discharge_power;
     datalayer_bydatto->total_charged_ah = BMS_total_charged_ah;
     datalayer_bydatto->total_discharged_ah = BMS_total_discharged_ah;
@@ -646,7 +653,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_current_dA = (int16_t)(((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 5000);
         lastCurrentSampleMillis = millis();
         BMS_SOH = rx_frame.data.u8[4];
-        BMS_SOC = rx_frame.data.u8[5];  // Whole-percent SOC, same basis as DID 0x0005 (not the 0x447 basis)
+        BMS_capacity_Ah = rx_frame.data.u8[6];  // Current capacity, whole Ah (floor of DID 0x1FFC)
+        BMS_SOC = rx_frame.data.u8[5];          // Whole-percent SOC, same basis as DID 0x0005 (not the 0x447 basis)
         BMS_voltage_available = true;
       } else {
         datalayer_battery->status.CAN_error_counter++;
@@ -654,6 +662,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x445:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        // BMS estimate at the present charge current, FF FF when not charging
+        BMS_charge_time_remaining_h = rx_frame.data.u8[2];
+        BMS_charge_time_remaining_min = rx_frame.data.u8[3];
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x446:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -683,7 +698,9 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x524:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x789:  // Type B diagnostic reply
     case 0x7EF:  //OBD2 PID reply from battery
+      diag_answered = true;
       // DTC reply (0x19 0x02 -> 0x59 0x02) is multi-frame. Reassemble it, ACK the first frame with
       // our own flow control, and parse once complete. Done before the single-frame PID parsing so
       // the consecutive frames aren't mistaken for PIDs.
@@ -766,10 +783,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_TOTAL_DISCHARGED_KWH:
           BMS_total_discharged_kwh = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case POLL_TIMES_FULL_POWER:
-          BMS_times_full_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_TIMES_FULL_POWER: {
+          const uint16_t times_full_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          observe_completed_charge_counter(times_full_power);
+          BMS_times_full_power = times_full_power;
           BMS_times_full_power_valid = true;
           break;
+        }
         default:  //Unrecognized reply
           break;
       }
@@ -934,6 +954,7 @@ void BydAttoBattery::confirm_charge_termination() {
       balancingStateMillis = millis();
     }
   }
+  note_termination_spread(spread_mV);
   set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10), battery_index);
   DEBUG_PRINTF("[BYD] Battery ended the charge at %umV, cell spread %umV\n", cell_max_mV, spread_mV);
 }
@@ -1488,12 +1509,69 @@ bool BydAttoBattery::request_cell_balance_times() {
   if (datalayer_battery->info.number_of_cells == 0) {
     return false;
   }
+  return queue_cell_balance_scan(BydCellBalanceScanReason::MANUAL);
+}
 
-  bool idle = false;
-  return cell_balance_time_requested.compare_exchange_strong(idle, true);
+bool BydAttoBattery::queue_cell_balance_scan(BydCellBalanceScanReason reason) {
+  uint8_t idle = static_cast<uint8_t>(BydCellBalanceScanReason::NONE);
+  return cell_balance_time_requested.compare_exchange_strong(idle, static_cast<uint8_t>(reason));
+}
+
+// Called from the web task; the battery task picks the change up in sync_cell_balance_automation().
+void BydAttoBattery::set_cell_balance_automation(bool enabled) {
+  datalayer_bydatto->balance_timer_auto_read = enabled;
+}
+
+void BydAttoBattery::sync_cell_balance_automation() {
+  const bool enabled = datalayer_bydatto->balance_timer_auto_read;
+  if (enabled == cell_balance_auto_applied) {
+    return;
+  }
+  cell_balance_auto_applied = enabled;
+  cell_balance_baseline_pending = false;
+  cell_balance_session_active = false;
+  cell_balance_charge_seen = enabled && BMS_times_full_power_valid;
+  cell_balance_seen_charge = BMS_times_full_power;
+}
+
+void BydAttoBattery::observe_completed_charge_counter(uint16_t charge_cycles) {
+  sync_cell_balance_automation();
+  if (!cell_balance_auto_applied) {
+    return;
+  }
+  if (!cell_balance_charge_seen) {
+    cell_balance_charge_seen = true;
+    cell_balance_seen_charge = charge_cycles;
+    return;
+  }
+  if (charge_cycles == cell_balance_seen_charge) {
+    return;
+  }
+
+  const uint16_t increase = charge_cycles - cell_balance_seen_charge;
+  cell_balance_seen_charge = charge_cycles;
+  if (increase >= 0x8000) {
+    cell_balance_baseline_pending = false;
+    cell_balance_session_active = false;
+    cell_balance_history_count = 0;
+    return;
+  }
+
+  cell_balance_pending_charge = charge_cycles;
+  cell_balance_baseline_pending = true;
+}
+
+void BydAttoBattery::handle_cell_balance_automation() {
+  sync_cell_balance_automation();
+  if (!cell_balance_auto_applied || !cell_balance_baseline_pending || datalayer_battery->info.number_of_cells == 0 ||
+      cell_balance_time_requested.load() != static_cast<uint8_t>(BydCellBalanceScanReason::NONE)) {
+    return;
+  }
+  queue_cell_balance_scan(BydCellBalanceScanReason::AUTO_BASELINE);
 }
 
 void BydAttoBattery::begin_cell_balance_time_scan(unsigned long currentMillis) {
+  cell_balance_scan_reason = static_cast<BydCellBalanceScanReason>(cell_balance_time_requested.load());
   memset(cell_balance_time_data.hours, 0, sizeof(cell_balance_time_data.hours));
   memset(cell_balance_time_data.valid, 0, sizeof(cell_balance_time_data.valid));
   cell_balance_time_data.expected_cells =
@@ -1511,11 +1589,12 @@ void BydAttoBattery::begin_cell_balance_time_scan(unsigned long currentMillis) {
 String BydAttoBattery::cell_balance_times_json() const {
   const BydCellBalanceTimeData& snapshot = cell_balance_time_data;
   const BydCellBalanceTimeState state =
-      cell_balance_time_requested.load() && !cell_balance_time_queued && !cell_balance_time_active
+      cell_balance_time_requested.load() != static_cast<uint8_t>(BydCellBalanceScanReason::NONE) &&
+              !cell_balance_time_queued && !cell_balance_time_active
           ? BydCellBalanceTimeState::QUEUED
           : snapshot.state;
   String json;
-  json.reserve(64 + snapshot.expected_cells * 7);
+  json.reserve(256 + snapshot.expected_cells * 7 + cell_balance_history_count * snapshot.expected_cells * 3);
   json += "{\"s\":" + String(static_cast<uint8_t>(state));
   json += ",\"e\":" + String(snapshot.expected_cells);
   json += ",\"r\":" + String(snapshot.received_cells);
@@ -1532,8 +1611,91 @@ String BydAttoBattery::cell_balance_times_json() const {
       json += "null";
     }
   }
-  json += "]}";
+  const bool auto_enabled = datalayer_bydatto->balance_timer_auto_read;
+  json += "],\"a\":{\"en\":";
+  json += auto_enabled ? "true" : "false";
+
+  // 0 off, 1 waiting for a charge, 2 reading baseline, 3 recording until the next charge
+  uint8_t phase = auto_enabled ? 1 : 0;
+  if (cell_balance_auto_applied) {
+    if (cell_balance_baseline_pending || cell_balance_scan_reason == BydCellBalanceScanReason::AUTO_BASELINE) {
+      phase = 2;
+    } else if (cell_balance_session_active) {
+      phase = 3;
+    }
+  }
+  json += ",\"ph\":" + String(phase);
+  json += ",\"ac\":";
+  json += cell_balance_session_active ? String(cell_balance_active_charge) : "null";
+
+  // Deltas need a complete reading of the same pack; otherwise the open record is sent without them.
+  json += ",\"cur\":";
+  if (cell_balance_session_active) {
+    const bool comparable =
+        snapshot.state == BydCellBalanceTimeState::COMPLETE && snapshot.expected_cells == cell_balance_baseline_cells;
+    json += "{\"cy\":" + String(cell_balance_active_charge);
+    json += ",\"ba\":" + String((millis() - cell_balance_baseline_millis) / 1000);
+    append_cell_spread_json(json, cell_balance_active_spread_mV);
+    if (comparable) {
+      // Age of an interim reading taken after the baseline; null while the baseline is the latest.
+      json += ",\"ra\":";
+      json += snapshot.scan_id == cell_balance_baseline_scan_id
+                  ? String("null")
+                  : String((millis() - cell_balance_time_scan_millis) / 1000);
+      uint8_t changed = 0;
+      for (uint8_t cell = 0; cell < snapshot.expected_cells; cell++) {
+        if (snapshot.hours[cell] > cell_balance_baseline[cell]) {
+          changed++;
+        }
+      }
+      json += ",\"n\":" + String(changed) + ",\"d\":[";
+      for (uint8_t cell = 0; cell < snapshot.expected_cells; cell++) {
+        if (cell) {
+          json += ",";
+        }
+        json += snapshot.hours[cell] >= cell_balance_baseline[cell]
+                    ? String(snapshot.hours[cell] - cell_balance_baseline[cell])
+                    : "null";
+      }
+      json += "]}";
+    } else {
+      json += ",\"n\":null,\"d\":[]}";
+    }
+  } else {
+    json += "null";
+  }
+
+  json += ",\"h\":[";
+  const uint32_t now = millis();
+  for (uint8_t i = 0; i < cell_balance_history_count; i++) {
+    const BydCellBalanceChargeRecord& record = cell_balance_history[i];
+    if (i) {
+      json += ",";
+    }
+    json += "{\"cy\":" + String(record.charge_cycles);
+    json += ",\"ba\":" + String((now - record.baseline_millis) / 1000);
+    json += ",\"fa\":" + String((now - record.final_millis) / 1000);
+    append_cell_spread_json(json, record.spread_mV);
+    json += ",\"n\":" + String(record.changed_cells) + ",\"d\":[";
+    append_cell_balance_deltas_json(json, record.delta, record.cell_count);
+    json += "]}";
+  }
+  json += "]}}";
   return json;
+}
+
+void BydAttoBattery::append_cell_spread_json(String& json, uint16_t spread_mV) const {
+  json += ",\"sp\":";
+  json += spread_mV == BYD_CELL_SPREAD_UNKNOWN ? String("null") : String(spread_mV);
+}
+
+void BydAttoBattery::append_cell_balance_deltas_json(String& json, const uint8_t* values, uint8_t cells) const {
+  for (uint8_t cell = 0; cell < cells; cell++) {
+    if (cell) {
+      json += ",";
+    }
+    json += String(values[cell]);
+  }
 }
 
 bool BydAttoBattery::diagnostics_idle() const {
@@ -1556,7 +1718,85 @@ void BydAttoBattery::finish_cell_balance_time_scan() {
   } else {
     cell_balance_time_data.state = BydCellBalanceTimeState::FAILED;
   }
-  cell_balance_time_requested.store(false);
+  handle_automatic_scan_result(millis());
+  cell_balance_time_requested.store(static_cast<uint8_t>(BydCellBalanceScanReason::NONE));
+  cell_balance_scan_reason = BydCellBalanceScanReason::NONE;
+}
+
+bool BydAttoBattery::save_cell_balance_charge_record(unsigned long currentMillis) {
+  if (cell_balance_time_data.state != BydCellBalanceTimeState::COMPLETE ||
+      cell_balance_time_data.expected_cells != cell_balance_baseline_cells) {
+    return false;
+  }
+  for (uint8_t cell = 0; cell < cell_balance_baseline_cells; cell++) {
+    if (cell_balance_time_data.hours[cell] < cell_balance_baseline[cell]) {
+      return false;
+    }
+  }
+
+  const uint8_t last = min(cell_balance_history_count, static_cast<uint8_t>(CELL_BALANCE_HISTORY_SIZE - 1));
+  for (uint8_t i = last; i > 0; i--) {
+    cell_balance_history[i] = cell_balance_history[i - 1];
+  }
+  BydCellBalanceChargeRecord& record = cell_balance_history[0];
+  record = BydCellBalanceChargeRecord{};
+  record.charge_cycles = cell_balance_active_charge;
+  record.spread_mV = cell_balance_active_spread_mV;
+  record.cell_count = cell_balance_baseline_cells;
+  record.baseline_millis = cell_balance_baseline_millis;
+  record.final_millis = currentMillis;
+  for (uint8_t cell = 0; cell < record.cell_count; cell++) {
+    record.delta[cell] = min(static_cast<uint16_t>(cell_balance_time_data.hours[cell] - cell_balance_baseline[cell]),
+                             static_cast<uint16_t>(UINT8_MAX));
+    if (record.delta[cell] > 0) {
+      record.changed_cells++;
+    }
+  }
+  if (cell_balance_history_count < CELL_BALANCE_HISTORY_SIZE) {
+    cell_balance_history_count++;
+  }
+  return true;
+}
+
+void BydAttoBattery::start_cell_balance_charge_record(unsigned long currentMillis) {
+  if (cell_balance_session_active) {
+    save_cell_balance_charge_record(currentMillis);
+  }
+  cell_balance_baseline_cells = cell_balance_time_data.expected_cells;
+  memcpy(cell_balance_baseline, cell_balance_time_data.hours,
+         cell_balance_baseline_cells * sizeof(cell_balance_baseline[0]));
+  cell_balance_active_charge = cell_balance_pending_charge;
+  cell_balance_baseline_millis = currentMillis;
+  cell_balance_baseline_scan_id = cell_balance_time_data.scan_id;
+  cell_balance_active_spread_mV = currentMillis - cell_balance_term_millis < CELL_BALANCE_SPREAD_WINDOW_MS
+                                      ? cell_balance_term_spread_mV
+                                      : BYD_CELL_SPREAD_UNKNOWN;
+  cell_balance_session_active = true;
+  cell_balance_baseline_pending = false;
+}
+
+// Termination can also land just after the baseline; it still belongs to that charge.
+void BydAttoBattery::note_termination_spread(uint16_t spread_mV) {
+  cell_balance_term_spread_mV = spread_mV;
+  cell_balance_term_millis = millis();
+  if (cell_balance_session_active && cell_balance_active_spread_mV == BYD_CELL_SPREAD_UNKNOWN &&
+      cell_balance_term_millis - cell_balance_baseline_millis < CELL_BALANCE_SPREAD_WINDOW_MS) {
+    cell_balance_active_spread_mV = spread_mV;
+  }
+}
+
+// Each baseline also closes the previous charge's record, so one record spans charge to charge.
+// A failed baseline is not retried; the open record closes at the next charge instead.
+void BydAttoBattery::handle_automatic_scan_result(unsigned long currentMillis) {
+  sync_cell_balance_automation();
+  if (!cell_balance_auto_applied || cell_balance_scan_reason != BydCellBalanceScanReason::AUTO_BASELINE) {
+    return;
+  }
+  if (cell_balance_time_data.state == BydCellBalanceTimeState::COMPLETE) {
+    start_cell_balance_charge_record(currentMillis);
+  } else {
+    cell_balance_baseline_pending = false;
+  }
 }
 
 // Cell timers are little-endian uint16 values from DIDs 0x0040-0x00BD. Returns true when the frame
@@ -1868,7 +2108,9 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     if (!diagnostics_idle()) {
       return;
     }
-    if (cell_balance_time_requested.load() && !cell_balance_time_queued && !cell_balance_time_active) {
+    handle_cell_balance_automation();
+    if (cell_balance_time_requested.load() != static_cast<uint8_t>(BydCellBalanceScanReason::NONE) &&
+        !cell_balance_time_queued && !cell_balance_time_active) {
       begin_cell_balance_time_scan(currentMillis);
     }
     if (cell_balance_time_queued || cell_balance_time_active) {
@@ -1922,8 +2164,22 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
     }
 
+    if (!diag_answered && ++diag_unanswered_polls >= DIAG_SWITCH_AFTER_POLLS) {
+      diag_unanswered_polls = 0;
+      set_diag_request_id(ATTO_3_7E7_POLL.ID == 0x7E7 ? 0x781 : 0x7E7);
+    }
     transmit_can_frame(&ATTO_3_7E7_POLL);
   }
+}
+
+// Type B packs (Tang, PC5B) ignore 0x7E7; OBD logs from a Tang show its BMS on 0x781
+void BydAttoBattery::set_diag_request_id(uint32_t id) {
+  ATTO_3_7E7_POLL.ID = id;
+  ATTO_3_7E7_ACK.ID = id;
+  ATTO_3_7E7_CLEAR_CRASH.ID = id;
+  ATTO_3_7E7_RESET_SOC.ID = id;
+  ATTO_3_7E7_READ_DTC.ID = id;
+  ATTO_3_7E7_DTC_FC.ID = id;
 }
 
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup
