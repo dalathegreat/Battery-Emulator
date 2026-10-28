@@ -1443,7 +1443,7 @@ static void render_battery_card(String& content, const String& style, const Batt
         "<div aria-hidden='true' style='position: absolute; inset: 30px; z-index: -1; overflow: hidden; "
         "container-type: size; display: flex; align-items: center; justify-content: center; "
         "pointer-events: none; user-select: none; font-weight: bold; line-height: 1; white-space: nowrap; "
-        "color: rgba(255, 255, 255, 0.15);'><span style='";
+        "color: rgba(255, 255, 255, 0.09);'><span style='";
     content += text_style;
     content += "'>";
     content += html_escape(version_number);
