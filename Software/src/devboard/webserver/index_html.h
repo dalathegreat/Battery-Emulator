@@ -25,14 +25,19 @@
 // The navigation row at the top of every sub page, so the buttons look the same everywhere: one
 // centered row, the same distance from the top of the page, the same fixed pixel height whatever
 // the viewport or the page's own button rules (hence the .subnav prefix and the px units), wrapping
-// onto further centered rows on a narrow screen. INDEX_HTML_NAV_CSS goes into the page's style
-// block, after its own button rules; the page body starts with INDEX_HTML_NAV_START, then the
-// page's own buttons (the first is always Back to main page) and INDEX_HTML_NAV_END.
+// onto further centered rows on a narrow screen. The rules live once, in INDEX_HTML_NAV_CSS, served
+// as /nav.css (webserver.cpp) and cached by the browser, so no page carries its own copy: a page
+// puts INDEX_HTML_NAV_LINK ahead of its own style block (its rules then override the generic
+// button look below) and starts its body with INDEX_HTML_NAV_START, then the page's own buttons
+// (the first is always Back to main page) and INDEX_HTML_NAV_END. The plain button rules are the
+// look every sub page shares; a page adds only its own padding and margins.
 #define INDEX_HTML_NAV_CSS                                                                                  \
+  "button,.battery-tab{background:#505E67;color:#fff;border:0;border-radius:10px;cursor:pointer}"           \
+  "button:hover,.battery-tab:hover{background:#3A4A52}"                                                     \
   ".subnav{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:0;padding:10px 0 20px}"       \
-  ".subnav button{box-sizing:border-box;height:36px;margin:0;padding:0 20px;background:#505E67;color:#fff;" \
-  "border:0;border-radius:10px;font:13.33px Arial,sans-serif;line-height:1;cursor:pointer}"                 \
-  ".subnav button:hover{background:#3A4A52}"
+  ".subnav button{box-sizing:border-box;height:36px;margin:0;padding:0 20px;font:13.33px Arial,sans-serif;" \
+  "line-height:1}"
+#define INDEX_HTML_NAV_LINK "<link rel=stylesheet href=/nav.css>"
 #define INDEX_HTML_NAV_START "<div class=subnav><button onclick=\"location.href='/'\">Back to main page</button>"
 #define INDEX_HTML_NAV_END "</div>"
 
@@ -40,10 +45,8 @@
 // buttons and the battery tab strip. Opens the style block only - the page appends its own rules
 // and the closing </style>, so both pages carry one styling idea instead of two that drift apart.
 #define INDEX_HTML_SUBPAGE_STYLE \
-  R"rawliteral(<style>body{background:#000;color:#fff}
-button,.battery-tab{background:#505E67;color:#fff;border:0;padding:10px 20px;margin:5px;cursor:pointer;border-radius:10px;display:inline-block;text-decoration:none;font:inherit}
-button:hover,.battery-tab:hover{background:#3A4A52}
-)rawliteral" INDEX_HTML_NAV_CSS R"rawliteral(
+  INDEX_HTML_NAV_LINK R"rawliteral(<style>body{background:#000;color:#fff}
+button,.battery-tab{padding:10px 20px;margin:5px;display:inline-block;text-decoration:none;font:inherit}
 .battery-tab[aria-current=page]{background:#287c58;outline:2px solid #69c999}
 .battery-panel{background:#303E47;padding:10px;margin-bottom:10px;border-radius:24px}
 )rawliteral"

@@ -6,10 +6,9 @@
 #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "index_html.h"
 
-const char EVENTS_HTML_START[] =
+const char EVENTS_HTML_START[] = INDEX_HTML_NAV_LINK
     R"=====(
-<style>)=====" INDEX_HTML_NAV_CSS
-    R"=====(body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:90px;word-break:break-word}.event>div:first-child{flex:5;text-align:left}.event>div:nth-child(3){flex:3}.event>div:last-child{flex:1 1 100%;padding-top:4px;text-align:left}</style>)=====" INDEX_HTML_NAV_START
+<style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:90px;word-break:break-word}.event>div:first-child{flex:5;text-align:left}.event>div:nth-child(3){flex:3}.event>div:last-child{flex:1 1 100%;padding-top:4px;text-align:left}</style>)=====" INDEX_HTML_NAV_START
     R"=====(<button onclick="askClear()">Clear all events</button>)=====" INDEX_HTML_NAV_END
     R"=====(<div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log" id="log">
 )=====";

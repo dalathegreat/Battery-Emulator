@@ -1607,12 +1607,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
 )rawliteral"
 
 #define SETTINGS_STYLE \
-  R"rawliteral(
+  INDEX_HTML_NAV_LINK R"rawliteral(
     <style>
     body { background-color: black; color: white; }
-        button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
-        cursor: pointer; border-radius: 10px; }
-    button:hover { background-color: #3A4A52; }
+    button { padding: 6px 20px; margin-bottom: 15px; }
     h4 { margin: 0.35em 0; line-height: 1.2; }
     /* Buttons are inline-block: a bottom margin here would inflate the row's line box */
     h4 button { margin-bottom: 0; }
@@ -1871,7 +1869,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
-    )rawliteral" INDEX_HTML_NAV_CSS R"rawliteral(
     </style>
 )rawliteral"
 
