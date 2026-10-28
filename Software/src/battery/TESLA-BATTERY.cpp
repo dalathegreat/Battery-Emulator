@@ -490,6 +490,43 @@ uint32_t TeslaBattery::remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10
   return static_cast<uint32_t>((static_cast<double>(real_soc) / 10000) * base_Wh);
 }
 
+void TeslaBattery::SocHold::on_frame(uint16_t soc_ui_x10, uint16_t soc_min_x10) {
+  if (soc_ui_x10 <= 1000) {
+    soc_ui = soc_ui_x10;
+    ui_seen = true;
+    ui_fresh = true;
+    any_fresh = true;
+  } else if (!ui_seen && soc_min_x10 <= 1000) {
+    soc_ui = soc_min_x10;
+    any_fresh = true;  // the initial SOC is live: it is not held, so it does not age
+  }
+}
+
+void TeslaBattery::SocHold::update(bool pack_on_bus, uint8_t battery_index) {
+  // Seconds without a valid UI SOC. EVENT_SOC_UNAVAILABLE is a WARNING.
+  if (ui_fresh) {
+    ui_fresh = false;
+    seconds_without_soc = 0;
+    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
+  } else if (pack_on_bus) {
+    if (seconds_without_soc < INT16_MAX) {
+      seconds_without_soc++;
+    }
+    if (seconds_without_soc >= SocUnavailableDelay_s) {
+      set_event(EVENT_SOC_UNAVAILABLE, seconds_without_soc, battery_index);
+    }
+  }
+  // Seconds since the last SOC of any kind (the UI SOC, or the initial SOC min that is in use until a valid UI SOC was
+  // seen). The held SOC is cleared after SocHoldLimit_s: 0 % is "no SOC" (safety then stops the discharge).
+  if (any_fresh) {
+    any_fresh = false;
+    seconds_held = 0;
+  } else if (pack_on_bus && seconds_held < INT16_MAX) {
+    seconds_held++;
+  }
+  expired = seconds_held >= SocHoldLimit_s;
+}
+
 void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
@@ -514,39 +551,17 @@ void TeslaBattery::
   datalayer_battery->info.total_capacity_Wh =
       energy_x10_plausible(battery_beginning_of_life) ? battery_beginning_of_life * 100UL : fallback_total_capacity_Wh;
 
-  // Seconds without a valid UI SOC, counted while the pack is on the bus. EVENT_SOC_UNAVAILABLE is a WARNING.
-  if (soc_ui_fresh) {
-    soc_ui_fresh = false;
-    seconds_without_soc = 0;
-    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
-  } else if (datalayer_battery->status.CAN_battery_still_alive > 0) {
-    if (seconds_without_soc < INT16_MAX) {
-      seconds_without_soc++;
-    }
-    if (seconds_without_soc >= SocUnavailableDelay_s) {
-      set_event(EVENT_SOC_UNAVAILABLE, seconds_without_soc, battery_index);
-    }
-  }
-  // Seconds since the last SOC of any kind (the UI SOC, or the initial SOC from the brick min that is in use until a
-  // valid UI SOC was seen). The held SOC is cleared after SocHoldLimit_s: 0 % is "no SOC" (safety then stops the
-  // discharge).
-  if (soc_any_fresh) {
-    soc_any_fresh = false;
-    seconds_soc_held = 0;
-  } else if (datalayer_battery->status.CAN_battery_still_alive > 0 && seconds_soc_held < INT16_MAX) {
-    seconds_soc_held++;
-  }
-  const bool soc_expired = seconds_soc_held >= SocHoldLimit_s;
-  datalayer_battery->status.real_soc = soc_expired ? 0 : (battery_soc_ui * 10);  //SOC range 0-100.0 -> 100.00
+  soc_hold.update(datalayer_battery->status.CAN_battery_still_alive > 0, battery_index);
+  datalayer_battery->status.real_soc = soc_hold.real_soc();  //SOC range 0-100.0 -> 100.00
 
   datalayer_battery->status.voltage_dV = battery_volts;
 
   datalayer_battery->status.current_dA = battery_amps;  //13.0A
 
   datalayer_battery->status.remaining_capacity_Wh =
-      soc_expired ? 0
-                  : remaining_Wh(datalayer_battery->status.real_soc, nominal_full_x10, nominal_remaining_hold.value,
-                                 datalayer_battery->info.total_capacity_Wh);
+      soc_hold.expired ? 0
+                       : remaining_Wh(datalayer_battery->status.real_soc, nominal_full_x10,
+                                      nominal_remaining_hold.value, datalayer_battery->info.total_capacity_Wh);
 
   // Define the allowed discharge power
   datalayer_battery->status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
@@ -1754,22 +1769,9 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.1,0) [0|102.3] "%"
-      {
-        // 1023 = not available (the S/X pack does it for about 5 s): the pack SOC is the UI SOC, the last SOC is held
-        // while it is not available. SOC min is only the initial SOC until a valid UI SOC was seen: 0 would zero the
-        // discharge limit (battery empty) at startup.
-        const uint16_t soc_ui_x10 = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
-        battery_soc_ui_raw = soc_ui_x10;
-        if (soc_ui_x10 <= 1000) {
-          battery_soc_ui = soc_ui_x10;
-          soc_ui_seen = true;
-          soc_ui_fresh = true;
-          soc_any_fresh = true;
-        } else if (!soc_ui_seen && battery_soc_min <= 1000) {
-          battery_soc_ui = battery_soc_min;
-          soc_any_fresh = true;  // the initial SOC is live: it is not held, so it does not age
-        }
-      }
+      battery_soc_ui_raw =
+          (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));  //10|10@1+ (0.1,0) [0|102.3] "%"
+      soc_hold.on_frame(battery_soc_ui_raw, battery_soc_min);  // 1023 = not available (the S/X pack does it for ~5 s)
       battery_soc_max =
           (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));  //20|10@1+ (0.1,0) [0|102.3] "%"
       battery_soc_ave =

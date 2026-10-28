@@ -60,16 +60,9 @@ class TeslaLegacyBattery : public CanBattery {
                          .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
   // Keep alive
   CAN_frame TESLA_408 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x408, .data = {0x00}};
-  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
-  uint16_t battery_soc_ui = 0;
-  // A UI SOC of 1023 is not available: the last SOC is held (up to TeslaBattery::SocHoldLimit_s), the event comes
-  // after TeslaBattery::SocUnavailableDelay_s
-  bool soc_ui_seen = false;                // a valid UI SOC was received at least once
-  bool soc_ui_fresh = false;               // a valid UI SOC was received since the last update_values()
-  bool soc_any_fresh = false;              // a SOC (the UI SOC, or the initial SOC min) was received since then
-  uint16_t seconds_without_soc = 0;        // no valid UI SOC (EVENT_SOC_UNAVAILABLE)
-  uint16_t seconds_soc_held = 0;           // no SOC at all, the held SOC is cleared after TeslaBattery::SocHoldLimit_s
+  unsigned long previousMillis100 = 0;     // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis1000 = 0;    // will store last time a 1s CAN Message was send
+  TeslaBattery::SocHold soc_hold;          // the held UI SOC for the inverter
   uint16_t nominal_full_x10_received = 0;  // 0x382 bits 0-9, 1023 = not available
   TeslaBattery::EnergyHold nominal_full_hold;
   TeslaBattery::EnergyHold nominal_remaining_hold;  // Wh
