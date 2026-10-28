@@ -1113,31 +1113,11 @@ TEST_F(TeslaBatteryTest, TemperatureSeenAfterThermistorFrame) {
   EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Temperature min/max: 20.0 &deg;C / 23.5 &deg;C</h4>"));
 }
 
-// Pre-2021 0x352 has no mux, 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, buffer at bit 55 (8 bits), fully
-// charged at bit 63. The frame is a real one from a 72.1 kWh pack at 27.1 % (ScanMyTesla: full 72.1, remaining 19.6,
-// buffer 6.0).
-TEST_F(TeslaBatteryTest, NoMuxEnergyStatusDecodesTheDbcFields) {
-  const uint8_t real[8] = {0xD1, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x1E};
-  const TeslaBattery::EnergyStatusNoMux e = TeslaBattery::decode_energy_status_no_mux(real);
-  EXPECT_EQ(e.nominal_full, 721);
-  EXPECT_EQ(e.nominal_remaining, 196);
-  EXPECT_EQ(e.expected_remaining, 193);
-  EXPECT_EQ(e.ideal_remaining, 193);
-  EXPECT_EQ(e.to_charge_complete, 0);
-  EXPECT_EQ(e.buffer, 60);
-  EXPECT_FALSE(e.fully_charged);
-
-  const uint8_t last_bit[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  const TeslaBattery::EnergyStatusNoMux all = TeslaBattery::decode_energy_status_no_mux(last_bit);
-  EXPECT_EQ(all.nominal_full, 2047);
-  EXPECT_EQ(all.to_charge_complete, 2047);
-  EXPECT_EQ(all.buffer, 255);
-  EXPECT_TRUE(all.fully_charged);
-}
-
-// The driver takes a frame as no mux format when the two low bits of byte 0 are 2 or 3 and no mux 0 or 1 frame was
-// seen. The real frame above has bits 01 in byte 0 (72.1 kWh) so this test uses 72.2 kWh. The values go to the web
-// page (the nominal energy remaining also to the remaining capacity, see the tests below).
+// Pre-2021 0x352 has no mux: 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, buffer at bit 55 (8 bits), fully
+// charged at bit 63. The driver takes a frame as no mux format when the two low bits of byte 0 are 2 or 3 and no mux 0
+// or 1 frame was seen. The frame is a real one from a 72.1 kWh pack at 27.1 % (ScanMyTesla: full 72.1, remaining 19.6,
+// buffer 6.0), with byte 0 0xD2 (72.2 kWh) as 0xD1 has the mux bits 01. The values go to the web page (the nominal
+// energy remaining also to the remaining capacity, see the tests below).
 TEST_F(TeslaBatteryTest, NoMuxEnergyStatusReachesTheExtendedData) {
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x9E}));
   pack_->update_values();
@@ -1148,6 +1128,19 @@ TEST_F(TeslaBatteryTest, NoMuxEnergyStatusReachesTheExtendedData) {
   EXPECT_EQ(datalayer_extended.tesla.battery_energy_to_charge_complete, 0);
   EXPECT_EQ(datalayer_extended.tesla.battery_energy_buffer, 60);
   EXPECT_TRUE(datalayer_extended.tesla.battery_fully_charged);  // bit 63 is set in byte 7 (0x9E)
+
+  // Bit 63 clear (byte 7 0x1E, as the real frame)
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x1E}));
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.battery_fully_charged);
+
+  // All bits set: every field at its limit
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}));
+  pack_->update_values();
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 2047);
+  EXPECT_EQ(datalayer_extended.tesla.battery_energy_to_charge_complete, 2047);
+  EXPECT_EQ(datalayer_extended.tesla.battery_energy_buffer, 255);
+  EXPECT_TRUE(datalayer_extended.tesla.battery_fully_charged);
 }
 
 // 0x352 mux 1: the fully charged flag is bit 15, bit 7 of byte 1. Bit 8, bit 0 of byte 1, is not the flag.

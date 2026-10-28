@@ -1265,22 +1265,6 @@ void TeslaBattery::
                  (battery_dcdcLvBusVolt * 0.01), (battery_dcdcLvOutputCurrent * 0.1));
 }
 
-TeslaBattery::EnergyStatusNoMux TeslaBattery::decode_energy_status_no_mux(const uint8_t* d) {
-  uint64_t raw = 0;
-  for (int i = 7; i >= 0; i--) {
-    raw = (raw << 8) | d[i];
-  }
-  EnergyStatusNoMux e;
-  e.nominal_full = raw & 0x7FF;                //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "kWh"
-  e.nominal_remaining = (raw >> 11) & 0x7FF;   //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "kWh"
-  e.expected_remaining = (raw >> 22) & 0x7FF;  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "kWh"
-  e.ideal_remaining = (raw >> 33) & 0x7FF;     //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "kWh"
-  e.to_charge_complete = (raw >> 44) & 0x7FF;  //BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "kWh"
-  e.buffer = (raw >> 55) & 0xFF;               //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "kWh"
-  e.fully_charged = (raw >> 63) & 0x01;        //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""
-  return e;
-}
-
 // 0x3B2 BMS_log2 mux 0: pack CAC (0.1 Ah) and min/max brick IDs (ID - 1). B was verified on a 2024.8.9+ pack, A not.
 // Little endian bit numbers, the CAC fields are 13 bits (0.1 Ah, 8191 = SNA), the brick IDs 7 bits (stored ID - 1):
 //        mux     avg     min      min ID   max      max ID
@@ -1374,18 +1358,16 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         //Skip older BMS frame parsing
         break;
       }
-      // Older BMS <2021 without mux
-      {
-        const EnergyStatusNoMux e = decode_energy_status_no_mux(rx_frame.data.u8);
-        battery_nominal_full_pack_energy = e.nominal_full;
-        battery_nominal_energy_remaining = e.nominal_remaining;
-        nominal_remaining_seen = true;
-        battery_expected_energy_remaining = e.expected_remaining;
-        battery_ideal_energy_remaining = e.ideal_remaining;
-        battery_energy_to_charge_complete = e.to_charge_complete;
-        battery_energy_buffer = e.buffer;
-        battery_fully_charged = e.fully_charged;
-      }
+      // Older BMS <2021 without mux: 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, the buffer (0.1 kWh) at bit 55
+      // (8 bits), the fully charged flag at bit 63
+      battery_nominal_full_pack_energy = tesla_le_bits(rx_frame.data.u8, 0, 11);   //BMS_nominalFullPackEnergy
+      battery_nominal_energy_remaining = tesla_le_bits(rx_frame.data.u8, 11, 11);  //BMS_nominalEnergyRemaining
+      nominal_remaining_seen = true;
+      battery_expected_energy_remaining = tesla_le_bits(rx_frame.data.u8, 22, 11);  //BMS_expectedEnergyRemaining
+      battery_ideal_energy_remaining = tesla_le_bits(rx_frame.data.u8, 33, 11);     //BMS_idealEnergyRemaining
+      battery_energy_to_charge_complete = tesla_le_bits(rx_frame.data.u8, 44, 11);  //BMS_energyToChargeComplete
+      battery_energy_buffer = tesla_le_bits(rx_frame.data.u8, 55, 8);               //BMS_energyBuffer
+      battery_fully_charged = tesla_le_bits(rx_frame.data.u8, 63, 1);               //BMS_fullChargeComplete
       break;
     case 0x20A:  //522 HVP_contactorState:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
