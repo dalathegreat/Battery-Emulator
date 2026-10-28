@@ -69,9 +69,10 @@ class TeslaBattery : public CanBattery {
   // A raw 1023 in a 10 bit energy field (0x292, 0x392, legacy 0x382) is "not available".
   static constexpr uint8_t SohReferenceLegacyFw = 1;
   static constexpr uint8_t SohReferenceNewFw = 2;
-  // A garbage reading must not give an SOH below 25 % (EVENT_SOH_LOW is an ERROR): 38.0 / 150.0 = 25.3 %, so even a
-  // garbage pair (energy and reference) at the two limits stays above it. The smallest Tesla packs are ~54 kWh (3/Y
-  // SR) and 60 kWh (S/X), the largest ~100 kWh (S/X 100D, Plaid) and 82 kWh (3/Y), so 38 and 150 leave margin.
+  // Plausible nominal pack energy (full, when new): 38.0 to 150.0 kWh, in 0.1 kWh. A garbage reading must not give an
+  // SOH below 25 % (EVENT_SOH_LOW is an ERROR): 38.0 / 150.0 = 25.3 %, so even a garbage pair (energy and reference)
+  // at the two limits stays above it. The smallest Tesla packs are ~54 kWh (3/Y SR) and 60 kWh (S/X), the largest
+  // ~100 kWh (S/X 100D, Plaid) and 82 kWh (3/Y), so 38 and 150 leave margin.
   static constexpr uint16_t EnergyMin_x10 = 380;
   static constexpr uint16_t EnergyMax_x10 = 1500;
   static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
@@ -80,6 +81,14 @@ class TeslaBattery : public CanBattery {
   // plausible value is held for EnergyHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
   // configured capacity. Called once a second (update_values) with the value received last.
   static constexpr uint16_t EnergyHold_s = 30;
+  // The last valid UI SOC is held while the pack does not send one, for SocHoldLimit_s (30 minutes). After that the SOC
+  // is cleared (0, remaining capacity 0), and there is no fallback: the brick SOC and the energies are not the UI SOC.
+  static constexpr uint16_t SocHoldLimit_s = 30 * 60;
+  // EVENT_SOC_UNAVAILABLE (a WARNING) is raised after this many seconds without a valid UI SOC (shared with the S/X)
+  static constexpr uint16_t SocUnavailableDelay_s = 30;
+  // The hold and SOC counters count update_values() calls (1 Hz, not millis()). The SOC counters (seconds_without_soc,
+  // seconds_soc_held, here and on the S/X) count only while CAN_battery_still_alive > 0: if the CAN bus dies they freeze
+  // and the last SOC stays, EVENT_CAN_RX_FAILURE covers that case.
   struct EnergyHold {
     uint32_t value = 0;  // held value (0.1 kWh for the nominal full energy, Wh for the remaining), 0 = unknown
     uint16_t seconds_not_plausible = 0;
@@ -656,12 +665,12 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_soc_ui_raw = 1023;  // live UI SOC
   uint16_t battery_soc_ui = 0;         // held UI SOC (main page): the last valid one, used for real_soc
   uint16_t battery_soc_ave = 1023;
-  // A UI SOC of 1023 is not available: the last SOC is held and EVENT_SOC_UNAVAILABLE (a WARNING) is raised after
-  // SocUnavailableDelay_s seconds without a valid UI SOC
-  static constexpr uint16_t SocUnavailableDelay_s = 30;
-  bool soc_ui_seen = false;   // a valid UI SOC was received at least once
-  bool soc_ui_fresh = false;  // a valid UI SOC was received since the last update_values()
-  uint16_t seconds_without_soc = 0;
+  // A UI SOC of 1023 is not available: the last SOC is held (up to SocHoldLimit_s), see SocUnavailableDelay_s
+  bool soc_ui_seen = false;    // a valid UI SOC was received at least once
+  bool soc_ui_fresh = false;   // a valid UI SOC was received since the last update_values()
+  bool soc_any_fresh = false;  // a SOC (the UI SOC, or the initial SOC from the brick min) was received since then
+  uint16_t seconds_without_soc = 0;  // no valid UI SOC (EVENT_SOC_UNAVAILABLE)
+  uint16_t seconds_soc_held = 0;     // no SOC at all, the held SOC is cleared after SocHoldLimit_s
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
   uint32_t battery_packMass = 0;

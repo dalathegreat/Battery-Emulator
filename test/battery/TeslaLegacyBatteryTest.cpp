@@ -598,6 +598,59 @@ TEST_F(TeslaLegacyBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAVal
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
 }
 
+// The held SOC is stale after 30 minutes without a valid UI SOC: cleared (real SOC 0, remaining 0), the warning event
+// stays, a valid UI SOC brings it back. The update runs once a second.
+TEST_F(TeslaLegacyBatteryTest, HeldSocIsClearedAfter30Minutes) {
+  init_events();
+  clear_event(EVENT_SOC_UNAVAILABLE);
+  pack_->handle_incoming_can_frame(RealNominal());
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  EXPECT_GT(datalayer.battery.status.remaining_capacity_Wh, 0u);
+
+  for (int second = 1; second <= 1799; second++) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+    pack_->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);  // 29 min 59 s: still held
+  EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 0);  // 30 min: cleared
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 0u);
+  EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(RealSoc());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  EXPECT_GT(datalayer.battery.status.remaining_capacity_Wh, 0u);
+  EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_INACTIVE);
+}
+
+// The initial SOC min (no valid UI SOC seen yet) is live, so it does not age: it is not cleared while the pack keeps
+// sending it, the warning event stays. When it stops too, the last SOC is held for 30 minutes.
+TEST_F(TeslaLegacyBatteryTest, InitialSocMinIsNotClearedWhileItIsSent) {
+  init_events();
+  clear_event(EVENT_SOC_UNAVAILABLE);
+  for (int second = 1; second <= 1801; second++) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0x2C, 0xFD, 0x0F, 0x00, 0x47, 0x22, 0x07, 0x00}));  // min 30.0
+    pack_->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.real_soc, 3000);
+  EXPECT_EQ(EventState(EVENT_SOC_UNAVAILABLE), EVENT_STATE_ACTIVE);
+
+  for (int second = 1; second <= 1799; second++) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02}));  // both n/a
+    pack_->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.real_soc, 3000);  // 29 min 59 s: still held
+  pack_->handle_incoming_can_frame(LegacyBytes(0x302, {0xFF, 0xFF, 0x0F, 0x00, 0xEA, 0x42, 0x31, 0x02}));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 0);  // 30 min: cleared
+}
+
 // Remaining capacity is the 0x382 nominal energy remaining when plausible (19.6 kWh in the real frame, SOC x full is
 // 27.1 % of 72.1 = 19.54 kWh), else SOC x the nominal full energy, else x the configured capacity (27.1 % of 85 kWh).
 TEST_F(TeslaLegacyBatteryTest, RemainingCapacityUsesTheNominalEnergyRemaining) {

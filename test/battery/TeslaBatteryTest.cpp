@@ -943,6 +943,64 @@ TEST_F(TeslaBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc)
   EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_INACTIVE);
 }
 
+// The held SOC is stale after 30 minutes without a valid UI SOC: it is cleared (real SOC 0, remaining 0, safety then
+// stops the discharge), the warning event stays, and a valid UI SOC brings it back. The update runs once a second.
+TEST_F(TeslaBatteryTest, HeldSocIsClearedAfter30Minutes) {
+  init_events();
+  clear_event(EVENT_SOC_UNAVAILABLE);
+  pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
+  EXPECT_GT(datalayer.battery.status.remaining_capacity_Wh, 0u);
+
+  for (int second = 1; second <= 1799; second++) {
+    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+    pack_->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2710);  // 29 min 59 s: still held
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);
+
+  pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 0);  // 30 min: cleared
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 0u);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);
+  // The brick SOC min does not bring a SOC back, the detail page stays raw
+  EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Battery SOC UI: N/A</h4>"));
+
+  pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 0);
+
+  pack_->handle_incoming_can_frame(SocFields(300, 275, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 2750);
+  EXPECT_GT(datalayer.battery.status.remaining_capacity_Wh, 0u);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_INACTIVE);
+}
+
+// The initial SOC from the brick min (no valid UI SOC seen yet) is live, so it does not age: it is not cleared while the
+// pack keeps sending it, the warning event stays. When it stops too, the last SOC is held for 30 minutes.
+TEST_F(TeslaBatteryTest, InitialSocFromTheBrickMinIsNotClearedWhileItIsSent) {
+  init_events();
+  clear_event(EVENT_SOC_UNAVAILABLE);
+  for (int second = 1; second <= 1801; second++) {
+    pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 303));
+    pack_->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.real_soc, 3000);
+  EXPECT_EQ(get_event_pointer(EVENT_SOC_UNAVAILABLE)->state, EVENT_STATE_ACTIVE);
+
+  for (int second = 1; second <= 1799; second++) {
+    pack_->handle_incoming_can_frame(SocFields(1023, 1023, 306, 303));
+    pack_->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.real_soc, 3000);  // 29 min 59 s: still held
+  pack_->handle_incoming_can_frame(SocFields(1023, 1023, 306, 303));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.real_soc, 0);  // 30 min: cleared
+}
+
 // The plausible energy window is 38.0 to 150.0 kWh: 38.0 / 150.0 = 25.3 %, so a garbage value cannot give an SOH below
 // the 25 % ERROR limit.
 TEST_F(TeslaBatteryTest, PlausibleEnergyWindowIs38To150Kwh) {
