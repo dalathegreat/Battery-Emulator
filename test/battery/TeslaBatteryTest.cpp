@@ -771,3 +771,14 @@ TEST_F(TeslaBatteryTest, NoMuxEnergyStatusReachesTheExtendedData) {
   EXPECT_EQ(datalayer_extended.tesla.battery_energy_buffer, 60);
   EXPECT_TRUE(datalayer_extended.tesla.battery_fully_charged);  // bit 63 is set in byte 7 (0x9E)
 }
+
+// 0x352 mux 1: the fully charged flag is bit 15, bit 7 of byte 1. Bit 8, bit 0 of byte 1, is not the flag.
+TEST_F(TeslaBatteryTest, FullyChargedIsBit15OfTheMux1Frame) {
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0x01, 0x80, 0x12, 0x01, 0x16, 0x0A, 0x00, 0x00}));
+  pack_->update_values();
+  EXPECT_TRUE(datalayer_extended.tesla.battery_fully_charged);
+
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0x01, 0x01, 0x12, 0x01, 0x16, 0x0A, 0x00, 0x00}));
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.battery_fully_charged);
+}
