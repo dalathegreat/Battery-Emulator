@@ -1478,6 +1478,8 @@ static void render_battery_card(String& content, const String& style, const Batt
              " V &nbsp; Current: " + String(v.current_dA / 10.0f, 1) + " A</h4>";
   content += formatPowerValue("Power", (float)v.active_power_W, "", 1);
 
+  // A pack can show its own capacity rows instead of the generic "Total capacity" (Tesla: when new, current)
+  const String capacity_rows = card_pack ? card_pack->get_status_renderer().get_main_view_capacity_rows() : String();
   if (scaled) {
     content +=
         "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(v.reported_total_capacity_Wh, "h", 1) +
@@ -1485,15 +1487,12 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += "<h4 style='color: white;'>Scaled remaining capacity: " +
                formatPowerValue(v.reported_remaining_capacity_Wh, "h", 1) +
                " (real: " + formatPowerValue(v.remaining_capacity_Wh, "h", 1) + ")</h4>";
-    if (card_pack) {
-      content += card_pack->get_status_renderer().get_main_view_capacity_rows();
-    }
+    content += capacity_rows;
   } else {
-    content += formatPowerValue(
-        card_pack ? card_pack->get_status_renderer().get_main_view_total_capacity_label() : String("Total capacity"),
-        v.total_capacity_Wh, "h", 1);
-    if (card_pack) {
-      content += card_pack->get_status_renderer().get_main_view_capacity_rows();
+    if (capacity_rows.length() > 0) {
+      content += capacity_rows;
+    } else {
+      content += formatPowerValue("Total capacity", v.total_capacity_Wh, "h", 1);
     }
     content += formatPowerValue("Remaining capacity", v.remaining_capacity_Wh, "h", 1);
   }

@@ -398,6 +398,8 @@ struct DATALAYER_INFO_RIVIAN {
   bool operation_limit_violation_warning;
 };
 
+// Detail page fields are raw (see DETAIL PAGE RULE in TESLA-HTML.cpp), the main page has its own fields
+// (nominal_full_held_x10, battery_beginning_of_life, cac_*_x10 ...).
 struct DATALAYER_INFO_TESLA {
   // Alert-matrix (DTC) fault flags for the Faults web page; mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
   bool BMS_alertMatrixActive[100];
@@ -422,6 +424,8 @@ struct DATALAYER_INFO_TESLA {
   uint32_t BMS_max_voltage;
   uint32_t battery_max_charge_current;
   uint32_t battery_max_discharge_current;
+  // Raw, 0.1 %, 1023 = not available / not received yet (the detail page shows N/A). SOC UI is the live value, not the
+  // held one that is used for real_soc. The brick SOC is validated for the main page only (see TESLA-HTML.cpp).
   uint32_t battery_soc_min;
   uint32_t battery_soc_max;
   uint32_t battery_soc_ave;
@@ -453,6 +457,20 @@ struct DATALAYER_INFO_TESLA {
   uint16_t cac_avg_x10;
   uint16_t cac_min_x10;
   uint16_t cac_max_x10;
+  // Detail page: the raw CAC as decoded, no checks. 0.1 Ah, all ones = not available.
+  // 3/Y 0x3B2 mux 0: [0] = 2022 layout, [1] = 2024.8.9+ layout (each frame is decoded in both). S/X 0x7E2 page 0: [0].
+  // Detail page: N/A until the frame was received (a genuine 0 shows as 0), and for the SNA value
+  bool cac_raw_seen[2];            // same index as cac_raw_*
+  bool nominal_remaining_seen;     // 3/Y 0x352 without mux
+  bool nominal_remaining_m0_seen;  // 3/Y 0x352 mux 0
+  bool bol_0x292_seen;
+  bool bol_0x392_seen;
+  bool nominal_0x382_seen;  // S/X
+  uint16_t cac_raw_avg_x10[2];
+  uint16_t cac_raw_min_x10[2];
+  uint16_t cac_raw_max_x10[2];
+  uint16_t battery_soc_min_0x302;  // S/X 0x302 SOC min, raw 0.1 %, 1023 = not available / not received yet
+  uint16_t nominal_full_held_x10;  // Nominal full pack energy, 0.1 kWh, held 30 s, 0 = unknown: main page and SOH
   uint16_t HVP_hvp1v5Ref;
   int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
@@ -534,17 +552,20 @@ struct DATALAYER_INFO_TESLA {
   uint8_t BMS_info_assemblyId;
   uint8_t BMS_info_platformType;
   uint8_t BMS_info_bootUdsProtoVersion;
-  uint16_t battery_beginning_of_life;  // 0.1 kWh, 0 = unavailable
-  bool temperature_seen;               // 0x332 mux 0 received; false = the web pages show "no data"
-  uint8_t soh_reference_source;        // beginning of life source: 0 = unavailable, 1 = 0x292, 2 = 0x392
-  bool soh_estimate_known;             // SOH estimate calculated; false = 99 % sent, pages say unknown
+  uint16_t battery_beginning_of_life;  // Main page: capacity when new, 0.1 kWh, 0x392 mux 1 else 0x292, 0 = unavailable
+  uint16_t bol_0x292_x10;              // Raw capacity when new of 0x292 and 0x392 mux 1, 0.1 kWh, 0 / 1023 = N/A
+  uint16_t bol_0x392_x10;
+  bool temperature_seen;    // 0x332 mux 0 received; false = the web pages show "no data"
+  bool soh_estimate_known;  // SOH estimate calculated; false = 99 % sent, pages say unknown
   uint8_t battery_battTempPct;
   uint8_t battery_BrickVoltageMaxNum;
   uint8_t battery_BrickVoltageMinNum;
-  uint8_t cac_min_brick_id;  // 1 based
-  uint8_t cac_max_brick_id;  // 1 based
-  uint8_t cac_layout;        // 0 = unknown, 1 = 2022 layout, 2 = 2024.8.9+ layout (3/Y)
-  bool cac_valid;            // A CAC frame has been decoded
+  uint8_t cac_min_brick_id;         // 1 based
+  uint8_t cac_max_brick_id;         // 1 based
+  uint8_t cac_raw_min_brick_id[2];  // 1 based (raw + 1), 3/Y only, same layout index as cac_raw_*
+  uint8_t cac_raw_max_brick_id[2];
+  uint8_t cac_layout;  // 0 = unknown, 1 = 2022 layout, 2 = 2024.8.9+ layout (3/Y)
+  bool cac_valid;      // A CAC frame has been decoded
   uint8_t battery_BrickTempMaxNum;
   uint8_t battery_BrickTempMinNum;
   uint8_t battery_BrickModelTMax;

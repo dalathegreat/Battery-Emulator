@@ -24,10 +24,8 @@ class BatteryHtmlRenderer {
   // Reports failure of the most recent status or diagnostics render.
   virtual bool html_render_failed() const { return false; }
 
-  // Optional label of the main page "Total capacity" row (single pack card)
-  virtual String get_main_view_total_capacity_label() { return String("Total capacity"); }
   // Optional extra <h4> rows for the main page battery card (empty = none): the SOH row (replaces the generic one),
-  // after "Total capacity", after "Cell delta"
+  // the capacity rows (replace the generic "Total capacity"), after "Cell delta"
   virtual String get_main_view_soh_rows() { return String(); }
   virtual String get_main_view_capacity_rows() { return String(); }
   virtual String get_main_view_cell_rows() { return String(); }
