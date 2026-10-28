@@ -17,6 +17,15 @@ static float nominalFullPackKwh(const DATALAYER_INFO_TESLA& tesla) {
                           : static_cast<float>(tesla.battery_nominal_full_pack_energy) * 0.1f;
 }
 
+// Nominal energy remaining: the pack's own value (what the UI SOC is based on), shown on the detail pages only. 0 means
+// not received yet and the all ones raw value is SNA (not available), both are shown as no data.
+static String nominalRemainingRow(uint16_t raw, uint16_t sna, float kwh_per_count, int decimals) {
+  if (raw == 0 || raw >= sna) {
+    return "<h4>Nominal Energy Remaining: no data</h4>";
+  }
+  return "<h4>Nominal Energy Remaining: " + String(static_cast<float>(raw) * kwh_per_count, decimals) + " kWh</h4>";
+}
+
 // The SOH estimate (it is the SOH sent to the inverter), shared by the main card and the detail page
 static String sohEstimateRow(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_BATTERY_STATUS_TYPE& status) {
   if (!tesla.soh_estimate_known) {
@@ -67,8 +76,6 @@ String TeslaHtmlRenderer::get_status_html() {
   float dcdcLvOutputCurrent = static_cast<float>(tesla.battery_dcdcLvOutputCurrent) * 0.1f;
   float nominal_full_pack_energy = static_cast<float>(tesla.battery_nominal_full_pack_energy) * 0.1f;
   float nominal_full_pack_energy_m0 = static_cast<float>(tesla.battery_nominal_full_pack_energy_m0) * 0.02f;
-  float nominal_energy_remaining = static_cast<float>(tesla.battery_nominal_energy_remaining) * 0.1f;
-  float nominal_energy_remaining_m0 = static_cast<float>(tesla.battery_nominal_energy_remaining_m0) * 0.02f;
   float ideal_energy_remaining = static_cast<float>(tesla.battery_ideal_energy_remaining) * 0.1f;
   float ideal_energy_remaining_m0 = static_cast<float>(tesla.battery_ideal_energy_remaining_m0) * 0.02f;
   float energy_to_charge_complete = static_cast<float>(tesla.battery_energy_to_charge_complete) * 0.1f;
@@ -253,7 +260,7 @@ String TeslaHtmlRenderer::get_status_html() {
     content += "<h3>BMS 0x352 w/o mux</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " kWh</h4>";
     content += sohDetailRows(tesla, core_data->status);
-    content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " kWh</h4>";
+    content += nominalRemainingRow(tesla.battery_nominal_energy_remaining, 0x7FF, 0.1f, 1);  // 11 bit, 0.1 kWh
     content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " kWh</h4>";
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " kWh</h4>";
     content += "<h4>Energy Buffer: " + String(energy_buffer) + " kWh</h4>";
@@ -264,7 +271,7 @@ String TeslaHtmlRenderer::get_status_html() {
     content += "<h3>BMS 0x352 w/ mux</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " kWh</h4>";
     content += sohDetailRows(tesla, core_data->status);
-    content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining_m0) + " kWh</h4>";
+    content += nominalRemainingRow(tesla.battery_nominal_energy_remaining_m0, 0xFFFF, 0.02f, 2);  // 16 bit, 0.02 kWh
     content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining_m0) + " kWh</h4>";
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " kWh</h4>";
     content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " kWh</h4>";
@@ -520,6 +527,9 @@ String TeslaLegacyHtmlRenderer::get_status_html() {
   } else {
     content += "<h4>Nominal Full Pack Energy: not received yet (0x382)</h4>";
   }
+  // 0x382 bit 11, 11 bits, 0.1 kWh: the layout of this pack. The public 10 bit layout (wk057) has the energy fields
+  // 10 bits wide at bit 0, 10, 20, ... and would read a different value, there is no layout detection.
+  content += nominalRemainingRow(tesla.battery_nominal_energy_remaining, 0x7FF, 0.1f, 1);
   content += sohEstimateRow(tesla, core_data->status);
   content += "<h4>Battery SOC UI: " + String(static_cast<float>(tesla.battery_soc_ui) * 0.1f) + " </h4>";
 

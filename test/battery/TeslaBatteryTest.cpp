@@ -1095,3 +1095,33 @@ TEST_F(TeslaBatteryTest, MainCardTotalCapacityLabelFollowsTheReferenceSource) {
   BatteryDefaultRenderer generic;
   EXPECT_EQ(generic.get_main_view_total_capacity_label().str(), "Total capacity");
 }
+
+// Detail page, nominal energy remaining of 0x352: no data until received, SNA (all ones) is no data again.
+TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfTheMuxedFormat) {
+  pack_->update_values();
+  EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: no data"));
+
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0x00, 0x80, 0xDA, 0x0B, 0x21, 0x0A, 0x16, 0x0A}));
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0x01, 0x80, 0x12, 0x01, 0x16, 0x0A, 0x00, 0x00}));
+  pack_->update_values();
+  EXPECT_TRUE(datalayer_extended.tesla.BMS352_mux);
+  EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: 51.86 kWh"));  // 0x0A21 x 0.02 kWh
+
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0x00, 0x80, 0xDA, 0x0B, 0xFF, 0xFF, 0x16, 0x0A}));
+  pack_->update_values();
+  EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: no data"));
+}
+
+TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfThePre2021Format) {
+  pack_->update_values();
+  EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: no data"));
+
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x1E}));
+  pack_->update_values();
+  EXPECT_FALSE(datalayer_extended.tesla.BMS352_mux);
+  EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: 19.6 kWh"));
+
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
+  pack_->update_values();
+  EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: no data"));
+}
