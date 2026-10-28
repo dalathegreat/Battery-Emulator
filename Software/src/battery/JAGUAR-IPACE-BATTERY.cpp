@@ -99,7 +99,28 @@ void JaguarIpaceBattery::update_values() {
   }
 }
 
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
+String JaguarIpaceBattery::get_uds_info_html() {
+  String content;
+  content.reserve(300);
+
+  content << "<h4>Battery VIN: " << battery_vin << "</h4>";
+
+  // clang-format on
+
+  return content;
+}
+
 void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+
+  // UDS frames (0x??? PID/DTC replies) are handled by the superclass.
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
 
   switch (rx_frame.ID) {  // These messages are periodically transmitted by the battery
     case 0x080:
@@ -198,11 +219,28 @@ void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void JaguarIpaceBattery::transmit_can(unsigned long currentMillis) {
+  // UDS PID polling and DTC handling
+  transmit_uds_can(currentMillis);
+
   /* Send keep-alive every 200ms */
   if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
     previousMillisKeepAlive = currentMillis;
     transmit_can_frame(&ipace_keep_alive);
   }
+}
+
+uint16_t JaguarIpaceBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+    case POLL_BATTERY_VIN:
+      battery_vin = value;
+      break;
+    default:  //Unknown pid
+      break;
+  }
+  return 0;  //Continue scanning the PID list in order
 }
 
 void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
@@ -215,4 +253,11 @@ void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC (UNTESTED)
+  setup_uds(0x7DF, 0x7EC);
+  static const uint16_t pid_scan_list[] = {
+      POLL_BATTERY_VIN,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
