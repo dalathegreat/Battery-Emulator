@@ -222,7 +222,8 @@ class BydAttoBattery : public CanBattery {
       3780;  // backstop above full+overshoot; applies only while a session owns the top
   static const uint16_t SESSION_DELTA_LIMIT_MV = 400;     // real cars run 250-360mV of spread at the top
   static const uint16_t SESSION_RAILS_MARGIN_MV = 20;     // rails release only once cells clear the stock limit
-  static const uint32_t SESSION_OBC_CAP_W = 7000;         // donor OBC maximum offer (0x47E b4 = 0x47)
+  static const uint32_t SESSION_OBC_CAP_W = 7000;         // band caps: the approach rate of every captured termination
+  static const uint16_t SESSION_BAND_CAP_dA = 155;        // 15.5A, as above
   static const int16_t SESSION_ARM_CURRENT_dA = 20;       // arm on 2.0A of charge current...
   static const uint32_t SESSION_ARM_DWELL_MS = 30000;     // ...sustained this long
   static const int16_t SESSION_REARM_DISCHARGE_dA = -20;  // a real discharge releases the post-charge hold
