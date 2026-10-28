@@ -186,8 +186,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7E2:  // CAC (page 0) and brick SOC (page 7), web page only
     {
       if (rx_frame.data.u8[0] == 0) {
-        // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. The detail page shows them raw, the calculated values
-        // use them when plausible: 20-400 Ah, min <= avg <= max.
+        // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. The detail page shows them raw, the calculated
+        // values use them when plausible (tesla_cac_plausible).
         const uint16_t cac_avg_x10 = tesla_le_bits(rx_frame.data.u8, 8, 12);
         const uint16_t cac_min_x10 = tesla_le_bits(rx_frame.data.u8, 20, 12);
         const uint16_t cac_max_x10 = tesla_le_bits(rx_frame.data.u8, 32, 12);
@@ -195,7 +195,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer_extended.tesla.cac_raw_avg_x10[0] = cac_avg_x10;
         datalayer_extended.tesla.cac_raw_min_x10[0] = cac_min_x10;
         datalayer_extended.tesla.cac_raw_max_x10[0] = cac_max_x10;
-        if (cac_min_x10 >= 200 && cac_min_x10 <= cac_avg_x10 && cac_avg_x10 <= cac_max_x10 && cac_max_x10 <= 4000) {
+        if (tesla_cac_plausible(cac_min_x10, cac_avg_x10, cac_max_x10)) {
           datalayer_extended.tesla.cac_min_x10 = cac_min_x10;
           datalayer_extended.tesla.cac_avg_x10 = cac_avg_x10;
           datalayer_extended.tesla.cac_max_x10 = cac_max_x10;

@@ -14,6 +14,11 @@ inline uint32_t tesla_le_bits(const uint8_t* data, uint8_t start_bit, uint8_t le
   return (uint32_t)((raw >> start_bit) & ((1ULL << length) - 1ULL));
 }
 
+// A pack CAC (0.1 Ah) is plausible when it is 20.0 to 400.0 Ah and min <= avg <= max (3/Y 0x3B2 and S/X 0x7E2)
+inline bool tesla_cac_plausible(uint32_t min_x10, uint32_t avg_x10, uint32_t max_x10) {
+  return min_x10 >= 200 && min_x10 <= avg_x10 && avg_x10 <= max_x10 && max_x10 <= 4000;
+}
+
 // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
 // These are user configurable from the Webserver UI
 extern bool user_selected_tesla_digital_HVIL;
