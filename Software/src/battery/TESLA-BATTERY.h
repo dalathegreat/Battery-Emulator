@@ -64,6 +64,8 @@ class TeslaBattery : public CanBattery {
 
   // Beginning of life energy (SOH estimate reference): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw). Values outside
   // 38.0 to 150.0 kWh (0.1 kWh) are ignored, 0x292 reads 0 or 0.1 kWh on some firmware. Source 0 = unavailable.
+  // The source is sticky on purpose: which frame carries a plausible value depends only on the pack firmware version,
+  // so once 0x392 mux 1 has given one, the pack is on the new firmware and a later 0x292 value is never used.
   // A raw 1023 in a 10 bit energy field (0x292, 0x392, legacy 0x382) is "not available".
   static constexpr uint8_t SohReferenceLegacyFw = 1;
   static constexpr uint8_t SohReferenceNewFw = 2;
@@ -610,10 +612,14 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_ideal_energy_remaining_m0 = 0;     // kWh
   uint16_t battery_nominal_energy_remaining = 0;      // kWh
   uint16_t battery_nominal_energy_remaining_m0 = 0;   // kWh
-  uint16_t battery_nominal_full_pack_energy = 0;      // Kwh
-  uint16_t battery_nominal_full_pack_energy_m0 = 0;   // Kwh
-  EnergyHold nominal_full_hold;                       // the value used for SOH and remaining Wh
-  EnergyHold nominal_remaining_hold;                  // Wh, the value used for remaining Wh
+  bool nominal_remaining_seen = false;                // 0x352 without mux received
+  bool nominal_remaining_m0_seen = false;             // 0x352 mux 0 received
+  bool bol_0x292_seen = false;
+  bool bol_0x392_seen = false;
+  uint16_t battery_nominal_full_pack_energy = 0;     // Kwh
+  uint16_t battery_nominal_full_pack_energy_m0 = 0;  // Kwh
+  EnergyHold nominal_full_hold;                      // the value used for SOH and remaining Wh
+  EnergyHold nominal_remaining_hold;                 // Wh, the value used for remaining Wh
   //0x132 306 HVBattAmpVolt
   uint16_t battery_volts = 0;                  // V
   int16_t battery_amps = 0;                    // A
@@ -642,16 +648,20 @@ class TeslaBattery : public CanBattery {
   bool battery_temp_seen = false;                // 0x332 mux 0 (thermistor min/max) received
   uint16_t battery_beginning_of_life = 0;        // 0.1 kWh, from 0x392 mux 1 else 0x292 (0 = unavailable)
   uint8_t battery_beginning_of_life_source = 0;  // 0 = unavailable, SohReferenceLegacyFw or SohReferenceNewFw
-  uint16_t battery_soc_min = 0;
-  uint16_t battery_soc_max = 0;
-  uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui
+  uint16_t bol_0x292_x10 = 0;  // raw capacity when new of 0x292 and 0x392 mux 1, 0.1 kWh (detail page)
+  uint16_t bol_0x392_x10 = 0;
+  // Raw 0x292 SOC fields, 0.1 %, 1023 = not available / not received yet. The detail page shows them as received
+  uint16_t battery_soc_min = 1023;
+  uint16_t battery_soc_max = 1023;
+  uint16_t battery_soc_ui_raw = 1023;  // live UI SOC
+  uint16_t battery_soc_ui = 0;         // held UI SOC (main page): the last valid one, used for real_soc
+  uint16_t battery_soc_ave = 1023;
   // A UI SOC of 1023 is not available: the last SOC is held and EVENT_SOC_UNAVAILABLE (a WARNING) is raised after
   // SocUnavailableDelay_s seconds without a valid UI SOC
   static constexpr uint16_t SocUnavailableDelay_s = 30;
   bool soc_ui_seen = false;   // a valid UI SOC was received at least once
   bool soc_ui_fresh = false;  // a valid UI SOC was received since the last update_values()
   uint16_t seconds_without_soc = 0;
-  uint16_t battery_soc_ave = 0;
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
   uint32_t battery_packMass = 0;

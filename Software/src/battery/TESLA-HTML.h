@@ -13,7 +13,6 @@ class TeslaHtmlRenderer : public BatteryHtmlRenderer {
   bool renders_own_battery_data() { return true; }
 
   String get_status_html();
-  String get_main_view_total_capacity_label();
   String get_main_view_soh_rows();
   String get_main_view_capacity_rows();
   String get_main_view_cell_rows();
@@ -32,8 +31,6 @@ class TeslaLegacyHtmlRenderer : public TeslaHtmlRenderer {
       : TeslaHtmlRenderer(extended, core) {}
 
   String get_status_html();
-  // The legacy packs have no capacity when new from the pack: the total capacity is the configured one
-  String get_main_view_total_capacity_label() { return String("Total capacity when new"); }
 };
 
 #endif
