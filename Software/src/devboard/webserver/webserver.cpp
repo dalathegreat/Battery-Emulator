@@ -1419,30 +1419,35 @@ static void render_battery_card(String& content, const String& style, const Batt
   const bool system_card = (pack_index == 0) || !multi;
   const bool scaled = system_card && datalayer.battery_settings.soc_scaling_active;
 
-  /* The card is a container and a stacking context of its own, so the watermark can be sized
-     from the card's width and sit behind the text but in front of the card's background. */
-  content += "<div style='position: relative; isolation: isolate; container-type: inline-size; " + style + "'>";
+  /* The card is a stacking context of its own, so the watermark can sit behind the text but in
+     front of the card's background. */
+  content += "<div style='position: relative; isolation: isolate; " + style + "'>";
 
   if (system_card) {
-    /* Software version as a watermark, tilted 30 degrees. The font size is chosen so that the
-       rotated string fills about 90% of the card's width: an Arial character averages roughly
-       0.56 em, and a string of that length rotated by 30 degrees spans length * cos(30) plus
-       half a line height across. Cards that are not wide enough for container query units fall
-       back to the viewport width. */
+    /* Software version as a watermark, tilted 30 degrees and kept 30 px inside the card's edges.
+       The frame holding it is absolutely positioned, so the card alone decides its size and it can
+       be a size container. The text, which has to carry the font size because a container's own
+       units refer to an outer container, gets the largest font for which the rotated string
+       fits the frame both across and down. An Arial character averages roughly 0.56 em, so the
+       string is text_em wide and one line high; rotated by 30 degrees it spans
+       text_em * cos(30) + sin(30) across and text_em * sin(30) + cos(30) down, in em. Browsers
+       without container query units use the viewport width instead. */
     const float text_em = strlen(version_number) * 0.56f;
     const float width_em = text_em * 0.866f + 0.5f;
-    char watermark_style[260];
-    snprintf(watermark_style, sizeof(watermark_style),
-             "position: absolute; z-index: -1; top: 50%%; left: 50%%; "
-             "transform: translate(-50%%, -50%%) rotate(-30deg); white-space: nowrap; "
-             "font-weight: bold; font-size: %.1fvw; font-size: %.1fcqw; color: rgba(255, 255, 255, 0.15); "
-             "pointer-events: none; user-select: none;",
-             80.0f / width_em, 90.0f / width_em);
-    content += "<div aria-hidden='true' style='";
-    content += watermark_style;
+    const float height_em = text_em * 0.5f + 0.866f;
+    char text_style[120];
+    snprintf(text_style, sizeof(text_style),
+             "flex: none; transform: rotate(-30deg); font-size: %.1fvw; font-size: min(%.1fcqw, %.1fcqh);",
+             80.0f / width_em, 100.0f / width_em, 100.0f / height_em);
+    content +=
+        "<div aria-hidden='true' style='position: absolute; inset: 30px; z-index: -1; overflow: hidden; "
+        "container-type: size; display: flex; align-items: center; justify-content: center; "
+        "pointer-events: none; user-select: none; font-weight: bold; line-height: 1; white-space: nowrap; "
+        "color: rgba(255, 255, 255, 0.15);'><span style='";
+    content += text_style;
     content += "'>";
     content += html_escape(version_number);
-    content += "</div>";
+    content += "</span></div>";
   }
 
   if (scaled) {
