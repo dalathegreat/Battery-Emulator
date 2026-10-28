@@ -1,4 +1,6 @@
 #include "TESLA-HTML.h"
+#include "TESLA-BATTERY.h"
+#include <algorithm>
 #include <cstring>
 
 static void appendFault(String& string, const char* name, bool faultActive) {
@@ -8,6 +10,33 @@ static void appendFault(String& string, const char* name, bool faultActive) {
   string += "<h4>";
   string += name;
   string += ": ACTIVE</h4>";
+}
+
+static float nominalFullPackKwh(const DATALAYER_INFO_TESLA& tesla) {
+  return tesla.BMS352_mux ? static_cast<float>(tesla.battery_nominal_full_pack_energy_m0) * 0.02f
+                          : static_cast<float>(tesla.battery_nominal_full_pack_energy) * 0.1f;
+}
+
+// The SOH estimate (it is the SOH sent to the inverter), shared by the main card and the detail page
+static String sohEstimateRow(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  if (!tesla.soh_estimate_known) {
+    return "<h4>Estimate SOH: unknown (" + String((int)(status.soh_pptt / 100.0f + 0.5f)) +
+           "% passed to inverter)</h4>";
+  }
+  return "<h4>Estimate SOH: " + String(status.soh_pptt * 0.01f, 1) + "% (" + String(nominalFullPackKwh(tesla), 1) +
+         " kWh / " +
+         String(tesla.battery_beginning_of_life * 0.1f, 1) + " kWh)</h4>";
+}
+
+// Detail page: the estimate and the source of its "full pack when new" value, below the nominal full pack energy
+static String sohDetailRows(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  const char* reference_source = "unavailable (no plausible value in 0x392 or 0x292)";
+  if (tesla.soh_reference_source == TeslaBattery::SohReferenceNewFw) {
+    reference_source = "new firmware (0x392)";
+  } else if (tesla.soh_reference_source == TeslaBattery::SohReferenceLegacyFw) {
+    reference_source = "legacy firmware (0x292)";
+  }
+  return sohEstimateRow(tesla, status) + "<h4>Full Pack When New source: " + String(reference_source) + "</h4>";
 }
 
 // Brick IDs are only given by Model 3/Y packs
@@ -32,7 +61,6 @@ String TeslaHtmlRenderer::get_status_html() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
   String content;
 
-  float beginning_of_life = static_cast<float>(tesla.battery_beginning_of_life) * 0.1f;
   float battTempPct = static_cast<float>(tesla.battery_battTempPct) * 0.4f;
   float dcdcLvBusVolt = static_cast<float>(tesla.battery_dcdcLvBusVolt) * 0.01f;
   float dcdcHvBusVolt = static_cast<float>(tesla.battery_dcdcHvBusVolt) * 0.1f;
@@ -223,8 +251,8 @@ String TeslaHtmlRenderer::get_status_html() {
   //0x352 850 BMS_energyStatus
   if (tesla.BMS352_mux == false) {
     content += "<h3>BMS 0x352 w/o mux</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
-    content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy * 100 / beginning_of_life) + "</h4>";
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " kWh</h4>";
+    content += sohDetailRows(tesla, core_data->status);
     content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " kWh</h4>";
     content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " kWh</h4>";
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " kWh</h4>";
@@ -234,8 +262,8 @@ String TeslaHtmlRenderer::get_status_html() {
   //0x352 850 BMS_energyStatus
   if (tesla.BMS352_mux == true) {
     content += "<h3>BMS 0x352 w/ mux</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
-    content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy_m0 * 100 / beginning_of_life) + "</h4>";
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " kWh</h4>";
+    content += sohDetailRows(tesla, core_data->status);
     content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining_m0) + " kWh</h4>";
     content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining_m0) + " kWh</h4>";
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " kWh</h4>";
@@ -253,7 +281,6 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>BMS_componentId: " + String(tesla.BMS_info_componentId) + "</h4>";
   appendFault(content, "BMS PCS PWM Enabled", tesla.BMS_pcsPwmEnabled);
   //0x292 658 BMS_socStates
-  content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " kWh</h4>";
   content += "<h4>Battery SOC UI: " + String(soc_ui) + " </h4>";
   content += "<h4>Brick SOC Ave: " + String(soc_ave, 1) + "%</h4>";
   content += "<h4>Brick SOC Max: " + String(soc_max, 1) + "%</h4>";
