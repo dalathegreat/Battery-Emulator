@@ -1875,9 +1875,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY \
+#define SETTINGS_HTML_BODY          \
   R"rawliteral(
-  )rawliteral" INDEX_HTML_NAV_START R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
+  )rawliteral" INDEX_HTML_NAV_START \
+  R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
 
   <script>
   function validateWebAuthPassword() {

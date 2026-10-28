@@ -28,10 +28,10 @@
 // onto further centered rows on a narrow screen. INDEX_HTML_NAV_CSS goes into the page's style
 // block, after its own button rules; the page body starts with INDEX_HTML_NAV_START, then the
 // page's own buttons (the first is always Back to main page) and INDEX_HTML_NAV_END.
-#define INDEX_HTML_NAV_CSS                                                                                      \
-  ".subnav{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:0;padding:10px 0 20px}"          \
-  ".subnav button{box-sizing:border-box;height:36px;margin:0;padding:0 20px;background:#505E67;color:#fff;"   \
-  "border:0;border-radius:10px;font:13.33px Arial,sans-serif;line-height:1;cursor:pointer}"                    \
+#define INDEX_HTML_NAV_CSS                                                                                  \
+  ".subnav{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:0;padding:10px 0 20px}"       \
+  ".subnav button{box-sizing:border-box;height:36px;margin:0;padding:0 20px;background:#505E67;color:#fff;" \
+  "border:0;border-radius:10px;font:13.33px Arial,sans-serif;line-height:1;cursor:pointer}"                 \
   ".subnav button:hover{background:#3A4A52}"
 #define INDEX_HTML_NAV_START "<div class=subnav><button onclick=\"location.href='/'\">Back to main page</button>"
 #define INDEX_HTML_NAV_END "</div>"
