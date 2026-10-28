@@ -108,7 +108,7 @@ String JaguarIpaceBattery::get_uds_info_html() {
   String content;
   content.reserve(300);
 
-  content << "<h4>Battery VIN: " << battery_vin << "</h4>";
+  content << "<h4>Battery VIN: " << String(battery_vin) << "</h4>";
 
   // clang-format on
 
