@@ -1222,7 +1222,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         mux0_read = true;           //Set flag to true
       }
       if (mux == 1) {
-        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //BMS_fullChargeComplete : 15|1@1+ (1,0) [0|1]//noYes
+        battery_fully_charged = (rx_frame.data.u8[1] & 0x80) != 0;  //BMS_fullChargeComplete : 15|1@1+ (1,0) [0|1] noYes
         battery_energy_buffer_m1 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.01,0) [0|0] "kWh"//to datalayer_extended
         battery_expected_energy_remaining_m1 =
