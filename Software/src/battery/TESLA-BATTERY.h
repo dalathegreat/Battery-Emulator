@@ -62,24 +62,21 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
-  // Beginning of life energy (SOH estimate reference): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw). Values outside
-  // 38.0 to 150.0 kWh (0.1 kWh) are ignored, 0x292 reads 0 or 0.1 kWh on some firmware. Source 0 = unavailable.
-  // The source is sticky on purpose: which frame carries a plausible value depends only on the pack firmware version,
-  // so once 0x392 mux 1 has given one, the pack is on the new firmware and a later 0x292 value is never used.
+  // Beginning of life energy (SOH estimate reference): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw, reads 0 or 0.1
+  // kWh on some firmware). The source is sticky: it depends only on the pack firmware, so once 0x392 mux 1 has given a
+  // plausible value a later 0x292 value is never used. Source 0 = unavailable.
   // A raw 1023 in a 10 bit energy field (0x292, 0x392, legacy 0x382) is "not available".
   static constexpr uint8_t SohReferenceLegacyFw = 1;
   static constexpr uint8_t SohReferenceNewFw = 2;
-  // Plausible nominal pack energy (full, when new): 38.0 to 150.0 kWh, in 0.1 kWh. A garbage reading must not give an
-  // SOH below 25 % (EVENT_SOH_LOW is an ERROR): 38.0 / 150.0 = 25.3 %, so even a garbage pair (energy and reference)
-  // at the two limits stays above it. The smallest Tesla packs are ~54 kWh (3/Y SR) and 60 kWh (S/X), the largest
-  // ~100 kWh (S/X 100D, Plaid) and 82 kWh (3/Y), so 38 and 150 leave margin.
+  // Plausible nominal pack energy (full, when new): 38.0 to 150.0 kWh, in 0.1 kWh. Even a garbage pair at the two limits
+  // gives 38.0 / 150.0 = 25.3 %, above the 25 % EVENT_SOH_LOW (ERROR) limit. Real packs are 54 to 100 kWh.
   static constexpr uint16_t EnergyMin_x10 = 380;
   static constexpr uint16_t EnergyMax_x10 = 1500;
   static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
   static constexpr bool energy_x10_plausible_10bit(uint16_t x10) { return energy_x10_plausible(x10) && x10 != 1023; }
-  // The nominal full pack energy is not available for short bursts (the S/X pack sends 1023 for about 5 s). The last
+  // The nominal full pack energy is not available for short bursts (the S/X pack sends 1023 for about 5 s): the last
   // plausible value is held for EnergyHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
-  // configured capacity. Called once a second (update_values) with the value received last.
+  // configured capacity. Called once a second (update_values).
   static constexpr uint16_t EnergyHold_s = 30;
   // The last valid UI SOC is held while the pack does not send one, for SocHoldLimit_s (30 minutes). After that the SOC
   // is cleared (0, remaining capacity 0), and there is no fallback: the brick SOC and the energies are not the UI SOC.
@@ -94,12 +91,11 @@ class TeslaBattery : public CanBattery {
     uint16_t seconds_not_plausible = 0;
   };
   static void hold_energy(EnergyHold& hold, uint32_t received, bool plausible);
-  // An SOH estimate above 101.00 % (0.01 %) is not credible and shown as Unknown; 100-101 % is shown as 100 %
+  // An SOH estimate above 101.00 % (0.01 %) is not credible: unknown. 100.00-101.00 % is sent as 100.00 %.
   static constexpr uint32_t SohEstimateMax_pptt = 10100;
   // SOH sent to the inverter (soh_pptt, 0.01 %) = nominal_full_x10 * 10000 / beginning_of_life_x10, both in 0.1 kWh:
-  // 72.1 kWh over 85.0 kWh is 8482 = 84.82 %. Estimates above SohEstimateMax_pptt are not credible, 100.00-101.00 % is
-  // sent as 100.00 %. When it cannot be calculated the inverter gets 99 % as on master (soh_available stays true,
-  // only the web card says unknown). Returns whether the estimate could be calculated.
+  // 72.1 kWh over 85.0 kWh is 8482 = 84.82 %. When it cannot be calculated the inverter gets 99 % as on master
+  // (soh_available stays true, only the web card says unknown). Returns whether the estimate could be calculated.
   static bool apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
                                  uint32_t beginning_of_life_x10);
   // The nominal remaining energy (Wh, 0 = unknown) is plausible when above 0 and not above the nominal full energy (0.1
@@ -134,8 +130,7 @@ class TeslaBattery : public CanBattery {
   TeslaHtmlRenderer renderer;
 
   // OBSOLETE fallback: total capacity from the user selected GTW pack energy (50/74/62/100 kWh), set once in setup().
-  // The pack's capacity when new (0x392/0x292) replaces it when readable. Used only when no plausible value is
-  // reported (legacy S/X packs report none).
+  // Used only when the pack reports no plausible capacity when new (0x392/0x292, legacy S/X packs report none).
   uint32_t fallback_total_capacity_Wh = 0;
 
   // Per-instance extended data for the "More Battery Info" webserver page.

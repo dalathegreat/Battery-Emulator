@@ -457,9 +457,8 @@ struct DATALAYER_INFO_TESLA {
   uint16_t cac_avg_x10;
   uint16_t cac_min_x10;
   uint16_t cac_max_x10;
-  // Detail page: the raw CAC as decoded, no checks. 0.1 Ah, all ones = not available.
+  // Detail page: the raw CAC as decoded, no checks. 0.1 Ah, all ones = not available, N/A until the frame was received.
   // 3/Y 0x3B2 mux 0: [0] = 2022 layout, [1] = 2024.8.9+ layout (each frame is decoded in both). S/X 0x7E2 page 0: [0].
-  // Detail page: N/A until the frame was received (a genuine 0 shows as 0), and for the SNA value
   bool cac_raw_seen[2];            // same index as cac_raw_*
   bool nominal_remaining_seen;     // 3/Y 0x352 without mux
   bool nominal_remaining_m0_seen;  // 3/Y 0x352 mux 0

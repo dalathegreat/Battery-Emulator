@@ -380,9 +380,8 @@ String TeslaHtmlRenderer::get_status_html() {
              String(tesla.battery_BrickVoltageMinNum) + ")</h4>";
   content += "<h4>Brick Temp Max Num: " + String(tesla.battery_BrickTempMaxNum) + " </h4>";
   content += "<h4>Brick Temp Min Num: " + String(tesla.battery_BrickTempMinNum) + " </h4>";
-  //0x3B2 BMS_log2 mux 0, pack level CAC
-  // Each frame is decoded in both layouts, A (2022 era) and B (2024.8.9+), one of them is not the pack's. The frame is
-  // slow, up to about 30 s.
+  // 0x3B2 BMS_log2 mux 0, pack level CAC (a frame every ~30 s). Each frame is decoded in both layouts, A (2022 era) and
+  // B (2024.8.9+), one of them is not the pack's.
   for (int i = 0; i < 2; i++) {
     const String layout = String(" (0x3B2 layout ") + (i ? "B" : "A") + ")";
     content += rawCacRow("CAC Average" + layout, tesla.cac_raw_seen[i], tesla.cac_raw_avg_x10[i], 8191, 0);
