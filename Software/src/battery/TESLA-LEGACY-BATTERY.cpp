@@ -119,6 +119,10 @@ void TeslaLegacyBattery::update_values() {
 
   datalayer.battery.status.current_dA = (battery_amps * 10);  //13.0A
 
+  TeslaBattery::hold_nominal_full(nominal_full_hold, nominal_full_x10_received,
+                                  TeslaBattery::energy_x10_plausible_10bit(nominal_full_x10_received));
+  datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_hold.x10;
+
   datalayer.battery.status.remaining_capacity_Wh =
       TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc,
                                  datalayer_extended.tesla.battery_nominal_full_pack_energy,
@@ -304,12 +308,9 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x382:  // Nominal full pack energy, bits 0-9 in 0.1 kWh, the SOH estimate input (3/Y field)
     {
-      const uint16_t nominal_full_x10 = tesla_le_bits(rx_frame.data.u8, 0, 10);
-      // 38.0 to 150.0 kWh is plausible, else the last plausible value stays (0 = never read). The pack sends 1023 for
-      // about 5 s while it is not available.
-      if (TeslaBattery::energy_x10_plausible_10bit(nominal_full_x10)) {
-        datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_x10;
-      }
+      // 38.0 to 150.0 kWh is plausible. The pack sends 1023 for about 5 s while it is not available: update_values()
+      // holds the last plausible value for 30 s.
+      nominal_full_x10_received = tesla_le_bits(rx_frame.data.u8, 0, 10);
       // Nominal energy remaining, bit 11, 11 bits, 0.1 kWh (web page only). This is the layout of the 2012-2020 pack
       // that was measured, the energy fields are 11 bits wide like the pre-2021 3/Y 0x352. The public 10 bit layout
       // (wk057) differs and is not detected. All ones is SNA, shown as no data (0).

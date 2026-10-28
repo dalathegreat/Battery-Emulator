@@ -467,6 +467,20 @@ bool TeslaBattery::apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uin
   return valid;
 }
 
+void TeslaBattery::hold_nominal_full(NominalFullHold& hold, uint32_t received_x10, bool plausible) {
+  if (plausible) {
+    hold.x10 = received_x10;
+    hold.seconds_not_plausible = 0;
+  } else if (hold.x10 != 0) {
+    if (hold.seconds_not_plausible < UINT16_MAX) {
+      hold.seconds_not_plausible++;
+    }
+    if (hold.seconds_not_plausible >= NominalFullHold_s) {
+      hold.x10 = 0;  // not available for too long: unknown
+    }
+  }
+}
+
 uint32_t TeslaBattery::remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t total_capacity_Wh) {
   const uint32_t base_Wh =
       energy_x10_plausible(static_cast<uint16_t>(nominal_full_x10)) ? nominal_full_x10 * 100 : total_capacity_Wh;
@@ -478,8 +492,11 @@ void TeslaBattery::
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
   // SOH is an estimate, see apply_soh_estimate. 0x352 with mux (mux 0 and 1 seen) counts 0.02 kWh, without mux 0.1 kWh
-  const uint32_t nominal_full_x10 =
+  const uint32_t received_nominal_full_x10 =
       BMS352_mux ? ((uint32_t)battery_nominal_full_pack_energy_m0 + 2) / 5 : battery_nominal_full_pack_energy;
+  hold_nominal_full(nominal_full_hold, received_nominal_full_x10,
+                    received_nominal_full_x10 <= UINT16_MAX && energy_x10_plausible(received_nominal_full_x10));
+  const uint32_t nominal_full_x10 = nominal_full_hold.x10;
   datalayer_tesla->soh_estimate_known =
       apply_soh_estimate(datalayer_battery->status, nominal_full_x10, battery_beginning_of_life);
 

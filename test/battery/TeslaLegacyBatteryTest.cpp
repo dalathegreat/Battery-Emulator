@@ -246,18 +246,62 @@ TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
 }
 
 // 0x382 bits 0-9: nominal full pack energy, 0.1 kWh. Outside 38.0-150.0 kWh (the pack sends 1023 for 5 s) the last
-// plausible value stays, so the SOH and remaining capacity do not jump during that burst.
+// plausible value is held for 30 s, so the SOH and remaining capacity do not jump during that burst.
 TEST_F(TeslaLegacyBatteryTest, NominalFullPackEnergyFrom0x382) {
   EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("Energy: not received yet"),
             std::string::npos);
 
   pack_->handle_incoming_can_frame(RealNominal());
+  pack_->update_values();
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
 
   pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x7B, 0x01}));  // 379 = 37.9 kWh
+  pack_->update_values();
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
   pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
+  pack_->update_values();
   EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 721);
+}
+
+// The last plausible energy is held for 30 s of 1023 (not available) or implausible values, then it is unknown (SOH 99
+// %, remaining Wh from the configured capacity). A plausible value ends it at once and a shorter burst restarts the
+// count.
+TEST_F(TeslaLegacyBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfter30Seconds) {
+  pack_->handle_incoming_can_frame(LegacyHwId(70));  // 85.0 kWh configured
+  pack_->handle_incoming_can_frame(LegacySoc(271));
+  pack_->handle_incoming_can_frame(RealNominal());
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);  // 72.1 / 85.0
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0x03}));  // 1023, not available
+  for (int second = 1; second <= 29; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482) << second;
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u) << second;
+    EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known) << second;
+  }
+  pack_->update_values();  // 30 s
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 23035u);  // 27.1 % of 85.0 kWh
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_full_pack_energy, 0);
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+
+  pack_->handle_incoming_can_frame(RealNominal());  // back
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+
+  for (int burst = 0; burst < 3; burst++) {  // 20 s bursts do not add up
+    pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0x03}));
+    for (int second = 0; second < 20; second++) {
+      pack_->update_values();
+    }
+    pack_->handle_incoming_can_frame(RealNominal());
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);
+  }
 }
 
 // The SOH sent to the inverter is the estimate: 0x382 nominal full energy / configured capacity (id 70 is 85 kWh): 72.1

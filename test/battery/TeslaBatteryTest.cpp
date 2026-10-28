@@ -1058,8 +1058,11 @@ TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 74000u);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);
 
+  // The last plausible energy is held for 30 s, then it is unknown (see NominalFullEnergyIsHeldDuringABurst...)
   FeedNominalFullPackEnergy(*pack_, 1000);  // 20 kWh, below 38 kWh
-  pack_->update_values();
+  for (int second = 0; second < 30; second++) {
+    pack_->update_values();
+  }
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 74000u);
   EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 59200u);
 
@@ -1124,4 +1127,46 @@ TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfThePre2021Format
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   pack_->update_values();
   EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: no data"));
+}
+
+// The nominal full pack energy is not always available: the last plausible value is held for 30 s (SOH and remaining Wh
+// stay), then it is unknown (SOH 99 %, remaining Wh from the capacity when new). A plausible value ends it at once.
+TEST_F(TeslaBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfter30Seconds) {
+  user_selected_tesla_GTW_packEnergy = 1;
+  pack_->setup();
+  FeedNominalFullPackEnergy(*pack_, 3053);  // 61.1 kWh
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  pack_->handle_incoming_can_frame(SocUi(800));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);
+
+  FeedNominalFullPackEnergy(*pack_, 65535);  // not available
+  for (int second = 1; second <= 29; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442) << second;
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u) << second;
+    EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known) << second;
+  }
+  pack_->update_values();  // 30 s
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 65680u);  // 80 % of 82.1 kWh
+  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
+  EXPECT_TRUE(datalayer.battery.status.soh_available);
+
+  FeedNominalFullPackEnergy(*pack_, 3053);  // back
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);
+
+  // A shorter burst does not add up: the counter restarts with every plausible value
+  for (int burst = 0; burst < 3; burst++) {
+    FeedNominalFullPackEnergy(*pack_, 65535);
+    for (int second = 0; second < 20; second++) {
+      pack_->update_values();
+    }
+    FeedNominalFullPackEnergy(*pack_, 3053);
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);
+  }
 }
