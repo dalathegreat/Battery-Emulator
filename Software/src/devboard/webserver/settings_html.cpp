@@ -1577,7 +1577,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
 )rawliteral" CHARGER_SETTINGS_SCRIPT R"rawliteral(
 
-          function goToMainPage() { window.location.href = '/'; }
 
           function haDisc(c) {
             var f = document.querySelector("[name=HADISCFWU]"), n = document.querySelector("[name=HADISC]");
@@ -1872,13 +1871,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
+    )rawliteral" INDEX_HTML_NAV_CSS R"rawliteral(
     </style>
 )rawliteral"
 
 #define SETTINGS_HTML_BODY \
   R"rawliteral(
-  <button onclick='goToMainPage()'>Back to main page</button>
-  <button onclick="askFactoryReset()">Factory reset</button>
+  )rawliteral" INDEX_HTML_NAV_START R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
 
   <script>
   function validateWebAuthPassword() {

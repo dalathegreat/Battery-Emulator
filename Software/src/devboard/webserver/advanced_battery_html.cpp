@@ -95,9 +95,7 @@ Battery* battery_at(unsigned index) {
 // HELP_SCRIPT lets any renderer explain its panels with data-h attributes (texts in help.json).
 const char page_start[] =
     INDEX_HTML_HEADER HELP_SCRIPT INDEX_HTML_SUBPAGE_STYLE R"html(h4{margin:.6em 0;line-height:1.2}
-</style>
-<button onclick="location.href='/'">Back to main page</button>
-<button onclick="location.href='/cellmonitor'+location.search">Cellmonitor</button>
+</style>)html" INDEX_HTML_NAV_START R"html(<button onclick="location.href='/cellmonitor'+location.search">Cellmonitor</button>)html" INDEX_HTML_NAV_END R"html(
 <nav aria-label='Battery selection'>
 )html";
 const char page_end[] = "</div>" INDEX_HTML_FOOTER;

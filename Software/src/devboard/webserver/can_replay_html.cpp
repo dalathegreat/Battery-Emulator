@@ -16,8 +16,9 @@ String can_replay_processor(void) {
   content +=
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
+  content += INDEX_HTML_NAV_CSS;
   content += "</style>";
-  content += "<button onclick='home()'>Back to main page</button>";
+  content += INDEX_HTML_NAV_START INDEX_HTML_NAV_END;
 
   // CAN dump card
   content +=
@@ -159,7 +160,6 @@ String can_replay_processor(void) {
     content += "function deleteCANLog() { window.location.href = '/delete_can_log'; }";
   }
 #endif  // SDCARD
-  content += "function home() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;
   return content;

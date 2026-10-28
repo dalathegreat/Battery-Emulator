@@ -52,17 +52,19 @@ String debug_logger_processor(void) {
   content +=
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
+  content += INDEX_HTML_NAV_CSS;
   content += "</style>";
+  content += INDEX_HTML_NAV_START;
   if (datalayer.system.info.web_logging_active) {
-    content += "<button onclick='refreshPage()'>Refresh data</button> ";
+    content += "<button onclick='refreshPage()'>Refresh data</button>";
   }
-  content += "<button onclick='exportLog()'>Export to .txt</button> ";
+  content += "<button onclick='exportLog()'>Export to .txt</button>";
 #ifdef SDCARD
   if (datalayer.system.info.SD_logging_active) {
-    content += "<button onclick='deleteLog()'>Delete log file</button> ";
+    content += "<button onclick='deleteLog()'>Delete log file</button>";
   }
 #endif  // SDCARD
-  content += "<button onclick='goToMainPage()'>Back to main page</button>";
+  content += INDEX_HTML_NAV_END;
 
   // Start a new block for the debug log messages
   content += "<PRE style='text-align: left'>";
@@ -104,7 +106,6 @@ String debug_logger_processor(void) {
     content += "function deleteLog() { window.location.href = '/delete_log'; }";
   }
 #endif  // SDCARD
-  content += "function goToMainPage() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;
   return content;

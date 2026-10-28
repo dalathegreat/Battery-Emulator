@@ -83,9 +83,7 @@ const char page_head[] =
 .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin:10px 0}
 #val,.lgd{font-weight:700}
 .lgd{padding:2px 8px;border:1px solid transparent;border-radius:4px}
-</style>
-<button onclick="location.href='/'">Back to main page</button>
-<button onclick="location.href='/advanced'+location.search">More Battery Info</button>
+</style>)html" INDEX_HTML_NAV_START R"html(<button onclick="location.href='/advanced'+location.search">More Battery Info</button>)html" INDEX_HTML_NAV_END R"html(
 )html";
 
 // Voltage summary, selected cell's value, graph and legend come first, the cell table below them.
