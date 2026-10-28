@@ -683,6 +683,10 @@ TEST_F(TeslaBatteryTest, CacFrameIsDecodedInTheLayoutThatFits) {
     EXPECT_EQ(datalayer_extended.tesla.cac_max_x10, 1500);
     EXPECT_EQ(datalayer_extended.tesla.cac_min_brick_id, 11);
     EXPECT_EQ(datalayer_extended.tesla.cac_max_brick_id, 52);
+    // The main card has the imbalance (5.0 Ah, 3 % of the average) right below the CAC row
+    EXPECT_NE(pack_->get_status_renderer().get_main_view_cell_rows().str().find(
+                  "<h4>CAC: 145.0 Ah (brick 11) - 150.0 Ah (brick 52)</h4><h4>CAC Imbalance: 5.0 Ah (3%)</h4>"),
+              std::string::npos);
   }
 
   memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
@@ -747,13 +751,16 @@ TEST_F(TeslaBatteryTest, SohEstimateIsUnknownWhenNoPlausibleBeginningOfLife) {
 
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 0);
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 0);
-  EXPECT_TRUE(MainRowsContain(*pack_, "Estimate SOH: unknown (99% passed to inverter)"));
+  EXPECT_TRUE(MainRowsContain(*pack_, "Calculated SOH: unknown (99% passed to inverter)"));
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-  EXPECT_TRUE(DetailPageContains(*pack_, "Estimate SOH: unknown (99% passed to inverter)"));
+  EXPECT_TRUE(DetailPageContains(*pack_, "Calculated SOH: unknown (99% passed to inverter)"));
   EXPECT_TRUE(
-      DetailPageContains(*pack_, "Full Pack When New source: unavailable (no plausible value in 0x392 or 0x292)"));
+      DetailPageContains(*pack_, "Total capacity when new source: unavailable (no plausible value in 0x392 or 0x292)"));
+  // Not the capacity when new: the main card says "Total capacity" and the detail page has no such row
+  EXPECT_EQ(pack_->get_status_renderer().get_main_view_total_capacity_label().str(), "Total capacity");
+  EXPECT_FALSE(DetailPageContains(*pack_, "Total capacity when new: "));
 }
 
 // 1023 is not available in the 0x292 SOC fields. The pack SOC is the UI SOC, the last SOC is held while it is not
@@ -767,14 +774,15 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   const auto cell_rows = [&]() {
     return pack_->get_status_renderer().get_main_view_cell_rows().str();
   };
-  EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6% (Ave 30.3%)</h4>"), std::string::npos);
+  EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6% (Ave 30.3%)</h4><h4>Brick SOC Imbalance: 0.6%</h4>"),
+            std::string::npos);
 
   for (int second = 0; second < 5; second++) {  // a 5 s burst
     pack_->handle_incoming_can_frame(SocFields(300, 1023, 306, 1023));
     pack_->update_values();
     EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   }
-  EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6%</h4>"), std::string::npos);
+  EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6%</h4><h4>Brick SOC Imbalance: 0.6%</h4>"), std::string::npos);
 
   pack_->handle_incoming_can_frame(SocFields(1023, 1023, 1023, 1023));
   pack_->update_values();
@@ -854,12 +862,15 @@ TEST_F(TeslaBatteryTest, SohEstimateUses0x292OnLegacyFirmware) {
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 1);
   EXPECT_TRUE(MainRowsContain(*pack_, "kWh / 100.0 kWh)"));
   // The SOH estimate has its own main card hook (instead of the SOH row), the capacity rows hold the current capacity
-  EXPECT_TRUE(MainCapacityRowsContain(*pack_, "<h4>Current capacity (reported by pack): 60.7 kWh</h4>"));
-  EXPECT_FALSE(MainCapacityRowsContain(*pack_, "Estimate SOH"));
-  // Nominal Full Pack Energy, the estimate and the source are adjacent rows, in this order
+  EXPECT_TRUE(MainCapacityRowsContain(*pack_, "<h4>Current total capacity: 60.7 kWh</h4>"));
+  EXPECT_FALSE(MainCapacityRowsContain(*pack_, "Calculated SOH"));
+  // Nominal Full Pack Energy, the estimate, the total capacity when new (as on the main card) and its source are
+  // adjacent rows, in this order
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 100000u);
   EXPECT_TRUE(DetailPageContains(*pack_,
-                                 " kWh</h4><h4>Estimate SOH: 60.7% (60.7 kWh / 100.0 kWh)</h4>"
-                                 "<h4>Full Pack When New source: legacy firmware (0x292)</h4>"));
+                                 " kWh</h4><h4>Calculated SOH: 60.7% (60.7 kWh / 100.0 kWh)</h4>"
+                                 "<h4>Total capacity when new: 100.0 kWh</h4>"
+                                 "<h4>Total capacity when new source: legacy firmware (0x292)</h4>"));
 
   pack_->handle_incoming_can_frame(Frame292(380));
   pack_->update_values();
@@ -907,7 +918,9 @@ TEST_F(TeslaBatteryTest, SohEstimateUsesPackEnergyWhenNewFromPackConfigFrame) {
   EXPECT_EQ(datalayer_extended.tesla.battery_beginning_of_life, 821);
   EXPECT_EQ(datalayer_extended.tesla.soh_reference_source, 2);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 7393);
-  EXPECT_TRUE(DetailPageContains(*pack_, "Full Pack When New source: new firmware (0x392)"));
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
+  EXPECT_TRUE(DetailPageContains(*pack_, "Total capacity when new: 82.1 kWh</h4>"));
+  EXPECT_TRUE(DetailPageContains(*pack_, "Total capacity when new source: new firmware (0x392)"));
 }
 
 // Pack temperature is the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC), not the two frame types sharing ID 0x312.

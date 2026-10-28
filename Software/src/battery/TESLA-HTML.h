@@ -32,6 +32,8 @@ class TeslaLegacyHtmlRenderer : public TeslaHtmlRenderer {
       : TeslaHtmlRenderer(extended, core) {}
 
   String get_status_html();
+  // The legacy packs have no capacity when new from the pack: the total capacity is the configured one
+  String get_main_view_total_capacity_label() { return String("Total capacity when new"); }
 };
 
 #endif
