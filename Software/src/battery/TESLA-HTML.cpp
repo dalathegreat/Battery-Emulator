@@ -115,6 +115,8 @@ String TeslaHtmlRenderer::get_status_html() {
   float BMS_inletActiveCoolTargetT = static_cast<float>(tesla.BMS_inletActiveCoolTargetT) * 0.25f - 25;
   float BMS_inletPassiveTargetT = static_cast<float>(tesla.BMS_inletPassiveTargetT) * 0.25f - 25;
   float BMS_inletActiveHeatTargetT = static_cast<float>(tesla.BMS_inletActiveHeatTargetT) * 0.25f - 25;
+  float BMS_packTMin = static_cast<float>(tesla.BMS_packTMin) * 0.25f - 25;
+  float BMS_packTMax = static_cast<float>(tesla.BMS_packTMax) * 0.25f - 25;
   float PCS_dcdcMaxLvOutputCurrent = static_cast<float>(tesla.PCS_dcdcMaxLvOutputCurrent) * 0.1f;
   float PCS_dcdcCurrentLimit = static_cast<float>(tesla.PCS_dcdcCurrentLimit) * 0.1f;
   float PCS_dcdcLvOutputCurrentTempLimit = static_cast<float>(tesla.PCS_dcdcLvOutputCurrentTempLimit) * 0.1f;
@@ -355,13 +357,9 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>Inlet Active Cool Target Temp: " + String(BMS_inletActiveCoolTargetT) + " DegC</h4>";
   content += "<h4>Inlet Passive Target Temp: " + String(BMS_inletPassiveTargetT) + " DegC</h4>";
   content += "<h4>Inlet Active Heat Target Temp: " + String(BMS_inletActiveHeatTargetT) + " DegC</h4>";
-  // TODO: Pack Temp is the datalayer value (what the main page shows), not the raw frame value
-  auto packTemp = [&](const char* label, int16_t dC) {
-    content += String("<h4>Pack Temp ") + label + ": " +
-               (tesla.temperature_seen ? String(dC / 10.0f) + " DegC" : String("N/A")) + "</h4>";
-  };
-  packTemp("Min", core_data->status.temperature_min_dC);
-  packTemp("Max", core_data->status.temperature_max_dC);
+  // TODO: these two come from 0x312 (see the decode), the temperature the pack reports on 0x332 mux 0 is on the main page
+  content += "<h4>Pack Temp Min: " + String(BMS_packTMin) + " DegC</h4>";
+  content += "<h4>Pack Temp Max: " + String(BMS_packTMax) + " DegC</h4>";
   appendFault(content, "PCS No Flow Request", tesla.BMS_pcsNoFlowRequest);
   appendFault(content, "BMS No Flow Request", tesla.BMS_noFlowRequest);
   //0x224 548 PCS_dcdcStatus

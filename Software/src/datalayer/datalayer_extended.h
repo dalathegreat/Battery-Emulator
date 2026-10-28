@@ -510,6 +510,8 @@ struct DATALAYER_INFO_TESLA {
   uint16_t BMS_inletActiveCoolTargetT;
   uint16_t BMS_inletPassiveTargetT;
   uint16_t BMS_inletActiveHeatTargetT;
+  uint16_t BMS_packTMin;
+  uint16_t BMS_packTMax;
   uint16_t PCS_info_buildConfigId;
   uint16_t PCS_info_hardwareId;
   uint16_t PCS_info_componentId;

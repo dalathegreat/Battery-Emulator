@@ -821,7 +821,8 @@ void TeslaBattery::
   datalayer_tesla->BMS_inletActiveCoolTargetT = BMS_inletActiveCoolTargetT;
   datalayer_tesla->BMS_inletPassiveTargetT = BMS_inletPassiveTargetT;
   datalayer_tesla->BMS_inletActiveHeatTargetT = BMS_inletActiveHeatTargetT;
-  // Pack temperature on the web page comes from status.temperature_min/max_dC (0x332 mux 0), not from 0x312
+  datalayer_tesla->BMS_packTMin = BMS_packTMin;
+  datalayer_tesla->BMS_packTMax = BMS_packTMax;
   datalayer_tesla->temperature_seen = battery_temp_seen;
   datalayer_tesla->BMS_pcsNoFlowRequest = BMS_pcsNoFlowRequest;
   datalayer_tesla->BMS_noFlowRequest = BMS_noFlowRequest;
@@ -1582,7 +1583,12 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                 ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
       BMS_inletActiveHeatTargetT = ((rx_frame.data.u8[5] & (0x0FU)) << 5) |
                                    ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
-      // BMS_packTMin (44|9) and BMS_packTMax (53|9) are not decoded: the pack temperature comes from 0x332 mux 0.
+      // TODO: 0x312 is shared by two frame types, so these two may be decoded from the wrong frame. The pack temperature
+      // the inverter gets is the 0x332 mux 0 min/max (battery_min_temp, battery_max_temp), not these.
+      BMS_packTMin = ((rx_frame.data.u8[6] & (0x1FU)) << 4) |
+                     ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
+      BMS_packTMax = ((rx_frame.data.u8[7] & (0x3FU)) << 3) |
+                     ((rx_frame.data.u8[6] >> 5) & (0x07U));          //53|9@1+ (0.25,-25) [-25|100] "DegC"
       BMS_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
