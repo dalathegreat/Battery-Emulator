@@ -142,6 +142,13 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     } else {
       content += "Not received</h4>";
     }
+    content += "<h4>Charge time remaining: ";
+    if (byd_datalayer->charge_time_remaining_h != 0xFF) {
+      content += String(byd_datalayer->charge_time_remaining_h) + " h " +
+                 String(byd_datalayer->charge_time_remaining_min) + " min</h4>";
+    } else {
+      content += "Not available</h4>";
+    }
 
     static const size_t TEMPERATURE_SENSOR_COUNT =
         sizeof(byd_datalayer->battery_temperatures) / sizeof(byd_datalayer->battery_temperatures[0]);

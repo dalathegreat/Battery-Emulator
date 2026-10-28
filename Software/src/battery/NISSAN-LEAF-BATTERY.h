@@ -414,10 +414,10 @@ class NissanLeafBattery : public CanBattery {
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged
   bool battery_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
   bool battery_Capacity_Empty = false;    //battery_EMPTY, , Goes to 1 if battery is empty
-  bool battery_HeatExist = false;      //battery_HEATEXIST, Specifies if battery pack is equipped with heating elements
-  bool battery_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
-  bool battery_Heating_Start = false;  //When transitioning from 1->0, signals a START heat request
-  bool battery_Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+  bool battery_HeatExist = false;         //LB_HEATEXIST, meant to flag a pack with heating elements; the LBC sends 0
+  bool battery_Heating_Stop = false;      //LB_Heating_Stop_Send_Request: cold, and charge too low to heat
+  bool battery_Heating_Start = false;     //LB_Heating_Start_Send_Request: cold, and enough charge to heat
+  bool battery_Batt_Heater_Mail_Send_Request = false;  //Batt_Heater_Mail_Send_Request: the pack is cold
   //Which status broadcasts have arrived since boot: bit 0 0x1DB, bit 1 0x55B, bit 2 0x5C0. Until
   //then the flags above are only their initial values, so the page shows them as unknown.
   uint8_t battery_status_seen = 0;

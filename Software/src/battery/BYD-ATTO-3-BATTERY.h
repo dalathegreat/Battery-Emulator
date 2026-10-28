@@ -222,7 +222,8 @@ class BydAttoBattery : public CanBattery {
       3780;  // backstop above full+overshoot; applies only while a session owns the top
   static const uint16_t SESSION_DELTA_LIMIT_MV = 400;     // real cars run 250-360mV of spread at the top
   static const uint16_t SESSION_RAILS_MARGIN_MV = 20;     // rails release only once cells clear the stock limit
-  static const uint32_t SESSION_OBC_CAP_W = 7000;         // donor OBC maximum offer (0x47E b4 = 0x47)
+  static const uint32_t SESSION_OBC_CAP_W = 7000;         // band caps: the approach rate of every captured termination
+  static const uint16_t SESSION_BAND_CAP_dA = 155;        // 15.5A, as above
   static const int16_t SESSION_ARM_CURRENT_dA = 20;       // arm on 2.0A of charge current...
   static const uint32_t SESSION_ARM_DWELL_MS = 30000;     // ...sustained this long
   static const int16_t SESSION_REARM_DISCHARGE_dA = -20;  // a real discharge releases the post-charge hold
@@ -274,6 +275,8 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_highest_cell_voltage_mV = 3300;
   uint16_t BMS_allowed_charge_power = 0;
   uint16_t BMS_charge_times = 0;
+  uint8_t BMS_charge_time_remaining_h = 0xFF;  // 0x445, 0xFF = not available
+  uint8_t BMS_charge_time_remaining_min = 0xFF;
   uint16_t BMS_allowed_discharge_power = 0;
   uint16_t BMS_total_charged_ah = 0;
   uint16_t BMS_total_discharged_ah = 0;
@@ -499,6 +502,7 @@ class BydAttoBattery : public CanBattery {
   bool diag_answered = false;  // first reply settles the diagnostic address
   uint8_t frame6_counter = 0xB;
   uint8_t BMS_SOH = 99;
+  uint8_t BMS_capacity_Ah = 0;
   uint8_t BMS_min_cell_voltage_number = 0;
   uint8_t BMS_min_temp_module_number = 0;
   uint8_t BMS_max_cell_voltage_number = 0;
