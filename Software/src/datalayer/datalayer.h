@@ -551,6 +551,13 @@ struct DATALAYER_AGGREGATE_TYPE {
   uint16_t cell_max_voltage_mV = 3700;
   /** Lowest cell voltage found in any pack, in milliVolt */
   uint16_t cell_min_voltage_mV = 3700;
+  /** Passes in a row the installation has not been charging, up to PARALLEL_STOP_PASSES: a short
+   * stop keeps parallel_charge_limit_W, a longer one starts it over. Kept by combine_pack_limits() */
+  uint16_t parallel_stopped_passes = 0;
+  /** Each pack's share of the charge power the last time the joined packs charged at the parallel
+   * limit, in integer-percent x 100, pack 1 first: what a lower pack limit is cut by. 0 until
+   * measured in a charge session. Kept by combine_pack_limits() */
+  uint16_t parallel_share_pptt[3] = {0, 0, 0};
 
   /** int16_t */
   /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A. A shunt with

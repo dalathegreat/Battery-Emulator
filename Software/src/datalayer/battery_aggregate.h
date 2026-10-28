@@ -176,6 +176,13 @@ static constexpr uint8_t PARALLEL_SETTLE_PASSES = 10;
 static constexpr uint8_t PARALLEL_LIMIT_HOLD_PASSES = 60;
 
 /**
+ * @brief Passes - seconds - the installation may stop charging before the parallel raise starts
+ * over from the lowest pack limit. A load the panels cannot cover for a while - a kettle, a cloud -
+ * does not undo it. See combine_pack_limits().
+ */
+static constexpr uint16_t PARALLEL_STOP_PASSES = 300;
+
+/**
  * @brief Whether parallel headroom tracking is in use: two or three batteries configured, and the
  * "Parallel headroom tracking" setting on.
  *

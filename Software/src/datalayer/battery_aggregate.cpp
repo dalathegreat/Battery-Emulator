@@ -21,6 +21,11 @@ static constexpr uint16_t PLACEHOLDER_LINK_VOLTAGE_LFP_DV = 3300;
    says nothing about the limit - see parallel_charge_limit_W(). */
 static constexpr uint32_t PARALLEL_RAISE_MIN_DRAW_PCT = 95;
 
+/* A joined pack that shows no charge power while the installation draws at least this much of the
+   parallel charge limit, in percent, has no current reading to go by. At less, the noise of the
+   readings alone can show a pack that charges as taking nothing - see parallel_charge_limit_W(). */
+static constexpr uint32_t PARALLEL_NO_READING_MIN_DRAW_PCT = 25;
+
 /* The safety layer, the SOC taper and the low pass filter all rewrite a pack's power limits in
    place, so by the time the web page renders, what the BMS actually asked for is gone. Keep a
    copy while it is still the driver's own number. */
@@ -294,15 +299,21 @@ void update_aggregate_values() {
  * be pushed over on every low. A new low counts at once, a higher limit only once nothing lower
  * has come for PARALLEL_LIMIT_HOLD_PASSES.
  *
- * A pack whose limit drops below the one the raise was measured against, or that goes over its
- * limit anyway because the split moved, cuts the limit at once to the total at which it would sit
- * on its limit at the split measured now - whether or not the inverter is drawing that much yet,
- * so a lower limit that arrives under a cloud is not left for the sun to find. A pack that shows
- * no charge power has no split to go by, so a drop on it takes the limit back to the lowest pack
- * limit. Being worked out from what is flowing, the cut comes out the same again while the
- * inverter has not followed yet, instead of cutting deeper every pass.
+ * A pack whose limit drops below the one the raise was measured against cuts the limit at once to
+ * the total at which it would sit on its new limit at the split the packs last took the limit at -
+ * whether or not the inverter is drawing that much now, so a lower limit that arrives under a
+ * cloud, or while a kettle has the packs discharging, is not left for the sun to find. That split,
+ * not the one under the cloud, is how they will share the limit once the sun is back: a small
+ * current splits by how far apart the packs' own voltages are as much as by their resistance, and
+ * at a few hundred Watts the noise of the readings is a good part of each share. A pack that shows
+ * no charge power while the installation draws PARALLEL_NO_READING_MIN_DRAW_PCT of the limit or
+ * more has no split to go by - which is what a pack whose current reading is gone looks like - so
+ * a drop on it takes the limit back to the lowest pack limit. A pack that goes over its limit
+ * anyway, because the split moved, cuts the limit at once to the total at which it would sit on
+ * its limit at the split measured now. Neither cut depends on what was sent, so while the inverter
+ * has not followed yet the same cut comes out again, instead of a deeper one every pass.
  *
- * After every raise or cut, and at the start of every charge session, the inverter is given
+ * After every raise or cut, and whenever charging starts or resumes, the inverter is given
  * PARALLEL_SETTLE_PASSES to follow before the next raise. Fronius over Modbus only reads the
  * limits every 5 s, and every inverter needs time to ramp: measured any sooner, a raise would
  * stack on top of the last one before it had been seen. Cuts are never held back.
@@ -310,7 +321,11 @@ void update_aggregate_values() {
  * Never below the lowest pack limit, which is what was always sent, and never above the sum of
  * the joined packs' limits. The lowest pack limit is applied to what is sent but not kept, so
  * when it comes back down what is sent follows it, as it did before the raise existed. Back to
- * the lowest whenever the installation stops charging or a joined pack allows no charge at all.
+ * the lowest when a joined pack allows no charge at all, when a pack the split was measured with
+ * leaves the link, or once the installation has not charged for PARALLEL_STOP_PASSES. A load the
+ * panels cannot cover for a while - a kettle, a cloud - only pauses the raise: the limits are
+ * followed meanwhile as above, and charging resumes where it was instead of climbing back from the
+ * lowest pack limit step by step.
  */
 static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const joined[], const uint8_t pack_index[],
                                         uint8_t count, uint32_t lowest_W) {
@@ -319,18 +334,18 @@ static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const join
   uint8_t& settle = agg.parallel_settle_passes;
 
   int32_t power_W[3];
-  bool needs_cut[3] = {false, false, false};  // This pack has to be put back on its limit
-  uint64_t sum_W = 0;                         // Every joined pack at its own limit
-  int64_t drawn_W = 0;                        // What they take between them, positive while charging
-  int64_t headroom_W = INT64_MAX;             // The tightest pack's held limit minus the power it takes
-  bool over_limit = false;                    // Some pack takes more than it allows right now
-  bool any_cut = false;
+  bool dropped[3] = {false, false, false};  // Below the limit the raise was measured against
+  uint64_t sum_W = 0;                       // Every joined pack at its own limit
+  int64_t drawn_W = 0;                      // What they take between them, positive while charging
+  int64_t headroom_W = INT64_MAX;           // The tightest pack's held limit minus the power it takes
+  bool over_limit = false;                  // Some pack takes more than it allows right now
+  bool any_dropped = false;
   bool all_charging = true;
   for (uint8_t i = 0; i < count; i++) {
     const uint32_t pack_limit_W = joined[i]->status.max_charge_power_W;
     uint32_t& held_W = agg.parallel_held_limit_W[pack_index[i]];
     uint8_t& hold = agg.parallel_hold_passes[pack_index[i]];
-    const bool dropped = pack_limit_W < held_W;  // Below the limit the raise was measured against
+    dropped[i] = pack_limit_W < held_W;
     if (pack_limit_W <= held_W) {
       held_W = pack_limit_W;  // A new low counts at once, and coming back to it keeps it...
       hold = PARALLEL_LIMIT_HOLD_PASSES;
@@ -344,42 +359,70 @@ static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const join
     sum_W += pack_limit_W;
     drawn_W += power_W[i];
     headroom_W = MIN(headroom_W, (int64_t)held_W - power_W[i]);
-    const bool over = power_W[i] > (int64_t)pack_limit_W;
-    over_limit = over_limit || over;
-    needs_cut[i] = dropped || over;
-    any_cut = any_cut || needs_cut[i];
+    over_limit = over_limit || (power_W[i] > (int64_t)pack_limit_W);
+    any_dropped = any_dropped || dropped[i];
     all_charging = all_charging && (power_W[i] > 0);
   }
 
-  if (lowest_W == 0 || drawn_W <= 0) {
+  /* How the joined packs split the charge power the last time they took the limit, kept for while
+     they take less or nothing. No good once a pack it was measured with has left the link */
+  uint16_t* const share_pptt = agg.parallel_share_pptt;
+  uint32_t joined_share_pptt = 0;
+  for (uint8_t i = 0; i < count; i++) {
+    joined_share_pptt += share_pptt[pack_index[i]];
+  }
+  const bool pack_left = joined_share_pptt < (uint32_t)share_pptt[0] + share_pptt[1] + share_pptt[2];
+  uint16_t& stopped = agg.parallel_stopped_passes;
+  stopped = (drawn_W > 0) ? 0 : (uint16_t)MIN(stopped + 1, (int)PARALLEL_STOP_PASSES);
+  if (lowest_W == 0 || stopped >= PARALLEL_STOP_PASSES || pack_left) {
     raised_W = 0;  // Start over
     settle = PARALLEL_SETTLE_PASSES;
+    share_pptt[0] = share_pptt[1] = share_pptt[2] = 0;
     return lowest_W;
   }
-  if (settle > 0) {
+  if (drawn_W <= 0) {
+    settle = PARALLEL_SETTLE_PASSES;  // Once it charges again, the inverter has to ramp up first
+  } else if (settle > 0) {
     settle--;
   }
 
   const uint64_t ceiling_W = MIN(sum_W, (uint64_t)UINT32_MAX);
   uint64_t sent_W = CONSTRAIN((uint64_t)raised_W, (uint64_t)lowest_W, ceiling_W);
   uint64_t kept_W = MIN((uint64_t)raised_W, ceiling_W);  // The floor is sent, not kept
-  if (any_cut) {  // A pack's limit dropped, or a pack is over it: against the limit it reports now
+  const bool at_limit = all_charging && (uint64_t)drawn_W * 100 >= sent_W * PARALLEL_RAISE_MIN_DRAW_PCT;
+  if (at_limit) {
+    joined_share_pptt = 0;
+    for (uint8_t i = 0; i < count; i++) {
+      share_pptt[pack_index[i]] = (uint16_t)((int64_t)power_W[i] * 10000 / drawn_W);
+      joined_share_pptt += share_pptt[pack_index[i]];
+    }
+  }
+  if (over_limit || any_dropped) {  // Against the limit each pack reports now
     uint64_t cut_W = sent_W;
     for (uint8_t i = 0; i < count; i++) {
-      if (!needs_cut[i]) {
+      const uint32_t pack_limit_W = joined[i]->status.max_charge_power_W;
+      const uint16_t last_share_pptt = share_pptt[pack_index[i]];
+      if (drawn_W > 0 && power_W[i] > (int64_t)pack_limit_W) {  // Over it: back on it at the split now
+        cut_W = MIN(cut_W, (uint64_t)drawn_W * pack_limit_W / (uint64_t)power_W[i]);
+      }
+      if (!dropped[i]) {
         continue;
       }
-      const uint32_t pack_limit_W = joined[i]->status.max_charge_power_W;
-      cut_W = (power_W[i] > 0) ? MIN(cut_W, (uint64_t)drawn_W * pack_limit_W / (uint64_t)power_W[i])
-                               : MIN(cut_W, (uint64_t)lowest_W);  // No split to go by
+      const bool no_reading =
+          power_W[i] <= 0 && drawn_W > 0 && (uint64_t)drawn_W * 100 >= sent_W * PARALLEL_NO_READING_MIN_DRAW_PCT;
+      if (last_share_pptt == 0 || no_reading) {
+        cut_W = MIN(cut_W, (uint64_t)lowest_W);  // No split to go by
+      } else {
+        // On its new limit at the split last taken at the limit
+        cut_W = MIN(cut_W, (uint64_t)pack_limit_W * joined_share_pptt / last_share_pptt);
+      }
     }
     if (over_limit || cut_W < sent_W) {
       sent_W = cut_W;
       kept_W = MIN(kept_W, cut_W);
       settle = PARALLEL_SETTLE_PASSES;
     }
-  } else if (settle == 0 && all_charging && headroom_W > 0 &&
-             (uint64_t)drawn_W * 100 >= sent_W * PARALLEL_RAISE_MIN_DRAW_PCT) {
+  } else if (settle == 0 && at_limit && headroom_W > 0) {
     sent_W += (uint64_t)headroom_W;
     kept_W = MIN(sent_W, ceiling_W);
     settle = PARALLEL_SETTLE_PASSES;
