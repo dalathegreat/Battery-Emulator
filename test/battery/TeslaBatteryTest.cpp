@@ -1174,23 +1174,21 @@ TEST_F(TeslaBatteryTest, SohEstimateAbove100PercentIsClampedUpTo101ThenUnknown) 
 // inverter), not a tiny valid SOH.
 TEST_F(TeslaBatteryTest, SohEstimateIsUnknownForAnImplausibleNominalFullEnergy) {
   pack_->handle_incoming_can_frame(Frame392Mux1(821));
-  FeedNominalFullPackEnergy(*pack_, 100);  // 2.0 kWh would be 2.4 % of 82.1 kWh
-  pack_->update_values();
-  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-
-  FeedNominalFullPackEnergy(*pack_, 1895);  // 37.9 kWh
-  pack_->update_values();
-  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-
-  FeedNominalFullPackEnergy(*pack_, 1900);  // 38.0 kWh is the lowest accepted energy
-  pack_->update_values();
-  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 4628);  // 38.0 / 82.1
+  struct Step {
+    uint16_t counts_002kwh;
+    bool known;
+    uint16_t soh_pptt;
+  };
+  const Step steps[] = {{100, false, 9900},   // 2.0 kWh would be 2.4 % of 82.1 kWh
+                        {1895, false, 9900},  // 37.9 kWh
+                        {1900, true, 4628}};  // 38.0 kWh is the lowest accepted energy, 38.0 / 82.1
+  for (const Step& step : steps) {
+    FeedNominalFullPackEnergy(*pack_, step.counts_002kwh);
+    pack_->update_values();
+    EXPECT_EQ(datalayer_extended.tesla.soh_estimate_known, step.known) << step.counts_002kwh;
+    EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+    EXPECT_EQ(datalayer.battery.status.soh_pptt, step.soh_pptt) << step.counts_002kwh;
+  }
 
   DATALAYER_BATTERY_STATUS_TYPE status = {};
   EXPECT_FALSE(TeslaBattery::apply_soh_estimate(status, 1501, 1500));  // 150.1 kWh, 100.07 % would be credible
@@ -1274,7 +1272,7 @@ TEST_F(TeslaBatteryTest, CapacityFollowsTheReferenceAndTheNominalFullEnergy) {
 
 // The calculated values always have the two capacity rows: the capacity when new the pack reports (N/A without one, not
 // the GTW setting) and the current capacity, the nominal full pack energy (held for 30 s).
-TEST_F(TeslaBatteryTest, MainCardAlwaysShowsTheTwoCapacityRows) {
+TEST_F(TeslaBatteryTest, CalculatedValuesAlwaysHaveTheTwoCapacityRows) {
   memset(&datalayer_extended.tesla, 0, sizeof(datalayer_extended.tesla));
   EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Total capacity when new: N/A</h4><h4>Current total capacity: N/A</h4>"));
 
@@ -1294,21 +1292,23 @@ TEST_F(TeslaBatteryTest, MainCardAlwaysShowsTheTwoCapacityRows) {
   EXPECT_TRUE(CalculatedContains(*pack_, "<h4>Current total capacity: 61.1 kWh</h4>"));
 }
 
+// The two nominal energy remaining rows of the detail page
+static std::string NominalRemainingRows(const char* no_mux, const char* mux0) {
+  return std::string("<h4>Nominal Energy Remaining (0x352 no mux): ") + no_mux +
+         "</h4><h4>Nominal Energy Remaining (0x352 mux 0): " + mux0 + "</h4>";
+}
+
 // Detail page, nominal energy remaining of 0x352: both variants are always listed, N/A until received and for SNA
 // (all ones). The other variant stays N/A.
 TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfTheMuxedFormat) {
   pack_->update_values();
-  EXPECT_TRUE(DetailPageContains(*pack_,
-                                 "<h4>Nominal Energy Remaining (0x352 no mux): N/A</h4>"
-                                 "<h4>Nominal Energy Remaining (0x352 mux 0): N/A</h4>"));
+  EXPECT_TRUE(DetailPageContains(*pack_, NominalRemainingRows("N/A", "N/A").c_str()));
 
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0x00, 0x80, 0xDA, 0x0B, 0x21, 0x0A, 0x16, 0x0A}));
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0x01, 0x80, 0x12, 0x01, 0x16, 0x0A, 0x00, 0x00}));
   pack_->update_values();
   EXPECT_TRUE(datalayer_extended.tesla.BMS352_mux);
-  EXPECT_TRUE(DetailPageContains(*pack_,
-                                 "<h4>Nominal Energy Remaining (0x352 no mux): N/A</h4>"
-                                 "<h4>Nominal Energy Remaining (0x352 mux 0): 51.86 kWh</h4>"));  // 0x0A21 x 0.02
+  EXPECT_TRUE(DetailPageContains(*pack_, NominalRemainingRows("N/A", "51.86 kWh").c_str()));  // 0x0A21 x 0.02
 
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0x00, 0x80, 0xDA, 0x0B, 0xFF, 0xFF, 0x16, 0x0A}));
   pack_->update_values();
@@ -1317,16 +1317,12 @@ TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfTheMuxedFormat) 
 
 TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfThePre2021Format) {
   pack_->update_values();
-  EXPECT_TRUE(DetailPageContains(*pack_,
-                                 "<h4>Nominal Energy Remaining (0x352 no mux): N/A</h4>"
-                                 "<h4>Nominal Energy Remaining (0x352 mux 0): N/A</h4>"));
+  EXPECT_TRUE(DetailPageContains(*pack_, NominalRemainingRows("N/A", "N/A").c_str()));
 
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x1E}));
   pack_->update_values();
   EXPECT_FALSE(datalayer_extended.tesla.BMS352_mux);
-  EXPECT_TRUE(DetailPageContains(*pack_,
-                                 "<h4>Nominal Energy Remaining (0x352 no mux): 19.6 kWh</h4>"
-                                 "<h4>Nominal Energy Remaining (0x352 mux 0): N/A</h4>"));
+  EXPECT_TRUE(DetailPageContains(*pack_, NominalRemainingRows("19.6 kWh", "N/A").c_str()));
 
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   pack_->update_values();

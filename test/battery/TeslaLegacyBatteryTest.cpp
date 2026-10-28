@@ -413,24 +413,23 @@ TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity)
 // one arrives, never a tiny SOH.
 TEST_F(TeslaLegacyBatteryTest, SohEstimateStaysUnknownForAnImplausibleNominalEnergy) {
   pack_->handle_incoming_can_frame(LegacyHwId(70));
-  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x14, 0x00}));  // 2.0 kWh
-  pack_->update_values();
-  EXPECT_EQ(datalayer_extended.tesla.nominal_full_held_x10, 0);
-  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-
-  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x7B, 0x01}));  // 37.9 kWh
-  pack_->update_values();
-  EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
-
-  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0x7C, 0x01}));  // 38.0 kWh of 85.0 kWh
-  pack_->update_values();
-  EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known);
-  EXPECT_TRUE(datalayer.battery.status.soh_available);
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 4470);
+  struct Step {
+    uint8_t low, high;  // 0x382 bits 0-9
+    uint16_t held_x10;
+    bool known;
+    uint16_t soh_pptt;
+  };
+  const Step steps[] = {{0x14, 0x00, 0, false, 9900},    // 2.0 kWh
+                        {0x7B, 0x01, 0, false, 9900},    // 37.9 kWh
+                        {0x7C, 0x01, 380, true, 4470}};  // 38.0 kWh of 85.0 kWh
+  for (const Step& step : steps) {
+    pack_->handle_incoming_can_frame(LegacyBytes(0x382, {step.low, step.high}));
+    pack_->update_values();
+    EXPECT_EQ(datalayer_extended.tesla.nominal_full_held_x10, step.held_x10) << (int)step.low;
+    EXPECT_EQ(datalayer_extended.tesla.soh_estimate_known, step.known) << (int)step.low;
+    EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
+    EXPECT_EQ(datalayer.battery.status.soh_pptt, step.soh_pptt) << (int)step.low;
+  }
 }
 
 // The reference is the capacity configured for the hardware ID, not the real capacity when new (known limitation): a
