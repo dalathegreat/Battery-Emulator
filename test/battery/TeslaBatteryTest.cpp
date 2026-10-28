@@ -808,6 +808,7 @@ TEST_F(TeslaBatteryTest, SocMinIsOnlyTheInitialSocBeforeAValidUiSoc) {
 // 30 s without a valid UI SOC raise EVENT_SOC_UNAVAILABLE (a WARNING), the SOC is still the last one. A valid UI SOC
 // clears it.
 TEST_F(TeslaBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc) {
+  init_events();  // Event levels are only assigned here; ctest runs each test in its own process
   clear_event(EVENT_SOC_UNAVAILABLE);
   pack_->handle_incoming_can_frame(SocFields(300, 271, 306, 303));
   pack_->update_values();

@@ -492,6 +492,7 @@ TEST_F(TeslaLegacyBatteryTest, SocMinIsOnlyTheInitialSocBeforeAValidUiSoc) {
 // 30 s without a valid UI SOC raise EVENT_SOC_UNAVAILABLE (a WARNING), the SOC is still the last one. A valid UI SOC
 // clears it.
 TEST_F(TeslaLegacyBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAValidSoc) {
+  init_events();  // Event levels are only assigned here; ctest runs each test in its own process
   clear_event(EVENT_SOC_UNAVAILABLE);
   pack_->handle_incoming_can_frame(RealSoc());
   pack_->update_values();
