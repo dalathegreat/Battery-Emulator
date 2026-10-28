@@ -99,29 +99,8 @@ void TeslaLegacyBattery::update_values() {
       break;
   }
 
-  // Seconds without a valid UI SOC, counted while the pack is on the bus. EVENT_SOC_UNAVAILABLE is a WARNING.
-  if (soc_ui_fresh) {
-    soc_ui_fresh = false;
-    seconds_without_soc = 0;
-    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
-  } else if (datalayer.battery.status.CAN_battery_still_alive > 0) {
-    if (seconds_without_soc < INT16_MAX) {
-      seconds_without_soc++;
-    }
-    if (seconds_without_soc >= TeslaBattery::SocUnavailableDelay_s) {
-      set_event(EVENT_SOC_UNAVAILABLE, seconds_without_soc, battery_index);
-    }
-  }
-  // Seconds since the last SOC of any kind (the UI SOC, or the initial SOC min that is in use until a valid UI SOC was
-  // seen). The held SOC is cleared after SocHoldLimit_s: 0 % is "no SOC" (safety then stops the discharge).
-  if (soc_any_fresh) {
-    soc_any_fresh = false;
-    seconds_soc_held = 0;
-  } else if (datalayer.battery.status.CAN_battery_still_alive > 0 && seconds_soc_held < INT16_MAX) {
-    seconds_soc_held++;
-  }
-  const bool soc_expired = seconds_soc_held >= TeslaBattery::SocHoldLimit_s;
-  datalayer.battery.status.real_soc = soc_expired ? 0 : (battery_soc_ui * 10);  //SOC range 0-100.0 -> 100.00
+  soc_hold.update(datalayer.battery.status.CAN_battery_still_alive > 0, battery_index);
+  datalayer.battery.status.real_soc = soc_hold.real_soc();  //SOC range 0-100.0 -> 100.00
 
   datalayer.battery.status.voltage_dV = (battery_volts * 10);  //One more decimal needed (370 -> 3700)
 
@@ -137,9 +116,10 @@ void TeslaLegacyBattery::update_values() {
   TeslaBattery::hold_energy(nominal_remaining_hold, received_remaining_Wh,
                             TeslaBattery::nominal_remaining_plausible(received_remaining_Wh, nominal_full_hold.value));
   datalayer.battery.status.remaining_capacity_Wh =
-      soc_expired ? 0
-                  : TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc, nominal_full_hold.value,
-                                               nominal_remaining_hold.value, datalayer.battery.info.total_capacity_Wh);
+      soc_hold.expired
+          ? 0
+          : TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc, nominal_full_hold.value,
+                                       nominal_remaining_hold.value, datalayer.battery.info.total_capacity_Wh);
 
   // SOH estimate as on the 3/Y, but the reference is the capacity configured for the hardware ID, not the real capacity
   // when new: a new 85 kWh pack reading 81 kWh nominal shows 95 %. TODO(tesla): read the capacity when new from the pack.
@@ -312,16 +292,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         const uint16_t soc_min_x10 = tesla_le_bits(rx_frame.data.u8, 0, 10);
         const uint16_t soc_ui_x10 = tesla_le_bits(rx_frame.data.u8, 10, 10);
         datalayer_extended.tesla.battery_soc_min_0x302 = soc_min_x10;  // raw, detail page
-        datalayer_extended.tesla.battery_soc_ui = soc_ui_x10;          // raw (live), the held one is battery_soc_ui
-        if (soc_ui_x10 <= 1000) {
-          battery_soc_ui = soc_ui_x10;
-          soc_ui_seen = true;
-          soc_ui_fresh = true;
-          soc_any_fresh = true;
-        } else if (!soc_ui_seen && soc_min_x10 <= 1000) {
-          battery_soc_ui = soc_min_x10;
-          soc_any_fresh = true;  // the initial SOC is live: it is not held, so it does not age
-        }
+        datalayer_extended.tesla.battery_soc_ui = soc_ui_x10;          // raw (live), the held one is soc_hold
+        soc_hold.on_frame(soc_ui_x10, soc_min_x10);
       }
       break;
     case 0x382:  // Nominal full pack energy, bits 0-9 in 0.1 kWh, the SOH estimate input (3/Y field)

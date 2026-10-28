@@ -78,19 +78,37 @@ class TeslaBattery : public CanBattery {
   // plausible value is held for EnergyHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
   // configured capacity. Called once a second (update_values).
   static constexpr uint16_t EnergyHold_s = 30;
-  // The last valid UI SOC is held while the pack does not send one, for SocHoldLimit_s (30 minutes). After that the SOC
-  // is cleared (0, remaining capacity 0), and there is no fallback: the brick SOC and the energies are not the UI SOC.
-  static constexpr uint16_t SocHoldLimit_s = 30 * 60;
-  // EVENT_SOC_UNAVAILABLE (a WARNING) is raised after this many seconds without a valid UI SOC (shared with the S/X)
-  static constexpr uint16_t SocUnavailableDelay_s = 30;
-  // The hold and SOC counters count update_values() calls (1 Hz, not millis()). The SOC counters (seconds_without_soc,
-  // seconds_soc_held, here and on the S/X) count only while CAN_battery_still_alive > 0: if the CAN bus dies they freeze
-  // and the last SOC stays, EVENT_CAN_RX_FAILURE covers that case.
+  // The hold counters count update_values() calls (1 Hz, not millis()).
   struct EnergyHold {
     uint32_t value = 0;  // held value (0.1 kWh for the nominal full energy, Wh for the remaining), 0 = unknown
     uint16_t seconds_not_plausible = 0;
   };
   static void hold_energy(EnergyHold& hold, uint32_t received, bool plausible);
+  // The UI SOC the inverter gets, shared by the 3/Y and the S/X. The pack sends 1023 (not available) now and then: the
+  // last valid UI SOC is held, for SocHoldLimit_s (30 minutes). After that the SOC is cleared (0, remaining capacity 0),
+  // there is no fallback: the brick SOC and the energies are not the UI SOC. EVENT_SOC_UNAVAILABLE (a WARNING) is raised
+  // after SocUnavailableDelay_s without a valid UI SOC. The counters count update() calls and only while the pack is on
+  // the bus (CAN_battery_still_alive > 0): if the CAN bus dies they freeze and the last SOC stays, EVENT_CAN_RX_FAILURE
+  // covers that case.
+  struct SocHold {
+    static constexpr uint16_t SocHoldLimit_s = 30 * 60;
+    static constexpr uint16_t SocUnavailableDelay_s = 30;
+    uint16_t soc_ui = 0;   // the held UI SOC, 0.1 %: the last valid one (or the initial SOC min)
+    bool expired = false;  // no SOC for SocHoldLimit_s
+    // On every SOC frame, the 10 bit UI SOC and SOC min in 0.1 %, 1023 = not available. SOC min is only the initial SOC
+    // until a valid UI SOC was seen: 0 would zero the discharge limit (battery empty) at startup.
+    void on_frame(uint16_t soc_ui_x10, uint16_t soc_min_x10);
+    // Once a second (update_values)
+    void update(bool pack_on_bus, uint8_t battery_index);
+    uint16_t real_soc() const { return expired ? 0 : soc_ui * 10; }  // 0.01 %
+
+   private:
+    bool ui_seen = false;              // a valid UI SOC was received at least once
+    bool ui_fresh = false;             // a valid UI SOC was received since the last update()
+    bool any_fresh = false;            // a SOC (the UI SOC, or the initial SOC min) was received since then
+    uint16_t seconds_without_soc = 0;  // no valid UI SOC (EVENT_SOC_UNAVAILABLE)
+    uint16_t seconds_held = 0;         // no SOC at all, the held SOC is cleared after SocHoldLimit_s
+  };
   // An SOH estimate above 101.00 % (0.01 %) is not credible: unknown. 100.00-101.00 % is sent as 100.00 %.
   static constexpr uint32_t SohEstimateMax_pptt = 10100;
   // SOH sent to the inverter (soh_pptt, 0.01 %) = nominal_full_x10 * 10000 / beginning_of_life_x10, both in 0.1 kWh:
@@ -645,14 +663,8 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_soc_min = 1023;
   uint16_t battery_soc_max = 1023;
   uint16_t battery_soc_ui_raw = 1023;  // live UI SOC
-  uint16_t battery_soc_ui = 0;         // held UI SOC (inverter): the last valid one, used for real_soc
   uint16_t battery_soc_ave = 1023;
-  // A UI SOC of 1023 is not available: the last SOC is held (up to SocHoldLimit_s), see SocUnavailableDelay_s
-  bool soc_ui_seen = false;    // a valid UI SOC was received at least once
-  bool soc_ui_fresh = false;   // a valid UI SOC was received since the last update_values()
-  bool soc_any_fresh = false;  // a SOC (the UI SOC, or the initial SOC from the brick min) was received since then
-  uint16_t seconds_without_soc = 0;  // no valid UI SOC (EVENT_SOC_UNAVAILABLE)
-  uint16_t seconds_soc_held = 0;     // no SOC at all, the held SOC is cleared after SocHoldLimit_s
+  SocHold soc_hold;  // the held UI SOC for the inverter
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
   uint32_t battery_packMass = 0;
