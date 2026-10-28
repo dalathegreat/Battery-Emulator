@@ -143,8 +143,9 @@ void TeslaLegacyBattery::update_values() {
 
   // SOH estimate as on the 3/Y, but the reference is the capacity configured for the hardware ID, not the real capacity
   // when new: a new 85 kWh pack reading 81 kWh nominal shows 95 %. TODO(tesla): read the capacity when new from the pack.
-  // Set on every cycle, as total_capacity_Wh follows the hardware ID. It is 0 until the ID arrives: 0 = unknown, so no
-  // SOH estimate (the inverter gets 99 %) and the detail page says unknown.
+  // Set on every cycle, as total_capacity_Wh follows the hardware ID. Until the ID arrives it is the 30 kWh default
+  // (the detail page shows it as the capacity when new). Any plausible energy (38.0 kWh and up) over 30 kWh is above
+  // 101 %, so the SOH is unknown (the inverter gets 99 %) until the ID arrives.
   datalayer_extended.tesla.battery_beginning_of_life = datalayer.battery.info.total_capacity_Wh / 100;  // 0.1 kWh
   datalayer_extended.tesla.soh_estimate_known = TeslaBattery::apply_soh_estimate(
       datalayer.battery.status, nominal_full_hold.value, datalayer_extended.tesla.battery_beginning_of_life);

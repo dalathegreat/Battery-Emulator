@@ -454,8 +454,7 @@ void dayOfYearToDate(int year, int dayOfYear, char* out, size_t out_len) {
 
 bool TeslaBattery::apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
                                       uint32_t beginning_of_life_x10) {
-  // Unknown without a plausible energy (38.0 to 150.0 kWh, a garbage nominal energy must not give a tiny SOH) or
-  // reference, and above 101 % (not credible); 100-101 % is sent as 100
+  // Unknown without a plausible energy or reference, and above 101 % (not credible); 100-101 % is sent as 100
   const bool nominal_plausible = nominal_full_x10 <= UINT16_MAX && energy_x10_plausible(nominal_full_x10);
   const uint32_t estimate =
       nominal_plausible && beginning_of_life_x10 > 0 ? (nominal_full_x10 * 10000UL) / beginning_of_life_x10 : 0;
@@ -3167,7 +3166,6 @@ void TeslaBattery::setup(void) {  // Performs one time setup at startup
   write_signal_value(&TESLA_7FF_Mux3, 18, 3, user_selected_tesla_GTW_chassisType, false);
   write_signal_value(&TESLA_7FF_Mux3, 32, 5, user_selected_tesla_GTW_packEnergy, false);
 
-  // OBSOLETE: this GTW pack energy setting is only the fallback_total_capacity_Wh now, see TESLA-BATTERY.h
   switch (
       user_selected_tesla_GTW_packEnergy) {  //static const std::map<int, String> tesla_pack = {{0, "50 kWh"}, {2, "62 kWh"}, {1, "74 kWh"}, {3, "100 kWh"}};
     case 0:
