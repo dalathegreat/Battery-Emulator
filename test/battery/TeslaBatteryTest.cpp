@@ -706,10 +706,12 @@ static CAN_frame FrameWith(uint32_t id, std::initializer_list<uint8_t> bytes) {
   return f;
 }
 
-// 0x352 mux 0 and mux 1 pages with the nominal full pack energy in 0.02 kWh counts
-static void FeedNominalFullPackEnergy(TeslaBattery& pack, uint16_t counts_002kwh) {
+// 0x352 mux 0 and mux 1 pages with the nominal full pack energy and the nominal energy remaining (0 = none) in 0.02
+// kWh counts
+static void FeedNominalFullPackEnergy(TeslaBattery& pack, uint16_t counts_002kwh, uint16_t remaining_002kwh = 0) {
   pack.handle_incoming_can_frame(
-      FrameWith(0x352, {0x00, 0x00, (uint8_t)(counts_002kwh & 0xFF), (uint8_t)(counts_002kwh >> 8)}));
+      FrameWith(0x352, {0x00, 0x00, (uint8_t)(counts_002kwh & 0xFF), (uint8_t)(counts_002kwh >> 8),
+                        (uint8_t)(remaining_002kwh & 0xFF), (uint8_t)(remaining_002kwh >> 8)}));
   pack.handle_incoming_can_frame(FrameWith(0x352, {0x01}));
 }
 
@@ -962,7 +964,7 @@ TEST_F(TeslaBatteryTest, NoMuxEnergyStatusDecodesTheDbcFields) {
 
 // The driver takes a frame as no mux format when the two low bits of byte 0 are 2 or 3 and no mux 0 or 1 frame was
 // seen. The real frame above has bits 01 in byte 0 (72.1 kWh) so this test uses 72.2 kWh. The values go to the web
-// page only.
+// page (the nominal energy remaining also to the remaining capacity, see the tests below).
 TEST_F(TeslaBatteryTest, NoMuxEnergyStatusReachesTheExtendedData) {
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0x46, 0x30, 0x82, 0x01, 0x00, 0x9E}));
   pack_->update_values();
@@ -1143,6 +1145,105 @@ TEST_F(TeslaBatteryTest, DetailPageShowsNominalEnergyRemainingOfThePre2021Format
   pack_->handle_incoming_can_frame(FrameWith(0x352, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   pack_->update_values();
   EXPECT_TRUE(DetailPageContains(*pack_, "Nominal Energy Remaining: no data"));
+}
+
+// The remaining capacity is the pack's nominal energy remaining (49.34 kWh, 2467 counts of 0.02 kWh) when plausible,
+// not SOC x nominal full energy (80 % of 61.1 kWh = 48.88 kWh). The total capacity does not change.
+TEST_F(TeslaBatteryTest, RemainingCapacityIsTheNominalEnergyRemainingOfTheMuxedFormat) {
+  user_selected_tesla_GTW_packEnergy = 1;
+  pack_->setup();
+  FeedNominalFullPackEnergy(*pack_, 3053, 2467);
+  pack_->handle_incoming_can_frame(Frame392Mux1(821));
+  pack_->handle_incoming_can_frame(SocUi(800));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 49340u);
+  EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 82100u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 7442);
+}
+
+// Not plausible: not received, SNA (0xFFFF), above the nominal full energy plus 0.1 kWh (61.1 + 0.1 kWh = 3060
+// counts), and 0. Each falls back to SOC x nominal full (48.88 kWh). Without a plausible nominal full energy it is
+// SOC x total (74 kWh GTW setting, 59.2 kWh).
+TEST_F(TeslaBatteryTest, ImplausibleNominalEnergyRemainingFallsBackToTheSocOfTheFullEnergy) {
+  auto remaining_with = [&](uint16_t full_counts, uint16_t remaining_counts) {
+    delete pack_;
+    pack_ = new TeslaBattery();
+    user_selected_tesla_GTW_packEnergy = 1;
+    pack_->setup();
+    FeedNominalFullPackEnergy(*pack_, full_counts, remaining_counts);
+    pack_->handle_incoming_can_frame(SocUi(800));
+    pack_->update_values();
+    return datalayer.battery.status.remaining_capacity_Wh;
+  };
+  EXPECT_EQ(remaining_with(3053, 2467), 49340u);
+  EXPECT_EQ(remaining_with(3053, 3060), 61200u);  // full + 0.1 kWh is the limit
+  EXPECT_EQ(remaining_with(3053, 3061), 48880u);
+  EXPECT_EQ(remaining_with(3053, 65535), 48880u);  // SNA
+  EXPECT_EQ(remaining_with(3053, 0), 48880u);      // none
+  EXPECT_EQ(remaining_with(1000, 2467), 59200u);   // no plausible nominal full energy: SOC x total
+  EXPECT_EQ(remaining_with(0, 2467), 59200u);
+}
+
+// The last plausible nominal energy remaining is held for 30 s like the nominal full energy, then the fallback
+TEST_F(TeslaBatteryTest, NominalEnergyRemainingIsHeldFor30SecondsThenTheFallback) {
+  user_selected_tesla_GTW_packEnergy = 1;
+  pack_->setup();
+  FeedNominalFullPackEnergy(*pack_, 3053, 2467);
+  pack_->handle_incoming_can_frame(SocUi(800));
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 49340u);
+
+  FeedNominalFullPackEnergy(*pack_, 3053, 65535);  // not available, the full energy stays
+  for (int second = 1; second <= 29; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 49340u) << second;
+  }
+  pack_->update_values();                                             // 30 s
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 48880u);  // SOC x nominal full
+
+  FeedNominalFullPackEnergy(*pack_, 3053, 2467);  // back
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 49340u);
+
+  // The nominal full energy gone for 30 s: the remaining capacity is SOC x total at once, not held a second time
+  FeedNominalFullPackEnergy(*pack_, 65535, 2467);
+  for (int second = 1; second <= 29; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 49340u) << second;
+  }
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 59200u);
+}
+
+// Pre-2021 0x352 (no mux), 0.1 kWh: the real frame (72.2 kWh full, 19.6 kWh remaining) at 27.1 % is 19.6 kWh, not
+// SOC x full (19.566 kWh). SNA (0x7FF) and a value above 72.2 + 0.1 kWh fall back to SOC x full.
+TEST_F(TeslaBatteryTest, RemainingCapacityIsTheNominalEnergyRemainingOfThePre2021Format) {
+  auto remaining_with = [&](uint64_t remaining_x10) {
+    delete pack_;
+    pack_ = new TeslaBattery();
+    pack_->setup();
+    const uint64_t raw = 722 | (remaining_x10 << 11);  // bit 0: full, bit 11: remaining
+    pack_->handle_incoming_can_frame(
+        FrameWith(0x352, {(uint8_t)raw, (uint8_t)(raw >> 8), (uint8_t)(raw >> 16), (uint8_t)(raw >> 24)}));
+    pack_->handle_incoming_can_frame(SocUi(271));
+    pack_->update_values();
+    EXPECT_FALSE(datalayer_extended.tesla.BMS352_mux);
+    return datalayer.battery.status.remaining_capacity_Wh;
+  };
+  EXPECT_EQ(remaining_with(196), 19600u);
+  EXPECT_EQ(remaining_with(723), 72300u);  // full + 0.1 kWh is the limit
+  EXPECT_EQ(remaining_with(724), 19566u);
+  EXPECT_EQ(remaining_with(0x7FF), 19566u);
+  EXPECT_EQ(remaining_with(0), 19566u);
+
+  remaining_with(196);  // held for 30 s when it is not available, then SOC x full
+  pack_->handle_incoming_can_frame(FrameWith(0x352, {0xD2, 0x22, 0xFF, 0xFF}));  // remaining 0x7FF
+  for (int second = 1; second <= 29; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u) << second;
+  }
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19566u);
 }
 
 // The nominal full pack energy is not always available: the last plausible value is held for 30 s (SOH and remaining Wh

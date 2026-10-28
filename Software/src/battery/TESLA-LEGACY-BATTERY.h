@@ -70,7 +70,9 @@ class TeslaLegacyBattery : public CanBattery {
   bool soc_ui_fresh = false;  // a valid UI SOC was received since the last update_values()
   uint16_t seconds_without_soc = 0;
   uint16_t nominal_full_x10_received = 0;  // 0x382 bits 0-9, 1023 = not available
-  TeslaBattery::NominalFullHold nominal_full_hold;
+  TeslaBattery::EnergyHold nominal_full_hold;
+  TeslaBattery::EnergyHold nominal_remaining_hold;  // Wh
+  uint16_t nominal_remaining_x10_received = 0;      // 0x382 bits 11-21, 0x7FF = not available
   uint8_t battery_BMS_state = 0;
   bool cellvoltagesRead = false;
   //0x102: BMS_hvBusStatus

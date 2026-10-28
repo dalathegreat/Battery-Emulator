@@ -75,23 +75,33 @@ class TeslaBattery : public CanBattery {
   static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
   static constexpr bool energy_x10_plausible_10bit(uint16_t x10) { return energy_x10_plausible(x10) && x10 != 1023; }
   // The nominal full pack energy is not available for short bursts (the S/X pack sends 1023 for about 5 s). The last
-  // plausible value is held for NominalFullHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
+  // plausible value is held for EnergyHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
   // configured capacity. Called once a second (update_values) with the value received last.
-  static constexpr uint16_t NominalFullHold_s = 30;
-  struct NominalFullHold {
-    uint32_t x10 = 0;  // held value, 0.1 kWh, 0 = unknown
+  static constexpr uint16_t EnergyHold_s = 30;
+  struct EnergyHold {
+    uint32_t value = 0;  // held value (0.1 kWh for the nominal full energy, Wh for the remaining), 0 = unknown
     uint16_t seconds_not_plausible = 0;
   };
-  static void hold_nominal_full(NominalFullHold& hold, uint32_t received_x10, bool plausible);
+  static void hold_energy(EnergyHold& hold, uint32_t received, bool plausible);
   // An SOH estimate above 101.00 % (0.01 %) is not credible and shown as Unknown; 100-101 % is shown as 100 %
   static constexpr uint32_t SohEstimateMax_pptt = 10100;
-  // SOH sent to the inverter: nominal full pack energy / energy when new (both 0.1 kWh) as 0.01 %. When it cannot be
-  // calculated the inverter gets 99 % as on master (soh_available stays true, only the web card says unknown). Returns
-  // whether the estimate could be calculated.
+  // SOH sent to the inverter (soh_pptt, 0.01 %) = nominal_full_x10 * 10000 / beginning_of_life_x10, both in 0.1 kWh:
+  // 72.1 kWh over 85.0 kWh is 8482 = 84.82 %. Estimates above SohEstimateMax_pptt are not credible, 100.00-101.00 % is
+  // sent as 100.00 %. When it cannot be calculated the inverter gets 99 % as on master (soh_available stays true,
+  // only the web card says unknown). Returns whether the estimate could be calculated.
   static bool apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
                                  uint32_t beginning_of_life_x10);
-  // Remaining Wh = SOC (0.01 %) x the pack's nominal full energy (0.1 kWh) when plausible. OBSOLETE fallback: x total
-  static uint32_t remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t total_capacity_Wh);
+  // The nominal remaining energy (Wh, 0 = unknown) is plausible when above 0 and not above the nominal full energy (0.1
+  // kWh, 0 = unknown) plus one 0.1 kWh LSB (the full energy is rounded to 0.1 kWh from 0.02 kWh counts). 0 is not
+  // accepted: a pack that was not received yet reads 0, and with a real 0 kWh the SOC x full fallback is 0 too.
+  static constexpr bool nominal_remaining_plausible(uint32_t remaining_Wh, uint32_t nominal_full_x10) {
+    return remaining_Wh > 0 && nominal_full_x10 > 0 && remaining_Wh <= nominal_full_x10 * 100 + 100;
+  }
+  // Remaining Wh = the pack's nominal remaining energy (already in Wh) when plausible (the nominal full energy must be
+  // known). Else real_soc / 10000 (0.01 % -> fraction) x nominal_full_x10 * 100 (0.1 kWh -> Wh), 27.10 % of 72.1 kWh
+  // is 19539 Wh. OBSOLETE fallback: SOC x total_capacity_Wh when the full energy is not known.
+  static uint32_t remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t nominal_remaining_Wh,
+                               uint32_t total_capacity_Wh);
 
   static constexpr const char* NameSX = "Tesla Model S/X";
   static constexpr const char* Name3Y = "Tesla Model 3/Y";
@@ -602,7 +612,8 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_nominal_energy_remaining_m0 = 0;   // kWh
   uint16_t battery_nominal_full_pack_energy = 0;      // Kwh
   uint16_t battery_nominal_full_pack_energy_m0 = 0;   // Kwh
-  NominalFullHold nominal_full_hold;                  // the value used for SOH and remaining Wh
+  EnergyHold nominal_full_hold;                       // the value used for SOH and remaining Wh
+  EnergyHold nominal_remaining_hold;                  // Wh, the value used for remaining Wh
   //0x132 306 HVBattAmpVolt
   uint16_t battery_volts = 0;                  // V
   int16_t battery_amps = 0;                    // A
