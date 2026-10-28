@@ -176,12 +176,26 @@ static constexpr uint8_t PARALLEL_SETTLE_PASSES = 10;
 static constexpr uint8_t PARALLEL_LIMIT_HOLD_PASSES = 60;
 
 /**
- * @brief Fold the joined packs' power limits into datalayer.aggregate, with several batteries.
+ * @brief Whether parallel headroom tracking is in use: two or three batteries configured, and the
+ * "Parallel headroom tracking" setting on.
+ *
+ * Without it the limits go the way they did before the tracking existed: the SOC taper and the low
+ * pass filter shape pack 1's, and update_aggregate_limits() folds the joined pack 2 and 3 in after
+ * them, as the lowest limit of any joined pack.
+ */
+static inline bool parallel_headroom_tracking_active() {
+  return datalayer.system.info.configured_batteries > 1 && datalayer.battery_settings.parallel_headroom_tracking;
+}
+
+/**
+ * @brief Fold the joined packs' power limits into datalayer.aggregate, while parallel headroom
+ * tracking is in use.
  *
  * Call once per second, after the safety layer and before the SOC taper and the low pass filter,
  * which then shape the combined limits instead of pack 1's. Discharge gets the lowest joined
  * pack's limit. Charge starts there and is raised in steps, while the installation charges at it,
- * until the tightest pack takes its own limit. Does nothing with a single battery.
+ * until the tightest pack takes its own limit. Does nothing with a single battery, or with the
+ * tracking off: see parallel_headroom_tracking_active().
  */
 void combine_pack_limits();
 

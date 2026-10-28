@@ -164,9 +164,11 @@ void logging_loop(void*) {
 #endif  // SDCARD
 
 /* The limits the SOC taper and the low pass filter shape - the installation's - and the voltage
-   they convert at. With a single battery that is pack 1 itself, exactly as before. With several it
-   is the aggregate, which combine_pack_limits() has just filled from the joined packs, the parallel
-   raise included, so both act on the combined limits and keep the last word over them. */
+   they convert at. With a single battery that is pack 1 itself, exactly as before, and so it is with
+   several while parallel headroom tracking is off: update_aggregate_limits() folds pack 2 and 3 in
+   after the filters, as it always did. With the tracking on it is the aggregate, which
+   combine_pack_limits() has just filled from the joined packs, the parallel raise included, so both
+   act on the combined limits and keep the last word over them. */
 struct InstallationLimits {
   uint32_t& charge_W;
   uint32_t& discharge_W;
@@ -176,7 +178,7 @@ struct InstallationLimits {
 };
 
 static InstallationLimits installation_limits(void) {
-  if (datalayer.system.info.configured_batteries > 1) {
+  if (parallel_headroom_tracking_active()) {
     DATALAYER_AGGREGATE_TYPE& a = datalayer.aggregate;
     return {a.max_charge_power_W, a.max_discharge_power_W, a.max_charge_current_dA, a.max_discharge_current_dA,
             (a.voltage_dV > 10) ? a.voltage_dV : a.max_design_voltage_dV};
@@ -599,10 +601,10 @@ void core_loop(void*) {
       }
       update_calculated_values(currentMillis);
       update_machineryprotection(currentMillis);  // Check safeties
-      combine_pack_limits();      // Fold pack 2/3 in, charge raised for parallel packs (after safeties, before filters)
+      combine_pack_limits();      // With headroom tracking: pack 2/3 in, charge raised (after safeties, before filters)
       filter_charge_taper_soc();  // Taper charge limit near full SOC (runs after safeties, before LPF)
       filter_inverter_limits();   // Smooth limits towards inverter (runs after safeties on purpose)
-      update_aggregate_limits();  // Current caps and recovery charge on the inverter limits, after every filter
+      update_aggregate_limits();  // Without it pack 2/3 in here. Current caps, recovery charge, after every filter
 
       // Update values heading towards inverter
       if (inverter) {

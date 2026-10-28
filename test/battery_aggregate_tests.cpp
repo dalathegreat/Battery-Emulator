@@ -72,6 +72,7 @@ class BatteryAggregateTest : public ::testing::Test {
     }
     datalayer.battery_settings.max_user_set_charge_dA = 3000;
     datalayer.battery_settings.max_user_set_discharge_dA = 3000;
+    datalayer.battery_settings.parallel_headroom_tracking = true;  // The setting the raise needs
     update_aggregate_values();
   }
 
@@ -424,6 +425,7 @@ TEST_F(BatteryAggregateTest, SilentPackDoesNotDragTheExtremes) {
 
 // The limits the inverter is told about are the weakest pack's, and a pack 2 fault that the
 // safety layer zeroes reaches the inverter - which it did not when the cap ran before safety.
+// Either way round with parallel headroom tracking: it starts from the same lowest pack limit.
 TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
   add_second_pack();
   battery2_detected = true;
@@ -431,31 +433,35 @@ TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
   datalayer.battery_settings.max_user_set_charge_dA = 3000;
   datalayer.battery_settings.max_user_set_discharge_dA = 3000;
 
-  datalayer.battery.status.max_charge_power_W = 10000;
-  datalayer.battery.status.max_discharge_power_W = 10000;
-  datalayer.battery2.status.max_charge_power_W = 6000;
-  datalayer.battery2.status.max_discharge_power_W = 8000;
+  for (bool tracking : {false, true}) {
+    SCOPED_TRACE(tracking ? "headroom tracking on" : "headroom tracking off");
+    datalayer.battery_settings.parallel_headroom_tracking = tracking;
+    datalayer.battery.status.max_charge_power_W = 10000;
+    datalayer.battery.status.max_discharge_power_W = 10000;
+    datalayer.battery2.status.max_charge_power_W = 6000;
+    datalayer.battery2.status.max_discharge_power_W = 8000;
 
-  update_aggregate_values();
-  combine_pack_limits();
-  update_aggregate_limits();
+    update_aggregate_values();
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
-  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 162);     // 6000 W at 370.0 V
-  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 216);  // 8000 W at 370.0 V
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 162);     // 6000 W at 370.0 V
+    EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 216);  // 8000 W at 370.0 V
 
-  // Pack 2 faults and the safety layer zeroes it. Pack 1 is untouched and still happy.
-  datalayer.battery2.status.max_charge_power_W = 0;
-  datalayer.battery2.status.max_discharge_power_W = 0;
-  combine_pack_limits();
-  update_aggregate_limits();
+    // Pack 2 faults and the safety layer zeroes it. Pack 1 is untouched and still happy.
+    datalayer.battery2.status.max_charge_power_W = 0;
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
-  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 0);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 0);
-  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);  // pack 1's own card is honest
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 0);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 0);
+    EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);  // pack 1's own card is honest
+  }
 }
 
 // A pack held out by the voltage check is still talking, and its 0 W is real - but it is not a
@@ -464,30 +470,34 @@ TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
 TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotCapLimits) {
   add_second_pack();
   battery2_detected = true;
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
   datalayer.battery.status.voltage_dV = 3700;
 
-  datalayer.battery.status.max_charge_power_W = 10000;
-  datalayer.battery.status.max_discharge_power_W = 10000;
-  datalayer.battery2.status.max_charge_power_W = 0;  // detached, reads 0 while held out
-  datalayer.battery2.status.max_discharge_power_W = 0;
+  for (bool tracking : {false, true}) {
+    SCOPED_TRACE(tracking ? "headroom tracking on" : "headroom tracking off");
+    datalayer.battery_settings.parallel_headroom_tracking = tracking;
+    datalayer.system.status.battery2_allowed_contactor_closing = false;
+    datalayer.battery.status.max_charge_power_W = 10000;
+    datalayer.battery.status.max_discharge_power_W = 10000;
+    datalayer.battery2.status.max_charge_power_W = 0;  // detached, reads 0 while held out
+    datalayer.battery2.status.max_discharge_power_W = 0;
 
-  update_aggregate_values();
-  combine_pack_limits();
-  update_aggregate_limits();
+    update_aggregate_values();
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);  // pack 1 alone, not dragged to 0
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);  // pack 1 alone, not dragged to 0
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);
 
-  // Once it joins, its real limits count again
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
-  datalayer.battery2.status.max_charge_power_W = 6000;
-  datalayer.battery2.status.max_discharge_power_W = 8000;
-  combine_pack_limits();
-  update_aggregate_limits();
+    // Once it joins, its real limits count again
+    datalayer.system.status.battery2_allowed_contactor_closing = true;
+    datalayer.battery2.status.max_charge_power_W = 6000;
+    datalayer.battery2.status.max_discharge_power_W = 8000;
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+  }
 }
 
 // Two alike packs each take half of what the inverter pushes, so holding the installation to the
@@ -723,6 +733,37 @@ TEST_F(BatteryAggregateTest, ParallelChargeLimitFallsBackToTheLowestWithoutACurr
   datalayer.battery2.status.active_power_W = 0;  // Pack 2's current reading is gone
   datalayer.battery2.status.max_charge_power_W = 2000;
   EXPECT_EQ(told_W(), 2000u);
+}
+
+// Parallel headroom tracking is a setting, off unless switched on: the inverter then gets the lowest
+// pack limit however long the packs charge at it, and nothing is written to the aggregate before
+// the filters - exactly as before the tracking existed.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitOnlyWithTheSettingOn) {
+  packs_allowing({5000, 5000});
+  datalayer.battery_settings.parallel_headroom_tracking = false;
+
+  datalayer.aggregate.max_charge_power_W = 12345;
+  combine_pack_limits();
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 12345u);  // Left alone
+
+  EXPECT_EQ(told_W(), 5000u);
+  for (int pass = 0; pass < 60; pass++) {
+    inverter_charges(5000, {50, 50});
+    ASSERT_EQ(told_W(), 5000u);
+  }
+}
+
+// With the tracking off the SOC taper and the low pass filter shape pack 1's limits alone, and the
+// joined pack 2 and 3 are folded in after them: a lower limit on pack 2 reaches the inverter as it is.
+TEST_F(BatteryAggregateTest, WithoutHeadroomTrackingPack2IsFoldedInAfterTheFilters) {
+  packs_allowing({5000, 5000});
+  datalayer.battery_settings.parallel_headroom_tracking = false;
+  datalayer.battery.status.max_charge_power_W = 1500;  // What the filters left of pack 1's
+  datalayer.battery2.status.max_charge_power_W = 4000;
+  EXPECT_EQ(told_W(), 1500u);
+
+  datalayer.battery2.status.max_charge_power_W = 1000;
+  EXPECT_EQ(told_W(), 1000u);
 }
 
 // The user's current ceiling applies to the power as well as to the current derived from it.

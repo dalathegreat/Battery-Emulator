@@ -37,6 +37,7 @@
     "BATTCVMIN": "Minimum voltage per individual cell in millivolts. Discharge stops if one cell drops to this voltage.",
     "DBLBTR": "Enable this option if you intend to run two batteries in parallel. See [Double battery](setup/software/battery_2x/).",
     "TRIBTR": "Enable this option if you intend to run three batteries in parallel. See [Triple battery](setup/software/battery_3x/).",
+    "PARHEADROOM": "Raises the charge limit above the lowest pack limit in steps, while the inverter charges at it, until the pack closest to its own limit takes it: packs in parallel share the current, so with the lowest limit none of them ever reaches its own. Increases efficiency, especially in low-sun conditions, when cold packs allow little each. See [Parallel headroom tracking](setup/software/battery_2x/#parallel-headroom-tracking).",
 
     "inverter": "The protocol the emulator speaks towards the inverter. Every supported inverter has its own page: see [Inverters](inverter/).",
     "PYLONSEND": "Select if we should send ###0 or ###1 CAN messages, useful for multi-battery setups or ID problems.",

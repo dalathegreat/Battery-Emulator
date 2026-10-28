@@ -391,7 +391,9 @@ static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const join
 /* The installation's power limits, before the SOC taper and the low pass filter shape them.
  *
  * With a single battery pack 1 is the installation, and the filters shape its own limits as they
- * always have, so there is nothing to do here: update_aggregate_limits() takes them over.
+ * always have, so there is nothing to do here: update_aggregate_limits() takes them over. The same
+ * with several while parallel headroom tracking is off in the settings: update_aggregate_limits()
+ * folds pack 2 and 3 in after the filters, exactly as before the tracking existed.
  *
  * With several, only the joined packs count. Same "joined" gate update_aggregate_values() uses
  * for SOC, and for the same reason: a pack held out by the voltage check, or dropped after a
@@ -405,7 +407,7 @@ static uint32_t parallel_charge_limit_W(const DATALAYER_BATTERY_TYPE* const join
  * only after both filters had run, past either of them.
  */
 void combine_pack_limits() {
-  if (datalayer.system.info.configured_batteries < 2) {
+  if (!parallel_headroom_tracking_active()) {
     return;
   }
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
@@ -441,19 +443,30 @@ void combine_pack_limits() {
  *
  * Runs last, after update_machineryprotection(), combine_pack_limits(), filter_charge_taper_soc()
  * and filter_inverter_limits(). With a single battery the filters shaped pack 1's own limits,
- * which are taken over here. With several, combine_pack_limits() put the joined packs' limits
- * into the aggregate before either filter ran, and the filters shaped them there. Either way only
- * the current caps go on top, and nothing zeroed upstream is walked back - with one deliberate
- * exception, forced recovery charge, which exists to charge an installation its BMS will not.
+ * which are taken over here. With several and parallel headroom tracking on, combine_pack_limits()
+ * put the joined packs' limits into the aggregate before either filter ran, and the filters shaped
+ * them there. With several and the tracking off, the filters shaped pack 1's limits as a single
+ * battery's, and the joined pack 2 and 3 are folded in here as the lowest limit of any of them, as
+ * before the tracking existed. Either way only the current caps go on top, and nothing zeroed
+ * upstream is walked back - with one deliberate exception, forced recovery charge, which exists to
+ * charge an installation its BMS will not.
  */
 void update_aggregate_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
-  if (datalayer.system.info.configured_batteries < 2) {
+  if (!parallel_headroom_tracking_active()) {
     agg.max_charge_power_W = datalayer.battery.status.max_charge_power_W;
     agg.max_discharge_power_W = datalayer.battery.status.max_discharge_power_W;
     agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
     agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
+    if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
+      agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery2.status.max_charge_power_W);
+      agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery2.status.max_discharge_power_W);
+    }
+    if (battery3 && datalayer.system.status.battery3_allowed_contactor_closing) {
+      agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery3.status.max_charge_power_W);
+      agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery3.status.max_discharge_power_W);
+    }
   }
 
   /* Same conversion voltage and the same fallback as update_calculated_values() */
