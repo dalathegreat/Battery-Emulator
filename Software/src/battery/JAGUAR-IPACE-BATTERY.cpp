@@ -5,58 +5,6 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillisKeepAlive = 0;
-
-static uint8_t HVBattAvgSOC = 0;
-static uint8_t HVBattFastChgCounter = 0;
-static uint8_t HVBattTempColdCellID = 0;
-static uint8_t HVBatTempHotCellID = 0;
-static uint8_t HVBattVoltMaxCellID = 0;
-static uint8_t HVBattVoltMinCellID = 0;
-static uint8_t HVBattPwerGPCS = 0;
-static uint8_t HVBattPwrGpCounter = 0;
-static int8_t HVBattCurrentTR = 0;
-static uint16_t HVBattCellVoltageMaxMv = 3700;
-static uint16_t HVBattCellVoltageMinMv = 3700;
-static uint16_t HVBattEnergyAvailable = 0;
-static uint16_t HVBattEnergyUsableMax = 0;
-static uint16_t HVBattTotalCapacityWhenNew = 0;
-static uint16_t HVBattDischargeContiniousPowerLimit = 0;
-static uint16_t HVBattDischargePowerLimitExt = 0;
-static uint16_t HVBattDischargeVoltageLimit = 0;
-static uint16_t HVBattVoltageExt = 0;
-static uint16_t HVBatteryVoltageOC = 0;
-static uint16_t HVBatteryChgCurrentLimit = 0;
-static uint16_t HVBattChargeContiniousPowerLimit = 0;
-static int16_t HVBattAverageTemperature = 0;
-static int16_t HVBattCellTempAverage = 0;
-static int16_t HVBattCellTempColdest = 0;
-static int16_t HVBattCellTempHottest = 0;
-static int16_t HVBattInletCoolantTemp = 0;
-static bool HVBatteryContactorStatus = false;
-static bool HVBatteryContactorStatusT = false;
-static bool HVBattHVILError = false;
-static bool HVILBattIsolationError = false;
-static bool HVIsolationTestStatus = false;
-
-/* KeepAlive: PMZ_CAN_GWM_OSEK_NM_Pdu every 200ms.
- */
-CAN_frame ipace_keep_alive = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x51e,
-                              .data = {0x22, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-/* KeepAlive: PMZ_CAN_NodeGWM_NM every 1s.
- * TODO: This may be needed for >2021 models.
- */
-/*CAN_frame ipace_keep_alive = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x59e,
-                              .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
-
 void JaguarIpaceBattery::update_values() {
 
   datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
@@ -106,9 +54,42 @@ inline String& operator<<(String& str, const T& value) {
 }
 String JaguarIpaceBattery::get_uds_info_html() {
   String content;
-  content.reserve(300);
+  content.reserve(600);
 
-  content << "<h4>Battery VIN: " << String(battery_vin) << "</h4>";
+  content << "<h4>Positive Contactors B Voltage: " << String(positive_contactors_b_voltage)
+          << "</h4>"
+             "<h4>Positive Contactors A Voltage: "
+          << String(positive_contactors_a_voltage)
+          << "</h4>"
+             "<h4>Isolation Resistance: "
+          << String(isolation_resistance)
+          << "</h4>"
+             "<h4>Coolant Outlet Temperature: "
+          << String(coolant_outlet_temperature)
+          << "</h4>"
+             "<h4>Positive Contactors C Voltage: "
+          << String(positive_contactors_c_voltage)
+          << "</h4>"
+             "<h4>Rear Inverter Fuse Voltage: "
+          << String(rear_inverter_fuse_voltage)
+          << "</h4>"
+             "<h4>Current Sensor A: "
+          << String(current_sensor_a)
+          << "</h4>"
+             "<h4>Front Inverter Fuse Voltage: "
+          << String(front_inverter_fuse_voltage)
+          << "</h4>"
+             "<h4>Ancillary Fuse Voltage: "
+          << String(ancillary_fuse_voltage)
+          << "</h4>"
+             "<h4>Max Regen Power: "
+          << String(max_regen_power)
+          << " W</h4>"
+             "<h4>Negative Contactors Temperature: "
+          << String(negative_contactors_temperature)
+          << "</h4>"
+             "<h4>Positive Contactors Temperature: "
+          << String(positive_contactors_temperature) << "</h4>";
 
   // clang-format on
 
@@ -117,7 +98,7 @@ String JaguarIpaceBattery::get_uds_info_html() {
 
 void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
-  // UDS frames (0x??? PID/DTC replies) are handled by the superclass.
+  // UDS frames (0x7EC PID/DTC replies) are handled by the superclass.
   if (handle_incoming_uds_can_frame(rx_frame)) {
     return;
   }
@@ -234,7 +215,340 @@ uint16_t JaguarIpaceBattery::handle_pid(uint16_t pid, uint32_t value, const uint
   // the big-endian PID value (up to 4 bytes), `data` points at the raw value
   // bytes (without the SID/DID header). Return 0 to continue the scan list.
   switch (pid) {
-    case POLL_BATTERY_VIN:
+    case POLL_ON_DEMAND_SELF_TEST:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_01:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_02:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_03:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_04:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_05:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_06:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_07:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_08:
+      battery_vin = value;
+      break;
+    case POLL_CONTROL_MODULE_INTERNAL_DATA_09:
+      battery_vin = value;
+      break;
+    case POLL_INTERNAL_FW_VERSION:
+      battery_vin = value;
+      break;
+    case POLL_POSITIVE_CONTACTOR_B_VOLTAGE:
+      positive_contactors_b_voltage = value;
+      break;
+    case POLL_POSITIVE_CONTACTOR_A_VOLTAGE:
+      positive_contactors_a_voltage = value;
+      break;
+    case POLL_ISOLATION_RESISTANCE:
+      isolation_resistance = value;
+      break;
+    case POLL_MAX_CELL_VOLTAGE:
+      battery_vin = value;
+      break;
+    case POLL_MIN_CELL_VOLTAGE:
+      battery_vin = value;
+      break;
+    case POLL_MAX_CELL_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_MIN_CELL_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_TEMPERATURE_UNKNOWN:
+      battery_vin = value;
+      break;
+    case POLL_COOLALNT_OUTLET_TEMPERATURE:
+      coolant_outlet_temperature = value;
+      break;
+    case POLL_POSITIVE_CONTACTOR_C_VOLTAGE:
+      positive_contactors_c_voltage = value;
+      break;
+    case POLL_TEMPERATURE_UNKNOWN_2:
+      battery_vin = value;
+      break;
+    case POLL_REAR_INVERTER_FUSE_VOLTAGE:
+      rear_inverter_fuse_voltage = value;
+      break;
+    case POLL_CURRENT_SENSOR_A:
+      current_sensor_a = value;
+      break;
+    case POLL_FRONT_INVERTER_FUSE_VOLTAGE:
+      front_inverter_fuse_voltage = value;
+      break;
+    case POLL_ANCILLARY_FUSE_VOLTAGE:
+      ancillary_fuse_voltage = value;
+      break;
+    case POLL_BATTERY_PACK_VOLTAGE:
+      battery_vin = value;
+      break;
+    case POLL_AVERAGE_BATTERY_SOC:
+      battery_vin = value;
+      break;
+    case POLL_MIN_BATTERY_SOC:
+      battery_vin = value;
+      break;
+    case POLL_BATTERY_CURRENT_UNKNOWN:
+      battery_vin = value;
+      break;
+    case POLL_MAX_REGEN_POWER:
+      max_regen_power = value;
+      break;
+    case POLL_MAX_BATTERY_SOC:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4915:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4916:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4917:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4918:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4919:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_491A:
+      battery_vin = value;
+      break;
+    case POLL_NEGATIVE_CONTACTOR_TEMPERATURE:
+      negative_contactors_temperature = value;
+      break;
+    case POLL_POSITIVE_CONTACTOR_TEMPERATURE:
+      positive_contactors_temperature = value;
+      break;
+    case POLL_UNKNOWN_491D:
+      battery_vin = value;
+      break;
+    case POLL_ANCILLARY_CONTACTOR_DIFF_VOLTAGE:
+      battery_vin = value;
+      break;
+    case POLL_TRACTION_CONTACTOR_DIFF_VOLTAGE:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_VOLTAGE_4920:
+      battery_vin = value;
+      break;
+    case POLL_NEGATIVE_CONTACTOR_DIFF_VOLTAGE:
+      battery_vin = value;
+      break;
+    case POLL_FLAGS_4923:
+      battery_vin = value;
+      break;
+    case POLL_CSC_1_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_CSC_2_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_CSC_3_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_CSC_4_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_CSC_5_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_CSC_6_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4931:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4933:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4934:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4935:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4936:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4937:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4938:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4939:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4941:
+      battery_vin = value;
+      break;
+    case POLL_FLAGS_4944:
+      battery_vin = value;
+      break;
+    case POLL_FLAGS_4945:
+      battery_vin = value;
+      break;
+    case POLL_REAR_INVERTER_CURRENT:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4970:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_ASCII_4971:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_VOLTAGE_497A:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_VOLTAGE_497B:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_VOLTAGE_497C:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_497E:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_497F:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_4980:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_VOLTAGE_4981:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_498C:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D015:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D018:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D019:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D020:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D021:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D05B:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D100:
+      battery_vin = value;
+      break;
+    case POLL_FLAGS_D10E:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_D14D:
+      battery_vin = value;
+      break;
+    case POLL_LIVE_DATA_FAIL_CODE:
+      battery_vin = value;
+      break;
+    case POLL_GLOBAL_REAL_TIME:
+      battery_vin = value;
+      break;
+    case POLL_TOTAL_DISTANCE:
+      battery_vin = value;
+      break;
+    case POLL_MAIN_ECU_VOLTAGE_SUPPLY:
+      battery_vin = value;
+      break;
+    case POLL_IN_CAR_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_OUTSIDE_TEMPERATURE:
+      battery_vin = value;
+      break;
+    case POLL_POWER_MODE:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_DD08:
+      battery_vin = value;
+      break;
+    case POLL_VEHICLE_SPEED:
+      battery_vin = value;
+      break;
+    case POLL_PRIMARY_BOOTLOADER_CONFIGURATION:
+      battery_vin = value;
+      break;
+    case POLL_ECU_NETWORK_SIGNAL_CALIBRATION_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_PRIMARY_BOOT_LOADER_PART_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ECU_SERIAL_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_VIN:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_FD01:
+      battery_vin = value;
+      break;
+    case POLL_ECU_CORE_ASSEMBLY_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ECU_DELIVERY_ASSEMBLY_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ECU_SOFTWARE_2_PART_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ECU_SOFTWARE_3_PART_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ECU_CALIBRATION_DATA_1_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ECU_CALIBRATION_DATA_2_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_SOFTWARE_DOWNLOAD_SPEC_VERSION:
+      battery_vin = value;
+      break;
+    case POLL_UNKNOWN_F163:
+      battery_vin = value;
+      break;
+    case POLL_JLR_CONFIG_DATA_STORAGE_SPEC_VERSION:
+      battery_vin = value;
+      break;
+    case POLL_NETWORK_CONFIGURATION_IDENTIFIER:
+      battery_vin = value;
+      break;
+    case POLL_BOOT_SOFTWARE_IDENTIFICATION:
+      battery_vin = value;
+      break;
+    case POLL_ACTIVE_DIAGNOSIS_SESSION:
+      battery_vin = value;
+      break;
+    case POLL_ECU_SOFTWARE_NUMBER:
+      battery_vin = value;
+      break;
+    case POLL_ODX_FILE_DATA_IDENTIFIER:
       battery_vin = value;
       break;
     default:  //Unknown pid
@@ -254,10 +568,121 @@ void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC (UNTESTED)
-  setup_uds(0x7DF, 0x7EC);
+  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC
+  setup_uds(0x7E4, 0x7EC);
   static const uint16_t pid_scan_list[] = {
-      POLL_BATTERY_VIN,
+      POLL_ON_DEMAND_SELF_TEST,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_01,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_02,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_03,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_04,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_05,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_06,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_07,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_08,
+      POLL_CONTROL_MODULE_INTERNAL_DATA_09,
+      POLL_INTERNAL_FW_VERSION,
+      POLL_POSITIVE_CONTACTOR_B_VOLTAGE,
+      POLL_POSITIVE_CONTACTOR_A_VOLTAGE,
+      POLL_ISOLATION_RESISTANCE,
+      POLL_MAX_CELL_VOLTAGE,
+      POLL_MIN_CELL_VOLTAGE,
+      POLL_MAX_CELL_TEMPERATURE,
+      POLL_MIN_CELL_TEMPERATURE,
+      POLL_TEMPERATURE_UNKNOWN,
+      POLL_COOLALNT_OUTLET_TEMPERATURE,
+      POLL_POSITIVE_CONTACTOR_C_VOLTAGE,
+      POLL_TEMPERATURE_UNKNOWN_2,
+      POLL_REAR_INVERTER_FUSE_VOLTAGE,
+      POLL_CURRENT_SENSOR_A,
+      POLL_FRONT_INVERTER_FUSE_VOLTAGE,
+      POLL_ANCILLARY_FUSE_VOLTAGE,
+      POLL_BATTERY_PACK_VOLTAGE,
+      POLL_AVERAGE_BATTERY_SOC,
+      POLL_MIN_BATTERY_SOC,
+      POLL_BATTERY_CURRENT_UNKNOWN,
+      POLL_MAX_REGEN_POWER,
+      POLL_MAX_BATTERY_SOC,
+      POLL_UNKNOWN_4915,
+      POLL_UNKNOWN_4916,
+      POLL_UNKNOWN_4917,
+      POLL_UNKNOWN_4918,
+      POLL_UNKNOWN_4919,
+      POLL_UNKNOWN_491A,
+      POLL_NEGATIVE_CONTACTOR_TEMPERATURE,
+      POLL_POSITIVE_CONTACTOR_TEMPERATURE,
+      POLL_UNKNOWN_491D,
+      POLL_ANCILLARY_CONTACTOR_DIFF_VOLTAGE,
+      POLL_TRACTION_CONTACTOR_DIFF_VOLTAGE,
+      POLL_UNKNOWN_VOLTAGE_4920,
+      POLL_NEGATIVE_CONTACTOR_DIFF_VOLTAGE,
+      POLL_FLAGS_4923,
+      POLL_CSC_1_TEMPERATURE,
+      POLL_CSC_2_TEMPERATURE,
+      POLL_CSC_3_TEMPERATURE,
+      POLL_CSC_4_TEMPERATURE,
+      POLL_CSC_5_TEMPERATURE,
+      POLL_CSC_6_TEMPERATURE,
+      POLL_UNKNOWN_4931,
+      POLL_UNKNOWN_4933,
+      POLL_UNKNOWN_4934,
+      POLL_UNKNOWN_4935,
+      POLL_UNKNOWN_4936,
+      POLL_UNKNOWN_4937,
+      POLL_UNKNOWN_4938,
+      POLL_UNKNOWN_4939,
+      POLL_UNKNOWN_4941,
+      POLL_FLAGS_4944,
+      POLL_FLAGS_4945,
+      POLL_REAR_INVERTER_CURRENT,
+      POLL_UNKNOWN_4970,
+      POLL_UNKNOWN_ASCII_4971,
+      POLL_UNKNOWN_VOLTAGE_497A,
+      POLL_UNKNOWN_VOLTAGE_497B,
+      POLL_UNKNOWN_VOLTAGE_497C,
+      POLL_UNKNOWN_497E,
+      POLL_UNKNOWN_497F,
+      POLL_UNKNOWN_4980,
+      POLL_UNKNOWN_VOLTAGE_4981,
+      POLL_UNKNOWN_498C,
+      POLL_UNKNOWN_D015,
+      POLL_UNKNOWN_D018,
+      POLL_UNKNOWN_D019,
+      POLL_UNKNOWN_D020,
+      POLL_UNKNOWN_D021,
+      POLL_UNKNOWN_D05B,
+      POLL_UNKNOWN_D100,
+      POLL_FLAGS_D10E,
+      POLL_UNKNOWN_D14D,
+      POLL_LIVE_DATA_FAIL_CODE,
+      POLL_GLOBAL_REAL_TIME,
+      POLL_TOTAL_DISTANCE,
+      POLL_MAIN_ECU_VOLTAGE_SUPPLY,
+      POLL_IN_CAR_TEMPERATURE,
+      POLL_OUTSIDE_TEMPERATURE,
+      POLL_POWER_MODE,
+      POLL_UNKNOWN_DD08,
+      POLL_VEHICLE_SPEED,
+      POLL_PRIMARY_BOOTLOADER_CONFIGURATION,
+      POLL_ECU_NETWORK_SIGNAL_CALIBRATION_NUMBER,
+      POLL_PRIMARY_BOOT_LOADER_PART_NUMBER,
+      POLL_ECU_SERIAL_NUMBER,
+      POLL_VIN,
+      POLL_UNKNOWN_FD01,
+      POLL_ECU_CORE_ASSEMBLY_NUMBER,
+      POLL_ECU_DELIVERY_ASSEMBLY_NUMBER,
+      POLL_ECU_SOFTWARE_2_PART_NUMBER,
+      POLL_ECU_SOFTWARE_3_PART_NUMBER,
+      POLL_ECU_CALIBRATION_DATA_1_NUMBER,
+      POLL_ECU_CALIBRATION_DATA_2_NUMBER,
+      POLL_SOFTWARE_DOWNLOAD_SPEC_VERSION,
+      POLL_UNKNOWN_F163,
+      POLL_JLR_CONFIG_DATA_STORAGE_SPEC_VERSION,
+      POLL_NETWORK_CONFIGURATION_IDENTIFIER,
+      POLL_BOOT_SOFTWARE_IDENTIFICATION,
+      POLL_ACTIVE_DIAGNOSIS_SESSION,
+      POLL_ECU_SOFTWARE_NUMBER,
+      POLL_ODX_FILE_DATA_IDENTIFIER,
   };
   set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }
