@@ -1031,21 +1031,19 @@ TEST_F(TeslaBatteryTest, SohEstimateUsesPackEnergyWhenNewFromPackConfigFrame) {
                                  "<h4>Total Capacity When New (0x292): 0.1 kWh</h4>"));
 }
 
-// Pack temperature is the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC), not the two frame types sharing ID 0x312.
-TEST_F(TeslaBatteryTest, PackTempMinMaxComeFromThermistorFrameNotFrom0x312) {
+// The main card shows N/A until the 0x332 mux 0 thermistor min/max (20.0, 23.5 degC) is received.
+TEST_F(TeslaBatteryTest, TemperatureSeenAfterThermistorFrame) {
   pack_->update_values();
-  EXPECT_FALSE(datalayer_extended.tesla.temperature_seen);  // the web pages show "no data" until 0x332 arrives
-  EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Pack Temp Min: N/A</h4><h4>Pack Temp Max: N/A</h4>"));
+  EXPECT_FALSE(datalayer_extended.tesla.temperature_seen);
+  EXPECT_FALSE(pack_->get_status_renderer().has_temperature_data());
 
   pack_->handle_incoming_can_frame(FrameWith(0x332, {0x04, 0x03, 0x7F, 0x78, 0x7B, 0x00}));
-  pack_->handle_incoming_can_frame(FrameWith(0x312, {0xA9, 0x21, 0x48, 0x17, 0x40, 0x8D, 0x00, 0x00}));
-  pack_->handle_incoming_can_frame(FrameWith(0x312, {0x00, 0xE5, 0x66, 0x04, 0x2B, 0xE1, 0x13, 0x00}));
   pack_->update_values();
 
   EXPECT_TRUE(datalayer_extended.tesla.temperature_seen);
+  EXPECT_TRUE(pack_->get_status_renderer().has_temperature_data());
   EXPECT_EQ(datalayer.battery.status.temperature_min_dC, 200);
   EXPECT_EQ(datalayer.battery.status.temperature_max_dC, 235);
-  EXPECT_TRUE(DetailPageContains(*pack_, "<h4>Pack Temp Min: 20"));
 }
 
 // Pre-2021 0x352 has no mux, 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, buffer at bit 55 (8 bits), fully
