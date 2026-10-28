@@ -254,7 +254,7 @@ String TeslaHtmlRenderer::get_status_html() {
   content +=
       "<h4>Contactors Reset Request Required: " + String(noYes[tesla.battery_packCtrsResetRequestRequired]) + "</h4>";
   content += "<h4>DC Link Allowed to Energize: " + String(noYes[tesla.battery_dcLinkAllowedToEnergize]) + "</h4>";
-  // TODO: the rows of this page that are not marked as raw (from master) are not yet checked for N/A / SNA values
+  // TODO(tesla): the rows of this page that are not marked as raw (from master) are not yet checked for N/A / SNA values
   // Comment what data you would like to display, order can be changed.
   //0x352 850 BMS_energyStatus
   if (tesla.BMS352_mux == false) {
@@ -355,7 +355,7 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>Inlet Active Cool Target Temp: " + String(BMS_inletActiveCoolTargetT) + " DegC</h4>";
   content += "<h4>Inlet Passive Target Temp: " + String(BMS_inletPassiveTargetT) + " DegC</h4>";
   content += "<h4>Inlet Active Heat Target Temp: " + String(BMS_inletActiveHeatTargetT) + " DegC</h4>";
-  // TODO: these two come from 0x312 (see the decode), the temperature the pack reports on 0x332 mux 0 is on the main page
+  // TODO(tesla): these two come from 0x312 (see the decode), the temperature the pack reports on 0x332 mux 0 is on the main page
   content += "<h4>Pack Temp Min: " + String(BMS_packTMin) + " DegC</h4>";
   content += "<h4>Pack Temp Max: " + String(BMS_packTMax) + " DegC</h4>";
   appendFault(content, "PCS No Flow Request", tesla.BMS_pcsNoFlowRequest);
@@ -552,7 +552,7 @@ String TeslaHtmlRenderer::get_main_view_soh_rows() {
 
 // Main page, instead of the generic "Total capacity": always the capacity when new (the value the pack reports, else
 // N/A) and the current capacity (nominal full pack energy, held)
-// TODO S/X: the capacity when new is the configured capacity, read it from the pack if a frame with it is found
+// TODO(tesla): S/X: the capacity when new is the configured capacity, read it from the pack if a frame with it is found
 String TeslaHtmlRenderer::get_main_view_capacity_rows() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
   const float when_new_kwh = static_cast<float>(tesla.battery_beginning_of_life) * 0.1f;

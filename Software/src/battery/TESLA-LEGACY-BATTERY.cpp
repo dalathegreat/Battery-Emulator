@@ -141,11 +141,10 @@ void TeslaLegacyBattery::update_values() {
                   : TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc, nominal_full_hold.value,
                                                nominal_remaining_hold.value, datalayer.battery.info.total_capacity_Wh);
 
-  // SOH is the estimate: nominal full pack energy (0x382) over the configured capacity, the Model 3/Y calculation.
-  // The reference is the capacity configured for the hardware ID, NOT the real capacity when new (the S/X does not send
-  // it). A new pack whose real capacity is below the configured one shows a higher SOH than the true one, for example a
-  // new 85 kWh pack reading 81 kWh nominal shows 95 %. TODO: read the capacity when new from the pack (a frame with it
-  // is not known yet), the main page shows this configured value as "Total capacity when new".
+  // SOH estimate as on the 3/Y, but the reference is the capacity configured for the hardware ID, not the real capacity
+  // when new: a new 85 kWh pack reading 81 kWh nominal shows 95 %. TODO(tesla): read the capacity when new from the pack.
+  // Set on every cycle, as total_capacity_Wh follows the hardware ID. It is 0 until the ID arrives: 0 = unknown, so no
+  // SOH estimate (the inverter gets 99 %) and the main page shows Unknown.
   datalayer_extended.tesla.battery_beginning_of_life = datalayer.battery.info.total_capacity_Wh / 100;  // 0.1 kWh
   datalayer_extended.tesla.soh_estimate_known = TeslaBattery::apply_soh_estimate(
       datalayer.battery.status, nominal_full_hold.value, datalayer_extended.tesla.battery_beginning_of_life);
@@ -306,9 +305,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x302:                                                            // BMS_socStatus (Nieuwe CAN-ID)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
       {
-        // 10 bit fields in 0.1 %: SOC min (bit 0), SOC UI (bit 10). The pack SOC is the UI SOC (like the 3/Y). 1023 =
-        // n/a: the last SOC is held (the pack sends 1023 for about 5 s). SOC min is only the initial value, until a
-        // valid UI SOC has been seen: 0 would zero the discharge limit (battery empty) at startup.
+        // 10 bit fields in 0.1 %: SOC min (bit 0), SOC UI (bit 10), 1023 = n/a (the last SOC is held). SOC min is only
+        // the initial SOC until a valid UI SOC was seen: 0 would zero the discharge limit at startup.
         const uint16_t soc_min_x10 = tesla_le_bits(rx_frame.data.u8, 0, 10);
         const uint16_t soc_ui_x10 = tesla_le_bits(rx_frame.data.u8, 10, 10);
         datalayer_extended.tesla.battery_soc_min_0x302 = soc_min_x10;  // raw, detail page
@@ -326,14 +324,15 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x382:  // Nominal full pack energy, bits 0-9 in 0.1 kWh, the SOH estimate input (3/Y field)
     {
-      // 38.0 to 150.0 kWh is plausible. The pack sends 1023 for about 5 s while it is not available: update_values()
-      // holds the last plausible value for 30 s.
+      // The pack sends 1023 for about 5 s while it is not available: update_values() holds the last plausible value.
+      // FIXME(tesla): the field may be 11 bits wide (the remaining energy next to it is), then a pack of 102.4 kWh or
+      // more reads wrong here. Check on a real S/X capture, there is no 0x382 in our 3/Y log.
       nominal_full_x10_received = tesla_le_bits(rx_frame.data.u8, 0, 10);
       datalayer_extended.tesla.nominal_0x382_seen = true;
       datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_x10_received;  // raw, detail page
-      // Nominal energy remaining, bit 11, 11 bits, 0.1 kWh (the remaining capacity uses it, see update_values).
-      // This is the layout of the 2012-2020 pack that was measured, the energy fields are 11 bits wide like the
-      // pre-2021 3/Y 0x352. The public 10 bit layout (wk057) differs and is not detected.
+      // Nominal energy remaining, bit 11, 11 bits, 0.1 kWh (used for the remaining capacity). Layout measured on a real
+      // 2012-2020 S/X pack (RealNominal in TeslaLegacyBatteryTest.cpp), like the pre-2021 3/Y 0x352. The public 10 bit
+      // layout (wk057) differs and is not detected.
       nominal_remaining_x10_received = tesla_le_bits(rx_frame.data.u8, 11, 11);
       datalayer_extended.tesla.battery_nominal_energy_remaining = nominal_remaining_x10_received;  // raw, detail page
     } break;

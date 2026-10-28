@@ -646,6 +646,8 @@ void TeslaBattery::
     // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
     if (datalayer.battery_settings.user_requests_balancing) {
       datalayer_battery->status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+      // FIXME(tesla): remaining_capacity_Wh was calculated above from the real SOC, not from this 99 %, so the two
+      // differ while balancing.
       datalayer_battery->info.max_design_voltage_dV = datalayer.battery_settings.balancing_max_pack_voltage_dV;
       datalayer_battery->info.max_cell_voltage_mV = datalayer.battery_settings.balancing_max_cell_voltage_mV;
       datalayer_battery->info.max_cell_voltage_deviation_mV =
@@ -1280,6 +1282,10 @@ TeslaBattery::EnergyStatusNoMux TeslaBattery::decode_energy_status_no_mux(const 
 }
 
 // 0x3B2 BMS_log2 mux 0: pack CAC (0.1 Ah) and min/max brick IDs (ID - 1). B was verified on a 2024.8.9+ pack, A not.
+// Little endian bit numbers, the CAC fields are 13 bits (0.1 Ah, 8191 = SNA), the brick IDs 7 bits (stored ID - 1):
+//        mux     avg     min      min ID   max      max ID
+//   A    0..5    6..18   19..31   32..38   40..52   56..62   (2022 era, mux 6 bits = 0)
+//   B    0..6    8..20   24..36   37..43   44..56   57..63   (2024.8.9+, mux 7 bits = 0)
 struct CacLayout {
   uint8_t avg, min, min_id, max, max_id;  // start bits: avg, min and max CAC 13 bits, brick IDs 7 bits
 };
@@ -1590,7 +1596,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                 ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
       BMS_inletActiveHeatTargetT = ((rx_frame.data.u8[5] & (0x0FU)) << 5) |
                                    ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
-      // TODO: 0x312 is shared by two frame types, so these two may be decoded from the wrong frame. The pack temperature
+      // TODO(tesla): 0x312 is shared by two frame types, so these two may be decoded from the wrong frame. The pack temperature
       // the inverter gets is the 0x332 mux 0 min/max (battery_min_temp, battery_max_temp), not these.
       BMS_packTMin = ((rx_frame.data.u8[6] & (0x1FU)) << 4) |
                      ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
