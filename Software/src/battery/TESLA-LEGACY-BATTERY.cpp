@@ -310,6 +310,12 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (TeslaBattery::energy_x10_plausible_10bit(nominal_full_x10)) {
         datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_x10;
       }
+      // Nominal energy remaining, bit 11, 11 bits, 0.1 kWh (web page only). This is the layout of the 2012-2020 pack
+      // that was measured, the energy fields are 11 bits wide like the pre-2021 3/Y 0x352. The public 10 bit layout
+      // (wk057) differs and is not detected. All ones is SNA, shown as no data (0).
+      const uint16_t nominal_remaining_x10 = tesla_le_bits(rx_frame.data.u8, 11, 11);
+      datalayer_extended.tesla.battery_nominal_energy_remaining =
+          nominal_remaining_x10 == 0x7FF ? 0 : nominal_remaining_x10;
     } break;
     case 0x612: {
       uint8_t service = rx_frame.data.u8[1];

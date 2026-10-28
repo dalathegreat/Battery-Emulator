@@ -333,6 +333,21 @@ TEST_F(TeslaLegacyBatteryTest, SohReferenceIsTheConfiguredCapacityNotTheRealCapa
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9529);
 }
 
+// 0x382 bit 11, 11 bits, 0.1 kWh: nominal energy remaining (19.6 kWh in the real frame), shown on the detail page only.
+// No data until received, all ones (SNA) is no data again.
+TEST_F(TeslaLegacyBatteryTest, NominalEnergyRemainingFrom0x382) {
+  auto page = [&]() { return pack_->get_status_renderer().get_status_html().str(); };
+  EXPECT_NE(page().find("Nominal Energy Remaining: no data"), std::string::npos);
+
+  pack_->handle_incoming_can_frame(RealNominal());
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_energy_remaining, 196);
+  EXPECT_NE(page().find("<h4>Nominal Energy Remaining: 19.6 kWh</h4>"), std::string::npos);
+
+  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_energy_remaining, 0);
+  EXPECT_NE(page().find("Nominal Energy Remaining: no data"), std::string::npos);
+}
+
 // 0x7E2 page 7: brick SOC max at bit 8 (30.6 %) and min at bit 18 (30.0 %). 1023, max > 100 % and min > max: rejected.
 TEST_F(TeslaLegacyBatteryTest, BrickSocMaxMinFrom0x7E2Page7) {
   CAN_frame frame = RealPage7();
