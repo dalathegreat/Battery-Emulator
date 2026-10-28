@@ -331,8 +331,16 @@ void update_calculated_values(uint32_t currentMillis) {
   /* Check if remote set limits have timed out */
   update_remote_limit_expiry(currentMillis);
 
+  /* Double battery: when the first pack is not connected (comms lost or contactors open) and the second one is,
+     the inverter is told about the second pack alone - its SOC, capacity and limits. */
+  const bool only_battery2 = battery2 && !battery->is_connected() && battery2->is_connected();
+  if (only_battery2) {
+    datalayer.battery.status.max_charge_power_W = datalayer.battery2.status.max_charge_power_W;
+    datalayer.battery.status.max_discharge_power_W = datalayer.battery2.status.max_discharge_power_W;
+  }
+
   /* Cap max charge/discharge to the lowest battery's limits */
-  if (battery2) {
+  if (battery2 && !only_battery2) {
     if (datalayer.battery.status.max_charge_power_W > datalayer.battery2.status.max_charge_power_W) {
       datalayer.battery.status.max_charge_power_W = datalayer.battery2.status.max_charge_power_W;
     }
@@ -524,6 +532,23 @@ void update_calculated_values(uint32_t currentMillis) {
                                                           datalayer.battery2.info.total_capacity_Wh +
                                                           datalayer.battery3.info.total_capacity_Wh;
     }
+  }
+
+  if (only_battery2) {
+    uint16_t soc = datalayer.battery2.status.real_soc;
+    uint32_t total_Wh = datalayer.battery2.info.total_capacity_Wh;
+    uint32_t remaining_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    if (datalayer.battery.settings.soc_scaling_active) {  // same window as battery 1, applied to battery 2's SOC
+      int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
+      int32_t clamped_soc = CONSTRAIN(datalayer.battery2.status.real_soc, datalayer.battery.settings.min_percentage,
+                                      datalayer.battery.settings.max_percentage);
+      soc = delta_pct != 0 ? 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct : 0;
+      total_Wh = (total_Wh * delta_pct) / 10000;
+      remaining_Wh = (total_Wh * soc) / 10000;
+    }
+    datalayer.battery.status.reported_soc = soc;
+    datalayer.battery.info.reported_total_capacity_Wh = total_Wh;
+    datalayer.battery.status.reported_remaining_capacity_Wh = remaining_Wh;
   }
 
   datalayer.battery2.status.reported_soc =

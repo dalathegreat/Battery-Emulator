@@ -75,6 +75,9 @@ class SunwodaBattery : public CanBattery {
   void request_vendor_command(const char* identifier) override;
   static constexpr const char* CMD_OPEN_ALL = "swOpenAll";
 
+  // Connected = BCMU heard recently and both its negative and main contactors closed.
+  bool is_connected() override;
+
   // Manually-triggered RTC time sync, time supplied by the browser - see ID_TIME_SYNC below.
   bool supports_time_sync() override { return true; }
   void request_time_sync(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
