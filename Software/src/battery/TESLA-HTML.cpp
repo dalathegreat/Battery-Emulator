@@ -10,11 +10,14 @@ static void appendFault(String& string, const char* name, bool faultActive) {
   string += ": ACTIVE</h4>";
 }
 
-// DETAIL PAGE RULE (get_status_html of both renderers): show raw pack data only, no post-processing: the value as
+// DETAIL PAGE RULE (get_status_html of both renderers): the rows are raw pack data, no post-processing: the value as
 // received, N/A when it was not received yet or is SNA. What is calculated, held, or selected by firmware version or
-// plausibility (SOH, capacity, held SOC, filtered CAC) belongs on the main page (the get_main_view_* hooks below).
+// plausibility (SOH, capacity, filtered CAC and brick SOC) is only in the block "Calculated values" at the top of the
+// page, clearly labelled, followed by the raw rows.
+// TODO(tesla): in the future this page should show raw values only, the calculated block should move elsewhere.
 
-// Main page: the nominal full pack energy as used for the SOH and the remaining capacity, held for 30 s (0 = unknown)
+// Calculated values: the nominal full pack energy as used for the SOH and the remaining capacity, held for 30 s (0 =
+// unknown)
 static float nominalFullPackKwh(const DATALAYER_INFO_TESLA& tesla) {
   return static_cast<float>(tesla.nominal_full_held_x10) * 0.1f;
 }
@@ -28,7 +31,7 @@ static String rawSocRow(const char* label, uint32_t raw_x10) {
   return "<h4>" + String(label) + ": " + String(static_cast<float>(raw_x10) * 0.1f, 1) + "%</h4>";
 }
 
-// Main page: the brick SOC is only used when it is plausible: max <= 100 %, min <= max (the pack sends 1023 when not
+// Calculated values: the brick SOC is only used when it is plausible: max <= 100 %, min <= max (the pack sends 1023 when not
 // available)
 static bool brickSocPlausible(const DATALAYER_INFO_TESLA& tesla) {
   return tesla.battery_soc_max > 0 && tesla.battery_soc_max <= 1000 && tesla.battery_soc_min <= tesla.battery_soc_max;
@@ -44,7 +47,9 @@ static String rawEnergyRow(const char* label, bool seen, uint16_t raw, uint16_t 
   return "<h4>" + String(label) + ": " + String(static_cast<float>(raw) * kwh_per_count, decimals) + " kWh</h4>";
 }
 
-// The SOH estimate (it is the SOH sent to the inverter), shared by the main card and the detail page
+// The SOH estimate (it is the SOH sent to the inverter)
+// TODO(tesla): the main card shows the 99 % sent to the inverter (soh_available stays true) when the SOH is unknown,
+// this row says unknown.
 static String sohEstimateRow(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_BATTERY_STATUS_TYPE& status) {
   if (!tesla.soh_estimate_known) {
     return "<h4>Calculated SOH: unknown (" + String((int)(status.soh_pptt / 100.0f + 0.5f)) +
@@ -68,9 +73,62 @@ static String rawCacRow(const String& label, bool seen, uint16_t raw_x10, uint16
   return "<h4>" + label + ": " + String(raw_x10 * 0.1f, 1) + " Ah" + brick(brick_id) + "</h4>";
 }
 
+// Capacity rows: the capacity when new (the value the pack reports, else N/A) and the current capacity (nominal full
+// pack energy, held)
+// TODO(tesla): S/X: the capacity when new is the configured capacity, read it from the pack if a frame with it is found
+static String capacityRows(const DATALAYER_INFO_TESLA& tesla) {
+  const float when_new_kwh = static_cast<float>(tesla.battery_beginning_of_life) * 0.1f;
+  const float current_kwh = nominalFullPackKwh(tesla);
+  return "<h4>Total capacity when new: " + (when_new_kwh > 0.0f ? String(when_new_kwh, 1) + " kWh" : String("N/A")) +
+         "</h4><h4>Current total capacity: " + (current_kwh > 0.0f ? String(current_kwh, 1) + " kWh" : String("N/A")) +
+         "</h4>";
+}
+
+// Brick CAC min/max and brick SOC rows. Legacy S/X has no brick IDs and no average SOC.
+static String cellRows(const DATALAYER_INFO_TESLA& tesla) {
+  String content;
+  if (tesla.cac_valid) {
+    content += "<h4>CAC: " + String(tesla.cac_min_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_min_brick_id) + " - " +
+               String(tesla.cac_max_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_max_brick_id) + "</h4>";
+    if (tesla.cac_max_x10 >= tesla.cac_min_x10 && tesla.cac_avg_x10 > 0) {
+      // Percentage is relative to the average CAC, rounded to a whole percent
+      uint16_t imbalance_x10 = tesla.cac_max_x10 - tesla.cac_min_x10;
+      uint32_t percent = ((uint32_t)imbalance_x10 * 100 + tesla.cac_avg_x10 / 2) / tesla.cac_avg_x10;
+      content += "<h4>CAC Imbalance: " + String(imbalance_x10 * 0.1f, 1) + " Ah (" + String(percent) + "%)</h4>";
+    }
+  }
+  if (brickSocPlausible(tesla)) {
+    content += "<h4>Brick SOC: " + String(tesla.battery_soc_min * 0.1f, 1) + "% - " +
+               String(tesla.battery_soc_max * 0.1f, 1) + "%" +
+               (tesla.battery_soc_ave > 0 && tesla.battery_soc_ave <= 1000
+                    ? " (Ave " + String(tesla.battery_soc_ave * 0.1f, 1) + "%)"
+                    : String()) +
+               "</h4>";
+    // Percentage points, max - min (min is never above max here)
+    content +=
+        "<h4>Brick SOC Imbalance: " + String((tesla.battery_soc_max - tesla.battery_soc_min) * 0.1f, 1) + "%</h4>";
+  }
+  return content;
+}
+
+// Temperature of the 0x332 mux 0 frame, N/A until it was received
+static String temperatureRow(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  if (!tesla.temperature_seen) {
+    return "<h4>Temperature min/max: N/A</h4>";
+  }
+  return "<h4>Temperature min/max: " + String(status.temperature_min_dC / 10.0f, 1) + " &deg;C / " +
+         String(status.temperature_max_dC / 10.0f, 1) + " &deg;C</h4>";
+}
+
+// The block at the top of the detail page (the end marker is the header of the raw rows)
+static String calculatedValuesBlock(const DATALAYER_INFO_TESLA& tesla, const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  return "<h3>Calculated values</h3>" + sohEstimateRow(tesla, status) + capacityRows(tesla) + cellRows(tesla) +
+         temperatureRow(tesla, status) + "<h3>Raw values</h3>";
+}
+
 String TeslaHtmlRenderer::get_status_html() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
-  String content;
+  String content = calculatedValuesBlock(tesla, core_data->status);
 
   float battTempPct = static_cast<float>(tesla.battery_battTempPct) * 0.4f;
   float dcdcLvBusVolt = static_cast<float>(tesla.battery_dcdcLvBusVolt) * 0.01f;
@@ -281,7 +339,7 @@ String TeslaHtmlRenderer::get_status_html() {
                           tesla.battery_nominal_energy_remaining, 0x7FF, 0.1f, 1);
   content += rawEnergyRow("Nominal Energy Remaining (0x352 mux 0)", tesla.nominal_remaining_m0_seen,
                           tesla.battery_nominal_energy_remaining_m0, 0xFFFF, 0.02f, 2);
-  // Capacity when new as received, the main page shows the one of the firmware that sends a plausible value
+  // Capacity when new as received, the calculated block shows the one of the firmware that sends a plausible value
   content +=
       rawEnergyRow("Total Capacity When New (0x392 mux 1)", tesla.bol_0x392_seen, tesla.bol_0x392_x10, 1023, 0.1f, 1);
   content += rawEnergyRow("Total Capacity When New (0x292)", tesla.bol_0x292_seen, tesla.bol_0x292_x10, 1023, 0.1f, 1);
@@ -295,7 +353,7 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>BMS_componentId: " + String(tesla.BMS_info_componentId) + "</h4>";
   appendFault(content, "BMS PCS PWM Enabled", tesla.BMS_pcsPwmEnabled);
   //0x292 658 BMS_socStates
-  content += rawSocRow("Battery SOC UI", tesla.battery_soc_ui);  // live value, the main page uses the held one
+  content += rawSocRow("Battery SOC UI", tesla.battery_soc_ui);  // live value, the SOC of the inverter is the held one
   content += rawSocRow("Brick SOC Ave (0x292)", tesla.battery_soc_ave);
   content += rawSocRow("Brick SOC Max (0x292)", tesla.battery_soc_max);
   content += rawSocRow("Brick SOC Min (0x292)", tesla.battery_soc_min);
@@ -355,7 +413,7 @@ String TeslaHtmlRenderer::get_status_html() {
   content += "<h4>Inlet Active Cool Target Temp: " + String(BMS_inletActiveCoolTargetT) + " DegC</h4>";
   content += "<h4>Inlet Passive Target Temp: " + String(BMS_inletPassiveTargetT) + " DegC</h4>";
   content += "<h4>Inlet Active Heat Target Temp: " + String(BMS_inletActiveHeatTargetT) + " DegC</h4>";
-  // TODO(tesla): these two come from 0x312 (see the decode), the temperature the pack reports on 0x332 mux 0 is on the main page
+  // TODO(tesla): these two come from 0x312 (see the decode), the temperature the pack reports on 0x332 mux 0 is in the calculated block
   content += "<h4>Pack Temp Min: " + String(BMS_packTMin) + " DegC</h4>";
   content += "<h4>Pack Temp Max: " + String(BMS_packTMax) + " DegC</h4>";
   appendFault(content, "PCS No Flow Request", tesla.BMS_pcsNoFlowRequest);
@@ -524,7 +582,7 @@ String TeslaHtmlRenderer::get_status_html() {
 
 String TeslaLegacyHtmlRenderer::get_status_html() {
   const DATALAYER_INFO_TESLA& tesla = *tesla_info;
-  String content;
+  String content = calculatedValuesBlock(tesla, core_data->status);
 
   content += rawEnergyRow("Nominal Full Pack Energy (0x382)", tesla.nominal_0x382_seen,
                           tesla.battery_nominal_full_pack_energy, 1023, 0.1f, 1);
@@ -532,7 +590,7 @@ String TeslaLegacyHtmlRenderer::get_status_html() {
   // 10 bits wide at bit 0, 10, 20, ... and would read a different value, there is no layout detection.
   content += rawEnergyRow("Nominal Energy Remaining (0x382)", tesla.nominal_0x382_seen,
                           tesla.battery_nominal_energy_remaining, 0x7FF, 0.1f, 1);
-  // Live values, the main page uses the held UI SOC. 0x302 SOC min is not the brick SOC min of 0x7E2 page 7
+  // Live values, the SOC of the inverter is the held UI SOC. 0x302 SOC min is not the brick SOC min of 0x7E2 page 7
   content += rawSocRow("Battery SOC UI (0x302)", tesla.battery_soc_ui);
   content += rawSocRow("Brick SOC Min (0x302)", tesla.battery_soc_min_0x302);
   content += rawSocRow("Brick SOC Max (0x7E2 page 7)", tesla.battery_soc_max);
@@ -542,50 +600,5 @@ String TeslaLegacyHtmlRenderer::get_status_html() {
   content += rawCacRow("CAC Min (0x7E2 page 0)", tesla.cac_raw_seen[0], tesla.cac_raw_min_x10[0], 4095, 0);
   content += rawCacRow("CAC Max (0x7E2 page 0)", tesla.cac_raw_seen[0], tesla.cac_raw_max_x10[0], 4095, 0);
 
-  return content;
-}
-
-// Main page: the SOH estimate, shown instead of the generic SOH row
-String TeslaHtmlRenderer::get_main_view_soh_rows() {
-  return sohEstimateRow(*tesla_info, core_data->status);
-}
-
-// Main page, instead of the generic "Total capacity": always the capacity when new (the value the pack reports, else
-// N/A) and the current capacity (nominal full pack energy, held)
-// TODO(tesla): S/X: the capacity when new is the configured capacity, read it from the pack if a frame with it is found
-String TeslaHtmlRenderer::get_main_view_capacity_rows() {
-  const DATALAYER_INFO_TESLA& tesla = *tesla_info;
-  const float when_new_kwh = static_cast<float>(tesla.battery_beginning_of_life) * 0.1f;
-  const float current_kwh = nominalFullPackKwh(tesla);
-  return "<h4>Total capacity when new: " + (when_new_kwh > 0.0f ? String(when_new_kwh, 1) + " kWh" : String("N/A")) +
-         "</h4><h4>Current total capacity: " + (current_kwh > 0.0f ? String(current_kwh, 1) + " kWh" : String("N/A")) +
-         "</h4>";
-}
-
-// Main page, below "Cell delta": brick CAC min/max and brick SOC. Legacy S/X has no brick IDs and no average SOC.
-String TeslaHtmlRenderer::get_main_view_cell_rows() {
-  const DATALAYER_INFO_TESLA& tesla = *tesla_info;
-  String content;
-  if (tesla.cac_valid) {
-    content += "<h4>CAC: " + String(tesla.cac_min_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_min_brick_id) + " - " +
-               String(tesla.cac_max_x10 * 0.1f, 1) + " Ah" + brick(tesla.cac_max_brick_id) + "</h4>";
-    if (tesla.cac_max_x10 >= tesla.cac_min_x10 && tesla.cac_avg_x10 > 0) {
-      // Percentage is relative to the average CAC, rounded to a whole percent
-      uint16_t imbalance_x10 = tesla.cac_max_x10 - tesla.cac_min_x10;
-      uint32_t percent = ((uint32_t)imbalance_x10 * 100 + tesla.cac_avg_x10 / 2) / tesla.cac_avg_x10;
-      content += "<h4>CAC Imbalance: " + String(imbalance_x10 * 0.1f, 1) + " Ah (" + String(percent) + "%)</h4>";
-    }
-  }
-  if (brickSocPlausible(tesla)) {
-    content += "<h4>Brick SOC: " + String(tesla.battery_soc_min * 0.1f, 1) + "% - " +
-               String(tesla.battery_soc_max * 0.1f, 1) + "%" +
-               (tesla.battery_soc_ave > 0 && tesla.battery_soc_ave <= 1000
-                    ? " (Ave " + String(tesla.battery_soc_ave * 0.1f, 1) + "%)"
-                    : String()) +
-               "</h4>";
-    // Percentage points, max - min (min is never above max here)
-    content +=
-        "<h4>Brick SOC Imbalance: " + String((tesla.battery_soc_max - tesla.battery_soc_min) * 0.1f, 1) + "%</h4>";
-  }
   return content;
 }

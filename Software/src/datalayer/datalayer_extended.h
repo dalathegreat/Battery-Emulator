@@ -398,7 +398,7 @@ struct DATALAYER_INFO_RIVIAN {
   bool operation_limit_violation_warning;
 };
 
-// Detail page fields are raw (see DETAIL PAGE RULE in TESLA-HTML.cpp), the main page has its own fields
+// Detail page fields are raw (see DETAIL PAGE RULE in TESLA-HTML.cpp), the calculated values have their own fields
 // (nominal_full_held_x10, battery_beginning_of_life, cac_*_x10 ...).
 struct DATALAYER_INFO_TESLA {
   // Alert-matrix (DTC) fault flags for the Faults web page; mapped from tesla-m3-pack-findings (fw 2019.20.4.2)
@@ -425,7 +425,7 @@ struct DATALAYER_INFO_TESLA {
   uint32_t battery_max_charge_current;
   uint32_t battery_max_discharge_current;
   // Raw, 0.1 %, 1023 = not available / not received yet (the detail page shows N/A). SOC UI is the live value, not the
-  // held one that is used for real_soc. The brick SOC is validated for the main page only (see TESLA-HTML.cpp).
+  // held one that is used for real_soc. The brick SOC is validated for the calculated values only (see TESLA-HTML.cpp).
   uint32_t battery_soc_min;
   uint32_t battery_soc_max;
   uint32_t battery_soc_ave;
@@ -470,7 +470,8 @@ struct DATALAYER_INFO_TESLA {
   uint16_t cac_raw_min_x10[2];
   uint16_t cac_raw_max_x10[2];
   uint16_t battery_soc_min_0x302;  // S/X 0x302 SOC min, raw 0.1 %, 1023 = not available / not received yet
-  uint16_t nominal_full_held_x10;  // Nominal full pack energy, 0.1 kWh, held 30 s, 0 = unknown: main page and SOH
+  uint16_t
+      nominal_full_held_x10;  // Nominal full pack energy, 0.1 kWh, held 30 s, 0 = unknown: calculated values and SOH
   uint16_t HVP_hvp1v5Ref;
   int16_t HVP_shuntCurrentDebug;
   int16_t PCS_dcdcTemp;
@@ -554,10 +555,11 @@ struct DATALAYER_INFO_TESLA {
   uint8_t BMS_info_assemblyId;
   uint8_t BMS_info_platformType;
   uint8_t BMS_info_bootUdsProtoVersion;
-  uint16_t battery_beginning_of_life;  // Main page: capacity when new, 0.1 kWh, 0x392 mux 1 else 0x292, 0 = unavailable
-  uint16_t bol_0x292_x10;              // Raw capacity when new of 0x292 and 0x392 mux 1, 0.1 kWh, 0 / 1023 = N/A
+  uint16_t
+      battery_beginning_of_life;  // Calculated values: capacity when new, 0.1 kWh, 0x392 mux 1 else 0x292, 0 = unavailable
+  uint16_t bol_0x292_x10;         // Raw capacity when new of 0x292 and 0x392 mux 1, 0.1 kWh, 0 / 1023 = N/A
   uint16_t bol_0x392_x10;
-  bool temperature_seen;    // 0x332 mux 0 received; false = the main page shows N/A
+  bool temperature_seen;    // 0x332 mux 0 received; false = the calculated values show N/A
   bool soh_estimate_known;  // SOH estimate calculated; false = 99 % sent, pages say unknown
   uint8_t battery_battTempPct;
   uint8_t battery_BrickVoltageMaxNum;

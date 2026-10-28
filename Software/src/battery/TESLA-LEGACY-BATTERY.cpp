@@ -144,7 +144,7 @@ void TeslaLegacyBattery::update_values() {
   // SOH estimate as on the 3/Y, but the reference is the capacity configured for the hardware ID, not the real capacity
   // when new: a new 85 kWh pack reading 81 kWh nominal shows 95 %. TODO(tesla): read the capacity when new from the pack.
   // Set on every cycle, as total_capacity_Wh follows the hardware ID. It is 0 until the ID arrives: 0 = unknown, so no
-  // SOH estimate (the inverter gets 99 %) and the main page shows Unknown.
+  // SOH estimate (the inverter gets 99 %) and the detail page says unknown.
   datalayer_extended.tesla.battery_beginning_of_life = datalayer.battery.info.total_capacity_Wh / 100;  // 0.1 kWh
   datalayer_extended.tesla.soh_estimate_known = TeslaBattery::apply_soh_estimate(
       datalayer.battery.status, nominal_full_hold.value, datalayer_extended.tesla.battery_beginning_of_life);
@@ -154,6 +154,7 @@ void TeslaLegacyBattery::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (datalayer.battery.status.voltage_dV * battery_max_discharge_current) / 10;
 
+  // TODO(tesla): this is 0.0 degC until the first 0x332 frame arrives (temperature_seen), better show N/A if possible
   datalayer.battery.status.temperature_min_dC = battery_BrickModelTMin;
 
   datalayer.battery.status.temperature_max_dC = battery_BrickModelTMax;
@@ -204,8 +205,8 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x7E2:  // CAC (page 0) and brick SOC (page 7), web page only
     {
       if (rx_frame.data.u8[0] == 0) {
-        // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. The detail page shows them raw, the main page
-        // uses them when plausible: 20-400 Ah, min <= avg <= max.
+        // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. The detail page shows them raw, the calculated values
+        // use them when plausible: 20-400 Ah, min <= avg <= max.
         const uint16_t cac_avg_x10 = tesla_le_bits(rx_frame.data.u8, 8, 12);
         const uint16_t cac_min_x10 = tesla_le_bits(rx_frame.data.u8, 20, 12);
         const uint16_t cac_max_x10 = tesla_le_bits(rx_frame.data.u8, 32, 12);
@@ -222,7 +223,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       if (rx_frame.data.u8[0] == 7) {
         // Page 7: brick SOC max (bit 8) and min (bit 18), 10 bits, 0.1 %, 1023 = n/a. Same fields as the 3/Y, raw
-        // (the main page validates them).
+        // (the calculated values validate them).
         datalayer_extended.tesla.battery_soc_max = tesla_le_bits(rx_frame.data.u8, 8, 10);
         datalayer_extended.tesla.battery_soc_min = tesla_le_bits(rx_frame.data.u8, 18, 10);
       }
@@ -237,7 +238,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x332:  //min/max hist values //BattBrickMinMax:
       cellvoltagesRead = true;
-      datalayer_extended.tesla.temperature_seen = true;  // the main page shows N/A until this frame arrives
+      datalayer_extended.tesla.temperature_seen = true;  // the calculated values show N/A until this frame arrives
 
       battery_BrickVoltageMax = (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;
       battery_BrickVoltageMin = (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;

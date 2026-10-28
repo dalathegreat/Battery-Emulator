@@ -1450,15 +1450,6 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += "</span></div>";
   }
 
-  // Battery specific extra rows (Tesla: SOH estimate, nominal full pack energy, brick values) of the pack this card
-  // shows: the card of a single battery system and each pack card of a multi-battery system (pack_index 1 to 3).
-  // Not the combined installation card on top of a multi-battery system (pack_index 0), it has no single pack, so
-  // it gets the default renderer, which adds nothing.
-  Battery* const packs[] = {nullptr, battery, battery2, battery3};
-  Battery* const card_pack = (pack_index < 4) ? packs[pack_index] : nullptr;
-  BatteryDefaultRenderer no_pack_rows;
-  BatteryHtmlRenderer& pack_rows = card_pack ? card_pack->get_status_renderer() : no_pack_rows;
-
   if (scaled) {
     content += "<h4 style='color: white;'>Scaled SOC: " + String(v.reported_soc / 100.0f, 2) +
                "&percnt; (real: " + String(v.real_soc / 100.0f, 2) + "&percnt;)</h4>";
@@ -1468,11 +1459,7 @@ static void render_battery_card(String& content, const String& style, const Batt
 
   // Unknown until the integration has decoded a state of health, rather than the soh_pptt default
   // shown as if it had been read from the pack. The combined card follows the same rule.
-  // A pack can show its own SOH row instead (Tesla: Calculated SOH).
-  const String soh_rows = pack_rows.get_main_view_soh_rows();
-  if (soh_rows.length() > 0) {
-    content += soh_rows;
-  } else if (v.soh_available) {
+  if (v.soh_available) {
     content += "<h4 style='color: white;'>SOH: " + String(v.soh_pptt / 100.0f, 2) + "&percnt;</h4>";
   } else {
     content += "<h4 style='color: white;'>SOH: Unknown</h4>";
@@ -1481,8 +1468,6 @@ static void render_battery_card(String& content, const String& style, const Batt
              " V &nbsp; Current: " + String(v.current_dA / 10.0f, 1) + " A</h4>";
   content += formatPowerValue("Power", (float)v.active_power_W, "", 1);
 
-  // A pack can show its own capacity rows instead of the generic "Total capacity" (Tesla: when new, current)
-  const String capacity_rows = pack_rows.get_main_view_capacity_rows();
   if (scaled) {
     content +=
         "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(v.reported_total_capacity_Wh, "h", 1) +
@@ -1490,13 +1475,8 @@ static void render_battery_card(String& content, const String& style, const Batt
     content += "<h4 style='color: white;'>Scaled remaining capacity: " +
                formatPowerValue(v.reported_remaining_capacity_Wh, "h", 1) +
                " (real: " + formatPowerValue(v.remaining_capacity_Wh, "h", 1) + ")</h4>";
-    content += capacity_rows;
   } else {
-    if (capacity_rows.length() > 0) {
-      content += capacity_rows;
-    } else {
-      content += formatPowerValue("Total capacity", v.total_capacity_Wh, "h", 1);
-    }
+    content += formatPowerValue("Total capacity", v.total_capacity_Wh, "h", 1);
     content += formatPowerValue("Remaining capacity", v.remaining_capacity_Wh, "h", 1);
   }
 
@@ -1550,13 +1530,8 @@ static void render_battery_card(String& content, const String& style, const Batt
     } else {
       content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     }
-    content += pack_rows.get_main_view_cell_rows();
-    if (!pack_rows.has_temperature_data()) {
-      content += "<h4>Temperature min/max: N/A</h4>";
-    } else {
-      content += "<h4>Temperature min/max: " + String(v.temperature_min_dC / 10.0f, 1) + " &deg;C / " +
-                 String(v.temperature_max_dC / 10.0f, 1) + " &deg;C</h4>";
-    }
+    content += "<h4>Temperature min/max: " + String(v.temperature_min_dC / 10.0f, 1) + " &deg;C / " +
+               String(v.temperature_max_dC / 10.0f, 1) + " &deg;C</h4>";
   }
 
   if ((pack_index == 1) && battery && battery->supports_real_BMS_status()) {

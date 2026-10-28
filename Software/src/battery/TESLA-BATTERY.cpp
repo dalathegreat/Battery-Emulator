@@ -560,6 +560,7 @@ void TeslaBattery::
   //The inverter setting will ramp down this value based on SOC%
   datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
 
+  // TODO(tesla): this is 0.0 degC until the first 0x332 frame arrives (temperature_seen), better show N/A if possible
   datalayer_battery->status.temperature_min_dC = battery_min_temp;
 
   datalayer_battery->status.temperature_max_dC = battery_max_temp;
@@ -1302,7 +1303,7 @@ static void tesla_store_raw_cac(const uint8_t* d, const CacLayout& l, uint8_t i,
   out->cac_raw_max_brick_id[i] = tesla_le_bits(d, l.max_id, 7) + 1;
 }
 
-// Main page: decode one layout into out when plausible: min <= avg <= max, CAC 20.0 to 400.0 Ah
+// Decode one layout into out when plausible: min <= avg <= max, CAC 20.0 to 400.0 Ah
 static bool tesla_apply_cac_layout(const uint8_t* d, const CacLayout& l, uint8_t layout_id, DATALAYER_INFO_TESLA* out) {
   const uint32_t cac_avg = tesla_le_bits(d, l.avg, 13);
   const uint32_t cac_min = tesla_le_bits(d, l.min, 13);
