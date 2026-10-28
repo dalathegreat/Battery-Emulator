@@ -34,6 +34,12 @@ CAN_frame LegacyBytes(uint32_t id, std::initializer_list<uint8_t> bytes) {
   return frame;
 }
 
+// 0x382 with the nominal full pack energy (bit 0, 10 bits) and the nominal energy remaining (bit 11, 11 bits), 0.1 kWh
+CAN_frame Nominal382(uint16_t full_x10, uint16_t remaining_x10) {
+  const uint32_t raw = (uint32_t)full_x10 | ((uint32_t)remaining_x10 << 11);
+  return LegacyBytes(0x382, {(uint8_t)raw, (uint8_t)(raw >> 8), (uint8_t)(raw >> 16), (uint8_t)(raw >> 24)});
+}
+
 // Frames from a real pack
 CAN_frame RealCac() {  // 0x7E2 page 0: avg 211.7 Ah, min 209.3 Ah, max 213.1 Ah
   return LegacyBytes(0x7E2, {0x00, 0x45, 0xD8, 0x82, 0x53, 0xB8, 0x82, 0xDF});
@@ -270,14 +276,14 @@ TEST_F(TeslaLegacyBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfte
   pack_->handle_incoming_can_frame(LegacySoc(271));
   pack_->handle_incoming_can_frame(RealNominal());
   pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);  // 72.1 / 85.0
-  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+  EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);                 // 72.1 / 85.0
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u);  // nominal energy remaining
 
   pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0x03}));  // 1023, not available
   for (int second = 1; second <= 29; second++) {
     pack_->update_values();
     EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482) << second;
-    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u) << second;
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u) << second;
     EXPECT_TRUE(datalayer_extended.tesla.soh_estimate_known) << second;
   }
   pack_->update_values();  // 30 s
@@ -290,7 +296,7 @@ TEST_F(TeslaLegacyBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfte
   pack_->handle_incoming_can_frame(RealNominal());  // back
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 8482);
-  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u);
 
   for (int burst = 0; burst < 3; burst++) {  // 20 s bursts do not add up
     pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0x03}));
@@ -378,7 +384,7 @@ TEST_F(TeslaLegacyBatteryTest, SohReferenceIsTheConfiguredCapacityNotTheRealCapa
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9529);
 }
 
-// 0x382 bit 11, 11 bits, 0.1 kWh: nominal energy remaining (19.6 kWh in the real frame), shown on the detail page only.
+// 0x382 bit 11, 11 bits, 0.1 kWh: nominal energy remaining (19.6 kWh in the real frame), shown on the detail page.
 // No data until received, all ones (SNA) is no data again.
 TEST_F(TeslaLegacyBatteryTest, NominalEnergyRemainingFrom0x382) {
   auto page = [&]() {
@@ -519,9 +525,9 @@ TEST_F(TeslaLegacyBatteryTest, SocUnavailableEventAfter30SecondsAndClearedByAVal
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
 }
 
-// Remaining capacity is SOC x the 0x382 nominal full energy when readable (27.1 % of 72.1 kWh), else x the configured
-// capacity (27.1 % of 85 kWh).
-TEST_F(TeslaLegacyBatteryTest, RemainingCapacityUsesTheNominalFullEnergy) {
+// Remaining capacity is the 0x382 nominal energy remaining when plausible (19.6 kWh in the real frame, SOC x full is
+// 27.1 % of 72.1 = 19.54 kWh), else SOC x the nominal full energy, else x the configured capacity (27.1 % of 85 kWh).
+TEST_F(TeslaLegacyBatteryTest, RemainingCapacityUsesTheNominalEnergyRemaining) {
   pack_->handle_incoming_can_frame(LegacyHwId(70));
   pack_->handle_incoming_can_frame(LegacySoc(271));
   pack_->update_values();
@@ -529,10 +535,52 @@ TEST_F(TeslaLegacyBatteryTest, RemainingCapacityUsesTheNominalFullEnergy) {
 
   pack_->handle_incoming_can_frame(RealNominal());
   pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u);
   EXPECT_EQ(datalayer.battery.info.total_capacity_Wh, 85000u);  // the configured capacity is unchanged
+}
 
-  pack_->handle_incoming_can_frame(LegacyBytes(0x382, {0xFF, 0x03}));  // 1023, not available
+// Not plausible: SNA (0x7FF), above the nominal full energy plus 0.1 kWh, 0 and not received. Each falls back to SOC x
+// nominal full (19.54 kWh). Without a plausible nominal full energy it is SOC x configured capacity (23.04 kWh).
+TEST_F(TeslaLegacyBatteryTest, ImplausibleNominalEnergyRemainingFallsBackToTheSocOfTheFullEnergy) {
+  auto remaining_with = [&](uint16_t full_x10, uint16_t remaining_x10) {
+    delete pack_;
+    pack_ = new TeslaLegacyBattery();
+    pack_->handle_incoming_can_frame(LegacyHwId(70));
+    pack_->handle_incoming_can_frame(LegacySoc(271));
+    pack_->handle_incoming_can_frame(Nominal382(full_x10, remaining_x10));
+    pack_->update_values();
+    return datalayer.battery.status.remaining_capacity_Wh;
+  };
+  EXPECT_EQ(remaining_with(721, 196), 19600u);
+  EXPECT_EQ(remaining_with(721, 722), 72200u);  // full + 0.1 kWh is the limit
+  EXPECT_EQ(remaining_with(721, 723), 19539u);
+  EXPECT_EQ(remaining_with(721, 0x7FF), 19539u);  // SNA
+  EXPECT_EQ(remaining_with(721, 0), 19539u);
+  EXPECT_EQ(remaining_with(1023, 196), 23035u);  // the full energy is not available: SOC x configured capacity
+  EXPECT_EQ(remaining_with(300, 196), 23035u);   // 30.0 kWh is not plausible
+}
+
+// The last plausible nominal energy remaining is held for 30 s like the nominal full energy, then the fallback
+TEST_F(TeslaLegacyBatteryTest, NominalEnergyRemainingIsHeldFor30SecondsThenTheFallback) {
+  pack_->handle_incoming_can_frame(LegacyHwId(70));
+  pack_->handle_incoming_can_frame(LegacySoc(271));
+  pack_->handle_incoming_can_frame(RealNominal());
   pack_->update_values();
-  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u);
+
+  pack_->handle_incoming_can_frame(Nominal382(721, 0x7FF));  // the remaining energy is not available
+  for (int second = 1; second <= 29; second++) {
+    pack_->update_values();
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u) << second;
+  }
+  pack_->update_values();                                             // 30 s
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19539u);  // SOC x nominal full
+
+  pack_->handle_incoming_can_frame(RealNominal());  // back
+  pack_->update_values();
+  EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 19600u);
+
+  // The detail page shows what is received, not what is held
+  pack_->handle_incoming_can_frame(Nominal382(721, 0x7FF));
+  EXPECT_EQ(datalayer_extended.tesla.battery_nominal_energy_remaining, 0);
 }
