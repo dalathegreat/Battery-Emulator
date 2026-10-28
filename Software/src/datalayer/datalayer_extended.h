@@ -557,7 +557,7 @@ struct DATALAYER_INFO_TESLA {
   uint16_t battery_beginning_of_life;  // Main page: capacity when new, 0.1 kWh, 0x392 mux 1 else 0x292, 0 = unavailable
   uint16_t bol_0x292_x10;              // Raw capacity when new of 0x292 and 0x392 mux 1, 0.1 kWh, 0 / 1023 = N/A
   uint16_t bol_0x392_x10;
-  bool temperature_seen;    // 0x332 mux 0 received; false = the web pages show "no data"
+  bool temperature_seen;    // 0x332 mux 0 received; false = the main page shows N/A
   bool soh_estimate_known;  // SOH estimate calculated; false = 99 % sent, pages say unknown
   uint8_t battery_battTempPct;
   uint8_t battery_BrickVoltageMaxNum;

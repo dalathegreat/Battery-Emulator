@@ -229,7 +229,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x332:  //min/max hist values //BattBrickMinMax:
       cellvoltagesRead = true;
-      datalayer_extended.tesla.temperature_seen = true;  // the main page shows "no data" until this frame arrives
+      datalayer_extended.tesla.temperature_seen = true;  // the main page shows N/A until this frame arrives
 
       battery_BrickVoltageMax = (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;
       battery_BrickVoltageMin = (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;

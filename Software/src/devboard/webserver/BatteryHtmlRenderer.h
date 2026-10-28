@@ -29,7 +29,7 @@ class BatteryHtmlRenderer {
   virtual String get_main_view_soh_rows() { return String(); }
   virtual String get_main_view_capacity_rows() { return String(); }
   virtual String get_main_view_cell_rows() { return String(); }
-  // False until the pack has sent a temperature: the main page then shows "no data" (display only)
+  // False until the pack has sent a temperature: the main page then shows N/A (display only)
   virtual bool has_temperature_data() { return true; }
 
   // Returns true when this renderer reads the data of its own battery instance

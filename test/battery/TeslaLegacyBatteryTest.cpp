@@ -508,7 +508,7 @@ TEST_F(TeslaLegacyBatteryTest, MainPageRowsMatchTheModel3YStyle) {
   EXPECT_EQ(renderer.get_main_view_cell_rows().str(),
             "<h4>CAC: 209.3 Ah - 213.1 Ah</h4><h4>CAC Imbalance: 3.8 Ah (2%)</h4><h4>Brick SOC: 30.0% - 30.6%</h4>"
             "<h4>Brick SOC Imbalance: 0.6%</h4>");
-  EXPECT_FALSE(renderer.has_temperature_data());  // no 0x332 yet: the main card shows "no data"
+  EXPECT_FALSE(renderer.has_temperature_data());  // no 0x332 yet: the main card shows N/A
   pack_->handle_incoming_can_frame(LegacyBytes(0x332, {0x0A, 0x17, 0xBE, 0x73, 0x08, 0x67, 0x5F, 0x72}));
   EXPECT_TRUE(renderer.has_temperature_data());
 }

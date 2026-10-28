@@ -1,7 +1,5 @@
 #include "TESLA-HTML.h"
-#include <algorithm>
 #include <cstring>
-#include "TESLA-BATTERY.h"
 
 static void appendFault(String& string, const char* name, bool faultActive) {
   if (!faultActive) {
