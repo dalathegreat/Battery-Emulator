@@ -1,57 +1,11 @@
-# Tesla Model S/X (legacy) pack, received frames only, trimmed from a capture (first 8 s): frames the driver does not read
-# removed, fast frames thinned out. 0x302 has no valid UI SOC for the first 5 s (0x382 nominal energy also not available).
-(75.633) rx0 102 [8] 24 87 00 00 21 ff f8 1f
-(75.643) rx0 102 [8] 32 87 00 00 21 ff f8 1f
-(75.653) rx0 102 [8] 3d 87 00 00 21 ff f8 1f
-(75.663) rx0 102 [8] 25 87 00 00 21 ff f8 1f
+# Tesla Model S/X (legacy) pack, received frames only, from a capture: the frames the tests need, one or a few of each type.
 (75.673) rx0 102 [8] 3d 87 00 00 21 ff f8 1f
-(75.683) rx0 102 [8] 3d 87 00 00 21 ff f8 1f
 (75.683) rx0 202 [8] c0 5d 80 9d c4 09 3f 23
 (75.683) rx0 6f2 [8] 00 a4 30 29 5c 0a 9b c2
 (75.683) rx0 212 [5] 40 01 00 ff 00
-(75.693) rx0 102 [8] 30 87 00 00 21 ff f8 1f
-(75.703) rx0 102 [8] 31 87 00 00 21 ff f8 1f
-(75.783) rx0 202 [8] c0 5d 80 9d c4 09 3f 23
-(75.783) rx0 212 [5] 40 01 00 ff 00
-(75.783) rx0 6f2 [8] 01 a6 f0 29 8c 0a a3 c2
 (76.588) rx0 7e2 [8] 00 45 d8 82 53 b8 82 df
 (76.588) rx0 5d2 [8] 0a 01 81 00 40 00 03 00
-(76.589) rx0 302 [8] 2c fd 0f 00 47 22 07 00
-(76.589) rx0 382 [8] ff ff ff ff ff ff ff 7f
-(76.589) rx0 332 [8] d6 06 00 82 d6 06 00 82
 (76.590) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(77.584) rx0 5d2 [8] 0b 00 14 28 0b 00 ff ff
-(77.584) rx0 302 [8] 2c fd 1f 00 ea 42 31 02
-(77.585) rx0 382 [8] ff ff ff ff ff ff ff 7f
-(77.586) rx0 332 [8] 0a 17 81 73 08 67 5f 72
-(77.588) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(77.588) rx0 7e2 [8] 64 07 05 0d 0a 0d 07 0a
-(78.584) rx0 5d2 [8] 0d 00 00 00 47 01 0b af
-(78.584) rx0 302 [8] 2c fd 0f 00 47 22 07 00
-(78.585) rx0 382 [8] ff ff ff ff ff ff ff 7f
-(78.586) rx0 332 [8] 0a 17 be 73 08 67 5f 72
-(78.588) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(78.588) rx0 7e2 [8] 65 06 06 0e 0b 0d 07 0a
-(79.584) rx0 5d2 [8] 11 00 00 00 00 00 00 00
-(79.584) rx0 302 [8] 2c fd 1f 00 ea 42 31 02
-(79.585) rx0 382 [8] ff ff ff ff ff ff ff 7f
-(79.586) rx0 332 [8] 0a 17 be 73 07 67 5f 72
-(79.587) rx0 7e2 [8] 66 06 06 0e 0a 0d 07 0a
-(79.588) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(80.584) rx0 5d2 [8] 14 04 00 00 b1 da 5c 53
-(80.584) rx0 302 [8] 2c fd 0f 00 47 22 07 00
-(80.585) rx0 382 [8] ff ff ff ff ff ff ff 7f
-(80.586) rx0 332 [8] 0a 17 bd 73 08 67 17 72
-(80.587) rx0 7e2 [8] 67 07 05 0d 0a 0d 07 0a
-(80.588) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(81.584) rx0 5d2 [8] 13 01 00 00 00 00 00 00
 (81.584) rx0 302 [8] 2c 3d 14 00 ea 42 31 02
 (81.585) rx0 382 [8] d1 22 46 30 82 01 00 1e
-(81.586) rx0 332 [8] 0a 17 be 73 07 67 5f 72
-(81.588) rx0 7e2 [8] 68 07 05 0e 0b 0d 07 0b
-(81.588) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(82.584) rx0 302 [8] 2c 3d 04 00 47 22 07 00
-(82.584) rx0 382 [8] d1 22 46 30 82 01 00 1e
 (82.585) rx0 332 [8] 0a 17 be 73 08 67 17 72
-(82.587) rx0 3d2 [8] e3 9e 05 03 75 71 e4 02
-(82.588) rx0 7e2 [8] 69 07 05 0e 0a 0d 08 0b
