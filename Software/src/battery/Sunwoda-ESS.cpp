@@ -525,7 +525,7 @@ bool SunwodaBattery::enqueue_vendor_command(const VendorCommandDef* cmd) {
 
 void SunwodaBattery::request_vendor_command(const char* identifier) {
   if (identifier && strcmp(identifier, CMD_OPEN_ALL) == 0) {
-    open_all_contactors();
+    open_all_contactors(true);  // the button: keep them open, the BCMU would otherwise restart itself
     return;
   }
   const VendorCommandDef* cmd = find_vendor_command(identifier);
@@ -547,8 +547,13 @@ void SunwodaBattery::request_vendor_command(const char* identifier) {
   enqueue_vendor_command(cmd);
 }
 
-void SunwodaBattery::open_all_contactors() {
+void SunwodaBattery::open_all_contactors(bool hold_open) {
   vendor_command_queue_count = 0;  // drop anything pending, including closes
+  if (hold_open) {
+    // Debugging work mode leaves the BCMU in Stop; in normal mode it runs its start sequence again within
+    // seconds. A power cycle returns it to normal mode.
+    enqueue_vendor_command(&CMD_DEBUG_MODE);
+  }
   enqueue_vendor_command(&CMD_MAIN_OPEN);
   enqueue_vendor_command(&CMD_PRECHARGE_OPEN);
   enqueue_vendor_command(&CMD_NEGATIVE_OPEN);

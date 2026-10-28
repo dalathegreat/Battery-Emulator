@@ -254,7 +254,7 @@ class SunwodaBattery : public CanBattery {
   }
 
   // Drops any pending writes (including closes) and queues main, precharge and negative open.
-  void open_all_contactors();
+  void open_all_contactors(bool hold_open = false);
 
   // Opens every contactor while any alarm or fault is active and any contactor reports closed,
   // but only after a contactor was closed with the manual buttons (manual_control). When the BCMU
