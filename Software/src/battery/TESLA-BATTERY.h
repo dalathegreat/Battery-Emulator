@@ -56,6 +56,19 @@ class TeslaBattery : public CanBattery {
   static constexpr const char* NameSX = "Tesla Model S/X";
   static constexpr const char* Name3Y = "Tesla Model 3/Y";
 
+  // 0x352 of a pre-2021 BMS (no mux): 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, the buffer (0.1 kWh) at
+  // bit 55 (8 bits) and the fully charged flag at bit 63.
+  struct EnergyStatusNoMux {
+    uint16_t nominal_full;
+    uint16_t nominal_remaining;
+    uint16_t expected_remaining;
+    uint16_t ideal_remaining;
+    uint16_t to_charge_complete;
+    uint16_t buffer;
+    bool fully_charged;
+  };
+  static EnergyStatusNoMux decode_energy_status_no_mux(const uint8_t* d);
+
  private:
   TeslaHtmlRenderer renderer;
 

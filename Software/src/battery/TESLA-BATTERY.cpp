@@ -1186,6 +1186,22 @@ void TeslaBattery::
                  (battery_dcdcLvBusVolt * 0.01), (battery_dcdcLvOutputCurrent * 0.1));
 }
 
+TeslaBattery::EnergyStatusNoMux TeslaBattery::decode_energy_status_no_mux(const uint8_t* d) {
+  uint64_t raw = 0;
+  for (int i = 7; i >= 0; i--) {
+    raw = (raw << 8) | d[i];
+  }
+  EnergyStatusNoMux e;
+  e.nominal_full = raw & 0x7FF;                //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "kWh"
+  e.nominal_remaining = (raw >> 11) & 0x7FF;   //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "kWh"
+  e.expected_remaining = (raw >> 22) & 0x7FF;  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "kWh"
+  e.ideal_remaining = (raw >> 33) & 0x7FF;     //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "kWh"
+  e.to_charge_complete = (raw >> 44) & 0x7FF;  //BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "kWh"
+  e.buffer = (raw >> 55) & 0xFF;               //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "kWh"
+  e.fully_charged = (raw >> 63) & 0x01;        //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""
+  return e;
+}
+
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   // mux, temp, mux0_read, mux1_read are instance member variables (TESLA-BATTERY.h)
 
@@ -1228,21 +1244,16 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         break;
       }
       // Older BMS <2021 without mux
-      battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
-          (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
-      battery_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
-          (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
-      battery_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "kWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
-          (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
-           ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
-      battery_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
-          (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
-      battery_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "kWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
-          (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4));  //Example 147 * 0.1 = 14.7kWh
-      battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "kWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
-          (((rx_frame.data.u8[7] & 0xFE) >> 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));  //Example 1 * 0.1 = 0
-      battery_fully_charged =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
-          ((rx_frame.data.u8[7] >> 7) & 0x01);  //noYes
+      {
+        const EnergyStatusNoMux e = decode_energy_status_no_mux(rx_frame.data.u8);
+        battery_nominal_full_pack_energy = e.nominal_full;
+        battery_nominal_energy_remaining = e.nominal_remaining;
+        battery_expected_energy_remaining = e.expected_remaining;
+        battery_ideal_energy_remaining = e.ideal_remaining;
+        battery_energy_to_charge_complete = e.to_charge_complete;
+        battery_energy_buffer = e.buffer;
+        battery_fully_charged = e.fully_charged;
+      }
       break;
     case 0x20A:  //522 HVP_contactorState:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
