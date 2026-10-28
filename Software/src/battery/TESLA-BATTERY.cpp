@@ -1301,12 +1301,12 @@ static void tesla_store_raw_cac(const uint8_t* d, const CacLayout& l, uint8_t i,
   out->cac_raw_max_brick_id[i] = tesla_le_bits(d, l.max_id, 7) + 1;
 }
 
-// Decode one layout into out when plausible: min <= avg <= max, CAC 20.0 to 400.0 Ah
+// Decode one layout into out when plausible (tesla_cac_plausible)
 static bool tesla_apply_cac_layout(const uint8_t* d, const CacLayout& l, uint8_t layout_id, DATALAYER_INFO_TESLA* out) {
   const uint32_t cac_avg = tesla_le_bits(d, l.avg, 13);
   const uint32_t cac_min = tesla_le_bits(d, l.min, 13);
   const uint32_t cac_max = tesla_le_bits(d, l.max, 13);
-  if (!(cac_min <= cac_avg && cac_avg <= cac_max && cac_min >= 200 && cac_max <= 4000)) {
+  if (!tesla_cac_plausible(cac_min, cac_avg, cac_max)) {
     return false;
   }
   out->cac_layout = layout_id;
