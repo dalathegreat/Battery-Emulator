@@ -33,6 +33,17 @@ At the same time, EV manufacturers have been putting high capacity battery packs
 
 For examples showing wiring, see each battery type's own Wiki page. For instance the [Nissan LEAF page](https://dalathegreat.github.io/Battery-Emulator-Wiki/battery/nissan_leaf_e_nv200/)
 
+## Tesla packs 🔋
+Battery Emulator reads the pack CAN bus of these Tesla packs:
+- **Model 3 / Model Y** (`Tesla Model 3/Y`) and **Model S / X** (`Tesla Model S/X`, the same driver). Older and newer pack firmware are handled, the layout of the pack CAC frame is detected.
+- **Model S / X 2012-2020** (`Tesla Model S/X 2012-2020`).
+
+The main page card shows the SOH estimate (the nominal full pack energy compared to the capacity when new), the total and remaining capacity, and the min/max brick values. The Tesla detail page shows the values the pack sends, unchanged: CAC (average, min, max), brick SOC, nominal energy and the SOC UI. A value the pack does not send, or sends as not available, is shown as N/A.
+
+If the pack does not send a valid SOC UI, the last SOC is held. After 30 s the *SOC unavailable* warning event is raised. After 30 min the held SOC is cleared to 0 %: the discharge power is then limited to 0 W (charging is not), until a valid SOC is received. The warning is cleared by a valid SOC.
+
+For wiring and the settings see the [Tesla pages of the Wiki](https://dalathegreat.github.io/Battery-Emulator-Wiki/battery/).
+
 ## How to install the software 💻
 
 Start by watching this [quickstart guide](https://www.youtube.com/watch?v=sR3t7j0R9Z0)
