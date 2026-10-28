@@ -70,7 +70,10 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_END_OF_CHARGE_FLAG = 0x9019;
   static const int PID_POLL_INTERLOCK_FLAG = 0x901A;
   static const int PID_POLL_BATTERY_IDENTIFICATION = 0x901B;
-
+  static const int PID_POLL_100MS_CURRENT = 0x925D;        //Same as on Zoe?
+  static const int PID_POLL_TEMPORISATION = 0x9281;        //Same as on Zoe?
+  static const int PID_POLL_PACK_TIME_LIFE = 0x91C1;       //Same as on Zoe?
+  static const int PID_POLL_ABSOLUTE_TIME_SAVED = 0x9261;  //Same as on Zoe?
   static const int PID_POLL_CELL_1 = 0x9021;
   static const int PID_POLL_CELL_2 = 0x9022;
   static const int PID_POLL_CELL_3 = 0x9023;
@@ -157,6 +160,15 @@ class CmfaEvBattery : public UdsCanBattery {
   static const int PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING = 0x9245;
   static const int PID_POLL_CUMULATIVE_ENERGY_IN_REGEN = 0x9247;
 
+  static const int PID_POLL_BALANCE_CAPACITY_TOTAL = 0x924F;  //Same as on Zoe?
+  static const int PID_POLL_BALANCE_TIME_TOTAL = 0x9250;
+  static const int PID_POLL_BALANCE_CAPACITY_SLEEP = 0x9251;
+  static const int PID_POLL_BALANCE_TIME_SLEEP = 0x9252;
+  static const int PID_POLL_BALANCE_CAPACITY_WAKE = 0x9262;
+  static const int PID_POLL_BALANCE_TIME_WAKE = 0x9263;
+  static const int PID_POLL_BMS_STATE = 0x9259;
+  static const int PID_POLL_BALANCE_SWITCHES = 0x912B;
+
   CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
   CAN_frame CMFA_125 = {.FD = false,
                         .ext_ID = false,
@@ -196,7 +208,26 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t cumulative_energy_when_discharging = 0;
   uint32_t cumulative_energy_when_charging = 0;
   uint32_t cumulative_energy_in_regen = 0;
+  uint32_t pack_time_life = 0;       // Minutes
+  uint32_t absolute_time_saved = 0;  // Minutes
+  // Initial values, UINT32_MAX until the DID has been read at least once
+  uint32_t initial_pack_time_life = UINT32_MAX;
+  uint32_t initial_absolute_time_saved = UINT32_MAX;
   uint16_t soh_average = 10000;
+  int32_t balance_capacity_total = 0;  // 1/1024 Ah
+  int32_t balance_time_total = 0;      // 1/1024 h
+  int32_t balance_capacity_sleep = 0;  // 1/1024 Ah
+  int32_t balance_time_sleep = 0;      // 1/1024 h
+  int32_t balance_capacity_wake = 0;   // 1/1024 Ah
+  int32_t balance_time_wake = 0;       // 1/1024 h
+  int32_t initial_balance_capacity_total = INT32_MIN;
+  int32_t initial_balance_time_total = INT32_MIN;
+  int32_t initial_balance_capacity_sleep = INT32_MIN;
+  int32_t initial_balance_time_sleep = INT32_MIN;
+  int32_t initial_balance_capacity_wake = INT32_MIN;
+  int32_t initial_balance_time_wake = INT32_MIN;
+  uint8_t bms_state = 0;
+  uint8_t temporisation = 0xFF;  // 0xFF until the DID has been read at least once
 
   uint8_t counter_10ms = 0;
   uint8_t content_125[16] = {0x07, 0x0C, 0x01, 0x06, 0x0B, 0x00, 0x05, 0x0A,
@@ -214,6 +245,8 @@ class CmfaEvBattery : public UdsCanBattery {
   uint32_t SOC_raw = 20000;
   uint16_t SOH = 99;
   int16_t current_raw = 2000;
+  uint32_t instant_current_raw = 48000;
+  uint32_t averaged_current_raw = 32640;
   uint16_t pack_voltage = 0;
   int16_t highest_cell_temperature = 0;
   int16_t lowest_cell_temperature = 0;
