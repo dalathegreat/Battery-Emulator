@@ -764,7 +764,9 @@ TEST_F(TeslaBatteryTest, SocFieldsIgnoreNotAvailableValues) {
   pack_->update_values();
   EXPECT_EQ(datalayer.battery.status.real_soc, 2710);
   EXPECT_EQ(datalayer_extended.tesla.battery_soc_max, 306u);
-  const auto cell_rows = [&]() { return pack_->get_status_renderer().get_main_view_cell_rows().str(); };
+  const auto cell_rows = [&]() {
+    return pack_->get_status_renderer().get_main_view_cell_rows().str();
+  };
   EXPECT_NE(cell_rows().find("<h4>Brick SOC: 30.0% - 30.6% (Ave 30.3%)</h4>"), std::string::npos);
 
   for (int second = 0; second < 5; second++) {  // a 5 s burst

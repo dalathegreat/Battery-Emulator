@@ -123,10 +123,9 @@ void TeslaLegacyBattery::update_values() {
                                   TeslaBattery::energy_x10_plausible_10bit(nominal_full_x10_received));
   datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_hold.x10;
 
-  datalayer.battery.status.remaining_capacity_Wh =
-      TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc,
-                                 datalayer_extended.tesla.battery_nominal_full_pack_energy,
-                                 datalayer.battery.info.total_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh = TeslaBattery::remaining_Wh(
+      datalayer.battery.status.real_soc, datalayer_extended.tesla.battery_nominal_full_pack_energy,
+      datalayer.battery.info.total_capacity_Wh);
 
   datalayer_extended.tesla.battery_soc_ui = battery_soc_ui;  // web page only
 

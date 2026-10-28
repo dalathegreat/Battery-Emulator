@@ -248,8 +248,7 @@ TEST_F(TeslaLegacyBatteryTest, CacAverageMinMaxFromTheFrame) {
 // 0x382 bits 0-9: nominal full pack energy, 0.1 kWh. Outside 38.0-150.0 kWh (the pack sends 1023 for 5 s) the last
 // plausible value is held for 30 s, so the SOH and remaining capacity do not jump during that burst.
 TEST_F(TeslaLegacyBatteryTest, NominalFullPackEnergyFrom0x382) {
-  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("Energy: not received yet"),
-            std::string::npos);
+  EXPECT_NE(pack_->get_status_renderer().get_status_html().str().find("Energy: not received yet"), std::string::npos);
 
   pack_->handle_incoming_can_frame(RealNominal());
   pack_->update_values();
@@ -307,7 +306,9 @@ TEST_F(TeslaLegacyBatteryTest, NominalFullEnergyIsHeldDuringABurstAndUnknownAfte
 // The SOH sent to the inverter is the estimate: 0x382 nominal full energy / configured capacity (id 70 is 85 kWh): 72.1
 // kWh is 84.8 %. Unknown (99 % to the inverter) without the energy or above 101 %, 100 % up to 101 %. CAC is ignored.
 TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity) {
-  auto page = [&]() { return pack_->get_status_renderer().get_status_html().str(); };
+  auto page = [&]() {
+    return pack_->get_status_renderer().get_status_html().str();
+  };
   auto feed = [&](uint16_t x10) {
     pack_->handle_incoming_can_frame(LegacyBytes(0x382, {(uint8_t)(x10 & 0xFF), (uint8_t)(x10 >> 8)}));
     pack_->update_values();  // the estimate is calculated here
@@ -332,7 +333,7 @@ TEST_F(TeslaLegacyBatteryTest, SohEstimateIsNominalEnergyOverConfiguredCapacity)
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9900);
   EXPECT_FALSE(datalayer_extended.tesla.soh_estimate_known);
   EXPECT_TRUE(datalayer.battery.status.soh_available);  // as on master, 9900 is sent
-  feed(855);  // 85.5 kWh, 100.6 %
+  feed(855);                                            // 85.5 kWh, 100.6 %
   EXPECT_NE(page().find("Estimate SOH: 100.0% (85.5 kWh / 85.0 kWh)"), std::string::npos);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 10000);
   feed(1023);  // not available: the last plausible energy stays
@@ -380,7 +381,9 @@ TEST_F(TeslaLegacyBatteryTest, SohReferenceIsTheConfiguredCapacityNotTheRealCapa
 // 0x382 bit 11, 11 bits, 0.1 kWh: nominal energy remaining (19.6 kWh in the real frame), shown on the detail page only.
 // No data until received, all ones (SNA) is no data again.
 TEST_F(TeslaLegacyBatteryTest, NominalEnergyRemainingFrom0x382) {
-  auto page = [&]() { return pack_->get_status_renderer().get_status_html().str(); };
+  auto page = [&]() {
+    return pack_->get_status_renderer().get_status_html().str();
+  };
   EXPECT_NE(page().find("Nominal Energy Remaining: no data"), std::string::npos);
 
   pack_->handle_incoming_can_frame(RealNominal());
