@@ -74,8 +74,8 @@ void append_cell_json(String& out, const DATALAYER_BATTERY_TYPE& pack) {
 
 // Page chrome. The More Battery Info link carries location.search along, so the pack selected here
 // stays selected there; the browser assembles it, nothing is built on the ESP.
-const char page_head[] =
-    INDEX_HTML_SUBPAGE_STYLE R"html(.container{display:flex;flex-wrap:wrap;justify-content:space-around}
+const char page_head[] = INDEX_HTML_SUBPAGE_STYLE
+    R"html(.container{display:flex;flex-wrap:wrap;justify-content:space-around}
 .cell{padding:10px;border:1px solid #fff;text-align:center}
 .lv{color:red}
 #graph{display:flex;align-items:flex-end;height:200px;border:1px solid #ccc;cursor:pointer;touch-action:pan-y}
@@ -83,9 +83,9 @@ const char page_head[] =
 .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;margin:10px 0}
 #val,.lgd{font-weight:700}
 .lgd{padding:2px 8px;border:1px solid transparent;border-radius:4px}
-</style>
-<button onclick="location.href='/'">Back to main page</button>
-<button onclick="location.href='/advanced'+location.search">More Battery Info</button>
+</style>)html" INDEX_HTML_NAV_START
+    R"html(<button onclick="location.href='/advanced'+location.search">More Battery Info</button>)html" INDEX_HTML_NAV_END
+    R"html(
 )html";
 
 // Voltage summary, selected cell's value, graph and legend come first, the cell table below them.

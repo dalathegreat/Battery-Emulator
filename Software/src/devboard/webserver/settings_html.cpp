@@ -1577,7 +1577,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
 )rawliteral" CHARGER_SETTINGS_SCRIPT R"rawliteral(
 
-          function goToMainPage() { window.location.href = '/'; }
 
           function haDisc(c) {
             var f = document.querySelector("[name=HADISCFWU]"), n = document.querySelector("[name=HADISC]");
@@ -1608,12 +1607,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
 )rawliteral"
 
 #define SETTINGS_STYLE \
-  R"rawliteral(
+  INDEX_HTML_NAV_LINK R"rawliteral(
     <style>
     body { background-color: black; color: white; }
-        button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
-        cursor: pointer; border-radius: 10px; }
-    button:hover { background-color: #3A4A52; }
+    button { padding: 6px 20px; margin-bottom: 15px; }
     h4 { margin: 0.35em 0; line-height: 1.2; }
     /* Buttons are inline-block: a bottom margin here would inflate the row's line box */
     h4 button { margin-bottom: 0; }
@@ -1875,10 +1872,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY \
+#define SETTINGS_HTML_BODY          \
   R"rawliteral(
-  <button onclick='goToMainPage()'>Back to main page</button>
-  <button onclick="askFactoryReset()">Factory reset</button>
+  )rawliteral" INDEX_HTML_NAV_START \
+  R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
 
   <script>
   function validateWebAuthPassword() {
