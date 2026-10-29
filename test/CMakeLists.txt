@@ -102,6 +102,7 @@ add_executable(tests
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/battery_aggregate.cpp
+    ../Software/src/datalayer/energy_counter.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
     ../Software/src/lib/uds_isotp/isotp.cpp
     ../Software/src/lib/eModbus-eModbus/ModbusMessage.cpp
