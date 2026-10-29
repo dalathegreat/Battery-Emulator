@@ -368,6 +368,7 @@ class NissanLeafBattery : public CanBattery {
   int16_t battery_AverageTemperature = 6;         //Only available on ZE0, in celcius, -40 to +55
   uint8_t battery_Relay_Cut_Request = 0;          //battery_FAIL
   uint8_t battery_Failsafe_Status = 0;            //battery_STATUS
+  uint8_t battery_OV_limit_level = 0;             //AZE0 only: 0 none, 1 limit B, 2 limit A, 3 cell overvoltage fault
   bool battery_Interlock =
       true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
   bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged

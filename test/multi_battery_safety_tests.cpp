@@ -161,6 +161,20 @@ TEST_F(MultiBatterySafetyTest, CriticalCellOvervoltageOnPack2FaultsTheSystem) {
   EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
 }
 
+// A BMS that reports a confirmed cell overvoltage fault is believed even while the cell voltages
+// the safety layer has last seen are still within limits.
+TEST_F(MultiBatterySafetyTest, BmsReportedCellOvervoltageOnPack2FaultsTheSystem) {
+  datalayer.battery2.status.bms_reports_cell_critical_overvoltage = true;
+
+  run_cycle();
+  run_cycle();  // The fault zeroes pack 1 from the next pass on
+
+  EXPECT_EQ(state(EVENT_CELL_CRITICAL_OVER_VOLTAGE_BAT2), EVENT_STATE_ACTIVE);
+  EXPECT_EQ(state(EVENT_CELL_CRITICAL_OVER_VOLTAGE), EVENT_STATE_INACTIVE);
+  EXPECT_EQ(datalayer.system.status.system_status, FAULT);
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+}
+
 TEST_F(MultiBatterySafetyTest, CriticalCellUndervoltageOnPack3FaultsTheSystem) {
   datalayer.battery3.status.cell_min_voltage_mV = datalayer.battery3.info.min_cell_voltage_mV - 100;
 
