@@ -358,7 +358,7 @@ static String info_topics[3];
 // "<name>/info_multi", following the "<name>/info_2" pattern. Only used with several batteries.
 static String aggregate_topic;
 
-static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
+static const SensorConfig buttonConfigs[] = {{"BMSRESET", "BMS Power reset", nullptr, nullptr, nullptr},
                                              {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
                                              {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
                                              {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},

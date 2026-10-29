@@ -985,7 +985,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "BMS_RESET_CLASS") {
     // The off time and the reset button apply to both reset methods, so they show when either
-    // "Periodic BMS reset" or "Allow remote BMS reset via MQTT" is enabled, as saved.
+    // "Periodic BMS Power reset" or "Allow remote BMS Power reset" is enabled, as saved.
     return (settings.getBool("PERBMSRESET") || settings.getBool("REMBMSRESET")) ? "" : "hidden";
   }
 
@@ -1552,11 +1552,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
         xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS Power reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600.');}}}
 
-        function startBMSReset(){if(confirm('Reset the BMS now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
-        xhr.onload=function(){alert(this.status==200?'BMS reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
+        function startBMSReset(){if(confirm('Cut BMS power now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
+        xhr.onload=function(){alert(this.status==200?'BMS Power reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 )rawliteral" QNHCK_SETTINGS_SCRIPT R"rawliteral(
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
@@ -1946,7 +1946,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       return true;
     }
     if (flag.dataset.canreset !== '1') {
-      alert('The BMS only reads the balancing strategy while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS reset" or "Allow remote BMS reset via MQTT" if you want the emulator to be able to reset the BMS itself.');
+      alert('The BMS only reads the balancing strategy while it powers up, so this setting takes effect at the next BMS power cycle.\n\nTurn on "Periodic BMS Power reset" or "Allow remote BMS Power reset" if you want the emulator to be able to reset the BMS itself.');
       return true;
     }
     flag.value = window.confirm('The BMS only reads the balancing strategy while it powers up, so it has to be reset for this setting to take effect.\n\nYes (OK): save and reset the BMS now.\nNo (Cancel): save now, apply at the next BMS reset.') ? '1' : '0';
@@ -2410,7 +2410,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
               </div>
         </div>
 
-        <label>Periodic BMS reset: </label>
+        <label>Periodic BMS Power reset: </label>
         <input type='checkbox' name='PERBMSRESET' value='on' %PERBMSRESET% /> 
 
         <div class="if-perbmsreset">
@@ -2478,26 +2478,26 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
 
         <div class='if-mqtt'>
-        <label>MQTT server: </label>
+        <label>Server: </label>
         <input type='text' name='MQTTSERVER' value="%MQTTSERVER%" 
         pattern="[A-Za-z0-9.\-]+" />
-        <label>MQTT port: </label>
+        <label>Port: </label>
         <input type='number' name='MQTTPORT' value="%MQTTPORT%" 
         min="1" max="65535" step="1" />
-        <label>MQTT user: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
+        <label>Username: </label><input type='text' name='MQTTUSER' value="%MQTTUSER%"         
         pattern="[ -~]+" />
-        <label>MQTT password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
+        <label>Password: </label><input type='password' name='MQTTPASSWORD' value="%MQTTPASSWORD%" autocomplete="new-password"
         pattern="[ -~]+" placeholder='Leave blank to keep unchanged' />
-        <label>MQTT timeout ms: </label>
+        <label>Timeout (ms): </label>
         <input name='MQTTTIMEOUT' type='number' value="%MQTTTIMEOUT%" 
         min="2000" max="20000" step="1" />
-        <label>MQTT publish interval (seconds): </label>
+        <label>Publish interval (s): </label>
         <input name='MQTTPUBLISHMS' type='number' value="%MQTTPUBLISHMS%" 
         min="1" max="300" step="1" />
-        <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
+        <label>Publish cellvoltages: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
         <label>Publish heap metric diagnostics: </label>
         <input type='checkbox' name='MQTTHEAP' value='on' %MQTTHEAP% />
-        <label>Allow remote BMS reset via MQTT: </label>
+        <label>Allow remote BMS Power reset: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
         <label>Home Assistant autodiscovery: </label>
         <input type='checkbox' name='HADISCEN' value='on' %HADISCEN% onchange='haDisc(this)' />
@@ -2600,9 +2600,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4 class='%VOLTAGE_LIMITS_ACTIVE_CLASS%'>Target discharge voltage: %DISCHARGE_VOLTAGE% V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>
 
-      <h4 class='%BMS_RESET_CLASS%' data-h=bmsoff>Periodic BMS reset off time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
+      <h4 class='%BMS_RESET_CLASS%' data-h=bmsoff>Periodic BMS Power reset OFF time: %BMS_RESET_DURATION% s </span><button onclick='editBMSresetDuration()'>Edit</button></h4>
 
-      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS reset now: <button onclick='startBMSReset()'>Start</button></h4>
+      <h4 class='%BMS_RESET_CLASS%'>Perform a BMS Power reset now: <button onclick='startBMSReset()'>Start</button></h4>
 
       <h4 style='color: red;' data-h=recovery>Undercharged emergency recovery mode: </span><button onclick='editRecoveryMode()'>Start</button></h4>
 
