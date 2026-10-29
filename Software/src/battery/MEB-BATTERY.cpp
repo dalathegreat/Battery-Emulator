@@ -79,6 +79,8 @@ static const uint8_t EM_HYB_05_PDU_CONST[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x
                                                 0xA1, 0xCB, 0x02, 0x4F, 0x57, 0x4E, 0x8E, 0xE4};
 static const uint8_t BMS_11_PDU_CONST[16] = {0x79, 0xB9, 0x67, 0xAD, 0xD5, 0xF7, 0x70, 0xAA,
                                              0x44, 0x61, 0x5A, 0xDC, 0x26, 0xB4, 0xD2, 0xC3};
+static const uint8_t NVEM_10_PDU_CONST[16] = {0xD4, 0x22, 0xAD, 0x3F, 0x25, 0xAA, 0x62, 0x5B,
+                                              0xDC, 0x73, 0xED, 0xC3, 0x9A, 0x14, 0x2F, 0x3E};
 
 /** Calculate the CRC checksum for VAG CAN Messages
  *
@@ -178,6 +180,9 @@ uint8_t MebBattery::vw_crc_calc(const uint8_t* inputBytes, uint8_t length, uint3
     case BMS_11:
       const_pdu_byte = BMS_11_PDU_CONST[counter];
       break;
+    case NVEM_10:
+      const_pdu_byte = NVEM_10_PDU_CONST[counter];
+      break;
     default:  // this won't lead to correct CRC checksums
       logging.println("Checksum request unknown");
       const_pdu_byte = 0x00;
@@ -204,8 +209,9 @@ void MebBattery::
     if (BMS_max_usable_batt_energy_Wh > 0) {
       datalayer_battery->info.total_capacity_Wh = BMS_max_usable_batt_energy_Wh;
     } else {
-      datalayer_battery->info.total_capacity_Wh =
-          ((float)datalayer_battery->info.number_of_cells) * 3.67f * ((float)BMS_capacity_ah) * 0.2f * 1.02564f;
+      datalayer_battery->info.total_capacity_Wh = max_energy_Wh * 40;
+      //datalayer_battery->info.total_capacity_Wh =
+      //    ((float)datalayer_battery->info.number_of_cells) * 3.67f * ((float)BMS_capacity_ah) * 0.2f * 1.02564f;
       // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
       // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
       // the total_capacity_Wh.
@@ -228,23 +234,25 @@ void MebBattery::
 
   datalayer_battery->status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
 
-  datalayer_battery->status.max_charge_power_W = (max_charge_power_watt * 100);
+  datalayer_battery->status.max_charge_power_W = (duration_charge_power_watt * 200);
 
-  datalayer_battery->status.max_discharge_power_W = (max_discharge_power_watt * 100);
+  datalayer_battery->status.max_discharge_power_W = (duration_discharge_power_watt * 200);
 
   //Power in watts, Negative = charging batt
   datalayer_battery->status.active_power_W =
       ((datalayer_battery->status.voltage_dV * datalayer_battery->status.current_dA) / 100);
 
-  if ((battery_min_temp != 600) && (battery_max_temp != 600)) {  //Only update when both values have been read
-    // datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
-    datalayer_battery->status.temperature_min_dC = (battery_min_temp * 10) / 64;
-    // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
-    datalayer_battery->status.temperature_max_dC = (battery_max_temp * 10) / 64;
-  }
+  datalayer_battery->status.temperature_min_dC = actual_temperature_lowest_C * 5 - 400;
+  //  datalayer_battery->status.temperature_min_dC = (battery_min_temp * 10) / 64;
+  datalayer_battery->status.temperature_max_dC = actual_temperature_highest_C * 5 - 400;
+  //  datalayer_battery->status.temperature_max_dC = (battery_max_temp * 10) / 64;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
+  if (platform == VAGPlatform::MQB_Evo) {
+    memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages, 96 * sizeof(uint16_t));
+  } else {
+    memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
+  }
 
   datalayer_battery->status.insulation_resistance_kOhm = isolation_resistance_kOhm * 5;
   if (isolation_status != 0 && isolation_status != 7) {
@@ -273,6 +281,12 @@ void MebBattery::
   datalayer_meb->shutdown_active = shutdown_active;
   datalayer_meb->HVIL = BMS_HVIL_status;
   datalayer_meb->BMS_mode = BMS_mode;
+  datalayer_meb->DCDC_mode = dcdc_actual_mode;
+  datalayer_meb->DCDC_HV_voltage_dV = dcdc_hv_voltage_dV;
+  datalayer_meb->DCDC_HV_current_dA = dcdc_hv_current_dA;
+  datalayer_meb->DCDC_LV_voltage_dV = dcdc_lv_voltage_dV;
+  datalayer_meb->DCDC_LV_current_A = dcdc_lv_current_A;
+  datalayer_meb->DCDC_temperature_dC = dcdc_temperature * 10;
   datalayer_meb->battery_diagnostic = battery_diagnostic;
   datalayer_meb->status_HV_PTC_line = status_HV_PTC_line;
   datalayer_meb->BMS_fault_performance = BMS_fault_performance;
@@ -461,11 +475,7 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             datalayer_meb->celltemperature_dC[i] = ((int16_t)rx_frame.data.u8[i + 1] * 5) - 400;
           }
           break;
-        /*
-        Broadcast cellvoltages are currently disabled, since they're not in use.
 
-        The polled cellvoltages are being used instead.
-        ----
         case 1:  // Cellvoltages 1-42
           cellvoltages[0] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
           cellvoltages[1] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
@@ -634,7 +644,6 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           cellvoltages[158] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
           cellvoltages[159] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
           break;
-        */
         default:  //Invalid mux
           //TODO: Add corrupted CAN message counter tick?
           break;
@@ -797,11 +806,43 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       BMS_nominal_voltage_dV = (uint16_t)(raw_nominal_voltage * 5U);  // 0.5V * 10 => 5 dV
       break;
     }
+    case DCDC_01: {  // DCDC (0x2AE) — HV side voltage/current
+      // DC HV voltage (bits 12-23, factor 0.25 V): raw * 0.25 V = raw * 2.5 dV
+      uint16_t dc_hv_raw = ((uint16_t)rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);
+      dcdc_hv_voltage_dV = (int32_t)(dc_hv_raw * 2.5f);
+      // DC HV current (bits 24-33, factor 0.1 A, offset -51.1): store in dA (0.1 A units)
+      uint16_t dc_i_raw = ((uint16_t)(rx_frame.data.u8[4] & 0x03) << 8) | rx_frame.data.u8[3];
+      dcdc_hv_current_dA = (int16_t)((int32_t)dc_i_raw - 511);
+      // DC Low voltage side voltage
+      dcdc_lv_voltage_dV = rx_frame.data.u8[7];  // store in dV (0.1 V units)
+      dcdc_lv_current_A =
+          (((int16_t)(rx_frame.data.u8[5] & 0xF) << 6) | (rx_frame.data.u8[4] >> 2)) - 511;  // store in A (1 A units)
+      break;
+    }
+    case DCDC_02:  // DCDC (0x3F4) — consumption / utilization (display only)
+      // DC consumption (bits 24-33, WattSecond)
+      dcdc_consumption = ((uint16_t)(rx_frame.data.u8[4] & 0x03) << 8) | rx_frame.data.u8[3];
+      // DC HV utilization (bits 56-63, factor 0.4 %)
+      dcdc_utilization_pct = (uint8_t)(rx_frame.data.u8[7] * 0.4f);
+      break;
+    case DCDC_03:                                   // DCDC temperature
+      dcdc_temperature = rx_frame.data.u8[7] - 40;  // offset of 40 degrees
+      break;
+    case DCDC_04:  // DCDC (0xF7) — reported converter mode + precharge status
+      dcdc_actual_mode = (rx_frame.data.u8[5] >> 1) & 0x07;
+      // DC precharge status bit
+      dcdc_precharge_complete = (rx_frame.data.u8[4] >> 2) & 0x01;
+      break;
     case ISO_Hybrid_01_Resp_FD:  // Diag reply from battery — feed into the ISO-TP state machine.
       // Multi-frame reassembly and flow control are handled by IsoTp; the assembled UDS message
       // is delivered to on_isotp_rx_complete() -> uds_response_handler().
       isotp_receive(rx_frame.data.u8, rx_frame.DLC, ISOTP_TATYPE_PHYSICAL);
       break;
+#ifdef DCDC_DIAG_SUPPORT
+    case ISO_DCDC_Resp_FD:  // Diag reply from the DC/DC — its own ISO-TP channel -> dcdc_uds_response_handler().
+      dcdc_isotp.isotp_receive(rx_frame.data.u8, rx_frame.DLC, ISOTP_TATYPE_PHYSICAL);
+      break;
+#endif
     default:
       break;
   }
@@ -814,6 +855,9 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 void MebBattery::transmit_can(unsigned long currentMillis) {
   // Drive the ISO-TP timers/retransmissions. Should be called ~every 1 ms.
   IsoTp::isotp_poll();
+#ifdef DCDC_DIAG_SUPPORT
+  dcdc_isotp.isotp_poll();
+#endif
 
   // If no UDS response arrived within the timeout window, allow the next request.
   if (uds_request_pending && (currentMillis - uds_request_timestamp > UDS_REQUEST_TIMEOUT_MS)) {
@@ -835,6 +879,10 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
   if (bms_reset_tx_suppressed) {
     return;
   }
+
+#ifdef DCDC_DIAG_SUPPORT
+  handle_dcdc_diag(currentMillis);
+#endif
 
   // DTC readout requested via WebUI: UDS ReadDTCInformation (0x19), report-type 0x02
   // (reportDTCByStatusMask) with status mask 0x09 to read only active/confirmed DTCs.
@@ -930,89 +978,37 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     EM1_01_frame.data.u8[8] =
         ((EM1_01_frame.data.u8[8] & 0xF0) | ((((datalayer.battery.status.voltage_dV / 10) * 4) >> 8) & 0x0F));
     EM1_01_frame.data.u8[0] = vw_crc_calc(EM1_01_frame.data.u8, EM1_01_frame.DLC, EM1_01_frame.ID);
+    /* Handle the low voltage energy management, this is specifying the 12V battery charging voltage */
+    // 12V DC/DC output setpoint, physical = raw * 0.025 + 10.6 V (valid 10.6..16.0 V, 255 = error).
+    // Request the user-configured voltage while the DCDC is charging the 12V rail (buck mode),
+    // otherwise the min 10.6V.
+    static constexpr uint8_t NVEM_12V_FLOOR = (uint8_t)((10.6f - 10.6f) / 0.025f + 0.5f);
+    const uint8_t NVEM_12V_CHARGE =
+        (uint8_t)(((int32_t)user_selected_VW_dcdc_lv_setpoint_mV - DCDC_MIN_SETPOINT_MV) / 25);  // 0.025 V per step
+    NVEM_10_frame.data.u8[7] = (dcdc_actual_mode == DCDC_MODE_CHARGE_12V) ? NVEM_12V_CHARGE : NVEM_12V_FLOOR;
+    NVEM_10_frame.data.u8[1] = ((NVEM_10_frame.data.u8[1] & 0xF0) | counter_50ms);
+    NVEM_10_frame.data.u8[0] = vw_crc_calc(NVEM_10_frame.data.u8, NVEM_10_frame.DLC, NVEM_10_frame.ID);
+
     counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
     transmit_can_frame(&EM1_01_frame);  //  Needed for contactor closing
+    if (user_selected_VW_dcdc_converter) {
+      transmit_can_frame(&NVEM_10_frame);  // 12V setpoint — only meaningful with a DC-DC converter
+    }
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    //HV request and DC/DC control lies in 0x503
-
-    if ((!datalayer.system.info.equipment_stop_active) && datalayer.system.status.inverter_allows_contactor_closing &&
-        datalayer.battery.status.real_bms_status != BMS_FAULT &&
-        (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
-         (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          (hv_requested ||
-           (datalayer.battery.status.voltage_dV > 200 && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
-            labs(((int32_t)datalayer.battery.status.voltage_dV) -
-                 ((int32_t)datalayer_meb->BMS_voltage_intermediate_dV)) < 200))))) {
-      // We are either:
-      //  - Equipment stop is not active, and the inverter allows contactor closing, and the BMS is not in FAULT state, and either:
-      //  - in BMS_ACTIVE state (contactors closed, normal operation)
-      //  - or in BMS_STANDBY state, ready to request HV from the battery (our precharge is within 20V)
-      //  - or in BMS_STANDBY state, having already requested HV (hv_requested = true)
-
-      if (datalayer.battery.status.real_bms_status != BMS_ACTIVE) {
-        // We're still awaiting contactor closure, so record that we've
-        // requested HV, so that we keep doing so even if the precharge voltage
-        // wavers.
-        hv_requested = true;
-      }
-
-      // We can stop precharging now.
-      datalayer.system.info.start_precharging = false;
-
-      if (HVK_01_frame.data.u8[3] == BMS_TARGET_HV_OFF) {
-        logging.printf("MEB: Requesting HV\n");
-      }
-      if ((HVK_01_frame.data.u8[1] & 0x80) !=
-          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
-        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
-          logging.printf("MEB: Precharge bit set to active\n");
-        } else {
-          logging.printf("MEB: Precharge bit set to inactive\n");
-        }
-      }
-      HVK_01_frame.data.u8[1] =
-          0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
-      HVK_01_frame.data.u8[3] = BMS_TARGET_AC_CHARGING;
-      HVK_01_frame.data.u8[5] = 0x82;  // Bordnetz Active
-      HVK_01_frame.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
-    } else if ((first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 &&
-                BMS_mode != BMS_TARGET_INIT) ||
-               datalayer.system.info.equipment_stop_active ||
-               !datalayer.system.status.inverter_allows_contactor_closing) {  //FAULT STATE, open contactors
-
-      if (datalayer.system.status.system_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          !datalayer.system.info.equipment_stop_active) {
-        datalayer.system.info.start_precharging = true;
-      }
-
-      if (HVK_01_frame.data.u8[3] != BMS_TARGET_HV_OFF) {
-        logging.printf("MEB: Requesting HV_OFF\n");
-      }
-      if ((HVK_01_frame.data.u8[1] & 0x80) !=
-          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
-        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
-          logging.printf("MEB: Precharge bit set to active\n");
-        } else {
-          logging.printf("MEB: Precharge bit set to inactive\n");
-        }
-      }
-      HVK_01_frame.data.u8[1] =
-          0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
-      HVK_01_frame.data.u8[3] = BMS_TARGET_HV_OFF;
-      HVK_01_frame.data.u8[5] = 0x80;  // Bordnetz Inactive
-      HVK_01_frame.data.u8[6] =
-          0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
+    // HV request and DC/DC control lies in 0x503 (HVK_01). With a VW DC-DC converter on the bus the
+    // coordinator sequences it through precharge and hands off to the BMS for AC charging; without
+    // one the legacy path drives the emulator's own precharge instead. Both finalize counter + CRC
+    // and transmit HVK_01 themselves.
+    if (user_selected_VW_dcdc_converter) {
+      high_voltage_coordinator(currentMillis);
     } else {
-      HVK_01_frame.data.u8[3] = 0;
-      HVK_01_frame.data.u8[5] = 0x80;  // Bordnetz Inactive
+      high_voltage_coordinator_legacy(currentMillis);
     }
-    HVK_01_frame.data.u8[1] = ((HVK_01_frame.data.u8[1] & 0xF0) | counter_100ms);
-    HVK_01_frame.data.u8[0] = vw_crc_calc(HVK_01_frame.data.u8, HVK_01_frame.DLC, HVK_01_frame.ID);
 
     //Bidirectional charging message
     HVLM_14_frame.data.u8[1] =
@@ -1039,7 +1035,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     Motor_EV_01_frame.data.u8[0] = vw_crc_calc(Motor_EV_01_frame.data.u8, Motor_EV_01_frame.DLC, Motor_EV_01_frame.ID);
 
     counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
-    transmit_can_frame(&HVK_01_frame);
+    // HVK_01 is composed and transmitted inside high_voltage_coordinator() above.
     transmit_can_frame(&HVLM_14_frame);
     transmit_can_frame(&HVLM_13_frame);
     transmit_can_frame(&Klemmen_Status_01_frame);
@@ -1057,7 +1053,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     // MSG_HYB_30_frame does not need CRC even though it has it. Empty in some logs as well.
     transmit_can_frame(&Klima_Sensor_02_frame);
     transmit_can_frame(&MSG_HYB_30_frame);
-    transmit_can_frame(&NMH_DCDC_NV_frame);
+    //transmit_can_frame(&NMH_DCDC_NV_frame);
     transmit_can_frame(&NMH_Klima_frame);
     // based on KL15 state set the network management to bus sleep
     if (Klemmen_Status_01_frame.data.u8[2] & 0x02) {
@@ -1124,7 +1120,11 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
         poll_pid = PID_SOH;
         break;
       case PID_SOH:
-        poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
+        if (platform == VAGPlatform::MQB_Evo) {
+          poll_pid = PID_SOC;  // MQB Evo reads cell voltages directly from BMS_CMC_04;
+        } else {
+          poll_pid = PID_CELLVOLTAGE_CELL_1;  // Start polling cell voltages
+        }
         break;
       // Cell Voltage Cases.
       // Most of these are handled in the default case.
@@ -1214,6 +1214,23 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
     if (basic_settings_state != BasicSettingsState::IDLE) {
       transmit_can_frame(&Tester_present_frame);  // Keep BMS in extended diagnostic session
     }
+#ifdef DCDC_DIAG_SUPPORT
+    if (dcdc_crash_state != BasicSettingsState::IDLE) {
+      transmit_can_frame(&Tester_present_DCDC_frame);  // Keep the DC/DC in extended diagnostic session
+    }
+#endif
+  }
+
+  // Isolation measurement request used in HVK_01: measure for 15 s, pause for 15 s, and so on, but
+  // only while contactors are closed and the user has enabled the measurement in the settings page.
+  if (user_selected_VW_iso_measurement && BMS_mode == BMS_TARGET_AC_CHARGING) {
+    if (currentMillis - iso_measurement_ms >= ISO_MEASUREMENT_PERIOD_MS) {
+      iso_measurement_ms = currentMillis;
+      iso_measurement_active = !iso_measurement_active;
+    }
+  } else {
+    iso_measurement_active = false;
+    iso_measurement_ms = currentMillis;
   }
 
   static auto last_real_bms_status = datalayer.battery.status.real_bms_status;
@@ -1408,6 +1425,285 @@ void MebBattery::handle_bms_reset(unsigned long currentMillis) {
       }
       break;
   }
+}
+
+void MebBattery::high_voltage_coordinator_legacy(unsigned long currentMillis) {
+  // HV bring-up for installations without a VW DC-DC converter on the bus: the emulator's own
+  // precharge circuit brings the DC link up (datalayer.system.info.start_precharging /
+  // precharge_status) and HVK_01 only ever commands the BMS. No HVK_DCDC_Sollmodus is issued.
+  // This is the pre-"HV Coordinator with DC-DC converter" behaviour.
+
+  const auto bms_status = datalayer.battery.status.real_bms_status;
+  const bool equipment_stop = datalayer.system.info.equipment_stop_active;
+  const bool inverter_ok = datalayer.system.status.inverter_allows_contactor_closing;
+  uint8_t precharge_bit = (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) ? 0x80 : 0x00;
+
+  // Our own precharge has brought the DC link within 20 V of the pack, so the BMS may close.
+  bool precharge_matched =
+      datalayer.battery.status.voltage_dV > 200 && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
+      labs(((int32_t)datalayer.battery.status.voltage_dV) - ((int32_t)datalayer_meb->BMS_voltage_intermediate_dV)) <
+          200;
+#ifdef MEB_EXPERIMENT_BLIND_PRECHARGE
+  experiment_blind_precharge(currentMillis, precharge_bit, precharge_matched);
+#endif
+  // The BMS may be commanded to close when it is either already closed (BMS_ACTIVE, normal
+  // operation) or standing by with precharge matched / HV already requested. FAULT and every other
+  // state fall through to the HV_OFF branch below.
+  const bool bms_ready = bms_status == BMS_ACTIVE || (bms_status == BMS_STANDBY && (hv_requested || precharge_matched));
+
+  // Command the BMS to close, or to open. Neither applies before the first CAN messages arrive or
+  // while the BMS is still in INIT: byte 1 is then left untouched.
+  const bool request_hv_on = !equipment_stop && inverter_ok && bms_ready;
+  const bool request_hv_off =
+      !request_hv_on &&
+      ((first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000 && BMS_mode != BMS_TARGET_INIT) ||
+       equipment_stop || !inverter_ok);
+
+  // Both branches drive the precharge bit identically; log it only when it actually flips.
+  if ((request_hv_on || request_hv_off) && (HVK_01_frame.data.u8[1] & 0x80) != precharge_bit) {
+    logging.printf("MEB: Precharge bit set to %s\n", precharge_bit ? "active" : "inactive");
+  }
+
+  if (request_hv_on) {
+    if (bms_status != BMS_ACTIVE) {
+      // We're still awaiting contactor closure, so record that we've
+      // requested HV, so that we keep doing so even if the precharge voltage
+      // wavers.
+      hv_requested = true;
+    }
+
+    // We can stop precharging now.
+    datalayer.system.info.start_precharging = false;
+
+    if (HVK_01_frame.data.u8[3] == BMS_TARGET_HV_OFF) {
+      logging.printf("MEB: Requesting HV\n");
+    }
+    HVK_01_frame.data.u8[1] = 0x30 | precharge_bit;
+    HVK_01_frame.data.u8[3] = BMS_TARGET_AC_CHARGING;
+    HVK_01_frame.data.u8[5] = 0x82;  // Bordnetz Active
+    HVK_01_frame.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
+  } else if (request_hv_off) {       //FAULT STATE, open contactors
+
+#ifndef MEB_EXPERIMENT_BLIND_PRECHARGE  // experiment never drives the precharge hardware
+    if (datalayer.system.status.system_status != FAULT && bms_status == BMS_STANDBY && !equipment_stop) {
+      datalayer.system.info.start_precharging = true;
+    }
+#endif
+
+    if (HVK_01_frame.data.u8[3] != BMS_TARGET_HV_OFF) {
+      logging.printf("MEB: Requesting HV_OFF\n");
+    }
+    HVK_01_frame.data.u8[1] = 0x10 | precharge_bit;
+    HVK_01_frame.data.u8[3] = BMS_TARGET_HV_OFF;
+    HVK_01_frame.data.u8[5] = 0x80;  // Bordnetz Inactive
+    HVK_01_frame.data.u8[6] =
+        0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
+  } else {
+    HVK_01_frame.data.u8[3] = 0;
+    HVK_01_frame.data.u8[5] = 0x80;  // Bordnetz Inactive
+  }
+
+  // Isolation measurement request (HVK_Iso_Messung_Start, byte 6 bits 2-4).
+  HVK_01_frame.data.u8[6] = (HVK_01_frame.data.u8[6] & ~0x1C) | (iso_measurement_active ? 0x04 : 0x00);
+
+  // Counter + CRC. counter_100ms is shared with the other 100 ms frames and incremented after them;
+  // we run before that increment, so HVK_01 carries the same counter value as the rest of the burst.
+  HVK_01_frame.data.u8[1] = ((HVK_01_frame.data.u8[1] & 0xF0) | counter_100ms);
+  HVK_01_frame.data.u8[0] = vw_crc_calc(HVK_01_frame.data.u8, HVK_01_frame.DLC, HVK_01_frame.ID);
+
+  transmit_can_frame(&HVK_01_frame);
+}
+
+#ifdef MEB_EXPERIMENT_BLIND_PRECHARGE
+void MebBattery::experiment_blind_precharge(unsigned long currentMillis, uint8_t& precharge_bit,
+                                            bool& precharge_matched) {
+  // Replaces the real precharge handshake: the bit comes from this state machine instead of
+  // precharge_control, and "matched" is declared after a fixed delay instead of from
+  // BMS_voltage_intermediate_dV (which stays unmeasurable with no external voltage).
+  const auto bms_status = datalayer.battery.status.real_bms_status;
+  const bool conditions_ok = !datalayer.system.info.equipment_stop_active &&
+                             datalayer.system.status.inverter_allows_contactor_closing && !bms_reset_active &&
+                             first_can_msg_timestamp > 0 && currentMillis - first_can_msg_timestamp > 1000;
+
+  switch (exp_state) {
+    case ExpState::IDLE:
+      if (conditions_ok && bms_status == BMS_STANDBY && BMS_mode == BMS_TARGET_HV_OFF) {
+        exp_state = ExpState::PRECHARGE;
+        exp_ms = currentMillis;
+        logging.printf("MEB EXP: precharge bit ON (no external voltage), intermediate %d dV\n",
+                       datalayer_meb->BMS_voltage_intermediate_dV);
+      }
+      break;
+    case ExpState::PRECHARGE:
+      if (!conditions_ok || bms_status != BMS_STANDBY) {
+        exp_state = ExpState::IDLE;
+        logging.printf("MEB EXP: aborted during precharge phase (bms_status %d)\n", bms_status);
+      } else if (currentMillis - exp_ms >= MEB_EXP_PRECHARGE_DELAY_MS) {
+        exp_state = ExpState::REQUEST_HV;
+        logging.printf("MEB EXP: %lu ms after precharge bit -> requesting AC charging, intermediate %d dV\n",
+                       currentMillis - exp_ms, datalayer_meb->BMS_voltage_intermediate_dV);
+        exp_ms = currentMillis;
+      }
+      break;
+    case ExpState::REQUEST_HV:
+      if (bms_status == BMS_ACTIVE) {
+        exp_state = ExpState::DONE;
+        logging.printf("MEB EXP: RESULT contactors CLOSED %lu ms after request (BMS_mode %d, intermediate %d dV)\n",
+                       currentMillis - exp_ms, BMS_mode, datalayer_meb->BMS_voltage_intermediate_dV);
+      } else if (!conditions_ok || bms_status != BMS_STANDBY) {
+        exp_state = ExpState::DONE;
+        logging.printf("MEB EXP: RESULT not closed, BMS left standby after %lu ms (bms_status %d, BMS_mode %d)\n",
+                       currentMillis - exp_ms, bms_status, BMS_mode);
+      } else if (currentMillis - exp_ms >= MEB_EXP_CLOSE_TIMEOUT_MS) {
+        exp_state = ExpState::DONE;
+        logging.printf("MEB EXP: RESULT not closed within %lu ms (BMS_mode %d, intermediate %d dV)\n",
+                       MEB_EXP_CLOSE_TIMEOUT_MS, BMS_mode, datalayer_meb->BMS_voltage_intermediate_dV);
+      }
+      break;
+    case ExpState::DONE:
+      // One attempt per CAN session: re-arm only after a CAN dropout or BMS reset.
+      // if (first_can_msg_timestamp == 0 || bms_reset_active) {
+      // reset the state machine so can attempt precharge.
+      if (!conditions_ok) {
+        exp_state = ExpState::IDLE;
+      }
+      break;
+  }
+
+  // Keep the bit asserted through the HV request, like the real precharge does until the BMS closes.
+  precharge_bit = (exp_state == ExpState::PRECHARGE || exp_state == ExpState::REQUEST_HV) ? 0x80 : 0x00;
+  precharge_matched = (exp_state == ExpState::REQUEST_HV);
+  // hv_requested would otherwise latch the AC charging request after a timeout; only this state
+  // machine may keep the BMS request alive while the BMS is still in standby.
+  if (exp_state != ExpState::REQUEST_HV) {
+    hv_requested = false;
+  }
+}
+#endif
+
+void MebBattery::high_voltage_coordinator(unsigned long currentMillis) {
+  // Brings HV up by sequencing the external DCDC converter through precharge (HV_On_Vorladen) and
+  // then handing off to the BMS for AC charging, driven by the DCDC_04 / BMS_20 reports. Writes the
+  // resulting target modes into HVK_01 (0x503) and finalizes its counter + CRC.
+
+  // Faults collapse the sequence back to the safe HV_OFF / DCDC Standby state immediately. This is
+  // the same set of conditions the old branch-B HV_OFF path reacted to (equipment stop, BMS reset),
+  // plus a latched BMS fault and a CAN dropout (first_can_msg_timestamp is cleared after 500 ms silence).
+  const bool fault = datalayer.system.info.equipment_stop_active || bms_reset_active ||
+                     datalayer.battery.status.real_bms_status == BMS_FAULT || first_can_msg_timestamp == 0 ||
+                     datalayer.system.status.inverter_allows_contactor_closing == false;
+  if (fault) {
+    hv_coordinator_state = HvCoordinatorState::IDLE_HV_OFF;
+  }
+
+  // Only begin the bring-up once the BMS has been alive for >1 s and reports HV_Off, and the DCDC
+  // reports Standby (mirrors the old "wait 1 s after first CAN" guard before acting).
+  const bool ready_to_start = !fault && (currentMillis - first_can_msg_timestamp > 1000) &&
+                              BMS_mode == BMS_TARGET_HV_OFF && dcdc_actual_mode == DCDC_MODE_STANDBY;
+
+  const HvCoordinatorState prev_state = hv_coordinator_state;
+
+  // Target modes commanded this tick; default to the safe HV_OFF / DCDC Standby.
+  uint8_t bms_request_mode = BMS_TARGET_HV_OFF;
+  uint8_t dcdc_request_mode = DCDC_MODE_STANDBY;
+  bool precharge_active = false;  // HVK_Vorladung_aktiv (byte 1 bit 7)
+
+  switch (hv_coordinator_state) {
+    case HvCoordinatorState::IDLE_HV_OFF:
+      // Command BMS HV_Off + DCDC Standby; wait for both to report it (and no fault) before precharge.
+      bms_request_mode = BMS_TARGET_HV_OFF;
+      dcdc_request_mode = DCDC_MODE_STANDBY;
+      if (ready_to_start) {
+        hv_coordinator_state = HvCoordinatorState::REQUEST_PRECHARGE;
+      }
+      break;
+
+    case HvCoordinatorState::REQUEST_PRECHARGE:
+      // Ask the DCDC to start precharging the HV link.
+      bms_request_mode = BMS_TARGET_HV_OFF;
+      dcdc_request_mode = DCDC_MODE_PRECHARGE_ON;
+      if (dcdc_actual_mode == DCDC_MODE_PRECHARGE_ON) {
+        hv_coordinator_state = HvCoordinatorState::PRECHARGING;
+      }
+      break;
+
+    case HvCoordinatorState::PRECHARGING:
+      // DCDC is precharging: assert the precharge-active bit. Advance once the DCDC reports precharge
+      // complete AND the DC-link voltage the BMS measures after the contactors (i.e. what the DCDC is
+      // providing) has matched the pack. BMS_voltage_intermediate_dV reads 0 until the BMS measures it.
+      bms_request_mode = BMS_TARGET_HV_OFF;
+      dcdc_request_mode = DCDC_MODE_PRECHARGE_ON;
+      precharge_active = true;
+      //if (dcdc_precharge_complete && datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
+      if (datalayer_meb->BMS_voltage_intermediate_dV > 0 &&
+          labs((int32_t)dcdc_hv_voltage_dV - (int32_t)datalayer.battery.status.voltage_dV) <
+              PRECHARGE_VOLTAGE_MATCH_DV) {
+        hv_coordinator_state = HvCoordinatorState::REQUEST_BMS_CHARGE;
+      }
+      break;
+
+    case HvCoordinatorState::REQUEST_BMS_CHARGE:
+      // Precharge done: request the BMS to close into AC charging. Keep the precharge bit and the
+      // DCDC in precharge until the BMS confirms the new mode.
+      bms_request_mode = BMS_TARGET_AC_CHARGING;
+      dcdc_request_mode = DCDC_MODE_PRECHARGE_ON;
+      precharge_active = true;
+      if (BMS_mode == BMS_TARGET_AC_CHARGING) {
+        if (user_selected_VW_dcdc_lv_setpoint_mV == DCDC_MIN_SETPOINT_MV) {
+          hv_coordinator_state = HvCoordinatorState::RUNNING;
+        } else {
+          hv_coordinator_state = HvCoordinatorState::REQUEST_DCDC_BUCK;
+        }
+      }
+      break;
+
+    case HvCoordinatorState::REQUEST_DCDC_BUCK:
+      // BMS is in AC charging: move the DCDC into charging (normal buck supply).
+      bms_request_mode = BMS_TARGET_AC_CHARGING;
+      dcdc_request_mode = DCDC_MODE_CHARGE_12V;
+      precharge_active = true;
+      if (dcdc_actual_mode == DCDC_MODE_CHARGE_12V) {
+        hv_coordinator_state = HvCoordinatorState::RUNNING;
+      }
+      break;
+
+    case HvCoordinatorState::RUNNING:
+      // Steady state: HV up, DCDC in buck, precharge bit cleared.
+      bms_request_mode = BMS_TARGET_AC_CHARGING;
+      if (user_selected_VW_dcdc_lv_setpoint_mV == DCDC_MIN_SETPOINT_MV) {
+        dcdc_request_mode = DCDC_MODE_STANDBY;
+      } else {
+        dcdc_request_mode = DCDC_MODE_CHARGE_12V;
+      }
+      precharge_active = false;
+      break;
+  }
+
+  if (hv_coordinator_state != prev_state) {
+    logging.printf("MEB: HV coordinator %d -> %d\n", (int)prev_state, (int)hv_coordinator_state);
+    hv_coordinator_ms = currentMillis;
+  } else if (hv_coordinator_state != HvCoordinatorState::IDLE_HV_OFF &&
+             hv_coordinator_state != HvCoordinatorState::RUNNING &&
+             currentMillis - hv_coordinator_ms > HV_STEP_STALL_MS) {
+    logging.printf("MEB: HV coordinator stalled in state %d\n", (int)hv_coordinator_state);
+    hv_coordinator_ms = currentMillis;  // rate-limit the warning
+  }
+
+  // HV_Bordnetz_aktiv (byte 5 bit 1) is asserted only after the BMS confirms the requested AC
+  // charging mode — never during precharge.
+  const bool bordnetz_active =
+      (hv_coordinator_state != HvCoordinatorState::IDLE_HV_OFF) && (BMS_mode == BMS_TARGET_AC_CHARGING);
+  HVK_01_frame.data.u8[1] = precharge_active ? 0xE0 : 0x60;
+  HVK_01_frame.data.u8[3] = 0xC0 | (bms_request_mode & 0x07) | ((dcdc_request_mode & 0x07) << 3);
+  HVK_01_frame.data.u8[5] = bordnetz_active ? 0x42 : 0x00;
+  HVK_01_frame.data.u8[6] = ((hv_coordinator_state == HvCoordinatorState::IDLE_HV_OFF) ? 0x63 : 0x60) |
+                            (iso_measurement_active ? 0x04 : 0x00);
+  // Counter + CRC. counter_100ms is shared with the other 100 ms frames and incremented after them;
+  // we run before that increment, so HVK_01 carries the same counter value as the rest of the burst.
+  HVK_01_frame.data.u8[1] = ((HVK_01_frame.data.u8[1] & 0xF0) | counter_100ms);
+  HVK_01_frame.data.u8[0] = vw_crc_calc(HVK_01_frame.data.u8, HVK_01_frame.DLC, HVK_01_frame.ID);
+
+  transmit_can_frame(&HVK_01_frame);
 }
 
 void MebBattery::uds_read_data_by_id(uint16_t did, unsigned long currentMillis) {
@@ -1668,38 +1964,8 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       datalayer_meb->dtc_read_in_progress = false;
       break;
     case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):  // DTC read positive response (0x59)
-      if (data[1] != 0x02) {
-        // Unexpected report type — treat as a failed readout.
-        datalayer_battery->dtc.dtc_read_failed = true;
-      } else {
-        datalayer_battery->dtc.dtc_read_failed = false;
-        int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
-        int availableBytes = len - dtcStartIndex;
-        int maxDtcCount = availableBytes / 4;
-
-        if (maxDtcCount > datalayer_battery->dtc.MAX_DTC_COUNT) {
-          maxDtcCount = datalayer_battery->dtc.MAX_DTC_COUNT;
-          logging.println("DTC count exceeds buffer, truncating");
-        }
-        if (maxDtcCount < 0)
-          maxDtcCount = 0;
-
-        for (int i = 0; i < maxDtcCount; i++) {
-          int offset = dtcStartIndex + (i * 4);
-          // Bounds check to ensure we don't read beyond the buffer
-          if (offset + 3 > len)
-            break;
-          // Combine 3 bytes into a single uint32
-          uint32_t dtcCode =
-              ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
-          uint8_t dtcStatus = data[offset + 3];
-          datalayer_battery->dtc.dtc_codes[i] = dtcCode;
-          datalayer_battery->dtc.dtc_status[i] = dtcStatus;
-        }
-        datalayer_battery->dtc.dtc_count = maxDtcCount;
-      }
+      parse_dtc_report(data, len, datalayer_battery->dtc);
       uds_request_pending = false;
-      datalayer_battery->dtc.dtc_last_read_millis = millis();
       datalayer_meb->dtc_read_in_progress = false;
       break;
     case (kNegativeResponseSid):  // Negative response (0x7F)
@@ -1716,11 +1982,8 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       } else {
         // Any other NRC: the transaction is complete (rejected), allow the next request.
         uds_request_pending = false;
+        logging.printf("MEB: UDS NRC 0x%02X for SID 0x%02X\n", data[2], data[1]);
         if (basic_settings_state != BasicSettingsState::IDLE && data[1] == RoutineControl) {
-#ifdef MEB_DEBUG
-          logging.printf("MEB: BasicSettings: NRC 0x%02X for SID 0x%02X, aborting\n", len >= 3 ? data[2] : 0,
-                         len >= 2 ? data[1] : 0);
-#endif
           basic_settings_state = BasicSettingsState::IDLE;
         }
       }
@@ -1729,6 +1992,207 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
       break;
   }
 }
+
+void MebBattery::parse_dtc_report(const uint8_t* data, int len, DATALAYER_BATTERY_DTC_TYPE& dtc) {
+  if (len < 2 || data[1] != 0x02) {
+    // Unexpected report type — treat as a failed readout.
+    dtc.dtc_read_failed = true;
+  } else {
+    dtc.dtc_read_failed = false;
+    int dtcStartIndex = 3;  // Skip 59 02 <statusAvailabilityMask>
+    int availableBytes = len - dtcStartIndex;
+    int maxDtcCount = availableBytes / 4;
+
+    if (maxDtcCount > dtc.MAX_DTC_COUNT) {
+      maxDtcCount = dtc.MAX_DTC_COUNT;
+      logging.println("DTC count exceeds buffer, truncating");
+    }
+    if (maxDtcCount < 0)
+      maxDtcCount = 0;
+
+    for (int i = 0; i < maxDtcCount; i++) {
+      int offset = dtcStartIndex + (i * 4);
+      // Bounds check to ensure we don't read beyond the buffer
+      if (offset + 3 > len)
+        break;
+      // Combine 3 bytes into a single uint32
+      uint32_t dtcCode =
+          ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
+      uint8_t dtcStatus = data[offset + 3];
+      dtc.dtc_codes[i] = dtcCode;
+      dtc.dtc_status[i] = dtcStatus;
+    }
+    dtc.dtc_count = maxDtcCount;
+  }
+  dtc.dtc_last_read_millis = millis();
+}
+
+#ifdef DCDC_DIAG_SUPPORT
+void MebBattery::dcdc_uds_send(const uint8_t* payload, int len, unsigned long currentMillis) {
+  dcdc_isotp.isotp_send(payload, len);
+  dcdc_uds_request_pending = true;
+  dcdc_uds_request_timestamp = currentMillis;
+}
+
+void MebBattery::handle_dcdc_diag(unsigned long currentMillis) {
+  // The DC/DC has its own ISO-TP channel, so this runs independently of the BMS transactions.
+  if (dcdc_uds_request_pending) {
+    if (currentMillis - dcdc_uds_request_timestamp <= UDS_REQUEST_TIMEOUT_MS) {
+      return;
+    }
+    // No answer within the timeout: give up on this transaction.
+    dcdc_uds_request_pending = false;
+    if (dcdc_crash_state != BasicSettingsState::IDLE) {
+      dcdc_crash_state = BasicSettingsState::IDLE;
+      logging.println("MEB: DC/DC crash reset: UDS timeout, aborting");
+    }
+    if (dcdc_dtc_read_in_progress) {
+      dcdc_dtc_read_in_progress = false;
+      dcdc_dtc.dtc_read_failed = true;
+      dcdc_dtc.dtc_last_read_millis = currentMillis;  // shows the failure instead of "not read yet"
+    }
+  }
+
+  if (dcdc_crash_state == BasicSettingsState::IDLE) {
+    if (dcdc_crash_reset_requested) {
+      dcdc_crash_reset_requested = false;
+      dcdc_crash_state = BasicSettingsState::SEND_EXT_SESSION;
+      logging.println("MEB: DC/DC crash reset: starting");
+    } else if (dcdc_dtc_read_requested) {
+      // UDS ReadDTCInformation, reportDTCByStatusMask, active/confirmed only — as for the BMS.
+      dcdc_dtc_read_requested = false;
+      uint8_t payload[3] = {ReadDTCInformation, 0x02, 0x09};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_dtc_read_in_progress = true;
+      dcdc_dtc.dtc_read_failed = false;
+      return;
+    } else {
+      return;
+    }
+  }
+
+  // Crash unlock: same steps as handle_basic_settings() for the BMS, with the DC/DC login key.
+  switch (dcdc_crash_state) {
+    case BasicSettingsState::SEND_EXT_SESSION: {
+      uint8_t payload[2] = {DiagnosticSessionControl, ExtendedSession};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_crash_state = BasicSettingsState::WAIT_EXT_SESSION;
+      break;
+    }
+    case BasicSettingsState::SEND_SEED_REQ: {
+      // The response handler sends the key upon receiving 67 03.
+      uint8_t payload[2] = {SecurityAccess, 0x03};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_crash_state = BasicSettingsState::WAIT_SEED;
+      break;
+    }
+    case BasicSettingsState::SEND_ROUTINE_START:
+    case BasicSettingsState::SEND_ROUTINE_STOP: {
+      const bool is_start = (dcdc_crash_state == BasicSettingsState::SEND_ROUTINE_START);
+      // Give the DC/DC time to run the routine before asking it to stop.
+      if (!is_start && (currentMillis - dcdc_crash_wait_ms) < BASIC_SETTINGS_ROUTINE_STOP_DELAY_MS) {
+        break;
+      }
+      uint8_t payload[4] = {RoutineControl, (uint8_t)(is_start ? Start : Stop),
+                            (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER >> 8),
+                            (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER & 0xFF)};
+      dcdc_uds_send(payload, sizeof(payload), currentMillis);
+      dcdc_crash_state = BasicSettingsState::WAIT_ROUTINE_RESULT;
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+void MebBattery::dcdc_uds_response_handler(const uint8_t* data, int len) {
+  if (len < 1)
+    return;
+  switch (data[0]) {
+    case (UDS_RESPONSE_SID_OF(DiagnosticSessionControl)):
+      dcdc_uds_request_pending = false;
+      if (dcdc_crash_state == BasicSettingsState::WAIT_EXT_SESSION) {
+        dcdc_crash_state = BasicSettingsState::SEND_SEED_REQ;
+      }
+      break;
+    case (UDS_RESPONSE_SID_OF(SecurityAccess)):
+      if (len >= 6 && data[1] == 0x03 && dcdc_crash_state == BasicSettingsState::WAIT_SEED) {
+        // Seed received: key = seed + DC/DC login key.
+        uint32_t seed = ((uint32_t)data[2] << 24) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 8) | data[5];
+        uint32_t key = seed + DCDC_SECURITY_LOGIN_KEY;
+        uint8_t key_payload[6] = {SecurityAccess,       0x04,
+                                  (uint8_t)(key >> 24), (uint8_t)(key >> 16),
+                                  (uint8_t)(key >> 8),  (uint8_t)(key & 0xFF)};
+        dcdc_uds_send(key_payload, sizeof(key_payload), millis());
+        dcdc_crash_state = BasicSettingsState::WAIT_KEY_RESP;
+      } else if (len >= 2 && data[1] == 0x04 && dcdc_crash_state == BasicSettingsState::WAIT_KEY_RESP) {
+        dcdc_uds_request_pending = false;
+        dcdc_crash_state = BasicSettingsState::SEND_ROUTINE_START;
+      } else {
+        dcdc_uds_request_pending = false;
+        if (dcdc_crash_state != BasicSettingsState::IDLE) {
+          dcdc_crash_state = BasicSettingsState::IDLE;
+          logging.println("MEB: DC/DC crash reset: unexpected SecurityAccess response, aborting");
+        }
+      }
+      break;
+    case (UDS_RESPONSE_SID_OF(RoutineControl)):
+      dcdc_uds_request_pending = false;
+      if (dcdc_crash_state == BasicSettingsState::WAIT_ROUTINE_RESULT && len >= 4 &&
+          data[2] == (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER >> 8) &&
+          data[3] == (uint8_t)(ROUTINE_ID_DTC_DELETE_TRIGGER & 0xFF)) {
+        if (data[1] == Start) {
+          dcdc_crash_wait_ms = millis();  // start timestamp before the stop request
+          dcdc_crash_state = BasicSettingsState::SEND_ROUTINE_STOP;
+        } else if (data[1] == Stop) {
+          // Unlocked: clear the stored DTCs (the functional clear reaches the BMS and the DC/DC).
+          datalayer_meb->UserRequestDTCreset = true;
+          dcdc_crash_state = BasicSettingsState::IDLE;
+          logging.println("MEB: DC/DC crash reset: done");
+        } else {
+          dcdc_crash_state = BasicSettingsState::IDLE;
+        }
+      }
+      break;
+    case (0x04 + kPositiveResponseOffset):  // the functional OBD clear sent for the BMS reached the DC/DC too
+      dcdc_dtc.dtc_read_failed = false;
+      dcdc_dtc.dtc_count = 0;
+      dcdc_dtc.dtc_last_read_millis = 0;
+      break;
+    case (UDS_RESPONSE_SID_OF(ReadDTCInformation)):
+      parse_dtc_report(data, len, dcdc_dtc);
+      dcdc_uds_request_pending = false;
+      dcdc_dtc_read_in_progress = false;
+      break;
+    case (kNegativeResponseSid):
+      // data[1] = original request service id, data[2] = NRC
+      if (len < 3) {
+        break;
+      }
+      logging.printf("MEB: DC/DC UDS NRC 0x%02X for SID 0x%02X\n", data[2], data[1]);
+      if (data[1] == 0x04) {
+        break;  // answer to the functional clear, not to a DC/DC transaction of ours
+      }
+      if (data[2] == RequestCorrectlyReceived_ResponsePending) {
+        dcdc_uds_request_timestamp = millis();  // still processing: keep waiting
+        break;
+      }
+      dcdc_uds_request_pending = false;
+      if (data[1] == ReadDTCInformation) {
+        dcdc_dtc_read_in_progress = false;
+        dcdc_dtc.dtc_read_failed = true;
+        dcdc_dtc.dtc_last_read_millis = millis();
+      }
+      if (dcdc_crash_state != BasicSettingsState::IDLE) {
+        dcdc_crash_state = BasicSettingsState::IDLE;
+        logging.println("MEB: DC/DC crash reset: rejected, aborting");
+      }
+      break;
+    default:
+      break;
+  }
+}
+#endif
 
 void MebBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
@@ -1744,6 +2208,11 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   // ISO-TP transport for UDS diagnostics (PID polling, DTC read). Replies arrive on
   // ISO_Hybrid_01_Resp_FD and are fed to isotp_receive() in handle_incoming_can_frame().
   isotp_init(ISO_Hybrid_01_Req_FD);
+#ifdef DCDC_DIAG_SUPPORT
+  // DC/DC diagnostics on their own ISO-TP channel; replies arrive on ISO_DCDC_Resp_FD.
+  dcdc_isotp.isotp_init(ISO_DCDC_Req_FD);
+  renderer.dcdc_dtc = user_selected_VW_dcdc_converter ? &dcdc_dtc : nullptr;
+#endif
 
   // The BMS may still be asleep at power-on, so our first frames won't be ACKed. Ignore
   // this interface's transient CAN errors for a while so they don't clutter the event log.

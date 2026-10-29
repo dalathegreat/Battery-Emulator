@@ -14,6 +14,10 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
  public:
   // platform's battery setup() overrides
   const char* dtc_json_filename = "vag_meb_dtc.json";
+#ifdef DCDC_DIAG_SUPPORT
+  // Set by MebBattery::setup() when a VW DC/DC converter is configured; null hides its DTC table.
+  DATALAYER_BATTERY_DTC_TYPE* dcdc_dtc = nullptr;
+#endif
 
   String get_status_html() {
     String content;
@@ -149,11 +153,21 @@ class MebHtmlRenderer : public BatteryHtmlRenderer {
       }
       content += " &deg;C</h4>";
     }
+    add_h4(content, "DC-DC temperature", String(datalayer_extended.meb.DCDC_temperature_dC / 10.f, 1) + " &deg;C");
+    add_h4(content, "DC-DC HV voltage", String(datalayer_extended.meb.DCDC_HV_voltage_dV / 10.f, 1) + " V");
+    add_h4(content, "DC-DC LV voltage", String(datalayer_extended.meb.DCDC_LV_voltage_dV / 10.f, 2) + " V");
+    add_h4(content, "DC-DC LV current", String(datalayer_extended.meb.DCDC_LV_current_A / 1.f, 1) + " A");
     add_h4(content, "Total charged", String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh");
     add_h4(content, "Total discharged",
            String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) + " kWh");
 
     content += BatteryHtmlRenderer::render_dtc_section_html(datalayer.battery.dtc, dtc_json_filename, false);
+#ifdef DCDC_DIAG_SUPPORT
+    if (dcdc_dtc) {
+      content += BatteryHtmlRenderer::render_dtc_section_html(*dcdc_dtc, "vag_meb_dcdc_dtc.json", false,
+                                                              "DC/DC Diagnostic Trouble Codes", "Dcdc");
+    }
+#endif
 
     return content;
   }
