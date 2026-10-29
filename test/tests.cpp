@@ -5,6 +5,7 @@
 #include "../Software/src/charger/CHARGERS.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/hal/hal.h"
+#include "../Software/src/devboard/safety/parallel_safety.h"
 #include "../Software/src/devboard/safety/safety.h"
 #include "../Software/src/devboard/utils/events.h"
 #include "../Software/src/inverter/INVERTERS.h"
@@ -17,6 +18,8 @@ class DataLayerResetListener : public ::testing::EmptyTestEventListener {
   void OnTestStart(const ::testing::TestInfo& /*test_info*/) override {
     datalayer = DataLayer();
     reset_all_events();
+    // Remembers 15 s of pack currents, which belong to the test that produced them
+    reset_parallel_current_sharing();
 
     // Every instance holds pointers into the datalayer we just replaced, so
     // destroy them all.

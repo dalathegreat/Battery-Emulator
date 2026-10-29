@@ -197,6 +197,8 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
   set_battery_event_level(EVENT_BATTERY_FUSE, EVENT_LEVEL_WARNING);
+  // Inferred from the currents, not reported by the battery: never more than a warning
+  set_battery_event_level(EVENT_BATTERY_NO_CURRENT, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_FROZEN, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_BATTERY_CAUTION, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_BATTERY_CHG_STOP_REQ, EVENT_LEVEL_ERROR);
@@ -488,6 +490,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Battery is fully charged";
     case EVENT_BATTERY_FUSE:
       return "Battery internal fuse blown. Inspect battery";
+    case EVENT_BATTERY_NO_CURRENT:
+      return "Battery stopped carrying current and the other packs took over its share. Check its breaker, fuses "
+             "and HV cabling! Data: amps it carried before. Clears once it carries current again.";
     case EVENT_BATTERY_FROZEN:
       return "Battery is too cold to operate optimally. Consider warming it up!";
     case EVENT_BATTERY_CAUTION:
