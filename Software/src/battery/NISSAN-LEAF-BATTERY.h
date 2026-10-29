@@ -69,6 +69,10 @@ class NissanLeafBattery : public CanBattery {
 
   uint8_t calculate_crc(CAN_frame& frame);
 
+  //The LBC's reported current-sensor zero (local id 0x07), in micro-ADC-counts; 0 until first read.
+  //Exposed so a learned (non-round) value can be told apart from the skipped 649,000,000 default.
+  uint32_t lbc_current_zero_ucounts() const { return battery_current_zero_ucounts; }
+
   /* The current published to the datalayer is a mean over the whole window, so the safety
      layer is handed the two extremes seen inside it instead. Kept as a max/min pair rather
      than a single worst-magnitude sample so a window holding both a charge and a discharge
@@ -135,15 +139,16 @@ class NissanLeafBattery : public CanBattery {
      AUTO_OFFSET_BUCKETS of them: all of a short opening, the latest 10 s of a pack that stays open
      because it cannot join the DC link. It holds while the contactor is closed, and the next
      opening measures afresh. When the LBC starts up, at boot or powered back on after a BMS reset,
-     with the contactor open since before, nothing has flowed and only the LBC's start needs to
-     settle: samples count from AUTO_OFFSET_POWER_ON_SETTLE_MS after the BMS power went on. Each
-     bucket holds what is left of its second once the lowest and highest AUTO_OFFSET_TRIM of a full
-     second are left out: 20 of 100, or a fifth of however many it had. Sums and counts signed, for
-     the reason above. */
+     with the contactor open since before, nothing has flowed - but the LBC spends the first couple of
+     seconds learning its own current-sensor zero, until it raises BTONFN (see transmit_can), and what
+     0x1DB reports changes when that finishes. So the gathering holds off until the end of that window,
+     CURRENT_ZERO_LEARN_MS + BTONFN_AFTER_RLYP_MS after the pack's first 0x1DB, rather than a brief
+     power-on settle, or the LBC's own pre-learn offset would be folded into ours. Each bucket holds
+     what is left of its second once the lowest and highest AUTO_OFFSET_TRIM of a full second are left
+     out: 20 of 100, or a fifth of however many it had. Sums and counts signed, for the reason above. */
   static const uint8_t AUTO_OFFSET_TRIM = 20;
   static const uint8_t AUTO_OFFSET_BUCKETS = 10;
   static const uint32_t AUTO_OFFSET_SETTLE_MS = 300;
-  static const uint32_t AUTO_OFFSET_POWER_ON_SETTLE_MS = 30;
   int32_t auto_offset_bucket_sum_raw[AUTO_OFFSET_BUCKETS] = {};
   int32_t auto_offset_bucket_count[AUTO_OFFSET_BUCKETS] = {};
   uint8_t auto_offset_next_bucket = 0;
@@ -210,6 +215,20 @@ class NissanLeafBattery : public CanBattery {
   uint8_t counter_3B8 = 0;  //counter 0-14
   bool flip_3B8 = false;
 
+  /* The LBC learns its Hall current-sensor zero once per start, but only while 0x1D4 byte 5 bit 6
+     (RLYP, Relay_Plus_Output_Status) is still 0; if that bit is already 1 when the learn runs it keeps
+     a fixed default (~0.73 A/count, so the pack reads 0.5-1 A with no current). So both RLYP and the
+     related BTONFN (byte 4 bit 2, StatusOfHighVoltagePowerSupply) are held 0 from the start of each LBC
+     session: while the pack is silent, then for CURRENT_ZERO_LEARN_MS after its first 0x1DB, which is
+     the window the learn runs in. RLYP goes to 1 at the end of it, BTONFN BTONFN_AFTER_RLYP_MS later so
+     the start-up steps reach the LBC in order. A real car does the same: the VCM raises the bit only
+     once the LBC has started. A session starts with the first 0x1DB after boot, and again with the
+     first one after a BMS reset has power-cycled the LBC. */
+  static const unsigned long CURRENT_ZERO_LEARN_MS = 2000;
+  static const unsigned long BTONFN_AFTER_RLYP_MS = 200;
+  bool first_1DB_seen = false;         //A 0x1DB has been received since the session (re)started
+  unsigned long first_1DB_millis = 0;  //millis() at that first 0x1DB
+
   static const uint8_t ZE0_BATTERY = 0;
   static const uint8_t AZE0_BATTERY = 1;
   static const uint8_t ZE1_BATTERY = 2;
@@ -233,11 +252,13 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 6,
                         .ID = 0x50C,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Bytes 4, 5 and 7 are rewritten on every transmission: the PRUN counter and BTONFN in byte 4, RLYP
+  //in byte 5, the CRC in byte 7. Shown here with BTONFN = RLYP = 0, the values each session starts with.
   CAN_frame LEAF_1D4 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x03, 0x06, 0xE0, 0x69}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,
@@ -261,11 +282,12 @@ class NissanLeafBattery : public CanBattery {
   //state of health are built from, and neither is published until it has been read. It sits in
   //group 0x01 on ZE0/AZE0 and in the health block 0x61 on ZE1, so both lead the rotation and the
   //generation in use gets its answer on the first or second poll rather than most of a minute in.
-  //The three static groups (0x62 charge counters, 0x84 serial number, 0x83 part number) are read
-  //once and then skipped, leaving 0x01/0x61/0x04/0x02/0x06 as the recurring rotation. Group 0x61
-  //is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11 rather than
+  //The read-once groups (0x62 charge counters, 0x84 serial number, 0x83 part number, 0x07 current-
+  //sensor zero) are read once and then skipped, leaving 0x01/0x61/0x04/0x02/0x06 as the recurring
+  //rotation. 0x07 sits last so it is read well after the LBC has finished its own zero learn. Group
+  //0x61 is the only reply that runs past 255 bytes, so its first frame carries PCI 0x11 rather than
   //0x10 - see the masked first-frame test in handle_incoming_can_frame().
-  uint8_t PIDgroups[8] = {0x01, 0x61, 0x62, 0x84, 0x04, 0x02, 0x06, 0x83};
+  uint8_t PIDgroups[9] = {0x01, 0x61, 0x62, 0x84, 0x04, 0x02, 0x06, 0x83, 0x07};
   //Start on the last entry so the first rotation step wraps to index 0.
   uint8_t PIDindex = sizeof(PIDgroups) / sizeof(PIDgroups[0]) - 1;
   uint8_t poll_burst_remaining = sizeof(PIDgroups) / sizeof(PIDgroups[0]);
@@ -456,6 +478,12 @@ class NissanLeafBattery : public CanBattery {
   bool battery_cells_unreadable = false;
   //Set once the group 0x62 reply has arrived in full, down to its last frame
   bool battery_usage_history_read = false;
+  //The current-sensor zero the LBC reports from local identifier 0x07, in micro-ADC-counts (ADC
+  //count x 1,000,000), big-endian u32. 649,000,000 exactly means the LBC skipped its zero learn and
+  //kept the hard-coded default; a real learned zero is a trimmed mean and so almost never round.
+  //Read once per start and logged, to confirm the learn ran. 0 until the first read.
+  uint32_t battery_current_zero_ucounts = 0;
+  bool battery_current_zero_read = false;
   uint16_t battery_insulation = 0;         //Insulation resistance
   uint16_t battery_charge_count_qc = 0;    //Lifetime number of quick (CHAdeMO) charges
   uint16_t battery_charge_count_l1l2 = 0;  //Lifetime number of L1/L2 (AC) charges
