@@ -52,45 +52,23 @@ inline String& operator<<(String& str, const T& value) {
   str += value;
   return str;
 }
+
 String JaguarIpaceBattery::get_uds_info_html() {
   String content;
   content.reserve(600);
-
-  content << "<h4>Positive Contactors B Voltage: " << String(positive_contactors_b_voltage)
-          << "</h4>"
-             "<h4>Positive Contactors A Voltage: "
-          << String(positive_contactors_a_voltage)
-          << "</h4>"
-             "<h4>Isolation Resistance: "
-          << String(isolation_resistance)
-          << "</h4>"
-             "<h4>Coolant Outlet Temperature: "
-          << String(coolant_outlet_temperature)
-          << "</h4>"
-             "<h4>Positive Contactors C Voltage: "
-          << String(positive_contactors_c_voltage)
-          << "</h4>"
-             "<h4>Rear Inverter Fuse Voltage: "
-          << String(rear_inverter_fuse_voltage)
-          << "</h4>"
-             "<h4>Current Sensor A: "
-          << String(current_sensor_a)
-          << "</h4>"
-             "<h4>Front Inverter Fuse Voltage: "
-          << String(front_inverter_fuse_voltage)
-          << "</h4>"
-             "<h4>Ancillary Fuse Voltage: "
-          << String(ancillary_fuse_voltage)
-          << "</h4>"
-             "<h4>Max Regen Power: "
-          << String(max_regen_power)
-          << " W</h4>"
-             "<h4>Negative Contactors Temperature: "
-          << String(negative_contactors_temperature)
-          << "</h4>"
-             "<h4>Positive Contactors Temperature: "
-          << String(positive_contactors_temperature) << "</h4>";
-
+  // clang-format off
+  content << "<h4>Positive Contactors B Voltage: " << String(positive_contactors_b_voltage) << "</h4>"
+             "<h4>Positive Contactors A Voltage: " << String(positive_contactors_a_voltage) << "</h4>"
+             "<h4>Isolation Resistance: " << String(isolation_resistance) << "</h4>"
+             "<h4>Coolant Outlet Temperature: " << String(coolant_outlet_temperature) << "</h4>"
+             "<h4>Positive Contactors C Voltage: " << String(positive_contactors_c_voltage)<< "</h4>"
+             "<h4>Rear Inverter Fuse Voltage: " << String(rear_inverter_fuse_voltage) << "</h4>"
+             "<h4>Current Sensor A: " << String(current_sensor_a) << "</h4>"
+             "<h4>Front Inverter Fuse Voltage: " << String(front_inverter_fuse_voltage) << "</h4>"
+             "<h4>Ancillary Fuse Voltage: " << String(ancillary_fuse_voltage) << "</h4>"
+             "<h4>Max Regen Power: " << String(max_regen_power) << " W</h4>"
+             "<h4>Negative Contactors Temperature: " << String(negative_contactors_temperature) << "</h4>"
+             "<h4>Positive Contactors Temperature: " << String(positive_contactors_temperature) << "</h4>";
   // clang-format on
 
   return content;

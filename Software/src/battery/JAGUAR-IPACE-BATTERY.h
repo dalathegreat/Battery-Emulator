@@ -6,7 +6,10 @@
 class JaguarIpaceBattery : public UdsCanBattery {
  public:
   // Use the default constructor to create the first or single battery.
-  JaguarIpaceBattery() : UdsCanBattery() { dtc = &datalayer_battery->dtc; }
+  JaguarIpaceBattery() : UdsCanBattery() {
+    datalayer_battery = &datalayer.battery;
+    dtc = &datalayer_battery->dtc;
+  }
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
