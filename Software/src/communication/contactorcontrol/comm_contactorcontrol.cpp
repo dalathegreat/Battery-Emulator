@@ -99,6 +99,7 @@ bool bms_power_is_active() {
 // Initialization functions
 
 const char* contactors = "Contactors";
+static bool battery2_contactors_ready = false;  // Pin claimed and set OFF by init_contactors()
 
 bool init_contactors() {
   // Init contactor pins
@@ -136,17 +137,19 @@ bool init_contactors() {
 
   if (contactor_control_enabled_double_battery) {
     auto second_contactors = esp32hal->SECOND_BATTERY_CONTACTORS_PIN();
-    if (!esp32hal->alloc_pins(contactors, second_contactors)) {
-      DEBUG_PRINTF("Secondary battery contactor control setup failed\n");
-      return false;
-    }
-
-    if (pwm_contactor_control) {
-      ledcAttachChannel(second_contactors, pwm_frequency, PWM_RESOLUTION, PWM_Battery2_Channel);
-      ledcWrite(second_contactors, PWM_OFF_DUTY);
+    if (esp32hal->alloc_pins(contactors, second_contactors)) {
+      if (pwm_contactor_control) {
+        ledcAttachChannel(second_contactors, pwm_frequency, PWM_RESOLUTION, PWM_Battery2_Channel);
+        ledcWrite(second_contactors, PWM_OFF_DUTY);
+      } else {
+        pinMode(second_contactors, OUTPUT);
+        set(second_contactors, OFF);
+      }
+      battery2_contactors_ready = true;
     } else {
-      pinMode(second_contactors, OUTPUT);
-      set(second_contactors, OFF);
+      // The pin belongs to something else, so it is never driven and battery 2 stays disconnected.
+      // GPIO_CONFLICT is an ERROR and faults the system; carry on so BMS power is still set up.
+      DEBUG_PRINTF("Secondary battery contactor control setup failed\n");
     }
   }
 
@@ -204,7 +207,7 @@ void handle_contactors() {
     handle_BMSpower();  // Some batteries need to be periodically power cycled
   }
 
-  if (contactor_control_enabled_double_battery) {
+  if (contactor_control_enabled_double_battery && battery2_contactors_ready) {
     handle_contactors_battery2();
   }
 
