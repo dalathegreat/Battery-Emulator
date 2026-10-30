@@ -46,6 +46,10 @@ int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
 }
 #endif  // SMALL_FLASH_DEVICE
 
+static int32_t soc_window_top() {
+  return datalayer.battery_settings.soc_window_top_lifted ? 10000 : datalayer.battery_settings.max_percentage;
+}
+
 /* The SOC window belongs to the installation, not to any one pack: it decides what the inverter
    is told, and a scaled number on a single pack of several describes nothing that exists. So
    once there is more than one battery the packs report exactly what they would with scaling
@@ -65,9 +69,8 @@ void scale_pack_values(DATALAYER_BATTERY_TYPE& pack) {
     return;
   }
 
-  int32_t delta_pct = datalayer.battery_settings.max_percentage - datalayer.battery_settings.min_percentage;
-  int32_t clamped_soc = CONSTRAIN(pack.status.real_soc, datalayer.battery_settings.min_percentage,
-                                  datalayer.battery_settings.max_percentage);
+  int32_t delta_pct = soc_window_top() - datalayer.battery_settings.min_percentage;
+  int32_t clamped_soc = CONSTRAIN(pack.status.real_soc, datalayer.battery_settings.min_percentage, soc_window_top());
   int32_t scaled_soc = 0;
   if (delta_pct != 0) {  //Safeguard against division by 0
     scaled_soc = 10000 * (clamped_soc - datalayer.battery_settings.min_percentage) / delta_pct;
@@ -95,9 +98,8 @@ static void apply_soc_window(DATALAYER_AGGREGATE_TYPE& agg) {
     return;
   }
 
-  int32_t delta_pct = datalayer.battery_settings.max_percentage - datalayer.battery_settings.min_percentage;
-  int32_t clamped_soc =
-      CONSTRAIN(agg.real_soc, datalayer.battery_settings.min_percentage, datalayer.battery_settings.max_percentage);
+  int32_t delta_pct = soc_window_top() - datalayer.battery_settings.min_percentage;
+  int32_t clamped_soc = CONSTRAIN(agg.real_soc, datalayer.battery_settings.min_percentage, soc_window_top());
   int32_t scaled_soc = 0;
   if (delta_pct != 0) {  //Safeguard against division by 0
     scaled_soc = 10000 * (clamped_soc - datalayer.battery_settings.min_percentage) / delta_pct;

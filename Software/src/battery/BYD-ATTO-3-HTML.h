@@ -281,6 +281,37 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
           "onclick='setBalancingMinutes()'>Save</button>";
       content += "</td></tr>";
 
+      content += "<tr>";
+      content += label_td;
+      content += "Full charge every:</td>";
+      content += value_td;
+      content +=
+          "<input type='number' style='width:4.5em;margin:0;padding:1px 4px;vertical-align:middle' "
+          "id='fullChargeDays' value='";
+      content += String(byd_datalayer->full_charge_every_days);
+      content +=
+          "' min='0' max='30'> days <button style='margin:0 0 0 8px;padding:2px 12px;vertical-align:middle' "
+          "onclick='setFullChargeDays()'>Save</button>";
+      content += "</td></tr>";
+
+      if (byd_datalayer->full_charge_every_days > 0) {
+        content += "<tr>";
+        content += label_td;
+        content += "Full charge:</td>";
+        content += value_td;
+        if (!datalayer.battery_settings.soc_scaling_active || !byd_datalayer->native_termination_enabled) {
+          content += "<span style='color:#8b949e'>Needs SOC scaling and native termination</span>";
+        } else if (datalayer.battery_settings.soc_window_top_lifted) {
+          content += "<span style='color:#d29922'>Window lifted to 100&percnt;, waiting for termination</span>";
+        } else {
+          const uint16_t due_hours = byd_datalayer->full_charge_every_days * 24;
+          const uint16_t left =
+              due_hours > byd_datalayer->full_charge_hours ? due_hours - byd_datalayer->full_charge_hours : 0;
+          content += "<span style='color:white'>Due in " + String(left / 24) + "d " + String(left % 24) + "h</span>";
+        }
+        content += "</td></tr>";
+      }
+
       if (byd_datalayer->balancing_state != 0) {
         const char* hold_text = "Idle";
         switch (byd_datalayer->balancing_state) {
@@ -666,6 +697,14 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "  xhr.onload=editComplete;";
       content += "  xhr.onerror=editError;";
       content += "  xhr.open('GET','/editBydAtto3BalancingMinutes?value='+v,true);";
+      content += "  xhr.send();";
+      content += "}";
+      content += "function setFullChargeDays(){";
+      content += "  var v = document.getElementById('fullChargeDays').value;";
+      content += "  var xhr=new XMLHttpRequest();";
+      content += "  xhr.onload=editComplete;";
+      content += "  xhr.onerror=editError;";
+      content += "  xhr.open('GET','/editBydAtto3FullChargeDays?value='+v,true);";
       content += "  xhr.send();";
       content += "}";
     }

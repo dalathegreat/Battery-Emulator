@@ -1249,6 +1249,29 @@ void BydAttoBattery::handle_balancing(unsigned long currentMillis) {
   datalayer_bydatto->balancing_remaining_min = remaining;
 }
 
+// Lift the SOC window top once N days pass without a termination, until the next one.
+void BydAttoBattery::handle_full_charge_schedule(unsigned long currentMillis) {
+  if (!datalayer_bydatto || datalayer_battery != &datalayer.battery) {
+    return;
+  }
+  if (chargeSessionTerminated && !fullChargeTerminationSeen) {
+    datalayer_bydatto->full_charge_hours = 0;
+  }
+  fullChargeTerminationSeen = chargeSessionTerminated;
+
+  const uint16_t due_hours = datalayer_bydatto->full_charge_every_days * 24;
+  const bool active =
+      due_hours > 0 && datalayer_bydatto->native_termination_enabled && datalayer.battery_settings.soc_scaling_active;
+  const bool lifted = active && datalayer_bydatto->full_charge_hours >= due_hours;
+  if (!active || lifted) {
+    fullChargeHourMillis = currentMillis;
+  } else if (currentMillis - fullChargeHourMillis >= FULL_CHARGE_HOUR_MS) {
+    fullChargeHourMillis += FULL_CHARGE_HOUR_MS;
+    datalayer_bydatto->full_charge_hours++;
+  }
+  datalayer.battery_settings.soc_window_top_lifted = lifted;
+}
+
 void BydAttoBattery::transmit_charge_session(unsigned long currentMillis) {
   if (chargeSessionState == CHG_SESSION_IDLE) {
     return;
@@ -1897,6 +1920,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     handle_contactor_control(currentMillis);
     handle_charge_session(currentMillis);
     handle_balancing(currentMillis);
+    handle_full_charge_schedule(currentMillis);
 
     // Byte 6 = rolling counter (high nibble counts up, low nibble 0xF), byte 7 = checksum
     frame6_counter = (frame6_counter + 1) & 0x0F;
