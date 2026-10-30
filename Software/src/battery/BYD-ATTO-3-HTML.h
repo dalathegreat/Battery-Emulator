@@ -123,11 +123,30 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     snprintf(feedbackStr, sizeof(feedbackStr), "0x%02X", byd_datalayer->contactor_feedback);
     content += "<h4>BMS raw status: mode ";
     content += feedbackStr;
-    content += ", state ";
-
-    // 0x344 byte1 low nibble: a BMS state code whose meaning is unconfirmed (reads 1 in
-    // idle/drive/discharge alike). byte0 is the real charge/drive truth, so show this raw.
-    content += String(byd_datalayer->discharge_status);
+    content += "</h4><h4>BMS charge state: ";
+    switch (byd_datalayer->bms_charge_state) {
+      case 0x00:
+        content += "Ready";
+        break;
+      case 0x01:
+        content += "Charging";
+        break;
+      case 0x02:
+        content += "Finished";
+        break;
+      case 0x04:
+        content += "Aborted";
+        break;
+      case 0x0D:
+        content += "Paused";
+        break;
+      case 0x0F:
+        content += "None";
+        break;
+      default:
+        content += String(byd_datalayer->bms_charge_state);
+        break;
+    }
     content += "</h4>";
 
     float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1f;
@@ -340,12 +359,11 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += label_td;
       content += "Grant from battery:</td>";
       content += value_td;
-      // Only ended (0x00, or 0x01 on the PW4) versus live is decoded, so lead with that. The raw value
-      // is kept for diagnostics but means nothing on its own: it ramps and sawtooths without the
-      // charger ever following it.
+      // The BMS charge state says whether it is granting. The raw 0x347 value is kept for diagnostics
+      // but means nothing on its own: it ramps and sawtooths without the charger ever following it.
       if (byd_datalayer->charge_session_state == 0) {
         content += "<span style='color:#8b949e'>&mdash;</span>";
-      } else if (byd_datalayer->charge_grant > 0x01) {
+      } else if (byd_datalayer->bms_charge_state == 0x01) {
         content += "<span style='color:#3fb950'>Granted</span>";
         content +=
             "<span style='font-weight:normal;color:#8b949e'> (" + String(byd_datalayer->charge_grant) + ")</span>";
