@@ -1226,6 +1226,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "UUGP_PWRLIM") {
     return String(settings.getUInt("UUGP_PWRLIM", 10000));
   }
+  if (var == "UUGP_MAXA") {
+    return String(settings.getUInt("UUGP_MAXA", 0));
+  }
   if (var == "UUGP_DSOC") {
     return String(settings.getUInt("UUGP_DSOC", 80));
   }
@@ -1535,6 +1538,15 @@ String qnhck_zero_text(uint16_t zero_mV) {
             value='on'
             %UUGP_ALLOW%
             title="When enabled, UUGP 0x4011 uses the configured power limit. When disabled, 0x4011 follows the BMS charge/discharge power limit." />
+
+         <label>UUGP maximum charging current (A): </label>
+         <input type='number'
+            name='UUGP_MAXA'
+            value="%UUGP_MAXA%"
+            min="0"
+            max="1000"
+            step="1"
+            title="Maximum charging current. Set to 0 to keep UUGP charging disabled until a cable-safe limit is configured." />
 
          <label>UUGP power limit (W): </label>
          <input type='number'
