@@ -87,12 +87,15 @@ bool UUGPCharger::ensure_tcp_connection() {
   last_tcp_rx_ms = now;
 
   DEBUG_PRINTF("UUGP Modbus TCP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+  set_event(EVENT_UUGP_DETECTED, 0);
+  clear_event(EVENT_UUGP_MISSING);
   return true;
 }
 
 void UUGPCharger::close_tcp_connection() {
   if (tcp_connected) {
     DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
+    set_event(EVENT_UUGP_MISSING, 0);
   }
   if (tcp_client.connected()) {
     tcp_client.stop();
