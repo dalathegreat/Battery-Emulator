@@ -9,6 +9,14 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
+static void set_uugp_event_once(EVENTS_ENUM_TYPE event, int16_t data = 0) {
+  const EVENTS_STRUCT_TYPE* current = get_event_pointer(event);
+  if (current != nullptr && current->state != EVENT_STATE_ACTIVE &&
+      current->state != EVENT_STATE_ACTIVE_LATCHED) {
+    set_event(event, data);
+  }
+}
+
 volatile uint16_t uugp_power_limit_W = 10000;
 // Fail closed until the installer configures a cable-safe current ceiling.
 volatile uint16_t uugp_max_charge_current_A = 0;
@@ -51,7 +59,8 @@ bool UUGPCharger::ensure_tcp_connection() {
 
   if (tcp_connected) {
     DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
-    set_event(EVENT_UUGP_MISSING, 0);
+    set_uugp_event_once(EVENT_UUGP_MISSING);
+    clear_event(EVENT_UUGP_DETECTED);
   }
   tcp_connected = false;
 
@@ -70,7 +79,7 @@ bool UUGPCharger::ensure_tcp_connection() {
   IPAddress address;
   if (!address.fromString(uugp_ip.c_str())) {
     DEBUG_PRINTF("UUGP Modbus TCP connect failed: invalid IP address '%s'\n", uugp_ip.c_str());
-    set_event(EVENT_UUGP_MISSING, 0);
+    set_uugp_event_once(EVENT_UUGP_MISSING);
     return false;
   }
 
@@ -78,7 +87,7 @@ bool UUGPCharger::ensure_tcp_connection() {
 
   if (!tcp_client.connect(address, uugp_port)) {
     DEBUG_PRINTF("UUGP Modbus TCP connect to %s:%u failed\n", uugp_ip.c_str(), uugp_port);
-    set_event(EVENT_UUGP_MISSING, 0);
+    set_uugp_event_once(EVENT_UUGP_MISSING);
     tcp_client.stop();
     return false;
   }
@@ -95,7 +104,8 @@ bool UUGPCharger::ensure_tcp_connection() {
 void UUGPCharger::close_tcp_connection() {
   if (tcp_connected) {
     DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
-    set_event(EVENT_UUGP_MISSING, 0);
+    set_uugp_event_once(EVENT_UUGP_MISSING);
+    clear_event(EVENT_UUGP_DETECTED);
   }
   if (tcp_client.connected()) {
     tcp_client.stop();
@@ -520,7 +530,7 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 
   if (last_response_ms != 0 && millis() - last_response_ms > 3000) {
     datalayer.charger.uugp_communication_ok = false;
-    set_event(EVENT_UUGP_COMMUNICATION_ERROR, 0);
+    set_uugp_event_once(EVENT_UUGP_COMMUNICATION_ERROR);
   }
 
   if (!initialization_complete) {
@@ -637,7 +647,7 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
    * Exception responses are never considered successful.
    */
   if (function & 0x80) {
-    set_event(EVENT_UUGP_COMMUNICATION_ERROR, function);
+    set_uugp_event_once(EVENT_UUGP_COMMUNICATION_ERROR, function);
     return;
   }
 
