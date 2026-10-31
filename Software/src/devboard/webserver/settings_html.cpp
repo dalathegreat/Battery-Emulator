@@ -1039,7 +1039,16 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHG_CURRENT_SETPOINT") {
+    if (user_selected_charger_type == ChargerType::UUGP) {
+      return String(uugp_max_charge_current_A);
+    }
     return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
+  }
+
+  if (var == "CHG_CURRENT_LABEL") {
+    return user_selected_charger_type == ChargerType::UUGP
+               ? "UUGP maximum charging current (cable limit):"
+               : "Charger Current Setpoint:";
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1382,7 +1391,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
 
-      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+      <h4><span>%CHG_CURRENT_LABEL% %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
 
       </div>)rawliteral"
 #define CHARGER_SETTINGS_SCRIPT \
@@ -1397,9 +1406,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
             if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointV?value='+value,true);xhr.send();}else{
             alert('Invalid value. Please enter a value between 0 and 1000');}}}
 
-          function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 48.');
-            if(value!==null){if(value>=0&&value<=1000){var xhr=new           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
-              alert('Invalid value. Please enter a value between 0 and 100');}}}
+          function editChargerSetpointIDC(){var value=prompt('Set charging current in amperes. For UUGP this is the maximum current allowed by the cable; configure it to the cable installation rating. Enter a whole number from 0 to 1000. 0 disables charging.');
+            if(value!==null){if(value>=0&&value<=1000&&Number.isInteger(Number(value))){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
+              alert('Invalid value. Enter a whole number between 0 and 1000 A.');}}}
 
           function editChargerSetpointEndI(){
             var value=prompt('Set amperage that terminates charge as being sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');
