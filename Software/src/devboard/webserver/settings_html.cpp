@@ -292,6 +292,17 @@ static String shunt_option_css(const char* attr, bool (*supported)(ShuntType, En
   return css;
 }
 
+// UUGP communicates over Modbus TCP rather than a CAN/RS485 interface.
+// Keep the normal charger interface choices, but expose Modbus for this charger.
+#ifndef SMALL_FLASH_DEVICE
+const char* name_for_charger_comm_interface(comm_interface interface) {
+  if (interface == comm_interface::Modbus) {
+    return "Modbus TCP";
+  }
+  return name_for_comm_interface(interface);
+}
+#endif  // SMALL_FLASH_DEVICE
+
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings);
 
 String settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
@@ -331,7 +342,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
   if (var == "CHGCOMM") {
     return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
-                            name_for_comm_interface);
+                            name_for_charger_comm_interface);
   }
 #endif  // SMALL_FLASH_DEVICE
 
