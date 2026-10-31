@@ -590,7 +590,7 @@ void init_webserver() {
       "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",      "INVICNT",     "FOXESSTYPE",  "FOXESSSUBTYPE",
       "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT",  "SYSLOGFAC",   "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",       "UUGP_PWRLIM", "UUGP_DSOC",
+      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",       "UUGP_PWRLIM", "UUGP_MAXA", "UUGP_DSOC",
       "UUGP_PORT"
 #endif  // SMALL_FLASH_DEVICE
   };
