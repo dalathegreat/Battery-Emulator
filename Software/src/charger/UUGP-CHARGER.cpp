@@ -39,10 +39,16 @@ float UUGPCharger::HVDC_output_current() {
 
 bool UUGPCharger::ensure_tcp_connection() {
   if (tcp_client.connected()) {
+    if (!tcp_connected) {
+      DEBUG_PRINTF("UUGP Modbus TCP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+    }
     tcp_connected = true;
     return true;
   }
 
+  if (tcp_connected) {
+    DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
+  }
   tcp_connected = false;
 
   if (uugp_ip.empty()) {
@@ -59,13 +65,14 @@ bool UUGPCharger::ensure_tcp_connection() {
 
   IPAddress address;
   if (!address.fromString(uugp_ip.c_str())) {
-    DEBUG_PRINTF("UUGP invalid IP address: %s\n", uugp_ip.c_str());
+    DEBUG_PRINTF("UUGP Modbus TCP connect failed: invalid IP address '%s'\n", uugp_ip.c_str());
     return false;
   }
 
   tcp_client.setConnectionTimeout(TCP_CONNECT_TIMEOUT_MS);
 
   if (!tcp_client.connect(address, uugp_port)) {
+    DEBUG_PRINTF("UUGP Modbus TCP connect to %s:%u failed\n", uugp_ip.c_str(), uugp_port);
     tcp_client.stop();
     return false;
   }
@@ -73,7 +80,7 @@ bool UUGPCharger::ensure_tcp_connection() {
   tcp_connected = true;
   last_tcp_rx_ms = now;
 
-  DEBUG_PRINTF("UUGP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+  DEBUG_PRINTF("UUGP Modbus TCP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
   return true;
 }
 
@@ -526,6 +533,18 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 
 void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* values, uint16_t count) {
   if (address == REG_EV_VOLTAGE && count >= 9) {
+    const bool changed =
+        datalayer.charger.uugp_ev_voltage_V != values[0] ||
+        datalayer.charger.uugp_ev_current_A != values[1] ||
+        datalayer.charger.uugp_power_factor != values[3] ||
+        datalayer.charger.uugp_module_status != values[4] ||
+        datalayer.charger.uugp_max_output_voltage_V != values[6] ||
+        datalayer.charger.uugp_max_output_current_A != values[7] ||
+        datalayer.charger.uugp_rated_power_W != values[8];
+    if (changed) {
+      DEBUG_PRINTF("UUGP EV/module parameters changed: EV=%uV/%uA PF=%u status=0x%04X max=%uV/%uA rated=%uW\n",
+                   values[0], values[1], values[3], values[4], values[6], values[7], values[8]);
+    }
     datalayer.charger.uugp_ev_voltage_V = values[0];
     datalayer.charger.uugp_ev_current_A = values[1];
     datalayer.charger.uugp_power_factor = values[3];
@@ -538,16 +557,31 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
   }
 
   if (address == REG_DC_VOLTAGE && count >= 3) {
-    datalayer.charger.uugp_dc_voltage_V = values[0] * 0.1f;
-
-    datalayer.charger.uugp_dc_current_A = static_cast<int16_t>(values[1]) * 0.1f;
-
-    datalayer.charger.uugp_dc_power_derating_kW = values[2] * 0.01f;
+    const float new_voltage = values[0] * 0.1f;
+    const float new_current = static_cast<int16_t>(values[1]) * 0.1f;
+    const float new_derating = values[2] * 0.01f;
+    if (datalayer.charger.uugp_dc_voltage_V != new_voltage ||
+        datalayer.charger.uugp_dc_current_A != new_current ||
+        datalayer.charger.uugp_dc_power_derating_kW != new_derating) {
+      DEBUG_PRINTF("UUGP DC parameters changed: %.1fV %.1fA derating=%.2fkW\n",
+                   new_voltage, new_current, new_derating);
+    }
+    datalayer.charger.uugp_dc_voltage_V = new_voltage;
+    datalayer.charger.uugp_dc_current_A = new_current;
+    datalayer.charger.uugp_dc_power_derating_kW = new_derating;
 
     return;
   }
 
   if (address == REG_CHARGE_MODE && count >= 5) {
+    if (datalayer.charger.uugp_control_mode != values[0] ||
+        datalayer.charger.uugp_charging_voltage_V != values[1] ||
+        datalayer.charger.uugp_charging_current_A != values[2] ||
+        datalayer.charger.uugp_active_power_W != values[3] ||
+        datalayer.charger.uugp_vehicle_soc != values[4]) {
+      DEBUG_PRINTF("UUGP charge status changed: mode=%u voltage=%uV current=%uA power=%uW SOC=%u%%\n",
+                   values[0], values[1], values[2], values[3], values[4]);
+    }
     datalayer.charger.uugp_control_mode = values[0];
 
     datalayer.charger.uugp_charging_voltage_V = values[1];
@@ -564,6 +598,10 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
 
 void UUGPCharger::process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count) {
   if (address == REG_CONTROL_MODE && count >= 1) {
+    if (datalayer.charger.uugp_control_mode != values[0]) {
+      DEBUG_PRINTF("UUGP operating mode changed: %u -> %u\n",
+                   datalayer.charger.uugp_control_mode, values[0]);
+    }
     datalayer.charger.uugp_control_mode = values[0];
   }
 }
