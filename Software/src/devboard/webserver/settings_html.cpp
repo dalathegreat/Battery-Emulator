@@ -1539,7 +1539,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
             step="1"
             title="Maximum UUGP power when discharge to home/grid is allowed." />
 
-         <label>UUGP discharge cut-off SOC (%): </label>
+         <label>UUGP discharge cut-off SOC (&#37;): </label>
          <input type='number'
             name='UUGP_DSOC'
             value="%UUGP_DSOC%"
