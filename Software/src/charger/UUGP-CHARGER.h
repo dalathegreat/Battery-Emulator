@@ -154,6 +154,7 @@ class UUGPCharger : public Charger, public Transmitter {
 };
 
 extern volatile uint16_t uugp_power_limit_W;
+extern volatile uint16_t uugp_max_charge_current_A;
 extern volatile uint16_t uugp_discharge_cutoff_soc;
 extern volatile bool uugp_allow_discharge_to_home_grid;
 
