@@ -1547,9 +1547,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
             max="90"
             step="1"
             title="UUGP discharge cut-off SOC." />
-         <p>
-         UUGP communication: Modbus TCP.
-         </p>
+         <div style='grid-column: 1 / -1;'>
+           UUGP communication: Modbus TCP.
+         </div>
          </div>
    )rawliteral"
 #else
@@ -1675,9 +1675,18 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #ifndef SMALL_FLASH_DEVICE
 #define UUGP_SETTINGS_CSS \
   R"rawliteral(
-    form .if-uugp {display: none;}
+    /* Keep UUGP controls in their own two-column grid. Using display:contents here
+       makes every nested element (including the explanatory paragraph) a child of
+       the Optional components grid and can push the following settings out of place. */
+    form .if-uugp {
+      display: none;
+      grid-column: 1 / -1;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 10px;
+      align-items: center;
+    }
     form[data-charger="3"] .if-uugp {
-      display: contents;
+      display: grid;
     }
   )rawliteral"
 #else
