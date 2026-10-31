@@ -11,8 +11,7 @@
 
 static void set_uugp_event_once(EVENTS_ENUM_TYPE event, int16_t data = 0) {
   const EVENTS_STRUCT_TYPE* current = get_event_pointer(event);
-  if (current != nullptr && current->state != EVENT_STATE_ACTIVE &&
-      current->state != EVENT_STATE_ACTIVE_LATCHED) {
+  if (current != nullptr && current->state != EVENT_STATE_ACTIVE && current->state != EVENT_STATE_ACTIVE_LATCHED) {
     set_event(event, data);
   }
 }
