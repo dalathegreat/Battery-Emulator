@@ -111,8 +111,12 @@ void SolaxInverter::update_values() {
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.aggregate.voltage_dV);
-  SOLAX_1878.data.u8[1] = ((datalayer.aggregate.voltage_dV) >> 8);
+  // X1-AC/X1-Fit Gen3 Manager firmware reads 0x1878 byte0 as a field count and, when non-zero,
+  // byte1 as the BMS minimum SOC, which the DSP enforces as a floor on Min Capacity. Sending the
+  // pack voltage here made that floor voltage>>8 (13/14/15 % at 333/358/384 V). Send a fixed
+  // count (7 = keep parsing the capacity in bytes 4-7) and the inverter's own default minimum.
+  SOLAX_1878.data.u8[0] = 7;
+  SOLAX_1878.data.u8[1] = 10;
 
   SOLAX_1878.data.u8[4] = (uint8_t)datalayer.aggregate.reported_total_capacity_Wh;
   SOLAX_1878.data.u8[5] = (datalayer.aggregate.reported_total_capacity_Wh >> 8);

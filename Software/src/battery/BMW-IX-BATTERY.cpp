@@ -436,7 +436,12 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
 
   datalayer_battery->status.real_soc = avg_soc_state;
 
-  datalayer_battery->status.voltage_dV = battery_voltage;
+  if (battery_voltage_cV < 65530) {
+    datalayer_battery->status.voltage_dV = (battery_voltage_cV / 10);  // Convert cV to dV
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_index);
+  } else {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0, battery_index);
+  }
 
   datalayer_battery->status.current_dA = battery_current;
 
@@ -496,6 +501,9 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
       (datalayer_battery->status.cell_voltages_mV[78] < 1000)) {
     //If we detect cellvoltage on cell78, but nothing on 79, we can confirm we are on SE12
     detected_number_of_cells = 78;  //We are on 78S SE12 battery from BMW iX1
+  } else if ((datalayer_battery->status.cell_voltages_mV[87] > 1000) &&
+             (datalayer_battery->status.cell_voltages_mV[88] < 1000)) {
+    detected_number_of_cells = 88;  // 88s BMW ix1/ix3
   } else if ((datalayer_battery->status.cell_voltages_mV[89] > 1000) &&
              (datalayer_battery->status.cell_voltages_mV[90] < 1000)) {
     detected_number_of_cells = 90;
@@ -523,6 +531,9 @@ void BmwIXBattery::update_values() {  //This function maps all the values fetche
   if (detected_number_of_cells == 78) {
     datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_78S_DV;
     datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_78S_DV;
+  } else if (detected_number_of_cells == 88) {
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_88S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_88S_DV;
   } else if (detected_number_of_cells == 90) {
     datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
     datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
@@ -624,7 +635,7 @@ void BmwIXBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Removed immediate cell voltage parsing blocks - now handled by ISO-TP multi-frame handler below
 
       if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0x4D)) {  //Main Battery Voltage (Pre Contactor)
-        battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+        battery_voltage_cV = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
       }
 
       if ((rx_frame.DLC == 7) && (rx_frame.data.u8[4] == 0x4A)) {  //Main Battery Voltage (After Contactor)
@@ -961,6 +972,12 @@ void BmwIXBattery::setup(void) {  // Performs one time setup at startup
 }
 
 void BmwIXBattery::HandleIncomingUserRequest(void) {
+  //First of all, check if any equipment stop signal is active. If so, open contactors and ignore user request to close contactors
+  if (datalayer.system.info.equipment_stop_active) {
+    BmwIxOpenContactors();
+    return;  // Early return
+  }
+
   // Debug user request to open or close the contactors
   if (userRequestContactorClose) {
     logging.printf("User req. contactor close");
@@ -990,6 +1007,12 @@ void BmwIXBattery::HandleIncomingUserRequest(void) {
 }
 
 void BmwIXBattery::HandleIncomingInverterRequest(void) {
+  //First of all, check if any equipment stop signal is active. If so, open contactors and ignore inverter request to close contactors
+  if (datalayer.system.info.equipment_stop_active) {
+    BmwIxOpenContactors();
+    return;  // Early return
+  }
+
   InverterContactorCloseRequest.present = datalayer.system.status.inverter_allows_contactor_closing;
   // Detect edge
   if (InverterContactorCloseRequest.previous == false && InverterContactorCloseRequest.present == true) {

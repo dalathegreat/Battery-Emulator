@@ -82,6 +82,8 @@ class BmwIXBattery : public CanBattery {
   bool startup_reset_complete = false;               // Track if startup BMS reset is done
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;   // 4.3V per cell | SE12 battery, BMW iX1, 66.45kWh 286.3Vnom
   static const int MIN_PACK_VOLTAGE_78S_DV = 2184;   // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_88S_DV = 3784;   // 4.3V per cell | BMW ix1/ix3
+  static const int MIN_PACK_VOLTAGE_88S_DV = 2464;   // 2.8V per cell
   static const int MAX_PACK_VOLTAGE_90S_DV = 3870;   // 4.3V per cell | SE11 | SE 50
   static const int MIN_PACK_VOLTAGE_90S_DV = 2520;   // 2.8V per cell
   static const int MAX_PACK_VOLTAGE_94S_DV = 4042;   // 4.3V per cell | SE16
@@ -614,7 +616,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   bool battery_info_available = false;
   uint32_t battery_serial_number = 0;
   int32_t battery_current = 0;
-  uint16_t battery_voltage = 3700;  //Startup with valid values - needs fixing in future
+  uint16_t battery_voltage_cV = 37000;  //Startup with valid values - needs fixing in future
   uint16_t terminal30_12v_voltage = 1200;
   uint16_t battery_voltage_after_contactor = 0;
   uint16_t min_soc_state = 5000;
