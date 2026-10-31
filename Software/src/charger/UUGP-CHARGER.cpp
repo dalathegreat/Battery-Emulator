@@ -7,6 +7,7 @@
 #include <cstring>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/logging.h"
+#include "../devboard/utils/events.h"
 
 volatile uint16_t uugp_power_limit_W = 10000;
 // Fail closed until the installer configures a cable-safe current ceiling.
@@ -41,6 +42,8 @@ bool UUGPCharger::ensure_tcp_connection() {
   if (tcp_client.connected()) {
     if (!tcp_connected) {
       DEBUG_PRINTF("UUGP Modbus TCP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+      set_event(EVENT_UUGP_DETECTED, 0);
+      clear_event(EVENT_UUGP_MISSING);
     }
     tcp_connected = true;
     return true;
@@ -48,6 +51,7 @@ bool UUGPCharger::ensure_tcp_connection() {
 
   if (tcp_connected) {
     DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
+    set_event(EVENT_UUGP_MISSING, 0);
   }
   tcp_connected = false;
 
@@ -66,6 +70,7 @@ bool UUGPCharger::ensure_tcp_connection() {
   IPAddress address;
   if (!address.fromString(uugp_ip.c_str())) {
     DEBUG_PRINTF("UUGP Modbus TCP connect failed: invalid IP address '%s'\n", uugp_ip.c_str());
+    set_event(EVENT_UUGP_MISSING, 0);
     return false;
   }
 
@@ -73,6 +78,7 @@ bool UUGPCharger::ensure_tcp_connection() {
 
   if (!tcp_client.connect(address, uugp_port)) {
     DEBUG_PRINTF("UUGP Modbus TCP connect to %s:%u failed\n", uugp_ip.c_str(), uugp_port);
+    set_event(EVENT_UUGP_MISSING, 0);
     tcp_client.stop();
     return false;
   }
@@ -511,6 +517,7 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 
   if (last_response_ms != 0 && millis() - last_response_ms > 3000) {
     datalayer.charger.uugp_communication_ok = false;
+    set_event(EVENT_UUGP_COMMUNICATION_ERROR, 0);
   }
 
   if (!initialization_complete) {
@@ -627,6 +634,7 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
    * Exception responses are never considered successful.
    */
   if (function & 0x80) {
+    set_event(EVENT_UUGP_COMMUNICATION_ERROR, function);
     return;
   }
 
@@ -647,6 +655,7 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
     last_response_ms = millis();
     last_ack_transaction_id = response_transaction;
     datalayer.charger.uugp_communication_ok = true;
+    clear_event(EVENT_UUGP_COMMUNICATION_ERROR);
     return;
   }
 
@@ -680,6 +689,7 @@ void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
 
   last_response_ms = millis();
   datalayer.charger.uugp_communication_ok = true;
+  clear_event(EVENT_UUGP_COMMUNICATION_ERROR);
 }
 
 void UUGPCharger::receive_tcp() {
