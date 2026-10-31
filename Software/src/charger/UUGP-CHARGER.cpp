@@ -9,6 +9,8 @@
 #include "../devboard/utils/logging.h"
 
 volatile uint16_t uugp_power_limit_W = 10000;
+// Fail closed until the installer configures a cable-safe current ceiling.
+volatile uint16_t uugp_max_charge_current_A = 0;
 volatile uint16_t uugp_discharge_cutoff_soc = 80;
 volatile bool uugp_allow_discharge_to_home_grid = false;
 
@@ -382,20 +384,51 @@ void UUGPCharger::update_power_limit() {
     return;
   }
 
-  const uint16_t bms_limit = bms_power_limit_W();
-  uint16_t power_limit = bms_limit;
+  uint16_t power_limit = 0;
 
-  /*
-   * User configuration can reduce the BMS limit, but can never
-   * increase it. The BMS/safety layer remains authoritative.
-   */
-  if (uugp_allow_discharge_to_home_grid && uugp_power_limit_W < power_limit) {
-    power_limit = uugp_power_limit_W;
-  }
+  if (datalayer.charger.uugp_control_mode == 1) {
+    /*
+     * Charging: the UUGP manual exposes no writable current register, only
+     * REG_POWER_LIMIT (0x4011). Derive a conservative power ceiling from
+     * the configured cable current using the charger's maximum output
+     * voltage, not its instantaneous voltage. That keeps the implied
+     * current ceiling valid as output voltage rises.
+     *
+     * Apply every independent ceiling: user-configured cable current,
+     * BMS current, charger module current, BMS power and the UUGP 22 kW cap.
+     * Missing/zero data fails closed (0 W).
+     */
+    uint32_t current_limit_A = uugp_max_charge_current_A;
+    const uint32_t bms_current_A = datalayer.battery.status.max_charge_current_dA / 10;
+    const uint32_t charger_current_A = datalayer.charger.uugp_max_output_current_A;
+    const uint32_t max_output_voltage_V = datalayer.charger.uugp_max_output_voltage_V;
 
-  if (power_limit > 22000) {
-    power_limit = 22000;
+    if (current_limit_A == 0 || bms_current_A == 0 || charger_current_A == 0 || max_output_voltage_V == 0) {
+      power_limit = 0;
+    } else {
+      if (current_limit_A > bms_current_A) {
+        current_limit_A = bms_current_A;
+      }
+      if (current_limit_A > charger_current_A) {
+        current_limit_A = charger_current_A;
+      }
+
+      const uint32_t current_based_power_W = current_limit_A * max_output_voltage_V;
+      const uint32_t bms_charge_power_W = datalayer.battery.status.max_charge_power_W;
+      power_limit = static_cast<uint16_t>(
+          MIN(MIN(current_based_power_W, bms_charge_power_W), static_cast<uint32_t>(22000)));
+    }
+  } else if (datalayer.charger.uugp_control_mode == 2) {
+    // Discharging: retain the existing BMS limit and optional home/grid power ceiling.
+    power_limit = bms_power_limit_W();
+    if (uugp_allow_discharge_to_home_grid && uugp_power_limit_W < power_limit) {
+      power_limit = uugp_power_limit_W;
+    }
+    if (power_limit > 22000) {
+      power_limit = 22000;
+    }
   }
+  // Mode 0 (stop) and unknown modes always command zero power.
 
   write_single(REG_POWER_LIMIT, power_limit);
 }
