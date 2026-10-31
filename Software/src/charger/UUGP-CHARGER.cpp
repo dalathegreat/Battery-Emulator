@@ -6,8 +6,8 @@
 
 #include <cstring>
 #include "../datalayer/datalayer.h"
-#include "../devboard/utils/logging.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 volatile uint16_t uugp_power_limit_W = 10000;
 // Fail closed until the installer configures a cable-safe current ceiling.
