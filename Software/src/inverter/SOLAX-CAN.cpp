@@ -164,6 +164,9 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     if ((rx_frame.data.u8[0] == (0x01)) || (rx_frame.data.u8[0] == (0x02))) {
       LastFrameTime = millis();
 
+      // 0x51 disables the inverter contactor control on dual-battery inverters
+      SOLAX_187A.data.u8[1] = configured_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed ? 0x51 : 0x50;
+
       // AlwaysClosed mode: Bypass state machine, keep contactors always closed
       if (configured_contactor_mode == inverter_contactor_mode_enum::AlwaysClosed) {
         datalayer.system.status.inverter_allows_contactor_closing = true;
