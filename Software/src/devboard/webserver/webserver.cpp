@@ -1264,9 +1264,24 @@ void init_webserver() {
 
     // Route for editing ChargerTargetA
     update_string_setting(
-        "/updateChargeSetpointA", [](String value) { datalayer.charger.charger_setpoint_HV_IDC = value.toFloat(); },
+        "/updateChargeSetpointA",
         [](String value) {
-          float val = value.toFloat();
+          const float val = value.toFloat();
+          if (user_selected_charger_type == ChargerType::UUGP) {
+            // The UUGP's writable actuator is its power limit. Store the operator's
+            // current ceiling; UUGPCharger converts it to a conservative power ceiling.
+            uugp_max_charge_current_A = static_cast<uint16_t>(val);
+            BatteryEmulatorSettingsStore settings;
+            settings.saveUInt("UUGP_MAXA", uugp_max_charge_current_A);
+          } else {
+            datalayer.charger.charger_setpoint_HV_IDC = val;
+          }
+        },
+        [](String value) {
+          const float val = value.toFloat();
+          if (user_selected_charger_type == ChargerType::UUGP) {
+            return val >= 0.0f && val <= 1000.0f && static_cast<uint16_t>(val) == val;
+          }
           return (val <= CHARGER_MAX_A) && (val * 10.0f <= datalayer.battery_settings.max_user_set_charge_dA) &&
                  (val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER);
         });
