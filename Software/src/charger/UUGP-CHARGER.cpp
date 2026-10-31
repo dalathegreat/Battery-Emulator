@@ -415,8 +415,14 @@ void UUGPCharger::update_power_limit() {
 
       const uint32_t current_based_power_W = current_limit_A * max_output_voltage_V;
       const uint32_t bms_charge_power_W = datalayer.battery.status.max_charge_power_W;
-      power_limit =
-          static_cast<uint16_t>(MIN(MIN(current_based_power_W, bms_charge_power_W), static_cast<uint32_t>(22000)));
+      uint32_t effective_power_limit_W = current_based_power_W;
+      if (bms_charge_power_W < effective_power_limit_W) {
+        effective_power_limit_W = bms_charge_power_W;
+      }
+      if (effective_power_limit_W > 22000U) {
+        effective_power_limit_W = 22000U;
+      }
+      power_limit = static_cast<uint16_t>(effective_power_limit_W);
     }
   } else if (datalayer.charger.uugp_control_mode == 2) {
     // Discharging: retain the existing BMS limit and optional home/grid power ceiling.
