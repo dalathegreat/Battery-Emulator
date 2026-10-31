@@ -537,13 +537,10 @@ void UUGPCharger::transmit(unsigned long currentMillis) {
 void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* values, uint16_t count) {
   if (address == REG_EV_VOLTAGE && count >= 9) {
     const bool changed =
-        datalayer.charger.uugp_ev_voltage_V != values[0] ||
-        datalayer.charger.uugp_ev_current_A != values[1] ||
-        datalayer.charger.uugp_power_factor != values[3] ||
-        datalayer.charger.uugp_module_status != values[4] ||
+        datalayer.charger.uugp_ev_voltage_V != values[0] || datalayer.charger.uugp_ev_current_A != values[1] ||
+        datalayer.charger.uugp_power_factor != values[3] || datalayer.charger.uugp_module_status != values[4] ||
         datalayer.charger.uugp_max_output_voltage_V != values[6] ||
-        datalayer.charger.uugp_max_output_current_A != values[7] ||
-        datalayer.charger.uugp_rated_power_W != values[8];
+        datalayer.charger.uugp_max_output_current_A != values[7] || datalayer.charger.uugp_rated_power_W != values[8];
     if (changed) {
       DEBUG_PRINTF("UUGP EV/module parameters changed: EV=%uV/%uA PF=%u status=0x%04X max=%uV/%uA rated=%uW\n",
                    values[0], values[1], values[3], values[4], values[6], values[7], values[8]);
@@ -563,11 +560,9 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
     const float new_voltage = values[0] * 0.1f;
     const float new_current = static_cast<int16_t>(values[1]) * 0.1f;
     const float new_derating = values[2] * 0.01f;
-    if (datalayer.charger.uugp_dc_voltage_V != new_voltage ||
-        datalayer.charger.uugp_dc_current_A != new_current ||
+    if (datalayer.charger.uugp_dc_voltage_V != new_voltage || datalayer.charger.uugp_dc_current_A != new_current ||
         datalayer.charger.uugp_dc_power_derating_kW != new_derating) {
-      DEBUG_PRINTF("UUGP DC parameters changed: %.1fV %.1fA derating=%.2fkW\n",
-                   new_voltage, new_current, new_derating);
+      DEBUG_PRINTF("UUGP DC parameters changed: %.1fV %.1fA derating=%.2fkW\n", new_voltage, new_current, new_derating);
     }
     datalayer.charger.uugp_dc_voltage_V = new_voltage;
     datalayer.charger.uugp_dc_current_A = new_current;
@@ -577,13 +572,11 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
   }
 
   if (address == REG_CHARGE_MODE && count >= 5) {
-    if (datalayer.charger.uugp_control_mode != values[0] ||
-        datalayer.charger.uugp_charging_voltage_V != values[1] ||
-        datalayer.charger.uugp_charging_current_A != values[2] ||
-        datalayer.charger.uugp_active_power_W != values[3] ||
+    if (datalayer.charger.uugp_control_mode != values[0] || datalayer.charger.uugp_charging_voltage_V != values[1] ||
+        datalayer.charger.uugp_charging_current_A != values[2] || datalayer.charger.uugp_active_power_W != values[3] ||
         datalayer.charger.uugp_vehicle_soc != values[4]) {
-      DEBUG_PRINTF("UUGP charge status changed: mode=%u voltage=%uV current=%uA power=%uW SOC=%u%%\n",
-                   values[0], values[1], values[2], values[3], values[4]);
+      DEBUG_PRINTF("UUGP charge status changed: mode=%u voltage=%uV current=%uA power=%uW SOC=%u%%\n", values[0],
+                   values[1], values[2], values[3], values[4]);
     }
     datalayer.charger.uugp_control_mode = values[0];
 
@@ -602,8 +595,7 @@ void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* valu
 void UUGPCharger::process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count) {
   if (address == REG_CONTROL_MODE && count >= 1) {
     if (datalayer.charger.uugp_control_mode != values[0]) {
-      DEBUG_PRINTF("UUGP operating mode changed: %u -> %u\n",
-                   datalayer.charger.uugp_control_mode, values[0]);
+      DEBUG_PRINTF("UUGP operating mode changed: %u -> %u\n", datalayer.charger.uugp_control_mode, values[0]);
     }
     datalayer.charger.uugp_control_mode = values[0];
   }
