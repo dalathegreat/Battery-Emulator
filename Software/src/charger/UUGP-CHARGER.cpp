@@ -85,6 +85,9 @@ bool UUGPCharger::ensure_tcp_connection() {
 }
 
 void UUGPCharger::close_tcp_connection() {
+  if (tcp_connected) {
+    DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
+  }
   if (tcp_client.connected()) {
     tcp_client.stop();
   }
