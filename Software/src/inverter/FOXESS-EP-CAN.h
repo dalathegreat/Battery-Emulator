@@ -35,21 +35,6 @@ class FoxessEpCanInverter : public CanInverterProtocol {
   uint8_t temperature_max_per_pack = 0;
   uint8_t temperature_min_per_pack = 0;
   uint8_t current_pack_info = 0;
-  // Installation energy accounting measured by Battery-Emulator.
-  // Charged and discharged counters are the authoritative paired totals.
-  // The throughput counter remains temporarily for 0x1878 compatibility.
-  uint64_t foxess_throughput_energy_Wh = 0ULL;
-  uint64_t foxess_installation_charged_energy_Wh = 0ULL;
-  uint64_t foxess_installation_discharged_energy_Wh = 0ULL;
-  uint64_t foxess_charged_energy_remainder = 0;
-  uint64_t foxess_discharged_energy_remainder = 0;
-  uint64_t foxess_charged_capacity_dAh = 0ULL;
-  uint64_t foxess_discharged_capacity_dAh = 0ULL;
-  uint64_t foxess_charged_capacity_remainder_dAms = 0ULL;
-  uint64_t foxess_discharged_capacity_remainder_dAms = 0ULL;
-  unsigned long foxess_previous_energy_millis = 0;
-  bool foxess_energy_counter_initialised = false;
-
   // Batch send of CAN message variables
   const uint8_t delay_between_batches_ms = 10;
   bool send_bms_info = false;
