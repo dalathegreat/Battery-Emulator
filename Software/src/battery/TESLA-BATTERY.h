@@ -198,7 +198,7 @@ class TeslaBattery : public CanBattery {
                                     .ext_ID = false,
                                     .DLC = 8,
                                     .ID = 0x221,
-                                    .data = {0x61, 0x05, 0x55, 0x05, 0x00, 0x00, 0x00, 0xE3}};
+                                    .data = {0x61, 0x05, 0x55, 0x55, 0x01, 0x02, 0x00, 0xE3}};
 
   //0x221 VCFRONT_LVPowerState "Accessory"
   //VCFRONT_vehiclePowerState VEHICLE_POWER_STATE_ACCESSORY (Mux0, Counter 15): "cycle_time" 50ms each mux/LVPowerStateIndex, VCFRONT_LVPowerStateChecksum/VCFRONT_LVPowerStateCounter generated via generateMuxFrameCounterChecksum
