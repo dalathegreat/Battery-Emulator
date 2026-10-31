@@ -298,6 +298,7 @@ void init_events(void) {
   events.entries[EVENT_UUGP_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_UUGP_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_UUGP_COMMUNICATION_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_UUGP_PARAMETERS_CHANGED].level = EVENT_LEVEL_INFO;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, int16_t data) {
@@ -692,6 +693,8 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "UUGP charger Modbus TCP connection lost or unavailable. Check IP address, port and network.";
     case EVENT_UUGP_COMMUNICATION_ERROR:
       return "UUGP charger Modbus communication timed out or returned an exception.";
+    case EVENT_UUGP_PARAMETERS_CHANGED:
+      return "UUGP charger input parameters changed; see debug log for register values.";
 #endif
     case EVENT_EQUIPMENT_STOP:
       return "User requested stop, either via equipment stop circuit or webserver Open Contactor button";
