@@ -360,6 +360,11 @@ void init_stored_settings() {
   datalayer_extended.bydAtto3.balancing_enabled = settings.getBool("BYDBALEN", false);
   datalayer_extended.bydAtto3.balancing_hold_minutes = constrain(settings.getUInt("BYDBALMIN", 30), 1u, 1440u);
 #ifndef SMALL_FLASH_DEVICE
+  uugp_max_charge_current_A = settings.getUInt("UUGP_MAXA", 0);
+  if (uugp_max_charge_current_A > 1000) {
+    uugp_max_charge_current_A = 1000;
+  }
+
   uugp_power_limit_W = settings.getUInt("UUGP_PWRLIM", 10000);
   if (uugp_power_limit_W > 22000) {
     uugp_power_limit_W = 22000;
@@ -453,6 +458,7 @@ void store_settings() {
   settings.saveUInt("BYDBALMIN", datalayer_extended.bydAtto3.balancing_hold_minutes);
 #ifndef SMALL_FLASH_DEVICE
   settings.saveUInt("UUGP_PWRLIM", uugp_power_limit_W);
+  settings.saveUInt("UUGP_MAXA", uugp_max_charge_current_A);
   settings.saveUInt("UUGP_DSOC", uugp_discharge_cutoff_soc);
   settings.saveBool("UUGP_ALLOW", uugp_allow_discharge_to_home_grid);
 #endif
