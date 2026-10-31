@@ -1046,9 +1046,8 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHG_CURRENT_LABEL") {
-    return user_selected_charger_type == ChargerType::UUGP
-               ? "UUGP maximum charging current (cable limit):"
-               : "Charger Current Setpoint:";
+    return user_selected_charger_type == ChargerType::UUGP ? "UUGP maximum charging current (cable limit):"
+                                                           : "Charger Current Setpoint:";
   }
 #endif  // SMALL_FLASH_DEVICE
 
