@@ -304,7 +304,8 @@ void init_events(void) {
   set_battery_event_level(EVENT_BMS_RESET_REQ_FAIL, EVENT_LEVEL_INFO);
   set_battery_event_level(EVENT_BATTERY_TEMP_DEVIATION_HIGH, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_REQUESTS_HEAT, EVENT_LEVEL_INFO);
-  set_battery_event_level(EVENT_BATTERY_WARMED_UP, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_TOO_LOW_TO_HEAT, EVENT_LEVEL_INFO);
+  set_battery_event_level(EVENT_BATTERY_COLD, EVENT_LEVEL_INFO);
   events.entries[EVENT_PERIODIC_BMS_RESET_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
@@ -542,8 +543,11 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
              "50 W at setting + 50 mV. Clears when the spread shrinks. Data = deviation in mV";
     case EVENT_BATTERY_REQUESTS_HEAT:
       return "COLD BATTERY! Battery requesting heating pads to activate!";
-    case EVENT_BATTERY_WARMED_UP:
-      return "Battery requesting heating pads to stop. The battery is now warm enough.";
+    case EVENT_BATTERY_TOO_LOW_TO_HEAT:
+      return "Battery is cold, but its charge is too low to power the heating pads. Charge the battery to allow "
+             "heating!";
+    case EVENT_BATTERY_COLD:
+      return "Battery is cold. Power limits may be reduced until it warms up.";
     case EVENT_BATTERY_OVERHEAT:
       return "Battery overheated. Shutting down to prevent thermal runaway!";
     case EVENT_BATTERY_OVERVOLTAGE:
