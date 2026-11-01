@@ -65,7 +65,7 @@ unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int 
 //The degradation reset is only for 2011-2017 24/30kWh ZE0/AZE0 packs, and only for one that is on
 //the bus right now. The generation defaults to ZE0 until a ZE1-only broadcast says otherwise, so
 //before this pack has sent anything it cannot be told apart from a ZE1. battery_can_alive latches on
-//its first 0x5BC; the alive counter alone is no proof, as it starts just short of CAN_STILL_ALIVE at
+//its first message; the alive counter alone is no proof, as it starts just short of CAN_STILL_ALIVE at
 //boot and only reaches zero a minute after the pack falls silent.
 bool NissanLeafBattery::supports_reset_SOH() {
   return battery_can_alive && datalayer_battery->status.CAN_battery_still_alive &&
@@ -617,6 +617,17 @@ void NissanLeafBattery::update_current_offset() {
 }
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  //Everything on this bus comes from the LBC, except another tester's requests. Its first message,
+  //rather than its first 0x5BC, starts the cyclic messages: a ZE0 sends 0x5BC only every 500 ms,
+  //longer than the LBC waits for 0x50B and 0x50C before counting them as missing.
+  if (rx_frame.ID != 0x79B) {
+    lbc_heard_ms = millis();
+    if (!battery_can_alive) {
+      battery_can_alive = true;
+      lbc_first_heard_ms = lbc_heard_ms;
+    }
+  }
+
   switch (rx_frame.ID) {
     case 0x1DB: {
       if (is_message_corrupt(rx_frame)) {
@@ -693,7 +704,6 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_status_seen |= 0x02;
       break;
     case 0x5BC:
-      battery_can_alive = true;
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
       battery_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
@@ -1357,10 +1367,17 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   handle_DTC_requests(currentMillis);
 
-  if (datalayer.system.status.bms_reset_status != BMS_RESET_IDLE) {
+  /* During a BMS reset the cyclic messages stop only while the BMS power is cut. The LBC expects them
+     whenever its ignition input is on, so it is kept fed while the reset waits for the pause to take
+     effect, and again as soon as it is heard once the power is back, rather than when the reset is
+     over seconds later, by when it would have stored U1000. Until it is heard nothing would
+     acknowledge them. Where only its ignition line is cut, the LBC talks throughout, so they resume
+     with the power. The group polling waits for the reset to be over either way. */
+  const BMSResetState bms_reset_status = datalayer.system.status.bms_reset_status;
+  const bool lbc_reachable =
+      (bms_reset_status != BMS_RESET_POWERED_OFF) && (currentMillis - lbc_heard_ms) < LBC_SILENT_MS;
+  if (bms_reset_status != BMS_RESET_IDLE && !lbc_reachable) {
     // Transmitting towards battery is halted while BMS is being reset
-    previousMillis10 = currentMillis;
-    previousMillis100 = currentMillis;
     previousMillis10s = currentMillis;
     /* The LBC comes back from the power cycle with a fresh session, so the groups that are asked
        for only until they answer are armed to be read again, at the same burst rate used at boot.
@@ -1372,6 +1389,14 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   }
 
   if (battery_can_alive) {
+
+    if (!generation_settled &&
+        (LEAF_battery_Type != ZE0_BATTERY || currentMillis - lbc_first_heard_ms >= GENERATION_SETTLE_MS)) {
+      generation_settled = true;  //See GENERATION_SETTLE_MS
+    }
+    //The inverter and charger stand-ins are for ZE0 and AZE0 packs. A ZE1 checks a different set, and
+    //sends a 0x380 of its own.
+    const bool stand_in_for_vehicle = generation_settled && (LEAF_battery_Type != ZE1_BATTERY);
 
     //Send 10ms message
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -1509,6 +1534,12 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&LEAF_1F2);
       }
 
+      if (stand_in_for_vehicle) {
+        LEAF_1DA.data.u8[6] = mprun10;  //MG_CLOCK, must change on every message
+        LEAF_1DA.data.u8[7] = calculate_crc(LEAF_1DA);
+        transmit_can_frame(&LEAF_1DA);
+      }
+
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 
       mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
@@ -1527,7 +1558,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       previousMillis100 = currentMillis;
 
 #ifndef SMALL_FLASH_DEVICE
-      if (stateMachineClearSOH < 255) {  // Enter the ClearSOH statemachine only if we request it
+      // Enter the ClearSOH statemachine only if we request it, and not while the LBC is being reset
+      if (stateMachineClearSOH < 255 && bms_reset_status == BMS_RESET_IDLE) {
         clearSOH();
       }
 #endif
@@ -1555,8 +1587,27 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         }
       }
 
+      //The stand-ins for the charger, and on AZE0 for the climate control, go out with the first
+      //0x50B that sets CANMASK, and the LBC only counts them as missing after 300 ms
+      if (stand_in_for_vehicle) {
+        if (LEAF_battery_Type == ZE0_BATTERY) {
+          transmit_can_frame(&LEAF_380);
+        } else {
+          if (!leaf_pdm_charger_in_use()) {  //The LEAF PDM charger sends its own 0x390
+            transmit_can_frame(&LEAF_390);
+          }
+          transmit_can_frame(&LEAF_54C);
+        }
+      }
+
       // VCM message, containing info if battery should sleep or stay awake
-      transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      //CANMASK (byte 2 bit 2) waits for the generation to settle, see GENERATION_SETTLE_MS
+      if (generation_settled) {
+        LEAF_50B.data.u8[2] |= 0x04;
+      } else {
+        LEAF_50B.data.u8[2] &= ~0x04;
+      }
+      transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
@@ -1599,10 +1650,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
       //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?),
       //and don't start a group transfer while a DTC operation is pending or in flight: the two share
-      //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC.
+      //the 0x79B/0x7BB channel, and whichever request lands second gets dropped by the LBC. Nor during
+      //a BMS reset, when the LBC is about to lose its power or has only just got it back.
       bool dtc_operation_pending =
           UserRequestDTCreadout || UserRequestDTCreset || dtc_read_in_progress || dtc_clear_in_progress;
-      if (!stop_battery_query && !dtc_operation_pending) {
+      if (!stop_battery_query && !dtc_operation_pending && bms_reset_status == BMS_RESET_IDLE) {
 
         // Move to the next group, skipping the static ones that already answered. The charge
         // counters with the usage histograms and the two identity strings cannot change while the

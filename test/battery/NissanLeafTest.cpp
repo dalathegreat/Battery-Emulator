@@ -4,6 +4,8 @@
 #include "../../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../Software/src/datalayer/datalayer.h"
 
+#include <algorithm>
+#include <cstring>
 #include <vector>
 
 #include "../../Software/src/datalayer/datalayer_extended.h"
@@ -1953,6 +1955,286 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
 
   user_selected_LEAF_chg_sta_rq[1] = 2;
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
+}
+
+// U1000 ("CAN communication") is stored by a ZE0/AZE0 LBC within a second of missing a message it
+// expects while its ignition input is on, and never ages out. With CANMASK (0x50B byte 2 bit 2)
+// clear it expects 0x1D4, 0x1F2, 0x50B and 0x50C; with it set also 0x1DA and 0x380 (ZE0) or 0x1DA,
+// 0x390 and 0x54C (AZE0). These run the driver on a 1 ms core loop against an LBC that sends 0x1DB
+// every 10 ms and 0x5BC every 100 ms, and check what reaches the LBC.
+class NissanLeafU1000Tests : public ::testing::Test {
+ protected:
+  struct Sent {
+    unsigned long t;
+    CAN_frame frame;
+  };
+  unsigned long t = 200000;
+  BMSResetState saved_reset_status = BMS_RESET_IDLE;
+  NissanLeafBattery* battery = nullptr;
+  std::vector<Sent> sent;
+
+  void SetUp() override {
+    saved_reset_status = datalayer.system.status.bms_reset_status;
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    set_millis64(t);
+    battery = new NissanLeafBattery();
+    battery->setup();
+  }
+
+  void TearDown() override {
+    datalayer.system.status.bms_reset_status = saved_reset_status;
+    delete battery;
+  }
+
+  // Runs the core loop for duration_ms. While the LBC talks, its 0x1DB arrives every 10 ms, together
+  // with the given broadcast when one is named, and its 0x5BC every 100 ms. Everything sent is
+  // collected in `sent`.
+  void run(unsigned long duration_ms, bool lbc_talking = true, uint32_t broadcast = 0) {
+    for (unsigned long i = 0; i < duration_ms; i++) {
+      t++;
+      set_millis64(t);
+      if (lbc_talking && t % 10 == 0) {
+        battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+        if (broadcast != 0) {
+          battery->handle_incoming_can_frame(leaf_frame(broadcast, {0, 0, 0, 0, 0, 0, 0, 0}));
+        }
+      }
+      if (lbc_talking && t % 100 == 5) {
+        battery->handle_incoming_can_frame(leaf_frame(0x5BC, {0x50, 0, 0, 0, 0, 0, 0, 0}));
+      }
+      clear_transmitted_frames();
+      battery->transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        sent.push_back({t, frame});
+      }
+    }
+  }
+
+  std::vector<Sent> sent_with_id(uint32_t id, unsigned long from = 0) const {
+    std::vector<Sent> matching;
+    for (const Sent& s : sent) {
+      if (s.frame.ID == id && s.t >= from) {
+        matching.push_back(s);
+      }
+    }
+    return matching;
+  }
+
+  // Longest the LBC went without a message of the given ID between `from` and now, edges included
+  unsigned long longest_gap(uint32_t id, unsigned long from) const {
+    unsigned long gap = 0;
+    unsigned long previous = from;
+    for (const Sent& s : sent_with_id(id, from)) {
+      gap = std::max(gap, s.t - previous);
+      previous = s.t;
+    }
+    return std::max(gap, t - previous);
+  }
+
+  static bool canmask(const Sent& s) { return (s.frame.data.u8[2] & 0x04) != 0; }
+};
+
+// The Nissan CRC8 the LBC checks 0x1DA with: polynomial 0x85, no reflection, initial value 0.
+static uint8_t nissan_crc8(const uint8_t* data, int length) {
+  uint16_t crc = 0;
+  for (int i = 0; i < length; i++) {
+    crc ^= data[i];
+    for (int bit = 0; bit < 8; bit++) {
+      crc <<= 1;
+      if (crc & 0x100) {
+        crc ^= 0x185;
+      }
+    }
+  }
+  return crc & 0xFF;
+}
+
+TEST_F(NissanLeafU1000Tests, CrcHelperMatchesTheNissanCheckValue) {
+  EXPECT_EQ(nissan_crc8((const uint8_t*)"123456789", 9), 0x2A);
+}
+
+// A ZE0 sends 0x5BC only every 500 ms, longer than the LBC waits for 0x50B and 0x50C, so its first
+// message of any kind is what starts the cyclic messages.
+TEST_F(NissanLeafU1000Tests, ShouldStartOnTheFirstMessageFromTheLbc) {
+  run(50, false);
+  EXPECT_TRUE(sent.empty());
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  run(1, false);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x50C}) {
+    EXPECT_EQ(sent_with_id(id).size(), 1u) << std::hex << id;
+  }
+}
+
+// Until a ZE0 has had the time to show it is not an AZE0 or a ZE1, CANMASK stays clear and nothing
+// beyond the base set goes out. Then CANMASK is set and the inverter and charger stand-ins follow.
+TEST_F(NissanLeafU1000Tests, ShouldSendTheZe0SetOnceTheGenerationHasSettled) {
+  const unsigned long start = t;
+  run(1900);
+  ASSERT_FALSE(sent_with_id(0x50B).empty());
+  for (const Sent& s : sent_with_id(0x50B)) {
+    EXPECT_FALSE(canmask(s));
+  }
+  for (uint32_t id : {0x1DA, 0x380, 0x390, 0x54C}) {
+    EXPECT_TRUE(sent_with_id(id).empty()) << std::hex << id;
+  }
+
+  run(1100);
+  const unsigned long settled = start + 2000;
+  for (const Sent& s : sent_with_id(0x50B, settled + 100)) {
+    EXPECT_TRUE(canmask(s));
+  }
+  // The stand-ins start no later than the first 0x50B that sets CANMASK, give or take one 0x1DA
+  // period, while the LBC tolerates two
+  const unsigned long first_canmask = [&] {
+    for (const Sent& s : sent_with_id(0x50B)) {
+      if (canmask(s)) {
+        return s.t;
+      }
+    }
+    return 0UL;
+  }();
+  ASSERT_NE(first_canmask, 0UL);
+  ASSERT_FALSE(sent_with_id(0x1DA).empty());
+  ASSERT_FALSE(sent_with_id(0x380).empty());
+  EXPECT_LE(sent_with_id(0x1DA).front().t, first_canmask + 10);
+  EXPECT_LE(sent_with_id(0x380).front().t, first_canmask);
+  EXPECT_LE(longest_gap(0x1DA, settled + 100), 10u);
+  EXPECT_LE(longest_gap(0x380, settled + 100), 100u);
+  EXPECT_TRUE(sent_with_id(0x390).empty());
+  EXPECT_TRUE(sent_with_id(0x54C).empty());
+}
+
+// 0x59E marks an AZE0, which settles the generation at once. It gets 0x390 and 0x54C, not 0x380.
+TEST_F(NissanLeafU1000Tests, ShouldSendTheAze0SetAsSoonAsItAnnouncesItself) {
+  run(1000, true, 0x59E);
+  ASSERT_FALSE(sent.empty());
+  const unsigned long from = sent.front().t + 200;
+  for (const Sent& s : sent_with_id(0x50B, from)) {
+    EXPECT_TRUE(canmask(s));
+  }
+  EXPECT_LE(longest_gap(0x1DA, from), 10u);
+  EXPECT_LE(longest_gap(0x390, from), 100u);
+  EXPECT_LE(longest_gap(0x54C, from), 100u);
+  EXPECT_GE(sent_with_id(0x390, from).size(), 7u);
+  EXPECT_TRUE(sent_with_id(0x380).empty());
+
+  for (const Sent& s : sent_with_id(0x390)) {
+    EXPECT_EQ(s.frame.DLC, 8);
+    for (int i = 0; i < 8; i++) {
+      EXPECT_EQ(s.frame.data.u8[i], 0x00);
+    }
+  }
+  for (const Sent& s : sent_with_id(0x54C)) {
+    EXPECT_EQ(s.frame.DLC, 8);
+    EXPECT_EQ(s.frame.data.u8[6], 0x83);  // 25 degC
+  }
+}
+
+// The 0x1DA rolling counter changes on every message and the CRC covers bytes 0-6. With the inverter
+// voltage invalid and torque and speed 0, every message matches one of the four reference frames.
+TEST_F(NissanLeafU1000Tests, ShouldRollTheInverterCounterWithAValidCrc) {
+  const uint8_t reference[4][8] = {{0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x72},
+                                   {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xF7},
+                                   {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFD},
+                                   {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x78}};
+  run(500, true, 0x59E);
+  const std::vector<Sent> frames = sent_with_id(0x1DA);
+  ASSERT_GE(frames.size(), 40u);
+  for (size_t i = 0; i < frames.size(); i++) {
+    const CAN_frame& frame = frames[i].frame;
+    EXPECT_EQ(frame.DLC, 8);
+    const uint8_t counter = frame.data.u8[6] & 0x03;
+    EXPECT_EQ(memcmp(frame.data.u8, reference[counter], 8), 0) << "message " << i;
+    EXPECT_EQ(frame.data.u8[7], nissan_crc8(frame.data.u8, 7)) << "message " << i;
+    if (i > 0) {
+      EXPECT_EQ(counter, (frames[i - 1].frame.data.u8[6] + 1) & 0x03) << "message " << i;
+    }
+  }
+}
+
+// A ZE1 checks a set of its own, and sends a 0x380 itself: it keeps what it had before.
+TEST_F(NissanLeafU1000Tests, ShouldLeaveZe1PacksTheirOwnSet) {
+  run(3000, true, 0x1C2);
+  for (uint32_t id : {0x1DA, 0x380, 0x390, 0x54C}) {
+    EXPECT_TRUE(sent_with_id(id).empty()) << std::hex << id;
+  }
+  ASSERT_FALSE(sent.empty());
+  for (const Sent& s : sent_with_id(0x50B, sent.front().t + 100)) {
+    EXPECT_TRUE(canmask(s));
+  }
+  EXPECT_FALSE(sent_with_id(0x3B8).empty());
+}
+
+// While the reset waits for the pause to take effect the LBC is still powered, so it is kept fed. The
+// group polling waits for the reset to be over.
+TEST_F(NissanLeafU1000Tests, ShouldKeepFeedingTheLbcWhileTheResetWaitsForThePause) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+  const unsigned long from = t;
+  run(10000);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x1DA}) {
+    EXPECT_LE(longest_gap(id, from), 10u) << std::hex << id;
+  }
+  for (uint32_t id : {0x50B, 0x50C, 0x390, 0x54C}) {
+    EXPECT_LE(longest_gap(id, from), 100u) << std::hex << id;
+  }
+  EXPECT_TRUE(sent_with_id(0x79B, from).empty());
+}
+
+// With the LBC's power cut nothing is sent, even if it keeps talking because only its ignition line
+// is cut. When the power comes back everything resumes at once, the 100 ms messages included.
+TEST_F(NissanLeafU1000Tests, ShouldResumeWithThePowerWhenOnlyTheIgnitionIsCut) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  const unsigned long off = t;
+  run(5000);
+  EXPECT_TRUE(sent_with_id(0x1D4, off + 1).empty());
+  EXPECT_TRUE(sent_with_id(0x50B, off + 1).empty());
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  const unsigned long on = t;
+  run(3000);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x1DA, 0x50B, 0x50C, 0x390, 0x54C}) {
+    const std::vector<Sent> frames = sent_with_id(id, on + 1);
+    ASSERT_FALSE(frames.empty()) << std::hex << id;
+    EXPECT_EQ(frames.front().t, on + 1) << std::hex << id;
+  }
+  for (const Sent& s : sent_with_id(0x50B, on + 1)) {
+    EXPECT_TRUE(canmask(s));  // The generation is still known after the reset
+  }
+  EXPECT_TRUE(sent_with_id(0x79B, off).empty());
+}
+
+// With its supply cut the LBC falls silent, and when the power comes back it has to boot before
+// anything acknowledges a message. The messages resume on the first one heard from it.
+TEST_F(NissanLeafU1000Tests, ShouldResumeAsSoonAsTheLbcIsHeardAfterPowerOn) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(5000, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  const unsigned long on = t;
+  run(300, false);  // Booting
+  EXPECT_TRUE(sent_with_id(0x1D4, on).empty());
+  EXPECT_TRUE(sent_with_id(0x50B, on).empty());
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  const unsigned long heard = t;
+  run(1, false);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x1DA, 0x50B, 0x50C, 0x390, 0x54C}) {
+    EXPECT_EQ(sent_with_id(id, heard).size(), 1u) << std::hex << id;
+  }
+}
+
+// After the reset, the polling of the static groups starts again
+TEST_F(NissanLeafU1000Tests, ShouldPollAgainOnceTheResetIsOver) {
+  run(1000, true, 0x59E);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(3000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  const unsigned long idle = t;
+  run(3000);
+  EXPECT_FALSE(sent_with_id(0x79B, idle).empty());
 }
 
 // 0x5C0 heater bits, as the LBC firmware sets them: byte 1 bit 0 is Batt_Heater_Mail_Send_Request
