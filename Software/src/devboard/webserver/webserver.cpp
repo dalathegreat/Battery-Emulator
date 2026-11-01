@@ -533,7 +533,7 @@ void init_webserver() {
       "PYLONOFFSET",  "PYLONORDER",    "DEYEBYD",    "NCCONTACTOR",  "TRIBTR",        "CNTCTRLTRI",     "ESPNOWENABLED",
       "PRIMOGEN24",   "LOWPASSFILTER", "WEBAUTH",    "SLOWCANINV",   "CHGTAPERSOC",   "MEASURECPUTEMP", "SYSLOGEN",
       "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID", "CHGESTIMATED", "MQTTHEAP",      "HADISCFWU",      "INVACCREB",
-      "LEAFAUTOOFS",
+      "LEAFAUTOOFS",  "PARHEADROOM",
 #ifndef SMALL_FLASH_DEVICE
       "CTINVERT",
 #endif  // SMALL_FLASH_DEVICE
@@ -1103,7 +1103,7 @@ void init_webserver() {
     datalayer.battery_settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
   });
 
-  // Route for the settings page "Perform a BMS reset now" button. Runs the same sequence as the
+  // Route for the settings page "Perform a BMS Power reset now" button. Runs the same sequence as the
   // MQTT BMSRESET command, and says why when start_bms_reset() would silently do nothing.
   def_route_with_auth("/startBMSReset", server, HTTP_POST, [](AsyncWebServerRequest* request) {
     if (!periodic_bms_reset && !remote_bms_reset) {
