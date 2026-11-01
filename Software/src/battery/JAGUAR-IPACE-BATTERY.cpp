@@ -57,18 +57,18 @@ String JaguarIpaceBattery::get_uds_info_html() {
   String content;
   content.reserve(600);
   // clang-format off
-  content << "<h4>Positive Contactors B Voltage: " << String(positive_contactors_b_voltage) << "</h4>"
-             "<h4>Positive Contactors A Voltage: " << String(positive_contactors_a_voltage) << "</h4>"
+  content << "<h4>Positive Contactors A Voltage: " << String(positive_contactors_a_voltage / 100.0, 2) << " V</h4>"
+            "<h4>Positive Contactors B Voltage: " << String(positive_contactors_b_voltage / 100.0, 2) << " V</h4>"
+            "<h4>Positive Contactors C Voltage: " << String(positive_contactors_c_voltage / 100.0, 2) << " V</h4>"
+            "<h4>Front Inverter Fuse Voltage: " << String(front_inverter_fuse_voltage / 100.0, 2) << " V</h4>"
+            "<h4>Ancillary Fuse Voltage: " << String(ancillary_fuse_voltage / 100.0, 2) << " V</h4>"
+             "<h4>Rear Inverter Fuse Voltage: " << String(rear_inverter_fuse_voltage / 100.0, 2) << " V</h4>"
              "<h4>Isolation Resistance: " << String(isolation_resistance) << "</h4>"
-             "<h4>Coolant Outlet Temperature: " << String(coolant_outlet_temperature) << "</h4>"
-             "<h4>Positive Contactors C Voltage: " << String(positive_contactors_c_voltage)<< "</h4>"
-             "<h4>Rear Inverter Fuse Voltage: " << String(rear_inverter_fuse_voltage) << "</h4>"
+             "<h4>Coolant Outlet Temperature: " << String(coolant_outlet_temperature) << " °C</h4>"
              "<h4>Current Sensor A: " << String(current_sensor_a) << "</h4>"
-             "<h4>Front Inverter Fuse Voltage: " << String(front_inverter_fuse_voltage) << "</h4>"
-             "<h4>Ancillary Fuse Voltage: " << String(ancillary_fuse_voltage) << "</h4>"
              "<h4>Max Regen Power: " << String(max_regen_power) << " W</h4>"
-             "<h4>Negative Contactors Temperature: " << String(negative_contactors_temperature) << "</h4>"
-             "<h4>Positive Contactors Temperature: " << String(positive_contactors_temperature) << "</h4>";
+             "<h4>Negative Contactors Temperature: " << String(negative_contactors_temperature) << " °C</h4>"
+             "<h4>Positive Contactors Temperature: " << String(positive_contactors_temperature) << " °C</h4>";
   // clang-format on
 
   return content;
@@ -251,7 +251,7 @@ uint16_t JaguarIpaceBattery::handle_pid(uint16_t pid, uint32_t value, const uint
       battery_vin = value;
       break;
     case POLL_COOLALNT_OUTLET_TEMPERATURE:
-      coolant_outlet_temperature = value;
+      coolant_outlet_temperature = (value / 2 - 30);
       break;
     case POLL_POSITIVE_CONTACTOR_C_VOLTAGE:
       positive_contactors_c_voltage = value;
@@ -308,10 +308,10 @@ uint16_t JaguarIpaceBattery::handle_pid(uint16_t pid, uint32_t value, const uint
       battery_vin = value;
       break;
     case POLL_NEGATIVE_CONTACTOR_TEMPERATURE:
-      negative_contactors_temperature = value;
+      negative_contactors_temperature = ((value / 2) - 30);
       break;
     case POLL_POSITIVE_CONTACTOR_TEMPERATURE:
-      positive_contactors_temperature = value;
+      positive_contactors_temperature = ((value / 2) - 30);
       break;
     case POLL_UNKNOWN_491D:
       battery_vin = value;

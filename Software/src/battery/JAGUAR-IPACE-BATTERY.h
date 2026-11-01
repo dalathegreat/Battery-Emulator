@@ -191,8 +191,8 @@ class JaguarIpaceBattery : public UdsCanBattery {
   uint32_t front_inverter_fuse_voltage = 0;
   uint32_t ancillary_fuse_voltage = 0;
   uint32_t max_regen_power = 0;
-  uint32_t negative_contactors_temperature = 0;
-  uint32_t positive_contactors_temperature = 0;
+  int32_t negative_contactors_temperature = 0;
+  int32_t positive_contactors_temperature = 0;
 
   /* KeepAlive: PMZ_CAN_GWM_OSEK_NM_Pdu every 200ms.
  */
