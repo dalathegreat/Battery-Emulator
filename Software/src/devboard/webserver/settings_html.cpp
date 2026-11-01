@@ -590,6 +590,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("TRIBTR") ? "checked" : "";
   }
 
+  if (var == "PARHEADROOM") {
+    return settings.getBool("PARHEADROOM") ? "checked" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -2209,6 +2213,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
 
         </div>
+
+        <label for='PARHEADROOM'>Parallel headroom tracking: </label>
+        <input type='checkbox' name='PARHEADROOM' id='PARHEADROOM' value='on' %PARHEADROOM% />
 
         </div>
 
