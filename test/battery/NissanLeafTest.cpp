@@ -1956,11 +1956,11 @@ TEST_F(NissanLeafBalancingStrategyTests, ShouldSendAChangedStrategyFromTheNextFr
   expect_strategy_sent(pack2, CAN_Interface::CAN_ADDON_MCP2515, 2);
 }
 
-// U1000 ("CAN communication") is stored by a ZE0/AZE0 LBC within a second of missing a message it
-// expects while its ignition input is on, and never ages out. With CANMASK (0x50B byte 2 bit 2)
-// clear it expects only 0x1D4, 0x1F2, 0x50B and 0x50C, so that is what ZE0 and AZE0 packs get. These
-// run the driver on a 1 ms core loop against an LBC that sends 0x1DB every 10 ms and 0x5BC every
-// 100 ms, and check what reaches the LBC.
+// U1000 ("CAN communication") is stored by the LBC within a second of missing a message it expects
+// while its ignition input is on, and never ages out. With CANMASK (0x50B byte 2 bit 2) clear, a
+// ZE0/AZE0 expects only 0x1D4, 0x1F2, 0x50B and 0x50C, and a ZE1 0x1D4, 0x1F2, 0x50B, 0x3B8 and
+// 0x5EC. These run the driver on a 1 ms core loop against an LBC that sends 0x1DB every 10 ms and
+// 0x5BC every 100 ms, and check what reaches the LBC.
 class NissanLeafU1000Tests : public ::testing::Test {
  protected:
   struct Sent {
@@ -2047,9 +2047,9 @@ TEST_F(NissanLeafU1000Tests, ShouldStartOnTheFirstMessageFromTheLbc) {
 }
 
 // CANMASK stays clear and nothing stands in for the inverter, charger or climate control, whether the
-// pack stays a ZE0 or announces itself as an AZE0 with 0x59E.
-TEST_F(NissanLeafU1000Tests, ShouldKeepCanmaskClearOnZe0AndAze0) {
-  for (uint32_t broadcast : {0x000u, 0x59Eu}) {
+// pack stays a ZE0, announces itself as an AZE0 with 0x59E, or as a ZE1 with 0x1C2.
+TEST_F(NissanLeafU1000Tests, ShouldKeepCanmaskClearOnEveryGeneration) {
+  for (uint32_t broadcast : {0x000u, 0x59Eu, 0x1C2u}) {
     sent.clear();
     run(3000, true, broadcast);
     ASSERT_FALSE(sent_with_id(0x50B).empty());
@@ -2062,17 +2062,39 @@ TEST_F(NissanLeafU1000Tests, ShouldKeepCanmaskClearOnZe0AndAze0) {
   }
 }
 
-// A ZE1 keeps what it had before: CANMASK set and its own extra messages.
-TEST_F(NissanLeafU1000Tests, ShouldLeaveZe1PacksTheirOwnSet) {
+// A ZE1 gets 0x3B8 and 0x5EC too, which it allows 0.29 and 0.99 s between, from the first pass on
+TEST_F(NissanLeafU1000Tests, ShouldSendTheZe1SetWithinItsLimits) {
   run(3000, true, 0x1C2);
-  for (uint32_t id : {0x1DA, 0x380, 0x390, 0x54C}) {
-    EXPECT_TRUE(sent_with_id(id).empty()) << std::hex << id;
-  }
   ASSERT_FALSE(sent.empty());
-  for (const Sent& s : sent_with_id(0x50B, sent.front().t + 100)) {
-    EXPECT_TRUE(canmask(s));
+  const unsigned long from = sent.front().t;
+  for (uint32_t id : {0x1D4, 0x1F2}) {
+    EXPECT_LE(longest_gap(id, from), 10u) << std::hex << id;
   }
-  EXPECT_FALSE(sent_with_id(0x3B8).empty());
+  for (uint32_t id : {0x50B, 0x3B8}) {
+    EXPECT_LE(longest_gap(id, from), 100u) << std::hex << id;
+  }
+  EXPECT_LE(longest_gap(0x5EC, from), 500u);
+}
+
+// The LBC's first message can come before its 0x1C2. The 100 ms and 500 ms slots have run by then,
+// and run again once it has shown itself as a ZE1, rather than leaving 0x3B8 and 0x5EC to their next
+// turn.
+TEST_F(NissanLeafU1000Tests, ShouldStartTheZe1SetAsSoonAsItShowsItself) {
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  run(1, false);
+  ASSERT_FALSE(sent_with_id(0x50B).empty());
+  EXPECT_TRUE(sent_with_id(0x3B8).empty());
+  EXPECT_TRUE(sent_with_id(0x5EC).empty());
+
+  battery->handle_incoming_can_frame(leaf_frame(0x1C2, {0, 0, 0, 0, 0, 0, 0, 0}));
+  const unsigned long shown = t + 1;
+  run(1, false);
+  EXPECT_EQ(sent_with_id(0x3B8, shown).size(), 1u);
+  EXPECT_EQ(sent_with_id(0x5EC, shown).size(), 1u);
+
+  run(2000, true, 0x1C2);
+  EXPECT_LE(longest_gap(0x3B8, shown), 100u);
+  EXPECT_LE(longest_gap(0x5EC, shown), 500u);
 }
 
 // While the reset waits for the pause to take effect the LBC is still powered, so it is kept fed. The
@@ -2128,6 +2150,22 @@ TEST_F(NissanLeafU1000Tests, ShouldResumeAsSoonAsTheLbcIsHeardAfterPowerOn) {
   const unsigned long heard = t;
   run(1, false);
   for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x50C}) {
+    EXPECT_EQ(sent_with_id(id, heard).size(), 1u) << std::hex << id;
+  }
+}
+
+// A ZE1's 0x3B8 and 0x5EC come back with the rest, the 500 ms one included
+TEST_F(NissanLeafU1000Tests, ShouldResumeTheZe1SetAsSoonAsTheLbcIsHeardAfterPowerOn) {
+  run(1000, true, 0x1C2);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(5000, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(300, false);  // Booting
+
+  battery->handle_incoming_can_frame(leaf_current_frame(battery, 0));
+  const unsigned long heard = t;
+  run(1, false);
+  for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x3B8, 0x5EC}) {
     EXPECT_EQ(sent_with_id(id, heard).size(), 1u) << std::hex << id;
   }
 }

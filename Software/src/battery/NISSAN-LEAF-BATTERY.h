@@ -205,6 +205,7 @@ class NissanLeafBattery : public CanBattery {
   //has been heard within this long, as before that nothing would acknowledge the messages.
   static const unsigned long LBC_SILENT_MS = 100;
   unsigned long lbc_heard_ms = 0;
+  bool ze1_seen = false;  //Set once the pack has shown itself as a ZE1, see transmit_can
   //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
   //info page fills in within seconds instead of over a minute. Counted down per request actually
   //sent, so it always terminates and the steady state polling rate is left untouched.
@@ -231,13 +232,14 @@ class NissanLeafBattery : public CanBattery {
   /* Byte 3 bits 7-6 are HCM_WakeUpSleepCmd, 11b = WakeUp. Byte 2 bit 2 is CANMASK, which decides
      what the LBC counts towards U1000, its "CAN communication" code: a one-trip code that never ages
      out, stored within a second of an expected message going missing while the ignition input is on.
-     With CANMASK clear a ZE0/AZE0 LBC expects only 0x1D4, 0x1F2, 0x50B and 0x50C, which are always
-     sent. Set, it also wants the inverter (0x1DA), the charger (0x380 ZE0, 0x390 AZE0) and on AZE0 the
-     climate control (0x54C), none of which a stationary setup has. The bit is read by nothing but the
-     LBC's CAN supervision, so it stays clear on ZE0 and AZE0, rather than being satisfied with
-     stand-ins for those nodes that would feed made-up vehicle data into the LBC. ZE1 packs keep it set
-     as before, as the reverse engineering below does not cover them.
-     Source: LBC firmware reverse engineering, U1000 receive checks (3NA0D, 4NC0A), and
+     With CANMASK clear a ZE0/AZE0 LBC expects only 0x1D4, 0x1F2, 0x50B and 0x50C, and a ZE1 0x1D4,
+     0x1F2, 0x50B, 0x3B8 and 0x5EC, all of which are sent. Set, it also wants the inverter (0x1DA), the
+     charger (0x380 ZE0, 0x390 AZE0/ZE1), on AZE0/ZE1 the climate control (0x54C), and on ZE1 0x56E,
+     0x5C5, 0x355 and 0x625 too, nodes a stationary setup does not have. The bit is read by nothing but
+     the LBC's diagnostics, so it stays clear, rather than being satisfied with stand-ins for those
+     nodes that would feed made-up vehicle data into the LBC. On ZE1 this also keeps away U1032, U1034,
+     U216D and U215B, which only confirm with CANMASK set.
+     Source: LBC firmware reverse engineering, U1000 receive checks (3NA0D, 4NC0A, 5SH2D, 5SF0D), and
      github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 21 82 communication DTC records (4NC0A) */
   CAN_frame LEAF_50B = {.FD = false,
                         .ext_ID = false,

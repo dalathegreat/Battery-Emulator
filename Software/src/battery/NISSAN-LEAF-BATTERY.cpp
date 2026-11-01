@@ -1387,6 +1387,16 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   if (battery_can_alive) {
 
+    //A ZE1 LBC also counts 0x3B8 and 0x5EC towards U1000 (see LEAF_50B). They go out in the 100 ms and
+    //500 ms slots, which first run on the LBC's first message, possibly before its 0x1C2 has shown it
+    //to be a ZE1. Once it has, both slots run again straight away, rather than the LBC waiting up to
+    //0.1 and 0.5 s more for them, of the 0.29 and 0.99 s it allows.
+    if (LEAF_battery_Type == ZE1_BATTERY && !ze1_seen) {
+      ze1_seen = true;
+      previousMillis100 = currentMillis - INTERVAL_100_MS;
+      previousMillis500 = currentMillis - INTERVAL_500_MS;
+    }
+
     //Send 10ms message
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
@@ -1560,7 +1570,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         LEAF_3B8.data.u8[2] = counter_3B8;  // 0 - 14 (0x00 - 0x0E)
         transmit_can_frame(&LEAF_3B8);      // Sending 3B8 removes U1000 and P318E DTC
         transmit_can_frame(&LEAF_5C5);      // Sending 5C5 removes U214E DTC
-        transmit_can_frame(&LEAF_626);      // Sending 625 removes U215B DTC
+        transmit_can_frame(&LEAF_626);      // Not read by the LBC: it checks 0x625, and only with CANMASK set
         if (flip_3B8) {
           flip_3B8 = 0;
           LEAF_3B8.data.u8[1] = 0xC8;
@@ -1571,12 +1581,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      //CANMASK (byte 2 bit 2) only on ZE1, see LEAF_50B
-      if (LEAF_battery_Type == ZE1_BATTERY) {
-        LEAF_50B.data.u8[2] |= 0x04;
-      } else {
-        LEAF_50B.data.u8[2] &= ~0x04;
-      }
+      //CANMASK (byte 2 bit 2) stays clear, see LEAF_50B
       transmit_can_frame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp
 
       LEAF_50C.data.u8[3] = mprun100;
