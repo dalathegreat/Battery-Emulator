@@ -622,10 +622,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   //longer than the LBC waits for 0x50B and 0x50C before counting them as missing.
   if (rx_frame.ID != 0x79B) {
     lbc_heard_ms = millis();
-    if (!battery_can_alive) {
-      battery_can_alive = true;
-      lbc_first_heard_ms = lbc_heard_ms;
-    }
+    battery_can_alive = true;
   }
 
   switch (rx_frame.ID) {
@@ -1390,14 +1387,6 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   if (battery_can_alive) {
 
-    if (!generation_settled &&
-        (LEAF_battery_Type != ZE0_BATTERY || currentMillis - lbc_first_heard_ms >= GENERATION_SETTLE_MS)) {
-      generation_settled = true;  //See GENERATION_SETTLE_MS
-    }
-    //The inverter and charger stand-ins are for ZE0 and AZE0 packs. A ZE1 checks a different set, and
-    //sends a 0x380 of its own.
-    const bool stand_in_for_vehicle = generation_settled && (LEAF_battery_Type != ZE1_BATTERY);
-
     //Send 10ms message
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
@@ -1534,12 +1523,6 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&LEAF_1F2);
       }
 
-      if (stand_in_for_vehicle) {
-        LEAF_1DA.data.u8[6] = mprun10;  //MG_CLOCK, must change on every message
-        LEAF_1DA.data.u8[7] = calculate_crc(LEAF_1DA);
-        transmit_can_frame(&LEAF_1DA);
-      }
-
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 
       mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
@@ -1587,22 +1570,9 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
         }
       }
 
-      //The stand-ins for the charger, and on AZE0 for the climate control, go out with the first
-      //0x50B that sets CANMASK, and the LBC only counts them as missing after 300 ms
-      if (stand_in_for_vehicle) {
-        if (LEAF_battery_Type == ZE0_BATTERY) {
-          transmit_can_frame(&LEAF_380);
-        } else {
-          if (!leaf_pdm_charger_in_use()) {  //The LEAF PDM charger sends its own 0x390
-            transmit_can_frame(&LEAF_390);
-          }
-          transmit_can_frame(&LEAF_54C);
-        }
-      }
-
       // VCM message, containing info if battery should sleep or stay awake
-      //CANMASK (byte 2 bit 2) waits for the generation to settle, see GENERATION_SETTLE_MS
-      if (generation_settled) {
+      //CANMASK (byte 2 bit 2) only on ZE1, see LEAF_50B
+      if (LEAF_battery_Type == ZE1_BATTERY) {
         LEAF_50B.data.u8[2] |= 0x04;
       } else {
         LEAF_50B.data.u8[2] &= ~0x04;

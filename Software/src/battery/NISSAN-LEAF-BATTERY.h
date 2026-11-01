@@ -201,20 +201,6 @@ class NissanLeafBattery : public CanBattery {
   unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 
-  /* U1000 is the LBC's "CAN communication" code. With its ignition input on, it stores it within a
-     second of missing one of the messages it expects, as a one-trip code that never ages out. Which
-     messages it expects depends on CANMASK in 0x50B: clear, only 0x1D4, 0x1F2, 0x50B and 0x50C; set,
-     also the inverter's 0x1DA and the charger's status, 0x380 on ZE0, 0x390 on AZE0 together with
-     the climate control's 0x54C. CANMASK is therefore only set once this driver knows the generation
-     and sends the matching set. A ZE1 announces itself within 10 ms (0x1C2), an AZE0 within half a
-     second (0x59E), and a pack that has done neither GENERATION_SETTLE_MS after it was first heard is
-     a ZE0. The settling happens once: a BMS reset does not change the pack. ZE1 packs keep the set
-     they had before, which the reverse engineering below does not cover.
-     Source: LBC firmware reverse engineering, U1000 receive checks (3NA0D, 4NC0A), and
-     github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 21 82 communication DTC records (4NC0A) */
-  static const unsigned long GENERATION_SETTLE_MS = 2000;
-  bool generation_settled = false;
-  unsigned long lbc_first_heard_ms = 0;  //When battery_can_alive latched
   //Last time the LBC was heard. After a BMS reset has cut its power, nothing is sent again until it
   //has been heard within this long, as before that nothing would acknowledge the messages.
   static const unsigned long LBC_SILENT_MS = 100;
@@ -242,8 +228,17 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x1F2,
                         .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-  //Byte 2 bit 2 is CANMASK, set once the generation is known (see GENERATION_SETTLE_MS). Byte 3 bits
-  //7-6 are HCM_WakeUpSleepCmd, 11b = WakeUp.
+  /* Byte 3 bits 7-6 are HCM_WakeUpSleepCmd, 11b = WakeUp. Byte 2 bit 2 is CANMASK, which decides
+     what the LBC counts towards U1000, its "CAN communication" code: a one-trip code that never ages
+     out, stored within a second of an expected message going missing while the ignition input is on.
+     With CANMASK clear a ZE0/AZE0 LBC expects only 0x1D4, 0x1F2, 0x50B and 0x50C, which are always
+     sent. Set, it also wants the inverter (0x1DA), the charger (0x380 ZE0, 0x390 AZE0) and on AZE0 the
+     climate control (0x54C), none of which a stationary setup has. The bit is read by nothing but the
+     LBC's CAN supervision, so it stays clear on ZE0 and AZE0, rather than being satisfied with
+     stand-ins for those nodes that would feed made-up vehicle data into the LBC. ZE1 packs keep it set
+     as before, as the reverse engineering below does not cover them.
+     Source: LBC firmware reverse engineering, U1000 receive checks (3NA0D, 4NC0A), and
+     github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 21 82 communication DTC records (4NC0A) */
   CAN_frame LEAF_50B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 7,
@@ -277,39 +272,6 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 6,
                         .ID = 0x626,
                         .data = {0x02, 0x00, 0xff, 0x1d, 0x20, 0x00}};
-  // Extra CAN messages for ZE0 and AZE0 batteries, see GENERATION_SETTLE_MS
-  //Stand-ins for the other EV-CAN nodes the LBC checks for once CANMASK is set. For U1000 only their
-  //presence counts, so they carry a standing vehicle with no charger connected.
-  //Inverter, 10 ms. Torque 0 (byte 2 bits 2-0 + byte 3) and motor speed 0 (byte 4 + byte 5 bits 7-1),
-  //which the LBC also needs for its 10 F0/10 F1 sessions. Byte 0, the inverter voltage, is read only
-  //by AZE0 and only while it has a fault, where 0xFF (invalid) acts like no 0x1DA at all: a failed
-  //cell monitor still ends discharging instead of allowing a limp-home discharge. Byte 6 bits 1-0
-  //carry the rolling counter and byte 7 the CRC, both filled in on every transmission.
-  CAN_frame LEAF_1DA = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x1DA,
-                        .data = {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  //Charger status on ZE0, 100 ms. All zero: no charger power or mains voltage, and the insulation
-  //check flags held constant, as a change of them suspends the insulation monitor for 10 s.
-  CAN_frame LEAF_380 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x380,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  //Charger status on AZE0, 100 ms. All zero likewise: charger mode none, no power, flags constant.
-  CAN_frame LEAF_390 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x390,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  //Climate control on AZE0, 100 ms. Byte 6 is the outside temperature, (raw - 81) / 2 degC, which
-  //only selects a row of the LBC's battery heater level map. There is no such sensor, so 25 degC.
-  CAN_frame LEAF_54C = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x54C,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x83, 0x00}};
   // Active polling messages
   //Ordered so the pack capacity comes out first: it is what the reported capacity and the derived
   //state of health are built from, and neither is published until it has been read. It sits in
