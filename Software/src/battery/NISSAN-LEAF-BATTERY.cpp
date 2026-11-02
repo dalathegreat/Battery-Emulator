@@ -1381,18 +1381,16 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   const BMSResetState bms_reset_status = datalayer.system.status.bms_reset_status;
 
   //The LBC going quiet is logged, each time. While a BMS reset has its power cut, what is still sent once
-  //it has gone quiet has nothing to acknowledge it, so the interface's send failures and bus errors are
-  //held back from the cut until the reset is over, rather than raising events that point at the wiring.
+  //it has gone quiet has nothing to acknowledge it, so the interface's buffer-full and bus-error events
+  //are ignored from the cut until the reset is over and CAN_ERRORS_IGNORE_MS beyond, the window renewed
+  //on every pass, rather than pointing at the wiring.
   const bool silent = battery_can_alive && (currentMillis - lbc_heard_ms) >= LBC_SILENT_MS;
   if (silent && !lbc_silent) {
     logging.printf("LEAF (Battery %u): went silent on \"%s\"\n", (unsigned)battery_index, interface_name());
   }
   lbc_silent = silent;
-  const bool hold_can_errors =
-      (bms_reset_status == BMS_RESET_POWERED_OFF) || (can_errors_held && bms_reset_status != BMS_RESET_IDLE);
-  if (hold_can_errors != can_errors_held) {
-    can_errors_held = hold_can_errors;
-    mute_can_errors(can_interface, hold_can_errors);
+  if (bms_reset_status == BMS_RESET_POWERED_OFF || bms_reset_status == BMS_RESET_POWERING_ON) {
+    ignore_can_errors_for(can_interface, CAN_ERRORS_IGNORE_MS);
   }
 
   const bool lbc_reachable =

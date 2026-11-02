@@ -72,9 +72,4 @@ void restart_can();
 // Change the speed of the CAN interface. Returns true if successful.
 bool change_can_speed(CAN_Interface interface, CAN_Speed speed);
 
-// Holds back the send failures and bus errors of one interface, which would otherwise raise its
-// "buffer full" and "bus error" events: for a battery whose BMS has gone quiet on purpose, as a BMS reset
-// has it, so that what is still sent has nothing to acknowledge it.
-void mute_can_errors(CAN_Interface interface, bool mute);
-
 #endif

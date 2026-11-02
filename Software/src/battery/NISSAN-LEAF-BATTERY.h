@@ -211,9 +211,11 @@ class NissanLeafBattery : public CanBattery {
   static const unsigned long LBC_SILENT_MS = 100;
   static const unsigned long LBC_STOPPED_MS = 1000;
   unsigned long lbc_heard_ms = 0;
-  bool lbc_silent = false;       //Quiet for LBC_SILENT_MS, logged as it went so
-  bool can_errors_held = false;  //See mute_can_errors(), held back while a BMS reset has the LBC off
-  bool ze1_seen = false;         //Set once the pack has shown itself as a ZE1, see transmit_can
+  bool lbc_silent = false;  //Quiet for LBC_SILENT_MS, logged as it went so
+  //How long after a BMS reset this interface's CAN errors are still ignored, see transmit_can. The safety
+  //checks raise them once a second, from what has failed since the previous check.
+  static const uint32_t CAN_ERRORS_IGNORE_MS = 2000;
+  bool ze1_seen = false;  //Set once the pack has shown itself as a ZE1, see transmit_can
 
   /* Starting sequence of the EV pack (2nd gen. Users Manual for EV Pack, 295B0NDS03, 5.1). After IGN and
      the LBC's first message: 3) it has to report LB_FAIL = 0 (Relay_Cut_Request), LB_INTERLOC = 1 and
