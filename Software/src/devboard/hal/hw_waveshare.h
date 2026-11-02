@@ -76,14 +76,6 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   }
 #endif  // SMALL_FLASH_DEVICE
 
-  // CAN add-on defines for MCP2515. Shares the add-on header pins with the MCP2517 below - only
-  // one add-on is initialised at a time, whichever the user selects as the interface.
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_10; }
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_11; }
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_12; }
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_13; }
-  virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_14; }
-
   // CANFD add-on defines for MCP2517
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_10; }
   virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_11; }
@@ -102,11 +94,9 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
       case comm_interface::CanFdNative:
         return "";
       case comm_interface::CanAddonMcp2515:
-        return "CAN (MCP2515 add-on)";
+        return "";
       case comm_interface::CanFdAddonMcp2518:
         return "CAN FD (MCP2518 add-on)";
-      case comm_interface::CanFdAddonMcp2518_2:
-        return "";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:
