@@ -38,6 +38,19 @@ bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
 
 void stop_can() {}
 
+// Which interfaces have their send failures and bus errors held back, for tests to check
+static bool g_emul_muted_interfaces[NO_CAN_INTERFACE] = {};
+
+void mute_can_errors(CAN_Interface interface, bool mute) {
+  if (interface < NO_CAN_INTERFACE) {
+    g_emul_muted_interfaces[interface] = mute;
+  }
+}
+
+bool can_errors_muted(CAN_Interface interface) {
+  return (interface < NO_CAN_INTERFACE) && g_emul_muted_interfaces[interface];
+}
+
 void restart_can() {}
 
 char const* getCANInterfaceName(CAN_Interface) {

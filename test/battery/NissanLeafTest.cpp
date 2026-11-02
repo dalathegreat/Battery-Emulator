@@ -15,6 +15,8 @@
 void clear_transmitted_frames();
 const std::vector<CAN_frame>& get_transmitted_frames();
 const std::vector<CAN_Interface>& get_transmitted_interfaces();
+// Whether mute_can_errors() holds back an interface's send failures and bus errors (test/emul/can.cpp).
+bool can_errors_muted(CAN_Interface interface);
 
 namespace {
 
@@ -2221,6 +2223,9 @@ class NissanLeafStartingSequenceTests : public ::testing::Test {
     datalayer.system.status.battery_allows_contactor_closing = false;
     datalayer.system.status.reported_battery2_closed = false;
     relays(false, false, false);
+    for (int i = 0; i < NO_CAN_INTERFACE; i++) {
+      mute_can_errors((CAN_Interface)i, false);  //A pack deleted mid-reset leaves its interface muted
+    }
   }
 
   static void relays(bool negative, bool precharge, bool positive) {
@@ -2514,6 +2519,47 @@ TEST_F(NissanLeafStartingSequenceTests, ShouldEndWithTheTerminatingSequenceWhenT
       EXPECT_FALSE(rlyp(s) || btonfn(s)) << s.t;  // Nothing until the LBC allows the relays again
     }
   }
+}
+
+// Once the LBC has gone quiet with its power cut, what is still sent has nothing to acknowledge it. Its
+// interface's send failures and bus errors are held back from the cut until the reset is over, and only
+// then: while the reset waits for the pause the LBC is powered and acknowledges everything.
+TEST_F(NissanLeafStartingSequenceTests, ShouldHoldBackCanErrorsWhileTheResetHasTheLbcOff) {
+  const CAN_Interface bus = can_config.battery;
+  run(500);
+  EXPECT_FALSE(can_errors_muted(bus));
+  datalayer.system.status.bms_reset_status = BMS_RESET_WAITING_FOR_PAUSE;
+  run(500);
+  EXPECT_FALSE(can_errors_muted(bus));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(1);
+  EXPECT_TRUE(can_errors_muted(bus));
+  run(3000, false);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(3000);
+  EXPECT_TRUE(can_errors_muted(bus));
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  run(1);
+  EXPECT_FALSE(can_errors_muted(bus));
+}
+
+// Each pack holds back the errors of its own interface only
+TEST_F(NissanLeafStartingSequenceTests, ShouldHoldBackOnlyItsOwnInterface) {
+  delete battery;
+  battery =
+      new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_ADDON_MCP2515);
+  battery->battery_index = 2;
+  battery->setup();
+  run(500);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(1);
+  EXPECT_TRUE(can_errors_muted(CAN_Interface::CAN_ADDON_MCP2515));
+  EXPECT_FALSE(can_errors_muted(can_config.battery));
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  run(1);
+  EXPECT_FALSE(can_errors_muted(CAN_Interface::CAN_ADDON_MCP2515));
 }
 
 // A second pack goes by its own contactor, which closes both its main relays at once: RLYP 60 ms after

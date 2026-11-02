@@ -74,6 +74,18 @@ static spi_host_device_t spi_host_for_bus(uint8_t arduino_bus) {
 
 static bool native_can_initialized = false;
 
+static bool muted_interfaces[NO_CAN_INTERFACE] = {};  //See mute_can_errors()
+
+void mute_can_errors(CAN_Interface interface, bool mute) {
+  if (interface < NO_CAN_INTERFACE) {
+    muted_interfaces[interface] = mute;
+  }
+}
+
+static bool errors_muted(CAN_Interface interface) {
+  return (interface < NO_CAN_INTERFACE) && muted_interfaces[interface];
+}
+
 bool init_CAN() {
   // Native CAN (onboard the ESP32)
 
@@ -304,7 +316,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
         frame.data[i] = tx_frame->data.u8[i];
       }
 
-      if (!ACAN_ESP32::can.tryToSend(frame)) {
+      if (!ACAN_ESP32::can.tryToSend(frame) && !errors_muted(interface)) {
         datalayer.system.info.can_native_send_fail = true;
       }
     } break;
@@ -317,7 +329,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2515_Lite_Frame mcp2515_frame;
       copy_can_frame_to_mcp2515_lite_frame(*tx_frame, mcp2515_frame);
 
-      if (can2515 == nullptr || !can2515->sendFrame(mcp2515_frame)) {
+      if ((can2515 == nullptr || !can2515->sendFrame(mcp2515_frame)) && !errors_muted(interface)) {
         datalayer.system.info.can_2515_send_fail = true;
       }
     } break;
@@ -326,7 +338,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2518FD_Lite_Frame MCP2518Frame;
       copy_can_frame_to_mcp2518fd_lite_frame(*tx_frame, MCP2518Frame);
 
-      if (canfd == nullptr || !canfd->sendFrame(MCP2518Frame)) {
+      if ((canfd == nullptr || !canfd->sendFrame(MCP2518Frame)) && !errors_muted(interface)) {
         datalayer.system.info.can_2518_send_fail = true;
       }
     } break;
@@ -334,7 +346,7 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
       MCP2518FD_Lite_Frame MCP2518Frame;
       copy_can_frame_to_mcp2518fd_lite_frame(*tx_frame, MCP2518Frame);
 
-      if (canfd_2 == nullptr || !canfd_2->sendFrame(MCP2518Frame)) {
+      if ((canfd_2 == nullptr || !canfd_2->sendFrame(MCP2518Frame)) && !errors_muted(interface)) {
         datalayer.system.info.can_2518_2_send_fail = true;
       }
     } break;
@@ -389,9 +401,11 @@ receive_frame_can_native() {  // This section checks if we have a complete CAN m
   if ((flags & TWAI_BUS_OFF_ST) != 0) {
     // Bus off, reset the CAN controller
     change_can_speed(CAN_Interface::CAN_NATIVE, native_can_speed);
-    datalayer.system.info.can_native_bus_error = true;
+    if (!errors_muted(CAN_NATIVE)) {
+      datalayer.system.info.can_native_bus_error = true;
+    }
   }
-  if ((flags & TWAI_ERR_ST) != 0) {
+  if ((flags & TWAI_ERR_ST) != 0 && !errors_muted(CAN_NATIVE)) {
     datalayer.system.info.can_native_bus_error = true;
   }
 }
@@ -407,7 +421,7 @@ receive_frame_can_addon() {  // This section checks if we have a complete CAN me
     map_can_frame_to_variable(&full_frame, CAN_ADDON_MCP2515);
   }
 
-  if (can2515->hasErrors()) {
+  if (can2515->hasErrors() && !errors_muted(CAN_ADDON_MCP2515)) {
     datalayer.system.info.can_2515_bus_error = true;
   }
 }
@@ -429,8 +443,10 @@ static void _receive_frame_canfd(MCP2518FD_Lite* canfd, bool first) {
 
   if (canfd->hasErrors()) {
     if (first) {
-      datalayer.system.info.can_2518_bus_error = true;
-    } else {
+      if (!errors_muted(CANFD_ADDON_MCP2518) && !errors_muted(CANFD_NATIVE)) {
+        datalayer.system.info.can_2518_bus_error = true;
+      }
+    } else if (!errors_muted(CANFD_ADDON_MCP2518_2)) {
       datalayer.system.info.can_2518_2_bus_error = true;
     }
   }
