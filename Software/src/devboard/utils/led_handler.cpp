@@ -100,8 +100,8 @@ void LED::exe(void) {
     return;
   }
 
-  // SOC bar owns the whole strip: length shows charge level, colour shows what the pack is
-  // doing. It writes every pixel itself, so it skips the status/indicator handling below.
+  // SOC bar owns the whole strip: length shows charge level, colour is the status colour. It
+  // writes every pixel itself, so it skips the status/indicator handling below.
   if (mode == led_mode_enum::SOC_BAR) {
     soc_bar_run();
     pixels.show();
@@ -171,43 +171,32 @@ void LED::exe(void) {
 }
 
 void LED::soc_bar_run(void) {
-  // Colour says what the pack is doing; bar length says how full it is.
-  uint32_t hue = LED_COLOR_WHITE;
-  bool blink = false;
+  // Same colours as the other modes: green when all is well, yellow for a warning, steady red for
+  // a fault, blue while updating. Bar length says how full the pack is.
+  uint32_t hue = COLOR_GREEN(0xFF);
+  bool steady = false;
 
   switch (get_emulator_status()) {
-    case EMULATOR_STATUS::STATUS_ERROR:
-      hue = COLOR_RED(0xFF);
-      blink = true;
-      break;
     case EMULATOR_STATUS::STATUS_WARNING:
       hue = COLOR_YELLOW(0xFF);
       break;
+    case EMULATOR_STATUS::STATUS_ERROR:
+      hue = COLOR_RED(0xFF);
+      steady = true;
+      break;
     case EMULATOR_STATUS::STATUS_UPDATING:
       hue = COLOR_BLUE(0xFF);
-      blink = true;
+      steady = true;
       break;
     default:
-      if (datalayer.battery.status.active_power_W > 50) {
-        hue = COLOR_GREEN(0xFF);  // charging
-      } else if (datalayer.battery.status.active_power_W < -50) {
-        hue = COLOR_BLUE(0xFF);  // discharging
-      }  // otherwise idle, leave it white
       break;
-  }
-
-  // Faults and firmware updates blink the whole bar, so they read as "look at me" rather than
-  // as a charge level.
-  if (blink && ((millis() / 500) % 2) == 0) {
-    for (uint8_t i = 0; i < num_leds; i++) {
-      pixels.setPixelColor(i, 0);
-    }
-    return;
   }
 
   // Each pixel is one 1/num_leds slice of the pack. The pixel the level currently sits in is
   // dimmed in proportion to how far into its slice the SOC has got, giving sub-slice resolution
-  // instead of the bar jumping a whole pixel at a time.
+  // instead of the bar jumping a whole pixel at a time. Outside faults and updates that pixel
+  // also pulses like the status LED of the other modes, so a live strip never looks frozen.
+  const uint8_t pulse = steady ? max_brightness : up_down(500);
   const uint32_t scaled = (uint32_t)datalayer.battery.status.reported_soc * num_leds;  // soc is 0-10000
   const uint8_t filled = (uint8_t)(scaled / 10000);
   const uint32_t partial = scaled % 10000;
@@ -218,6 +207,7 @@ void LED::soc_bar_run(void) {
       level = max_brightness;
     } else if (i == filled) {
       level = (uint8_t)((uint32_t)max_brightness * partial / 10000);
+      level = (uint8_t)((uint32_t)level * pulse / max_brightness);
       if (level < 2) {
         level = 2;  // keep the first pixel faintly lit at 0 %, so the strip never looks dead
       }
