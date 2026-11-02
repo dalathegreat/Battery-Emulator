@@ -1385,7 +1385,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   //held back from the cut until the reset is over, rather than raising events that point at the wiring.
   const bool silent = battery_can_alive && (currentMillis - lbc_heard_ms) >= LBC_SILENT_MS;
   if (silent && !lbc_silent) {
-    logging.printf("LEAF (Battery %u): went silent on CAN\n", (unsigned)battery_index);
+    logging.printf("LEAF (Battery %u): went silent on \"%s\"\n", (unsigned)battery_index, interface_name());
   }
   lbc_silent = silent;
   const bool hold_can_errors =
