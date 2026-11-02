@@ -1923,8 +1923,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
     const dbl = document.querySelector('input[name="DBLBTR"]');
     const tri = document.querySelector('input[name="TRIBTR"]');
     const selects = [];
-    const battType = document.querySelector('select[name="battery"]'); //34 = BatteryType::TestFake
-    if (!shown(batt, '.if-battery') || (battType && battType.value === '34')) {
+    const battType = document.querySelector('select[name="battery"]'); //34 = BatteryType::TestFake, 60 = SunwodaEss (packs share a bus, told apart by node address)
+    if (!shown(batt, '.if-battery') || (battType && (battType.value === '34' || battType.value === '60'))) {
       return true;
     }
     selects.push(batt);

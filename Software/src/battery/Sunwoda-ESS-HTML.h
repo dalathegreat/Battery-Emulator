@@ -110,6 +110,9 @@ class SunwodaHtmlRenderer : public BatteryHtmlRenderer {
  public:
   SunwodaHtmlRenderer(SunwodaExtendedData* d) : data(d) {}
 
+  // Each pack has its own SunwodaExtendedData, so the page can show pack 2 and 3 as well
+  bool renders_own_battery_data() { return true; }
+
   String get_status_html() {
     String content;
 
