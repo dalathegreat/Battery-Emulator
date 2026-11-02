@@ -1,3 +1,0 @@
-Information Name	address	 index	Information variable array name definition	Fault alarm signs	 Sub-index	Variable name	initial value	Data types	Range of values	Meaning Explanation	Display format	Transmission method	Period (unit: ms)	Read and write attributes	CAN Channel
-Information Name 8	1	7	Information variable array name definition 8	0	4	Software version number	0	U16		Meaning Explanation 4	10	1	1	RO	0
-Information Name 9	1	8	Information variable array name definition 9	0	5	Hardware version number	0	U16		Meaning Explanation 4	10	1	1	RO	0

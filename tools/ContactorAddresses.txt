@@ -1,5 +1,0 @@
-Information Name	address	 Primary Index	Information variable array name definition	Control Display	Sub-index	Variable name	initial value	Data types	Scaling	Meaning Explanation	Display format	Transmission method	Period (unit: ms)	Read and write attributes	CAN Channel		
-Contactor control commands	71	71	gSwitchCtrl_71	1	0	Main contactor control	0	U16		0x00f0: Normal engagement; 0x000f: Normal disengagement; 0xfff0: Forced engagement; 0xff0f: Forced disengagement.	10	3	0	RW	1		
-	71			1	1	Precharge contactor control	0	U16		0x00f0: Normal engagement; 0x000f: Normal disengagement; 0xfff0: Forced engagement; 0xff0f: Forced disengagement.	10	3	0	RW	1		
-	71			1	2	Intermediate contactor control	0	U16		0x00f0: Normal engagement; 0x000f: Normal disengagement; 0xfff0: Forced engagement; 0xff0f: Forced disengagement.	10	3	0	RW	1		
-	71			1	3	Fan contactor control	0	U16		0x00f0: Normal engagement; 0x000f: Normal disengagement; 0xfff0: Forced engagement; 0xff0f: Forced disengagement.	10	3	0	RW	1		
