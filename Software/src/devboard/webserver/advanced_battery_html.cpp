@@ -94,7 +94,9 @@ std::vector<BatteryCommand> battery_commands = {
                    "close the main contactor? With the negative closed this connects the full pack voltage to "
                    "the output - precharge first."),
     vendor_command("swMainOpen", "Open main contactor", nullptr),
-    vendor_command("swOpenAll", "Open all contactors", nullptr),
+    vendor_command("swOpenAll", "Open all contactors",
+                   "open all contactors? The BCMU is switched to manual mode and they stay open until the BCMU "
+                   "is rebooted (power-cycled) to return to automatic mode."),
 };
 
 String advanced_battery_processor(const String& var) {

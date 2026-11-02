@@ -141,7 +141,11 @@ class SunwodaHtmlRenderer : public BatteryHtmlRenderer {
         "<h4>Operating status: " + lookup(operatingStatusNames, 6, data->operatingStatus) + "</h4>";
     content += "<h4>Charge/discharge status: " +
                lookup(chargeDischargeStatusNames, 3, data->chargeDischargeStatus) + "</h4>";
-    if (data->operatingStatus == 0 || data->operatingStatus == 1) {
+    if (data->operatingMode == 8 && data->operatingStatus != 3) {
+      content +=
+          "<h4 style='color:#ffb74d;'>The BCMU is in manual (Debugging) mode - contactors were opened by hand "
+          "and stay open. Reboot (power-cycle) the BCMU to return to automatic mode.</h4>";
+    } else if (data->operatingStatus == 0 || data->operatingStatus == 1) {
       content +=
           "<h4 style='color:#ffb74d;'>The BCMU is not Running - contactors stay open. BCMU V4.04 starts on its "
           "own about 30 s after power-up; if it stays here check the battery switch, precharge wiring and the "
