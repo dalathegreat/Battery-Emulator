@@ -1,8 +1,8 @@
 #include "comm_nvm.h"
-#include "../../devboard/utils/led_handler.h"
 #include <esp_phy_init.h>  // esp_phy_erase_cal_data_in_nvs()
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#include "../../devboard/utils/led_handler.h"
 #ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CanCharger.h"
 #endif  // SMALL_FLASH_DEVICE

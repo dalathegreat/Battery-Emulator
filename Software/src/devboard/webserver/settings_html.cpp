@@ -114,8 +114,7 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
                                                 {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"},
                                                 {6, "SOC bar"}};
 #else
-static const std::map<int, String> led_modes = {
-    {0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}, {3, "SOC bar"}};
+static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}, {3, "SOC bar"}};
 #endif
 
 // Periodic BMS reset interval, stored in hours.
