@@ -198,11 +198,87 @@ static bool battery_lets_contactors_close(Battery* pack) {
   return (pack == nullptr) || pack->contactors_may_close();
 }
 
-//What the contactors and the precharge relay are driven to, for the battery to follow
-static void report_relays(bool negative, bool precharge, bool positive) {
-  datalayer.system.status.negative_contactor_closed = negative;
-  datalayer.system.status.precharge_relay_closed = precharge;
-  datalayer.system.status.positive_contactor_closed = positive;
+/* The relays as a BMS that is told about each of them is to see them (datalayer reported_*). Across a BMS
+   reset that keeps the contactors closed, such a BMS stops as if they had opened, and starts over as if
+   they closed again, as the Nissan LEAF's does. So from when the reset cuts the BMS power they read open,
+   and once it is back they close again with the timing of a cold start: not before the ladder could start
+   after one, INTERVAL_10_S from a boot BMS_POWER_COLD_START_MS before the BMS power came on, nor before
+   the battery's BMS allows it, and then step by step as the ladder would close them, battery 2 and 3
+   joining as it completes. The reset keeps the system paused until the ladder has, as a cold start does
+   until the contactors have closed. Only for a battery that asks for it (Battery::bms_follows_relays()). */
+static bool replay_pending = false;  //Contactors kept closed across a BMS reset, still to be shown closing
+static bool replay_started = false;
+static uint32_t replay_start_ms = 0;  //When the replayed ladder closed the negative contactor
+static bool replay_battery2 = false;  //Battery 2 still to be shown joining
+static bool replay_battery3 = false;
+
+static uint32_t replayed_ladder_ms() {
+  return NEGATIVE_CONTACTOR_TIME_MS + precharge_time_ms + PRECHARGE_COMPLETED_TIME_MS;
+}
+
+//The reset waits for it. Asked from the reset's own state machine, so it checks for itself that a replay
+//still applies rather than relying on update_reported_relays() having run since.
+static bool replaying_ladder() {
+  return replay_pending && (contactorStatus == COMPLETED) && (battery != nullptr) && battery->bms_follows_relays() &&
+         (!replay_started || (millis() - replay_start_ms) < replayed_ladder_ms());
+}
+
+static void update_reported_relays() {
+  DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
+  const uint32_t now = millis();
+
+  //What is driven, from where the ladder is: each state is named after the step it waits to take
+  bool negative = false;
+  bool precharge = false;
+  bool positive = false;
+  if (contactor_control_enabled) {
+    negative = (contactorStatus == PRECHARGE) || (contactorStatus == POSITIVE) || (contactorStatus == PRECHARGE_OFF) ||
+               (contactorStatus == COMPLETED);
+    precharge = (contactorStatus == POSITIVE) || (contactorStatus == PRECHARGE_OFF);
+    positive = (contactorStatus == PRECHARGE_OFF) || (contactorStatus == COMPLETED);
+  }
+  bool battery2_closed = status.contactors_battery2_engaged;
+  bool battery3_closed = status.contactors_battery3_engaged;
+
+  if ((contactorStatus != COMPLETED) || (battery == nullptr) || !battery->bms_follows_relays()) {
+    replay_pending = false;  //Opened, or never closed: what is driven is what is seen
+  } else if (status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+    replay_pending = true;
+    replay_started = false;
+    replay_battery2 = battery2_closed;
+    replay_battery3 = battery3_closed;
+  } else if (replay_pending && !replay_started && (now - bms_power_on_ms) >= INTERVAL_10_S - BMS_POWER_COLD_START_MS &&
+             battery_lets_contactors_close(battery)) {
+    replay_started = true;
+    replay_start_ms = now;
+  }
+
+  if (replay_pending) {
+    const uint32_t since = now - replay_start_ms;
+    if (!replay_started) {
+      negative = precharge = positive = false;
+    } else if (since < replayed_ladder_ms()) {
+      negative = true;
+      precharge = (since >= NEGATIVE_CONTACTOR_TIME_MS);
+      positive = (since >= NEGATIVE_CONTACTOR_TIME_MS + precharge_time_ms);
+    } else {
+      if (replay_battery2 && battery_lets_contactors_close(battery2)) {
+        replay_battery2 = false;
+      }
+      if (replay_battery3 && battery_lets_contactors_close(battery3)) {
+        replay_battery3 = false;
+      }
+      replay_pending = replay_battery2 || replay_battery3;
+    }
+    battery2_closed = battery2_closed && !replay_battery2;
+    battery3_closed = battery3_closed && !replay_battery3;
+  }
+
+  status.reported_negative_closed = negative;
+  status.reported_precharge_closed = precharge;
+  status.reported_positive_closed = positive;
+  status.reported_battery2_closed = battery2_closed;
+  status.reported_battery3_closed = battery3_closed;
 }
 
 static void dbg_contactors(const char* state) {
@@ -213,7 +289,7 @@ static void dbg_contactors(const char* state) {
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
-void handle_contactors() {
+static void run_contactors() {
   if (inverter && inverter->controls_contactor()) {
     datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
   }
@@ -261,7 +337,6 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::PRECHARGE, false);
       set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
-      report_relays(false, false, false);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
       datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
@@ -275,7 +350,6 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::PRECHARGE, false);
       set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
-      report_relays(false, false, false);
       datalayer.system.status.contactors_engaged = 0;
 
       if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
@@ -338,7 +412,6 @@ void handle_contactors() {
         }
         set(negPin, ON, PWM_ON_DUTY);
         set_indicator_led(IndicatorLed::CONTACTOR_NEG, true);
-        report_relays(true, false, false);
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
@@ -349,7 +422,6 @@ void handle_contactors() {
         if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
           set(prechargePin, ON);
           set_indicator_led(IndicatorLed::PRECHARGE, true);
-          report_relays(true, true, false);
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
@@ -361,7 +433,6 @@ void handle_contactors() {
         if (currentTime - negativeStartTime >= precharge_time_ms) {
           set(posPin, ON, PWM_ON_DUTY);
           set_indicator_led(IndicatorLed::CONTACTOR_POS, true);
-          report_relays(true, true, true);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
@@ -375,7 +446,6 @@ void handle_contactors() {
           set(negPin, ON, pwm_hold_duty);
           set(posPin, ON, pwm_hold_duty);
           set_indicator_led(IndicatorLed::PRECHARGE, false);
-          report_relays(true, false, true);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
           datalayer.system.status.contactors_engaged = 1;
@@ -385,6 +455,11 @@ void handle_contactors() {
         break;
     }
   }
+}
+
+void handle_contactors() {
+  run_contactors();
+  update_reported_relays();
 }
 
 /* Battery 2 and 3 each have a single contactor and no precharge stage of their own, they simply
@@ -639,8 +714,9 @@ void handle_BMSpower() {
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERING_ON) {
       bms_reset_can_keepalive_tick();
 
-      // Wait for BMS to start up before unpausing
-      if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
+      // Wait for BMS to start up before unpausing, and for the contactors it was shown open to be shown
+      // closed again, see update_reported_relays()
+      if (currentTime - bmsPowerOnTime >= bmsWarmupDuration && !replaying_ladder()) {
         // Unpause the battery
         setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 

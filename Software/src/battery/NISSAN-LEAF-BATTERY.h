@@ -58,6 +58,7 @@ class NissanLeafBattery : public CanBattery {
   }
   bool supports_insulation_resistance() { return true; }
   bool contactors_may_close() { return lbc_allows_relays(); }  //See RELAY_REPORT_MS
+  bool bms_follows_relays() { return true; }                   //See RELAY_REPORT_MS
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
@@ -217,7 +218,8 @@ class NissanLeafBattery : public CanBattery {
      (byte 4 bit 2) once both main relays have, and never before RLYP has been up that long. Both are 0
      until then, and again as the relays open. Where the GPIO contactor control drives this pack's relays
      the report follows it, otherwise they are taken as closed once the LBC allows it. A BMS reset starts
-     it over, as it starts the LBC over.
+     it over, as it starts the LBC over: the GPIO contactor control shows the relays it keeps closed
+     through the reset closing again as after a cold start (bms_follows_relays()).
      LB_INTERLOC counts only when the interlock is set as mandatory, and LB_STATUS (Failsafe_Status) not
      at all: its stop requests, at full and at empty, and its caution lamp request do not open the
      contactors in stationary use (see update_values), so they do not hold them open either. */

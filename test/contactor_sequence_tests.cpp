@@ -54,7 +54,9 @@ class GatedBattery : public TestFakeBattery {
   GatedBattery() = default;
   explicit GatedBattery(DATALAYER_BATTERY_TYPE* pack) : TestFakeBattery(pack, CAN_Interface::CAN_NATIVE) {}
   bool contactors_may_close() override { return may_close; }
+  bool bms_follows_relays() override { return follows; }
   bool may_close = false;
+  bool follows = false;
 };
 
 class ContactorSequenceTest : public ::testing::Test {
@@ -84,6 +86,7 @@ class ContactorSequenceTest : public ::testing::Test {
   void TearDown() override {
     contactor_control_enabled = false;
     contactor_control_enabled_double_battery = false;
+    remote_bms_reset = false;
     contactorStatus = DISCONNECTED;
     emulator_pause_status = NORMAL;
     datalayer.system.info.equipment_stop_active = false;
@@ -168,12 +171,12 @@ TEST_F(ContactorSequenceTest, WaitsForTheBatteryBeforeClosingAnything) {
   }
   EXPECT_EQ(contactorStatus, DISCONNECTED);
   EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedNone);
-  EXPECT_FALSE(datalayer.system.status.negative_contactor_closed);
+  EXPECT_FALSE(datalayer.system.status.reported_negative_closed);
 
   gated->may_close = true;
   tick_at(kBootMs + 10000);
   EXPECT_EQ(contactorStatus, PRECHARGE);
-  EXPECT_TRUE(datalayer.system.status.negative_contactor_closed);
+  EXPECT_TRUE(datalayer.system.status.reported_negative_closed);
 }
 
 // However long the battery takes, an equipment stop raised meanwhile still counts once it allows it
@@ -187,7 +190,7 @@ TEST_F(ContactorSequenceTest, AnEquipmentStopRaisedWhileWaitingForTheBatteryStil
   gated->may_close = true;
   tick_at(kBootMs + 2000);
   EXPECT_EQ(contactorStatus, DISCONNECTED);
-  EXPECT_FALSE(datalayer.system.status.negative_contactor_closed);
+  EXPECT_FALSE(datalayer.system.status.reported_negative_closed);
 }
 
 // Once something has closed the ladder runs to its end: stopping it would leave the precharge resistor
@@ -250,8 +253,8 @@ TEST_F(ContactorSequenceTest, ClosesInOrderWithEachStepGatedOnItsTimer) {
 TEST_F(ContactorSequenceTest, PublishesWhatItDrives) {
   const DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
   auto relays = [&]() {
-    return std::make_tuple(status.negative_contactor_closed, status.precharge_relay_closed,
-                           status.positive_contactor_closed);
+    return std::make_tuple(status.reported_negative_closed, status.reported_precharge_closed,
+                           status.reported_positive_closed);
   };
   const unsigned long t = kBootMs;
 
@@ -294,6 +297,118 @@ TEST_F(ContactorSequenceTest, SecondBatteryJoinsOnlyOnceItsBmsAllowsIt) {
   set_millis64(kBootMs + 20);
   handle_contactors_battery2();
   EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+}
+
+// --- Across a BMS reset ------------------------------------------------------
+
+// The relays as a BMS that is told about each of them sees them: the main pack's three and battery 2's
+static std::tuple<bool, bool, bool, bool> reported() {
+  const DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
+  return std::make_tuple(status.reported_negative_closed, status.reported_precharge_closed,
+                         status.reported_positive_closed, status.reported_battery2_closed);
+}
+
+// Such a BMS starts over when a BMS reset cuts its power with the contactors kept closed, as if they had
+// opened. They are shown open from then, and once the power is back closing again as after a cold start:
+// not before the ladder could start after one, 10 s from a boot 100 ms before the power came on, and then
+// step by step. The reset keeps the system paused until the ladder is done, and battery 2 is shown joining
+// once its own BMS allows it, as after a cold start.
+TEST_F(ContactorSequenceTest, ShowsTheContactorsClosingAgainAfterABmsResetAsAfterAColdStart) {
+  remote_bms_reset = true;
+  contactor_control_enabled_double_battery = true;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
+  datalayer.system.status.battery2_allowed_contactor_closing = true;
+  auto* pack = new GatedBattery();
+  pack->follows = true;
+  pack->may_close = true;
+  battery = pack;
+  auto* pack2 = new GatedBattery(&datalayer.battery2);
+  pack2->battery_index = 2;
+  pack2->follows = true;
+  pack2->may_close = true;
+  battery2 = pack2;
+  contactorStatus = COMPLETED;
+  tick_at(kBootMs);
+  ASSERT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, true, true));
+
+  start_bms_reset();
+  tick_at(kBootMs + 10);
+  EXPECT_EQ(contactorStatus, COMPLETED);  // Kept closed
+  EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+  EXPECT_EQ(reported(), std::make_tuple(false, false, false, false));
+
+  const unsigned long on = kBootMs + 30000;
+  tick_at(on);
+  ASSERT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+  pack2->may_close = false;
+  const unsigned long ladder = on + 9900;
+  tick_at(ladder - 10);
+  EXPECT_EQ(reported(), std::make_tuple(false, false, false, false));
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);  // Past the 3 s warmup
+
+  tick_at(ladder);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, false, false));
+  tick_at(ladder + kNegativeToPrechargeMs);
+  EXPECT_EQ(reported(), std::make_tuple(true, true, false, false));
+  tick_at(ladder + kNegativeToPrechargeMs + precharge_time_ms);
+  EXPECT_EQ(reported(), std::make_tuple(true, true, true, false));
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+
+  const unsigned long done = ladder + kNegativeToPrechargeMs + precharge_time_ms + kPrechargeToEconomizeMs;
+  tick_at(done);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, true, false));  // Battery 2 waits for its BMS
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
+
+  pack2->may_close = true;
+  tick_at(done + 10);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, true, true));
+}
+
+// The replayed ladder waits for the battery's BMS as the real one does
+TEST_F(ContactorSequenceTest, ReplaysTheLadderOnlyOnceTheBatteryAllowsIt) {
+  remote_bms_reset = true;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
+  auto* pack = new GatedBattery();
+  pack->follows = true;
+  pack->may_close = true;
+  battery = pack;
+  contactorStatus = COMPLETED;
+  tick_at(kBootMs);
+  start_bms_reset();
+  pack->may_close = false;
+  tick_at(kBootMs + 10);
+  const unsigned long on = kBootMs + 30000;
+  tick_at(on);
+
+  tick_at(on + 20000);
+  EXPECT_EQ(reported(), std::make_tuple(false, false, false, false));
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_POWERING_ON);
+
+  pack->may_close = true;
+  tick_at(on + 20010);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, false, false));
+}
+
+// A battery whose BMS is not told about the relays sees them as driven throughout, and the reset ends
+// after its warmup as it always has
+TEST_F(ContactorSequenceTest, LeavesOtherBatteriesAsTheyWereAcrossABmsReset) {
+  remote_bms_reset = true;
+  datalayer.battery_settings.user_set_bms_reset_duration_ms = 30000;
+  auto* pack = new GatedBattery();
+  pack->may_close = true;
+  battery = pack;
+  contactorStatus = COMPLETED;
+  tick_at(kBootMs);
+  start_bms_reset();
+  tick_at(kBootMs + 10);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, true, false));
+
+  const unsigned long on = kBootMs + 30000;
+  tick_at(on);
+  tick_at(on + 3000);
+  EXPECT_EQ(datalayer.system.status.bms_reset_status, BMS_RESET_IDLE);
+  EXPECT_EQ(reported(), std::make_tuple(true, false, true, false));
 }
 
 // dc_bus_live is what tells the rest of the firmware that the DC link is

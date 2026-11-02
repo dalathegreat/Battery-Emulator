@@ -2217,14 +2217,14 @@ class NissanLeafStartingSequenceTests : public ::testing::Test {
     user_selected_LEAF_interlock_mandatory = false;
     datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
     datalayer.system.status.battery_allows_contactor_closing = false;
-    datalayer.system.status.contactors_battery2_engaged = false;
+    datalayer.system.status.reported_battery2_closed = false;
     relays(false, false, false);
   }
 
   static void relays(bool negative, bool precharge, bool positive) {
-    datalayer.system.status.negative_contactor_closed = negative;
-    datalayer.system.status.precharge_relay_closed = precharge;
-    datalayer.system.status.positive_contactor_closed = positive;
+    datalayer.system.status.reported_negative_closed = negative;
+    datalayer.system.status.reported_precharge_closed = precharge;
+    datalayer.system.status.reported_positive_closed = positive;
   }
 
   CAN_frame status_1DB() const {
@@ -2431,7 +2431,7 @@ TEST_F(NissanLeafStartingSequenceTests, ShouldFollowASecondPacksOwnContactor) {
   run(1000);
   EXPECT_EQ(first(rlyp, 0), 0u);
 
-  datalayer.system.status.contactors_battery2_engaged = true;
+  datalayer.system.status.reported_battery2_closed = true;
   const unsigned long joined = t + 1;
   run(500);
   const unsigned long rlyp_at = first(rlyp, joined);

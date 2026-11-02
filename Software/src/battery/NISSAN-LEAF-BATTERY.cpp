@@ -1681,28 +1681,28 @@ bool NissanLeafBattery::lbc_allows_relays() {
 void NissanLeafBattery::follow_starting_sequence(unsigned long currentMillis) {
   const DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
 
-  //This pack's relays as the GPIO contactor control drives them, as in contactor_open(): pack 1's by its
-  //ladder, the negative relay first, then the precharge and the positive one, and those of packs 2 and 3
-  //by the single contactor each has. Where it does not drive them, something else does.
+  //This pack's relays as the GPIO contactor control has the LBC see them, as in contactor_open(): pack 1's
+  //by its ladder, the negative relay first, then the precharge and the positive one, and those of packs 2
+  //and 3 by the single contactor each has. Where it does not drive them, something else does.
   bool negative = true;
   bool precharge = false;
   bool positive = true;
   switch (battery_index) {
     case 1:
       if (contactor_control_enabled) {
-        negative = status.negative_contactor_closed;
-        precharge = status.precharge_relay_closed;
-        positive = status.positive_contactor_closed;
+        negative = status.reported_negative_closed;
+        precharge = status.reported_precharge_closed;
+        positive = status.reported_positive_closed;
       }
       break;
     case 2:
       if (contactor_control_enabled_double_battery) {
-        negative = positive = status.contactors_battery2_engaged;
+        negative = positive = status.reported_battery2_closed;
       }
       break;
     case 3:
       if (contactor_control_enabled_triple_battery) {
-        negative = positive = status.contactors_battery3_engaged;
+        negative = positive = status.reported_battery3_closed;
       }
       break;
     default:
