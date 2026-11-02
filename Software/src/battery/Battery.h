@@ -175,6 +175,11 @@ class Battery {
   // datalayer status insulation_resistance_kOhm
   virtual bool supports_insulation_resistance() { return false; }
 
+  /* False while the battery's BMS has yet to allow its contactors to close, as a Nissan LEAF LBC
+     signals with LB_FRLYON. The GPIO contactor control waits for it before closing anything for this
+     pack. Batteries without such a signal always allow it. */
+  virtual bool contactors_may_close() { return true; }
+
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 
   /* Which pack this instance drives: 1, 2 or 3. The same driver code serves every pack, so a

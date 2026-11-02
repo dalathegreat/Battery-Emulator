@@ -50,6 +50,8 @@ uint32_t bms_power_on_ms = 0;
 #define PWM_Battery3_Channel 3
 #define EXTRA_CONTACTOR_PULL_IN_TIME_MS \
   PRECHARGE_COMPLETED_TIME_MS  // Battery 2/3 coils are held at full duty for this long before being economized
+#define BMS_POWER_COLD_START_MS \
+  100  // After a cold start the BMS power comes on no earlier than this, see init_contactors()
 static uint32_t prechargeStartTime = 0;
 uint32_t negativeStartTime = 0;
 uint32_t prechargeCompletedTime = 0;
@@ -100,7 +102,7 @@ bool bms_power_is_active() {
 
 const char* contactors = "Contactors";
 
-bool init_contactors() {
+bool init_contactors(bool cold_start) {
   // Init contactor pins
   if (contactor_control_enabled) {
     auto posPin = esp32hal->POSITIVE_CONTACTOR_PIN();
@@ -174,12 +176,33 @@ bool init_contactors() {
       return false;
     }
     pinMode(pin, OUTPUT);
+    /* Where the BMS power feeds the battery's ignition input and its permanent supply comes up with the
+       board, the BMS should see the supply first and the ignition after it, as a Nissan LEAF EV pack's
+       starting sequence has it (BAT, then IGN). So after a cold start the BMS power waits until
+       BMS_POWER_COLD_START_MS after boot. After any other reset the pin may have been held on across it
+       (hold_pins_across_reset()), and it is driven on again at once. */
+    if (cold_start && millis() < BMS_POWER_COLD_START_MS) {
+      digitalWrite(pin, LOW);
+      delay(BMS_POWER_COLD_START_MS - millis());
+    }
     digitalWrite(pin, HIGH);
     bms_power_on_ms = millis();
     set_indicator_led(IndicatorLed::BMS_POWER, true);
   }
 
   return true;
+}
+
+//The battery's say in it, see Battery::contactors_may_close(). No battery means nothing to wait for.
+static bool battery_lets_contactors_close(Battery* pack) {
+  return (pack == nullptr) || pack->contactors_may_close();
+}
+
+//What the contactors and the precharge relay are driven to, for the battery to follow
+static void report_relays(bool negative, bool precharge, bool positive) {
+  datalayer.system.status.negative_contactor_closed = negative;
+  datalayer.system.status.precharge_relay_closed = precharge;
+  datalayer.system.status.positive_contactor_closed = positive;
 }
 
 static void dbg_contactors(const char* state) {
@@ -238,6 +261,7 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::PRECHARGE, false);
       set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
+      report_relays(false, false, false);
       set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
       datalayer.system.status.contactors_engaged = 2;
       return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
@@ -251,6 +275,7 @@ void handle_contactors() {
       set_indicator_led(IndicatorLed::PRECHARGE, false);
       set_indicator_led(IndicatorLed::CONTACTOR_NEG, false);
       set_indicator_led(IndicatorLed::CONTACTOR_POS, false);
+      report_relays(false, false, false);
       datalayer.system.status.contactors_engaged = 0;
 
       if (datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active) {
@@ -305,8 +330,15 @@ void handle_contactors() {
     // Handle actual state machine. This first turns on Negative, then Precharge, then Positive, and finally turns OFF precharge
     switch (contactorStatus) {
       case START_PRECHARGE:
+        //Nothing is closed yet, so this is where the battery's BMS gets its say. Until it allows it, the
+        //ladder waits where it started, so the inverter's permission and the equipment stop count as well.
+        if (!battery_lets_contactors_close(battery)) {
+          contactorStatus = DISCONNECTED;
+          break;
+        }
         set(negPin, ON, PWM_ON_DUTY);
         set_indicator_led(IndicatorLed::CONTACTOR_NEG, true);
+        report_relays(true, false, false);
         dbg_contactors("NEGATIVE");
         prechargeStartTime = currentTime;
         contactorStatus = PRECHARGE;
@@ -317,6 +349,7 @@ void handle_contactors() {
         if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
           set(prechargePin, ON);
           set_indicator_led(IndicatorLed::PRECHARGE, true);
+          report_relays(true, true, false);
           dbg_contactors("PRECHARGE");
           negativeStartTime = currentTime;
           contactorStatus = POSITIVE;
@@ -328,6 +361,7 @@ void handle_contactors() {
         if (currentTime - negativeStartTime >= precharge_time_ms) {
           set(posPin, ON, PWM_ON_DUTY);
           set_indicator_led(IndicatorLed::CONTACTOR_POS, true);
+          report_relays(true, true, true);
           dbg_contactors("POSITIVE");
           prechargeCompletedTime = currentTime;
           contactorStatus = PRECHARGE_OFF;
@@ -341,6 +375,7 @@ void handle_contactors() {
           set(negPin, ON, pwm_hold_duty);
           set(posPin, ON, pwm_hold_duty);
           set_indicator_led(IndicatorLed::PRECHARGE, false);
+          report_relays(true, false, true);
           dbg_contactors("PRECHARGE_OFF");
           contactorStatus = COMPLETED;
           datalayer.system.status.contactors_engaged = 1;
@@ -361,7 +396,10 @@ void handle_contactors() {
    run before handle_contactors() refreshes it, and it is not refreshed at all on the COMPLETED
    pass, which is precisely when these contactors are closed.
    Both edges are logged next to the main ladder's steps, so the log shows when each extra
-   battery actually joined the DC link and when it left it again, not just what the main one did. */
+   battery actually joined the DC link and when it left it again, not just what the main one did.
+   Joining also waits for the pack's BMS to allow it (Battery::contactors_may_close()), as the main
+   ladder does before it closes anything. Once joined, that is not asked again: it is no reason to
+   open under load. */
 static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start,
                                    const char* join_log, const char* leave_log) {
   if (close_allowed) {
@@ -386,19 +424,21 @@ static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& eng
 void handle_contactors_battery2() {
   static uint32_t pull_in_start = 0;
 
-  handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2",
-                         "LEAVE Battery 2");
+  handle_extra_contactor(
+      esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing &&
+          (datalayer.system.status.contactors_battery2_engaged || battery_lets_contactors_close(battery2)),
+      datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2", "LEAVE Battery 2");
 }
 
 void handle_contactors_battery3() {
   static uint32_t pull_in_start = 0;
 
-  handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3",
-                         "LEAVE Battery 3");
+  handle_extra_contactor(
+      esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing &&
+          (datalayer.system.status.contactors_battery3_engaged || battery_lets_contactors_close(battery3)),
+      datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3", "LEAVE Battery 3");
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.

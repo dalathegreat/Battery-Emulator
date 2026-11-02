@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 
-#include <Arduino.h>  // Emul: set_millis64() to control the test clock
+#include <Arduino.h>  // Emul: set_millis64() to control the test clock, get_pin_writes()
+#include <tuple>
+#include <vector>
 
+#include "../Software/src/battery/BATTERIES.h"
+#include "../Software/src/battery/TEST-FAKE-BATTERY.h"
 #include "../Software/src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/hal/hal.h"
@@ -43,6 +47,16 @@ constexpr unsigned long kBootMs = 100000;  // Well past INTERVAL_10_S
 
 extern SeqState contactorStatus;
 
+// A pack whose BMS has to allow its contactors to close, as a Nissan LEAF's does. Created with new: the
+// global test listener deletes the battery instances before each test.
+class GatedBattery : public TestFakeBattery {
+ public:
+  GatedBattery() = default;
+  explicit GatedBattery(DATALAYER_BATTERY_TYPE* pack) : TestFakeBattery(pack, CAN_Interface::CAN_NATIVE) {}
+  bool contactors_may_close() override { return may_close; }
+  bool may_close = false;
+};
+
 class ContactorSequenceTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -69,6 +83,7 @@ class ContactorSequenceTest : public ::testing::Test {
 
   void TearDown() override {
     contactor_control_enabled = false;
+    contactor_control_enabled_double_battery = false;
     contactorStatus = DISCONNECTED;
     emulator_pause_status = NORMAL;
     datalayer.system.info.equipment_stop_active = false;
@@ -142,6 +157,55 @@ TEST_F(ContactorSequenceTest, LeavesDisconnectedOncePermittedAndNoStop) {
   EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedClosing);
 }
 
+// The battery's BMS gets its say before anything closes: the ladder waits where it started, with nothing
+// driven, for as long as it is withheld, and goes ahead on the pass it is given.
+TEST_F(ContactorSequenceTest, WaitsForTheBatteryBeforeClosingAnything) {
+  auto* gated = new GatedBattery();
+  battery = gated;
+
+  for (int i = 0; i < 10; ++i) {
+    tick_at(kBootMs + i * 1000);
+  }
+  EXPECT_EQ(contactorStatus, DISCONNECTED);
+  EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedNone);
+  EXPECT_FALSE(datalayer.system.status.negative_contactor_closed);
+
+  gated->may_close = true;
+  tick_at(kBootMs + 10000);
+  EXPECT_EQ(contactorStatus, PRECHARGE);
+  EXPECT_TRUE(datalayer.system.status.negative_contactor_closed);
+}
+
+// However long the battery takes, an equipment stop raised meanwhile still counts once it allows it
+TEST_F(ContactorSequenceTest, AnEquipmentStopRaisedWhileWaitingForTheBatteryStillCounts) {
+  auto* gated = new GatedBattery();
+  battery = gated;
+  tick_at(kBootMs);
+  datalayer.system.info.equipment_stop_active = true;
+  tick_at(kBootMs + 1000);
+
+  gated->may_close = true;
+  tick_at(kBootMs + 2000);
+  EXPECT_EQ(contactorStatus, DISCONNECTED);
+  EXPECT_FALSE(datalayer.system.status.negative_contactor_closed);
+}
+
+// Once something has closed the ladder runs to its end: stopping it would leave the precharge resistor
+// carrying the DC link, and the battery's say is only about starting.
+TEST_F(ContactorSequenceTest, RunsToTheEndOnceStarted) {
+  auto* gated = new GatedBattery();
+  gated->may_close = true;
+  battery = gated;
+  tick_at(kBootMs);
+  ASSERT_EQ(contactorStatus, PRECHARGE);
+
+  gated->may_close = false;
+  tick_at(kBootMs + kNegativeToPrechargeMs);
+  tick_at(kBootMs + kNegativeToPrechargeMs + precharge_time_ms);
+  tick_at(kBootMs + kNegativeToPrechargeMs + precharge_time_ms + kPrechargeToEconomizeMs);
+  EXPECT_EQ(contactorStatus, COMPLETED);
+}
+
 // --- The closing ladder ----------------------------------------------------
 
 // Negative first, then precharge after a settling delay, then positive once the
@@ -179,6 +243,57 @@ TEST_F(ContactorSequenceTest, ClosesInOrderWithEachStepGatedOnItsTimer) {
   tick_at(positive_closed_at + kPrechargeToEconomizeMs);
   EXPECT_EQ(contactorStatus, COMPLETED);
   EXPECT_EQ(datalayer.system.status.contactors_engaged, kEngagedEconomized);
+}
+
+// What each step drives is published for the battery to follow (a Nissan LEAF tells its LBC about the
+// precharge and the positive relay), and all of it goes as the contactors open.
+TEST_F(ContactorSequenceTest, PublishesWhatItDrives) {
+  const DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
+  auto relays = [&]() {
+    return std::make_tuple(status.negative_contactor_closed, status.precharge_relay_closed,
+                           status.positive_contactor_closed);
+  };
+  const unsigned long t = kBootMs;
+
+  tick_at(t);
+  EXPECT_EQ(relays(), std::make_tuple(true, false, false));
+  tick_at(t + kNegativeToPrechargeMs);
+  EXPECT_EQ(relays(), std::make_tuple(true, true, false));
+  tick_at(t + kNegativeToPrechargeMs + precharge_time_ms);
+  EXPECT_EQ(relays(), std::make_tuple(true, true, true));
+  tick_at(t + kNegativeToPrechargeMs + precharge_time_ms + kPrechargeToEconomizeMs);
+  ASSERT_EQ(contactorStatus, COMPLETED);
+  EXPECT_EQ(relays(), std::make_tuple(true, false, true));
+
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+  tick_at(t + 5000);
+  tick_at(t + 5001);
+  EXPECT_EQ(relays(), std::make_tuple(false, false, false));
+}
+
+// Battery 2 joins once its own BMS allows it too, and stays joined if it later stops allowing it: that is
+// no reason to open under load.
+TEST_F(ContactorSequenceTest, SecondBatteryJoinsOnlyOnceItsBmsAllowsIt) {
+  contactor_control_enabled_double_battery = true;
+  contactorStatus = COMPLETED;
+  datalayer.system.status.battery2_allowed_contactor_closing = true;
+  auto* gated = new GatedBattery(&datalayer.battery2);
+  gated->battery_index = 2;
+  battery2 = gated;
+
+  set_millis64(kBootMs);
+  handle_contactors_battery2();
+  EXPECT_FALSE(datalayer.system.status.contactors_battery2_engaged);
+
+  gated->may_close = true;
+  set_millis64(kBootMs + 10);
+  handle_contactors_battery2();
+  EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
+
+  gated->may_close = false;
+  set_millis64(kBootMs + 20);
+  handle_contactors_battery2();
+  EXPECT_TRUE(datalayer.system.status.contactors_battery2_engaged);
 }
 
 // dc_bus_live is what tells the rest of the firmware that the DC link is
@@ -313,4 +428,55 @@ TEST_F(ContactorSequenceTest, DoesNothingWhenContactorControlIsDisabled) {
   }
 
   EXPECT_EQ(contactorStatus, DISCONNECTED);
+}
+
+// --- The BMS power at start ------------------------------------------------
+
+// After a cold start the BMS power waits until 100 ms after boot: a Nissan LEAF EV pack wants its ignition
+// input after its permanent supply, which comes up with the board. After any other reset it goes straight
+// on, as it may have been held on across it. delay() does not move the emulated clock, so these see the
+// levels driven, not the wait.
+class BmsPowerStartTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    contactor_control_enabled = false;
+    contactor_control_enabled_double_battery = false;
+    contactor_control_enabled_triple_battery = false;
+    periodic_bms_reset = true;  // Has init_contactors() drive the BMS power
+    remote_bms_reset = false;
+    clear_pin_writes();
+  }
+
+  void TearDown() override {
+    periodic_bms_reset = false;
+    set_millis64(0);
+  }
+
+  static std::vector<uint8_t> bms_power_levels() {
+    std::vector<uint8_t> levels;
+    for (const auto& write : get_pin_writes()) {
+      if (write.pin == (uint8_t)esp32hal->BMS_POWER()) {
+        levels.push_back(write.value);
+      }
+    }
+    return levels;
+  }
+};
+
+TEST_F(BmsPowerStartTest, HoldsItOffFirstAfterAColdStart) {
+  set_millis64(40);
+  ASSERT_TRUE(init_contactors(true));
+  EXPECT_EQ(bms_power_levels(), (std::vector<uint8_t>{LOW, HIGH}));
+}
+
+TEST_F(BmsPowerStartTest, SwitchesItOnStraightAwayOnceThatTimeHasPassed) {
+  set_millis64(150);
+  ASSERT_TRUE(init_contactors(true));
+  EXPECT_EQ(bms_power_levels(), (std::vector<uint8_t>{HIGH}));
+}
+
+TEST_F(BmsPowerStartTest, SwitchesItOnStraightAwayAfterAnyOtherReset) {
+  set_millis64(40);
+  ASSERT_TRUE(init_contactors(false));
+  EXPECT_EQ(bms_power_levels(), (std::vector<uint8_t>{HIGH}));
 }

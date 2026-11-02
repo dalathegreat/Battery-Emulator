@@ -442,6 +442,11 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   uint8_t CAN_inverter_still_alive = (CAN_STILL_ALIVE - 1);
   /** 0 if starting up, 1 if contactors engaged, 2 if the contactors controlled by battery-emulator is opened */
   uint8_t contactors_engaged = 0;
+  /** What the GPIO contactor control drives closed, for a battery whose BMS is told about each step
+   *  (Nissan LEAF RLYP/BTONFN). All false without GPIO contactor control. */
+  bool negative_contactor_closed = false;
+  bool precharge_relay_closed = false;
+  bool positive_contactor_closed = false;
   /** True when the DC bus is actually energized towards the inverter (contactors closed and precharge
    *  complete). Single source of truth for inverter protocols that must not advertise an ACTIVE battery
    *  against a dead DC bus (e.g. BYD-Modbus / Fronius during the boot-gate + precharge window).
