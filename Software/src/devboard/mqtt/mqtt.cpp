@@ -220,6 +220,55 @@ static bool supports_insulation(Battery* b) {
 static bool supports_leaf_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
 }
+
+// The two software resets of the Advanced page, "BMS Reset" and "SOC Reset", as MQTT buttons. They
+// are only offered for Tesla packs; other integrations with a reset of their own keep it on the
+// Advanced page. Not to be confused with the "BMS Power reset" (BMSRESET), which power-cycles the
+// BMS through a GPIO pin.
+enum class TeslaReset { BMS, SOC };
+
+static bool is_tesla_battery_type() {
+  return user_selected_battery_type == BatteryType::TeslaModel3Y ||
+         user_selected_battery_type == BatteryType::TeslaModelSX ||
+         user_selected_battery_type == BatteryType::TeslaLegacy;
+}
+
+// Counts the Tesla packs that offer the given reset (the Legacy integration has a BMS reset but
+// no SOC reset). With trigger set, also requests the reset on each of them, exactly like the
+// Advanced page button does: it only raises a flag, and the battery itself checks the
+// preconditions (contactors open, SOC window for the SOC reset) and raises an event if it refuses.
+static int tesla_software_reset(TeslaReset reset, bool trigger) {
+  if (!is_tesla_battery_type()) {
+    return 0;
+  }
+  int packs = 0;
+  for (Battery* bat : {battery, battery2, battery3}) {
+    if (bat == nullptr) {
+      continue;
+    }
+    if (reset == TeslaReset::BMS ? bat->supports_reset_BMS() : bat->supports_reset_SOC()) {
+      packs++;
+      if (trigger) {
+        if (reset == TeslaReset::BMS) {
+          bat->reset_BMS();
+        } else {
+          bat->reset_SOC();
+        }
+      }
+    }
+  }
+  return packs;
+}
+
+// Installation-level conditions for the buttons: there is no single Battery to ask about, so
+// like the aggregate sensors they take nullptr and look at the configured packs themselves.
+static bool tesla_bms_reset_available(Battery* unused) {
+  return tesla_software_reset(TeslaReset::BMS, false) > 0;
+}
+static bool tesla_soc_reset_available(Battery* unused) {
+  return tesla_software_reset(TeslaReset::SOC, false) > 0;
+}
+
 // Emulator-level condition: the heap diagnostics are opt-in from the MQTT settings page.
 static bool heap_metrics_enabled(Battery* b) {
   return mqtt_publish_heap_metrics;
@@ -358,11 +407,15 @@ static String info_topics[3];
 // "<name>/info_multi", following the "<name>/info_2" pattern. Only used with several batteries.
 static String aggregate_topic;
 
-static const SensorConfig buttonConfigs[] = {{"BMSRESET", "BMS Power reset", nullptr, nullptr, nullptr},
-                                             {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
-                                             {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
+static const SensorConfig buttonConfigs[] = {
+    {"BMSRESET", "BMS Power reset", nullptr, nullptr, nullptr},
+    {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
+    {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
+    {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
+    {"STOP", "Open Contactors", nullptr, nullptr, nullptr},
+    // Only published when a Tesla pack is configured.
+    {"TESLA_BMS_RESET", "Tesla BMS Reset", nullptr, nullptr, tesla_bms_reset_available},
+    {"TESLA_SOC_RESET", "Tesla SOC Reset", nullptr, nullptr, tesla_soc_reset_available}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
 // init_mqtt() so that mqtt_message_received() does not rebuild temporary Strings on
@@ -373,13 +426,16 @@ enum ButtonCommand {
   BTN_RESUME,
   BTN_RESTART,
   BTN_STOP,
+  BTN_TESLA_BMS_RESET,
+  BTN_TESLA_SOC_RESET,
   BTN_SET_LIMITS,
   BTN_ESPNOW_RUN,
   BTN_SET_SCALESOC,
   BTN_COUNT
 };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE",      "RESUME",     "RESTART",
-                                                 "STOP",     "SET_LIMITS", "ESPNOW_RUN", "SET_SCALESOC"};
+static const char* button_commands[BTN_COUNT] = {"BMSRESET",   "PAUSE",           "RESUME",          "RESTART",
+                                                 "STOP",       "TESLA_BMS_RESET", "TESLA_SOC_RESET", "SET_LIMITS",
+                                                 "ESPNOW_RUN", "SET_SCALESOC"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -711,6 +767,10 @@ static const char* button_discovery_icon(const char* command) {
     return "mdi:battery-sync-outline";
   if (strcmp(command, "STOP") == 0)
     return "mdi:battery-remove-outline";
+  if (strcmp(command, "TESLA_BMS_RESET") == 0)
+    return "mdi:restart-alert";
+  if (strcmp(command, "TESLA_SOC_RESET") == 0)
+    return "mdi:battery-check-outline";
   return nullptr;
 }
 
@@ -1183,6 +1243,10 @@ static bool publish_buttons_discovery(void) {
       JsonDocument& doc = shared_doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         const SensorConfig& config = buttonConfigs[i];
+        // Most buttons apply to every installation and carry no condition.
+        if (config.condition != nullptr && !config.condition(nullptr)) {
+          continue;
+        }
         doc["name"] = config.name;
         doc["unique_id"] = default_entity_id_prefix + config.entity_id;
         doc["command_topic"] = generateButtonTopic(config.entity_id);
@@ -1245,6 +1309,21 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, button_command_topics[BTN_STOP].c_str()) == 0) {
     setBatteryPause(true, false, EquipmentStop::STOP);
+  }
+
+  // Same routines as the Advanced page "BMS Reset" and "SOC Reset" buttons. If the battery
+  // refuses (contactors closed, SOC outside the window, BMS blocks the reset), it raises its
+  // usual event, which is also published over MQTT.
+  if (strcmp(topic, button_command_topics[BTN_TESLA_BMS_RESET].c_str()) == 0) {
+    if (tesla_software_reset(TeslaReset::BMS, true) > 0) {
+      logging.println("MQTT: Triggering Tesla BMS reset");
+    }
+  }
+
+  if (strcmp(topic, button_command_topics[BTN_TESLA_SOC_RESET].c_str()) == 0) {
+    if (tesla_software_reset(TeslaReset::SOC, true) > 0) {
+      logging.println("MQTT: Triggering Tesla SOC reset");
+    }
   }
 
   // "1" starts ESP-NOW if it is not running, "0" stops it if it is. Runtime only: the

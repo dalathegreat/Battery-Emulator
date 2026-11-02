@@ -209,6 +209,7 @@ void init_stored_settings() {
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   user_selected_triple_battery = settings.getBool("TRIBTR", false);
+  datalayer.battery_settings.parallel_headroom_tracking = settings.getBool("PARHEADROOM", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
   inverter_low_pass_filter = settings.getBool("LOWPASSFILTER", false);
   charge_taper_soc = settings.getBool("CHGTAPERSOC", false);
