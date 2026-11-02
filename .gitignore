@@ -41,3 +41,10 @@ Software/idf_component.yml
 
 # Ignore generated version header (produced by tools/identify_build.py)
 Software/src/devboard/utils/version_autogen.h
+
+# Local reverse-engineering work, vendor firmware images and captures (not part of the firmware)
+/tools/re/
+/tools/pcantrc.txt
+/tools/*.trc
+/test/docs/
+/build.log
