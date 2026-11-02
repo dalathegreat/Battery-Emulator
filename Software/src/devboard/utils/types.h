@@ -31,9 +31,9 @@ enum class comm_interface {
 };
 
 #ifdef HW_LILYGO2CAN
-enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, GRB_CLASSIC, GRB_FLOW, GRB_HEARTBEAT, SOC_BAR };
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, GRB_CLASSIC, GRB_FLOW, GRB_HEARTBEAT };
 #else
-enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT, SOC_BAR };
+enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
 #endif
 
 enum PrechargeState {

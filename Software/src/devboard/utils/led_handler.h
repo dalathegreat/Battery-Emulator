@@ -35,20 +35,10 @@ class LED {
   void classic_run(void);
   void flow_run(void);
   void heartbeat_run(void);
-  void soc_bar_run(void);
 
   uint8_t up_down(uint16_t middle_point_f);
   uint16_t LED_PERIOD_MS = 3000;
 };
-
-// User-configured GPIO for the addressable strip (settings key LEDPIN). 255 means "not set",
-// so the board's LED_PIN() default is used. Lets a board whose default pin is not broken out
-// (or is wanted for something else) drive the strip from any free header pin.
-extern uint8_t user_selected_led_pin;
-
-// User-configured length of the addressable strip on LED_PIN (settings key LEDCOUNT).
-// 0 means "not set" - the board's LED_COUNT() default is used instead.
-extern uint8_t user_selected_led_count;
 
 bool led_init(void);
 void led_exe(void);

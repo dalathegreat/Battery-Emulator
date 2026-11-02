@@ -111,10 +111,9 @@ static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[
 
 #ifdef HW_LILYGO2CAN
 static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
-                                                {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"},
-                                                {6, "SOC bar"}};
+                                                {3, "GRB Classic"}, {4, "GRB Energy Flow"}, {5, "GRB Heartbeat"}};
 #else
-static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}, {3, "SOC bar"}};
+static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
 // Periodic BMS reset interval, stored in hours.
@@ -400,13 +399,6 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "GTWPACK") {
     return options_from_map(settings.getUInt("GTWPACK", user_selected_tesla_GTW_packEnergy), tesla_pack);
-  }
-
-  if (var == "LEDPIN") {
-    return String(settings.getUInt("LEDPIN", 255));
-  }
-  if (var == "LEDCOUNT") {
-    return String(settings.getUInt("LEDCOUNT", 0));
   }
 
   // One per pack. Unsaved, the 2nd and 3rd show what their pack is running with, i.e. pack 1's.
@@ -2466,14 +2458,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <label for='LEDMODE'>Status LED pattern: </label><select name='LEDMODE' id='LEDMODE'>
         %LEDMODE%
         </select>
-
-        <label>Addressable LED GPIO: </label>
-        <input name='LEDPIN' pattern="[0-9]+" type='text' value='%LEDPIN%' 
-        title="GPIO driving the WS2812/NeoPixel data line. 255 uses the board default pin. Useful when the default pin is not broken out on a header." />
-
-        <label>Addressable LED strip length: </label>
-        <input name='LEDCOUNT' pattern="[0-9]+" type='text' value='%LEDCOUNT%' 
-        title="Number of WS2812/NeoPixel LEDs on the status LED pin. 0 uses the board default. The SOC bar mode spreads the charge level across the whole strip." />
 
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
