@@ -2181,6 +2181,269 @@ TEST_F(NissanLeafU1000Tests, ShouldPollAgainOnceTheResetIsOver) {
   EXPECT_FALSE(sent_with_id(0x79B, idle).empty());
 }
 
+// Starting sequence of the EV pack (295B0NDS03 5.1): the relays may close once the LBC reports LB_FRLYON
+// with no LB_FAIL, and 0x1D4 tells it about them, RLYP (byte 5 bit 6) 60 ms after the precharge relay and
+// BTONFN (byte 4 bit 2) 60 ms after both main relays, and no sooner than 60 ms after RLYP. These run the
+// driver on a 1 ms core loop against an LBC that sends 0x1DB every 10 ms, with the given flags.
+class NissanLeafStartingSequenceTests : public ::testing::Test {
+ protected:
+  struct Sent {
+    unsigned long t;
+    CAN_frame frame;
+  };
+  unsigned long t = 300000;
+  NissanLeafBattery* battery = nullptr;
+  std::vector<Sent> sent;  // 0x1D4 only
+  bool frlyon = false;
+  bool interlock = false;
+  uint8_t relay_cut = 0;
+
+  void SetUp() override {
+    reset_globals();
+    set_millis64(t);
+    battery = new NissanLeafBattery();
+    battery->setup();
+  }
+
+  void TearDown() override {
+    reset_globals();
+    delete battery;
+  }
+
+  // Shared with other suites, which CI runs shuffled
+  static void reset_globals() {
+    contactor_control_enabled = false;
+    contactor_control_enabled_double_battery = false;
+    user_selected_LEAF_interlock_mandatory = false;
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    datalayer.system.status.battery_allows_contactor_closing = false;
+    datalayer.system.status.contactors_battery2_engaged = false;
+    relays(false, false, false);
+  }
+
+  static void relays(bool negative, bool precharge, bool positive) {
+    datalayer.system.status.negative_contactor_closed = negative;
+    datalayer.system.status.precharge_relay_closed = precharge;
+    datalayer.system.status.positive_contactor_closed = positive;
+  }
+
+  CAN_frame status_1DB() const {
+    CAN_frame frame = leaf_frame(
+        0x1DB, {0x00, (uint8_t)(relay_cut << 3), 0x00, (uint8_t)((frlyon ? 0x20 : 0x00) | (interlock ? 0x08 : 0x00))});
+    frame.data.u8[7] = battery->calculate_crc(frame);
+    return frame;
+  }
+
+  void run(unsigned long duration_ms, bool lbc_talking = true) {
+    for (unsigned long i = 0; i < duration_ms; i++) {
+      t++;
+      set_millis64(t);
+      if (lbc_talking && t % 10 == 0) {
+        battery->handle_incoming_can_frame(status_1DB());
+      }
+      clear_transmitted_frames();
+      battery->transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        if (frame.ID == 0x1D4) {
+          sent.push_back({t, frame});
+        }
+      }
+    }
+  }
+
+  static bool rlyp(const Sent& s) { return (s.frame.data.u8[5] & 0x40) != 0; }
+  static bool btonfn(const Sent& s) { return (s.frame.data.u8[4] & 0x04) != 0; }
+
+  // When the first 0x1D4 since `from` carrying the bit went out, 0 if none did
+  unsigned long first(bool (*bit)(const Sent&), unsigned long from) const {
+    for (const Sent& s : sent) {
+      if (s.t >= from && bit(s)) {
+        return s.t;
+      }
+    }
+    return 0;
+  }
+
+  // The LBC is talking with LB_FRLYON set by the time this returns, from about `ready`
+  unsigned long make_ready() {
+    frlyon = true;
+    run(10);  // The next 0x1DB carries it
+    return t - (t % 10);
+  }
+};
+
+// Nothing is reported while the LBC withholds LB_FRLYON, the CRC following the bits throughout. With no GPIO
+// contactor control the relays are taken as closed once it allows them: RLYP 60 ms later, BTONFN another
+// 60 ms on, and then the message is what it always was.
+TEST_F(NissanLeafStartingSequenceTests, ShouldReportTheRelaysOnlyOnceTheLbcAllowsThem) {
+  run(2000);
+  ASSERT_FALSE(sent.empty());
+  EXPECT_EQ(first(rlyp, 0), 0u);
+  EXPECT_EQ(first(btonfn, 0), 0u);
+
+  const unsigned long ready = make_ready();
+  run(500);
+  const unsigned long rlyp_at = first(rlyp, 0);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, ready + 60);
+  EXPECT_LE(rlyp_at, ready + 70);
+  const unsigned long btonfn_at = first(btonfn, 0);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, rlyp_at + 51);  // 60 ms after RLYP rose, which the 10 ms message shows up to 9 ms late
+  EXPECT_LE(btonfn_at, rlyp_at + 70);
+
+  const uint8_t crc_with_both[4] = {0x12, 0xD5, 0x19, 0xDE};
+  for (Sent s : sent) {
+    EXPECT_EQ(s.frame.data.u8[7], battery->calculate_crc(s.frame)) << s.t;
+    if (s.t >= btonfn_at) {
+      const uint8_t counter = s.frame.data.u8[4] >> 6;
+      EXPECT_EQ(s.frame.data.u8[4], (uint8_t)((counter << 6) | 0x07)) << s.t;
+      EXPECT_EQ(s.frame.data.u8[5], 0x46) << s.t;
+      EXPECT_EQ(s.frame.data.u8[7], crc_with_both[counter]) << s.t;
+    }
+  }
+}
+
+// With GPIO contactor control the report follows its ladder: nothing for the negative relay alone, RLYP
+// 60 ms after the precharge relay, BTONFN 60 ms after the positive one, both kept as the precharge relay
+// opens, and both gone as soon as the contactors open.
+TEST_F(NissanLeafStartingSequenceTests, ShouldFollowTheGpioContactorControl) {
+  contactor_control_enabled = true;
+  make_ready();
+  run(1000);
+  relays(true, false, false);
+  run(500);
+  EXPECT_EQ(first(rlyp, 0), 0u);
+
+  relays(true, true, false);
+  const unsigned long precharge_at = t + 1;
+  run(100);
+  const unsigned long rlyp_at = first(rlyp, precharge_at);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, precharge_at + 60);
+  EXPECT_LE(rlyp_at, precharge_at + 70);
+  EXPECT_EQ(first(btonfn, 0), 0u);
+
+  relays(true, true, true);
+  const unsigned long positive_at = t + 1;
+  run(1000);
+  const unsigned long btonfn_at = first(btonfn, positive_at);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, positive_at + 60);
+  EXPECT_LE(btonfn_at, positive_at + 70);
+
+  relays(true, false, true);
+  const unsigned long economized = t + 1;
+  run(500);
+  for (const Sent& s : sent) {
+    if (s.t >= economized) {
+      EXPECT_TRUE(rlyp(s) && btonfn(s)) << s.t;
+    }
+  }
+
+  relays(false, false, false);
+  const unsigned long opened = t + 1;
+  run(100);
+  for (const Sent& s : sent) {
+    if (s.t >= opened) {
+      EXPECT_FALSE(rlyp(s) || btonfn(s)) << s.t;
+    }
+  }
+}
+
+// The contactors may close once the LBC reports LB_FRLYON with no LB_FAIL, and LB_INTERLOC too where the
+// interlock is set as mandatory. Only then does the driver tell the others that read it.
+TEST_F(NissanLeafStartingSequenceTests, ShouldLetTheContactorsCloseOnlyOnceTheLbcAllowsIt) {
+  EXPECT_FALSE(battery->contactors_may_close());  // Nothing heard yet
+  run(100);
+  EXPECT_FALSE(battery->contactors_may_close());
+
+  frlyon = true;
+  relay_cut = 1;
+  run(100);
+  EXPECT_FALSE(battery->contactors_may_close());
+  battery->update_values();
+  EXPECT_FALSE(datalayer.system.status.battery_allows_contactor_closing);
+
+  relay_cut = 0;
+  user_selected_LEAF_interlock_mandatory = true;
+  run(100);
+  EXPECT_FALSE(battery->contactors_may_close());
+
+  interlock = true;
+  run(100);
+  EXPECT_TRUE(battery->contactors_may_close());
+  battery->update_values();
+  EXPECT_TRUE(datalayer.system.status.battery_allows_contactor_closing);
+
+  user_selected_LEAF_interlock_mandatory = false;
+  interlock = false;
+  run(100);
+  EXPECT_TRUE(battery->contactors_may_close());
+}
+
+// A BMS reset starts the LBC over, so the report starts over too, even with the contactors kept closed
+// throughout: nothing until the LBC allows the relays again, then RLYP, then BTONFN. What it said as its
+// power was cut does not count.
+TEST_F(NissanLeafStartingSequenceTests, ShouldStartOverAfterABmsReset) {
+  contactor_control_enabled = true;
+  relays(true, false, true);
+  make_ready();
+  run(1000);
+  ASSERT_NE(first(btonfn, 0), 0u);
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(1000);  // Only its ignition line cut, it is still talking
+  EXPECT_FALSE(battery->contactors_may_close());
+  battery->handle_incoming_can_frame(status_1DB());  // Its last word, just before the power comes back
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  frlyon = false;
+  const unsigned long on = t + 1;
+  run(2000);
+  EXPECT_FALSE(battery->contactors_may_close());
+  EXPECT_EQ(first(rlyp, on), 0u);
+  EXPECT_EQ(first(btonfn, on), 0u);
+
+  const unsigned long ready = make_ready();
+  run(500);
+  const unsigned long rlyp_at = first(rlyp, on);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, ready + 60);
+  EXPECT_LE(rlyp_at, ready + 70);
+  const unsigned long btonfn_at = first(btonfn, on);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, rlyp_at + 51);
+  EXPECT_LE(btonfn_at, rlyp_at + 70);
+}
+
+// A second pack goes by its own contactor, which closes both its main relays at once: RLYP 60 ms after
+// it, BTONFN 60 ms after RLYP. Pack 1's ladder says nothing about it.
+TEST_F(NissanLeafStartingSequenceTests, ShouldFollowASecondPacksOwnContactor) {
+  delete battery;
+  battery =
+      new NissanLeafBattery(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_ADDON_MCP2515);
+  battery->battery_index = 2;
+  battery->setup();
+  contactor_control_enabled = true;
+  contactor_control_enabled_double_battery = true;
+  make_ready();
+  relays(true, true, true);  // Pack 1 closing
+  run(1000);
+  EXPECT_EQ(first(rlyp, 0), 0u);
+
+  datalayer.system.status.contactors_battery2_engaged = true;
+  const unsigned long joined = t + 1;
+  run(500);
+  const unsigned long rlyp_at = first(rlyp, joined);
+  ASSERT_NE(rlyp_at, 0u);
+  EXPECT_GE(rlyp_at, joined + 60);
+  EXPECT_LE(rlyp_at, joined + 70);
+  const unsigned long btonfn_at = first(btonfn, joined);
+  ASSERT_NE(btonfn_at, 0u);
+  EXPECT_GE(btonfn_at, rlyp_at + 51);
+  EXPECT_LE(btonfn_at, rlyp_at + 70);
+}
+
 // 0x5C0 heater bits, as the LBC firmware sets them: byte 1 bit 0 is Batt_Heater_Mail_Send_Request
 // (the pack is cold), byte 0 bit 5 the heating start request (cold, with enough charge to heat) and
 // byte 0 bit 4 the stop request (cold, with too little charge to heat). LB_HEATEXIST, byte 4 bit 0,

@@ -240,8 +240,8 @@ void NissanLeafBattery::
 
   datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 250);  //0.25 kW steps to W
 
-  //Allow contactors to close
-  if (battery_can_alive && allows_contactor_closing) {
+  //Allow contactors to close once the LBC has, see RELAY_REPORT_MS
+  if (lbc_ready && allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
 
@@ -666,6 +666,11 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       battery_status_seen |= 0x01;
+      //Where only its ignition line is cut, the LBC still talks while a BMS reset has it off. What it
+      //reports then is not what it reports once it starts over, see RELAY_REPORT_MS.
+      if (datalayer.system.status.bms_reset_status != BMS_RESET_POWERED_OFF) {
+        lbc_1DB_fresh = true;
+      }
       break;
     }
     case 0x1DC:
@@ -1364,6 +1369,8 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   handle_DTC_requests(currentMillis);
 
+  follow_starting_sequence(currentMillis);
+
   /* During a BMS reset the cyclic messages stop only while the BMS power is cut. The LBC expects them
      whenever its ignition input is on, so it is kept fed while the reset waits for the pause to take
      effect, and again as soon as it is heard once the power is back, rather than when the reset is
@@ -1401,24 +1408,11 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
       previousMillis10 = currentMillis;
 
-      switch (mprun10) {
-        case 0:
-          LEAF_1D4.data.u8[4] = 0x07;
-          LEAF_1D4.data.u8[7] = 0x12;
-          break;
-        case 1:
-          LEAF_1D4.data.u8[4] = 0x47;
-          LEAF_1D4.data.u8[7] = 0xD5;
-          break;
-        case 2:
-          LEAF_1D4.data.u8[4] = 0x87;
-          LEAF_1D4.data.u8[7] = 0x19;
-          break;
-        case 3:
-          LEAF_1D4.data.u8[4] = 0xC7;
-          LEAF_1D4.data.u8[7] = 0xDE;
-          break;
-      }
+      //RLYP and BTONFN as follow_starting_sequence() has them. With both 1 the CRC comes out as the
+      //0x12, 0xD5, 0x19 and 0xDE this message always carried before.
+      LEAF_1D4.data.u8[4] = (uint8_t)((mprun10 << 6) | (report_BTONFN ? 0x07 : 0x03));
+      LEAF_1D4.data.u8[5] = report_RLYP ? 0x46 : 0x06;
+      LEAF_1D4.data.u8[7] = calculate_crc(LEAF_1D4);
       //Only send this message when the LEAF PDM charger is not in use (otherwise it will collide!)
       //TODO, this breaks double/triple battery setups when using PDM for charging
       if (!leaf_pdm_charger_in_use()) {
@@ -1675,6 +1669,80 @@ uint8_t NissanLeafBattery::calculate_crc(CAN_frame& rx_frame) {
     crc = crctable_nissan_leaf[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc;
+}
+
+//Step 3 of the starting sequence, see RELAY_REPORT_MS
+bool NissanLeafBattery::lbc_allows_relays() {
+  return lbc_1DB_fresh && battery_MainRelayOn_flag && (battery_Relay_Cut_Request == 0) &&
+         (battery_Interlock || !user_selected_LEAF_interlock_mandatory);
+}
+
+//Step 4 of the starting sequence: RLYP and BTONFN, see RELAY_REPORT_MS
+void NissanLeafBattery::follow_starting_sequence(unsigned long currentMillis) {
+  const DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
+
+  //This pack's relays as the GPIO contactor control drives them, as in contactor_open(): pack 1's by its
+  //ladder, the negative relay first, then the precharge and the positive one, and those of packs 2 and 3
+  //by the single contactor each has. Where it does not drive them, something else does.
+  bool negative = true;
+  bool precharge = false;
+  bool positive = true;
+  switch (battery_index) {
+    case 1:
+      if (contactor_control_enabled) {
+        negative = status.negative_contactor_closed;
+        precharge = status.precharge_relay_closed;
+        positive = status.positive_contactor_closed;
+      }
+      break;
+    case 2:
+      if (contactor_control_enabled_double_battery) {
+        negative = positive = status.contactors_battery2_engaged;
+      }
+      break;
+    case 3:
+      if (contactor_control_enabled_triple_battery) {
+        negative = positive = status.contactors_battery3_engaged;
+      }
+      break;
+    default:
+      break;
+  }
+
+  //RLYP stands for the positive line, connected from when the precharge relay closes until the negative
+  //relay opens (295B0NDS03 5.2), and BTONFN for both main relays, until the positive one opens
+  if ((precharge || positive) && !relay_plus_closed) {
+    relay_plus_closed = true;
+    relay_plus_closed_ms = currentMillis;
+  } else if (!precharge && !positive && !negative) {
+    relay_plus_closed = false;
+  }
+  if (negative && positive && !main_relays_closed) {
+    main_relays_closed = true;
+    main_relays_closed_ms = currentMillis;
+  } else if (!(negative && positive)) {
+    main_relays_closed = false;
+  }
+
+  if (status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+    lbc_1DB_fresh = false;
+    lbc_ready = false;
+  } else if (!lbc_ready && lbc_allows_relays()) {
+    lbc_ready = true;
+    lbc_ready_ms = currentMillis;
+  }
+
+  if (lbc_ready && relay_plus_closed && (currentMillis - lbc_ready_ms >= RELAY_REPORT_MS) &&
+      (currentMillis - relay_plus_closed_ms >= RELAY_REPORT_MS)) {
+    if (!report_RLYP) {
+      report_RLYP = true;
+      report_RLYP_ms = currentMillis;
+    }
+  } else {
+    report_RLYP = false;
+  }
+  report_BTONFN = report_RLYP && main_relays_closed && (currentMillis - report_RLYP_ms >= RELAY_REPORT_MS) &&
+                  (currentMillis - main_relays_closed_ms >= RELAY_REPORT_MS);
 }
 
 bool NissanLeafBattery::is_message_corrupt(CAN_frame rx_frame) {

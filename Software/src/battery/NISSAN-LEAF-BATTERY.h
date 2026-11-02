@@ -57,6 +57,7 @@ class NissanLeafBattery : public CanBattery {
     dtc_read_retries = 0;
   }
   bool supports_insulation_resistance() { return true; }
+  bool contactors_may_close() { return lbc_allows_relays(); }  //See RELAY_REPORT_MS
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
@@ -185,6 +186,8 @@ class NissanLeafBattery : public CanBattery {
   NissanLeafHtmlRenderer renderer;
 
   bool is_message_corrupt(CAN_frame rx_frame);
+  bool lbc_allows_relays();
+  void follow_starting_sequence(unsigned long currentMillis);
 #ifndef SMALL_FLASH_DEVICE
   void clearSOH(void);
 #endif
@@ -206,6 +209,29 @@ class NissanLeafBattery : public CanBattery {
   static const unsigned long LBC_SILENT_MS = 100;
   unsigned long lbc_heard_ms = 0;
   bool ze1_seen = false;  //Set once the pack has shown itself as a ZE1, see transmit_can
+
+  /* Starting sequence of the EV pack (2nd gen. Users Manual for EV Pack, 295B0NDS03, 5.1). After IGN and
+     the LBC's first message: 3) it has to report LB_FAIL = 0 (Relay_Cut_Request), LB_INTERLOC = 1 and
+     LB_FRLYON = 1 (MainRelayOn_flag) before 4) the high voltage relays close, and the host tells it about
+     them in 0x1D4: RLYP (byte 5 bit 6) once the precharge relay has been on for RELAY_REPORT_MS, BTONFN
+     (byte 4 bit 2) once both main relays have, and never before RLYP has been up that long. Both are 0
+     until then, and again as the relays open. Where the GPIO contactor control drives this pack's relays
+     the report follows it, otherwise they are taken as closed once the LBC allows it. A BMS reset starts
+     it over, as it starts the LBC over.
+     LB_INTERLOC counts only when the interlock is set as mandatory, and LB_STATUS (Failsafe_Status) not
+     at all: its stop requests, at full and at empty, and its caution lamp request do not open the
+     contactors in stationary use (see update_values), so they do not hold them open either. */
+  static const unsigned long RELAY_REPORT_MS = 60;
+  bool lbc_1DB_fresh = false;  //A 0x1DB has come since the LBC last (re)started
+  bool lbc_ready = false;      //Step 3 has been met since then
+  unsigned long lbc_ready_ms = 0;
+  bool relay_plus_closed = false;  //The positive line is connected, through the precharge relay or the main one
+  unsigned long relay_plus_closed_ms = 0;
+  bool main_relays_closed = false;  //Both main relays are
+  unsigned long main_relays_closed_ms = 0;
+  bool report_RLYP = false;  //As sent in 0x1D4
+  unsigned long report_RLYP_ms = 0;
+  bool report_BTONFN = false;
   //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
   //info page fills in within seconds instead of over a minute. Counted down per request actually
   //sent, so it always terminates and the steady state polling rate is left untouched.
@@ -251,11 +277,13 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 6,
                         .ID = 0x50C,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Byte 4 carries the PRUN counter in bits 7-6 and BTONFN in bit 2, byte 5 RLYP in bit 6, byte 7 the CRC
+  //over bytes 0-6, all rewritten on every transmission. Shown with both bits 0, as each start has them.
   CAN_frame LEAF_1D4 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x03, 0x06, 0xE0, 0x69}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,
