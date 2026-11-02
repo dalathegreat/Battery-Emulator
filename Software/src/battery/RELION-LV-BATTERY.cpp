@@ -93,7 +93,7 @@ void RelionBattery::update_values() {
   // Charge power is manually set from webserver, and ramped down at high soc from inverter function
   datalayer.battery.status.max_charge_power_W = datalayer.battery.status.override_charge_power_W;
 
-  datalayer_battery->status.temperature_min_dC = max_cell_temperature * 10;
+  datalayer_battery->status.temperature_min_dC = min_cell_temperature * 10;
 
   datalayer_battery->status.temperature_max_dC = max_cell_temperature * 10;
 
@@ -130,7 +130,7 @@ void RelionBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x02048100:  ///Temperatures min/max 2048100 [8] 47 01 01 47 01 01 00 00
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       max_cell_temperature = rx_frame.data.u8[0] - 50;
-      min_cell_temperature = rx_frame.data.u8[2] - 50;
+      min_cell_temperature = rx_frame.data.u8[3] - 50;
       break;
     case 0x02468100:  ///Raw temperatures 2468100 [8] 47 47 47 47 47 47 47 47
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;

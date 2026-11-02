@@ -68,6 +68,8 @@ CONFIG_MBEDTLS_CUSTOM_CERTIFICATE_BUNDLE_PATH="Software/src/lib/dummy.pem"
 # this firmware (it uses the Arduino eModbus library, not espressif/esp-modbus).
 CONFIG_FMB_MASTER_TIMEOUT_MS_RESPOND=5000
 CONFIG_FMB_MASTER_MAX_API_BLOCKING_TIME_MS=6000
+#   Nano printf drops %f support
+CONFIG_NEWLIB_NANO_FORMAT=y
 
 # -----------------------------------------------------------------------------
 # TIER 2 - larger wins, validate the affected feature after enabling.
@@ -100,10 +102,5 @@ CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 # work on every target. Leave commented until you've tested it.
 # # CONFIG_LWIP_IPV6 is not set
 
-# -----------------------------------------------------------------------------
-# AVOID for this codebase
-# -----------------------------------------------------------------------------
-# CONFIG_NEWLIB_NANO_FORMAT=y
-#   Nano printf drops %f support. This firmware has ~32 float format specifiers
-#   in log/printf calls, so nano format would silently corrupt those lines.
-#   Only revisit after converting those sites to integer/fixed-point formatting.
+
+

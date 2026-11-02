@@ -59,6 +59,12 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_5; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
 
+#ifndef SMALL_FLASH_DEVICE
+  // Analog current sensor output, on IO4 of expansion socket J5, pin 23 (ADC1 channel 3), with
+  // +3.3 V on pin 29 and GND on pin 13. Nothing else uses it.
+  virtual gpio_num_t SHUNT_ADC_PIN() { return GPIO_NUM_4; }
+#endif  // SMALL_FLASH_DEVICE
+
   // Equipment stop pin
   // Mapped to and internal allways low pin, in hardware v1
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_46; }

@@ -7,10 +7,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
   /* Before the checks are started, we need to know the battery is alive via CAN, and that the voltages have ben read*/
   if ((batteryNumber == 2) && battery2_detected) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
-      return;  // Both voltage values need to be available to start check
-    }
-    if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery2.status.voltage_dV == 3700) {
-      return;  // Also abort if both voltages happened to be initialized to the 3700 default value that most integrations use
+      return;  // 0 = not decoded yet, every pack starts there. Both are needed to start the check
     }
     uint16_t voltage_diff_battery2_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
@@ -41,10 +38,7 @@ void check_parallel_battery_safety(uint8_t batteryNumber) {
 
   if ((batteryNumber == 3) && battery3_detected) {
     if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery3.status.voltage_dV == 0) {
-      return;  // Both voltage values need to be available to start check
-    }
-    if (datalayer.battery.status.voltage_dV == 3700 || datalayer.battery3.status.voltage_dV == 3700) {
-      return;  // Also abort if both voltages happened to be initialized to the 3700 default value that most integrations use
+      return;  // 0 = not decoded yet, every pack starts there. Both are needed to start the check
     }
     uint16_t voltage_diff_battery3_towards_main =
         abs(datalayer.battery.status.voltage_dV - datalayer.battery3.status.voltage_dV);

@@ -8,6 +8,10 @@ matching file from server (GitHub) and fills in a human-readable description for
   (the `GITHUB_RAW_BASE_URL` constant in
   [`Software/src/devboard/webserver/BatteryHtmlRenderer.h`](../../Software/src/devboard/webserver/BatteryHtmlRenderer.h)).
 - **Loader/renderer code:** `get_dtc_json_loader_html()` in the same header.
+- **Built-in copy:** on devices without `SMALL_FLASH_DEVICE`, every file the firmware sources
+  name is also embedded at build time by [`tools/embed_dtc_json.py`](../../tools/embed_dtc_json.py)
+  and served as `/dtc/<file>`. It is shown until GitHub answers, and stays when GitHub cannot be
+  reached. Nothing to commit: the copy is regenerated on every build.
 - **Validator:** [`tools/validate_dtc_json.py`](../../tools/validate_dtc_json.py).
 - **JSON Schema:** [`dtc.schema.json`](dtc.schema.json) (editor autocomplete / inline validation).
 

@@ -13,33 +13,33 @@ void SofarInverter::
 
   // ----- Frame 0x351 – limits/voltages -----
   // Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
-  SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[2] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
-  SOFAR_351.data.u8[3] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  SOFAR_351.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
-  SOFAR_351.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SOFAR_351.data.u8[0] = (datalayer.aggregate.max_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[1] = (datalayer.aggregate.max_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[2] = (datalayer.aggregate.max_charge_current_dA & 0x00FF);
+  SOFAR_351.data.u8[3] = (datalayer.aggregate.max_charge_current_dA >> 8);
+  SOFAR_351.data.u8[4] = (datalayer.aggregate.max_discharge_current_dA & 0x00FF);
+  SOFAR_351.data.u8[5] = (datalayer.aggregate.max_discharge_current_dA >> 8);
   // Minvoltage (eg 300.0V = 3000 , 16bits long) Discharge Cutoff Voltage
-  SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[6] = (datalayer.aggregate.min_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[7] = (datalayer.aggregate.min_design_voltage_dV >> 8);
 
   // ----- Frame 0x355 – SoC / SoH -----
   // SoC deception only to CAN (we do not touch datalayer)
-  uint16_t spoofed_soc = datalayer.battery.status.reported_soc;  // 0..10000 pptt
+  uint16_t spoofed_soc = datalayer.aggregate.reported_soc;  // 0..10000 pptt
   if (spoofed_soc >= 10000) {
     spoofed_soc = 9900;  // limit to 99%
   }
-  SOFAR_355.data.u8[0] = spoofed_soc / 100;                        // %
-  SOFAR_355.data.u8[2] = datalayer.battery.status.soh_pptt / 100;  // %
+  SOFAR_355.data.u8[0] = spoofed_soc / 100;                   // %
+  SOFAR_355.data.u8[2] = datalayer.aggregate.soh_pptt / 100;  // %
 
   // ----- Frame 0x356 – pack voltage/current/temp -----
   // Voltage (e.g. 370.0V -> 3700 dV), Current in dA, Temperature in dC
-  SOFAR_356.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
-  SOFAR_356.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
-  SOFAR_356.data.u8[2] = (datalayer.battery.status.reported_current_dA & 0x00FF);
-  SOFAR_356.data.u8[3] = (datalayer.battery.status.reported_current_dA >> 8);
-  SOFAR_356.data.u8[4] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  SOFAR_356.data.u8[5] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SOFAR_356.data.u8[0] = (datalayer.aggregate.voltage_dV & 0x00FF);
+  SOFAR_356.data.u8[1] = (datalayer.aggregate.voltage_dV >> 8);
+  SOFAR_356.data.u8[2] = (datalayer.aggregate.current_dA & 0x00FF);
+  SOFAR_356.data.u8[3] = (datalayer.aggregate.current_dA >> 8);
+  SOFAR_356.data.u8[4] = (datalayer.aggregate.temperature_max_dC & 0x00FF);
+  SOFAR_356.data.u8[5] = (datalayer.aggregate.temperature_max_dC >> 8);
 
   // ===== Frame 0x359 – Battery Pack Config 1 (cyclic, 1 Hz) =====
   // Byte0: number of parallel packs; Byte1: number of modules in series (packs in series);
@@ -59,9 +59,9 @@ void SofarInverter::
   // Byte0: Battery type (0x01 = Li-ion), Byte1..3: BMS version (vendor-defined),
   // Byte4..5: Nominal capacity (Ah, uint16), Byte6..7: Manufacturer ID (optional)
   // Capacity calculation (approx): Wh / (Vmax * 0.1)
-  if (datalayer.battery.info.max_design_voltage_dV > 20) {  //div0 protection
+  if (datalayer.aggregate.max_design_voltage_dV > 20) {  //div0 protection
     calculated_capacity_AH =
-        (datalayer.battery.info.reported_total_capacity_Wh / (datalayer.battery.info.max_design_voltage_dV * 0.1));
+        (datalayer.aggregate.reported_total_capacity_Wh / (datalayer.aggregate.max_design_voltage_dV * 0.1));
   }
   // Set type + a simple version triplet 1.0.0 (can be adjusted)
   SOFAR_35F.data.u8[0] = 0x01;  // Li-ion
@@ -106,14 +106,14 @@ void SofarInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       const uint8_t sub_k = is705 ? rx_frame.data.u8[3] : rx_frame.data.u8[2];
 
       // Respond ONLY if addressed to my PACK ID
-      if (target_m != datalayer.battery.settings.sofar_user_specified_battery_id) {
+      if (target_m != datalayer.battery_settings.sofar_user_specified_battery_id) {
         break;  // not my address → no reply
       }
 
       // Helper to stamp identifiers into payload (m/k/n) – easy to replace with real fields later
       auto stamp_ids = [&](CAN_frame& f) {
         memset(f.data.u8, 0, 8);
-        f.data.u8[0] = datalayer.battery.settings.sofar_user_specified_battery_id;  // PACK ID
+        f.data.u8[0] = datalayer.battery_settings.sofar_user_specified_battery_id;  // PACK ID
         f.data.u8[1] = sub_k;                                                       // Module/Sub-target (k) if applies
         f.data.u8[2] = record_n;  // Record Num (n) – only used for 0x705
       };
@@ -249,7 +249,7 @@ void SofarInverter::transmit_can(unsigned long currentMillis) {
 
 bool SofarInverter::setup() {  // Performs one time setup at startup over CAN bus
   // Dynamically set CAN ID according to which battery index we are on
-  uint16_t base_offset = (datalayer.battery.settings.sofar_user_specified_battery_id << 12);
+  uint16_t base_offset = (datalayer.battery_settings.sofar_user_specified_battery_id << 12);
 
   auto init_frame = [&](CAN_frame& frame, uint16_t base_id) {
     frame.FD = false;

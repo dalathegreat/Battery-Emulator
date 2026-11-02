@@ -37,7 +37,7 @@ uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, i
   // If cell count is still the default 192 but we haven't confirmed it yet
   if (!set_voltage_limits && cellCount == 192) {
     // Fall back to BMS-reported SOC while cell count is uncertain
-    return (SOC_Display * 10);
+    return (SOC_BMS * 10);
   }
 
   if (cellCount == 0)
@@ -72,13 +72,62 @@ uint16_t KiaEGmpBattery::selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
 }
 
-void KiaEGmpBattery::set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
-  for (size_t i = 0; i < length; i++) {
-    if ((rx_frame.data.u8[start + i] * 20) > 2600) {
-      datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
+// void KiaEGmpBattery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
+//   if ((reading * 20) > 2600) {
+//     datalayer.battery.status.cell_voltages_mV[cellNumber] = (reading * 20);
+//   }
+// }
+
+// Sets a cell voltage that's already expressed in mV (e.g. from 0x215),
+// as opposed to set_cell_voltages() which takes an 8-bit reading and applies *20.
+void KiaEGmpBattery::set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber) {
+  if (cellNumber >= MAX_AMOUNT_CELLS) {
+    return;
+  }
+  datalayer.battery.status.cell_voltages_mV[cellNumber] = voltage_mV;
+  cellVoltageRxMillis[cellNumber] = millis();
+  cellVoltageReceived[cellNumber] = voltage_mV > 0;
+  cellVoltageFrameSeen = true;
+}
+
+void KiaEGmpBattery::handle_0x215_cell_voltages(const CAN_frame& rx_frame) {
+  if (rx_frame.DLC < 7) {
+    return;
+  }
+  const uint8_t mux = rx_frame.data.u8[3];
+  if (mux != 0x01) {
+    return;  // mux 0x02 carries a different, non-voltage signal - still unconfirmed, excluded
+  }
+
+  // byte[4] is the 1-based starting cell number for THIS frame's batch of 13 cells.
+  // It rolls forward by 13 each frame as the BMS cycles through the whole pack -
+  // do not hardcode this to 0.
+  const uint8_t start_cell_1based = rx_frame.data.u8[4];
+  if (start_cell_1based == 0) {
+    return;  // defensive: avoid underflow below
+  }
+  const uint8_t base_cell = start_cell_1based - 1;  // convert to 0-based array index
+
+  const uint8_t max_values = (rx_frame.DLC - 5) / 2;
+  for (uint8_t i = 0; i < max_values; i++) {
+    const uint8_t offset = 5 + (i * 2);
+    if (offset + 1 >= rx_frame.DLC) {
+      break;
     }
+    const uint16_t mv = (static_cast<uint16_t>(rx_frame.data.u8[offset + 1]) << 8) | rx_frame.data.u8[offset];
+    const uint16_t cellNumber = base_cell + i;
+    if (cellNumber >= MAX_AMOUNT_CELLS) {
+      break;
+    }
+    set_cell_voltage_mv(mv, static_cast<uint8_t>(cellNumber));
   }
 }
+
+// void KiaEGmpBattery::process_cell_voltage_group(const uint8_t* data, uint8_t baseCell) {
+//   for (int i = 0; i < 32; i++) {
+//     set_cell_voltages(data[4 + i], baseCell + i);
+//   }
+// }
 
 void KiaEGmpBattery::set_voltage_minmax_limits() {
 
@@ -114,18 +163,199 @@ uint8_t KiaEGmpBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t
   return crc;
 }
 
+uint16_t KiaEGmpBattery::calculate_transmit_checksum(const CAN_frame& frame) {
+  uint16_t crc = 0;
+  for (uint8_t index = 2; index < frame.DLC; index++) {
+    crc ^= static_cast<uint16_t>(frame.data.u8[index]) << 8;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      crc = (crc & 0x8000) ? static_cast<uint16_t>((crc << 1) ^ 0x1021) : static_cast<uint16_t>(crc << 1);
+    }
+  }
+
+  for (uint8_t value : {static_cast<uint8_t>(frame.ID), static_cast<uint8_t>(0)}) {
+    crc ^= static_cast<uint16_t>(value) << 8;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      crc = (crc & 0x8000) ? static_cast<uint16_t>((crc << 1) ^ 0x1021) : static_cast<uint16_t>(crc << 1);
+    }
+  }
+
+  return crc ^ transmit_checksum_xor(frame.ID);
+}
+
+uint16_t KiaEGmpBattery::transmit_checksum_xor(uint16_t can_id) const {
+  switch (can_id) {
+    case 0x10A:
+    case 0x120:
+    case 0x19A:
+      return 0x8F7A;
+    case 0x2B5:
+    case 0x2C0:
+    case 0x2D5:
+    case 0x2E0:
+    case 0x2E5:
+    case 0x2EA:
+      return 0xBF19;
+    case 0x306:
+      return 0xADAC;
+    case 0x308:
+      return 0x1768;
+    case 0x30A:
+    case 0x320:
+    case 0x33A:
+    case 0x350:
+    case 0x3B5:
+      return 0xAF38;
+    default:
+      return 0x9F5B;
+  }
+}
+
+void KiaEGmpBattery::request_startup_sequence() {
+  startupSequenceRequested = true;
+  startupSequenceComplete = false;
+}
+
+uint8_t KiaEGmpBattery::find_transmit_counter_index(uint16_t can_id) {
+  for (uint8_t i = 0; i < transmit_counter_id_count; i++) {
+    if (transmit_counter_ids[i] == can_id) {
+      return i;
+    }
+  }
+  return invalid_transmit_counter_index;
+}
+
+CAN_frame KiaEGmpBattery::build_startup_message(uint8_t message_index) {
+  CAN_frame frame = {};
+  frame.FD = true;
+  frame.ext_ID = false;
+  frame.DLC = 32;
+  frame.ID = startup_trigger_ids[message_index];
+
+  for (uint8_t index = 0; index < work_message_count; index++) {
+    if (work_messages[index].ID == frame.ID) {
+      frame = work_messages[index];
+      break;
+    }
+  }
+
+  const uint8_t counter_index = find_transmit_counter_index(frame.ID);
+  if (counter_index != invalid_transmit_counter_index) {
+    uint8_t next_counter = 0;
+    if (last_transmit_counter_valid[counter_index]) {
+      next_counter = static_cast<uint8_t>(last_transmit_counter[counter_index] + 1u);
+    }
+    last_transmit_counter_valid[counter_index] = true;
+    last_transmit_counter[counter_index] = next_counter;
+    frame.data.u8[2] = next_counter;
+  }
+
+  frame.data.u8[0] = 0;
+  frame.data.u8[1] = 0;
+  return frame;
+}
+
+void KiaEGmpBattery::apply_dc_link_voltage(CAN_frame& frame) {
+  // batteryVoltage is 0.1 V/LSB internally.
+  // Default to 806 V until a valid live pack voltage is available.
+  uint16_t live_pack_voltage_V = 806;
+
+  if (batteryVoltage > 0) {
+    live_pack_voltage_V = static_cast<uint16_t>((batteryVoltage + 5) / 10);
+  }
+
+  switch (frame.ID) {
+    case 0x10A:
+    case 0x120:
+      // DC-link voltage: 1 V/bit, little-endian
+      frame.data.u8[16] = static_cast<uint8_t>(live_pack_voltage_V & 0xFF);
+      frame.data.u8[17] = static_cast<uint8_t>((live_pack_voltage_V >> 8) & 0xFF);
+      break;
+
+    case 0x3B5:
+      // DC-link voltage: 1 V/bit, little-endian
+      frame.data.u8[15] = static_cast<uint8_t>(live_pack_voltage_V & 0xFF);
+      frame.data.u8[16] = static_cast<uint8_t>((live_pack_voltage_V >> 8) & 0xFF);
+      break;
+
+    default:
+      break;
+  }
+}
+
+void KiaEGmpBattery::transmit_startup_message(uint8_t message_index) {
+  CAN_frame frame = build_startup_message(message_index);
+  const uint8_t counter_index = find_transmit_counter_index(frame.ID);
+  if (counter_index != invalid_transmit_counter_index) {
+    last_transmit_counter_valid[counter_index] = true;
+    last_transmit_counter[counter_index] = frame.data.u8[2];
+  }
+  apply_dc_link_voltage(frame);
+  uint16_t checksum = calculate_transmit_checksum(frame);
+  frame.data.u8[0] = static_cast<uint8_t>(checksum);
+  frame.data.u8[1] = static_cast<uint8_t>(checksum >> 8);
+  transmit_can_frame(&frame);
+}
+
+bool KiaEGmpBattery::has_transmit_counter(uint16_t can_id) const {
+  return find_transmit_counter_index(can_id) != invalid_transmit_counter_index;
+}
+
+void KiaEGmpBattery::transmit_message(uint16_t can_id, uint32_t message_count) {
+  uint8_t selected_message = 0;
+  bool found_message = false;
+  for (uint8_t index = 0; index < work_message_count; index++) {
+    if (work_messages[index].ID == can_id) {
+      selected_message = index;
+      found_message = true;
+      if (can_id == 0x30A && (message_count & 1) != 0) {
+        continue;
+      }
+      break;
+    }
+  }
+
+  if (can_id == 0x30A && (message_count & 1) != 0) {
+    for (uint8_t index = selected_message + 1; index < work_message_count; index++) {
+      if (work_messages[index].ID == can_id) {
+        selected_message = index;
+        break;
+      }
+    }
+  }
+
+  if (!found_message) {
+    return;
+  }
+
+  CAN_frame frame = work_messages[selected_message];
+  const uint8_t counter_index = find_transmit_counter_index(frame.ID);
+  if (counter_index != invalid_transmit_counter_index) {
+    uint8_t next_counter = frame.data.u8[2];
+    if (last_transmit_counter_valid[counter_index]) {
+      next_counter = static_cast<uint8_t>(last_transmit_counter[counter_index] + 1u);
+    } else {
+      next_counter = static_cast<uint8_t>(frame.data.u8[2]);
+      last_transmit_counter_valid[counter_index] = true;
+    }
+    last_transmit_counter[counter_index] = next_counter;
+    frame.data.u8[2] = next_counter;
+  }
+  apply_dc_link_voltage(frame);
+  uint16_t checksum = calculate_transmit_checksum(frame);
+  frame.data.u8[0] = static_cast<uint8_t>(checksum);
+  frame.data.u8[1] = static_cast<uint8_t>(checksum >> 8);
+  transmit_can_frame(&frame);
+}
+
 void KiaEGmpBattery::update_values() {
 
   if (user_selected_use_estimated_SOC) {
     // Use the simplified pack-based SOC estimation with proper compensation
     datalayer.battery.status.real_soc =
         estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
-
-    // For comparison or fallback, we can still calculate from min/max cell voltages
-    SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
-    SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
   } else {
-    datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+    // datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+    datalayer.battery.status.real_soc = (SOC_BMS * 10);  //increase SOC range from 0-100.0 -> 100.00
   }
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
@@ -149,9 +379,42 @@ void KiaEGmpBattery::update_values() {
 
   datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
+  uint16_t actual_min_mV = UINT16_MAX;
+  uint16_t actual_max_mV = 0;
+  uint8_t valid_cell_count = 0;
+  bool cell_voltages_fresh = cellVoltageFrameSeen;
+  const unsigned long now = millis();
 
-  datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
+    uint16_t v = datalayer.battery.status.cell_voltages_mV[i];
+    if (cellVoltageReceived[i] && v > 0) {
+      ++valid_cell_count;
+      if (now - cellVoltageRxMillis[i] > CELL_VOLTAGE_STALE_MS) {
+        cell_voltages_fresh = false;
+      }
+      if (v < actual_min_mV) {
+        actual_min_mV = v;
+      }
+      if (v > actual_max_mV) {
+        actual_max_mV = v;
+      }
+    }
+  }
+
+  const bool cellVoltagesWithinLimits =
+      (valid_cell_count == 144 || valid_cell_count == 180 || valid_cell_count == 192) && cell_voltages_fresh &&
+      actual_min_mV > MIN_CELL_VOLTAGE_MV && actual_max_mV < MAX_CELL_VOLTAGE_MV;
+  datalayer.system.status.battery_allows_contactor_closing =
+      cellVoltagesWithinLimits && !manualContactorOpenRequested.load();
+
+  if (valid_cell_count > 0) {
+    datalayer.battery.status.cell_max_voltage_mV = actual_max_mV;
+    datalayer.battery.status.cell_min_voltage_mV = actual_min_mV;
+  } else {
+    // No cell data populated yet - fall back to the coarser UDS-reported values
+    datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
+    datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+  }
 
   if ((millis64() > INTERVAL_60_S) && !set_voltage_limits) {  // millis64: plain millis() wraps after 49.7 days
     set_voltage_limits = true;
@@ -159,38 +422,137 @@ void KiaEGmpBattery::update_values() {
   }
 
   if (waterleakageSensor == 0) {
-    set_event(EVENT_WATER_INGRESS, 0);
+    set_event(EVENT_WATER_INGRESS, 0, battery_index);
   }
 
   if (leadAcidBatteryVoltage < 110) {
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
+  }
+
+  update_contactor_events();
+}
+
+template <typename T>
+inline String& operator<<(String& str, const T& value) {
+  str += value;
+  return str;
+}
+String KiaEGmpBattery::get_uds_info_html() {
+  String content;
+  content.reserve(1600);
+
+  const char* contactor_status = "Unknown (no 0x21A data)";
+  const bool contactor_status_fresh =
+      contactorStatus21AValid && (millis() - contactorStatus21ALastRxMillis <= CELL_VOLTAGE_STALE_MS);
+  if (contactor_status_fresh) {
+    switch (contactorStatus21A) {
+      case CONTACTOR_STATUS_OPEN:
+        contactor_status = "Open";
+        break;
+      case CONTACTOR_STATUS_PRECHARGE:
+        contactor_status = "Precharge";
+        break;
+      case CONTACTOR_STATUS_CLOSED:
+        contactor_status = "Closed";
+        break;
+      default:
+        contactor_status = "Unknown";
+        break;
+    }
+  }
+
+  // clang-format off
+  content << "<h3>BATTERY_MGMT</h3>"
+              "<h4>Cells: " << String(datalayer.battery.info.number_of_cells) << "</h4>"
+              "<h4>SOC (BMS): " << String(SOC_BMS) << "</h4>"
+              "<h4>SOC (Display): " << String(SOC_Display) << "</h4>"
+              "<h4>SOH: " << String(batterySOH / 10.0f, 1) << "%</h4>"
+              "<h4>Allowed charge power: " << String(allowedChargePower / 100.0f, 2) << " kW</h4>"
+              "<h4>Allowed discharge power: " << String(allowedDischargePower / 100.0f, 2) << " kW</h4>"
+              "<h4>12V voltage: " << String(leadAcidBatteryVoltage / 10.0f, 1) << "</h4>"
+              "<h4>Inverter voltage: " << String(inverterVoltage) << " V</h4>"
+              "<h4>Waterleakage: " << String(waterleakageSensor) << "</h4>"
+              "<h4>Temperature, water inlet: " << String(temperature_water_inlet) << " &deg;C</h4>"
+              "<h4>Temperature, heater: " << String(heatertemp) << " &deg;C</h4>"
+              "<h4>Temp min: " << String(temperatureMin) << " &deg;C</h4>"
+              "<h4>Temp max: " << String(temperatureMax) << " &deg;C</h4>"
+              "<h4>Cell max voltage: " << String(CellVoltMax_mV) << " mV</h4>"
+              "<h4>Cell min voltage: " << String(CellVoltMin_mV) << " mV</h4>"
+              "<h4>Highest cell: no " << String(CellVmaxNo) << "</h4>"
+              "<h4>Lowest cell: no " << String(CellVminNo) << "</h4>"
+              "<h4>Batterymanagement mode: " << String(batteryManagementMode) << "</h4>"
+              "<h4>Cumulative Charge Energy: " << String(cumulativeChargeEnergy) << " Wh</h4>"
+              "<h4>Cumulative Discharge Energy: " << String(cumulativeDischargeEnergy) << " Wh</h4>"
+              "<h4>Operation Time: " << String(opTime) << " s</h4>"
+              "<h4>BMS ignition: " << String(BMS_ign) << "</h4>"
+              "<h4>BMS Main Relay: " << String(batteryRelay) << "</h4>";
+  content << "<h4>Contactor status (0x21A byte 4): " << contactor_status;
+  if (contactor_status_fresh) {
+    content << " (0x";
+    if (contactorStatus21A < 0x10) {
+      content << "0";
+    }
+    content << String(contactorStatus21A, HEX) << ")";
+  }
+  content << "</h4>";
+  return content;
+}
+
+bool KiaEGmpBattery::contactor_close_traffic_allowed() const {
+  const bool knownContactorStatus =
+      contactorStatus21A == CONTACTOR_STATUS_OPEN || contactorStatus21A == CONTACTOR_STATUS_PRECHARGE ||
+      contactorStatus21A == CONTACTOR_STATUS_CLOSED;
+  return datalayer.system.status.battery_allows_contactor_closing &&
+         datalayer.system.status.inverter_allows_contactor_closing &&
+         datalayer.system.status.system_status != FAULT && knownContactorStatus && contactorStatus21AValid &&
+         millis() - contactorStatus21ALastRxMillis <= CELL_VOLTAGE_STALE_MS;
+}
+
+void KiaEGmpBattery::update_contactor_events() {
+  if (!contactorStatus21AValid ||
+      millis() - contactorStatus21ALastRxMillis > CELL_VOLTAGE_STALE_MS) {
+    clear_event(EVENT_CONTACTOR_OPEN, battery_index);
+    return;
+  }
+
+  if (contactorStatus21A == CONTACTOR_STATUS_OPEN && contactor_close_traffic_allowed()) {
+    set_event(EVENT_CONTACTOR_OPEN, 0, battery_index);
+  } else {
+    clear_event(EVENT_CONTACTOR_OPEN, battery_index);
+  }
+
+  if (contactorStatus21A == CONTACTOR_STATUS_CLOSED) {
+    automaticResetAttempted.store(false);
   }
 }
 
-// Getter implementations for HTML renderer
-int KiaEGmpBattery::get_battery_12V() const {
-  return leadAcidBatteryVoltage;
-}
-int KiaEGmpBattery::get_waterleakageSensor() const {
-  return waterleakageSensor;
-}
-int KiaEGmpBattery::get_temperature_water_inlet() const {
-  return temperature_water_inlet;
-}
-int KiaEGmpBattery::get_powerRelayTemperature() const {
-  return powerRelayTemperature;
-}
-int KiaEGmpBattery::get_batteryManagementMode() const {
-  return batteryManagementMode;
-}
-int KiaEGmpBattery::get_BMS_ign() const {
-  return BMS_ign;
-}
-int KiaEGmpBattery::get_batRelay() const {
-  return batteryRelay;
+void KiaEGmpBattery::request_open_contactors() {
+  manualContactorOpenRequested.store(true);
+  datalayer.system.status.battery_allows_contactor_closing = false;
+  clear_event(EVENT_CONTACTOR_OPEN, battery_index);
+  logging.println("EGMP: open requested");
 }
 
+void KiaEGmpBattery::request_close_contactors() {
+  manualContactorOpenRequested.store(false);
+  automaticResetAttempted.store(false);
+  logging.println("EGMP: close requested; waiting for safe cells");
+}
+
+void KiaEGmpBattery::reset_BMS() {
+  if (!request_uds_soft_reset()) {
+    logging.println("UDS soft reset request could not be queued");
+  }
+}
+
+
 void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+
+  // UDS frames (0x7EC PID/DTC replies) are handled by the superclass.
+  if (handle_incoming_uds_can_frame(rx_frame)) {
+    return;
+  }
+
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
@@ -204,9 +566,15 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x215:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      handle_0x215_cell_voltages(rx_frame);
       break;
     case 0x21A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.DLC >= 5) {
+        contactorStatus21A = rx_frame.data.u8[4];
+        contactorStatus21AValid = true;
+        contactorStatus21ALastRxMillis = millis();
+      }
       break;
     case 0x235:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -245,236 +613,206 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:
-      switch (rx_frame.data.u8[0]) {
-        case 0x10:  //"PID Header"
-          poll_data_pid = rx_frame.data.u8[4];
-          transmit_can_frame(&EGMP_7E4_ack);  //Send ack to BMS
-          break;
-        case 0x21:  //First frame in PID group
-          if (poll_data_pid == 1) {
-            allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
-            allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
-            SOC_BMS = rx_frame.data.u8[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
-
-          } else if (poll_data_pid == 2) {
-            // set cell voltages data, start bite, data length from start, start cell
-            set_cell_voltages(rx_frame, 2, 6, 0);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 2, 6, 32);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 2, 6, 64);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 2, 6, 96);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 2, 6, 128);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 2, 6, 160);
-          }
-          break;
-        case 0x22:  //Second datarow in PID group
-          if (poll_data_pid == 1) {
-            batteryVoltage = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4];
-            batteryAmps = (rx_frame.data.u8[1] << 8) + rx_frame.data.u8[2];
-            temperatureMax = rx_frame.data.u8[5];
-            temperatureMin = rx_frame.data.u8[6];
-            // temp1 = rx_frame.data.u8[7];
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 6);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 38);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 70);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 102);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 134);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 166);
-          } else if (poll_data_pid == 6) {
-            batteryManagementMode = rx_frame.data.u8[5];
-          }
-          break;
-        case 0x23:  //Third datarow in PID group
-          if (poll_data_pid == 1) {
-            temperature_water_inlet = rx_frame.data.u8[6];
-            CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
-            // temp2 = rx_frame.data.u8[1];
-            // temp3 = rx_frame.data.u8[2];
-            // temp4 = rx_frame.data.u8[3];
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 13);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 45);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 77);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 109);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 141);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 173);
-          } else if (poll_data_pid == 5) {
-            // ac = rx_frame.data.u8[3];
-            // Vdiff = rx_frame.data.u8[4];
-
-            // airbag = rx_frame.data.u8[6];
-            heatertemp = rx_frame.data.u8[7];
-          }
-          break;
-        case 0x24:  //Fourth datarow in PID group
-          if (poll_data_pid == 1) {
-            CellVmaxNo = rx_frame.data.u8[1];
-            CellVoltMin_mV = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
-            CellVminNo = rx_frame.data.u8[3];
-            // fanMod = rx_frame.data.u8[4];
-            // fanSpeed = rx_frame.data.u8[5];
-            leadAcidBatteryVoltage = rx_frame.data.u8[6];  //12v Battery Volts
-            //cumulative_charge_current[0] = rx_frame.data.u8[7];
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 7, 20);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 7, 52);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 7, 84);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 7, 116);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 7, 148);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 7, 180);
-          } else if (poll_data_pid == 5) {
-            batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
-            // maxDetCell = rx_frame.data.u8[4];
-            // minDet = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6];
-            // minDetCell = rx_frame.data.u8[7];
-          }
-          break;
-        case 0x25:  //Fifth datarow in PID group
-          if (poll_data_pid == 1) {
-            //cumulative_charge_current[1] = rx_frame.data.u8[1];
-            //cumulative_charge_current[2] = rx_frame.data.u8[2];
-            //cumulative_charge_current[3] = rx_frame.data.u8[3];
-            //cumulative_discharge_current[0] = rx_frame.data.u8[4];
-            //cumulative_discharge_current[1] = rx_frame.data.u8[5];
-            //cumulative_discharge_current[2] = rx_frame.data.u8[6];
-            //cumulative_discharge_current[3] = rx_frame.data.u8[7];
-            //set_cumulative_charge_current();
-            //set_cumulative_discharge_current();
-          } else if (poll_data_pid == 2) {
-            set_cell_voltages(rx_frame, 1, 5, 27);
-          } else if (poll_data_pid == 3) {
-            set_cell_voltages(rx_frame, 1, 5, 59);
-          } else if (poll_data_pid == 4) {
-            set_cell_voltages(rx_frame, 1, 5, 91);
-          } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(rx_frame, 1, 5, 123);
-          } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(rx_frame, 1, 5, 155);
-          } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(rx_frame, 1, 5, 187);
-            //set_cell_count();
-          } else if (poll_data_pid == 5) {
-            // datalayer.battery.info.number_of_cells = 98;
-            SOC_Display = rx_frame.data.u8[1] * 5;
-          }
-          break;
-        case 0x26:  //Sixth datarow in PID group
-          if (poll_data_pid == 1) {
-            //cumulative_energy_charged[0] = rx_frame.data.u8[1];
-            // cumulative_energy_charged[1] = rx_frame.data.u8[2];
-            //cumulative_energy_charged[2] = rx_frame.data.u8[3];
-            //cumulative_energy_charged[3] = rx_frame.data.u8[4];
-            //cumulative_energy_discharged[0] = rx_frame.data.u8[5];
-            //cumulative_energy_discharged[1] = rx_frame.data.u8[6];
-            //cumulative_energy_discharged[2] = rx_frame.data.u8[7];
-            // set_cumulative_energy_charged();
-          }
-          break;
-        case 0x27:  //Seventh datarow in PID group
-          if (poll_data_pid == 1) {
-            //cumulative_energy_discharged[3] = rx_frame.data.u8[1];
-
-            //opTimeBytes[0] = rx_frame.data.u8[2];
-            //opTimeBytes[1] = rx_frame.data.u8[3];
-            //opTimeBytes[2] = rx_frame.data.u8[4];
-            //opTimeBytes[3] = rx_frame.data.u8[5];
-
-            BMS_ign = rx_frame.data.u8[6];
-            inverterVoltageFrameHigh = rx_frame.data.u8[7];  // BMS Capacitoir
-
-            // set_cumulative_energy_discharged();
-            // set_opTime();
-          }
-          break;
-        case 0x28:  //Eighth datarow in PID group
-          if (poll_data_pid == 1) {
-            inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
-          }
-          break;
-      }
+      //Handled in UDS Superclass
       break;
     default:
       break;
   }
 }
 
+uint16_t KiaEGmpBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) {
+  // Called by the UDS superclass for every successful PID response. `value` is
+  // the big-endian PID value (up to 4 bytes), `data` points at the raw value
+  // bytes (without the SID/DID header). Return 0 to continue the scan list.
+  switch (pid) {
+      case POLL_GROUP_1: //59 bytes
+      // Frame 10 (ef fb e7)
+      //data[0-2] We are not sure what these are.
+
+      // Frame 21 (ef 56 00 00 00 00 00) data3-9
+      SOC_BMS = data[4] * 5; //56
+      allowedChargePower = ((data[5] << 8) + data[6]); //00 00 (apparently not working)
+      allowedDischargePower = ((data[7] << 8) + data[8]); //00 00 (apparently not working)
+
+      //Frame 22 (00 3c 1a cd 17 16 16) data10-16
+      batteryAmps = (data[10] << 8) + data[11];
+      batteryVoltage = (data[12] << 8) + data[13];
+      temperatureMax = data[14];
+      temperatureMin = data[15];
+      //temperatureAvg = data[16]; Not required
+      
+      // Frame 23 (16 15 15 15 00 7f b3) data17-23
+      temperature_water_inlet = data[22];
+      CellVoltMax_mV = (data[23] * 20);
+    
+      // Frame 24 (b8 b2 37 00 00 77 00) data24-30
+      CellVmaxNo = data[24];
+      CellVoltMin_mV = (data[25] * 20);
+      CellVminNo = data[26];
+      leadAcidBatteryVoltage = data[29];
+      // Frame 25 (01 ec a6 00 01 e9 af) data31-37
+      cumulativeChargeEnergy = data[31] << 16 | data[32] << 8 | data[33];
+      cumulativeDischargeEnergy = data[35] << 16 | data[36] << 8 | data[37];
+
+      //Frame 26 (00 01 74 0f 00 01 66) data38-44
+      cumulativeChargeEnergy2 = data[39] << 16 | data[40] << 8 | data[41];
+      cumulativeDischargeEnergy2 = data[43] << 16 | data[44] << 8 | data[45]; //Flow over
+
+      //Frame 27 (a8 01 03 f3 0f 00 02) data45-51
+      opTime = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49];
+      BMS_ign = data[50];
+      inverterVoltage = ((data[51] << 8) + data[52]); //Flow over
+      batteryRelay = data[51] & 0x01;
+      //Frame 28 (c9 00 00 00 00 0b b8) data52-58
+      break;
+case POLL_GROUP_2: //Cellvoltages (Cell 1-32)
+    // process_cell_voltage_group(data, 0);
+    break;
+case POLL_GROUP_3: //Cellvoltages (Cell 33-64)
+    // process_cell_voltage_group(data, 32);
+    break;
+case POLL_GROUP_4: //Cellvoltages (Cell 65-96)
+    // process_cell_voltage_group(data, 64);
+    break;
+case POLL_GROUP_A: //Cellvoltages (Cell 97-128)
+    // process_cell_voltage_group(data, 96);
+    break;
+case POLL_GROUP_B: //Cellvoltages (Cell 129-160)
+    // process_cell_voltage_group(data, 128);
+    break;
+case POLL_GROUP_C: //Cellvoltages (Cell 161-192)
+    // process_cell_voltage_group(data, 160);
+    break;
+case POLL_GROUP_5:
+//Frame 0 (10 2e 62 01 05 ff fb 74) //data0-2
+//Frame21 0f 01 2c 01 01 2c 15 //data3-9
+//Frame22 15 15 15 15 15 15 6c //data10-16
+//Frame23 34 6c 34 00 00 64 1e //data17-23
+heatertemp = data[23];
+//Frame24 00 03 e8 39 38 c6 00 //data24-30
+    batterySOH = (data[25] << 8) | data[26];
+    //amountOfCells = data[29];
+//Frame25 53 00 00 00 00 00 00 //data31-37
+SOC_Display = data[31] * 5;
+//Frame26 00 15 15 15 16 aa aa //data38-44
+break;
+case POLL_GROUP_6:
+batteryManagementMode = data[14];
+break;
+    default:  //Unknown pid
+      break;
+  }
+  return 0;  //Continue scanning the PID list in order
+}
+
 void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
   if (startedUp) {
-    //Send Contactor closing message loop
-    // Check if we still have messages to send
-    if (messageIndex < sizeof(messageDelays) / sizeof(messageDelays[0])) {
+    const bool closeTrafficAllowed = contactor_close_traffic_allowed();
+    if (!closeTrafficAllowed) {
+      // No distinct EGMP open frame is known; dropping this stream relies on
+      // the BMS watchdog to open the contactors.
+      startupSequenceActive = false;
+      startupSequenceComplete = false;
+      startupMessageIndex = 0;
+      transmitScheduleStarted = false;
+      transmit10msCount = 0;
+      lastTransmitMillis = currentMillis;
+    } else {
+      if (startupSequenceRequested || (!startupSequenceComplete && !startupSequenceActive)) {
+        startupSequenceRequested = false;
+        startupSequenceActive = true;
+        startupMessageIndex = 0;
+        startupStartMillis = currentMillis;
+        transmitScheduleStarted = false;
+        transmit10msCount = 0;
+      }
 
-      // Check if it's time to send the next message
-      if (currentMillis - startMillis >= messageDelays[messageIndex]) {
+      if (startupSequenceActive) {
+        while (startupMessageIndex < startup_trigger_count &&
+               currentMillis - startupStartMillis >= startup_trigger_delays[startupMessageIndex]) {
+          transmit_startup_message(startupMessageIndex);
+          startupMessageIndex++;
+        }
 
-        // Transmit the current message
-        transmit_can_frame(messages[messageIndex]);
+        if (startupMessageIndex >= startup_trigger_count) {
+          startupSequenceActive = false;
+          startupSequenceComplete = true;
+          lastTransmitMillis = currentMillis;
+          transmitScheduleStarted = true;
+        }
+      }
 
-        // Move to the next message
-        messageIndex++;
+      if (!startupSequenceActive) {
+        if (!transmitScheduleStarted) {
+          lastTransmitMillis = currentMillis;
+          transmitScheduleStarted = true;
+        }
+
+        while (currentMillis - lastTransmitMillis >= 10) {
+          lastTransmitMillis += 10;
+          transmit_message(0x10A, transmit10msCount);
+          transmit_message(0x120, transmit10msCount);
+          transmit_message(0x19A, transmit10msCount);
+
+          if ((transmit10msCount % 10) == 0) {
+            transmit_message(0x2B5, transmit10msCount / 10);
+            transmit_message(0x2E0, transmit10msCount / 10);
+            transmit_message(0x33A, transmit10msCount / 10);
+            transmit_message(0x350, transmit10msCount / 10);
+            transmit_message(0x2E5, transmit10msCount / 10);
+            transmit_message(0x30A, transmit10msCount / 10);
+            transmit_message(0x320, transmit10msCount / 10);
+          }
+
+          if ((transmit10msCount % 20) == 0) {
+            transmit_message(0x2C0, transmit10msCount / 20);
+            transmit_message(0x2D5, transmit10msCount / 20);
+            transmit_message(0x2EA, transmit10msCount / 20);
+            transmit_message(0x306, transmit10msCount / 20);
+            transmit_message(0x308, transmit10msCount / 20);
+            transmit_message(0x3B5, transmit10msCount / 20);
+          }
+
+          transmit10msCount++;
+        }
       }
     }
 
-    if (messageIndex >= 63) {
-      startMillis = currentMillis;  // Start over!
-      messageIndex = 0;
+    if (contactorStatus21A == CONTACTOR_STATUS_OPEN && closeTrafficAllowed && !automaticResetAttempted.load() &&
+        request_uds_soft_reset()) {
+      automaticResetAttempted.store(true);
+      logging.println("EGMP: automatic soft reset queued");
     }
 
-    //Send 200ms CANFD message
-    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-      previousMillis200ms = currentMillis;
-
-      EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
-
-      if (UserRequestDTCreset) {
-        transmit_can_frame(&EGMP_DTCreset);
-        UserRequestDTCreset = false;
-      } else if (ok_start_polling_battery) {
-        transmit_can_frame(&EGMP_7E4);
-      }
-
-      KIA_7E4_COUNTER++;
-      if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
-        KIA_7E4_COUNTER = 0x01;
-      }
-    }
-    //Send 10s CANFD message
-    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
-      previousMillis10s = currentMillis;
-
-      ok_start_polling_battery = true;
-    }
+    // UDS PID polling and DTC handling
+    transmit_uds_can(currentMillis);
   }
 }
 
 void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer.system.status.battery_allows_contactor_closing = false;
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+    // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC. Also passing true to isFD
+  setup_uds(0x7E4, 0x7EC, true);
+  static const uint16_t pid_scan_list[] = {
+      POLL_GROUP_1,
+      // POLL_GROUP_2,
+      // POLL_GROUP_3,
+      // POLL_GROUP_4,
+      POLL_GROUP_5,
+      POLL_GROUP_6,
+      POLL_GROUP_7,
+      POLL_GROUP_8,
+      // POLL_GROUP_A,
+      // POLL_GROUP_B,
+      // POLL_GROUP_C,
+  };
+  set_pid_scan_list(pid_scan_list, sizeof(pid_scan_list) / sizeof(pid_scan_list[0]));
 }

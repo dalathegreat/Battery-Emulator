@@ -57,7 +57,7 @@ TEST_F(BatteryAliveTest, CorruptedWarningNotMaskedByHealthySecondBattery) {
   datalayer.battery.status.CAN_error_counter = MAX_CAN_FAILURES + 1;
   datalayer.battery2.status.CAN_error_counter = 0;
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_EQ(get_event_pointer(EVENT_CAN_CORRUPTED_WARNING)->state, EVENT_STATE_ACTIVE)
       << "Battery 2's clean CAN state must not clear battery 1's corruption warning";
@@ -67,18 +67,18 @@ TEST_F(BatteryAliveTest, SecondBatteryCorruptionRaisesWarning) {
   datalayer.battery.status.CAN_error_counter = 0;
   datalayer.battery2.status.CAN_error_counter = MAX_CAN_FAILURES + 1;
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_EQ(get_event_pointer(EVENT_CAN_CORRUPTED_WARNING)->state, EVENT_STATE_ACTIVE);
 }
 
 TEST_F(BatteryAliveTest, CorruptedWarningClearsWhenAllBatteriesHealthy) {
   datalayer.battery.status.CAN_error_counter = MAX_CAN_FAILURES + 1;
-  update_machineryprotection();
+  update_machineryprotection(0);
   ASSERT_EQ(get_event_pointer(EVENT_CAN_CORRUPTED_WARNING)->state, EVENT_STATE_ACTIVE);
 
   datalayer.battery.status.CAN_error_counter = 0;
-  update_machineryprotection();
+  update_machineryprotection(0);
   EXPECT_EQ(get_event_pointer(EVENT_CAN_CORRUPTED_WARNING)->state, EVENT_STATE_INACTIVE);
 }
 
@@ -89,7 +89,7 @@ TEST_F(BatteryAliveTest, BatteryDetectionFiresWithMultipliedRefreshValue) {
   battery_detected = false;
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE * 3;
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_TRUE(battery_detected);
   EXPECT_EQ(get_event_pointer(EVENT_CAN_BATTERY_DETECTED)->occurences, 1);
@@ -97,33 +97,33 @@ TEST_F(BatteryAliveTest, BatteryDetectionFiresWithMultipliedRefreshValue) {
 
 TEST_F(BatteryAliveTest, BatteryMissingSetsAtZeroAndClearsOnRefresh) {
   datalayer.battery.status.CAN_battery_still_alive = 0;
-  update_machineryprotection();
+  update_machineryprotection(0);
   ASSERT_EQ(get_event_pointer(EVENT_CAN_BATTERY_MISSING)->state, EVENT_STATE_ACTIVE);
 
   datalayer.battery.status.CAN_battery_still_alive = 10;
-  update_machineryprotection();
+  update_machineryprotection(0);
   EXPECT_EQ(get_event_pointer(EVENT_CAN_BATTERY_MISSING)->state, EVENT_STATE_INACTIVE);
   EXPECT_EQ(datalayer.battery.status.CAN_battery_still_alive, 9) << "Counter must decrement on every cycle";
 }
 
 TEST_F(BatteryAliveTest, SecondBatteryMissingSetsAtZeroAndClearsOnRefresh) {
   datalayer.battery2.status.CAN_battery_still_alive = 0;
-  update_machineryprotection();
+  update_machineryprotection(0);
   ASSERT_EQ(get_event_pointer(EVENT_CAN_BATTERY2_MISSING)->state, EVENT_STATE_ACTIVE);
 
   datalayer.battery2.status.CAN_battery_still_alive = 10;
-  update_machineryprotection();
+  update_machineryprotection(0);
   EXPECT_EQ(get_event_pointer(EVENT_CAN_BATTERY2_MISSING)->state, EVENT_STATE_INACTIVE);
   EXPECT_EQ(datalayer.battery2.status.CAN_battery_still_alive, 9);
 }
 
 TEST_F(BatteryAliveTest, ChargerMissingSetsAtZeroAndClearsOnRefresh) {
   datalayer.charger.CAN_charger_still_alive = 0;
-  update_machineryprotection();
+  update_machineryprotection(0);
   ASSERT_EQ(get_event_pointer(EVENT_CAN_CHARGER_MISSING)->state, EVENT_STATE_ACTIVE);
 
   datalayer.charger.CAN_charger_still_alive = 10;
-  update_machineryprotection();
+  update_machineryprotection(0);
   EXPECT_EQ(get_event_pointer(EVENT_CAN_CHARGER_MISSING)->state, EVENT_STATE_INACTIVE);
   EXPECT_EQ(datalayer.charger.CAN_charger_still_alive, 9);
 }
@@ -132,7 +132,7 @@ TEST_F(BatteryAliveTest, ChargerDetectionFiresOnRefresh) {
   charger_detected = false;
   datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_TRUE(charger_detected);
   EXPECT_EQ(get_event_pointer(EVENT_CAN_CHARGER_DETECTED)->occurences, 1);

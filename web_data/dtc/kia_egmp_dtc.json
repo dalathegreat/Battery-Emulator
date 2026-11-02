@@ -1,0 +1,46 @@
+[
+  {
+    "dtc": "P00B112",
+    "l_dsc": "Unknown"
+  },
+  {
+    "dtc": "P0A0A12",
+    "l_dsc": "High Voltage System Interlock Circuit"
+  },
+  {
+    "dtc": "P0AA600",
+    "l_dsc": "Hybrid Battery Voltage System Isolation Fault"
+  },
+  {
+    "dtc": "P0C4212",
+    "l_dsc": "Hybrid Battery Pack Coolant Temperature Sensor Circuit"
+  },
+  {
+    "dtc": "P1A9096",
+    "l_dsc": "DC/DC Converter Input Voltage Sensor Fault."
+  },
+  {
+    "dtc": "P1B8000",
+    "l_dsc": "Hybrid/Electric Vehicle Battery 52 Circuit High Voltage"
+  },
+  {
+    "dtc": "U029300",
+    "l_dsc": "Lost Communication With Hybrid Powertrain Control Module"
+  },
+  {
+    "dtc": "U111800",
+    "l_dsc": "x"
+  },
+  {
+    "dtc": "U111900",
+    "l_dsc": "X"
+  },
+  {
+    "dtc": "U112800",
+    "l_dsc": "Lost Communication with Hybrid/EV battery electronic coolant valve A"
+  },
+    {
+    "dtc": "U130E87",
+    "l_dsc": "X"
+  }
+]

@@ -6,6 +6,10 @@
 
 /*Note when editing this file. Order of datatypes matter heavily to keep padding and flash size in check*/
 
+static inline int32_t current_dA_to_power_W(int16_t current_dA, uint16_t voltage_dV) {
+  return ((int32_t)voltage_dV * (int32_t)current_dA) / 100;
+}
+
 // Per-battery DTC storage to allow common display code
 struct DATALAYER_BATTERY_DTC_TYPE {
   static constexpr int MAX_DTC_COUNT = 32;
@@ -62,13 +66,20 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint32_t remaining_capacity_Wh = 0;
   /** The remaining capacity reported to the inverter based on min percentage setting, in Watt-hours 
    * This value will either be scaled or not scaled depending on the value of
-   * battery.settings.soc_scaling_active
+   * battery_settings.soc_scaling_active
    */
   uint32_t reported_remaining_capacity_Wh;
   /** Maximum allowed battery discharge power in Watts. Set by battery */
   uint32_t max_discharge_power_W = 0;
   /** Maximum allowed battery charge power in Watts. Set by battery */
   uint32_t max_charge_power_W = 0;
+  /** Discharge power the pack's own BMS asked for, in Watts. Snapshotted once per cycle before
+   * the safety layer and the inverter filters rewrite max_discharge_power_W, so a per-pack card
+   * can show what that pack reported rather than what the system decided. 0 is a real limit,
+   * not a missing one: that BMS allows none right now (pack full or empty, too cold, faulted) */
+  uint32_t bms_max_discharge_power_W = 0;
+  /** Charge power the pack's own BMS asked for, in Watts. See bms_max_discharge_power_W */
+  uint32_t bms_max_charge_power_W = 0;
   /* Some early integrations do not support reading allowed charge power from battery
   On these integrations we need to have the user specify what limits the battery can take */
   /** Overriden allowed battery discharge power in Watts. Set by user */
@@ -91,8 +102,10 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t max_charge_current_dA = 0;
   /** State of health in integer-percent x 100. 9900 = 99.00% */
   uint16_t soh_pptt = 9900;
-  /** Instantaneous battery voltage in deciVolts. 3700 = 370.0 V */
-  uint16_t voltage_dV = 3700;
+  /** Instantaneous battery voltage in deciVolts. 3700 = 370.0 V. 0 until the integration has
+   * decoded one: check_parallel_battery_safety() waits on that, and datalayer.aggregate keeps
+   * the inverter on a placeholder meanwhile */
+  uint16_t voltage_dV = 0;
   /** Maximum cell voltage currently measured in the pack, in mV */
   uint16_t cell_max_voltage_mV = 3700;
   /** Minimum cell voltage currently measured in the pack, in mV */
@@ -101,7 +114,7 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   uint16_t real_soc;
   /** The SOC reported to the inverter, in integer-percent x 100. 9550 = 95.50%.
    * This value will either be scaled or not scaled depending on the value of
-   * battery.settings.soc_scaling_active
+   * battery_settings.soc_scaling_active
    */
   uint16_t reported_soc;
   /** A counter that increases incase a CAN CRC read error occurs */
@@ -119,7 +132,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
   int16_t current_dA = 0;
-  /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A */
+  /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A. A current
+   * sensor fitted in place of their own provides this instead, while it has a reading */
   int16_t reported_current_dA = 0;
 
   /** uint8_t */
@@ -141,6 +155,22 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    * insulation_resistance_kOhm sample. Not available for all battery types.
    */
   bool insulation_resistance_available = false;
+
+  /** False while the integration has not yet decoded a real state of health, so the
+   * webserver, MQTT and ESP-NOW can report it as unknown instead of showing the soh_pptt default
+   * as if it were a reading. Defaults to true: integrations that always have an SOH to
+   * report, or that deliberately publish a fixed one, need no change.
+   * Note that soh_pptt itself keeps a safe default either way. It feeds the inverter
+   * protocols and the safety layer, neither of which has an "unknown" to fall back on.
+   */
+  bool soh_available = true;
+
+  /** The pack's own BMS reports it fully charged, whatever its SOC reads. Not available for all
+   * battery types. The safety layer raises the installation's EVENT_BATTERY_FULL from this as
+   * well as from the SOC the inverter is sent, while the pack is on the DC link */
+  bool bms_reports_full = false;
+  /** The pack's own BMS reports it completely discharged. See bms_reports_full */
+  bool bms_reports_empty = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -214,6 +244,10 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** SOC scaling setting. Increases battery life. 
    * If true will rescale SOC between the configured min/max-percentage */
   bool soc_scaling_active = true;
+  /** Parallel headroom tracking, from the settings page and only with two or three batteries: the
+   * charge limit is raised above the lowest pack limit to what the packs take together. Off, the
+   * inverter gets the lowest pack limit, as before the tracking existed. Read at boot only */
+  bool parallel_headroom_tracking = false;
   /** Parameters for keeping track of the limiting factor in the system */
   bool user_settings_limit_discharge = false;
   bool user_settings_limit_charge = false;
@@ -224,18 +258,15 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
-  bool user_requests_tesla_isolation_clear = false;
-  bool user_requests_tesla_bms_reset = false;
-  bool user_requests_tesla_soc_reset = false;
 };
 
 typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
-  DATALAYER_BATTERY_SETTINGS_TYPE settings;
   DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 struct DATALAYER_CHARGER_TYPE {
   /** Charger setpoint voltage */
   float charger_setpoint_HV_VDC = 0;
@@ -267,6 +298,7 @@ struct DATALAYER_CHARGER_TYPE {
   /** True if the 12V DC/DC output is enabled */
   bool charger_aux12V_enabled = false;
 };
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_SHUNT_TYPE {
   /** measured battery voltage in mV (S-BOX) **/
@@ -290,14 +322,19 @@ struct DATALAYER_SHUNT_TYPE {
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
   bool available = false;
+#ifndef SMALL_FLASH_DEVICE
+  /** True if the measured current is what the inverter is given, in place of what the batteries
+   * report (their sum, with several). Set by the shunt, honoured while available is true **/
+  bool replaces_battery_current = false;
+#endif  // SMALL_FLASH_DEVICE
 };
 
+static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
+
 struct DATALAYER_SYSTEM_INFO_TYPE {
-  /** array with incoming CAN messages, for displaying on webserver */
-  // Enlarged from 15000: at the Sunwoda bus rate 15 kB held only ~4 s of traffic, which was too
-  // short to capture a user-triggered event between clicking and exporting. 60 kB gives ~16 s.
-  // Note /export_can_log copies this whole buffer into a String, so this also costs transient heap.
-  char logged_can_messages[60000] = {0};
+  /** ring buffer with the debug log text, for displaying on the webserver /log page */
+  /** allocated in setup() only when web logging is on; size is LOGGED_CAN_MESSAGES_SIZE */
+  char* logged_can_messages = nullptr;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
@@ -318,8 +355,12 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
 
-  /** bool, determines if CAN messages should be logged for webserver */
-  bool can_logging_active = false;
+  /** uint8_t, how many battery packs are actually running: 1, 2 or 3. Set by setup_battery()
+      once the pack objects exist, so it reflects what was created rather than what was ticked
+      in the settings - a type that does not support parallel packs leaves this at 1. Read by
+      events.cpp to decide whether an event message needs to name its pack. */
+  uint8_t configured_batteries = 1;
+
   /** bool, indicates if a webserver CAN stream is active */
   bool can_streaming_active = false;
   /** bool, determines if USB serial logging should occur */
@@ -428,6 +469,113 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
   system_status_enum system_status = ACTIVE;
 };
 
+/** The whole installation seen as one pack.
+ *
+ * With a single battery every field is a straight copy of datalayer.battery, so the inverter
+ * protocols can read this unconditionally without caring how many packs are configured. With
+ * two or three packs the energy figures are summed, the cell and temperature figures are the
+ * extremes across the packs that are talking, and the power limits start from the weakest
+ * joined pack's, the charge limit raised to what the packs take in parallel. Either way the
+ * four limit fields also carry the remote or manual current limit, in Watts as well as in
+ * Amperes.
+ *
+ * Keeping it separate is the point: datalayer.battery, .battery2 and .battery3 now only ever
+ * hold the data of their own pack, so the per-pack cards, MQTT topics and ESP-NOW frames stop
+ * reporting pack 1 as if it were the whole system.
+ *
+ * Filled once per second by update_aggregate_values() in Software.cpp, except for the limit
+ * fields. With several packs combine_pack_limits() fills those after the safety layer and
+ * before the SOC taper and the low pass filter, and update_aggregate_limits() finishes them
+ * once those have had their say.
+ */
+struct DATALAYER_AGGREGATE_TYPE {
+  /** uint32_t */
+  /** Sum of every pack's total energy capacity, in Watt-hours */
+  uint32_t total_capacity_Wh = 0;
+  /** Sum of every pack's SOC-window-scaled total capacity, in Watt-hours */
+  uint32_t reported_total_capacity_Wh = 0;
+  /** Sum of every pack's remaining energy, in Watt-hours */
+  uint32_t remaining_capacity_Wh = 0;
+  /** Sum of every pack's SOC-window-scaled remaining energy, in Watt-hours */
+  uint32_t reported_remaining_capacity_Wh = 0;
+  /** Discharge power the inverter is allowed to pull from the installation, in Watts */
+  uint32_t max_discharge_power_W = 0;
+  /** Charge power the inverter is allowed to push into the installation, in Watts */
+  uint32_t max_charge_power_W = 0;
+  /** Charge power the joined packs have been measured to take together, in Watts, before the SOC
+   * taper, the low pass filter and the caps: raised in steps while the installation charges at it,
+   * cut when a pack's limit drops or a pack goes over. 0 until the first raise of a charge session.
+   * What is sent is this, but never below the lowest pack limit nor above the sum of the limits.
+   * Carried from one pass to the next by combine_pack_limits(). Multi-battery only */
+  uint32_t parallel_charge_limit_W = 0;
+  /** The lowest charge limit each pack has reported lately, in Watts, pack 1 first: what a
+   * parallel raise may count on. Kept by combine_pack_limits() */
+  uint32_t parallel_held_limit_W[3] = {0, 0, 0};
+
+  /** int32_t */
+  /** Sum of every pack's instantaneous power, in Watts. Positive = charging */
+  int32_t active_power_W = 0;
+  /** Sum of every pack's lifetime charged energy, in Watt-hours */
+  int32_t total_charged_battery_Wh = 0;
+  /** Sum of every pack's lifetime discharged energy, in Watt-hours */
+  int32_t total_discharged_battery_Wh = 0;
+
+  /** uint16_t */
+  /** DC link voltage in deciVolt. Packs sit in parallel, so this is pack 1's measurement, or a
+   * placeholder until pack 1 has decoded one - see update_aggregate_values() */
+  uint16_t voltage_dV = 3700;
+  /** Highest voltage the installation may be charged to, in deciVolt. The lowest ceiling any
+   * pack reports, so a weaker pack is never pushed past what it will tolerate */
+  uint16_t max_design_voltage_dV = 5000;
+  /** Lowest voltage the installation may be discharged to, in deciVolt. The highest floor any
+   * pack reports */
+  uint16_t min_design_voltage_dV = 2500;
+  /** Charge current the inverter is allowed to push, in deciAmpere */
+  uint16_t max_charge_current_dA = 0;
+  /** Discharge current the inverter is allowed to pull, in deciAmpere */
+  uint16_t max_discharge_current_dA = 0;
+  /** Real SOC of the installation, in integer-percent x 100 */
+  uint16_t real_soc = 0;
+  /** SOC reported to the inverter, in integer-percent x 100. A pack sitting at an extreme
+   * takes this over, so the whole installation stops charging or discharging with it */
+  uint16_t reported_soc = 0;
+  /** Lowest state of health any pack reports, in integer-percent x 100. Packs that have not
+   * decoded one yet (soh_available false, or reporting zero) do not count. When none has, this
+   * keeps pack 1's safe default, because it still feeds the inverter */
+  uint16_t soh_pptt = 9900;
+  /** False until at least one pack has decoded a real state of health. The web page, MQTT and
+   * ESP-NOW then report it as unknown rather than showing soh_pptt's default as if it were a
+   * reading - the same rule each pack follows */
+  bool soh_available = true;
+  /** Highest cell voltage found in any pack, in milliVolt */
+  uint16_t cell_max_voltage_mV = 3700;
+  /** Lowest cell voltage found in any pack, in milliVolt */
+  uint16_t cell_min_voltage_mV = 3700;
+  /** Passes in a row the installation has not been charging, up to PARALLEL_STOP_PASSES: a short
+   * stop keeps parallel_charge_limit_W, a longer one starts it over. Kept by combine_pack_limits() */
+  uint16_t parallel_stopped_passes = 0;
+  /** Each pack's share of the charge power the last time the joined packs charged at the parallel
+   * limit, in integer-percent x 100, pack 1 first: what a lower pack limit is cut by. 0 until
+   * measured in a charge session. Kept by combine_pack_limits() */
+  uint16_t parallel_share_pptt[3] = {0, 0, 0};
+
+  /** int16_t */
+  /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A. A shunt with
+   * replaces_battery_current set provides this instead, while it has a reading */
+  int16_t current_dA = 0;
+  /** Highest temperature found in any pack, in d°C */
+  int16_t temperature_max_dC = 0;
+  /** Lowest temperature found in any pack, in d°C */
+  int16_t temperature_min_dC = 0;
+
+  /** uint8_t */
+  /** Passes left before parallel_charge_limit_W may be raised again, so the inverter can follow
+   * its last change before the packs are measured against it. Kept by combine_pack_limits() */
+  uint8_t parallel_settle_passes = 0;
+  /** Passes left before each pack's held limit may follow its limit back up, pack 1 first */
+  uint8_t parallel_hold_passes[3] = {0, 0, 0};
+};
+
 struct DATALAYER_SYSTEM_TYPE {
   DATALAYER_SYSTEM_INFO_TYPE info;
   DATALAYER_SYSTEM_STATUS_TYPE status;
@@ -438,8 +586,21 @@ class DataLayer {
   DATALAYER_BATTERY_TYPE battery;
   DATALAYER_BATTERY_TYPE battery2;
   DATALAYER_BATTERY_TYPE battery3;
+
+  /** Every configured pack rolled into one. What the inverter protocols read */
+  DATALAYER_AGGREGATE_TYPE aggregate;
+
+  /** Settings for the battery subsystem. Deliberately not inside DATALAYER_BATTERY_TYPE: every
+   * field here describes the installation, not a pack - the SOC window, the user and remote
+   * ceilings, the balancing and BMS reset parameters, which limit is currently binding. Held
+   * per pack it was stored in triplicate, two of which nothing ever read, and any integration
+   * reaching it through its own datalayer_battery pointer silently got those dead defaults
+   * whenever it ran as the second or third pack */
+  DATALAYER_BATTERY_SETTINGS_TYPE battery_settings;
   DATALAYER_SHUNT_TYPE shunt;
+#ifndef SMALL_FLASH_DEVICE
   DATALAYER_CHARGER_TYPE charger;
+#endif  // SMALL_FLASH_DEVICE
   DATALAYER_SYSTEM_TYPE system;
 };
 

@@ -5,15 +5,18 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 
-inline const char* getBMSState(uint8_t index) {
+/* `index` is the BMS state code, `battery` the pack this driver instance drives: the
+   contactor events it raises have to name the pack, and a free function has no
+   battery_index of its own. */
+inline const char* getBMSState(uint8_t index, uint8_t battery) {
   switch (index) {
     case 0:
-      clear_event(EVENT_CONTACTOR_WELDED);
-      clear_event(EVENT_CONTACTOR_OPEN);
+      clear_event(EVENT_CONTACTOR_WELDED, battery);
+      clear_event(EVENT_CONTACTOR_OPEN, battery);
       return "STANDBY";
     case 1:
-      clear_event(EVENT_CONTACTOR_WELDED);
-      clear_event(EVENT_CONTACTOR_OPEN);
+      clear_event(EVENT_CONTACTOR_WELDED, battery);
+      clear_event(EVENT_CONTACTOR_OPEN, battery);
       return "DRIVE";
     case 2:
       return "SUPPORT";
@@ -26,10 +29,10 @@ inline const char* getBMSState(uint8_t index) {
     case 6:
       return "CLEAR_FAULT";
     case 7:
-      set_event(EVENT_CONTACTOR_OPEN, 0);
+      set_event(EVENT_CONTACTOR_OPEN, 0, battery);
       return "FAULT";
     case 8:
-      set_event(EVENT_CONTACTOR_WELDED, 0);
+      set_event(EVENT_CONTACTOR_WELDED, 0, battery);
       return "WELD";
     case 15:
       return "SNA";
@@ -87,7 +90,7 @@ void TeslaLegacyBattery::update_values() {
       break;
     case 79:  //100kWh
     case 89:
-      datalayer.battery.info.total_capacity_Wh = 70000;
+      datalayer.battery.info.total_capacity_Wh = 100000;
       break;
     default:  //Unknown hwID. Raise event
       set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, battery_hwID, battery_index);
@@ -111,13 +114,20 @@ void TeslaLegacyBattery::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (datalayer.battery.status.voltage_dV * battery_max_discharge_current) / 10;
 
-  datalayer.battery.status.temperature_min_dC = battery_min_temp;
+  datalayer.battery.status.temperature_min_dC = (battery_BrickModelTMin * 10);
 
-  datalayer.battery.status.temperature_max_dC = battery_max_temp;
+  datalayer.battery.status.temperature_max_dC = (battery_BrickModelTMax * 10);
 
-  datalayer.battery.status.cell_max_voltage_mV = battery_cell_max_v;
+  datalayer.battery.status.cell_max_voltage_mV = battery_BrickVoltageMax;
 
-  datalayer.battery.status.cell_min_voltage_mV = battery_cell_min_v;
+  datalayer.battery.status.cell_min_voltage_mV = battery_BrickVoltageMin;
+
+  //Check safeties
+  if (battery_BMS_isolationResistance < 100) {  //TODO: Exact limit unknown. Working pack reports 165kOhm
+    set_event(EVENT_BATTERY_ISOLATION, battery_BMS_isolationResistance);
+  } else {
+    clear_event(EVENT_BATTERY_ISOLATION);
+  }
 }
 
 void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -168,18 +178,10 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x332:  //min/max hist values //BattBrickMinMax:
       cellvoltagesRead = true;
 
-      battery_BrickVoltageMax =
-          (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;  //to datalayer_extended
-      battery_cell_max_v = battery_BrickVoltageMax;
-      battery_BrickVoltageMin =
-          (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;  //to datalayer_extended
-      battery_cell_min_v = battery_BrickVoltageMin;
-
-      battery_BrickModelTMax = ((rx_frame.data.u8[3] * 0.5) - 40);  //to datalayer_extended
-      battery_max_temp = battery_BrickModelTMax * 10;
+      battery_BrickVoltageMax = (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;
+      battery_BrickVoltageMin = (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;
+      battery_BrickModelTMax = ((rx_frame.data.u8[3] * 0.5) - 40);
       battery_BrickModelTMin = ((rx_frame.data.u8[7] * 0.5) - 40);
-      //to datalayer_extended
-      battery_min_temp = battery_BrickModelTMin * 10;
       break;
     case 0x5D2:
       if (rx_frame.data.u8[0] == 0x0A) {
@@ -187,9 +189,7 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       break;
     case 0x6F2:
-      static uint16_t volts;
-      static uint8_t mux_zero_counter = 0u;
-      static uint8_t mux_max = 0u;
+      uint16_t volts;
 
       mux = rx_frame.data.u8[0];
 
@@ -214,8 +214,17 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         if (mux_zero_counter < 2 && mux == 0u) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
-            // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
-            datalayer.battery.info.number_of_cells = (4 * mux_max) + 4;
+            // One full mux cycle seen: the series brick count is the last slot that
+            // reported a voltage (a pack whose count isn't a multiple of 4, e.g. 83S,
+            // leaves the tail of the last frame at 0). Fall back to the whole frame span.
+            uint16_t n = (4 * mux_max) + 4;
+            while (n > 0 && datalayer.battery.status.cell_voltages_mV[n - 1] == 0) {
+              n--;
+            }
+            if (n == 0) {
+              n = (4 * mux_max) + 4;
+            }
+            apply_series_limits(n);
             mux_zero_counter++;
           }
         }
@@ -260,7 +269,7 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
     previousMillis1000 = currentMillis;
 
     transmit_can_frame(&TESLA_408);
-    logging.println(getBMSState(battery_BMS_state));
+    logging.println(getBMSState(battery_BMS_state, battery_index));
   }
 
   if (user_requests_bms_reset) {
@@ -414,12 +423,28 @@ void TeslaLegacyBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
+// Pack design limits follow the series brick count actually reported by the BMS
+// (96S full packs, 84S/83S on early/smaller packs) instead of a fixed 300-500 V,
+// which blocks discharge far too early on an 84S/83S pack and never trips on a
+// full 96S one (its real ceiling is 403.2 V).
+void TeslaLegacyBattery::apply_series_limits(uint16_t series_cells) {
+  datalayer.battery.info.number_of_cells = series_cells;
+  datalayer.battery.info.min_design_voltage_dV = (uint32_t)series_cells * MIN_CELL_VOLTAGE_MV / 100;
+  datalayer.battery.info.max_design_voltage_dV = (uint32_t)series_cells * MAX_CELL_VOLTAGE_MV / 100;
+  logging.printf("Tesla legacy: %u series bricks -> pack limits %u.%u-%u.%u V\n", series_cells,
+                 datalayer.battery.info.min_design_voltage_dV / 10, datalayer.battery.info.min_design_voltage_dV % 10,
+                 datalayer.battery.info.max_design_voltage_dV / 10, datalayer.battery.info.max_design_voltage_dV % 10);
+}
+
 void TeslaLegacyBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 14;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_100_DV;  //Startup in wide range
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60_DV;   //Autodetect later
+  // Defaults until the brick count is known: apply_series_limits() replaces them
+  // after the first full 0x6F2 cycle (a few seconds). Until then a pack below
+  // 300 V simply can't discharge yet; cell limits apply throughout.
+  datalayer.battery.info.max_design_voltage_dV = STARTUP_MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = STARTUP_MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;

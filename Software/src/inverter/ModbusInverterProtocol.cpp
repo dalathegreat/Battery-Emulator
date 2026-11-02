@@ -83,8 +83,8 @@ ModbusMessage ModbusInverterProtocol::FC06(ModbusMessage request) {
   // Do the write
   mbPV[addr] = val;
 
-  // Set up response
-  response.add(request.getServerID(), request.getFunctionCode(), mbPV[addr]);
+  // Set up response, including addr
+  response.add(request.getServerID(), request.getFunctionCode(), addr, mbPV[addr]);
   return response;
 }
 

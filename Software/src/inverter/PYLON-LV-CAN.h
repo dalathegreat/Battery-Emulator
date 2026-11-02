@@ -9,7 +9,7 @@ class PylonLvInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "Pylontech LV battery over CAN bus";
+  static constexpr const char* Name = "Pylontech LV over CAN";
 
  private:
   void send_system_data();
@@ -21,7 +21,11 @@ class PylonLvInverter : public CanInverterProtocol {
   // 80 means after reaching 80% of a nominal value a warning is produced (e.g. 80% of max current)
   static const int WARNINGS_PERCENT = 80;
 
-  static constexpr const char* MANUFACTURER_NAME = "BatEmuLV";
+  // Some inverters (e.g. Solis on the PYLON_LV battery profile) validate this
+  // string strictly and reject anything that isn't literally "PYLON" -
+  // confirmed against a real Solis S6-EH1P8K-L-PLUS in growatt2solis, the
+  // project this Growatt LV battery driver was ported from.
+  static constexpr const char* MANUFACTURER_NAME = "PYLON   ";
 
   unsigned long previousMillis1000ms = 0;
 

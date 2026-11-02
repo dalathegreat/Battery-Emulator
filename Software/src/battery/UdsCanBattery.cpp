@@ -13,6 +13,9 @@ constexpr uint16_t UDS_PID_MAX_RETRIES = 10;
 // Traffic on 0x7DF (or on uds_address) that isn't ours implies an external
 // diagnostic tool is in use.
 constexpr uint16_t OBD2_REQUEST_ADDRESS = 0x7DF;
+// The range of response IDs (addresses) we'll accept UDS responses from if auto-detecting.
+constexpr uint32_t MIN_UDS_RESPONSE_ID = 0x780;
+constexpr uint32_t MAX_UDS_RESPONSE_ID = 0x7EF;
 // KWP2000 service for one-byte local identifier reads - not part of ISO 14229
 // UDS proper, but similar enough.
 constexpr uint8_t UDS_SID_READ_LOCAL_IDENTIFIER = 0x21;
@@ -205,6 +208,12 @@ void UdsCanBattery::on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, ui
   // This is called by isotp_poll() from transmit_uds_can(..)
   CAN_frame frame = {};
   frame.ID = uds_address;  // Ignore the can_id from the ISO-TP layer, use our own.
+  if (can_id > 0x7FF) {
+    frame.ext_ID = true;
+  } else {
+    frame.ext_ID = false;
+  }
+  frame.FD = send_messages_asFD;
   frame.DLC = can_dlc;
   memcpy(frame.data.u8, can_data, can_dlc);
   transmit_can_frame(&frame);
@@ -424,6 +433,14 @@ void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const 
     case UDS_STATE_CLEAR_DTC:
       // Positive response (0x54): nothing to do, the sequence has ended.
       break;
+    case UDS_STATE_SOFT_RESET_START: {
+      const uint8_t reset_type = 0x03;
+      send_sequence_message(UDS_STATE_SOFT_RESET, SID::ECUReset, &reset_type, 1, 10, 0);
+      break;
+    }
+    case UDS_STATE_SOFT_RESET:
+      // The reset request is complete on either a positive or negative response.
+      break;
   }
 }
 
@@ -491,13 +508,14 @@ void UdsCanBattery::uds_send(SID service_id, const uint8_t* data, uint16_t lengt
   uds_transaction_timeout = timeout;
 }
 
-void UdsCanBattery::setup_uds(uint16_t uds_address, uint16_t uds_response_address) {
+void UdsCanBattery::setup_uds(uint32_t uds_address, uint32_t uds_response_address, bool isFD) {
   this->uds_address = uds_address;
   isotp_init(uds_address);
   this->uds_response_address = uds_response_address;
   this->pid_scan_index = 0;
   this->next_pid = 0;
   this->pending_pid = 0;
+  this->send_messages_asFD = isFD;
 }
 
 void UdsCanBattery::set_pid_scan_list(const uint16_t* pid_list, uint16_t length) {
@@ -533,4 +551,8 @@ void UdsCanBattery::read_DTC() {
 
 void UdsCanBattery::reset_DTC() {
   start_sequence(UDS_STATE_CLEAR_DTC_START);
+}
+
+bool UdsCanBattery::request_uds_soft_reset() {
+  return !uds_is_busy() && start_sequence(UDS_STATE_SOFT_RESET_START);
 }

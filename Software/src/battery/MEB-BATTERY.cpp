@@ -255,14 +255,14 @@ void MebBattery::
   }
 
   if (service_disconnect_switch_missing) {
-    set_event(EVENT_HVIL_FAILURE, 1);
+    set_event(EVENT_HVIL_FAILURE, 1, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
   if (pilotline_open || BMS_HVIL_status == 2) {
-    set_event(EVENT_HVIL_FAILURE, 2);
+    set_event(EVENT_HVIL_FAILURE, 2, battery_index);
   } else {
-    clear_event(EVENT_HVIL_FAILURE);
+    clear_event(EVENT_HVIL_FAILURE, battery_index);
   }
 
   // Update webserver datalayer for "More battery info" page
@@ -309,11 +309,11 @@ void MebBattery::
   datalayer_meb->rt_battery_unathorized = realtime_warning_battery_unathorized;
   if (balancing_active == 1 && datalayer_meb->balancing_active != 1) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;
-    set_event_latched(EVENT_BALANCING_START, 0);
+    set_event_latched(EVENT_BALANCING_START, 0, battery_index);
   }
   if (balancing_active == 2 && datalayer_meb->balancing_active == 1) {
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
-    set_event(EVENT_BALANCING_END, 0);
+    set_event(EVENT_BALANCING_END, 0, battery_index);
   }
   datalayer_meb->balancing_active = balancing_active;
   datalayer_meb->balancing_request = balancing_request;
@@ -1612,6 +1612,23 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
               nof_cells_determined = true;
               datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
               datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+            }
+          }
+          break;
+        case PID_CELLVOLTAGE_CELL_105:
+          if (len < 5)
+            break;
+          tempval = ((data[3] << 8) | data[4]);
+          if (tempval != 0xFFE) {
+            cellvoltages_polled[104] = (tempval + 1000);
+          } else {  // Cell 105 unavailable. We have a 104S battery (unless already identified as 84S or 96S)
+            if (datalayer.battery.info.number_of_cells == 84 || datalayer.battery.info.number_of_cells == 96) {
+              // Do nothing, we already identified it
+            } else {
+              datalayer.battery.info.number_of_cells = 104;
+              nof_cells_determined = true;
+              datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_104S_DV;
+              datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_104S_DV;
             }
           }
           break;

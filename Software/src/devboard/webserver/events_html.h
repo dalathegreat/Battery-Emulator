@@ -6,13 +6,14 @@
 #include <vector>
 #include "../utils/events.h"
 
+class AsyncWebServerRequest;
+
 /**
- * @brief Replaces placeholder with content section in web page
+ * @brief Sends the event log page, or with a "since" parameter only its rows: none (204) while
+ *        the events are unchanged since the version given, else the current rows.
  *
- * @param[in] var
- *
- * @return String
+ * @param[in] request
  */
-String events_processor(const String& var);
+void send_events_page(AsyncWebServerRequest* request);
 
 #endif
