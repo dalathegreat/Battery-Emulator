@@ -12,10 +12,6 @@ CAN capture (tools/pcanOut.txt). See Sunwoda-ESS.h for how CAN IDs map to the ve
 address scheme. Fields not listed in the switch below have not been decoded yet.
 */
 
-bool SunwodaBattery::is_connected() {
-  return bcmu_link_up(millis()) && extended_data.negative_contactor_closed && extended_data.main_contactor_closed;
-}
-
 void SunwodaBattery::setup(void) {  // Performs one time setup at startup
   if (is_primary()) {
     strncpy(datalayer.system.info.battery_protocol, Name, 63);

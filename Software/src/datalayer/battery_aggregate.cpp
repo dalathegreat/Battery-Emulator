@@ -35,13 +35,6 @@ void snapshot_bms_limits(DATALAYER_BATTERY_TYPE& pack) {
 }
 
 #ifndef SMALL_FLASH_DEVICE
-/* Double battery: true while pack 1 cannot be what the inverter is told about (comms lost or its
-   contactors open) and pack 2 can. The installation is then pack 2 alone - its SOC, capacity,
-   voltage and limits - instead of a pack 1 that is not connected. */
-static bool pack2_stands_in() {
-  return battery && battery2 && !battery->is_connected() && battery2->is_connected();
-}
-
 /* These two live here rather than inline in the header so that no caller can inline them. GCC
    (13 and 14, at -Os) miscompiles them once inlined into a function that hands in the status of a
    pack it took by reference, as the main page's fill_card_view(pack) does: it carries the address
@@ -248,18 +241,7 @@ void update_aggregate_values() {
      window when that value does not fit the installation (LV). The chemistry decides rather
      than the window, because some integrations start on a deliberately wide window until they
      have counted their cells. Done after the loop, so the window is the installation's. */
-  if (pack2_stands_in()) {
-    const DATALAYER_BATTERY_TYPE& p2 = datalayer.battery2;
-    agg.cell_max_voltage_mV = p2.status.cell_max_voltage_mV;
-    agg.cell_min_voltage_mV = p2.status.cell_min_voltage_mV;
-    agg.temperature_max_dC = p2.status.temperature_max_dC;
-    agg.temperature_min_dC = p2.status.temperature_min_dC;
-    agg.total_capacity_Wh = p2.info.total_capacity_Wh;
-    agg.remaining_capacity_Wh = p2.status.remaining_capacity_Wh;
-    lowest_soc = highest_soc = p2.status.real_soc;
-  }
-
-  agg.voltage_dV = pack2_stands_in() ? datalayer.battery2.status.voltage_dV : datalayer.battery.status.voltage_dV;
+  agg.voltage_dV = datalayer.battery.status.voltage_dV;
   if (agg.voltage_dV == 0) {
     const uint16_t placeholder_dV = (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP)
                                         ? PLACEHOLDER_LINK_VOLTAGE_LFP_DV
@@ -473,14 +455,10 @@ void combine_pack_limits() {
   }
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
-  const bool pack2_alone = pack2_stands_in();
-  const DATALAYER_BATTERY_TYPE* joined[3] = {pack2_alone ? &datalayer.battery2 : &datalayer.battery, nullptr,
-                                             nullptr};  // Pack 1 is always on the link, unless pack 2 stands in
+  const DATALAYER_BATTERY_TYPE* joined[3] = {&datalayer.battery, nullptr, nullptr};  // Pack 1 is always on the link
   uint8_t pack_index[3] = {0, 0, 0};
   uint8_t count = 1;
-  if (pack2_alone) {
-    pack_index[0] = 1;
-  } else if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
+  if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
     pack_index[count] = 1;
     joined[count++] = &datalayer.battery2;
   }
@@ -500,8 +478,8 @@ void combine_pack_limits() {
   agg.max_discharge_power_W = lowest_discharge_W;
   /* Pack 1's, with the manual or remote cap update_calculated_values() put on it. Only what
      reaches the inverter when there is no voltage to derive the currents from the power at. */
-  agg.max_charge_current_dA = joined[0]->status.max_charge_current_dA;
-  agg.max_discharge_current_dA = joined[0]->status.max_discharge_current_dA;
+  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
 }
 
 /* The limits the inverter is finally told about.
@@ -520,13 +498,11 @@ void update_aggregate_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
   if (!parallel_headroom_tracking_active()) {
-    const bool pack2_alone = pack2_stands_in();
-    const DATALAYER_BATTERY_TYPE& first = pack2_alone ? datalayer.battery2 : datalayer.battery;
-    agg.max_charge_power_W = first.status.max_charge_power_W;
-    agg.max_discharge_power_W = first.status.max_discharge_power_W;
-    agg.max_charge_current_dA = first.status.max_charge_current_dA;
-    agg.max_discharge_current_dA = first.status.max_discharge_current_dA;
-    if (!pack2_alone && battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
+    agg.max_charge_power_W = datalayer.battery.status.max_charge_power_W;
+    agg.max_discharge_power_W = datalayer.battery.status.max_discharge_power_W;
+    agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+    agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
+    if (battery2 && datalayer.system.status.battery2_allowed_contactor_closing) {
       agg.max_charge_power_W = MIN(agg.max_charge_power_W, datalayer.battery2.status.max_charge_power_W);
       agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery2.status.max_discharge_power_W);
     }

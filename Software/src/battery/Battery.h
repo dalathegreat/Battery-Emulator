@@ -97,10 +97,6 @@ class Battery {
      to 50-85%. Enforced at boot and reflected in the settings UI. */
   virtual bool mandatory_charge_taper() { return false; }
 
-  /* False while this battery cannot be what the inverter is told about: comms lost or its contactors
-     open. Only consulted in double-battery setups, so the system can fall back to the other pack. */
-  virtual bool is_connected() { return true; }
-
   virtual bool supports_clear_isolation() { return false; }
   virtual bool supports_reset_BMS() { return false; }
   virtual bool supports_reset_SOC() { return false; }
