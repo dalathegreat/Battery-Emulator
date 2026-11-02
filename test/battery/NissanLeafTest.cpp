@@ -1879,7 +1879,7 @@ class NissanLeafBalancingStrategyTests : public ::testing::Test {
     saved_battery[1] = datalayer.battery2;
     saved_battery[2] = datalayer.battery3;
     saved_reset_status = datalayer.system.status.bms_reset_status;
-    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;  // Nothing goes out during a reset
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;  // A reset changes what goes out, and when
   }
 
   void TearDown() override {
@@ -2113,23 +2113,25 @@ TEST_F(NissanLeafU1000Tests, ShouldKeepFeedingTheLbcWhileTheResetWaitsForThePaus
   EXPECT_TRUE(sent_with_id(0x79B, from).empty());
 }
 
-// With the LBC's power cut nothing is sent, even if it keeps talking because only its ignition line
-// is cut. When the power comes back everything resumes at once, the 100 ms messages included.
-TEST_F(NissanLeafU1000Tests, ShouldResumeWithThePowerWhenOnlyTheIgnitionIsCut) {
+// Where only its ignition line is cut, the LBC may talk on, and is answered with the terminating
+// sequence for as long as it does. When the power comes back the messages carry on without a gap, waking
+// it again at once.
+TEST_F(NissanLeafU1000Tests, ShouldCarryOnWithThePowerWhenOnlyTheIgnitionIsCut) {
   run(1000, true, 0x59E);
   datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
   const unsigned long off = t;
   run(5000);
-  EXPECT_TRUE(sent_with_id(0x1D4, off + 1).empty());
-  EXPECT_TRUE(sent_with_id(0x50B, off + 1).empty());
-
   datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
   const unsigned long on = t;
   run(3000);
-  for (uint32_t id : {0x1D4, 0x1F2, 0x50B, 0x50C}) {
-    const std::vector<Sent> frames = sent_with_id(id, on + 1);
-    ASSERT_FALSE(frames.empty()) << std::hex << id;
-    EXPECT_EQ(frames.front().t, on + 1) << std::hex << id;
+  for (uint32_t id : {0x1D4, 0x1F2}) {
+    EXPECT_LE(longest_gap(id, on), 10u) << std::hex << id;
+  }
+  for (uint32_t id : {0x50B, 0x50C}) {
+    EXPECT_LE(longest_gap(id, on), 100u) << std::hex << id;
+  }
+  for (const Sent& s : sent_with_id(0x50B, on + 1)) {
+    EXPECT_EQ(s.frame.data.u8[3], 0xC0) << s.t;  // HCM_WakeUpSleepCommand = 11b, WakeUp
   }
   EXPECT_TRUE(sent_with_id(0x79B, off).empty());
 }
@@ -2414,6 +2416,104 @@ TEST_F(NissanLeafStartingSequenceTests, ShouldStartOverAfterABmsReset) {
   ASSERT_NE(btonfn_at, 0u);
   EXPECT_GE(btonfn_at, rlyp_at + 51);
   EXPECT_LE(btonfn_at, rlyp_at + 70);
+}
+
+// When a BMS reset cuts IGN, the terminating sequence (295B0NDS03 5.2) goes out one step per 10 ms
+// message: CHG_STA_RQ = 11b, then BTONFN = 0, then RLYP = 0, and only after that HCM_WakeUpSleepCommand =
+// 00b. The messages stop 1 s after the LBC's have, and with IGN back on they wake it again.
+TEST_F(NissanLeafStartingSequenceTests, ShouldEndWithTheTerminatingSequenceWhenTheResetCutsIgn) {
+  relays(true, false, true);  // The contactors stay closed throughout
+  make_ready();
+  run(1000);
+  ASSERT_NE(first(btonfn, 0), 0u);
+  std::vector<Sent> all;  // 0x1D4, 0x1F2 and 0x50B
+  auto record = [&](unsigned long duration_ms, bool lbc_talking) {
+    for (unsigned long i = 0; i < duration_ms; i++) {
+      t++;
+      set_millis64(t);
+      if (lbc_talking && t % 10 == 0) {
+        battery->handle_incoming_can_frame(status_1DB());
+      }
+      clear_transmitted_frames();
+      battery->transmit_can(t);
+      for (const CAN_frame& frame : get_transmitted_frames()) {
+        if (frame.ID == 0x1D4 || frame.ID == 0x1F2 || frame.ID == 0x50B) {
+          all.push_back({t, frame});
+        }
+      }
+    }
+  };
+
+  // IGN goes off just before a 0x50B is due, which must still ask the LBC to stay awake: the terminating
+  // sequence has not told it the relays are open yet
+  record(200, true);
+  unsigned long last_50B = 0;
+  for (const Sent& s : all) {
+    if (s.frame.ID == 0x50B) {
+      last_50B = s.t;
+    }
+  }
+  ASSERT_NE(last_50B, 0u);
+  record(last_50B + 96 - t, true);
+  all.clear();
+
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  const unsigned long off = t + 1;
+  record(2000, true);  // Only its ignition line cut, it talks on for a while
+  const unsigned long last_heard = t - (t % 10);
+  record(3000, false);
+
+  std::vector<Sent> slots_1D4, slots_1F2, slots_50B;
+  for (const Sent& s : all) {
+    (s.frame.ID == 0x1D4 ? slots_1D4 : s.frame.ID == 0x1F2 ? slots_1F2 : slots_50B).push_back(s);
+  }
+  ASSERT_GE(slots_1D4.size(), 4u);
+  const auto chg_sta_rq = [](const Sent& s) {
+    return (s.frame.data.u8[2] >> 5) & 0x03;
+  };
+  // 0x1F2 byte 7 low nibble: every other nibble of the frame summed, plus 2
+  const auto checksum_1F2 = [](const CAN_frame& frame) {
+    uint8_t sum = 2 + (frame.data.u8[7] >> 4);
+    for (uint8_t i = 0; i < 7; i++) {
+      sum += (frame.data.u8[i] >> 4) + (frame.data.u8[i] & 0x0F);
+    }
+    return sum & 0x0F;
+  };
+  // First message: the request to stop, the relays still reported as they were
+  EXPECT_EQ(chg_sta_rq(slots_1F2[0]), 3);
+  EXPECT_TRUE(rlyp(slots_1D4[0]) && btonfn(slots_1D4[0]));
+  // Second: the positive relay
+  EXPECT_TRUE(rlyp(slots_1D4[1]));
+  EXPECT_FALSE(btonfn(slots_1D4[1]));
+  // Third: the negative one
+  EXPECT_FALSE(rlyp(slots_1D4[2]) || btonfn(slots_1D4[2]));
+  for (const Sent& s : slots_1F2) {
+    EXPECT_EQ(chg_sta_rq(s), 3) << s.t;
+    EXPECT_EQ(s.frame.data.u8[7] & 0x0F, checksum_1F2(s.frame)) << s.t;
+  }
+  // Sleep, but not before the negative relay has been reported open
+  ASSERT_FALSE(slots_50B.empty());
+  EXPECT_EQ(slots_50B.front().t, last_50B + 100);
+  for (const Sent& s : slots_50B) {
+    EXPECT_EQ(s.frame.data.u8[3], s.t > slots_1D4[2].t ? 0x00 : 0xC0) << s.t;
+  }
+  EXPECT_GE(slots_1D4.back().t, last_heard + 900);
+  EXPECT_LT(slots_1D4.back().t, last_heard + 1000);
+  EXPECT_GE(slots_1D4.front().t, off);
+
+  all.clear();
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  frlyon = false;
+  record(1000, true);
+  for (const Sent& s : all) {
+    if (s.frame.ID == 0x50B) {
+      EXPECT_EQ(s.frame.data.u8[3], 0xC0) << s.t;
+    } else if (s.frame.ID == 0x1F2) {
+      EXPECT_EQ((s.frame.data.u8[2] >> 5) & 0x03, user_selected_LEAF_chg_sta_rq[0]) << s.t;
+    } else {
+      EXPECT_FALSE(rlyp(s) || btonfn(s)) << s.t;  // Nothing until the LBC allows the relays again
+    }
+  }
 }
 
 // A second pack goes by its own contactor, which closes both its main relays at once: RLYP 60 ms after

@@ -205,9 +205,11 @@ class NissanLeafBattery : public CanBattery {
   unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 
-  //Last time the LBC was heard. After a BMS reset has cut its power, nothing is sent again until it
-  //has been heard within this long, as before that nothing would acknowledge the messages.
+  //Last time the LBC was heard. While a BMS reset has its power cut, the messages stop LBC_STOPPED_MS
+  //after it has gone quiet (see TerminatingStep). Once the power is back they start again when it has
+  //been heard within LBC_SILENT_MS, as before that nothing would acknowledge them.
   static const unsigned long LBC_SILENT_MS = 100;
+  static const unsigned long LBC_STOPPED_MS = 1000;
   unsigned long lbc_heard_ms = 0;
   bool ze1_seen = false;  //Set once the pack has shown itself as a ZE1, see transmit_can
 
@@ -234,6 +236,17 @@ class NissanLeafBattery : public CanBattery {
   bool report_RLYP = false;  //As sent in 0x1D4
   unsigned long report_RLYP_ms = 0;
   bool report_BTONFN = false;
+
+  /* Terminating sequence of the EV pack (295B0NDS03 5.2), for a BMS reset cutting IGN: 1) IGN off, then
+     CHG_STA_RQ = 11b, 2) BTONFN = 0 as the positive relay opens and RLYP = 0 as the negative one does,
+     and only once that has gone out 3) HCM_WakeUpSleepCommand = 00b, the messages stopping 1 s after the
+     LBC's have (LBC_STOPPED_MS). One step per 10 ms message, from the first one after IGN goes off. The
+     contactors are not opened: the BMS reset keeps them closed, and the LBC is only told they open. */
+  enum TerminatingStep : uint8_t { NOT_TERMINATING, CHG_STA_RQ_STOP, POSITIVE_OFF, NEGATIVE_OFF, SLEEP };
+  TerminatingStep terminating = NOT_TERMINATING;
+  bool terminating_RLYP = false;  //As they were when IGN went off
+  bool terminating_BTONFN = false;
+  static const uint8_t CHG_STA_RQ_STOP_VALUE = 3;  //11b
   //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
   //info page fills in within seconds instead of over a minute. Counted down per request actually
   //sent, so it always terminates and the steady state polling rate is left untouched.
