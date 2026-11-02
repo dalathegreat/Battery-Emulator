@@ -305,23 +305,23 @@ class SunwodaBattery : public CanBattery {
   // discharge power (0.1 kW). The BCMU reports all zero whenever it is not running.
   uint16_t bmsLimits[4] = {0, 0, 0, 0};
   // Charge-only limit offered while contactors are held closed manually (Debugging mode).
-  static const uint16_t RECOVERY_CHARGE_CURRENT_DA = 50;     // 5.0 A
+  static const uint16_t RECOVERY_CHARGE_CURRENT_DA = 50;        // 5.0 A
   static const uint16_t RECOVERY_CHARGE_MAX_CELL_MV = 3500;     // stop offering it at this (LFP)
   static const uint16_t RECOVERY_CHARGE_RESUME_CELL_MV = 3350;  // ...and only resume below this
   bool recovery_charge_blocked = false;
 
   // Charge taper on the highest cell reading (see apply_charge_taper()).
   void apply_charge_taper(unsigned long now);
-  static const uint16_t TAPER_TARGET_MV = 3500;        // 50 mV under BCMU 3550 mV cut, 100 mV under 3600 mV trip
-  static const uint16_t TAPER_HARD_MARGIN_MV = 50;     // above target + this: halve the current
-  static const uint16_t TAPER_STEP_MARGIN_MV = 20;     // only step up while this far below target
-  static const uint16_t TAPER_START_DA = 30;           // 3.0 A at the start of every charge
-  static const uint16_t TAPER_STEP_DA = 5;             // +0.5 A ...
-  static const unsigned long TAPER_STEP_MS = 10000;    // ... every 10 s
-  static const uint16_t TAPER_CUT_DA = 10;             // -1.0 A ...
+  static const uint16_t TAPER_TARGET_MV = 3500;             // 50 mV under BCMU 3550 mV cut, 100 mV under 3600 mV trip
+  static const uint16_t TAPER_HARD_MARGIN_MV = 50;          // above target + this: halve the current
+  static const uint16_t TAPER_STEP_MARGIN_MV = 20;          // only step up while this far below target
+  static const uint16_t TAPER_START_DA = 30;                // 3.0 A at the start of every charge
+  static const uint16_t TAPER_STEP_DA = 5;                  // +0.5 A ...
+  static const unsigned long TAPER_STEP_MS = 10000;         // ... every 10 s
+  static const uint16_t TAPER_CUT_DA = 10;                  // -1.0 A ...
   static const unsigned long TAPER_CUT_INTERVAL_MS = 3000;  // ... at most every 3 s
-  static const uint16_t TAPER_MAX_DA = 2000;           // never above 200 A (BCMU limit applies anyway)
-  static const int16_t TAPER_CHARGING_DA = 5;          // pack counts as charging above 0.5 A
+  static const uint16_t TAPER_MAX_DA = 2000;                // never above 200 A (BCMU limit applies anyway)
+  static const int16_t TAPER_CHARGING_DA = 5;               // pack counts as charging above 0.5 A
   uint16_t taper_cap_dA = TAPER_START_DA;
   unsigned long last_taper_step_ms = 0;
   unsigned long last_taper_cut_ms = 0;

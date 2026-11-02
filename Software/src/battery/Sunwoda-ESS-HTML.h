@@ -70,10 +70,10 @@ struct SunwodaExtendedData {
 static const char* const SUNWODA_ALARM_BIT_NAMES[4][16] = {
     {"Overcurrent during charging", "Overcurrent discharge", "Battery overvoltage", "Battery undervoltage",
      "High temperature during battery charging", "Low temperature during battery charging",
-     "High temperature during battery discharge", "Low temperature during battery discharge",
-     "Disconnect switch open", "Reserved switch 1 is off", "Reserved switch 2 disconnected",
-     "BCMU high-voltage sampling anomaly", "BCMU temperature sampling anomaly", "BCMU leakage detection failure",
-     "Precharge overheating", "Contactor overheating"},
+     "High temperature during battery discharge", "Low temperature during battery discharge", "Disconnect switch open",
+     "Reserved switch 1 is off", "Reserved switch 2 disconnected", "BCMU high-voltage sampling anomaly",
+     "BCMU temperature sampling anomaly", "BCMU leakage detection failure", "Precharge overheating",
+     "Contactor overheating"},
     {"Fuse overheating", "Battery pack failed to start", "Charging stopped", "Battery pack self-protection",
      "Communication CAN bus disconnected with high voltage detection module", nullptr, nullptr, nullptr, nullptr,
      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
@@ -82,8 +82,8 @@ static const char* const SUNWODA_ALARM_BIT_NAMES[4][16] = {
      "Severe low temperature during charging", "Severe low temperature discharge", "Voltage consistency decline",
      "Uneven temperature distribution", "Abnormal capacity decay", "Low battery remaining capacity",
      "Battery cell failure", nullptr, nullptr, nullptr},
-    {"BMU equalization feedback circuit malfunction", "BMU equalization control circuit malfunction", nullptr,
-     nullptr, nullptr, nullptr, "BMU node number duplicate", "BMU software version error", "High voltage warning",
+    {"BMU equalization feedback circuit malfunction", "BMU equalization control circuit malfunction", nullptr, nullptr,
+     nullptr, nullptr, "BMU node number duplicate", "BMU software version error", "High voltage warning",
      "Low voltage warning", "Surge protector status", "Equalization voltage is normal", nullptr, nullptr, nullptr,
      nullptr},
 };
@@ -99,11 +99,11 @@ static const char* const SUNWODA_FAULT_BIT_NAMES[4][16] = {
     {"Discharge short circuit overcurrent protection", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     {"The battery pack is severely leaking current", "Negative contactor retest abnormal",
-     "Main contactor retest abnormal", "Precharge contactor re-inspection abnormal", nullptr, nullptr, nullptr,
-     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
+     "Main contactor retest abnormal", "Precharge contactor re-inspection abnormal", nullptr, nullptr, nullptr, nullptr,
+     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     {"BMU sampling circuit malfunction", "BMU voltage sampling line broken", "BMU temperature sampling line broken",
-     nullptr, nullptr, nullptr, nullptr, nullptr, "BMU internal CAN disconnection", nullptr, nullptr, nullptr,
-     nullptr, nullptr, nullptr, nullptr},
+     nullptr, nullptr, nullptr, nullptr, nullptr, "BMU internal CAN disconnection", nullptr, nullptr, nullptr, nullptr,
+     nullptr, nullptr, nullptr},
 };
 
 class SunwodaHtmlRenderer : public BatteryHtmlRenderer {
@@ -129,21 +129,19 @@ class SunwodaHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Disconnecting switch: " + String(openClosed[data->disconnect_switch_closed]) + "</h4>";
     content += "<h4>Surge protector: " + String(openClosed[data->surge_protector_closed]) + "</h4>";
 
-    content += "<h4>Contactor self-test: " +
-               String(data->contactor_selftest_status == 1 ? "Completed" : "Not run") + "</h4>";
+    content +=
+        "<h4>Contactor self-test: " + String(data->contactor_selftest_status == 1 ? "Completed" : "Not run") + "</h4>";
 
     static const char* protectionStatusNames[5] = {"Normal", "Fully charged", "Empty", "Standby", "Protection"};
-    static const char* operatingStatusNames[6] = {"Initialization", "Stop", "Starting", "Running", "Stopping",
-                                                   "Fault"};
+    static const char* operatingStatusNames[6] = {"Initialization", "Stop", "Starting", "Running", "Stopping", "Fault"};
     static const char* chargeDischargeStatusNames[3] = {"Idle", "Charging", "Discharging"};
 
     content += "<h4>System status:</h4>";
-    content += "<h4>Battery protection status: " + lookup(protectionStatusNames, 5, data->batteryProtectionStatus) +
-               "</h4>";
     content +=
-        "<h4>Operating status: " + lookup(operatingStatusNames, 6, data->operatingStatus) + "</h4>";
-    content += "<h4>Charge/discharge status: " +
-               lookup(chargeDischargeStatusNames, 3, data->chargeDischargeStatus) + "</h4>";
+        "<h4>Battery protection status: " + lookup(protectionStatusNames, 5, data->batteryProtectionStatus) + "</h4>";
+    content += "<h4>Operating status: " + lookup(operatingStatusNames, 6, data->operatingStatus) + "</h4>";
+    content +=
+        "<h4>Charge/discharge status: " + lookup(chargeDischargeStatusNames, 3, data->chargeDischargeStatus) + "</h4>";
     if (data->operatingMode == 8 && data->operatingStatus != 3) {
       content +=
           "<h4 style='color:#ffb74d;'>The BCMU is in manual (Debugging) mode - contactors were opened by hand "
@@ -156,7 +154,8 @@ class SunwodaHtmlRenderer : public BatteryHtmlRenderer {
     }
 
     content += "<h4>CAN speed: " + String(data->can_speed_kbps) + " kbit/s</h4>";
-    content += "<h4>Charge taper cap: " + String(data->charge_taper_dA / 10.0, 1) + " A (on highest cell, target 3.50 V)</h4>";
+    content +=
+        "<h4>Charge taper cap: " + String(data->charge_taper_dA / 10.0, 1) + " A (on highest cell, target 3.50 V)</h4>";
     content += "<h4>Software version: " + String(data->softwareVersion / 10.0f, 1) + "</h4>";
     content += "<h4>Hardware version: " + String(data->hardwareVersion / 10.0f, 1) + "</h4>";
 
@@ -173,8 +172,8 @@ class SunwodaHtmlRenderer : public BatteryHtmlRenderer {
         min_dC = min(min_dC, data->temperatures_dC[i]);
         max_dC = max(max_dC, data->temperatures_dC[i]);
       }
-      content += "<h4>Temperature sensors (" + String(data->temp_sensor_count) + "): " +
-                 String(min_dC / 10.0f, 1) + " - " + String(max_dC / 10.0f, 1) + " &deg;C</h4>";
+      content += "<h4>Temperature sensors (" + String(data->temp_sensor_count) + "): " + String(min_dC / 10.0f, 1) +
+                 " - " + String(max_dC / 10.0f, 1) + " &deg;C</h4>";
     }
 
     return content;

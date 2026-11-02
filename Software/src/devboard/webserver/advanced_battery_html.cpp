@@ -17,8 +17,7 @@
 // bloat the base class - the identifier (which is also the HTTP route name) is written once here and
 // the battery implementation decides at run time whether it supports it.
 static BatteryCommand vendor_command(const char* identifier, const char* title, const char* prompt) {
-  return {identifier, title, prompt,
-          [identifier](Battery* b) { return b && b->supports_vendor_command(identifier); },
+  return {identifier, title, prompt, [identifier](Battery* b) { return b && b->supports_vendor_command(identifier); },
           [identifier](Battery* b) { b->request_vendor_command(identifier); }};
 }
 

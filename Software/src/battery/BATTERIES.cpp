@@ -597,9 +597,9 @@ void setup_battery() {
         case BatteryType::SunwodaEss:
           // The second BCMU must be moved off the default node address or the two collide: set its
           // param 1032 to 0x000F and turn on ADDR switch 1, which makes it 0x51.
-          battery2 = new SunwodaBattery(&datalayer.battery2,
-                                        &datalayer.system.status.battery2_allowed_contactor_closing,
-                                        can_config.battery_double, SUNWODA_SECOND_BCMU_ADDRESS);
+          battery2 =
+              new SunwodaBattery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                                 can_config.battery_double, SUNWODA_SECOND_BCMU_ADDRESS);
           break;
         case BatteryType::SantaFePhev:
           battery2 = new SantaFePhevBattery(&datalayer.battery2, can_config.battery_double);

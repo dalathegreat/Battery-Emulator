@@ -65,8 +65,7 @@ uint16_t map_int(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min,
 bool led_init(void) {
   // A user-set GPIO overrides the board default. GPIO_NUM_MAX bounds it; alloc_pins() below
   // still rejects a pin another peripheral already owns.
-  gpio_num_t led_pin = (user_selected_led_pin < GPIO_NUM_MAX) ? (gpio_num_t)user_selected_led_pin
-                                                              : esp32hal->LED_PIN();
+  gpio_num_t led_pin = (user_selected_led_pin < GPIO_NUM_MAX) ? (gpio_num_t)user_selected_led_pin : esp32hal->LED_PIN();
 
   if (led_pin == GPIO_NUM_NC) {
     return true;

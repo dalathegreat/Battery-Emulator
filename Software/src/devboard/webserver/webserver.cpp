@@ -549,7 +549,7 @@ void init_webserver() {
       "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",   "GPIOOPT2",     "GPIOOPT3",      "INVSUNTYPE",
       "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",
       "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES",
-      "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",  "PERBMSRESETH", "LEDCOUNT", "LEDPIN",
+      "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",  "PERBMSRESETH", "LEDCOUNT",      "LEDPIN",
 #ifndef SMALL_FLASH_DEVICE
       "CTVNOM",        "CTANOM",        "QNHIPN",     "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
@@ -1095,8 +1095,8 @@ void init_webserver() {
               f[i] = body.substring(start, end < 0 ? body.length() : end).toInt();
               start = end < 0 ? 0 : end + 1;
             }
-            if (f[0] < 2000 || f[0] > 2099 || f[1] < 1 || f[1] > 12 || f[2] < 1 || f[2] > 31 || f[3] < 0 ||
-                f[3] > 23 || f[4] < 0 || f[4] > 59 || f[5] < 0 || f[5] > 59999) {
+            if (f[0] < 2000 || f[0] > 2099 || f[1] < 1 || f[1] > 12 || f[2] < 1 || f[2] > 31 || f[3] < 0 || f[3] > 23 ||
+                f[4] < 0 || f[4] > 59 || f[5] < 0 || f[5] > 59999) {
               return request->send(400, "text/plain", "Invalid time.");
             }
             cmd.action_with_time(batt, f[0], f[1], f[2], f[3], f[4], f[5]);

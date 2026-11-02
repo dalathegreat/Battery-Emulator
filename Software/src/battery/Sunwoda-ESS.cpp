@@ -341,7 +341,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       extended_data.alarmActive = (extended_data.alarmWords[0] | extended_data.alarmWords[1] |
-                                    extended_data.alarmWords[2] | extended_data.alarmWords[3]) != 0;
+                                   extended_data.alarmWords[2] | extended_data.alarmWords[3]) != 0;
 
       // Surface an unspecified BMS alarm on the events page, same as other drivers do for a
       // generic "caution" bit whose exact meaning isn't broken out (e.g. Nissan Leaf case 4).
@@ -373,7 +373,7 @@ void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       extended_data.faultActive = (extended_data.faultWords[0] | extended_data.faultWords[1] |
-                                    extended_data.faultWords[2] | extended_data.faultWords[3]) != 0;
+                                   extended_data.faultWords[2] | extended_data.faultWords[3]) != 0;
 
       // A Fault frame is assumed to be more severe than an Alarm one, so it is mapped to the
       // generic ERROR-level "stop charge/discharge" event rather than the INFO-level caution
@@ -497,11 +497,11 @@ const uint8_t SunwodaBattery::VENDOR_COMMAND_COUNT =
 
 const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_DEBUG_MODE = {nullptr, OBJ_SYSTEM_CONTROL, 1, 8};
 const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_MAIN_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 0,
-                                                                         CONTACTOR_DISENGAGE};
+                                                                        CONTACTOR_DISENGAGE};
 const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_PRECHARGE_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 1,
-                                                                              CONTACTOR_DISENGAGE};
-const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_NEGATIVE_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 2,
                                                                              CONTACTOR_DISENGAGE};
+const SunwodaBattery::VendorCommandDef SunwodaBattery::CMD_NEGATIVE_OPEN = {nullptr, OBJ_CONTACTOR_CONTROL, 2,
+                                                                            CONTACTOR_DISENGAGE};
 
 const SunwodaBattery::VendorCommandDef* SunwodaBattery::find_vendor_command(const char* identifier) {
   if (!identifier) {
@@ -651,8 +651,8 @@ void SunwodaBattery::transmit_can(unsigned long currentMillis) {
                        .ext_ID = true,
                        .DLC = 4,
                        .ID = write_id(object),
-                       .data = {(uint8_t)(MUX_FIRST | MUX_LAST | 1), cmd->subindex,
-                                (uint8_t)(cmd->value & 0xFF), (uint8_t)(cmd->value >> 8), 0x00, 0x00, 0x00, 0x00}};
+                       .data = {(uint8_t)(MUX_FIRST | MUX_LAST | 1), cmd->subindex, (uint8_t)(cmd->value & 0xFF),
+                                (uint8_t)(cmd->value >> 8), 0x00, 0x00, 0x00, 0x00}};
     transmit_can_frame(&frame);
   }
 
