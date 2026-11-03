@@ -26,6 +26,7 @@
 #include "../espnow/espnow.h"
 #include "../mqtt/mqtt.h"
 #include "../network/hostname.h"
+#include "../network/local_peer.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
@@ -89,22 +90,63 @@ bool webserver_auth_is_ready() {
   return webserver_auth && !http_username.empty() && !http_password.empty();
 }
 
+static uint32_t ipv4_host_order(const IPAddress& ip) {
+  return ((uint32_t)ip[0] << 24) | ((uint32_t)ip[1] << 16) | ((uint32_t)ip[2] << 8) | (uint32_t)ip[3];
+}
+
+// The peer address and Host header checks of local_peer.h. The web server listens on IPv4 only
+// (AsyncTCPSock binds AF_INET), so the peer is always IPv4.
+static bool webserver_request_is_local(AsyncWebServerRequest* request) {
+  const uint32_t own_ip = ipv4_host_order(WiFi.localIP());
+  if (!ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), own_ip, ipv4_host_order(WiFi.subnetMask()),
+                          ipv4_host_order(WiFi.gatewayIP()))) {
+    return false;
+  }
+  return http_host_is_local(request->host().c_str(), active_hostname().c_str(), own_ip,
+                            ipv4_host_order(WiFi.softAPIP()));
+}
+
 // Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
 // the middleware chain and before the onRequest handler. Anything that acts on
 // body data must therefore check credentials itself. Headers are already parsed
 // at this point, so authenticate() works here.
-// Returns true if the request may proceed. If auth is enabled and the
-// credentials are missing or wrong, returns false; the caller must discard the
-// data and do nothing. The 401 is sent later by the middleware / onRequest.
-static bool webserver_request_authorized(AsyncWebServerRequest* request) {
-  if (!webserver_auth) {
-    return true;  // password protection not enabled by the user
-  }
+// Returns true if the request may proceed. Without password protection only
+// requests from the local network may proceed; with it, only correct credentials.
+// On false the caller must discard the data and do nothing. The 403 / 401 is
+// sent later by the middleware / onRequest.
+bool webserver_request_authorized(AsyncWebServerRequest* request) {
   if (!webserver_auth_is_ready()) {
-    return true;  // enabled but no credentials configured: same behaviour as the rest of the UI
+    return webserver_request_is_local(request);
   }
   return request->authenticate(http_username.c_str(), http_password.c_str());
 }
+
+// At most one line a minute, so a scanner hammering a forwarded port cannot flood the log.
+static void log_refused_request(AsyncWebServerRequest* request) {
+  static unsigned long last_logged = 0;
+  static bool logged = false;
+  const unsigned long now = millis();
+  if (logged && now - last_logged < 60000UL) {
+    return;
+  }
+  logged = true;
+  last_logged = now;
+  LOG_SET_NEXT_SEVERITY(4);  // warning
+  logging.printf("Web interface refused %s (Host: %s): not from the local network, password protection is off\n",
+                 request->client()->remoteIP().toString().c_str(), request->host().c_str());
+}
+
+// Without password protection the web interface answers the local network only, so a port forward
+// does not expose an unauthenticated battery controller (local_peer.h says what this can catch).
+static AsyncMiddlewareFunction local_network_only([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
+  if (webserver_request_is_local(request)) {
+    return next();
+  }
+  log_refused_request(request);
+  request->send(403, "text/plain",
+                "Password protection is off, so this web interface only answers the local network, addressed by "
+                "its IP or hostname. Turn protection on in Settings to allow access from elsewhere.");
+});
 
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
@@ -234,7 +276,10 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 }
 
 void init_webserver() {
-  if (webserver_auth_is_ready()) {
+  const bool lan_only = !webserver_auth_is_ready();
+  if (lan_only) {
+    server.addMiddleware(&local_network_only);
+  } else {
     web_auth_middleware.setUsername(http_username.c_str());
     web_auth_middleware.setPassword(http_password.c_str());
     web_auth_middleware.setRealm(WEB_AUTH_REALM);
@@ -242,30 +287,33 @@ void init_webserver() {
     server.addMiddleware(&web_auth_middleware);
   }
 
-  server
-      .on("/logout", HTTP_GET,
-          [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response = request->beginResponse(
-                401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
-            response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
-            response->addHeader("Cache-Control", "no-store");
-            response->addHeader("Connection", "close");
-            request->send(response);
-          })
-      .skipServerMiddlewares();
+  // The routes below skip the server middlewares, so they get the local network check of their own.
+  AsyncCallbackWebHandler& logout_route = server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(
+        401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
+    response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
+    response->addHeader("Cache-Control", "no-store");
+    response->addHeader("Connection", "close");
+    request->send(response);
+  });
+  logout_route.skipServerMiddlewares();
+  if (lan_only) {
+    logout_route.addMiddleware(&local_network_only);
+  }
 
 #ifndef SMALL_FLASH_DEVICE
   // Browsers fetch the icon for the login page too, so the route must work
   // without credentials. Cached hard: the icon only changes with a firmware
   // update, so one fetch per browser instead of one per page load.
-  server
-      .on("/favicon.svg", HTTP_GET,
-          [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
-            response->addHeader("Cache-Control", "public, max-age=604800");
-            request->send(response);
-          })
-      .skipServerMiddlewares();
+  AsyncCallbackWebHandler& favicon_route = server.on("/favicon.svg", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
+    response->addHeader("Cache-Control", "public, max-age=604800");
+    request->send(response);
+  });
+  favicon_route.skipServerMiddlewares();
+  if (lan_only) {
+    favicon_route.addMiddleware(&local_network_only);
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   // Route for firmware info from ota update page
