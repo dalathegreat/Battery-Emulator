@@ -96,6 +96,13 @@
       "name": "Equipment stop",
       "enabled": true,
       "gpio": { "pin": 7 }
+    },
+    {
+      "type": "shunt_adc",
+      "name": "Current sensor input",
+      "enabled": false,
+      "notes": "On the 4-pin SH1.0 connector (ADC1 channel 0). GPIO1 is the second CAN FD interface's chip select in this wiring, so this stays off.",
+      "gpio": { "pin": 1 }
     }
   ]
 }

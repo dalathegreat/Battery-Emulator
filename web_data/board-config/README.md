@@ -75,6 +75,7 @@ which the firmware matches on, and an `enabled` flag.
 | `longpress_reset` | `pin` | |
 | `battery_wakeup` | `wup1`, `wup2` | |
 | `chademo` | `pin2`, `pin4`, `pin7`, `pin10`, `lock`, `ct` | |
+| `shunt_adc` | `pin` | |
 | `sdcard` | `miso`, `mosi`, `sclk`, `cs` | `spi_bus` |
 
 `sdcard` is accepted by the schema so the same schema version can cover the ESP32
@@ -138,7 +139,7 @@ driven.
 | 0 read as an input, other than `longpress_reset` | Held low at reset it selects download mode, so the board would not boot | error |
 | 0 driven as an output, or the boot button | Cannot move the strap; a status LED here is fine | none |
 | `reset_hold` on a pin outside 0-21 | Not RTC-capable, so the latch is dropped and the port stays | warning |
-| `chademo.ct` outside 1-10 | ADC2 is unusable while Wi-Fi is up | error |
+| `chademo.ct` or `shunt_adc.pin` outside 1-10 | ADC2 is unusable while Wi-Fi is up | error |
 | 45, 46 driven as an output | Strapping: VDD_SPI voltage and boot mode | warning |
 | 45, 46 read as an input that external equipment drives | A signal held at reset changes how the chip boots | warning |
 | 3 read as an input that external equipment drives | Straps the JTAG source, ignored unless EFUSE_STRAP_JTAG_SEL is burned | warning |

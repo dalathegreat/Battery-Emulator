@@ -123,6 +123,13 @@
       "enabled": false,
       "notes": "Takes over the second and third battery contactor pins, so disable those two ports when enabling this one. The ct pin is on ADC1, which stays usable with Wi-Fi up.",
       "gpio": { "pin2": 16, "pin4": 4, "pin7": 47, "pin10": 15, "lock": 40, "ct": 5 }
+    },
+    {
+      "type": "shunt_adc",
+      "name": "Current sensor input",
+      "enabled": true,
+      "notes": "On IO01 of the configurable QWIIC port (ADC1 channel 0). Shared with the port's other functions (battery wake-up wup1, display SDA), so only one of them can be enabled.",
+      "gpio": { "pin": 1 }
     }
   ]
 }

@@ -138,6 +138,9 @@ struct BoardConfig {
   gpio_num_t chademo_lock = GPIO_NUM_NC;
   gpio_num_t chademo_ct = GPIO_NUM_NC;
 
+  // Analog current sensor (the QNHCK2-16 Hall clamp), on an ADC1 pin
+  gpio_num_t shunt_adc = GPIO_NUM_NC;
+
   // Interfaces the file configured, with the name each port gave itself, so the
   // settings dropdowns read the way the file does rather than in generic terms.
   std::vector<comm_interface> interfaces;

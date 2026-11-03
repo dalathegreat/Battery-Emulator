@@ -488,6 +488,15 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
         cfg.chademo_lock = lock;
         cfg.chademo_ct = ct;
 
+      } else if (strcmp(type, "shunt_adc") == 0) {
+        gpio_num_t pin = v.take(name, "pin", pin_of(gpio, "pin"), PinRole::Input);
+        if (pin != GPIO_NUM_NC && !pin_is_adc1(pin)) {
+          v.error(name, "pin must be on ADC1 (GPIO1-10); ADC2 is unusable while Wi-Fi is up");
+        }
+        if (v.port_failed())
+          return false;
+        cfg.shunt_adc = pin;
+
       } else if (strcmp(type, "sdcard") == 0) {
         // Accepted by the schema for the ESP32 family, but this image is built
         // without SD support, so say so rather than silently dropping it.

@@ -102,6 +102,7 @@
         { "$ref": "#/definitions/port_longpress_reset" },
         { "$ref": "#/definitions/port_battery_wakeup" },
         { "$ref": "#/definitions/port_chademo" },
+        { "$ref": "#/definitions/port_shunt_adc" },
         { "$ref": "#/definitions/port_sdcard" }
       ]
     },
@@ -535,6 +536,31 @@
             "lock": { "$ref": "#/definitions/pin" },
             "ct": {
               "description": "Current transformer analog input. Must be an ADC1 channel (GPIO1-10 on ESP32-S3), because ADC2 is unusable while Wi-Fi is up.",
+              "$ref": "#/definitions/pin"
+            }
+          }
+        }
+      }
+    },
+
+    "port_shunt_adc": {
+      "title": "Analog current sensor input",
+      "description": "ADC input for an analog current sensor, such as the QNHCK2-16 Hall clamp. The web UI only offers the QNHCK2-16 measurement type when this port is enabled.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "enabled", "gpio"],
+      "properties": {
+        "type": { "const": "shunt_adc" },
+        "name": { "type": "string", "maxLength": 64 },
+        "enabled": { "$ref": "#/definitions/enabled" },
+        "notes": { "$ref": "#/definitions/notes" },
+        "gpio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pin"],
+          "properties": {
+            "pin": {
+              "description": "Sensor output. Must be an ADC1 channel (GPIO1-10 on ESP32-S3), because ADC2 is unusable while Wi-Fi is up.",
               "$ref": "#/definitions/pin"
             }
           }

@@ -69,6 +69,11 @@ class UnifiedHal : public Esp32Hal {
   virtual gpio_num_t CHADEMO_LOCK() { return board_config.chademo_lock; }
   virtual gpio_num_t CHADEMO_CT_PIN() { return board_config.chademo_ct; }
 
+#ifndef SMALL_FLASH_DEVICE
+  // Analog current sensor. The QNHCK2-16 shunt type is only offered when this is set.
+  virtual gpio_num_t SHUNT_ADC_PIN() { return board_config.shunt_adc; }
+#endif  // SMALL_FLASH_DEVICE
+
   // Contactors
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return board_config.positive; }
   virtual gpio_num_t NEGATIVE_CONTACTOR_PIN() { return board_config.negative; }
