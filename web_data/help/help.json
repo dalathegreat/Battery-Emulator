@@ -11,7 +11,7 @@
     "WIFICHANNEL": "Force a specific channel. Set to 0 for autodetect.",
     "APPASSWORD": "Password must be 8-63 characters long, printable ASCII only.",
 
-    "WEBAUTH": "Require HTTP Basic authentication for the web interface and OTA page. Without it, only devices on the local network get an answer, so a port forward from the internet is refused. See [Web Server Authentication](setup/software/webserver_guide/#web-server-authentication).",
+    "WEBAUTH": "Require HTTP Basic authentication for the web interface and OTA page. Without it, the web interface only answers devices on the local network that address it by its IP, its hostname or a local name, so a port forward from the internet is refused. See [Web Server Authentication](setup/software/webserver_guide/#web-server-authentication).",
     "HTTPUSER": "Web interface username, max 32 characters, printable ASCII only.",
     "HTTPPASS": "Set a password before enabling password protection. Max 63 characters, printable ASCII only.",
     "HTTPPASSCONFIRM": "Repeat the web interface password. Max 63 characters, printable ASCII only.",

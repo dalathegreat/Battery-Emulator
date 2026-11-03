@@ -94,10 +94,16 @@ static uint32_t ipv4_host_order(const IPAddress& ip) {
   return ((uint32_t)ip[0] << 24) | ((uint32_t)ip[1] << 16) | ((uint32_t)ip[2] << 8) | (uint32_t)ip[3];
 }
 
-// The web server listens on IPv4 only (AsyncTCPSock binds AF_INET), so the peer is always IPv4.
-static bool webserver_peer_is_local(AsyncWebServerRequest* request) {
-  return ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), ipv4_host_order(WiFi.localIP()),
-                            ipv4_host_order(WiFi.subnetMask()));
+// The peer address and Host header checks of local_peer.h. The web server listens on IPv4 only
+// (AsyncTCPSock binds AF_INET), so the peer is always IPv4.
+static bool webserver_request_is_local(AsyncWebServerRequest* request) {
+  const uint32_t own_ip = ipv4_host_order(WiFi.localIP());
+  if (!ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), own_ip, ipv4_host_order(WiFi.subnetMask()),
+                          ipv4_host_order(WiFi.gatewayIP()))) {
+    return false;
+  }
+  return http_host_is_local(request->host().c_str(), active_hostname().c_str(), own_ip,
+                            ipv4_host_order(WiFi.softAPIP()));
 }
 
 // Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
@@ -105,18 +111,18 @@ static bool webserver_peer_is_local(AsyncWebServerRequest* request) {
 // body data must therefore check credentials itself. Headers are already parsed
 // at this point, so authenticate() works here.
 // Returns true if the request may proceed. Without password protection only
-// peers on the local network may proceed; with it, only correct credentials.
+// requests from the local network may proceed; with it, only correct credentials.
 // On false the caller must discard the data and do nothing. The 403 / 401 is
 // sent later by the middleware / onRequest.
 bool webserver_request_authorized(AsyncWebServerRequest* request) {
   if (!webserver_auth_is_ready()) {
-    return webserver_peer_is_local(request);
+    return webserver_request_is_local(request);
   }
   return request->authenticate(http_username.c_str(), http_password.c_str());
 }
 
 // At most one line a minute, so a scanner hammering a forwarded port cannot flood the log.
-static void log_refused_peer(const IPAddress& ip) {
+static void log_refused_request(AsyncWebServerRequest* request) {
   static unsigned long last_logged = 0;
   static bool logged = false;
   const unsigned long now = millis();
@@ -126,20 +132,20 @@ static void log_refused_peer(const IPAddress& ip) {
   logged = true;
   last_logged = now;
   LOG_SET_NEXT_SEVERITY(4);  // warning
-  logging.printf("Web interface refused %s: outside the local network while password protection is off\n",
-                 ip.toString().c_str());
+  logging.printf("Web interface refused %s (Host: %s): not from the local network, password protection is off\n",
+                 request->client()->remoteIP().toString().c_str(), request->host().c_str());
 }
 
-// Without password protection the web interface answers the local network only, so an
-// unauthenticated battery controller is never reachable through a port forward from the internet.
+// Without password protection the web interface answers the local network only, so a port forward
+// does not expose an unauthenticated battery controller (local_peer.h says what this can catch).
 static AsyncMiddlewareFunction local_network_only([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
-  if (webserver_peer_is_local(request)) {
+  if (webserver_request_is_local(request)) {
     return next();
   }
-  log_refused_peer(request->client()->remoteIP());
+  log_refused_request(request);
   request->send(403, "text/plain",
-                "Password protection is off, so this web interface only answers the local network. "
-                "Turn it on in Settings from inside the network to allow access from elsewhere.");
+                "Password protection is off, so this web interface only answers the local network, addressed by "
+                "its IP or hostname. Turn protection on in Settings to allow access from elsewhere.");
 });
 
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
