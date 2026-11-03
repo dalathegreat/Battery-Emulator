@@ -281,7 +281,7 @@ uint16_t Kia64FDBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t*
       //Frame 27 (73 01 84 e0 c2 00 02) data45-51
       opTime = data[46] << 24 | data[47] << 16 | data[48] << 8 | data[49];
       BMS_ign = data[50];
-      inverterVoltage = ((data[51] << 8) + data[52]);  //Flow over
+      inverterVoltage = (((data[51] << 8) + data[52]) / 2);  //Flow over
       batteryRelay = data[51] & 0x01;
       //Frame 28 (c9 00 00 00 00 0b b8) data52-58
       break;
