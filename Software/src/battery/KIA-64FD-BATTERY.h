@@ -34,7 +34,7 @@ class Kia64FDBattery : public UdsCanBattery {
   static constexpr const char* Name = "Kia 64kWh FD battery";
 
   String get_uds_info_html() override;
-  const char* get_dtc_json_filename() override { return "kia_64fd_dtc.json"; }
+  const char* get_dtc_json_filename() override { return "kia_egmp_dtc.json"; }
 
  protected:
   // Called by the UDS superclass for each successful PID query response.
