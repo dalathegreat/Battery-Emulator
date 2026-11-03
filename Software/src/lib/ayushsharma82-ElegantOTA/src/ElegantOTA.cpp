@@ -1,6 +1,7 @@
 #include "ElegantOTA.h"
 
 #include "../../../devboard/safety/safety.h"
+#include "../../../devboard/webserver/webserver.h"
 
 ElegantOTAClass::ElegantOTAClass(){}
 
@@ -58,6 +59,11 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server){
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     }, [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        // Upload chunks arrive before the middlewares run: never write firmware for a request
+        // they would refuse. The 401 / 403 is sent by the middleware afterwards.
+        if (!webserver_request_authorized(request)) {
+          return;
+        }
         //Upload handler chunks in data
         if (!index) {
           // Reset progress size on first frame

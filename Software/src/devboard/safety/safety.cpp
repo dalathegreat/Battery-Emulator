@@ -136,7 +136,7 @@ static void check_pack_voltage(DATALAYER_BATTERY_TYPE& pack, uint8_t number) {
 }
 
 /* Cell voltage limits, the same for every pack. Each pack is held to its own limits and raises
-   its own events. update_aggregate_limits() hands the inverter the lowest limit of any joined
+   its own events. combine_pack_limits() starts the inverter's limits from the lowest of any joined
    pack, so a zero written here stops the whole installation. That is what it has to do: every
    joined pack takes its share of whatever current the inverter pushes or pulls, so one pack with
    a cell at its limit is enough to stop charging or discharging. */

@@ -24,7 +24,9 @@
 #include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"
+#include "../network/local_peer.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
@@ -88,15 +90,77 @@ bool webserver_auth_is_ready() {
   return webserver_auth && !http_username.empty() && !http_password.empty();
 }
 
+static uint32_t ipv4_host_order(const IPAddress& ip) {
+  return ((uint32_t)ip[0] << 24) | ((uint32_t)ip[1] << 16) | ((uint32_t)ip[2] << 8) | (uint32_t)ip[3];
+}
+
+// The peer address and Host header checks of local_peer.h. The web server listens on IPv4 only
+// (AsyncTCPSock binds AF_INET), so the peer is always IPv4.
+static bool webserver_request_is_local(AsyncWebServerRequest* request) {
+  const uint32_t own_ip = ipv4_host_order(WiFi.localIP());
+  if (!ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), own_ip, ipv4_host_order(WiFi.subnetMask()),
+                          ipv4_host_order(WiFi.gatewayIP()))) {
+    return false;
+  }
+  return http_host_is_local(request->host().c_str(), active_hostname().c_str(), own_ip,
+                            ipv4_host_order(WiFi.softAPIP()));
+}
+
+// Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
+// the middleware chain and before the onRequest handler. Anything that acts on
+// body data must therefore check credentials itself. Headers are already parsed
+// at this point, so authenticate() works here.
+// Returns true if the request may proceed. Without password protection only
+// requests from the local network may proceed; with it, only correct credentials.
+// On false the caller must discard the data and do nothing. The 403 / 401 is
+// sent later by the middleware / onRequest.
+bool webserver_request_authorized(AsyncWebServerRequest* request) {
+  if (!webserver_auth_is_ready()) {
+    return webserver_request_is_local(request);
+  }
+  return request->authenticate(http_username.c_str(), http_password.c_str());
+}
+
+// At most one line a minute, so a scanner hammering a forwarded port cannot flood the log.
+static void log_refused_request(AsyncWebServerRequest* request) {
+  static unsigned long last_logged = 0;
+  static bool logged = false;
+  const unsigned long now = millis();
+  if (logged && now - last_logged < 60000UL) {
+    return;
+  }
+  logged = true;
+  last_logged = now;
+  LOG_SET_NEXT_SEVERITY(4);  // warning
+  logging.printf("Web interface refused %s (Host: %s): not from the local network, password protection is off\n",
+                 request->client()->remoteIP().toString().c_str(), request->host().c_str());
+}
+
+// Without password protection the web interface answers the local network only, so a port forward
+// does not expose an unauthenticated battery controller (local_peer.h says what this can catch).
+static AsyncMiddlewareFunction local_network_only([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
+  if (webserver_request_is_local(request)) {
+    return next();
+  }
+  log_refused_request(request);
+  request->send(403, "text/plain",
+                "Password protection is off, so this web interface only answers the local network, addressed by "
+                "its IP or hostname. Turn protection on in Settings to allow access from elsewhere.");
+});
+
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
+  if (!webserver_request_authorized(request)) {
+    return;  // unauthenticated: do not buffer anything, do not touch importedLogs
+  }
   if (!index) {
     importedLogs = "";  // Clear previous logs
     logging.printf("Receiving file: %s\n", filename.c_str());
   }
 
   // Append received data to the string (RAM storage)
-  importedLogs += String((char*)data).substring(0, len);
+  // data is not NUL-terminated, so append exactly len bytes
+  importedLogs.concat((const char*)data, len);
 
   if (final) {
     logging.println("Upload Complete!");
@@ -212,7 +276,10 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 }
 
 void init_webserver() {
-  if (webserver_auth_is_ready()) {
+  const bool lan_only = !webserver_auth_is_ready();
+  if (lan_only) {
+    server.addMiddleware(&local_network_only);
+  } else {
     web_auth_middleware.setUsername(http_username.c_str());
     web_auth_middleware.setPassword(http_password.c_str());
     web_auth_middleware.setRealm(WEB_AUTH_REALM);
@@ -220,30 +287,33 @@ void init_webserver() {
     server.addMiddleware(&web_auth_middleware);
   }
 
-  server
-      .on("/logout", HTTP_GET,
-          [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response = request->beginResponse(
-                401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
-            response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
-            response->addHeader("Cache-Control", "no-store");
-            response->addHeader("Connection", "close");
-            request->send(response);
-          })
-      .skipServerMiddlewares();
+  // The routes below skip the server middlewares, so they get the local network check of their own.
+  AsyncCallbackWebHandler& logout_route = server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(
+        401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
+    response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
+    response->addHeader("Cache-Control", "no-store");
+    response->addHeader("Connection", "close");
+    request->send(response);
+  });
+  logout_route.skipServerMiddlewares();
+  if (lan_only) {
+    logout_route.addMiddleware(&local_network_only);
+  }
 
 #ifndef SMALL_FLASH_DEVICE
   // Browsers fetch the icon for the login page too, so the route must work
   // without credentials. Cached hard: the icon only changes with a firmware
   // update, so one fetch per browser instead of one per page load.
-  server
-      .on("/favicon.svg", HTTP_GET,
-          [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
-            response->addHeader("Cache-Control", "public, max-age=604800");
-            request->send(response);
-          })
-      .skipServerMiddlewares();
+  AsyncCallbackWebHandler& favicon_route = server.on("/favicon.svg", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
+    response->addHeader("Cache-Control", "public, max-age=604800");
+    request->send(response);
+  });
+  favicon_route.skipServerMiddlewares();
+  if (lan_only) {
+    favicon_route.addMiddleware(&local_network_only);
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   // Route for firmware info from ota update page
@@ -342,6 +412,24 @@ void init_webserver() {
         request->beginResponse(200, "application/json", byd_cell_balance_times_json(index));
     response->addHeader("Cache-Control", "no-store");
     request->send(response);
+  });
+
+  def_route_with_auth("/bydCellBalanceAutomation", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!request->hasParam("enabled")) {
+      request->send(400, "text/plain", "enabled is required");
+      return;
+    }
+    const bool enabled = request->getParam("enabled")->value().toInt() != 0;
+    if (!set_byd_cell_balance_automation(index, enabled)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool(index ? "BYDBALAUTO2" : "BYDBALAUTO", enabled);
+    prefs.end();
+    request->send(204);
   });
 
   // Route for going to CAN tools web page
@@ -493,7 +581,7 @@ void init_webserver() {
       "PYLONOFFSET",  "PYLONORDER",    "DEYEBYD",    "NCCONTACTOR",  "TRIBTR",        "CNTCTRLTRI",     "ESPNOWENABLED",
       "PRIMOGEN24",   "LOWPASSFILTER", "WEBAUTH",    "SLOWCANINV",   "CHGTAPERSOC",   "MEASURECPUTEMP", "SYSLOGEN",
       "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID", "CHGESTIMATED", "MQTTHEAP",      "HADISCFWU",      "INVACCREB",
-      "LEAFAUTOOFS",
+      "LEAFAUTOOFS",  "PARHEADROOM",
 #ifndef SMALL_FLASH_DEVICE
       "CTINVERT",
 #endif  // SMALL_FLASH_DEVICE
@@ -503,15 +591,15 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME",    "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",    "CHGPOWER",
-      "MQTTPORT",      "MQTTTIMEOUT",   "SOFAR_ID",      "PYLONSEND",  "INVCELLS",    "INVMODULES",   "INVCELLSPER",
-      "INVVLEVEL",     "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",     "PWMHOLD",      "GTWCOUNTRY",
-      "GTWMAPREG",     "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",     "GPIOOPT3",
-      "INVSUNTYPE",    "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",    "DALYDVSTART",
-      "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",   "FOXESSSUBTYPE",
-      "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH",
+      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL",  "DCHGPOWER",     "CHGPOWER",
+      "MQTTPORT",      "SOFAR_ID",      "PYLONSEND",  "INVCELLS",   "INVMODULES",   "INVCELLSPER",   "INVVLEVEL",
+      "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",    "PWMHOLD",      "GTWCOUNTRY",    "GTWMAPREG",
+      "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",   "GPIOOPT2",     "GPIOOPT3",      "INVSUNTYPE",
+      "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",
+      "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES",
+      "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",  "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
+      "CTVNOM",        "CTANOM",        "QNHIPN",     "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
   };
 
@@ -676,6 +764,8 @@ void init_webserver() {
           } else if (p->name() == "MQTTPUBLISHMS") {
             auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
             settings.saveUInt("MQTTPUBLISHMS", interval);
+          } else if (p->name() == "MQTTTIMEOUT") {
+            settings.saveUInt("MQTTTIMEOUT", mqtt_clamp_timeout_ms(atoi(p->value().c_str())));
           }
 
           for (uint8_t pack = 0; pack < 3; pack++) {
@@ -1014,6 +1104,14 @@ void init_webserver() {
         },
         nullptr,
         [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+          // Body callbacks run before the middleware / onRequest auth check.
+          // Never execute the command unless the request is authenticated.
+          if (!webserver_request_authorized(request)) {
+            return;  // 401 is sent by the middleware / onRequest handler
+          }
+          if (index != 0) {
+            return;  // run the command once per request, not once per body chunk
+          }
           String battIndex = "";
           if (len > 0) {
             battIndex += (char)data[0];
@@ -1030,9 +1128,9 @@ void init_webserver() {
           }
           request->send(200, "text/plain", "Command performed.");
         });
-
-    register_dump_can_route(server);
   }
+
+  register_dump_can_route(server);
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
   update_int_setting("/updateUseVoltageLimit",
@@ -1053,7 +1151,7 @@ void init_webserver() {
     datalayer.battery_settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
   });
 
-  // Route for the settings page "Perform a BMS reset now" button. Runs the same sequence as the
+  // Route for the settings page "Perform a BMS Power reset now" button. Runs the same sequence as the
   // MQTT BMSRESET command, and says why when start_bms_reset() would silently do nothing.
   def_route_with_auth("/startBMSReset", server, HTTP_POST, [](AsyncWebServerRequest* request) {
     if (!periodic_bms_reset && !remote_bms_reset) {
@@ -1382,7 +1480,36 @@ static void render_battery_card(String& content, const String& style, const Batt
   const bool system_card = (pack_index == 0) || !multi;
   const bool scaled = system_card && datalayer.battery_settings.soc_scaling_active;
 
-  content += "<div style='" + style + "'>";
+  /* The card is a stacking context of its own, so the watermark can sit behind the text but in
+     front of the card's background. */
+  content += "<div style='position: relative; isolation: isolate; " + style + "'>";
+
+  if (system_card) {
+    /* Software version as a watermark, tilted 30 degrees and kept 30 px inside the card's edges.
+       The frame holding it is absolutely positioned, so the card alone decides its size and it can
+       be a size container. The text, which has to carry the font size because a container's own
+       units refer to an outer container, gets the largest font for which the rotated string
+       fits the frame both across and down. An Arial character averages roughly 0.56 em, so the
+       string is text_em wide and one line high; rotated by 30 degrees it spans
+       text_em * cos(30) + sin(30) across and text_em * sin(30) + cos(30) down, in em. Browsers
+       without container query units use the viewport width instead. */
+    const float text_em = strlen(version_number) * 0.56f;
+    const float width_em = text_em * 0.866f + 0.5f;
+    const float height_em = text_em * 0.5f + 0.866f;
+    char text_style[120];
+    snprintf(text_style, sizeof(text_style),
+             "flex: none; transform: rotate(-30deg); font-size: %.1fvw; font-size: min(%.1fcqw, %.1fcqh);",
+             80.0f / width_em, 100.0f / width_em, 100.0f / height_em);
+    content +=
+        "<div aria-hidden='true' style='position: absolute; inset: 30px; z-index: -1; overflow: hidden; "
+        "container-type: size; display: flex; align-items: center; justify-content: center; "
+        "pointer-events: none; user-select: none; font-weight: bold; line-height: 1; white-space: nowrap; "
+        "color: rgba(255, 255, 255, 0.05);'><span style='";
+    content += text_style;
+    content += "'>";
+    content += html_escape(version_number);
+    content += "</span></div>";
+  }
 
   if (scaled) {
     content += "<h4 style='color: white;'>Scaled SOC: " + String(v.reported_soc / 100.0f, 2) +
