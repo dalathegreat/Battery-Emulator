@@ -108,7 +108,7 @@ static bool webserver_peer_is_local(AsyncWebServerRequest* request) {
 // peers on the local network may proceed; with it, only correct credentials.
 // On false the caller must discard the data and do nothing. The 403 / 401 is
 // sent later by the middleware / onRequest.
-static bool webserver_request_authorized(AsyncWebServerRequest* request) {
+bool webserver_request_authorized(AsyncWebServerRequest* request) {
   if (!webserver_auth_is_ready()) {
     return webserver_peer_is_local(request);
   }
