@@ -6,7 +6,7 @@
 #include "CanBattery.h"
 #include "KIA-64FD-HTML.h"
 
-#define ESTIMATE_SOC_FROM_CELLVOLTAGE
+extern bool user_selected_use_estimated_SOC;
 
 class Kia64FDBattery : public CanBattery {
  public:
@@ -76,8 +76,6 @@ class Kia64FDBattery : public CanBattery {
   uint16_t soc_calculated = 0;
   uint16_t SOC_BMS = 0;
   uint16_t SOC_Display = 0;
-  uint16_t SOC_estimated_lowest = 0;
-  uint16_t SOC_estimated_highest = 0;
   uint16_t batterySOH = 1000;
   uint16_t CellVoltMax_mV = 3700;
   uint16_t CellVoltMin_mV = 3700;
