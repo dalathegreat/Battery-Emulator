@@ -1735,6 +1735,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
+    form[data-battery="40"] .if-socestimated,
     form[data-battery="41"] .if-socestimated,
     form[data-battery="42"] .if-socestimated {
       display: contents;
