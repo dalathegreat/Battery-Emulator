@@ -4,7 +4,6 @@
 
 #include <Arduino.h>
 #include <LittleFS.h>
-#include <SPI.h>
 #include <map>
 #include <memory>
 #include <new>
@@ -540,23 +539,6 @@ bool BoardConfig::has_errors() const {
   return false;
 }
 
-const char* BoardConfig::configured_controller() const {
-  if (mcp2518fd[0].enabled) {
-    return "MCP2518FD";
-  }
-  if (mcp2515.enabled) {
-    return "MCP2515";
-  }
-  return "none";
-}
-
-bool BoardConfig::probe_mismatch() const {
-  if (!probe_ran) {
-    return false;
-  }
-  return strcmp(configured_controller(), name_for_mcp_kind(probed)) != 0;
-}
-
 bool validate_board_config(const char* json, size_t length, std::vector<ConfigIssue>& issues) {
   issues.clear();
   if (!parse_document(json, length, nullptr, issues)) {
@@ -666,19 +648,6 @@ void init_board_config() {
   for (const auto& issue : board_config.issues) {
     logging.printf("  %s: %s %s\n", issue.level == ConfigIssueLevel::Error ? "ERROR" : "warning", issue.port.c_str(),
                    issue.text.c_str());
-  }
-
-  // Probe whatever the configuration calls CAN A, before any driver claims the
-  // pins, so a file written for the other T-2CAN variant shows up as a mismatch
-  // on the hardware page instead of as a CAN bus that never receives anything.
-  const McpPorts& first = board_config.mcp2518fd[0].enabled ? board_config.mcp2518fd[0] : board_config.mcp2515;
-  if (first.enabled) {
-    board_config.probed = probe_mcp(first.bus, first.sck, first.sdo, first.sdi, first.cs, first.rst);
-    board_config.probe_ran = true;
-    if (board_config.probe_mismatch()) {
-      logging.printf("Board config: %s is configured but a %s answered on those pins\n",
-                     board_config.configured_controller(), name_for_mcp_kind(board_config.probed));
-    }
   }
 }
 

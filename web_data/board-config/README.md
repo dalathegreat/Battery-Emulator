@@ -163,7 +163,5 @@ not leave download mode cannot be recovered through the web UI.
 | `lilygo-t2can-mcp2518fd.json` | LilyGo T-2CAN with an MCP2518FD |
 
 The two T-2CAN files are different hardware, not a user choice. Pick the one that
-matches the board; if in doubt, upload either and read the SPI CAN controller section
-of the hardware page. The firmware probes the bus at boot and reports the controller
-it found against the one the file configured, so a mismatch shows up there rather than
-as a CAN interface that silently receives nothing.
+matches the controller fitted to the board. With the wrong one the CAN driver fails to
+start, and the Events page reports a CAN-MCP addon or CAN-FD initialization failure.

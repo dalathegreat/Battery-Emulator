@@ -6,8 +6,8 @@
 #include <Arduino.h>
 #include "index_html.h"
 
-// Page listing the active board configuration, the boot-time SPI CAN probe
-// result and any validation findings, with a form to upload a new file.
+// Page listing the active board configuration and any validation findings, with
+// a form to upload a new file.
 extern const char hardware_html[];
 
 String hardware_processor(const String& var);

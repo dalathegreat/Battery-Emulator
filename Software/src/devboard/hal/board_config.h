@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 #include "../utils/types.h"
-#include "mcp_probe.h"
 
 // Paths on the filesystem partition. The active file is board.json; the two
 // others exist so that neither a bad upload nor a firmware upgrade that
@@ -151,21 +150,15 @@ struct BoardConfig {
   // a bus with no pins behind it stays out of the dropdowns.
   const char* name_for_interface(comm_interface iface) const;
 
-  // Result of the boot-time SPI probe against the configured CAN A pins.
-  McpKind probed = McpKind::Absent;
-  bool probe_ran = false;
-
   bool has_errors() const;
-  bool probe_mismatch() const;
-  const char* configured_controller() const;
 };
 
 // The one instance. Always readable; valid is false until a file has loaded.
 extern BoardConfig board_config;
 
-// Mounts the filesystem, reads BOARD_CONFIG_PATH, parses and validates it, and
-// runs the SPI CAN probe. Safe to call when no file exists: board_config stays
-// invalid and the firmware comes up in minimal mode. Call before init_hal().
+// Mounts the filesystem, reads BOARD_CONFIG_PATH, parses and validates it. Safe
+// to call when no file exists: board_config stays invalid and the firmware comes
+// up in minimal mode. Call before init_hal().
 void init_board_config();
 
 // Validates a document held in RAM without touching the stored one. Used by the

@@ -93,21 +93,6 @@ String hardware_processor(const String& var) {
   }
   content += "</div>";
 
-  // ── Boot-time controller probe ─────────────────────────────────────────────
-  if (cfg.probe_ran) {
-    content += "<div class='card'>";
-    content += "<h3>SPI CAN controller</h3>";
-    content += "<p>Configured: <b>" + String(cfg.configured_controller()) + "</b><br>";
-    content += "Detected at boot: <b>" + String(name_for_mcp_kind(cfg.probed)) + "</b></p>";
-    if (cfg.probe_mismatch()) {
-      content +=
-          "<p class='err'>Mismatch. The controller fitted to this board is not the one the configuration "
-          "describes, so this CAN interface will not work. Upload the configuration file for the other "
-          "variant of this board.</p>";
-    }
-    content += "</div>";
-  }
-
   // ── Validation findings ────────────────────────────────────────────────────
   if (!cfg.issues.empty()) {
     content += "<div class='card'><h3>Validation</h3><ul style='text-align:left'>";
