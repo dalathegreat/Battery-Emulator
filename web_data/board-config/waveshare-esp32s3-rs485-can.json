@@ -100,7 +100,7 @@
       "gpio": { "sda": 1, "scl": 2 }
     },
     {
-      "type": "shunt_adc",
+      "type": "current_sensor_adc",
       "name": "Current sensor input",
       "enabled": true,
       "notes": "On the 4-pin SH1.0 connector (ADC1 channel 0). Shares GPIO1 with the display's SDA, so the two cannot be enabled together.",

@@ -71,7 +71,7 @@ class UnifiedHal : public Esp32Hal {
 
 #ifndef SMALL_FLASH_DEVICE
   // Analog current sensor. The QNHCK2-16 shunt type is only offered when this is set.
-  virtual gpio_num_t SHUNT_ADC_PIN() { return board_config.shunt_adc; }
+  virtual gpio_num_t SHUNT_ADC_PIN() { return board_config.current_sensor_adc; }
 #endif  // SMALL_FLASH_DEVICE
 
   // Contactors

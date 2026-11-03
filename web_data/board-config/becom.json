@@ -105,7 +105,7 @@
       "gpio": { "wup1": 2, "wup2": 41 }
     },
     {
-      "type": "shunt_adc",
+      "type": "current_sensor_adc",
       "name": "Current sensor input",
       "enabled": true,
       "notes": "On IO4 of expansion socket J5, pin 23 (ADC1 channel 3), with +3.3 V on pin 29 and GND on pin 13. Nothing else uses it.",
