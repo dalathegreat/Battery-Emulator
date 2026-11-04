@@ -6,6 +6,7 @@
 #include "../devboard/utils/events.h"
 
 /*Based on CAN-Bus-Protocol-Pylon-high-voltage-V1.26-20210903.pdf , which is the Pylontech 1.26 std */
+/*Also updated to work with Pylon LV battery protocol, autodetecting when the LV messages are incoming*/
 
 void PylonBattery::update_values() {
 
@@ -75,8 +76,47 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         actual_cell_count = cell_count;
       }
     } break;
+    case 0x355:  //LV State of Charge and Health
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = true;
+      SOC = (rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]) / 100;  //SOC is in 0.01% units, convert to 0-100 range
+      SOH = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]) / 100;  //SOH is in 0.01% units, convert to 0-100 range
+      break;
+    case 0x356:  //LV Voltage, Current, Temperature
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = true;
+      voltage_dV =
+          (rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]) / 10;      //Voltage is in centiVolts, convert to deciVolts
+      current_dA = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]);  //Current is in deciamps
+      celltemperature_min_dC = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);  //Temperature is in deciCelsius
+      celltemperature_max_dC = celltemperature_min_dC;
+      break;
+    case 0x359:  //LV Alarms & Warnings
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = true;
+      //TODO, map on More Battery Info Page
+      break;
+    case 0x35E:  //LV Manufacturer Info
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = true;
+      //Not interesting for us, but could be used to display on More Battery Info Page
+      break;
+    case 0x35C:  //LV Charge/Discharge control
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = true;
+      allowed_charge_discharge_bitmask = rx_frame.data.u8[0];
+      break;
+    case 0x351:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = true;
+      charge_voltage_limit_dV = (rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
+      max_charge_current_dA = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]);
+      max_discharge_current_dA = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]);
+      break;
     case 0x7310:  //System equipment info
     case 0x7311:
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pylon_LV_battery_detected = false;
       //not sure if this is correct for Dyness Batteries
       hardware_version = rx_frame.data.u8[0];
       hardware_version_V = rx_frame.data.u8[2];
@@ -86,6 +126,7 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x7320:
     case 0x7321:
+      pylon_LV_battery_detected = false;
       battery_module_quantity = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       //For Dyness Batteries
       if (actual_cell_count == 0) {
@@ -246,45 +287,57 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void PylonBattery::transmit_can(unsigned long currentMillis) {
-  // Send 1s CAN Message
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
 
-    PYLON_8200.data.u8[0] = 0xAA;  //AA = Quit sleep, 55 = Goto sleep
+  if (pylon_LV_battery_detected) {
+    //Pylon LV only needs to see 0x305 Inverter Keepalive message
 
-    PYLON_8210.data.u8[0] = 0xAA;  //TODO: how should we control this?
-    /*Charge Command: When the battery is in under-voltage protection, the contactors are open. When
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
+      transmit_can_frame(&PYLON_LV_305);  // Heartbeat
+    }
+
+  } else {  // Pylon HV battery detected, send HV messages
+
+    // Send 1s CAN Message
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
+
+      PYLON_8200.data.u8[0] = 0xAA;  //AA = Quit sleep, 55 = Goto sleep
+
+      PYLON_8210.data.u8[0] = 0xAA;  //TODO: how should we control this?
+      /*Charge Command: When the battery is in under-voltage protection, the contactors are open. When
     we are about to charge the battery, send this command, then the battery will close contactors. 
     If the battery is in sleep status, wake up first then use this command.*/
 
-    PYLON_8210.data.u8[1] = 0x00;  //TODO: how should we control this?
-    /*Discharge Command: When the battery is in over-voltage protection, the contactors are open. When
+      PYLON_8210.data.u8[1] = 0x00;  //TODO: how should we control this?
+      /*Discharge Command: When the battery is in over-voltage protection, the contactors are open. When
     we are about to discharge the battery, send this command, then the battery will close contactors. 
     If the battery is in sleep status, wake up first then use this command.*/
 
-    transmit_can_frame(&PYLON_3010);  // Heartbeat
-    transmit_can_frame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
-    transmit_can_frame(&PYLON_8200);  // Control device quit sleep status
-    transmit_can_frame(&PYLON_8210);  // Charge command
+      transmit_can_frame(&PYLON_3010);  // Heartbeat
+      transmit_can_frame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
+      transmit_can_frame(&PYLON_8200);  // Control device quit sleep status
+      transmit_can_frame(&PYLON_8210);  // Charge command
 
-    //transmit_can_frame(&PYLON_8240);  // Emergency Charge command
-    //TODO: Implement? This message can be used to force battery on for 5 minutes, ignoring ext comm errors
+      //transmit_can_frame(&PYLON_8240);  // Emergency Charge command
+      //TODO: Implement? This message can be used to force battery on for 5 minutes, ignoring ext comm errors
 
-    mux = (mux + 1) % 3;  // mux cycles between 0-1-2-0-1...
-    PYLON_4200.data.u8[0] = mux;
-    /*00 Request Ensamble Information (Battery will respond 0x42XX messages)
+      mux = (mux + 1) % 3;  // mux cycles between 0-1-2-0-1...
+      PYLON_4200.data.u8[0] = mux;
+      /*00 Request Ensamble Information (Battery will respond 0x42XX messages)
     01 Request Cellvoltages (Battery will respond 0x5XXX messages)
     02 Request System equipment info (Battery will respond 0x73XX messages)*/
-  }
+    }
 
-  // Poll for individual cell voltages every 5 seconds
-  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-    previousMillis5000 = currentMillis;
+    // Poll for individual cell voltages every 5 seconds
+    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+      previousMillis5000 = currentMillis;
 
-    // Request cell voltage data from EMUS BMS
-    transmit_can_frame(&EMUS_CELL_VOLTAGE_REQUEST);
-    // Request cell balancing status from EMUS BMS
-    transmit_can_frame(&EMUS_CELL_BALANCING_REQUEST);
+      // Request cell voltage data from EMUS BMS
+      transmit_can_frame(&EMUS_CELL_VOLTAGE_REQUEST);
+      // Request cell balancing status from EMUS BMS
+      transmit_can_frame(&EMUS_CELL_BALANCING_REQUEST);
+    }
   }
 }
 
