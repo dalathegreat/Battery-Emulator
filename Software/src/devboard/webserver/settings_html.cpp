@@ -562,6 +562,43 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   return html_escape(raw_settings_processor(var, settings));
 }
 
+#ifdef HW_UNIFIED_S3
+// Puts the name the board config gave a bus in front of the generic description,
+// "CAN_1 (CAN)", so the interface card reads like the dropdowns. Anything with no
+// configured port behind it (a battery that brings its own, an ADC sensor) is
+// returned as it is.
+static String board_named(const char* generic) {
+  static const struct {
+    CAN_Interface can;
+    comm_interface comm;
+  } can_ports[] = {
+      {CAN_NATIVE, comm_interface::CanNative},
+      {CANFD_NATIVE, comm_interface::CanFdNative},
+      {CAN_ADDON_MCP2515, comm_interface::CanAddonMcp2515},
+      {CANFD_ADDON_MCP2518, comm_interface::CanFdAddonMcp2518},
+      {CANFD_ADDON_MCP2518_2, comm_interface::CanFdAddonMcp2518_2},
+  };
+  const char* name = "";
+  for (const auto& port : can_ports) {
+    if (strcmp(generic, getCANInterfaceName(port.can)) == 0) {
+      name = board_config.name_for_interface(port.comm);
+    }
+  }
+  // RS485 and Modbus RTU protocols both run on the RS485 transceiver.
+  if (strncmp(generic, "RS485", 5) == 0) {
+    name = board_config.name_for_interface(comm_interface::RS485);
+  }
+  if (*name == '\0' || strcmp(name, generic) == 0) {
+    return generic;
+  }
+  return String(name) + " (" + generic + ")";
+}
+#else
+static const char* board_named(const char* generic) {
+  return generic;
+}
+#endif  // HW_UNIFIED_S3
+
 String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& settings) {
   // All of these returned values are raw un-escaped UTF-8 strings.
 
@@ -575,7 +612,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "BATTERYINTF") {
     if (battery) {
-      return battery->interface_name();
+      return board_named(battery->interface_name());
     }
   }
 
@@ -613,7 +650,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "BATTERY2INTF") {
     if (battery2) {
-      return battery2->interface_name();
+      return board_named(battery2->interface_name());
     }
   }
 
@@ -637,13 +674,13 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
 
   if (var == "INVINTF") {
     if (inverter) {
-      return inverter->interface_name();
+      return board_named(inverter->interface_name());
     }
   }
 
   if (var == "SHUNTINTF") {
     if (shunt) {
-      return shunt->interface_name();
+      return board_named(shunt->interface_name());
     }
   }
 
