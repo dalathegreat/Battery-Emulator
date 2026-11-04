@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "CHEVY-VOLT-CHARGER.h"
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
@@ -138,3 +139,4 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&charger_set_targets);
   }
 }
+#endif  // SMALL_FLASH_DEVICE

@@ -60,6 +60,7 @@ void reset_byd_state() {
   datalayer_extended.bydAtto3.keep_iso_disabled = false;
   datalayer_extended.bydAtto3.iso_command_status = 0;
   datalayer_extended.bydAtto3.iso_measurement_active = false;
+  datalayer_extended.bydAtto3.balance_timer_auto_read = false;
 }
 
 // Coldest sensor 9 at 8C, hottest sensor 1 at 24C, SOC 99.2%, average 16C.
@@ -423,6 +424,96 @@ TEST_F(BydAtto3BalanceTimeTest, TimesOutAfterOneRetry) {
   EXPECT_EQ(result.expected_cells, 1);
   EXPECT_EQ(result.received_cells, 0);
   EXPECT_EQ(result.scan_id, 1u);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, NextChargeBaselineClosesRecordAndManualReadDoesNot) {
+  datalayer.battery.info.number_of_cells = 2;
+  set_millis64(1000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x29, 0x00, 0x00, 0x00}));
+  battery->set_cell_balance_automation(true);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.balance_timer_auto_read);
+
+  set_millis64(2000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2A, 0x00, 0x00, 0x00}));
+  battery->transmit_can(2200);
+  set_millis64(2200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x64, 0x00, 0x00, 0x00}));
+  battery->transmit_can(2400);
+  set_millis64(2400);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xC8, 0x00, 0x00, 0x00}));
+
+  String after_baseline = battery->cell_balance_times_json();
+  EXPECT_NE(after_baseline.str().find("\"ac\":42"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"h\":[]"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"ra\":null"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"sp\":null"), std::string::npos);  // no termination, no spread
+
+  const uint32_t manual_time = 5UL * 3600000UL;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(manual_time);
+  set_millis64(manual_time);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x69, 0x00, 0x00, 0x00}));
+  battery->transmit_can(manual_time + 200);
+  set_millis64(manual_time + 200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xC8, 0x00, 0x00, 0x00}));
+
+  String after_manual = battery->cell_balance_times_json();
+  EXPECT_NE(after_manual.str().find("\"ac\":42"), std::string::npos);
+  EXPECT_NE(after_manual.str().find("\"h\":[]"), std::string::npos);
+  EXPECT_NE(after_manual.str().find("\"d\":[5,0]"), std::string::npos);
+  EXPECT_NE(after_manual.str().find("\"ra\":0,"), std::string::npos);
+
+  // No timed read: the record stays open until the next completed charge.
+  const uint32_t next_charge = 30UL * 3600000UL;
+  battery->transmit_can(next_charge - 1000);
+  EXPECT_NE(battery->cell_balance_times_json().str().find("\"ph\":3"), std::string::npos);
+
+  set_millis64(next_charge);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2B, 0x00, 0x00, 0x00}));
+  battery->transmit_can(next_charge + 200);
+  set_millis64(next_charge + 200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x76, 0x00, 0x00, 0x00}));
+  battery->transmit_can(next_charge + 400);
+  set_millis64(next_charge + 400);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xC8, 0x00, 0x00, 0x00}));
+
+  String completed = battery->cell_balance_times_json();
+  EXPECT_NE(completed.str().find("\"ac\":43"), std::string::npos);
+  EXPECT_NE(completed.str().find("\"cy\":42"), std::string::npos);
+  EXPECT_NE(completed.str().find("\"n\":1,\"d\":[18,0]"), std::string::npos);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, CounterGoingBackwardsDropsRecords) {
+  datalayer.battery.info.number_of_cells = 1;
+  set_millis64(1000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x29, 0x00, 0x00, 0x00}));
+  battery->set_cell_balance_automation(true);
+
+  set_millis64(2000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2A, 0x00, 0x00, 0x00}));
+  battery->transmit_can(2200);
+  set_millis64(2200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x64, 0x00, 0x00, 0x00}));
+  ASSERT_NE(battery->cell_balance_times_json().str().find("\"ac\":42"), std::string::npos);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x05, 0x00, 0x00, 0x00}));
+  battery->transmit_can(3000);
+  String json = battery->cell_balance_times_json();
+  EXPECT_NE(json.str().find("\"ac\":null"), std::string::npos);
+  EXPECT_NE(json.str().find("\"ph\":1"), std::string::npos);
+  EXPECT_NE(json.str().find("\"h\":[]"), std::string::npos);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, DisabledAutomationTakesNoBaseline) {
+  datalayer.battery.info.number_of_cells = 1;
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x29, 0x00, 0x00, 0x00}));
+  battery->set_cell_balance_automation(true);
+  battery->set_cell_balance_automation(false);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2A, 0x00, 0x00, 0x00}));
+  battery->transmit_can(200);
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::NOT_READ);
+  EXPECT_NE(battery->cell_balance_times_json().str().find("\"ph\":0"), std::string::npos);
 }
 
 // TX frame capture injected by the emulated CAN layer (see emul/can.cpp).

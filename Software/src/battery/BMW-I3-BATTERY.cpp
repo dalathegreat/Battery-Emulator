@@ -42,8 +42,10 @@ void BmwI3Battery::end_balancing() {
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
-      UserRequestBalancing == EXECUTING) {
+  if (contactor_recovery_force_wakeup_low) {
+    digitalWrite(wakeup_pin, LOW);  // Contactor watchdog recovery: pulse wakeup low to reset precharge latch
+  } else if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
+             UserRequestBalancing == EXECUTING) {
     digitalWrite(wakeup_pin, LOW);         // Turn off wakeup pin
   } else if (millis64() > INTERVAL_1_S) {  // millis64: plain millis() wraps after 49.7 days
     digitalWrite(wakeup_pin, HIGH);        // Wake up the battery
@@ -352,6 +354,107 @@ void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
+const char* BmwI3Battery::get_contactor_watchdog_string() {
+  if (cw_state == CW_RECOVERY_OPEN_LOW) {
+    return "Recovering";
+  }
+  if (cw_recovery_attempts >= MAX_CONTACTOR_RECOVERY_ATTEMPTS) {
+    return "Failed (gave up)";
+  }
+  return "Monitoring";
+}
+
+// Watchdog: if a contactor close is being commanded but the battery never reports "engaged"
+// within CONTACTOR_ENGAGE_TIMEOUT_MS (typically because it latched "Error precharge blocked"),
+// pulse the wakeup pin low while sending an open command on CAN, then wakeup high and resume
+// the close command. This power-cycle resets the battery's precharge error latch.
+void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
+  // Contactors are intentionally open during balancing - disarm the watchdog.
+  if (UserRequestBalancing != NONE) {
+    cw_state = CW_MONITOR;
+    cw_close_request_start = 0;
+    cw_recovery_attempts = 0;
+    cw_gave_up_event_sent = false;
+    contactor_recovery_force_open = false;
+    contactor_recovery_force_wakeup_low = false;
+    return;
+  }
+
+  // inverter_wants_close is the inverter's actual close request - use it to detect a genuine
+  // withdraw (re-arm condition). emitting_close keys off the actually last-sent BMW_10B nibble:
+  // startup, FAULT, master-not-ready and our own recovery pulse all force 0x00, so the 5s timer
+  // only runs while we are truly commanding close. The two are kept separate so the transient
+  // forced-open during/after a recovery pulse does not reset the attempt counter.
+  bool inverter_wants_close = datalayer.system.status.inverter_allows_contactor_closing;
+  bool emitting_close = (BMW_10B.data.u8[1] & 0xF0) == 0x10;
+  bool engaged = (battery_status_disconnecting_switch == 2);
+
+  // Success: contactor engaged - clear everything and re-arm.
+  if (engaged) {
+    cw_state = CW_MONITOR;
+    cw_close_request_start = 0;
+    cw_recovery_attempts = 0;
+    cw_gave_up_event_sent = false;
+    contactor_recovery_force_open = false;
+    contactor_recovery_force_wakeup_low = false;
+    return;
+  }
+
+  switch (cw_state) {
+    case CW_MONITOR:
+      contactor_recovery_force_open = false;
+      contactor_recovery_force_wakeup_low = false;
+      if (!inverter_wants_close) {
+        // Inverter withdrew the close request - re-arm for next time.
+        cw_close_request_start = 0;
+        cw_recovery_attempts = 0;
+        cw_gave_up_event_sent = false;
+        break;
+      }
+      if (!emitting_close) {
+        // Inverter still wants close but we are temporarily holding open (startup / FAULT /
+        // master-not-ready / just after a recovery pulse). Pause the timer but keep attempts.
+        cw_close_request_start = 0;
+        break;
+      }
+      if (cw_recovery_attempts >= MAX_CONTACTOR_RECOVERY_ATTEMPTS) {
+        if (!cw_gave_up_event_sent) {
+          // All recovery attempts exhausted and the battery still won't report engaged.
+          set_event(EVENT_CONTACTOR_WATCHDOG_FAILED, cw_recovery_attempts, battery_index);
+          cw_gave_up_event_sent = true;
+        }
+        break;  // Gave up; wait for the inverter to withdraw the request (or engage) to re-arm.
+      }
+      if (cw_close_request_start == 0) {
+        cw_close_request_start = currentMillis ? currentMillis : 1;
+      } else if (currentMillis - cw_close_request_start >= CONTACTOR_ENGAGE_TIMEOUT_MS) {
+        // Timed out waiting for engage - start the recovery pulse.
+        set_event(EVENT_CONTACTOR_WATCHDOG_ACTIVE, cw_recovery_attempts, battery_index);
+        cw_recovery_attempts++;
+        cw_state = CW_RECOVERY_OPEN_LOW;
+        cw_recovery_phase_start = currentMillis;
+        contactor_recovery_force_open = true;
+        contactor_recovery_force_wakeup_low = true;
+        digitalWrite(wakeup_pin, LOW);  // Immediate, don't wait for next update_values()
+      }
+      break;
+
+    case CW_RECOVERY_OPEN_LOW:
+      contactor_recovery_force_open = true;
+      contactor_recovery_force_wakeup_low = true;
+      digitalWrite(wakeup_pin, LOW);
+      if (currentMillis - cw_recovery_phase_start >= RECOVERY_WAKEUP_LOW_MS) {
+        // Pulse done: wake the battery back up and let the close command resume.
+        contactor_recovery_force_open = false;
+        contactor_recovery_force_wakeup_low = false;
+        digitalWrite(wakeup_pin, HIGH);
+        cw_close_request_start = 0;  // Restart the 5s monitor for the fresh close attempt
+        cw_state = CW_MONITOR;
+      }
+      break;
+  }
+}
+
 void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
   // Handle balancing mode request - simulates real car shutdown sequence from discharge log
@@ -408,6 +511,9 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
   // battery_awake flips false at EXECUTING - the real car keeps sending 0x10B
   // (with contactors open) and all keepalive frames until CAN stops at ~96s.
   if (battery_awake || balancing_mode_active) {
+    // Watchdog: recover the battery if it refuses to engage the contactor (e.g. precharge error)
+    monitor_contactor_engagement(currentMillis);
+
     // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
@@ -419,6 +525,8 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       if (contactors_should_open) {
         BMW_10B.data.u8[1] = 0x00;  // Open contactors - balancing shutdown sequence
+      } else if (contactor_recovery_force_open) {
+        BMW_10B.data.u8[1] = 0x00;  // Open contactors - watchdog recovery pulse (precharge reset)
       } else if (datalayer.system.status.system_status == FAULT) {
         BMW_10B.data.u8[1] = 0x00;  // Keep contactors open - fault condition
       } else if (startup_counter_contactor < 160) {

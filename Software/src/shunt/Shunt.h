@@ -36,6 +36,10 @@ class Shunt {
     reading_mV = 0;
     return false;
   }
+
+  // Called on every pass of the core task, together with the other inputs, for a shunt the
+  // emulator reads itself, such as one on an ADC pin. One read over CAN has nothing to do here.
+  virtual void sample(unsigned long /*currentMillis*/) {}
 };
 
 class CanShunt : public Shunt, public Transmitter, CanReceiver {

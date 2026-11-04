@@ -7,21 +7,6 @@
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../system_settings.h"
-namespace {
-constexpr uint8_t MAX_21A_LOG_ENTRIES = 50;
-
-struct Can21AByte4LogEntry {
-  uint32_t time_ms;
-  uint8_t value;
-};
-
-Can21AByte4LogEntry can21a_byte4_log[MAX_21A_LOG_ENTRIES] = {};
-uint8_t can21a_byte4_log_count = 0;
-uint8_t can21a_byte4_log_write_index = 0;
-
-uint8_t can21a_byte4_last_value = 0;
-bool can21a_byte4_valid = false;
-}  // namespace
 
 // Function to estimate SOC based on cell voltage
 uint16_t KiaEGmpBattery::estimateSOCFromCell(uint16_t cellVoltage) {
@@ -52,7 +37,7 @@ uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, i
   // If cell count is still the default 192 but we haven't confirmed it yet
   if (!set_voltage_limits && cellCount == 192) {
     // Fall back to BMS-reported SOC while cell count is uncertain
-    return (SOC_Display * 10);
+    return (SOC_BMS * 10);
   }
 
   if (cellCount == 0)
@@ -99,9 +84,10 @@ void KiaEGmpBattery::set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber
   if (cellNumber >= MAX_AMOUNT_CELLS) {
     return;
   }
-  if (voltage_mV > 2600) {  // Same sanity floor used for UDS-derived cell voltages
-    datalayer.battery.status.cell_voltages_mV[cellNumber] = voltage_mV;
-  }
+  datalayer.battery.status.cell_voltages_mV[cellNumber] = voltage_mV;
+  cellVoltageRxMillis[cellNumber] = millis();
+  cellVoltageReceived[cellNumber] = voltage_mV > 0;
+  cellVoltageFrameSeen = true;
 }
 
 void KiaEGmpBattery::handle_0x215_cell_voltages(const CAN_frame& rx_frame) {
@@ -368,7 +354,8 @@ void KiaEGmpBattery::update_values() {
     datalayer.battery.status.real_soc =
         estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
   } else {
-    datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+    // datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+    datalayer.battery.status.real_soc = (SOC_BMS * 10);  //increase SOC range from 0-100.0 -> 100.00
   }
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
@@ -394,12 +381,17 @@ void KiaEGmpBattery::update_values() {
 
   uint16_t actual_min_mV = UINT16_MAX;
   uint16_t actual_max_mV = 0;
-  bool any_valid_cell = false;
+  uint8_t valid_cell_count = 0;
+  bool cell_voltages_fresh = cellVoltageFrameSeen;
+  const unsigned long now = millis();
 
   for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
     uint16_t v = datalayer.battery.status.cell_voltages_mV[i];
-    if (v > 0) {
-      any_valid_cell = true;
+    if (cellVoltageReceived[i] && v > 0) {
+      ++valid_cell_count;
+      if (now - cellVoltageRxMillis[i] > CELL_VOLTAGE_STALE_MS) {
+        cell_voltages_fresh = false;
+      }
       if (v < actual_min_mV) {
         actual_min_mV = v;
       }
@@ -409,7 +401,13 @@ void KiaEGmpBattery::update_values() {
     }
   }
 
-  if (any_valid_cell) {
+  const bool cellVoltagesWithinLimits =
+      (valid_cell_count == 144 || valid_cell_count == 180 || valid_cell_count == 192) && cell_voltages_fresh &&
+      actual_min_mV > MIN_CELL_VOLTAGE_MV && actual_max_mV < MAX_CELL_VOLTAGE_MV;
+  datalayer.system.status.battery_allows_contactor_closing =
+      cellVoltagesWithinLimits && !manualContactorOpenRequested.load();
+
+  if (valid_cell_count > 0) {
     datalayer.battery.status.cell_max_voltage_mV = actual_max_mV;
     datalayer.battery.status.cell_min_voltage_mV = actual_min_mV;
   } else {
@@ -430,6 +428,8 @@ void KiaEGmpBattery::update_values() {
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage, battery_index);
   }
+
+  update_contactor_events();
 }
 
 template <typename T>
@@ -440,6 +440,26 @@ inline String& operator<<(String& str, const T& value) {
 String KiaEGmpBattery::get_uds_info_html() {
   String content;
   content.reserve(1600);
+
+  const char* contactor_status = "Unknown (no 0x21A data)";
+  const bool contactor_status_fresh =
+      contactorStatus21AValid && (millis() - contactorStatus21ALastRxMillis <= CELL_VOLTAGE_STALE_MS);
+  if (contactor_status_fresh) {
+    switch (contactorStatus21A) {
+      case CONTACTOR_STATUS_OPEN:
+        contactor_status = "Open";
+        break;
+      case CONTACTOR_STATUS_PRECHARGE:
+        contactor_status = "Precharge";
+        break;
+      case CONTACTOR_STATUS_CLOSED:
+        contactor_status = "Closed";
+        break;
+      default:
+        contactor_status = "Unknown";
+        break;
+    }
+  }
 
   // clang-format off
   content << "<h3>BATTERY_MGMT</h3>"
@@ -466,72 +486,62 @@ String KiaEGmpBattery::get_uds_info_html() {
               "<h4>Operation Time: " << String(opTime) << " s</h4>"
               "<h4>BMS ignition: " << String(BMS_ign) << "</h4>"
               "<h4>BMS Main Relay: " << String(batteryRelay) << "</h4>";
-  content << "<h3>0x21A BYTE 4 CHANGE LOG</h3>";
-
-  if (can21a_byte4_log_count == 0) {
-    content << "<h4>No changes recorded</h4>";
-  } else {
-    uint8_t start_index;
-
-    if (can21a_byte4_log_count < MAX_21A_LOG_ENTRIES) {
-      start_index = 0;
-    } else {
-      start_index = can21a_byte4_log_write_index;
+  content << "<h4>Contactor status (0x21A byte 4): " << contactor_status;
+  if (contactor_status_fresh) {
+    content << " (0x";
+    if (contactorStatus21A < 0x10) {
+      content << "0";
     }
-
-    for (uint8_t n = 0; n < can21a_byte4_log_count; n++) {
-      uint8_t index =
-          (start_index + n) % MAX_21A_LOG_ENTRIES;
-
-      const Can21AByte4LogEntry& entry = can21a_byte4_log[index];
-
-      content << "<div>"
-              << String(entry.time_ms / 1000.0f, 1)
-              << "s - 0x";
-
-      if (entry.value < 0x10) {
-        content << "0";
-      }
-
-      content << String(entry.value, HEX)
-              << "</div>";
-    }
+    content << String(contactorStatus21A, HEX) << ")";
   }
-
+  content << "</h4>";
   return content;
 }
 
-void KiaEGmpBattery::handle_0x21A(const CAN_frame& rx_frame) {
-  if (rx_frame.DLC < 5) {
+bool KiaEGmpBattery::contactor_close_traffic_allowed() const {
+  const bool knownContactorStatus =
+      contactorStatus21A == CONTACTOR_STATUS_OPEN || contactorStatus21A == CONTACTOR_STATUS_PRECHARGE ||
+      contactorStatus21A == CONTACTOR_STATUS_CLOSED;
+  return datalayer.system.status.battery_allows_contactor_closing &&
+         datalayer.system.status.inverter_allows_contactor_closing &&
+         datalayer.system.status.system_status != FAULT && knownContactorStatus && contactorStatus21AValid &&
+         millis() - contactorStatus21ALastRxMillis <= CELL_VOLTAGE_STALE_MS;
+}
+
+void KiaEGmpBattery::update_contactor_events() {
+  if (!contactorStatus21AValid ||
+      millis() - contactorStatus21ALastRxMillis > CELL_VOLTAGE_STALE_MS) {
+    clear_event(EVENT_CONTACTOR_OPEN, battery_index);
     return;
   }
 
-  // Byte 4 of the CAN frame.
-  const uint8_t value = rx_frame.data.u8[4];
-
-  // First received value establishes the baseline.
-  // Don't create a log entry until it actually changes.
-  if (can21a_byte4_valid && value == can21a_byte4_last_value) {
-    return;
+  if (contactorStatus21A == CONTACTOR_STATUS_OPEN && contactor_close_traffic_allowed()) {
+    set_event(EVENT_CONTACTOR_OPEN, 0, battery_index);
+  } else {
+    clear_event(EVENT_CONTACTOR_OPEN, battery_index);
   }
 
-  can21a_byte4_last_value = value;
-  can21a_byte4_valid = true;
-
-  Can21AByte4LogEntry& entry =
-      can21a_byte4_log[can21a_byte4_log_write_index];
-
-  entry.time_ms = millis();
-  entry.value = value;
-
-  can21a_byte4_log_write_index++;
-
-  if (can21a_byte4_log_write_index >= MAX_21A_LOG_ENTRIES) {
-    can21a_byte4_log_write_index = 0;
+  if (contactorStatus21A == CONTACTOR_STATUS_CLOSED) {
+    automaticResetAttempted.store(false);
   }
+}
 
-  if (can21a_byte4_log_count < MAX_21A_LOG_ENTRIES) {
-    can21a_byte4_log_count++;
+void KiaEGmpBattery::request_open_contactors() {
+  manualContactorOpenRequested.store(true);
+  datalayer.system.status.battery_allows_contactor_closing = false;
+  clear_event(EVENT_CONTACTOR_OPEN, battery_index);
+  logging.println("EGMP: open requested");
+}
+
+void KiaEGmpBattery::request_close_contactors() {
+  manualContactorOpenRequested.store(false);
+  automaticResetAttempted.store(false);
+  logging.println("EGMP: close requested; waiting for safe cells");
+}
+
+void KiaEGmpBattery::reset_BMS() {
+  if (!request_uds_soft_reset()) {
+    logging.println("UDS soft reset request could not be queued");
   }
 }
 
@@ -560,7 +570,11 @@ void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x21A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      handle_0x21A(rx_frame);
+      if (rx_frame.DLC >= 5) {
+        contactorStatus21A = rx_frame.data.u8[4];
+        contactorStatus21AValid = true;
+        contactorStatus21ALastRxMillis = millis();
+      }
       break;
     case 0x235:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -693,63 +707,81 @@ break;
 
 void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
   if (startedUp) {
-    if (startupSequenceRequested || (!startupSequenceComplete && !startupSequenceActive)) {
-      startupSequenceRequested = false;
-      startupSequenceActive = true;
+    const bool closeTrafficAllowed = contactor_close_traffic_allowed();
+    if (!closeTrafficAllowed) {
+      // No distinct EGMP open frame is known; dropping this stream relies on
+      // the BMS watchdog to open the contactors.
+      startupSequenceActive = false;
+      startupSequenceComplete = false;
       startupMessageIndex = 0;
-      startupStartMillis = currentMillis;
       transmitScheduleStarted = false;
       transmit10msCount = 0;
-    }
-
-    if (startupSequenceActive) {
-      while (startupMessageIndex < startup_trigger_count &&
-             currentMillis - startupStartMillis >= startup_trigger_delays[startupMessageIndex]) {
-        transmit_startup_message(startupMessageIndex);
-        startupMessageIndex++;
-      }
-
-      if (startupMessageIndex >= startup_trigger_count) {
-        startupSequenceActive = false;
-        startupSequenceComplete = true;
-        lastTransmitMillis = currentMillis;
-        transmitScheduleStarted = true;
-      }
-    }
-
-    if (!startupSequenceActive) {
-    if (!transmitScheduleStarted) {
       lastTransmitMillis = currentMillis;
-      transmitScheduleStarted = true;
-    }
-
-    while (currentMillis - lastTransmitMillis >= 10) {
-      lastTransmitMillis += 10;
-      transmit_message(0x10A, transmit10msCount);
-      transmit_message(0x120, transmit10msCount);
-      transmit_message(0x19A, transmit10msCount);
-
-      if ((transmit10msCount % 10) == 0) {
-        transmit_message(0x2B5, transmit10msCount / 10);
-        transmit_message(0x2E0, transmit10msCount / 10);
-        transmit_message(0x33A, transmit10msCount / 10);
-        transmit_message(0x350, transmit10msCount / 10);
-        transmit_message(0x2E5, transmit10msCount / 10);
-        transmit_message(0x30A, transmit10msCount / 10);
-        transmit_message(0x320, transmit10msCount / 10);
+    } else {
+      if (startupSequenceRequested || (!startupSequenceComplete && !startupSequenceActive)) {
+        startupSequenceRequested = false;
+        startupSequenceActive = true;
+        startupMessageIndex = 0;
+        startupStartMillis = currentMillis;
+        transmitScheduleStarted = false;
+        transmit10msCount = 0;
       }
 
-      if ((transmit10msCount % 20) == 0) {
-        transmit_message(0x2C0, transmit10msCount / 20);
-        transmit_message(0x2D5, transmit10msCount / 20);
-        transmit_message(0x2EA, transmit10msCount / 20);
-        transmit_message(0x306, transmit10msCount / 20);
-        transmit_message(0x308, transmit10msCount / 20);
-        transmit_message(0x3B5, transmit10msCount / 20);
+      if (startupSequenceActive) {
+        while (startupMessageIndex < startup_trigger_count &&
+               currentMillis - startupStartMillis >= startup_trigger_delays[startupMessageIndex]) {
+          transmit_startup_message(startupMessageIndex);
+          startupMessageIndex++;
+        }
+
+        if (startupMessageIndex >= startup_trigger_count) {
+          startupSequenceActive = false;
+          startupSequenceComplete = true;
+          lastTransmitMillis = currentMillis;
+          transmitScheduleStarted = true;
+        }
       }
 
-      transmit10msCount++;
+      if (!startupSequenceActive) {
+        if (!transmitScheduleStarted) {
+          lastTransmitMillis = currentMillis;
+          transmitScheduleStarted = true;
+        }
+
+        while (currentMillis - lastTransmitMillis >= 10) {
+          lastTransmitMillis += 10;
+          transmit_message(0x10A, transmit10msCount);
+          transmit_message(0x120, transmit10msCount);
+          transmit_message(0x19A, transmit10msCount);
+
+          if ((transmit10msCount % 10) == 0) {
+            transmit_message(0x2B5, transmit10msCount / 10);
+            transmit_message(0x2E0, transmit10msCount / 10);
+            transmit_message(0x33A, transmit10msCount / 10);
+            transmit_message(0x350, transmit10msCount / 10);
+            transmit_message(0x2E5, transmit10msCount / 10);
+            transmit_message(0x30A, transmit10msCount / 10);
+            transmit_message(0x320, transmit10msCount / 10);
+          }
+
+          if ((transmit10msCount % 20) == 0) {
+            transmit_message(0x2C0, transmit10msCount / 20);
+            transmit_message(0x2D5, transmit10msCount / 20);
+            transmit_message(0x2EA, transmit10msCount / 20);
+            transmit_message(0x306, transmit10msCount / 20);
+            transmit_message(0x308, transmit10msCount / 20);
+            transmit_message(0x3B5, transmit10msCount / 20);
+          }
+
+          transmit10msCount++;
+        }
+      }
     }
+
+    if (contactorStatus21A == CONTACTOR_STATUS_OPEN && closeTrafficAllowed && !automaticResetAttempted.load() &&
+        request_uds_soft_reset()) {
+      automaticResetAttempted.store(true);
+      logging.println("EGMP: automatic soft reset queued");
     }
 
     // UDS PID polling and DTC handling
@@ -760,7 +792,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
 void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer.system.status.battery_allows_contactor_closing = false;
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

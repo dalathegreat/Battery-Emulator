@@ -8,6 +8,8 @@
 #define BATTERY_MAXTEMPERATURE 500
 #define BATTERY_MINTEMPERATURE -250
 #define MAX_CHARGE_DISCHARGE_LIMIT_FAILURES 5
+// The charge current forced recovery allows, in deciAmpere. Applied by update_aggregate_limits()
+#define MAX_CHARGEPOWER_RECOVERY_CHARGE_DA 50
 
 //battery pause status begin
 enum battery_pause_status { NORMAL = 0, PAUSING = 1, PAUSED = 2, RESUMING = 3 };

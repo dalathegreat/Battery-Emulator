@@ -8,7 +8,9 @@
 #include "../../battery/BATTERIES.h"
 #include "../../battery/BYD-ATTO-3-BALANCE-HTML.h"
 #include "../../battery/Battery.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "../../charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "../../communication/can/comm_can.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -22,7 +24,9 @@
 #include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
+#include "../mqtt/mqtt.h"
 #include "../network/hostname.h"
+#include "../network/local_peer.h"
 #include "../network/network_status.h"
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
@@ -86,15 +90,77 @@ bool webserver_auth_is_ready() {
   return webserver_auth && !http_username.empty() && !http_password.empty();
 }
 
+static uint32_t ipv4_host_order(const IPAddress& ip) {
+  return ((uint32_t)ip[0] << 24) | ((uint32_t)ip[1] << 16) | ((uint32_t)ip[2] << 8) | (uint32_t)ip[3];
+}
+
+// The peer address and Host header checks of local_peer.h. The web server listens on IPv4 only
+// (AsyncTCPSock binds AF_INET), so the peer is always IPv4.
+static bool webserver_request_is_local(AsyncWebServerRequest* request) {
+  const uint32_t own_ip = ipv4_host_order(WiFi.localIP());
+  if (!ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), own_ip, ipv4_host_order(WiFi.subnetMask()),
+                          ipv4_host_order(WiFi.gatewayIP()))) {
+    return false;
+  }
+  return http_host_is_local(request->host().c_str(), active_hostname().c_str(), own_ip,
+                            ipv4_host_order(WiFi.softAPIP()));
+}
+
+// Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
+// the middleware chain and before the onRequest handler. Anything that acts on
+// body data must therefore check credentials itself. Headers are already parsed
+// at this point, so authenticate() works here.
+// Returns true if the request may proceed. Without password protection only
+// requests from the local network may proceed; with it, only correct credentials.
+// On false the caller must discard the data and do nothing. The 403 / 401 is
+// sent later by the middleware / onRequest.
+bool webserver_request_authorized(AsyncWebServerRequest* request) {
+  if (!webserver_auth_is_ready()) {
+    return webserver_request_is_local(request);
+  }
+  return request->authenticate(http_username.c_str(), http_password.c_str());
+}
+
+// At most one line a minute, so a scanner hammering a forwarded port cannot flood the log.
+static void log_refused_request(AsyncWebServerRequest* request) {
+  static unsigned long last_logged = 0;
+  static bool logged = false;
+  const unsigned long now = millis();
+  if (logged && now - last_logged < 60000UL) {
+    return;
+  }
+  logged = true;
+  last_logged = now;
+  LOG_SET_NEXT_SEVERITY(4);  // warning
+  logging.printf("Web interface refused %s (Host: %s): not from the local network, password protection is off\n",
+                 request->client()->remoteIP().toString().c_str(), request->host().c_str());
+}
+
+// Without password protection the web interface answers the local network only, so a port forward
+// does not expose an unauthenticated battery controller (local_peer.h says what this can catch).
+static AsyncMiddlewareFunction local_network_only([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
+  if (webserver_request_is_local(request)) {
+    return next();
+  }
+  log_refused_request(request);
+  request->send(403, "text/plain",
+                "Password protection is off, so this web interface only answers the local network, addressed by "
+                "its IP or hostname. Turn protection on in Settings to allow access from elsewhere.");
+});
+
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
+  if (!webserver_request_authorized(request)) {
+    return;  // unauthenticated: do not buffer anything, do not touch importedLogs
+  }
   if (!index) {
     importedLogs = "";  // Clear previous logs
     logging.printf("Receiving file: %s\n", filename.c_str());
   }
 
   // Append received data to the string (RAM storage)
-  importedLogs += String((char*)data).substring(0, len);
+  // data is not NUL-terminated, so append exactly len bytes
+  importedLogs.concat((const char*)data, len);
 
   if (final) {
     logging.println("Upload Complete!");
@@ -210,7 +276,10 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 }
 
 void init_webserver() {
-  if (webserver_auth_is_ready()) {
+  const bool lan_only = !webserver_auth_is_ready();
+  if (lan_only) {
+    server.addMiddleware(&local_network_only);
+  } else {
     web_auth_middleware.setUsername(http_username.c_str());
     web_auth_middleware.setPassword(http_password.c_str());
     web_auth_middleware.setRealm(WEB_AUTH_REALM);
@@ -218,30 +287,33 @@ void init_webserver() {
     server.addMiddleware(&web_auth_middleware);
   }
 
-  server
-      .on("/logout", HTTP_GET,
-          [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response = request->beginResponse(
-                401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
-            response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
-            response->addHeader("Cache-Control", "no-store");
-            response->addHeader("Connection", "close");
-            request->send(response);
-          })
-      .skipServerMiddlewares();
+  // The routes below skip the server middlewares, so they get the local network check of their own.
+  AsyncCallbackWebHandler& logout_route = server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(
+        401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
+    response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
+    response->addHeader("Cache-Control", "no-store");
+    response->addHeader("Connection", "close");
+    request->send(response);
+  });
+  logout_route.skipServerMiddlewares();
+  if (lan_only) {
+    logout_route.addMiddleware(&local_network_only);
+  }
 
 #ifndef SMALL_FLASH_DEVICE
   // Browsers fetch the icon for the login page too, so the route must work
   // without credentials. Cached hard: the icon only changes with a firmware
   // update, so one fetch per browser instead of one per page load.
-  server
-      .on("/favicon.svg", HTTP_GET,
-          [](AsyncWebServerRequest* request) {
-            AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
-            response->addHeader("Cache-Control", "public, max-age=604800");
-            request->send(response);
-          })
-      .skipServerMiddlewares();
+  AsyncCallbackWebHandler& favicon_route = server.on("/favicon.svg", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
+    response->addHeader("Cache-Control", "public, max-age=604800");
+    request->send(response);
+  });
+  favicon_route.skipServerMiddlewares();
+  if (lan_only) {
+    favicon_route.addMiddleware(&local_network_only);
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   // Route for firmware info from ota update page
@@ -340,6 +412,24 @@ void init_webserver() {
         request->beginResponse(200, "application/json", byd_cell_balance_times_json(index));
     response->addHeader("Cache-Control", "no-store");
     request->send(response);
+  });
+
+  def_route_with_auth("/bydCellBalanceAutomation", server, HTTP_PUT, [](AsyncWebServerRequest* request) {
+    const uint8_t index = request->hasParam("battery") ? request->getParam("battery")->value().toInt() : 0;
+    if (!request->hasParam("enabled")) {
+      request->send(400, "text/plain", "enabled is required");
+      return;
+    }
+    const bool enabled = request->getParam("enabled")->value().toInt() != 0;
+    if (!set_byd_cell_balance_automation(index, enabled)) {
+      request->send(404, "text/plain", "BYD battery not available");
+      return;
+    }
+    Preferences prefs;
+    prefs.begin("batterySettings", false);
+    prefs.putBool(index ? "BYDBALAUTO2" : "BYDBALAUTO", enabled);
+    prefs.end();
+    request->send(204);
   });
 
   // Route for going to CAN tools web page
@@ -491,7 +581,7 @@ void init_webserver() {
       "PYLONOFFSET",  "PYLONORDER",    "DEYEBYD",    "NCCONTACTOR",  "TRIBTR",        "CNTCTRLTRI",     "ESPNOWENABLED",
       "PRIMOGEN24",   "LOWPASSFILTER", "WEBAUTH",    "SLOWCANINV",   "CHGTAPERSOC",   "MEASURECPUTEMP", "SYSLOGEN",
       "PERBMSDEFSOC", "PERBMSSKIPBAL", "INVOFFGRID", "CHGESTIMATED", "MQTTHEAP",      "HADISCFWU",      "INVACCREB",
-      "LEAFAUTOOFS",
+      "LEAFAUTOOFS",  "PARHEADROOM",
 #ifndef SMALL_FLASH_DEVICE
       "CTINVERT",
 #endif  // SMALL_FLASH_DEVICE
@@ -501,15 +591,15 @@ void init_webserver() {
   };
 
   const char* uintSettingNames[] = {
-      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME",    "MAXPREFREQ", "WIFICHANNEL", "DCHGPOWER",    "CHGPOWER",
-      "MQTTPORT",      "MQTTTIMEOUT",   "SOFAR_ID",      "PYLONSEND",  "INVCELLS",    "INVMODULES",   "INVCELLSPER",
-      "INVVLEVEL",     "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",     "PWMHOLD",      "GTWCOUNTRY",
-      "GTWMAPREG",     "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",    "GPIOOPT2",     "GPIOOPT3",
-      "INVSUNTYPE",    "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT",  "DALYPWRDV",    "DALYDVSTART",
-      "DALYPWRDEG",    "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",     "FOXESSTYPE",   "FOXESSSUBTYPE",
-      "FOXESSMODULES", "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",   "PERBMSRESETH",
+      "BATTCVMAX",     "BATTCVMIN",     "MAXPRETIME", "MAXPREFREQ", "WIFICHANNEL",  "DCHGPOWER",     "CHGPOWER",
+      "MQTTPORT",      "SOFAR_ID",      "PYLONSEND",  "INVCELLS",   "INVMODULES",   "INVCELLSPER",   "INVVLEVEL",
+      "INVCAPACITY",   "INVBTYPE",      "PRECHGMS",   "PWMFREQ",    "PWMHOLD",      "GTWCOUNTRY",    "GTWMAPREG",
+      "GTWCHASSIS",    "GTWPACK",       "LEDMODE",    "GPIOOPT1",   "GPIOOPT2",     "GPIOOPT3",      "INVSUNTYPE",
+      "GPIOOPT4",      "PYLONBAUD",     "PYLONBRAND", "DALYPWRPCT", "DALYPWRDV",    "DALYDVSTART",   "DALYPWRDEG",
+      "DALYPWR0C",     "GPIOOPT5",      "GPIOOPT6",   "INVICNT",    "FOXESSTYPE",   "FOXESSSUBTYPE", "FOXESSMODULES",
+      "CHGTAPERSTART", "CHGTAPERFLOOR", "SYSLOGPORT", "SYSLOGFAC",  "PERBMSRESETH",
 #ifndef SMALL_FLASH_DEVICE
-      "CTVNOM",        "CTANOM",        "QNHIPN",        "QNHVO",
+      "CTVNOM",        "CTANOM",        "QNHIPN",     "QNHVO",
 #endif  // SMALL_FLASH_DEVICE
   };
 
@@ -517,10 +607,13 @@ void init_webserver() {
                                       "HTTPUSER",   "HTTPPASS",    "LOCALIP",    "GATEWAY",   "SUBNET",
                                       "DNS",        "HADISCTOPIC", "SYSLOGIP",   "ESPNOWMACS"};
 
+  // Balancing strategy of the 1st, 2nd and 3rd Nissan LEAF pack
+  const char* leafChgStaRqNames[] = {"CHGSTARQ", "CHGSTARQ2", "CHGSTARQ3"};
+
   // Handles the form POST from UI to save settings of the common image
   server.on(
       "/saveSettings", HTTP_POST,
-      [boolSettingNames, stringSettingNames, uintSettingNames](AsyncWebServerRequest* request) {
+      [boolSettingNames, stringSettingNames, uintSettingNames, leafChgStaRqNames](AsyncWebServerRequest* request) {
         BatteryEmulatorSettingsStore settings;
         auto webAuthParam = request->getParam("WEBAUTH", true);
         auto httpUserParam = request->getParam("HTTPUSER", true);
@@ -618,23 +711,14 @@ void init_webserver() {
           } else if (p->name() == "BATTPVMIN") {
             auto type = p->value().toFloat() * 10.0f;
             settings.saveUInt("BATTPVMIN", (int)type);
+#ifndef SMALL_FLASH_DEVICE
           } else if (p->name() == "charger") {
             auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
             settings.saveUInt("CHGTYPE", (int)type);
-          } else if (p->name() == "CHGSTARQ") {
-            // Stored as the CHG_STA_RQ bits themselves. 11b is the charge stop request and
-            // is not offered, so anything else falls back to "no request".
-            uint8_t request = atoi(p->value().c_str());
-            if (request > 2) {
-              request = 0;
-            }
-            settings.saveUInt("CHGSTARQ", request);
-            // Unlike the other settings this one is taken into use without a reboot, so the
-            // reset offered below sends the newly chosen request rather than the old one.
-            user_selected_LEAF_chg_sta_rq = request;
           } else if (p->name() == "CHGCOMM") {
             auto type = static_cast<comm_interface>(atoi(p->value().c_str()));
             settings.saveUInt("CHGCOMM", (int)type);
+#endif  // SMALL_FLASH_DEVICE
           } else if (p->name() == "EQSTOP") {
             auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
             settings.saveUInt("EQSTOP", (int)type);
@@ -658,13 +742,8 @@ void init_webserver() {
             auto type = static_cast<adc_attenuation_t>(atoi(p->value().c_str()));
             settings.saveUInt("CTATTEN", (int)type);
           } else if (p->name() == "QNHTC") {
-            // Entered in mV/°C with one decimal and signed, stored in uV/°C. 0 is off, and removed.
-            int32_t tempco = lroundf(p->value().toFloat() * 10.0f) * 100;
-            if (tempco > QNHCK_MAX_TEMPCO_UV_PER_C) {
-              tempco = QNHCK_MAX_TEMPCO_UV_PER_C;
-            } else if (tempco < -QNHCK_MAX_TEMPCO_UV_PER_C) {
-              tempco = -QNHCK_MAX_TEMPCO_UV_PER_C;
-            }
+            // Entered in mV/°C with two decimals and signed, stored in uV/°C. 0 is off, and removed.
+            const int16_t tempco = qnhck_tempco_uV_per_C(p->value().toFloat());
             if (tempco == 0) {
               settings.removeKey("QNHTC");
             } else {
@@ -685,6 +764,23 @@ void init_webserver() {
           } else if (p->name() == "MQTTPUBLISHMS") {
             auto interval = atoi(p->value().c_str()) * 1000;  // Convert seconds to milliseconds
             settings.saveUInt("MQTTPUBLISHMS", interval);
+          } else if (p->name() == "MQTTTIMEOUT") {
+            settings.saveUInt("MQTTTIMEOUT", mqtt_clamp_timeout_ms(atoi(p->value().c_str())));
+          }
+
+          for (uint8_t pack = 0; pack < 3; pack++) {
+            if (p->name() == leafChgStaRqNames[pack]) {
+              // Balancing strategy of a LEAF pack, stored as the CHG_STA_RQ bits themselves. 11b is
+              // the charge stop request and is not offered, so anything else falls back to 00b.
+              uint8_t request = atoi(p->value().c_str());
+              if (request > 2) {
+                request = 0;
+              }
+              settings.saveUInt(leafChgStaRqNames[pack], request);
+              // Unlike the other settings this one is taken into use without a reboot, so the
+              // reset offered below sends the newly chosen strategy rather than the old one.
+              user_selected_LEAF_chg_sta_rq[pack] = request;
+            }
           }
 
           for (auto& uintSetting : uintSettingNames) {
@@ -761,9 +857,9 @@ void init_webserver() {
           settings.saveUInt("SHUNTTYPE", (int)ShuntType::None);
         }
 
-        // The page offers a BMS reset when the starting sequence request was changed, since
-        // the LBC only reads that signal while it powers up. Done after every setting is
-        // stored so the reset runs against the saved configuration.
+        // The page offers a BMS reset when a balancing strategy was changed, since an LBC only
+        // reads it while it powers up. Done after every setting is stored so the reset runs
+        // against the saved configuration.
         auto bmsResetParam = request->getParam("CHGSTARQRESET", true);
         if (bmsResetParam != nullptr && bmsResetParam->value() == "1") {
           if (periodic_bms_reset || remote_bms_reset) {
@@ -1008,6 +1104,14 @@ void init_webserver() {
         },
         nullptr,
         [cmd](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+          // Body callbacks run before the middleware / onRequest auth check.
+          // Never execute the command unless the request is authenticated.
+          if (!webserver_request_authorized(request)) {
+            return;  // 401 is sent by the middleware / onRequest handler
+          }
+          if (index != 0) {
+            return;  // run the command once per request, not once per body chunk
+          }
           String battIndex = "";
           if (len > 0) {
             battIndex += (char)data[0];
@@ -1024,9 +1128,9 @@ void init_webserver() {
           }
           request->send(200, "text/plain", "Command performed.");
         });
-
-    register_dump_can_route(server);
   }
+
+  register_dump_can_route(server);
 
   // Route for editing BATTERY_USE_VOLTAGE_LIMITS
   update_int_setting("/updateUseVoltageLimit",
@@ -1047,7 +1151,7 @@ void init_webserver() {
     datalayer.battery_settings.user_set_bms_reset_duration_ms = static_cast<uint32_t>(value.toFloat() * 1000);
   });
 
-  // Route for the settings page "Perform a BMS reset now" button. Runs the same sequence as the
+  // Route for the settings page "Perform a BMS Power reset now" button. Runs the same sequence as the
   // MQTT BMSRESET command, and says why when start_bms_reset() would silently do nothing.
   def_route_with_auth("/startBMSReset", server, HTTP_POST, [](AsyncWebServerRequest* request) {
     if (!periodic_bms_reset && !remote_bms_reset) {
@@ -1156,6 +1260,7 @@ void init_webserver() {
     datalayer.battery_settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
   });
 
+#ifndef SMALL_FLASH_DEVICE
   if (charger) {
     // Route for editing ChargerTargetV
     update_string_setting(
@@ -1186,6 +1291,7 @@ void init_webserver() {
     update_int_setting("/updateChargerAux12vEnabled",
                        [](int value) { datalayer.charger.charger_aux12V_enabled = (bool)value; });
   }
+#endif  // SMALL_FLASH_DEVICE
 
   // Send a GET request to <ESP_IP>/update
   def_route_with_auth("/debug", server, HTTP_GET,
@@ -1361,7 +1467,36 @@ static void render_battery_card(String& content, const String& style, const Batt
   const bool system_card = (pack_index == 0) || !multi;
   const bool scaled = system_card && datalayer.battery_settings.soc_scaling_active;
 
-  content += "<div style='" + style + "'>";
+  /* The card is a stacking context of its own, so the watermark can sit behind the text but in
+     front of the card's background. */
+  content += "<div style='position: relative; isolation: isolate; " + style + "'>";
+
+  if (system_card) {
+    /* Software version as a watermark, tilted 30 degrees and kept 30 px inside the card's edges.
+       The frame holding it is absolutely positioned, so the card alone decides its size and it can
+       be a size container. The text, which has to carry the font size because a container's own
+       units refer to an outer container, gets the largest font for which the rotated string
+       fits the frame both across and down. An Arial character averages roughly 0.56 em, so the
+       string is text_em wide and one line high; rotated by 30 degrees it spans
+       text_em * cos(30) + sin(30) across and text_em * sin(30) + cos(30) down, in em. Browsers
+       without container query units use the viewport width instead. */
+    const float text_em = strlen(version_number) * 0.56f;
+    const float width_em = text_em * 0.866f + 0.5f;
+    const float height_em = text_em * 0.5f + 0.866f;
+    char text_style[120];
+    snprintf(text_style, sizeof(text_style),
+             "flex: none; transform: rotate(-30deg); font-size: %.1fvw; font-size: min(%.1fcqw, %.1fcqh);",
+             80.0f / width_em, 100.0f / width_em, 100.0f / height_em);
+    content +=
+        "<div aria-hidden='true' style='position: absolute; inset: 30px; z-index: -1; overflow: hidden; "
+        "container-type: size; display: flex; align-items: center; justify-content: center; "
+        "pointer-events: none; user-select: none; font-weight: bold; line-height: 1; white-space: nowrap; "
+        "color: rgba(255, 255, 255, 0.05);'><span style='";
+    content += text_style;
+    content += "'>";
+    content += html_escape(version_number);
+    content += "</span></div>";
+  }
 
   if (scaled) {
     content += "<h4 style='color: white;'>Scaled SOC: " + String(v.reported_soc / 100.0f, 2) +
@@ -1618,7 +1753,12 @@ static bool render_live(CheckedHtml& content) {
     // Close the block
     content += "</div>";
 
-    if (inverter || battery || charger || user_selected_shunt_type != ShuntType::None) {
+#ifndef SMALL_FLASH_DEVICE
+    const bool charger_in_use = charger != nullptr;
+#else
+    const bool charger_in_use = false;  // Chargers are left out of the small flash devices
+#endif  // SMALL_FLASH_DEVICE
+    if (inverter || battery || charger_in_use || user_selected_shunt_type != ShuntType::None) {
       // Start a new block with a specific background color
       content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
@@ -1657,11 +1797,13 @@ static bool render_live(CheckedHtml& content) {
         content += "</h4>";
       }
 
+#ifndef SMALL_FLASH_DEVICE
       if (charger) {
         content += "<h4 style='color: white;'>Charger protocol: ";
         content += charger->name();
         content += "</h4>";
       }
+#endif  // SMALL_FLASH_DEVICE
 
       // Close the block
       content += "</div>";
@@ -1836,6 +1978,7 @@ static bool render_live(CheckedHtml& content) {
     // Close the block
     content += "</div>";
 
+#ifndef SMALL_FLASH_DEVICE
     if (charger) {
       // Start a new block with orange background color
       content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -1882,6 +2025,7 @@ static bool render_live(CheckedHtml& content) {
 
       content += "</div>";
     }
+#endif  // SMALL_FLASH_DEVICE
   }
   return content.good();
 }
@@ -1926,6 +2070,9 @@ fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/lates
    - A hidden tab does not poll at all; it catches up the moment it is shown again.
    - A failed poll keeps what is on screen and retries in 5 s. From the second failure in a row
      the data is dimmed and the reason shown, so stale numbers never pass for fresh ones.
+   - A 403 means the request was refused (password protection off, not from the local network),
+     which retrying does not change. Polling stops at once and the reason is shown; showing the
+     tab again does not restart it, only a tap or click on the live part or the note does.
    - A poll answered by a different boot means the emulator restarted (reboot, OTA update), so
      the page reloads to get the page of the firmware now running. Rebooting from this page just
      keeps polling until that happens, instead of navigating away after a fixed delay.
@@ -1945,23 +2092,23 @@ function send(u,f){var x=new XMLHttpRequest();x.onload=function(){if(f)f();tick(
 function PauseBattery(p){send('/pause?value='+p)}
 function estop(s){send('/equipmentStop?value='+s)}
 function askReboot(){if(confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!'))send('/reboot',function(){R=1})}
-var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0;
+var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0,X=0;
 function state(){var s=g('S');if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
 g('P0').hidden=p;g('P1').hidden=!p;g('E0').hidden=e;g('E1').hidden=!e;return s.getAttribute('data-b')}
 function later(ms){clearTimeout(T);T=setTimeout(tick,ms)}
-function tick(){clearTimeout(T);if(document.hidden)return;if(Q){Q=2;return}
+function tick(){clearTimeout(T);if(document.hidden||X)return;if(Q){Q=2;return}
 if(!window.fetch)return location.reload();
 Q=1;M=+new Date;var a=window.AbortController?new AbortController():0,w=a&&setTimeout(function(){a.abort()},8000);
-function end(ms){clearTimeout(w);var q=Q;Q=0;later(q>1?0:ms>0?ms:15000)}
+function end(ms){clearTimeout(w);var q=Q;Q=0;if(!X)later(q>1?0:ms>0?ms:15000)}
 fetch('/live',{cache:'no-store',signal:a?a.signal:undefined})
-.then(function(r){return r.text().then(function(h){if(!r.ok)throw h;return h})})
+.then(function(r){return r.text().then(function(h){X=r.status==403;if(!r.ok)throw h;return h})})
 .then(function(h){L.innerHTML=h;var b=state();if(B&&b&&b!=B)location.reload();
 B=b||B;F=0;L.style.opacity='';N.hidden=true;return R?3000:15000},
-function(m){if(++F>1){L.style.opacity=.5;N.hidden=false;
-N.textContent=(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
+function(m){if(++F>1||X){L.style.opacity=.5;N.hidden=false;
+N.textContent=X?m:(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
 else L.style.opacity='';return 5000}).then(end,end)}
 L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.hb')||String(getSelection())||new Date-M<1000)return;
-F=F||1;L.style.opacity=.7;tick()};
+F=F||1;X=0;L.style.opacity=.7;tick()};
 document.addEventListener('visibilitychange',tick);
 B=state();later(B?15000:5000);
 </script>)html" MAIN_PAGE_UPDATE_CHECK INDEX_HTML_FOOTER;

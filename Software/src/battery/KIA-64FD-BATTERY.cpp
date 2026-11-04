@@ -85,19 +85,18 @@ uint8_t Kia64FDBattery::calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t
 
 void Kia64FDBattery::update_values() {
 
-#ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
-  // Use the simplified pack-based SOC estimation with proper compensation
-  datalayer_battery->status.real_soc =
-      estimateSOC(batteryVoltage, datalayer_battery->info.number_of_cells, batteryAmps);
+  if (user_selected_use_estimated_SOC) {
+    // Use the simplified pack-based SOC estimation with proper compensation
+    datalayer_battery->status.real_soc =
+        estimateSOC(batteryVoltage, datalayer_battery->info.number_of_cells, batteryAmps);
 
-  // For comparison or fallback, we can still calculate from min/max cell voltages
-  SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
-  SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
-  datalayer_battery_extended->SOC_estimated_lowest = SOC_estimated_lowest;
-  datalayer_battery_extended->SOC_estimated_highest = SOC_estimated_highest;
-#else
-  datalayer_battery->status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
-#endif
+    // For comparison or fallback, we can still calculate from min/max cell voltages
+    datalayer_battery_extended->SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
+    datalayer_battery_extended->SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
+  } else {
+    //Use the SOC from the battery directly
+    datalayer_battery->status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+  }
 
   datalayer_battery->status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
@@ -368,7 +367,7 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 0x28:  //Eighth datarow in PID group
           if (poll_data_pid == 1) {
             inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
-            datalayer_battery_extended->inverterVoltage = inverterVoltage;
+            datalayer_battery_extended->inverterVoltage = inverterVoltage / 2;
           }
           break;
       }
