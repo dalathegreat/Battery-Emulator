@@ -568,26 +568,11 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 // configured port behind it (a battery that brings its own, an ADC sensor) is
 // returned as it is.
 static String board_named(const char* generic) {
-  static const struct {
-    CAN_Interface can;
-    comm_interface comm;
-  } can_ports[] = {
-      {CAN_NATIVE, comm_interface::CanNative},
-      {CANFD_NATIVE, comm_interface::CanFdNative},
-      {CAN_ADDON_MCP2515, comm_interface::CanAddonMcp2515},
-      {CANFD_ADDON_MCP2518, comm_interface::CanFdAddonMcp2518},
-      {CANFD_ADDON_MCP2518_2, comm_interface::CanFdAddonMcp2518_2},
-  };
-  const char* name = "";
-  for (const auto& port : can_ports) {
-    if (strcmp(generic, getCANInterfaceName(port.can)) == 0) {
-      name = board_config.name_for_interface(port.comm);
-    }
+  comm_interface comm;
+  if (!interface_for_description(generic, comm)) {
+    return generic;
   }
-  // RS485 and Modbus RTU protocols both run on the RS485 transceiver.
-  if (strncmp(generic, "RS485", 5) == 0) {
-    name = board_config.name_for_interface(comm_interface::RS485);
-  }
+  const char* name = board_config.name_for_interface(comm);
   if (*name == '\0' || strcmp(name, generic) == 0) {
     return generic;
   }

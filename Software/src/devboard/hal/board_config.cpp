@@ -273,6 +273,8 @@ bool parse_document(const char* json, size_t length, BoardConfig* out, std::vect
   auto add_interface = [&cfg](comm_interface iface, const char* name, const char* type) {
     cfg.interfaces.push_back(iface);
     cfg.interface_names.push_back(sanitize_label(name, type));
+    cfg.rows.back().has_interface = true;
+    cfg.rows.back().interface = iface;
   };
 
   for (JsonObjectConst port : ports) {
@@ -544,6 +546,31 @@ bool BoardConfig::has_errors() const {
     if (issue.level == ConfigIssueLevel::Error) {
       return true;
     }
+  }
+  return false;
+}
+
+bool interface_for_description(const char* description, comm_interface& out) {
+  static const struct {
+    CAN_Interface can;
+    comm_interface comm;
+  } can_ports[] = {
+      {CAN_NATIVE, comm_interface::CanNative},
+      {CANFD_NATIVE, comm_interface::CanFdNative},
+      {CAN_ADDON_MCP2515, comm_interface::CanAddonMcp2515},
+      {CANFD_ADDON_MCP2518, comm_interface::CanFdAddonMcp2518},
+      {CANFD_ADDON_MCP2518_2, comm_interface::CanFdAddonMcp2518_2},
+  };
+  for (const auto& port : can_ports) {
+    if (strcmp(description, getCANInterfaceName(port.can)) == 0) {
+      out = port.comm;
+      return true;
+    }
+  }
+  // RS485 and Modbus RTU protocols both run on the RS485 transceiver.
+  if (strncmp(description, "RS485", 5) == 0) {
+    out = comm_interface::RS485;
+    return true;
   }
   return false;
 }

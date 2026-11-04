@@ -43,6 +43,10 @@ struct PortRow {
   std::string name;
   std::string pins;
   PortStatus status;
+  // Set for ports that provide an interface the settings can pick, so the page
+  // can say which components run on them.
+  bool has_interface = false;
+  comm_interface interface = comm_interface::Modbus;
 };
 
 struct ConfigIssue {
@@ -168,6 +172,12 @@ void init_board_config();
 // upload handler so a rejected file never reaches flash. issues is filled in
 // either way; the return value is false when the document could not be used.
 bool validate_board_config(const char* json, size_t length, std::vector<ConfigIssue>& issues);
+
+// The configured interface a component's interface_name() describes: "CAN" is
+// the native CAN port, "RS485 / Modbus" the RS485 port, and so on. False for a
+// description with no port of this file behind it, such as a sensor on an ADC
+// pin or a battery that brings its own interface.
+bool interface_for_description(const char* description, comm_interface& out);
 
 // Erases the stored configuration, including the backup and any rejected copy.
 // Part of a factory reset: the configuration lives on the filesystem rather

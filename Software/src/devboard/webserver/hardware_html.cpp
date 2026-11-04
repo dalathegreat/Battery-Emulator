@@ -3,11 +3,53 @@
 #ifdef HW_UNIFIED_S3
 
 #include <LittleFS.h>
+#include <utility>
+#include <vector>
+#include "../../battery/BATTERIES.h"
+#include "../../charger/CHARGERS.h"
+#include "../../inverter/INVERTERS.h"
+#include "../../shunt/Shunt.h"
 #include "../hal/board_config.h"
 #include "html_escape.h"
 #include "index_html.h"
 
 const char hardware_html[] = INDEX_HTML_HEADER COMMON_JAVASCRIPT "%X%" INDEX_HTML_FOOTER;
+
+namespace {
+
+// The running components and the interface each one is on, in the order the
+// settings page lists them. Components on something the file did not configure
+// (an ADC sensor, a battery with its own interface) are left out.
+std::vector<std::pair<comm_interface, const char*>> interface_users() {
+  std::vector<std::pair<comm_interface, const char*>> users;
+  auto add = [&users](const char* description, const char* who) {
+    comm_interface comm;
+    if (interface_for_description(description, comm)) {
+      users.push_back({comm, who});
+    }
+  };
+  if (battery) {
+    add(battery->interface_name(), battery2 ? "Battery 1" : "Battery");
+  }
+  if (battery2) {
+    add(battery2->interface_name(), "Battery 2");
+  }
+  if (battery3) {
+    add(battery3->interface_name(), "Battery 3");
+  }
+  if (inverter) {
+    add(inverter->interface_name(), "Inverter");
+  }
+  if (shunt) {
+    add(shunt->interface_name(), "Measurement");
+  }
+  if (charger) {
+    add(getCANInterfaceName(charger->interface()), "Charger");
+  }
+  return users;
+}
+
+}  // namespace
 
 String hardware_processor(const String& var) {
   if (var != "X") {
@@ -64,6 +106,7 @@ String hardware_processor(const String& var) {
     if (!cfg.notes.empty()) {
       content += "<small>" + html_escape(cfg.notes.c_str()) + "</small><br>";
     }
+    const auto users = interface_users();
     content += "<table>";
     content += "<tr><th>Port</th><th>Pins</th><th></th></tr>";
     for (const auto& row : cfg.rows) {
@@ -78,6 +121,18 @@ String hardware_processor(const String& var) {
       content += html_escape(row.name.c_str());
       content += "<br><small>";
       content += html_escape(row.type.c_str());
+      if (row.has_interface && row.status == PortStatus::Active) {
+        String used_by;
+        for (const auto& user : users) {
+          if (user.first == row.interface) {
+            used_by += used_by.length() ? ", " : "";
+            used_by += user.second;
+          }
+        }
+        if (used_by.length()) {
+          content += "<br>Used by " + used_by;
+        }
+      }
       content += "</small></td><td><small>";
       content += html_escape(row.pins.c_str());
       content += "</small></td><td>";
