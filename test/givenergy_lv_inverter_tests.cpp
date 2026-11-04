@@ -403,7 +403,7 @@ TEST_F(GivEnergyLvInverter, UnitsMatchTheWire) {
   EXPECT_EQ(s.full_capacity_cAh, 56939);
   EXPECT_EQ(s.design_capacity_cAh, 56939);
   EXPECT_EQ(s.remaining_cAh, 28469);
-  EXPECT_EQ(s.firmware, 3020);
+  EXPECT_EQ(s.firmware, 3022);
   EXPECT_STREQ(s.serial, "EM2026G001");
 
   // A round-numbers pack (33750 Wh at 54.0 V) so the expected cAh is exact.
@@ -492,7 +492,7 @@ TEST(GivEnergyLvEvents, TheLockoutPutsTheEmulatorIntoFault) {
 
 // ---- Charge taper latch ----
 //
-// A replay of my real GivEnergy battery's charge showed its BMS cut HR26 to 3.20 A at the LFP
+// A replay of a real GivEnergy battery's charge showed its BMS cut HR26 to 3.20 A at the LFP
 // knee and held it there through 100%, releasing only once discharge had started. These check
 // that update_values() latches the taper the same way, and releases it again once the highest
 // cell falls below kTrickleRelease_mV.
@@ -1020,7 +1020,7 @@ TEST_F(GivEnergyLvGuard, NoTripWhenTheBatteryStopsChargeAndTheChargeDecays) {
 
 TEST_F(GivEnergyLvGuard, NoTripOnDischargeWhileReportingFull) {
   FakeSerial port;
-  datalayer.aggregate.cell_max_voltage_mV = 3600;  // HR20 bit 2, as my real battery sent it
+  datalayer.aggregate.cell_max_voltage_mV = 3600;  // HR20 bit 2, as a real battery sent it
   GivEnergyLvRs485Inverter inverter(port);
   datalayer.aggregate.current_dA = -200;
   run(inverter, port, 600);

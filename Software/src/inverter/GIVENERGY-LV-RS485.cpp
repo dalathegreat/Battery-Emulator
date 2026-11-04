@@ -21,7 +21,7 @@ uint32_t tx_ms(size_t len) {
 }
 
 constexpr char kSerial[] = "EM2026G001";
-constexpr uint16_t kFirmware = 3020;     // as my battery; 3011 or higher selects HR26/HR27 on a G3
+constexpr uint16_t kFirmware = 3022;     // the current BMS release; 3011 or higher selects HR26/HR27 on a G3
 constexpr uint16_t kLimitCap_cA = 9000;  // 90 A: the new circuit has a 100 A DC MCB
 // The inverter accepts cell voltages strictly between 2200 and 3700 mV and silently drops
 // anything outside that (docs/05), so clamp one step inside those bounds, not onto them.
@@ -41,7 +41,7 @@ constexpr uint16_t kTrickle_cA = 300;      // 3 A trickle from kTaperEnd_mV to k
 constexpr uint16_t kCellStop_mV = 3600;    // charging stops here: belt and braces, since
                                            // Battery-Emulator's own cell over-voltage check
                                            // isn't effective for this battery module
-// Below this, the charge taper's latch releases (see apply_taper_latch()): mirrors my GivEnergy
+// Below this, the charge taper's latch releases (see apply_taper_latch()): mirrors a real GivEnergy
 // BMS holding 3.20 A through full; releases once the pack has clearly come off the top.
 constexpr uint16_t kTrickleRelease_mV = 3400;
 constexpr uint16_t kCellUnderStop_mV = 2900;  // LFP low-cell stop: backup to the battery's own
@@ -412,7 +412,7 @@ void GivEnergyLvRs485Inverter::apply_guard(givenergy_lv::Snapshot& s) const {
   }
 }
 
-// A replay of my real GivEnergy battery's charge showed its BMS cut HR26 to 3.20 A at the LFP
+// A replay of a real GivEnergy battery's charge showed its BMS cut HR26 to 3.20 A at the LFP
 // knee and then held it there for 3 h 43 min through 100%, before releasing it again. charge_taper_cA() alone doesn't do that: it follows the highest cell live, so as the
 // cells relax once the current drops, HR26 springs back up and invites the inverter to push
 // current into a full pack again. This latches the taper at kTrickle_cA once it gets there, and
@@ -441,7 +441,7 @@ givenergy_lv::Snapshot GivEnergyLvRs485Inverter::snapshot_from_datalayer() {
 
   const uint32_t full_cAh = wh_to_cAh(agg.reported_total_capacity_Wh, agg.voltage_dV);
   s.capacity_Ah = saturate16(full_cAh / 100);
-  s.status = 0x00CC;  // bits 2, 3, 6 and 7, always set on my battery in normal running
+  s.status = 0x00CC;  // bits 2, 3, 6 and 7, always set on a real battery in normal running
   if (agg.current_dA <= 0) {
     s.status |= 0x01;
   }
@@ -483,8 +483,8 @@ givenergy_lv::Snapshot GivEnergyLvRs485Inverter::snapshot_from_datalayer() {
 
   // HR20 alarm bits: emulating the DSP firmware showed bit 2 (over-voltage) drops its charge
   // bound to 0 outside a calibration, and to ~180 W during one, lower than the 8 A floor a zero
-  // HR26 leaves; bit 3 (under-voltage) cuts discharge to 10%. Neither faults or latches. My real
-  // battery raised bit 2 for 271 s straight after its last top-up to 57.5 V at the top of charge.
+  // HR26 leaves; bit 3 (under-voltage) cuts discharge to 10%. Neither faults or latches. A real
+  // GivEnergy battery raised bit 2 for 271 s straight after its last top-up to 57.5 V at the top of charge.
   // The battery side leads: whenever it allows no charge (its BMS disabled charging or stopped
   // sending limits, or the safety layer applied its voltage limit, the user's ceiling or 100% SoC),
   // HR26 is 0 and bit 2 goes with it; likewise a zero discharge limit raises bit 3. This module's

@@ -6,7 +6,7 @@
 #include "../Software/src/inverter/GIVENERGY-LV-FRAMES.h"
 
 // Wire tests for the GivEnergy LV battery protocol. Every captured frame here
-// comes from my G3 (D0.316-A0.316) talking to a GivEnergy 8.2 kWh battery on
+// comes from a G3 (D0.316-A0.316) talking to a GivEnergy 8.2 kWh battery on
 // BMS firmware 3020, 2026-09-27. The battery's serial is replaced with
 // EM2026G001 and the CRC recomputed.
 
@@ -95,7 +95,7 @@ const std::vector<uint8_t> kCapturedBlock3 = {
     0x0D, 0xB5, 0x0D, 0xBB, 0x01, 0x04, 0x00, 0xFD, 0x0D, 0xC0, 0x0D, 0x90, 0xB0, 0x25,
 };
 
-// What my battery sends for the empty slots 2 to 5 (unchanged: no serial in them).
+// What the battery sends for the empty slots 2 to 5 (unchanged: no serial in them).
 const std::vector<uint8_t> kCapturedEmptyBlock1Device2 = {
     0x02, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF5, 0x56, 0xF5, 0x56, 0xF5, 0x56,

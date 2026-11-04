@@ -37,8 +37,8 @@ class GivEnergyLvRs485Inverter : public Rs485InverterProtocol {
 
   // Wait before replying. Modbus RTU only needs 3.5 character times (3.6 ms at 9600), but a G3
   // isn't ready to receive that soon after its own request: an emulator on a G3 failed at every
-  // delay up to 25 ms (tried in 5 ms steps) and worked reliably from 30 ms. My GivEnergy battery
-  // replies 72 to 96 ms after the end of each request (median 93 ms), so wait inside that range,
+  // delay up to 25 ms (tried in 5 ms steps) and worked reliably from 30 ms. A real GivEnergy
+  // battery replies 72 to 96 ms after the end of each request (median 93 ms), so wait inside that range,
   // well clear of the limit. Even a 61-byte HR
   // reply then ends well inside the G3's 240 ms poll cycle.
   static constexpr uint32_t kTurnaroundMs = 75;
@@ -76,7 +76,7 @@ class GivEnergyLvRs485Inverter : public Rs485InverterProtocol {
   uint64_t verified_ms_ = 0;
   uint8_t lockout_trigger_ = 0;
   // Set once the charge taper reaches the trickle and cleared once the cells come off the top
-  // (see apply_taper_latch()): mirrors my real battery's BMS holding HR26 at 3.20 A through the
+  // (see apply_taper_latch()): mirrors a real GivEnergy BMS holding HR26 at 3.20 A through the
   // top of charge rather than letting it spring back up as the cells relax. Per instance: a
   // restart clears it, which is fine: if the pack is still full, charging pushes the highest cell
   // back to kTaperEnd_mV within minutes and the latch re-engages.

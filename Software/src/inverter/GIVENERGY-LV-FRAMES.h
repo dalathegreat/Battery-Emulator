@@ -56,8 +56,8 @@ struct Snapshot {
   uint32_t design_capacity_cAh;
   uint32_t remaining_cAh;
   uint8_t block2_soc_pct;  // the inverter stops discharging when this reaches its 4% floor
-  uint16_t block2_word28;  // meaning unknown; 0x0E10 or 0x0610 on my battery
-  uint16_t block2_word32;  // meaning unknown; 0 or 4 on my battery
+  uint16_t block2_word28;  // output status and current-direction latch bytes; 0x0E10 or 0x0610 on a real battery
+  uint16_t block2_word32;  // capacity latch and voltage/current limit bytes; 0, or 4 at the pack over-voltage warning
   // IR block 3
   uint16_t cells_mV[16];
   int16_t temp_max_dC;
