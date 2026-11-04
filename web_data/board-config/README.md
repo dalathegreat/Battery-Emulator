@@ -159,6 +159,7 @@ not leave download mode cannot be recovered through the web UI.
 |---|---|
 | `waveshare-esp32s3-rs485-can.json` | Waveshare ESP32-S3-RS485-CAN |
 | `waveshare-esp32s3-rs485-can_triple.json` | The same board wired for three packs and two CAN FD interfaces |
+| `waveshare-esp32s3-can-2ch.json` | Waveshare ESP32-S3-CAN-2CH |
 | `becom.json` | BECom |
 | `lilygo-t2can-mcp2515.json` | LilyGo T-2CAN with an MCP2515 |
 | `lilygo-t2can-mcp2518fd.json` | LilyGo T-2CAN with an MCP2518FD |

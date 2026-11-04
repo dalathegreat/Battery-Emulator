@@ -4,7 +4,7 @@
   "board": {
     "name": "Waveshare ESP32-S3-RS485-CAN",
     "mcu": "esp32s3",
-    "notes": "ESP32-S3R8 module, 16 MB flash. PSRAM is not initialised by this firmware, so no GPIO is lost to it."
+    "notes": "ESP32-S3R8 module, 16 MB flash. Its octal PSRAM sits inside the chip on GPIO33-37, so those pins are not available even though this firmware does not use the PSRAM."
   },
   "ports": [
     {
