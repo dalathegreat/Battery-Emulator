@@ -2,7 +2,7 @@
   "$schema": "./board-config-schema-1.json",
   "config_version": 1,
   "board": {
-    "name": "LilyGo T-2CAN",
+    "name": "LilyGo T-2CAN FD",
     "mcu": "esp32s3",
     "revision": "MCP2518FD",
     "notes": "For the T-2CAN fitted with an MCP2518FD. If reading the onboard controller's CANSTAT register returns 0x80, it is an MCP2515 and the other file applies."
