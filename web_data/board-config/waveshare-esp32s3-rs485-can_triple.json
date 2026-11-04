@@ -2,7 +2,7 @@
   "$schema": "./board-config-schema-1.json",
   "config_version": 1,
   "board": {
-    "name": "Waveshare ESP32-S3-RS485-CAN",
+    "name": "Waveshare ESP32-S3-RS485-CAN (3x)",
     "mcu": "esp32s3",
     "notes": "ESP32-S3R8 module, 16 MB flash. Example config for triple battery setup with GPIO-controlled contactors."
   },
