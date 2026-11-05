@@ -122,6 +122,15 @@ void SunwodaBattery::update_values() {
 }
 
 void SunwodaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  // Note every BCMU node on the bus, so setup can tell whether there are one or two packs.
+  const uint8_t source = (rx_frame.ID >> 16) & 0xFF;
+  if (source >= NODE_ADDR_BCMU_DEFAULT && source < NODE_ADDR_BCMU_DEFAULT + 16) {
+    nodes_heard |= (uint16_t)(1u << (source - NODE_ADDR_BCMU_DEFAULT));
+  }
+  if (dormant) {
+    return;
+  }
+
   // Any frame whose source node is the BCMU proves the current CAN speed is right.
   // Only this instance's BCMU. A frame is 0x0C <src> <dst> <object>: status objects are broadcast
   // to 0xFF, the version replies are addressed to the BSMU (0x6E). Dispatch is on the object byte
@@ -629,6 +638,9 @@ void SunwodaBattery::autodetect_can_speed(unsigned long currentMillis) {
 }
 
 void SunwodaBattery::transmit_can(unsigned long currentMillis) {
+  if (dormant) {
+    return;
+  }
   autodetect_can_speed(currentMillis);
   if (!bcmu_link_up(currentMillis)) {
     return;  // keep queued writes until the BCMU is heard at the current speed

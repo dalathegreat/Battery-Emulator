@@ -57,6 +57,17 @@ class SunwodaBattery : public CanBattery {
     bcmu_addr = address;
   }
 
+  // A dormant instance listens for nothing and sends nothing. Used for the second BCMU while it is not
+  // yet known whether there is one: it is created before the bus starts, then woken by
+  // finalize_battery_detection() if its node address is heard.
+  void set_dormant(bool d) { dormant = d; }
+
+  // True once a frame from this node address (0x50..0x5F) has been heard on any Sunwoda instance's bus.
+  static bool node_heard(uint8_t address) {
+    return address >= NODE_ADDR_BCMU_DEFAULT && address < NODE_ADDR_BCMU_DEFAULT + 16 &&
+           (nodes_heard & (1u << (address - NODE_ADDR_BCMU_DEFAULT)));
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -87,6 +98,8 @@ class SunwodaBattery : public CanBattery {
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   bool* allows_contactor_closing;
   uint8_t bcmu_addr;
+  bool dormant = false;
+  static inline volatile uint16_t nodes_heard = 0;  // bit n: node 0x50 + n has been heard
 
   bool is_primary() const { return datalayer_battery == &datalayer.battery; }
 

@@ -67,6 +67,8 @@
 
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
+// Sunwoda's second BCMU while it is not known whether there is one. See finalize_battery_detection().
+static SunwodaBattery* sunwoda_second_candidate = nullptr;
 Battery* battery3 = nullptr;
 
 std::vector<BatteryType> supported_battery_types() {
@@ -633,6 +635,16 @@ void setup_battery() {
     }
   }
 
+  // Sunwoda: with the second battery not ticked, still listen for a second BCMU on the first one's
+  // bus. The object is created now, before the bus starts, so its receiver registers the usual way;
+  // finalize_battery_detection() installs it if the second node address is heard.
+  if (!battery2 && user_selected_battery_type == BatteryType::SunwodaEss) {
+    sunwoda_second_candidate =
+        new SunwodaBattery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
+                           can_config.battery, SUNWODA_SECOND_BCMU_ADDRESS);
+    sunwoda_second_candidate->set_dormant(true);
+  }
+
   if (user_selected_triple_battery && !battery3) {
     if (!battery_supports_triple(user_selected_battery_type)) {
       DEBUG_PRINTF("User tried enabling triple battery on non-supported integration!\n");
@@ -673,6 +685,34 @@ void setup_battery() {
      parallel packs leaves battery2/battery3 null above. events.cpp reads this to decide whether
      an event message has to name its pack. */
   datalayer.system.info.configured_batteries = 1 + (battery2 != nullptr) + (battery3 != nullptr);
+}
+
+void finalize_battery_detection() {
+  if (!sunwoda_second_candidate) {
+    return;
+  }
+
+  // BCMUs broadcast several times a second, but the first one may still be switching CAN speed.
+  constexpr unsigned long LISTEN_MS = 4000;
+  const unsigned long start = millis();
+  // Frames are only read when receive_can() is called, and the core loop that normally does so has not
+  // started yet, so read them here. Nothing else touches the receivers at this point.
+  while (millis() - start < LISTEN_MS && !SunwodaBattery::node_heard(SUNWODA_SECOND_BCMU_ADDRESS)) {
+    receive_can();
+    delay(5);
+  }
+
+  if (!SunwodaBattery::node_heard(SUNWODA_SECOND_BCMU_ADDRESS)) {
+    logging.println("Sunwoda: no second BCMU heard, running with one pack");
+    return;
+  }
+
+  logging.println("Sunwoda: second BCMU heard, running with two packs");
+  sunwoda_second_candidate->set_dormant(false);
+  battery2 = sunwoda_second_candidate;
+  battery2->battery_index = 2;
+  battery2->setup();
+  datalayer.system.info.configured_batteries = 2 + (battery3 != nullptr);
 }
 
 /* User-selected Nissan LEAF settings */
