@@ -96,14 +96,18 @@ static uint32_t ipv4_host_order(const IPAddress& ip) {
 
 // The peer address and Host header checks of local_peer.h. The web server listens on IPv4 only
 // (AsyncTCPSock binds AF_INET), so the peer is always IPv4.
-static bool webserver_request_is_local(AsyncWebServerRequest* request) {
-  const uint32_t own_ip = ipv4_host_order(WiFi.localIP());
-  if (!ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), own_ip, ipv4_host_order(WiFi.subnetMask()),
-                          ipv4_host_order(WiFi.gatewayIP()))) {
-    return false;
-  }
-  return http_host_is_local(request->host().c_str(), active_hostname().c_str(), own_ip,
+static bool webserver_peer_is_local(AsyncWebServerRequest* request) {
+  return ipv4_is_local_peer(ipv4_host_order(request->client()->remoteIP()), ipv4_host_order(WiFi.localIP()),
+                            ipv4_host_order(WiFi.subnetMask()), ipv4_host_order(WiFi.gatewayIP()));
+}
+
+static bool webserver_host_is_local(AsyncWebServerRequest* request) {
+  return http_host_is_local(request->host().c_str(), active_hostname().c_str(), ipv4_host_order(WiFi.localIP()),
                             ipv4_host_order(WiFi.softAPIP()));
+}
+
+static bool webserver_request_is_local(AsyncWebServerRequest* request) {
+  return webserver_peer_is_local(request) && webserver_host_is_local(request);
 }
 
 // Body/upload callbacks run while the request is still being parsed, i.e. BEFORE
@@ -132,17 +136,24 @@ static void log_refused_request(AsyncWebServerRequest* request) {
   logged = true;
   last_logged = now;
   LOG_SET_NEXT_SEVERITY(4);  // warning
-  logging.printf("Web interface refused %s (Host: %s): not from the local network, password protection is off\n",
+  logging.printf("Web interface refused %s (Host: %s): not from the local network\n",
                  request->client()->remoteIP().toString().c_str(), request->host().c_str());
 }
 
 // Without password protection the web interface answers the local network only, so a port forward
 // does not expose an unauthenticated battery controller (local_peer.h says what this can catch).
+// A peer outside the local network gets a bare 403, so nothing in it tells a scanner what answered.
+// Only a device on the local network that used a name the check does not know is told why.
 static AsyncMiddlewareFunction local_network_only([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
-  if (webserver_request_is_local(request)) {
+  const bool peer_local = webserver_peer_is_local(request);
+  if (peer_local && webserver_host_is_local(request)) {
     return next();
   }
   log_refused_request(request);
+  if (!peer_local) {
+    request->send(403);
+    return;
+  }
   request->send(403, "text/plain",
                 "Password protection is off, so this web interface only answers the local network, addressed by "
                 "its IP or hostname. Turn protection on in Settings to allow access from elsewhere.");
@@ -276,8 +287,7 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 }
 
 void init_webserver() {
-  const bool lan_only = !webserver_auth_is_ready();
-  if (lan_only) {
+  if (!webserver_auth_is_ready()) {
     server.addMiddleware(&local_network_only);
   } else {
     web_auth_middleware.setUsername(http_username.c_str());
@@ -287,8 +297,10 @@ void init_webserver() {
     server.addMiddleware(&web_auth_middleware);
   }
 
-  // The routes below skip the server middlewares, so they get the local network check of their own.
-  AsyncCallbackWebHandler& logout_route = server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) {
+  // Behind the server middlewares like every other route: a logged-in browser passes them and gets
+  // the 401 that makes it forget its credentials, while a client without credentials only ever sees
+  // the middleware's 401, which says nothing about what answered.
+  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) {
     AsyncWebServerResponse* response = request->beginResponse(
         401, "text/plain", "Logout requested. Cancel the browser login prompt to finish logging out.");
     response->addHeader("WWW-Authenticate", String("Basic realm=\"") + WEB_AUTH_REALM + "\"");
@@ -296,24 +308,20 @@ void init_webserver() {
     response->addHeader("Connection", "close");
     request->send(response);
   });
-  logout_route.skipServerMiddlewares();
-  if (lan_only) {
-    logout_route.addMiddleware(&local_network_only);
-  }
 
 #ifndef SMALL_FLASH_DEVICE
   // Browsers fetch the icon for the login page too, so the route must work
   // without credentials. Cached hard: the icon only changes with a firmware
-  // update, so one fetch per browser instead of one per page load.
+  // update, so one fetch per browser instead of one per page load. Skipping the
+  // server middlewares skips the password, so the local network check is applied
+  // here in either mode: outside it, the icon would identify the device.
   AsyncCallbackWebHandler& favicon_route = server.on("/favicon.svg", HTTP_GET, [](AsyncWebServerRequest* request) {
     AsyncWebServerResponse* response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG);
     response->addHeader("Cache-Control", "public, max-age=604800");
     request->send(response);
   });
   favicon_route.skipServerMiddlewares();
-  if (lan_only) {
-    favicon_route.addMiddleware(&local_network_only);
-  }
+  favicon_route.addMiddleware(&local_network_only);
 #endif  // SMALL_FLASH_DEVICE
 
   // Route for firmware info from ota update page
@@ -2105,7 +2113,7 @@ fetch('/live',{cache:'no-store',signal:a?a.signal:undefined})
 .then(function(h){L.innerHTML=h;var b=state();if(B&&b&&b!=B)location.reload();
 B=b||B;F=0;L.style.opacity='';N.hidden=true;return R?3000:15000},
 function(m){if(++F>1||X){L.style.opacity=.5;N.hidden=false;
-N.textContent=X?m:(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
+N.textContent=X?m||'Access refused.':(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
 else L.style.opacity='';return 5000}).then(end,end)}
 L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.hb')||String(getSelection())||new Date-M<1000)return;
 F=F||1;X=0;L.style.opacity=.7;tick()};
