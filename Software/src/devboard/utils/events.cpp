@@ -295,6 +295,7 @@ void init_events(void) {
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INVERTER_REBOOT_DECLINED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_WEB_403].level = EVENT_LEVEL_WARNING;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, int16_t data) {
@@ -581,6 +582,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_INVERTER_REBOOT_DECLINED:
       return "Inverter asked the emulator to restart, but the request was declined. "
              "Enable 'Accept reboot command from inverter' in the settings if you want to allow it next time.";
+    case EVENT_WEB_403:
+      return "Forbidden webserver access blocked at least once in the last minute. "
+             "Don't expose this device to the Internet!";
     case EVENT_NO_ENABLE_DETECTED:
       return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
