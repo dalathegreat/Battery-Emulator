@@ -125,19 +125,14 @@ bool webserver_request_authorized(AsyncWebServerRequest* request) {
   return request->authenticate(http_username.c_str(), http_password.c_str());
 }
 
-// When a request was last refused with a 403. Written by the web server task, read by
-// webserver_tick() in the connectivity task.
-static std::atomic<uint32_t> last_refused_ms{0};
-
 // Reports a refused request: a log line naming it, and EVENT_WEB_403, whose counter thereby counts
 // the minutes with refusals in them. At most once a minute, so a scanner hammering a forwarded port
-// can flood neither the log nor the event. webserver_tick() clears the event once a full minute
-// has passed without a refusal, so it is active exactly while its message holds.
+// can flood neither the log nor the event. The event is never cleared here: an exposed board stays
+// flagged until it restarts or the events are cleared from the events page.
 static void report_refused_request(AsyncWebServerRequest* request) {
   static uint32_t last_reported = 0;
   static bool reported = false;
   const uint32_t now = millis();
-  last_refused_ms = now;
   if (reported && now - last_reported < 60000UL) {
     return;
   }
@@ -1335,12 +1330,6 @@ void webserver_tick() {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
     onOTAEnd(false);
-  }
-
-  // "...blocked at least once in the last minute": no longer true a minute after the last refusal.
-  // clear_event() does nothing while the event is inactive, so this costs a compare most of the time.
-  if (millis() - last_refused_ms >= 60000UL) {
-    clear_event(EVENT_WEB_403);
   }
 }
 
