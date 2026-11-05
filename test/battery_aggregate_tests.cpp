@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <initializer_list>
+
 #include "../Software/src/battery/BATTERIES.h"
 #include "../Software/src/battery/TEST-FAKE-BATTERY.h"
 #include "../Software/src/datalayer/battery_aggregate.h"
@@ -49,6 +51,56 @@ class BatteryAggregateTest : public ::testing::Test {
     if (battery3) {
       scale_pack_values(datalayer.battery3);
     }
+  }
+
+  // Packs on the link at 370.0 V, each allowing the power given both ways, with no current cap in the way
+  void packs_allowing(std::initializer_list<uint32_t> limits_W) {
+    DATALAYER_BATTERY_TYPE* packs[3] = {&datalayer.battery, &datalayer.battery2, &datalayer.battery3};
+    if (limits_W.size() > 1) {
+      add_second_pack();
+      battery2_detected = true;
+    }
+    if (limits_W.size() > 2) {
+      add_third_pack();
+      battery3_detected = true;
+    }
+    uint8_t i = 0;
+    for (uint32_t limit_W : limits_W) {
+      packs[i]->status.voltage_dV = 3700;
+      packs[i]->status.max_discharge_power_W = limit_W;
+      packs[i++]->status.max_charge_power_W = limit_W;
+    }
+    datalayer.battery_settings.max_user_set_charge_dA = 3000;
+    datalayer.battery_settings.max_user_set_discharge_dA = 3000;
+    datalayer.battery_settings.parallel_headroom_tracking = true;  // The setting the raise needs
+    update_aggregate_values();
+  }
+
+  // The inverter charging at total_W, split between the packs by the percentages given
+  static void inverter_charges(uint32_t total_W, std::initializer_list<uint32_t> share_pct) {
+    DATALAYER_BATTERY_TYPE* packs[3] = {&datalayer.battery, &datalayer.battery2, &datalayer.battery3};
+    int32_t left_W = (int32_t)total_W;
+    uint8_t i = 0;
+    for (uint32_t pct : share_pct) {
+      const bool last = (i + 1u == share_pct.size());
+      packs[i]->status.active_power_W = last ? left_W : (int32_t)(total_W * pct / 100);
+      left_W -= packs[i++]->status.active_power_W;
+    }
+  }
+
+  // One pass of the limit chain with the filters left out: what the inverter is told
+  static uint32_t told_W() {
+    combine_pack_limits();
+    update_aggregate_limits();
+    return datalayer.aggregate.max_charge_power_W;
+  }
+
+  // The passes the inverter is given to follow a change, with the packs staying where they are
+  static uint32_t settled_W() {
+    for (uint8_t pass = 1; pass < PARALLEL_SETTLE_PASSES; pass++) {
+      told_W();
+    }
+    return told_W();
   }
 };
 
@@ -373,6 +425,7 @@ TEST_F(BatteryAggregateTest, SilentPackDoesNotDragTheExtremes) {
 
 // The limits the inverter is told about are the weakest pack's, and a pack 2 fault that the
 // safety layer zeroes reaches the inverter - which it did not when the cap ran before safety.
+// Either way round with parallel headroom tracking: it starts from the same lowest pack limit.
 TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
   add_second_pack();
   battery2_detected = true;
@@ -380,29 +433,35 @@ TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
   datalayer.battery_settings.max_user_set_charge_dA = 3000;
   datalayer.battery_settings.max_user_set_discharge_dA = 3000;
 
-  datalayer.battery.status.max_charge_power_W = 10000;
-  datalayer.battery.status.max_discharge_power_W = 10000;
-  datalayer.battery2.status.max_charge_power_W = 6000;
-  datalayer.battery2.status.max_discharge_power_W = 8000;
+  for (bool tracking : {false, true}) {
+    SCOPED_TRACE(tracking ? "headroom tracking on" : "headroom tracking off");
+    datalayer.battery_settings.parallel_headroom_tracking = tracking;
+    datalayer.battery.status.max_charge_power_W = 10000;
+    datalayer.battery.status.max_discharge_power_W = 10000;
+    datalayer.battery2.status.max_charge_power_W = 6000;
+    datalayer.battery2.status.max_discharge_power_W = 8000;
 
-  update_aggregate_values();
-  update_aggregate_limits();
+    update_aggregate_values();
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
-  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 162);     // 6000 W at 370.0 V
-  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 216);  // 8000 W at 370.0 V
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 162);     // 6000 W at 370.0 V
+    EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 216);  // 8000 W at 370.0 V
 
-  // Pack 2 faults and the safety layer zeroes it. Pack 1 is untouched and still happy.
-  datalayer.battery2.status.max_charge_power_W = 0;
-  datalayer.battery2.status.max_discharge_power_W = 0;
-  update_aggregate_limits();
+    // Pack 2 faults and the safety layer zeroes it. Pack 1 is untouched and still happy.
+    datalayer.battery2.status.max_charge_power_W = 0;
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
-  EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 0);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 0);
-  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);  // pack 1's own card is honest
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 0u);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 0u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 0);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_current_dA, 0);
+    EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 10000u);  // pack 1's own card is honest
+  }
 }
 
 // A pack held out by the voltage check is still talking, and its 0 W is real - but it is not a
@@ -411,28 +470,408 @@ TEST_F(BatteryAggregateTest, LimitsAreCappedToTheWeakestPack) {
 TEST_F(BatteryAggregateTest, NotYetJoinedPackDoesNotCapLimits) {
   add_second_pack();
   battery2_detected = true;
-  datalayer.system.status.battery2_allowed_contactor_closing = false;
   datalayer.battery.status.voltage_dV = 3700;
 
-  datalayer.battery.status.max_charge_power_W = 10000;
-  datalayer.battery.status.max_discharge_power_W = 10000;
-  datalayer.battery2.status.max_charge_power_W = 0;  // detached, reads 0 while held out
-  datalayer.battery2.status.max_discharge_power_W = 0;
+  for (bool tracking : {false, true}) {
+    SCOPED_TRACE(tracking ? "headroom tracking on" : "headroom tracking off");
+    datalayer.battery_settings.parallel_headroom_tracking = tracking;
+    datalayer.system.status.battery2_allowed_contactor_closing = false;
+    datalayer.battery.status.max_charge_power_W = 10000;
+    datalayer.battery.status.max_discharge_power_W = 10000;
+    datalayer.battery2.status.max_charge_power_W = 0;  // detached, reads 0 while held out
+    datalayer.battery2.status.max_discharge_power_W = 0;
 
-  update_aggregate_values();
-  update_aggregate_limits();
+    update_aggregate_values();
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);  // pack 1 alone, not dragged to 0
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 10000u);  // pack 1 alone, not dragged to 0
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 10000u);
 
-  // Once it joins, its real limits count again
-  datalayer.system.status.battery2_allowed_contactor_closing = true;
-  datalayer.battery2.status.max_charge_power_W = 6000;
-  datalayer.battery2.status.max_discharge_power_W = 8000;
-  update_aggregate_limits();
+    // Once it joins, its real limits count again
+    datalayer.system.status.battery2_allowed_contactor_closing = true;
+    datalayer.battery2.status.max_charge_power_W = 6000;
+    datalayer.battery2.status.max_discharge_power_W = 8000;
+    combine_pack_limits();
+    update_aggregate_limits();
 
-  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
-  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+    EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 6000u);
+    EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 8000u);
+  }
+}
+
+// Two alike packs each take half of what the inverter pushes, so holding the installation to the
+// lowest pack limit left both at half of theirs. While the inverter charges at the limit, it climbs
+// by the tightest pack's headroom, one step each time the inverter has had time to follow, and
+// never past what the two allow together.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitRaisesInStepsUntilThePacksTakeTheirLimits) {
+  packs_allowing({5000, 5000});
+  EXPECT_EQ(told_W(), 5000u);  // Not charging yet: the lowest pack limit, as always
+
+  inverter_charges(5000, {50, 50});  // Each pack takes 2500 W of its 5000 W
+  for (uint8_t pass = 1; pass < PARALLEL_SETTLE_PASSES; pass++) {
+    EXPECT_EQ(told_W(), 5000u);  // The session has to settle first
+  }
+  EXPECT_EQ(told_W(), 7500u);
+  inverter_charges(7500, {50, 50});  // Followed at once, but the next step still waits its turn
+  for (uint8_t pass = 1; pass < PARALLEL_SETTLE_PASSES; pass++) {
+    EXPECT_EQ(told_W(), 7500u);
+  }
+  EXPECT_EQ(told_W(), 8750u);
+  inverter_charges(8750, {50, 50});
+  EXPECT_EQ(settled_W(), 9375u);
+
+  for (int step = 0; step < 20; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    EXPECT_LE(datalayer.battery.status.active_power_W, 5000);
+    EXPECT_LE(datalayer.battery2.status.active_power_W, 5000);
+    settled_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 9900u);
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 10000u);
+  EXPECT_EQ(datalayer.aggregate.max_discharge_power_W, 5000u);  // Discharge stays at the lowest pack limit
+}
+
+// The split follows the packs' internal resistance, so the pack with the lowest limit is not always
+// the first to reach it. Here pack 2 allows more but takes 80% of the current: it ends up at its
+// limit, and neither pack is ever pushed past its own on the way.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitFollowsThePackClosestToItsLimit) {
+  packs_allowing({4000, 6000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {20, 80});
+    EXPECT_LE(datalayer.battery.status.active_power_W, 4000);
+    EXPECT_LE(datalayer.battery2.status.active_power_W, 6000);
+    settled_W();
+  }
+  // 7500 W puts pack 2 at its 6000 W, with pack 1 at 1500 W of its 4000 W
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 7400u);
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 7500u);
+}
+
+TEST_F(BatteryAggregateTest, ParallelChargeLimitWorksAcrossThreePacks) {
+  packs_allowing({5000, 6000, 7000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {40, 35, 25});
+    EXPECT_LE(datalayer.battery.status.active_power_W, 5000);
+    EXPECT_LE(datalayer.battery2.status.active_power_W, 6000);
+    EXPECT_LE(datalayer.battery3.status.active_power_W, 7000);
+    settled_W();
+  }
+  // 12500 W puts pack 1 at its 5000 W
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 12400u);
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 12500u);
+}
+
+// The split only says something about the limit while the inverter actually uses it. Short of
+// sun, or held below by a current cap, the taper or the low pass filter, nothing is learned and
+// nothing is raised - and nothing winds up behind the cap either.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitWaitsForTheInstallationToDrawIt) {
+  packs_allowing({5000, 5000});
+  told_W();
+  for (int step = 0; step < 5; step++) {
+    inverter_charges(3000, {50, 50});  // Not enough sun to reach the limit
+    EXPECT_EQ(settled_W(), 5000u);
+  }
+
+  datalayer.battery_settings.max_user_set_charge_dA = 150;  // 5550 W at 370.0 V
+  inverter_charges(5000, {50, 50});
+  EXPECT_EQ(settled_W(), 5550u);  // Raised to 7500 W, held to 5550 W by the cap
+  for (int step = 0; step < 5; step++) {
+    inverter_charges(5550, {50, 50});
+    EXPECT_EQ(settled_W(), 5550u);
+  }
+  EXPECT_EQ(datalayer.aggregate.parallel_charge_limit_W, 7500u);
+}
+
+// A pack that goes over its limit - the split moved, or its limit dropped - cuts the limit at once
+// to the total at which it is back on its limit. Worked out from what flows, the cut comes out the
+// same while the inverter has not followed yet, rather than deeper on every pass.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitCutsAtOnceWhenAPackGoesOver) {
+  packs_allowing({5000, 5000});
+  told_W();
+  inverter_charges(5000, {50, 50});
+  EXPECT_EQ(settled_W(), 7500u);
+  inverter_charges(7500, {50, 50});
+  EXPECT_EQ(settled_W(), 8750u);
+
+  inverter_charges(8750, {60, 40});  // Pack 1 now takes 5250 W, over its 5000 W
+  EXPECT_EQ(told_W(), 8333u);        // At once: 8750 W x 5000 W / 5250 W
+  EXPECT_EQ(told_W(), 8333u);        // The inverter has not followed yet
+
+  inverter_charges(8333, {60, 40});  // It has: pack 1 at 4999 W
+  EXPECT_EQ(settled_W(), 8334u);
+}
+
+// A pack whose integration does not report its current looks like a pack taking nothing, which
+// would read as all the headroom in the world. Nothing is raised until every joined pack shows a
+// share, and a pack on its own on the link has nothing to share with.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitNeedsEveryJoinedPackCharging) {
+  packs_allowing({5000, 5000});
+  told_W();
+  inverter_charges(5000, {100, 0});
+  EXPECT_EQ(settled_W(), 5000u);
+
+  datalayer.system.status.battery2_allowed_contactor_closing = false;
+  inverter_charges(5000, {100});
+  EXPECT_EQ(settled_W(), 5000u);
+}
+
+// A LEAF can flip its limit between two values every couple of seconds for half an hour before it
+// settles. A raise counts only on the lowest limit a pack has reported lately, so the installation
+// settles where that pack sits on its low limit instead of being raised on every high and pushed
+// over on every low - and a limit that goes up and stays up counts once it has held.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitCountsOnTheLowestLimitLately) {
+  packs_allowing({3000, 6000});
+  told_W();
+  for (int pass = 0; pass < 300; pass++) {
+    datalayer.battery.status.max_charge_power_W = ((pass / 2) % 2) ? 4000 : 3000;  // Flips every 2 s
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});            // Followed at once
+    EXPECT_LE(datalayer.battery.status.active_power_W, 3000);
+    told_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 5900u);  // Pack 1 close to its 3000 W
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 6000u);
+
+  datalayer.battery.status.max_charge_power_W = 4000;  // Up, and staying up
+  for (int pass = 0; pass < PARALLEL_LIMIT_HOLD_PASSES - 5; pass++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    told_W();
+  }
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 6000u);  // Not yet counted on
+  for (int pass = 0; pass < 120; pass++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    told_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 7800u);  // Pack 1 close to its 4000 W
+  EXPECT_LE(datalayer.aggregate.max_charge_power_W, 8000u);
+}
+
+// Every charge session starts from the lowest pack limit again, once the installation has not
+// charged for PARALLEL_STOP_PASSES, and a pack that allows nothing stops the installation however
+// far the limit had climbed.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitStartsOverWhenChargingStops) {
+  packs_allowing({5000, 5000});
+  told_W();
+  inverter_charges(5000, {50, 50});
+  EXPECT_EQ(settled_W(), 7500u);
+
+  inverter_charges(0, {50, 50});  // Evening
+  for (int pass = 1; pass < PARALLEL_STOP_PASSES; pass++) {
+    ASSERT_EQ(told_W(), 7500u);
+  }
+  EXPECT_EQ(told_W(), 5000u);
+
+  inverter_charges(5000, {50, 50});
+  EXPECT_EQ(settled_W(), 7500u);
+  datalayer.battery2.status.max_charge_power_W = 0;  // Full, or zeroed by the safety layer
+  EXPECT_EQ(told_W(), 0u);
+  inverter_charges(0, {50, 50});
+  datalayer.battery2.status.max_charge_power_W = 5000;
+  EXPECT_EQ(told_W(), 5000u);
+}
+
+// A kettle the panels cannot cover has the packs discharging for a couple of minutes. The limit
+// they were measured to take stays meanwhile: before, it went back to the lowest pack limit and
+// climbed again step by step, after every such load. Once charging resumes, the next raise waits
+// for the inverter to have ramped back up.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitOutlastsAShortStop) {
+  packs_allowing({5000, 5000});
+  told_W();
+  inverter_charges(5000, {50, 50});
+  EXPECT_EQ(settled_W(), 7500u);
+
+  datalayer.battery.status.active_power_W = -800;  // The kettle
+  datalayer.battery2.status.active_power_W = -800;
+  for (int pass = 0; pass < 120; pass++) {
+    ASSERT_EQ(told_W(), 7500u);
+  }
+
+  inverter_charges(7500, {50, 50});  // Charging at the limit again
+  for (uint8_t pass = 1; pass < PARALLEL_SETTLE_PASSES; pass++) {
+    EXPECT_EQ(told_W(), 7500u);
+  }
+  EXPECT_EQ(told_W(), 8750u);
+}
+
+// A lower limit that arrives while the installation is not charging has nothing flowing to be
+// measured against, so the split the packs last took the limit at stands in: the pack is on its new
+// limit when charging resumes. A drop on the pack that is not holding the limit leaves it alone.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitCutsByTheLastSplitWhileNotCharging) {
+  packs_allowing({3000, 6000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    settled_W();
+  }
+  const uint32_t raised_W = datalayer.aggregate.max_charge_power_W;
+  EXPECT_GE(raised_W, 5990u);  // Pack 1 on its 3000 W
+
+  datalayer.battery.status.active_power_W = -500;  // A kettle
+  datalayer.battery2.status.active_power_W = -500;
+  EXPECT_EQ(told_W(), raised_W);
+  datalayer.battery2.status.max_charge_power_W = 5000;  // Pack 2 is not what holds the limit
+  EXPECT_EQ(told_W(), raised_W);
+
+  datalayer.battery.status.max_charge_power_W = 2000;  // Pack 1 is
+  EXPECT_EQ(told_W(), 4000u);                          // 2000 W at half the split, at once
+  EXPECT_EQ(told_W(), 4000u);                          // And no deeper while the kettle lasts
+  inverter_charges(4000, {50, 50});                    // Charging again
+  EXPECT_LE(datalayer.battery.status.active_power_W, 2000);
+}
+
+// The split includes every pack that was on the link when it was measured. One that leaves it -
+// out of voltage sync, its contactors open - hands its share to the others, so the limit starts
+// over from the lowest pack limit, rather than waiting for charging to resume and push one over.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitStartsOverWhenAPackLeaves) {
+  packs_allowing({5000, 6000, 7000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {40, 35, 25});
+    settled_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 12400u);  // Pack 1 on its 5000 W
+
+  datalayer.battery.status.active_power_W = -500;  // Not charging
+  datalayer.battery2.status.active_power_W = -500;
+  datalayer.battery3.status.active_power_W = -500;
+  EXPECT_GE(told_W(), 12400u);  // Still raised
+  datalayer.system.status.battery3_allowed_contactor_closing = false;
+  EXPECT_EQ(told_W(), 5000u);
+
+  for (int step = 0; step < 30; step++) {  // And up again from there, with the two that are left
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {53, 47});
+    EXPECT_LE(datalayer.battery.status.active_power_W, 5000);
+    settled_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 9300u);  // Pack 1 on its 5000 W at 53%
+}
+
+// A lower limit is acted on the moment it arrives, not once the pack is measured over it. Under a
+// cloud the packs take far less than their limits, so no pack is over - and the raise was left in
+// place for the sun to push the pack past its new limit until the inverter read the cut. A drop
+// on a pack that is nowhere near its limit leaves the limit alone.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitFollowsALowerLimitAtOnceWhileTheDrawIsLow) {
+  packs_allowing({3000, 6000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    settled_W();
+  }
+  const uint32_t raised_W = datalayer.aggregate.max_charge_power_W;
+  EXPECT_GE(raised_W, 5990u);  // Pack 1 on its 3000 W
+
+  inverter_charges(3000, {50, 50});  // A cloud: 1500 W each
+  EXPECT_EQ(told_W(), raised_W);
+  datalayer.battery2.status.max_charge_power_W = 5000;  // Pack 2 is not what holds the limit
+  EXPECT_EQ(told_W(), raised_W);
+
+  datalayer.battery.status.max_charge_power_W = 2000;                  // Pack 1 is
+  EXPECT_EQ(told_W(), 4000u);                                          // 2000 W at half the split, at once
+  inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});  // The sun is back
+  EXPECT_LE(datalayer.battery.status.active_power_W, 2000);
+}
+
+// A small current splits by how far apart the packs' own voltages are as much as by their
+// resistance, and a few hundred Watts are within the noise of the readings. A lower limit that
+// arrives while the packs take little is cut by the split they last took the limit at, which is how
+// they will share it again: by the split under the cloud, the limit fell far below what the packs
+// allow, and down to the lowest pack limit whenever noise showed a pack taking nothing. Should the
+// split have moved after all, the pack it puts over its limit cuts it once the sun is back.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitCutsByTheSplitAtTheLimitWhileTheDrawIsLow) {
+  packs_allowing({3000, 6000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    settled_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 5990u);  // Pack 1 on its 3000 W
+
+  inverter_charges(500, {80, 20});                     // A heavy cloud: pack 1 takes most of a little
+  datalayer.battery.status.max_charge_power_W = 2000;  // And allows less
+  EXPECT_EQ(told_W(), 4000u);                          // 2000 W at half the split, not at 80%
+
+  datalayer.battery.status.active_power_W = 220;  // Less still, and pack 2 shows nothing of it
+  datalayer.battery2.status.active_power_W = -20;
+  datalayer.battery2.status.max_charge_power_W = 5000;
+  EXPECT_EQ(told_W(), 4000u);  // Noise, not a missing reading - and pack 2 does not hold the limit
+
+  inverter_charges(4000, {55, 45});  // The sun is back, and the split has moved
+  EXPECT_EQ(told_W(), 3636u);        // Pack 1 over, at once: 4000 W x 2000 W / 2200 W
+}
+
+// The lowest pack limit is sent but not kept. A pack that goes up to 5 kW and back to 3 kW within
+// the hold is never a new low, so before, the 5 kW it lifted the limit to stayed - and the pack
+// taking 80% went 1 kW over once the sun pushed it there.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitFollowsTheLowestLimitBackDown) {
+  packs_allowing({3000, 6000});
+  told_W();
+  for (int step = 0; step < 20; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {80, 20});
+    settled_W();
+  }
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 3750u);  // Pack 1 on its 3000 W
+
+  datalayer.battery.status.max_charge_power_W = 5000;
+  EXPECT_EQ(told_W(), 5000u);  // Up to the lowest pack limit at once, as always
+  inverter_charges(5000, {80, 20});
+  told_W();
+
+  inverter_charges(2000, {80, 20});                    // A cloud
+  datalayer.battery.status.max_charge_power_W = 3000;  // Back down, still within the hold
+  EXPECT_EQ(told_W(), 3750u);
+  inverter_charges(datalayer.aggregate.max_charge_power_W, {80, 20});  // The sun is back
+  EXPECT_LE(datalayer.battery.status.active_power_W, 3000);
+}
+
+// A pack whose current reading is gone never shows as over its limit. A drop on it takes the
+// limit back to the lowest pack limit instead: before, the raise stayed and the pack took more
+// than it allowed for as long as charging lasted, with nothing to notice it.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitFallsBackToTheLowestWithoutACurrentReading) {
+  packs_allowing({6000, 5000});
+  told_W();
+  for (int step = 0; step < 30; step++) {
+    inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+    settled_W();
+  }
+  EXPECT_GE(datalayer.aggregate.max_charge_power_W, 9900u);  // Pack 2 on its 5000 W
+
+  inverter_charges(datalayer.aggregate.max_charge_power_W, {50, 50});
+  datalayer.battery2.status.active_power_W = 0;  // Pack 2's current reading is gone
+  datalayer.battery2.status.max_charge_power_W = 2000;
+  EXPECT_EQ(told_W(), 2000u);
+}
+
+// Parallel headroom tracking is a setting, off unless switched on: the inverter then gets the lowest
+// pack limit however long the packs charge at it, and nothing is written to the aggregate before
+// the filters - exactly as before the tracking existed.
+TEST_F(BatteryAggregateTest, ParallelChargeLimitOnlyWithTheSettingOn) {
+  packs_allowing({5000, 5000});
+  datalayer.battery_settings.parallel_headroom_tracking = false;
+
+  datalayer.aggregate.max_charge_power_W = 12345;
+  combine_pack_limits();
+  EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 12345u);  // Left alone
+
+  EXPECT_EQ(told_W(), 5000u);
+  for (int pass = 0; pass < 60; pass++) {
+    inverter_charges(5000, {50, 50});
+    ASSERT_EQ(told_W(), 5000u);
+  }
+}
+
+// With the tracking off the SOC taper and the low pass filter shape pack 1's limits alone, and the
+// joined pack 2 and 3 are folded in after them: a lower limit on pack 2 reaches the inverter as it is.
+TEST_F(BatteryAggregateTest, WithoutHeadroomTrackingPack2IsFoldedInAfterTheFilters) {
+  packs_allowing({5000, 5000});
+  datalayer.battery_settings.parallel_headroom_tracking = false;
+  datalayer.battery.status.max_charge_power_W = 1500;  // What the filters left of pack 1's
+  datalayer.battery2.status.max_charge_power_W = 4000;
+  EXPECT_EQ(told_W(), 1500u);
+
+  datalayer.battery2.status.max_charge_power_W = 1000;
+  EXPECT_EQ(told_W(), 1000u);
 }
 
 // The user's current ceiling applies to the power as well as to the current derived from it.
@@ -489,6 +928,7 @@ TEST_F(BatteryAggregateTest, RemoteLimitCapsTheInstallationWithTwoPacks) {
   datalayer.battery_settings.max_remote_set_discharge_dA = 150;
 
   update_aggregate_values();
+  combine_pack_limits();
   update_aggregate_limits();
 
   EXPECT_EQ(datalayer.aggregate.max_charge_power_W, 3700u);  // 10.0 A at 370.0 V
@@ -559,6 +999,7 @@ TEST_F(BatteryAggregateTest, RecoveryChargeAppliesToTheInstallationWithTwoPacks)
   datalayer.battery_settings.user_requests_forced_charging_recovery_mode = true;
 
   update_aggregate_values();
+  combine_pack_limits();
   update_aggregate_limits();
 
   EXPECT_EQ(datalayer.aggregate.max_charge_current_dA, 50);

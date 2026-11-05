@@ -596,6 +596,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("TRIBTR") ? "checked" : "";
   }
 
+  if (var == "PARHEADROOM") {
+    return settings.getBool("PARHEADROOM") ? "checked" : "";
+  }
+
   if (var == "SOCESTIMATED") {
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
@@ -1855,6 +1859,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
     form[data-battery="16"] .if-socestimated,
     form[data-battery="26"] .if-socestimated,
+    form[data-battery="40"] .if-socestimated,
     form[data-battery="41"] .if-socestimated,
     form[data-battery="42"] .if-socestimated {
       display: contents;
@@ -2333,6 +2338,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
 
         </div>
+
+        <label for='PARHEADROOM'>Parallel headroom tracking: </label>
+        <input type='checkbox' name='PARHEADROOM' id='PARHEADROOM' value='on' %PARHEADROOM% />
 
         </div>
 

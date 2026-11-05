@@ -52,6 +52,7 @@ class BydModbusLimitsTest : public ::testing::Test {
   // The tail of one core loop cycle, as far as this inverter is concerned
   void run_cycle() {
     update_aggregate_values();
+    combine_pack_limits();
     update_aggregate_limits();
     inverter.update_values();
   }

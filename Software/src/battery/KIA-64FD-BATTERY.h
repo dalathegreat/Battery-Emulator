@@ -2,31 +2,28 @@
 #define KIA_64_FD_BATTERY_H
 #include <Arduino.h>
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
-#include "CanBattery.h"
-#include "KIA-64FD-HTML.h"
+#include "UdsCanBattery.h"
 
-#define ESTIMATE_SOC_FROM_CELLVOLTAGE
+extern bool user_selected_use_estimated_SOC;
 
-class Kia64FDBattery : public CanBattery {
+class Kia64FDBattery : public UdsCanBattery {
  public:
   // Use this constructor for the second battery. This integration is CAN-FD and
   // is limited to double battery, see battery_supports_triple() in BATTERIES.cpp.
   // allows_contactor_closing is deliberately left null: it is an output of the
   // main battery only. For battery 2, parallel_safety.cpp owns
   // battery2_allowed_contactor_closing and this integration must not write it.
-  Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIA64FD* extended_ptr, CAN_Interface targetCan)
-      : CanBattery(targetCan), renderer(extended_ptr) {
+  Kia64FDBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : UdsCanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    datalayer_battery_extended = extended_ptr;
     allows_contactor_closing = nullptr;
+    dtc = &datalayer_battery->dtc;
   }
 
   // Use the default constructor to create the first or single battery.
-  Kia64FDBattery() : renderer(&datalayer_extended.Kia64FD) {
+  Kia64FDBattery() : UdsCanBattery() {
     datalayer_battery = &datalayer.battery;
-    datalayer_battery_extended = &datalayer_extended.Kia64FD;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    dtc = &datalayer_battery->dtc;
   }
 
   bool mandatory_charge_taper() { return true; }
@@ -36,70 +33,75 @@ class Kia64FDBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   static constexpr const char* Name = "Kia 64kWh FD battery";
 
-  bool supports_reset_DTC() { return true; }
-  void reset_DTC() { UserRequestDTCreset = true; }
+  String get_uds_info_html() override;
+  const char* get_dtc_json_filename() override { return "kia_egmp_dtc.json"; }
 
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+ protected:
+  // Called by the UDS superclass for each successful PID query response.
+  uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
 
  private:
-  Kia64FDHtmlRenderer renderer;
-
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_KIA64FD* datalayer_battery_extended;
 
   // Output, main battery only. Null for battery 2, whose
   // battery2_allowed_contactor_closing is owned by parallel_safety.cpp.
   bool* allows_contactor_closing;
 
-  bool UserRequestDTCreset = false;
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);
   uint16_t estimateSOCFromCell(uint16_t cellVoltage);
-  uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value);
   uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high);
-  void write_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell);
+  void set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber);
+  void handle_215_cell_voltages(const CAN_frame& rx_frame);
+  void set_voltage_minmax_limits();
 
-  static const int MAX_PACK_VOLTAGE_DV = 4032;  //5000 = 500.0V
-  static const int MIN_PACK_VOLTAGE_DV = 2400;
+  static const int MAX_PACK_VOLTAGE_96S_DV = 4032;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_96S_DV = 2400;
+  static const int MAX_PACK_VOLTAGE_108S_DV = 4536;
+  static const int MIN_PACK_VOLTAGE_108S_DV = 2700;
   static const int MAX_CELL_DEVIATION_MV = 150;
   static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
   static const int MIN_CELL_VOLTAGE_MV = 2950;  //Battery is put into emergency stop if one cell goes below this value
+  static constexpr unsigned long CELL_VOLTAGE_STALE_MS = 5000;
 
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
   // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
   static const int PACK_INTERNAL_RESISTANCE_MOHM = 200;  // 200 milliohms for the whole pack
 
-  unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-  unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
-
-  uint16_t inverterVoltageFrameHigh = 0;
+  uint32_t opTime = 0;
+  uint32_t cumulativeChargeEnergy = 0;
+  uint32_t cumulativeDischargeEnergy = 0;
+  uint32_t cumulativeChargeEnergy2 = 0;
+  uint32_t cumulativeDischargeEnergy2 = 0;
   uint16_t inverterVoltage = 0;
   uint16_t soc_calculated = 0;
   uint16_t SOC_BMS = 0;
   uint16_t SOC_Display = 0;
-  uint16_t SOC_estimated_lowest = 0;
-  uint16_t SOC_estimated_highest = 0;
   uint16_t batterySOH = 1000;
   uint16_t CellVoltMax_mV = 3700;
   uint16_t CellVoltMin_mV = 3700;
   uint16_t batteryVoltage = 0;
+  uint16_t SOC_estimated_lowest = 0;
+  uint16_t SOC_estimated_highest = 0;
   int16_t leadAcidBatteryVoltage = 120;
   int16_t batteryAmps = 0;
   int16_t temperatureMax = 0;
   int16_t temperatureMin = 0;
   int16_t allowedDischargePower = 0;
   int16_t allowedChargePower = 0;
-  int16_t poll_data_pid = 0;
   uint8_t CellVmaxNo = 0;
   uint8_t CellVminNo = 0;
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
+  uint8_t batteryRelay = 0;
   bool startedUp = false;
-  bool ok_start_polling_battery = false;
-  uint8_t KIA_7E4_COUNTER = 0x01;
   int8_t temperature_water_inlet = 0;
   int8_t heatertemp = 0;
   unsigned long startMillis = 0;
   uint8_t messageIndex = 0;
+  bool set_voltage_limits = false;
+  bool cellVoltageFrameSeen = false;
+  unsigned long cellVoltageRxMillis[MAX_AMOUNT_CELLS] = {};
+  bool cellVoltageReceived[MAX_AMOUNT_CELLS] = {};
 
   // Define the data points for %SOC depending on cell voltage
   const uint8_t numPoints = 100;
@@ -632,23 +634,18 @@ class Kia64FDBattery : public CanBattery {
       &message_49, &message_50, &message_51, &message_52, &message_53, &message_54, &message_55, &message_56,
       &message_57, &message_58, &message_59, &message_60, &message_61, &message_62, &message_63};
 
-  /* PID polling messages */
-  CAN_frame KIA64FD_7E4 = {.FD = true,
-                           .ext_ID = false,
-                           .DLC = 8,
-                           .ID = 0x7E4,
-                           .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
-  CAN_frame KIA64FD_ack = {
-      .FD = true,
-      .ext_ID = false,
-      .DLC = 8,
-      .ID = 0x7E4,
-      .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
-  CAN_frame KIA64FD_CLEAR_DTC = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x7E4,
-                                 .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};
+  static const int POLL_GROUP_1 = 0x0101;
+  static const int POLL_GROUP_2 = 0x0102;  //Cellvoltages 1-32
+  static const int POLL_GROUP_3 = 0x0103;  //Cellvoltages 33-64
+  static const int POLL_GROUP_4 = 0x0104;  //Cellvoltages 65-96
+  static const int POLL_GROUP_5 = 0x0105;
+  static const int POLL_GROUP_6 = 0x0106;
+  static const int POLL_GROUP_7 = 0x0107;
+  static const int POLL_GROUP_8 = 0x0108;
+  //static const int POLL_GROUP_9 = 0x0109; Does not exist
+  static const int POLL_GROUP_A = 0x010A;  //Cellvoltages 97-128
+  static const int POLL_GROUP_B = 0x010B;  //Cellvoltages 129-160
+  static const int POLL_GROUP_C = 0x010C;  //Cellvoltages 161-192
 };
 
 #endif
