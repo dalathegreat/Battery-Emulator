@@ -127,17 +127,10 @@ class Battery {
   // visible (instead of a single toggle). Used by batteries where balancing is a latching request.
   virtual bool supports_balancing_request() { return false; }
   virtual bool supports_isolation_test() { return false; }
-  // Generic hook for a battery-specific one-shot "set the BMS's real-time clock" command. The
-  // emulator has no clock of its own, so the time comes from the browser that pressed the button
-  // (local time). First used by SunwodaBattery's BCMU time sync.
+  // Generic hook for a battery-specific one-shot "set the BMS's real-time clock" command.
   virtual bool supports_time_sync() { return false; }
-  // Generic hook for battery-specific commands that are too numerous, or too vendor-specific, to
-  // each justify their own virtual method on this base class. The battery implementation owns the
-  // identifier namespace and decides at run time which identifiers it currently supports; the
-  // button/route list lives in advanced_battery_html.cpp like every other command. Identifiers are
-  // string literals with static storage duration (they double as the HTTP route name), so
-  // implementations may compare them with strcmp and must not retain the pointer beyond the call.
-  // First used by SunwodaBattery for the BCMU's manual contactor control (address 71 / gSwitchCtrl_71).
+  // Generic hook for vendor-specific commands that don't merit their own virtual method.
+  // Each battery defines its own identifiers (string literals, also used as the HTTP route name).
   virtual bool supports_vendor_command(const char* identifier) { return false; }
 
   virtual void request_isolation_test() {}
