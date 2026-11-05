@@ -31,9 +31,12 @@ static constexpr uint8_t NODE_ADDR_BCMU_DEFAULT = 0x50;
 static constexpr uint8_t NODE_ADDR_SELF = 0x64;  // the address the vendor's own tool uses
 static constexpr uint8_t NODE_ADDR_BSMU = 0x6E;  // the master the BCMU reports to
 
-// Node address the SECOND BCMU is expected to answer to in a two-pack system. Set that unit's
-// config param 1032 to 0x000F and turn on its front ADDR switch 1 to move it here from 0x50.
+// Node addresses the second and third BCMU are expected to answer to in a multi-pack system. Each
+// pack needs its own: set that unit's config param 1032 to 0x000F and turn on its front ADDR switch
+// (switch 1 gives 0x51) to move it from 0x50, or set the address in its config where the switch does
+// not work. The emulator holds three batteries at most.
 static constexpr uint8_t SUNWODA_SECOND_BCMU_ADDRESS = 0x51;
+static constexpr uint8_t SUNWODA_THIRD_BCMU_ADDRESS = 0x52;
 
 class SunwodaBattery : public CanBattery {
  public:

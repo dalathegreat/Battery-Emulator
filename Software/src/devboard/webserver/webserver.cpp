@@ -627,10 +627,6 @@ void init_webserver() {
                   paramUInt("BATT3COMM", settings.getUInt("BATT3COMM", (int)comm_interface::CanNative));
             }
           }
-          // Sunwoda packs tell each other apart by node address, so they share one bus on purpose
-          if (batteryType == BatteryType::SunwodaEss) {
-            batteryCount = 0;
-          }
           for (int a = 0; a < batteryCount; a++) {
             for (int b = a + 1; b < batteryCount; b++) {
               if (isCan(batteryComm[a]) && batteryComm[a] == batteryComm[b]) {
