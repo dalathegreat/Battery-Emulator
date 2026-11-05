@@ -51,6 +51,16 @@ TEST_F(Web403EventTest, QuietMinuteClearsItButKeepsTheCount) {
   EXPECT_EQ(event()->occurences, 3);
 }
 
+TEST_F(Web403EventTest, CounterStopsAtItsMaximumInsteadOfWrapping) {
+  // 300 minutes of scanning. Wrapped to 0, the event would vanish from the events page, MQTT and
+  // ESP-NOW, which skip events whose count is 0.
+  for (int minute = 0; minute < 300; minute++) {
+    set_event(EVENT_WEB_403, 0);
+  }
+  EXPECT_EQ(event()->occurences, UINT8_MAX);
+  EXPECT_EQ(event()->state, EVENT_STATE_ACTIVE);
+}
+
 TEST_F(Web403EventTest, DoesNotFaultTheSystem) {
   // A warning: it must not take the battery offline, only flag the exposure.
   set_event(EVENT_WEB_403, 0);
