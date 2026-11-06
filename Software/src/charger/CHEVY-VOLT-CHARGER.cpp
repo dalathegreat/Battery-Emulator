@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "CHEVY-VOLT-CHARGER.h"
 #include <Arduino.h>
 #include "../communication/can/comm_can.h"
@@ -120,7 +121,7 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     }
 
     if (setpoint_HV_IDC > CHARGER_MAX_A) {
-      setpoint_HV_VDC = CHEVYVOLT_MAX_AMP;
+      setpoint_HV_IDC = CHEVYVOLT_MAX_AMP;
     }
 
     /* if power overcommitted, back down to just below while maintaining voltage target */
@@ -138,3 +139,4 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&charger_set_targets);
   }
 }
+#endif  // SMALL_FLASH_DEVICE

@@ -1,4 +1,5 @@
 #include "led_handler.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "events.h"
@@ -25,6 +26,13 @@ static uint32_t scale_color(uint32_t color, uint8_t brightness) {
 #define HEARTBEAT_PEAK2 550     // 0.55 * 1000
 #define HEARTBEAT_DEVIATION 50  // 0.05 * 1000
 #define SCALE_FACTOR 1000
+
+/* Energy Flow counts anything within this many Watts of zero as idle. Some BMS current sensors
+   bounce by as much as 0.5 A around zero with no current flowing, which reads as up to ~200 W on
+   a high voltage pack and would otherwise make the pattern flicker between its three states. */
+#define FLOW_IDLE_BAND_W 200
+/* Energy Flow's charge/discharge ramp: 2.91 s one way, 0.09 s the other, of the 3 s period */
+#define FLOW_RAMP_SCALED 970  // 0.97 * 1000
 
 static LED* led = nullptr;
 
@@ -154,30 +162,23 @@ void LED::classic_run(void) {
 
 void LED::flow_run(void) {
   // Determine how bright the LED should be
-  if (datalayer.battery.status.active_power_W < -50) {
+  // Pack 1's power when it is the whole installation, the aggregate's with double/triple
+  const int32_t power_W = (datalayer.system.info.configured_batteries > 1) ? datalayer.aggregate.active_power_W
+                                                                           : pack_power_W(datalayer.battery.status);
+  if (power_W < -FLOW_IDLE_BAND_W) {
     // Discharging
-    brightness = max_brightness - up_down(950);
-  } else if (datalayer.battery.status.active_power_W > 50) {
+    brightness = max_brightness - up_down(FLOW_RAMP_SCALED);
+  } else if (power_W > FLOW_IDLE_BAND_W) {
     // Charging
-    brightness = up_down(950);
+    brightness = up_down(FLOW_RAMP_SCALED);
   } else {  // Idle
     brightness = up_down(500);
   }
 }
 
 void LED::heartbeat_run(void) {
-  uint16_t period;
-  switch (get_event_level()) {
-    case EVENT_LEVEL_WARNING:
-      period = BPM_TO_MS(70);
-      break;
-    case EVENT_LEVEL_ERROR:
-      period = BPM_TO_MS(100);
-      break;
-    default:
-      period = BPM_TO_MS(35);
-      break;
-  }
+  // No case for errors: exe() shows them as steady red, so no beat would ever be seen
+  const uint16_t period = (get_event_level() == EVENT_LEVEL_WARNING) ? BPM_TO_MS(70) : BPM_TO_MS(35);
 
   uint16_t ms = millis() % period;
 

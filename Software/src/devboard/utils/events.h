@@ -20,7 +20,7 @@
    The three variants of an event MUST stay contiguous and in 1,2,3 order: set_event(event, data,
    battery) resolves the concrete event by adding (battery - 1) to the unsuffixed variant.
    Inserting anything between them, or reordering them, silently misdirects events -- the
-   static_asserts in events.cpp fail the build if that happens. Keep EVENT_BATTERY_EMPTY first and
+   static_asserts in events.cpp fail the build if that happens. Keep EVENT_BATTERY_FUSE first and
    EVENT_CAN_BATTERY3_MISSING last; set_event() uses both as range bounds.
 
    The three variants do not have to share a level: EVENT_CAN_BATTERY_MISSING is an error while
@@ -34,7 +34,13 @@
 
    Anything a battery driver raises belongs in this block: driver code is per-instance, so the
    same line runs for pack 1, 2 and 3. An event raised from a driver but left outside the block
-   is reported without saying which pack raised it. */
+   is reported without saying which pack raised it. The same holds for the checks safety.cpp runs
+   on every pack, such as the cell voltage limits.
+
+   EVENT_BATTERY_EMPTY and EVENT_BATTERY_FULL stay outside the block on purpose: they describe the
+   installation, never one pack. safety.cpp alone raises them, from the SOC the inverter is sent and
+   from any pack on the DC link whose BMS reports it full or empty. A driver reports that through
+   status.bms_reports_full / bms_reports_empty rather than raising the events itself. */
 #define EVENTS_ENUM_TYPE(XX)                 \
   XX(EVENT_CANMCP2518FD_INIT_FAILURE)        \
   XX(EVENT_CANMCP2515_INIT_FAILURE)          \
@@ -51,15 +57,8 @@
   XX(EVENT_CANMCP2515_BUS_ERROR)             \
   XX(EVENT_CANFD_BUS_ERROR)                  \
   XX(EVENT_CANFD_2_BUS_ERROR)                \
-  XX(EVENT_CHARGE_LIMIT_EXCEEDED)            \
-  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)         \
-  XX(EVENT_SOC_PLAUSIBILITY_ERROR)           \
   XX(EVENT_BATTERY_EMPTY)                    \
-  XX(EVENT_BATTERY2_EMPTY)                   \
-  XX(EVENT_BATTERY3_EMPTY)                   \
   XX(EVENT_BATTERY_FULL)                     \
-  XX(EVENT_BATTERY2_FULL)                    \
-  XX(EVENT_BATTERY3_FULL)                    \
   XX(EVENT_BATTERY_FUSE)                     \
   XX(EVENT_BATTERY2_FUSE)                    \
   XX(EVENT_BATTERY3_FUSE)                    \
@@ -78,6 +77,12 @@
   XX(EVENT_BATTERY_CHG_DISCHG_STOP_REQ)      \
   XX(EVENT_BATTERY2_CHG_DISCHG_STOP_REQ)     \
   XX(EVENT_BATTERY3_CHG_DISCHG_STOP_REQ)     \
+  XX(EVENT_CHARGE_LIMIT_EXCEEDED)            \
+  XX(EVENT_CHARGE_LIMIT_EXCEEDED_BAT2)       \
+  XX(EVENT_CHARGE_LIMIT_EXCEEDED_BAT3)       \
+  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)         \
+  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT2)    \
+  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED_BAT3)    \
   XX(EVENT_BATTERY_OVERHEAT)                 \
   XX(EVENT_BATTERY2_OVERHEAT)                \
   XX(EVENT_BATTERY3_OVERHEAT)                \
@@ -96,9 +101,12 @@
   XX(EVENT_BATTERY_REQUESTS_HEAT)            \
   XX(EVENT_BATTERY2_REQUESTS_HEAT)           \
   XX(EVENT_BATTERY3_REQUESTS_HEAT)           \
-  XX(EVENT_BATTERY_WARMED_UP)                \
-  XX(EVENT_BATTERY2_WARMED_UP)               \
-  XX(EVENT_BATTERY3_WARMED_UP)               \
+  XX(EVENT_BATTERY_TOO_LOW_TO_HEAT)          \
+  XX(EVENT_BATTERY2_TOO_LOW_TO_HEAT)         \
+  XX(EVENT_BATTERY3_TOO_LOW_TO_HEAT)         \
+  XX(EVENT_BATTERY_COLD)                     \
+  XX(EVENT_BATTERY2_COLD)                    \
+  XX(EVENT_BATTERY3_COLD)                    \
   XX(EVENT_BATTERY_SOC_RECALIBRATION)        \
   XX(EVENT_BATTERY2_SOC_RECALIBRATION)       \
   XX(EVENT_BATTERY3_SOC_RECALIBRATION)       \
@@ -111,6 +119,21 @@
   XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)      \
   XX(EVENT_BATTERY2_TEMP_DEVIATION_HIGH)     \
   XX(EVENT_BATTERY3_TEMP_DEVIATION_HIGH)     \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)      \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE_BAT2) \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE_BAT3) \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)       \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE_BAT2)  \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE_BAT3)  \
+  XX(EVENT_CELL_UNDER_VOLTAGE)               \
+  XX(EVENT_CELL_UNDER_VOLTAGE_BAT2)          \
+  XX(EVENT_CELL_UNDER_VOLTAGE_BAT3)          \
+  XX(EVENT_CELL_OVER_VOLTAGE)                \
+  XX(EVENT_CELL_OVER_VOLTAGE_BAT2)           \
+  XX(EVENT_CELL_OVER_VOLTAGE_BAT3)           \
+  XX(EVENT_CELL_DEVIATION_HIGH)              \
+  XX(EVENT_CELL_DEVIATION_HIGH_BAT2)         \
+  XX(EVENT_CELL_DEVIATION_HIGH_BAT3)         \
   XX(EVENT_BALANCING_START)                  \
   XX(EVENT_BALANCING_START_BAT2)             \
   XX(EVENT_BALANCING_START_BAT3)             \
@@ -129,6 +152,12 @@
   XX(EVENT_CONTACTOR_OPEN)                   \
   XX(EVENT_CONTACTOR_OPEN_BAT2)              \
   XX(EVENT_CONTACTOR_OPEN_BAT3)              \
+  XX(EVENT_CONTACTOR_WATCHDOG_ACTIVE)        \
+  XX(EVENT_CONTACTOR_WATCHDOG_ACTIVE_BAT2)   \
+  XX(EVENT_CONTACTOR_WATCHDOG_ACTIVE_BAT3)   \
+  XX(EVENT_CONTACTOR_WATCHDOG_FAILED)        \
+  XX(EVENT_CONTACTOR_WATCHDOG_FAILED_BAT2)   \
+  XX(EVENT_CONTACTOR_WATCHDOG_FAILED_BAT3)   \
   XX(EVENT_WATER_INGRESS)                    \
   XX(EVENT_WATER_INGRESS_BAT2)               \
   XX(EVENT_WATER_INGRESS_BAT3)               \
@@ -144,6 +173,9 @@
   XX(EVENT_SOC_UNAVAILABLE)                  \
   XX(EVENT_SOC_UNAVAILABLE_BAT2)             \
   XX(EVENT_SOC_UNAVAILABLE_BAT3)             \
+  XX(EVENT_SOC_PLAUSIBILITY_ERROR)           \
+  XX(EVENT_SOC_PLAUSIBILITY_ERROR_BAT2)      \
+  XX(EVENT_SOC_PLAUSIBILITY_ERROR_BAT3)      \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)           \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR_BAT2)      \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR_BAT3)      \
@@ -198,11 +230,6 @@
   XX(EVENT_MODBUS_INVERTER_DETECTED)         \
   XX(EVENT_NO_ENABLE_DETECTED)               \
   XX(EVENT_ERROR_OPEN_CONTACTOR)             \
-  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)      \
-  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)       \
-  XX(EVENT_CELL_UNDER_VOLTAGE)               \
-  XX(EVENT_CELL_OVER_VOLTAGE)                \
-  XX(EVENT_CELL_DEVIATION_HIGH)              \
   XX(EVENT_UNKNOWN_EVENT_SET)                \
   XX(EVENT_OTA_UPDATE)                       \
   XX(EVENT_OTA_UPDATE_TIMEOUT)               \

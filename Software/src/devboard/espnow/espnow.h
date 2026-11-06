@@ -293,4 +293,12 @@ enum espnow_key_t {
 void init_espnow();
 void update_espnow();
 
+/* Runtime control. ESP-NOW can be started and stopped while the emulator is running (for
+   example from the MQTT "ESPNOW_RUN" command), independently of the "start at boot"
+   setting. The request is only recorded here and carried out by update_espnow() on the
+   connectivity task, so it is safe to call from any task. */
+void request_espnow_running(bool run);
+/* True while ESP-NOW is initialized and transmitting. Safe to read from any task. */
+bool espnow_is_running();
+
 #endif  // _ESPNOW_H_

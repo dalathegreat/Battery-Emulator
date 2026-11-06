@@ -21,6 +21,7 @@ class UnreadVoltageTest : public ::testing::Test {
     datalayer.system.info.CPU_free_heap = 200000;  // Keep the low-heap check quiet
     emulator_pause_request_ON = false;             // A global other suites leave behind
     datalayer.battery.status.real_soc = 5000;
+    datalayer.aggregate.real_soc = 5000;
     datalayer.aggregate.reported_soc = 5000;
     datalayer.battery.status.max_discharge_power_W = 5000;
     datalayer.battery.status.max_charge_power_W = 5000;
@@ -32,7 +33,7 @@ class UnreadVoltageTest : public ::testing::Test {
 TEST_F(UnreadVoltageTest, UndecodedVoltageBlocksDischargeWithoutAnEvent) {
   ASSERT_EQ(datalayer.battery.status.voltage_dV, 0);
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_EQ(get_event_pointer(EVENT_BATTERY_UNDERVOLTAGE)->occurences, 0);
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
@@ -41,7 +42,7 @@ TEST_F(UnreadVoltageTest, UndecodedVoltageBlocksDischargeWithoutAnEvent) {
 TEST_F(UnreadVoltageTest, GenuineUndervoltageIsStillReported) {
   datalayer.battery.status.voltage_dV = datalayer.battery.info.min_design_voltage_dV - 10;
 
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_EQ(get_event_pointer(EVENT_BATTERY_UNDERVOLTAGE)->state, EVENT_STATE_ACTIVE);
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 0u);
@@ -54,11 +55,11 @@ TEST_F(UnreadVoltageTest, UserDischargeLimitDoesNotLatchOnUndecodedVoltage) {
   datalayer.battery_settings.max_user_set_charge_voltage_dV = 4000;
   datalayer.battery_settings.max_user_set_discharge_voltage_dV = 3500;
 
-  update_machineryprotection();  // 0 V, nothing decoded yet
+  update_machineryprotection(0);  // 0 V, nothing decoded yet
 
   datalayer.battery.status.voltage_dV = 3510;  // decoded: 1.0 V above the limit
   datalayer.battery.status.max_discharge_power_W = 5000;
-  update_machineryprotection();
+  update_machineryprotection(0);
 
   EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 5000u);
 }

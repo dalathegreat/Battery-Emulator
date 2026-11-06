@@ -18,14 +18,21 @@ struct UDS_CONTEXT {
 
 class BmwIXBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
+  BmwIXBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(*this) {
+    datalayer_battery = datalayer_ptr;
+  }
+
+  // Use the default constructor to create the first or single battery.
+  BmwIXBattery() : renderer(*this) { datalayer_battery = &datalayer.battery; }
+
   bool mandatory_charge_taper() { return true; }
-  BmwIXBattery() : renderer(*this) {}
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
   bool supports_read_DTC() { return true; }
   void read_DTC() { UserRequestDTCRead = true; }
@@ -59,17 +66,24 @@ class BmwIXBattery : public CanBattery {
   int get_pyro_status_pss4() const;
   int get_pyro_status_pss6() const;
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  BmwIXHtmlRenderer renderer;
+
+ private:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
   bool userRequestContactorClose = false;
   bool userRequestContactorOpen = false;
   bool UserRequestDTCreset = false;
   bool UserRequestBMSReset = false;
   bool UserRequestDTCRead = false;
   bool UserRequestEnergySavingModeReset = false;
-  bool startup_reset_complete = false;  // Track if startup BMS reset is done
-  BmwIXHtmlRenderer renderer;
+  bool startup_reset_complete = false;               // Track if startup BMS reset is done
   static const int MAX_PACK_VOLTAGE_78S_DV = 3354;   // 4.3V per cell | SE12 battery, BMW iX1, 66.45kWh 286.3Vnom
   static const int MIN_PACK_VOLTAGE_78S_DV = 2184;   // 2.8V per cell
+  static const int MAX_PACK_VOLTAGE_88S_DV = 3784;   // 4.3V per cell | BMW ix1/ix3
+  static const int MIN_PACK_VOLTAGE_88S_DV = 2464;   // 2.8V per cell
   static const int MAX_PACK_VOLTAGE_90S_DV = 3870;   // 4.3V per cell | SE11 | SE 50
   static const int MIN_PACK_VOLTAGE_90S_DV = 2520;   // 2.8V per cell
   static const int MAX_PACK_VOLTAGE_94S_DV = 4042;   // 4.3V per cell | SE16
@@ -602,7 +616,7 @@ CAN_frame BMWiX_49C = {.FD = true,
   bool battery_info_available = false;
   uint32_t battery_serial_number = 0;
   int32_t battery_current = 0;
-  uint16_t battery_voltage = 3700;  //Startup with valid values - needs fixing in future
+  uint16_t battery_voltage_cV = 37000;  //Startup with valid values - needs fixing in future
   uint16_t terminal30_12v_voltage = 1200;
   uint16_t battery_voltage_after_contactor = 0;
   uint16_t min_soc_state = 5000;

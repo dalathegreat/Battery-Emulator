@@ -6,8 +6,10 @@
 #include <src/communication/nvm/comm_nvm.h>
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../devboard/espnow/espnow.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/network/hostname.h"
 #include "../../devboard/network/network_status.h"
@@ -36,7 +38,7 @@ int mqtt_port = mqtt_port_default;
 std::string mqtt_server = mqtt_server_default;
 
 #define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2) //TODO: Should this be configurable?
-
+char* mqtt_msg = nullptr;
 // Cap on the esp-mqtt outbox, in bytes. QoS>0 traffic queues in the outbox while the broker
 // or Wi-Fi is unresponsive; without a limit it grows on the heap until OOM. With the limit,
 // enqueueing fails instead — a bounded, recoverable failure.
@@ -44,7 +46,6 @@ std::string mqtt_server = mqtt_server_default;
 
 esp_mqtt_client_config_t mqtt_cfg;
 esp_mqtt_client_handle_t client;
-char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(0);  // Will be configured with mqtt_publish_interval_ms on first use
 MyTimer check_global_timer(800);  // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 
@@ -219,6 +220,55 @@ static bool supports_insulation(Battery* b) {
 static bool supports_leaf_metrics(Battery* b) {
   return b != nullptr && user_selected_battery_type == BatteryType::NissanLeaf;
 }
+
+// The two software resets of the Advanced page, "BMS Reset" and "SOC Reset", as MQTT buttons. They
+// are only offered for Tesla packs; other integrations with a reset of their own keep it on the
+// Advanced page. Not to be confused with the "BMS Power reset" (BMSRESET), which power-cycles the
+// BMS through a GPIO pin.
+enum class TeslaReset { BMS, SOC };
+
+static bool is_tesla_battery_type() {
+  return user_selected_battery_type == BatteryType::TeslaModel3Y ||
+         user_selected_battery_type == BatteryType::TeslaModelSX ||
+         user_selected_battery_type == BatteryType::TeslaLegacy;
+}
+
+// Counts the Tesla packs that offer the given reset (the Legacy integration has a BMS reset but
+// no SOC reset). With trigger set, also requests the reset on each of them, exactly like the
+// Advanced page button does: it only raises a flag, and the battery itself checks the
+// preconditions (contactors open, SOC window for the SOC reset) and raises an event if it refuses.
+static int tesla_software_reset(TeslaReset reset, bool trigger) {
+  if (!is_tesla_battery_type()) {
+    return 0;
+  }
+  int packs = 0;
+  for (Battery* bat : {battery, battery2, battery3}) {
+    if (bat == nullptr) {
+      continue;
+    }
+    if (reset == TeslaReset::BMS ? bat->supports_reset_BMS() : bat->supports_reset_SOC()) {
+      packs++;
+      if (trigger) {
+        if (reset == TeslaReset::BMS) {
+          bat->reset_BMS();
+        } else {
+          bat->reset_SOC();
+        }
+      }
+    }
+  }
+  return packs;
+}
+
+// Installation-level conditions for the buttons: there is no single Battery to ask about, so
+// like the aggregate sensors they take nullptr and look at the configured packs themselves.
+static bool tesla_bms_reset_available(Battery* unused) {
+  return tesla_software_reset(TeslaReset::BMS, false) > 0;
+}
+static bool tesla_soc_reset_available(Battery* unused) {
+  return tesla_software_reset(TeslaReset::SOC, false) > 0;
+}
+
 // Emulator-level condition: the heap diagnostics are opt-in from the MQTT settings page.
 static bool heap_metrics_enabled(Battery* b) {
   return mqtt_publish_heap_metrics;
@@ -357,17 +407,35 @@ static String info_topics[3];
 // "<name>/info_multi", following the "<name>/info_2" pattern. Only used with several batteries.
 static String aggregate_topic;
 
-static const SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", nullptr, nullptr, nullptr},
-                                             {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
-                                             {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
-                                             {"STOP", "Open Contactors", nullptr, nullptr, nullptr}};
+static const SensorConfig buttonConfigs[] = {
+    {"BMSRESET", "BMS Power reset", nullptr, nullptr, nullptr},
+    {"PAUSE", "Pause charge/discharge", nullptr, nullptr, nullptr},
+    {"RESUME", "Resume charge/discharge", nullptr, nullptr, nullptr},
+    {"RESTART", "Reboot Emulator", nullptr, nullptr, nullptr},
+    {"STOP", "Open Contactors", nullptr, nullptr, nullptr},
+    // Only published when a Tesla pack is configured.
+    {"TESLA_BMS_RESET", "Tesla BMS Reset", nullptr, nullptr, tesla_bms_reset_available},
+    {"TESLA_SOC_RESET", "Tesla SOC Reset", nullptr, nullptr, tesla_soc_reset_available}};
 
 // All commands the emulator subscribes to. The matching topics are precomputed once in
-// init_mqtt() so that mqtt_message_received() does not rebuild six temporary Strings on
+// init_mqtt() so that mqtt_message_received() does not rebuild temporary Strings on
 // every received message.
-enum ButtonCommand { BTN_BMSRESET = 0, BTN_PAUSE, BTN_RESUME, BTN_RESTART, BTN_STOP, BTN_SET_LIMITS, BTN_COUNT };
-static const char* button_commands[BTN_COUNT] = {"BMSRESET", "PAUSE", "RESUME", "RESTART", "STOP", "SET_LIMITS"};
+enum ButtonCommand {
+  BTN_BMSRESET = 0,
+  BTN_PAUSE,
+  BTN_RESUME,
+  BTN_RESTART,
+  BTN_STOP,
+  BTN_TESLA_BMS_RESET,
+  BTN_TESLA_SOC_RESET,
+  BTN_SET_LIMITS,
+  BTN_ESPNOW_RUN,
+  BTN_SET_SCALESOC,
+  BTN_COUNT
+};
+static const char* button_commands[BTN_COUNT] = {"BMSRESET",   "PAUSE",           "RESUME",          "RESTART",
+                                                 "STOP",       "TESLA_BMS_RESET", "TESLA_SOC_RESET", "SET_LIMITS",
+                                                 "ESPNOW_RUN", "SET_SCALESOC"};
 static String button_command_topics[BTN_COUNT];
 
 static String generateCommonInfoAutoConfigTopic(const char* entity_id) {
@@ -504,8 +572,9 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   }
   doc["temperature_min"] = ((float)((int16_t)battery_data.status.temperature_min_dC)) / 10.0f;
   doc["temperature_max"] = ((float)((int16_t)battery_data.status.temperature_max_dC)) / 10.0f;
-  doc["stat_batt_power"] = ((float)((int32_t)battery_data.status.active_power_W));
-  doc["battery_current"] = ((float)((int16_t)battery_data.status.current_dA)) / 10.0f;
+  // A current sensor fitted in place of the batteries' own stands in for these (pack_current_dA())
+  doc["stat_batt_power"] = ((float)pack_power_W(battery_data.status));
+  doc["battery_current"] = ((float)pack_current_dA(battery_data.status)) / 10.0f;
   doc["battery_voltage"] = ((float)battery_data.status.voltage_dV) / 10.0f;
   if (battery_data.info.number_of_cells != 0u &&
       battery_data.status.cell_voltages_mV[battery_data.info.number_of_cells - 1] != 0u) {
@@ -565,7 +634,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   // other. What is limiting the inverter is not - that is one answer for the installation, so
   // with several packs it is published once on the aggregate topic instead of the same answer
   // appearing on every pack.
-  ChargingState charging_state = get_charging_state(battery_data.status.current_dA);
+  ChargingState charging_state = get_charging_state(pack_current_dA(battery_data.status));
   doc["charging_state"] = charging_state_to_text(charging_state);
   if (pack_is_the_installation) {
     doc["limiting_factor"] = limiting_factor_to_text(get_limiting_factor(
@@ -698,6 +767,10 @@ static const char* button_discovery_icon(const char* command) {
     return "mdi:battery-sync-outline";
   if (strcmp(command, "STOP") == 0)
     return "mdi:battery-remove-outline";
+  if (strcmp(command, "TESLA_BMS_RESET") == 0)
+    return "mdi:restart-alert";
+  if (strcmp(command, "TESLA_SOC_RESET") == 0)
+    return "mdi:battery-check-outline";
   return nullptr;
 }
 
@@ -807,7 +880,7 @@ static bool publish_sensor_discovery(const SensorConfig& config, const char* id_
     doc["entity_category"] = "diagnostic";
   }
   set_common_discovery_attributes(doc);
-  serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+  serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
   bool ok = mqtt_publish(generateCommonInfoAutoConfigTopic(entity_id).c_str(), mqtt_msg, true);
   doc.clear();
   return ok;
@@ -890,6 +963,7 @@ static bool publish_common_info(void) {
         doc["cpu_temp"] = datalayer.system.info.CPU_temperature;
       }
       doc["emulator_uptime"] = millis64() / 1000;
+      doc["espnow_running"] = espnow_is_running() ? 1 : 0;
 
       // Internal-RAM heap diagnostics. Same sources and fragmentation formula as the ESPHome
       // debug component, so the values are directly comparable with an ESPHome node's.
@@ -906,7 +980,7 @@ static bool publish_common_info(void) {
         }
       }
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (mqtt_publish(info_topics[0].c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Common info");
         return false;
@@ -917,7 +991,7 @@ static bool publish_common_info(void) {
     if (datalayer.system.info.configured_batteries > 1) {
       DocClearGuard guard(shared_doc);
       set_aggregate_attributes(shared_doc);
-      serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(shared_doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (mqtt_publish(aggregate_topic.c_str(), mqtt_msg, false) == false) {
         log_publish_failure("Aggregate info");
         return false;
@@ -936,7 +1010,7 @@ static bool publish_common_info(void) {
           esp32hal->system_booted_up()) {
         DocClearGuard guard(shared_doc);
         set_battery_attributes(shared_doc, *target.data, target.index, bat->supports_charged_energy());
-        serializeJson(shared_doc, mqtt_msg, sizeof(mqtt_msg));
+        serializeJson(shared_doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
         if (mqtt_publish(info_topics[target.index - 1].c_str(), mqtt_msg, false) == false) {
           log_publish_failure("Common info");
           return false;
@@ -969,12 +1043,12 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
   // balancing flags are valid as soon as the cell count is known.
   const bool voltages_valid = battery_data.status.cell_voltages_mV[battery_data.info.number_of_cells - 1] != 0u;
 
-  size_t len = snprintf(mqtt_msg, sizeof(mqtt_msg), "{");
+  size_t len = snprintf(mqtt_msg, MQTT_MSG_BUFFER_SIZE, "{");
 
   if (voltages_valid) {
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "\"cell_voltages\":[");
+    len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "\"cell_voltages\":[");
     for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
-      if (len >= sizeof(mqtt_msg) - 32) {  // headroom for this element plus the closing "]}"
+      if (len >= MQTT_MSG_BUFFER_SIZE - 32) {  // headroom for this element plus the closing "]}"
         logging.println("Cell data MQTT msg too large for buffer");
         return true;  // skip this payload, don't abort the publish cycle
       }
@@ -982,25 +1056,25 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
       // 0.000 V. Sent as JSON null so the per-cell HA entity goes unknown and a chart drawn from
       // this array leaves a gap rather than a spike to the bottom of the scale.
       if (battery_data.status.cell_voltages_mV[i] == 0u) {
-        len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%snull", (i != 0u) ? "," : "");
+        len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%snull", (i != 0u) ? "," : "");
       } else {
-        len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%.3f", (i != 0u) ? "," : "",
+        len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%s%.3f", (i != 0u) ? "," : "",
                         ((float)battery_data.status.cell_voltages_mV[i]) / 1000.0f);
       }
     }
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "],");
+    len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "],");
   }
 
-  len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "\"cell_balancing\":[");
+  len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "\"cell_balancing\":[");
   for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
-    if (len >= sizeof(mqtt_msg) - 32) {  // headroom for this element plus the closing "]}"
+    if (len >= MQTT_MSG_BUFFER_SIZE - 32) {  // headroom for this element plus the closing "]}"
       logging.println("Cell data MQTT msg too large for buffer");
       return true;  // skip this payload, don't abort the publish cycle
     }
-    len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "%s%s", (i != 0u) ? "," : "",
+    len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%s%s", (i != 0u) ? "," : "",
                     battery_data.status.cell_balancing_status[i] ? "true" : "false");
   }
-  len += snprintf(mqtt_msg + len, sizeof(mqtt_msg) - len, "]}");
+  len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "]}");
 
   if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
     log_publish_failure("Cell data");
@@ -1027,7 +1101,7 @@ static bool publish_cell_voltage_discovery(const DATALAYER_BATTERY_TYPE& battery
     set_battery_voltage_attributes(doc, i, cellNumber, state_topic, entity_prefix, battery_name_suffix);
     set_common_discovery_attributes(doc);
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
     if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, topic_suffix).c_str(), mqtt_msg, true) == false) {
       return false;
     }
@@ -1107,7 +1181,7 @@ bool publish_events() {
     doc["icon"] = "mdi:information-outline";
     doc["entity_category"] = "diagnostic";
     set_common_discovery_attributes(doc);
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+    serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
       ha_events_published = true;
     } else {
@@ -1146,7 +1220,7 @@ bool publish_events() {
       doc["message"] = get_event_message_string(event_handle);
       doc["millis"] = String(event_pointer->timestamp);
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
         log_publish_failure("Event");
         return false;
@@ -1169,6 +1243,10 @@ static bool publish_buttons_discovery(void) {
       JsonDocument& doc = shared_doc;
       for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
         const SensorConfig& config = buttonConfigs[i];
+        // Most buttons apply to every installation and carry no condition.
+        if (config.condition != nullptr && !config.condition(nullptr)) {
+          continue;
+        }
         doc["name"] = config.name;
         doc["unique_id"] = default_entity_id_prefix + config.entity_id;
         doc["command_topic"] = generateButtonTopic(config.entity_id);
@@ -1184,7 +1262,7 @@ static bool publish_buttons_discovery(void) {
           doc["entity_category"] = "diagnostic";
         }
         set_common_discovery_attributes(doc);
-        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+        serializeJson(doc, mqtt_msg, MQTT_MSG_BUFFER_SIZE);
         if (!mqtt_publish(generateButtonAutoConfigTopic(config.entity_id).c_str(), mqtt_msg, true)) {
           return false;
         }
@@ -1207,11 +1285,11 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   char* topic = strndup(topic_raw, topic_len);
 
-  logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
+  //logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 
   if (remote_bms_reset) {
     if (strcmp(topic, button_command_topics[BTN_BMSRESET].c_str()) == 0) {
-      logging.println("Triggering BMS reset");
+      logging.println("MQTT: Triggering BMS reset");
       start_bms_reset();
     }
   }
@@ -1231,6 +1309,43 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
 
   if (strcmp(topic, button_command_topics[BTN_STOP].c_str()) == 0) {
     setBatteryPause(true, false, EquipmentStop::STOP);
+  }
+
+  // Same routines as the Advanced page "BMS Reset" and "SOC Reset" buttons. If the battery
+  // refuses (contactors closed, SOC outside the window, BMS blocks the reset), it raises its
+  // usual event, which is also published over MQTT.
+  if (strcmp(topic, button_command_topics[BTN_TESLA_BMS_RESET].c_str()) == 0) {
+    if (tesla_software_reset(TeslaReset::BMS, true) > 0) {
+      logging.println("MQTT: Triggering Tesla BMS reset");
+    }
+  }
+
+  if (strcmp(topic, button_command_topics[BTN_TESLA_SOC_RESET].c_str()) == 0) {
+    if (tesla_software_reset(TeslaReset::SOC, true) > 0) {
+      logging.println("MQTT: Triggering Tesla SOC reset");
+    }
+  }
+
+  // "1" starts ESP-NOW if it is not running, "0" stops it if it is. Runtime only: the
+  // "Start ESPNow at boot" setting stored in NVS is not changed.
+  if (strcmp(topic, button_command_topics[BTN_ESPNOW_RUN].c_str()) == 0) {
+    int start = 0;
+    while (start < data_len && isspace((unsigned char)data[start])) {
+      start++;
+    }
+    int end = data_len;
+    while (end > start && isspace((unsigned char)data[end - 1])) {
+      end--;
+    }
+    if (end - start == 1 && data[start] == '1') {
+      //logging.println("MQTT: starting ESPNow");
+      request_espnow_running(true);
+    } else if (end - start == 1 && data[start] == '0') {
+      //logging.println("MQTT: stopping ESPNow");
+      request_espnow_running(false);
+    } else {
+      //logging.printf("MQTT: invalid ESPNOW_RUN payload [%.*s], expected 1 or 0\n", data_len, data);
+    }
   }
 
   if (strcmp(topic, button_command_topics[BTN_SET_LIMITS].c_str()) == 0) {
@@ -1263,6 +1378,42 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
     datalayer.battery_settings.remote_set_timestamp = millis();
 
     free(data_str);
+  }
+
+  // Runtime change of the SOC rescale limits. Payload: {"max_pct": 50.0-100.0, "min_pct": -10.0-50.0}.
+  // Either key may be omitted to leave that limit unchanged. Only the live datalayer values are
+  // touched (nothing is written to NVS), so a reboot restores the saved settings.
+  if (strcmp(topic, button_command_topics[BTN_SET_SCALESOC].c_str()) == 0) {
+    if (!datalayer.battery_settings.soc_scaling_active) {
+      // Limits have no effect without "Rescale SOC", so the command is ignored.
+    } else {
+      JsonDocument doc;
+      char* data_str = strndup(data, data_len);
+      DeserializationError err = deserializeJson(doc, data_str);
+      free(data_str);
+
+      if (err) {
+        //logging.printf("MQTT: SET_SCALESOC has invalid JSON payload [%.*s]\n", data_len, data);
+      } else {
+        // The datalayer stores these in 0.01 % units (8000 = 80.0 %), hence the *100.
+        if (doc["max_pct"].is<float>()) {
+          float max_pct = doc["max_pct"].as<float>();
+          if (max_pct >= 50.0f && max_pct <= 100.0f) {
+            datalayer.battery_settings.max_percentage = (uint16_t)lroundf(max_pct * 100.0f);
+          } else {
+            logging.printf("MQTT: SET_SCALESOC max_pct %.1f out of range (50.0-100.0), ignored\n", max_pct);
+          }
+        }
+        if (doc["min_pct"].is<float>()) {
+          float min_pct = doc["min_pct"].as<float>();
+          if (min_pct >= -10.0f && min_pct <= 50.0f) {
+            datalayer.battery_settings.min_percentage = (int16_t)lroundf(min_pct * 100.0f);
+          } else {
+            logging.printf("MQTT: SET_SCALESOC min_pct %.1f out of range (-10.0-50.0), ignored\n", min_pct);
+          }
+        }
+      }
+    }
   }
 
   free(topic);
@@ -1317,6 +1468,13 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 }
 
 bool init_mqtt(void) {
+
+  if (mqtt_msg == nullptr) {
+    mqtt_msg = (char*)malloc(MQTT_MSG_BUFFER_SIZE);
+    if (mqtt_msg == nullptr) {
+      return false;  // Out of memory, MQTT can't run
+    }
+  }
 
   if (battery == nullptr) {
     logging.println("ERROR: No battery selected. Aborting MQTT initialization");

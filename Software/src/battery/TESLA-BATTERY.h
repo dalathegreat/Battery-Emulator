@@ -1,6 +1,7 @@
 #ifndef TESLA_BATTERY_H
 #define TESLA_BATTERY_H
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
@@ -17,16 +18,19 @@ class TeslaBattery : public CanBattery {
  public:
   bool mandatory_charge_taper() { return true; }
   // Use the default constructor to create the first or single battery.
-  TeslaBattery() {
+  TeslaBattery() : renderer(&datalayer_extended.tesla, &datalayer.battery) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     previous_max_percentage = datalayer.battery_settings.max_percentage;
+    datalayer_tesla = &datalayer_extended.tesla;
   }
-  // Use this constructor for the second or third battery.
-  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
+  // Use this constructor for the second battery.
+  TeslaBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_TESLA* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended, datalayer_ptr) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     previous_max_percentage = datalayer.battery_settings.max_percentage;
+    datalayer_tesla = extended;
   }
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
@@ -35,13 +39,13 @@ class TeslaBattery : public CanBattery {
 
   bool supports_clear_isolation() { return true; }
   bool supports_insulation_resistance() { return true; }
-  void clear_isolation() { datalayer.battery_settings.user_requests_tesla_isolation_clear = true; }
+  void clear_isolation() { user_requests_isolation_clear = true; }
 
   bool supports_reset_BMS() { return true; }
-  void reset_BMS() { datalayer.battery_settings.user_requests_tesla_bms_reset = true; }
+  void reset_BMS() { user_requests_bms_reset = true; }
 
   bool supports_reset_SOC() { return true; }
-  void reset_SOC() { datalayer.battery_settings.user_requests_tesla_soc_reset = true; }
+  void reset_SOC() { user_requests_soc_reset = true; }
 
   bool supports_charged_energy() { return true; }
 
@@ -54,6 +58,11 @@ class TeslaBattery : public CanBattery {
 
  private:
   TeslaHtmlRenderer renderer;
+
+  // Per-instance extended data for the "More Battery Info" webserver page.
+  // Points at datalayer_extended.tesla for the main battery, or datalayer_extended.tesla_2
+  // for the second battery, so double-battery setups no longer share one struct.
+  DATALAYER_INFO_TESLA* datalayer_tesla;
 
  protected:
   /* Do not change anything below this line! */
@@ -506,6 +515,12 @@ class TeslaBattery : public CanBattery {
   uint8_t stateMachineClearIsolationFault = 0xFF;
   uint8_t stateMachineBMSReset = 0xFF;
   uint8_t stateMachineSOCReset = 0xFF;
+  // Per-pack, not datalayer.battery_settings: that struct is shared by every pack, so with two
+  // or three Tesla packs a command meant for one pack could be picked up by whichever instance's
+  // update_values() happens to run next, not necessarily the one the user selected.
+  bool user_requests_isolation_clear = false;
+  bool user_requests_bms_reset = false;
+  bool user_requests_soc_reset = false;
   uint8_t stateMachineBMSQuery = 0xFF;
   uint16_t battery_cell_max_v = 3300;
   uint16_t battery_cell_min_v = 3300;
@@ -604,9 +619,9 @@ class TeslaBattery : public CanBattery {
                                                     //0x72A: BMS_serialNumber
   uint8_t battery_serialNumber[14] = {0};           // Stores raw HEX values for ASCII chars
   bool parsed_battery_serialNumber = false;
-  char* battery_manufactureDate;         // YYYY-MM-DD\0
-                                         //Via UDS
-  uint8_t battery_partNumber[12] = {0};  //stores raw HEX values for ASCII chars
+  char battery_manufactureDate[11] = {0};  // YYYY-MM-DD\0, owned per instance - see dayOfYearToDate()
+                                           //Via UDS
+  uint8_t battery_partNumber[12] = {0};    //stores raw HEX values for ASCII chars
   bool parsed_battery_partNumber = false;
   //Via UDS
   //static uint8_t BMS_partNumber[12] = {0};  //stores raw HEX values for ASCII chars

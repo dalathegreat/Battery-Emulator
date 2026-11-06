@@ -136,21 +136,24 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     }
   }
 
-  startedUp = true;
   switch (rx_frame.ID) {
     case 0x4DE:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      startedUp = true;
       break;
     case 0x542:  //BMS SOC
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      startedUp = true;
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x594:
+      startedUp = true;
       allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) / 2;
       allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 2;
       SOC_BMS = rx_frame.data.u8[5] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x595:
+      startedUp = true;
       batteryVoltage = (rx_frame.data.u8[7] << 8) + rx_frame.data.u8[6];
       batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];
       if (counter_200 > 3) {
@@ -162,8 +165,10 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       leadAcidBatteryVoltage = rx_frame.data.u8[1];  //12v Battery Volts
       temperatureMin = rx_frame.data.u8[6];          //Lowest temp in battery
       temperatureMax = rx_frame.data.u8[7];          //Highest temp in battery
+      startedUp = true;
       break;
     case 0x598:
+      startedUp = true;
       break;
     case 0x5A3:
       batteryRelay = (rx_frame.data.u8[0] & 0x40) ? 1 : 0;
@@ -409,8 +414,8 @@ void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
-  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC. Also passing true to isFD
-  setup_uds(0x7E4, 0x7EC, true);
+  // UDS: send requests to 0x7E4, accept replies from the BMS on 0x7EC
+  setup_uds(0x7E4, 0x7EC);
   static const uint16_t pid_scan_list[] = {
       POLL_GROUP_1, POLL_GROUP_2,  POLL_GROUP_3,    POLL_GROUP_4,     POLL_GROUP_5,
       POLL_GROUP_6, POLL_GROUP_11, POLL_ECU_SERIAL, POLL_ECU_VERSION,

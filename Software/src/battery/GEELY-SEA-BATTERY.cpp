@@ -48,11 +48,9 @@ void GeelySeaBattery::
     datalayer.battery.status.soh_pptt = datalayer_extended.GeelySEA.soh_bms;
   }
 
-  if (datalayer_extended.GeelySEA.CellTempHighest > 0) {
+  if ((datalayer_extended.GeelySEA.CellTempHighest > 0) && (datalayer_extended.GeelySEA.CellTempLowest > 0)) {
+    //Only write to datalayer when both values have been read once, otherwise large delta safeties will trigger
     datalayer.battery.status.temperature_max_dC = ((datalayer_extended.GeelySEA.CellTempHighest / 100.0) - 50.0) * 10;
-  }
-
-  if (datalayer_extended.GeelySEA.CellTempLowest > 0) {
     datalayer.battery.status.temperature_min_dC = ((datalayer_extended.GeelySEA.CellTempLowest / 100.0) - 50.0) * 10;
   }
 
@@ -117,7 +115,7 @@ void GeelySeaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         datalayer.battery.status.cell_max_voltage_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
       } else if (rx_frame.data.u8[0] == 0x02) {
         datalayer.battery.status.cell_min_voltage_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
-      } else if (rx_frame.data.u8[0] > 0x02) {
+      } else if (rx_frame.data.u8[0] > 0x02 && rx_frame.data.u8[2] >= 1 && rx_frame.data.u8[2] <= MAX_AMOUNT_CELLS) {
         datalayer.battery.status.cell_voltages_mV[rx_frame.data.u8[2] - 1] =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]) >> 3;
         if (rx_frame.data.u8[2] > datalayer.battery.info.number_of_cells)  // Detect number of cells

@@ -26,6 +26,17 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
  */
 const char* getCANInterfaceName(CAN_Interface interface);
 
+#ifndef SMALL_FLASH_DEVICE
+/**
+ * @brief A QNHCK2-16 zero point as shown next to its manual calibration button
+ *
+ * @param[in] zero_mV
+ *
+ * @return String
+ */
+String qnhck_zero_text(uint16_t zero_mV);
+#endif  // SMALL_FLASH_DEVICE
+
 extern const char settings_html[];
 
 #endif

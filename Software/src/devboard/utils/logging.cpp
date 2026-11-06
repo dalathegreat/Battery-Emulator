@@ -80,12 +80,11 @@ static bool syslog_online(void) {
 
 // Called ONLY from syslog_task, and never with the mutex held.
 static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
-  IPAddress dst;
-  if (!dst.fromString(syslog_ip.c_str())) {  // empty or invalid IP -> skip
+  if (syslog_ip.empty()) {
     return;
   }
   uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  if (syslogUdp.beginPacket(dst, syslog_port)) {
+  if (syslogUdp.beginPacket(syslog_ip.c_str(), syslog_port)) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
     // APP-NAME carries the FreeRTOS task that produced the line.
@@ -122,8 +121,7 @@ static void syslog_queue_push(uint8_t sev, const char* msg) {
   }
 
   if (syslogQueue == nullptr) {
-    IPAddress dst;
-    if (!dst.fromString(syslog_ip.c_str())) {
+    if (syslog_ip.empty()) {
       xSemaphoreGive(syslogMutex);  // no syslog server configured -> never allocate
       return;
     }
@@ -254,7 +252,7 @@ void Logging::add_timestamp(size_t size) {
 
   size_t offset =
       datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  size_t message_string_size = LOGGED_CAN_MESSAGES_SIZE;
   unsigned long currentTime = millis();
   char* timestr;
   static char timestr_buffer[MAX_LENGTH_TIME_STR];
@@ -322,7 +320,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     char* message_string = datalayer.system.info.logged_can_messages;
     size_t offset =
         datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-    size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+    size_t message_string_size = LOGGED_CAN_MESSAGES_SIZE;
 
     if (offset + size > message_string_size) {
       offset = 0;
@@ -350,7 +348,7 @@ void Logging::printf(const char* fmt, ...) {
   }
 
   char* message_string = datalayer.system.info.logged_can_messages;
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  size_t message_string_size = LOGGED_CAN_MESSAGES_SIZE;
   size_t offset =
       datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   static char buffer[MAX_LINE_LENGTH_PRINTF];

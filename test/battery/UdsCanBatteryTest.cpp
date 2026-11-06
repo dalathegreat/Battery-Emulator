@@ -24,6 +24,7 @@ class TestUdsBattery : public UdsCanBattery {
  public:
   using UdsCanBattery::handle_incoming_uds_can_frame;
   using UdsCanBattery::pause_uds;
+  using UdsCanBattery::request_uds_soft_reset;
   using UdsCanBattery::send_sequence_message;
   using UdsCanBattery::set_pid_scan_list;
   using UdsCanBattery::setup_uds;
@@ -886,6 +887,43 @@ TEST_F(UdsCanBatteryTest, ClearDtcSequenceCompletesOnAcknowledgment) {
 
   feed_response({0x54, 0xFF});
   EXPECT_FALSE(battery->uds_is_busy());  // Sequence ended.
+}
+
+TEST_F(UdsCanBatteryTest, SoftResetSendsOneRequestAndAcceptsAcknowledgment) {
+  ASSERT_TRUE(battery->request_uds_soft_reset());
+  tick(1000);
+
+  ASSERT_EQ(get_transmitted_frames().size(), 1u);
+  const CAN_frame& request = last_frame(get_transmitted_frames());
+  EXPECT_EQ(request.ID, 0x79Bu);
+  EXPECT_EQ(request.data.u8[0], 0x02);
+  EXPECT_EQ(request.data.u8[1], 0x11);
+  EXPECT_EQ(request.data.u8[2], 0x03);
+  EXPECT_FALSE(battery->request_uds_soft_reset());
+
+  feed_response({0x51, 0x03});
+  EXPECT_FALSE(battery->uds_is_busy());
+}
+
+TEST_F(UdsCanBatteryTest, SoftResetDoesNotRetryAfterTimeout) {
+  ASSERT_TRUE(battery->request_uds_soft_reset());
+  tick(1000);
+  ASSERT_EQ(get_transmitted_frames().size(), 1u);
+
+  for (unsigned long ms = 1100; ms <= 2100; ms += 100) {
+    tick(ms);
+  }
+  EXPECT_EQ(get_transmitted_frames().size(), 1u);
+  EXPECT_FALSE(battery->uds_is_busy());
+}
+
+TEST_F(UdsCanBatteryTest, SoftResetNegativeResponseEndsSequence) {
+  ASSERT_TRUE(battery->request_uds_soft_reset());
+  tick(1000);
+
+  feed_response({0x7F, 0x11, 0x12});
+  EXPECT_FALSE(battery->uds_is_busy());
+  EXPECT_EQ(get_transmitted_frames().size(), 1u);
 }
 
 // ---------------------------------------------------------------------------
