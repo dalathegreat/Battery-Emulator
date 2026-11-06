@@ -1,5 +1,5 @@
 // A realtime display of battery status and events, using a I2C-connected 128x64
-// OLED display based on the SSD1306 driver.
+// OLED display based on the SSD1306 / SSD1309 driver.
 
 #ifndef SMALL_FLASH_DEVICE
 
@@ -17,7 +17,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 
-#define I2C_MASTER_FREQ_HZ 1000000  // Use a ridiculously fast I2C speed (seems to work!)
+#define I2C_MASTER_FREQ_HZ 400000  // 400 kHz; reliable for SSD1306 and SSD1309
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -174,49 +174,84 @@ void init_display() {
               .allow_pd = false,
           },
   };
-  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
+  if (i2c_new_master_bus(&bus_config, &bus_handle) != ESP_OK) {
+    logging.printf("Failed to create I2C bus for Display\n");
+    return;
+  }
+
+  // Common OLED addresses: 0x3C default, 0x3D if the address jumper is set.
+  uint16_t addr = 0x3c;
+  if (i2c_master_probe(bus_handle, 0x3c, 100) != ESP_OK) {
+    if (i2c_master_probe(bus_handle, 0x3d, 100) != ESP_OK) {
+      logging.printf("Failed to find I2C Display at 0x3C/0x3D\n");
+      return;
+    }
+    addr = 0x3d;
+  }
 
   i2c_device_config_t dev_config = {
       .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-      .device_address = 0x3c,
+      .device_address = addr,
       .scl_speed_hz = I2C_MASTER_FREQ_HZ,
       .scl_wait_us = 0,
       .flags = {},
   };
-  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+  if (i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle) != ESP_OK) {
+    logging.printf("Failed to add I2C Display device\n");
+    return;
+  }
 
-  static const uint8_t init[] = {
+  auto send_init = [](const uint8_t* init, size_t n) -> esp_err_t {
+    uint8_t buf[64];
+    if (n * 2 > sizeof(buf)) {
+      return ESP_ERR_INVALID_SIZE;
+    }
+    for (size_t i = 0; i < n; i++) {
+      buf[i * 2] = 0x80;  // Control byte for command
+      buf[i * 2 + 1] = init[i];
+    }
+    return i2c_write(buf, n * 2);
+  };
+
+  // Init sequence shared by 128x64 SSD1306 and SSD1309 panels.
+  static const uint8_t init_pump_on[] = {
       0xae,    // display off
       0xd5,    // set display clock divider
       0x80,    //   /1, middle freq
       0xa8,    // set multiplex
       64 - 1,  //   height - 1
-
-      0xd3,  // set display offset
-      0x00,  //   no offset
-      0x40,  // set start line at 0
-
-      0x8d,  // charge pump
-      0x14,  // enable
-
-      0x20,  // memory mode
-      0x00,  //   horizontal addressing
-      0xa1,  // seg remap = 1 (mirror x)
-      0xc8,  // com scan = dec
-
-      0x81,  // contrast
-      0x0f,  //   0x0f/0xff
-
-      0xaf,  // display on
+      0xd3,    // set display offset
+      0x00,    //   no offset
+      0x40,    // set start line at 0
+      0x8d,    // charge pump
+      0x14,    //   enable
+      0x20,    // memory mode
+      0x00,    //   horizontal addressing
+      0xa1,    // seg remap = 1 (mirror x)
+      0xc8,    // com scan = dec
+      0xda,    // com pins hardware config
+      0x12,    //   alternative COM
+      0x81,    // contrast
+      0xcf,    //   readable on larger panels; old 0x0f was nearly black
+      0xd9,    // pre-charge period
+      0xf1,    //   for internal charge pump
+      0xdb,    // VCOMH deselect level
+      0x40,
+      0xa4,    // resume RAM content
+      0xa6,    // normal (not inverted)
+      0xaf,    // display on
   };
-  uint8_t buf[sizeof(init) * 2];
-  for (size_t i = 0; i < sizeof(init); i++) {
-    buf[i * 2] = 0x80;  // Control byte for command
-    buf[i * 2 + 1] = init[i];
-  }
-  if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
-    logging.printf("Failed to initialize I2C Display\n");
-    return;
+  // Fallback for panels that use external VCC (charge pump off).
+  static const uint8_t init_pump_off[] = {
+      0xae, 0xd5, 0x80, 0xa8, 64 - 1, 0xd3, 0x00, 0x40, 0x8d, 0x10, 0x20, 0x00, 0xa1, 0xc8,
+      0xda, 0x12, 0x81, 0xcf, 0xd9, 0x22, 0xdb, 0x40, 0xa4, 0xa6, 0xaf,
+  };
+
+  if (send_init(init_pump_on, sizeof(init_pump_on)) != ESP_OK) {
+    if (send_init(init_pump_off, sizeof(init_pump_off)) != ESP_OK) {
+      logging.printf("Failed to initialize I2C Display\n");
+      return;
+    }
   }
 
   clear();
@@ -228,6 +263,7 @@ void init_display() {
   if (battery3)
     num_batteries++;
 }
+
 
 static void printn(char* buf, int value, int digits) {
   bool neg = value < 0;
