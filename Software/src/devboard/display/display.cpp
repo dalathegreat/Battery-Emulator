@@ -201,20 +201,8 @@ void init_display() {
     return;
   }
 
-  auto send_init = [](const uint8_t* init, size_t n) -> esp_err_t {
-    uint8_t buf[64];
-    if (n * 2 > sizeof(buf)) {
-      return ESP_ERR_INVALID_SIZE;
-    }
-    for (size_t i = 0; i < n; i++) {
-      buf[i * 2] = 0x80;  // Control byte for command
-      buf[i * 2 + 1] = init[i];
-    }
-    return i2c_write(buf, n * 2);
-  };
-
   // Init sequence shared by 128x64 SSD1306 and SSD1309 panels.
-  static const uint8_t init_pump_on[] = {
+  static const uint8_t init[] = {
       0xae,    // display off
       0xd5,    // set display clock divider
       0x80,    //   /1, middle freq
@@ -241,17 +229,14 @@ void init_display() {
       0xa6,  // normal (not inverted)
       0xaf,  // display on
   };
-  // Fallback for panels that use external VCC (charge pump off).
-  static const uint8_t init_pump_off[] = {
-      0xae, 0xd5, 0x80, 0xa8, 64 - 1, 0xd3, 0x00, 0x40, 0x8d, 0x10, 0x20, 0x00, 0xa1,
-      0xc8, 0xda, 0x12, 0x81, 0xcf,   0xd9, 0x22, 0xdb, 0x40, 0xa4, 0xa6, 0xaf,
-  };
-
-  if (send_init(init_pump_on, sizeof(init_pump_on)) != ESP_OK) {
-    if (send_init(init_pump_off, sizeof(init_pump_off)) != ESP_OK) {
-      logging.printf("Failed to initialize I2C Display\n");
-      return;
-    }
+  uint8_t buf[sizeof(init) * 2];
+  for (size_t i = 0; i < sizeof(init); i++) {
+    buf[i * 2] = 0x80;  // Control byte for command
+    buf[i * 2 + 1] = init[i];
+  }
+  if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
+    logging.printf("Failed to initialize I2C Display\n");
+    return;
   }
 
   clear();
