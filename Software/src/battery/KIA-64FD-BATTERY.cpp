@@ -71,7 +71,7 @@ void Kia64FDBattery::set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber
   if (cellNumber >= MAX_AMOUNT_CELLS) {
     return;
   }
-  datalayer.battery.status.cell_voltages_mV[cellNumber] = voltage_mV;
+  datalayer_battery->status.cell_voltages_mV[cellNumber] = voltage_mV;
   cellVoltageReceived[cellNumber] = voltage_mV > 0;
   cellVoltageFrameSeen = true;
 }
@@ -113,18 +113,18 @@ void Kia64FDBattery::set_voltage_minmax_limits() {
 
   uint8_t valid_cell_count = 0;
   for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
-    if (datalayer.battery.status.cell_voltages_mV[i] > 0) {
+    if (datalayer_battery->status.cell_voltages_mV[i] > 0) {
       ++valid_cell_count;
     }
   }
   if (valid_cell_count == 96) {
-    datalayer.battery.info.number_of_cells = valid_cell_count;
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+    datalayer_battery->info.number_of_cells = valid_cell_count;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
   } else if (valid_cell_count == 108) {
-    datalayer.battery.info.number_of_cells = valid_cell_count;
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
+    datalayer_battery->info.number_of_cells = valid_cell_count;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
   } else {
     // We are still starting up? Not all cells available.
     set_voltage_limits = false;
@@ -176,7 +176,7 @@ void Kia64FDBattery::update_values() {
   uint8_t valid_cell_count = 0;
 
   for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
-    uint16_t v = datalayer.battery.status.cell_voltages_mV[i];
+    uint16_t v = datalayer_battery->status.cell_voltages_mV[i];
     if (cellVoltageReceived[i] && v > 0) {
       ++valid_cell_count;
       if (v < actual_min_mV) {
@@ -189,12 +189,12 @@ void Kia64FDBattery::update_values() {
   }
 
   if (valid_cell_count > 0) {
-    datalayer.battery.status.cell_max_voltage_mV = actual_max_mV;
-    datalayer.battery.status.cell_min_voltage_mV = actual_min_mV;
+    datalayer_battery->status.cell_max_voltage_mV = actual_max_mV;
+    datalayer_battery->status.cell_min_voltage_mV = actual_min_mV;
   } else {
     // No cell data populated yet - fall back to the coarser UDS-reported values
-    datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
-    datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+    datalayer_battery->status.cell_max_voltage_mV = CellVoltMax_mV;
+    datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
   }
 
   if ((millis64() > INTERVAL_60_S) && !set_voltage_limits) {  // millis64: plain millis() wraps after 49.7 days
