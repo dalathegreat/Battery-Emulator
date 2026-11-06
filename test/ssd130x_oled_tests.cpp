@@ -13,11 +13,11 @@ TEST(Ssd130xOledTests, PrefersPrimaryAddressThenAlternate) {
 }
 
 TEST(Ssd130xOledTests, InitSequenceHasSsd1309Essentials) {
-  EXPECT_TRUE(ssd130x_init_has_cmd_arg(0x8d, 0x14));  // charge pump on
-  EXPECT_TRUE(ssd130x_init_has_cmd_arg(0xda, 0x12));  // COM pins
-  EXPECT_TRUE(ssd130x_init_has_cmd_arg(0x81, 0xcf));  // contrast
-  EXPECT_TRUE(ssd130x_init_has_cmd(0xd9));            // pre-charge
-  EXPECT_TRUE(ssd130x_init_has_cmd(0xdb));            // VCOMH
-  EXPECT_TRUE(ssd130x_init_has_cmd(0xaf));            // display on
-  EXPECT_FALSE(ssd130x_init_has_cmd_arg(0x81, 0x0f)); // old too-dark contrast
+  EXPECT_TRUE(ssd130x_init_has_cmd_arg(0x8d, 0x14));   // charge pump on
+  EXPECT_TRUE(ssd130x_init_has_cmd_arg(0xda, 0x12));   // COM pins
+  EXPECT_TRUE(ssd130x_init_has_cmd_arg(0x81, 0xcf));   // contrast
+  EXPECT_TRUE(ssd130x_init_has_cmd(0xd9));             // pre-charge
+  EXPECT_TRUE(ssd130x_init_has_cmd(0xdb));             // VCOMH
+  EXPECT_TRUE(ssd130x_init_has_cmd(0xaf));             // display on
+  EXPECT_FALSE(ssd130x_init_has_cmd_arg(0x81, 0x0f));  // old too-dark contrast
 }
