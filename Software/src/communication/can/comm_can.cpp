@@ -669,6 +669,15 @@ bool change_can_speed(CAN_Interface interface, CAN_Speed speed) {
   } else if (interface == CAN_Interface::CAN_ADDON_MCP2515 && can2515) {
     can2515->changeSpeed({(int)speed * 1000UL, quartz_frequency});
     return true;
+  } else if ((interface == CAN_Interface::CANFD_ADDON_MCP2518 || interface == CAN_Interface::CANFD_NATIVE) && canfd) {
+    // Same 4x data bit rate as at start-up; the driver keeps the oscillator frequency it detected
+    const uint32_t bitRate = (uint32_t)speed * 1000UL;
+    canfd->changeSpeed({bitRate, bitRate * 4, settings2517.f_osc});
+    return true;
+  } else if (interface == CAN_Interface::CANFD_ADDON_MCP2518_2 && canfd_2) {
+    const uint32_t bitRate = (uint32_t)speed * 1000UL;
+    canfd_2->changeSpeed({bitRate, bitRate * 4, settings2517_2.f_osc});
+    return true;
   }
 
   return false;

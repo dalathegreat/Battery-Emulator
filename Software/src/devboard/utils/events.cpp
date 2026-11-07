@@ -1,6 +1,5 @@
 #include "events.h"
 #include <Arduino.h>
-#include <string.h>  // memchr, for the notice_events lookup
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/utils/logging.h"
@@ -86,10 +85,11 @@ static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
    which drives the LED pattern, the web UI status and inverter behaviour. Marking, say,
    EVENT_MQTT_CONNECT as UPDATE would park the emulator in UPDATING forever.
 
-   Stored as a flat uint8_t table so it costs one byte per entry and a single memchr,
-   rather than the ~8 bytes of compare-and-branch per case a switch would emit. */
-static_assert(EVENT_NOF_EVENTS <= 256, "notice_events[] indexes events as uint8_t");
-static const uint8_t notice_events[] = {
+   Stored as a flat uint16_t table so it costs two bytes per entry and a short loop,
+   rather than the ~8 bytes of compare-and-branch per case a switch would emit.
+   uint8_t would be smaller but there are more than 256 events. */
+static_assert(EVENT_NOF_EVENTS <= 65536, "notice_events[] indexes events as uint16_t");
+static const uint16_t notice_events[] = {
     // Peer detection - latched in check_can_component_alive(), so one line per boot
     EVENT_CAN_BATTERY_DETECTED,
     EVENT_CAN_BATTERY2_DETECTED,
@@ -130,8 +130,12 @@ static const uint8_t notice_events[] = {
 // event to warning or error later cannot be silently undone here.
 static uint8_t event_syslog_severity(EVENTS_ENUM_TYPE event) {
   uint8_t sev = event_level_to_syslog(effective_level(event));
-  if (sev > 5 && memchr(notice_events, (uint8_t)event, sizeof(notice_events)) != nullptr) {
-    sev = 5;  // notice
+  if (sev > 5) {
+    for (uint16_t e : notice_events) {
+      if (e == event) {
+        return 5;  // notice
+      }
+    }
   }
   return sev;
 }
@@ -202,6 +206,17 @@ void init_events(void) {
   set_battery_event_level(EVENT_BATTERY_CHG_STOP_REQ, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_BATTERY_DISCHG_STOP_REQ, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, EVENT_LEVEL_ERROR);
+  // --- JK Active Balancer --- all latched by the driver until reboot
+  set_battery_event_level(EVENT_JK_CAB500_COMM_FAULT, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_CAB500_HW_ERROR, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_BALANCER_COMM_FAULT, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_CELL_COUNT_MISMATCH, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_WIRE_RESISTANCE, EVENT_LEVEL_ERROR);
+  set_battery_event_level(EVENT_JK_CONFIG_ERROR, EVENT_LEVEL_ERROR);
+  // Missed frames before the 10 s fault, cleared on their own when frames return
+  set_battery_event_level(EVENT_JK_CAB500_COMM_WARNING, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_JK_BALANCER_COMM_WARNING, EVENT_LEVEL_WARNING);
+  set_battery_event_level(EVENT_JK_CELL_DEVIATION, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_OVERHEAT, EVENT_LEVEL_ERROR);
   set_battery_event_level(EVENT_BATTERY_OVERVOLTAGE, EVENT_LEVEL_WARNING);
   set_battery_event_level(EVENT_BATTERY_UNDERVOLTAGE, EVENT_LEVEL_WARNING);
@@ -498,6 +513,34 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
       return "Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
       return "Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
+    // --- JK Active Balancer ---
+    case EVENT_JK_CAB500_COMM_FAULT:
+      return "JK: CAB500 current sensor silent for 10 s. Latched until reboot. Check its supply, CAN wiring and that "
+             "it runs at 250 kbps";
+    case EVENT_JK_CAB500_HW_ERROR:
+      return "JK: CAB500 current sensor reports a hardware error. Latched until reboot. Data = error code: 0x41 "
+             "overcurrent, 0x42 reference voltage, 0x44 signal lost, 0x46 supply voltage";
+    case EVENT_JK_BALANCER_COMM_FAULT:
+      return "JK: balancer silent for 10 s. Latched until reboot. Check its supply and CAN wiring. Data = balancer "
+             "number";
+    case EVENT_JK_CELL_COUNT_MISMATCH:
+      return "JK: cell count mismatch, a cell tap is open or the cell layout settings are wrong. Latched until "
+             "reboot. Data = balancer number (0 = a cell voltage went missing)";
+    case EVENT_JK_WIRE_RESISTANCE:
+      return "JK: balancer reports a wire resistance alarm, check the balance leads. Latched until reboot. Data = "
+             "balancer number";
+    case EVENT_JK_CONFIG_ERROR:
+      return "JK: settings are inconsistent, battery not run. Fix them on the Settings page and reboot. Data = "
+             "reason code shown on More battery info";
+    case EVENT_JK_CAB500_COMM_WARNING:
+      return "JK: CAB500 current sensor missed frames for more than a second. Clears when frames return, becomes a "
+             "latched fault after 10 s";
+    case EVENT_JK_BALANCER_COMM_WARNING:
+      return "JK: a balancer did not answer a poll for more than a second. Clears when it answers, becomes a "
+             "latched fault after 10 s. Data = balancer number";
+    case EVENT_JK_CELL_DEVIATION:
+      return "JK: cell spread above the deviation setting, charge and discharge power are reduced linearly down to "
+             "50 W at setting + 50 mV. Clears when the spread shrinks. Data = deviation in mV";
     case EVENT_BATTERY_REQUESTS_HEAT:
       return "COLD BATTERY! Battery requesting heating pads to activate!";
     case EVENT_BATTERY_TOO_LOW_TO_HEAT:
@@ -872,7 +915,7 @@ bool compareEventsByTimestampAsc(const EventData& a, const EventData& b) {
 
 static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
-  for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
+  for (uint16_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
       temporary_level = (EVENTS_LEVEL_TYPE)max(effective_level((EVENTS_ENUM_TYPE)i), temporary_level);
     }

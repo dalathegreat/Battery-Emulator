@@ -153,6 +153,8 @@ enum class GPIOOPT2 {
   DEFAULT_OPT_BMS_POWER_18 = 0,
   // T-CAN485: Move BMS power to PIN25
   BMS_POWER_25 = 1,
+  // T-CAN485: Move BMS power to PIN2 (µSD slot DAT0)
+  BMS_POWER_02 = 2,
   Highest
 };
 enum class GPIOOPT3 {
@@ -160,6 +162,12 @@ enum class GPIOOPT3 {
   DEFAULT_SMA_ENABLE_05 = 0,
   // T-CAN485: Move SMA inverter pin to PIN33
   SMA_ENABLE_33 = 1,
+  // T-CAN485: Move SMA inverter pin to PIN15
+  SMA_ENABLE_15 = 2,
+  // T-CAN485: Move SMA inverter pin to PIN14
+  SMA_ENABLE_14 = 3,
+  // T-CAN485: Move SMA inverter pin to PIN2
+  SMA_ENABLE_02 = 4,
   Highest
 };
 enum class GPIOOPT4 {
@@ -169,6 +177,30 @@ enum class GPIOOPT4 {
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
+#ifdef HW_LILYGO
+enum class GPIOOPT7 {
+  // T-CAN485: Default, 2nd battery contactors on PIN15
+  DEFAULT_BAT2_CONTACTORS_15 = 0,
+  // T-CAN485: 2nd battery contactors on PIN14
+  BAT2_CONTACTORS_14 = 1,
+  // T-CAN485: 2nd battery contactors on PIN2
+  BAT2_CONTACTORS_02 = 2,
+  Highest
+};
+extern GPIOOPT7 user_selected_gpioopt7;
+enum class GPIOOPT8 {
+  // T-CAN485: Default, equipment stop on PIN35 (also the MCP2515 INT)
+  DEFAULT_ESTOP_35 = 0,
+  // T-CAN485: Equipment stop on PIN15
+  ESTOP_15 = 1,
+  // T-CAN485: Equipment stop on PIN14
+  ESTOP_14 = 2,
+  // T-CAN485: Equipment stop on PIN2
+  ESTOP_02 = 3,
+  Highest
+};
+extern GPIOOPT8 user_selected_gpioopt8;
+#endif
 #ifdef HW_STARK
 enum class GPIOOPT5 {
   // StarkCMR: Default, Gpio23 as BMS power

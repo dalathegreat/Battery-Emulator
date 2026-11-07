@@ -1,0 +1,2 @@
+# Word documents are binary: never apply line-ending conversion or text diffs
+*.docx binary
