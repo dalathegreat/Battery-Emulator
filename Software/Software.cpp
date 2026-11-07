@@ -755,6 +755,9 @@ void setup() {
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();
 
+  // Some batteries (Sunwoda) announce a second pack on the bus: now that it is up, find out.
+  finalize_battery_detection();
+
   init_equipment_stop_button();
 
   // BOOT button at runtime is used as an input for various things

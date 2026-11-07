@@ -1123,7 +1123,28 @@ void init_webserver() {
           if (battIndex == "2") {
             batt = battery3;
           }
-          if (batt) {
+          if (batt && cmd.action_with_time) {
+            // Body is "<battery index>,<year>,<month>,<day>,<hour>,<minute>,<ms within minute>"
+            String body;
+            for (size_t i = 0; i < len; i++) {
+              body += (char)data[i];
+            }
+            long f[6];
+            int start = body.indexOf(',') + 1;
+            for (int i = 0; i < 6; i++) {
+              int end = body.indexOf(',', start);
+              if (start <= 0) {
+                return request->send(400, "text/plain", "Missing time fields.");
+              }
+              f[i] = body.substring(start, end < 0 ? body.length() : end).toInt();
+              start = end < 0 ? 0 : end + 1;
+            }
+            if (f[0] < 2000 || f[0] > 2099 || f[1] < 1 || f[1] > 12 || f[2] < 1 || f[2] > 31 || f[3] < 0 || f[3] > 23 ||
+                f[4] < 0 || f[4] > 59 || f[5] < 0 || f[5] > 59999) {
+              return request->send(400, "text/plain", "Invalid time.");
+            }
+            cmd.action_with_time(batt, f[0], f[1], f[2], f[3], f[4], f[5]);
+          } else if (batt) {
             cmd.action(batt);
           }
           request->send(200, "text/plain", "Command performed.");

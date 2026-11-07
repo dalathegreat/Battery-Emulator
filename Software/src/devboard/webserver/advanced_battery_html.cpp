@@ -12,6 +12,15 @@
 #include "checked_html.h"
 #include "index_html.h"
 
+// Builds a BatteryCommand backed by Battery's generic vendor-command hook. Used for commands that
+// are specific enough to one battery integration that giving each its own virtual on Battery would
+// bloat the base class - the identifier (which is also the HTTP route name) is written once here and
+// the battery implementation decides at run time whether it supports it.
+static BatteryCommand vendor_command(const char* identifier, const char* title, const char* prompt) {
+  return {identifier, title, prompt, [identifier](Battery* b) { return b && b->supports_vendor_command(identifier); },
+          [identifier](Battery* b) { b->request_vendor_command(identifier); }};
+}
+
 // Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
@@ -72,6 +81,32 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetEnergySavingMode", "Reset Energy Saving Mode", "reset energy saving mode to normal?",
      [](Battery* b) { return b && b->supports_energy_saving_mode_reset(); },
      [](Battery* b) { b->reset_energy_saving_mode(); }},
+    {"timeSync", "Set BMS clock to this browser's time",
+     "set the BMS real-time clock to the current local time of this browser?",
+     [](Battery* b) { return b && b->supports_time_sync(); }, [](Battery*) {}, false,
+     [](Battery* b, uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint16_t ms) {
+       b->request_time_sync(year, month, day, hour, minute, ms);
+     }},
+
+    /*
+    Sunwoda BCMU manual contactor control (object 71, see Sunwoda-ESS.h). Each close also switches
+    the BCMU to Debugging work mode first; the driver opens everything automatically on any alarm or
+    fault. Prompt text must not contain apostrophes - it is emitted into a single-quoted JavaScript
+    window.confirm() string.
+    */
+    vendor_command("swNegativeClose", "Close negative contactor", "close the negative contactor?"),
+    vendor_command("swNegativeOpen", "Open negative contactor", nullptr),
+    vendor_command("swPrechargeClose", "Close precharge contactor",
+                   "close the precharge contactor? With the negative closed this charges the output through "
+                   "the precharge resistor."),
+    vendor_command("swPrechargeOpen", "Open precharge contactor", nullptr),
+    vendor_command("swMainClose", "Close main contactor",
+                   "close the main contactor? With the negative closed this connects the full pack voltage to "
+                   "the output - precharge first."),
+    vendor_command("swMainOpen", "Open main contactor", nullptr),
+    vendor_command("swOpenAll", "Open all contactors",
+                   "open all contactors? The BCMU is switched to manual mode and they stay open until the BCMU "
+                   "is rebooted (power-cycled) to return to automatic mode."),
 };
 
 namespace {

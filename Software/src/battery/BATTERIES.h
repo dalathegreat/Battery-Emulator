@@ -13,6 +13,10 @@ extern Battery* battery3;
 void setup_shunt();
 
 void setup_battery(void);
+
+// Call once after the CAN buses are up. Where a battery type can have a second pack that announces
+// itself on the bus (Sunwoda), waits briefly to hear whether it is there and adds it if so.
+void finalize_battery_detection(void);
 Battery* create_battery(BatteryType type);
 
 // Returns true if the given battery integration can be instantiated a second
