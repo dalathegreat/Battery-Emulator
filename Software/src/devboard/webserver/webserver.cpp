@@ -2070,6 +2070,9 @@ fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/lates
    - A hidden tab does not poll at all; it catches up the moment it is shown again.
    - A failed poll keeps what is on screen and retries in 5 s. From the second failure in a row
      the data is dimmed and the reason shown, so stale numbers never pass for fresh ones.
+   - A 403 means the request was refused (password protection off, not from the local network),
+     which retrying does not change. Polling stops at once and the reason is shown; showing the
+     tab again does not restart it, only a tap or click on the live part or the note does.
    - A poll answered by a different boot means the emulator restarted (reboot, OTA update), so
      the page reloads to get the page of the firmware now running. Rebooting from this page just
      keeps polling until that happens, instead of navigating away after a fixed delay.
@@ -2089,23 +2092,23 @@ function send(u,f){var x=new XMLHttpRequest();x.onload=function(){if(f)f();tick(
 function PauseBattery(p){send('/pause?value='+p)}
 function estop(s){send('/equipmentStop?value='+s)}
 function askReboot(){if(confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!'))send('/reboot',function(){R=1})}
-var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0;
+var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0,X=0;
 function state(){var s=g('S');if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
 g('P0').hidden=p;g('P1').hidden=!p;g('E0').hidden=e;g('E1').hidden=!e;return s.getAttribute('data-b')}
 function later(ms){clearTimeout(T);T=setTimeout(tick,ms)}
-function tick(){clearTimeout(T);if(document.hidden)return;if(Q){Q=2;return}
+function tick(){clearTimeout(T);if(document.hidden||X)return;if(Q){Q=2;return}
 if(!window.fetch)return location.reload();
 Q=1;M=+new Date;var a=window.AbortController?new AbortController():0,w=a&&setTimeout(function(){a.abort()},8000);
-function end(ms){clearTimeout(w);var q=Q;Q=0;later(q>1?0:ms>0?ms:15000)}
+function end(ms){clearTimeout(w);var q=Q;Q=0;if(!X)later(q>1?0:ms>0?ms:15000)}
 fetch('/live',{cache:'no-store',signal:a?a.signal:undefined})
-.then(function(r){return r.text().then(function(h){if(!r.ok)throw h;return h})})
+.then(function(r){return r.text().then(function(h){X=r.status==403;if(!r.ok)throw h;return h})})
 .then(function(h){L.innerHTML=h;var b=state();if(B&&b&&b!=B)location.reload();
 B=b||B;F=0;L.style.opacity='';N.hidden=true;return R?3000:15000},
-function(m){if(++F>1){L.style.opacity=.5;N.hidden=false;
-N.textContent=(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
+function(m){if(++F>1||X){L.style.opacity=.5;N.hidden=false;
+N.textContent=X?m:(R?'Waiting for the emulator to restart.':typeof m=='string'&&m||'Emulator not reachable.')+' Retrying...'}
 else L.style.opacity='';return 5000}).then(end,end)}
 L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.hb')||String(getSelection())||new Date-M<1000)return;
-F=F||1;L.style.opacity=.7;tick()};
+F=F||1;X=0;L.style.opacity=.7;tick()};
 document.addEventListener('visibilitychange',tick);
 B=state();later(B?15000:5000);
 </script>)html" MAIN_PAGE_UPDATE_CHECK INDEX_HTML_FOOTER;
