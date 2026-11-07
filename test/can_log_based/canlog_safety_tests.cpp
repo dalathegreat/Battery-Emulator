@@ -79,21 +79,34 @@ class CanLogTestFixture : public testing::Test {
     UdsCanBattery* udsBattery = dynamic_cast<UdsCanBattery*>(battery);
     const auto& tx_frames = get_transmitted_frames();
 
-    // Does this message looks like a UDS/KWP2000 poll response?
-    if (udsBattery != nullptr && msg.ID >= 0x780 && msg.ID <= 0x7EF && (msg.data.u8[0] & 0xF0) == 0x10) {
-      // Extract the SID from the poll response
-      const uint8_t resp_sid = msg.data.u8[2];
-      uint16_t target_pid = msg.data.u8[3];
+    // Does this message look like a UDS/KWP2000 poll response? Responses come
+    // from an 11-bit physical response ID (0x780-0x7EF) or, for batteries that
+    // speak UDS over 29-bit addressing (0x18DAxxyy), any extended ID. Both the
+    // ISO-TP first frame of a multi-frame response (PCI 0x1N: SID at byte 2)
+    // and a single-frame response (PCI 0x0N: SID at byte 1) must prime the
+    // battery, otherwise the superclass drops the reply as "nothing in flight".
+    const bool uds_response_id = (msg.ID >= 0x780 && msg.ID <= 0x7EF) || msg.ID > 0x7FF;
+    const uint8_t pci_type = msg.data.u8[0] & 0xF0;
+    const bool is_first_frame = (pci_type == 0x10);
+    const bool is_single_frame = (pci_type == 0x00);
+    const uint8_t sid_offset = is_first_frame ? 2 : 1;
+    const uint8_t resp_sid = msg.data.u8[sid_offset];
+    if (udsBattery != nullptr && uds_response_id && (is_first_frame || is_single_frame) &&
+        (resp_sid == 0x61 || resp_sid == 0x62)) {
+      uint16_t target_pid = msg.data.u8[sid_offset + 1];
       if (resp_sid == 0x62) {
         // Is a UDS two-byte PID response (as opposed to a one-byte KWP2000 one).
-        target_pid = (target_pid << 8) | msg.data.u8[4];
+        target_pid = (target_pid << 8) | msg.data.u8[sid_offset + 2];
       }
 
-      // Now we keep hammering transmit_can up to 3000 times until we detect
-      // that it has sent a poll to the SID we're responding for.
+      // Now we keep hammering transmit_can until we detect that it has sent a
+      // poll for the PID we are responding for. Batteries with long scan lists
+      // (Zoe Gen2: ~190 DIDs, 10 retries x 200 ms each when nothing answers)
+      // need minutes of emulated time to reach a late PID, so the deadline is
+      // generous.
 
       const size_t tx_start = tx_frames.size();
-      const unsigned long deadline = now + 30000;  // 30 s of emulated time
+      const unsigned long deadline = now + 600000;  // 600 s of emulated time
       bool poll_found = false;
       while (now < deadline && !poll_found) {
         now += 10;
