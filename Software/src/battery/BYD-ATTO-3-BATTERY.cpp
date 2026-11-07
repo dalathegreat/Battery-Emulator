@@ -341,7 +341,7 @@ void BydAttoBattery::
     datalayer_bydatto->BMS_min_temp_module_number = BMS_min_temp_module_number;
     datalayer_bydatto->BMS_max_cell_voltage_number = BMS_max_cell_voltage_number;
     datalayer_bydatto->BMS_max_temp_module_number = BMS_max_temp_module_number;
-    datalayer_bydatto->discharge_status = discharge_status;
+    datalayer_bydatto->bms_charge_state = BMS_charge_state;
     datalayer_bydatto->seed = seed;
     datalayer_bydatto->solvedKey = solvedKey;
     datalayer_bydatto->servicemode = servicemode;
@@ -541,13 +541,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         prechargeEdgeSeen = true;
       }
       contactor_feedback = rx_frame.data.u8[0];
-      discharge_status = (rx_frame.data.u8[1] & 0x0F);
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        BMS_charge_state = rx_frame.data.u8[2] & 0x0F;
+      }
       break;
     case 0x345:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
-        chargeGrantMirror = rx_frame.data.u8[4];  // mirrors 0x347 byte 1, typically a frame ahead of it
-        chargeGrantMirrorMillis = millis();
         BMS_allowed_discharge_power = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];  // 0.1kW, same as DID 0x000E
         BMS_allowed_charge_power = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];     // 0.1kW, same as DID 0x000A
       } else {
@@ -558,7 +558,14 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         chargeGrant = rx_frame.data.u8[1];
-        handle_charge_grant(rx_frame.data.u8[1]);
+        // The BMS withdraws its grant about a second before it clears the charge flag: stop offering
+        // current on that falling edge.
+        if (chargeSessionState == CHG_SESSION_CHARGING && !chargeDonePending &&
+            chargeGrantPrevious > SESSION_GRANT_END && chargeGrant <= SESSION_GRANT_END) {
+          chargeDonePending = true;
+          chargeSessionEntryMillis = millis();
+        }
+        chargeGrantPrevious = chargeGrant;
       } else {
         datalayer_battery->status.CAN_error_counter++;
       }
@@ -867,7 +874,6 @@ void BydAttoBattery::start_charge_session(unsigned long currentMillis) {
   chargeRampStartMillis = currentMillis;
   chargeSessionTerminated = false;
   chargeDonePending = false;
-  chargeGrantZeroCandidate = false;
   chargeGrantPrevious = 0;
   chargeArmCurrentSinceMillis = 0;
   ATTO_3_24A.data.u8[0] = 0x80;  // charge requested
@@ -883,7 +889,7 @@ void BydAttoBattery::enter_charge_delivery(unsigned long currentMillis) {
   // Forget any grant value left over from an earlier charge, or its drop to zero would read as this
   // charge ending the moment it starts.
   chargeGrantPrevious = 0;
-  chargeGrantZeroCandidate = false;
+  chargeBmsChargingSeen = false;
   chargeDonePending = false;
   DEBUG_PRINTF("[BYD] Charge session granted, battery is charging\n");
 }
@@ -899,7 +905,6 @@ void BydAttoBattery::hold_charge_session(unsigned long currentMillis, const char
   chargeSessionState = CHG_SESSION_HOLD;
   chargeSessionEntryMillis = currentMillis;
   chargeDonePending = false;
-  chargeGrantZeroCandidate = false;
   chargeRestFlagSeenClear = false;
   chargeArmCurrentSinceMillis = 0;
   if (backoff) {
@@ -918,7 +923,6 @@ void BydAttoBattery::end_charge_session(const char* reason) {
   chargeSessionState = CHG_SESSION_IDLE;
   chargeSessionTerminated = false;
   chargeDonePending = false;
-  chargeGrantZeroCandidate = false;
   chargeRearmAllowed = true;
   chargeRampDone = false;
   chargeArmCurrentSinceMillis = 0;
@@ -931,15 +935,11 @@ void BydAttoBattery::end_charge_session(const char* reason) {
   DEBUG_PRINTF("[BYD] Charge session ended: %s\n", reason);
 }
 
-// The BMS called the pack full: record it and stop offering current. Callers check the termination
-// floor first.
+// The BMS called the pack full: record it.
 void BydAttoBattery::confirm_charge_termination() {
   const uint16_t cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
   const uint16_t cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
   const uint16_t spread_mV = (cell_max_mV > cell_min_mV) ? (cell_max_mV - cell_min_mV) : 0;
-  chargeGrantZeroCandidate = false;
-  chargeDonePending = true;
-  chargeSessionEntryMillis = millis();
   // Snapshot the cells at the moment the BMS called it full: comparing these across charges is
   // how top-of-charge balancing shows up.
   if (datalayer_bydatto) {
@@ -957,38 +957,6 @@ void BydAttoBattery::confirm_charge_termination() {
   note_termination_spread(spread_mV);
   set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10), battery_index);
   DEBUG_PRINTF("[BYD] Battery ended the charge at %umV, cell spread %umV\n", cell_max_mV, spread_mV);
-}
-
-// The BMS withdraws its grant by dropping 0x347 byte 1 to SESSION_GRANT_END or below about a second
-// before it clears the charge flag. The value sawtooths through a session, so only that falling edge
-// counts, and 0x345 byte 4 has to agree before acting on it - it mirrors the same value a frame earlier.
-void BydAttoBattery::handle_charge_grant(uint8_t grant) {
-  if (chargeSessionState == CHG_SESSION_CHARGING && (contactor_feedback & BMS_FEEDBACK_CHARGE_FLAG) &&
-      !chargeDonePending) {
-    if (!chargeGrantZeroCandidate && chargeGrantPrevious > SESSION_GRANT_END && grant <= SESSION_GRANT_END) {
-      chargeGrantZeroCandidate = true;
-      chargeGrantCandidateMillis = millis();
-    } else if (chargeGrantZeroCandidate && grant > SESSION_GRANT_END) {
-      chargeGrantZeroCandidate = false;  // came back up: sawtooth, not the end of the charge
-    }
-    const bool mirror_confirms =
-        chargeGrantMirror <= SESSION_GRANT_END && (millis() - chargeGrantMirrorMillis) < SESSION_MIRROR_FRESH_MS;
-    // The timeout only stands in for a mirror that has gone quiet. A mirror that is still arriving
-    // and disagreeing keeps the veto; a genuine stop then resolves through the charge flag instead.
-    const bool mirror_quiet = (millis() - chargeGrantMirrorMillis) > SESSION_GRANT_MIRROR_MS;
-    if (chargeGrantZeroCandidate && grant <= SESSION_GRANT_END &&
-        (mirror_confirms || (mirror_quiet && (millis() - chargeGrantCandidateMillis) > SESSION_GRANT_MIRROR_MS))) {
-      chargeGrantZeroCandidate = false;
-      if (datalayer_battery->status.cell_max_voltage_mV < SESSION_TERMINATION_FLOOR_MV) {
-        // Every real termination sits at 3742-3753mV. A grant end this far below the band is the
-        // BMS aborting the charge, not the pack being full - stand down and try again later.
-        hold_charge_session(millis(), "battery stopped granting below the termination band", true);
-        return;
-      }
-      confirm_charge_termination();
-    }
-  }
-  chargeGrantPrevious = grant;
 }
 
 void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
@@ -1095,42 +1063,33 @@ void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
       }
       break;
     case CHG_SESSION_CHARGING:
-      if (!charge_flag) {
-        // A flag drop while a grant-zero candidate is still waiting on its quiet mirror IS the
-        // termination: grant withdrawn, then session ended. Confirm now so this pass enters
-        // FINISHING instead of reading the drop as an interruption.
-        if (!chargeDonePending && chargeGrantZeroCandidate &&
-            datalayer_battery->status.cell_max_voltage_mV >= SESSION_TERMINATION_FLOOR_MV) {
-          confirm_charge_termination();
-        }
-        if (chargeDonePending) {
-          ATTO_3_24A.data.u8[3] = 0x00;
-          ATTO_3_24A.data.u8[6] = 0x00;
-          ATTO_3_47E.data.u8[2] = 0x0E;
-          chargeSessionState = CHG_SESSION_FINISHING;
-          chargeSessionEntryMillis = currentMillis;
-        } else {
-          // Interrupted rather than finished (cloud, load, inverter). Nothing to block afterwards.
-          hold_charge_session(currentMillis, "charge stopped before the battery ended it", true);
-        }
-      } else if (chargeDonePending && currentMillis - chargeSessionEntryMillis >= SESSION_DONE_TIMEOUT_MS) {
-        // Grant withdrawn but the flag never followed. The grant is the authority, so finish anyway.
-        ATTO_3_24A.data.u8[3] = 0x00;
-        ATTO_3_24A.data.u8[6] = 0x00;
+      if (BMS_charge_state == BMS_CHARGE_STATE_CHARGING) {
+        chargeBmsChargingSeen = true;
+      }
+      // Like the car, wind down when the charge flag clears, however the charge ended. A grant
+      // withdrawn without the flag following gets the same treatment after a timeout.
+      if (!charge_flag || (chargeDonePending && currentMillis - chargeSessionEntryMillis >= SESSION_DONE_TIMEOUT_MS)) {
+        chargeDonePending = true;
         ATTO_3_47E.data.u8[2] = 0x0E;
         chargeSessionState = CHG_SESSION_FINISHING;
         chargeSessionEntryMillis = currentMillis;
       }
       break;
     case CHG_SESSION_FINISHING:
-      if (currentMillis - chargeSessionEntryMillis >= 1000 && ATTO_3_47E.data.u8[2] == 0x0E) {
-        ATTO_3_47E.data.u8[2] = 0x0F;
-      }
-      if (currentMillis - chargeSessionEntryMillis >= SESSION_FINISH_ACK_MS) {
+      // The BMS gives its verdict in 0x344 byte 2 within a second of clearing the flag. Only a full
+      // pack (SOC 100) is a termination; anything else rests and tries again later.
+      if (chargeBmsChargingSeen && BMS_charge_state == BMS_CHARGE_STATE_FINISHED && BMS_SOC == 100) {
+        confirm_charge_termination();
         hold_charge_session(currentMillis, "charge complete, holding the battery closed", false);
         chargeSessionTerminated = true;
         chargeRearmAllowed = false;
         chargeRearmDischargeSinceMillis = 0;
+      } else if (chargeBmsChargingSeen && BMS_charge_state == BMS_CHARGE_STATE_FINISHED) {
+        hold_charge_session(currentMillis, "charge ended before full", true);
+      } else if (BMS_charge_state == BMS_CHARGE_STATE_ABORTED) {
+        hold_charge_session(currentMillis, "battery aborted the charge", true);
+      } else if (currentMillis - chargeSessionEntryMillis >= SESSION_FINISH_ACK_MS) {
+        hold_charge_session(currentMillis, "battery gave no charge verdict", true);
       }
       break;
     default:
@@ -1268,7 +1227,7 @@ void BydAttoBattery::transmit_charge_session(unsigned long currentMillis) {
   if (ATTO_3_24A.data.u8[0] == 0x88) {
     ATTO_3_24A.data.u8[2] = 0x51;
     ATTO_3_24A.data.u8[3] = chargeDonePending ? 0x00 : 0x07;
-    ATTO_3_24A.data.u8[6] = chargeDonePending ? 0x00 : 0x0E;
+    ATTO_3_24A.data.u8[6] = (chargeSessionState == CHG_SESSION_FINISHING) ? 0x00 : 0x0E;
   }
   ATTO_3_24A.data.u8[7] = computeBydChecksum(ATTO_3_24A.data.u8);
   transmit_can_frame(&ATTO_3_24A);
