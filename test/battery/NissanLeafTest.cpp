@@ -766,6 +766,169 @@ TEST(NissanLeafPowerLimitTests, ShouldTreatUnavailableLimitsAsNoAllowance) {
   delete battery;
 }
 
+// Both limits go out as their mean over the latest 15 s of 0x1DC, so the LBC swinging an allowance
+// is smoothed before anything downstream sees it.
+namespace {
+// 0x1DC frames at the LBC's 10 ms rate, within the second being collected.
+void feed_power_limits(NissanLeafBattery* battery, uint16_t discharge_raw, uint16_t charge_raw, int frames) {
+  for (int i = 0; i < frames; i++) {
+    battery->handle_incoming_can_frame(leaf_1dc_frame(battery, discharge_raw, charge_raw));
+  }
+}
+
+// Whole seconds of 0x1DC, each closed by the 1 s update_values().
+void run_power_limit_seconds(NissanLeafBattery* battery, uint16_t discharge_raw, uint16_t charge_raw, int seconds) {
+  for (int s = 0; s < seconds; s++) {
+    feed_power_limits(battery, discharge_raw, charge_raw, 100);
+    battery->update_values();
+  }
+}
+
+CAN_frame leaf_full_flag_frame(NissanLeafBattery* battery, bool full) {
+  CAN_frame frame = leaf_frame(0x1DB, {0x00, 0x00, 0x00, (uint8_t)(full ? 0x10 : 0x00)});  // LB_FCHGEND
+  frame.data.u8[7] = battery->calculate_crc(frame);
+  return frame;
+}
+}  // namespace
+
+// Near full the LBC can drop its charge allowance to nothing and back within a second. As long as no
+// whole second passes at 0, what goes out is the share of the window it spent at 2 kW, here two
+// fifths, resolved below the 0.25 kW steps.
+TEST(NissanLeafPowerLimitTests, ShouldAverageASwingingAllowance) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  for (int s = 0; s < 15; s++) {
+    for (int swing = 0; swing < 4; swing++) {
+      feed_power_limits(battery, 40, 8, 10);  // 10 kW / 2 kW for 100 ms
+      feed_power_limits(battery, 40, 0, 15);  // then 150 ms without a charge allowance
+    }
+    battery->update_values();
+  }
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 10000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 800u);
+  delete battery;
+}
+
+// A step goes out as a ramp: each second another fifteenth of the old value slides out of the window,
+// and 15 s after the step only the new value is left. A step down to nothing drops at once instead,
+// see the next test.
+TEST(NissanLeafPowerLimitTests, ShouldLetAStepThroughOverExactly15Seconds) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  run_power_limit_seconds(battery, 60, 16, 15);  // 15 kW / 4 kW, a full window
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 15000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+
+  run_power_limit_seconds(battery, 12, 4, 5);                         // 3 kW / 1 kW
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 11000u);  // 10 of the 15 s still at 15 kW
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 3000u);
+
+  run_power_limit_seconds(battery, 12, 4, 9);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 3800u);  // The last second of 15 kW
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 1200u);
+
+  run_power_limit_seconds(battery, 12, 4, 1);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 3000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 1000u);
+  delete battery;
+}
+
+// A limit the LBC holds at 0 for a whole second is a stop, not a swing, so it goes out as 0 at once.
+// The other limit and the other pack carry on, and once the allowance returns it climbs back from 0
+// through the window.
+TEST(NissanLeafPowerLimitTests, ShouldDropToZeroAtOnceAfterAWholeSecondAtZero) {
+  NissanLeafBattery pack1;
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  pack1.setup();
+  pack2.setup();
+  run_power_limit_seconds(&pack1, 40, 16, 15);  // 10 kW / 4 kW
+  run_power_limit_seconds(&pack2, 40, 16, 15);
+
+  run_power_limit_seconds(&pack1, 40, 0, 1);  // A whole second without a charge allowance
+  run_power_limit_seconds(&pack2, 40, 16, 1);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 10000u);
+  EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 4000u);
+
+  run_power_limit_seconds(&pack1, 40, 16, 3);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 800u);  // 3 of the 15 s at 4 kW
+}
+
+// Each pack averages its own frames into its own datalayer.
+TEST(NissanLeafPowerLimitTests, ShouldAverageEachPackOnItsOwn) {
+  NissanLeafBattery pack1;
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  pack1.setup();
+  pack2.setup();
+  for (int s = 0; s < 15; s++) {
+    run_power_limit_seconds(&pack1, 40, 16, 1);                             // 10 kW / 4 kW throughout
+    run_power_limit_seconds(&pack2, (s < 5) ? 20 : 8, (s < 5) ? 8 : 4, 1);  // 5 kW / 2 kW for 5 s, then 2 kW / 1 kW
+  }
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 10000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+  EXPECT_EQ(datalayer.battery2.status.max_discharge_power_W, 3000u);
+  EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 1333u);
+}
+
+// More Battery Info shows the charge limit of the latest frame, raw, while the datalayer behind the
+// main page gets the mean. Checked on a second pack, so its own page is the one that shows it.
+TEST(NissanLeafPowerLimitTests, ShouldShowTheLatestRawChargeLimitOnMoreBatteryInfo) {
+  NissanLeafBattery pack2(&datalayer.battery2, &datalayer_extended.nissanleaf_2, CAN_Interface::CAN_NATIVE);
+  pack2.setup();
+  run_power_limit_seconds(&pack2, 40, 16, 14);  // 10 kW / 4 kW
+  run_power_limit_seconds(&pack2, 40, 8, 1);    // then 2 kW
+
+  EXPECT_EQ(datalayer.battery2.status.max_charge_power_W, 3867u);   // (14 x 4 kW + 2 kW) / 15, rounded
+  EXPECT_EQ(datalayer_extended.nissanleaf_2.ChargePowerLimit, 8u);  // 0.25 kW steps, as 0x1DC carries it
+  NissanLeafHtmlRenderer renderer(&datalayer.battery2, &datalayer_extended.nissanleaf_2);
+  EXPECT_NE(renderer.get_status_html().str().find("<h4>Regen kW: 2.00</h4>"), std::string::npos);
+}
+
+// A second without frames says nothing about the limits, so unlike a second at 0 it drops nothing. It
+// still slides the window along, so the means close in on the latest frames. Once all of it has slid
+// out they hold, and a resumed stream starts a window of its own.
+TEST(NissanLeafPowerLimitTests, ShouldHoldTheLatestMeansWhenTheFramesStop) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  run_power_limit_seconds(battery, 0, 0, 5);
+  run_power_limit_seconds(battery, 40, 16, 5);  // 10 kW / 4 kW
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 2000u);
+
+  for (int s = 0; s < 8; s++) {
+    battery->update_values();  // Silent seconds
+  }
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 2857u);  // 2 s of nothing and 5 s of 4 kW left
+
+  for (int s = 0; s < 22; s++) {
+    battery->update_values();  // The whole window has slid out
+  }
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 10000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+
+  run_power_limit_seconds(battery, 20, 8, 1);  // 5 kW / 2 kW, not mixed with what came before
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 5000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 2000u);
+  delete battery;
+}
+
+// Only the limits are averaged: the LBC reporting itself full still stops charging at once, and the
+// mean has run on underneath once the flag drops.
+TEST(NissanLeafPowerLimitTests, ShouldStillStopChargingAtOnceWhenTheLbcReportsFull) {
+  auto battery = new NissanLeafBattery();
+  battery->setup();
+  run_power_limit_seconds(battery, 40, 16, 15);  // 10 kW / 4 kW
+
+  battery->handle_incoming_can_frame(leaf_full_flag_frame(battery, true));
+  run_power_limit_seconds(battery, 40, 16, 1);
+  EXPECT_EQ(datalayer.battery.status.max_discharge_power_W, 10000u);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 0u);
+
+  battery->handle_incoming_can_frame(leaf_full_flag_frame(battery, false));
+  run_power_limit_seconds(battery, 40, 16, 1);
+  EXPECT_EQ(datalayer.battery.status.max_charge_power_W, 4000u);
+  delete battery;
+}
+
 TEST(NissanLeafTests, ShouldReportVoltage) {
   auto battery = new NissanLeafBattery();
   battery->setup();
