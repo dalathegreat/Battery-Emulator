@@ -54,19 +54,19 @@
   static const uint32_t twaiBaseAddress = DR_REG_TWAI_BASE ; // 0x6002B000
   static const uint32_t twaiTxPinSelector = TWAI_TX_IDX ;
   static const uint32_t twaiRxPinSelector = TWAI_RX_IDX ;
-  static const periph_module_t twaiPeriphModule = PERIPH_TWAI_MODULE ;
+  static const int twaiPeriphModule = 0 ;
   static const periph_interrupt_t twaiInterruptSource = ETS_TWAI_INTR_SOURCE ;
 #elif defined (CONFIG_IDF_TARGET_ESP32S2)
   static const uint32_t twaiBaseAddress = 0x3F42B000 ;
   static const uint32_t twaiTxPinSelector = TWAI_TX_IDX ;
   static const uint32_t twaiRxPinSelector = TWAI_RX_IDX ;
-  static const periph_module_t twaiPeriphModule = PERIPH_TWAI_MODULE ;
+  static const int twaiPeriphModule = 0 ;
   static const periph_interrupt_t twaiInterruptSource = ETS_TWAI_INTR_SOURCE ;
 #elif defined (CONFIG_IDF_TARGET_ESP32C3)
   static const uint32_t twaiBaseAddress = DR_REG_TWAI_BASE ; // 0x6002B000
   static const uint32_t twaiTxPinSelector = TWAI_TX_IDX ;
   static const uint32_t twaiRxPinSelector = TWAI_RX_IDX ;
-  static const periph_module_t twaiPeriphModule = PERIPH_TWAI_MODULE ;
+  static const int twaiPeriphModule = 0 ;
   static const periph_interrupt_t twaiInterruptSource = ETS_TWAI_INTR_SOURCE ;
 #elif defined (CONFIG_IDF_TARGET_ESP32C6)
   // twaiBaseAddress, twaiTxPinSelector, twaiRxPinSelector, twaiPeriphModule
@@ -76,7 +76,7 @@
   static const uint32_t twaiBaseAddress = DR_REG_CAN_BASE ; // 0x3ff6B000
   static const uint32_t twaiTxPinSelector = TWAI_TX_IDX ;
   static const uint32_t twaiRxPinSelector = TWAI_RX_IDX ;
-  static const periph_module_t twaiPeriphModule = PERIPH_TWAI_MODULE ;
+  static const int twaiPeriphModule = 0 ;
   static const periph_interrupt_t twaiInterruptSource = ETS_TWAI_INTR_SOURCE ;
 #else
   #error "ESP32 TWAI (CAN) module not handled for this platform"
