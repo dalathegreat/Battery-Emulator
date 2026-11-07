@@ -7,6 +7,7 @@
 #include "../../Software/src/battery/BATTERIES.h"
 #include "../../Software/src/battery/CanBattery.h"
 #include "../../Software/src/battery/UdsCanBattery.h"
+#include "../../Software/src/datalayer/datalayer_extended.h"
 #include "../../Software/src/devboard/utils/events.h"
 
 #include <fstream>
@@ -297,6 +298,30 @@ class NoCanErrorsTest : public CanLogTestFixture {
   }
 };
 
+// Check the CAC and the SOC that a real 3/Y pack (2024.8.9+ firmware, 0x3B2 mux 0x80) reports. The pack was on a
+// bench with the contactors open, so only the pack data of the log is checked.
+class TeslaCacTest : public CanLogTestFixture {
+ public:
+  explicit TeslaCacTest(fs::path path) : CanLogTestFixture(path) {}
+  void TestBody() override {
+    HandleFramesAndUpdateValues();
+
+    const auto& tesla = datalayer_extended.tesla;
+    EXPECT_TRUE(tesla.cac_valid);
+    EXPECT_EQ(tesla.cac_layout, 2);  // the 2024.8.9+ layout
+    // 0.1 Ah: 205.1 Ah average, 203.3 Ah minimum (brick 91), 207.5 Ah maximum (brick 2)
+    EXPECT_EQ(tesla.cac_avg_x10, 2051);
+    EXPECT_EQ(tesla.cac_min_x10, 2033);
+    EXPECT_EQ(tesla.cac_max_x10, 2075);
+    EXPECT_EQ(tesla.cac_min_brick_id, 91);
+    EXPECT_EQ(tesla.cac_max_brick_id, 2);
+
+    // SOC UI 85.3 % from 0x292, remaining energy 51.86 kWh from 0x352
+    EXPECT_EQ(datalayer.battery.status.real_soc, 8530);
+    EXPECT_EQ(datalayer.battery.status.remaining_capacity_Wh, 51860u);
+  }
+};
+
 void RegisterCanLogTests() {
   // The logs should be named as follows:
   //
@@ -313,6 +338,7 @@ void RegisterCanLogTests() {
   //     crc:  test that no frame is rejected, i.e. the driver's checksum calculation
   //     pid:  test that KWP2000 poll responses were demuxed into the datalayer
   //           exactly (cells, balancing, SOC, temperatures, metrics)
+  //     cac:  test that the CAC, SOC and remaining energy of a real Tesla 3/Y pack are decoded
 
   std::string directoryPath = TEST_CAN_LOG_DIR;
 
@@ -381,6 +407,11 @@ void RegisterCanLogTests() {
       testing::RegisterTest(
           "CanLogSafetyTests", ("TestPidDemux" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
           nullptr, nullptr, __FILE__, __LINE__, [=]() -> CanLogTestFixture* { return new PidDemuxTest(entry.path()); });
+    }
+    if (has_flag("cac")) {
+      testing::RegisterTest(
+          "CanLogSafetyTests", ("TestTeslaCac" + snake_case_to_camel_case(entry.path().stem().string())).c_str(),
+          nullptr, nullptr, __FILE__, __LINE__, [=]() -> CanLogTestFixture* { return new TeslaCacTest(entry.path()); });
     }
   }
 }
