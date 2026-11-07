@@ -6,6 +6,7 @@
 #include "FERROAMP-CAN.h"
 #include "FOXESS-CAN.h"
 #include "FOXESS-EP-CAN.h"
+#include "GIVENERGY-LV-RS485.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
 #include "GROWATT-WIT-CAN.h"
@@ -116,6 +117,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
     case InverterProtocolType::PylonLv:
       return PylonLvInverter::Name;
 
+    case InverterProtocolType::GivEnergyLV485:
+      return GivEnergyLvRs485Inverter::Name;
+
     case InverterProtocolType::PylonLV485:
       return PylonLV485InverterProtocol::Name;
 
@@ -220,6 +224,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::PylonLv:
       inverter = new PylonLvInverter();
+      break;
+
+    case InverterProtocolType::GivEnergyLV485:
+      inverter = new GivEnergyLvRs485Inverter();
       break;
 
     case InverterProtocolType::PylonLV485:
