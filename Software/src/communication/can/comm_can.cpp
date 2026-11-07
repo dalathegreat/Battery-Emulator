@@ -412,6 +412,37 @@ receive_frame_can_addon() {  // This section checks if we have a complete CAN me
   }
 }
 
+// Log MCP2518FD system errors, mode changes, error state changes and bus-offs,
+// at most once per CANFD_DIAG_LOG_INTERVAL_MS per interface (anything that
+// happens in between is folded into the next line).
+#define CANFD_DIAG_LOG_INTERVAL_MS 30000
+static void log_canfd_diag(MCP2518FD_Lite* canfd, bool first) {
+  static uint32_t last_log_ms[2] = {0, 0};
+  static bool logged_once[2] = {false, false};
+  const int idx = first ? 0 : 1;
+  const uint32_t now = millis();
+  if (logged_once[idx] && now - last_log_ms[idx] < CANFD_DIAG_LOG_INTERVAL_MS) {
+    return;
+  }
+  MCP2518FD_Lite_Diag d;
+  if (!canfd->takeDiag(d)) {
+    return;
+  }
+  last_log_ms[idx] = now;
+  logged_once[idx] = true;
+
+  static const char* const mode_names[8] = {"normal-FD", "sleep",        "int-loopback", "listen-only",
+                                            "config",    "ext-loopback", "normal-2.0",   "RESTRICTED"};
+  const uint32_t t = d.trec;
+  logging.printf("CANFD%s: mode %s, SERR %lu, CERR %lu, TEC %lu REC %lu%s%s%s%s%s%s, BDIAG1 %08lx%s%s\n",
+                 first ? "" : "2", mode_names[d.opmode & 7], (unsigned long)d.serr_count, (unsigned long)d.cerr_count,
+                 (unsigned long)((t >> 8) & 0xFF), (unsigned long)(t & 0xFF), (t & (1UL << 21)) ? " BUS-OFF" : "",
+                 (t & (1UL << 20)) ? " TX-passive" : "", (t & (1UL << 19)) ? " RX-passive" : "",
+                 (t & (1UL << 18)) ? " TX-warn" : "", (t & (1UL << 17)) ? " RX-warn" : "",
+                 (t & (1UL << 16)) ? " warn" : "", (unsigned long)d.bdiag1,
+                 (d.bdiag1 & (1UL << 23)) ? " (went bus-off)" : "", d.tx_full ? ", TX FIFO full" : "");
+}
+
 static void _receive_frame_canfd(MCP2518FD_Lite* canfd, bool first) {
   MCP2518FD_Lite_Frame MCP2518frame;
   int count = 0;
@@ -434,6 +465,8 @@ static void _receive_frame_canfd(MCP2518FD_Lite* canfd, bool first) {
       datalayer.system.info.can_2518_2_bus_error = true;
     }
   }
+
+  log_canfd_diag(canfd, first);
 }
 
 static void receive_frame_canfd_addon() {
