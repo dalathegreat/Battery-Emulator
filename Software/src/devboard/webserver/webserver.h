@@ -91,6 +91,10 @@ String formatPowerValue(T value, String unit, int precision);
 extern void store_settings();
 
 bool webserver_auth_is_ready();
+
+// For body and upload callbacks, which run before the middlewares: true when the request may proceed.
+bool webserver_request_authorized(AsyncWebServerRequest* request);
+
 void webserver_tick();
 
 #endif
