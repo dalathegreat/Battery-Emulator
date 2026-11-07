@@ -57,6 +57,8 @@ class NissanLeafBattery : public CanBattery {
     dtc_read_retries = 0;
   }
   bool supports_insulation_resistance() { return true; }
+  bool contactors_may_close() { return lbc_allows_relays(); }  //See RELAY_REPORT_MS
+  bool bms_follows_relays() { return true; }                   //See RELAY_REPORT_MS
 
   bool soc_plausible() {
     // When pack voltage is close to max, and SOC% is still low (<65.0%), SOC is not plausible
@@ -185,6 +187,8 @@ class NissanLeafBattery : public CanBattery {
   NissanLeafHtmlRenderer renderer;
 
   bool is_message_corrupt(CAN_frame rx_frame);
+  bool lbc_allows_relays();
+  void follow_starting_sequence(unsigned long currentMillis);
 #ifndef SMALL_FLASH_DEVICE
   void clearSOH(void);
 #endif
@@ -200,6 +204,53 @@ class NissanLeafBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
+
+  //Last time the LBC was heard. While a BMS reset has its power cut, the messages stop LBC_STOPPED_MS
+  //after it has gone quiet (see TerminatingStep). Once the power is back they start again when it has
+  //been heard within LBC_SILENT_MS, as before that nothing would acknowledge them.
+  static const unsigned long LBC_SILENT_MS = 100;
+  static const unsigned long LBC_STOPPED_MS = 1000;
+  unsigned long lbc_heard_ms = 0;
+  bool lbc_silent = false;  //Quiet for LBC_SILENT_MS, logged as it went so
+  //How long after a BMS reset this interface's CAN errors are still ignored, see transmit_can. The safety
+  //checks raise them once a second, from what has failed since the previous check.
+  static const uint32_t CAN_ERRORS_IGNORE_MS = 2000;
+  bool ze1_seen = false;  //Set once the pack has shown itself as a ZE1, see transmit_can
+
+  /* Starting sequence of the EV pack (2nd gen. Users Manual for EV Pack, 295B0NDS03, 5.1). After IGN and
+     the LBC's first message: 3) it has to report LB_FAIL = 0 (Relay_Cut_Request), LB_INTERLOC = 1 and
+     LB_FRLYON = 1 (MainRelayOn_flag) before 4) the high voltage relays close, and the host tells it about
+     them in 0x1D4: RLYP (byte 5 bit 6) once the precharge relay has been on for RELAY_REPORT_MS, BTONFN
+     (byte 4 bit 2) once both main relays have, and never before RLYP has been up that long. Both are 0
+     until then, and again as the relays open. Where the GPIO contactor control drives this pack's relays
+     the report follows it, otherwise they are taken as closed once the LBC allows it. A BMS reset starts
+     it over, as it starts the LBC over: the GPIO contactor control shows the relays it keeps closed
+     through the reset closing again as after a cold start (bms_follows_relays()).
+     LB_INTERLOC counts only when the interlock is set as mandatory, and LB_STATUS (Failsafe_Status) not
+     at all: its stop requests, at full and at empty, and its caution lamp request do not open the
+     contactors in stationary use (see update_values), so they do not hold them open either. */
+  static const unsigned long RELAY_REPORT_MS = 60;
+  bool lbc_1DB_fresh = false;  //A 0x1DB has come since the LBC last (re)started
+  bool lbc_ready = false;      //Step 3 has been met since then
+  unsigned long lbc_ready_ms = 0;
+  bool relay_plus_closed = false;  //The positive line is connected, through the precharge relay or the main one
+  unsigned long relay_plus_closed_ms = 0;
+  bool main_relays_closed = false;  //Both main relays are
+  unsigned long main_relays_closed_ms = 0;
+  bool report_RLYP = false;  //As sent in 0x1D4
+  unsigned long report_RLYP_ms = 0;
+  bool report_BTONFN = false;
+
+  /* Terminating sequence of the EV pack (295B0NDS03 5.2), for a BMS reset cutting IGN: 1) IGN off, then
+     CHG_STA_RQ = 11b, 2) BTONFN = 0 as the positive relay opens and RLYP = 0 as the negative one does,
+     and only once that has gone out 3) HCM_WakeUpSleepCommand = 00b, the messages stopping 1 s after the
+     LBC's have (LBC_STOPPED_MS). One step per 10 ms message, from the first one after IGN goes off. The
+     contactors are not opened: the BMS reset keeps them closed, and the LBC is only told they open. */
+  enum TerminatingStep : uint8_t { NOT_TERMINATING, CHG_STA_RQ_STOP, POSITIVE_OFF, NEGATIVE_OFF, SLEEP };
+  TerminatingStep terminating = NOT_TERMINATING;
+  bool terminating_RLYP = false;  //As they were when IGN went off
+  bool terminating_BTONFN = false;
+  static const uint8_t CHG_STA_RQ_STOP_VALUE = 3;  //11b
   //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
   //info page fills in within seconds instead of over a minute. Counted down per request actually
   //sent, so it always terminates and the steady state polling rate is left untouched.
@@ -223,21 +274,35 @@ class NissanLeafBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x1F2,
                         .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+  /* Byte 3 bits 7-6 are HCM_WakeUpSleepCmd, 11b = WakeUp. Byte 2 bit 2 is CANMASK, which decides
+     what the LBC counts towards U1000, its "CAN communication" code: a one-trip code that never ages
+     out, stored within a second of an expected message going missing while the ignition input is on.
+     With CANMASK clear a ZE0/AZE0 LBC expects only 0x1D4, 0x1F2, 0x50B and 0x50C, and a ZE1 0x1D4,
+     0x1F2, 0x50B, 0x3B8 and 0x5EC, all of which are sent. Set, it also wants the inverter (0x1DA), the
+     charger (0x380 ZE0, 0x390 AZE0/ZE1), on AZE0/ZE1 the climate control (0x54C), and on ZE1 0x56E,
+     0x5C5, 0x355 and 0x625 too, nodes a stationary setup does not have. The bit is read by nothing but
+     the LBC's diagnostics, so it stays clear, rather than being satisfied with stand-ins for those
+     nodes that would feed made-up vehicle data into the LBC. On ZE1 this also keeps away U1032, U1034,
+     U216D and U215B, which only confirm with CANMASK set.
+     Source: LBC firmware reverse engineering, U1000 receive checks (3NA0D, 4NC0A, 5SH2D, 5SF0D), and
+     github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 21 82 communication DTC records (4NC0A) */
   CAN_frame LEAF_50B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 7,
                         .ID = 0x50B,
-                        .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+                        .data = {0x00, 0x00, 0x02, 0xC0, 0x00, 0x00, 0x00}};
   CAN_frame LEAF_50C = {.FD = false,
                         .ext_ID = false,
                         .DLC = 6,
                         .ID = 0x50C,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  //Byte 4 carries the PRUN counter in bits 7-6 and BTONFN in bit 2, byte 5 RLYP in bit 6, byte 7 the CRC
+  //over bytes 0-6, all rewritten on every transmission. Shown with both bits 0, as each start has them.
   CAN_frame LEAF_1D4 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x03, 0x06, 0xE0, 0x69}};
   // Extra CAN messages for ZE1 batteries
   CAN_frame LEAF_355 = {.FD = false,
                         .ext_ID = false,

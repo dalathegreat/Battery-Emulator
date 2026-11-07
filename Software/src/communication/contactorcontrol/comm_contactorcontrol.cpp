@@ -50,6 +50,8 @@ uint32_t bms_power_on_ms = 0;
 #define PWM_Battery3_Channel 3
 #define EXTRA_CONTACTOR_PULL_IN_TIME_MS \
   PRECHARGE_COMPLETED_TIME_MS  // Battery 2/3 coils are held at full duty for this long before being economized
+#define BMS_POWER_COLD_START_MS \
+  100  // After a cold start the BMS power comes on no earlier than this, see init_contactors()
 static uint32_t prechargeStartTime = 0;
 uint32_t negativeStartTime = 0;
 uint32_t prechargeCompletedTime = 0;
@@ -100,7 +102,7 @@ bool bms_power_is_active() {
 
 const char* contactors = "Contactors";
 
-bool init_contactors() {
+bool init_contactors(bool cold_start) {
   // Init contactor pins
   if (contactor_control_enabled) {
     auto posPin = esp32hal->POSITIVE_CONTACTOR_PIN();
@@ -174,12 +176,109 @@ bool init_contactors() {
       return false;
     }
     pinMode(pin, OUTPUT);
+    /* Where the BMS power feeds the battery's ignition input and its permanent supply comes up with the
+       board, the BMS should see the supply first and the ignition after it, as a Nissan LEAF EV pack's
+       starting sequence has it (BAT, then IGN). So after a cold start the BMS power waits until
+       BMS_POWER_COLD_START_MS after boot. After any other reset the pin may have been held on across it
+       (hold_pins_across_reset()), and it is driven on again at once. */
+    if (cold_start && millis() < BMS_POWER_COLD_START_MS) {
+      digitalWrite(pin, LOW);
+      delay(BMS_POWER_COLD_START_MS - millis());
+    }
     digitalWrite(pin, HIGH);
     bms_power_on_ms = millis();
     set_indicator_led(IndicatorLed::BMS_POWER, true);
   }
 
   return true;
+}
+
+//The battery's say in it, see Battery::contactors_may_close(). No battery means nothing to wait for.
+static bool battery_lets_contactors_close(Battery* pack) {
+  return (pack == nullptr) || pack->contactors_may_close();
+}
+
+/* The relays as a BMS that is told about each of them is to see them (datalayer reported_*). Across a BMS
+   reset that keeps the contactors closed, such a BMS stops as if they had opened, and starts over as if
+   they closed again, as the Nissan LEAF's does. So from when the reset cuts the BMS power they read open,
+   and once it is back they close again with the timing of a cold start: not before the ladder could start
+   after one, INTERVAL_10_S from a boot BMS_POWER_COLD_START_MS before the BMS power came on, nor before
+   the battery's BMS allows it, and then step by step as the ladder would close them, battery 2 and 3
+   joining as it completes. The reset keeps the system paused until the ladder has, as a cold start does
+   until the contactors have closed. Only for a battery that asks for it (Battery::bms_follows_relays()). */
+static bool replay_pending = false;  //Contactors kept closed across a BMS reset, still to be shown closing
+static bool replay_started = false;
+static uint32_t replay_start_ms = 0;  //When the replayed ladder closed the negative contactor
+static bool replay_battery2 = false;  //Battery 2 still to be shown joining
+static bool replay_battery3 = false;
+
+static uint32_t replayed_ladder_ms() {
+  return NEGATIVE_CONTACTOR_TIME_MS + precharge_time_ms + PRECHARGE_COMPLETED_TIME_MS;
+}
+
+//The reset waits for it. Asked from the reset's own state machine, so it checks for itself that a replay
+//still applies rather than relying on update_reported_relays() having run since.
+static bool replaying_ladder() {
+  return replay_pending && (contactorStatus == COMPLETED) && (battery != nullptr) && battery->bms_follows_relays() &&
+         (!replay_started || (millis() - replay_start_ms) < replayed_ladder_ms());
+}
+
+static void update_reported_relays() {
+  DATALAYER_SYSTEM_STATUS_TYPE& status = datalayer.system.status;
+  const uint32_t now = millis();
+
+  //What is driven, from where the ladder is: each state is named after the step it waits to take
+  bool negative = false;
+  bool precharge = false;
+  bool positive = false;
+  if (contactor_control_enabled) {
+    negative = (contactorStatus == PRECHARGE) || (contactorStatus == POSITIVE) || (contactorStatus == PRECHARGE_OFF) ||
+               (contactorStatus == COMPLETED);
+    precharge = (contactorStatus == POSITIVE) || (contactorStatus == PRECHARGE_OFF);
+    positive = (contactorStatus == PRECHARGE_OFF) || (contactorStatus == COMPLETED);
+  }
+  bool battery2_closed = status.contactors_battery2_engaged;
+  bool battery3_closed = status.contactors_battery3_engaged;
+
+  if ((contactorStatus != COMPLETED) || (battery == nullptr) || !battery->bms_follows_relays()) {
+    replay_pending = false;  //Opened, or never closed: what is driven is what is seen
+  } else if (status.bms_reset_status == BMS_RESET_POWERED_OFF) {
+    replay_pending = true;
+    replay_started = false;
+    replay_battery2 = battery2_closed;
+    replay_battery3 = battery3_closed;
+  } else if (replay_pending && !replay_started && (now - bms_power_on_ms) >= INTERVAL_10_S - BMS_POWER_COLD_START_MS &&
+             battery_lets_contactors_close(battery)) {
+    replay_started = true;
+    replay_start_ms = now;
+  }
+
+  if (replay_pending) {
+    const uint32_t since = now - replay_start_ms;
+    if (!replay_started) {
+      negative = precharge = positive = false;
+    } else if (since < replayed_ladder_ms()) {
+      negative = true;
+      precharge = (since >= NEGATIVE_CONTACTOR_TIME_MS);
+      positive = (since >= NEGATIVE_CONTACTOR_TIME_MS + precharge_time_ms);
+    } else {
+      if (replay_battery2 && battery_lets_contactors_close(battery2)) {
+        replay_battery2 = false;
+      }
+      if (replay_battery3 && battery_lets_contactors_close(battery3)) {
+        replay_battery3 = false;
+      }
+      replay_pending = replay_battery2 || replay_battery3;
+    }
+    battery2_closed = battery2_closed && !replay_battery2;
+    battery3_closed = battery3_closed && !replay_battery3;
+  }
+
+  status.reported_negative_closed = negative;
+  status.reported_precharge_closed = precharge;
+  status.reported_positive_closed = positive;
+  status.reported_battery2_closed = battery2_closed;
+  status.reported_battery3_closed = battery3_closed;
 }
 
 static void dbg_contactors(const char* state) {
@@ -190,7 +289,7 @@ static void dbg_contactors(const char* state) {
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
-void handle_contactors() {
+static void run_contactors() {
   if (inverter && inverter->controls_contactor()) {
     datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
   }
@@ -305,6 +404,12 @@ void handle_contactors() {
     // Handle actual state machine. This first turns on Negative, then Precharge, then Positive, and finally turns OFF precharge
     switch (contactorStatus) {
       case START_PRECHARGE:
+        //Nothing is closed yet, so this is where the battery's BMS gets its say. Until it allows it, the
+        //ladder waits where it started, so the inverter's permission and the equipment stop count as well.
+        if (!battery_lets_contactors_close(battery)) {
+          contactorStatus = DISCONNECTED;
+          break;
+        }
         set(negPin, ON, PWM_ON_DUTY);
         set_indicator_led(IndicatorLed::CONTACTOR_NEG, true);
         dbg_contactors("NEGATIVE");
@@ -352,6 +457,11 @@ void handle_contactors() {
   }
 }
 
+void handle_contactors() {
+  run_contactors();
+  update_reported_relays();
+}
+
 /* Battery 2 and 3 each have a single contactor and no precharge stage of their own, they simply
    close once the main ladder reaches COMPLETED. Every set() here passes an explicit duty so the
    PWM path is taken when the user enabled economizing: full duty to pull the coil in, hold duty
@@ -361,7 +471,10 @@ void handle_contactors() {
    run before handle_contactors() refreshes it, and it is not refreshed at all on the COMPLETED
    pass, which is precisely when these contactors are closed.
    Both edges are logged next to the main ladder's steps, so the log shows when each extra
-   battery actually joined the DC link and when it left it again, not just what the main one did. */
+   battery actually joined the DC link and when it left it again, not just what the main one did.
+   Joining also waits for the pack's BMS to allow it (Battery::contactors_may_close()), as the main
+   ladder does before it closes anything. Once joined, that is not asked again: it is no reason to
+   open under load. */
 static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& engaged, uint32_t& pull_in_start,
                                    const char* join_log, const char* leave_log) {
   if (close_allowed) {
@@ -386,19 +499,21 @@ static void handle_extra_contactor(gpio_num_t pin, bool close_allowed, bool& eng
 void handle_contactors_battery2() {
   static uint32_t pull_in_start = 0;
 
-  handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2",
-                         "LEAVE Battery 2");
+  handle_extra_contactor(
+      esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing &&
+          (datalayer.system.status.contactors_battery2_engaged || battery_lets_contactors_close(battery2)),
+      datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2", "LEAVE Battery 2");
 }
 
 void handle_contactors_battery3() {
   static uint32_t pull_in_start = 0;
 
-  handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
-                         datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3",
-                         "LEAVE Battery 3");
+  handle_extra_contactor(
+      esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
+      (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing &&
+          (datalayer.system.status.contactors_battery3_engaged || battery_lets_contactors_close(battery3)),
+      datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3", "LEAVE Battery 3");
 }
 
 /* PERIODIC_BMS_RESET - Once every configured interval (24h or 48h) we remove power from the BMS_power pin for 30 seconds.
@@ -599,8 +714,9 @@ void handle_BMSpower() {
     } else if (datalayer.system.status.bms_reset_status == BMS_RESET_POWERING_ON) {
       bms_reset_can_keepalive_tick();
 
-      // Wait for BMS to start up before unpausing
-      if (currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
+      // Wait for BMS to start up before unpausing, and for the contactors it was shown open to be shown
+      // closed again, see update_reported_relays()
+      if (currentTime - bmsPowerOnTime >= bmsWarmupDuration && !replaying_ladder()) {
         // Unpause the battery
         setBatteryPause(false, false, EquipmentStop::UNCHANGED, false);
 
