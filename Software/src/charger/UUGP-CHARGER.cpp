@@ -1,0 +1,750 @@
+#ifndef SMALL_FLASH_DEVICE
+
+#include "UUGP-CHARGER.h"
+#include <time.h>
+#include "../devboard/wifi/wifi.h"
+
+#include <cstring>
+#include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
+
+static void set_uugp_event_once(EVENTS_ENUM_TYPE event, int16_t data = 0) {
+  const EVENTS_STRUCT_TYPE* current = get_event_pointer(event);
+  if (current != nullptr && current->state != EVENT_STATE_ACTIVE && current->state != EVENT_STATE_ACTIVE_LATCHED) {
+    set_event(event, data);
+  }
+}
+
+volatile uint16_t uugp_power_limit_W = 10000;
+// Fail closed until the installer configures a cable-safe current ceiling.
+volatile uint16_t uugp_max_charge_current_A = 0;
+volatile uint16_t uugp_discharge_cutoff_soc = 80;
+volatile bool uugp_allow_discharge_to_home_grid = false;
+
+std::string uugp_ip = "";
+volatile uint16_t uugp_port = 502;
+
+UUGPCharger::UUGPCharger() : Charger(ChargerType::UUGP) {
+  register_transmitter(this);
+}
+
+const char* UUGPCharger::name() {
+  return Name;
+}
+
+float UUGPCharger::outputPowerDC() {
+  return datalayer.charger.uugp_active_power_W;
+}
+
+float UUGPCharger::HVDC_output_voltage() {
+  return datalayer.charger.uugp_charging_voltage_V;
+}
+
+float UUGPCharger::HVDC_output_current() {
+  return datalayer.charger.uugp_charging_current_A;
+}
+
+bool UUGPCharger::ensure_tcp_connection() {
+  if (tcp_client.connected()) {
+    if (!tcp_connected) {
+      DEBUG_PRINTF("UUGP Modbus TCP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+      set_event(EVENT_UUGP_DETECTED, 0);
+      clear_event(EVENT_UUGP_MISSING);
+    }
+    tcp_connected = true;
+    return true;
+  }
+
+  if (tcp_connected) {
+    DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
+    set_uugp_event_once(EVENT_UUGP_MISSING);
+    clear_event(EVENT_UUGP_DETECTED);
+  }
+  tcp_connected = false;
+
+  if (uugp_ip.empty()) {
+    return false;
+  }
+
+  const uint32_t now = millis();
+
+  if (now - last_tcp_connect_attempt_ms < TCP_RECONNECT_INTERVAL_MS) {
+    return false;
+  }
+
+  last_tcp_connect_attempt_ms = now;
+
+  IPAddress address;
+  if (!address.fromString(uugp_ip.c_str())) {
+    DEBUG_PRINTF("UUGP Modbus TCP connect failed: invalid IP address '%s'\n", uugp_ip.c_str());
+    set_uugp_event_once(EVENT_UUGP_MISSING);
+    return false;
+  }
+
+  tcp_client.setConnectionTimeout(TCP_CONNECT_TIMEOUT_MS);
+
+  if (!tcp_client.connect(address, uugp_port)) {
+    DEBUG_PRINTF("UUGP Modbus TCP connect to %s:%u failed\n", uugp_ip.c_str(), uugp_port);
+    set_uugp_event_once(EVENT_UUGP_MISSING);
+    tcp_client.stop();
+    return false;
+  }
+
+  tcp_connected = true;
+  last_tcp_rx_ms = now;
+
+  DEBUG_PRINTF("UUGP Modbus TCP connected to %s:%u\n", uugp_ip.c_str(), uugp_port);
+  set_event(EVENT_UUGP_DETECTED, 0);
+  clear_event(EVENT_UUGP_MISSING);
+  return true;
+}
+
+void UUGPCharger::close_tcp_connection() {
+  if (tcp_connected) {
+    DEBUG_PRINTF("UUGP Modbus TCP connection lost\n");
+    set_uugp_event_once(EVENT_UUGP_MISSING);
+    clear_event(EVENT_UUGP_DETECTED);
+  }
+  if (tcp_client.connected()) {
+    tcp_client.stop();
+  }
+  tcp_connected = false;
+  initialization_waiting_for_ack = false;
+  expected_transaction_id = 0;
+  last_ack_transaction_id = 0;
+  datalayer.charger.uugp_communication_ok = false;
+}
+
+uint16_t UUGPCharger::next_transaction() {
+  ++transaction_id;
+
+  if (transaction_id == 0) {
+    transaction_id = 1;
+  }
+
+  return transaction_id;
+}
+
+void UUGPCharger::send_frame(uint8_t function, const uint8_t* payload, size_t payload_length) {
+  /*
+   * UUGP's supplied examples use:
+   *
+   * Transaction ID : 2
+   * Protocol ID    : 2 (always 0)
+   * Length         : 2
+   * Unit ID        : 1
+   * Function       : 1
+   * Data           : N
+   *
+   * No CRC is present in the supplied examples.
+   */
+
+  const uint16_t transaction = next_transaction();
+  expected_transaction_id = transaction;
+  expected_function = function;
+
+  const uint16_t length = static_cast<uint16_t>(2 + payload_length);
+
+  uint8_t header[8];
+
+  header[0] = transaction >> 8;
+  header[1] = transaction & 0xff;
+
+  header[2] = 0;
+  header[3] = 0;
+
+  header[4] = length >> 8;
+  header[5] = length & 0xff;
+
+  header[6] = UNIT_ID;
+  header[7] = function;
+
+  if (!tcp_client.connected()) {
+    close_tcp_connection();
+    return;
+  }
+  if (tcp_client.write(header, sizeof(header)) != sizeof(header)) {
+    close_tcp_connection();
+    return;
+  }
+  if (payload_length > 0) {
+    if (tcp_client.write(payload, payload_length) != payload_length) {
+      close_tcp_connection();
+      return;
+    }
+  }
+  tcp_client.flush();
+}
+
+void UUGPCharger::read_registers(uint8_t function, uint16_t address, uint16_t count) {
+  uint8_t payload[4];
+
+  payload[0] = address >> 8;
+  payload[1] = address & 0xff;
+  payload[2] = count >> 8;
+  payload[3] = count & 0xff;
+
+  expected_register = address;
+  expected_count = count;
+
+  send_frame(function, payload, sizeof(payload));
+}
+
+void UUGPCharger::write_single(uint16_t address, uint16_t value) {
+  uint8_t payload[4];
+
+  payload[0] = address >> 8;
+  payload[1] = address & 0xff;
+  payload[2] = value >> 8;
+  payload[3] = value & 0xff;
+
+  send_frame(FC_WRITE_SINGLE, payload, sizeof(payload));
+}
+
+void UUGPCharger::write_multiple(uint16_t address, const uint16_t* values, uint16_t count) {
+  if (count == 0 || count > 32) {
+    return;
+  }
+
+  uint8_t payload[69];
+
+  payload[0] = address >> 8;
+  payload[1] = address & 0xff;
+  payload[2] = count >> 8;
+  payload[3] = count & 0xff;
+  payload[4] = count * 2;
+
+  for (uint16_t i = 0; i < count; ++i) {
+    payload[5 + i * 2] = values[i] >> 8;
+    payload[6 + i * 2] = values[i] & 0xff;
+  }
+
+  send_frame(FC_WRITE_MULTIPLE, payload, 5 + count * 2);
+}
+
+uint16_t UUGPCharger::get_max_pack_voltage_dV() const {
+  return datalayer.battery.info.max_design_voltage_dV;
+}
+
+uint16_t UUGPCharger::bms_power_limit_W() const {
+  uint32_t power;
+
+  /*
+   * UUGP control mode:
+   *
+   * 0 = Stop
+   * 1 = Charging
+   * 2 = Discharging
+   *
+   * 1 -> BMS maximum charge power
+   * 0/2 -> BMS maximum discharge power
+   */
+  if (datalayer.charger.uugp_control_mode == 1) {
+    power = datalayer.battery.status.max_charge_power_W;
+  } else {
+    power = datalayer.battery.status.max_discharge_power_W;
+  }
+
+  if (power > 22000) {
+    power = 22000;
+  }
+
+  return static_cast<uint16_t>(power);
+}
+
+void UUGPCharger::initialize_system_time() {
+  time_t now = time(nullptr);
+
+  struct tm local_time{};
+
+  localtime_r(&now, &local_time);
+
+  struct tm utc_time{};
+
+  gmtime_r(&now, &utc_time);
+
+  time_t local_seconds = mktime(&local_time);
+  time_t utc_seconds = mktime(&utc_time);
+
+  int32_t timezone_seconds = static_cast<int32_t>(difftime(local_seconds, utc_seconds));
+
+  int32_t timezone_hours = timezone_seconds / 3600;
+
+  if (timezone_hours < -12) {
+    timezone_hours = -12;
+  }
+
+  if (timezone_hours > 12) {
+    timezone_hours = 12;
+  }
+
+  switch (initialization_step) {
+    case 0:
+      write_single(REG_TIMEZONE, static_cast<uint16_t>(static_cast<int16_t>(timezone_hours)));
+      break;
+
+    case 1:
+      write_single(REG_YEAR, static_cast<uint16_t>(local_time.tm_year % 100));
+      break;
+
+    case 2:
+      write_single(REG_MONTH, local_time.tm_mon + 1);
+      break;
+
+    case 3:
+      write_single(REG_DAY, local_time.tm_mday);
+      break;
+
+    case 4:
+      write_single(REG_HOUR, local_time.tm_hour);
+      break;
+
+    case 5:
+      write_single(REG_MINUTE, local_time.tm_min);
+      break;
+
+    case 6:
+      write_single(REG_SECOND, local_time.tm_sec);
+      break;
+  }
+}
+
+void UUGPCharger::initialize_current_limiting() {
+  switch (initialization_step) {
+    case 7:
+      // Never enable power during initialization. The charger must remain
+      // stopped until all initialization commands have been acknowledged.
+      write_single(REG_POWER_LIMIT, 0);
+      break;
+    case 8: {
+      uint16_t soc = uugp_discharge_cutoff_soc;
+      if (soc < 10 || soc > 90) {
+        soc = 80;
+      }
+      write_single(REG_DISCHARGE_CUTOFF_SOC, soc);
+      break;
+    }
+    case 9:
+      write_single(REG_CONTROL_MODE, 0);
+      break;
+  }
+}
+
+void UUGPCharger::initialize_pcs_information() {
+  const uint16_t max_voltage_dV = get_max_pack_voltage_dV();
+
+  switch (initialization_step) {
+    case 10:
+      write_single(REG_VBUS_UPPER, max_voltage_dV);
+      break;
+    case 11:
+      write_single(REG_VBUS_LOWER, max_voltage_dV);
+      break;
+  }
+}
+
+void UUGPCharger::initialize() {
+  if (!ensure_tcp_connection()) {
+    return;
+  }
+
+  /*
+   * Every initialization write must be acknowledged before moving to
+   * the next step. If the response never arrives, the same step is
+   * retried after SETTING_INTERVAL_MS.
+   */
+  if (initialization_waiting_for_ack) {
+    if (last_ack_transaction_id == expected_transaction_id) {
+      initialization_waiting_for_ack = false;
+
+      ++initialization_step;
+
+      if (initialization_step > 11) {
+        initialization_complete = true;
+      }
+
+      last_setting_ms = millis();
+      return;
+    }
+    // No valid acknowledgement yet. Re-send the same step below.
+  }
+
+  switch (initialization_step) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+      initialize_system_time();
+      break;
+
+    case 7:
+    case 8:
+    case 9:
+      initialize_current_limiting();
+      break;
+
+    case 10:
+    case 11:
+      initialize_pcs_information();
+      break;
+
+    default:
+      initialization_complete = true;
+      return;
+  }
+
+  initialization_waiting_for_ack = true;
+  last_setting_ms = millis();
+}
+
+void UUGPCharger::update_power_limit() {
+  /*
+   * If communication has not been verified, never send a non-zero
+   * power limit. The UUGP may otherwise retain a previously accepted
+   * power setting.
+   */
+  if (!datalayer.charger.uugp_communication_ok) {
+    write_single(REG_POWER_LIMIT, 0);
+    return;
+  }
+
+  uint16_t power_limit = 0;
+
+  if (datalayer.charger.uugp_control_mode == 1) {
+    /*
+     * Charging: the UUGP manual exposes no writable current register, only
+     * REG_POWER_LIMIT (0x4011). Derive a conservative power ceiling from
+     * the configured cable current using the charger's maximum output
+     * voltage, not its instantaneous voltage. That keeps the implied
+     * current ceiling valid as output voltage rises.
+     *
+     * Apply every independent ceiling: user-configured cable current,
+     * BMS current, charger module current, BMS power and the UUGP 22 kW cap.
+     * Missing/zero data fails closed (0 W).
+     */
+    uint32_t current_limit_A = uugp_max_charge_current_A;
+    const uint32_t bms_current_A = datalayer.battery.status.max_charge_current_dA / 10;
+    const uint32_t charger_current_A = datalayer.charger.uugp_max_output_current_A;
+    const uint32_t max_output_voltage_V = datalayer.charger.uugp_max_output_voltage_V;
+
+    if (current_limit_A == 0 || bms_current_A == 0 || charger_current_A == 0 || max_output_voltage_V == 0) {
+      power_limit = 0;
+    } else {
+      if (current_limit_A > bms_current_A) {
+        current_limit_A = bms_current_A;
+      }
+      if (current_limit_A > charger_current_A) {
+        current_limit_A = charger_current_A;
+      }
+
+      const uint32_t current_based_power_W = current_limit_A * max_output_voltage_V;
+      const uint32_t bms_charge_power_W = datalayer.battery.status.max_charge_power_W;
+      uint32_t effective_power_limit_W = current_based_power_W;
+      if (bms_charge_power_W < effective_power_limit_W) {
+        effective_power_limit_W = bms_charge_power_W;
+      }
+      if (effective_power_limit_W > 22000U) {
+        effective_power_limit_W = 22000U;
+      }
+      power_limit = static_cast<uint16_t>(effective_power_limit_W);
+    }
+  } else if (datalayer.charger.uugp_control_mode == 2) {
+    // Discharging: retain the existing BMS limit and optional home/grid power ceiling.
+    power_limit = bms_power_limit_W();
+    if (uugp_allow_discharge_to_home_grid && uugp_power_limit_W < power_limit) {
+      power_limit = uugp_power_limit_W;
+    }
+    if (power_limit > 22000) {
+      power_limit = 22000;
+    }
+  }
+  // Mode 0 (stop) and unknown modes always command zero power.
+
+  write_single(REG_POWER_LIMIT, power_limit);
+}
+
+void UUGPCharger::poll_status() {
+  if (millis() - last_status_ms < STATUS_INTERVAL_MS) {
+    return;
+  }
+
+  last_status_ms = millis();
+
+  switch (status_step) {
+    case 0:
+      /*
+       * EV-side block:
+       * 3020..3028
+       */
+      read_registers(FC_READ_INPUT, REG_EV_VOLTAGE, 9);
+      status_step = 1;
+      break;
+
+    case 1:
+      /*
+       * DC-side block:
+       * 302F..3031
+       */
+      read_registers(FC_READ_INPUT, REG_DC_VOLTAGE, 3);
+      status_step = 2;
+      break;
+
+    case 2:
+      /*
+       * Charging information:
+       * 3040..3044
+       */
+      read_registers(FC_READ_INPUT, REG_CHARGE_MODE, 5);
+      status_step = 3;
+      break;
+
+    default:
+      /*
+       * 4013 is controlled by the PCS/card/plug-and-charge logic,
+       * so read its current value instead of continuously overriding it.
+       */
+      read_registers(FC_READ_HOLDING, REG_CONTROL_MODE, 1);
+      status_step = 0;
+      break;
+  }
+}
+
+void UUGPCharger::transmit(unsigned long currentMillis) {
+  (void)currentMillis;
+  receive_tcp();
+
+  if (!ensure_tcp_connection()) {
+    datalayer.charger.uugp_communication_ok = false;
+    return;
+  }
+
+  if (!tcp_client.connected()) {
+    close_tcp_connection();
+    return;
+  }
+
+  if (last_response_ms != 0 && millis() - last_response_ms > 3000) {
+    datalayer.charger.uugp_communication_ok = false;
+    set_uugp_event_once(EVENT_UUGP_COMMUNICATION_ERROR);
+  }
+
+  if (!initialization_complete) {
+    if (initialization_step == 0 || millis() - last_setting_ms >= SETTING_INTERVAL_MS) {
+      initialize();
+    }
+
+    return;
+  }
+
+  /*
+   * Keep 4011 synchronized with the selected policy.
+   *
+   * UUGP requires >=15 seconds between setting operations.
+   */
+  if (millis() - last_setting_ms >= SETTING_INTERVAL_MS) {
+    update_power_limit();
+    last_setting_ms = millis();
+  }
+
+  poll_status();
+}
+
+void UUGPCharger::process_input_registers(uint16_t address, const uint16_t* values, uint16_t count) {
+  if (address == REG_EV_VOLTAGE && count >= 9) {
+    const bool changed =
+        datalayer.charger.uugp_ev_voltage_V != values[0] || datalayer.charger.uugp_ev_current_A != values[1] ||
+        datalayer.charger.uugp_power_factor != values[3] || datalayer.charger.uugp_module_status != values[4] ||
+        datalayer.charger.uugp_max_output_voltage_V != values[6] ||
+        datalayer.charger.uugp_max_output_current_A != values[7] || datalayer.charger.uugp_rated_power_W != values[8];
+    if (changed) {
+      DEBUG_PRINTF("UUGP EV/module parameters changed: EV=%uV/%uA PF=%u status=0x%04X max=%uV/%uA rated=%uW\n",
+                   values[0], values[1], values[3], values[4], values[6], values[7], values[8]);
+      set_event(EVENT_UUGP_PARAMETERS_CHANGED, REG_EV_VOLTAGE);
+    }
+    datalayer.charger.uugp_ev_voltage_V = values[0];
+    datalayer.charger.uugp_ev_current_A = values[1];
+    datalayer.charger.uugp_power_factor = values[3];
+    datalayer.charger.uugp_module_status = values[4];
+    datalayer.charger.uugp_module_temperature_C = values[5] * 0.1f;
+    datalayer.charger.uugp_max_output_voltage_V = values[6];
+    datalayer.charger.uugp_max_output_current_A = values[7];
+    datalayer.charger.uugp_rated_power_W = values[8];
+    return;
+  }
+
+  if (address == REG_DC_VOLTAGE && count >= 3) {
+    const float new_voltage = values[0] * 0.1f;
+    const float new_current = static_cast<int16_t>(values[1]) * 0.1f;
+    const float new_derating = values[2] * 0.01f;
+    if (datalayer.charger.uugp_dc_voltage_V != new_voltage || datalayer.charger.uugp_dc_current_A != new_current ||
+        datalayer.charger.uugp_dc_power_derating_kW != new_derating) {
+      DEBUG_PRINTF("UUGP DC parameters changed: %.1fV %.1fA derating=%.2fkW\n", new_voltage, new_current, new_derating);
+      set_event(EVENT_UUGP_PARAMETERS_CHANGED, REG_DC_VOLTAGE);
+    }
+    datalayer.charger.uugp_dc_voltage_V = new_voltage;
+    datalayer.charger.uugp_dc_current_A = new_current;
+    datalayer.charger.uugp_dc_power_derating_kW = new_derating;
+
+    return;
+  }
+
+  if (address == REG_CHARGE_MODE && count >= 5) {
+    if (datalayer.charger.uugp_control_mode != values[0] || datalayer.charger.uugp_charging_voltage_V != values[1] ||
+        datalayer.charger.uugp_charging_current_A != values[2] || datalayer.charger.uugp_active_power_W != values[3] ||
+        datalayer.charger.uugp_vehicle_soc != values[4]) {
+      DEBUG_PRINTF("UUGP charge status changed: mode=%u voltage=%uV current=%uA power=%uW SOC=%u%%\n", values[0],
+                   values[1], values[2], values[3], values[4]);
+      set_event(EVENT_UUGP_PARAMETERS_CHANGED, REG_CHARGE_MODE);
+    }
+    datalayer.charger.uugp_control_mode = values[0];
+
+    datalayer.charger.uugp_charging_voltage_V = values[1];
+
+    datalayer.charger.uugp_charging_current_A = values[2];
+
+    datalayer.charger.uugp_active_power_W = values[3];
+
+    datalayer.charger.uugp_vehicle_soc = values[4];
+
+    return;
+  }
+}
+
+void UUGPCharger::process_holding_registers(uint16_t address, const uint16_t* values, uint16_t count) {
+  if (address == REG_CONTROL_MODE && count >= 1) {
+    if (datalayer.charger.uugp_control_mode != values[0]) {
+      DEBUG_PRINTF("UUGP operating mode changed: %u -> %u\n", datalayer.charger.uugp_control_mode, values[0]);
+    }
+    datalayer.charger.uugp_control_mode = values[0];
+  }
+}
+
+void UUGPCharger::process_response(const uint8_t* frame, size_t length) {
+  if (length < 9) {
+    return;
+  }
+
+  if (frame[2] != 0 || frame[3] != 0 || frame[6] != UNIT_ID) {
+    return;
+  }
+
+  const uint16_t response_transaction = (static_cast<uint16_t>(frame[0]) << 8) | frame[1];
+
+  const uint8_t function = frame[7];
+
+  /*
+   * Only accept a response to the request currently outstanding.
+   * This is especially important for writes: a random/stale write
+   * response must never make communication_ok true.
+   */
+  if (response_transaction != expected_transaction_id) {
+    return;
+  }
+
+  /*
+   * Exception responses are never considered successful.
+   */
+  if (function & 0x80) {
+    set_uugp_event_once(EVENT_UUGP_COMMUNICATION_ERROR, function);
+    return;
+  }
+
+  if (function != expected_function) {
+    return;
+  }
+
+  if (function == FC_WRITE_SINGLE || function == FC_WRITE_MULTIPLE) {
+    /*
+     * Both write responses contain:
+     * transaction + protocol + length + unit + function + 4 bytes data
+     * => 12 bytes total.
+     */
+    if (length != 12) {
+      return;
+    }
+
+    last_response_ms = millis();
+    last_ack_transaction_id = response_transaction;
+    datalayer.charger.uugp_communication_ok = true;
+    clear_event(EVENT_UUGP_COMMUNICATION_ERROR);
+    return;
+  }
+
+  if (function != FC_READ_INPUT && function != FC_READ_HOLDING) {
+    return;
+  }
+
+  const uint8_t byte_count = frame[8];
+
+  if ((byte_count & 1) != 0 || byte_count > 100 || 9 + byte_count != length) {
+    return;
+  }
+
+  const uint16_t count = byte_count / 2;
+
+  if (count != expected_count) {
+    return;
+  }
+
+  uint16_t values[50];
+
+  for (uint16_t i = 0; i < count; ++i) {
+    values[i] = (static_cast<uint16_t>(frame[9 + i * 2]) << 8) | frame[10 + i * 2];
+  }
+
+  if (function == FC_READ_INPUT) {
+    process_input_registers(expected_register, values, count);
+  } else {
+    process_holding_registers(expected_register, values, count);
+  }
+
+  last_response_ms = millis();
+  datalayer.charger.uugp_communication_ok = true;
+  clear_event(EVENT_UUGP_COMMUNICATION_ERROR);
+}
+
+void UUGPCharger::receive_tcp() {
+  if (!tcp_client.connected()) {
+    if (tcp_connected) {
+      close_tcp_connection();
+    }
+    return;
+  }
+  while (tcp_client.available() > 0 && rx_length < sizeof(rx_buffer)) {
+    const int value = tcp_client.read();
+    if (value < 0) {
+      break;
+    }
+    rx_buffer[rx_length++] = static_cast<uint8_t>(value);
+  }
+  if (!tcp_client.connected()) {
+    close_tcp_connection();
+    return;
+  }
+  while (rx_length >= 8) {
+    if (rx_buffer[2] != 0 || rx_buffer[3] != 0 || rx_buffer[6] != UNIT_ID) {
+      memmove(rx_buffer, rx_buffer + 1, --rx_length);
+      continue;
+    }
+    const uint16_t length = (static_cast<uint16_t>(rx_buffer[4]) << 8) | rx_buffer[5];
+    const size_t frame_length = 6 + length;
+    if (length < 2 || frame_length > sizeof(rx_buffer)) {
+      memmove(rx_buffer, rx_buffer + 1, --rx_length);
+      continue;
+    }
+    if (rx_length < frame_length) {
+      return;
+    }
+    process_response(rx_buffer, frame_length);
+    const size_t remaining = rx_length - frame_length;
+    if (remaining > 0) {
+      memmove(rx_buffer, rx_buffer + frame_length, remaining);
+    }
+    rx_length = remaining;
+  }
+}
+#endif  // !SMALL_FLASH_DEVICE
