@@ -44,8 +44,10 @@ static const uint8_t ATTO_3_36D_RAMP[][7] = {
     {0xA1, 0x01, 0x32, 0x7B, 0x7D, 0x00, 0x47}, {0xA2, 0x01, 0x32, 0x8A, 0x85, 0x02, 0x47},
 };
 static const uint8_t ATTO_3_36D_RAMP_ROWS = sizeof(ATTO_3_36D_RAMP) / sizeof(ATTO_3_36D_RAMP[0]);
-static const uint8_t ATTO_3_OFFER_CURRENT = 0x1F;  // 15.5A at 0.5A/bit
-static const uint8_t ATTO_3_OFFER_POWER = 0x47;    // 7.1kW at 0.1kW/bit
+// The charger the BMS is told about: AC input current at 0.5A/bit, AC input power at ~0.05kW/bit. The
+// BMS bases its charge time estimate on it.
+static const uint8_t ATTO_3_OFFER_CURRENT = 0x6E;  // 55A, 12.75kW at 230V
+static const uint8_t ATTO_3_OFFER_POWER = 0xFF;    // 12.75kW
 
 void BydAttoBattery::set_12D_payload(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) {
   ATTO_3_12D.data.u8[0] = b0;
@@ -71,6 +73,11 @@ void BydAttoBattery::
   datalayer_battery->status.soh_pptt = BMS_SOH * 100;
 
   datalayer_battery->status.current_dA = -battery_current_dA;
+
+  if (BMS_capacity_Ah > 0 && BMS_capacity_Ah < 0xFF && datalayer_battery->info.number_of_cells > 0) {
+    // Same as BYD's nameplate rating: Ah x cells x 3.2V nominal
+    datalayer_battery->info.total_capacity_Wh = BMS_capacity_Ah * datalayer_battery->info.number_of_cells * 32 / 10;
+  }
 
   datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
@@ -117,17 +124,15 @@ void BydAttoBattery::
   // Start from the user manual limit (deci-amps).
   uint16_t user_cap_dA = datalayer.battery_settings.max_user_set_charge_dA;
   // In the band, hold to what a real AC charger could deliver: that is the approach rate every
-  // captured native termination happened at. Never deliver above the transmitted 0x47E current
-  // offer either (0.5A per bit).
+  // captured native termination happened at.
   if (session_owns_power) {
     if (datalayer_battery->status.voltage_dV > 0) {
       const uint16_t obc_cap_dA = (uint16_t)(SESSION_OBC_CAP_W * 100 / datalayer_battery->status.voltage_dV);
       if (user_cap_dA > obc_cap_dA)
         user_cap_dA = obc_cap_dA;
     }
-    const uint16_t offer_cap_dA = (uint16_t)ATTO_3_OFFER_CURRENT * 5;
-    if (user_cap_dA > offer_cap_dA)
-      user_cap_dA = offer_cap_dA;
+    if (user_cap_dA > SESSION_BAND_CAP_dA)
+      user_cap_dA = SESSION_BAND_CAP_dA;
   }
   // The user limit is sovereign: a cap below the tail lowers the tail, never the other way round.
   if (tail_current_dA > user_cap_dA)
@@ -324,6 +329,8 @@ void BydAttoBattery::
         (chargeSessionState == CHG_SESSION_IDLE) ? 0 : (uint32_t)((millis() - chargeSessionEntryMillis) / 1000);
     datalayer_bydatto->chargePower = BMS_allowed_charge_power;
     datalayer_bydatto->charge_times = BMS_charge_times;
+    datalayer_bydatto->charge_time_remaining_h = BMS_charge_time_remaining_h;
+    datalayer_bydatto->charge_time_remaining_min = BMS_charge_time_remaining_min;
     datalayer_bydatto->dischargePower = BMS_allowed_discharge_power;
     datalayer_bydatto->total_charged_ah = BMS_total_charged_ah;
     datalayer_bydatto->total_discharged_ah = BMS_total_discharged_ah;
@@ -646,7 +653,8 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_current_dA = (int16_t)(((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 5000);
         lastCurrentSampleMillis = millis();
         BMS_SOH = rx_frame.data.u8[4];
-        BMS_SOC = rx_frame.data.u8[5];  // Whole-percent SOC, same basis as DID 0x0005 (not the 0x447 basis)
+        BMS_capacity_Ah = rx_frame.data.u8[6];  // Current capacity, whole Ah (floor of DID 0x1FFC)
+        BMS_SOC = rx_frame.data.u8[5];          // Whole-percent SOC, same basis as DID 0x0005 (not the 0x447 basis)
         BMS_voltage_available = true;
       } else {
         datalayer_battery->status.CAN_error_counter++;
@@ -654,6 +662,13 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x445:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        // BMS estimate at the present charge current, FF FF when not charging
+        BMS_charge_time_remaining_h = rx_frame.data.u8[2];
+        BMS_charge_time_remaining_min = rx_frame.data.u8[3];
+      } else {
+        datalayer_battery->status.CAN_error_counter++;
+      }
       break;
     case 0x446:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
