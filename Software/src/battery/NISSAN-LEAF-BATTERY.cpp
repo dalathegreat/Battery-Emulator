@@ -279,6 +279,16 @@ void NissanLeafBattery::
   datalayer_battery->status.bms_reports_full = battery_Full_CHARGE_flag;
   datalayer_battery->status.bms_reports_empty = battery_Capacity_Empty;
 
+  /* Cell overvoltage limit level from 0x1DB byte 6 bits 3-2, sent by the AZE0 LBC only: 0 none,
+     1 highest cell at or above limit B, 2 at or above limit A (the full-charge voltage at the present
+     current), 3 a confirmed cell overvoltage fault. Level 3 is the LBC's own verdict that a cell is
+     over voltage, so the safety layer raises EVENT_CELL_CRITICAL_OVER_VOLTAGE from it as well as from
+     the polled cell voltages, which only arrive every rotation of the poll. The ZE0 LBC has no such
+     signal and the ZE1 LBC leaves these bits unwritten, so only an AZE0 pack is judged on it.
+     Source: github.com/SafetyUggs/Leaf-BMS-Reverse-Engineering, 0x1DB and 21 0C (4NC0A) */
+  datalayer_battery->status.bms_reports_cell_critical_overvoltage =
+      (LEAF_battery_Type == AZE0_BATTERY) && (battery_OV_limit_level == 3);
+
   if (battery_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     datalayer_battery->status.max_charge_power_W = 0;
   }
@@ -657,6 +667,7 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       battery_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
+      battery_OV_limit_level = (rx_frame.data.u8[6] >> 2) & 0x03;
       battery_status_seen |= 0x01;
       break;
     }
