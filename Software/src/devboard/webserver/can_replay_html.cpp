@@ -7,17 +7,14 @@ String can_replay_processor(void) {
   String content = index_html_header;
   content += HELP_SCRIPT;
   // Page format
-  content += "<style>";
+  content += INDEX_HTML_NAV_LINK "<style>";
   content += "body { background-color: black; color: white; font-family: Arial, sans-serif; }";
-  content +=
-      "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
-      "cursor: pointer; border-radius: 10px; }";
-  content += "button:hover { background-color: #3A4A52; }";
+  content += "button { padding: 10px 20px; margin-bottom: 20px; }";
   content +=
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
   content += "</style>";
-  content += "<button onclick='home()'>Back to main page</button>";
+  content += INDEX_HTML_NAV_START INDEX_HTML_NAV_END;
 
   // CAN dump card
   content +=
@@ -159,7 +156,6 @@ String can_replay_processor(void) {
     content += "function deleteCANLog() { window.location.href = '/delete_can_log'; }";
   }
 #endif  // SDCARD
-  content += "function home() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;
   return content;
