@@ -1,0 +1,105 @@
+{
+  "$schema": "./board-config-schema-1.json",
+  "config_version": 1,
+  "board": {
+    "name": "Waveshare ESP32-S3-CAN-2CH",
+    "mcu": "esp32s3",
+    "notes": "ESP32-S3R8 module, 16 MB flash. Its octal PSRAM sits inside the chip on GPIO33-37, so those pins are not available even though this firmware does not use the PSRAM."
+  },
+  "ports": [
+    {
+      "type": "statusled",
+      "name": "Status LED",
+      "enabled": false,
+      "notes": "The board has no user LED, and GPIO2 is not connected to anything. Move the pin to a free header pin and enable this port to wire an external one.",
+      "led_count": 1,
+      "max_brightness": 40,
+      "gpio": { "pin": 2 }
+    },
+    {
+      "type": "longpress_reset",
+      "name": "Start AP/Wipe Net/Reset button",
+      "enabled": true,
+      "gpio": { "pin": 0 }
+    },
+    {
+      "type": "nativecan",
+      "name": "CAN_1",
+      "enabled": true,
+      "notes": "Native ESP32 CAN.",
+      "gpio": { "tx": 15, "rx": 16 }
+    },
+    {
+      "type": "mcp2515",
+      "name": "CAN_2",
+      "enabled": true,
+      "notes": "XL2515QF20 onboard CAN, 16 MHz crystal, no reset line.",
+      "spi_bus": "fspi",
+      "freq_hz": 16000000,
+      "gpio": { "sck": 21, "mosi": 41, "miso": 42, "cs": 17, "int": 18 }
+    },
+    {
+      "type": "rs485",
+      "name": "RS485",
+      "enabled": false,
+      "notes": "The board has no RS485 transceiver. Enable this port only with an external transceiver module wired to header P1: TX GPIO10 (P1-18), RX GPIO11 (P1-16), DE/RE GPIO12 (P1-14).",
+      "de_active_high": true,
+      "gpio": { "tx": 10, "rx": 11, "de_re": 12 }
+    },
+    {
+      "type": "contactor_control",
+      "name": "Primary battery contactors",
+      "enabled": true,
+      "gpio": { "positive": 3, "negative": 4, "precharge": 5 }
+    },
+    {
+      "type": "contactor_second_battery",
+      "name": "Second battery contactors",
+      "enabled": true,
+      "gpio": { "pin": 8 }
+    },
+    {
+      "type": "bms_power",
+      "name": "BMS power",
+      "enabled": true,
+      "active_low": false,
+      "always_on": false,
+      "reset_hold": true,
+      "gpio": { "pin": 6 }
+    },
+    {
+      "type": "e_stop",
+      "name": "Equipment stop",
+      "enabled": true,
+      "gpio": { "pin": 7 }
+    },
+    {
+      "type": "current_sensor_adc",
+      "name": "Current sensor input",
+      "enabled": false,
+      "notes": "On header P1-20 (GPIO9, ADC1 channel 8). Shares GPIO9 with the SMA enable input and battery wake-up wup2, so only one of the three can be enabled.",
+      "gpio": { "pin": 9 }
+    },
+    {
+      "type": "precharge_control",
+      "name": "HIA4V1 precharge control",
+      "enabled": false,
+      "notes": "Reuses the primary contactor pins, so it replaces contactor_control rather than running alongside it.",
+      "gpio": { "hia4v1": 5, "inverter_disconnect": 3 }
+    },
+    {
+      "type": "sma_enable",
+      "name": "SMA inverter contactor enable",
+      "enabled": false,
+      "notes": "Shares GPIO9 with battery_wakeup wup2 and the current sensor input; only one of the three can be enabled.",
+      "gpio": { "pin": 9 }
+    },
+    {
+      "type": "battery_wakeup",
+      "name": "Battery wake-up",
+      "enabled": false,
+      "notes": "wup1 collides with the second battery contactor output and wup2 with the SMA enable input and the current sensor input. Enable only for a battery that needs wake-up, and disable the ports it displaces.",
+      "gpio": { "wup1": 8, "wup2": 9 }
+    }
+  ]
+}
