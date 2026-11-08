@@ -349,26 +349,20 @@ uint16_t RenaultZoeGen2Battery::handle_pid(uint16_t pid, uint32_t value, const u
     case POLL_BMS_STATE:
       battery_bms_state = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
-    case POLL_BALANCE_SWITCHES:
-      // TODO: HOW TO HANDLE THIS?
-      /*
-          if (rx_frame.data.u8[0] == 0x23) {
-            for (int i = 0; i < 32; i++) {
-              balancing_status_cell[i] = (rx_frame.data.u8[4 + (i / 8)] >> (7 - (i % 8))) & 0x01;
-            }
-          }
-          if (rx_frame.data.u8[0] == 0x24) {
-            for (int i = 0; i < 56; i++) {
-              balancing_status_cell[32 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
-            }
-          }
-          if (rx_frame.data.u8[0] == 0x25) {
-            for (int i = 0; i < 8; i++) {
-              balancing_status_cell[88 + i] = (rx_frame.data.u8[1 + (i / 8)] >> (7 - (i % 8))) & 0x01;
-            }
-          }
-            */
+    case POLL_BALANCE_SWITCHES: {
+      constexpr uint16_t BALANCE_DATA_OFFSET = 20;  // first byte holding cell bits
+      constexpr uint16_t NUM_CELLS = 96;
+      constexpr uint16_t NEEDED = BALANCE_DATA_OFFSET + (NUM_CELLS / 8);  // 32
+
+      if (data == nullptr || length < NEEDED) {
+        break;  // short/invalid response, ignore
+      }
+
+      for (uint16_t i = 0; i < NUM_CELLS; i++) {
+        balancing_status_cell[i] = (data[BALANCE_DATA_OFFSET + (i / 8)] >> (7 - (i % 8))) & 0x01;
+      }
       break;
+    }
     case POLL_ENERGY_COMPLETE:
       battery_energy_complete = (uint16_t)(value);  //(rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
