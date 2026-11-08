@@ -244,6 +244,8 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** SOC scaling setting. Increases battery life. 
    * If true will rescale SOC between the configured min/max-percentage */
   bool soc_scaling_active = true;
+  /** Runtime only: scale up to 100% real SOC instead of max_percentage, so a full charge can finish */
+  bool soc_window_top_lifted = false;
   /** Parallel headroom tracking, from the settings page and only with two or three batteries: the
    * charge limit is raised above the lowest pack limit to what the packs take together. Off, the
    * inverter gets the lowest pack limit, as before the tracking existed. Read at boot only */
