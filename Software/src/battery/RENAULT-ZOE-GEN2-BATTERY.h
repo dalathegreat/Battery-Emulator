@@ -27,7 +27,7 @@ class RenaultZoeGen2Battery : public UdsCanBattery {
 
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "renault_zoe_gen2_dtc.json"; }
-  uint8_t calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor);
+  uint8_t calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor, uint8_t length = 7, int8_t crc_index = -1);
 
  protected:
   // Called by the UDS superclass for each successful PID query response.
@@ -247,6 +247,12 @@ class RenaultZoeGen2Battery : public UdsCanBattery {
                        .DLC = 8,
                        .ID = 0x0EE,
                        .data = {0x32, 0x3, 0x20, 0xAA, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ZOE_0F5 = {//Current
+                       .FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0F5,
+                       .data = {0x7C, 0x00, 0x00, 0xFF, 0xD7, 0xF8, 0x7D, 0x10}};
   CAN_frame ZOE_373 = {//HEVC sender, wakeup message
                        .FD = false,
                        .ext_ID = false,

@@ -22,10 +22,13 @@ https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information?tab=read
 https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 */
 
-uint8_t RenaultZoeGen2Battery::calculate_crc_zoe(CAN_frame& rx_frame, uint8_t crc_xor) {
+uint8_t RenaultZoeGen2Battery::calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor, uint8_t length, int8_t crc_index) {
   uint8_t crc = 0;  //init value 0x00
-  for (uint8_t j = 0; j < 7; j++) {
-    crc = crc8_table_SAE_J1850_ZER0[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) & 0xFF];
+  for (uint8_t j = 0; j < length; j++) {
+    if (j == crc_index) {  //Skip the byte that holds the CRC itself
+      continue;
+    }
+    crc = crc8_table_SAE_J1850_ZER0[(crc ^ frame.data.u8[j]) & 0xFF];
   }
   return crc ^ crc_xor;
 }
@@ -449,6 +452,11 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
     ZOE_0EE.data.u8[7] = calculate_crc_zoe(ZOE_0EE, 0xAC);
 
     transmit_can_frame(&ZOE_0EE);  //Pedal position
+
+    ZOE_0F5.data.u8[1] = counter_10ms;  //Counter in low nibble
+    ZOE_0F5.data.u8[2] = calculate_crc_zoe(ZOE_0F5, 0x16, 8, 2);
+    transmit_can_frame(&ZOE_0F5);  //Current
+
     //transmit_can_frame(&ZOE_133);  //Vehicle speed (CRC is frame3 B1A670 55 0006FFFF)
   }
 
