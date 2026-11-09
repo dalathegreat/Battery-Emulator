@@ -418,7 +418,7 @@ void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const 
       break;
     case UDS_STATE_READ_DTC:
       if (sid == UDS_RESPONSE_SID_OF(SID::ReadDTCInformation)) {
-        handle_dtc_response(data, len);
+        handle_dtc_response(data, len, dtc);
       } else if (dtc != nullptr) {
         // Negative response to the DTC read: mark the readout as failed.
         dtc->dtc_read_failed = true;
@@ -451,8 +451,8 @@ void UdsCanBattery::handle_internal_sequence(uint16_t state, uint8_t sid, const 
   }
 }
 
-void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
-  if (dtc == nullptr)
+void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len, DATALAYER_BATTERY_DTC_TYPE* target) {
+  if (target == nullptr)
     return;
 
   const bool is_kwp2000 = (pid_scan_id_bytes == 1);
@@ -460,15 +460,15 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
 
   if (len < 2 || !valid_header) {
     // Unexpected report type or a malformed response — treat as a failed readout.
-    dtc->dtc_read_failed = true;
+    target->dtc_read_failed = true;
   } else {
-    dtc->dtc_read_failed = false;
+    target->dtc_read_failed = false;
     int dtcStartIndex = is_kwp2000 ? 2 : 3;  // KWP2000 starts at offset 2, standard UDS skips 59 02 <mask>
     int availableBytes = len - dtcStartIndex;
     int maxDtcCount = availableBytes / 4;
 
-    if (maxDtcCount > dtc->MAX_DTC_COUNT) {
-      maxDtcCount = dtc->MAX_DTC_COUNT;
+    if (maxDtcCount > target->MAX_DTC_COUNT) {
+      maxDtcCount = target->MAX_DTC_COUNT;
       logging.println("DTC count exceeds buffer, truncating");
     }
     if (maxDtcCount < 0)
@@ -483,12 +483,12 @@ void UdsCanBattery::handle_dtc_response(const uint8_t* data, uint16_t len) {
       uint32_t dtcCode =
           ((uint32_t)data[offset] << 16) | ((uint32_t)data[offset + 1] << 8) | (uint32_t)data[offset + 2];
       uint8_t dtcStatus = data[offset + 3];
-      dtc->dtc_codes[i] = dtcCode;
-      dtc->dtc_status[i] = dtcStatus;
+      target->dtc_codes[i] = dtcCode;
+      target->dtc_status[i] = dtcStatus;
     }
-    dtc->dtc_count = maxDtcCount;
+    target->dtc_count = maxDtcCount;
   }
-  dtc->dtc_last_read_millis = millis();
+  target->dtc_last_read_millis = millis();
 }
 
 // Low level UDS send
@@ -536,12 +536,14 @@ void UdsCanBattery::set_pid_scan_list(const uint16_t* pid_list, uint16_t length)
 }
 
 String UdsBatteryHtmlRenderer::get_status_html() {
-  String ret = battery.get_uds_info_html();
-  if (battery.dtc != nullptr) {
-    ret += BatteryHtmlRenderer::render_dtc_section_html(*battery.dtc, battery.get_dtc_json_filename(),
-                                                        battery.get_dtc_standard_code_string());
+  return battery.get_uds_info_html() + battery.get_uds_dtc_html();
+}
+
+String UdsCanBattery::get_uds_dtc_html() {
+  if (dtc == nullptr) {
+    return String();
   }
-  return ret;
+  return BatteryHtmlRenderer::render_dtc_section_html(*dtc, get_dtc_json_filename(), get_dtc_standard_code_string());
 }
 
 bool UdsCanBattery::supports_read_DTC() {
