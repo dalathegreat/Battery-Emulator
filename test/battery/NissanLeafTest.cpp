@@ -2556,6 +2556,45 @@ TEST_F(NissanLeafStartingSequenceTests, ShouldIgnoreCanErrorsWhileTheResetHasThe
   EXPECT_TRUE(raised(EVENT_CAN_NATIVE_BUFFER_FULL));
 }
 
+// How the LBC went quiet is told apart, for the log. Where a BMS reset cuts its whole supply together with
+// IGN it is gone before the sleep command has gone out, and never saw the terminating sequence end.
+TEST_F(NissanLeafStartingSequenceTests, ShouldTellAPowerCutFromASleep) {
+  make_ready();
+  run(1000);
+  EXPECT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_TALKING);
+  run(200, false);  // Outside a reset
+  EXPECT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_SILENT);
+  run(100);
+  ASSERT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_TALKING);
+
+  // Only IGN cut: it talks on, sees the sleep command, and goes quiet after it
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+  run(500);
+  EXPECT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_TALKING);
+  run(200, false);
+  EXPECT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_ASLEEP);
+  datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+  run(3000);
+  datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+  run(1000);
+  ASSERT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_TALKING);
+
+  // Its whole supply cut: gone at once, whenever the next 0x50B happens to be due
+  for (unsigned long offset : {0ul, 35ul, 70ul}) {
+    run(100 + offset);
+    datalayer.system.status.bms_reset_status = BMS_RESET_POWERED_OFF;
+    run(90, false);
+    EXPECT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_TALKING) << offset;
+    run(1000, false);
+    EXPECT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_POWER_CUT) << offset;
+    datalayer.system.status.bms_reset_status = BMS_RESET_POWERING_ON;
+    run(3000);
+    datalayer.system.status.bms_reset_status = BMS_RESET_IDLE;
+    run(1000);
+    ASSERT_EQ(battery->lbc_silence(), NissanLeafBattery::LBC_TALKING) << offset;
+  }
+}
+
 // Each pack ignores the errors of its own interface only
 TEST_F(NissanLeafStartingSequenceTests, ShouldIgnoreOnlyItsOwnInterface) {
   delete battery;

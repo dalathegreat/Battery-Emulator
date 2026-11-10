@@ -80,6 +80,12 @@ class NissanLeafBattery : public CanBattery {
     min_dA = battery_Current2_peak_min_published_dA;
   }
 
+  /* Whether the LBC is talking, and if not, how it went quiet: outside a BMS reset (LBC_SILENT), after
+     the terminating sequence's sleep command (LBC_ASLEEP), or before it could have seen that command,
+     its whole supply cut together with IGN (LBC_POWER_CUT). Logged as it goes quiet. */
+  enum LbcSilence : uint8_t { LBC_TALKING, LBC_SILENT, LBC_ASLEEP, LBC_POWER_CUT };
+  LbcSilence lbc_silence() { return silence; }
+
  private:
   bool UserRequestDTCreset = false;
   bool UserRequestDTCreadout = false;
@@ -211,7 +217,7 @@ class NissanLeafBattery : public CanBattery {
   static const unsigned long LBC_SILENT_MS = 100;
   static const unsigned long LBC_STOPPED_MS = 1000;
   unsigned long lbc_heard_ms = 0;
-  bool lbc_silent = false;  //Quiet for LBC_SILENT_MS, logged as it went so
+  LbcSilence silence = LBC_TALKING;  //Other than LBC_TALKING once quiet for LBC_SILENT_MS
   //How long after a BMS reset this interface's CAN errors are still ignored, see transmit_can. The safety
   //checks raise them once a second, from what has failed since the previous check.
   static const uint32_t CAN_ERRORS_IGNORE_MS = 2000;
@@ -250,6 +256,11 @@ class NissanLeafBattery : public CanBattery {
   TerminatingStep terminating = NOT_TERMINATING;
   bool terminating_RLYP = false;  //As they were when IGN went off
   bool terminating_BTONFN = false;
+  //The first 0x50B to carry the sleep command. An LBC last heard before it went out cannot have gone
+  //quiet because of it: the reset cut its whole supply, not just IGN, and it never saw the sequence end
+  //(LBC_POWER_CUT).
+  bool sleep_sent = false;
+  unsigned long sleep_sent_ms = 0;
   static const uint8_t CHG_STA_RQ_STOP_VALUE = 3;  //11b
   //Startup burst: the first pass through PIDgroups[] is polled at this faster rate so the battery
   //info page fills in within seconds instead of over a minute. Counted down per request actually
