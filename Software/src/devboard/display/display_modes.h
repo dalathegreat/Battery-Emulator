@@ -6,9 +6,9 @@
 #include <string.h>
 
 // OLED page selected in Settings. Stored as NVM uint8 DISPMODE.
-// 0 Status (today's tall SOC and rotating pages), 1 Health, 2 Cell bars.
+// 0 Status (today's tall SOC and rotating pages), 1 Health, 2 Cell bars, 3 Cycle.
 // A missing key or any other value is Status.
-enum class DisplayMode : uint8_t { Status = 0, Health = 1, CellBars = 2 };
+enum class DisplayMode : uint8_t { Status = 0, Health = 1, CellBars = 2, Cycle = 3 };
 
 inline DisplayMode display_mode_from_raw(uint32_t raw) {
   if (raw == static_cast<uint32_t>(DisplayMode::Health)) {
@@ -17,7 +17,21 @@ inline DisplayMode display_mode_from_raw(uint32_t raw) {
   if (raw == static_cast<uint32_t>(DisplayMode::CellBars)) {
     return DisplayMode::CellBars;
   }
+  if (raw == static_cast<uint32_t>(DisplayMode::Cycle)) {
+    return DisplayMode::Cycle;
+  }
   return DisplayMode::Status;
+}
+
+// How long Cycle leaves each page up: Status, then Health, then Cell bars.
+static constexpr uint32_t DISPLAY_CYCLE_PAGE_MS = 4000;
+
+// Page for a Cycle run that has been going for elapsed_ms. Unsigned elapsed wraps safely.
+// 0 Status, 4000 Health, 8000 Cell bars, 12000 Status again.
+inline DisplayMode display_cycle_page(uint32_t elapsed_ms) {
+  static constexpr DisplayMode pages[] = {DisplayMode::Status, DisplayMode::Health, DisplayMode::CellBars};
+  const uint32_t index = (elapsed_ms / DISPLAY_CYCLE_PAGE_MS) % (sizeof(pages) / sizeof(pages[0]));
+  return pages[index];
 }
 
 // Boot-log token. Status keeps the name the startup diagnostics already used.
@@ -27,6 +41,8 @@ inline const char* display_mode_name(DisplayMode mode) {
       return "health";
     case DisplayMode::CellBars:
       return "cell-bars";
+    case DisplayMode::Cycle:
+      return "cycle";
     default:
       return "status-pages";
   }

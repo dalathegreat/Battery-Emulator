@@ -744,23 +744,44 @@ void update_display() {
   }
 
   // Status stays on its existing 500 ms cadence. Health and cell bars refresh at 1 Hz.
-  const DisplayMode mode = user_selected_display_mode;
-  const uint32_t period_ms = mode == DisplayMode::Status ? 500 : 1000;
+  // Cycle picks one of those three with a millis difference, so a page change does not wait
+  // out the previous page's period and does not block the task.
   auto currentMillis = millis();
-  if (currentMillis - lastUpdateMillis < period_ms) {
+  const DisplayMode selected = user_selected_display_mode;
+  static uint32_t cycle_origin_ms = 0;
+  static bool cycle_running = false;
+  if (selected == DisplayMode::Cycle) {
+    if (!cycle_running) {
+      cycle_origin_ms = currentMillis;
+      cycle_running = true;
+    }
+  } else {
+    cycle_running = false;
+  }
+  const DisplayMode mode = selected == DisplayMode::Cycle
+                               ? display_cycle_page((uint32_t)(currentMillis - cycle_origin_ms))
+                               : selected;
+
+  static DisplayMode painted = DisplayMode::Status;
+  static bool have_painted = false;
+  const bool page_changed = have_painted && painted != mode;
+  const uint32_t period_ms = mode == DisplayMode::Status ? 500 : 1000;
+  if (!page_changed && (uint32_t)(currentMillis - lastUpdateMillis) < period_ms) {
     return;
   }
 
   static bool first_paint = true;
   if (first_paint) {
-    OLED_LOG("first-paint begin path=%s", display_mode_name(mode));
+    if (selected == DisplayMode::Cycle) {
+      OLED_LOG("first-paint begin path=cycle page=%s", display_mode_name(mode));
+    } else {
+      OLED_LOG("first-paint begin path=%s", display_mode_name(mode));
+    }
     oled_trace_begin();
   }
 
   // A mode change has to wipe the previous page. Status itself is not cleared between frames.
-  static DisplayMode painted = DisplayMode::Status;
-  static bool have_painted = false;
-  if (have_painted && painted != mode) {
+  if (page_changed) {
     clear();
   }
   painted = mode;

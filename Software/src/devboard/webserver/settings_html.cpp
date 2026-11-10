@@ -117,8 +117,9 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
-// OLED page. 0 is Status, and that is also what a missing or unknown DISPMODE shows.
-static const std::map<int, String> display_modes = {{0, "Status"}, {1, "Health"}, {2, "Cell bars"}};
+// OLED page. 0 is Status. 3 rotates the three pages. Anything else is also Status.
+static const std::map<int, String> display_modes = {
+    {0, "Status"}, {1, "Health"}, {2, "Cell bars"}, {3, "Cycle"}};
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};

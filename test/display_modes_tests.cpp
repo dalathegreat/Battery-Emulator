@@ -18,7 +18,7 @@ void expect_row(const char* row, const char* text) {
 
 TEST(DisplayModeTests, MissingAndUnknownValuesAreStatus) {
   EXPECT_EQ(display_mode_from_raw(0), DisplayMode::Status);
-  EXPECT_EQ(display_mode_from_raw(3), DisplayMode::Status);
+  EXPECT_EQ(display_mode_from_raw(4), DisplayMode::Status);
   EXPECT_EQ(display_mode_from_raw(99), DisplayMode::Status);
   EXPECT_EQ(display_mode_from_raw(0xFFFFFFFFu), DisplayMode::Status);
 }
@@ -26,9 +26,27 @@ TEST(DisplayModeTests, MissingAndUnknownValuesAreStatus) {
 TEST(DisplayModeTests, KnownValuesRoundTrip) {
   EXPECT_EQ(display_mode_from_raw(1), DisplayMode::Health);
   EXPECT_EQ(display_mode_from_raw(2), DisplayMode::CellBars);
+  EXPECT_EQ(display_mode_from_raw(3), DisplayMode::Cycle);
   EXPECT_STREQ(display_mode_name(DisplayMode::Status), "status-pages");
   EXPECT_STREQ(display_mode_name(DisplayMode::Health), "health");
   EXPECT_STREQ(display_mode_name(DisplayMode::CellBars), "cell-bars");
+  EXPECT_STREQ(display_mode_name(DisplayMode::Cycle), "cycle");
+}
+
+TEST(DisplayCycleTests, PagesAdvanceEveryFourSeconds) {
+  EXPECT_EQ(DISPLAY_CYCLE_PAGE_MS, 4000u);
+  EXPECT_EQ(display_cycle_page(0), DisplayMode::Status);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS - 1), DisplayMode::Status);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS), DisplayMode::Health);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 2 - 1), DisplayMode::Health);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 2), DisplayMode::CellBars);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 3 - 1), DisplayMode::CellBars);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 3), DisplayMode::Status);
+  EXPECT_EQ(display_cycle_page(DISPLAY_CYCLE_PAGE_MS * 4), DisplayMode::Health);
+
+  // A large elapsed value stays on the same three-page ring.
+  const uint32_t near_wrap = 0xFFFFF000u;
+  EXPECT_EQ(display_cycle_page(near_wrap), display_cycle_page(near_wrap % (DISPLAY_CYCLE_PAGE_MS * 3)));
 }
 
 TEST(HealthFormatTests, HalfUpBoundaries) {
