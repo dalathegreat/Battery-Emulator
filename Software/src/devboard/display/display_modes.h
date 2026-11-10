@@ -229,4 +229,169 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
   health_pad(rows.line[7], "");
 }
 
+// Cell bars. One column per cell on the 56px under the text row, centered in 128.
+// A valid bar is at least 2px. A missing cell (0 mV) is a 1px dot, never a bar.
+static constexpr uint16_t CELL_BAR_MIN_SPAN_MV = 20;
+static constexpr uint8_t CELL_BAR_PX = 56;
+static constexpr uint8_t CELL_BAR_DOT_PX = 1;
+static constexpr uint8_t CELL_BAR_MIN_PX = 2;
+static constexpr uint16_t CELL_BAR_MAX_CELLS = 128;
+
+// Legacy S/X modules are 6 bricks. 96 and 84 are exact module counts; 83 is not.
+// 3/Y 96 is either 4x24 or 23+25+25+23, and 108 LFP has no single verified module
+// order, so a 3/Y cell count alone does not get gaps. Plaid 110 is not grouped.
+enum class CellPackFamily : uint8_t { Unknown = 0, TeslaLegacySX = 1, Tesla3Y = 2 };
+
+inline uint8_t equal_module_bricks(CellPackFamily family, uint16_t cells) {
+  if (family == CellPackFamily::TeslaLegacySX && (cells == 96 || cells == 84)) {
+    return 6;
+  }
+  return 0;
+}
+
+struct CellScale {
+  bool have = false;
+  uint16_t min_mV = 0;
+  uint16_t max_mV = 0;
+  uint16_t lo_mV = 0;
+  uint16_t span_mV = CELL_BAR_MIN_SPAN_MV;
+};
+
+inline CellScale cell_voltage_scale(const uint16_t* mv, uint16_t count) {
+  CellScale scale;
+  if (mv == nullptr || count == 0) {
+    return scale;
+  }
+  const uint16_t n = count > CELL_BAR_MAX_CELLS ? CELL_BAR_MAX_CELLS : count;
+  bool any = false;
+  uint16_t min_mV = 0;
+  uint16_t max_mV = 0;
+  for (uint16_t i = 0; i < n; i++) {
+    if (mv[i] == 0) {
+      continue;
+    }
+    if (!any || mv[i] < min_mV) {
+      min_mV = mv[i];
+    }
+    if (!any || mv[i] > max_mV) {
+      max_mV = mv[i];
+    }
+    any = true;
+  }
+  if (!any) {
+    return scale;
+  }
+  scale.have = true;
+  scale.min_mV = min_mV;
+  scale.max_mV = max_mV;
+  const uint16_t delta = (uint16_t)(max_mV - min_mV);
+  scale.span_mV = delta < CELL_BAR_MIN_SPAN_MV ? CELL_BAR_MIN_SPAN_MV : delta;
+  const uint16_t pad = (uint16_t)((scale.span_mV - delta) / 2u);
+  scale.lo_mV = pad > min_mV ? 0 : (uint16_t)(min_mV - pad);
+  return scale;
+}
+
+inline uint8_t cell_bar_height(uint16_t mv, const CellScale& scale) {
+  if (!scale.have || mv == 0) {
+    return CELL_BAR_DOT_PX;
+  }
+  const uint16_t above = mv > scale.lo_mV ? (uint16_t)(mv - scale.lo_mV) : 0;
+  uint32_t height = (uint32_t)above * (CELL_BAR_PX - CELL_BAR_MIN_PX) / scale.span_mV + CELL_BAR_MIN_PX;
+  if (height < CELL_BAR_MIN_PX) {
+    height = CELL_BAR_MIN_PX;
+  }
+  if (height > CELL_BAR_PX) {
+    height = CELL_BAR_PX;
+  }
+  return (uint8_t)height;
+}
+
+// column[x] is 0 (empty, including a module gap), 1 (missing cell) or 2..56 (bar).
+// False when there is no valid cell to scale against.
+inline bool layout_cell_bars(CellPackFamily family, const uint16_t* mv, uint16_t count, uint8_t column[128]) {
+  memset(column, 0, 128);
+  if (mv == nullptr || count == 0) {
+    return false;
+  }
+  const uint16_t n = count > CELL_BAR_MAX_CELLS ? CELL_BAR_MAX_CELLS : count;
+  const CellPackFamily use_family = count > CELL_BAR_MAX_CELLS ? CellPackFamily::Unknown : family;
+  const CellScale scale = cell_voltage_scale(mv, n);
+  if (!scale.have) {
+    return false;
+  }
+
+  uint8_t bricks = equal_module_bricks(use_family, n);
+  uint16_t gaps = 0;
+  if (bricks >= 2 && (n % bricks) == 0) {
+    gaps = (uint16_t)(n / bricks - 1u);
+    if ((uint16_t)(n + gaps) > 128) {
+      bricks = 0;
+      gaps = 0;
+    }
+  } else {
+    bricks = 0;
+  }
+
+  uint16_t x = (uint16_t)((128u - (n + gaps)) / 2u);
+  for (uint16_t i = 0; i < n; i++) {
+    if (bricks != 0 && i > 0 && (i % bricks) == 0) {
+      x++;
+    }
+    column[x] = mv[i] == 0 ? CELL_BAR_DOT_PX : cell_bar_height(mv[i], scale);
+    x++;
+  }
+  return true;
+}
+
+inline bool format_cell_header(char dest[22], uint16_t min_mV, uint16_t max_mV) {
+  if (max_mV < min_mV) {
+    return false;
+  }
+  const unsigned delta = (unsigned)(max_mV - min_mV);
+  int n = snprintf(dest, 22, "%u.%03u-%u.%03uV  %umV", (unsigned)(min_mV / 1000u), (unsigned)(min_mV % 1000u),
+                   (unsigned)(max_mV / 1000u), (unsigned)(max_mV % 1000u), delta);
+  if (n < 0 || n > 21) {
+    n = snprintf(dest, 22, "%u.%03u-%u.%03uV %umV", (unsigned)(min_mV / 1000u), (unsigned)(min_mV % 1000u),
+                 (unsigned)(max_mV / 1000u), (unsigned)(max_mV % 1000u), delta);
+  }
+  return n >= 0 && n <= 21;
+}
+
+struct CellHold {
+  bool known = false;
+  uint32_t ms = 0;
+  uint16_t count = 0;
+  CellPackFamily family = CellPackFamily::Unknown;
+  uint16_t mv[CELL_BAR_MAX_CELLS]{};
+};
+
+// A live sample needs one non-zero cell. After that the same columns stay up for 30 minutes.
+inline bool cell_hold_step(CellHold& hold, bool live, CellPackFamily family, const uint16_t* mv, uint16_t count,
+                           uint32_t now_ms) {
+  const uint16_t n = count > CELL_BAR_MAX_CELLS ? CELL_BAR_MAX_CELLS : count;
+  bool sample = false;
+  if (live && mv != nullptr && n > 0) {
+    for (uint16_t i = 0; i < n; i++) {
+      if (mv[i] != 0) {
+        sample = true;
+        break;
+      }
+    }
+  }
+  if (sample) {
+    hold.known = true;
+    hold.ms = now_ms;
+    hold.count = n;
+    hold.family = count > CELL_BAR_MAX_CELLS ? CellPackFamily::Unknown : family;
+    memcpy(hold.mv, mv, n * sizeof(uint16_t));
+    return true;
+  }
+  if (hold.known && (uint32_t)(now_ms - hold.ms) <= DISPLAY_VALUE_HOLD_MS) {
+    return true;
+  }
+  hold.known = false;
+  hold.count = 0;
+  return false;
+}
+
 #endif  // DISPLAY_MODES_H

@@ -637,6 +637,76 @@ static HealthInputs collect_health(bool live) {
   return in;
 }
 
+static void framebuffer_text(uint8_t* frame, int x, const char* str) {
+  while (*str && x < 128) {
+    char c = *str++;
+    if (c < ' ' || c > '~') {
+      c = '!';
+    }
+    const uint8_t* glyph = font6x8_basic[c - ' '];
+    for (int col = 0; col < 6 && x < 128; col++, x++) {
+      frame[x] = glyph[col];
+    }
+  }
+}
+
+static void framebuffer_column(uint8_t* frame, int x, uint8_t height) {
+  for (uint8_t i = 0; i < height; i++) {
+    const int y = 63 - i;
+    frame[(y / 8) * 128 + x] |= (uint8_t)(1u << (y % 8));
+  }
+}
+
+static void write_framebuffer(const uint8_t* frame) {
+  for (int page = 0; page < 8; page++) {
+    set_ram_pointer(0, page);
+    i2c_data(frame + page * 128, 128);
+  }
+}
+
+static CellPackFamily oled_cell_family() {
+  if (user_selected_battery_type == BatteryType::TeslaLegacy) {
+    return CellPackFamily::TeslaLegacySX;
+  }
+  if (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+      user_selected_battery_type == BatteryType::TeslaModelSX) {
+    return CellPackFamily::Tesla3Y;
+  }
+  return CellPackFamily::Unknown;
+}
+
+static void print_cell_bars() {
+  static CellHold hold{};
+  const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
+  uint16_t count = datalayer.battery.info.number_of_cells;
+  if (count > MAX_AMOUNT_CELLS) {
+    count = MAX_AMOUNT_CELLS;
+  }
+  const bool draw =
+      cell_hold_step(hold, live, oled_cell_family(), datalayer.battery.status.cell_voltages_mV, count, millis());
+
+  // Static: the connectivity task stack is 4 KB, and a full frame is 1 KB.
+  static uint8_t frame[1024];
+  memset(frame, 0, sizeof frame);
+  uint8_t column[128];
+  const CellScale scale = cell_voltage_scale(hold.mv, hold.count);
+  char header[22];
+  if (!draw || !layout_cell_bars(hold.family, hold.mv, hold.count, column) ||
+      !format_cell_header(header, scale.min_mV, scale.max_mV)) {
+    framebuffer_text(frame, 0, "no data");
+    write_framebuffer(frame);
+    return;
+  }
+
+  framebuffer_text(frame, 0, header);
+  for (int x = 0; x < 128; x++) {
+    if (column[x] != 0) {
+      framebuffer_column(frame, x, column[x]);
+    }
+  }
+  write_framebuffer(frame);
+}
+
 static void print_battery_health() {
   static HealthHold hold{};
   const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
@@ -673,9 +743,9 @@ void update_display() {
     return;
   }
 
-  // Status stays on its existing 500 ms cadence. The health page refreshes at 1 Hz.
+  // Status stays on its existing 500 ms cadence. Health and cell bars refresh at 1 Hz.
   const DisplayMode mode = user_selected_display_mode;
-  const uint32_t period_ms = mode == DisplayMode::Health ? 1000 : 500;
+  const uint32_t period_ms = mode == DisplayMode::Status ? 500 : 1000;
   auto currentMillis = millis();
   if (currentMillis - lastUpdateMillis < period_ms) {
     return;
@@ -683,7 +753,7 @@ void update_display() {
 
   static bool first_paint = true;
   if (first_paint) {
-    OLED_LOG("first-paint begin path=%s", mode == DisplayMode::Health ? "health" : "status-pages");
+    OLED_LOG("first-paint begin path=%s", display_mode_name(mode));
     oled_trace_begin();
   }
 
@@ -698,48 +768,44 @@ void update_display() {
 
   if (mode == DisplayMode::Health) {
     print_battery_health();
-    lastUpdateMillis = currentMillis;
-    if (first_paint) {
-      first_paint = false;
-      oled_trace_end("first-paint");
-    }
-    return;
-  }
-
-  // We cycle through several pages of battery data
-  const int NUM_PAGES = 4;
-  const int PAGE_TIME = 3;
-  static int phase = 0;
-
-  // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
-  int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
-
-  int current_phase = phase / (PAGE_TIME * 2);
-  int battery_index = current_phase % num_batteries;
-  int page = (current_phase / num_batteries) % NUM_PAGES;
-
-  // Print the battery status for current battery
-  if (battery_index == 0) {
-    print_battery_status(0, datalayer.battery.status, 1, page);
-  } else if (battery_index == 1) {
-    print_battery_status(0, datalayer.battery2.status, 2, page);
+  } else if (mode == DisplayMode::CellBars) {
+    print_cell_bars();
   } else {
-    print_battery_status(0, datalayer.battery3.status, 3, page);
-  }
+    // We cycle through several pages of battery data
+    const int NUM_PAGES = 4;
+    const int PAGE_TIME = 3;
+    static int phase = 0;
 
-  write_text(0, 2, "---------------------", false);
+    // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+    int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
 
-  // Print the events below
-  print_events(3, 3);
+    int current_phase = phase / (PAGE_TIME * 2);
+    int battery_index = current_phase % num_batteries;
+    int page = (current_phase / num_batteries) % NUM_PAGES;
 
-  write_text(0, 6, "---------------------", false);
+    // Print the battery status for current battery
+    if (battery_index == 0) {
+      print_battery_status(0, datalayer.battery.status, 1, page);
+    } else if (battery_index == 1) {
+      print_battery_status(0, datalayer.battery2.status, 2, page);
+    } else {
+      print_battery_status(0, datalayer.battery3.status, 3, page);
+    }
 
-  // Then IP/RSSI at the bottom
-  print_network_status(7);
+    write_text(0, 2, "---------------------", false);
 
-  phase++;
-  if (phase >= total_phases) {
-    phase = 0;
+    // Print the events below
+    print_events(3, 3);
+
+    write_text(0, 6, "---------------------", false);
+
+    // Then IP/RSSI at the bottom
+    print_network_status(7);
+
+    phase++;
+    if (phase >= total_phases) {
+      phase = 0;
+    }
   }
   lastUpdateMillis = currentMillis;
   if (first_paint) {
