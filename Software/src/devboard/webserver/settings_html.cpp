@@ -118,8 +118,10 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 #endif
 
 // OLED page. 0 Status, 1 Health, 2 Cell bars, 3 Cycle. Unset and anything else show Cycle.
-static const std::map<int, String> display_modes = {
-    {0, "Status"}, {1, "Health"}, {2, "Cell bars"}, {3, "Cycle (every 4 s)"}};
+static const std::map<int, String> display_modes = {{0, "Status"},
+                                                    {1, "Health"},
+                                                    {2, "Cell bars"},
+                                                    {3, "Cycle (every 4 s)"}};
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};

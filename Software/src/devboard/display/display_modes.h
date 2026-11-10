@@ -199,8 +199,7 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
     char new_kwh[8];
     format_kwh_token(current_kwh, sizeof current_kwh, in.soh_current_x10);
     format_kwh_token(new_kwh, sizeof new_kwh, in.soh_new_x10);
-    const unsigned pct =
-        (unsigned)round_half_up((uint32_t)in.soh_current_x10 * 100u, in.soh_new_x10);
+    const unsigned pct = (unsigned)round_half_up((uint32_t)in.soh_current_x10 * 100u, in.soh_new_x10);
     snprintf(tmp, sizeof tmp, "SOH %u%% (%s/%skWh)", pct, current_kwh, new_kwh);
     health_pad(rows.line[2], strlen(tmp) <= 21 ? tmp : "SOH --");
   }

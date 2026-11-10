@@ -13,8 +13,8 @@
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "../utils/version.h"
-#include "fonts.h"
 #include "display_modes.h"
+#include "fonts.h"
 #include "ssd130x_init.h"
 
 #include "Arduino.h"
@@ -585,8 +585,7 @@ static HealthInputs collect_health(bool live) {
       in.soh_current_x10 = tesla.nominal_full_held_x10;
       in.soh_new_x10 = tesla.battery_beginning_of_life;
     }
-    if (live && tesla.cac_valid &&
-        tesla_cac_plausible(tesla.cac_min_x10, tesla.cac_avg_x10, tesla.cac_max_x10)) {
+    if (live && tesla.cac_valid && tesla_cac_plausible(tesla.cac_min_x10, tesla.cac_avg_x10, tesla.cac_max_x10)) {
       in.cac = true;
       in.cac_min_x10 = tesla.cac_min_x10;
       in.cac_max_x10 = tesla.cac_max_x10;
@@ -758,9 +757,8 @@ void update_display() {
   } else {
     cycle_running = false;
   }
-  const DisplayMode mode = selected == DisplayMode::Cycle
-                               ? display_cycle_page((uint32_t)(currentMillis - cycle_origin_ms))
-                               : selected;
+  const DisplayMode mode =
+      selected == DisplayMode::Cycle ? display_cycle_page((uint32_t)(currentMillis - cycle_origin_ms)) : selected;
 
   static DisplayMode painted = DisplayMode::Status;
   static bool have_painted = false;
