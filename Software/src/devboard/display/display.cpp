@@ -10,18 +10,24 @@
 #include "../network/network_status.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#include "../utils/version.h"
 #include "fonts.h"
 #include "ssd130x_init.h"
 
 #include "Arduino.h"
 #include "driver/i2c_master.h"
+#include "esp_err.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 
 #define I2C_MASTER_FREQ_HZ 400000  // 400 kHz; reliable for SSD1306 and SSD1309
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+// Logger prefix is seconds.millis; t= is raw millis() so a syslog line still has it.
+#define OLED_LOG(fmt, ...) logging.printf("OLED: t=%lu " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
 
 i2c_master_bus_handle_t bus_handle;
 i2c_master_dev_handle_t dev_handle;
@@ -30,8 +36,21 @@ unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
 int num_batteries = 1;
 
+// Records ignored i2c_write results during the blank clear and the first paint.
+// Off for every later frame. Does not change what is transmitted.
+static bool oled_trace_on = false;
+static unsigned oled_trace_failures = 0;
+static esp_err_t oled_trace_first_err = ESP_OK;
+
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
-  return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
+  esp_err_t err = i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
+  if (oled_trace_on && err != ESP_OK) {
+    if (oled_trace_failures == 0) {
+      oled_trace_first_err = err;
+    }
+    oled_trace_failures++;
+  }
+  return err;
 }
 
 static void i2c_data(const uint8_t* data, size_t len) {
@@ -148,18 +167,103 @@ static void clear() {
   }
 }
 
+static const char* oled_reset_name(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_UNKNOWN:
+      return "UNKNOWN";
+    case ESP_RST_POWERON:
+      return "POWERON";
+    case ESP_RST_EXT:
+      return "EXT";
+    case ESP_RST_SW:
+      return "SW";
+    case ESP_RST_PANIC:
+      return "PANIC";
+    case ESP_RST_INT_WDT:
+      return "INT_WDT";
+    case ESP_RST_TASK_WDT:
+      return "TASK_WDT";
+    case ESP_RST_WDT:
+      return "WDT";
+    case ESP_RST_DEEPSLEEP:
+      return "DEEPSLEEP";
+    case ESP_RST_BROWNOUT:
+      return "BROWNOUT";
+    case ESP_RST_SDIO:
+      return "SDIO";
+    case ESP_RST_USB:
+      return "USB";
+    case ESP_RST_JTAG:
+      return "JTAG";
+    case ESP_RST_EFUSE:
+      return "EFUSE";
+    case ESP_RST_PWR_GLITCH:
+      return "PWR_GLITCH";
+    case ESP_RST_CPU_LOCKUP:
+      return "CPU_LOCKUP";
+    default:
+      return "UNLISTED";
+  }
+}
+
+static void oled_log_saved_option() {
+#ifdef HW_LILYGO2CAN
+  OLED_LOG("saved gpioopt1=%u (1=I2C display)", (unsigned)user_selected_gpioopt1);
+#elif defined(HW_LILYGO)
+  OLED_LOG("saved gpioopt4=%u (1=I2C display)", (unsigned)user_selected_gpioopt4);
+#elif defined(HW_WAVESHARE)
+  OLED_LOG("saved gpioopt6=%u (1=I2C display)", (unsigned)user_selected_gpioopt6);
+#else
+  OLED_LOG("saved display option unavailable on this board");
+#endif
+}
+
+static void oled_log_err(const char* stage, esp_err_t err) {
+  OLED_LOG("%s=%s err=%s(%d)", stage, err == ESP_OK ? "ok" : "err", esp_err_to_name(err), (int)err);
+}
+
+static void oled_trace_begin() {
+  oled_trace_failures = 0;
+  oled_trace_first_err = ESP_OK;
+  oled_trace_on = true;
+}
+
+// Bus success is not a lit panel: nothing here reads the screen.
+static void oled_trace_end(const char* stage) {
+  oled_trace_on = false;
+  if (oled_trace_failures == 0) {
+    OLED_LOG("%s=ok fails=0 panel-lit=unavailable", stage);
+  } else {
+    OLED_LOG("%s=err fails=%u first=%s(%d) panel-lit=unavailable", stage, oled_trace_failures,
+             esp_err_to_name(oled_trace_first_err), (int)oled_trace_first_err);
+  }
+}
+
 void init_display() {
   auto display_sda = esp32hal->DISPLAY_SDA_PIN();
   auto display_scl = esp32hal->DISPLAY_SCL_PIN();
 
+  const esp_reset_reason_t reset = esp_reset_reason();
+  OLED_LOG("start build=%s", BUILD_VERSION);
+  OLED_LOG("reset=%s(%d) board=%s", oled_reset_name(reset), (int)reset, esp32hal->name());
+  oled_log_saved_option();
+  // tx_ms is the value passed to i2c_master_transmit (parameter xfer_timeout_ms).
+  OLED_LOG("cfg sda=%d scl=%d clk_hz=%lu tx_ms=%d probe_ms=100 retries=none mode=status-pages", (int)display_sda,
+           (int)display_scl, (unsigned long)I2C_MASTER_FREQ_HZ, 1000 / portTICK_PERIOD_MS);
+  OLED_LOG("driver=SSD1306/SSD1309-shared type-id=unavailable panel-reset-gpio=none");
+
   if (display_sda == GPIO_NUM_NC || display_scl == GPIO_NUM_NC) {
+    OLED_LOG("decision=skip reason=pins-nc");
     return;
   }
 
+  OLED_LOG("decision=init");
+
   if (!esp32hal->alloc_pins("I2C Display", display_sda, display_scl)) {
-    logging.printf("Failed to allocate pins for I2C Display\n");
+    OLED_LOG("pin-alloc=err sda=%d scl=%d", (int)display_sda, (int)display_scl);
     return;
   }
+  OLED_LOG("pin-alloc=ok");
 
   i2c_master_bus_config_t bus_config = {
       .i2c_port = -1,  // autoselect
@@ -175,19 +279,31 @@ void init_display() {
               .allow_pd = false,
           },
   };
-  if (i2c_new_master_bus(&bus_config, &bus_handle) != ESP_OK) {
-    logging.printf("Failed to create I2C bus for Display\n");
+  esp_err_t bus_err = i2c_new_master_bus(&bus_config, &bus_handle);
+  oled_log_err("i2c-bus", bus_err);
+  if (bus_err != ESP_OK) {
     return;
   }
 
   // Common OLED addresses: 0x3C default, 0x3D if the address jumper is set.
-  const bool ack_3c = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_PRIMARY, 100) == ESP_OK;
-  const bool ack_3d = ack_3c ? false : (i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_ALTERNATE, 100) == ESP_OK);
+  const esp_err_t err_3c = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_PRIMARY, 100);
+  const bool ack_3c = err_3c == ESP_OK;
+  oled_log_err("probe-0x3C", err_3c);
+
+  bool ack_3d = false;
+  if (ack_3c) {
+    OLED_LOG("probe-0x3D=skipped reason=primary-acked");
+  } else {
+    const esp_err_t err_3d = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_ALTERNATE, 100);
+    ack_3d = err_3d == ESP_OK;
+    oled_log_err("probe-0x3D", err_3d);
+  }
   const uint16_t addr = ssd130x_select_i2c_address(ack_3c, ack_3d);
   if (addr == 0) {
-    logging.printf("Failed to find I2C Display at 0x3C/0x3D\n");
+    OLED_LOG("address=none result=err");
     return;
   }
+  OLED_LOG("address=0x%02X controller-id=unavailable", (unsigned)addr);
 
   i2c_device_config_t dev_config = {
       .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -196,24 +312,31 @@ void init_display() {
       .scl_wait_us = 0,
       .flags = {},
   };
-  if (i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle) != ESP_OK) {
-    logging.printf("Failed to add I2C Display device\n");
+  esp_err_t add_err = i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle);
+  oled_log_err("add-device", add_err);
+  if (add_err != ESP_OK) {
     return;
   }
 
   // Init sequence shared by 128x64 SSD1306 and SSD1309 panels.
+  // One transfer: display-off, setup, display-on. Per-command ACK is not exposed.
   uint8_t buf[sizeof(SSD130X_INIT_SEQUENCE) * 2];
   for (size_t i = 0; i < sizeof(SSD130X_INIT_SEQUENCE); i++) {
     buf[i * 2] = 0x80;  // Control byte for command
     buf[i * 2 + 1] = SSD130X_INIT_SEQUENCE[i];
   }
-  if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
-    logging.printf("Failed to initialize I2C Display\n");
+  esp_err_t init_err = i2c_write(buf, sizeof(buf));
+  oled_log_err("init-cmd", init_err);
+  OLED_LOG("init-cmd bytes=%u off-then-on per-cmd-ack=unavailable", (unsigned)sizeof(buf));
+  if (init_err != ESP_OK) {
     return;
   }
 
+  oled_trace_begin();
   clear();
+  oled_trace_end("blank-clear");
   display_initialized = true;
+  OLED_LOG("init-done initialized=1");
 
   // Count configured batteries
   if (battery2)
@@ -420,6 +543,11 @@ static void print_network_status(int row) {
 
 void update_display() {
   if (!display_initialized) {
+    static bool logged_skip = false;
+    if (!logged_skip) {
+      logged_skip = true;
+      OLED_LOG("update=skipped reason=not-initialized");
+    }
     return;
   }
 
@@ -427,6 +555,12 @@ void update_display() {
   auto currentMillis = millis();
   if (currentMillis - lastUpdateMillis < 500) {
     return;
+  }
+
+  static bool first_paint = true;
+  if (first_paint) {
+    OLED_LOG("first-paint begin path=status-pages");
+    oled_trace_begin();
   }
 
   // We cycle through several pages of battery data
@@ -465,6 +599,10 @@ void update_display() {
     phase = 0;
   }
   lastUpdateMillis = currentMillis;
+  if (first_paint) {
+    first_paint = false;
+    oled_trace_end("first-paint");
+  }
 }
 
 #endif  // SMALL_FLASH_DEVICE
