@@ -16,14 +16,16 @@ void expect_row(const char* row, const char* text) {
 
 }  // namespace
 
-TEST(DisplayModeTests, MissingAndUnknownValuesAreStatus) {
-  EXPECT_EQ(display_mode_from_raw(0), DisplayMode::Status);
-  EXPECT_EQ(display_mode_from_raw(4), DisplayMode::Status);
-  EXPECT_EQ(display_mode_from_raw(99), DisplayMode::Status);
-  EXPECT_EQ(display_mode_from_raw(0xFFFFFFFFu), DisplayMode::Status);
+TEST(DisplayModeTests, MissingAndUnknownValuesAreCycle) {
+  EXPECT_EQ(DISPLAY_MODE_DEFAULT_RAW, static_cast<uint32_t>(DisplayMode::Cycle));
+  EXPECT_EQ(display_mode_from_raw(DISPLAY_MODE_DEFAULT_RAW), DisplayMode::Cycle);
+  EXPECT_EQ(display_mode_from_raw(4), DisplayMode::Cycle);
+  EXPECT_EQ(display_mode_from_raw(99), DisplayMode::Cycle);
+  EXPECT_EQ(display_mode_from_raw(0xFFFFFFFFu), DisplayMode::Cycle);
 }
 
 TEST(DisplayModeTests, KnownValuesRoundTrip) {
+  EXPECT_EQ(display_mode_from_raw(0), DisplayMode::Status);
   EXPECT_EQ(display_mode_from_raw(1), DisplayMode::Health);
   EXPECT_EQ(display_mode_from_raw(2), DisplayMode::CellBars);
   EXPECT_EQ(display_mode_from_raw(3), DisplayMode::Cycle);

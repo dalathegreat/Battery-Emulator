@@ -117,7 +117,7 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
-// OLED page. 0 is Status. 3 rotates the three pages. Anything else is also Status.
+// OLED page. 0 Status, 1 Health, 2 Cell bars, 3 Cycle. Unset and anything else show Cycle.
 static const std::map<int, String> display_modes = {
     {0, "Status"}, {1, "Health"}, {2, "Cell bars"}, {3, "Cycle"}};
 
@@ -431,7 +431,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "DISPMODE") {
-    return options_from_map(static_cast<int>(display_mode_from_raw(settings.getUInt("DISPMODE", 0))), display_modes);
+    return options_from_map(
+        static_cast<int>(display_mode_from_raw(settings.getUInt("DISPMODE", DISPLAY_MODE_DEFAULT_RAW))), display_modes);
   }
 
   if (var == "PERBMSRESETH") {

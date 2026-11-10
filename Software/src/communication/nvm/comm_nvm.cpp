@@ -268,8 +268,8 @@ void init_stored_settings() {
   syslog_port = settings.getUInt("SYSLOGPORT", 514);
   syslog_facility = settings.getUInt("SYSLOGFAC", 1);
   datalayer.battery.status.led_mode = (led_mode_enum)settings.getUInt("LEDMODE", false);
-  // Missing key and any value other than Health (1) or Cell bars (2) are Status.
-  user_selected_display_mode = display_mode_from_raw(settings.getUInt("DISPMODE", 0));
+  // Never stored, or not 0..3: Cycle. A stored 0 is Status.
+  user_selected_display_mode = display_mode_from_raw(settings.getUInt("DISPMODE", DISPLAY_MODE_DEFAULT_RAW));
 
   //Some early integrations need manually set allowed charge/discharge power
   datalayer.battery.status.override_charge_power_W = settings.getUInt("CHGPOWER", 1000);
