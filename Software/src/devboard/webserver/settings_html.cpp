@@ -8,6 +8,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
+#include "../display/display_modes.h"
 #include "../mqtt/mqtt.h"
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
@@ -115,6 +116,9 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 #else
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
+
+// OLED page. 0 is Status, and that is also what a missing or unknown DISPMODE shows.
+static const std::map<int, String> display_modes = {{0, "Status"}, {1, "Health"}, {2, "Cell bars"}};
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
@@ -423,6 +427,10 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "LEDMODE") {
     return options_from_map(settings.getUInt("LEDMODE", 0), led_modes);
+  }
+
+  if (var == "DISPMODE") {
+    return options_from_map(static_cast<int>(display_mode_from_raw(settings.getUInt("DISPMODE", 0))), display_modes);
   }
 
   if (var == "PERBMSRESETH") {
@@ -1240,6 +1248,18 @@ String qnhck_zero_text(uint16_t zero_mV) {
   return String(zero_mV / 1000.0f, 3) + (zero_mV == QNHCK_NOMINAL_ZERO_MV ? " V (default)" : " V (calibrated)");
 }
 #endif  // SMALL_FLASH_DEVICE
+
+#ifndef SMALL_FLASH_DEVICE
+#define DISPMODE_SETTING \
+  R"rawliteral(
+    <label for="DISPMODE">Display mode:</label>
+    <select id="DISPMODE" name="DISPMODE">
+      %DISPMODE%
+    </select>
+  )rawliteral"
+#else
+#define DISPMODE_SETTING ""
+#endif
 
 #ifdef HW_LILYGO2CAN
 #define GPIOOPT1_SETTING \
@@ -2459,6 +2479,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %LEDMODE%
         </select>
 
+        )rawliteral" DISPMODE_SETTING R"rawliteral(
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(

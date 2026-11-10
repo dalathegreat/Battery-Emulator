@@ -12,6 +12,7 @@
 #include "../utils/logging.h"
 #include "../utils/version.h"
 #include "fonts.h"
+#include "display_modes.h"
 #include "ssd130x_init.h"
 
 #include "Arduino.h"
@@ -248,8 +249,9 @@ void init_display() {
   OLED_LOG("reset=%s(%d) board=%s", oled_reset_name(reset), (int)reset, esp32hal->name());
   oled_log_saved_option();
   // tx_ms is the value passed to i2c_master_transmit (parameter xfer_timeout_ms).
-  OLED_LOG("cfg sda=%d scl=%d clk_hz=%lu tx_ms=%d probe_ms=100 retries=none mode=status-pages", (int)display_sda,
-           (int)display_scl, (unsigned long)I2C_MASTER_FREQ_HZ, 1000 / portTICK_PERIOD_MS);
+  OLED_LOG("cfg sda=%d scl=%d clk_hz=%lu tx_ms=%d probe_ms=100 retries=none mode=%s", (int)display_sda,
+           (int)display_scl, (unsigned long)I2C_MASTER_FREQ_HZ, 1000 / portTICK_PERIOD_MS,
+           display_mode_name(user_selected_display_mode));
   OLED_LOG("driver=SSD1306/SSD1309-shared type-id=unavailable panel-reset-gpio=none");
 
   if (display_sda == GPIO_NUM_NC || display_scl == GPIO_NUM_NC) {
