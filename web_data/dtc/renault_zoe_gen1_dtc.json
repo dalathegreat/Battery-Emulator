@@ -336,7 +336,7 @@
     "l_dsc": "Bus Bar Fixing Failure"
   },
   {
-    "dtc": "PD000",
+    "dtc": "U1000",
     "l_dsc": "Loss of Communication CAN"
   },
   {
