@@ -119,7 +119,7 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 
 // OLED page. 0 Status, 1 Health, 2 Cell bars, 3 Cycle. Unset and anything else show Cycle.
 static const std::map<int, String> display_modes = {
-    {0, "Status"}, {1, "Health"}, {2, "Cell bars"}, {3, "Cycle"}};
+    {0, "Status"}, {1, "Health"}, {2, "Cell bars"}, {3, "Cycle (every 4 s)"}};
 
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
@@ -171,7 +171,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
       return "WUP1 / WUP2";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT1::I2C_DISPLAY_SSD1306:
-      return "I2C Display (SSD1306)";
+      return "I2C Display (SSD1306/SSD1309)";
 #endif  // SMALL_FLASH_DEVICE
     case GPIOOPT1::ESTOP_BMS_POWER:
       return "E-Stop / BMS Power";
@@ -207,7 +207,7 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return "µSD Card";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT4::I2C_DISPLAY_SSD1306:
-      return "I2C Display (SSD1306)";
+      return "I2C Display (SSD1306/SSD1309)";
 #endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;
@@ -233,7 +233,7 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
       return "Status LED (GPIO2)";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT6::I2C_DISPLAY_SSD1306:
-      return "I2C Display SSD1306 (GPIO1=SDA, GPIO2=SCL)";
+      return "I2C Display SSD1306/SSD1309 (GPIO1=SDA, GPIO2=SCL)";
 #endif  // SMALL_FLASH_DEVICE
     default:
       return nullptr;
@@ -1255,9 +1255,12 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define DISPMODE_SETTING \
   R"rawliteral(
     <label for="DISPMODE">Display mode:</label>
-    <select id="DISPMODE" name="DISPMODE">
-      %DISPMODE%
-    </select>
+    <div>
+      <select id="DISPMODE" name="DISPMODE">
+        %DISPMODE%
+      </select>
+      <div style="font-size:0.85em;margin-top:4px;">Cycle shows Status, Health and Cell bars in turn, 4 seconds each. Default.</div>
+    </div>
   )rawliteral"
 #else
 #define DISPMODE_SETTING ""
@@ -2481,13 +2484,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
         %LEDMODE%
         </select>
 
-        )rawliteral" DISPMODE_SETTING R"rawliteral(
         )rawliteral" GPIOOPT1_SETTING R"rawliteral(
         )rawliteral" GPIOOPT2_SETTING R"rawliteral(
         )rawliteral" GPIOOPT3_SETTING R"rawliteral(
         )rawliteral" GPIOOPT4_SETTING R"rawliteral(
         )rawliteral" GPIOOPT5_SETTING R"rawliteral(
         )rawliteral" GPIOOPT6_SETTING R"rawliteral(
+        )rawliteral" DISPMODE_SETTING R"rawliteral(
 
         </div>
         </div>
