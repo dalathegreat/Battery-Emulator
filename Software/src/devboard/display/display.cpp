@@ -4,8 +4,10 @@
 #ifndef SMALL_FLASH_DEVICE
 
 #include "../../battery/BATTERIES.h"
+#include "../../battery/TESLA-BATTERY.h"
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../hal/hal.h"
 #include "../network/network_status.h"
 #include "../utils/events.h"
@@ -528,6 +530,124 @@ static void print_events(int row, int count) {
   }
 }
 
+static bool oled_bus_live(uint8_t alive) {
+  // The counter is CAN_STILL_ALIVE - 1 before any frame, then set to CAN_STILL_ALIVE on each one
+  // and counted down once a second. A rise, or a full count, is a frame. Until then the datalayer
+  // still holds boot defaults, which must not be drawn as a pack.
+  static bool inited = false;
+  static uint8_t last = 0;
+  static bool seen = false;
+  if (!inited) {
+    last = alive;
+    inited = true;
+    return false;
+  }
+  if (alive > last || alive >= CAN_STILL_ALIVE) {
+    seen = true;
+  }
+  last = alive;
+  return seen && alive > 0;
+}
+
+static bool oled_tesla_pack() {
+  return user_selected_battery_type == BatteryType::TeslaModel3Y ||
+         user_selected_battery_type == BatteryType::TeslaModelSX ||
+         user_selected_battery_type == BatteryType::TeslaLegacy;
+}
+
+static HealthInputs collect_health(bool live) {
+  HealthInputs in{};
+  const auto& status = datalayer.battery.status;
+  const auto& info = datalayer.battery.info;
+  const DATALAYER_INFO_TESLA& tesla = datalayer_extended.tesla;
+
+  if (oled_tesla_pack()) {
+    // real_soc is the held UI SOC (0.01 %). It matches the raw 0.1 % field only while that hold
+    // is a reading: after the pack's own 30 minute hold expires, real_soc is 0 and the raw field
+    // is not, which is "no SOC" rather than a measured 0 %.
+    if (live && tesla.battery_soc_ui <= 1000 && status.real_soc == tesla.battery_soc_ui * 10) {
+      in.soc = true;
+      in.soc_pptt = status.real_soc;
+    }
+    // nominal_full_held_x10 is the current full-pack energy (0.1 kWh), 0 when it is not known.
+    // info.total_capacity_Wh on a Tesla is the capacity when new, or a nameplate, not this number.
+    if (live && TeslaBattery::energy_x10_plausible(tesla.nominal_full_held_x10)) {
+      in.capacity = true;
+      in.capacity_x10 = tesla.nominal_full_held_x10;
+    }
+    // Legacy S/X uses the hardware-id nameplate as the SOH denominator. That is not the pack's
+    // own capacity when new, so the SOH row stays unavailable there. 3/Y and new S/X publish both
+    // operands from the pack, and soh_estimate_known means the estimate was actually calculated.
+    const bool pack_soh = user_selected_battery_type != BatteryType::TeslaLegacy && tesla.soh_estimate_known &&
+                          TeslaBattery::energy_x10_plausible(tesla.battery_beginning_of_life);
+    if (live && in.capacity && pack_soh) {
+      in.soh = true;
+      in.soh_current_x10 = tesla.nominal_full_held_x10;
+      in.soh_new_x10 = tesla.battery_beginning_of_life;
+    }
+    if (live && tesla.cac_valid &&
+        tesla_cac_plausible(tesla.cac_min_x10, tesla.cac_avg_x10, tesla.cac_max_x10)) {
+      in.cac = true;
+      in.cac_min_x10 = tesla.cac_min_x10;
+      in.cac_max_x10 = tesla.cac_max_x10;
+      in.cac_avg_x10 = tesla.cac_avg_x10;
+    }
+    if (live && tesla.battery_soc_max > 0 && tesla.battery_soc_max <= 1000 &&
+        tesla.battery_soc_min <= tesla.battery_soc_max) {
+      in.socimb = true;
+      in.soc_min_x10 = (uint16_t)tesla.battery_soc_min;
+      in.soc_max_x10 = (uint16_t)tesla.battery_soc_max;
+    }
+  } else if (live && status.voltage_dV > 0) {
+    in.soc = true;
+    in.soc_pptt = status.real_soc;
+    if (info.total_capacity_Wh > 0) {
+      const uint32_t x10 = (info.total_capacity_Wh + 50u) / 100u;
+      if (x10 > 0 && x10 <= 65535u) {
+        in.capacity = true;
+        in.capacity_x10 = (uint16_t)x10;
+      }
+    }
+  }
+
+  uint8_t cells = info.number_of_cells;
+  if (cells > MAX_AMOUNT_CELLS) {
+    cells = MAX_AMOUNT_CELLS;
+  }
+  uint16_t min_mV = 0;
+  uint16_t max_mV = 0;
+  unsigned valid_cells = 0;
+  for (uint8_t i = 0; i < cells; i++) {
+    const uint16_t mV = status.cell_voltages_mV[i];
+    if (mV == 0) {
+      continue;
+    }
+    if (valid_cells == 0 || mV < min_mV) {
+      min_mV = mV;
+    }
+    if (valid_cells == 0 || mV > max_mV) {
+      max_mV = mV;
+    }
+    valid_cells++;
+  }
+  if (live && valid_cells >= 2 && max_mV >= min_mV) {
+    in.imbalance = true;
+    in.imbalance_mV = (uint16_t)(max_mV - min_mV);
+  }
+  return in;
+}
+
+static void print_battery_health() {
+  static HealthHold hold{};
+  const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
+  const HealthInputs shown = health_hold_step(hold, collect_health(live), millis());
+  HealthRows rows;
+  format_health(shown, rows);
+  for (int row = 0; row < 8; row++) {
+    write_text(0, row, rows.line[row], false);
+  }
+}
+
 static void print_network_status(int row) {
   char buf[22];
   memset(buf, ' ', sizeof(buf));
@@ -553,16 +673,37 @@ void update_display() {
     return;
   }
 
-  // We update the display every 500ms
+  // Status stays on its existing 500 ms cadence. The health page refreshes at 1 Hz.
+  const DisplayMode mode = user_selected_display_mode;
+  const uint32_t period_ms = mode == DisplayMode::Health ? 1000 : 500;
   auto currentMillis = millis();
-  if (currentMillis - lastUpdateMillis < 500) {
+  if (currentMillis - lastUpdateMillis < period_ms) {
     return;
   }
 
   static bool first_paint = true;
   if (first_paint) {
-    OLED_LOG("first-paint begin path=status-pages");
+    OLED_LOG("first-paint begin path=%s", mode == DisplayMode::Health ? "health" : "status-pages");
     oled_trace_begin();
+  }
+
+  // A mode change has to wipe the previous page. Status itself is not cleared between frames.
+  static DisplayMode painted = DisplayMode::Status;
+  static bool have_painted = false;
+  if (have_painted && painted != mode) {
+    clear();
+  }
+  painted = mode;
+  have_painted = true;
+
+  if (mode == DisplayMode::Health) {
+    print_battery_health();
+    lastUpdateMillis = currentMillis;
+    if (first_paint) {
+      first_paint = false;
+      oled_trace_end("first-paint");
+    }
+    return;
   }
 
   // We cycle through several pages of battery data
