@@ -185,11 +185,11 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
   }
 
   if (!in.capacity) {
-    health_pad(rows.line[1], "Capacity --");
+    health_pad(rows.line[1], "CAPACITY --");
   } else {
-    snprintf(tmp, sizeof tmp, "Capacity %u.%ukWh", (unsigned)(in.capacity_x10 / 10u),
+    snprintf(tmp, sizeof tmp, "CAPACITY %u.%ukWh", (unsigned)(in.capacity_x10 / 10u),
              (unsigned)(in.capacity_x10 % 10u));
-    health_pad(rows.line[1], strlen(tmp) <= 21 ? tmp : "Capacity --");
+    health_pad(rows.line[1], strlen(tmp) <= 21 ? tmp : "CAPACITY --");
   }
 
   if (!in.soh || in.soh_current_x10 == 0 || in.soh_new_x10 == 0) {
@@ -205,15 +205,15 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
   }
 
   if (!in.imbalance) {
-    health_pad(rows.line[3], "Imbalance --");
+    health_pad(rows.line[3], "CELL IMBAL --");
   } else {
-    snprintf(tmp, sizeof tmp, "Imbalance %umV", (unsigned)in.imbalance_mV);
-    health_pad(rows.line[3], strlen(tmp) <= 21 ? tmp : "Imbalance --");
+    snprintf(tmp, sizeof tmp, "CELL IMBAL %umV", (unsigned)in.imbalance_mV);
+    health_pad(rows.line[3], strlen(tmp) <= 21 ? tmp : "CELL IMBAL --");
   }
 
   if (!in.cac || in.cac_max_x10 < in.cac_min_x10) {
     health_pad(rows.line[4], "CAC --");
-    health_pad(rows.line[5], "CAC Imbalance --");
+    health_pad(rows.line[5], "CAC IMBAL --");
   } else {
     const unsigned lo = (unsigned)round_half_up(in.cac_min_x10, 10);
     const unsigned hi = (unsigned)round_half_up(in.cac_max_x10, 10);
@@ -223,26 +223,20 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
     const uint32_t delta_x10 = (uint32_t)in.cac_max_x10 - in.cac_min_x10;
     const unsigned delta_ah = (unsigned)round_half_up(delta_x10, 10);
     if (in.cac_avg_x10 == 0) {
-      snprintf(tmp, sizeof tmp, "CAC Imbalance %uAh --%%", delta_ah);
-      if (strlen(tmp) > 21) {
-        snprintf(tmp, sizeof tmp, "CAC Imbal %uAh --%%", delta_ah);
-      }
+      snprintf(tmp, sizeof tmp, "CAC IMBAL %uAh --%%", delta_ah);
     } else {
       const unsigned pct = (unsigned)round_half_up(delta_x10 * 100u, in.cac_avg_x10);
-      snprintf(tmp, sizeof tmp, "CAC Imbalance %uAh  %u%%", delta_ah, pct);
-      if (strlen(tmp) > 21) {
-        snprintf(tmp, sizeof tmp, "CAC Imbal %uAh  %u%%", delta_ah, pct);
-      }
+      snprintf(tmp, sizeof tmp, "CAC IMBAL %uAh  %u%%", delta_ah, pct);
     }
-    health_pad(rows.line[5], strlen(tmp) <= 21 ? tmp : "CAC Imbal --");
+    health_pad(rows.line[5], strlen(tmp) <= 21 ? tmp : "CAC IMBAL --");
   }
 
   if (!in.socimb || in.soc_max_x10 < in.soc_min_x10 || in.soc_max_x10 > 1000) {
-    health_pad(rows.line[6], "SOC Imbalance --");
+    health_pad(rows.line[6], "SOC IMBAL --");
   } else {
     const unsigned pct = (unsigned)round_half_up((uint32_t)in.soc_max_x10 - in.soc_min_x10, 10);
-    snprintf(tmp, sizeof tmp, "SOC Imbalance %u%%", pct);
-    health_pad(rows.line[6], strlen(tmp) <= 21 ? tmp : "SOC Imbalance --");
+    snprintf(tmp, sizeof tmp, "SOC IMBAL %u%%", pct);
+    health_pad(rows.line[6], strlen(tmp) <= 21 ? tmp : "SOC IMBAL --");
   }
 
   health_pad(rows.line[7], "");
