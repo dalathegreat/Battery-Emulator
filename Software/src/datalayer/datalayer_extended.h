@@ -119,7 +119,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** All the temperature sensors inside the battery pack*/
   int16_t battery_temperatures[12];
 
-  uint8_t discharge_status;
+  /** 0x344 byte 2 low nibble: F none, 0 ready, 1 charging, 2 finished, 4 aborted */
+  uint8_t bms_charge_state;
   uint8_t BMS_min_cell_voltage_number;
   uint8_t BMS_min_temp_module_number;
   uint8_t BMS_max_cell_voltage_number;
@@ -192,6 +193,10 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint8_t balancing_state;
   /** Minutes left of the hold */
   uint16_t balancing_remaining_min;
+  /** Lift the SOC window top after this many days without a termination, 0 off */
+  uint8_t full_charge_every_days;
+  /** Hours counted since the last termination, restarts on reboot */
+  uint16_t full_charge_hours;
 
   // DTC readout (UDS 0x19 0x02). Codes packed as raw 3 bytes in a uint32, rendered to string in HTML.
   bool dtc_read_in_progress;
@@ -839,52 +844,6 @@ struct DATALAYER_INFO_GEELY_SEA {
   bool UserRequestCrashReset;
 };
 
-struct DATALAYER_INFO_ZOE_PH2 {
-  uint32_t battery_slave_failures;
-  /** uint16_t */
-  uint16_t battery_soc;
-  uint16_t battery_usable_soc;
-  uint16_t battery_soh;
-  uint16_t battery_pack_voltage;
-  uint16_t battery_max_cell_voltage;
-  uint16_t battery_min_cell_voltage;
-  uint16_t battery_12v;
-  uint16_t battery_avg_temp;
-  uint16_t battery_min_temp;
-  uint16_t battery_max_temp;
-  uint16_t battery_max_power;
-  uint16_t battery_interlock;
-  uint16_t battery_kwh;
-  uint16_t battery_current;
-  uint16_t battery_current_offset;
-  uint16_t battery_max_generated;
-  uint16_t battery_max_available;
-  uint16_t battery_current_voltage;
-  uint16_t battery_charging_status;
-  uint16_t battery_remaining_charge;
-  uint16_t battery_balance_capacity_total;
-  uint16_t battery_balance_time_total;
-  uint16_t battery_balance_capacity_sleep;
-  uint16_t battery_balance_time_sleep;
-  uint16_t battery_balance_capacity_wake;
-  uint16_t battery_balance_time_wake;
-  uint16_t battery_bms_state;
-  uint16_t battery_energy_complete;
-  uint16_t battery_energy_partial;
-  uint16_t battery_mileage;
-  uint16_t battery_fan_speed;
-  uint16_t battery_fan_period;
-  uint16_t battery_fan_control;
-  uint16_t battery_fan_duty;
-  uint16_t battery_temporisation;
-  uint16_t battery_time;
-  uint16_t battery_pack_time;
-  uint16_t battery_soc_min;
-  uint16_t battery_soc_max;
-  /** User requesting NVROL reset via WebUI*/
-  bool UserRequestNVROLReset;
-};
-
 class DataLayerExtended {
  public:
   union {
@@ -918,8 +877,6 @@ class DataLayerExtended {
   DATALAYER_INFO_RIVIAN rivian;
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_GEELY_SEA GeelySEA;
-  DATALAYER_INFO_ZOE_PH2 zoePH2;
-  DATALAYER_INFO_ZOE_PH2 zoePH2_2;
 
   DataLayerExtended() {
     memset(this, 0, sizeof(DataLayerExtended));
@@ -929,7 +886,7 @@ class DataLayerExtended {
     auto initBydAtto3 = [](auto& data) {
       data.calibrationTargetSOC = 100;
       data.calibrationTargetAH = 150;
-      data.discharge_status = 14;
+      data.bms_charge_state = 0x0F;
       data.charge_time_remaining_h = 0xFF;
       data.charge_time_remaining_min = 0xFF;
       data.auto_calibrate_soc_enabled = true;
