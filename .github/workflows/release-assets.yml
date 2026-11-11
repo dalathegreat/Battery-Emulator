@@ -53,7 +53,16 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         mkdir -p images/${{ steps.vars.outputs.tag }}
         cp ../output/*.factory.bin ../output/*.ota.bin images/${{ steps.vars.outputs.tag }}/
-        git add images
+        # Rebuild the static release list read by docs/index.html, so the
+        # installer page does not have to query the rate-limited GitHub API.
+        python3 - <<'EOF'
+        import json, pathlib
+        out = {}
+        for f in sorted(pathlib.Path('images').glob('*/*.factory.bin')):
+            out.setdefault(f.parent.name, []).append(f.name)
+        pathlib.Path('docs/images.json').write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
+        EOF
+        git add images docs/images.json
         git commit -m "Deploy from GitHub Actions"
         git push origin main
 
