@@ -7,16 +7,16 @@
 
 // OLED page selected in Settings. Stored as NVM uint8 DISPMODE.
 // 0 Status (today's tall SOC and rotating pages), 1 Health, 2 Cell bars, 3 Cycle.
-// A missing key uses DISPLAY_MODE_DEFAULT_RAW. Any other stored value is Cycle too.
-// 0 stays Status: it is a real choice, not the unset marker.
+// A missing key uses DISPLAY_MODE_DEFAULT_RAW. Any other stored value is Status too.
+// 0 is Status: it is a real choice, not the unset marker.
 enum class DisplayMode : uint8_t { Status = 0, Health = 1, CellBars = 2, Cycle = 3 };
 
 // getUInt default when DISPMODE has never been stored.
-static constexpr uint32_t DISPLAY_MODE_DEFAULT_RAW = static_cast<uint32_t>(DisplayMode::Cycle);
+static constexpr uint32_t DISPLAY_MODE_DEFAULT_RAW = static_cast<uint32_t>(DisplayMode::Status);
 
 inline DisplayMode display_mode_from_raw(uint32_t raw) {
   if (raw > static_cast<uint32_t>(DisplayMode::Cycle)) {
-    return DisplayMode::Cycle;
+    return DisplayMode::Status;
   }
   return static_cast<DisplayMode>(raw);
 }
@@ -46,7 +46,7 @@ inline const char* display_mode_name(DisplayMode mode) {
   }
 }
 
-// Loaded from DISPMODE in init_stored_settings(). Default Cycle.
+// Loaded from DISPMODE in init_stored_settings(). Default Status.
 extern DisplayMode user_selected_display_mode;
 
 // Last good reading stays on the glass this long after it stops being live, then the row is "--".

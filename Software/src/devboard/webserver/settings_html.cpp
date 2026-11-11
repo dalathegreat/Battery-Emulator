@@ -117,7 +117,7 @@ static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy 
 static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow"}, {2, "Heartbeat"}};
 #endif
 
-// OLED page. 0 Status, 1 Health, 2 Cell bars, 3 Cycle. Unset and anything else show Cycle.
+// OLED page. 0 Status, 1 Health, 2 Cell bars, 3 Cycle. Unset and anything else show Status.
 static const std::map<int, String> display_modes = {{0, "Status"},
                                                     {1, "Health"},
                                                     {2, "Cell bars"},
@@ -1261,7 +1261,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       <select id="DISPMODE" name="DISPMODE">
         %DISPMODE%
       </select>
-      <div style="font-size:0.85em;margin-top:4px;">Cycle shows Status, Health and Cell bars in turn, 4 seconds each. Default.</div>
+      <div style="font-size:0.85em;margin-top:4px;">Cycle shows Status, Health and Cell bars in turn, 4 seconds each.</div>
     </div>
   )rawliteral"
 #else
