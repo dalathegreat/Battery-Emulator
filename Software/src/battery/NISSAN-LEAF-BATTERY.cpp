@@ -1397,7 +1397,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       const bool before_sleep = !sleep_sent || (long)(lbc_heard_ms - sleep_sent_ms) < 0;
       silence = before_sleep ? LBC_POWER_CUT : LBC_ASLEEP;
       how =
-          before_sleep ? " before the sleep command: its power was cut together with IGN" : " after the sleep command";
+          before_sleep ? " before the sleep command: is BAT being cut together with IGN?" : " after the sleep command";
     }
     logging.printf("LEAF (Battery %u): went silent on \"%s\"%s\n", (unsigned)battery_index, interface_name(), how);
   }
