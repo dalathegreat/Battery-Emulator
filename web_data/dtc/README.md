@@ -74,6 +74,10 @@ arr.forEach(function(e){ if (e.code != null) m[e.code] = e; if (e.dtc) m[e.dtc] 
 So a single file can mix entries keyed by decimal code, by string, or by both. A renderer that emits
 `data-dtc-code='41848'` matches by `code`; one that emits `data-dtc-code='P0C9500'` matches by `dtc`.
 
+**Base-code fallback.** When a cell holds a full 7-character SAE code (`[PCBU]` + 6 hex digits, e.g.
+`P1B1208`) and there is no exact entry for it, the loader retries with the 5-character base code
+(`P1B12`). One base-code entry therefore covers every failure-type byte.
+
 ### Rules and gotchas
 
 - **`l_dsc` is mandatory** and must be non-empty.
