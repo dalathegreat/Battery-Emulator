@@ -732,6 +732,44 @@ static void print_network_status(int row) {
   write_text(0, row, buf, false);
 }
 
+static void print_status_pages() {
+  // We cycle through several pages of battery data
+  const int NUM_PAGES = 4;
+  const int PAGE_TIME = 3;
+  static int phase = 0;
+
+  // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
+  int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
+
+  int current_phase = phase / (PAGE_TIME * 2);
+  int battery_index = current_phase % num_batteries;
+  int page = (current_phase / num_batteries) % NUM_PAGES;
+
+  // Print the battery status for current battery
+  if (battery_index == 0) {
+    print_battery_status(0, datalayer.battery.status, 1, page);
+  } else if (battery_index == 1) {
+    print_battery_status(0, datalayer.battery2.status, 2, page);
+  } else {
+    print_battery_status(0, datalayer.battery3.status, 3, page);
+  }
+
+  write_text(0, 2, "---------------------", false);
+
+  // Print the events below
+  print_events(3, 3);
+
+  write_text(0, 6, "---------------------", false);
+
+  // Then IP/RSSI at the bottom
+  print_network_status(7);
+
+  phase++;
+  if (phase >= total_phases) {
+    phase = 0;
+  }
+}
+
 void update_display() {
   if (!display_initialized) {
     static bool logged_skip = false;
@@ -790,41 +828,7 @@ void update_display() {
   } else if (mode == DisplayMode::CellBars) {
     print_cell_bars();
   } else {
-    // We cycle through several pages of battery data
-    const int NUM_PAGES = 4;
-    const int PAGE_TIME = 3;
-    static int phase = 0;
-
-    // Calculate total phases: NUM_PAGES per battery, PAGE_TIME seconds each
-    int total_phases = NUM_PAGES * num_batteries * PAGE_TIME * 2;  // *2 for 500ms updates
-
-    int current_phase = phase / (PAGE_TIME * 2);
-    int battery_index = current_phase % num_batteries;
-    int page = (current_phase / num_batteries) % NUM_PAGES;
-
-    // Print the battery status for current battery
-    if (battery_index == 0) {
-      print_battery_status(0, datalayer.battery.status, 1, page);
-    } else if (battery_index == 1) {
-      print_battery_status(0, datalayer.battery2.status, 2, page);
-    } else {
-      print_battery_status(0, datalayer.battery3.status, 3, page);
-    }
-
-    write_text(0, 2, "---------------------", false);
-
-    // Print the events below
-    print_events(3, 3);
-
-    write_text(0, 6, "---------------------", false);
-
-    // Then IP/RSSI at the bottom
-    print_network_status(7);
-
-    phase++;
-    if (phase >= total_phases) {
-      phase = 0;
-    }
+    print_status_pages();
   }
   lastUpdateMillis = currentMillis;
   if (first_paint) {
