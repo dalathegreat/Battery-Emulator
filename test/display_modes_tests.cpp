@@ -134,6 +134,18 @@ TEST(HealthFormatTests, ValidZeroAndUnavailable) {
   expect_row(rows.line[6], "SOC IMBAL --");
 }
 
+TEST(HealthFormatTests, SohDropsParensWhenFullLineDoesNotFit) {
+  HealthInputs in{};
+  in.soh = true;
+  // "SOH 100% (82.1/82.5kWh)" is 23 chars. 82.1/82.5 is 99.5% -> 100.
+  in.soh_current_x10 = 821;
+  in.soh_new_x10 = 825;
+
+  HealthRows rows{};
+  format_health(in, rows);
+  expect_row(rows.line[2], "SOH 100% 82.1/82.5");
+}
+
 TEST(HealthFormatTests, RejectsReversedCacAndOverlongSoh) {
   HealthInputs in{};
   in.cac = true;
@@ -141,12 +153,12 @@ TEST(HealthFormatTests, RejectsReversedCacAndOverlongSoh) {
   in.cac_max_x10 = 1784;
   in.cac_avg_x10 = 1800;
   in.soh = true;
-  in.soh_current_x10 = 381;  // 38.1 / 999.9 kWh does not fit in 21 characters
+  in.soh_current_x10 = 381;  // "SOH 4% (38.1/999.9kWh)" is 22 chars; drop parens+unit.
   in.soh_new_x10 = 9999;
 
   HealthRows rows{};
   format_health(in, rows);
-  expect_row(rows.line[2], "SOH --");
+  expect_row(rows.line[2], "SOH 4% 38.1/999.9");
   expect_row(rows.line[4], "CAC --");
   expect_row(rows.line[5], "CAC IMBAL --");
 }
