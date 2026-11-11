@@ -84,8 +84,8 @@ TEST(HealthFormatTests, MockFrameAndFullPrecisionCac) {
   expect_row(rows.line[2], "SOH 82% (82.1/100kWh)");
   expect_row(rows.line[3], "Imbalance 18mV");
   expect_row(rows.line[4], "CAC 178 - 182Ah");
-  expect_row(rows.line[5], "CACimb 3Ah  2%");
-  expect_row(rows.line[6], "SOCimb 1%");
+  expect_row(rows.line[5], "CAC Imbalance 3Ah  2%");
+  expect_row(rows.line[6], "SOC Imbalance 1%");
   expect_row(rows.line[7], "");
 }
 
@@ -103,8 +103,8 @@ TEST(HealthFormatTests, CacPercentUsesUnroundedDeltaAndAverage) {
   HealthRows rows{};
   format_health(in, rows);
   expect_row(rows.line[4], "CAC 178 - 182Ah");
-  expect_row(rows.line[5], "CACimb 3Ah  1%");
-  expect_row(rows.line[6], "SOCimb 1%");
+  expect_row(rows.line[5], "CAC Imbalance 3Ah  1%");
+  expect_row(rows.line[6], "SOC Imbalance 1%");
 }
 
 TEST(HealthFormatTests, ValidZeroAndUnavailable) {
@@ -124,14 +124,14 @@ TEST(HealthFormatTests, ValidZeroAndUnavailable) {
   expect_row(rows.line[2], "SOH --");
   expect_row(rows.line[3], "Imbalance 0mV");
   expect_row(rows.line[4], "CAC --");
-  expect_row(rows.line[5], "CACimb --");
-  expect_row(rows.line[6], "SOCimb 0%");
+  expect_row(rows.line[5], "CAC Imbalance --");
+  expect_row(rows.line[6], "SOC Imbalance 0%");
 
   HealthInputs none{};
   format_health(none, rows);
   expect_row(rows.line[0], "SOC --");
   expect_row(rows.line[3], "Imbalance --");
-  expect_row(rows.line[6], "SOCimb --");
+  expect_row(rows.line[6], "SOC Imbalance --");
 }
 
 TEST(HealthFormatTests, RejectsReversedCacAndOverlongSoh) {
@@ -148,7 +148,7 @@ TEST(HealthFormatTests, RejectsReversedCacAndOverlongSoh) {
   format_health(in, rows);
   expect_row(rows.line[2], "SOH --");
   expect_row(rows.line[4], "CAC --");
-  expect_row(rows.line[5], "CACimb --");
+  expect_row(rows.line[5], "CAC Imbalance --");
 }
 
 TEST(HealthFormatTests, CacPercentUnavailableWhenAverageMissing) {
@@ -161,7 +161,20 @@ TEST(HealthFormatTests, CacPercentUnavailableWhenAverageMissing) {
   HealthRows rows{};
   format_health(in, rows);
   expect_row(rows.line[4], "CAC 178 - 182Ah");
-  expect_row(rows.line[5], "CACimb 4Ah --%");
+  expect_row(rows.line[5], "CAC Imbalance 4Ah --%");
+}
+
+TEST(HealthFormatTests, CacImbalanceShortensWhenFullLabelDoesNotFit) {
+  HealthInputs in{};
+  in.cac = true;
+  // 12 Ah delta at 7% does not fit "CAC Imbalance 12Ah  7%" (22 chars).
+  in.cac_min_x10 = 1780;
+  in.cac_max_x10 = 1900;
+  in.cac_avg_x10 = 1800;
+
+  HealthRows rows{};
+  format_health(in, rows);
+  expect_row(rows.line[5], "CAC Imbal 12Ah  7%");
 }
 
 TEST(HealthFormatTests, SocRoundsHalfUp) {

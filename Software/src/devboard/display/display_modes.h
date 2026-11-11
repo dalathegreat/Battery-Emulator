@@ -213,7 +213,7 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
 
   if (!in.cac || in.cac_max_x10 < in.cac_min_x10) {
     health_pad(rows.line[4], "CAC --");
-    health_pad(rows.line[5], "CACimb --");
+    health_pad(rows.line[5], "CAC Imbalance --");
   } else {
     const unsigned lo = (unsigned)round_half_up(in.cac_min_x10, 10);
     const unsigned hi = (unsigned)round_half_up(in.cac_max_x10, 10);
@@ -223,20 +223,26 @@ inline void format_health(const HealthInputs& in, HealthRows& rows) {
     const uint32_t delta_x10 = (uint32_t)in.cac_max_x10 - in.cac_min_x10;
     const unsigned delta_ah = (unsigned)round_half_up(delta_x10, 10);
     if (in.cac_avg_x10 == 0) {
-      snprintf(tmp, sizeof tmp, "CACimb %uAh --%%", delta_ah);
+      snprintf(tmp, sizeof tmp, "CAC Imbalance %uAh --%%", delta_ah);
+      if (strlen(tmp) > 21) {
+        snprintf(tmp, sizeof tmp, "CAC Imbal %uAh --%%", delta_ah);
+      }
     } else {
       const unsigned pct = (unsigned)round_half_up(delta_x10 * 100u, in.cac_avg_x10);
-      snprintf(tmp, sizeof tmp, "CACimb %uAh  %u%%", delta_ah, pct);
+      snprintf(tmp, sizeof tmp, "CAC Imbalance %uAh  %u%%", delta_ah, pct);
+      if (strlen(tmp) > 21) {
+        snprintf(tmp, sizeof tmp, "CAC Imbal %uAh  %u%%", delta_ah, pct);
+      }
     }
-    health_pad(rows.line[5], strlen(tmp) <= 21 ? tmp : "CACimb --");
+    health_pad(rows.line[5], strlen(tmp) <= 21 ? tmp : "CAC Imbal --");
   }
 
   if (!in.socimb || in.soc_max_x10 < in.soc_min_x10 || in.soc_max_x10 > 1000) {
-    health_pad(rows.line[6], "SOCimb --");
+    health_pad(rows.line[6], "SOC Imbalance --");
   } else {
     const unsigned pct = (unsigned)round_half_up((uint32_t)in.soc_max_x10 - in.soc_min_x10, 10);
-    snprintf(tmp, sizeof tmp, "SOCimb %u%%", pct);
-    health_pad(rows.line[6], strlen(tmp) <= 21 ? tmp : "SOCimb --");
+    snprintf(tmp, sizeof tmp, "SOC Imbalance %u%%", pct);
+    health_pad(rows.line[6], strlen(tmp) <= 21 ? tmp : "SOC Imbalance --");
   }
 
   health_pad(rows.line[7], "");

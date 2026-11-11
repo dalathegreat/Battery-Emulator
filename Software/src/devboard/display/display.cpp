@@ -692,7 +692,7 @@ static void print_cell_bars() {
   char header[22];
   if (!draw || !layout_cell_bars(hold.family, hold.mv, hold.count, column) ||
       !format_cell_header(header, scale.min_mV, scale.max_mV)) {
-    framebuffer_text(frame, 0, "no data");
+    framebuffer_text(frame, 0, "no cell data");
     write_framebuffer(frame);
     return;
   }
