@@ -10,6 +10,7 @@
 #include "ACAN_ESP32_CANMessage.h"
 #include "ACAN_ESP32_Buffer16.h"
 #include "ACAN_ESP32_AcceptanceFilters.h"
+#include "ACAN_ESP32_periph_compat.h"
 
 //------------------------------------------------------------------------------
 //   ESP32 CAN class
@@ -25,13 +26,13 @@ class ACAN_ESP32 {
     private: const uint32_t twaiBaseAddress ;
     private: const uint32_t twaiTxPinSelector ;
     private: const uint32_t twaiRxPinSelector ;
-    private: const periph_module_t twaiPeriphModule ;
+    rivate: const int twaiPeriphModule ;
     private: const periph_interrupt_t twaiInterruptSource ;
     private: const uint32_t twaiClockEnableAddress ;
     private: ACAN_ESP32 (const uint32_t inBaseAddress,
                          const uint32_t inTxPinIndexSelector,
                          const uint32_t inRxPinIndexSelector,
-                         const periph_module_t inPeriphModule,
+                         const int inPeriphModule,
                          const periph_interrupt_t inInterruptSource,
                          const uint32_t inClockEnableAddress) ;
   #endif
