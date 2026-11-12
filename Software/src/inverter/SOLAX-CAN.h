@@ -37,7 +37,6 @@ class SolaxInverter : public CanInverterProtocol {
   uint8_t PREV_STATE = INVALID;
   uint8_t bus_watch = BUS_WAIT_LIVE;
   unsigned long LastFrameTime = 0;
-  uint8_t number_of_batteries = 1;
 
   uint16_t configured_number_of_modules = 0;
   uint16_t configured_battery_type = 0;
@@ -49,11 +48,6 @@ class SolaxInverter : public CanInverterProtocol {
 
   //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 
-  CAN_frame SOLAX_1801 = {.FD = false,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x1801,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
   CAN_frame SOLAX_1872 = {.FD = false,
                           .ext_ID = true,
                           .DLC = 8,
@@ -129,7 +123,6 @@ class SolaxInverter : public CanInverterProtocol {
                           .DLC = 8,
                           .ID = 0x1882,
                           .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 2 3 A B 0 5 2
-  CAN_frame SOLAX_100A001 = {.FD = false, .ext_ID = true, .DLC = 0, .ID = 0x100A001, .data = {}};
 };
 
 #endif
