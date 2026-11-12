@@ -20,7 +20,6 @@
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
-#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../shunt/QNHCK2-16.h"
 #include "../../shunt/Shunt.h"
 #include "../espnow/espnow.h"
@@ -38,6 +37,7 @@
 #include "../wifi/wifi.h"
 #include "esp_task_wdt.h"
 #include "favicon.h"
+#include "firmware_info_json.h"
 #include "help_js.h"
 #include "html_escape.h"
 #if !defined(SMALL_FLASH_DEVICE) && __has_include("help_json_autogen.h")
@@ -1357,13 +1357,14 @@ void init_ElegantOTA() {
 
 String get_firmware_info_processor(const String& var) {
   if (var == "X") {
-    String content = "";
-    static JsonDocument doc;
-
-    doc["hardware"] = esp32hal->name();
-    doc["firmware"] = String(version_number);
-    serializeJson(doc, content);
-    return content;
+    // Hardware names are short and BUILD_VERSION is a tag, a short sha and a branch. 1024
+    // covers a long branch name with every character escaped, which the old JsonDocument did.
+    char json[1024];
+    const int written = format_firmware_info_json(json, sizeof(json), esp32hal->name(), version_number);
+    if (written < 0 || static_cast<size_t>(written) >= sizeof(json)) {
+      return String();
+    }
+    return String(json);
   }
   return String();
 }
