@@ -62,7 +62,7 @@ void append_cell_json(String& out, const DATALAYER_BATTERY_TYPE& pack) {
       continue;
     }
     out += separator;
-    out += pack.status.cell_balancing_status[i] ? "1" : "0";
+    out += pack.status.cell_balancing_status.get(i) ? "1" : "0";
     separator = ",";
   }
   out += "],\"n\":";
