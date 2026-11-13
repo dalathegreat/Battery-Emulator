@@ -64,6 +64,7 @@ enum class BatteryType {
   GrowattLv = 57,
   StellantisProOne = 58,
   BYDBatteryBoxPremium = 59,
+  SunwodaEss = 60,
   Highest
 };
 
@@ -126,8 +127,16 @@ class Battery {
   // visible (instead of a single toggle). Used by batteries where balancing is a latching request.
   virtual bool supports_balancing_request() { return false; }
   virtual bool supports_isolation_test() { return false; }
+  // Generic hook for a battery-specific one-shot "set the BMS's real-time clock" command.
+  virtual bool supports_time_sync() { return false; }
+  // Generic hook for vendor-specific commands that don't merit their own virtual method.
+  // Each battery defines its own identifiers (string literals, also used as the HTTP route name).
+  virtual bool supports_vendor_command(const char* identifier) { return false; }
 
   virtual void request_isolation_test() {}
+  virtual void request_time_sync(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
+                                 uint16_t ms_in_minute) {}
+  virtual void request_vendor_command(const char* identifier) {}
   virtual void clear_isolation() {}
   virtual void calibrate_SOC() {}
   virtual void reset_BMS() {}

@@ -1683,7 +1683,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form[data-battery="48"] .if-cbms,
     form[data-battery="49"] .if-cbms,
     form[data-battery="41"] .if-cbms,
-    form[data-battery="52"] .if-cbms {
+    form[data-battery="52"] .if-cbms,
+    form[data-battery="60"] .if-cbms {
       display: contents;
     }
 
