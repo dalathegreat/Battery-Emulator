@@ -6,6 +6,7 @@
 #include "FERROAMP-CAN.h"
 #include "FOXESS-CAN.h"
 #include "FOXESS-EP-CAN.h"
+#include "FRONIUS-GENERIC-STORAGE.h"
 #include "GROWATT-HV-CAN.h"
 #include "GROWATT-LV-CAN.h"
 #include "GROWATT-WIT-CAN.h"
@@ -51,6 +52,8 @@ bool user_selected_pylon_invert_byteorder = false;
 bool user_selected_inverter_deye_workaround = false;
 bool user_selected_primo_gen24 =
     false;  //Used by BYD-Modbus (Fronius Primo Gen24) inverters to determine if we should cap voltage to 450V or not
+bool user_selected_fronius_iso_check =
+    false;  //Used by Fronius Generic Storage: should the inverter include the battery in its insulation test?
 
 bool inverter_low_pass_filter = false;  //Should the charge/discharge limits be filtered with a low pass filter?
 
@@ -97,6 +100,9 @@ extern const char* name_for_inverter_type(InverterProtocolType type) {
 
     case InverterProtocolType::FoxessEp:
       return FoxessEpCanInverter::Name;
+
+    case InverterProtocolType::FroniusGenericStorage:
+      return FroniusGenericStorageInverter::Name;
 
     case InverterProtocolType::GrowattHv:
       return GrowattHvInverter::Name;
@@ -196,6 +202,10 @@ bool setup_inverter() {
 
     case InverterProtocolType::FoxessEp:
       inverter = new FoxessEpCanInverter();
+      break;
+
+    case InverterProtocolType::FroniusGenericStorage:
+      inverter = new FroniusGenericStorageInverter();
       break;
 
     case InverterProtocolType::GrowattHv:

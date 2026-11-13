@@ -30,6 +30,7 @@ ModbusInverterProtocol::~ModbusInverterProtocol() {
 }
 
 void ModbusInverterProtocol::notify_inverter_communication() {
+  last_request_ms = millis();
   if (!inverter_detected) {
     inverter_detected = true;
     set_event(EVENT_MODBUS_INVERTER_DETECTED, 1);

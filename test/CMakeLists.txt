@@ -183,6 +183,7 @@ add_executable(tests
     ../Software/src/inverter/FERROAMP-CAN.cpp
     ../Software/src/inverter/FOXESS-CAN.cpp
     ../Software/src/inverter/FOXESS-EP-CAN.cpp
+    ../Software/src/inverter/FRONIUS-GENERIC-STORAGE.cpp
     ../Software/src/inverter/GROWATT-HV-CAN.cpp
     ../Software/src/inverter/GROWATT-LV-CAN.cpp
     ../Software/src/inverter/GROWATT-WIT-CAN.cpp
