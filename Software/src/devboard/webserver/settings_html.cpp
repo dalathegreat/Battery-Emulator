@@ -1,5 +1,6 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include <map>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../../src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
@@ -12,12 +13,11 @@
 #include "../network/hostname.h"  // default_hostname()
 #include "html_escape.h"
 #include "index_html.h"
+
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
-
-#include <map>
 
 extern bool settingsUpdated;
 
@@ -107,7 +107,7 @@ String options_from_map(int selected, const TMap& value_name_map) {
 
 // Shared IPv4 validation regex for every IP input on the settings page. Injected via the %IPPATTERN%
 // placeholder rather than repeated in the HTML template, so it only occupies flash once.
-static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d))";
+static const char* const IPV4_PATTERN = R"(((25[0-5]|2[0-4]\d|1?\d?\d\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)))";
 
 #ifdef HW_LILYGO2CAN
 static const std::map<int, String> led_modes = {{0, "Classic"},     {1, "Energy Flow"},     {2, "Heartbeat"},
@@ -199,7 +199,7 @@ const char* name_for_gpioopt3(GPIOOPT3 option) {
 const char* name_for_gpioopt4(GPIOOPT4 option) {
   switch (option) {
     case GPIOOPT4::DEFAULT_SD_CARD:
-      return "µSD Card";
+      return "uSD Card";
 #ifndef SMALL_FLASH_DEVICE
     case GPIOOPT4::I2C_DISPLAY_SSD1306:
       return "I2C Display (SSD1306)";
@@ -236,9 +236,9 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 }
 #endif
 
-// Special unicode characters
-const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; ✓
-const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; ✗
+// Special symbol constants
+const char* TRUE_CHAR_CODE = "\u2713";   //&#10003; check mark
+const char* FALSE_CHAR_CODE = "\u2717";  //&#10007; cross mark
 
 // Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable / .if-chemcapable
 // blocks only for the battery integrations that actually implement parallel batteries
@@ -330,6 +330,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_charger_type, ChargerType::None);
   }
   if (var == "CHGCOMM") {
+#ifndef SMALL_FLASH_DEVICE
+    // UUGP uses Modbus TCP exclusively; do not offer CAN or RS485 interfaces.
+    if (settings.getUInt("CHGTYPE", (int)ChargerType::None) == (int)ChargerType::UUGP) {
+      return "<option value='1' selected>Modbus TCP</option>";
+    }
+#endif
     return options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
@@ -1037,7 +1043,15 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHG_CURRENT_SETPOINT") {
+    if (user_selected_charger_type == ChargerType::UUGP) {
+      return String(uugp_max_charge_current_A);
+    }
     return String(datalayer.charger.charger_setpoint_HV_IDC, 1);
+  }
+
+  if (var == "CHG_CURRENT_LABEL") {
+    return user_selected_charger_type == ChargerType::UUGP ? "UUGP maximum charging current (cable limit):"
+                                                           : "Charger Current Setpoint:";
   }
 #endif  // SMALL_FLASH_DEVICE
 
@@ -1214,7 +1228,26 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "FOXESSMODULES") {
     return String(settings.getUInt("FOXESSMODULES", 0));
   }
-
+#ifndef SMALL_FLASH_DEVICE
+  if (var == "UUGP_IP") {
+    return settings.getString("UUGP_IP", "");
+  }
+  if (var == "UUGP_PORT") {
+    return String(settings.getUInt("UUGP_PORT", 502));
+  }
+  if (var == "UUGP_PWRLIM") {
+    return String(settings.getUInt("UUGP_PWRLIM", 10000));
+  }
+  if (var == "UUGP_MAXA") {
+    return String(settings.getUInt("UUGP_MAXA", 0));
+  }
+  if (var == "UUGP_DSOC") {
+    return String(settings.getUInt("UUGP_DSOC", 80));
+  }
+  if (var == "UUGP_ALLOW") {
+    return settings.getBool("UUGP_ALLOW", false) ? "checked" : "";
+  }
+#endif
   return String();
 }
 
@@ -1280,7 +1313,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #ifdef HW_LILYGO
 #define GPIOOPT4_SETTING \
   R"rawliteral(
-    <label for="GPIOOPT4">µSD Slot:</label>
+    <label for="GPIOOPT4">uSD Slot:</label>
     <select id="GPIOOPT4" name="GPIOOPT4">
       %GPIOOPT4%
     </select>
@@ -1361,7 +1394,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
       <h4><span>Charger Voltage Setpoint: %CHG_VOLTAGE_SETPOINT% V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>
 
-      <h4><span>Charger Current Setpoint: %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
+      <h4><span>%CHG_CURRENT_LABEL% %CHG_CURRENT_SETPOINT% A</span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>
 
       </div>)rawliteral"
 #define CHARGER_SETTINGS_SCRIPT \
@@ -1376,9 +1409,9 @@ String qnhck_zero_text(uint16_t zero_mV) {
             if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointV?value='+value,true);xhr.send();}else{
             alert('Invalid value. Please enter a value between 0 and 1000');}}}
 
-          function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 48.');
-            if(value!==null){if(value>=0&&value<=1000){var xhr=new           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
-              alert('Invalid value. Please enter a value between 0 and 100');}}}
+          function editChargerSetpointIDC(){var value=prompt('Set charging current in amperes. For UUGP this is the maximum current allowed by the cable; configure it to the cable installation rating. Enter a whole number from 0 to 1000. 0 disables charging.');
+            if(value!==null){if(value>=0&&value<=1000&&Number.isInteger(Number(value))){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
+              alert('Invalid value. Enter a whole number between 0 and 1000 A.');}}}
 
           function editChargerSetpointEndI(){
             var value=prompt('Set amperage that terminates charge as being sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');
@@ -1491,6 +1524,68 @@ String qnhck_zero_text(uint16_t zero_mV) {
         </div>
   )rawliteral"
 
+#ifndef SMALL_FLASH_DEVICE
+#define UUGP_SETTINGS_HTML \
+  R"rawliteral(
+ <div class="if-uugp">
+         <label>UUGP IP address: </label>
+         <input type='text'
+            name='UUGP_IP'
+            value="%UUGP_IP%"
+            pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+            title="IPv4 address of the UUGP charger." />
+
+        <label>UUGP Modbus TCP port: </label>
+         <input type='number'
+            name='UUGP_PORT'
+            value="%UUGP_PORT%"
+            min="1"
+            max="65535"
+            step="1"
+            title="Modbus TCP port of the UUGP charger. Default: 502." />
+
+        <label>Allow UUGP discharge to home/grid: </label>
+         <input type='checkbox'
+            name='UUGP_ALLOW'
+            value='on'
+            %UUGP_ALLOW%
+            title="When enabled, UUGP 0x4011 uses the configured power limit. When disabled, 0x4011 follows the BMS charge/discharge power limit." />
+
+         <label>UUGP maximum charging current (A): </label>
+         <input type='number'
+            name='UUGP_MAXA'
+            value="%UUGP_MAXA%"
+            min="0"
+            max="1000"
+            step="1"
+            title="Maximum charging current. Set to 0 to keep UUGP charging disabled until a cable-safe limit is configured." />
+
+         <label>UUGP power limit (W): </label>
+         <input type='number'
+            name='UUGP_PWRLIM'
+            value="%UUGP_PWRLIM%"
+            min="0"
+            max="22000"
+            step="1"
+            title="Maximum UUGP power when discharge to home/grid is allowed." />
+
+         <label>UUGP discharge cut-off SOC (&#37;): </label>
+         <input type='number'
+            name='UUGP_DSOC'
+            value="%UUGP_DSOC%"
+            min="10"
+            max="90"
+            step="1"
+            title="UUGP discharge cut-off SOC." />
+         <div style='grid-column: 1 / -1;'>
+           UUGP communication: Modbus TCP.
+         </div>
+         </div>
+   )rawliteral"
+#else
+#define UUGP_SETTINGS_HTML ""
+#endif
+
 #define SETTINGS_HTML_SCRIPTS \
   R"rawliteral(
     <script>
@@ -1517,69 +1612,65 @@ String qnhck_zero_text(uint16_t zero_mV) {
     function editComplete(){if(this.status==200){window.location.reload();}}
 
     function editError(){alert('Invalid input');}
-        function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible fire. Start 30min recovery process? (0 = No, 1 = Yes):');
-          if(value!==null){if(value==0||value==1){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
+        function editRecoveryMode(){var value=prompt('Extremely dangerous option. Emergency charge allows recovery for a severely undercharged battery. Limit charge power to avoid cell rupture and possible explosion.');if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/enableRecoveryMode?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1');}}}
 
         function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value (1-400000):');
-          if(value!==null){if(value>=1&&value<=400000){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBatterySize?value='+value,true);xhr.send();}else{
+          if(value!==null){if(value>=1&&value<=400000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBatterySize?value='+value,true);xhr.send();}else{
           alert('Invalid value. Please enter a value between 1 and 400000.');}}}
 
         function editUseScaledSOC(){var value=prompt('Extends battery life by rescaling the SOC within the configured minimum and maximum percentage. Should SOC scaling be applied? (0 = No, 1 = Yes):');
-          if(value!==null){if(value==0||value==1){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateUseScaledSOC?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
+          if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateUseScaledSOC?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1');}}}
     
-        function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
+        function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum SOC value that battery will charge to (50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and 100.0');}}}
     
 
 
         function editSocMin(){
-          var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0to50.0):');
-          if(value!==null){if(value>=-10&&value<=50){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMin?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between -10 and 50.0');}}}
+          var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge to (-10.0-50.0):');
+          if(value!==null){if(value>=-10&&value<=50){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateSocMin?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between -10.0 and 50.0');}}}
     
-        function editMaxChargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new maximum charge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxChargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
+        function editMaxChargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new maximum charge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxChargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
     
-        function editMaxDischargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new maximum discharge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
+        function editMaxDischargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new maximum discharge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
     
-        function editUseVoltageLimit(){var value=prompt('Enable this option to manually restrict charge/discharge to a specific voltage set below. If disabled the emulator automatically determines this based on battery limits. Restrict manually? (0 = No, 1 = Yes):');if(value!==null){if(value==0||value==1){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateUseVoltageLimit?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1.');}}}
+        function editUseVoltageLimit(){var value=prompt('Enable this option to manually restrict charge/discharge to a specific voltage set below. If disabled the emulator automatically determines this based on your battery.');if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateUseVoltageLimit?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1');}}}
     
-        function editMaxChargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter new voltage setpoint batttery should charge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var 
-        xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxChargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
+        function editMaxChargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter new voltage setpoint batttery should charge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxChargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
     
-        function editMaxDischargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter new voltage setpoint batttery should discharge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var 
-        xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
+        function editMaxDischargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter new voltage setpoint batttery should discharge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS Power reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var 
-        xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600.');}}}
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power pin should be low during periodic resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-600):');if(value!==null){if(value>=1&&value<=600){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 600');}}}
 
         function startBMSReset(){if(confirm('Cut BMS power now? Charging and discharging are paused until it is back up.')){var xhr=new XMLHttpRequest();
         xhr.onload=function(){alert(this.status==200?'BMS Power reset started.':this.responseText);};xhr.onerror=editError;xhr.open('POST','/startBMSReset',true);xhr.send();}}
 )rawliteral" QNHCK_SETTINGS_SCRIPT R"rawliteral(
-        function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
+        function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced.');if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/TeslaBalAct?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
     
-        function editBalTime(){var value=prompt('Enter new max balancing time in minutes');if(value!==null){if(value>=1&&value<=300){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalTime?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 300');}}}
+        function editBalTime(){var value=prompt('Enter new max balancing time in minutes');if(value!==null){if(value>=1&&value<=300){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalTime?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 300');}}}
     
-        function editBalFloatPower(){var value=prompt('Power level in Watt to float charge during forced balancing');if(value!==null){if(value>=100&&value<=2000){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalFloatPower?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 100 and 2000');}}}
+        function editBalFloatPower(){var value=prompt('Power level in Watt to float charge during forced balancing');if(value!==null){if(value>=100&&value<=2000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalFloatPower?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 100 and 2000');}}}
     
-        function editBalMaxPackV(){var value=prompt('Battery pack max voltage temporarily raised to this value during forced balancing. Value in V');if(value!==null){if(value>=380&&value<=410){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxPackV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 380 and 410');}}}
+        function editBalMaxPackV(){var value=prompt('Battery pack max voltage temporarily raised to this value during forced balancing. Value in V');if(value!==null){if(value>=380&&value<=410){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxPackV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 380 and 410');}}}
 
-        function editBalMaxCellV(){var value=prompt('Cellvoltage max temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=3400&&value<=3750){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 3400 and 3750');}}}
+        function editBalMaxCellV(){var value=prompt('Cellvoltage max temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=3400&&value<=3750){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 3400 and 3750');}}}
     
-        function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new 
-        XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
-)rawliteral" CHARGER_SETTINGS_SCRIPT R"rawliteral(
+        function editBalMaxDevCellV(){var value=prompt('Cellvoltage max deviation temporarily raised to this value during forced balancing. Value in mV');if(value!==null){if(value>=300&&value<=600){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
+
+          function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}
+
+          function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC output. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or 0');}}}
+
+          function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 200 to 1000.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointV?value='+value,true);xhr.send();}else{
+            alert('Invalid value. Please enter a value between 0 and 1000');}}}
+
+          function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 6 to 100.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeSetpointA?value='+value,true);xhr.send();}else{
+              alert('Invalid value. Please enter a value between 0 and 100');}}}
+
+          function editChargerSetpointEndI(){
+            var value=prompt('Set amperage that terminates charge as being sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but use sensible values like 1 to 100.');
+            if(value!==null){if(value>=0&&value<=1000){var xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}}
 
 
           function haDisc(c) {
@@ -1609,6 +1700,27 @@ String qnhck_zero_text(uint16_t zero_mV) {
           if(ie>0&&ie<4e12){iu.textContent=new Date(ie*1000).toISOString().replace('T',' ').slice(0,19);}
     </script>
 )rawliteral"
+
+#ifndef SMALL_FLASH_DEVICE
+#define UUGP_SETTINGS_CSS \
+  R"rawliteral(
+    /* Keep UUGP controls in their own two-column grid. Using display:contents here
+       makes every nested element (including the explanatory paragraph) a child of
+       the Optional components grid and can push the following settings out of place. */
+    form .if-uugp {
+      display: none;
+      grid-column: 1 / -1;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 10px;
+      align-items: center;
+    }
+    form[data-charger="3"] .if-uugp {
+      display: grid;
+    }
+  )rawliteral"
+#else
+#define UUGP_SETTINGS_CSS ""
+#endif
 
 #define SETTINGS_STYLE \
   INDEX_HTML_NAV_LINK R"rawliteral(
@@ -1665,6 +1777,18 @@ String qnhck_zero_text(uint16_t zero_mV) {
     form .if-battery, form .if-inverter, form .if-shunt { display: contents; }
     form[data-battery="0"] .if-battery { display: none; }
     form[data-inverter="0"] .if-inverter { display: none; }    
+    form[data-charger="0"] .if-charger { display: none; }
+)rawliteral" UUGP_SETTINGS_CSS R"rawliteral(
+    form[data-shunttype="0"] .if-shunt,
+    form[data-shunttype="3"] .if-shunt {
+      display: none;
+    }
+    form[data-shunttype="0"] .if-ctclamp,
+    form[data-shunttype="1"] .if-ctclamp,
+    form[data-shunttype="2"] .if-ctclamp { 
+      display: none; 
+    }
+    form[data-shunttype="3"] .if-ctclamp { display: contents;}
     form[data-shunttype="0"] .if-shunt { display: none; }
 
     /* Shunt types the selected battery/inverter can't use.
@@ -1722,7 +1846,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
       display: contents;
     }
 
-    form .if-chgestimated { display: none; } /* Integrations where you sometimes want to fallback to user set charge/discharge power options, since they are for unknown reason not available on some packs */
+    form .if-chgestimated { display: none; } /* Integrations where you sometimes want to fallback to user set charge/discharge power options, since they are for unknown reason not available on some pars */
     form[data-battery="8"] .if-chgestimated,
     form[data-battery="26"] .if-chgestimated,
     form[data-battery="44"] .if-chgestimated {
@@ -2087,11 +2211,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
           <input type='number' name='DALYPWRDV' value="%DALYPWRDV%"
           min="1" max="10000" step="1" />
 
-          <label>Power change per °C above/below 0°C (W/°C): </label>
+          <label>Power change per C above/below 0C (W/C): </label>
           <input type='number' name='DALYPWRDEG' value="%DALYPWRDEG%"
           min="1" max="10000" step="1" />
 
-          <label>Power at 0°C (W): </label>
+          <label>Power at 0C (W): </label>
           <input type='number' name='DALYPWR0C' value="%DALYPWR0C%"
           min="0" max="100000" step="1" />
         </div>
@@ -2180,7 +2304,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='DBLBTR' value='on' %DBLBTR% />
 
         <div class="if-dblbtr">
-            <label>2ⁿᵈ interface: </label>
+            <label>2nd interface: </label>
             <select name='BATT2COMM'>
                 %BATT2COMM%
             </select>
@@ -2197,7 +2321,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='TRIBTR' value='on' %TRIBTR% />
 
         <div class="if-tribtr">
-        <label>3ʳᵈ interface: </label>
+        <label>3rd interface: </label>
         <select name='BATT3COMM'>
             %BATT3COMM%
         </select>
@@ -2358,6 +2482,8 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 )rawliteral" CHARGER_SETTINGS_HTML R"rawliteral(
 
+        )rawliteral" UUGP_SETTINGS_HTML R"rawliteral(
+
         <label>Measurement: </label><select name='shunttype'>
         %SHUNTTYPE%
         </select>
@@ -2383,10 +2509,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='CNTCTRL' value='on' %CNTCTRL% />
 
         <div class="if-dblbtr">
-            <label>2ⁿᵈ battery contactor control via GPIO: </label>
+            <label>2nd battery contactor control via GPIO: </label>
             <input type='checkbox' name='CNTCTRLDBL' value='on' %CNTCTRLDBL% />
             <div class="if-tribtr">
-                <label>3ʳᵈ battery contactor control via GPIO: </label>
+                <label>3rd battery contactor control via GPIO: </label>
                 <input type='checkbox' name='CNTCTRLTRI' value='on' %CNTCTRLTRI% />
             </div>
         </div>
@@ -2448,7 +2574,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <input type='checkbox' name='MEASURECPUTEMP' value='on' %MEASURECPUTEMP% />
 
          <div class="if-measurecputemp">
-            <label>CPU temperature calibration offset (°C): </label>
+            <label>CPU temperature calibration offset (C): </label>
             <input name='CPUTEMPOFFSET' type='number' value="%CPUTEMPOFFSET%" pattern="-?[0-9]+" />
         </div>
 

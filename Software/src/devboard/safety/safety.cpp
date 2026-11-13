@@ -522,12 +522,16 @@ void update_machineryprotection(uint32_t currentMillis) {
   }
 
 #ifndef SMALL_FLASH_DEVICE
-  if (charger) {
-    // Assuming chargers are all CAN here.
-    // Check that the charger has been seen and is still sending CAN messages.
-    // If we go 60s without messages we raise a warning
+  // CAN chargers only. UUGP uses TCP and has its own communication check.
+  if (charger && charger->type() != ChargerType::UUGP) {
     check_can_component_alive(datalayer.charger.CAN_charger_still_alive, charger_detected, EVENT_CAN_CHARGER_DETECTED,
-                              EVENT_CAN_CHARGER_MISSING, charger->interface());
+                              EVENT_CAN_CHARGER_MISSING, static_cast<CanCharger*>(charger)->interface());
+  }
+
+  // If UUGP communication is not verified, force battery-side limits to zero.
+  if (charger && charger->type() == ChargerType::UUGP && !datalayer.charger.uugp_communication_ok) {
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 #endif  // SMALL_FLASH_DEVICE
 
