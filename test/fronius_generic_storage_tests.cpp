@@ -166,9 +166,10 @@ TEST_F(FroniusGenericStorageTest, ContactorsStayOpenUntilTheInverterAsksForTheBa
   EXPECT_EQ(inverter.mbPV[412], 3800);
 }
 
-// What a GEN24 does first with a battery. Left open here, it reports GEN24-1250 "DC connection
-// between inverter and battery interrupted" and falls back to STANDBY.
-TEST_F(FroniusGenericStorageTest, InactiveRequestConnectsTheBatteryAndShowsTheBusVoltage) {
+// What a GEN24 does first with a battery. It has to find the battery connected and ACTIVE after
+// that: answered with INACTIVE it reports GEN24-1250 "DC connection between inverter and battery
+// interrupted" and falls back to STANDBY.
+TEST_F(FroniusGenericStorageTest, InactiveRequestBringsTheBatteryUpAsActive) {
   inverter.write_op_mode(FroniusGenericStorageInverter::MODE_INACTIVE);
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
@@ -176,12 +177,8 @@ TEST_F(FroniusGenericStorageTest, InactiveRequestConnectsTheBatteryAndShowsTheBu
 
   datalayer.system.status.dc_bus_live = true;
   inverter.update_values();
-  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_INACTIVE);
-  EXPECT_EQ(inverter.mbPV[412], 3800);  // UDC_Bus
-
-  inverter.write_op_mode(FroniusGenericStorageInverter::MODE_ACTIVE);
-  inverter.update_values();
   EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_ACTIVE);
+  EXPECT_EQ(inverter.mbPV[412], 3800);  // UDC_Bus
 }
 
 TEST_F(FroniusGenericStorageTest, DarkstartRequestClosesTheContactorsToo) {
@@ -190,7 +187,7 @@ TEST_F(FroniusGenericStorageTest, DarkstartRequestClosesTheContactorsToo) {
   inverter.update_values();
 
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_DARKSTART);
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_ACTIVE);
 }
 
 TEST_F(FroniusGenericStorageTest, StandbyRequestOpensOnceTheCurrentHasGone) {
@@ -240,19 +237,19 @@ TEST_F(FroniusGenericStorageTest, SilentInverterLosesItsRequest) {
   EXPECT_TRUE(inverter.allows_contactor_closing());
 }
 
-TEST_F(FroniusGenericStorageTest, AlwaysClosedWorkaroundIgnoresTheRequestButAcknowledgesIt) {
+TEST_F(FroniusGenericStorageTest, AlwaysClosedWorkaroundBehavesLikeBydModbus) {
   user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::AlwaysClosed;
   datalayer.system.status.dc_bus_live = true;
 
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_INACTIVE);
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_ACTIVE);
 
   inverter.write_op_mode(FroniusGenericStorageInverter::MODE_STANDBY);
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_STANDBY);
-  EXPECT_EQ(inverter.mbPV[412], 3800);  // The bus is live all the same, and reported so
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_ACTIVE);
+  EXPECT_EQ(inverter.mbPV[412], 3800);
 }
 
 TEST_F(FroniusGenericStorageTest, LockWorkaroundKeepsTheContactorsClosedAfterTheFirstRequest) {

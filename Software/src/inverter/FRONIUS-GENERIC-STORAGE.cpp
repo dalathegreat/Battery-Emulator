@@ -200,10 +200,8 @@ void FroniusGenericStorageInverter::update_contactor_request() {
   const uint32_t last_request = last_request_ms;
   const uint32_t now = millis();
   const bool silent = !inverter_detected || (now - last_request) > INVERTER_SILENCE_MS;
-  // Only STANDBY lets go of the battery. INACTIVE is where the inverter starts from: DC connected,
-  // no power moved yet. It checks the DC link in that mode before it goes on to ACTIVE, and gives
-  // up with "DC connection between inverter and battery interrupted" (GEN24-1250) if the contactors
-  // are open.
+  // Only STANDBY lets go of the battery. A GEN24 asks for INACTIVE first and expects the battery
+  // to come up on that.
   const bool wants_battery =
       !silent && (op_mode == MODE_INACTIVE || op_mode == MODE_DARKSTART || op_mode == MODE_ACTIVE);
 
@@ -249,23 +247,18 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
     return MODE_UPDATING;
   }
 
-  // The inverter is answered with the mode it asked for once that mode is reached, and not before:
-  // every mode but STANDBY needs the contactors closed.
-  const bool connected = bus_connected();
-  if (requested_op_mode == MODE_INACTIVE || requested_op_mode == MODE_DARKSTART || requested_op_mode == MODE_ACTIVE) {
-    reached_state = connected ? requested_op_mode : MODE_STANDBY;
-  } else if (requested_op_mode == MODE_STANDBY) {
-    // With the contactors held closed by the workaround setting the request is still acknowledged,
-    // so the inverter does not keep repeating it
-    if (!open_pending) {
-      reached_state = MODE_STANDBY;
-    }
-  } else {
-    // Nothing asked yet. Only connected at this point if the contactors are kept closed regardless,
-    // and then in the mode the inverter starts a battery from
-    reached_state = connected ? MODE_INACTIVE : MODE_STANDBY;
+  /* ACTIVE as soon as the contactors are closed, whichever mode the inverter asked for: what the
+     BYD-Modbus driver reports, and what a GEN24 is known to run a battery on. Answering a request
+     for INACTIVE with INACTIVE does not work. Tried on a Symo GEN24 6.0 (firmware 1.42.9-1), with
+     the contactors open as well as closed: it waits a few seconds, raises GEN24-1250 "DC connection
+     between inverter and battery interrupted" and asks for STANDBY. */
+  const uint16_t state = bus_connected() ? MODE_ACTIVE : MODE_STANDBY;
+  if (state != last_reported_state) {
+    last_reported_state = state;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Reporting operating mode %u (%s) to the inverter\n", state, mode_name(state));
   }
-  return reached_state;
+  return state;
 }
 
 bool FroniusGenericStorageInverter::bus_connected() {
