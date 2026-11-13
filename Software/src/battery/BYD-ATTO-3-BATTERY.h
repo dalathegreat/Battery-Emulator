@@ -131,10 +131,10 @@ class BydAttoBattery : public CanBattery {
   uint32_t taper_last_ms = 0;
   bool taper_initialized = false;
 
-  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
+  static const int POLL_FULL_CHARGES_COMPLETED = 0x0004;
   // 0x0005/0x0008/0x0009 (SOC, voltage, current) come from 0x444 and 0x438, not polled.
   // 0x000A/0x000E (allowed charge/discharge power) come from 0x345 at ~100ms, not polled.
-  static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
+  static const int POLL_CHARGE_SESSIONS_STARTED = 0x000B;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
@@ -272,7 +272,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_lowest_cell_voltage_mV = 3300;
   uint16_t BMS_highest_cell_voltage_mV = 3300;
   uint16_t BMS_allowed_charge_power = 0;
-  uint16_t BMS_charge_times = 0;
+  uint16_t BMS_charge_sessions_started = 0;
   uint8_t BMS_charge_time_remaining_h = 0xFF;  // 0x445, 0xFF = not available
   uint8_t BMS_charge_time_remaining_min = 0xFF;
   uint16_t BMS_allowed_discharge_power = 0;
@@ -280,7 +280,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_total_discharged_ah = 0;
   uint16_t BMS_total_charged_kwh = 0;
   uint16_t BMS_total_discharged_kwh = 0;
-  uint16_t BMS_times_full_power = 0;
+  uint16_t BMS_full_charges_completed = 0;
   uint16_t BMS_capacity_original_calibration = 0;
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
@@ -322,7 +322,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t cell_balance_active_charge = 0;
   BydCellBalanceScanReason cell_balance_scan_reason = BydCellBalanceScanReason::NONE;
   std::atomic<uint8_t> cell_balance_time_requested{0};
-  bool BMS_times_full_power_valid = false;
+  bool BMS_full_charges_completed_valid = false;
 
   bool awaiting_cell_balance_reply() const { return cell_balance_time_active && cell_balance_time_waiting; }
   bool queue_cell_balance_scan(BydCellBalanceScanReason reason);
@@ -510,6 +510,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
   uint8_t BMS_charge_state = 0x0F;
+  uint8_t BMS_charge_gun = 0;  // 0x344 b5 bits 2-4
   uint8_t increaseTimeoutSOC = 0;
   static const uint8_t REJECTED = 1;
   static const uint8_t APPROVED = 2;

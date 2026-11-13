@@ -52,7 +52,7 @@ void reset_byd_state() {
   datalayer.battery_settings.max_user_set_charge_dA = 300;
   datalayer_extended.bydAtto3.chargePower = 0;
   datalayer_extended.bydAtto3.dischargePower = 0;
-  datalayer_extended.bydAtto3.SOC_polled = 0;
+  datalayer_extended.bydAtto3.SOC_dashboard = 0;
   datalayer_extended.bydAtto3.SOC_highprec = 0;
   datalayer_extended.bydAtto3.BMS_min_temp_module_number = 0;
   datalayer_extended.bydAtto3.BMS_max_temp_module_number = 0;
@@ -172,7 +172,7 @@ TEST(BydAtto3Tests, ShouldDecode0x444WholePercentSocAndRejectBadChecksum) {
   battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xA4, 0x01, 0x88, 0x13, 0x5D, 0x1F, 0x00}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_polled, 31);
+  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_dashboard, 31);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9300);
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
 
@@ -180,7 +180,7 @@ TEST(BydAtto3Tests, ShouldDecode0x444WholePercentSocAndRejectBadChecksum) {
   battery->handle_incoming_can_frame(byd_corrupt_frame(0x444, {0xA4, 0x01, 0x88, 0x13, 0x32, 0x50, 0x00}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_polled, 31);
+  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_dashboard, 31);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9300);
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 1);
 }
