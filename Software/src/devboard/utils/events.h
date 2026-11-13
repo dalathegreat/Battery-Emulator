@@ -62,6 +62,9 @@
   XX(EVENT_BATTERY_FUSE)                     \
   XX(EVENT_BATTERY2_FUSE)                    \
   XX(EVENT_BATTERY3_FUSE)                    \
+  XX(EVENT_BATTERY_NO_CURRENT)               \
+  XX(EVENT_BATTERY2_NO_CURRENT)              \
+  XX(EVENT_BATTERY3_NO_CURRENT)              \
   XX(EVENT_BATTERY_FROZEN)                   \
   XX(EVENT_BATTERY2_FROZEN)                  \
   XX(EVENT_BATTERY3_FROZEN)                  \
