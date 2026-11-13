@@ -91,9 +91,9 @@ void RenaultZoeGen2Battery::update_values() {
   }
 
   for (int i = 0; i < 96; i++) {
-    //balancing_status_cell has cells ordered 96-1, while datalayer_battery->status.cell_balancing_status has cells ordered 1-96
-    //Due to this we need to invert the index when writing to datalayer_battery->status.cell_balancing_status
-    datalayer_battery->status.cell_balancing_status[95 - i] = balancing_status_cell[i];
+    //balancing_status_cell has cells ordered 96-1, while cell_balancing_status has cells ordered 1-96.
+    //Due to this we need to invert the index when writing.
+    datalayer_battery->status.cell_balancing_status.set(95 - i, balancing_status_cell[i]);
     if (balancing_status_cell[i]) {
       set_event_latched(EVENT_BALANCING_START, (95 - i), battery_index);
       datalayer_battery->status.balancing_status = BALANCING_STATUS_ACTIVE;

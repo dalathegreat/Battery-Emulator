@@ -6,8 +6,11 @@
 #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "index_html.h"
 
-const char EVENTS_HTML_START[] = R"=====(
-<style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:90px;word-break:break-word}.event>div:first-child{flex:5;text-align:left}.event>div:nth-child(3){flex:3}.event>div:last-child{flex:1 1 100%;padding-top:4px;text-align:left}</style><div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log" id="log">
+const char EVENTS_HTML_START[] = INDEX_HTML_NAV_LINK
+    R"=====(
+<style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:90px;word-break:break-word}.event>div:first-child{flex:5;text-align:left}.event>div:nth-child(3){flex:3}.event>div:last-child{flex:1 1 100%;padding-top:4px;text-align:left}</style>)=====" INDEX_HTML_NAV_START
+    R"=====(<button onclick="askClear()">Clear all events</button>)=====" INDEX_HTML_NAV_END
+    R"=====(<div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log" id="log">
 )=====";
 // The table's header row carries the version of the rows below it, so the page can ask for them
 // again only once something changed.
@@ -16,12 +19,8 @@ const char EVENTS_HTML_HEADER_ROW[] =
     "<div>Severity</div><div>Last Event</div><div>Count</div><div>Data</div><div>Message</div></div>";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
-<style> button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; cursor: pointer; border-radius: 10px; }
-button:hover { background-color: #3A4A52; }</style>
-<button onclick="askClear()">Clear all events</button>
-<button onclick="home()">Back to main page</button>
 <style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style>
-<script>const G=document.getElementById("log"),showEvent=()=>G.querySelectorAll(".sec-ago").forEach(n=>{n.innerText=new Date(Number(BigInt(Date.now())-BigInt(n.innerText))).toLocaleString();n.className=""}),askClear=()=>confirm("Are you sure you want to clear all events?")&&(location.href="/clearevents"),home=()=>location.href="/",tick=()=>{clearTimeout(T);document.hidden||fetch("/events?since="+G.firstElementChild.dataset.v,{cache:"no-store"}).then(r=>{if(r.status!=204){if(!r.ok)throw 0;return r.text().then(h=>{G.innerHTML=h;showEvent()})}}).then(()=>G.style.opacity="",()=>G.style.opacity=.5).then(()=>{clearTimeout(T);T=setTimeout(tick,5000)})};let T;document.addEventListener("visibilitychange",tick);onload=()=>{showEvent();T=setTimeout(tick,5000)}
+<script>const G=document.getElementById("log"),showEvent=()=>G.querySelectorAll(".sec-ago").forEach(n=>{n.innerText=new Date(Number(BigInt(Date.now())-BigInt(n.innerText))).toLocaleString();n.className=""}),askClear=()=>confirm("Are you sure you want to clear all events?")&&(location.href="/clearevents"),tick=()=>{clearTimeout(T);document.hidden||fetch("/events?since="+G.firstElementChild.dataset.v,{cache:"no-store"}).then(r=>{if(r.status!=204){if(!r.ok)throw 0;return r.text().then(h=>{G.innerHTML=h;showEvent()})}}).then(()=>G.style.opacity="",()=>G.style.opacity=.5).then(()=>{clearTimeout(T);T=setTimeout(tick,5000)})};let T;document.addEventListener("visibilitychange",tick);onload=()=>{showEvent();T=setTimeout(tick,5000)}
 </script>
 )=====";
 
@@ -145,8 +144,10 @@ void send_events_page(AsyncWebServerRequest* request) {
 }
 
 /* Script for displaying event log before it gets minified
+<div class=subnav>
+<button onclick="location.href='/'">Back to main page</button>
 <button onclick="askClear()">Clear all events</button>
-<button onclick="home()">Back to main page</button>
+</div>
 <style>
     .event:nth-child(even) {
         background-color: #455a64;
@@ -168,9 +169,6 @@ void send_events_page(AsyncWebServerRequest* request) {
         if (window.confirm('Are you sure you want to clear all events?')) {
             window.location.href = '/clearevents';
         }
-    }
-    function home() {
-        window.location.href = "/";
     }
     // Every 5 s, unless the tab is hidden: ask for the rows, quoting the version shown. The answer
     // is 204 while nothing changed, else the new rows. A failed poll dims the table and retries.

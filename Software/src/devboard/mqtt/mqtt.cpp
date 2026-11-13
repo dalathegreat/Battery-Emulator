@@ -623,7 +623,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   uint16_t active_cells = 0;
   if (battery_data.info.number_of_cells != 0u) {
     for (size_t i = 0; i < battery_data.info.number_of_cells; ++i) {
-      if (battery_data.status.cell_balancing_status[i]) {
+      if (battery_data.status.cell_balancing_status.get(i)) {
         active_cells++;
       }
     }
@@ -1072,7 +1072,7 @@ static bool publish_cell_data_state(const DATALAYER_BATTERY_TYPE& battery_data, 
       return true;  // skip this payload, don't abort the publish cycle
     }
     len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "%s%s", (i != 0u) ? "," : "",
-                    battery_data.status.cell_balancing_status[i] ? "true" : "false");
+                    battery_data.status.cell_balancing_status.get(i) ? "true" : "false");
   }
   len += snprintf(mqtt_msg + len, MQTT_MSG_BUFFER_SIZE - len, "]}");
 

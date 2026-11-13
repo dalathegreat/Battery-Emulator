@@ -272,7 +272,7 @@ class PidDemuxTest : public CanLogTestFixture {
     const uint8_t balancing_bytes[] = {0xA5, 0x3C, 0x00, 0xFF, 0x81, 0x10, 0x42, 0x80, 0x01, 0x55, 0xAA, 0x0F};
     for (int i = 0; i < 96; i++) {
       bool expected = (balancing_bytes[i / 8] >> (i % 8)) & 1;
-      EXPECT_EQ(datalayer.battery.status.cell_balancing_status[i], expected) << "cell " << i;
+      EXPECT_EQ(datalayer.battery.status.cell_balancing_status.get(i), expected) << "cell " << i;
     }
 
     // 0x155 broadcast: SOC value bytes 4-5 are 0x2132 (8498 = 84.98%).
