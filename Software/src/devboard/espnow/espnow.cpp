@@ -519,7 +519,7 @@ static void send_battery_frame(uint8_t index) {
 
     uint16_t active_cells = 0;
     for (uint8_t i = 0; i < cells; i++) {
-      if (d->status.cell_balancing_status[i]) {
+      if (d->status.cell_balancing_status.get(i)) {
         active_cells++;
       }
     }
@@ -580,7 +580,7 @@ static void send_cells_frame(uint8_t index, uint16_t first_cell, uint16_t count,
       uint8_t byte = 0;
       for (uint8_t bit = 0; bit < 8; bit++) {
         const size_t cell = b * 8u + bit;
-        if (cell < count && d->status.cell_balancing_status[first_cell + cell]) {
+        if (cell < count && d->status.cell_balancing_status.get(first_cell + cell)) {
           byte = static_cast<uint8_t>(byte | (1u << bit));
         }
       }

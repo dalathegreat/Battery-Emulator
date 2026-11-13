@@ -60,6 +60,23 @@ struct DATALAYER_BATTERY_INFO_TYPE {
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
 };
 
+// One bit per cell, cell 0 in bit 0 of the first byte. The old bool array stored a byte per cell.
+struct CellBalancingStatus {
+  bool get(size_t cell) const { return ((bits_[cell >> 3] >> (cell & 7)) & 0x01u) != 0; }
+
+  void set(size_t cell, bool on) {
+    const uint8_t mask = static_cast<uint8_t>(1u << (cell & 7));
+    if (on) {
+      bits_[cell >> 3] = static_cast<uint8_t>(bits_[cell >> 3] | mask);
+    } else {
+      bits_[cell >> 3] = static_cast<uint8_t>(bits_[cell >> 3] & static_cast<uint8_t>(~mask));
+    }
+  }
+
+ private:
+  uint8_t bits_[(MAX_AMOUNT_CELLS + 7) / 8] = {};
+};
+
 struct DATALAYER_BATTERY_STATUS_TYPE {
   /** uint32_t */
   /** Remaining energy capacity in Watt-hours */
@@ -176,11 +193,11 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    * Use with battery.info.number_of_cells to get valid data.
    */
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
-  /** All balancing resistors status inside the pack, either on(1) or off(0).
+  /** Balancing resistor on(1) or off(0) for each cell.
    * Use with battery.info.number_of_cells to get valid data.
-   * Not available for all battery manufacturers.
+   * Not available for all battery manufacturers. Read and write with get() and set().
    */
-  bool cell_balancing_status[MAX_AMOUNT_CELLS];
+  CellBalancingStatus cell_balancing_status;
 };
 
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
