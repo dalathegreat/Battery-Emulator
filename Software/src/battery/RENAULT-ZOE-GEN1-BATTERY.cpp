@@ -87,7 +87,7 @@ uint16_t RenaultZoeGen1Battery::handle_pid(uint16_t pid, uint32_t value, const u
           break;
         }
         bool is_balancing = (data[cell >> 3] >> (cell & 7)) & 0x01;
-        datalayer_battery->status.cell_balancing_status[cell] = is_balancing;
+        datalayer_battery->status.cell_balancing_status.set(cell, is_balancing);
         if (is_balancing) {
           any_balancing = true;
         }

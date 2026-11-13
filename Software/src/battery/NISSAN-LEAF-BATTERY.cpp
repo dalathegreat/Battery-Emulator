@@ -1169,7 +1169,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //Only publish once all three frames of this response arrived. A dropped frame would otherwise
           //leave part of the array holding the previous response, which reads as a spurious change.
           if (balancing_frames_seen == 0x07) {
-            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            for (int cell = 0; cell < 96; cell++) {
+              datalayer_battery->status.cell_balancing_status.set(cell, battery_balancing_shunts[cell]);
+            }
             balancing_data_fresh = true;
           }
           balancing_frames_seen = 0;
