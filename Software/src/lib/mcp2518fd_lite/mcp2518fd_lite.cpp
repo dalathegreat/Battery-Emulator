@@ -17,6 +17,8 @@
 #define REG_CiTBC 0x010
 #define REG_CiTSCON 0x014
 #define REG_CiINT 0x01C
+#define REG_CiTREC 0x034
+#define REG_CiBDIAG1 0x03C
 #define REG_CiTEFCON 0x040
 #define REG_CiTXQCON 0x050
 #define REG_OSC 0xE00
@@ -55,6 +57,11 @@
 #define FIFOCON_TXREQ 0x02       // Byte 1
 #define FIFOSTA_TFNRFNIF 0x01    // Byte 0: not full (TX) / not empty (RX)
 #define FIFOSTA_RXOVIF 0x08      // Byte 0: the RX FIFO overflowed
+
+// CiTREC error state bits (EWARN, RXWARN, TXWARN, RXBP, TXBP, TXBO)
+#define TREC_STATE_MASK 0x003F0000UL
+// CiBDIAG1: the controller went bus-off (and has since recovered, or is recovering)
+#define BDIAG1_TXBOERR (1UL << 23)
 
 // Message object flags word
 #define OBJ_FLAG_IDE (1u << 4)
@@ -227,6 +234,7 @@ bool MCP2518FD_Lite::configure(const MCP2518FD_Lite_Speed& speed, uint8_t clko_d
 
   // Finally leave configuration mode
   _run_mode = loopback ? MODE_INTERNAL_LOOPBACK : MODE_NORMAL_FD;
+  _diag.opmode = _run_mode;  // The expected mode, so only a change from it is reported
   return requestMode(_run_mode);
 }
 
@@ -313,13 +321,49 @@ void MCP2518FD_Lite::pause(bool paused) {
   enableStepping();
 }
 
-// Check for SERRIF (system error) and CERRIF (CAN bus error) flags
+// Check for SERRIF (system error) and CERRIF (CAN bus error) flags, and
+// refresh the diagnostics.
 void MCP2518FD_Lite::checkErrors() {
+  if (_paused) {
+    return;  // In configuration mode on purpose
+  }
   const uint8_t err_flags = readReg8(REG_CiINT + 1) & ((1u << 4) | (1u << 5));
   if (err_flags) {
     _errors = true;
     writeReg8(REG_CiINT + 1, (uint8_t)~err_flags);
+    if (err_flags & (1u << 4)) {
+      _diag.serr_count++;
+      _diag_changed = true;
+    }
+    if (err_flags & (1u << 5)) {
+      _diag.cerr_count++;
+    }
   }
+
+  const uint8_t opmode = (readReg8(REG_CiCON + 2) >> 5) & 0x07;
+  const uint32_t trec = readReg32(REG_CiTREC);
+  const uint32_t bdiag1 = readReg32(REG_CiBDIAG1);
+  if (bdiag1 & 0xFFFF0000UL) {
+    writeReg32(REG_CiBDIAG1, 0);  // Clear the sticky error flags (and the error-free message count)
+  }
+
+  if (opmode != _diag.opmode || ((trec ^ _diag.trec) & TREC_STATE_MASK) || (bdiag1 & BDIAG1_TXBOERR)) {
+    _diag_changed = true;
+  }
+  _diag.opmode = opmode;
+  _diag.trec = trec;
+  _diag.bdiag1 |= bdiag1 & 0xFFFF0000UL;
+  _diag.tx_full = _tx_ie;
+}
+
+bool MCP2518FD_Lite::takeDiag(MCP2518FD_Lite_Diag& out) {
+  out = _diag;
+  if (!_diag_changed) {
+    return false;
+  }
+  _diag_changed = false;
+  _diag.bdiag1 = 0;
+  return true;
 }
 
 int MCP2518FD_Lite::debugState(char* buf, size_t n) {
@@ -330,7 +374,7 @@ int MCP2518FD_Lite::debugState(char* buf, size_t n) {
                   "2518: CiCON %08lx CiNBTCFG %08lx CiINT %08lx CiTREC %08lx CiBDIAG1 %08lx FIFOSTA1 %08lx FIFOCON2 "
                   "%08lx FIFOSTA2 %08lx | tx_ie %d paused %d stepping_disabled %d started %d state %u pending %d int %d f_osc %lu",
                   (unsigned long)readReg32(REG_CiCON), (unsigned long)readReg32(REG_CiNBTCFG),
-                  (unsigned long)readReg32(REG_CiINT), (unsigned long)readReg32(0x034), (unsigned long)readReg32(0x03C),
+                  (unsigned long)readReg32(REG_CiINT), (unsigned long)readReg32(REG_CiTREC), (unsigned long)readReg32(REG_CiBDIAG1),
                   (unsigned long)readReg32(REG_CiFIFOSTA(CONTROLLER_RX_FIFO_INDEX)),
                   (unsigned long)readReg32(REG_CiFIFOCON(CONTROLLER_TX_FIFO_INDEX)),
                   (unsigned long)readReg32(REG_CiFIFOSTA(CONTROLLER_TX_FIFO_INDEX)), _tx_ie, _paused, _stepping_disabled, _started,
