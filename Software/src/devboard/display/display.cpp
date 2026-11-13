@@ -4,24 +4,33 @@
 #ifndef SMALL_FLASH_DEVICE
 
 #include "../../battery/BATTERIES.h"
+#include "../../battery/TESLA-BATTERY.h"
 #include "../../datalayer/battery_aggregate.h"
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../hal/hal.h"
 #include "../network/network_status.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#include "../utils/version.h"
+#include "display_modes.h"
 #include "fonts.h"
 #include "ssd130x_init.h"
 
 #include "Arduino.h"
 #include "driver/i2c_master.h"
+#include "esp_err.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 
 #define I2C_MASTER_FREQ_HZ 400000  // 400 kHz; reliable for SSD1306 and SSD1309
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+// Logger prefix is seconds.millis; t= is raw millis() so a syslog line still has it.
+#define OLED_LOG(fmt, ...) logging.printf("OLED: t=%lu " fmt "\n", (unsigned long)millis(), ##__VA_ARGS__)
 
 i2c_master_bus_handle_t bus_handle;
 i2c_master_dev_handle_t dev_handle;
@@ -30,8 +39,21 @@ unsigned long lastUpdateMillis = 0;
 static std::vector<EventData> order_events;
 int num_batteries = 1;
 
+// Records ignored i2c_write results during the blank clear and the first paint.
+// Off for every later frame. Does not change what is transmitted.
+static bool oled_trace_on = false;
+static unsigned oled_trace_failures = 0;
+static esp_err_t oled_trace_first_err = ESP_OK;
+
 static esp_err_t i2c_write(const uint8_t* data, size_t len) {
-  return i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
+  esp_err_t err = i2c_master_transmit(dev_handle, data, len, 1000 / portTICK_PERIOD_MS);
+  if (oled_trace_on && err != ESP_OK) {
+    if (oled_trace_failures == 0) {
+      oled_trace_first_err = err;
+    }
+    oled_trace_failures++;
+  }
+  return err;
 }
 
 static void i2c_data(const uint8_t* data, size_t len) {
@@ -148,18 +170,104 @@ static void clear() {
   }
 }
 
+static const char* oled_reset_name(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_UNKNOWN:
+      return "UNKNOWN";
+    case ESP_RST_POWERON:
+      return "POWERON";
+    case ESP_RST_EXT:
+      return "EXT";
+    case ESP_RST_SW:
+      return "SW";
+    case ESP_RST_PANIC:
+      return "PANIC";
+    case ESP_RST_INT_WDT:
+      return "INT_WDT";
+    case ESP_RST_TASK_WDT:
+      return "TASK_WDT";
+    case ESP_RST_WDT:
+      return "WDT";
+    case ESP_RST_DEEPSLEEP:
+      return "DEEPSLEEP";
+    case ESP_RST_BROWNOUT:
+      return "BROWNOUT";
+    case ESP_RST_SDIO:
+      return "SDIO";
+    case ESP_RST_USB:
+      return "USB";
+    case ESP_RST_JTAG:
+      return "JTAG";
+    case ESP_RST_EFUSE:
+      return "EFUSE";
+    case ESP_RST_PWR_GLITCH:
+      return "PWR_GLITCH";
+    case ESP_RST_CPU_LOCKUP:
+      return "CPU_LOCKUP";
+    default:
+      return "UNLISTED";
+  }
+}
+
+static void oled_log_saved_option() {
+#ifdef HW_LILYGO2CAN
+  OLED_LOG("saved gpioopt1=%u (1=I2C display)", (unsigned)user_selected_gpioopt1);
+#elif defined(HW_LILYGO)
+  OLED_LOG("saved gpioopt4=%u (1=I2C display)", (unsigned)user_selected_gpioopt4);
+#elif defined(HW_WAVESHARE)
+  OLED_LOG("saved gpioopt6=%u (1=I2C display)", (unsigned)user_selected_gpioopt6);
+#else
+  OLED_LOG("saved display option unavailable on this board");
+#endif
+}
+
+static void oled_log_err(const char* stage, esp_err_t err) {
+  OLED_LOG("%s=%s err=%s(%d)", stage, err == ESP_OK ? "ok" : "err", esp_err_to_name(err), (int)err);
+}
+
+static void oled_trace_begin() {
+  oled_trace_failures = 0;
+  oled_trace_first_err = ESP_OK;
+  oled_trace_on = true;
+}
+
+// Bus success is not a lit panel: nothing here reads the screen.
+static void oled_trace_end(const char* stage) {
+  oled_trace_on = false;
+  if (oled_trace_failures == 0) {
+    OLED_LOG("%s=ok fails=0 panel-lit=unavailable", stage);
+  } else {
+    OLED_LOG("%s=err fails=%u first=%s(%d) panel-lit=unavailable", stage, oled_trace_failures,
+             esp_err_to_name(oled_trace_first_err), (int)oled_trace_first_err);
+  }
+}
+
 void init_display() {
   auto display_sda = esp32hal->DISPLAY_SDA_PIN();
   auto display_scl = esp32hal->DISPLAY_SCL_PIN();
 
+  const esp_reset_reason_t reset = esp_reset_reason();
+  OLED_LOG("start build=%s", BUILD_VERSION);
+  OLED_LOG("reset=%s(%d) board=%s", oled_reset_name(reset), (int)reset, esp32hal->name());
+  oled_log_saved_option();
+  // tx_ms is the value passed to i2c_master_transmit (parameter xfer_timeout_ms).
+  OLED_LOG("cfg sda=%d scl=%d clk_hz=%lu tx_ms=%d probe_ms=100 retries=none mode=%s", (int)display_sda,
+           (int)display_scl, (unsigned long)I2C_MASTER_FREQ_HZ, 1000 / portTICK_PERIOD_MS,
+           display_mode_name(user_selected_display_mode));
+  OLED_LOG("driver=SSD1306/SSD1309-shared type-id=unavailable panel-reset-gpio=none");
+
   if (display_sda == GPIO_NUM_NC || display_scl == GPIO_NUM_NC) {
+    OLED_LOG("decision=skip reason=pins-nc");
     return;
   }
 
+  OLED_LOG("decision=init");
+
   if (!esp32hal->alloc_pins("I2C Display", display_sda, display_scl)) {
-    logging.printf("Failed to allocate pins for I2C Display\n");
+    OLED_LOG("pin-alloc=err sda=%d scl=%d", (int)display_sda, (int)display_scl);
     return;
   }
+  OLED_LOG("pin-alloc=ok");
 
   i2c_master_bus_config_t bus_config = {
       .i2c_port = -1,  // autoselect
@@ -175,19 +283,31 @@ void init_display() {
               .allow_pd = false,
           },
   };
-  if (i2c_new_master_bus(&bus_config, &bus_handle) != ESP_OK) {
-    logging.printf("Failed to create I2C bus for Display\n");
+  esp_err_t bus_err = i2c_new_master_bus(&bus_config, &bus_handle);
+  oled_log_err("i2c-bus", bus_err);
+  if (bus_err != ESP_OK) {
     return;
   }
 
   // Common OLED addresses: 0x3C default, 0x3D if the address jumper is set.
-  const bool ack_3c = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_PRIMARY, 100) == ESP_OK;
-  const bool ack_3d = ack_3c ? false : (i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_ALTERNATE, 100) == ESP_OK);
+  const esp_err_t err_3c = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_PRIMARY, 100);
+  const bool ack_3c = err_3c == ESP_OK;
+  oled_log_err("probe-0x3C", err_3c);
+
+  bool ack_3d = false;
+  if (ack_3c) {
+    OLED_LOG("probe-0x3D=skipped reason=primary-acked");
+  } else {
+    const esp_err_t err_3d = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_ALTERNATE, 100);
+    ack_3d = err_3d == ESP_OK;
+    oled_log_err("probe-0x3D", err_3d);
+  }
   const uint16_t addr = ssd130x_select_i2c_address(ack_3c, ack_3d);
   if (addr == 0) {
-    logging.printf("Failed to find I2C Display at 0x3C/0x3D\n");
+    OLED_LOG("address=none result=err");
     return;
   }
+  OLED_LOG("address=0x%02X controller-id=unavailable", (unsigned)addr);
 
   i2c_device_config_t dev_config = {
       .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -196,24 +316,31 @@ void init_display() {
       .scl_wait_us = 0,
       .flags = {},
   };
-  if (i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle) != ESP_OK) {
-    logging.printf("Failed to add I2C Display device\n");
+  esp_err_t add_err = i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle);
+  oled_log_err("add-device", add_err);
+  if (add_err != ESP_OK) {
     return;
   }
 
   // Init sequence shared by 128x64 SSD1306 and SSD1309 panels.
+  // One transfer: display-off, setup, display-on. Per-command ACK is not exposed.
   uint8_t buf[sizeof(SSD130X_INIT_SEQUENCE) * 2];
   for (size_t i = 0; i < sizeof(SSD130X_INIT_SEQUENCE); i++) {
     buf[i * 2] = 0x80;  // Control byte for command
     buf[i * 2 + 1] = SSD130X_INIT_SEQUENCE[i];
   }
-  if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
-    logging.printf("Failed to initialize I2C Display\n");
+  esp_err_t init_err = i2c_write(buf, sizeof(buf));
+  oled_log_err("init-cmd", init_err);
+  OLED_LOG("init-cmd bytes=%u off-then-on per-cmd-ack=unavailable", (unsigned)sizeof(buf));
+  if (init_err != ESP_OK) {
     return;
   }
 
+  oled_trace_begin();
   clear();
+  oled_trace_end("blank-clear");
   display_initialized = true;
+  OLED_LOG("init-done initialized=1");
 
   // Count configured batteries
   if (battery2)
@@ -403,6 +530,193 @@ static void print_events(int row, int count) {
   }
 }
 
+static bool oled_bus_live(uint8_t alive) {
+  // The counter is CAN_STILL_ALIVE - 1 before any frame, then set to CAN_STILL_ALIVE on each one
+  // and counted down once a second. A rise, or a full count, is a frame. Until then the datalayer
+  // still holds boot defaults, which must not be drawn as a pack.
+  static bool inited = false;
+  static uint8_t last = 0;
+  static bool seen = false;
+  if (!inited) {
+    last = alive;
+    inited = true;
+    return false;
+  }
+  if (alive > last || alive >= CAN_STILL_ALIVE) {
+    seen = true;
+  }
+  last = alive;
+  return seen && alive > 0;
+}
+
+static bool oled_tesla_pack() {
+  return user_selected_battery_type == BatteryType::TeslaModel3Y ||
+         user_selected_battery_type == BatteryType::TeslaModelSX ||
+         user_selected_battery_type == BatteryType::TeslaLegacy;
+}
+
+static HealthInputs collect_health(bool live) {
+  HealthInputs in{};
+  const auto& status = datalayer.battery.status;
+  const auto& info = datalayer.battery.info;
+  const DATALAYER_INFO_TESLA& tesla = datalayer_extended.tesla;
+
+  if (oled_tesla_pack()) {
+    // real_soc is the held UI SOC (0.01 %). It matches the raw 0.1 % field only while that hold
+    // is a reading: after the pack's own 30 minute hold expires, real_soc is 0 and the raw field
+    // is not, which is "no SOC" rather than a measured 0 %.
+    if (live && tesla.battery_soc_ui <= 1000 && status.real_soc == tesla.battery_soc_ui * 10) {
+      in.soc = true;
+      in.soc_pptt = status.real_soc;
+    }
+    // nominal_full_held_x10 is the current full-pack energy (0.1 kWh), 0 when it is not known.
+    // info.total_capacity_Wh on a Tesla is the capacity when new, or a nameplate, not this number.
+    if (live && TeslaBattery::energy_x10_plausible(tesla.nominal_full_held_x10)) {
+      in.capacity = true;
+      in.capacity_x10 = tesla.nominal_full_held_x10;
+    }
+    // Legacy S/X uses the hardware-id nameplate as the SOH denominator. That is not the pack's
+    // own capacity when new, so the SOH row stays unavailable there. 3/Y and new S/X publish both
+    // operands from the pack, and soh_estimate_known means the estimate was actually calculated.
+    const bool pack_soh = user_selected_battery_type != BatteryType::TeslaLegacy && tesla.soh_estimate_known &&
+                          TeslaBattery::energy_x10_plausible(tesla.battery_beginning_of_life);
+    if (live && in.capacity && pack_soh) {
+      in.soh = true;
+      in.soh_current_x10 = tesla.nominal_full_held_x10;
+      in.soh_new_x10 = tesla.battery_beginning_of_life;
+    }
+    if (live && tesla.cac_valid && tesla_cac_plausible(tesla.cac_min_x10, tesla.cac_avg_x10, tesla.cac_max_x10)) {
+      in.cac = true;
+      in.cac_min_x10 = tesla.cac_min_x10;
+      in.cac_max_x10 = tesla.cac_max_x10;
+      in.cac_avg_x10 = tesla.cac_avg_x10;
+    }
+    if (live && tesla.battery_soc_max > 0 && tesla.battery_soc_max <= 1000 &&
+        tesla.battery_soc_min <= tesla.battery_soc_max) {
+      in.socimb = true;
+      in.soc_min_x10 = (uint16_t)tesla.battery_soc_min;
+      in.soc_max_x10 = (uint16_t)tesla.battery_soc_max;
+    }
+  } else if (live && status.voltage_dV > 0) {
+    in.soc = true;
+    in.soc_pptt = status.real_soc;
+    if (info.total_capacity_Wh > 0) {
+      const uint32_t x10 = (info.total_capacity_Wh + 50u) / 100u;
+      if (x10 > 0 && x10 <= 65535u) {
+        in.capacity = true;
+        in.capacity_x10 = (uint16_t)x10;
+      }
+    }
+  }
+
+  uint8_t cells = info.number_of_cells;
+  if (cells > MAX_AMOUNT_CELLS) {
+    cells = MAX_AMOUNT_CELLS;
+  }
+  uint16_t min_mV = 0;
+  uint16_t max_mV = 0;
+  unsigned valid_cells = 0;
+  for (uint8_t i = 0; i < cells; i++) {
+    const uint16_t mV = status.cell_voltages_mV[i];
+    if (mV == 0) {
+      continue;
+    }
+    if (valid_cells == 0 || mV < min_mV) {
+      min_mV = mV;
+    }
+    if (valid_cells == 0 || mV > max_mV) {
+      max_mV = mV;
+    }
+    valid_cells++;
+  }
+  if (live && valid_cells >= 2 && max_mV >= min_mV) {
+    in.imbalance = true;
+    in.imbalance_mV = (uint16_t)(max_mV - min_mV);
+  }
+  return in;
+}
+
+static void framebuffer_text(uint8_t* frame, int x, const char* str) {
+  while (*str && x < 128) {
+    char c = *str++;
+    if (c < ' ' || c > '~') {
+      c = '!';
+    }
+    const uint8_t* glyph = font6x8_basic[c - ' '];
+    for (int col = 0; col < 6 && x < 128; col++, x++) {
+      frame[x] = glyph[col];
+    }
+  }
+}
+
+static void framebuffer_column(uint8_t* frame, int x, uint8_t height) {
+  for (uint8_t i = 0; i < height; i++) {
+    const int y = 63 - i;
+    frame[(y / 8) * 128 + x] |= (uint8_t)(1u << (y % 8));
+  }
+}
+
+static void write_framebuffer(const uint8_t* frame) {
+  for (int page = 0; page < 8; page++) {
+    set_ram_pointer(0, page);
+    i2c_data(frame + page * 128, 128);
+  }
+}
+
+static CellPackFamily oled_cell_family() {
+  if (user_selected_battery_type == BatteryType::TeslaLegacy) {
+    return CellPackFamily::TeslaLegacySX;
+  }
+  if (user_selected_battery_type == BatteryType::TeslaModel3Y ||
+      user_selected_battery_type == BatteryType::TeslaModelSX) {
+    return CellPackFamily::Tesla3Y;
+  }
+  return CellPackFamily::Unknown;
+}
+
+static void print_cell_bars() {
+  static CellHold hold{};
+  const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
+  uint16_t count = datalayer.battery.info.number_of_cells;
+  if (count > MAX_AMOUNT_CELLS) {
+    count = MAX_AMOUNT_CELLS;
+  }
+  const bool draw =
+      cell_hold_step(hold, live, oled_cell_family(), datalayer.battery.status.cell_voltages_mV, count, millis());
+
+  // Static: the connectivity task stack is 4 KB, and a full frame is 1 KB.
+  static uint8_t frame[1024];
+  memset(frame, 0, sizeof frame);
+  uint8_t column[128];
+  const CellScale scale = cell_voltage_scale(hold.mv, hold.count);
+  char header[22];
+  if (!draw || !layout_cell_bars(hold.family, hold.mv, hold.count, column) ||
+      !format_cell_header(header, scale.min_mV, scale.max_mV)) {
+    framebuffer_text(frame, 0, "no cell data");
+    write_framebuffer(frame);
+    return;
+  }
+
+  framebuffer_text(frame, 0, header);
+  for (int x = 0; x < 128; x++) {
+    if (column[x] != 0) {
+      framebuffer_column(frame, x, column[x]);
+    }
+  }
+  write_framebuffer(frame);
+}
+
+static void print_battery_health() {
+  static HealthHold hold{};
+  const bool live = oled_bus_live(datalayer.battery.status.CAN_battery_still_alive);
+  const HealthInputs shown = health_hold_step(hold, collect_health(live), millis());
+  HealthRows rows;
+  format_health(shown, rows);
+  for (int row = 0; row < 8; row++) {
+    write_text(0, row, rows.line[row], false);
+  }
+}
+
 static void print_network_status(int row) {
   char buf[22];
   memset(buf, ' ', sizeof(buf));
@@ -418,17 +732,7 @@ static void print_network_status(int row) {
   write_text(0, row, buf, false);
 }
 
-void update_display() {
-  if (!display_initialized) {
-    return;
-  }
-
-  // We update the display every 500ms
-  auto currentMillis = millis();
-  if (currentMillis - lastUpdateMillis < 500) {
-    return;
-  }
-
+static void print_status_pages() {
   // We cycle through several pages of battery data
   const int NUM_PAGES = 4;
   const int PAGE_TIME = 3;
@@ -464,7 +768,73 @@ void update_display() {
   if (phase >= total_phases) {
     phase = 0;
   }
+}
+
+void update_display() {
+  if (!display_initialized) {
+    static bool logged_skip = false;
+    if (!logged_skip) {
+      logged_skip = true;
+      OLED_LOG("update=skipped reason=not-initialized");
+    }
+    return;
+  }
+
+  // Status stays on its existing 500 ms cadence. Health and cell bars refresh at 1 Hz.
+  // Cycle picks one of those three with a millis difference, so a page change does not wait
+  // out the previous page's period and does not block the task.
+  auto currentMillis = millis();
+  const DisplayMode selected = user_selected_display_mode;
+  static uint32_t cycle_origin_ms = 0;
+  static bool cycle_running = false;
+  if (selected == DisplayMode::Cycle) {
+    if (!cycle_running) {
+      cycle_origin_ms = currentMillis;
+      cycle_running = true;
+    }
+  } else {
+    cycle_running = false;
+  }
+  const DisplayMode mode =
+      selected == DisplayMode::Cycle ? display_cycle_page((uint32_t)(currentMillis - cycle_origin_ms)) : selected;
+
+  static DisplayMode painted = DisplayMode::Status;
+  static bool have_painted = false;
+  const bool page_changed = have_painted && painted != mode;
+  const uint32_t period_ms = mode == DisplayMode::Status ? 500 : 1000;
+  if (!page_changed && (uint32_t)(currentMillis - lastUpdateMillis) < period_ms) {
+    return;
+  }
+
+  static bool first_paint = true;
+  if (first_paint) {
+    if (selected == DisplayMode::Cycle) {
+      OLED_LOG("first-paint begin path=cycle page=%s", display_mode_name(mode));
+    } else {
+      OLED_LOG("first-paint begin path=%s", display_mode_name(mode));
+    }
+    oled_trace_begin();
+  }
+
+  // A mode change has to wipe the previous page. Status itself is not cleared between frames.
+  if (page_changed) {
+    clear();
+  }
+  painted = mode;
+  have_painted = true;
+
+  if (mode == DisplayMode::Health) {
+    print_battery_health();
+  } else if (mode == DisplayMode::CellBars) {
+    print_cell_bars();
+  } else {
+    print_status_pages();
+  }
   lastUpdateMillis = currentMillis;
+  if (first_paint) {
+    first_paint = false;
+    oled_trace_end("first-paint");
+  }
 }
 
 #endif  // SMALL_FLASH_DEVICE

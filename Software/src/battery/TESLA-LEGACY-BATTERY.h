@@ -1,6 +1,9 @@
 #ifndef TESLA_LEGACY_BATTERY_H
 #define TESLA_LEGACY_BATTERY_H
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
+#include "TESLA-BATTERY.h"
+#include "TESLA-HTML.h"
 
 class TeslaLegacyBattery : public CanBattery {
  public:
@@ -13,7 +16,10 @@ class TeslaLegacyBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { user_requests_bms_reset = true; }
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  TeslaLegacyHtmlRenderer renderer{&datalayer_extended.tesla, &datalayer.battery};
   void apply_series_limits(uint16_t series_cells);
   // 0x6F2 cell-voltage mux tracking. Per instance: function-local statics were
   // shared by every TeslaLegacyBattery (double-battery setups) and made the
@@ -54,10 +60,13 @@ class TeslaLegacyBattery : public CanBattery {
                          .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  // Define initial UDS request
   // Keep alive
   CAN_frame TESLA_408 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x408, .data = {0x00}};
-  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-  unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was send
-  uint32_t BMS_CAC_min = 23160000;
-  uint16_t battery_soc_ui = 0;
+  unsigned long previousMillis100 = 0;     // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis1000 = 0;    // will store last time a 1s CAN Message was send
+  TeslaBattery::SocHold soc_hold;          // the held UI SOC for the inverter
+  uint16_t nominal_full_x10_received = 0;  // 0x382 bits 0-9, 1023 = not available
+  TeslaBattery::EnergyHold nominal_full_hold;
+  TeslaBattery::EnergyHold nominal_remaining_hold;  // Wh
+  uint16_t nominal_remaining_x10_received = 0;      // 0x382 bits 11-21, 0x7FF = not available
   uint8_t battery_BMS_state = 0;
   bool cellvoltagesRead = false;
   //0x102: BMS_hvBusStatus
@@ -78,8 +87,8 @@ class TeslaLegacyBattery : public CanBattery {
   uint16_t battery_BrickVoltageMin = 3300;
   uint8_t battery_BrickTempMaxNum = 0;
   uint8_t battery_BrickTempMinNum = 0;
-  int16_t battery_BrickModelTMax = 0;
-  int16_t battery_BrickModelTMin = 0;
+  int16_t battery_BrickModelTMax = 0;  // 0.1 C
+  int16_t battery_BrickModelTMin = 0;  // 0.1 C
   uint8_t battery_BrickVoltageMaxNum = 0;
   uint8_t battery_BrickVoltageMinNum = 0;
   //0x5D2
