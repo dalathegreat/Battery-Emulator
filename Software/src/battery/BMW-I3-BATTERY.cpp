@@ -42,13 +42,27 @@ void BmwI3Battery::end_balancing() {
 }
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
+  // Wakeup is only a start signal, like in the car: pulse it high for WAKEUP_PULSE_MS, then keep it low.
+  // The battery stays awake as long as CAN is active, and sleeps when CAN stops.
   if (contactor_recovery_force_wakeup_low) {
     digitalWrite(wakeup_pin, LOW);  // Contactor watchdog recovery: pulse wakeup low to reset precharge latch
+    wakeup_pulse_start = 0;         // Send a fresh wakeup pulse once released
+    wakeup_pulse_done = false;
   } else if (datalayer.system.info.equipment_stop_active == true || UserRequestBalancing == STARTING ||
              UserRequestBalancing == EXECUTING) {
-    digitalWrite(wakeup_pin, LOW);         // Turn off wakeup pin
-  } else if (millis64() > INTERVAL_1_S) {  // millis64: plain millis() wraps after 49.7 days
-    digitalWrite(wakeup_pin, HIGH);        // Wake up the battery
+    digitalWrite(wakeup_pin, LOW);  // Turn off wakeup pin
+    wakeup_pulse_start = 0;         // Send a fresh wakeup pulse once released
+    wakeup_pulse_done = false;
+  } else if (!wakeup_pulse_done && millis64() > INTERVAL_1_S) {  // millis64: plain millis() wraps after 49.7 days
+    if (wakeup_pulse_start == 0) {
+      wakeup_pulse_start = millis64();
+    }
+    if (millis64() - wakeup_pulse_start < WAKEUP_PULSE_MS) {
+      digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
+    } else {
+      digitalWrite(wakeup_pin, LOW);  // End of wakeup pulse
+      wakeup_pulse_done = true;
+    }
   }
 
   // When balancing mode has stopped CAN, keep the alive counter refreshed
@@ -366,7 +380,7 @@ const char* BmwI3Battery::get_contactor_watchdog_string() {
 
 // Watchdog: if a contactor close is being commanded but the battery never reports "engaged"
 // within CONTACTOR_ENGAGE_TIMEOUT_MS (typically because it latched "Error precharge blocked"),
-// pulse the wakeup pin low while sending an open command on CAN, then wakeup high and resume
+// pulse the wakeup pin low while sending an open command on CAN, then a fresh wakeup pulse and resume
 // the close command. This power-cycle resets the battery's precharge error latch.
 void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
   // Contactors are intentionally open during balancing - disarm the watchdog.
@@ -444,10 +458,9 @@ void BmwI3Battery::monitor_contactor_engagement(unsigned long currentMillis) {
       contactor_recovery_force_wakeup_low = true;
       digitalWrite(wakeup_pin, LOW);
       if (currentMillis - cw_recovery_phase_start >= RECOVERY_WAKEUP_LOW_MS) {
-        // Pulse done: wake the battery back up and let the close command resume.
+        // Pulse done: update_values() sends a fresh wakeup pulse and the close command resumes.
         contactor_recovery_force_open = false;
         contactor_recovery_force_wakeup_low = false;
-        digitalWrite(wakeup_pin, HIGH);
         cw_close_request_start = 0;  // Restart the 5s monitor for the fresh close attempt
         cw_state = CW_MONITOR;
       }
