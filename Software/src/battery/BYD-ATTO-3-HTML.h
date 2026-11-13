@@ -31,7 +31,7 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     }
 
     const auto& dl_bat = s.length() ? datalayer.battery2 : datalayer.battery;
-    content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
+    static const char* const GROUP_GAP = "<div style='height:10px'></div>";
     content += "<h4>BE contactor state: ";
     switch (byd_datalayer->contactor_control_state) {
       case 0:
@@ -65,45 +65,37 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content +=
         byd_datalayer->contactor_main_closed ? "Closed &mdash; battery connected" : "Open &mdash; battery disconnected";
     content += "</h4>";
-    content += "<h4>Precharge state: ";
-    content += byd_datalayer->contactor_precharging ? "Active" : "Idle";
-    content += "</h4>";
-    // Bit2 (0x04) = car on/off (clear during car-off AC charging even though HV is live),
-    // not literal HV-bus energisation.
-    content += "<h4>HV active: ";
-    content += byd_datalayer->contactor_hv_active ? "Yes" : "No";
-    content += "</h4>";
     // Pack mode read straight from the 0x344 byte0 state table (not re-derived per-bit).
     content += "<h4>BMS pack mode: ";
     switch (byd_datalayer->contactor_feedback) {
       case 0x00:
-        content += "Disconnected</h4>";
+        content += "Disconnected";
         break;
       case 0x02:
-        content += "Open standby</h4>";
+        content += "Open standby";
         break;
       case 0x42:
-        content += "Precharging</h4>";
+        content += "Precharging";
         break;
       case 0x80:
-        content += "Closed, HV inactive</h4>";
+        content += "Closed, HV inactive";
         break;
       case 0x84:
-        content += "Closed idle, HV active</h4>";
+        content += "Closed idle, HV active";
         break;
       case 0x81:
-        content += "Charging, car off</h4>";
+        content += "Charging, car off";
         break;
       case 0x85:
-        content += "Charging, HV active</h4>";
+        content += "Charging, HV active";
         break;
       case 0x82:
-        content += "Drive-ready pending</h4>";
+        content += "Drive-ready pending";
         break;
       case 0x86:
-        content += "Drive ready</h4>";
+        content += "Drive ready";
         break;
-      default: {
+      default:
         if (!(byd_datalayer->contactor_feedback & 0x80)) {
           content += "Disconnected";
         } else if (byd_datalayer->contactor_feedback & 0x01) {
@@ -113,16 +105,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         } else {
           content += "Closed idle";
         }
-        char modeStr[10];
-        snprintf(modeStr, sizeof(modeStr), " (0x%02X)", byd_datalayer->contactor_feedback);
-        content += modeStr;
-        content += "</h4>";
-      }
     }
-    char feedbackStr[5];
-    snprintf(feedbackStr, sizeof(feedbackStr), "0x%02X", byd_datalayer->contactor_feedback);
-    content += "<h4>BMS raw status: mode ";
-    content += feedbackStr;
+    char rawStr[12];
+    snprintf(rawStr, sizeof(rawStr), " (0x%02X)", byd_datalayer->contactor_feedback);
+    content += rawStr;
     content += "</h4><h4>BMS charge state: ";
     switch (byd_datalayer->bms_charge_state) {
       case 0x00:
@@ -144,23 +130,21 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
         content += "None";
         break;
       default:
-        content += String(byd_datalayer->bms_charge_state);
+        content += "Unknown";
         break;
+    }
+    snprintf(rawStr, sizeof(rawStr), " (state %X)", byd_datalayer->bms_charge_state);
+    content += rawStr;
+    content += "</h4>";
+    static const char* const CHARGE_GUN_NAMES[] = {"None", "AC", "DC", "AC + DC", "V2L", "OBC CC"};
+    content += "<h4>Charge gun (BMS): ";
+    if (byd_datalayer->charge_gun < sizeof(CHARGE_GUN_NAMES) / sizeof(CHARGE_GUN_NAMES[0])) {
+      content += CHARGE_GUN_NAMES[byd_datalayer->charge_gun];
+    } else {
+      content += "Unknown (" + String(byd_datalayer->charge_gun) + ")";
     }
     content += "</h4>";
 
-    float soc_measured = static_cast<float>(byd_datalayer->SOC_highprec) * 0.1f;
-    float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
-    float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1f;
-
-    content += "<h4>SOC measured: " + String(soc_measured) + "&percnt;</h4>";
-    content += "<h4>SOC 0x444: " + String(byd_datalayer->SOC_polled) + "&percnt;</h4>";
-    content += "<h4>Pack voltage: ";
-    if (byd_datalayer->pack_voltage_dV > 0) {
-      content += String(byd_datalayer->pack_voltage_dV / 10.0f, 1) + " V</h4>";
-    } else {
-      content += "Not received</h4>";
-    }
     content += "<h4>Charge time remaining: ";
     if (byd_datalayer->charge_time_remaining_h != 0xFF) {
       content += String(byd_datalayer->charge_time_remaining_h) + " h " +
@@ -169,42 +153,70 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
       content += "Not available</h4>";
     }
 
-    static const size_t TEMPERATURE_SENSOR_COUNT =
-        sizeof(byd_datalayer->battery_temperatures) / sizeof(byd_datalayer->battery_temperatures[0]);
-    for (size_t i = 0; i < TEMPERATURE_SENSOR_COUNT; ++i) {
-      if (byd_datalayer->battery_temperatures[i] == 215) {
-        break;
-      }
-      content += "<h4>Temperature sensor " + String(i + 1) + ": " + String(byd_datalayer->battery_temperatures[i]) +
-                 " &deg;C</h4>";
-    }
-
-    content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";
-    content += "<h4>Max charge (regen) power: " + String(BMS_maxChargePower) + " kW</h4>";
-    content += "<h4>Total charged: " + String(byd_datalayer->total_charged_kwh) + " kWh</h4>";
-    content += "<h4>Total discharged: " + String(byd_datalayer->total_discharged_kwh) + " kWh</h4>";
-    content += "<h4>Total charged: " + String(byd_datalayer->total_charged_ah) + " Ah</h4>";
-    content += "<h4>Total discharged: " + String(byd_datalayer->total_discharged_ah) + " Ah</h4>";
-    content += "<h4>Charge times: " + String(byd_datalayer->charge_times) + "</h4>";
-    content += "<h4>Times of full power: " + String(byd_datalayer->times_full_power) + "</h4>";
-    content += "<h4>Min cell voltage number: " + String(byd_datalayer->BMS_min_cell_voltage_number) + "</h4>";
-    content += "<h4>Max cell voltage number: " + String(byd_datalayer->BMS_max_cell_voltage_number) + "</h4>";
-    content += "<h4>Min temp module number: " + String(byd_datalayer->BMS_min_temp_module_number) + "</h4>";
-    content += "<h4>Max temp module number: " + String(byd_datalayer->BMS_max_temp_module_number) + "</h4>";
-    content += "<h4>Seed: " + String(byd_datalayer->seed) + " SolvedKey: " + String(byd_datalayer->solvedKey) + "</h4>";
-    if (byd_datalayer->servicemode == 0) {
-      content += "<h4>ServiceMode: No command ran yet</h4>";
-    } else if (byd_datalayer->servicemode == 1) {
-      content += "<h4>ServiceMode: REJECTED </h4>";
-    } else if (byd_datalayer->servicemode == 2) {
-      content += "<h4>ServiceMode: APPROVED! </h4>";
+    content += GROUP_GAP;
+    content += "<h4>Detected cells: " + String(dl_bat.info.number_of_cells) + "</h4>";
+    content += "<h4>SOC: " + String(byd_datalayer->SOC_highprec / 10.0f, 1) + "&percnt; (car dashboard " +
+               String(byd_datalayer->SOC_dashboard) + "&percnt;)</h4>";
+    content += "<h4>Pack voltage: ";
+    if (byd_datalayer->pack_voltage_dV > 0) {
+      content += String(byd_datalayer->pack_voltage_dV / 10.0f, 1) + " V</h4>";
+    } else {
+      content += "Not received</h4>";
     }
     content +=
-        "<h4>Capacity orignal: " + String((byd_datalayer->BMS_capacity_original_calibration) / 100.0f) + "AH</h4>";
+        "<h4>Capacity original: " + String((byd_datalayer->BMS_capacity_original_calibration) / 100.0f) + " Ah</h4>";
     content +=
-        "<h4>Capacity current: " + String((byd_datalayer->BMS_capacity_current_calibration) / 100.0f) + "AH</h4>";
+        "<h4>Capacity current: " + String((byd_datalayer->BMS_capacity_current_calibration) / 100.0f) + " Ah</h4>";
     content += "<h4>SOC original: " + String(byd_datalayer->BMC_SOC_original_calibration / 100.0f) + "&percnt;</h4>";
     content += "<h4>SOC current: " + String(byd_datalayer->BMC_SOC_current_calibration / 100.0f) + "&percnt;</h4>";
+
+    content += GROUP_GAP;
+    float BMS_maxChargePower = static_cast<float>(byd_datalayer->chargePower) * 0.1f;
+    float BMS_maxDischargePower = static_cast<float>(byd_datalayer->dischargePower) * 0.1f;
+    content += "<h4>Max discharge power: " + String(BMS_maxDischargePower) + " kW</h4>";
+    content += "<h4>Max charge (regen) power: " + String(BMS_maxChargePower) + " kW</h4>";
+
+    content += GROUP_GAP;
+    // Six sensors per row; 215 marks the first unused slot.
+    static const size_t TEMPERATURE_SENSOR_COUNT =
+        sizeof(byd_datalayer->battery_temperatures) / sizeof(byd_datalayer->battery_temperatures[0]);
+    size_t temp_count = 0;
+    while (temp_count < TEMPERATURE_SENSOR_COUNT && byd_datalayer->battery_temperatures[temp_count] != 215) {
+      temp_count++;
+    }
+    for (size_t i = 0; i < temp_count; ++i) {
+      if (i % 6 == 0) {
+        const size_t row_end = (i + 6 < temp_count) ? i + 6 : temp_count;
+        content += "<h4>Temperatures " + String(i + 1) + "-" + String(row_end) + ": ";
+      } else {
+        content += " / ";
+      }
+      content += String(byd_datalayer->battery_temperatures[i]);
+      if (i % 6 == 5 || i + 1 == temp_count) {
+        content += " &deg;C</h4>";
+      }
+    }
+    content += "<h4>Min / max temp module number: " + String(byd_datalayer->BMS_min_temp_module_number) + " / " +
+               String(byd_datalayer->BMS_max_temp_module_number) + "</h4>";
+    content += GROUP_GAP;
+    content += "<h4>Min / max cell voltage number: " + String(byd_datalayer->BMS_min_cell_voltage_number) + " / " +
+               String(byd_datalayer->BMS_max_cell_voltage_number) + "</h4>";
+
+    content += GROUP_GAP;
+    content += "<h4>Total charged: " + String(byd_datalayer->total_charged_kwh) + " kWh / " +
+               String(byd_datalayer->total_charged_ah) + " Ah</h4>";
+    content += "<h4>Total discharged: " + String(byd_datalayer->total_discharged_kwh) + " kWh / " +
+               String(byd_datalayer->total_discharged_ah) + " Ah</h4>";
+    content += "<h4>Charge sessions: " + String(byd_datalayer->charge_sessions_started) + " started / " +
+               String(byd_datalayer->full_charges_completed) + " to full</h4>";
+
+    if (byd_datalayer->servicemode != 0) {
+      content += GROUP_GAP;
+      content +=
+          "<h4>Seed: " + String(byd_datalayer->seed) + " SolvedKey: " + String(byd_datalayer->solvedKey) + "</h4>";
+      content +=
+          byd_datalayer->servicemode == 2 ? "<h4>ServiceMode: APPROVED! </h4>" : "<h4>ServiceMode: REJECTED </h4>";
+    }
 
     // Shared geometry for the three calibration panels below, so they line up with each other.
     // Percent widths are written as &percnt; so no literal '%' reaches the template engine, which would

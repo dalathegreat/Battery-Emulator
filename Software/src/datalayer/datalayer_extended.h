@@ -87,8 +87,8 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t SOC_estimated;
   /** SOC% raw battery value. Highprecision. Can be locked if pack is crashed */
   uint16_t SOC_highprec;
-  /** SOC% polled OBD2 value. Can be locked if pack is crashed */
-  uint16_t SOC_polled;
+  /** SOC% from 0x444, whole percent, as shown on the car dashboard */
+  uint16_t SOC_dashboard;
   /** Pack voltage from 0x438, deci-volts. Zero until the frame is received */
   uint16_t pack_voltage_dV;
   /** Insulation resistance from 0x43A, Ohm per volt. Multiply by pack voltage for Ohms. Zero is a valid fault reading */
@@ -96,7 +96,7 @@ struct DATALAYER_INFO_BYDATTO3 {
   /** True once a checksum-valid 0x43A has been seen */
   bool insulation_valid;
   uint16_t chargePower;
-  uint16_t charge_times;
+  uint16_t charge_sessions_started;
   /** BMS charge time remaining (0x445) in hours and minutes, 0xFF = not available */
   uint8_t charge_time_remaining_h;
   uint8_t charge_time_remaining_min;
@@ -105,7 +105,7 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint16_t total_discharged_ah;
   uint16_t total_charged_kwh;
   uint16_t total_discharged_kwh;
-  uint16_t times_full_power;
+  uint16_t full_charges_completed;
   uint16_t BMS_capacity_original_calibration;
   uint16_t BMC_SOC_original_calibration;
   uint16_t BMS_capacity_current_calibration;
@@ -121,6 +121,8 @@ struct DATALAYER_INFO_BYDATTO3 {
 
   /** 0x344 byte 2 low nibble: F none, 0 ready, 1 charging, 2 finished, 4 aborted */
   uint8_t bms_charge_state;
+  /** 0x344 b5 bits 2-4: 0 none, 1 AC, 2 DC, 3 AC+DC, 4 V2L, 5 OBC CC */
+  uint8_t charge_gun;
   uint8_t BMS_min_cell_voltage_number;
   uint8_t BMS_min_temp_module_number;
   uint8_t BMS_max_cell_voltage_number;
@@ -140,10 +142,6 @@ struct DATALAYER_INFO_BYDATTO3 {
   uint8_t contactor_feedback;
   /** Decoded from contactor_feedback bit7 */
   bool contactor_main_closed;
-  /** Decoded from contactor_feedback bit6 */
-  bool contactor_precharging;
-  /** Decoded from contactor_feedback bit2 */
-  bool contactor_hv_active;
   /** Decoded from contactor_feedback bit1, set in idle/drive states, clear while charging */
   bool contactor_drive_flag;
   /** Decoded from contactor_feedback bit0, set while AC charging */
