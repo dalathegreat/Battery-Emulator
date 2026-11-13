@@ -182,6 +182,17 @@ bool init_contactors() {
   return true;
 }
 
+// True when the main battery's contactors are considered closed / DC link live.
+static bool main_contactors_closed() {
+  if (contactor_control_enabled) {
+    // GPIO controlled: we run the precharge ladder ourselves
+    return contactorStatus == COMPLETED;
+  }
+  // CAN controlled: the main battery closes its own contactors. Main contactors are considered closed if the inverter allows it, e-stop is not active, and the system is not in a fault state.
+  return datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.info.equipment_stop_active &&
+         datalayer.system.status.system_status != FAULT;
+}
+
 static void dbg_contactors(const char* state) {
   logging.print("[");
   logging.print(millis());
@@ -387,7 +398,7 @@ void handle_contactors_battery2() {
   static uint32_t pull_in_start = 0;
 
   handle_extra_contactor(esp32hal->SECOND_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing,
+                         main_contactors_closed() && datalayer.system.status.battery2_allowed_contactor_closing,
                          datalayer.system.status.contactors_battery2_engaged, pull_in_start, "JOIN Battery 2",
                          "LEAVE Battery 2");
 }
@@ -396,7 +407,7 @@ void handle_contactors_battery3() {
   static uint32_t pull_in_start = 0;
 
   handle_extra_contactor(esp32hal->TRIPLE_BATTERY_CONTACTORS_PIN(),
-                         (contactorStatus == COMPLETED) && datalayer.system.status.battery3_allowed_contactor_closing,
+                         main_contactors_closed() && datalayer.system.status.battery3_allowed_contactor_closing,
                          datalayer.system.status.contactors_battery3_engaged, pull_in_start, "JOIN Battery 3",
                          "LEAVE Battery 3");
 }
