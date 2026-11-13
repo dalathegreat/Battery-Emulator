@@ -118,11 +118,22 @@ void BydModbusInverter::handle_update_data_modbusp301_byd() {
   }
   mbPV[300] = reported_status;
   mbPV[302] = bms_char_dis_status;
+
+  //Force SOC to never go below 1% to avoid overdischarge. Below 0% SOC the inverter can sometimes stop recovery
   if (datalayer.aggregate.reported_soc < 100) {
-    mbPV[303] = 100;  //Force SOC to never go below 1% to avoid overdischarge
+    mbPV[303] = 100;  //1.00%
   } else {
     mbPV[303] = datalayer.aggregate.reported_soc;
   }
+  //Force SOC low incase a cell/pack undervoltage situation occurs, to avoid overdischarge.
+  //That way Fronius can top up the battery to a safe level, and then the SOC can be restored to the real value.
+  if (datalayer.aggregate.voltage_dV < (datalayer.aggregate.min_design_voltage_dV + 30)) {
+    mbPV[303] = 100;  //1.00%
+  }
+  if (datalayer.aggregate.cell_min_voltage_mV < (datalayer.battery.info.min_cell_voltage_mV + 30)) {
+    mbPV[303] = 100;  //1.00%
+  }
+
   // Both capacity registers report the scaled (reported_) values, matching mbPV[202] in the p201 block.
   // update_calculated_values() already sums battery 2 and 3 into the reported_ fields of battery 1,
   // so no per-battery addition is needed here.
