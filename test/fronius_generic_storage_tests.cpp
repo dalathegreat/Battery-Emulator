@@ -121,13 +121,13 @@ TEST_F(FroniusGenericStorageTest, MonitoringValuesLandOnTheirRegisters) {
   EXPECT_EQ((int32_t)inverter.u32(416), -3800);  // PDC_internal, charging is negative
   EXPECT_EQ(inverter.mbPV[418], 180);
   EXPECT_EQ(inverter.mbPV[419], 210);
-  EXPECT_EQ(inverter.mbPV[428], 0x8000);  // TAmbient, not available
-  EXPECT_EQ(inverter.mbPV[429], 9500);    // SOH
+  EXPECT_EQ(inverter.mbPV[428], 210);   // TAmbient, the warmest cell
+  EXPECT_EQ(inverter.mbPV[429], 9500);  // SOH
 
   datalayer.aggregate.reported_soc = 10000;
   datalayer.aggregate.current_dA = -50;
   inverter.update_values();
-  EXPECT_EQ(inverter.u32(401), 0x86u);  // link OK, full and discharging
+  EXPECT_EQ(inverter.u32(401), 0x82u);  // link OK and discharging. No other bit, full or not
 }
 
 TEST_F(FroniusGenericStorageTest, NameplateCarriesTheTemperatureRangeAndNoCalibration) {

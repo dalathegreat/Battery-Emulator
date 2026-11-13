@@ -277,9 +277,8 @@ void FroniusGenericStorageInverter::update_monitoring() {
   } else if (datalayer.aggregate.current_dA < 0) {
     flags |= FLAG_DISCHARGING;
   }
-  if (datalayer.aggregate.reported_soc >= 10000) {
-    flags |= FLAG_FULL;
-  }
+  // Nothing beyond these three bits, the set BYD-Modbus sends. The map also has a "full" bit
+  // (0x04), left out until GEN24-1250 is understood.
 
   // Charging is reported as negative power, discharging as positive: the opposite of the datalayer
   const int32_t power_W = -datalayer.aggregate.active_power_W;
@@ -306,8 +305,8 @@ void FroniusGenericStorageInverter::update_monitoring() {
           std::max(datalayer.aggregate.total_charged_battery_Wh, static_cast<int32_t>(0)));  // TotalEnergyCharged
   put_u64(REG_MONITORING + 24,
           std::max(datalayer.aggregate.total_discharged_battery_Wh, static_cast<int32_t>(0)));  // TotalEnergyDischarged
-  mbPV[REG_MONITORING + 28] = TEMPERATURE_NOT_AVAILABLE;                                        // TAmbient
-  mbPV[REG_MONITORING + 29] = datalayer.aggregate.soh_pptt;                                     // SOH
+  mbPV[REG_MONITORING + 28] = reported_temperature_max_dC;   // TAmbient. No such sensor, so as BYD-Modbus does
+  mbPV[REG_MONITORING + 29] = datalayer.aggregate.soh_pptt;  // SOH
 }
 
 void FroniusGenericStorageInverter::push_fault(uint16_t type, uint8_t battery, int16_t data, uint64_t utc_s) {

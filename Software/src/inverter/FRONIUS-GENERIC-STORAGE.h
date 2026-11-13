@@ -89,10 +89,7 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   // MonitoringData.flags
   static constexpr uint32_t FLAG_CHARGING = 0x01;
   static constexpr uint32_t FLAG_DISCHARGING = 0x02;
-  static constexpr uint32_t FLAG_FULL = 0x04;
   static constexpr uint32_t FLAG_LINK_OK = 0x80;  // Left clear for 5 polls, the inverter reports a broken cable
-  // MonitoringData.TAmbient when there is no such sensor
-  static constexpr uint16_t TEMPERATURE_NOT_AVAILABLE = 0x8000;
 
   // With no request at all for this long the inverter is taken to be off, and its last opMode void
   static constexpr uint32_t INVERTER_SILENCE_MS = 60000;
