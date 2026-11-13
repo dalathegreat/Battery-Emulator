@@ -203,6 +203,7 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_MODULE_10_LOW_TEMP = 0x01BB;
   static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
   static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
+  static const int POLL_FOR_CURRENT_CALIBRATION_DM = 0x1FFD;  // DM packs lack 0x1FFC
 
   static const uint16_t MAX_CELL_DEVIATION_MV = 230;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
@@ -423,6 +424,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_HV_ACTIVE = 0x04;
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
+  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x20;  // Set by DM (PHEV) packs only
   // 0x344 byte 2 low nibble, the BMS charge state: F none, 0 ready, 1 charging, 2 finished, 4 aborted
   static const uint8_t BMS_CHARGE_STATE_CHARGING = 0x01;
   static const uint8_t BMS_CHARGE_STATE_FINISHED = 0x02;
@@ -510,6 +512,7 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
   uint8_t BMS_charge_state = 0x0F;
+  bool dm_pack = false;  // latched from 0x344 until reboot
   uint8_t increaseTimeoutSOC = 0;
   static const uint8_t REJECTED = 1;
   static const uint8_t APPROVED = 2;
@@ -545,6 +548,13 @@ class BydAttoBattery : public CanBattery {
                           .DLC = 8,
                           .ID = 0x441,
                           .data = {0x98, 0x3A, 0x88, 0x13, 0x07, 0x00, 0xFF, 0x8C}};
+  // 0x343 = second link-voltage frame (sender unconfirmed): b0 bit0 precharged, b1-2 link volts LE, b3 96 at ready.
+  // DM packs won't close without it
+  CAN_frame DM_343 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x343,
+                      .data = {0xB4, 0x00, 0x00, 0x97, 0x00, 0x00, 0x00, 0xB4}};
   /* Charge-session frames, sent at 100ms while a session runs. 0x36A = precharge/session permission
   (static, also the marker the BMS counts charge sessions on). 0x36D = DC work mode and the keep-alive
   that holds the pack closed: b0-1 link voltage (LE, whole volts), b3 heartbeat, b4 output current,
