@@ -59,13 +59,10 @@ String hardware_processor(const String& var) {
   const BoardConfig& cfg = board_config;
   String content;
 
-  content += "<style>body{background-color:black;color:white}";
-  // Same rule as the settings page, so the row of buttons at the top of the two
-  // pages that have one matches. The compact padding is what PR #2994 settled on.
-  content +=
-      "button{background-color:#505E67;color:white;border:none;padding:6px 20px;margin-bottom:15px;"
-      "cursor:pointer;border-radius:10px}";
-  content += "button:hover{background-color:#3A4A52}";
+  // The shared button look and navigation row come from /nav.css; the page only
+  // sizes the one button of its own, in the upload form.
+  content += INDEX_HTML_NAV_LINK "<style>body{background-color:black;color:white}";
+  content += "form button{padding:6px 20px}";
   // box-sizing keeps the padding inside the card's own width rather than adding
   // to it, which is what pushes content past the rounded edge on a narrow screen.
   content +=
@@ -91,8 +88,8 @@ String hardware_processor(const String& var) {
   content += ".row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin-bottom:12px}";
   content += ".row>.card{flex:1 1 320px;min-width:0;margin-bottom:0}</style>";
 
-  content += "<button onclick=\"window.location.href='/'\">Back to main page</button> ";
-  content += "<button onclick=\"window.location.href='/settings'\">Change settings</button>";
+  content +=
+      INDEX_HTML_NAV_START "<button onclick=\"location.href='/settings'\">Change settings</button>" INDEX_HTML_NAV_END;
 
   // Active configuration: every port the file describes, in file order, with the
   // ones it did not enable greyed out. Driven by what the parser recorded, so a
