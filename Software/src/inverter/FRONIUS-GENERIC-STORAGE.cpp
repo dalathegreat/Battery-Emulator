@@ -200,7 +200,12 @@ void FroniusGenericStorageInverter::update_contactor_request() {
   const uint32_t last_request = last_request_ms;
   const uint32_t now = millis();
   const bool silent = !inverter_detected || (now - last_request) > INVERTER_SILENCE_MS;
-  const bool wants_battery = !silent && (op_mode == MODE_ACTIVE || op_mode == MODE_DARKSTART);
+  // Only STANDBY lets go of the battery. INACTIVE is where the inverter starts from: DC connected,
+  // no power moved yet. It checks the DC link in that mode before it goes on to ACTIVE, and gives
+  // up with "DC connection between inverter and battery interrupted" (GEN24-1250) if the contactors
+  // are open.
+  const bool wants_battery =
+      !silent && (op_mode == MODE_INACTIVE || op_mode == MODE_DARKSTART || op_mode == MODE_ACTIVE);
 
   switch (user_selected_inverter_contactor_mode) {
     case inverter_contactor_mode_enum::AlwaysClosed:
@@ -245,26 +250,33 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
   }
 
   // The inverter is answered with the mode it asked for once that mode is reached, and not before:
-  // an ACTIVE battery against a DC input that is still dead makes it complain.
-  const bool connected = contactor_closing_allowed && datalayer.system.status.dc_bus_live;
-  if (requested_op_mode == MODE_ACTIVE || requested_op_mode == MODE_DARKSTART) {
+  // every mode but STANDBY needs the contactors closed.
+  const bool connected = bus_connected();
+  if (requested_op_mode == MODE_INACTIVE || requested_op_mode == MODE_DARKSTART || requested_op_mode == MODE_ACTIVE) {
     reached_state = connected ? requested_op_mode : MODE_STANDBY;
-  } else if (requested_op_mode == MODE_STANDBY || requested_op_mode == MODE_INACTIVE) {
+  } else if (requested_op_mode == MODE_STANDBY) {
     // With the contactors held closed by the workaround setting the request is still acknowledged,
     // so the inverter does not keep repeating it
     if (!open_pending) {
-      reached_state = requested_op_mode;
+      reached_state = MODE_STANDBY;
     }
   } else {
-    // Nothing asked yet. Only connected at this point if the contactors are kept closed regardless
-    reached_state = connected ? MODE_ACTIVE : MODE_STANDBY;
+    // Nothing asked yet. Only connected at this point if the contactors are kept closed regardless,
+    // and then in the mode the inverter starts a battery from
+    reached_state = connected ? MODE_INACTIVE : MODE_STANDBY;
   }
   return reached_state;
 }
 
+bool FroniusGenericStorageInverter::bus_connected() {
+  return contactor_closing_allowed && datalayer.system.status.dc_bus_live;
+}
+
 void FroniusGenericStorageInverter::update_monitoring() {
   const uint16_t state = reported_state();
-  const bool delivering = (state == MODE_ACTIVE || state == MODE_DARKSTART);
+  // The bus values go by the contactors and not by the mode. The inverter holds UDC_Bus against
+  // its own measurement in every mode, INACTIVE included
+  const bool delivering = bus_connected();
 
   uint32_t flags = FLAG_LINK_OK;
   if (datalayer.aggregate.current_dA > 0) {

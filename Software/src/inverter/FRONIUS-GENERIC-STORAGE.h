@@ -13,7 +13,8 @@
    inverter's name and firmware version written back to us.
 
    The inverter also tells the battery which operating mode it wants (opMode), which this driver
-   uses to open the contactors while the inverter has no use for the battery.
+   uses to open the contactors while the inverter has no use for the battery. A GEN24 brings a
+   battery up through INACTIVE (DC connected, no power) to ACTIVE, and parks it in STANDBY.
 
    Map: generic_storage_protocol_v2.xml. All 32 and 64 bit values are sent high word first. */
 class FroniusGenericStorageInverter : public BydModbusInverter {
@@ -78,6 +79,8 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   void push_fault(uint16_t type, uint8_t battery, int16_t data, uint64_t utc_s);
   // The mode reported in MonitoringData.state
   uint16_t reported_state();
+  // The contactors are closed, as far as the emulator can tell
+  bool bus_connected();
 
   // NameplateData.BatteryCapabilityFlags
   static constexpr uint32_t CAPABILITY_ISOLATION_CHECK = 0x04;  // Inverter includes the battery in its insulation test

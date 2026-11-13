@@ -166,6 +166,24 @@ TEST_F(FroniusGenericStorageTest, ContactorsStayOpenUntilTheInverterAsksForTheBa
   EXPECT_EQ(inverter.mbPV[412], 3800);
 }
 
+// What a GEN24 does first with a battery. Left open here, it reports GEN24-1250 "DC connection
+// between inverter and battery interrupted" and falls back to STANDBY.
+TEST_F(FroniusGenericStorageTest, InactiveRequestConnectsTheBatteryAndShowsTheBusVoltage) {
+  inverter.write_op_mode(FroniusGenericStorageInverter::MODE_INACTIVE);
+  inverter.update_values();
+  EXPECT_TRUE(inverter.allows_contactor_closing());
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_STANDBY);  // Not there yet
+
+  datalayer.system.status.dc_bus_live = true;
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_INACTIVE);
+  EXPECT_EQ(inverter.mbPV[412], 3800);  // UDC_Bus
+
+  inverter.write_op_mode(FroniusGenericStorageInverter::MODE_ACTIVE);
+  inverter.update_values();
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_ACTIVE);
+}
+
 TEST_F(FroniusGenericStorageTest, DarkstartRequestClosesTheContactorsToo) {
   datalayer.system.status.dc_bus_live = true;
   inverter.write_op_mode(FroniusGenericStorageInverter::MODE_DARKSTART);
@@ -228,12 +246,13 @@ TEST_F(FroniusGenericStorageTest, AlwaysClosedWorkaroundIgnoresTheRequestButAckn
 
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_ACTIVE);  // As BYD-Modbus does
+  EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_INACTIVE);
 
   inverter.write_op_mode(FroniusGenericStorageInverter::MODE_STANDBY);
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
   EXPECT_EQ(inverter.mbPV[400], FroniusGenericStorageInverter::MODE_STANDBY);
+  EXPECT_EQ(inverter.mbPV[412], 3800);  // The bus is live all the same, and reported so
 }
 
 TEST_F(FroniusGenericStorageTest, LockWorkaroundKeepsTheContactorsClosedAfterTheFirstRequest) {
