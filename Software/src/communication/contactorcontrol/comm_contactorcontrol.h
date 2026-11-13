@@ -46,11 +46,11 @@ void start_bms_reset();
 /**
  * @brief Contactor initialization
  *
- * @param[in] void
+ * @param[in] cold_start true after a power-on reset, when the BMS power waits until shortly after boot
  *
  * @return true if contactor init was successful, false otherwise.
  */
-bool init_contactors();
+bool init_contactors(bool cold_start = false);
 
 /**
  * @brief Handle contactors
