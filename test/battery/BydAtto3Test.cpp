@@ -956,3 +956,70 @@ TEST(BydAtto3TerminationTests, CorruptedChargeStateCannotEndTheCharge) {
 
   delete battery;
 }
+
+// DM (PHEV) packs set 0x344 b0 bit 0x20. One such frame latches DM handling until reboot.
+TEST(BydAtto3DmPackTests, ContactorFeedbackBitLatchesDmHandling) {
+  byd_precharge_setup();
+  datalayer_extended.bydAtto3.native_termination_enabled = true;
+  datalayer_extended.bydAtto3.keep_iso_disabled = true;
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  // 0x7E7 reads of one DID among the frames sent from index `from` on.
+  auto polls = [](uint16_t did, size_t from) {
+    int count = 0;
+    const std::vector<CAN_frame>& frames = get_transmitted_frames();
+    for (size_t i = from; i < frames.size(); i++) {
+      const CAN_frame& f = frames[i];
+      if (f.ID == 0x7E7 && f.data.u8[1] == 0x22 && f.data.u8[2] == (did >> 8) && f.data.u8[3] == (did & 0xFF)) {
+        count++;
+      }
+    }
+    return count;
+  };
+
+  // Bit clear: no 0x343, capacity read on 0x1FFC, numbers as broadcast, native termination left alone.
+  uint32_t ms = 0;
+  for (; ms < 1000; ms += 100) {
+    rx_at(battery, contactor_state_frame(0x02, 0x00), ms);
+    rx_at(battery, cell_extrema_frame(3300), ms);
+    rx_at(battery, temperature_frame(), ms);
+    tick(battery, ms);
+  }
+  ASSERT_NE(last_transmitted_frame(0x441), nullptr);
+  EXPECT_EQ(last_transmitted_frame(0x343), nullptr);
+  EXPECT_GT(polls(0x1FFC, 0), 0);
+  EXPECT_EQ(polls(0x1FFD, 0), 0);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_cell_voltage_number, 15);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_cell_voltage_number, 155);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_temp_module_number, 9);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_temp_module_number, 1);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.native_termination_enabled);
+
+  // One frame with the bit, then two seconds without it: the latch has to hold.
+  const size_t latched_from = get_transmitted_frames().size();
+  rx_at(battery, contactor_state_frame(0x22, 0x00), ms);
+  for (; ms < 3000; ms += 100) {
+    rx_at(battery, contactor_state_frame(0x02, 0x00), ms);
+    rx_at(battery, cell_extrema_frame(3300), ms);
+    rx_at(battery, temperature_frame(), ms);
+    tick(battery, ms);
+  }
+  const CAN_frame* dm_343 = last_transmitted_frame(0x343);
+  ASSERT_NE(dm_343, nullptr);
+  EXPECT_EQ(dm_343->data.u8[0], 0xB4);  // pack open
+  EXPECT_EQ(dm_343->data.u8[7], computeBydChecksum(dm_343->data.u8));
+  // DM packs lack 0x1FFC, the capacity read moves to 0x1FFD.
+  EXPECT_GT(polls(0x1FFD, latched_from), 0);
+  EXPECT_EQ(polls(0x1FFC, latched_from), 0);
+  // DM packs number cells and sensors from zero.
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_cell_voltage_number, 16);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_cell_voltage_number, 156);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_temp_module_number, 10);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_temp_module_number, 2);
+  EXPECT_FALSE(datalayer_extended.bydAtto3.native_termination_enabled);
+  // The isolation-disable routine is never requested, though the setting is on and the BMS is alive.
+  EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 0);
+
+  datalayer_extended.bydAtto3.native_termination_enabled = true;  // process-wide, restore the default
+  delete battery;
+}

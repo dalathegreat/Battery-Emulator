@@ -90,6 +90,10 @@ void BydAttoBattery::
 
   datalayer_battery->status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
+  if (dm_pack && datalayer_bydatto) {
+    datalayer_bydatto->native_termination_enabled = false;  // Atto session frames don't apply to DM packs
+  }
+
   // AC-like top-of-charge taper. A live charge session moves the taper window up to the BMS's own
   // termination band so the pack, not BE, decides when the charge is over.
   const bool native_termination = datalayer_bydatto && datalayer_bydatto->native_termination_enabled;
@@ -415,7 +419,7 @@ void BydAttoBattery::
       iso_reassert_attempt_ms = 0;
     }
     iso_measurement_was_active = battery_iso_measurement_active;
-    if (!datalayer_bydatto->keep_iso_disabled) {
+    if (!datalayer_bydatto->keep_iso_disabled || dm_pack) {  // DM packs refuse the routine
       iso_reassert_needed = false;
     }
     // Disable early and retry fast to beat the BMS's boot-time insulation trip.
@@ -541,6 +545,9 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         prechargeEdgeSeen = true;
       }
       contactor_feedback = rx_frame.data.u8[0];
+      if (contactor_feedback & BMS_FEEDBACK_DM_PACK) {
+        dm_pack = true;
+      }
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         BMS_charge_state = rx_frame.data.u8[2] & 0x0F;
       }
@@ -680,18 +687,18 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x446:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // Broadcast cell extrema summary (~1Hz), fresher than the UDS round-robin. b0/b4 = 1-based
-      // min/max cell number; min/max mV are 12-bit little-endian in b1:b2 / b5:b6.
-      BMS_min_cell_voltage_number = rx_frame.data.u8[0];
+      // min/max cell number (0-based on DM packs); min/max mV are 12-bit little-endian in b1:b2 / b5:b6.
+      BMS_min_cell_voltage_number = rx_frame.data.u8[0] + dm_pack;
       BMS_lowest_cell_voltage_mV = rx_frame.data.u8[1] | ((rx_frame.data.u8[2] & 0x0F) << 8);
-      BMS_max_cell_voltage_number = rx_frame.data.u8[4];
+      BMS_max_cell_voltage_number = rx_frame.data.u8[4] + dm_pack;
       BMS_highest_cell_voltage_mV = rx_frame.data.u8[5] | ((rx_frame.data.u8[6] & 0x0F) << 8);
       break;
     case 0x447:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
-        BMS_min_temp_module_number = rx_frame.data.u8[0];  // 1-based coldest sensor
+        BMS_min_temp_module_number = rx_frame.data.u8[0] + dm_pack;  // 1-based coldest sensor
         BMS_lowest_cell_temperature = (rx_frame.data.u8[1] - 40);
-        BMS_max_temp_module_number = rx_frame.data.u8[2];  // 1-based hottest sensor
+        BMS_max_temp_module_number = rx_frame.data.u8[2] + dm_pack;  // 1-based hottest sensor
         BMS_highest_cell_temperature = (rx_frame.data.u8[3] - 40);
         battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
         BMS_average_cell_temperature = (rx_frame.data.u8[6] - 40);
@@ -772,6 +779,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           BMC_SOC_original_calibration = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case POLL_FOR_CURRENT_CALIBRATION:
+        case POLL_FOR_CURRENT_CALIBRATION_DM:
           BMS_capacity_current_calibration = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];
           BMC_SOC_current_calibration = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
@@ -962,8 +970,8 @@ void BydAttoBattery::confirm_charge_termination() {
 void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
   // Primary battery only: inverter charge limits are computed from battery 1 alone, so a session on
   // a secondary battery could never stop the bank when its BMS terminates.
-  const bool enabled =
-      datalayer_bydatto && datalayer_bydatto->native_termination_enabled && datalayer_battery == &datalayer.battery;
+  const bool enabled = datalayer_bydatto && datalayer_bydatto->native_termination_enabled &&
+                       datalayer_battery == &datalayer.battery && !dm_pack;
   const bool pack_closed = (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) != 0;
   const bool charge_flag = (contactor_feedback & BMS_FEEDBACK_CHARGE_FLAG) != 0;
   const int16_t current_dA = datalayer_battery->status.current_dA;
@@ -1934,9 +1942,17 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_441.data.u8[6] = 0xFF;
         ATTO_3_441.data.u8[7] = computeBydChecksum(ATTO_3_441.data.u8);
       }
+      DM_343.data.u8[0] = (prechargeState == PRECHARGE_DONE && !report_link_voltage_low) ? 0xB5 : 0xB4;
+      DM_343.data.u8[1] = report_link_voltage_low ? 0x00 : (uint8_t)link_voltage;
+      DM_343.data.u8[2] = report_link_voltage_low ? 0x00 : (link_voltage >> 8);
+      DM_343.data.u8[3] = ((ATTO_3_12D.data.u8[4] & 0x0C) == 0x0C) ? 0x96 : 0x97;
+      DM_343.data.u8[7] = computeBydChecksum(DM_343.data.u8);
     }
 
     transmit_can_frame(&ATTO_3_441);
+    if (dm_pack) {
+      transmit_can_frame(&DM_343);
+    }
 
     transmit_charge_session(currentMillis);
 
@@ -2015,19 +2031,25 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
           }
         }
         break;
-      case RUNNING_STEP_3:
-        // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A
+      case RUNNING_STEP_3: {
+        // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A. DM packs lack 1F FC.
+        // DM: keep the fractional Ah unless the target was edited
+        const uint16_t target_Ah_x100 =
+            (dm_pack && datalayer_bydatto->calibrationTargetAH == BMS_capacity_current_calibration / 100)
+                ? BMS_capacity_current_calibration
+                : (uint16_t)(datalayer_bydatto->calibrationTargetAH * 100);
         ATTO_3_7E7_RESET_SOC.data = {0x07,
                                      0x2E,
                                      0x1F,
-                                     0xFC,
+                                     (uint8_t)(dm_pack ? 0xFD : 0xFC),
                                      (uint8_t)(datalayer_bydatto->calibrationTargetSOC * 100),
                                      (uint8_t)((datalayer_bydatto->calibrationTargetSOC * 100) >> 8),
-                                     (uint8_t)(datalayer_bydatto->calibrationTargetAH * 100),
-                                     (uint8_t)((datalayer_bydatto->calibrationTargetAH * 100) >> 8)};
+                                     (uint8_t)target_Ah_x100,
+                                     (uint8_t)(target_Ah_x100 >> 8)};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = NOT_RUNNING;
         break;
+      }
       case NOT_RUNNING:
         break;
       default:
@@ -2109,7 +2131,8 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
       case POLL_FOR_CURRENT_CALIBRATION:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_CURRENT_CALIBRATION & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_CURRENT_CALIBRATION & 0x00FF);
+        ATTO_3_7E7_POLL.data.u8[3] =
+            (uint8_t)((dm_pack ? POLL_FOR_CURRENT_CALIBRATION_DM : POLL_FOR_CURRENT_CALIBRATION) & 0x00FF);
         poll_state = POLL_CHARGE_TIMES;
         break;
       case POLL_CHARGE_TIMES:
