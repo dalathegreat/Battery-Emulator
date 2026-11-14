@@ -91,9 +91,12 @@ class UdsCanBattery : public CanBattery, public IsoTp {
     // Superclass-internal sequences.
     UDS_STATE_READ_DTC_START = UDS_STATE_INTERNAL | 0x01,
     UDS_STATE_READ_DTC,  // 0x19 0x02
-    UDS_STATE_CLEAR_DTC_START = UDS_STATE_INTERNAL | 0x03,
-    UDS_STATE_CLEAR_DTC,  // 0x14 FF FF FF
-    UDS_STATE_SOFT_RESET_START = UDS_STATE_INTERNAL | 0x05,
+
+    UDS_STATE_CLEAR_DTC_START,
+    UDS_STATE_CLEAR_DTC_DIAG,  // 0x10 0x03
+    UDS_STATE_CLEAR_DTC,       // 0x14 FF FF FF
+
+    UDS_STATE_SOFT_RESET_START,
     UDS_STATE_SOFT_RESET,  // 0x11 0x03
   };
 
@@ -136,7 +139,10 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   //    local file picker.
   //  - get_dtc_standard_code_string(): false for raw 6-digit hex codes, true
   //    for SAE-format codes (e.g. P0C9500).
+  //  - get_uds_dtc_html(): the DTC section itself (default: one section for
+  //    `dtc`). Override to show DTCs from more than one ECU.
   virtual String get_uds_info_html() { return String(); }
+  virtual String get_uds_dtc_html();
   virtual const char* get_dtc_json_filename() { return ""; }
   virtual bool get_dtc_standard_code_string() { return true; }
 
@@ -205,6 +211,11 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   virtual void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   virtual void on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype tatype) override;
 
+  // Parses a ReadDTCInformation (0x19 0x02) response into `target`, marking
+  // the readout as failed if the response is malformed. Exposed so subclasses
+  // that read DTCs from additional ECUs can reuse it with their own storage.
+  void handle_dtc_response(const uint8_t* data, uint16_t len, DATALAYER_BATTERY_DTC_TYPE* target);
+
   // The address we'll send UDS requests to. Any ID over 0x7FF is counted as extended CAN and will be sent with the extended flag set.
   uint32_t uds_address = 0x7DF;
   // The address we require UDS responses to come from, or 0 to accept from any
@@ -231,7 +242,6 @@ class UdsCanBattery : public CanBattery, public IsoTp {
   bool on_uds_pid_scan_response(uint8_t sid, const uint8_t* data, uint16_t len);
   void on_uds_pid_scan_timeout();
   void on_uds_receive(const uint8_t* data, uint16_t len);
-  void handle_dtc_response(const uint8_t* data, uint16_t len);
   // Dispatches responses for sequence states
   void handle_sequence(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len);
   // Dispatches responses for superclass-internal sequence states.

@@ -27,11 +27,53 @@ class RenaultZoeGen2Battery : public UdsCanBattery {
 
   String get_uds_info_html() override;
   const char* get_dtc_json_filename() override { return "renault_zoe_gen2_dtc.json"; }
+
+  // DTCs are read from / cleared on both the LBC (0xDB) and the second
+  // controller (0xDC). The LBC's codes go to the datalayer `dtc`, the second
+  // controller's to `dtc_lbc2`.
+  void read_DTC() override;
+  void reset_DTC() override;
+  // Both DTC sections, as shown on the advanced battery page.
+  String get_uds_dtc_html() override;
   uint8_t calculate_crc_zoe(CAN_frame& frame, uint8_t crc_xor, uint8_t length = 7, int8_t crc_index = -1);
 
  protected:
   // Called by the UDS superclass for each successful PID query response.
   uint16_t handle_pid(uint16_t pid, uint32_t value, const uint8_t* data, uint16_t length) override;
+  void on_uds_sequence_step(uint16_t state, uint8_t sid, const uint8_t* data, uint16_t len) override;
+  void on_uds_sequence_timeout(uint16_t state) override;
+
+  // UDS addressing (29-bit normal fixed: 18DA<target><source>).
+  static constexpr uint32_t LBC_UDS_REQUEST_ID = 0x18DADBF1;
+  static constexpr uint32_t LBC_UDS_RESPONSE_ID = 0x18DAF1DB;
+  static constexpr uint32_t LBC2_UDS_REQUEST_ID = 0x18DADCF1;
+  static constexpr uint32_t LBC2_UDS_RESPONSE_ID = 0x18DAF1DC;
+
+  // Sequence states for the two-ECU DTC read/clear. Each step's request is
+  // sent to the ECU named in the state; the UDS target is switched only at
+  // step boundaries, and always switched back to the LBC when the sequence
+  // ends, so PID scanning never runs against the second controller.
+  enum ZoeDtcState : uint16_t {
+    ZOE_DTC_READ_START = 1,
+    ZOE_DTC_READ_LBC,
+    ZOE_DTC_READ_LBC2,
+    ZOE_DTC_CLEAR_START,
+    ZOE_DTC_CLEAR_LBC_DIAG,
+    ZOE_DTC_CLEAR_LBC,
+    ZOE_DTC_CLEAR_LBC2_DIAG,
+    ZOE_DTC_CLEAR_LBC2,
+  };
+  // Sends the request for `state` (switching UDS target as needed), or, for
+  // 0, ends the sequence. If the send is refused the sequence ends too.
+  void send_dtc_step(uint16_t state);
+  // The step that follows `state` once it completed (or 0 at the end).
+  // `ecu_ok` false (the ECU didn't answer) skips the rest of its steps.
+  static uint16_t next_dtc_step(uint16_t state, bool ecu_ok);
+  void set_uds_target(uint32_t request_id, uint32_t response_id);
+  // Sends the step after `state`, then queues a readback if a clear finished.
+  void advance_dtc_sequence(uint16_t state, bool ecu_ok);
+
+  DATALAYER_BATTERY_DTC_TYPE dtc_lbc2 = {};
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
