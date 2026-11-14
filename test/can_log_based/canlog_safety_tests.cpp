@@ -105,7 +105,7 @@ class CanLogTestFixture : public testing::Test {
       // need minutes of emulated time to reach a late PID, so the deadline is
       // generous.
 
-      const size_t tx_start = tx_frames.size();
+      size_t i = tx_frames.size();
       const unsigned long deadline = now + 600000;  // 600 s of emulated time
       bool poll_found = false;
       while (now < deadline && !poll_found) {
@@ -113,8 +113,8 @@ class CanLogTestFixture : public testing::Test {
         set_millis64(now);
         udsBattery->transmit_can(now);
 
-        // Go through all the frames that the battery has transmitted.
-        for (size_t i = tx_start; i < tx_frames.size(); i++) {
+        // Go through the frames transmitted since the last check.
+        for (; i < tx_frames.size(); i++) {
           const CAN_frame& req = tx_frames[i];
           const bool single_frame = (req.data.u8[0] == 0x02 || req.data.u8[0] == 0x03);
           const bool one_byte_match =
