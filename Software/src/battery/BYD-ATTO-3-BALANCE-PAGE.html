@@ -1,8 +1,8 @@
 <!DOCTYPE html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Cell Balance Timers</title><style>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Cell Balance Timers</title><link rel=stylesheet href=/nav.css><style>
 :root{--card:#1d2a32;--edge:#50616b;--dim:#aebbc3;--faint:#7f8f9a;--cyan:#00d9df;--amber:#ffc45c;
 --green:#6fd18a;--chip:#26343d;--red:#ff6b70;--blue:#6fa8dc}
-*{box-sizing:border-box}body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0;padding:16px}
+*{box-sizing:border-box}body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0;padding:0 16px 16px}
 .page{max-width:1000px;margin:0 auto}.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;
 padding:16px;margin-bottom:14px}h1{font-size:21px;margin:0}h3{font-size:15px;margin:0}.dim{color:var(--dim)}
 .top,.head,.auto,.key{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.top,.head{justify-content:space-between}
@@ -31,9 +31,9 @@ border-radius:3px;overflow:hidden;margin-bottom:12px}.prog i{display:block;heigh
 font-size:13.5px;margin-top:10px}th,td{text-align:left;padding:9px;border-bottom:1px solid #43535d;white-space:nowrap}th{color:var(--dim);font-size:12px}
 tr.pick{cursor:pointer}tr.pick:hover{background:#26343d}tr.active td:first-child{border-left:3px solid var(--cyan);font-weight:bold}
 @media(max-width:780px){.pair{grid-template-columns:repeat(2,minmax(0,1fr))}.box.now{grid-column:span 2}.auto{align-items:flex-start}}
-@media(max-width:480px){body{padding:10px}.card{padding:12px}.pair{grid-template-columns:1fr 1fr}.box .n{font-size:22px}}
+@media(max-width:480px){body{padding:0 10px 10px}.card{padding:12px}.pair{grid-template-columns:1fr 1fr}.box .n{font-size:22px}}
 </style></head><body><div class="page">
-<div style="margin-bottom:12px"><button onclick="location.href='/advanced'">&#8592; Battery Info</button></div>
+<div class="subnav"><button onclick="location.href='/'">Back to main page</button><button onclick="location.href='/advanced'">More Battery Info</button></div>
 <div class="top"><div><h1>Cell Balance Timers</h1><div class="dim" style="font-size:13px;margin-top:3px">Lifetime totals and activity by completed charge.</div></div>
 <button class="on" id="scan">Read Timers</button></div><div class="tabs" id="tabs"></div>
 <div class="prog" id="prog" hidden><i></i></div><div class="msg" id="msg"></div>

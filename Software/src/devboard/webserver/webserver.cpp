@@ -344,6 +344,16 @@ void init_webserver() {
   def_route_with_auth("/advanced", server, HTTP_GET,
                       [](AsyncWebServerRequest* request) { send_advanced_battery_page(request); });
 
+  // The look of the navigation row and buttons shared by the sub pages (INDEX_HTML_NAV_LINK in
+  // index_html.h). One copy here instead of one in every page, cached by the browser.
+  def_route_with_auth("/nav.css", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    static const char nav_css[] PROGMEM = INDEX_HTML_NAV_CSS;
+    AsyncWebServerResponse* response =
+        request->beginResponse(200, "text/css", reinterpret_cast<const uint8_t*>(nav_css), sizeof(nav_css) - 1);
+    response->addHeader("Cache-Control", "max-age=3600");
+    request->send(response);
+  });
+
   // Loader for the help buttons (HELP_SCRIPT in index_html.h). Pre-compressed like the BYD page
   // below, and cached by the browser so the pages that use it do not fetch it on every reload.
   def_route_with_auth("/help.js", server, HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -1008,6 +1018,21 @@ void init_webserver() {
         Preferences prefs;
         prefs.begin("batterySettings", false);
         prefs.putUInt("BYDBALMIN", (uint16_t)value);
+        prefs.end();
+      }
+    }
+    request->send(200, "text/plain", "OK");
+  });
+
+  // Save full charge interval to RAM + NVM
+  def_route_with_auth("/editBydAtto3FullChargeDays", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      int value = request->getParam("value")->value().toInt();
+      if (value >= 0 && value <= 30) {
+        datalayer_extended.bydAtto3.full_charge_every_days = (uint8_t)value;
+        Preferences prefs;
+        prefs.begin("batterySettings", false);
+        prefs.putUInt("BYDFCDAYS", (uint8_t)value);
         prefs.end();
       }
     }

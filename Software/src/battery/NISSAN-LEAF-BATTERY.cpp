@@ -215,7 +215,7 @@ void NissanLeafBattery::
   } else if (LEAF_battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
     //Only update when both values have been read from the muxed message
-    if ((battery_HistData_Temperature_MIN != 86) && (battery_HistData_Temperature_MAX != 86)) {
+    if ((battery_HistData_Temperature_MIN < 86) && (battery_HistData_Temperature_MAX < 86)) {
       datalayer_battery->status.temperature_min_dC =
           (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
       datalayer_battery->status.temperature_max_dC =
@@ -718,7 +718,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
 
       if (LEAF_battery_Type == ZE0_BATTERY) {
-        battery_AverageTemperature = (rx_frame.data.u8[3] - 40);  //In celcius, -40 to +55
+        if (rx_frame.data.u8[3] != 0xFF) {                          //0xFF is unavailable value
+          battery_AverageTemperature = (rx_frame.data.u8[3] - 40);  //In celcius, -40 to +55
+        }
       }
 
       battery_TEMP = (rx_frame.data.u8[4] >> 1);
@@ -1135,7 +1137,9 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //Only publish once all three frames of this response arrived. A dropped frame would otherwise
           //leave part of the array holding the previous response, which reads as a spurious change.
           if (balancing_frames_seen == 0x07) {
-            memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+            for (int cell = 0; cell < 96; cell++) {
+              datalayer_battery->status.cell_balancing_status.set(cell, battery_balancing_shunts[cell]);
+            }
             balancing_data_fresh = true;
           }
           balancing_frames_seen = 0;

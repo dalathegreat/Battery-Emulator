@@ -316,7 +316,7 @@ uint16_t CmfaEvBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t* 
         break;
       }
       for (uint8_t i = 0; i < cells; i++) {
-        datalayer_battery->status.cell_balancing_status[i] = (data[length - 1 - (i >> 3)] >> (i & 7)) & 0x01;
+        datalayer_battery->status.cell_balancing_status.set(i, (data[length - 1 - (i >> 3)] >> (i & 7)) & 0x01);
       }
       break;
     }

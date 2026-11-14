@@ -1,4 +1,6 @@
 # Update cell voltage 88 via a faked poll response
 # (this is synthetic, please update with a real log!)
+# ISO-TP single frame (len 5): UDS 0x62 ReadDataByIdentifier positive response, DID 0x907B
+# (cell 88), value 0x0C7E = 3198 * 0.9765625 = 3123 mV.
 
-(84215.921) RX0 18DAF1DB [8] 00 00 90 7B 0C 7E AA AA
+(84215.921) RX0 18DAF1DB [8] 05 62 90 7B 0C 7E AA AA
