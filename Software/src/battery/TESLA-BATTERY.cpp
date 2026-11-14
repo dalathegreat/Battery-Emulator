@@ -452,21 +452,116 @@ void dayOfYearToDate(int year, int dayOfYear, char* out, size_t out_len) {
   snprintf(out, out_len, "%04d-%02d-%02d", safeYear, safeMonth, safeDay);
 }
 
+bool TeslaBattery::apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
+                                      uint32_t beginning_of_life_x10) {
+  // Unknown without a plausible energy or reference, and above 101 % (not credible); 100-101 % is sent as 100
+  const bool nominal_plausible = nominal_full_x10 <= UINT16_MAX && energy_x10_plausible(nominal_full_x10);
+  const uint32_t estimate =
+      nominal_plausible && beginning_of_life_x10 > 0 ? (nominal_full_x10 * 10000UL) / beginning_of_life_x10 : 0;
+  const bool valid = estimate > 0 && estimate <= SohEstimateMax_pptt;
+  // Master's contract: a Tesla always has an soh_pptt to send, 9900 when it is not known, and soh_available stays true
+  // (never cleared) so the aggregate, MQTT and ESP-NOW treat the pack as on master. "Known" is only for the web page.
+  status.soh_available = true;
+  status.soh_pptt = valid ? (uint16_t)std::min<uint32_t>(estimate, 10000) : 9900;
+  return valid;
+}
+
+void TeslaBattery::hold_energy(EnergyHold& hold, uint32_t received, bool plausible) {
+  if (plausible) {
+    hold.value = received;
+    hold.seconds_not_plausible = 0;
+  } else if (hold.value != 0) {
+    if (hold.seconds_not_plausible < UINT16_MAX) {
+      hold.seconds_not_plausible++;
+    }
+    if (hold.seconds_not_plausible >= EnergyHold_s) {
+      hold.value = 0;  // not available for too long: unknown
+    }
+  }
+}
+
+uint32_t TeslaBattery::remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t nominal_remaining_Wh,
+                                    uint32_t total_capacity_Wh) {
+  const bool full_known = energy_x10_plausible(static_cast<uint16_t>(nominal_full_x10));
+  if (full_known && nominal_remaining_Wh > 0) {
+    return nominal_remaining_Wh;
+  }
+  const uint32_t base_Wh = full_known ? nominal_full_x10 * 100 : total_capacity_Wh;
+  return static_cast<uint32_t>((static_cast<double>(real_soc) / 10000) * base_Wh);
+}
+
+void TeslaBattery::SocHold::on_frame(uint16_t soc_ui_x10, uint16_t soc_min_x10) {
+  if (soc_ui_x10 <= 1000) {
+    soc_ui = soc_ui_x10;
+    ui_seen = true;
+    ui_fresh = true;
+    any_fresh = true;
+  } else if (!ui_seen && soc_min_x10 <= 1000) {
+    soc_ui = soc_min_x10;
+    any_fresh = true;  // the initial SOC is live: it is not held, so it does not age
+  }
+}
+
+void TeslaBattery::SocHold::update(bool pack_on_bus, uint8_t battery_index) {
+  // Seconds without a valid UI SOC. EVENT_SOC_UNAVAILABLE is a WARNING.
+  if (ui_fresh) {
+    ui_fresh = false;
+    seconds_without_soc = 0;
+    clear_event(EVENT_SOC_UNAVAILABLE, battery_index);
+  } else if (pack_on_bus) {
+    if (seconds_without_soc < INT16_MAX) {
+      seconds_without_soc++;
+    }
+    if (seconds_without_soc >= SocUnavailableDelay_s) {
+      set_event(EVENT_SOC_UNAVAILABLE, seconds_without_soc, battery_index);
+    }
+  }
+  // Seconds since the last SOC of any kind (the UI SOC, or the initial SOC min that is in use until a valid UI SOC was
+  // seen). The held SOC is cleared after SocHoldLimit_s: 0 % is "no SOC" (safety then stops the discharge).
+  if (any_fresh) {
+    any_fresh = false;
+    seconds_held = 0;
+  } else if (pack_on_bus && seconds_held < INT16_MAX) {
+    seconds_held++;
+  }
+  expired = seconds_held >= SocHoldLimit_s;
+}
+
 void TeslaBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
-  datalayer_battery->status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
+  // SOH is an estimate, see apply_soh_estimate. 0x352 with mux (mux 0 and 1 seen) counts 0.02 kWh, without mux 0.1 kWh
+  const uint32_t received_nominal_full_x10 =
+      BMS352_mux ? ((uint32_t)battery_nominal_full_pack_energy_m0 + 2) / 5 : battery_nominal_full_pack_energy;
+  hold_energy(nominal_full_hold, received_nominal_full_x10,
+              received_nominal_full_x10 <= UINT16_MAX && energy_x10_plausible(received_nominal_full_x10));
+  const uint32_t nominal_full_x10 = nominal_full_hold.value;
+  // Nominal energy remaining in Wh: 0.02 kWh counts with mux, 0.1 kWh without. SNA (all ones) and 0 (not received yet)
+  // are 0 = no data. Held like the nominal full energy.
+  const uint32_t received_remaining_Wh =
+      BMS352_mux ? (battery_nominal_energy_remaining_m0 == 0xFFFF ? 0 : battery_nominal_energy_remaining_m0 * 20UL)
+                 : (battery_nominal_energy_remaining >= 0x7FF ? 0 : battery_nominal_energy_remaining * 100UL);
+  hold_energy(nominal_remaining_hold, received_remaining_Wh,
+              nominal_remaining_plausible(received_remaining_Wh, nominal_full_x10));
+  datalayer_tesla->soh_estimate_known =
+      apply_soh_estimate(datalayer_battery->status, nominal_full_x10, battery_beginning_of_life);
 
-  datalayer_battery->status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
+  // Total capacity: capacity when new (0x392 or 0x292), else the obsolete GTW setting (fallback_total_capacity_Wh)
+  datalayer_battery->info.total_capacity_Wh =
+      energy_x10_plausible(battery_beginning_of_life) ? battery_beginning_of_life * 100UL : fallback_total_capacity_Wh;
+
+  soc_hold.update(datalayer_battery->status.CAN_battery_still_alive > 0, battery_index);
+  datalayer_battery->status.real_soc = soc_hold.real_soc();  //SOC range 0-100.0 -> 100.00
 
   datalayer_battery->status.voltage_dV = battery_volts;
 
   datalayer_battery->status.current_dA = battery_amps;  //13.0A
 
-  //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh =
+      soc_hold.expired ? 0
+                       : remaining_Wh(datalayer_battery->status.real_soc, nominal_full_x10,
+                                      nominal_remaining_hold.value, datalayer_battery->info.total_capacity_Wh);
 
   // Define the allowed discharge power
   datalayer_battery->status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
@@ -479,6 +574,7 @@ void TeslaBattery::
   //The inverter setting will ramp down this value based on SOC%
   datalayer_battery->status.max_charge_power_W = datalayer_battery->status.override_charge_power_W;
 
+  // TODO(tesla): this is 0.0 degC until the first 0x332 frame arrives (temperature_seen), better show N/A if possible
   datalayer_battery->status.temperature_min_dC = battery_min_temp;
 
   datalayer_battery->status.temperature_max_dC = battery_max_temp;
@@ -565,6 +661,8 @@ void TeslaBattery::
     // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
     if (datalayer.battery_settings.user_requests_balancing) {
       datalayer_battery->status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+      // FIXME(tesla): remaining_capacity_Wh was calculated above from the real SOC, not from this 99 %, so the two
+      // differ while balancing.
       datalayer_battery->info.max_design_voltage_dV = datalayer.battery_settings.balancing_max_pack_voltage_dV;
       datalayer_battery->info.max_cell_voltage_mV = datalayer.battery_settings.balancing_max_cell_voltage_mV;
       datalayer_battery->info.max_cell_voltage_deviation_mV =
@@ -648,6 +746,7 @@ void TeslaBattery::
   //0x352
   datalayer_tesla->BMS352_mux = BMS352_mux;
   datalayer_tesla->battery_nominal_full_pack_energy = battery_nominal_full_pack_energy;
+  datalayer_tesla->nominal_full_held_x10 = nominal_full_x10;
   datalayer_tesla->battery_nominal_full_pack_energy_m0 = battery_nominal_full_pack_energy_m0;
   datalayer_tesla->battery_nominal_energy_remaining = battery_nominal_energy_remaining;
   datalayer_tesla->battery_nominal_energy_remaining_m0 = battery_nominal_energy_remaining_m0;
@@ -675,14 +774,22 @@ void TeslaBattery::
   datalayer_tesla->battery_max_discharge_current = battery_max_discharge_current;
   //0x292
   datalayer_tesla->battery_beginning_of_life = battery_beginning_of_life;
+  datalayer_tesla->bol_0x292_x10 = bol_0x292_x10;
+  datalayer_tesla->bol_0x392_x10 = bol_0x392_x10;
+  datalayer_tesla->nominal_remaining_seen = nominal_remaining_seen;
+  datalayer_tesla->nominal_remaining_m0_seen = nominal_remaining_m0_seen;
+  datalayer_tesla->bol_0x292_seen = bol_0x292_seen;
+  datalayer_tesla->bol_0x392_seen = bol_0x392_seen;
   datalayer_tesla->battery_battTempPct = battery_battTempPct;
   datalayer_tesla->battery_soc_ave = battery_soc_ave;
   datalayer_tesla->battery_soc_max = battery_soc_max;
   datalayer_tesla->battery_soc_min = battery_soc_min;
-  datalayer_tesla->battery_soc_ui = battery_soc_ui;
+  datalayer_tesla->battery_soc_ui = battery_soc_ui_raw;
   //0x332
   datalayer_tesla->battery_BrickVoltageMax = battery_BrickVoltageMax;
   datalayer_tesla->battery_BrickVoltageMin = battery_BrickVoltageMin;
+  datalayer_tesla->battery_BrickVoltageMaxNum = battery_BrickVoltageMaxNum;
+  datalayer_tesla->battery_BrickVoltageMinNum = battery_BrickVoltageMinNum;
   datalayer_tesla->battery_BrickTempMaxNum = battery_BrickTempMaxNum;
   datalayer_tesla->battery_BrickTempMinNum = battery_BrickTempMinNum;
   datalayer_tesla->battery_BrickModelTMax = battery_BrickModelTMax;
@@ -743,6 +850,7 @@ void TeslaBattery::
   datalayer_tesla->BMS_inletActiveHeatTargetT = BMS_inletActiveHeatTargetT;
   datalayer_tesla->BMS_packTMin = BMS_packTMin;
   datalayer_tesla->BMS_packTMax = BMS_packTMax;
+  datalayer_tesla->temperature_seen = battery_temp_seen;
   datalayer_tesla->BMS_pcsNoFlowRequest = BMS_pcsNoFlowRequest;
   datalayer_tesla->BMS_noFlowRequest = BMS_noFlowRequest;
   //0x3C4
@@ -1172,6 +1280,57 @@ void TeslaBattery::
                  (battery_dcdcLvBusVolt * 0.01), (battery_dcdcLvOutputCurrent * 0.1));
 }
 
+// 0x3B2 BMS_log2 mux 0: pack CAC (0.1 Ah) and min/max brick IDs (ID - 1). B was verified on a 2024.8.9+ pack, A not.
+// Little endian bit numbers, the CAC fields are 13 bits (0.1 Ah, 8191 = SNA), the brick IDs 7 bits (stored ID - 1):
+//        mux     avg     min      min ID   max      max ID
+//   A    0..5    6..18   19..31   32..38   40..52   56..62   (2022 era, mux 6 bits = 0)
+//   B    0..6    8..20   24..36   37..43   44..56   57..63   (2024.8.9+, mux 7 bits = 0)
+struct CacLayout {
+  uint8_t avg, min, min_id, max, max_id;  // start bits: avg, min and max CAC 13 bits, brick IDs 7 bits
+};
+static const CacLayout kCacLayoutA = {6, 19, 32, 40, 56};  // 2022 era, mux 0|6
+static const CacLayout kCacLayoutB = {8, 24, 37, 44, 57};  // 2024.8.9+, mux 0|7
+
+// Detail page: store one layout's CAC as decoded, without any check (index 0 = A, 1 = B)
+static void tesla_store_raw_cac(const uint8_t* d, const CacLayout& l, uint8_t i, DATALAYER_INFO_TESLA* out) {
+  out->cac_raw_seen[i] = true;
+  out->cac_raw_avg_x10[i] = tesla_le_bits(d, l.avg, 13);
+  out->cac_raw_min_x10[i] = tesla_le_bits(d, l.min, 13);
+  out->cac_raw_max_x10[i] = tesla_le_bits(d, l.max, 13);
+  out->cac_raw_min_brick_id[i] = tesla_le_bits(d, l.min_id, 7) + 1;
+  out->cac_raw_max_brick_id[i] = tesla_le_bits(d, l.max_id, 7) + 1;
+}
+
+// Decode one layout into out when plausible (tesla_cac_plausible)
+static bool tesla_apply_cac_layout(const uint8_t* d, const CacLayout& l, uint8_t layout_id, DATALAYER_INFO_TESLA* out) {
+  const uint32_t cac_avg = tesla_le_bits(d, l.avg, 13);
+  const uint32_t cac_min = tesla_le_bits(d, l.min, 13);
+  const uint32_t cac_max = tesla_le_bits(d, l.max, 13);
+  if (!tesla_cac_plausible(cac_min, cac_avg, cac_max)) {
+    return false;
+  }
+  out->cac_layout = layout_id;
+  out->cac_avg_x10 = cac_avg;
+  out->cac_min_x10 = cac_min;
+  out->cac_max_x10 = cac_max;
+  out->cac_min_brick_id = tesla_le_bits(d, l.min_id, 7) + 1;  // 7 bits: 1 to 128
+  out->cac_max_brick_id = tesla_le_bits(d, l.max_id, 7) + 1;
+  out->cac_valid = true;
+  return true;
+}
+
+static void tesla_decode_cac_frame(const CAN_frame& rx_frame, DATALAYER_INFO_TESLA* out) {
+  const uint8_t* d = rx_frame.data.u8;
+  tesla_store_raw_cac(d, kCacLayoutA, 0, out);
+  if ((d[0] & 0x7F) == 0) {
+    tesla_store_raw_cac(d, kCacLayoutB, 1, out);
+  }
+  // B (7 bit mux, bit 6 = 0) is preferred, A is used when B is implausible. A frame that fits neither changes nothing.
+  if (!((d[0] & 0x7F) == 0 && tesla_apply_cac_layout(d, kCacLayoutB, 2, out))) {
+    tesla_apply_cac_layout(d, kCacLayoutA, 1, out);
+  }
+}
+
 void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   // mux, temp, mux0_read, mux1_read are instance member variables (TESLA-BATTERY.h)
 
@@ -1190,9 +1349,10 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             (((rx_frame.data.u8[7]) << 8) |
              rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         mux0_read = true;           //Set flag to true
+        nominal_remaining_m0_seen = true;
       }
       if (mux == 1) {
-        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //BMS_fullChargeComplete : 15|1@1+ (1,0) [0|1]//noYes
+        battery_fully_charged = (rx_frame.data.u8[1] & 0x80) != 0;  //BMS_fullChargeComplete : 15|1@1+ (1,0) [0|1] noYes
         battery_energy_buffer_m1 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.01,0) [0|0] "kWh"//to datalayer_extended
         battery_expected_energy_remaining_m1 =
@@ -1213,22 +1373,16 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         //Skip older BMS frame parsing
         break;
       }
-      // Older BMS <2021 without mux
-      battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
-          (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
-      battery_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
-          (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
-      battery_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "kWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
-          (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
-           ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
-      battery_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "kWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
-          (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
-      battery_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "kWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
-          (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4));  //Example 147 * 0.1 = 14.7kWh
-      battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "kWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
-          (((rx_frame.data.u8[7] & 0xFE) >> 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));  //Example 1 * 0.1 = 0
-      battery_fully_charged =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
-          ((rx_frame.data.u8[7] >> 7) & 0x01);  //noYes
+      // Older BMS <2021 without mux: 11 bit fields in 0.1 kWh at bit 0, 11, 22, 33 and 44, the buffer (0.1 kWh) at bit 55
+      // (8 bits), the fully charged flag at bit 63
+      battery_nominal_full_pack_energy = tesla_le_bits(rx_frame.data.u8, 0, 11);   //BMS_nominalFullPackEnergy
+      battery_nominal_energy_remaining = tesla_le_bits(rx_frame.data.u8, 11, 11);  //BMS_nominalEnergyRemaining
+      nominal_remaining_seen = true;
+      battery_expected_energy_remaining = tesla_le_bits(rx_frame.data.u8, 22, 11);  //BMS_expectedEnergyRemaining
+      battery_ideal_energy_remaining = tesla_le_bits(rx_frame.data.u8, 33, 11);     //BMS_idealEnergyRemaining
+      battery_energy_to_charge_complete = tesla_le_bits(rx_frame.data.u8, 44, 11);  //BMS_energyToChargeComplete
+      battery_energy_buffer = tesla_le_bits(rx_frame.data.u8, 55, 8);               //BMS_energyBuffer
+      battery_fully_charged = tesla_le_bits(rx_frame.data.u8, 63, 1);               //BMS_fullChargeComplete
       break;
     case 0x20A:  //522 HVP_contactorState:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -1407,6 +1561,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       }
       if (mux == 0)  //Temperature sensors
       {              //BattBrickTempMax m0 : 16|8@1+ (0.5,-40) [0|0] "C" (_d[2] & (0xFFU));
+        battery_temp_seen = true;
         battery_max_temp = (rx_frame.data.u8[2] * 5) - 400;  //Temperature values have 40.0*C offset, 0.5*C /bit
         //BattBrickTempMin m0 : 24|8@1+ (0.5,-40) [0|0] "C" (_d[3] & (0xFFU));
         battery_min_temp =
@@ -1438,6 +1593,8 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                 ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
       BMS_inletActiveHeatTargetT = ((rx_frame.data.u8[5] & (0x0FU)) << 5) |
                                    ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
+      // TODO(tesla): 0x312 is shared by two frame types, so these two may be decoded from the wrong frame. The pack temperature
+      // the inverter gets is the 0x332 mux 0 min/max (battery_min_temp, battery_max_temp), not these.
       BMS_packTMin = ((rx_frame.data.u8[6] & (0x1FU)) << 4) |
                      ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
       BMS_packTMax = ((rx_frame.data.u8[7] & (0x3FU)) << 3) |
@@ -1602,11 +1759,19 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x292:  //BMS_socStatus
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_beginning_of_life =
-          (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]) * 0.1;          //40|10@1+ (0.1,0) [0|102.3] "kWh"
+      {
+        const uint16_t legacy_bol_x10 = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5];  //40|10@1+ kWh
+        bol_0x292_x10 = legacy_bol_x10;
+        bol_0x292_seen = true;
+        if (energy_x10_plausible_10bit(legacy_bol_x10) && battery_beginning_of_life_source != SohReferenceNewFw) {
+          battery_beginning_of_life = legacy_bol_x10;
+          battery_beginning_of_life_source = SohReferenceLegacyFw;
+        }
+      }
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //0|10@1+ (0.1,0) [0|102.3] "%"
-      battery_soc_ui =
+      battery_soc_ui_raw =
           (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));  //10|10@1+ (0.1,0) [0|102.3] "%"
+      soc_hold.on_frame(battery_soc_ui_raw, battery_soc_min);  // 1023 = not available (the S/X pack does it for ~5 s)
       battery_soc_max =
           (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));  //20|10@1+ (0.1,0) [0|102.3] "%"
       battery_soc_ave =
@@ -1626,11 +1791,26 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         battery_platformMaxBusVoltage =
             (((rx_frame.data.u8[4] & 0x03) << 8) |
              (rx_frame.data.u8[3]));  //24|10@1+ (0.1,375) "V" up to 2022.45.15, (1,300) from 2023.2.12
+        // Full pack energy when new, 40|10@1+ (0.1,0) kWh, not in the public DBC. Wins over 0x292 whenever plausible.
+        const uint16_t new_fw_bol_x10 = ((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5];
+        bol_0x392_x10 = new_fw_bol_x10;
+        bol_0x392_seen = true;
+        if (energy_x10_plausible_10bit(new_fw_bol_x10)) {
+          battery_beginning_of_life = new_fw_bol_x10;
+          battery_beginning_of_life_source = SohReferenceNewFw;
+        }
       }
       if (mux == 0) {
         battery_reservedConfig =
             (rx_frame.data.u8[1] &
              (0x1F));  //8|5@1+ (1,0) [0|31] ""//0 "BMS_CONFIG_0" 1 "BMS_CONFIG_1" 10 "BMS_CONFIG_10" 11 "BMS_CONFIG_11" 12 "BMS_CONFIG_12" 13 "BMS_CONFIG_13" 14 "BMS_CONFIG_14" 15 "BMS_CONFIG_15" 16 "BMS_CONFIG_16" 17 "BMS_CONFIG_17" 18 "BMS_CONFIG_18" 19 "BMS_CONFIG_19" 2 "BMS_CONFIG_2" 20 "BMS_CONFIG_20" 21 "BMS_CONFIG_21" 22 "BMS_CONFIG_22" 23 "BMS_CONFIG_23" 24 "BMS_CONFIG_24" 25 "BMS_CONFIG_25" 26 "BMS_CONFIG_26" 27 "BMS_CONFIG_27" 28 "BMS_CONFIG_28" 29 "BMS_CONFIG_29" 3 "BMS_CONFIG_3" 30 "BMS_CONFIG_30" 31 "BMS_CONFIG_31" 4 "BMS_CONFIG_4" 5 "BMS_CONFIG_5" 6 "BMS_CONFIG_6" 7 "BMS_CONFIG_7" 8 "BMS_CONFIG_8" 9 "BMS_CONFIG_9" ;
+      }
+      break;
+    case 0x3B2:  // BMS_log2, multiplexed. Mux page 0 carries the pack CAC, a page is sent about every 30 s
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      // Mux 0 has the low 6 bits zero in both layouts (bit 6 is checked in the decoder)
+      if ((rx_frame.data.u8[0] & 0x3F) == 0) {
+        tesla_decode_cac_frame(rx_frame, datalayer_tesla);
       }
       break;
     case 0x7AA:  //1962 HVP_debugMessage:
@@ -2987,6 +3167,7 @@ void TeslaBattery::setup(void) {  // Performs one time setup at startup
     default:
       break;
   }
+  fallback_total_capacity_Wh = datalayer_battery->info.total_capacity_Wh;
 
   //IF 3 / Y
   if (user_selected_battery_type == BatteryType::TeslaModel3Y) {

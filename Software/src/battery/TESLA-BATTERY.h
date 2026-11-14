@@ -5,6 +5,20 @@
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
+// Little-endian (Intel) signal from an 8 byte CAN payload: start bit and length as in a DBC "start|len@1+"
+inline uint32_t tesla_le_bits(const uint8_t* data, uint8_t start_bit, uint8_t length) {
+  uint64_t raw = 0;
+  for (int i = 7; i >= 0; i--) {
+    raw = (raw << 8) | data[i];
+  }
+  return (uint32_t)((raw >> start_bit) & ((1ULL << length) - 1ULL));
+}
+
+// A pack CAC (0.1 Ah) is plausible when it is 20.0 to 400.0 Ah and min <= avg <= max (3/Y 0x3B2 and S/X 0x7E2)
+inline bool tesla_cac_plausible(uint32_t min_x10, uint32_t avg_x10, uint32_t max_x10) {
+  return min_x10 >= 200 && min_x10 <= avg_x10 && avg_x10 <= max_x10 && max_x10 <= 4000;
+}
+
 // 0x7FF gateway config, "Gen3" vehicles only, not applicable to Gen2 "classic" Model S and Model X
 // These are user configurable from the Webserver UI
 extern bool user_selected_tesla_digital_HVIL;
@@ -53,11 +67,81 @@ class TeslaBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
+  // Beginning of life energy (SOH estimate reference): 0x392 mux 1 (new fw) wins over 0x292 (legacy fw, reads 0 or 0.1
+  // kWh on some firmware). The source is sticky: it depends only on the pack firmware, so once 0x392 mux 1 has given a
+  // plausible value a later 0x292 value is never used. Source 0 = unavailable.
+  // A raw 1023 in a 10 bit energy field (0x292, 0x392, legacy 0x382) is "not available".
+  static constexpr uint8_t SohReferenceLegacyFw = 1;
+  static constexpr uint8_t SohReferenceNewFw = 2;
+  // Plausible nominal pack energy (full, when new): 38.0 to 150.0 kWh, in 0.1 kWh. Even a garbage pair at the two limits
+  // gives 38.0 / 150.0 = 25.3 %, above the 25 % EVENT_SOH_LOW (ERROR) limit. Real packs are 54 to 100 kWh.
+  static constexpr uint16_t EnergyMin_x10 = 380;
+  static constexpr uint16_t EnergyMax_x10 = 1500;
+  static constexpr bool energy_x10_plausible(uint16_t x10) { return x10 >= EnergyMin_x10 && x10 <= EnergyMax_x10; }
+  static constexpr bool energy_x10_plausible_10bit(uint16_t x10) { return energy_x10_plausible(x10) && x10 != 1023; }
+  // The nominal full pack energy is not available for short bursts (the S/X pack sends 1023 for about 5 s): the last
+  // plausible value is held for EnergyHold_s seconds, then it is unknown (0): SOH 99 % and remaining Wh from the
+  // configured capacity. Called once a second (update_values).
+  static constexpr uint16_t EnergyHold_s = 30;
+  // The hold counters count update_values() calls (1 Hz, not millis()).
+  struct EnergyHold {
+    uint32_t value = 0;  // held value (0.1 kWh for the nominal full energy, Wh for the remaining), 0 = unknown
+    uint16_t seconds_not_plausible = 0;
+  };
+  static void hold_energy(EnergyHold& hold, uint32_t received, bool plausible);
+  // The UI SOC the inverter gets, shared by the 3/Y and the S/X. The pack sends 1023 (not available) now and then: the
+  // last valid UI SOC is held, for SocHoldLimit_s (30 minutes). After that the SOC is cleared (0, remaining capacity 0),
+  // there is no fallback: the brick SOC and the energies are not the UI SOC. EVENT_SOC_UNAVAILABLE (a WARNING) is raised
+  // after SocUnavailableDelay_s without a valid UI SOC. The counters count update() calls and only while the pack is on
+  // the bus (CAN_battery_still_alive > 0): if the CAN bus dies they freeze and the last SOC stays, EVENT_CAN_RX_FAILURE
+  // covers that case.
+  struct SocHold {
+    static constexpr uint16_t SocHoldLimit_s = 30 * 60;
+    static constexpr uint16_t SocUnavailableDelay_s = 30;
+    uint16_t soc_ui = 0;   // the held UI SOC, 0.1 %: the last valid one (or the initial SOC min)
+    bool expired = false;  // no SOC for SocHoldLimit_s
+    // On every SOC frame, the 10 bit UI SOC and SOC min in 0.1 %, 1023 = not available. SOC min is only the initial SOC
+    // until a valid UI SOC was seen: 0 would zero the discharge limit (battery empty) at startup.
+    void on_frame(uint16_t soc_ui_x10, uint16_t soc_min_x10);
+    // Once a second (update_values)
+    void update(bool pack_on_bus, uint8_t battery_index);
+    uint16_t real_soc() const { return expired ? 0 : soc_ui * 10; }  // 0.01 %
+
+   private:
+    bool ui_seen = false;              // a valid UI SOC was received at least once
+    bool ui_fresh = false;             // a valid UI SOC was received since the last update()
+    bool any_fresh = false;            // a SOC (the UI SOC, or the initial SOC min) was received since then
+    uint16_t seconds_without_soc = 0;  // no valid UI SOC (EVENT_SOC_UNAVAILABLE)
+    uint16_t seconds_held = 0;         // no SOC at all, the held SOC is cleared after SocHoldLimit_s
+  };
+  // An SOH estimate above 101.00 % (0.01 %) is not credible: unknown. 100.00-101.00 % is sent as 100.00 %.
+  static constexpr uint32_t SohEstimateMax_pptt = 10100;
+  // SOH sent to the inverter (soh_pptt, 0.01 %) = nominal_full_x10 * 10000 / beginning_of_life_x10, both in 0.1 kWh:
+  // 72.1 kWh over 85.0 kWh is 8482 = 84.82 %. When it cannot be calculated the inverter gets 99 % as on master
+  // (soh_available stays true, only the web card says unknown). Returns whether the estimate could be calculated.
+  static bool apply_soh_estimate(DATALAYER_BATTERY_STATUS_TYPE& status, uint32_t nominal_full_x10,
+                                 uint32_t beginning_of_life_x10);
+  // The nominal remaining energy (Wh, 0 = unknown) is plausible when above 0 and not above the nominal full energy (0.1
+  // kWh, 0 = unknown) plus one 0.1 kWh LSB (the full energy is rounded to 0.1 kWh from 0.02 kWh counts). 0 is not
+  // accepted: a pack that was not received yet reads 0, and with a real 0 kWh the SOC x full fallback is 0 too.
+  static constexpr bool nominal_remaining_plausible(uint32_t remaining_Wh, uint32_t nominal_full_x10) {
+    return remaining_Wh > 0 && nominal_full_x10 > 0 && remaining_Wh <= nominal_full_x10 * 100 + 100;
+  }
+  // Remaining Wh = the pack's nominal remaining energy (already in Wh) when plausible (the nominal full energy must be
+  // known). Else real_soc / 10000 (0.01 % -> fraction) x nominal_full_x10 * 100 (0.1 kWh -> Wh), 27.10 % of 72.1 kWh
+  // is 19539 Wh. OBSOLETE fallback: SOC x total_capacity_Wh when the full energy is not known.
+  static uint32_t remaining_Wh(uint16_t real_soc, uint32_t nominal_full_x10, uint32_t nominal_remaining_Wh,
+                               uint32_t total_capacity_Wh);
+
   static constexpr const char* NameSX = "Tesla Model S/X";
   static constexpr const char* Name3Y = "Tesla Model 3/Y";
 
  private:
   TeslaHtmlRenderer renderer;
+
+  // OBSOLETE fallback: total capacity from the user selected GTW pack energy (50/74/62/100 kWh), set once in setup().
+  // Used only when the pack reports no plausible capacity when new (0x392/0x292, legacy S/X packs report none).
+  uint32_t fallback_total_capacity_Wh = 0;
 
   // Per-instance extended data for the "More Battery Info" webserver page.
   // Points at datalayer_extended.tesla for the main battery, or datalayer_extended.tesla_2
@@ -542,8 +626,14 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_ideal_energy_remaining_m0 = 0;     // kWh
   uint16_t battery_nominal_energy_remaining = 0;      // kWh
   uint16_t battery_nominal_energy_remaining_m0 = 0;   // kWh
-  uint16_t battery_nominal_full_pack_energy = 0;      // Kwh
-  uint16_t battery_nominal_full_pack_energy_m0 = 0;   // Kwh
+  bool nominal_remaining_seen = false;                // 0x352 without mux received
+  bool nominal_remaining_m0_seen = false;             // 0x352 mux 0 received
+  bool bol_0x292_seen = false;
+  bool bol_0x392_seen = false;
+  uint16_t battery_nominal_full_pack_energy = 0;     // Kwh
+  uint16_t battery_nominal_full_pack_energy_m0 = 0;  // Kwh
+  EnergyHold nominal_full_hold;                      // the value used for SOH and remaining Wh
+  EnergyHold nominal_remaining_hold;                 // Wh, the value used for remaining Wh
   //0x132 306 HVBattAmpVolt
   uint16_t battery_volts = 0;                  // V
   int16_t battery_amps = 0;                    // A
@@ -569,11 +659,17 @@ class TeslaBattery : public CanBattery {
   uint16_t battery_dcdcLvBusVolt = 0;       // 10 mV
   int16_t battery_dcdcLvOutputCurrent = 0;  // 0.1 A
   //0x292: 658 BMS_socStatus
-  uint16_t battery_beginning_of_life = 0;  // kWh
-  uint16_t battery_soc_min = 0;
-  uint16_t battery_soc_max = 0;
-  uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui
-  uint16_t battery_soc_ave = 0;
+  bool battery_temp_seen = false;                // 0x332 mux 0 (thermistor min/max) received
+  uint16_t battery_beginning_of_life = 0;        // 0.1 kWh, from 0x392 mux 1 else 0x292 (0 = unavailable)
+  uint8_t battery_beginning_of_life_source = 0;  // 0 = unavailable, SohReferenceLegacyFw or SohReferenceNewFw
+  uint16_t bol_0x292_x10 = 0;  // raw capacity when new of 0x292 and 0x392 mux 1, 0.1 kWh (detail page)
+  uint16_t bol_0x392_x10 = 0;
+  // Raw 0x292 SOC fields, 0.1 %, 1023 = not available / not received yet. The detail page shows them as received
+  uint16_t battery_soc_min = 1023;
+  uint16_t battery_soc_max = 1023;
+  uint16_t battery_soc_ui_raw = 1023;  // live UI SOC
+  uint16_t battery_soc_ave = 1023;
+  SocHold soc_hold;  // the held UI SOC for the inverter
   uint8_t battery_battTempPct = 0;
   //0x392: BMS_packConfig
   uint32_t battery_packMass = 0;

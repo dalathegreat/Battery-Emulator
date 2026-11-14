@@ -2,8 +2,10 @@
 #include <cstdint>
 #include <cstring>  //For unit test
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
+#include "TESLA-BATTERY.h"
 
 /* `index` is the BMS state code, `battery` the pack this driver instance drives: the
    contactor events it raises have to name the pack, and a free function has no
@@ -97,26 +99,46 @@ void TeslaLegacyBattery::update_values() {
       break;
   }
 
-  datalayer.battery.status.soh_pptt = BMS_CAC_min / 2316;  // uitgelezen minimale CAC / CAC bij nieuw (231,6 Ah)
-
-  datalayer.battery.status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
+  soc_hold.update(datalayer.battery.status.CAN_battery_still_alive > 0, battery_index);
+  datalayer.battery.status.real_soc = soc_hold.real_soc();  //SOC range 0-100.0 -> 100.00
 
   datalayer.battery.status.voltage_dV = (battery_volts * 10);  //One more decimal needed (370 -> 3700)
 
   datalayer.battery.status.current_dA = (battery_amps * 10);  //13.0A
 
-  //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  TeslaBattery::hold_energy(nominal_full_hold, nominal_full_x10_received,
+                            TeslaBattery::energy_x10_plausible_10bit(nominal_full_x10_received));
+  datalayer_extended.tesla.nominal_full_held_x10 = nominal_full_hold.value;
+
+  // Nominal energy remaining in Wh, SNA (0x7FF) and 0 (not received yet) are 0 = no data
+  const uint32_t received_remaining_Wh =
+      nominal_remaining_x10_received >= 0x7FF ? 0 : nominal_remaining_x10_received * 100UL;
+  TeslaBattery::hold_energy(nominal_remaining_hold, received_remaining_Wh,
+                            TeslaBattery::nominal_remaining_plausible(received_remaining_Wh, nominal_full_hold.value));
+  datalayer.battery.status.remaining_capacity_Wh =
+      soc_hold.expired
+          ? 0
+          : TeslaBattery::remaining_Wh(datalayer.battery.status.real_soc, nominal_full_hold.value,
+                                       nominal_remaining_hold.value, datalayer.battery.info.total_capacity_Wh);
+
+  // SOH estimate as on the 3/Y, but the reference is the capacity configured for the hardware ID, not the real capacity
+  // when new: a new 85 kWh pack reading 81 kWh nominal shows 95 %. TODO(tesla): read the capacity when new from the pack.
+  // Set on every cycle, as total_capacity_Wh follows the hardware ID. Until the ID arrives it is the 30 kWh default
+  // (the detail page shows it as the capacity when new). Any plausible energy (38.0 kWh and up) over 30 kWh is above
+  // 101 %, so the SOH is unknown (the inverter gets 99 %) until the ID arrives.
+  datalayer_extended.tesla.battery_beginning_of_life = datalayer.battery.info.total_capacity_Wh / 100;  // 0.1 kWh
+  datalayer_extended.tesla.soh_estimate_known = TeslaBattery::apply_soh_estimate(
+      datalayer.battery.status, nominal_full_hold.value, datalayer_extended.tesla.battery_beginning_of_life);
 
   datalayer.battery.status.max_charge_power_W = (datalayer.battery.status.voltage_dV * battery_max_charge_current) / 10;
 
   datalayer.battery.status.max_discharge_power_W =
       (datalayer.battery.status.voltage_dV * battery_max_discharge_current) / 10;
 
-  datalayer.battery.status.temperature_min_dC = (battery_BrickModelTMin * 10);
+  // TODO(tesla): this is 0.0 degC until the first 0x332 frame arrives (temperature_seen), better show N/A if possible
+  datalayer.battery.status.temperature_min_dC = battery_BrickModelTMin;
 
-  datalayer.battery.status.temperature_max_dC = (battery_BrickModelTMax * 10);
+  datalayer.battery.status.temperature_max_dC = battery_BrickModelTMax;
 
   datalayer.battery.status.cell_max_voltage_mV = battery_BrickVoltageMax;
 
@@ -161,10 +183,30 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       int16_t raw_amps = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];
       battery_amps = raw_amps * 0.1;  // 16|16@1- (0.1,0) [-3276.7|3276.7] "A"
     } break;
-    case 0x7E2:  // read CACmin to determine SOH
+    case 0x7E2:  // CAC (page 0) and brick SOC (page 7), web page only
     {
       if (rx_frame.data.u8[0] == 0) {
-        BMS_CAC_min = (((rx_frame.data.u8[2] >> 4) & 0x0F) | ((rx_frame.data.u8[3]) << 4)) * 10000;
+        // CAC avg (bit 8), min (bit 20), max (bit 32), 12 bits in 0.1 Ah. The detail page shows them raw, the calculated
+        // values use them when plausible (tesla_cac_plausible).
+        const uint16_t cac_avg_x10 = tesla_le_bits(rx_frame.data.u8, 8, 12);
+        const uint16_t cac_min_x10 = tesla_le_bits(rx_frame.data.u8, 20, 12);
+        const uint16_t cac_max_x10 = tesla_le_bits(rx_frame.data.u8, 32, 12);
+        datalayer_extended.tesla.cac_raw_seen[0] = true;
+        datalayer_extended.tesla.cac_raw_avg_x10[0] = cac_avg_x10;
+        datalayer_extended.tesla.cac_raw_min_x10[0] = cac_min_x10;
+        datalayer_extended.tesla.cac_raw_max_x10[0] = cac_max_x10;
+        if (tesla_cac_plausible(cac_min_x10, cac_avg_x10, cac_max_x10)) {
+          datalayer_extended.tesla.cac_min_x10 = cac_min_x10;
+          datalayer_extended.tesla.cac_avg_x10 = cac_avg_x10;
+          datalayer_extended.tesla.cac_max_x10 = cac_max_x10;
+          datalayer_extended.tesla.cac_valid = true;
+        }
+      }
+      if (rx_frame.data.u8[0] == 7) {
+        // Page 7: brick SOC max (bit 8) and min (bit 18), 10 bits, 0.1 %, 1023 = n/a. Same fields as the 3/Y, raw
+        // (the calculated values validate them).
+        datalayer_extended.tesla.battery_soc_max = tesla_le_bits(rx_frame.data.u8, 8, 10);
+        datalayer_extended.tesla.battery_soc_min = tesla_le_bits(rx_frame.data.u8, 18, 10);
       }
     } break;
     case 0x3D2:  //TotalChargeDischarge:
@@ -177,11 +219,12 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x332:  //min/max hist values //BattBrickMinMax:
       cellvoltagesRead = true;
+      datalayer_extended.tesla.temperature_seen = true;  // the calculated values show N/A until this frame arrives
 
       battery_BrickVoltageMax = (((rx_frame.data.u8[1] & (0x0F)) << 8) | (rx_frame.data.u8[0])) * 2;
       battery_BrickVoltageMin = (((rx_frame.data.u8[5] & (0x0F)) << 8) | (rx_frame.data.u8[4])) * 2;
-      battery_BrickModelTMax = ((rx_frame.data.u8[3] * 0.5) - 40);
-      battery_BrickModelTMin = ((rx_frame.data.u8[7] * 0.5) - 40);
+      battery_BrickModelTMax = rx_frame.data.u8[3] * 5 - 400;  // 0.5 C per count, offset -40 C, stored in 0.1 C
+      battery_BrickModelTMin = rx_frame.data.u8[7] * 5 - 400;
       break;
     case 0x5D2:
       if (rx_frame.data.u8[0] == 0x0A) {
@@ -243,8 +286,30 @@ void TeslaLegacyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
     case 0x302:                                                            // BMS_socStatus (Nieuwe CAN-ID)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
-      battery_soc_ui = ((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0];  // 0|10@1+ (0.1,0) [0|102.2] "%"
+      {
+        // 10 bit fields in 0.1 %: SOC min (bit 0), SOC UI (bit 10), 1023 = n/a (the last SOC is held). SOC min is only
+        // the initial SOC until a valid UI SOC was seen: 0 would zero the discharge limit at startup.
+        const uint16_t soc_min_x10 = tesla_le_bits(rx_frame.data.u8, 0, 10);
+        const uint16_t soc_ui_x10 = tesla_le_bits(rx_frame.data.u8, 10, 10);
+        datalayer_extended.tesla.battery_soc_min_0x302 = soc_min_x10;  // raw, detail page
+        datalayer_extended.tesla.battery_soc_ui = soc_ui_x10;          // raw (live), the held one is soc_hold
+        soc_hold.on_frame(soc_ui_x10, soc_min_x10);
+      }
       break;
+    case 0x382:  // Nominal full pack energy, bits 0-9 in 0.1 kWh, the SOH estimate input (3/Y field)
+    {
+      // The pack sends 1023 for about 5 s while it is not available: update_values() holds the last plausible value.
+      // FIXME(tesla): the field may be 11 bits wide (the remaining energy next to it is), then a pack of 102.4 kWh or
+      // more reads wrong here. Check on a real S/X capture, there is no 0x382 in our 3/Y log.
+      nominal_full_x10_received = tesla_le_bits(rx_frame.data.u8, 0, 10);
+      datalayer_extended.tesla.nominal_0x382_seen = true;
+      datalayer_extended.tesla.battery_nominal_full_pack_energy = nominal_full_x10_received;  // raw, detail page
+      // Nominal energy remaining, bit 11, 11 bits, 0.1 kWh (used for the remaining capacity). Layout measured on a real
+      // 2012-2020 S/X pack (RealNominal in TeslaLegacyBatteryTest.cpp), like the pre-2021 3/Y 0x352. The public 10 bit
+      // layout (wk057) differs and is not detected.
+      nominal_remaining_x10_received = tesla_le_bits(rx_frame.data.u8, 11, 11);
+      datalayer_extended.tesla.battery_nominal_energy_remaining = nominal_remaining_x10_received;  // raw, detail page
+    } break;
     case 0x612: {
       uint8_t service = rx_frame.data.u8[1];
       bms_uds_response = service;
@@ -449,4 +514,9 @@ void TeslaLegacyBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+  // Raw SOC fields: 1023 = not received yet (the detail page shows N/A)
+  datalayer_extended.tesla.battery_soc_ui = 1023;
+  datalayer_extended.tesla.battery_soc_min_0x302 = 1023;
+  datalayer_extended.tesla.battery_soc_min = 1023;
+  datalayer_extended.tesla.battery_soc_max = 1023;
 }
