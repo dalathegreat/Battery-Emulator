@@ -13,6 +13,7 @@
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
+#include "src/inverter/FRONIUS-GENERIC-STORAGE.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/shunt/QNHCK2-16.h"
 #include "src/shunt/Shunt.h"
@@ -1101,6 +1102,30 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("INVACCREB") ? "checked" : "";
   }
 
+  if (var == "FRONIUSISO") {
+    return settings.getBool("FRONIUSISO") ? "checked" : "";
+  }
+
+  if (var == "FGSINV" || var == "FGSMODE") {
+    // Live values of the running Fronius Generic Storage driver. The protocol picked in the form
+    // only takes effect after a reboot, so the driver in memory is the one stored at boot.
+    if (!inverter || user_selected_inverter_protocol != InverterProtocolType::FroniusGenericStorage) {
+      return "-";
+    }
+    const FroniusGenericStorageInverter* fronius = static_cast<FroniusGenericStorageInverter*>(inverter);
+    if (var == "FGSMODE") {
+      const uint16_t mode = fronius->requested_mode();
+      if (mode == FroniusGenericStorageInverter::MODE_NO_REQUEST) {
+        return "not yet received";
+      }
+      return String(FroniusGenericStorageInverter::mode_name(mode)) + " (" + String(mode) + ")";
+    }
+    if (fronius->inverter_name()[0] == 0 && fronius->inverter_firmware()[0] == 0) {
+      return "not yet received";
+    }
+    return String(fronius->inverter_name()) + ", firmware " + String(fronius->inverter_firmware());
+  }
+
   if (var == "INVWDT") {
     // Not editable: the value comes from the inverter (register 402) and is only kept in NVM so it
     // survives a reboot. "(default)" marks the value we start from when no inverter has changed it.
@@ -1797,7 +1822,13 @@ String qnhck_zero_text(uint16_t zero_mV) {
     }
 
     form .if-bydmodbus { display: none; }
-    form[data-inverter="3"] .if-bydmodbus {
+    form[data-inverter="3"] .if-bydmodbus,
+    form[data-inverter="26"] .if-bydmodbus {
+      display: contents;
+    }
+
+    form .if-froniusgs { display: none; }
+    form[data-inverter="26"] .if-froniusgs {
       display: contents;
     }
 
@@ -2272,6 +2303,15 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <label>Inverter time (UTC): </label><span class='settings-value' id='invutc'>%INVUTC%</span>
         </div>
 
+        <div class="if-froniusgs">
+        <label>Include battery in insulation test: </label>
+        <input type='checkbox' name='FRONIUSISO' value='on' %FRONIUSISO% />
+
+        <label>Inverter: </label><span class='settings-value'>%FGSINV%</span>
+
+        <label>Requested operating mode: </label><span class='settings-value'>%FGSMODE%</span>
+        </div>
+
         <div class="if-pylonish">
         <label>Reported cell count (0 for default): </label>
         <input name='INVCELLS' type='text' value="%INVCELLS%" pattern="[0-9]+" />
@@ -2314,7 +2354,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
         <select name='INVSUNTYPE'>%SUNGROW_MODEL%</select>
         </div>
         
-        <div class="if-kostal if-solax">
+        <div class="if-kostal if-solax if-froniusgs">
         <label>Inverter Contactor Workaround: </label>
         <select name='INVICNT'>
           %INVICNT%

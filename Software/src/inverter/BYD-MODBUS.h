@@ -11,23 +11,29 @@ class BydModbusInverter : public ModbusInverterProtocol {
    * else alone: colder than -20 C is a fault, not weather. Pure, so it can be tested directly */
   static int16_t clamp_cold_temperature(int16_t temperature_dC);
 
-  BydModbusInverter() : ModbusInverterProtocol(21) {}
+  // control_block is the first register of the ControlData block the inverter writes: 400 in
+  // GenericStorage v1, which this driver speaks, and 500 from v2 on (Fronius Generic Storage)
+  explicit BydModbusInverter(uint16_t control_block = 400) : ModbusInverterProtocol(21), control_block(control_block) {}
   const char* name() override { return Name; }
   bool setup() override;
-  void update_values();
+  void update_values() override;
   static constexpr const char* Name = "BYD HVS/HVM over Modbus";
 
- private:
-  void handle_static_data();
+ protected:
+  // Fills the registers that never change. Called once from setup()
+  virtual void handle_static_data();
   void verify_temperature();
   // What this inverter reports, after the cold-weather cap. Kept here rather than written back
   // into the datalayer, which every other consumer reads.
   int16_t reported_temperature_min_dC = 0;
   int16_t reported_temperature_max_dC = 0;
   void verify_inverter_modbus();
-  // Consumes the ControlData block the inverter writes: WatchDogTimeout (402), UTC (403-406)
-  // and RebootCommand (407)
+  // Consumes the ControlData block the inverter writes: WatchDogTimeout (+2), UTC (+3 to +6),
+  // RebootCommand (+7) and DarkstartEnable (+8), counted from control_block
   void handle_inverter_control_data();
+  const uint16_t control_block;
+
+ private:
   void handle_update_data_modbusp201_byd();
   void handle_update_data_modbusp301_byd();
   int16_t byd_power_W();

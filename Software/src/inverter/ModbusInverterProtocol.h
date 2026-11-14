@@ -22,6 +22,8 @@ class ModbusInverterProtocol : public InverterProtocol {
   // Sets the one-shot "inverter detected" event on the first valid request from the inverter
   void notify_inverter_communication();
   bool inverter_detected = false;
+  // millis() of the last valid request. Only meaningful once inverter_detected is set
+  volatile uint32_t last_request_ms = 0;
 
   ModbusMessage FC03(ModbusMessage request);
   ModbusMessage FC06(ModbusMessage request);
