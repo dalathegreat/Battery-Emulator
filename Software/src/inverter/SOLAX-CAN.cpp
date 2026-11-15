@@ -25,6 +25,14 @@ void SolaxInverter::update_values() {
   //Calculate the required values
   temperature_average = ((datalayer.aggregate.temperature_max_dC + datalayer.aggregate.temperature_min_dC) / 2);
 
+  // The inverter won't close contactors for a pack reporting 0A discharge
+  uint16_t max_discharge_current_dA = datalayer.aggregate.max_discharge_current_dA;
+  if (max_discharge_current_dA == 0 && (STATE != CONTACTOR_CLOSED || !datalayer.system.status.dc_bus_live) &&
+      configured_contactor_mode != inverter_contactor_mode_enum::AlwaysClosed &&
+      !datalayer.system.info.equipment_stop_active && datalayer.system.status.system_status != FAULT) {
+    max_discharge_current_dA = ANNOUNCE_DISCHARGE_dA;
+  }
+
   //Put the values into the CAN messages
   //BMS_Limits
   SOLAX_1872.data.u8[0] = (uint8_t)datalayer.aggregate.max_design_voltage_dV;
@@ -33,8 +41,8 @@ void SolaxInverter::update_values() {
   SOLAX_1872.data.u8[3] = (datalayer.aggregate.min_design_voltage_dV >> 8);
   SOLAX_1872.data.u8[4] = (uint8_t)datalayer.aggregate.max_charge_current_dA;
   SOLAX_1872.data.u8[5] = (datalayer.aggregate.max_charge_current_dA >> 8);
-  SOLAX_1872.data.u8[6] = (uint8_t)datalayer.aggregate.max_discharge_current_dA;
-  SOLAX_1872.data.u8[7] = (datalayer.aggregate.max_discharge_current_dA >> 8);
+  SOLAX_1872.data.u8[6] = (uint8_t)max_discharge_current_dA;
+  SOLAX_1872.data.u8[7] = (max_discharge_current_dA >> 8);
 
   //BMS_PackData
   SOLAX_1873.data.u8[0] = (uint8_t)datalayer.aggregate.voltage_dV;  // OK
@@ -103,8 +111,12 @@ void SolaxInverter::update_values() {
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.aggregate.voltage_dV);
-  SOLAX_1878.data.u8[1] = ((datalayer.aggregate.voltage_dV) >> 8);
+  // X1-AC/X1-Fit Gen3 Manager firmware reads 0x1878 byte0 as a field count and, when non-zero,
+  // byte1 as the BMS minimum SOC, which the DSP enforces as a floor on Min Capacity. Sending the
+  // pack voltage here made that floor voltage>>8 (13/14/15 % at 333/358/384 V). Send a fixed
+  // count (7 = keep parsing the capacity in bytes 4-7) and the inverter's own default minimum.
+  SOLAX_1878.data.u8[0] = 7;
+  SOLAX_1878.data.u8[1] = 10;
 
   SOLAX_1878.data.u8[4] = (uint8_t)datalayer.aggregate.reported_total_capacity_Wh;
   SOLAX_1878.data.u8[5] = (datalayer.aggregate.reported_total_capacity_Wh >> 8);
@@ -129,18 +141,36 @@ void SolaxInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-// Write 7 uppercase hex ASCII chars (D2..D8) from eFuse MAC, slot index, and frame half (0=1881, 1=1882).
+// Build the battery serial reported in frames 0x1881 / 0x1882.
+//
+// The X3-Hybrid G4 manual shows the LCD line as "BatBrand: BAK 6S012345012345", i.e. brand
+// plus a 14 character serial that begins "6S". The upstream comments show the same shape from
+// a real capture: 0x1881 "6SBMSFA", 0x1882 "23AB052".
+//
+// The previous generator emitted pure hex derived from the eFuse MAC, which can never produce
+// that prefix - 'S' is not a hex digit - so the serial was unparseable and BatBrand read "NA".
+// Now: "6S" plus 12 digits from the MAC, so it is well formed, stable across reboots and
+// unique per board. 0x1881 carries characters 1-7 and 0x1882 characters 8-14.
 void solax_pack_identity_ascii(const uint8_t mac[6], uint8_t slot, uint8_t half, uint8_t out[7]) {
-  static const char hex[] = "0123456789ABCDEF";
-  uint8_t mix[4] = {
-      (uint8_t)(mac[0] ^ slot ^ (half * 0x11u)),
-      (uint8_t)(mac[1] ^ slot ^ (half * 0x22u)),
-      (uint8_t)(mac[2] ^ slot ^ (half * 0x33u)),
-      (uint8_t)(mac[3] ^ slot ^ (half * 0x44u)),
-  };
+  char serial[14];
+  serial[0] = '6';
+  serial[1] = 'S';
+
+  uint32_t seed = ((uint32_t)mac[0] << 24) | ((uint32_t)mac[1] << 16) | ((uint32_t)mac[2] << 8) | (uint32_t)mac[3];
+  seed ^= (((uint32_t)mac[4] << 8) | (uint32_t)mac[5]);
+  seed += (uint32_t)slot * 7919u;
+
+  for (int i = 2; i < 14; i++) {
+    if (seed == 0) {
+      seed = 2166136261u + (uint32_t)mac[i % 6] * 16777619u + (uint32_t)slot + (uint32_t)i;
+    }
+    serial[i] = (char)('0' + (char)(seed % 10u));
+    seed /= 10u;
+  }
+
+  const int base = half ? 7 : 0;
   for (int i = 0; i < 7; i++) {
-    uint8_t b = mix[i >> 1];
-    out[i] = hex[(b >> ((1 - (i & 1)) * 4)) & 0x0F];
+    out[i] = (uint8_t)serial[base + i];
   }
 }
 
@@ -177,7 +207,6 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
         case (BATTERY_ANNOUNCE):
           if (print_state)
             logging.println("[Solax]: Announce");
-          datalayer.system.status.inverter_allows_contactor_closing = false;
           SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
           for (uint8_t i = 0; i < number_of_batteries; i++) {
             transmit_can_frame(&SOLAX_187E);
@@ -211,6 +240,7 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           transmit_can_frame(&SOLAX_1877);
           transmit_can_frame(&SOLAX_1878);
           transmit_can_frame(&SOLAX_1801);  // Announce that the battery will be connected
+          bus_watch = BUS_WAIT_LIVE;        // The pack is not closed yet, whatever the state machine says
           STATE = CONTACTOR_CLOSED;         // Jump to Contactor Closed State
           break;
 
@@ -218,7 +248,8 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           if (print_state)
             logging.println("[Solax]: Contactor closed");
           datalayer.system.status.inverter_allows_contactor_closing = true;
-          SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
+          SOLAX_1875.data.u8[4] =
+              datalayer.system.status.dc_bus_live ? 0x01 : 0x00;  // Inform Inverter: Contactor 0=off, 1=on.
           transmit_can_frame(&SOLAX_187E);
           transmit_can_frame(&SOLAX_187A);
           transmit_can_frame(&SOLAX_1872);
@@ -234,6 +265,16 @@ void SolaxInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
           if (rx_frame.data.u64 == Contactor_Open_Payload &&
               configured_contactor_mode == inverter_contactor_mode_enum::NoWorkaround) {
             set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
+            datalayer.system.status.inverter_allows_contactor_closing = false;
+            STATE = BATTERY_ANNOUNCE;
+          }
+          // Replay the handshake once the battery has closed its contactors.
+          if (bus_watch == BUS_WAIT_LIVE && datalayer.system.status.dc_bus_live) {
+            bus_watch = BUS_LIVE;
+          } else if (bus_watch == BUS_LIVE && !datalayer.system.status.dc_bus_live) {
+            bus_watch = BUS_DROPPED;
+          } else if (bus_watch == BUS_DROPPED && datalayer.system.status.dc_bus_live) {
+            logging.println("[Solax]: Battery reconnected, replaying announce");
             STATE = BATTERY_ANNOUNCE;
           }
           break;

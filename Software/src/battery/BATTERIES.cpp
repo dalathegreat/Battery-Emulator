@@ -261,6 +261,15 @@ bool request_byd_cell_balance_times(uint8_t index) {
   return target && target->request_cell_balance_times();
 }
 
+bool set_byd_cell_balance_automation(uint8_t index, bool enabled) {
+  BydAttoBattery* target = byd_battery_at(index);
+  if (!target) {
+    return false;
+  }
+  target->set_cell_balance_automation(enabled);
+  return true;
+}
+
 String byd_cell_balance_times_json(uint8_t index) {
   BydAttoBattery* target = byd_battery_at(index);
   return target ? target->cell_balance_times_json() : String();
@@ -406,6 +415,7 @@ bool battery_supports_double(BatteryType type) {
     case BatteryType::BydAtto3:
     case BatteryType::NissanLeaf:
     case BatteryType::BmwI3:
+    case BatteryType::BmwIX:
     case BatteryType::CmfaEv:
     case BatteryType::CmpSmartCar:
     case BatteryType::StellantisEcmp:
@@ -451,6 +461,7 @@ bool battery_detects_capacity(BatteryType type) {
     case BatteryType::BmwIX:
     case BatteryType::BmwPhev:
     case BatteryType::BoltAmpera:
+    case BatteryType::BydAtto3:
     case BatteryType::BYDBatteryBoxPremium:
     case BatteryType::Chademo:
     case BatteryType::ChargebyteCCSBattery:
@@ -489,16 +500,50 @@ bool battery_detects_capacity(BatteryType type) {
   }
 }
 
+// The integrations that use the "Battery chemistry" setting. Keep in sync with the
+// drivers: list one whose limits depend on info.chemistry, or whose pack may be LFP
+// or not while its driver never sets info.chemistry. A driver for a pack that is
+// always LFP declares that in setup() instead of being listed here.
+bool battery_supports_chemistry_selection(BatteryType type) {
+  switch (type) {
+    // Voltage limits switch between LFP and other chemistries
+    case BatteryType::GeelySea:
+    case BatteryType::MgGen1:
+    case BatteryType::TeslaModel3Y:
+    // The chemistry of the pack behind it is unknown to the integration
+    case BatteryType::CellPowerBms:
+    case BatteryType::Chademo:
+    case BatteryType::ChargebyteCCSBattery:
+    case BatteryType::DalyBms:
+    case BatteryType::EnnoidBMS:
+    case BatteryType::GrowattHvArk:
+    case BatteryType::OrionBms:
+    case BatteryType::Pylon:
+    case BatteryType::RjxzsBms:
+    case BatteryType::SimpBms:
+    case BatteryType::TestFake:
+    case BatteryType::ThunderstruckBMS:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void setup_battery() {
   if (battery) {
     // Let's not create the battery again.
     return;
   }
 
-  // Set the chemistry to the user selected value, the battery can override.
-  datalayer.battery.info.chemistry = user_selected_battery_chemistry;
-  datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
-  datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+  // Set the chemistry to the user selected value where the integration uses it, the
+  // battery can override. Elsewhere the selector is hidden: a value stored for another
+  // integration stays out, and the non-LFP default holds unless the driver declares
+  // the chemistry itself.
+  if (battery_supports_chemistry_selection(user_selected_battery_type)) {
+    datalayer.battery.info.chemistry = user_selected_battery_chemistry;
+    datalayer.battery2.info.chemistry = user_selected_battery_chemistry;
+    datalayer.battery3.info.chemistry = user_selected_battery_chemistry;
+  }
 
   battery = create_battery(user_selected_battery_type);
 
@@ -525,6 +570,9 @@ void setup_battery() {
           battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                       can_config.battery_double, esp32hal->WUP_PIN2());
           break;
+        case BatteryType::BmwIX:
+          battery2 = new BmwIXBattery(&datalayer.battery2, can_config.battery_double);
+          break;
         case BatteryType::CmfaEv:
           battery2 = new CmfaEvBattery(&datalayer.battery2, can_config.battery_double);
           break;
@@ -537,7 +585,7 @@ void setup_battery() {
         // Double only: needs a CAN-FD bus of its own, and only two exist.
         // See the comment on battery_supports_triple() above.
         case BatteryType::Kia64FD:
-          battery2 = new Kia64FDBattery(&datalayer.battery2, &datalayer_extended.Kia64FD_2, can_config.battery_double);
+          battery2 = new Kia64FDBattery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::KiaHyundai64:
           battery2 =
@@ -562,8 +610,7 @@ void setup_battery() {
           battery2 = new RenaultZoeGen1Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::RenaultZoe2:
-          battery2 =
-              new RenaultZoeGen2Battery(&datalayer.battery2, &datalayer_extended.zoePH2_2, can_config.battery_double);
+          battery2 = new RenaultZoeGen2Battery(&datalayer.battery2, can_config.battery_double);
           break;
         case BatteryType::TestFake:
           battery2 = new TestFakeBattery(&datalayer.battery2, can_config.battery_double);
@@ -627,7 +674,7 @@ void setup_battery() {
 
 /* User-selected Nissan LEAF settings */
 bool user_selected_LEAF_interlock_mandatory = false;
-uint8_t user_selected_LEAF_chg_sta_rq = 0;
+uint8_t user_selected_LEAF_chg_sta_rq[3] = {0, 0, 0};
 bool user_selected_LEAF_auto_current_offset = true;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;

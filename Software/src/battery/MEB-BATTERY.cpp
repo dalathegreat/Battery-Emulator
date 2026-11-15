@@ -1615,6 +1615,23 @@ void MebBattery::uds_response_handler(const uint8_t* data, int len, enum isotp_t
             }
           }
           break;
+        case PID_CELLVOLTAGE_CELL_105:
+          if (len < 5)
+            break;
+          tempval = ((data[3] << 8) | data[4]);
+          if (tempval != 0xFFE) {
+            cellvoltages_polled[104] = (tempval + 1000);
+          } else {  // Cell 105 unavailable. We have a 104S battery (unless already identified as 84S or 96S)
+            if (datalayer.battery.info.number_of_cells == 84 || datalayer.battery.info.number_of_cells == 96) {
+              // Do nothing, we already identified it
+            } else {
+              datalayer.battery.info.number_of_cells = 104;
+              nof_cells_determined = true;
+              datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_104S_DV;
+              datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_104S_DV;
+            }
+          }
+          break;
         case PID_CELLVOLTAGE_CELL_108:
           if (len < 5)
             break;

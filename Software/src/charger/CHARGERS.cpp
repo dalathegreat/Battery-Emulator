@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "CHARGERS.h"
 #include <vector>
 #include "CanCharger.h"
@@ -53,3 +54,4 @@ void setup_charger() {
       break;
   }
 }
+#endif  // SMALL_FLASH_DEVICE

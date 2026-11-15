@@ -733,9 +733,17 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  // ---- 10s group ----
+  // ---- 10s and 60s groups ----
+  // Only sent in the idle gap between 1s cycles, 20 ms clear of the last batch, and never
+  // together. Sending them independently could land a 9-24 frame burst on the same tick as
+  // a 19-frame batch and overflow the native CAN TX queue (EVENT_CAN_NATIVE_BUFFER_FULL).
+  if ((int32_t)(currentMillis - previousMillis1s) >= INTERVAL_1_S ||
+      (currentMillis - previousMillisBatch) < delay_between_batches_ms) {
+    return;
+  }
   if ((int32_t)(currentMillis - previousMillis10s) >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
+    previousMillisBatch = currentMillis;
     transmit_can_frame(&SUNGROW_707);
     transmit_can_frame(&SUNGROW_708_00);
     transmit_can_frame(&SUNGROW_708_01);
@@ -745,11 +753,9 @@ void SungrowInverter::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&SUNGROW_70B);
     transmit_can_frame(&SUNGROW_70D);
     transmit_can_frame(&SUNGROW_70E);
-  }
-
-  // ---- 60s group ----
-  if ((int32_t)(currentMillis - previousMillis60s) >= INTERVAL_60_S) {
+  } else if ((int32_t)(currentMillis - previousMillis60s) >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
+    previousMillisBatch = currentMillis;
     transmit_can_frame(&SUNGROW_71F_01_01);
     transmit_can_frame(&SUNGROW_71F_01_02);
     transmit_can_frame(&SUNGROW_71F_01_03);

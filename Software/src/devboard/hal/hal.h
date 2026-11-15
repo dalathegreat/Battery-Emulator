@@ -147,9 +147,10 @@ class Esp32Hal {
 
   // 2nd CANFD Interface: MCP2517/8
   virtual uint8_t MCP2517_BUS2() { return DEFAULT_MCP2517_BUS; }
-  virtual gpio_num_t MCP2517_SCK2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDI2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDO2() { return GPIO_NUM_NC; }
+  // If the second controller shares the first's bus it must use the same pins.
+  virtual gpio_num_t MCP2517_SCK2() { return MCP2517_BUS2() == MCP2517_BUS() ? MCP2517_SCK() : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_SDI2() { return MCP2517_BUS2() == MCP2517_BUS() ? MCP2517_SDI() : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_SDO2() { return MCP2517_BUS2() == MCP2517_BUS() ? MCP2517_SDO() : GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_NC; }
   virtual uint32_t MCP2517_FREQ2() { return 0; }  // 0 means unknown

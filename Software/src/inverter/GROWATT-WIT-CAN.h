@@ -39,7 +39,7 @@ class GrowattWitInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr const char* Name = "Growatt WIT compatible battery via CAN";
+  static constexpr const char* Name = "Growatt WIT over CAN";
 
  private:
   // Helper to extract FSN from 29-bit CAN ID

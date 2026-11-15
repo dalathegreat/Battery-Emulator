@@ -18,10 +18,12 @@
 // than on pin writes: those two are what the webserver, MQTT and the rest of
 // the firmware actually read, so they are the observable contract.
 
-namespace {
-
 // Mirrors the file-scope FSM in comm_contactorcontrol.cpp. Must match it.
+// File scope on purpose: an enum in an anonymous namespace has no linkage,
+// and then extern contactorStatus cannot name the variable in that file.
 enum SeqState { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
+
+namespace {
 
 // Values published in datalayer.system.status.contactors_engaged. Named here
 // because the production code writes the numbers inline.

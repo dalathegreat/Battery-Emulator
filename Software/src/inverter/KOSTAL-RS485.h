@@ -9,7 +9,7 @@ class KostalInverterProtocol : public Rs485InverterProtocol {
   bool setup() override;
   void receive();
   void update_values();
-  static constexpr const char* Name = "BYD battery via Kostal RS485";
+  static constexpr const char* Name = "BYD HVS/HVM via Kostal RS485";
 
  private:
   int baud_rate() { return 57600; }

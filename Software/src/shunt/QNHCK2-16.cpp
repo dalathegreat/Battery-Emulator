@@ -2,6 +2,7 @@
 
 #include "QNHCK2-16.h"
 #include <Arduino.h>
+#include <cmath>
 #include "../battery/BATTERIES.h"
 #include "../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../datalayer/datalayer.h"
@@ -62,10 +63,22 @@ int32_t qnhck_zero_drift_uV(int16_t tempco_uV_per_C, int16_t baseline_dC, int16_
   return (int32_t)tempco_uV_per_C * ((int32_t)now_dC - baseline_dC) / 10;
 }
 
-// A value in tenths with one decimal, for the log: a temperature in deci-°C, a drift in 0.1 mV
-static void format_tenths(char* text, size_t size, int32_t tenths) {
-  const int32_t magnitude = abs(tenths);
-  snprintf(text, size, "%s%ld.%ld", tenths < 0 ? "-" : "", (long)(magnitude / 10), (long)(magnitude % 10));
+int16_t qnhck_tempco_uV_per_C(float mV_per_C) {
+  if (std::isnan(mV_per_C)) {
+    return 0;
+  }
+  const float limit = QNHCK_MAX_TEMPCO_UV_PER_C / 1000.0f;
+  const float held = mV_per_C > limit ? limit : (mV_per_C < -limit ? -limit : mV_per_C);
+  return (int16_t)(lroundf(held * 100.0f) * 10);  // Two decimals: 10 uV/°C steps
+}
+
+// A fixed point value for the log with one or two decimals: a temperature in deci-°C, a drift in
+// hundredths of a mV
+static void format_fixed(char* text, size_t size, int32_t value, uint8_t decimals) {
+  const int32_t scale = (decimals == 2) ? 100 : 10;
+  const int32_t magnitude = abs(value);
+  snprintf(text, size, (decimals == 2) ? "%s%ld.%02ld" : "%s%ld.%01ld", value < 0 ? "-" : "", (long)(magnitude / scale),
+           (long)(magnitude % scale));
 }
 
 // The rated output the way the models are labelled: 0.625, 1, 1.25, 1.5 or 1.65
@@ -89,10 +102,11 @@ void Qnhck2_16Shunt::setup() {
   snprintf(datalayer.system.info.shunt_protocol, sizeof(datalayer.system.info.shunt_protocol), "QNHCK2-16 (%uA ±%sV)",
            (unsigned)qnhck_rated_current_A, output_V);
 
-  pin = esp32hal->SHUNT_ADC_PIN();
-  if (!esp32hal->alloc_pins(Name, pin)) {
-    return;  // alloc_pins() has raised the event that says why
+  const gpio_num_t adc_pin = esp32hal->SHUNT_ADC_PIN();
+  if (!esp32hal->alloc_pins(Name, adc_pin)) {
+    return;  // alloc_pins() has raised the event that says why. Nothing is sampled.
   }
+  pin = adc_pin;
   snprintf(interface_label, sizeof(interface_label), "ADC (GPIO%d)", (int)pin);
 
   // The first read sets the pin up as an ADC input, which setting its attenuation needs. 11 dB
@@ -103,35 +117,35 @@ void Qnhck2_16Shunt::setup() {
 
   window_start_ms = millis();
   last_sample_ms = window_start_ms;
-  register_transmitter(this);
 
   // The inverter is given this current instead of what the batteries report
   datalayer.shunt.replaces_battery_current = true;
 
   if (qnhck_auto_calibration) {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point measured while the contactors are open\n", (int)pin,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point measured while contactors are open\n", (int)pin,
                    (unsigned)qnhck_rated_current_A, output_V);
     if (qnhck_zero_tempco_uV_per_C != 0) {
       char drift_mV[8];
-      format_tenths(drift_mV, sizeof(drift_mV), qnhck_zero_tempco_uV_per_C / 100);
-      logging.printf("QNHCK2-16: zero point follows the batteries' temperature by %s mV/°C\n", drift_mV);
+      format_fixed(drift_mV, sizeof(drift_mV), qnhck_zero_tempco_uV_per_C / 10, 2);
+      logging.printf("QNHCK2-16: zero point follows the temperature by %s mV/°C\n", drift_mV);
     }
     const bool all_contactors_ours = contactor_control_enabled &&
                                      (!battery2 || contactor_control_enabled_double_battery) &&
                                      (!battery3 || contactor_control_enabled_triple_battery);
     if (!all_contactors_ours) {
       LOG_SET_NEXT_SEVERITY(4);  // warning
-      logging.println(
-          "QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery. Its reading is not "
-          "used until then.");
+      logging.println("QNHCK2-16: automatic calibration needs contactor control via GPIO for every battery!");
     }
   } else {
-    logging.printf("QNHCK2-16 on GPIO%d: %u A ±%s V, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
+    logging.printf("QNHCK2-16: on GPIO%d %uA ±%sV, zero point %u mV\n", (int)pin, (unsigned)qnhck_rated_current_A,
                    output_V, (unsigned)qnhck_zero_mV);
   }
 }
 
-void Qnhck2_16Shunt::transmit(unsigned long currentMillis) {
+void Qnhck2_16Shunt::sample(unsigned long currentMillis) {
+  if (pin == GPIO_NUM_NC) {
+    return;  // Not ours: no ADC pin on this board, or something else has it
+  }
   const uint32_t now = (uint32_t)currentMillis;
   if (now == last_sample_ms) {
     return;  // One sample per millisecond
@@ -217,7 +231,7 @@ void Qnhck2_16Shunt::track_zero(uint32_t now, uint32_t sample_mV) {
           // Two of these at different temperatures give the drift: their difference in mV over
           // their difference in °C
           char temperature[8];
-          format_tenths(temperature, sizeof(temperature), zero_temperature_dC);
+          format_fixed(temperature, sizeof(temperature), zero_temperature_dC, 1);
           logging.printf("QNHCK2-16 zero point calibrated to %u mV at %s °C\n", (unsigned)qnhck_zero_mV, temperature);
         } else {
           logging.printf("QNHCK2-16 zero point calibrated to %u mV\n", (unsigned)qnhck_zero_mV);

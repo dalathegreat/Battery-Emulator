@@ -1,3 +1,4 @@
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "NISSAN-LEAF-CHARGER.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/battery_aggregate.h"
@@ -205,3 +206,4 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
     }
   }
 }
+#endif  // SMALL_FLASH_DEVICE

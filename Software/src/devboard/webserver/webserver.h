@@ -13,17 +13,6 @@ extern std::string http_username;
 extern std::string http_password;
 extern bool webserver_auth;
 
-// Common charger parameters
-extern float charger_stat_HVcur;
-extern float charger_stat_HVvol;
-extern float charger_stat_ACcur;
-extern float charger_stat_ACvol;
-extern float charger_stat_LVcur;
-extern float charger_stat_LVvol;
-
-//LEAF charger
-extern uint16_t OBC_Charge_Power;
-
 // OTA status
 extern bool ota_active;
 
@@ -102,6 +91,10 @@ String formatPowerValue(T value, String unit, int precision);
 extern void store_settings();
 
 bool webserver_auth_is_ready();
+
+// For body and upload callbacks, which run before the middlewares: true when the request may proceed.
+bool webserver_request_authorized(AsyncWebServerRequest* request);
+
 void webserver_tick();
 
 #endif

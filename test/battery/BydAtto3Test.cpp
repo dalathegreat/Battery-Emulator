@@ -52,7 +52,7 @@ void reset_byd_state() {
   datalayer.battery_settings.max_user_set_charge_dA = 300;
   datalayer_extended.bydAtto3.chargePower = 0;
   datalayer_extended.bydAtto3.dischargePower = 0;
-  datalayer_extended.bydAtto3.SOC_polled = 0;
+  datalayer_extended.bydAtto3.SOC_dashboard = 0;
   datalayer_extended.bydAtto3.SOC_highprec = 0;
   datalayer_extended.bydAtto3.BMS_min_temp_module_number = 0;
   datalayer_extended.bydAtto3.BMS_max_temp_module_number = 0;
@@ -60,6 +60,7 @@ void reset_byd_state() {
   datalayer_extended.bydAtto3.keep_iso_disabled = false;
   datalayer_extended.bydAtto3.iso_command_status = 0;
   datalayer_extended.bydAtto3.iso_measurement_active = false;
+  datalayer_extended.bydAtto3.balance_timer_auto_read = false;
 }
 
 // Coldest sensor 9 at 8C, hottest sensor 1 at 24C, SOC 99.2%, average 16C.
@@ -171,7 +172,7 @@ TEST(BydAtto3Tests, ShouldDecode0x444WholePercentSocAndRejectBadChecksum) {
   battery->handle_incoming_can_frame(byd_checksummed_frame(0x444, {0xA4, 0x01, 0x88, 0x13, 0x5D, 0x1F, 0x00}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_polled, 31);
+  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_dashboard, 31);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9300);
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 0);
 
@@ -179,7 +180,7 @@ TEST(BydAtto3Tests, ShouldDecode0x444WholePercentSocAndRejectBadChecksum) {
   battery->handle_incoming_can_frame(byd_corrupt_frame(0x444, {0xA4, 0x01, 0x88, 0x13, 0x32, 0x50, 0x00}));
   battery->update_values();
 
-  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_polled, 31);
+  EXPECT_EQ(datalayer_extended.bydAtto3.SOC_dashboard, 31);
   EXPECT_EQ(datalayer.battery.status.soh_pptt, 9300);
   EXPECT_EQ(datalayer.battery.status.CAN_error_counter, 1);
 }
@@ -277,6 +278,41 @@ TEST(BydAtto3Tests, ShouldReDisableIsolationMonitorWhenItRearmsWithoutABmsRestar
   battery->handle_incoming_can_frame(iso_measurement_frame(true));
   battery->update_values();
   EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 1);
+}
+
+// 0 or 1 DTC fits in one ISO-TP single frame, with no first frame to start reassembly.
+TEST(BydAtto3Tests, ShouldParseSingleFrameDtcRepliesForZeroAndOneCode) {
+  reset_byd_state();
+  set_millis64(5000);
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+  datalayer.battery.dtc.dtc_count = 5;
+  datalayer.battery.dtc.dtc_read_failed = true;
+  datalayer_extended.bydAtto3.dtc_read_in_progress = true;
+
+  // The BMS sends responsePending before every DTC reply; it is neither the answer nor a
+  // SecurityAccess rejection.
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x7F, 0x19, 0x78, 0xAA, 0xAA, 0xAA, 0xAA}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 5);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.dtc_read_in_progress);
+
+  battery->handle_incoming_can_frame(uds_reply({0x07, 0x59, 0x02, 0x09, 0xC1, 0x41, 0x00, 0x09}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xC14100u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0x09);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_FALSE(datalayer_extended.bydAtto3.dtc_read_in_progress);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_last_read_millis, 5000u);
+
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x59, 0x02, 0x09, 0xAA, 0xAA, 0xAA, 0xAA}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.bydAtto3.servicemode, 0);
+
+  delete battery;
 }
 
 class BydAtto3BalanceTimeTest : public testing::Test {
@@ -423,6 +459,96 @@ TEST_F(BydAtto3BalanceTimeTest, TimesOutAfterOneRetry) {
   EXPECT_EQ(result.expected_cells, 1);
   EXPECT_EQ(result.received_cells, 0);
   EXPECT_EQ(result.scan_id, 1u);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, NextChargeBaselineClosesRecordAndManualReadDoesNot) {
+  datalayer.battery.info.number_of_cells = 2;
+  set_millis64(1000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x29, 0x00, 0x00, 0x00}));
+  battery->set_cell_balance_automation(true);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.balance_timer_auto_read);
+
+  set_millis64(2000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2A, 0x00, 0x00, 0x00}));
+  battery->transmit_can(2200);
+  set_millis64(2200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x64, 0x00, 0x00, 0x00}));
+  battery->transmit_can(2400);
+  set_millis64(2400);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xC8, 0x00, 0x00, 0x00}));
+
+  String after_baseline = battery->cell_balance_times_json();
+  EXPECT_NE(after_baseline.str().find("\"ac\":42"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"h\":[]"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"ra\":null"), std::string::npos);
+  EXPECT_NE(after_baseline.str().find("\"sp\":null"), std::string::npos);  // no termination, no spread
+
+  const uint32_t manual_time = 5UL * 3600000UL;
+  ASSERT_TRUE(battery->request_cell_balance_times());
+  battery->transmit_can(manual_time);
+  set_millis64(manual_time);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x69, 0x00, 0x00, 0x00}));
+  battery->transmit_can(manual_time + 200);
+  set_millis64(manual_time + 200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xC8, 0x00, 0x00, 0x00}));
+
+  String after_manual = battery->cell_balance_times_json();
+  EXPECT_NE(after_manual.str().find("\"ac\":42"), std::string::npos);
+  EXPECT_NE(after_manual.str().find("\"h\":[]"), std::string::npos);
+  EXPECT_NE(after_manual.str().find("\"d\":[5,0]"), std::string::npos);
+  EXPECT_NE(after_manual.str().find("\"ra\":0,"), std::string::npos);
+
+  // No timed read: the record stays open until the next completed charge.
+  const uint32_t next_charge = 30UL * 3600000UL;
+  battery->transmit_can(next_charge - 1000);
+  EXPECT_NE(battery->cell_balance_times_json().str().find("\"ph\":3"), std::string::npos);
+
+  set_millis64(next_charge);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2B, 0x00, 0x00, 0x00}));
+  battery->transmit_can(next_charge + 200);
+  set_millis64(next_charge + 200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x76, 0x00, 0x00, 0x00}));
+  battery->transmit_can(next_charge + 400);
+  set_millis64(next_charge + 400);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x41, 0xC8, 0x00, 0x00, 0x00}));
+
+  String completed = battery->cell_balance_times_json();
+  EXPECT_NE(completed.str().find("\"ac\":43"), std::string::npos);
+  EXPECT_NE(completed.str().find("\"cy\":42"), std::string::npos);
+  EXPECT_NE(completed.str().find("\"n\":1,\"d\":[18,0]"), std::string::npos);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, CounterGoingBackwardsDropsRecords) {
+  datalayer.battery.info.number_of_cells = 1;
+  set_millis64(1000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x29, 0x00, 0x00, 0x00}));
+  battery->set_cell_balance_automation(true);
+
+  set_millis64(2000);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2A, 0x00, 0x00, 0x00}));
+  battery->transmit_can(2200);
+  set_millis64(2200);
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x40, 0x64, 0x00, 0x00, 0x00}));
+  ASSERT_NE(battery->cell_balance_times_json().str().find("\"ac\":42"), std::string::npos);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x05, 0x00, 0x00, 0x00}));
+  battery->transmit_can(3000);
+  String json = battery->cell_balance_times_json();
+  EXPECT_NE(json.str().find("\"ac\":null"), std::string::npos);
+  EXPECT_NE(json.str().find("\"ph\":1"), std::string::npos);
+  EXPECT_NE(json.str().find("\"h\":[]"), std::string::npos);
+}
+
+TEST_F(BydAtto3BalanceTimeTest, DisabledAutomationTakesNoBaseline) {
+  datalayer.battery.info.number_of_cells = 1;
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x29, 0x00, 0x00, 0x00}));
+  battery->set_cell_balance_automation(true);
+  battery->set_cell_balance_automation(false);
+
+  battery->handle_incoming_can_frame(uds_reply({0x05, 0x62, 0x00, 0x04, 0x2A, 0x00, 0x00, 0x00}));
+  battery->transmit_can(200);
+  EXPECT_EQ(battery->cell_balance_times().state, BydCellBalanceTimeState::NOT_READ);
+  EXPECT_NE(battery->cell_balance_times_json().str().find("\"ph\":0"), std::string::npos);
 }
 
 // TX frame capture injected by the emulated CAN layer (see emul/can.cpp).
@@ -634,9 +760,9 @@ TEST(BydAtto3PrechargeTests, WaitsForALateBmsResponseBeforeRamping) {
 
 namespace {
 
-// 0x444 charging at 5A: b2:b3 = 5000 - 50.
-CAN_frame charging_current_frame() {
-  return byd_checksummed_frame(0x444, {0x58, 0x02, 0x56, 0x13, 0x64, 0x62, 0x00});
+// 0x444 charging at 5A: b2:b3 = 5000 - 50, b5 = whole-percent SOC.
+CAN_frame charging_current_frame(uint8_t soc = 98) {
+  return byd_checksummed_frame(0x444, {0x58, 0x02, 0x56, 0x13, 0x64, soc, 0x00});
 }
 
 // 0x446: lowest cell 15 at 3494mV, highest cell 155 at max_mV.
@@ -644,13 +770,19 @@ CAN_frame cell_extrema_frame(uint16_t max_mV) {
   return byd_frame(0x446, {15, 0xA6, 0x0D, 0x00, 155, (uint8_t)(max_mV & 0xFF), (uint8_t)(max_mV >> 8), 0x00});
 }
 
-CAN_frame grant_mirror_frame(uint8_t grant) {
-  return byd_checksummed_frame(0x345, {0x00, 0x00, 0x00, 0x00, grant, 0x00, 0x00});
-}
-
 CAN_frame grant_frame(uint8_t grant) {
   return byd_checksummed_frame(0x347, {0xCF, grant, 0x00, 0xF9, 0x03, 0x88, 0x13});
 }
+
+// 0x344 as the BMS sends it in a charge: b0 pack mode, b2 low nibble the charge state.
+CAN_frame charge_state_frame(uint8_t mode, uint8_t state) {
+  return byd_checksummed_frame(0x344, {mode, 0x41, (uint8_t)(0x10 | state), 0x00, 0x00, 0x84, 0x09});
+}
+
+const uint8_t kReady = 0x0;
+const uint8_t kCharging = 0x1;
+const uint8_t kFinished = 0x2;
+const uint8_t kAborted = 0x4;
 
 void tick(BydAttoBattery* battery, uint32_t ms) {
   set_millis64(ms);
@@ -675,22 +807,28 @@ BydAttoBattery* charging_battery(uint32_t* ms) {
   return battery;
 }
 
-// The mirror leads the grant by about a frame, as on the wire.
-void grant_step(BydAttoBattery* battery, uint8_t grant, uint32_t* ms) {
-  *ms += 20;
-  rx_at(battery, grant_mirror_frame(grant), *ms);
-  *ms += 60;
-  rx_at(battery, grant_frame(grant), *ms);
-}
-
-uint8_t charger_state_after_flag_clears(BydAttoBattery* battery, uint32_t* ms) {
-  for (int i = 0; i < 4; i++) {
+// cycles x 50ms of the BMS broadcasting the same mode, charge state, grant and SOC.
+void bms_cycles(BydAttoBattery* battery, int cycles, uint8_t mode, uint8_t state, uint8_t grant, uint8_t soc,
+                uint32_t* ms) {
+  for (int i = 0; i < cycles; i++) {
     *ms += 50;
-    rx_at(battery, contactor_state_frame(0x84, 0x41), *ms);
+    rx_at(battery, charge_state_frame(mode, state), *ms);
+    rx_at(battery, grant_frame(grant), *ms);
+    rx_at(battery, charging_current_frame(soc), *ms);
     tick(battery, *ms);
   }
-  const CAN_frame* frame = last_transmitted_frame(0x47E);
-  return frame ? frame->data.u8[2] : 0xFF;
+}
+
+// Every recorded end runs: grant withdrawn, charge flag clears ~1s later, verdict ~1s after that.
+void bms_ends_charge(BydAttoBattery* battery, uint8_t end_grant, uint8_t verdict, uint8_t soc, uint32_t* ms) {
+  bms_cycles(battery, 20, 0x85, kCharging, end_grant, soc, ms);
+  bms_cycles(battery, 20, 0x84, kCharging, end_grant, soc, ms);
+  bms_cycles(battery, 4, 0x84, verdict, end_grant, soc, ms);
+}
+
+uint8_t tx_byte(uint32_t id, uint8_t index) {
+  const CAN_frame* frame = last_transmitted_frame(id);
+  return frame ? frame->data.u8[index] : 0xFF;
 }
 
 }  // namespace
@@ -703,39 +841,95 @@ TEST(BydAtto3TerminationTests, ReachesChargingInTheHarness) {
   delete battery;
 }
 
+// Each step follows the car: stop offering on the grant, wind down on the flag, complete on the verdict.
+TEST(BydAtto3TerminationTests, FollowsTheBmsThroughTheEndOfACharge) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  rx_at(battery, cell_extrema_frame(3752), ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x5A, 99, &ms);
+  EXPECT_NE(tx_byte(0x47E, 3), 0x00);
+
+  bms_cycles(battery, 20, 0x85, kCharging, 0x00, 100, &ms);
+  EXPECT_EQ(tx_byte(0x47E, 3), 0x00);
+  EXPECT_EQ(tx_byte(0x47E, 2), 0x0C);
+  EXPECT_EQ(tx_byte(0x24A, 3), 0x00);
+  EXPECT_EQ(tx_byte(0x24A, 6), 0x0E);
+
+  bms_cycles(battery, 20, 0x84, kCharging, 0x00, 100, &ms);
+  EXPECT_EQ(tx_byte(0x47E, 2), 0x0E);
+  EXPECT_EQ(tx_byte(0x24A, 6), 0x00);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+
+  bms_cycles(battery, 4, 0x84, kFinished, 0x00, 100, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3752);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_delta_mV, 3752 - 3494);
+  EXPECT_EQ(tx_byte(0x47E, 2), 0x0F);
+  EXPECT_EQ(tx_byte(0x24A, 0), 0x8C);
+
+  delete battery;
+}
+
 // The 168-cell PW4 ends its grant on 0x01, not 0x00 (dioko81, 2026-09-26), and also sits at 0x01 when a
 // session opens.
 TEST(BydAtto3TerminationTests, Pw4EndsOnGrantOne) {
   uint32_t ms = 0;
   auto battery = charging_battery(&ms);
   rx_at(battery, cell_extrema_frame(3751), ms);
-  tick(battery, ms);
+  bms_cycles(battery, 20, 0x85, kReady, 0x01, 99, &ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x1D, 99, &ms);
+  EXPECT_NE(tx_byte(0x47E, 3), 0x00);
 
-  for (uint8_t grant : {0x01, 0x14, 0x19, 0x55, 0x69, 0x2B, 0x19, 0x1D}) {
-    grant_step(battery, grant, &ms);
-  }
-  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
-
-  grant_step(battery, 0x19, &ms);
-  grant_step(battery, 0x01, &ms);
+  bms_ends_charge(battery, 0x01, kFinished, 100, &ms);
   EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3751);
-  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_delta_mV, 3751 - 3494);
-  EXPECT_EQ(charger_state_after_flag_clears(battery, &ms), 0x0E);  // finishing, not resting at 0x0F
+  EXPECT_EQ(tx_byte(0x47E, 2), 0x0F);
 
   delete battery;
 }
 
-TEST(BydAtto3TerminationTests, AttoStillEndsOnGrantZero) {
+// dav2481's interrupted car charge also ended on "finished", at SOC 91.
+TEST(BydAtto3TerminationTests, FinishedBelowFullIsNotATermination) {
   uint32_t ms = 0;
   auto battery = charging_battery(&ms);
-  rx_at(battery, cell_extrema_frame(3752), ms);
-  tick(battery, ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x5A, 91, &ms);
+  bms_ends_charge(battery, 0x00, kFinished, 91, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+  EXPECT_EQ(datalayer_extended.bydAtto3.charge_session_state, 5);
 
-  for (uint8_t grant : {0x5A, 0x1A, 0x16, 0x19, 0x16, 0x00}) {
-    grant_step(battery, grant, &ms);
-  }
-  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3752);
-  EXPECT_EQ(charger_state_after_flag_clears(battery, &ms), 0x0E);
+  delete battery;
+}
+
+TEST(BydAtto3TerminationTests, BmsAbortIsNotATermination) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x5A, 100, &ms);
+  bms_ends_charge(battery, 0x00, kAborted, 100, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+  EXPECT_EQ(datalayer_extended.bydAtto3.charge_session_state, 5);
+
+  delete battery;
+}
+
+// A "finished" left over from before this session was never this charge's verdict.
+TEST(BydAtto3TerminationTests, FinishedWithoutChargingSeenIsNotATermination) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  bms_cycles(battery, 20, 0x85, kFinished, 0x5A, 100, &ms);
+  bms_cycles(battery, 20, 0x84, kFinished, 0x00, 100, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
+
+  delete battery;
+}
+
+TEST(BydAtto3TerminationTests, NoVerdictRestsAfterTheTimeout) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x5A, 100, &ms);
+  bms_cycles(battery, 20, 0x84, kCharging, 0x00, 100, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.charge_session_state, 4);
+
+  bms_cycles(battery, 80, 0x84, kCharging, 0x00, 100, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.charge_session_state, 5);
+  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
 
   delete battery;
 }
@@ -745,8 +939,7 @@ TEST(BydAtto3TerminationTests, GrantEndAfterTheEmulatorStandsDownIsNotATerminati
   uint32_t ms = 0;
   auto battery = charging_battery(&ms);
   rx_at(battery, cell_extrema_frame(3755), ms);
-  tick(battery, ms);
-  grant_step(battery, 0x2D, &ms);
+  bms_cycles(battery, 2, 0x85, kCharging, 0x2D, 100, &ms);
 
   datalayer.system.info.equipment_stop_active = true;
   for (int i = 0; i < 2; i++) {
@@ -755,47 +948,113 @@ TEST(BydAtto3TerminationTests, GrantEndAfterTheEmulatorStandsDownIsNotATerminati
   }
   EXPECT_EQ(last_transmitted_frame(0x24A)->data.u8[0], 0x8C);
 
-  grant_step(battery, 0x01, &ms);
+  bms_ends_charge(battery, 0x01, kFinished, 100, &ms);
   EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
 
   datalayer.system.info.equipment_stop_active = false;
   delete battery;
 }
 
-TEST(BydAtto3TerminationTests, CorruptedGrantCannotEndTheCharge) {
+TEST(BydAtto3TerminationTests, CorruptedGrantCannotStopTheCharge) {
+  uint32_t ms = 0;
+  auto battery = charging_battery(&ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x1D, 99, &ms);
+
+  for (int i = 0; i < 4; i++) {
+    ms += 50;
+    rx_at(battery, byd_corrupt_frame(0x347, {0xCF, 0x00, 0x00, 0xF9, 0x03, 0x88, 0x13}), ms);
+    tick(battery, ms);
+  }
+  EXPECT_NE(tx_byte(0x47E, 3), 0x00);
+
+  bms_cycles(battery, 4, 0x85, kCharging, 0x00, 99, &ms);
+  EXPECT_EQ(tx_byte(0x47E, 3), 0x00);
+
+  delete battery;
+}
+
+TEST(BydAtto3TerminationTests, CorruptedChargeStateCannotEndTheCharge) {
   uint32_t ms = 0;
   auto battery = charging_battery(&ms);
   rx_at(battery, cell_extrema_frame(3751), ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x1D, 100, &ms);
+  bms_cycles(battery, 20, 0x85, kCharging, 0x00, 100, &ms);
+  bms_cycles(battery, 20, 0x84, kCharging, 0x00, 100, &ms);
+
+  ms += 50;
+  rx_at(battery, byd_corrupt_frame(0x344, {0x84, 0x41, 0x10 | kAborted, 0x00, 0x00, 0x84, 0x09}), ms);
   tick(battery, ms);
-  grant_step(battery, 0x1D, &ms);
+  EXPECT_EQ(datalayer_extended.bydAtto3.charge_session_state, 4);
 
-  ms += 20;
-  rx_at(battery, grant_mirror_frame(0x00), ms);
-  ms += 20;
-  rx_at(battery, byd_corrupt_frame(0x347, {0xCF, 0x00, 0x00, 0xF9, 0x03, 0x88, 0x13}), ms);
-  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);
-
-  grant_step(battery, 0x00, &ms);
+  bms_cycles(battery, 4, 0x84, kFinished, 0x00, 100, &ms);
   EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3751);
 
   delete battery;
 }
 
-TEST(BydAtto3TerminationTests, CorruptedMirrorCannotConfirmTheEnd) {
+// DM (PHEV) packs set 0x344 b0 bit 0x20. One such frame latches DM handling until reboot.
+TEST(BydAtto3DmPackTests, ContactorFeedbackBitLatchesDmHandling) {
+  byd_precharge_setup();
+  datalayer_extended.bydAtto3.native_termination_enabled = true;
+  datalayer_extended.bydAtto3.keep_iso_disabled = true;
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  // 0x7E7 reads of one DID among the frames sent from index `from` on.
+  auto polls = [](uint16_t did, size_t from) {
+    int count = 0;
+    const std::vector<CAN_frame>& frames = get_transmitted_frames();
+    for (size_t i = from; i < frames.size(); i++) {
+      const CAN_frame& f = frames[i];
+      if (f.ID == 0x7E7 && f.data.u8[1] == 0x22 && f.data.u8[2] == (did >> 8) && f.data.u8[3] == (did & 0xFF)) {
+        count++;
+      }
+    }
+    return count;
+  };
+
+  // Bit clear: no 0x343, capacity read on 0x1FFC, numbers as broadcast, native termination left alone.
   uint32_t ms = 0;
-  auto battery = charging_battery(&ms);
-  rx_at(battery, cell_extrema_frame(3751), ms);
-  tick(battery, ms);
-  grant_step(battery, 0x1D, &ms);
+  for (; ms < 1000; ms += 100) {
+    rx_at(battery, contactor_state_frame(0x02, 0x00), ms);
+    rx_at(battery, cell_extrema_frame(3300), ms);
+    rx_at(battery, temperature_frame(), ms);
+    tick(battery, ms);
+  }
+  ASSERT_NE(last_transmitted_frame(0x441), nullptr);
+  EXPECT_EQ(last_transmitted_frame(0x343), nullptr);
+  EXPECT_GT(polls(0x1FFC, 0), 0);
+  EXPECT_EQ(polls(0x1FFD, 0), 0);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_cell_voltage_number, 15);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_cell_voltage_number, 155);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_temp_module_number, 9);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_temp_module_number, 1);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.native_termination_enabled);
 
-  ms += 20;
-  rx_at(battery, byd_corrupt_frame(0x345, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}), ms);
-  ms += 20;
-  rx_at(battery, grant_frame(0x00), ms);
-  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 0);  // good mirror still reads 0x1D
+  // One frame with the bit, then two seconds without it: the latch has to hold.
+  const size_t latched_from = get_transmitted_frames().size();
+  rx_at(battery, contactor_state_frame(0x22, 0x00), ms);
+  for (; ms < 3000; ms += 100) {
+    rx_at(battery, contactor_state_frame(0x02, 0x00), ms);
+    rx_at(battery, cell_extrema_frame(3300), ms);
+    rx_at(battery, temperature_frame(), ms);
+    tick(battery, ms);
+  }
+  const CAN_frame* dm_343 = last_transmitted_frame(0x343);
+  ASSERT_NE(dm_343, nullptr);
+  EXPECT_EQ(dm_343->data.u8[0], 0xB4);  // pack open
+  EXPECT_EQ(dm_343->data.u8[7], computeBydChecksum(dm_343->data.u8));
+  // DM packs lack 0x1FFC, the capacity read moves to 0x1FFD.
+  EXPECT_GT(polls(0x1FFD, latched_from), 0);
+  EXPECT_EQ(polls(0x1FFC, latched_from), 0);
+  // DM packs number cells and sensors from zero.
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_cell_voltage_number, 16);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_cell_voltage_number, 156);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_temp_module_number, 10);
+  EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_temp_module_number, 2);
+  EXPECT_FALSE(datalayer_extended.bydAtto3.native_termination_enabled);
+  // The isolation-disable routine is never requested, though the setting is on and the BMS is alive.
+  EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 0);
 
-  grant_step(battery, 0x00, &ms);
-  EXPECT_EQ(datalayer_extended.bydAtto3.termination_cell_max_mV, 3751);
-
+  datalayer_extended.bydAtto3.native_termination_enabled = true;  // process-wide, restore the default
   delete battery;
 }

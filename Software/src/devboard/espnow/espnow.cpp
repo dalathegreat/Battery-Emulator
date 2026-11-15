@@ -519,7 +519,7 @@ static void send_battery_frame(uint8_t index) {
 
     uint16_t active_cells = 0;
     for (uint8_t i = 0; i < cells; i++) {
-      if (d->status.cell_balancing_status[i]) {
+      if (d->status.cell_balancing_status.get(i)) {
         active_cells++;
       }
     }
@@ -580,7 +580,7 @@ static void send_cells_frame(uint8_t index, uint16_t first_cell, uint16_t count,
       uint8_t byte = 0;
       for (uint8_t bit = 0; bit < 8; bit++) {
         const size_t cell = b * 8u + bit;
-        if (cell < count && d->status.cell_balancing_status[first_cell + cell]) {
+        if (cell < count && d->status.cell_balancing_status.get(first_cell + cell)) {
           byte = static_cast<uint8_t>(byte | (1u << bit));
         }
       }
@@ -692,10 +692,10 @@ void init_espnow() {
     }
     memcpy(peer_macs[0], broadcast_mac, 6);
     peer_count = 1;
-    logging.println("ESPNow: broadcasting to all receivers");
+    //logging.println("ESPNow: broadcasting to all receivers");
   } else {
     peer_count = peers;
-    logging.printf("ESPNow: sending to %d configured receiver(s)\n", peers);
+    //logging.printf("ESPNow: sending to %d configured receiver(s)\n", peers);
   }
 
   emulator_id = static_cast<uint16_t>(ESP.getEfuseMac() & 0xFFFF);
@@ -708,8 +708,8 @@ void init_espnow() {
     num_batteries++;
   }
 
-  logging.printf("ESPNow: protocol v%d, max %u byte frames, %u cells per frame\n", ESPNOW_PROTOCOL_VERSION,
-                 static_cast<unsigned>(max_payload), static_cast<unsigned>(cells_per_chunk));
+  //logging.printf("ESPNow: protocol v%d, max %u byte frames, %u cells per frame\n", ESPNOW_PROTOCOL_VERSION,
+  //               static_cast<unsigned>(max_payload), static_cast<unsigned>(cells_per_chunk));
 
   // Start with a fresh cycle, also when ESP-NOW is restarted at runtime.
   phase = PHASE_IDLE;

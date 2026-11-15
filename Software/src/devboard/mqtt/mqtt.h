@@ -40,6 +40,24 @@
 
 #define MQTT_MSG_BUFFER_SIZE (4096)
 
+// Accepted range of the "MQTT timeout ms" setting (esp-mqtt network timeout). Below 2 s a busy
+// but healthy link can miss the deadline on a write or the CONNACK and drop the connection.
+// Above 20 s a stalled write, which can take about twice the timeout, can trip the 60 s MQTT
+// task watchdog and reboot the emulator.
+#define MQTT_TIMEOUT_MIN_MS 2000
+#define MQTT_TIMEOUT_MAX_MS 20000
+
+// Caps a stored or submitted timeout to the accepted range.
+static inline uint16_t mqtt_clamp_timeout_ms(int64_t ms) {
+  if (ms < MQTT_TIMEOUT_MIN_MS) {
+    return MQTT_TIMEOUT_MIN_MS;
+  }
+  if (ms > MQTT_TIMEOUT_MAX_MS) {
+    return MQTT_TIMEOUT_MAX_MS;
+  }
+  return (uint16_t)ms;
+}
+
 extern const char* version_number;  // The current software version, used for mqtt
 
 extern bool mqtt_enabled;
@@ -58,7 +76,7 @@ extern const char* mqtt_object_id_prefix;
 extern const char* mqtt_device_name;
 extern const char* ha_device_id;
 
-extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
+extern char* mqtt_msg;
 
 uint32_t mqtt_firmware_signature(void);
 bool init_mqtt(void);

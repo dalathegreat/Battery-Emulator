@@ -1,5 +1,5 @@
 // A realtime display of battery status and events, using a I2C-connected 128x64
-// OLED display based on the SSD1306 driver.
+// OLED display based on the SSD1306 / SSD1309 driver.
 
 #ifndef SMALL_FLASH_DEVICE
 
@@ -11,13 +11,14 @@
 #include "../utils/events.h"
 #include "../utils/logging.h"
 #include "fonts.h"
+#include "ssd130x_init.h"
 
 #include "Arduino.h"
 #include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 
-#define I2C_MASTER_FREQ_HZ 1000000  // Use a ridiculously fast I2C speed (seems to work!)
+#define I2C_MASTER_FREQ_HZ 400000  // 400 kHz; reliable for SSD1306 and SSD1309
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -174,45 +175,37 @@ void init_display() {
               .allow_pd = false,
           },
   };
-  ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
+  if (i2c_new_master_bus(&bus_config, &bus_handle) != ESP_OK) {
+    logging.printf("Failed to create I2C bus for Display\n");
+    return;
+  }
+
+  // Common OLED addresses: 0x3C default, 0x3D if the address jumper is set.
+  const bool ack_3c = i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_PRIMARY, 100) == ESP_OK;
+  const bool ack_3d = ack_3c ? false : (i2c_master_probe(bus_handle, SSD130X_I2C_ADDR_ALTERNATE, 100) == ESP_OK);
+  const uint16_t addr = ssd130x_select_i2c_address(ack_3c, ack_3d);
+  if (addr == 0) {
+    logging.printf("Failed to find I2C Display at 0x3C/0x3D\n");
+    return;
+  }
 
   i2c_device_config_t dev_config = {
       .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-      .device_address = 0x3c,
+      .device_address = addr,
       .scl_speed_hz = I2C_MASTER_FREQ_HZ,
       .scl_wait_us = 0,
       .flags = {},
   };
-  ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+  if (i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle) != ESP_OK) {
+    logging.printf("Failed to add I2C Display device\n");
+    return;
+  }
 
-  static const uint8_t init[] = {
-      0xae,    // display off
-      0xd5,    // set display clock divider
-      0x80,    //   /1, middle freq
-      0xa8,    // set multiplex
-      64 - 1,  //   height - 1
-
-      0xd3,  // set display offset
-      0x00,  //   no offset
-      0x40,  // set start line at 0
-
-      0x8d,  // charge pump
-      0x14,  // enable
-
-      0x20,  // memory mode
-      0x00,  //   horizontal addressing
-      0xa1,  // seg remap = 1 (mirror x)
-      0xc8,  // com scan = dec
-
-      0x81,  // contrast
-      0x0f,  //   0x0f/0xff
-
-      0xaf,  // display on
-  };
-  uint8_t buf[sizeof(init) * 2];
-  for (size_t i = 0; i < sizeof(init); i++) {
+  // Init sequence shared by 128x64 SSD1306 and SSD1309 panels.
+  uint8_t buf[sizeof(SSD130X_INIT_SEQUENCE) * 2];
+  for (size_t i = 0; i < sizeof(SSD130X_INIT_SEQUENCE); i++) {
     buf[i * 2] = 0x80;  // Control byte for command
-    buf[i * 2 + 1] = init[i];
+    buf[i * 2 + 1] = SSD130X_INIT_SEQUENCE[i];
   }
   if (i2c_write(buf, sizeof(buf)) != ESP_OK) {
     logging.printf("Failed to initialize I2C Display\n");
