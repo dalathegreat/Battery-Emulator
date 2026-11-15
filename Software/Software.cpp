@@ -561,6 +561,9 @@ void core_loop(void*) {
        has. It sets a flag; loop() does the writing (ota_confirm_gate.h). */
     ota_confirm_check(currentMillis);
 
+    // Confirms a fresh image, once the tick says it has earned
+    ota_confirm_service();
+
     loopPhase = 1 - loopPhase;  // Spread out slower tasks across multiple iterations
     if (currentMillis - previousMillis10ms >= INTERVAL_10_MS && loopPhase == 0) {
       if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
@@ -809,10 +812,5 @@ void setup() {
   DEBUG_PRINTF("Setup complete!\n");
 }
 
-// Ordinary main-task context. Everything else runs in tasks, so this stays the
-// place for work that must not be initiated from the 1 ms core tick - today the
-// otadata write that confirms a fresh image, once the tick says it has earned
-// it.
-void loop() {
-  ota_confirm_service();
-}
+// Loop empty, all functionality runs in tasks
+void loop() {}
