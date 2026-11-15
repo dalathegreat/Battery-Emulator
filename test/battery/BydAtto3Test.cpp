@@ -280,6 +280,41 @@ TEST(BydAtto3Tests, ShouldReDisableIsolationMonitorWhenItRearmsWithoutABmsRestar
   EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 1);
 }
 
+// 0 or 1 DTC fits in one ISO-TP single frame, with no first frame to start reassembly.
+TEST(BydAtto3Tests, ShouldParseSingleFrameDtcRepliesForZeroAndOneCode) {
+  reset_byd_state();
+  set_millis64(5000);
+  auto battery = new BydAttoBattery();
+  battery->setup();
+  datalayer.battery.dtc = DATALAYER_BATTERY_DTC_TYPE{};
+  datalayer.battery.dtc.dtc_count = 5;
+  datalayer.battery.dtc.dtc_read_failed = true;
+  datalayer_extended.bydAtto3.dtc_read_in_progress = true;
+
+  // The BMS sends responsePending before every DTC reply; it is neither the answer nor a
+  // SecurityAccess rejection.
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x7F, 0x19, 0x78, 0xAA, 0xAA, 0xAA, 0xAA}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 5);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.dtc_read_in_progress);
+
+  battery->handle_incoming_can_frame(uds_reply({0x07, 0x59, 0x02, 0x09, 0xC1, 0x41, 0x00, 0x09}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 1);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_codes[0], 0xC14100u);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_status[0], 0x09);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+  EXPECT_FALSE(datalayer_extended.bydAtto3.dtc_read_in_progress);
+  EXPECT_EQ(datalayer.battery.dtc.dtc_last_read_millis, 5000u);
+
+  battery->handle_incoming_can_frame(uds_reply({0x03, 0x59, 0x02, 0x09, 0xAA, 0xAA, 0xAA, 0xAA}));
+  EXPECT_EQ(datalayer.battery.dtc.dtc_count, 0);
+  EXPECT_FALSE(datalayer.battery.dtc.dtc_read_failed);
+
+  battery->update_values();
+  EXPECT_EQ(datalayer_extended.bydAtto3.servicemode, 0);
+
+  delete battery;
+}
+
 class BydAtto3BalanceTimeTest : public testing::Test {
  protected:
   void SetUp() override {

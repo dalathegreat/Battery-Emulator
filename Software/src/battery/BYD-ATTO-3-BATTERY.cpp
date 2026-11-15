@@ -708,9 +708,17 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x789:  // Type B diagnostic reply
     case 0x7EF:  //OBD2 PID reply from battery
       diag_answered = true;
-      // DTC reply (0x19 0x02 -> 0x59 0x02) is multi-frame. Reassemble it, ACK the first frame with
-      // our own flow control, and parse once complete. Done before the single-frame PID parsing so
-      // the consecutive frames aren't mistaken for PIDs.
+      // DTC reply (0x19 0x02 -> 0x59 0x02). 0 or 1 DTC fits in a single frame; more is multi-frame:
+      // reassemble it, ACK the first frame with our own flow control, and parse once complete. Done
+      // before the single-frame PID parsing so the consecutive frames aren't mistaken for PIDs.
+      if (rx_frame.data.u8[0] <= 0x07 && rx_frame.data.u8[1] == 0x59 && rx_frame.data.u8[2] == 0x02) {
+        dtc_rx_len = rx_frame.data.u8[0];
+        for (uint8_t i = 0; i < dtc_rx_len; i++) {
+          dtc_buffer[i] = rx_frame.data.u8[i + 1];
+        }
+        parseDTCResponse();
+        break;
+      }
       if (rx_frame.data.u8[0] == 0x10 && rx_frame.data.u8[2] == 0x59 && rx_frame.data.u8[3] == 0x02) {
         dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
         dtc_rx_len = 0;
@@ -736,8 +744,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
       }
-      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) &&
-          !(awaiting_cell_balance_reply() && rx_frame.data.u8[2] == 0x22)) {
+      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x27)) {
         servicemode = REJECTED;
       }
       if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x02) &&
