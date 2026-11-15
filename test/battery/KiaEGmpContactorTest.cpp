@@ -155,6 +155,26 @@ TEST_F(KiaEGmpContactorTest, UnknownContactorStatusBlocksTemplateTraffic) {
   EXPECT_FALSE(has_template_frame());
 }
 
+TEST_F(KiaEGmpContactorTest, ActiveContactorStatusKeepsTemplateTrafficEnabled) {
+  feed_contactor_status(battery, 0x03);
+  feed_contactor_status(battery, 0x04);
+  clear_transmitted_frames();
+
+  battery.transmit_can(1100);
+
+  EXPECT_TRUE(has_template_frame());
+}
+
+TEST_F(KiaEGmpContactorTest, ClosedToActiveContactorStatusKeepsTemplateTrafficEnabled) {
+  feed_contactor_status(battery, kContactorClosed);
+  feed_contactor_status(battery, 0x04);
+  clear_transmitted_frames();
+
+  battery.transmit_can(1100);
+
+  EXPECT_TRUE(has_template_frame());
+}
+
 TEST_F(KiaEGmpContactorTest, AutomaticSoftResetIsQueuedOnlyOnceWhileOpen) {
   battery.transmit_can(1000);
   auto reset_requests = [] {

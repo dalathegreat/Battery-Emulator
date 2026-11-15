@@ -452,6 +452,9 @@ String KiaEGmpBattery::get_uds_info_html() {
       case CONTACTOR_STATUS_PRECHARGE:
         contactor_status = "Precharge";
         break;
+      case CONTACTOR_STATUS_ACTIVE:
+        contactor_status = "Closed/active";
+        break;
       case CONTACTOR_STATUS_CLOSED:
         contactor_status = "Closed";
         break;
@@ -498,10 +501,12 @@ String KiaEGmpBattery::get_uds_info_html() {
   return content;
 }
 
+
+
 bool KiaEGmpBattery::contactor_close_traffic_allowed() const {
   const bool knownContactorStatus =
       contactorStatus21A == CONTACTOR_STATUS_OPEN || contactorStatus21A == CONTACTOR_STATUS_PRECHARGE ||
-      contactorStatus21A == CONTACTOR_STATUS_CLOSED;
+      contactorStatus21A == CONTACTOR_STATUS_ACTIVE || contactorStatus21A == CONTACTOR_STATUS_CLOSED;
   return datalayer.system.status.battery_allows_contactor_closing &&
          datalayer.system.status.inverter_allows_contactor_closing &&
          datalayer.system.status.system_status != FAULT && knownContactorStatus && contactorStatus21AValid &&
@@ -521,7 +526,7 @@ void KiaEGmpBattery::update_contactor_events() {
     clear_event(EVENT_CONTACTOR_OPEN, battery_index);
   }
 
-  if (contactorStatus21A == CONTACTOR_STATUS_CLOSED) {
+  if (contactorStatus21A == CONTACTOR_STATUS_CLOSED || contactorStatus21A == CONTACTOR_STATUS_ACTIVE) {
     automaticResetAttempted.store(false);
   }
 }
