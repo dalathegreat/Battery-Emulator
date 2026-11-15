@@ -1051,10 +1051,26 @@ TEST(BydAtto3DmPackTests, ContactorFeedbackBitLatchesDmHandling) {
   EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_cell_voltage_number, 156);
   EXPECT_EQ(datalayer_extended.bydAtto3.BMS_min_temp_module_number, 10);
   EXPECT_EQ(datalayer_extended.bydAtto3.BMS_max_temp_module_number, 2);
-  EXPECT_FALSE(datalayer_extended.bydAtto3.native_termination_enabled);
+  EXPECT_TRUE(datalayer_extended.bydAtto3.native_termination_enabled);
   // The isolation-disable routine is never requested, though the setting is on and the BMS is alive.
   EXPECT_EQ(datalayer_extended.bydAtto3.iso_command_status, 0);
 
-  datalayer_extended.bydAtto3.native_termination_enabled = true;  // process-wide, restore the default
+  delete battery;
+}
+
+// Closed with no charge session, 0x441 b6 stays FF on Atto packs and is 00 on DM packs.
+TEST(BydAtto3DmPackTests, ClosedPack0x441Byte6FollowsPackFamily) {
+  byd_precharge_setup();
+  auto battery = new BydAttoBattery();
+  battery->setup();
+
+  ASSERT_EQ(warmup(battery, 0x84, 0x41, 0), kPackVolts - 1);
+  EXPECT_EQ(last_transmitted_frame(0x441)->data.u8[6], 0xFF);
+
+  ASSERT_EQ(warmup(battery, 0xA4, 0x41, 600), kPackVolts - 1);
+  const CAN_frame* frame = last_transmitted_frame(0x441);
+  EXPECT_EQ(frame->data.u8[6], 0x00);
+  EXPECT_EQ(frame->data.u8[7], computeBydChecksum(frame->data.u8));
+
   delete battery;
 }
