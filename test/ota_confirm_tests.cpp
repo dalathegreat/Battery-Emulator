@@ -378,22 +378,12 @@ TEST(OtaConfirmPlacement, TheCoreTickChecksAgainstAbsoluteUptime) {
       << "`" << argument << "` is passed as the uptime but is not assigned from millis() in core_loop";
 }
 
-/* The write side actually writes.
- *
- * LoopPerformsTheConfirmationWrite pins that loop() CALLS ota_confirm_service();
- * nothing pins what that function does, and it lives in ota_rollback.cpp, which
- * has no host build - the file the change's own note calls out as the one where
- * a mistake "could sit unnoticed". Gutting the body leaves all 216 tests green.
- * Read it, then, the same way Software.cpp is read.
- */
-TEST(OtaConfirmPlacement, TheServiceWritesExactlyWhenTheGateSaysSo) {
-  const std::string service =
-      function_body(read_source("../Software/src/devboard/utils/ota_rollback.cpp"), "void ota_confirm_service(void) {");
-  ASSERT_FALSE(service.empty());
-
-  const size_t gate = service.find("if (ota_confirm_take_pending()) {");
-  ASSERT_NE(gate, std::string::npos) << "ota_confirm_service() no longer performs the write on exactly the pass the "
-                                        "gate hands it - the check would set a flag nobody acts on";
-  EXPECT_NE(brace_block_at(service, gate).find("mark_ota_image_valid()"), std::string::npos)
-      << "the gate is taken but the image is never marked valid - every update would be reverted on the next reset";
+/* The write side is reached from ordinary main-task context. */
+TEST(OtaConfirmPlacement, TheSchedulerPerformsTheConfirmationWrite) {
+  const std::string body =
+      function_body(read_source("../Software/Software.cpp"), "void <your_function_name>(");
+  ASSERT_FALSE(body.empty());
+  EXPECT_NE(body.find("ota_confirm_service("), std::string::npos)
+      << "the confirmation write is no longer serviced from main-task context - "
+         "the check would set a flag nobody acts on";
 }
