@@ -208,6 +208,7 @@ struct DATALAYER_INFO_BYDATTO3 {
   bool iso_measurement_active;  // 0x35E b0 bit0x80: isolation measurement running
   bool iso_status_valid;        // fresh 0x35E seen (else status unknown)
   uint8_t iso_command_status;   // 0 idle, 1 running, 2 accepted, 3 rejected, 4 no reply
+  bool dm_pack;                 // latched from 0x344, DM packs refuse the routine
 };
 
 struct DATALAYER_INFO_CELLPOWER {

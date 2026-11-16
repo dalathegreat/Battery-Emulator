@@ -64,6 +64,9 @@ class KiaEGmpBattery : public UdsCanBattery {
   static constexpr unsigned long CELL_VOLTAGE_STALE_MS = 5000;
   static constexpr uint8_t CONTACTOR_STATUS_OPEN = 0xFE;
   static constexpr uint8_t CONTACTOR_STATUS_PRECHARGE = 0x03;
+  // Observed while the user-confirmed contactors were closed and discharging.
+  // Treat as an active/closed state and keep the CAN support traffic running.
+  static constexpr uint8_t CONTACTOR_STATUS_ACTIVE = 0x04;
   static constexpr uint8_t CONTACTOR_STATUS_CLOSED = 0x01;
 
   // Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
