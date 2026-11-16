@@ -52,6 +52,9 @@ String can_replay_processor(void) {
   content += "<option value='" + String(CANFD_ADDON_MCP2518) + "' " +
              (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518 ? "selected" : "") +
              ">CANFD Addon MCP2518</option>";
+  content += "<option value='" + String(CANFD_ADDON_MCP2518_2) + "' " +
+             (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518_2 ? "selected" : "") +
+             ">CANFD Addon MCP2518 #2</option>";
 
   content += "</select>";
 
