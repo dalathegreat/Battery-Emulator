@@ -256,7 +256,7 @@ class AdvancedBatteryResponse : public AsyncAbstractResponse {
     html += "{" + String(cmd.identifier) + "(batteryNum);}}function " + cmd.identifier +
             "(batteryNum){var xhr=new XMLHttpRequest();xhr.open('PUT','/" + cmd.identifier + "',true);";
     if (cmd.reload_after) {
-      html += "xhr.onload=function(){setTimeout(function(){location.reload();},1500);};";
+      html += "xhr.onload=function(){setTimeout(function(){location.reload();},2500);};";
     }
     html += "xhr.send(batteryNum);}</script>";
     return html.take();

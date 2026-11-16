@@ -83,7 +83,7 @@ void SmaSBSBydHvsInverter::
   SMA_458.data.u8[7] = (datalayer.aggregate.total_discharged_battery_Wh & 0x000000FF);
 
   //Error bits
-  if (datalayer.system.status.battery_allows_contactor_closing) {
+  if (datalayer.system.status.dc_bus_live) {
     SMA_158.data.u8[2] = 0xAA;
   } else {
     SMA_158.data.u8[2] = 0x6A;
