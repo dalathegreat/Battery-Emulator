@@ -1389,20 +1389,10 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
   //are ignored from the cut until the reset is over and CAN_ERRORS_IGNORE_MS beyond, the window renewed
   //on every pass, rather than pointing at the wiring.
   const bool silent = battery_can_alive && (currentMillis - lbc_heard_ms) >= LBC_SILENT_MS;
-  if (!silent) {
-    silence = LBC_TALKING;
-  } else if (silence == LBC_TALKING) {
-    //During the terminating sequence, also whether it was the sleep command or its power going, see sleep_sent
-    const char* how = "";
-    silence = LBC_SILENT;
-    if (terminating != NOT_TERMINATING) {
-      const bool before_sleep = !sleep_sent || (long)(lbc_heard_ms - sleep_sent_ms) < 0;
-      silence = before_sleep ? LBC_POWER_CUT : LBC_ASLEEP;
-      how =
-          before_sleep ? " before the sleep command: is BAT being cut together with IGN?" : " after the sleep command";
-    }
-    logging.printf("LEAF (Battery %u): went silent on \"%s\"%s\n", (unsigned)battery_index, interface_name(), how);
+  if (silent && !lbc_silent) {
+    logging.printf("LEAF (Battery %u): went silent on \"%s\"\n", (unsigned)battery_index, interface_name());
   }
+  lbc_silent = silent;
   if (bms_reset_status == BMS_RESET_POWERED_OFF || bms_reset_status == BMS_RESET_POWERING_ON) {
     ignore_can_errors_for(can_interface, CAN_ERRORS_IGNORE_MS);
   }
@@ -1619,10 +1609,6 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       //HCM_WakeUpSleepCommand, byte 3 bits 7-6: 11b = WakeUp, and 00b once the terminating sequence has
       //told the LBC the relays are open, see TerminatingStep
       LEAF_50B.data.u8[3] = (terminating == SLEEP) ? 0x00 : 0xC0;
-      if (terminating == SLEEP && !sleep_sent) {
-        sleep_sent = true;
-        sleep_sent_ms = currentMillis;
-      }
       transmit_can_frame(&LEAF_50B);
 
       LEAF_50C.data.u8[3] = mprun100;
@@ -1774,7 +1760,6 @@ void NissanLeafBattery::follow_starting_sequence(unsigned long currentMillis) {
   if (status.bms_reset_status == BMS_RESET_POWERED_OFF) {
     if (terminating == NOT_TERMINATING) {  //See TerminatingStep
       terminating = CHG_STA_RQ_STOP;
-      sleep_sent = false;
       terminating_RLYP = report_RLYP;
       terminating_BTONFN = report_BTONFN;
     }
