@@ -119,9 +119,8 @@ void FoxessEpCanInverter::
 
   const bool foxess_ep_battery_comm_live = datalayer.battery.status.CAN_battery_still_alive > 0U;
 
-  const bool foxess_ep_battery_ready = foxess_ep_battery_comm_live && datalayer.system.status.system_status == ACTIVE &&
-                                       datalayer.system.status.battery_allows_contactor_closing &&
-                                       !foxess_ep_system_fault;
+  const bool foxess_ep_battery_ready =
+      foxess_ep_battery_comm_live && datalayer.system.status.system_status == ACTIVE && !foxess_ep_system_fault;
 
   const bool foxess_ep_power_path_active = foxess_ep_battery_ready && datalayer.system.status.contactors_engaged == 1U;
 

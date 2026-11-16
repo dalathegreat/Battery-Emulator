@@ -111,8 +111,7 @@ void KostalInverterProtocol::update_values() {
     average_temperature_dC = 0;
   }
 
-  if (datalayer.system.status.battery_allows_contactor_closing &
-      datalayer.system.status.inverter_allows_contactor_closing) {
+  if (datalayer.system.status.dc_bus_live & datalayer.system.status.inverter_allows_contactor_closing) {
     float2frame(CYCLIC_DATA, (float)datalayer.aggregate.voltage_dV / 10, 6);  // Confirmed OK mapping
   } else {
     float2frame(CYCLIC_DATA, 0.0, 6);
@@ -212,7 +211,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
     dbg_message("inverter_allows_contactor_closing -> true (Contactor test ended)");
     contactortestTimerActive = false;
   }
-  if (datalayer.system.status.battery_allows_contactor_closing & !contactorMillis) {
+  if (datalayer.system.status.dc_bus_live & !contactorMillis) {
     contactorMillis = currentMillis;
   }
   if ((currentMillis - contactorMillis >= INTERVAL_2_S) && !RX_allow) {
