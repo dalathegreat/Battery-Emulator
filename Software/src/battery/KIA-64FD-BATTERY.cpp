@@ -109,6 +109,24 @@ void Kia64FDBattery::handle_215_cell_voltages(const CAN_frame& rx_frame) {
   }
 }
 
+//Used on battery packs which only have the lowprecision values available
+void Kia64FDBattery::set_cell_voltages(uint8_t reading, uint8_t cellNumber) {
+  if ((reading * 20) > 2600) {
+    datalayer_battery->status.cell_voltages_mV[cellNumber] = (reading * 20);
+  }
+}
+
+void Kia64FDBattery::process_cell_voltage_group(const uint8_t* data, uint8_t baseCell) {
+  //Skip any processing if we have highprecision values
+  if (high_precision_cell_voltages) {
+    return;
+  }
+
+  for (int i = 0; i < 32; i++) {
+    set_cell_voltages(data[4 + i], baseCell + i);
+  }
+}
+
 void Kia64FDBattery::set_voltage_minmax_limits() {
 
   uint8_t valid_cell_count = 0;
@@ -286,22 +304,22 @@ uint16_t Kia64FDBattery::handle_pid(uint16_t pid, uint32_t value, const uint8_t*
       //Frame 28 (c9 00 00 00 00 0b b8) data52-58
       break;
     case POLL_GROUP_2:  //Cellvoltages (Cell 1-32)
-      // process_cell_voltage_group(data, 0);
+      process_cell_voltage_group(data, 0);
       break;
     case POLL_GROUP_3:  //Cellvoltages (Cell 33-64)
-      // process_cell_voltage_group(data, 32);
+      process_cell_voltage_group(data, 32);
       break;
     case POLL_GROUP_4:  //Cellvoltages (Cell 65-96)
-      // process_cell_voltage_group(data, 64);
+      process_cell_voltage_group(data, 64);
       break;
     case POLL_GROUP_A:  //Cellvoltages (Cell 97-128)
-      // process_cell_voltage_group(data, 96);
+      process_cell_voltage_group(data, 96);
       break;
     case POLL_GROUP_B:  //Cellvoltages (Cell 129-160)
-      // process_cell_voltage_group(data, 128);
+      process_cell_voltage_group(data, 128);
       break;
     case POLL_GROUP_C:  //Cellvoltages (Cell 161-192)
-      // process_cell_voltage_group(data, 160);
+      process_cell_voltage_group(data, 160);
       break;
     case POLL_GROUP_5:
       //Frame 0 (10 2e 62 01 05 ff fb 74) //data0-2
@@ -343,8 +361,9 @@ void Kia64FDBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x1F5:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x215:
+    case 0x215:  //High precision cell voltages - Only present on newer batteries
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      high_precision_cell_voltages = true;
       handle_215_cell_voltages(rx_frame);
       break;
       break;

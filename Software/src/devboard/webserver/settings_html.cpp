@@ -119,6 +119,12 @@ static const std::map<int, String> led_modes = {{0, "Classic"}, {1, "Energy Flow
 // Periodic BMS reset interval, stored in hours.
 static const std::map<int, String> bms_reset_intervals = {{24, "24h"}, {48, "48h"}};
 
+#ifndef SMALL_FLASH_DEVICE
+static const std::map<int, String> bmw_i3_soc_havrla_modes = {{0, "Disable (use BMS SOC)"},
+                                                              {1, "Auto (use Havrla if &gt;3% difference)"},
+                                                              {2, "Enable (always use Havrla)"}};
+#endif  // SMALL_FLASH_DEVICE
+
 // Balancing strategy of a LEAF pack, sent to its LBC as CHG_STA_RQ in 0x1F2 while it starts up.
 // The key is the two-bit signal value itself, which is what gets stored: 00b (no request), 01b
 // (normal charge), 10b (quick charge). 11b (charge stop request) is deliberately not offered.
@@ -175,6 +181,7 @@ const char* name_for_gpioopt1(GPIOOPT1 option) {
   }
 }
 #endif
+#ifdef HW_LILYGO
 const char* name_for_gpioopt2(GPIOOPT2 option) {
   switch (option) {
     case GPIOOPT2::DEFAULT_OPT_BMS_POWER_18:
@@ -208,6 +215,7 @@ const char* name_for_gpioopt4(GPIOOPT4 option) {
       return nullptr;
   }
 }
+#endif  // HW_LILYGO
 
 #ifdef HW_STARK
 const char* name_for_gpioopt5(GPIOOPT5 option) {
@@ -364,6 +372,12 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   if (var == "QNHVO") {
     return options_from_map(settings.getUInt("QNHVO", QNHCK_DEFAULT_RATED_OUTPUT_MV), QNHCK_RATED_OUTPUTS);
   }
+
+  if (var == "BMWI3SOCHAVR") {
+    // Out-of-range values boot as Disable (see init_stored_settings()), so show them that way.
+    uint32_t mode = settings.getUInt("BMWI3SOCHAVR", 0);
+    return options_from_map(mode > 2 ? 0 : mode, bmw_i3_soc_havrla_modes);
+  }
 #endif  // SMALL_FLASH_DEVICE
 
   if (var == "EQSTOP") {
@@ -452,6 +466,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
                                       name_for_gpioopt1, GPIOOPT1::DEFAULT_OPT);
   }
 #endif
+#ifdef HW_LILYGO
   if (var == "GPIOOPT2") {
     return options_for_enum_with_none((GPIOOPT2)settings.getUInt("GPIOOPT2", (int)GPIOOPT2::DEFAULT_OPT_BMS_POWER_18),
                                       name_for_gpioopt2, GPIOOPT2::DEFAULT_OPT_BMS_POWER_18);
@@ -466,6 +481,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum_with_none((GPIOOPT4)settings.getUInt("GPIOOPT4", (int)GPIOOPT4::DEFAULT_SD_CARD),
                                       name_for_gpioopt4, GPIOOPT4::DEFAULT_SD_CARD);
   }
+#endif  // HW_LILYGO
 #ifdef HW_STARK
   if (var == "GPIOOPT5") {
     return options_for_enum_with_none((GPIOOPT5)settings.getUInt("GPIOOPT5", (int)GPIOOPT5::DEFAULT_BMS_POWER_23),
@@ -1472,6 +1488,22 @@ String qnhck_zero_text(uint16_t zero_mV) {
 #define QNHCK_SETTINGS_SCRIPT ""
 #endif  // SMALL_FLASH_DEVICE
 
+#ifndef SMALL_FLASH_DEVICE
+// BMW i3 SOC Havrla selector, left out on small flash devices together with the calculation
+#define BMWI3_SOCHAVR_SETTING_HTML \
+  R"rawliteral(
+        <div class="if-bmw-i3">
+          <label for='BMWI3SOCHAVR'>SOC Havrla: </label>
+          <select name='BMWI3SOCHAVR' id='BMWI3SOCHAVR'
+            title="Voltage-based SOC with internal resistance correction">
+          %BMWI3SOCHAVR%
+          </select>
+        </div>
+)rawliteral"
+#else
+#define BMWI3_SOCHAVR_SETTING_HTML ""
+#endif  // SMALL_FLASH_DEVICE
+
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1581,7 +1613,6 @@ String qnhck_zero_text(uint16_t zero_mV) {
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 300 and 600');}}}
 )rawliteral" CHARGER_SETTINGS_SCRIPT R"rawliteral(
 
-          function goToMainPage() { window.location.href = '/'; }
 
           function haDisc(c) {
             var f = document.querySelector("[name=HADISCFWU]"), n = document.querySelector("[name=HADISC]");
@@ -1612,12 +1643,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
 )rawliteral"
 
 #define SETTINGS_STYLE \
-  R"rawliteral(
+  INDEX_HTML_NAV_LINK R"rawliteral(
     <style>
     body { background-color: black; color: white; }
-        button { background-color: #505E67; color: white; border: none; padding: 6px 20px; margin-bottom: 15px;
-        cursor: pointer; border-radius: 10px; }
-    button:hover { background-color: #3A4A52; }
+    button { padding: 6px 20px; margin-bottom: 15px; }
     h4 { margin: 0.35em 0; line-height: 1.2; }
     /* Buttons are inline-block: a bottom margin here would inflate the row's line box */
     h4 button { margin-bottom: 0; }
@@ -1702,6 +1731,11 @@ String qnhck_zero_text(uint16_t zero_mV) {
 
     form .if-tesla { display: none; }
     form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
+      display: contents;
+    }
+
+    form .if-bmw-i3 { display: none; }
+    form[data-battery="2"] .if-bmw-i3 {
       display: contents;
     }
 
@@ -1880,10 +1914,10 @@ String qnhck_zero_text(uint16_t zero_mV) {
     </style>
 )rawliteral"
 
-#define SETTINGS_HTML_BODY \
+#define SETTINGS_HTML_BODY          \
   R"rawliteral(
-  <button onclick='goToMainPage()'>Back to main page</button>
-  <button onclick="askFactoryReset()">Factory reset</button>
+  )rawliteral" INDEX_HTML_NAV_START \
+  R"rawliteral(<button onclick="askFactoryReset()">Factory reset</button>)rawliteral" INDEX_HTML_NAV_END R"rawliteral(
 
   <script>
   function validateWebAuthPassword() {
@@ -2118,6 +2152,7 @@ String qnhck_zero_text(uint16_t zero_mV) {
           </select>
         </div>
 
+)rawliteral" BMWI3_SOCHAVR_SETTING_HTML R"rawliteral(
         <div class="if-estimated">
         <label>Manual charging power, watt: </label>
         <input type='number' name='CHGPOWER' value="%CHGPOWER%" 

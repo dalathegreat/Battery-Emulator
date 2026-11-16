@@ -131,10 +131,10 @@ class BydAttoBattery : public CanBattery {
   uint32_t taper_last_ms = 0;
   bool taper_initialized = false;
 
-  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
+  static const int POLL_FULL_CHARGES_COMPLETED = 0x0004;
   // 0x0005/0x0008/0x0009 (SOC, voltage, current) come from 0x444 and 0x438, not polled.
   // 0x000A/0x000E (allowed charge/discharge power) come from 0x345 at ~100ms, not polled.
-  static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
+  static const int POLL_CHARGE_SESSIONS_STARTED = 0x000B;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
@@ -203,6 +203,7 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_MODULE_10_LOW_TEMP = 0x01BB;
   static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
   static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
+  static const int POLL_FOR_CURRENT_CALIBRATION_DM = 0x1FFD;  // DM packs lack 0x1FFC
 
   static const uint16_t MAX_CELL_DEVIATION_MV = 230;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
@@ -228,17 +229,14 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t SESSION_ARM_DWELL_MS = 30000;     // ...sustained this long
   static const int16_t SESSION_REARM_DISCHARGE_dA = -20;  // a real discharge releases the post-charge hold
   static const uint32_t SESSION_REARM_DWELL_MS = 30000;
-  static const uint32_t SESSION_REQUEST_DWELL_MS = 1000;      // hold 0x24A=80 before advancing to 84
-  static const uint32_t SESSION_GRANT_TIMEOUT_MS = 15000;     // real chargers walk away if no grant arrives
-  static const uint32_t SESSION_BACKOFF_MS = 900000;          // wait 15min before asking again
-  static const uint32_t SESSION_RAMP_IDLE_HOLD_MS = 4000;     // 0x36D idle prearm before the work-mode ramp
-  static const uint32_t SESSION_GRANT_MIRROR_MS = 1500;       // act without 0x345 if the mirror goes quiet
-  static const uint32_t SESSION_MIRROR_FRESH_MS = 500;        // 0x345 must be this recent to fast-confirm
-  static const uint16_t SESSION_TERMINATION_FLOOR_MV = 3700;  // a grant end below this is an abort, not full
-  static const uint8_t SESSION_GRANT_END = 0x01;              // 0x347 b1 grant end: Atto 0x00, PW4 0x01
-  static const uint32_t SESSION_FINISH_ACK_MS = 4000;
-  static const uint32_t SESSION_DONE_TIMEOUT_MS = 30000;  // finish anyway if the charge flag lags the grant
-  static const uint32_t SESSION_HOLD_SETTLE_MS = 2500;    // 0x24A 8C -> 80 once the pack is resting
+  static const uint32_t SESSION_REQUEST_DWELL_MS = 1000;   // hold 0x24A=80 before advancing to 84
+  static const uint32_t SESSION_GRANT_TIMEOUT_MS = 15000;  // real chargers walk away if no grant arrives
+  static const uint32_t SESSION_BACKOFF_MS = 900000;       // wait 15min before asking again
+  static const uint32_t SESSION_RAMP_IDLE_HOLD_MS = 4000;  // 0x36D idle prearm before the work-mode ramp
+  static const uint8_t SESSION_GRANT_END = 0x01;           // 0x347 b1 grant end: Atto 0x00, PW4 0x01
+  static const uint32_t SESSION_FINISH_ACK_MS = 4000;      // wait this long for the BMS charge verdict
+  static const uint32_t SESSION_DONE_TIMEOUT_MS = 30000;   // finish anyway if the charge flag lags the grant
+  static const uint32_t SESSION_HOLD_SETTLE_MS = 2500;     // 0x24A 8C -> 80 once the pack is resting
 
   /* Session states. The session only ever runs in place on an already closed pack: 0x86 -> 0x85 ->
   (BMS terminates) -> 0x84, no contactor movement. HOLD keeps the frames alive at rest values, because
@@ -261,6 +259,7 @@ class BydAttoBattery : public CanBattery {
   static const uint32_t BALANCING_CLOSE_BACKOFF_MS = 45000;
   static const uint32_t BALANCING_SETTLE_MS = 10000;         // session reaches rest ~5s after termination
   static const uint32_t BALANCING_MOVE_TIMEOUT_MS = 120000;  // give up if the pack will not move
+  static const uint32_t FULL_CHARGE_HOUR_MS = 3600000;
 
   uint16_t rampdown_power = 0;
   uint16_t poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
@@ -274,7 +273,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_lowest_cell_voltage_mV = 3300;
   uint16_t BMS_highest_cell_voltage_mV = 3300;
   uint16_t BMS_allowed_charge_power = 0;
-  uint16_t BMS_charge_times = 0;
+  uint16_t BMS_charge_sessions_started = 0;
   uint8_t BMS_charge_time_remaining_h = 0xFF;  // 0x445, 0xFF = not available
   uint8_t BMS_charge_time_remaining_min = 0xFF;
   uint16_t BMS_allowed_discharge_power = 0;
@@ -282,7 +281,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_total_discharged_ah = 0;
   uint16_t BMS_total_charged_kwh = 0;
   uint16_t BMS_total_discharged_kwh = 0;
-  uint16_t BMS_times_full_power = 0;
+  uint16_t BMS_full_charges_completed = 0;
   uint16_t BMS_capacity_original_calibration = 0;
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
@@ -324,7 +323,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t cell_balance_active_charge = 0;
   BydCellBalanceScanReason cell_balance_scan_reason = BydCellBalanceScanReason::NONE;
   std::atomic<uint8_t> cell_balance_time_requested{0};
-  bool BMS_times_full_power_valid = false;
+  bool BMS_full_charges_completed_valid = false;
 
   bool awaiting_cell_balance_reply() const { return cell_balance_time_active && cell_balance_time_waiting; }
   bool queue_cell_balance_scan(BydCellBalanceScanReason reason);
@@ -425,6 +424,11 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_HV_ACTIVE = 0x04;
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
+  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x20;  // Set by DM (PHEV) packs only
+  // 0x344 byte 2 low nibble, the BMS charge state: F none, 0 ready, 1 charging, 2 finished, 4 aborted
+  static const uint8_t BMS_CHARGE_STATE_CHARGING = 0x01;
+  static const uint8_t BMS_CHARGE_STATE_FINISHED = 0x02;
+  static const uint8_t BMS_CHARGE_STATE_ABORTED = 0x04;
 
   // Car ramps the link to pack over ~900ms: ~62% at 100ms, ~95% at 400ms
   static const uint32_t PRECHARGE_RAMP_MS = 900;
@@ -465,29 +469,28 @@ class BydAttoBattery : public CanBattery {
   bool contactorOpenOptional = false;
   bool balancingCycleDone = false;  // one cycle per real discharge, like the session re-arm
   unsigned long balancingDischargeSinceMillis = 0;
-  bool chargeSessionTerminated = false;  // last session ended on a grant edge, not an interruption
+  unsigned long fullChargeHourMillis = 0;
+  bool fullChargeTerminationSeen = false;
+  bool chargeSessionTerminated = false;  // last session ended full, not an interruption
   bool chargeTerminatedRails = false;    // rails stay lifted after the session ends, until cells relax
   bool chargeSessionHeartbeat = false;
   bool chargeRampDone = false;
-  bool chargeDonePending = false;  // grant edge confirmed, stop offering current
-  bool chargeGrantZeroCandidate = false;
+  bool chargeDonePending = false;        // grant withdrawn, stop offering current
   bool chargeRearmAllowed = true;        // cleared after a termination until a real discharge
   bool chargeRestFlagSeenClear = false;  // pack seen out of 0x85 since the rest began
   bool chargeBackoffActive = false;
-  uint8_t chargeGrant = 0;        // 0x347 byte 1, the BMS -> charger grant
-  uint8_t chargeGrantMirror = 0;  // 0x345 byte 4, mirrors the grant a frame ahead
+  uint8_t chargeGrant = 0;  // 0x347 byte 1, the BMS -> charger grant
   uint8_t chargeGrantPrevious = 0;
-  unsigned long chargeGrantMirrorMillis = 0;
   unsigned long chargeSessionEntryMillis = 0;
   unsigned long chargeRampStartMillis = 0;
-  unsigned long chargeGrantCandidateMillis = 0;
   unsigned long chargeArmCurrentSinceMillis = 0;
   unsigned long chargeRearmDischargeSinceMillis = 0;
   unsigned long chargeBackoffStartMillis = 0;
+  bool chargeBmsChargingSeen = false;  // 0x344 reported charging during this session
 
   void handle_charge_session(unsigned long currentMillis);
   void handle_balancing(unsigned long currentMillis);
-  void handle_charge_grant(uint8_t grant);
+  void handle_full_charge_schedule(unsigned long currentMillis);
   void confirm_charge_termination();
   void start_charge_session(unsigned long currentMillis);
   void enter_charge_delivery(unsigned long currentMillis);
@@ -508,7 +511,9 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_max_cell_voltage_number = 0;
   uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
-  uint8_t discharge_status = 14;
+  uint8_t BMS_charge_state = 0x0F;
+  uint8_t BMS_charge_gun = 0;  // 0x344 b5 bits 2-4
+  bool dm_pack = false;        // latched from 0x344 until reboot
   uint8_t increaseTimeoutSOC = 0;
   static const uint8_t REJECTED = 1;
   static const uint8_t APPROVED = 2;
@@ -544,6 +549,13 @@ class BydAttoBattery : public CanBattery {
                           .DLC = 8,
                           .ID = 0x441,
                           .data = {0x98, 0x3A, 0x88, 0x13, 0x07, 0x00, 0xFF, 0x8C}};
+  // 0x343 = second link-voltage frame (sender unconfirmed): b0 bit0 precharged, b1-2 link volts LE, b3 96 at ready.
+  // DM packs won't close without it
+  CAN_frame DM_343 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x343,
+                      .data = {0xB4, 0x00, 0x00, 0x97, 0x00, 0x00, 0x00, 0xB4}};
   /* Charge-session frames, sent at 100ms while a session runs. 0x36A = precharge/session permission
   (static, also the marker the BMS counts charge sessions on). 0x36D = DC work mode and the keep-alive
   that holds the pack closed: b0-1 link voltage (LE, whole volts), b3 heartbeat, b4 output current,

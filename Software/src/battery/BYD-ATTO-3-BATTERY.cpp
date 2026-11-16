@@ -304,13 +304,14 @@ void BydAttoBattery::
   // Update webserver datalayer
   if (datalayer_bydatto) {
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
-    datalayer_bydatto->SOC_polled = BMS_SOC;
+    datalayer_bydatto->SOC_dashboard = BMS_SOC;
     //Resolved voltage, not raw 0x438, so the page matches the main view when 0x438 is rejected
     datalayer_bydatto->pack_voltage_dV = datalayer_battery->status.voltage_dV;
     datalayer_bydatto->insulation_ohm_per_volt = battery_insulation_ohm_per_volt;
     datalayer_bydatto->insulation_valid = battery_insulation_valid;
     datalayer_bydatto->iso_status_valid = (last_35E_ms != 0) && ((millis() - last_35E_ms) < 3000);
     datalayer_bydatto->iso_measurement_active = battery_iso_measurement_active;
+    datalayer_bydatto->dm_pack = dm_pack;
     memcpy(datalayer_bydatto->battery_temperatures, battery_daughterboard_temperatures,
            sizeof(battery_daughterboard_temperatures));
 
@@ -328,7 +329,7 @@ void BydAttoBattery::
     datalayer_bydatto->charge_session_seconds =
         (chargeSessionState == CHG_SESSION_IDLE) ? 0 : (uint32_t)((millis() - chargeSessionEntryMillis) / 1000);
     datalayer_bydatto->chargePower = BMS_allowed_charge_power;
-    datalayer_bydatto->charge_times = BMS_charge_times;
+    datalayer_bydatto->charge_sessions_started = BMS_charge_sessions_started;
     datalayer_bydatto->charge_time_remaining_h = BMS_charge_time_remaining_h;
     datalayer_bydatto->charge_time_remaining_min = BMS_charge_time_remaining_min;
     datalayer_bydatto->dischargePower = BMS_allowed_discharge_power;
@@ -336,20 +337,19 @@ void BydAttoBattery::
     datalayer_bydatto->total_discharged_ah = BMS_total_discharged_ah;
     datalayer_bydatto->total_charged_kwh = BMS_total_charged_kwh;
     datalayer_bydatto->total_discharged_kwh = BMS_total_discharged_kwh;
-    datalayer_bydatto->times_full_power = BMS_times_full_power;
+    datalayer_bydatto->full_charges_completed = BMS_full_charges_completed;
     datalayer_bydatto->BMS_min_cell_voltage_number = BMS_min_cell_voltage_number;
     datalayer_bydatto->BMS_min_temp_module_number = BMS_min_temp_module_number;
     datalayer_bydatto->BMS_max_cell_voltage_number = BMS_max_cell_voltage_number;
     datalayer_bydatto->BMS_max_temp_module_number = BMS_max_temp_module_number;
-    datalayer_bydatto->discharge_status = discharge_status;
+    datalayer_bydatto->bms_charge_state = BMS_charge_state;
+    datalayer_bydatto->charge_gun = BMS_charge_gun;
     datalayer_bydatto->seed = seed;
     datalayer_bydatto->solvedKey = solvedKey;
     datalayer_bydatto->servicemode = servicemode;
     datalayer_bydatto->contactor_control_state = contactorState;
     datalayer_bydatto->contactor_feedback = contactor_feedback;
     datalayer_bydatto->contactor_main_closed = (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED) != 0;
-    datalayer_bydatto->contactor_precharging = (contactor_feedback & BMS_FEEDBACK_PRECHARGING) != 0;
-    datalayer_bydatto->contactor_hv_active = (contactor_feedback & BMS_FEEDBACK_HV_ACTIVE) != 0;
     datalayer_bydatto->contactor_drive_flag = (contactor_feedback & BMS_FEEDBACK_DRIVE_FLAG) != 0;
     datalayer_bydatto->contactor_charge_flag = (contactor_feedback & BMS_FEEDBACK_CHARGE_FLAG) != 0;
 
@@ -415,7 +415,7 @@ void BydAttoBattery::
       iso_reassert_attempt_ms = 0;
     }
     iso_measurement_was_active = battery_iso_measurement_active;
-    if (!datalayer_bydatto->keep_iso_disabled) {
+    if (!datalayer_bydatto->keep_iso_disabled || dm_pack) {  // DM packs refuse the routine
       iso_reassert_needed = false;
     }
     // Disable early and retry fast to beat the BMS's boot-time insulation trip.
@@ -541,13 +541,17 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         prechargeEdgeSeen = true;
       }
       contactor_feedback = rx_frame.data.u8[0];
-      discharge_status = (rx_frame.data.u8[1] & 0x0F);
+      if (contactor_feedback & BMS_FEEDBACK_DM_PACK) {
+        dm_pack = true;
+      }
+      if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
+        BMS_charge_state = rx_frame.data.u8[2] & 0x0F;
+        BMS_charge_gun = (rx_frame.data.u8[5] >> 2) & 0x07;
+      }
       break;
     case 0x345:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
-        chargeGrantMirror = rx_frame.data.u8[4];  // mirrors 0x347 byte 1, typically a frame ahead of it
-        chargeGrantMirrorMillis = millis();
         BMS_allowed_discharge_power = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0];  // 0.1kW, same as DID 0x000E
         BMS_allowed_charge_power = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2];     // 0.1kW, same as DID 0x000A
       } else {
@@ -558,7 +562,14 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
         chargeGrant = rx_frame.data.u8[1];
-        handle_charge_grant(rx_frame.data.u8[1]);
+        // The BMS withdraws its grant about a second before it clears the charge flag: stop offering
+        // current on that falling edge.
+        if (chargeSessionState == CHG_SESSION_CHARGING && !chargeDonePending &&
+            chargeGrantPrevious > SESSION_GRANT_END && chargeGrant <= SESSION_GRANT_END) {
+          chargeDonePending = true;
+          chargeSessionEntryMillis = millis();
+        }
+        chargeGrantPrevious = chargeGrant;
       } else {
         datalayer_battery->status.CAN_error_counter++;
       }
@@ -673,18 +684,18 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x446:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       // Broadcast cell extrema summary (~1Hz), fresher than the UDS round-robin. b0/b4 = 1-based
-      // min/max cell number; min/max mV are 12-bit little-endian in b1:b2 / b5:b6.
-      BMS_min_cell_voltage_number = rx_frame.data.u8[0];
+      // min/max cell number (0-based on DM packs); min/max mV are 12-bit little-endian in b1:b2 / b5:b6.
+      BMS_min_cell_voltage_number = rx_frame.data.u8[0] + dm_pack;
       BMS_lowest_cell_voltage_mV = rx_frame.data.u8[1] | ((rx_frame.data.u8[2] & 0x0F) << 8);
-      BMS_max_cell_voltage_number = rx_frame.data.u8[4];
+      BMS_max_cell_voltage_number = rx_frame.data.u8[4] + dm_pack;
       BMS_highest_cell_voltage_mV = rx_frame.data.u8[5] | ((rx_frame.data.u8[6] & 0x0F) << 8);
       break;
     case 0x447:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[7] == computeBydChecksum(rx_frame.data.u8)) {
-        BMS_min_temp_module_number = rx_frame.data.u8[0];  // 1-based coldest sensor
+        BMS_min_temp_module_number = rx_frame.data.u8[0] + dm_pack;  // 1-based coldest sensor
         BMS_lowest_cell_temperature = (rx_frame.data.u8[1] - 40);
-        BMS_max_temp_module_number = rx_frame.data.u8[2];  // 1-based hottest sensor
+        BMS_max_temp_module_number = rx_frame.data.u8[2] + dm_pack;  // 1-based hottest sensor
         BMS_highest_cell_temperature = (rx_frame.data.u8[3] - 40);
         battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
         BMS_average_cell_temperature = (rx_frame.data.u8[6] - 40);
@@ -701,9 +712,17 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x789:  // Type B diagnostic reply
     case 0x7EF:  //OBD2 PID reply from battery
       diag_answered = true;
-      // DTC reply (0x19 0x02 -> 0x59 0x02) is multi-frame. Reassemble it, ACK the first frame with
-      // our own flow control, and parse once complete. Done before the single-frame PID parsing so
-      // the consecutive frames aren't mistaken for PIDs.
+      // DTC reply (0x19 0x02 -> 0x59 0x02). 0 or 1 DTC fits in a single frame; more is multi-frame:
+      // reassemble it, ACK the first frame with our own flow control, and parse once complete. Done
+      // before the single-frame PID parsing so the consecutive frames aren't mistaken for PIDs.
+      if (rx_frame.data.u8[0] <= 0x07 && rx_frame.data.u8[1] == 0x59 && rx_frame.data.u8[2] == 0x02) {
+        dtc_rx_len = rx_frame.data.u8[0];
+        for (uint8_t i = 0; i < dtc_rx_len; i++) {
+          dtc_buffer[i] = rx_frame.data.u8[i + 1];
+        }
+        parseDTCResponse();
+        break;
+      }
       if (rx_frame.data.u8[0] == 0x10 && rx_frame.data.u8[2] == 0x59 && rx_frame.data.u8[3] == 0x02) {
         dtc_rx_expected = ((rx_frame.data.u8[0] & 0x0F) << 8) | rx_frame.data.u8[1];
         dtc_rx_len = 0;
@@ -729,8 +748,7 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         seed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         solvedKey = byd_generate_key(seed, 0x63);  //For now key can be either 0xbd or 0x63, 50/50 of guessing right
       }
-      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) &&
-          !(awaiting_cell_balance_reply() && rx_frame.data.u8[2] == 0x22)) {
+      if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x27)) {
         servicemode = REJECTED;
       }
       if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x67) && (rx_frame.data.u8[2] == 0x02) &&
@@ -765,11 +783,12 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           BMC_SOC_original_calibration = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case POLL_FOR_CURRENT_CALIBRATION:
+        case POLL_FOR_CURRENT_CALIBRATION_DM:
           BMS_capacity_current_calibration = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];
           BMC_SOC_current_calibration = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case POLL_CHARGE_TIMES:
-          BMS_charge_times = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_CHARGE_SESSIONS_STARTED:
+          BMS_charge_sessions_started = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case POLL_TOTAL_CHARGED_AH:
           BMS_total_charged_ah = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
@@ -783,11 +802,11 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case POLL_TOTAL_DISCHARGED_KWH:
           BMS_total_discharged_kwh = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case POLL_TIMES_FULL_POWER: {
-          const uint16_t times_full_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
-          observe_completed_charge_counter(times_full_power);
-          BMS_times_full_power = times_full_power;
-          BMS_times_full_power_valid = true;
+        case POLL_FULL_CHARGES_COMPLETED: {
+          const uint16_t full_charges_completed = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          observe_completed_charge_counter(full_charges_completed);
+          BMS_full_charges_completed = full_charges_completed;
+          BMS_full_charges_completed_valid = true;
           break;
         }
         default:  //Unrecognized reply
@@ -867,7 +886,6 @@ void BydAttoBattery::start_charge_session(unsigned long currentMillis) {
   chargeRampStartMillis = currentMillis;
   chargeSessionTerminated = false;
   chargeDonePending = false;
-  chargeGrantZeroCandidate = false;
   chargeGrantPrevious = 0;
   chargeArmCurrentSinceMillis = 0;
   ATTO_3_24A.data.u8[0] = 0x80;  // charge requested
@@ -883,7 +901,7 @@ void BydAttoBattery::enter_charge_delivery(unsigned long currentMillis) {
   // Forget any grant value left over from an earlier charge, or its drop to zero would read as this
   // charge ending the moment it starts.
   chargeGrantPrevious = 0;
-  chargeGrantZeroCandidate = false;
+  chargeBmsChargingSeen = false;
   chargeDonePending = false;
   DEBUG_PRINTF("[BYD] Charge session granted, battery is charging\n");
 }
@@ -899,7 +917,6 @@ void BydAttoBattery::hold_charge_session(unsigned long currentMillis, const char
   chargeSessionState = CHG_SESSION_HOLD;
   chargeSessionEntryMillis = currentMillis;
   chargeDonePending = false;
-  chargeGrantZeroCandidate = false;
   chargeRestFlagSeenClear = false;
   chargeArmCurrentSinceMillis = 0;
   if (backoff) {
@@ -918,7 +935,6 @@ void BydAttoBattery::end_charge_session(const char* reason) {
   chargeSessionState = CHG_SESSION_IDLE;
   chargeSessionTerminated = false;
   chargeDonePending = false;
-  chargeGrantZeroCandidate = false;
   chargeRearmAllowed = true;
   chargeRampDone = false;
   chargeArmCurrentSinceMillis = 0;
@@ -931,15 +947,11 @@ void BydAttoBattery::end_charge_session(const char* reason) {
   DEBUG_PRINTF("[BYD] Charge session ended: %s\n", reason);
 }
 
-// The BMS called the pack full: record it and stop offering current. Callers check the termination
-// floor first.
+// The BMS called the pack full: record it.
 void BydAttoBattery::confirm_charge_termination() {
   const uint16_t cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
   const uint16_t cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
   const uint16_t spread_mV = (cell_max_mV > cell_min_mV) ? (cell_max_mV - cell_min_mV) : 0;
-  chargeGrantZeroCandidate = false;
-  chargeDonePending = true;
-  chargeSessionEntryMillis = millis();
   // Snapshot the cells at the moment the BMS called it full: comparing these across charges is
   // how top-of-charge balancing shows up.
   if (datalayer_bydatto) {
@@ -957,38 +969,6 @@ void BydAttoBattery::confirm_charge_termination() {
   note_termination_spread(spread_mV);
   set_event(EVENT_BYD_CHARGE_TERMINATED, (uint8_t)(spread_mV / 10), battery_index);
   DEBUG_PRINTF("[BYD] Battery ended the charge at %umV, cell spread %umV\n", cell_max_mV, spread_mV);
-}
-
-// The BMS withdraws its grant by dropping 0x347 byte 1 to SESSION_GRANT_END or below about a second
-// before it clears the charge flag. The value sawtooths through a session, so only that falling edge
-// counts, and 0x345 byte 4 has to agree before acting on it - it mirrors the same value a frame earlier.
-void BydAttoBattery::handle_charge_grant(uint8_t grant) {
-  if (chargeSessionState == CHG_SESSION_CHARGING && (contactor_feedback & BMS_FEEDBACK_CHARGE_FLAG) &&
-      !chargeDonePending) {
-    if (!chargeGrantZeroCandidate && chargeGrantPrevious > SESSION_GRANT_END && grant <= SESSION_GRANT_END) {
-      chargeGrantZeroCandidate = true;
-      chargeGrantCandidateMillis = millis();
-    } else if (chargeGrantZeroCandidate && grant > SESSION_GRANT_END) {
-      chargeGrantZeroCandidate = false;  // came back up: sawtooth, not the end of the charge
-    }
-    const bool mirror_confirms =
-        chargeGrantMirror <= SESSION_GRANT_END && (millis() - chargeGrantMirrorMillis) < SESSION_MIRROR_FRESH_MS;
-    // The timeout only stands in for a mirror that has gone quiet. A mirror that is still arriving
-    // and disagreeing keeps the veto; a genuine stop then resolves through the charge flag instead.
-    const bool mirror_quiet = (millis() - chargeGrantMirrorMillis) > SESSION_GRANT_MIRROR_MS;
-    if (chargeGrantZeroCandidate && grant <= SESSION_GRANT_END &&
-        (mirror_confirms || (mirror_quiet && (millis() - chargeGrantCandidateMillis) > SESSION_GRANT_MIRROR_MS))) {
-      chargeGrantZeroCandidate = false;
-      if (datalayer_battery->status.cell_max_voltage_mV < SESSION_TERMINATION_FLOOR_MV) {
-        // Every real termination sits at 3742-3753mV. A grant end this far below the band is the
-        // BMS aborting the charge, not the pack being full - stand down and try again later.
-        hold_charge_session(millis(), "battery stopped granting below the termination band", true);
-        return;
-      }
-      confirm_charge_termination();
-    }
-  }
-  chargeGrantPrevious = grant;
 }
 
 void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
@@ -1095,42 +1075,33 @@ void BydAttoBattery::handle_charge_session(unsigned long currentMillis) {
       }
       break;
     case CHG_SESSION_CHARGING:
-      if (!charge_flag) {
-        // A flag drop while a grant-zero candidate is still waiting on its quiet mirror IS the
-        // termination: grant withdrawn, then session ended. Confirm now so this pass enters
-        // FINISHING instead of reading the drop as an interruption.
-        if (!chargeDonePending && chargeGrantZeroCandidate &&
-            datalayer_battery->status.cell_max_voltage_mV >= SESSION_TERMINATION_FLOOR_MV) {
-          confirm_charge_termination();
-        }
-        if (chargeDonePending) {
-          ATTO_3_24A.data.u8[3] = 0x00;
-          ATTO_3_24A.data.u8[6] = 0x00;
-          ATTO_3_47E.data.u8[2] = 0x0E;
-          chargeSessionState = CHG_SESSION_FINISHING;
-          chargeSessionEntryMillis = currentMillis;
-        } else {
-          // Interrupted rather than finished (cloud, load, inverter). Nothing to block afterwards.
-          hold_charge_session(currentMillis, "charge stopped before the battery ended it", true);
-        }
-      } else if (chargeDonePending && currentMillis - chargeSessionEntryMillis >= SESSION_DONE_TIMEOUT_MS) {
-        // Grant withdrawn but the flag never followed. The grant is the authority, so finish anyway.
-        ATTO_3_24A.data.u8[3] = 0x00;
-        ATTO_3_24A.data.u8[6] = 0x00;
+      if (BMS_charge_state == BMS_CHARGE_STATE_CHARGING) {
+        chargeBmsChargingSeen = true;
+      }
+      // Like the car, wind down when the charge flag clears, however the charge ended. A grant
+      // withdrawn without the flag following gets the same treatment after a timeout.
+      if (!charge_flag || (chargeDonePending && currentMillis - chargeSessionEntryMillis >= SESSION_DONE_TIMEOUT_MS)) {
+        chargeDonePending = true;
         ATTO_3_47E.data.u8[2] = 0x0E;
         chargeSessionState = CHG_SESSION_FINISHING;
         chargeSessionEntryMillis = currentMillis;
       }
       break;
     case CHG_SESSION_FINISHING:
-      if (currentMillis - chargeSessionEntryMillis >= 1000 && ATTO_3_47E.data.u8[2] == 0x0E) {
-        ATTO_3_47E.data.u8[2] = 0x0F;
-      }
-      if (currentMillis - chargeSessionEntryMillis >= SESSION_FINISH_ACK_MS) {
+      // The BMS gives its verdict in 0x344 byte 2 within a second of clearing the flag. Only a full
+      // pack (SOC 100) is a termination; anything else rests and tries again later.
+      if (chargeBmsChargingSeen && BMS_charge_state == BMS_CHARGE_STATE_FINISHED && BMS_SOC == 100) {
+        confirm_charge_termination();
         hold_charge_session(currentMillis, "charge complete, holding the battery closed", false);
         chargeSessionTerminated = true;
         chargeRearmAllowed = false;
         chargeRearmDischargeSinceMillis = 0;
+      } else if (chargeBmsChargingSeen && BMS_charge_state == BMS_CHARGE_STATE_FINISHED) {
+        hold_charge_session(currentMillis, "charge ended before full", true);
+      } else if (BMS_charge_state == BMS_CHARGE_STATE_ABORTED) {
+        hold_charge_session(currentMillis, "battery aborted the charge", true);
+      } else if (currentMillis - chargeSessionEntryMillis >= SESSION_FINISH_ACK_MS) {
+        hold_charge_session(currentMillis, "battery gave no charge verdict", true);
       }
       break;
     default:
@@ -1249,6 +1220,29 @@ void BydAttoBattery::handle_balancing(unsigned long currentMillis) {
   datalayer_bydatto->balancing_remaining_min = remaining;
 }
 
+// Lift the SOC window top once N days pass without a termination, until the next one.
+void BydAttoBattery::handle_full_charge_schedule(unsigned long currentMillis) {
+  if (!datalayer_bydatto || datalayer_battery != &datalayer.battery) {
+    return;
+  }
+  if (chargeSessionTerminated && !fullChargeTerminationSeen) {
+    datalayer_bydatto->full_charge_hours = 0;
+  }
+  fullChargeTerminationSeen = chargeSessionTerminated;
+
+  const uint16_t due_hours = datalayer_bydatto->full_charge_every_days * 24;
+  const bool active =
+      due_hours > 0 && datalayer_bydatto->native_termination_enabled && datalayer.battery_settings.soc_scaling_active;
+  const bool lifted = active && datalayer_bydatto->full_charge_hours >= due_hours;
+  if (!active || lifted) {
+    fullChargeHourMillis = currentMillis;
+  } else if (currentMillis - fullChargeHourMillis >= FULL_CHARGE_HOUR_MS) {
+    fullChargeHourMillis += FULL_CHARGE_HOUR_MS;
+    datalayer_bydatto->full_charge_hours++;
+  }
+  datalayer.battery_settings.soc_window_top_lifted = lifted;
+}
+
 void BydAttoBattery::transmit_charge_session(unsigned long currentMillis) {
   if (chargeSessionState == CHG_SESSION_IDLE) {
     return;
@@ -1268,7 +1262,7 @@ void BydAttoBattery::transmit_charge_session(unsigned long currentMillis) {
   if (ATTO_3_24A.data.u8[0] == 0x88) {
     ATTO_3_24A.data.u8[2] = 0x51;
     ATTO_3_24A.data.u8[3] = chargeDonePending ? 0x00 : 0x07;
-    ATTO_3_24A.data.u8[6] = chargeDonePending ? 0x00 : 0x0E;
+    ATTO_3_24A.data.u8[6] = (chargeSessionState == CHG_SESSION_FINISHING) ? 0x00 : 0x0E;
   }
   ATTO_3_24A.data.u8[7] = computeBydChecksum(ATTO_3_24A.data.u8);
   transmit_can_frame(&ATTO_3_24A);
@@ -1530,8 +1524,8 @@ void BydAttoBattery::sync_cell_balance_automation() {
   cell_balance_auto_applied = enabled;
   cell_balance_baseline_pending = false;
   cell_balance_session_active = false;
-  cell_balance_charge_seen = enabled && BMS_times_full_power_valid;
-  cell_balance_seen_charge = BMS_times_full_power;
+  cell_balance_charge_seen = enabled && BMS_full_charges_completed_valid;
+  cell_balance_seen_charge = BMS_full_charges_completed;
 }
 
 void BydAttoBattery::observe_completed_charge_counter(uint16_t charge_cycles) {
@@ -1708,8 +1702,8 @@ void BydAttoBattery::finish_cell_balance_time_scan() {
   cell_balance_time_active = false;
   cell_balance_time_waiting = false;
   // 0x0004 counts completed charges; 0x000B counts sessions entered, which is roughly 5x higher.
-  cell_balance_time_data.charge_cycles = BMS_times_full_power;
-  cell_balance_time_data.charge_cycles_valid = BMS_times_full_power_valid;
+  cell_balance_time_data.charge_cycles = BMS_full_charges_completed;
+  cell_balance_time_data.charge_cycles_valid = BMS_full_charges_completed_valid;
   cell_balance_time_data.scan_id++;
   if (cell_balance_time_data.received_cells == cell_balance_time_data.expected_cells) {
     cell_balance_time_data.state = BydCellBalanceTimeState::COMPLETE;
@@ -1897,6 +1891,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     handle_contactor_control(currentMillis);
     handle_charge_session(currentMillis);
     handle_balancing(currentMillis);
+    handle_full_charge_schedule(currentMillis);
 
     // Byte 6 = rolling counter (high nibble counts up, low nibble 0xF), byte 7 = checksum
     frame6_counter = (frame6_counter + 1) & 0x0F;
@@ -1949,11 +1944,22 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         ATTO_3_441.data.u8[4] = (uint8_t)link_voltage;
         ATTO_3_441.data.u8[5] = (link_voltage >> 8);
         ATTO_3_441.data.u8[6] = 0xFF;
+        if (dm_pack && (contactor_feedback & BMS_FEEDBACK_MAIN_CLOSED)) {  // DM packs refuse a charge on FF
+          ATTO_3_441.data.u8[6] = (chargeSessionState != CHG_SESSION_IDLE) ? 0x04 : 0x00;
+        }
         ATTO_3_441.data.u8[7] = computeBydChecksum(ATTO_3_441.data.u8);
       }
+      DM_343.data.u8[0] = (prechargeState == PRECHARGE_DONE && !report_link_voltage_low) ? 0xB5 : 0xB4;
+      DM_343.data.u8[1] = report_link_voltage_low ? 0x00 : (uint8_t)link_voltage;
+      DM_343.data.u8[2] = report_link_voltage_low ? 0x00 : (link_voltage >> 8);
+      DM_343.data.u8[3] = ((ATTO_3_12D.data.u8[4] & 0x0C) == 0x0C) ? 0x96 : 0x97;
+      DM_343.data.u8[7] = computeBydChecksum(DM_343.data.u8);
     }
 
     transmit_can_frame(&ATTO_3_441);
+    if (dm_pack) {
+      transmit_can_frame(&DM_343);
+    }
 
     transmit_charge_session(currentMillis);
 
@@ -2032,19 +2038,25 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
           }
         }
         break;
-      case RUNNING_STEP_3:
-        // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A
+      case RUNNING_STEP_3: {
+        // WriteDataByIdentifier dataIdentifier=1F FC (calibrate SOC), data = 10 27 98 3A. DM packs lack 1F FC.
+        // DM: keep the fractional Ah unless the target was edited
+        const uint16_t target_Ah_x100 =
+            (dm_pack && datalayer_bydatto->calibrationTargetAH == BMS_capacity_current_calibration / 100)
+                ? BMS_capacity_current_calibration
+                : (uint16_t)(datalayer_bydatto->calibrationTargetAH * 100);
         ATTO_3_7E7_RESET_SOC.data = {0x07,
                                      0x2E,
                                      0x1F,
-                                     0xFC,
+                                     (uint8_t)(dm_pack ? 0xFD : 0xFC),
                                      (uint8_t)(datalayer_bydatto->calibrationTargetSOC * 100),
                                      (uint8_t)((datalayer_bydatto->calibrationTargetSOC * 100) >> 8),
-                                     (uint8_t)(datalayer_bydatto->calibrationTargetAH * 100),
-                                     (uint8_t)((datalayer_bydatto->calibrationTargetAH * 100) >> 8)};
+                                     (uint8_t)target_Ah_x100,
+                                     (uint8_t)(target_Ah_x100 >> 8)};
         transmit_can_frame(&ATTO_3_7E7_RESET_SOC);
         stateMachineCalibrateSOC = NOT_RUNNING;
         break;
+      }
       case NOT_RUNNING:
         break;
       default:
@@ -2126,12 +2138,13 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
         break;
       case POLL_FOR_CURRENT_CALIBRATION:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_CURRENT_CALIBRATION & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_CURRENT_CALIBRATION & 0x00FF);
-        poll_state = POLL_CHARGE_TIMES;
+        ATTO_3_7E7_POLL.data.u8[3] =
+            (uint8_t)((dm_pack ? POLL_FOR_CURRENT_CALIBRATION_DM : POLL_FOR_CURRENT_CALIBRATION) & 0x00FF);
+        poll_state = POLL_CHARGE_SESSIONS_STARTED;
         break;
-      case POLL_CHARGE_TIMES:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_CHARGE_TIMES & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_CHARGE_TIMES & 0x00FF);
+      case POLL_CHARGE_SESSIONS_STARTED:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_CHARGE_SESSIONS_STARTED & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_CHARGE_SESSIONS_STARTED & 0x00FF);
         poll_state = POLL_TOTAL_CHARGED_AH;
         break;
       case POLL_TOTAL_CHARGED_AH:
@@ -2152,11 +2165,11 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case POLL_TOTAL_DISCHARGED_KWH:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_KWH & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_KWH & 0x00FF);
-        poll_state = POLL_TIMES_FULL_POWER;
+        poll_state = POLL_FULL_CHARGES_COMPLETED;
         break;
-      case POLL_TIMES_FULL_POWER:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TIMES_FULL_POWER & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TIMES_FULL_POWER & 0x00FF);
+      case POLL_FULL_CHARGES_COMPLETED:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FULL_CHARGES_COMPLETED & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FULL_CHARGES_COMPLETED & 0x00FF);
         poll_state = POLL_FOR_ORIGINAL_CALIBRATION;
         break;
       default:

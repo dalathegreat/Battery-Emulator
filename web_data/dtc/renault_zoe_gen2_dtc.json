@@ -1,5 +1,45 @@
 [
   {
+    "dtc": "P1B0016",
+    "l_dsc": "Low voltage supply input - Circuit voltage below threshold"
+  },
+  {
+    "dtc": "P1B0301",
+    "l_dsc": "Current sensor input - General electrical failure"
+  },
+  {
+    "dtc": "P1B0E41",
+    "l_dsc": "External NV memory (EEPROM, FLASH) - General checksum failure"
+  },
+  {
+    "dtc": "P1B1208",
+    "l_dsc": "Main ASSP - Bus signal / message failures"
+  },
+  {
+    "dtc": "P1B1E1C",
+    "l_dsc": "Current sensor 12V supply - Circuit voltage out of range"
+  },
+  {
+    "dtc": "P1B1F81",
+    "l_dsc": "CAN current sensor (MCPU) - Invalid serial data received"
+  },
+  {
+    "dtc": "P1B2081",
+    "l_dsc": "Relay 4 control output - Invalid serial data received"
+  },
+  {
+    "dtc": "U214287",
+    "l_dsc": "CAN from Inverter - Missing message"
+  },
+  {
+    "dtc": "U214361",
+    "l_dsc": "CAN from EVC/HEVC - Signal calculation failure"
+  },
+  {
+    "dtc": "U214381",
+    "l_dsc": "CAN from EVC/HEVC - Invalid serial data received"
+  },
+  {
     "dtc": "P1B00",
     "l_dsc": "Low voltage supply input"
   },
@@ -412,31 +452,31 @@
     "l_dsc": "Flash memory failure (FOTA) (SCPU)"
   },
   {
-    "dtc": "PE140",
+    "dtc": "U2140",
     "l_dsc": "CAN from HECM"
   },
   {
-    "dtc": "PE142",
+    "dtc": "U2142",
     "l_dsc": "CAN from Inverter"
   },
   {
-    "dtc": "PE143",
+    "dtc": "U2143",
     "l_dsc": "CAN from EVC/HEVC"
   },
   {
-    "dtc": "PE144",
+    "dtc": "U2144",
     "l_dsc": "CAN from BMS1"
   },
   {
-    "dtc": "PEA0D",
+    "dtc": "U2A0D",
     "l_dsc": "CAN controller (MCPU)"
   },
   {
-    "dtc": "PFD00",
+    "dtc": "U3D00",
     "l_dsc": "FOTA : SW bloc"
   },
   {
-    "dtc": "PFD01",
+    "dtc": "U3D01",
     "l_dsc": "FOTA : Calibration bloc"
   }
 ]

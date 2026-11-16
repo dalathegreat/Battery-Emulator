@@ -53,6 +53,8 @@ class Kia64FDBattery : public UdsCanBattery {
   void set_cell_voltage_mv(uint16_t voltage_mV, uint8_t cellNumber);
   void handle_215_cell_voltages(const CAN_frame& rx_frame);
   void set_voltage_minmax_limits();
+  void set_cell_voltages(uint8_t reading, uint8_t cellNumber);
+  void process_cell_voltage_group(const uint8_t* data, uint8_t baseCell);
 
   static const int MAX_PACK_VOLTAGE_96S_DV = 4032;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_96S_DV = 2400;
@@ -94,6 +96,7 @@ class Kia64FDBattery : public UdsCanBattery {
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
   bool startedUp = false;
+  bool high_precision_cell_voltages = false;
   int8_t temperature_water_inlet = 0;
   int8_t heatertemp = 0;
   unsigned long startMillis = 0;
