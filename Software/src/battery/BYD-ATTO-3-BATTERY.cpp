@@ -686,9 +686,15 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       // Broadcast cell extrema summary (~1Hz), fresher than the UDS round-robin. b0/b4 = 1-based
       // min/max cell number (0-based on DM packs); min/max mV are 12-bit little-endian in b1:b2 / b5:b6.
       BMS_min_cell_voltage_number = rx_frame.data.u8[0] + dm_pack;
-      BMS_lowest_cell_voltage_mV = rx_frame.data.u8[1] | ((rx_frame.data.u8[2] & 0x0F) << 8);
+      //While starting, the BMS may report frame1 and frame2 as 0x00 0x00 for the lowest cell voltage, which is invalid. Ignore it until a valid reading is received.
+      if (rx_frame.data.u8[1] != 0x00 || (rx_frame.data.u8[2] & 0x0F) != 0x00) {
+        BMS_lowest_cell_voltage_mV = rx_frame.data.u8[1] | ((rx_frame.data.u8[2] & 0x0F) << 8);
+      }
       BMS_max_cell_voltage_number = rx_frame.data.u8[4] + dm_pack;
-      BMS_highest_cell_voltage_mV = rx_frame.data.u8[5] | ((rx_frame.data.u8[6] & 0x0F) << 8);
+      //While starting, the BMS may report frame5 and frame6 as 0x00 0x00 for the highest cell voltage, which is invalid. Ignore it until a valid reading is received.
+      if (rx_frame.data.u8[5] != 0x00 || (rx_frame.data.u8[6] & 0x0F) != 0x00) {
+        BMS_highest_cell_voltage_mV = rx_frame.data.u8[5] | ((rx_frame.data.u8[6] & 0x0F) << 8);
+      }
       break;
     case 0x447:
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
