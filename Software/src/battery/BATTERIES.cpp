@@ -667,6 +667,9 @@ uint8_t user_selected_LEAF_chg_sta_rq[3] = {0, 0, 0};
 bool user_selected_LEAF_auto_current_offset = true;
 /* User-selected Tesla settings */
 bool user_selected_tesla_digital_HVIL = false;
+#ifndef SMALL_FLASH_DEVICE
+uint8_t user_selected_bmw_i3_soc_havrla = 0;  // 0=disable, 1=auto, 2=enable
+#endif                                        // SMALL_FLASH_DEVICE
 uint16_t user_selected_tesla_GTW_country = 17477;
 bool user_selected_tesla_GTW_rightHandDrive = true;
 uint16_t user_selected_tesla_GTW_mapRegion = 2;
