@@ -6,8 +6,274 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/common_functions.h"  //For CRC table
 #include "../devboard/utils/events.h"
+#ifndef SMALL_FLASH_DEVICE
+#include "../devboard/utils/logging.h"  //For debug logging
+#include "BATTERIES.h"
+#endif  // SMALL_FLASH_DEVICE
 
 /* Do not change code below unless you are sure what you are doing */
+
+#ifndef SMALL_FLASH_DEVICE
+// BMW i3 60Ah cell characterization data (96 cells in series).
+// Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
+static const uint16_t bmwi3_voltage_table_60ah[] = {4085, 4073, 4063, 4050, 4029, 4009, 3994, 3980, 3953,
+                                                    3923, 3901, 3877, 3855, 3835, 3819, 3802, 3785, 3763,
+                                                    3737, 3707, 3684, 3665, 3642, 3603, 3578, 3554, 3542};
+static const uint16_t bmwi3_soc_table_60ah[] = {10000, 9800, 9600, 9400, 9000, 8500, 8000, 7500, 7000,
+                                                6500,  6000, 5500, 5000, 4500, 4000, 3500, 3000, 2500,
+                                                2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
+static constexpr uint8_t BMWI3_TABLE_SIZE_60AH = sizeof(bmwi3_voltage_table_60ah) / sizeof(bmwi3_voltage_table_60ah[0]);
+
+// BMW i3 94Ah cell characterization data (96 cells in series).
+// Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
+static const uint16_t bmwi3_voltage_table_94ah[] = {4145, 4113, 4092, 4073, 4035, 3990, 3946, 3904, 3863,
+                                                    3821, 3776, 3737, 3701, 3669, 3644, 3625, 3608, 3592,
+                                                    3575, 3555, 3541, 3529, 3515, 3491, 3478, 3466, 3460};
+static const uint16_t bmwi3_soc_table_94ah[] = {10000, 9800, 9600, 9400, 9000, 8500, 8000, 7500, 7000,
+                                                6500,  6000, 5500, 5000, 4500, 4000, 3500, 3000, 2500,
+                                                2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
+static constexpr uint8_t BMWI3_TABLE_SIZE_94AH = sizeof(bmwi3_voltage_table_94ah) / sizeof(bmwi3_voltage_table_94ah[0]);
+
+// BMW i3 120Ah cell characterization data (96 cells in series).
+// Voltage in mV, SOC in pptt (10000 = 100%). Descending voltage order.
+static const uint16_t bmwi3_voltage_table_120ah[] = {4200, 4123, 4102, 4081, 4041, 3993, 3946, 3901, 3859,
+                                                     3817, 3775, 3733, 3684, 3649, 3625, 3608, 3593, 3579,
+                                                     3564, 3546, 3530, 3518, 3504, 3476, 3453, 3438, 3434};
+static const uint16_t bmwi3_soc_table_120ah[] = {10000, 9800, 9600, 9400, 9000, 8500, 8000, 7500, 7000,
+                                                 6500,  6000, 5500, 5000, 4500, 4000, 3500, 3000, 2500,
+                                                 2000,  1500, 1200, 1000, 800,  500,  300,  100,  0};
+static constexpr uint8_t BMWI3_TABLE_SIZE_120AH =
+    sizeof(bmwi3_voltage_table_120ah) / sizeof(bmwi3_voltage_table_120ah[0]);
+
+static constexpr uint32_t HAVRLA_NO_LIMIT_W = 0xFFFFFFFFUL;
+
+static uint16_t interpolate_soc_from_voltage_mV(int32_t v_mV, const uint16_t* vtab, const uint16_t* stab,
+                                                uint8_t tsize) {
+  if (v_mV >= (int32_t)vtab[0]) {
+    return stab[0];
+  }
+  if (v_mV <= (int32_t)vtab[tsize - 1]) {
+    return stab[tsize - 1];
+  }
+  for (uint8_t i = 0; i < tsize - 1; i++) {
+    if (v_mV <= (int32_t)vtab[i] && v_mV >= (int32_t)vtab[i + 1]) {
+      int32_t v_hi = vtab[i];
+      int32_t v_lo = vtab[i + 1];
+      int32_t s_hi = stab[i];
+      int32_t s_lo = stab[i + 1];
+      return (uint16_t)(s_lo + (v_mV - v_lo) * (s_hi - s_lo) / (v_hi - v_lo));
+    }
+  }
+  return 0;
+}
+
+static uint16_t interpolate_voltage_from_soc_pptt(uint16_t soc_pptt, const uint16_t* vtab, const uint16_t* stab,
+                                                  uint8_t tsize) {
+  if (soc_pptt >= stab[0]) {
+    return vtab[0];
+  }
+  if (soc_pptt <= stab[tsize - 1]) {
+    return vtab[tsize - 1];
+  }
+  for (uint8_t i = 0; i < tsize - 1; i++) {
+    if (soc_pptt <= stab[i] && soc_pptt >= stab[i + 1]) {
+      int32_t v_hi = vtab[i];
+      int32_t v_lo = vtab[i + 1];
+      int32_t s_hi = stab[i];
+      int32_t s_lo = stab[i + 1];
+      if (s_hi == s_lo) {
+        return (uint16_t)v_hi;
+      }
+      return (uint16_t)(v_lo + ((int32_t)soc_pptt - s_lo) * (v_hi - v_lo) / (s_hi - s_lo));
+    }
+  }
+  return vtab[tsize - 1];
+}
+
+// Smoothstep gain: x = 0 -> 0, x >= span -> 1024, with a soft ramp in between
+static uint16_t smooth_gain_1024(uint16_t x, uint16_t span) {
+  if (span == 0 || x >= span) {
+    return 1024;
+  }
+  uint32_t t = ((uint32_t)x * 1024U) / span;
+  uint64_t gain = (uint64_t)t * (uint64_t)t * (uint64_t)(3U * 1024U - 2U * t);  // 3t^2 - 2t^3
+  gain /= (1024ULL * 1024ULL);
+  return (uint16_t)gain;
+}
+
+// W = (dV / 10) * (dA / 10) = dV * dA / 100
+static uint32_t havrla_current_to_power_W(uint16_t voltage_dV, uint32_t current_dA) {
+  return ((uint32_t)voltage_dV * current_dA + 50U) / 100U;
+}
+
+// SOC_Havrla based charge limit near full: from 98.0 % ramp from 30 A down to 1 A at 99.8 %, then hold 1 A.
+static uint32_t havrla_soc_charge_power_limit_W(uint16_t soc_pptt, uint16_t voltage_dV) {
+  static const uint16_t SOC_LIMIT_START_PPTT = 9800;
+  static const uint16_t SOC_LIMIT_ONE_AMP_PPTT = 9980;
+  static const uint16_t CHARGE_LIMIT_START_DA = 300;  // 30.0 A
+  static const uint16_t CHARGE_LIMIT_END_DA = 10;     // 1.0 A
+
+  if (soc_pptt < SOC_LIMIT_START_PPTT || voltage_dV == 0) {
+    return HAVRLA_NO_LIMIT_W;
+  }
+  uint32_t current_limit_dA = CHARGE_LIMIT_END_DA;
+  if (soc_pptt < SOC_LIMIT_ONE_AMP_PPTT) {
+    uint32_t progress_pptt = (uint32_t)soc_pptt - SOC_LIMIT_START_PPTT;
+    uint32_t span_pptt = SOC_LIMIT_ONE_AMP_PPTT - SOC_LIMIT_START_PPTT;
+    uint32_t current_drop_dA = CHARGE_LIMIT_START_DA - CHARGE_LIMIT_END_DA;
+    current_limit_dA = CHARGE_LIMIT_START_DA - ((progress_pptt * current_drop_dA + span_pptt / 2U) / span_pptt);
+  }
+  return havrla_current_to_power_W(voltage_dV, current_limit_dA);
+}
+
+// Cell voltage limit ramp. The SOC points select voltages from the matching 60/94/120Ah table.
+// current_*_dA is in deciamps (300 = 30.0 A). current_rise_dA_per_min only limits release of the limit.
+struct HavrlaCellLimitConfig {
+  uint16_t soc_start_pptt;  // table voltage where the ramp starts at current_start_dA
+  uint16_t soc_end_pptt;    // table voltage where the ramp reaches current_end_dA (held beyond it)
+  uint16_t current_start_dA;
+  uint16_t current_end_dA;
+  uint16_t current_rise_dA_per_min;
+};
+
+// Charge: hold about 1 A for a short settling/CV phase before balancing
+static const HavrlaCellLimitConfig HAVRLA_CELL_CHARGE_LIMIT_60AH = {9700, 9980, 150, 10, 10};
+static const HavrlaCellLimitConfig HAVRLA_CELL_CHARGE_LIMIT_94AH = {9750, 9980, 250, 10, 10};
+static const HavrlaCellLimitConfig HAVRLA_CELL_CHARGE_LIMIT_120AH = {9800, 9980, 300, 10, 10};
+
+// Discharge: 60Ah is the softest pack, 120Ah the stiffest
+static const HavrlaCellLimitConfig HAVRLA_CELL_DISCHARGE_LIMIT_60AH = {1200, 1000, 300, 10, 10};
+static const HavrlaCellLimitConfig HAVRLA_CELL_DISCHARGE_LIMIT_94AH = {1100, 900, 300, 50, 10};
+static const HavrlaCellLimitConfig HAVRLA_CELL_DISCHARGE_LIMIT_120AH = {1100, 500, 300, 10, 20};
+
+// Cell voltage used for limiting: cell max (charge) or cell min (discharge). Falls back to pack voltage / 96
+// when cell min/max is not ready or does not agree with the pack voltage.
+static uint16_t havrla_limit_cell_voltage_mV(uint16_t cell_min_mV, uint16_t cell_max_mV, uint16_t voltage_dV,
+                                             uint8_t number_of_cells, bool use_max) {
+  uint16_t pack_avg_cell_mV = (uint16_t)(((uint32_t)voltage_dV * 100U + number_of_cells / 2U) / number_of_cells);
+  bool cell_minmax_valid = (cell_min_mV > 2500 && cell_min_mV < 4500 && cell_max_mV > 2500 && cell_max_mV < 4500 &&
+                            cell_max_mV >= cell_min_mV && !(cell_min_mV == 3700 && cell_max_mV == 3700));
+  bool pack_avg_between_minmax = (pack_avg_cell_mV >= cell_min_mV && pack_avg_cell_mV <= cell_max_mV);
+  if (cell_minmax_valid && pack_avg_between_minmax) {
+    return use_max ? cell_max_mV : cell_min_mV;
+  }
+  return pack_avg_cell_mV;
+}
+
+// Applies a raw current limit through a filter that tightens immediately but releases upward
+// by at most current_rise_dA_per_min. Returns the power limit, or HAVRLA_NO_LIMIT_W when inactive.
+static uint32_t havrla_filtered_limit_W(bool raw_limit_active, uint32_t raw_current_limit_dA, uint16_t voltage_dV,
+                                        const HavrlaCellLimitConfig* config, bool* filter_initialized,
+                                        uint16_t* filtered_current_limit_dA, uint32_t* last_update_ms) {
+  uint32_t now_ms = millis();
+
+  if (!*filter_initialized) {
+    if (!raw_limit_active) {
+      return HAVRLA_NO_LIMIT_W;
+    }
+    *filtered_current_limit_dA = (uint16_t)raw_current_limit_dA;
+    *last_update_ms = now_ms;
+    *filter_initialized = true;
+    return havrla_current_to_power_W(voltage_dV, *filtered_current_limit_dA);
+  }
+
+  uint32_t target_current_dA = raw_limit_active ? raw_current_limit_dA : config->current_start_dA;
+  uint32_t filtered_current_dA = *filtered_current_limit_dA;
+
+  if (target_current_dA <= filtered_current_dA) {
+    // More restrictive limit: apply immediately, without accumulating release credit
+    filtered_current_dA = target_current_dA;
+    *last_update_ms = now_ms;
+  } else {
+    // Less restrictive limit: release only slowly
+    uint32_t elapsed_ms = now_ms - *last_update_ms;
+    uint32_t max_rise_dA = (uint32_t)(((uint64_t)elapsed_ms * config->current_rise_dA_per_min) / 60000ULL);
+    if (max_rise_dA > 0) {
+      uint32_t delta_dA = target_current_dA - filtered_current_dA;
+      uint32_t step_dA = (delta_dA < max_rise_dA) ? delta_dA : max_rise_dA;
+      filtered_current_dA += step_dA;
+      if (step_dA >= delta_dA) {
+        // Target reached; discard unused time so the next release cannot jump
+        *last_update_ms = now_ms;
+      } else {
+        // Consume only the time that corresponds to the applied step
+        *last_update_ms += (uint32_t)((((uint64_t)step_dA * 60000ULL) + config->current_rise_dA_per_min - 1U) /
+                                      config->current_rise_dA_per_min);
+      }
+    }
+  }
+
+  if (filtered_current_dA > 65535U) {
+    filtered_current_dA = 65535U;
+  }
+  *filtered_current_limit_dA = (uint16_t)filtered_current_dA;
+
+  // Raw limit inactive and released back to the start current: disable this extra limit again
+  if (!raw_limit_active && filtered_current_dA >= config->current_start_dA) {
+    *filter_initialized = false;
+    *filtered_current_limit_dA = 0;
+    *last_update_ms = now_ms;
+    return HAVRLA_NO_LIMIT_W;
+  }
+  return havrla_current_to_power_W(voltage_dV, filtered_current_dA);
+}
+
+// Charge limit from the highest cell voltage near full (voltage rises towards soc_end_pptt)
+static uint32_t havrla_cell_charge_limit_W(uint16_t limit_cell_mV, uint16_t voltage_dV, const uint16_t* vtab,
+                                           const uint16_t* stab, uint8_t tsize, const HavrlaCellLimitConfig* config,
+                                           bool* filter_initialized, uint16_t* filtered_current_limit_dA,
+                                           uint32_t* last_update_ms) {
+  if (voltage_dV == 0 || config->soc_end_pptt <= config->soc_start_pptt ||
+      config->current_start_dA <= config->current_end_dA) {
+    return HAVRLA_NO_LIMIT_W;
+  }
+  uint16_t voltage_start_mV = interpolate_voltage_from_soc_pptt(config->soc_start_pptt, vtab, stab, tsize);
+  uint16_t voltage_end_mV = interpolate_voltage_from_soc_pptt(config->soc_end_pptt, vtab, stab, tsize);
+
+  bool raw_limit_active = true;
+  uint32_t raw_current_limit_dA = config->current_end_dA;
+  if (voltage_end_mV <= voltage_start_mV) {
+    raw_limit_active = (limit_cell_mV >= voltage_start_mV);
+  } else if (limit_cell_mV < voltage_start_mV) {
+    raw_limit_active = false;
+  } else if (limit_cell_mV < voltage_end_mV) {
+    uint32_t progress_mV = (uint32_t)limit_cell_mV - voltage_start_mV;
+    uint32_t span_mV = (uint32_t)voltage_end_mV - voltage_start_mV;
+    uint32_t current_drop_dA = config->current_start_dA - config->current_end_dA;
+    raw_current_limit_dA = config->current_start_dA - ((progress_mV * current_drop_dA + span_mV / 2U) / span_mV);
+  }
+  return havrla_filtered_limit_W(raw_limit_active, raw_current_limit_dA, voltage_dV, config, filter_initialized,
+                                 filtered_current_limit_dA, last_update_ms);
+}
+
+// Discharge limit from the lowest cell voltage near empty (voltage falls towards soc_end_pptt)
+static uint32_t havrla_cell_discharge_limit_W(uint16_t limit_cell_mV, uint16_t voltage_dV, const uint16_t* vtab,
+                                              const uint16_t* stab, uint8_t tsize, const HavrlaCellLimitConfig* config,
+                                              bool* filter_initialized, uint16_t* filtered_current_limit_dA,
+                                              uint32_t* last_update_ms) {
+  if (voltage_dV == 0 || config->soc_start_pptt <= config->soc_end_pptt ||
+      config->current_start_dA <= config->current_end_dA) {
+    return HAVRLA_NO_LIMIT_W;
+  }
+  uint16_t voltage_start_mV = interpolate_voltage_from_soc_pptt(config->soc_start_pptt, vtab, stab, tsize);
+  uint16_t voltage_end_mV = interpolate_voltage_from_soc_pptt(config->soc_end_pptt, vtab, stab, tsize);
+
+  bool raw_limit_active = true;
+  uint32_t raw_current_limit_dA = config->current_end_dA;
+  if (voltage_start_mV <= voltage_end_mV) {
+    raw_limit_active = (limit_cell_mV <= voltage_start_mV);
+  } else if (limit_cell_mV > voltage_start_mV) {
+    raw_limit_active = false;
+  } else if (limit_cell_mV > voltage_end_mV) {
+    uint32_t progress_mV = (uint32_t)voltage_start_mV - limit_cell_mV;
+    uint32_t span_mV = (uint32_t)voltage_start_mV - voltage_end_mV;
+    uint32_t current_drop_dA = config->current_start_dA - config->current_end_dA;
+    raw_current_limit_dA = config->current_start_dA - ((progress_mV * current_drop_dA + span_mV / 2U) / span_mV);
+  }
+  return havrla_filtered_limit_W(raw_limit_active, raw_current_limit_dA, voltage_dV, config, filter_initialized,
+                                 filtered_current_limit_dA, last_update_ms);
+}
+#endif  // SMALL_FLASH_DEVICE
 
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
@@ -40,6 +306,234 @@ void BmwI3Battery::end_balancing() {
   battery_info_available = false;
   set_event(EVENT_BALANCING_END, 0, battery_index);
 }
+
+#ifndef SMALL_FLASH_DEVICE
+void BmwI3Battery::calculate_soc_havrla() {
+  if (!battery_awake) {
+    return;
+  }
+
+  // Determine cell voltage to use (mV)
+  uint16_t cell_v_mV;
+  uint16_t cell_min = datalayer_battery->status.cell_min_voltage_mV;
+  uint16_t cell_max = datalayer_battery->status.cell_max_voltage_mV;
+  uint16_t avg_mV = ((uint32_t)battery_volts * 100U) / NUMBER_OF_CELLS;  // dV -> mV per cell
+
+  bool cell_minmax_valid = (cell_min > 2500 && cell_min < 4500 && cell_max > 2500 && cell_max < 4500 &&
+                            cell_max >= cell_min && !(cell_min == 3700 && cell_max == 3700));
+
+  if (!cell_minmax_valid) {
+    // Cell min/max not known yet; fall back to pack average
+    cell_v_mV = avg_mV;
+  } else if (avg_mV > 3800) {
+    cell_v_mV = cell_max;  // Near full, the most charged cell decides
+  } else {
+    cell_v_mV = cell_min;  // Near empty, the most discharged cell decides
+  }
+
+  // Select lookup table based on detected battery variant.
+  const uint16_t* vtab;
+  const uint16_t* stab;
+  uint8_t tsize;
+  if (detectedBattery == BATTERY_120AH) {
+    vtab = bmwi3_voltage_table_120ah;
+    stab = bmwi3_soc_table_120ah;
+    tsize = BMWI3_TABLE_SIZE_120AH;
+  } else if (detectedBattery == BATTERY_94AH) {
+    vtab = bmwi3_voltage_table_94ah;
+    stab = bmwi3_soc_table_94ah;
+    tsize = BMWI3_TABLE_SIZE_94AH;
+  } else {
+    vtab = bmwi3_voltage_table_60ah;
+    stab = bmwi3_soc_table_60ah;
+    tsize = BMWI3_TABLE_SIZE_60AH;
+  }
+
+  // Current correction per cell in mV: (R_pack + R_offset) * I / cells.
+  // pack_resistance_uV_per_dA is µV/dA per pack, havrla_correction_offset_mOhm × 100 = µV/dA.
+  int32_t total_r_uV_per_dA = (int32_t)pack_resistance_uV_per_dA + (int32_t)havrla_correction_offset_mOhm * 100;
+  int32_t correction_mV = (total_r_uV_per_dA * (int32_t)battery_current) / (int32_t)NUMBER_OF_CELLS / 1000;
+
+  // Fade the correction smoothly to zero over the last 0.5 % near 0 % and 100 %.
+  // The uncorrected SOC is only used to find out how close to the edges we are.
+  static const uint16_t HAVRLA_CORRECTION_FADE_PPTT = 50;
+  uint16_t soc_uncorrected = interpolate_soc_from_voltage_mV((int32_t)cell_v_mV, vtab, stab, tsize);
+  uint16_t edge_distance_pptt = HAVRLA_CORRECTION_FADE_PPTT;
+  if (soc_uncorrected < HAVRLA_CORRECTION_FADE_PPTT) {
+    edge_distance_pptt = soc_uncorrected;
+  } else if (soc_uncorrected > (10000U - HAVRLA_CORRECTION_FADE_PPTT)) {
+    edge_distance_pptt = 10000U - soc_uncorrected;
+  }
+  correction_mV = (correction_mV * (int32_t)smooth_gain_1024(edge_distance_pptt, HAVRLA_CORRECTION_FADE_PPTT)) / 1024;
+
+  // Open-circuit voltage = measured voltage - I * R. Charging current is positive and lifts the
+  // measured voltage, so the correction is subtracted; discharging (negative) adds it back.
+  int32_t corrected_v = (int32_t)cell_v_mV - correction_mV;
+  uint16_t soc_raw = interpolate_soc_from_voltage_mV(corrected_v, vtab, stab, tsize);
+
+  // Close to the displayed value, move at most about 1 % SOC per minute instead of following
+  // the loop rate. Outside that window a faster EWMA lets SOC settle after start-up or big changes.
+  static const uint16_t HAVRLA_SLOW_WINDOW_PPTT = 500;   // 5.00 % SOC
+  static const uint32_t HAVRLA_SLOW_MS_PER_PPTT = 600;   // 0.01 % every 600 ms = 1 %/min
+  static const int16_t HAVRLA_CURRENT_DEADBAND_DA = 10;  // ±1.0 A
+  static const int32_t HAVRLA_EWMA_DEN = 20;
+
+  uint32_t now_ms = millis();
+
+  if (!soc_havrla_initialized) {
+    soc_havrla_pptt = soc_raw;
+    soc_havrla_ewma = (int32_t)soc_raw * HAVRLA_EWMA_DEN;
+    soc_havrla_last_slow_update_ms = now_ms;
+    soc_havrla_initialized = true;
+    DEBUG_PRINTF("[SOC_Havrla] INIT: raw_soc=%u pptt, cell_v=%d mV, corr_v=%ld mV, R=%lu uV/dA\n", soc_raw,
+                 (int16_t)cell_v_mV, corrected_v, pack_resistance_uV_per_dA);
+    return;
+  }
+
+  int32_t displayed_soc = (int32_t)soc_havrla_pptt;
+  int32_t diff = (int32_t)soc_raw - displayed_soc;
+  int32_t abs_diff = (diff < 0) ? -diff : diff;
+
+  if (abs_diff <= HAVRLA_SLOW_WINDOW_PPTT) {
+    // Within ±5 % ignore movement against the current: SOC may not rise while discharging
+    // (< -1 A) or fall while charging (> 1 A). Around zero current both directions are allowed.
+    bool wrong_direction = (battery_current <= -HAVRLA_CURRENT_DEADBAND_DA && diff > 0) ||
+                           (battery_current >= HAVRLA_CURRENT_DEADBAND_DA && diff < 0);
+
+    if (wrong_direction || diff == 0) {
+      // Do not build up time credit that would later make SOC jump
+      soc_havrla_last_slow_update_ms = now_ms;
+      soc_havrla_ewma = displayed_soc * HAVRLA_EWMA_DEN;
+      return;
+    }
+
+    uint32_t elapsed_ms = now_ms - soc_havrla_last_slow_update_ms;
+    int32_t max_step = (int32_t)(elapsed_ms / HAVRLA_SLOW_MS_PER_PPTT);
+    if (max_step <= 0) {
+      soc_havrla_ewma = displayed_soc * HAVRLA_EWMA_DEN;
+      return;
+    }
+
+    int32_t step = diff;
+    if (step > max_step) {
+      step = max_step;
+    } else if (step < -max_step) {
+      step = -max_step;
+    }
+
+    displayed_soc += step;
+    if (displayed_soc < 0) {
+      displayed_soc = 0;
+    } else if (displayed_soc > 10000) {
+      displayed_soc = 10000;
+    }
+    soc_havrla_pptt = (uint16_t)displayed_soc;
+    soc_havrla_ewma = displayed_soc * HAVRLA_EWMA_DEN;
+
+    int32_t abs_step = (step < 0) ? -step : step;
+    if (abs_step >= max_step) {
+      soc_havrla_last_slow_update_ms += (uint32_t)abs_step * HAVRLA_SLOW_MS_PER_PPTT;
+    } else {
+      // Target reached before the full step was used; do not keep the remaining time
+      soc_havrla_last_slow_update_ms = now_ms;
+    }
+    return;
+  }
+
+  if (soc_havrla_ewma < 0) {
+    soc_havrla_ewma = (int32_t)soc_raw * HAVRLA_EWMA_DEN;
+  } else {
+    soc_havrla_ewma += (int32_t)soc_raw - soc_havrla_ewma / HAVRLA_EWMA_DEN;
+  }
+  int32_t filtered_soc = soc_havrla_ewma / HAVRLA_EWMA_DEN;
+  if (filtered_soc < 0) {
+    filtered_soc = 0;
+  } else if (filtered_soc > 10000) {
+    filtered_soc = 10000;
+  }
+  soc_havrla_pptt = (uint16_t)filtered_soc;
+  soc_havrla_last_slow_update_ms = now_ms;
+  DEBUG_PRINTF("[SOC_Havrla] UPDATE: raw=%u, final=%u pptt, battery_I=%d dA\n", soc_raw, soc_havrla_pptt,
+               battery_current);
+}
+
+// SOC is kept internally in pptt, but reported in whole percent. The hysteresis stops it flipping at the
+// edges: the next percent shows only once it is really reached, and the previous one is held on the way down.
+uint16_t BmwI3Battery::update_soc_report_whole_percent(uint16_t source_soc_pptt) {
+  if (source_soc_pptt > 10000U) {
+    source_soc_pptt = 10000U;
+  }
+  if (!soc_report_initialized) {
+    // Start conservatively at the lower whole percent (99.99 % -> 99 %)
+    soc_report_pptt = (uint16_t)((source_soc_pptt / 100U) * 100U);
+    soc_report_initialized = true;
+    return soc_report_pptt;
+  }
+  uint16_t report_percent = (uint16_t)(soc_report_pptt / 100U);
+  while (report_percent < 100U && source_soc_pptt >= (uint16_t)((report_percent + 1U) * 100U)) {
+    report_percent++;  // e.g. 99 % -> 100 % only at 100.00 %
+  }
+  while (report_percent > 0U && source_soc_pptt <= (uint16_t)((report_percent - 1U) * 100U)) {
+    report_percent--;  // e.g. 100 % -> 99 % only at 99.00 %
+  }
+  soc_report_pptt = (uint16_t)(report_percent * 100U);
+  return soc_report_pptt;
+}
+
+// Extra charge/discharge limits while SOC_Havrla is active. They only lower the BMS limits, never raise them.
+void BmwI3Battery::apply_havrla_power_limits() {
+  const uint16_t* vtab;
+  const uint16_t* stab;
+  uint8_t tsize;
+  const HavrlaCellLimitConfig* charge_config;
+  const HavrlaCellLimitConfig* discharge_config;
+
+  if (detectedBattery == BATTERY_120AH) {
+    vtab = bmwi3_voltage_table_120ah;
+    stab = bmwi3_soc_table_120ah;
+    tsize = BMWI3_TABLE_SIZE_120AH;
+    charge_config = &HAVRLA_CELL_CHARGE_LIMIT_120AH;
+    discharge_config = &HAVRLA_CELL_DISCHARGE_LIMIT_120AH;
+  } else if (detectedBattery == BATTERY_94AH) {
+    vtab = bmwi3_voltage_table_94ah;
+    stab = bmwi3_soc_table_94ah;
+    tsize = BMWI3_TABLE_SIZE_94AH;
+    charge_config = &HAVRLA_CELL_CHARGE_LIMIT_94AH;
+    discharge_config = &HAVRLA_CELL_DISCHARGE_LIMIT_94AH;
+  } else {
+    vtab = bmwi3_voltage_table_60ah;
+    stab = bmwi3_soc_table_60ah;
+    tsize = BMWI3_TABLE_SIZE_60AH;
+    charge_config = &HAVRLA_CELL_CHARGE_LIMIT_60AH;
+    discharge_config = &HAVRLA_CELL_DISCHARGE_LIMIT_60AH;
+  }
+
+  uint16_t cell_min_mV = datalayer_battery->status.cell_min_voltage_mV;
+  uint16_t cell_max_mV = datalayer_battery->status.cell_max_voltage_mV;
+
+  // Near empty: limit from the lowest cell voltage
+  uint32_t discharge_limit_W = havrla_cell_discharge_limit_W(
+      havrla_limit_cell_voltage_mV(cell_min_mV, cell_max_mV, battery_volts, NUMBER_OF_CELLS, false), battery_volts,
+      vtab, stab, tsize, discharge_config, &havrla_cell_discharge_limit_filter_initialized,
+      &havrla_cell_discharge_limit_filtered_current_dA, &havrla_cell_discharge_limit_last_update_ms);
+  if (datalayer_battery->status.max_discharge_power_W > discharge_limit_W) {
+    datalayer_battery->status.max_discharge_power_W = discharge_limit_W;
+  }
+
+  // Near full: limit from the highest cell voltage, then from SOC_Havrla
+  uint32_t charge_limit_W = havrla_cell_charge_limit_W(
+      havrla_limit_cell_voltage_mV(cell_min_mV, cell_max_mV, battery_volts, NUMBER_OF_CELLS, true), battery_volts, vtab,
+      stab, tsize, charge_config, &havrla_cell_charge_limit_filter_initialized,
+      &havrla_cell_charge_limit_filtered_current_dA, &havrla_cell_charge_limit_last_update_ms);
+  if (datalayer_battery->status.max_charge_power_W > charge_limit_W) {
+    datalayer_battery->status.max_charge_power_W = charge_limit_W;
+  }
+  uint32_t soc_charge_limit_W = havrla_soc_charge_power_limit_W(soc_havrla_pptt, battery_volts);
+  if (datalayer_battery->status.max_charge_power_W > soc_charge_limit_W) {
+    datalayer_battery->status.max_charge_power_W = soc_charge_limit_W;
+  }
+}
+#endif  // SMALL_FLASH_DEVICE
 
 void BmwI3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (contactor_recovery_force_wakeup_low) {
@@ -74,7 +568,26 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     return;
   }
 
+#ifndef SMALL_FLASH_DEVICE
+  calculate_soc_havrla();
+
+  if (user_selected_bmw_i3_soc_havrla == 2) {
+    // Enable: always use Havrla voltage-based SOC, reported in whole percent
+    datalayer_battery->status.real_soc = update_soc_report_whole_percent(soc_havrla_pptt);
+  } else if (user_selected_bmw_i3_soc_havrla == 1) {
+    // Auto: use Havrla if it differs from BMS SOC by more than 3% (300 pptt), reported in whole percent
+    uint16_t bms_soc = battery_display_SOC * 50;
+    int32_t diff = (int32_t)soc_havrla_pptt - (int32_t)bms_soc;
+    if (diff < 0)
+      diff = -diff;
+    datalayer_battery->status.real_soc = update_soc_report_whole_percent((diff > 300) ? soc_havrla_pptt : bms_soc);
+  } else {
+    // Disable: use BMS SOC
+    datalayer_battery->status.real_soc = (battery_display_SOC * 50);
+  }
+#else
   datalayer_battery->status.real_soc = (battery_display_SOC * 50);
+#endif  // SMALL_FLASH_DEVICE
 
   datalayer_battery->status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -90,6 +603,12 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
     datalayer_battery->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
     datalayer_battery->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+
+#ifndef SMALL_FLASH_DEVICE
+    if (user_selected_bmw_i3_soc_havrla != 0) {
+      apply_havrla_power_limits();
+    }
+#endif  // SMALL_FLASH_DEVICE
   } else {
     datalayer_battery->status.max_discharge_power_W = 0;
 
@@ -514,6 +1033,15 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
     // Watchdog: recover the battery if it refuses to engage the contactor (e.g. precharge error)
     monitor_contactor_engagement(currentMillis);
 
+#ifndef SMALL_FLASH_DEVICE
+    // Capture 50ms voltage/current snapshots (used for resistance estimation)
+    if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+      previousMillis50 = currentMillis;
+      last_current_dA_50ms = battery_current;
+      last_volts_dV_50ms = battery_volts;
+    }
+#endif  // SMALL_FLASH_DEVICE
+
     // Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
       previousMillis20 = currentMillis;
@@ -567,6 +1095,62 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 
       transmit_can_frame(&BMW_108);  // Actual Charging Electronics Data
       transmit_can_frame(&BMW_12F);
+
+#ifndef SMALL_FLASH_DEVICE
+      // Internal resistance estimation (ΔV/ΔI EWMA)
+      if (battery_awake && battery_info_available && battery_volts >= 2500 && battery_volts <= 4200) {
+        int32_t dI = (int32_t)last_current_dA_50ms - (int32_t)prev_I_100ms_dA;
+
+        if (rstep_cooldown_ticks > 0) {
+          rstep_cooldown_ticks--;
+        } else if (!rstep_armed) {
+          // Detect load step: current changed by at least RSTEP_MIN_DELTA_I_DA
+          if (dI > RSTEP_MIN_DELTA_I_DA || dI < -RSTEP_MIN_DELTA_I_DA) {
+            DEBUG_PRINTF("[Resistance] LOAD STEP DETECTED: dI=%ld dA, V_before=%u dV, I_before=%d dA\n", dI,
+                         prev_V_100ms_dV, prev_I_100ms_dA);
+            rstep_I_before_dA = prev_I_100ms_dA;
+            rstep_V_before_dV = prev_V_100ms_dV;
+            rstep_post_delay_ticks = RSTEP_POST_DELAY_TICKS;
+            rstep_armed = 1;
+          }
+        } else {
+          // Armed: waiting for voltage to settle after step
+          if (rstep_post_delay_ticks > 0) {
+            rstep_post_delay_ticks--;
+          } else {
+            int32_t step_dI = (int32_t)last_current_dA_50ms - (int32_t)rstep_I_before_dA;
+            int32_t step_dV = (int32_t)last_volts_dV_50ms - (int32_t)rstep_V_before_dV;
+            if (step_dI != 0 && step_dV != 0) {
+              // R = |ΔV| / |ΔI|; voltage in dV, current in dA. 1 Ω = 100000 µV/dA.
+              int32_t abs_dI = (step_dI < 0) ? -step_dI : step_dI;
+              int32_t abs_dV = (step_dV < 0) ? -step_dV : step_dV;
+              int32_t r_sample = (int32_t)((100000LL * (int64_t)abs_dV) / (int64_t)abs_dI);  // µV/dA
+              // Sanity check: drop out-of-range samples
+              if (r_sample >= R_MIN_UV_PER_DA && r_sample <= R_MAX_UV_PER_DA) {
+                if (!r_est_inited) {
+                  // Seed the EWMA from the default resistance, not from the first sample
+                  r_est_ewma_uV_per_dA = (int32_t)pack_resistance_uV_per_dA * R_EWMA_DEN;
+                  r_est_inited = 1;
+                  DEBUG_PRINTF("[Resistance] INIT EWMA: r_sample=%ld uV/dA (%.1f mΩ)\n", r_sample, r_sample / 100.0f);
+                }
+                // EWMA with accumulator scaled by R_EWMA_DEN; even the first sample only nudges it
+                r_est_ewma_uV_per_dA += r_sample - (r_est_ewma_uV_per_dA / R_EWMA_DEN);
+                pack_resistance_uV_per_dA = (uint32_t)(r_est_ewma_uV_per_dA / R_EWMA_DEN);
+                DEBUG_PRINTF("[Resistance] UPDATE EWMA: new_sample=%.1f, ewma=%.1f mΩ\n", r_sample / 100.0f,
+                             pack_resistance_uV_per_dA / 100.0f);
+              } else {
+                DEBUG_PRINTF("[Resistance] SAMPLE OUT OF RANGE: r_sample=%ld uV/dA (min=%ld, max=%ld)\n", r_sample,
+                             R_MIN_UV_PER_DA, R_MAX_UV_PER_DA);
+              }
+            }
+            rstep_armed = 0;
+            rstep_cooldown_ticks = RSTEP_COOLDOWN_TICKS;
+          }
+        }
+        prev_I_100ms_dA = last_current_dA_50ms;
+        prev_V_100ms_dV = last_volts_dV_50ms;
+      }
+#endif  // SMALL_FLASH_DEVICE
 
       // Send 200ms CAN Message
     } else if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
