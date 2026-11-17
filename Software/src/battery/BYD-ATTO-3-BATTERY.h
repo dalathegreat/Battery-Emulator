@@ -131,10 +131,10 @@ class BydAttoBattery : public CanBattery {
   uint32_t taper_last_ms = 0;
   bool taper_initialized = false;
 
-  static const int POLL_TIMES_FULL_POWER = 0x0004;  // Using Carscanner name for now.
+  static const int POLL_FULL_CHARGES_COMPLETED = 0x0004;
   // 0x0005/0x0008/0x0009 (SOC, voltage, current) come from 0x444 and 0x438, not polled.
   // 0x000A/0x000E (allowed charge/discharge power) come from 0x345 at ~100ms, not polled.
-  static const int POLL_CHARGE_TIMES = 0x000B;  // Using Carscanner name for now.
+  static const int POLL_CHARGE_SESSIONS_STARTED = 0x000B;
   static const int POLL_TOTAL_CHARGED_AH = 0x000F;
   static const int POLL_TOTAL_DISCHARGED_AH = 0x0010;
   static const int POLL_TOTAL_CHARGED_KWH = 0x0011;
@@ -203,6 +203,7 @@ class BydAttoBattery : public CanBattery {
   static const int POLL_MODULE_10_LOW_TEMP = 0x01BB;
   static const int POLL_FOR_ORIGINAL_CALIBRATION = 0x1FFE;
   static const int POLL_FOR_CURRENT_CALIBRATION = 0x1FFC;
+  static const int POLL_FOR_CURRENT_CALIBRATION_DM = 0x1FFD;  // DM packs lack 0x1FFC
 
   static const uint16_t MAX_CELL_DEVIATION_MV = 230;
   static const uint16_t MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
@@ -272,7 +273,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_lowest_cell_voltage_mV = 3300;
   uint16_t BMS_highest_cell_voltage_mV = 3300;
   uint16_t BMS_allowed_charge_power = 0;
-  uint16_t BMS_charge_times = 0;
+  uint16_t BMS_charge_sessions_started = 0;
   uint8_t BMS_charge_time_remaining_h = 0xFF;  // 0x445, 0xFF = not available
   uint8_t BMS_charge_time_remaining_min = 0xFF;
   uint16_t BMS_allowed_discharge_power = 0;
@@ -280,7 +281,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_total_discharged_ah = 0;
   uint16_t BMS_total_charged_kwh = 0;
   uint16_t BMS_total_discharged_kwh = 0;
-  uint16_t BMS_times_full_power = 0;
+  uint16_t BMS_full_charges_completed = 0;
   uint16_t BMS_capacity_original_calibration = 0;
   uint16_t BMC_SOC_original_calibration = 0;
   uint16_t BMS_capacity_current_calibration = 0;
@@ -322,7 +323,7 @@ class BydAttoBattery : public CanBattery {
   uint16_t cell_balance_active_charge = 0;
   BydCellBalanceScanReason cell_balance_scan_reason = BydCellBalanceScanReason::NONE;
   std::atomic<uint8_t> cell_balance_time_requested{0};
-  bool BMS_times_full_power_valid = false;
+  bool BMS_full_charges_completed_valid = false;
 
   bool awaiting_cell_balance_reply() const { return cell_balance_time_active && cell_balance_time_waiting; }
   bool queue_cell_balance_scan(BydCellBalanceScanReason reason);
@@ -423,6 +424,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_HV_ACTIVE = 0x04;
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
+  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x20;  // Set by DM (PHEV) packs only
   // 0x344 byte 2 low nibble, the BMS charge state: F none, 0 ready, 1 charging, 2 finished, 4 aborted
   static const uint8_t BMS_CHARGE_STATE_CHARGING = 0x01;
   static const uint8_t BMS_CHARGE_STATE_FINISHED = 0x02;
@@ -510,6 +512,8 @@ class BydAttoBattery : public CanBattery {
   uint8_t BMS_max_temp_module_number = 0;
   uint8_t battery_frame_index = 0;
   uint8_t BMS_charge_state = 0x0F;
+  uint8_t BMS_charge_gun = 0;  // 0x344 b5 bits 2-4
+  bool dm_pack = false;        // latched from 0x344 until reboot
   uint8_t increaseTimeoutSOC = 0;
   static const uint8_t REJECTED = 1;
   static const uint8_t APPROVED = 2;
@@ -545,6 +549,13 @@ class BydAttoBattery : public CanBattery {
                           .DLC = 8,
                           .ID = 0x441,
                           .data = {0x98, 0x3A, 0x88, 0x13, 0x07, 0x00, 0xFF, 0x8C}};
+  // 0x343 = second link-voltage frame (sender unconfirmed): b0 bit0 precharged, b1-2 link volts LE, b3 96 at ready.
+  // DM packs won't close without it
+  CAN_frame DM_343 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x343,
+                      .data = {0xB4, 0x00, 0x00, 0x97, 0x00, 0x00, 0x00, 0xB4}};
   /* Charge-session frames, sent at 100ms while a session runs. 0x36A = precharge/session permission
   (static, also the marker the BMS counts charge sessions on). 0x36D = DC work mode and the keep-alive
   that holds the pack closed: b0-1 link voltage (LE, whole volts), b3 heartbeat, b4 output current,

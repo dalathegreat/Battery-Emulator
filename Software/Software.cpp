@@ -715,7 +715,7 @@ void setup() {
   }
 #endif  // SDCARD
 
-  init_contactors();
+  init_contactors(esp_reset_reason() == ESP_RST_POWERON);
 
   // Release any pins latched across the reboot. MUST run after init_contactors(), which
   // re-drives held pins (e.g. BMS_POWER HIGH) to their intended level while still latched;

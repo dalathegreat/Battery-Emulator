@@ -96,6 +96,12 @@ class BmwI3Battery : public CanBattery {
         return "Signal invalid";
     }
   }
+#ifndef SMALL_FLASH_DEVICE
+  // Pack internal resistance estimate in mΩ
+  uint32_t pack_resistance_mOhm() { return pack_resistance_uV_per_dA / 100; }
+  // Voltage-based SOC estimate in pptt (0-10000)
+  uint16_t SOC_havrla() { return soc_havrla_pptt; }
+#endif  // SMALL_FLASH_DEVICE
 
   // Contactor-engagement watchdog state for the web UI
   const char* get_contactor_watchdog_string();
@@ -149,6 +155,53 @@ class BmwI3Battery : public CanBattery {
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
   static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
+
+#ifndef SMALL_FLASH_DEVICE
+  // Internal resistance estimation (ΔV/ΔI EWMA)
+  unsigned long previousMillis50 = 0;         // will store last time a 50ms snapshot was taken
+  int16_t last_current_dA_50ms = 0;           // current snapshot at previous 50ms tick
+  uint16_t last_volts_dV_50ms = 0;            // voltage snapshot at previous 50ms tick
+  int16_t rstep_I_before_dA = 0;              // current before detected load step
+  uint16_t rstep_V_before_dV = 0;             // voltage before detected load step
+  int16_t prev_I_100ms_dA = 0;                // current at previous 100ms tick
+  uint16_t prev_V_100ms_dV = 0;               // voltage at previous 100ms tick
+  uint8_t rstep_armed = 0;                    // 1 = waiting for post-step voltage settle
+  uint8_t rstep_post_delay_ticks = 0;         // ticks remaining before sampling post-step voltage
+  uint8_t rstep_cooldown_ticks = 0;           // ticks remaining in cooldown after a measurement
+  uint8_t r_est_inited = 0;                   // 1 = EWMA has been seeded
+  int32_t r_est_ewma_uV_per_dA = 0;           // EWMA accumulator (scaled by R_EWMA_DEN)
+  uint32_t pack_resistance_uV_per_dA = 8000;  // estimated pack resistance; default 80 mΩ
+
+  static constexpr int32_t RSTEP_MIN_DELTA_I_DA = 10;    // minimum current change to trigger step (1 A)
+  static constexpr uint8_t RSTEP_POST_DELAY_TICKS = 10;  // 100ms ticks to wait after step before sampling (1 s)
+  static constexpr uint8_t RSTEP_COOLDOWN_TICKS = 50;    // 100ms ticks cooldown between measurements (5 s)
+  static constexpr int32_t R_MIN_UV_PER_DA = 500;        // lower sanity limit (5 mΩ)
+  static constexpr int32_t R_MAX_UV_PER_DA = 50000;      // upper sanity limit (500 mΩ)
+  static constexpr int32_t R_EWMA_DEN = 100;             // EWMA denominator (α = 1/100)
+
+  // SOC_Havrla voltage-based SOC estimation
+  int16_t havrla_correction_offset_mOhm = -10;  // additional IR correction offset (tunable)
+  uint16_t soc_havrla_pptt = 0;                 // voltage-based SOC in pptt (0-10000)
+  int32_t soc_havrla_ewma = -1;                 // EWMA accumulator, stored as SOC * HAVRLA_EWMA_DEN
+  bool soc_havrla_initialized = false;          // filter has been seeded
+  uint32_t soc_havrla_last_slow_update_ms = 0;  // timestamp for the 1 %/min slow filter
+
+  // SOC reported to the inverter while SOC_Havrla is active: whole percent with 1 % hysteresis
+  uint16_t soc_report_pptt = 0;
+  bool soc_report_initialized = false;
+
+  // Cell voltage based charge/discharge limits: tightened immediately, released slowly
+  bool havrla_cell_charge_limit_filter_initialized = false;
+  uint16_t havrla_cell_charge_limit_filtered_current_dA = 0;
+  uint32_t havrla_cell_charge_limit_last_update_ms = 0;
+  bool havrla_cell_discharge_limit_filter_initialized = false;
+  uint16_t havrla_cell_discharge_limit_filtered_current_dA = 0;
+  uint32_t havrla_cell_discharge_limit_last_update_ms = 0;
+
+  void calculate_soc_havrla();
+  uint16_t update_soc_report_whole_percent(uint16_t source_soc_pptt);
+  void apply_havrla_power_limits();
+#endif  // SMALL_FLASH_DEVICE
 
   uint8_t increment_alive_counter(uint8_t counter);
 
