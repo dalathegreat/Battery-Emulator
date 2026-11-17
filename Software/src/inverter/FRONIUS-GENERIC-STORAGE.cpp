@@ -184,7 +184,7 @@ void FroniusGenericStorageInverter::handle_inverter_details() {
     strcpy(inverter_firmware_text, firmware);
     strcpy(inverter_name_text, name);
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter identifies as \"%s\", firmware %s\n", name, firmware);
+    logging.printf("%sInverter identifies as \"%s\", firmware %s\n", log_prefix, name, firmware);
   }
 
   // InverterRebooting. The inverter announces that it is about to go away for a while
@@ -192,7 +192,7 @@ void FroniusGenericStorageInverter::handle_inverter_details() {
   if (inverter_rebooting != last_inverter_rebooting) {
     last_inverter_rebooting = inverter_rebooting;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter set InverterRebooting to %u\n", inverter_rebooting);
+    logging.printf("%sInverter set InverterRebooting to %u\n", log_prefix, inverter_rebooting);
   }
 }
 
@@ -208,7 +208,7 @@ void FroniusGenericStorageInverter::update_contactor_request() {
   if (op_mode != requested_op_mode) {
     requested_op_mode = op_mode;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter requests operating mode %u (%s)\n", op_mode, request_name(op_mode));
+    logging.printf("%sInverter requests operating mode %u (%s)\n", log_prefix, op_mode, request_name(op_mode));
   }
 
   // An inverter that has stopped talking wants nothing, whatever it asked for last. The time of its
@@ -254,9 +254,10 @@ void FroniusGenericStorageInverter::update_contactor_request() {
       standby_handover = false;
       LOG_SET_NEXT_SEVERITY(5);  // notice
       if (handed_over) {
-        logging.printf("Inverter has seen STANDBY, contactors may open (%lu ms)\n", (unsigned long)waited_ms);
+        logging.printf("%sInverter has seen STANDBY, contactors may open (%lu ms)\n", log_prefix,
+                       (unsigned long)waited_ms);
       } else {
-        logging.printf("Inverter has not read STANDBY, contactors may open all the same (%lu ms)\n",
+        logging.printf("%sInverter has not read STANDBY, contactors may open all the same (%lu ms)\n", log_prefix,
                        (unsigned long)waited_ms);
       }
     }
@@ -318,7 +319,7 @@ void FroniusGenericStorageInverter::update_monitoring() {
     last_reported_state = state;
     state_reads_at_change = state_reads;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Reporting state %u (%s) to the inverter\n", state, state_name(state));
+    logging.printf("%sReporting state %u (%s) to the inverter\n", log_prefix, state, state_name(state));
   }
   put_u32(REG_MONITORING + 1, flags);  // flags
   // SOC. Never below 1%, to avoid overdischarge

@@ -38,6 +38,9 @@ class ModbusInverterProtocol : public InverterProtocol {
   static const int MBPV_MAX = 30000;
   // The Modbus server ID we respond to
   int _serverId;
+  // Put in front of every line this protocol logs, so its lines can be told apart ("Fronius: ").
+  // Empty unless a driver sets one in its constructor
+  const char* log_prefix = "";
   // The Modbus registers themselves
   std::map<uint16_t, uint16_t> mbPV;
 

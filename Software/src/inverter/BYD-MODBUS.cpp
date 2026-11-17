@@ -215,8 +215,8 @@ void BydModbusInverter::handle_inverter_control_data() {
   if (declared_timeout_s >= WATCHDOG_TIMEOUT_MIN_S && declared_timeout_s <= WATCHDOG_TIMEOUT_MAX_S &&
       declared_timeout_s != inverter_modbus_watchdog_timeout_s) {
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter changed the WatchDog Timeout from %u s to %u s\n", inverter_modbus_watchdog_timeout_s,
-                   declared_timeout_s);
+    logging.printf("%sInverter changed the WatchDog Timeout from %u s to %u s\n", log_prefix,
+                   inverter_modbus_watchdog_timeout_s, declared_timeout_s);
     inverter_modbus_watchdog_timeout_s = declared_timeout_s;
     inverter_modbus_watchdog_changed = true;
   }
@@ -236,7 +236,7 @@ void BydModbusInverter::handle_inverter_control_data() {
     if (reboot_command != 0) {
       if (user_selected_accept_inverter_reboot) {
         LOG_SET_NEXT_SEVERITY(5);  // notice
-        logging.println("The emulator is restarting as requested by the inverter");
+        logging.printf("%sThe emulator is restarting as requested by the inverter\n", log_prefix);
         hold_pins_across_reset();
         graceful_restart();  // Pauses charge/discharge and opens contactors before the restart
       } else {
@@ -257,7 +257,7 @@ void BydModbusInverter::handle_inverter_control_data() {
   if (darkstart_enable != last_register_408) {
     last_register_408 = darkstart_enable;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter set DarkstartEnable to %u\n", darkstart_enable);
+    logging.printf("%sInverter set DarkstartEnable to %u\n", log_prefix, darkstart_enable);
   }
 }
 

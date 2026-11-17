@@ -19,7 +19,7 @@
    Map: generic_storage_protocol_v2.xml. All 32 and 64 bit values are sent high word first. */
 class FroniusGenericStorageInverter : public BydModbusInverter {
  public:
-  FroniusGenericStorageInverter() : BydModbusInverter(REG_CONTROL) {}
+  FroniusGenericStorageInverter() : BydModbusInverter(REG_CONTROL) { log_prefix = "Fronius: "; }
   const char* name() override { return Name; }
   void update_values() override;
   bool controls_contactor() override { return true; }
