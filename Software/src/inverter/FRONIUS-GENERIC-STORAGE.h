@@ -51,6 +51,8 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
 
  protected:
   void handle_static_data() override;
+  // Counts the reads of MonitoringData.state, see state_reads
+  void on_registers_read(uint16_t first, uint16_t count) override;
 
   // First register of each block of the version 2 map
   static constexpr uint16_t REG_IDENTIFICATION = 100;     // DeviceIdentificationData, 122 registers
@@ -102,14 +104,18 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
 
   // With no request at all for this long the inverter is taken to be off, and its last opMode void
   static constexpr uint32_t INVERTER_SILENCE_MS = 60000;
-  /* Hand-over to STANDBY. The state goes to STANDBY at once, and the contactors open no sooner than
-     this after it, once the current has gone. Opened together with the state change, the inverter
-     sees its DC link drop while it still counts on the battery, and reports GEN24-1250 "DC
-     connection between inverter and battery interrupted". */
+  /* Hand-over to STANDBY. The state goes to STANDBY at once. The contactors open only once the
+     inverter has read it, twice so that it has had a poll to act on it, and no sooner than this
+     after the change. Opened before the inverter has seen STANDBY, it finds its DC link gone while
+     it still counts on the battery, and reports GEN24-1250 "DC connection between inverter and
+     battery interrupted". A fixed delay alone is not enough: how often the inverter polls varies. */
   static constexpr uint32_t STANDBY_HANDOVER_MS = 3000;
-  // ...and they open after this long whatever the current, since the inverter has let go of it
+  // Once STANDBY is seen they wait for the current to go, but no longer than this...
   static constexpr uint32_t OPEN_WAIT_MS = 10000;
   static constexpr int16_t OPEN_CURRENT_LIMIT_dA = 20;
+  // ...and if the inverter does not read the state at all, they open after this long, as for an
+  // inverter that has gone silent
+  static constexpr uint32_t STANDBY_UNSEEN_MS = INVERTER_SILENCE_MS;
 
   uint16_t requested_op_mode = REQUEST_NONE;
   uint16_t last_reported_state = STATE_STANDBY;
@@ -119,6 +125,10 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   bool contactor_lock = false;  // "Lock contactors closed after first close request" has seen that request
   bool standby_handover = false;
   uint32_t standby_since_ms = 0;
+  // Reads of MonitoringData.state by the inverter, counted in the Modbus task, and the count when
+  // the reported state last changed
+  volatile uint32_t state_reads = 0;
+  uint32_t state_reads_at_change = 0;
 
   char inverter_name_text[65] = {0};
   char inverter_firmware_text[21] = {0};

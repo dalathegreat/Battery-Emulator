@@ -239,18 +239,34 @@ void FroniusGenericStorageInverter::update_contactor_request() {
     standby_handover = false;
   } else if (contactor_closing_allowed) {
     // STANDBY is reported from here on (see reported_state()). The contactors follow once the
-    // inverter has had time to see it, and the current has gone: they must not open under load.
+    // inverter has seen it, and the current has gone: they must not open under load.
     if (!standby_handover) {
       standby_handover = true;
       standby_since_ms = now;
     }
     const uint32_t waited_ms = now - standby_since_ms;
+    const bool seen = last_reported_state == STATE_STANDBY && (state_reads - state_reads_at_change) >= 2;
     const int16_t current_dA = datalayer.aggregate.current_dA;
     const bool current_gone = current_dA <= OPEN_CURRENT_LIMIT_dA && current_dA >= -OPEN_CURRENT_LIMIT_dA;
-    if ((waited_ms >= STANDBY_HANDOVER_MS && current_gone) || waited_ms >= OPEN_WAIT_MS) {
+    const bool handed_over = seen && waited_ms >= STANDBY_HANDOVER_MS && (current_gone || waited_ms >= OPEN_WAIT_MS);
+    if (handed_over || waited_ms >= STANDBY_UNSEEN_MS) {
       contactor_closing_allowed = false;
       standby_handover = false;
+      LOG_SET_NEXT_SEVERITY(5);  // notice
+      if (handed_over) {
+        logging.printf("Inverter has seen STANDBY, contactors may open (%lu ms)\n", (unsigned long)waited_ms);
+      } else {
+        logging.printf("Inverter has not read STANDBY, contactors may open all the same (%lu ms)\n",
+                       (unsigned long)waited_ms);
+      }
     }
+  }
+}
+
+void FroniusGenericStorageInverter::on_registers_read(uint16_t first, uint16_t count) {
+  // Runs in the Modbus task. A plain read and write: only this task ever changes the count
+  if (first <= REG_MONITORING && REG_MONITORING - first < count) {
+    state_reads = state_reads + 1;
   }
 }
 
@@ -278,11 +294,6 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
 
 void FroniusGenericStorageInverter::update_monitoring() {
   const uint16_t state = reported_state();
-  if (state != last_reported_state) {
-    last_reported_state = state;
-    LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Reporting state %u (%s) to the inverter\n", state, state_name(state));
-  }
   // The bus values go by the contactors, not by the state: in INACTIVE, and during the hand-over to
   // STANDBY, the inverter has the battery on its DC link all the same
   const bool delivering = bus_connected();
@@ -301,7 +312,14 @@ void FroniusGenericStorageInverter::update_monitoring() {
   const int32_t power_W = -datalayer.aggregate.active_power_W;
   const uint32_t total_Wh = datalayer.aggregate.reported_total_capacity_Wh;
 
-  mbPV[REG_MONITORING] = state;        // state
+  mbPV[REG_MONITORING] = state;  // state
+  if (state != last_reported_state) {
+    // Taken after the register is written, so that only reads from here on count as seeing it
+    last_reported_state = state;
+    state_reads_at_change = state_reads;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Reporting state %u (%s) to the inverter\n", state, state_name(state));
+  }
   put_u32(REG_MONITORING + 1, flags);  // flags
   // SOC. Never below 1%, to avoid overdischarge
   mbPV[REG_MONITORING + 3] = std::max(datalayer.aggregate.reported_soc, static_cast<uint16_t>(100u));

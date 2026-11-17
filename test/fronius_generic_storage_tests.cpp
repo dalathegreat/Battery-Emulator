@@ -25,6 +25,12 @@ class FroniusProbe : public FroniusGenericStorageInverter {
     mbPV[500] = mode;
   }
 
+  // A poll of MonitoringData through the real read handler, as a GEN24 makes it
+  void inverter_reads_monitoring() {
+    ModbusMessage request(21, 0x03, uint16_t{400}, uint16_t{30});
+    FC03(request);
+  }
+
   void write_utc(uint32_t epoch_s) {
     mbPV[503] = 0;
     mbPV[504] = 0;
@@ -229,12 +235,15 @@ TEST_F(FroniusGenericStorageTest, ActiveStraightFromStandbyConnectsTheBatteryToo
   EXPECT_EQ(inverter.mbPV[400], FGS::STATE_ACTIVE);
 }
 
-// The state goes to STANDBY first and the contactors follow 3 s later. Opened together with the
-// state change, the GEN24 sees its DC link drop while it still counts on the battery: GEN24-1250
+// The state goes to STANDBY first. The contactors follow once the inverter has read it twice, and
+// no sooner than 3 s. Opened before it has seen STANDBY, the GEN24 finds its DC link gone while it
+// still counts on the battery: GEN24-1250
 TEST_F(FroniusGenericStorageTest, StandbyIsReportedBeforeTheContactorsOpen) {
   datalayer.system.status.dc_bus_live = true;
   inverter.write_op_mode(FGS::REQUEST_INACTIVE);
   inverter.update_values();
+  inverter.inverter_reads_monitoring();  // Reads of the state before the change do not count
+  inverter.inverter_reads_monitoring();
 
   inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
@@ -242,16 +251,37 @@ TEST_F(FroniusGenericStorageTest, StandbyIsReportedBeforeTheContactorsOpen) {
   EXPECT_TRUE(inverter.allows_contactor_closing());
   EXPECT_EQ(inverter.mbPV[412], 3800);  // Still on the DC link, and said so
 
-  set_millis64(1000 + 2999);
+  set_millis64(1000 + 5000);  // Long enough, but not read yet
   inverter.inverter_talks();
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
 
-  set_millis64(1000 + 3000);
-  inverter.inverter_talks();
+  inverter.inverter_reads_monitoring();
+  inverter.update_values();
+  EXPECT_TRUE(inverter.allows_contactor_closing());  // Read once: no poll yet to act on it
+
+  inverter.inverter_reads_monitoring();
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
   EXPECT_EQ(inverter.mbPV[412], 0);
+}
+
+TEST_F(FroniusGenericStorageTest, StandbySeenAtOnceStillWaitsTheMinimum) {
+  datalayer.system.status.dc_bus_live = true;
+  inverter.write_op_mode(FGS::REQUEST_ACTIVE);
+  inverter.update_values();
+  inverter.write_op_mode(FGS::REQUEST_STANDBY);
+  inverter.update_values();
+  inverter.inverter_reads_monitoring();
+  inverter.inverter_reads_monitoring();
+
+  set_millis64(1000 + 2999);
+  inverter.update_values();
+  EXPECT_TRUE(inverter.allows_contactor_closing());
+
+  set_millis64(1000 + 3000);
+  inverter.update_values();
+  EXPECT_FALSE(inverter.allows_contactor_closing());
 }
 
 TEST_F(FroniusGenericStorageTest, StandbyWaitsForTheCurrentToGo) {
@@ -262,8 +292,9 @@ TEST_F(FroniusGenericStorageTest, StandbyWaitsForTheCurrentToGo) {
   datalayer.aggregate.current_dA = -150;  // Still discharging at 15 A
   inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
+  inverter.inverter_reads_monitoring();
+  inverter.inverter_reads_monitoring();
   set_millis64(1000 + 3000);
-  inverter.inverter_talks();
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
 
@@ -280,12 +311,31 @@ TEST_F(FroniusGenericStorageTest, StandbyOpensAfterTheWaitEvenUnderCurrent) {
   datalayer.aggregate.current_dA = 150;
   inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
+  inverter.inverter_reads_monitoring();
+  inverter.inverter_reads_monitoring();
   set_millis64(1000 + 9999);
-  inverter.inverter_talks();
   inverter.update_values();
   EXPECT_TRUE(inverter.allows_contactor_closing());
 
   set_millis64(1000 + 10000);
+  inverter.update_values();
+  EXPECT_FALSE(inverter.allows_contactor_closing());
+}
+
+// An inverter that never reads the state gets the contactors opened all the same, after a minute
+TEST_F(FroniusGenericStorageTest, StandbyNeverReadOpensAfterAMinute) {
+  datalayer.system.status.dc_bus_live = true;
+  inverter.write_op_mode(FGS::REQUEST_ACTIVE);
+  inverter.update_values();
+  inverter.write_op_mode(FGS::REQUEST_STANDBY);
+  inverter.update_values();
+
+  set_millis64(1000 + 59999);
+  inverter.inverter_talks();
+  inverter.update_values();
+  EXPECT_TRUE(inverter.allows_contactor_closing());
+
+  set_millis64(1000 + 60000);
   inverter.inverter_talks();
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
@@ -298,6 +348,8 @@ TEST_F(FroniusGenericStorageTest, RequestDuringTheHandOverKeepsTheBatteryConnect
   inverter.update_values();
   inverter.write_op_mode(FGS::REQUEST_STANDBY);
   inverter.update_values();
+  inverter.inverter_reads_monitoring();
+  inverter.inverter_reads_monitoring();
 
   set_millis64(1000 + 2000);
   inverter.write_op_mode(FGS::REQUEST_INACTIVE);
@@ -319,10 +371,10 @@ TEST_F(FroniusGenericStorageTest, SilentInverterLosesItsRequest) {
   set_millis64(1000 + 60001);  // Not a single request for a minute
   inverter.update_values();
   // No longer ACTIVE (FAULT by now: the watchdog has raised "inverter missing"), and handed over
-  // like any STANDBY, contactors last
+  // like any STANDBY. A silent inverter reads nothing, so that takes another minute
   EXPECT_NE(inverter.mbPV[400], FGS::STATE_ACTIVE);
   EXPECT_TRUE(inverter.allows_contactor_closing());
-  set_millis64(1000 + 63001);
+  set_millis64(1000 + 60001 + 60000);
   inverter.update_values();
   EXPECT_FALSE(inverter.allows_contactor_closing());
 

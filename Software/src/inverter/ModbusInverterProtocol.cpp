@@ -54,6 +54,8 @@ ModbusMessage ModbusInverterProtocol::FC03(ModbusMessage request) {
     return response;
   }
 
+  on_registers_read(addr, words);
+
   // Set up response
   response.add(request.getServerID(), request.getFunctionCode(), (uint8_t)(words * 2));
   for (uint8_t i = 0; i < words; ++i) {
@@ -172,6 +174,7 @@ ModbusMessage ModbusInverterProtocol::FC23(ModbusMessage request) {
   }
 
   // READ SECTION
+  on_registers_read(read_addr, read_words);
   // Set up response
   response.add(request.getServerID(), request.getFunctionCode(), (uint8_t)(read_words * 2));
   for (uint8_t i = 0; i < read_words; ++i) {
