@@ -67,6 +67,7 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   // out has to hold registers * 2 + 1 characters. Anything but plain text comes out as '?'
   void get_string(uint16_t reg, uint8_t registers, char* out);
 
+  // The nameplate values that follow the battery. The rest is written once, by handle_static_data()
   void update_nameplate();
   void update_monitoring();
   // Follows opMode and decides whether the contactors may be closed

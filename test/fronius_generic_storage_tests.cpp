@@ -139,9 +139,34 @@ TEST_F(FroniusGenericStorageTest, NameplateCarriesTheTemperatureRangeAndNoCalibr
   EXPECT_EQ(inverter.u32(321), 1u);              // CalMode, NoCalibrationRoutine
   EXPECT_EQ(inverter.mbPV[333], 1);              // NumberParallelStacks
 
+  // A setting, read at boot: the flags are written once, with the rest of the static data
   user_selected_fronius_iso_check = true;
   inverter.update_values();
+  EXPECT_EQ(inverter.u32(300), 0u);
+  inverter.handle_static_data();
   EXPECT_EQ(inverter.u32(300), 4u);  // InverterIsolationCheck
+}
+
+// The inverter is set up before the battery, so these are still empty when the static data is
+// written, and they move at runtime as packs join or the capacity is learnt
+TEST_F(FroniusGenericStorageTest, NameplateFollowsTheBatteryOnceItHasReported) {
+  datalayer.aggregate.reported_total_capacity_Wh = 0;
+  datalayer.aggregate.max_design_voltage_dV = 0;
+  datalayer.aggregate.min_design_voltage_dV = 0;
+  inverter.handle_static_data();
+  EXPECT_EQ(inverter.u32(302), 0u);
+
+  datalayer.aggregate.reported_total_capacity_Wh = 24000;
+  datalayer.aggregate.max_design_voltage_dV = 4040;
+  datalayer.aggregate.min_design_voltage_dV = 2600;
+  inverter.update_values();
+  EXPECT_EQ(inverter.u32(302), 24000u);  // NominalCapacity
+  EXPECT_EQ(inverter.mbPV[308], 4040);   // MaxUDC
+  EXPECT_EQ(inverter.mbPV[309], 2600);   // MinUDC
+
+  datalayer.aggregate.reported_total_capacity_Wh = 48000;  // 2nd pack joined
+  inverter.update_values();
+  EXPECT_EQ(inverter.u32(302), 48000u);
 }
 
 TEST_F(FroniusGenericStorageTest, ContactorsStayOpenUntilTheInverterAsksForTheBattery) {

@@ -116,10 +116,29 @@ void FroniusGenericStorageInverter::handle_static_data() {
   put_string(REG_IDENTIFICATION + 68, 50, battery_name);      // DisplayName
   put_string(REG_IDENTIFICATION + 118, 4, MSG_PREFIX);        // MsgPrefix
 
+  // NameplateData, all but the three values update_nameplate() keeps following the battery
+  // The inverter reads the capability flags once, while it sets the battery up
+  put_u32(REG_NAMEPLATE, user_selected_fronius_iso_check ? CAPABILITY_ISOLATION_CHECK : 0);  // BatteryCapabilityFlags
+  put_u32(REG_NAMEPLATE + 4, 40960);                                                         // ContMaxChargePwr
+  put_u32(REG_NAMEPLATE + 6, 40960);                                                         // ContMaxDischargePwr
+  put_u32(REG_NAMEPLATE + 10, 53248);                                                        // PeakMaxChargePwr
+  mbPV[REG_NAMEPLATE + 12] = 10;                                                             // PeakMaxChargeT
+  put_u32(REG_NAMEPLATE + 13, 53248);                                                        // PeakMaxDischargePwr
+  mbPV[REG_NAMEPLATE + 15] = 10;                                                             // PeakMaxDischargeT
+  // The SOC sent is already scaled to the window the user allows, so all of it is usable
+  mbPV[REG_NAMEPLATE + 16] = 0;                                 // MinSoCUsable
+  mbPV[REG_NAMEPLATE + 17] = 100;                               // MaxSoCUsable
+  mbPV[REG_NAMEPLATE + 18] = 30;                                // TargetSoCServiceMode
+  mbPV[REG_NAMEPLATE + 19] = (uint16_t)BATTERY_MINTEMPERATURE;  // TCellMin, where the emulator itself stops
+  mbPV[REG_NAMEPLATE + 20] = (uint16_t)BATTERY_MAXTEMPERATURE;  // TCellMax
+  put_u32(REG_NAMEPLATE + 21, CAL_MODE_NONE);                   // CalMode
+  // CalWaitDischargeT, CalPower* and ImmediateChargeRequestStop (+23 to +32) stay 0
+  mbPV[REG_NAMEPLATE + 33] = 1;  // NumberParallelStacks. Several packs are presented as one
+  mbPV[REG_NAMEPLATE + 34] = 1;  // NumberModulesPerStack
+
   mbPV[REG_CONTROL] = MODE_NO_REQUEST;  // opMode
   mbPV[REG_UPDATE] = 0;                 // UPD_TYPE, no firmware update through the inverter
 
-  update_nameplate();
   update_monitoring();
 }
 
@@ -135,11 +154,12 @@ void FroniusGenericStorageInverter::update_values() {
 }
 
 void FroniusGenericStorageInverter::update_nameplate() {
-  // The inverter reads the capability flags once, while it sets the battery up
-  put_u32(REG_NAMEPLATE, user_selected_fronius_iso_check ? CAPABILITY_ISOLATION_CHECK : 0);  // BatteryCapabilityFlags
-  put_u32(REG_NAMEPLATE + 2, datalayer.aggregate.reported_total_capacity_Wh);                // NominalCapacity
-  put_u32(REG_NAMEPLATE + 4, 40960);                                                         // ContMaxChargePwr
-  put_u32(REG_NAMEPLATE + 6, 40960);                                                         // ContMaxDischargePwr
+  /* The three nameplate values that come from the battery. They cannot go in with the rest in
+     handle_static_data(): the inverter is set up before the battery, so the aggregate holds no
+     capacity and no voltage limits yet at that point. They also move at runtime, when a 2nd or
+     3rd pack joins, when the battery driver learns its real capacity, or with the SOC scaling
+     settings. BYD-Modbus refreshes the same values in its p201 block for the same reason. */
+  put_u32(REG_NAMEPLATE + 2, datalayer.aggregate.reported_total_capacity_Wh);  // NominalCapacity
   if (user_selected_primo_gen24) {
     // MaxUDC. If the battery is higher the Gen24 forces discharge. Capped to 450.0V for the Primo
     mbPV[REG_NAMEPLATE + 8] = std::min(datalayer.aggregate.max_design_voltage_dV, static_cast<uint16_t>(4500u));
@@ -147,20 +167,6 @@ void FroniusGenericStorageInverter::update_nameplate() {
     mbPV[REG_NAMEPLATE + 8] = datalayer.aggregate.max_design_voltage_dV;
   }
   mbPV[REG_NAMEPLATE + 9] = datalayer.aggregate.min_design_voltage_dV;  // MinUDC, below it the Gen24 disables battery
-  put_u32(REG_NAMEPLATE + 10, 53248);                                   // PeakMaxChargePwr
-  mbPV[REG_NAMEPLATE + 12] = 10;                                        // PeakMaxChargeT
-  put_u32(REG_NAMEPLATE + 13, 53248);                                   // PeakMaxDischargePwr
-  mbPV[REG_NAMEPLATE + 15] = 10;                                        // PeakMaxDischargeT
-  // The SOC sent is already scaled to the window the user allows, so all of it is usable
-  mbPV[REG_NAMEPLATE + 16] = 0;                                 // MinSoCUsable
-  mbPV[REG_NAMEPLATE + 17] = 100;                               // MaxSoCUsable
-  mbPV[REG_NAMEPLATE + 18] = 30;                                // TargetSoCServiceMode
-  mbPV[REG_NAMEPLATE + 19] = (uint16_t)BATTERY_MINTEMPERATURE;  // TCellMin, where the emulator itself stops
-  mbPV[REG_NAMEPLATE + 20] = (uint16_t)BATTERY_MAXTEMPERATURE;  // TCellMax
-  put_u32(REG_NAMEPLATE + 21, CAL_MODE_NONE);                   // CalMode
-  // CalWaitDischargeT, CalPower* and ImmediateChargeRequestStop (+23 to +32) stay 0
-  mbPV[REG_NAMEPLATE + 33] = 1;  // NumberParallelStacks. Several packs are presented as one
-  mbPV[REG_NAMEPLATE + 34] = 1;  // NumberModulesPerStack
 }
 
 void FroniusGenericStorageInverter::handle_inverter_details() {
