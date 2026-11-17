@@ -457,7 +457,7 @@ TEST_F(FroniusGenericStorageTest, ErrorEventBecomesAFaultBufferEntryOnceTheClock
   ASSERT_EQ(get_event_pointer(EVENT_BATTERY2_OVERHEAT)->level, EVENT_LEVEL_ERROR);
 
   inverter.update_values();
-  EXPECT_EQ(inverter.u32(1002), 0u);  // No timestamp to give it yet
+  EXPECT_EQ(inverter.u32(1002), 0u);  // No timestamp to give it yet, so the inverter takes it as empty
 
   inverter.write_utc(1794299900);
   inverter.update_values();
@@ -480,6 +480,40 @@ TEST_F(FroniusGenericStorageTest, ErrorEventBecomesAFaultBufferEntryOnceTheClock
   inverter.update_values();
   EXPECT_EQ(inverter.u32(1012), 1794299905u);
   EXPECT_EQ(inverter.mbPV[1014], 2);
+}
+
+// Raised before the inverter has sent its time: held in the buffers and back-dated once it has,
+// including a fault that is over by then
+TEST_F(FroniusGenericStorageTest, FaultsBeforeTheClockAreBackDatedOnceItIsKnown) {
+  set_event(EVENT_BATTERY_OVERHEAT, 512, 1);
+  inverter.update_values();
+  clear_event(EVENT_BATTERY_OVERHEAT, 1);  // Over before the clock comes
+  inverter.update_values();
+
+  set_millis64(1000 + 20000);
+  set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 4250, 1);
+  inverter.update_values();
+  EXPECT_EQ(inverter.u32(1000), 0u);  // Neither stamped yet
+  EXPECT_EQ(inverter.u32(1002), 0u);
+  EXPECT_EQ(inverter.u32(1012), 0u);
+
+  set_millis64(1000 + 50000);
+  inverter.write_utc(1794299900);
+  inverter.update_values();
+  EXPECT_EQ(inverter.u32(1002), 1794299900u - 50);  // Fault_0: the overheat, 50 s ago
+  EXPECT_EQ(inverter.mbPV[1005], 27);
+  EXPECT_EQ(inverter.u32(1012), 1794299900u - 30);  // Fault_1: the cell overvoltage, 30 s ago
+  EXPECT_EQ(inverter.mbPV[1015], 24);
+
+  // From here on a new fault gets the time at once
+  set_millis64(1000 + 60000);
+  set_event(EVENT_HVIL_FAILURE, 0, 1);
+  inverter.update_values();
+  EXPECT_EQ(inverter.u32(1022), 1794299900u + 10);
+  EXPECT_EQ(inverter.mbPV[1025], 47);
+
+  clear_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 1);
+  clear_event(EVENT_HVIL_FAILURE, 1);
 }
 
 // The BYD-Modbus driver shares the ControlData handling and must keep reading it where version 1
