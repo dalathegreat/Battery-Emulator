@@ -84,10 +84,8 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   // Turns emulator error events into FaultBuffers entries, which the inverter shows in its event log
   void update_fault_buffers();
   void push_fault(uint16_t type, uint8_t battery, int16_t data, uint32_t now_ms);
-  // Gives the entries written before the inverter's time was known the time they were raised
+  // Gives the entries written while the clock was not yet valid the time they were raised
   void stamp_faults(uint32_t now_ms);
-  // The inverter's clock at now_ms, in Unix seconds. 0 until the inverter has sent its time
-  uint64_t inverter_time_s(uint32_t now_ms) const;
   // The mode reported in MonitoringData.state
   uint16_t reported_state();
   static const char* state_name(uint16_t state);
@@ -137,14 +135,12 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   char inverter_name_text[65] = {0};
   char inverter_firmware_text[21] = {0};
 
-  // Fault entries need a wall clock time, which only the inverter has
-  uint64_t utc_reference_s = 0;
-  uint32_t utc_reference_ms = 0;
   uint16_t fault_count = 0;
-  /* A fault raised before the inverter has sent its time goes into the buffers with no timestamp,
-     which the inverter takes as an empty entry. Once the time is known, it gets the time it was
-     raised, worked back from the uptime noted here. The real BMS re-stamps its stored faults the
-     same way when the inverter writes UTC. */
+  /* Fault entries are stamped from the ESP32's clock, which the inverter's own clock sets (see
+     system_clock.h). A fault raised before that clock is valid goes into the buffers with no
+     timestamp, which the inverter takes as an empty entry. Once it is valid, the entry gets the time
+     the fault was raised, worked back from the uptime noted here. The real BMS re-stamps its stored
+     faults the same way when the inverter writes UTC. */
   uint32_t fault_entry_ms[FAULT_ENTRIES] = {0};
   bool fault_entry_unstamped[FAULT_ENTRIES] = {false};
 

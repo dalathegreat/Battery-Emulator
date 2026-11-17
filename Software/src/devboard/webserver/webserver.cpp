@@ -32,6 +32,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/millis64.h"
+#include "../utils/system_clock.h"
 #include "../utils/time_format.h"
 #include "../utils/timer.h"
 #include "../utils/version.h"
@@ -2001,6 +2002,15 @@ static bool render_live(CheckedHtml& content) {
       }
     }
 
+    if (clock_valid) {
+      // As Unix seconds, which the page script shows as a date and keeps ticking between polls.
+      // Formatting it here would pull strftime and the newlib time tables into the image.
+      char clock[80];
+      snprintf(clock, sizeof(clock), "<h4>Time (UTC): <span id='utc' data-t='%llu'></span></h4>",
+               (unsigned long long)clock_utc_s());
+      content += clock;
+    }
+
     // Close the block
     content += "</div>";
 
@@ -2107,6 +2117,8 @@ fetch('https://api.github.com/repos/dalathegreat/Battery-Emulator/releases/lates
      briefly as acknowledgement. Not when it lands on a link, a button or a help text of its own,
      or ends a text selection, and not within 1 s of the last request, so tapping away cannot
      hammer the emulator. A tap that fails is reported at once, without waiting for a second.
+   - The emulator's clock, once valid, comes in the live part as Unix seconds (data-t of #utc). It
+     is shown as a UTC date, and ticks on by the browser's clock until the next poll brings it anew.
    Plain ES5, so a browser too old for fetch() still parses it and falls back to reloading. The
    page does without COMMON_JAVASCRIPT: its reboot() would navigate away after a fixed delay. */
 static const char main_page_end[] =
@@ -2118,8 +2130,9 @@ function send(u,f){var x=new XMLHttpRequest();x.onload=function(){if(f)f();tick(
 function PauseBattery(p){send('/pause?value='+p)}
 function estop(s){send('/equipmentStop?value='+s)}
 function askReboot(){if(confirm('Are you sure you want to reboot the emulator? NOTE: If emulator is handling contactors, they will open during reboot!'))send('/reboot',function(){R=1})}
-var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0,X=0;
-function state(){var s=g('S');if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
+var L=g('live'),N=g('note'),T,B,F=0,R=0,Q=0,M=0,X=0,O=0;
+function clk(){var u=g('utc');if(u)u.textContent=new Date(+new Date+O).toISOString().replace('T',' ').slice(0,19)}
+function state(){var s=g('S'),u=g('utc');if(u){O=u.getAttribute('data-t')*1000-new Date;clk()}if(!s)return'';var p=s.getAttribute('data-p')=='1',e=s.getAttribute('data-e')=='1';
 g('P0').hidden=p;g('P1').hidden=!p;g('E0').hidden=e;g('E1').hidden=!e;return s.getAttribute('data-b')}
 function later(ms){clearTimeout(T);T=setTimeout(tick,ms)}
 function tick(){clearTimeout(T);if(document.hidden||X)return;if(Q){Q=2;return}
@@ -2136,7 +2149,7 @@ else L.style.opacity='';return 5000}).then(end,end)}
 L.onclick=N.onclick=function(e){var t=e.target;if(t.closest&&t.closest('a,button,[onclick],.hb')||String(getSelection())||new Date-M<1000)return;
 F=F||1;X=0;L.style.opacity=.7;tick()};
 document.addEventListener('visibilitychange',tick);
-B=state();later(B?15000:5000);
+B=state();later(B?15000:5000);setInterval(clk,1000);
 </script>)html" MAIN_PAGE_UPDATE_CHECK INDEX_HTML_FOOTER;
 
 // Shown in place of the live part when there is not enough memory to render it. The page retries

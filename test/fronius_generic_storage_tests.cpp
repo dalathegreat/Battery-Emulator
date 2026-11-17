@@ -4,6 +4,7 @@
 
 #include "../Software/src/datalayer/datalayer.h"
 #include "../Software/src/devboard/utils/events.h"
+#include "../Software/src/devboard/utils/system_clock.h"
 #include "../Software/src/inverter/FRONIUS-GENERIC-STORAGE.h"
 #include "../Software/src/inverter/INVERTERS.h"
 
@@ -64,6 +65,7 @@ class FroniusGenericStorageTest : public ::testing::Test {
     user_selected_primo_gen24 = false;
     user_selected_accept_inverter_reboot = false;
     inverter_modbus_utc_epoch_s = 0;
+    clock_valid = false;
     inverter_modbus_watchdog_timeout_s = MODBUS_INV_WATCHDOG_DEFAULT_S;
     inverter_modbus_watchdog_changed = false;
     datalayer.system.status.system_status = ACTIVE;
@@ -77,6 +79,7 @@ class FroniusGenericStorageTest : public ::testing::Test {
     user_selected_inverter_contactor_mode = inverter_contactor_mode_enum::NoWorkaround;
     user_selected_fronius_iso_check = false;
     inverter_modbus_utc_epoch_s = 0;
+    clock_valid = false;
     inverter_modbus_watchdog_timeout_s = MODBUS_INV_WATCHDOG_DEFAULT_S;
     inverter_modbus_watchdog_changed = false;
     set_millis64(0);
@@ -513,6 +516,51 @@ TEST_F(FroniusGenericStorageTest, FaultsBeforeTheClockAreBackDatedOnceItIsKnown)
   EXPECT_EQ(inverter.mbPV[1025], 47);
 
   clear_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 1);
+  clear_event(EVENT_HVIL_FAILURE, 1);
+}
+
+// The time the inverter sends sets the ESP32's clock, which runs on by itself in between
+TEST_F(FroniusGenericStorageTest, TheInvertersTimeSetsTheClock) {
+  inverter.update_values();
+  EXPECT_FALSE(clock_valid);
+  EXPECT_EQ(clock_utc_s(), 0u);
+
+  inverter.write_utc(1794299900);
+  inverter.update_values();
+  EXPECT_TRUE(clock_valid);
+  EXPECT_EQ(clock_utc_s(), 1794299900u);
+
+  // The register still holds the time sent 90 s ago. It must not set the clock back
+  set_millis64(1000 + 90000);
+  inverter.update_values();
+  EXPECT_EQ(clock_utc_s(), 1794299990u);
+
+  // An hour later the inverter sends its time again, and the clock follows it
+  inverter.write_utc(1794303502);
+  inverter.update_values();
+  EXPECT_EQ(clock_utc_s(), 1794303502u);
+}
+
+// An inverter clock that was never set does not make ours valid. The settings page still shows it
+TEST_F(FroniusGenericStorageTest, ATimeBefore2025DoesNotSetTheClock) {
+  inverter.write_utc(86400);  // 1970-01-02
+  inverter.update_values();
+
+  EXPECT_EQ(inverter_modbus_utc_epoch_s, 86400u);
+  EXPECT_FALSE(clock_valid);
+  EXPECT_EQ(clock_utc_s(), 0u);
+}
+
+// The fault entries take their time from the ESP32's clock, not from the UTC registers
+TEST_F(FroniusGenericStorageTest, FaultsAreStampedFromTheClock) {
+  ASSERT_TRUE(clock_set_utc(1794299900));
+  set_millis64(1000 + 5000);
+  set_event(EVENT_HVIL_FAILURE, 0, 1);
+  inverter.update_values();
+
+  EXPECT_EQ(inverter.u32(1002), 1794299905u);
+  EXPECT_EQ(inverter.mbPV[1005], 47);
+
   clear_event(EVENT_HVIL_FAILURE, 1);
 }
 

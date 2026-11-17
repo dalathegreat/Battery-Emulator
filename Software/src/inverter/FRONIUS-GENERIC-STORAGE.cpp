@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/safety/safety.h"
 #include "../devboard/utils/logging.h"
+#include "../devboard/utils/system_clock.h"
 #include "../devboard/utils/version.h"
 #include "../inverter/INVERTERS.h"
 
@@ -348,13 +349,6 @@ void FroniusGenericStorageInverter::update_monitoring() {
   mbPV[REG_MONITORING + 29] = datalayer.aggregate.soh_pptt;                                  // SOH
 }
 
-uint64_t FroniusGenericStorageInverter::inverter_time_s(uint32_t now_ms) const {
-  if (utc_reference_s == 0) {
-    return 0;
-  }
-  return utc_reference_s + (uint32_t)(now_ms - utc_reference_ms) / 1000;
-}
-
 void FroniusGenericStorageInverter::push_fault(uint16_t type, uint8_t battery, int16_t data, uint32_t now_ms) {
   const uint8_t slot = fault_count % FAULT_ENTRIES;
   const uint16_t entry = REG_FAULTS + slot * FAULT_ENTRY_SIZE;
@@ -367,14 +361,14 @@ void FroniusGenericStorageInverter::push_fault(uint16_t type, uint8_t battery, i
   mbPV[entry + 7] = (uint16_t)data;           // Info_0, the data of the emulator event
   mbPV[entry + 8] = 0;                        // Info_1
   mbPV[entry + 9] = (battery << 8) | 0x00FF;  // Info_2, which pack. Low byte FF = the pack as a whole
-  const uint64_t time_s = inverter_time_s(now_ms);
+  const uint64_t time_s = clock_utc_s();
   fault_entry_ms[slot] = now_ms;
   fault_entry_unstamped[slot] = (time_s == 0);
-  put_u64(entry, time_s);  // Timestamp. 0 until the inverter's time is known, see stamp_faults()
+  put_u64(entry, time_s);  // Timestamp. 0 while the clock is not valid, see stamp_faults()
 }
 
 void FroniusGenericStorageInverter::stamp_faults(uint32_t now_ms) {
-  const uint64_t time_s = inverter_time_s(now_ms);
+  const uint64_t time_s = clock_utc_s();
   if (time_s == 0) {
     return;
   }
@@ -390,13 +384,7 @@ void FroniusGenericStorageInverter::stamp_faults(uint32_t now_ms) {
 void FroniusGenericStorageInverter::update_fault_buffers() {
   static_assert(sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]) <= sizeof(fault_reported),
                 "fault_reported is too small for FAULT_MAP");
-  // The inverter writes its clock into the UTC register only now and then: once an hour, and not
-  // at all for a while after the emulator starts. Keep the last value and count on from it.
   const uint32_t now = millis();
-  if (inverter_modbus_utc_epoch_s != utc_reference_s) {
-    utc_reference_s = inverter_modbus_utc_epoch_s;
-    utc_reference_ms = now;
-  }
   stamp_faults(now);
 
   for (uint8_t i = 0; i < FAULT_MAP_SIZE; i++) {
