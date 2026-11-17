@@ -13,7 +13,8 @@
    inverter's name and firmware version written back to us.
 
    The inverter also tells the battery which operating mode it wants (opMode), which this driver
-   uses to open the contactors while the inverter has no use for the battery.
+   uses to open the contactors while the inverter has no use for the battery: closed in INACTIVE
+   and ACTIVE, open in STANDBY. A GEN24 only asks for STANDBY with no backup power configured.
 
    Map: generic_storage_protocol_v2.xml. All 32 and 64 bit values are sent high word first. */
 class FroniusGenericStorageInverter : public BydModbusInverter {
@@ -25,24 +26,28 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   bool allows_contactor_closing() override { return contactor_closing_allowed; }
   static constexpr const char* Name = "Fronius Generic Storage";
 
-  // Operating modes, shared by MonitoringData.state (what the battery is in) and ControlData.opMode
-  // (what the inverter asks for)
-  static constexpr uint16_t MODE_STANDBY = 0;
-  static constexpr uint16_t MODE_INACTIVE = 1;
-  static constexpr uint16_t MODE_DARKSTART = 2;
-  static constexpr uint16_t MODE_ACTIVE = 3;
-  static constexpr uint16_t MODE_FAULT = 4;
-  static constexpr uint16_t MODE_UPDATING = 5;
+  // MonitoringData.state, the mode the battery is in
+  static constexpr uint16_t STATE_STANDBY = 0;   // Contactors open
+  static constexpr uint16_t STATE_INACTIVE = 1;  // Contactors closed, no current. What the emulator's Pause does
+  static constexpr uint16_t STATE_DARKSTART = 2;
+  static constexpr uint16_t STATE_ACTIVE = 3;
+  static constexpr uint16_t STATE_FAULT = 4;
+  static constexpr uint16_t STATE_UPDATING = 5;
+  // ControlData.opMode, the mode the inverter asks for. Numbered differently from the state: a GEN24
+  // asks for 2 to have the battery ACTIVE (3)
+  static constexpr uint16_t REQUEST_STANDBY = 0;
+  static constexpr uint16_t REQUEST_INACTIVE = 1;
+  static constexpr uint16_t REQUEST_ACTIVE = 2;
   // What a Fronius battery puts back into opMode once it has taken a request over. Used here as the
   // start value, so "nothing asked yet" can be told from a request for STANDBY (0)
-  static constexpr uint16_t MODE_NO_REQUEST = 0x00FF;
+  static constexpr uint16_t REQUEST_NONE = 0x00FF;
 
   // For the settings page. Empty strings until the inverter has written its details
   const char* inverter_name() const { return inverter_name_text; }
   const char* inverter_firmware() const { return inverter_firmware_text; }
-  // The last opMode the inverter wrote, MODE_NO_REQUEST before the first one
+  // The last opMode the inverter wrote, REQUEST_NONE before the first one
   uint16_t requested_mode() const { return requested_op_mode; }
-  static const char* mode_name(uint16_t mode);
+  static const char* request_name(uint16_t request);
 
  protected:
   void handle_static_data() override;
@@ -79,6 +84,9 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   void push_fault(uint16_t type, uint8_t battery, int16_t data, uint64_t utc_s);
   // The mode reported in MonitoringData.state
   uint16_t reported_state();
+  static const char* state_name(uint16_t state);
+  // The contactors are closed, as far as the emulator can tell
+  bool bus_connected();
 
   // NameplateData.BatteryCapabilityFlags
   static constexpr uint32_t CAPABILITY_ISOLATION_CHECK = 0x04;  // Inverter includes the battery in its insulation test
@@ -94,18 +102,23 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
 
   // With no request at all for this long the inverter is taken to be off, and its last opMode void
   static constexpr uint32_t INVERTER_SILENCE_MS = 60000;
-  // Once the inverter stops asking for the battery, the contactors stay closed until the current has
-  // gone, but never longer than this
+  /* Hand-over to STANDBY. The state goes to STANDBY at once, and the contactors open no sooner than
+     this after it, once the current has gone. Opened together with the state change, the inverter
+     sees its DC link drop while it still counts on the battery, and reports GEN24-1250 "DC
+     connection between inverter and battery interrupted". */
+  static constexpr uint32_t STANDBY_HANDOVER_MS = 3000;
+  // ...and they open after this long whatever the current, since the inverter has let go of it
   static constexpr uint32_t OPEN_WAIT_MS = 10000;
   static constexpr int16_t OPEN_CURRENT_LIMIT_dA = 20;
 
-  uint16_t requested_op_mode = MODE_NO_REQUEST;
-  uint16_t reached_state = MODE_STANDBY;
+  uint16_t requested_op_mode = REQUEST_NONE;
+  uint16_t last_reported_state = STATE_STANDBY;
   uint16_t last_inverter_rebooting = 0;
+  bool battery_wanted = false;  // The inverter asks for INACTIVE or ACTIVE, and is still talking
   bool contactor_closing_allowed = false;
   bool contactor_lock = false;  // "Lock contactors closed after first close request" has seen that request
-  bool open_pending = false;
-  uint32_t open_pending_since_ms = 0;
+  bool standby_handover = false;
+  uint32_t standby_since_ms = 0;
 
   char inverter_name_text[65] = {0};
   char inverter_firmware_text[21] = {0};

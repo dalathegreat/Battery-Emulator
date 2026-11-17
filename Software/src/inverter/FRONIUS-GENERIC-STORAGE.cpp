@@ -34,9 +34,14 @@ const FroniusGenericStorageInverter::FaultMapping FroniusGenericStorageInverter:
 };
 const uint8_t FroniusGenericStorageInverter::FAULT_MAP_SIZE = sizeof(FAULT_MAP) / sizeof(FAULT_MAP[0]);
 
-const char* FroniusGenericStorageInverter::mode_name(uint16_t mode) {
+const char* FroniusGenericStorageInverter::request_name(uint16_t request) {
+  static const char* const names[] = {"Standby", "Inactive", "Active"};
+  return (request <= REQUEST_ACTIVE) ? names[request] : "unknown";
+}
+
+const char* FroniusGenericStorageInverter::state_name(uint16_t state) {
   static const char* const names[] = {"Standby", "Inactive", "Darkstart", "Active", "Fault", "Updating"};
-  return (mode <= MODE_UPDATING) ? names[mode] : "none";
+  return (state <= STATE_UPDATING) ? names[state] : "unknown";
 }
 
 void FroniusGenericStorageInverter::put_u32(uint16_t reg, uint32_t value) {
@@ -137,8 +142,8 @@ void FroniusGenericStorageInverter::handle_static_data() {
   mbPV[REG_NAMEPLATE + 33] = 1;  // NumberParallelStacks. Several packs are presented as one
   mbPV[REG_NAMEPLATE + 34] = 1;  // NumberModulesPerStack
 
-  mbPV[REG_CONTROL] = MODE_NO_REQUEST;  // opMode
-  mbPV[REG_UPDATE] = 0;                 // UPD_TYPE, no firmware update through the inverter
+  mbPV[REG_CONTROL] = REQUEST_NONE;  // opMode
+  mbPV[REG_UPDATE] = 0;              // UPD_TYPE, no firmware update through the inverter
 
   update_monitoring();
 }
@@ -192,13 +197,18 @@ void FroniusGenericStorageInverter::handle_inverter_details() {
 }
 
 void FroniusGenericStorageInverter::update_contactor_request() {
-  // opMode is the mode the inverter wants the battery in. It keeps writing it until
-  // MonitoringData.state says the same.
+  /* opMode is the mode the inverter wants the battery in. It keeps writing it until
+     MonitoringData.state answers it. As a Symo GEN24 uses it:
+       1 INACTIVE  contactors closed, no current. Where it brings the battery up to, from STANDBY
+       2 ACTIVE    answered with state 3, with the contactors as they are
+       0 STANDBY   contactors open. Only with no backup power configured: with backup the GEN24
+                   keeps the battery ACTIVE, ready for a grid outage. Without, it parks the battery
+                   in STANDBY at minimum SOC with no PV */
   const uint16_t op_mode = mbPV[REG_CONTROL];
   if (op_mode != requested_op_mode) {
     requested_op_mode = op_mode;
     LOG_SET_NEXT_SEVERITY(5);  // notice
-    logging.printf("Inverter requests operating mode %u (%s)\n", op_mode, mode_name(op_mode));
+    logging.printf("Inverter requests operating mode %u (%s)\n", op_mode, request_name(op_mode));
   }
 
   // An inverter that has stopped talking wants nothing, whatever it asked for last. The time of its
@@ -207,71 +217,75 @@ void FroniusGenericStorageInverter::update_contactor_request() {
   const uint32_t last_request = last_request_ms;
   const uint32_t now = millis();
   const bool silent = !inverter_detected || (now - last_request) > INVERTER_SILENCE_MS;
-  const bool wants_battery = !silent && (op_mode == MODE_ACTIVE || op_mode == MODE_DARKSTART);
+  battery_wanted = !silent && (op_mode == REQUEST_INACTIVE || op_mode == REQUEST_ACTIVE);
 
+  // The workarounds decide over the contactors only. The state still answers the request
   switch (user_selected_inverter_contactor_mode) {
     case inverter_contactor_mode_enum::AlwaysClosed:
       contactor_closing_allowed = true;
-      open_pending = false;
+      standby_handover = false;
       return;
     case inverter_contactor_mode_enum::LockAfterFirstClose:
-      contactor_lock = contactor_lock || wants_battery;
+      contactor_lock = contactor_lock || battery_wanted;
       contactor_closing_allowed = contactor_lock;
-      open_pending = false;
+      standby_handover = false;
       return;
     default:
       break;
   }
 
-  if (wants_battery) {
+  if (battery_wanted) {
     contactor_closing_allowed = true;
-    open_pending = false;
+    standby_handover = false;
   } else if (contactor_closing_allowed) {
-    // The inverter has normally stopped all power transfer before it lets go of the battery. Make
-    // sure of it, since the contactors must not open under load.
-    if (!open_pending) {
-      open_pending = true;
-      open_pending_since_ms = now;
+    // STANDBY is reported from here on (see reported_state()). The contactors follow once the
+    // inverter has had time to see it, and the current has gone: they must not open under load.
+    if (!standby_handover) {
+      standby_handover = true;
+      standby_since_ms = now;
     }
+    const uint32_t waited_ms = now - standby_since_ms;
     const int16_t current_dA = datalayer.aggregate.current_dA;
     const bool current_gone = current_dA <= OPEN_CURRENT_LIMIT_dA && current_dA >= -OPEN_CURRENT_LIMIT_dA;
-    if (current_gone || (now - open_pending_since_ms) >= OPEN_WAIT_MS) {
+    if ((waited_ms >= STANDBY_HANDOVER_MS && current_gone) || waited_ms >= OPEN_WAIT_MS) {
       contactor_closing_allowed = false;
-      open_pending = false;
+      standby_handover = false;
     }
   }
+}
+
+bool FroniusGenericStorageInverter::bus_connected() {
+  return contactor_closing_allowed && datalayer.system.status.dc_bus_live;
 }
 
 uint16_t FroniusGenericStorageInverter::reported_state() {
   const system_status_enum status = datalayer.system.status.system_status;
   if (status == FAULT) {
-    return MODE_FAULT;
+    return STATE_FAULT;
   }
   if (status == UPDATING) {
-    return MODE_UPDATING;
+    return STATE_UPDATING;
   }
 
-  // The inverter is answered with the mode it asked for once that mode is reached, and not before:
-  // an ACTIVE battery against a DC input that is still dead makes it complain.
-  const bool connected = contactor_closing_allowed && datalayer.system.status.dc_bus_live;
-  if (requested_op_mode == MODE_ACTIVE || requested_op_mode == MODE_DARKSTART) {
-    reached_state = connected ? requested_op_mode : MODE_STANDBY;
-  } else if (requested_op_mode == MODE_STANDBY || requested_op_mode == MODE_INACTIVE) {
-    // With the contactors held closed by the workaround setting the request is still acknowledged,
-    // so the inverter does not keep repeating it
-    if (!open_pending) {
-      reached_state = requested_op_mode;
-    }
-  } else {
-    // Nothing asked yet. Only connected at this point if the contactors are kept closed regardless
-    reached_state = connected ? MODE_ACTIVE : MODE_STANDBY;
+  // STANDBY until the battery is both asked for and connected. That covers the precharge after a
+  // request, during which the inverter must not count on the battery yet, and the hand-over to
+  // STANDBY, where the state goes first and the contactors after.
+  if (!battery_wanted || !bus_connected()) {
+    return STATE_STANDBY;
   }
-  return reached_state;
+  return (requested_op_mode == REQUEST_INACTIVE) ? STATE_INACTIVE : STATE_ACTIVE;
 }
 
 void FroniusGenericStorageInverter::update_monitoring() {
   const uint16_t state = reported_state();
-  const bool delivering = (state == MODE_ACTIVE || state == MODE_DARKSTART);
+  if (state != last_reported_state) {
+    last_reported_state = state;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("Reporting state %u (%s) to the inverter\n", state, state_name(state));
+  }
+  // The bus values go by the contactors, not by the state: in INACTIVE, and during the hand-over to
+  // STANDBY, the inverter has the battery on its DC link all the same
+  const bool delivering = bus_connected();
 
   uint32_t flags = FLAG_LINK_OK;
   if (datalayer.aggregate.current_dA > 0) {

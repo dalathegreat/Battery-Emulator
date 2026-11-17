@@ -1115,10 +1115,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     const FroniusGenericStorageInverter* fronius = static_cast<FroniusGenericStorageInverter*>(inverter);
     if (var == "FGSMODE") {
       const uint16_t mode = fronius->requested_mode();
-      if (mode == FroniusGenericStorageInverter::MODE_NO_REQUEST) {
+      if (mode == FroniusGenericStorageInverter::REQUEST_NONE) {
         return "not yet received";
       }
-      return String(FroniusGenericStorageInverter::mode_name(mode)) + " (" + String(mode) + ")";
+      return String(FroniusGenericStorageInverter::request_name(mode)) + " (" + String(mode) + ")";
     }
     if (fronius->inverter_name()[0] == 0 && fronius->inverter_firmware()[0] == 0) {
       return "not yet received";
