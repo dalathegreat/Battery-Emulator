@@ -99,7 +99,7 @@ const char* get_charging_status_text(int32_t current_dA, bool inverter_limits_ch
   }
 }
 
-#ifdef HW_LILYGO2CAN
+#if defined(HW_LILYGO2CAN) || defined(HW_WAVESHARE_POE_8CH)
 GPIOOPT1 user_selected_gpioopt1 = GPIOOPT1::DEFAULT_OPT;
 #endif
 #ifdef HW_LILYGO

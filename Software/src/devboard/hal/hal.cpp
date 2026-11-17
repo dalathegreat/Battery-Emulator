@@ -29,6 +29,9 @@ void init_hal() {
 #elif defined(HW_DFROBOT_EDGE101)
 #include "hw_dfrobot_edge101.h"
   esp32hal = new DFRobotEdge101Hal();
+#elif defined(HW_WAVESHARE_POE_8CH)
+#include "hw_waveshare_poe_8ch.h"
+  esp32hal = new WavesharePoE8ChHal();
 #else
 #error "No HW defined."
 #endif

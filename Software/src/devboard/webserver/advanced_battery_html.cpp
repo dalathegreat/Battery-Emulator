@@ -31,6 +31,8 @@ std::vector<BatteryCommand> battery_commands = {
     {"resetCrash", "Unlock crashed BMS",
      "reset crash data? Note this will unlock your BMS and enable contactor closing and SOC calculation.",
      [](Battery* b) { return b && b->supports_reset_crash(); }, [](Battery* b) { b->reset_crash(); }},
+    {"resetDCDCCrash", "Unlock crashed DC/DC", "reset DC/DC crash data? Note this will unlock the DC/DC converter.",
+     [](Battery* b) { return b && b->supports_reset_DCDC_crash(); }, [](Battery* b) { b->reset_DCDC_crash(); }},
     {"resetNVROL", "Perform NVROL reset",
      "trigger an NVROL reset? Battery will be unavailable for 30 seconds while this is active!",
      [](Battery* b) { return b && b->supports_reset_NVROL(); }, [](Battery* b) { b->reset_NVROL(); }},

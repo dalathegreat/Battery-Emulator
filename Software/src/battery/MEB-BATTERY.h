@@ -1,10 +1,29 @@
 #ifndef MEB_BATTERY_H
 #define MEB_BATTERY_H
+
+// DC/DC converter diagnostics over its own ISO-TP channel: crash unlock (same routine as the BMS,
+// own login key) and a DTC table read together with the BMS one. Active only when the VW DC/DC
+// converter is selected in the settings. The functional OBD clear already reaches both ECUs.
+// Defined before MEB-HTML.h, which uses it too.
+#define DCDC_DIAG_SUPPORT
+
 #include "CanBattery.h"
 #include "MEB-HTML.h"
 
 // Uncomment the next line to enable some debug logging.
 //#define MEB_DEBUG
+
+// EXPERIMENT (legacy coordinator only, i.e. no VW DC-DC converter): fake the precharge handshake
+// without any external DC-link voltage. Asserts the HVK_01 precharge bit, waits
+// MEB_EXP_PRECHARGE_DELAY_MS, then requests AC charging as if precharge had matched, to see whether
+// the BMS closes its contactors on its own. The emulator's precharge hardware is NOT driven.
+// WARNING: make sure nothing capacitive is connected to the HV terminals (no inverter DC link) —
+// if the BMS closes, there is no precharge in front of it.
+#define MEB_EXPERIMENT_BLIND_PRECHARGE
+
+extern bool user_selected_VW_iso_measurement;
+extern bool user_selected_VW_dcdc_converter;
+extern uint16_t user_selected_VW_dcdc_lv_setpoint_mV;
 
 // VW Group platform battery types.
 enum class VAGPlatform : uint8_t {
@@ -37,9 +56,20 @@ class MebBattery : public CanBattery, public IsoTp {
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.meb.UserRequestDTCreset = true; }
   bool supports_read_DTC() { return true; }
-  void read_DTC() { datalayer_extended.meb.UserRequestDTCreadout = true; }
+  void read_DTC() {
+    datalayer_extended.meb.UserRequestDTCreadout = true;
+#ifdef DCDC_DIAG_SUPPORT
+    if (user_selected_VW_dcdc_converter) {
+      dcdc_dtc_read_requested = true;
+    }
+#endif
+  }
   bool supports_reset_crash() { return true; }
   void reset_crash() { datalayer_extended.meb.UserRequestCrashReset = true; }
+#ifdef DCDC_DIAG_SUPPORT
+  bool supports_reset_DCDC_crash() { return user_selected_VW_dcdc_converter; }
+  void reset_DCDC_crash() { dcdc_crash_reset_requested = true; }
+#endif
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer_meb->UserRequestBMSReset = true; }
   static constexpr const char* Name = "VW Group MEB platform via CAN-FD";
@@ -53,10 +83,25 @@ class MebBattery : public CanBattery, public IsoTp {
   void uds_read_data_by_id(const uint16_t did, unsigned long currentMillis);
   /* handle a UDS response assembled by the ISO-TP layer */
   void uds_response_handler(const uint8_t* data, int len, enum isotp_tatype type);
+  /* store a ReadDTCInformation 59 02 response into dtc */
+  static void parse_dtc_report(const uint8_t* data, int len, DATALAYER_BATTERY_DTC_TYPE& dtc);
   /* drive basic settings state machine — called every transmit_can() tick */
   void handle_basic_settings(unsigned long currentMillis);
   /* drive the BMS reset state machine — called every transmit_can() tick */
   void handle_bms_reset(unsigned long currentMillis);
+  /* drive the HV bring-up coordinator (sequences the external DCDC + BMS) — called every 100 ms */
+  void high_voltage_coordinator(unsigned long currentMillis);
+  /* HV bring-up without a DC-DC converter, using the emulator's own precharge — called every 100 ms */
+  void high_voltage_coordinator_legacy(unsigned long currentMillis);
+#ifdef MEB_EXPERIMENT_BLIND_PRECHARGE
+  /* experiment: fake precharge handshake without external voltage — overrides bit / matched */
+  void experiment_blind_precharge(unsigned long currentMillis, uint8_t& precharge_bit, bool& precharge_matched);
+  enum class ExpState : uint8_t { IDLE, PRECHARGE, REQUEST_HV, DONE };
+  ExpState exp_state = ExpState::IDLE;
+  unsigned long exp_ms = 0;
+  static constexpr unsigned long MEB_EXP_PRECHARGE_DELAY_MS = 200;  // precharge bit -> AC charging request (100..300)
+  static constexpr unsigned long MEB_EXP_CLOSE_TIMEOUT_MS = 5000;   // give up if BMS has not closed by then
+#endif
   /* IsoTp override: send a raw CAN frame */
   void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override;
   /* IsoTp override: process an assembled ISO-TP message */
@@ -226,6 +271,8 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int ISO_Hybrid_01_Req_FD = 0x1C40007B;
   static const int ISO_Hybrid_01_Resp_FD = 0x1C42007B;
   static const int ISO_Functional_Req_FD = 0x1C410000;
+  static const int ISO_DCDC_Req_FD = 0x1C4000B9;
+  static const int ISO_DCDC_Resp_FD = 0x1C4200B9;
   static const int BMS_04 = 0x5A2;
   static const int BMS_05 = 0x2AF;
   static const int BMS_07 = 0x5CA;
@@ -250,6 +297,9 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int EM_HYB_05 = 0x6A4;
   static const int MSG_HYB_01 = 0x3A6;
   static const int DC_HYB_02 = 0x3AF;
+  static const int DCDC_01 = 0x2AE;
+  static const int DCDC_02 = 0x3F4;
+  static const int DCDC_03 = 0x5CD;
   static const int DCDC_04 = 0xF7;
   static const int Motor_EV_01 = 0x187;
   static const int Airbag_01 = 0x40;
@@ -267,6 +317,7 @@ class MebBattery : public CanBattery, public IsoTp {
   static const int Klima_EV_06 = 0x1A55552B;
   static const int Klima_EV_07 = 0x12DD5513;
   static const int HVEM_04 = 0x569;
+  static const int NVEM_10 = 0x20F;
   static const int eTM_01 = 0x16A954B4;
   static const int NMH_Gateway = 0x1B000010;
   static const int NMH_Klima = 0x1B000046;
@@ -337,6 +388,46 @@ class MebBattery : public CanBattery, public IsoTp {
   uint32_t security_login_key = 20103;       // MEB only, MQB Evo is set in setup() after determining the model.
   unsigned long basic_settings_wait_ms = 0;  // start timestamp between routine steps
 
+#ifdef DCDC_DIAG_SUPPORT
+  // Second ISO-TP channel for UDS to the DC/DC converter. The BMS channel stays on the inherited
+  // IsoTp; this one is a member because IsoTp can only be inherited once.
+  class DcdcIsoTp : public IsoTp {
+   public:
+    explicit DcdcIsoTp(MebBattery& owner) : owner(owner) {}
+
+   protected:
+    // Same CAN-FD 29-bit framing as the BMS channel.
+    void on_isotp_can_tx(uint32_t can_id, const uint8_t* can_data, uint8_t can_dlc) override {
+      owner.on_isotp_can_tx(can_id, can_data, can_dlc);
+    }
+    void on_isotp_rx_complete(const uint8_t* data, int len, isotp_tatype /*tatype*/) override {
+      owner.dcdc_uds_response_handler(data, len);
+    }
+
+   private:
+    MebBattery& owner;
+  };
+  DcdcIsoTp dcdc_isotp{*this};
+
+  /* send a UDS request to the DC/DC and mark it outstanding */
+  void dcdc_uds_send(const uint8_t* payload, int len, unsigned long currentMillis);
+  /* drive the DC/DC crash unlock and DTC readout — called every transmit_can() tick */
+  void handle_dcdc_diag(unsigned long currentMillis);
+  /* handle a UDS response from the DC/DC */
+  void dcdc_uds_response_handler(const uint8_t* data, int len);
+
+  static constexpr uint32_t DCDC_SECURITY_LOGIN_KEY = 14190578;
+  bool dcdc_crash_reset_requested = false;  // set from the WebUI
+  bool dcdc_dtc_read_requested = false;     // set from the WebUI together with the BMS readout
+  bool dcdc_dtc_read_in_progress = false;
+  bool dcdc_uds_request_pending = false;  // one DC/DC transaction at a time, independent of the BMS
+  unsigned long dcdc_uds_request_timestamp = 0;
+  // Crash unlock runs the same steps as the BMS basic settings sequence.
+  BasicSettingsState dcdc_crash_state = BasicSettingsState::IDLE;
+  unsigned long dcdc_crash_wait_ms = 0;  // routine start response timestamp
+  DATALAYER_BATTERY_DTC_TYPE dcdc_dtc = {};
+#endif
+
   // BMS reset state machine. Pause the battery and wait for the current to drop,
   // request HV_OFF + KL15 off, go silent until the BMS sleeps, wait, then restart.
   enum class BmsResetState : uint8_t { IDLE, WAIT_FOR_PAUSE, REQUEST_HV_OFF, SILENCE, SLEEP_WAIT };
@@ -352,6 +443,43 @@ class MebBattery : public CanBattery, public IsoTp {
   static constexpr unsigned long BMS_RESET_BMS_SILENT_MS = 1000;        // RX gap that means "asleep"
   static constexpr unsigned long BMS_RESET_SLEEP_MS = 5000;             // bus-quiet wait before restart
   static constexpr uint32_t BMS_CAN_ERR_IGNORE_MS = 2000;               // ignore CAN errors while BMS wakes after reset
+
+  // HV coordinator: brings HV up by sequencing the external DCDC through precharge, then handing
+  // off to the BMS for AC charging. Any fault sets back to IDLE_HV_OFF.
+  enum class HvCoordinatorState : uint8_t {
+    IDLE_HV_OFF,         // command BMS HV_Off + DCDC Standby; wait for both to report it
+    REQUEST_PRECHARGE,   // command DCDC PRECHARGE_ON; wait dcdc_actual_mode == PRECHARGE_ON
+    PRECHARGING,         // precharge bit set; wait DC precharge status complete AND HV voltage matched
+    REQUEST_BMS_CHARGE,  // command BMS AC charge; wait bms_mode == AC_CHARGING
+    REQUEST_DCDC_BUCK,   // command DCDC CHARGE_12V; wait dcdc_actual_mode == CHARGE_12V
+    RUNNING,             // steady HV on; precharge bit cleared
+  };
+  HvCoordinatorState hv_coordinator_state = HvCoordinatorState::IDLE_HV_OFF;
+  unsigned long hv_coordinator_ms = 0;                     // phase-start timestamp (diagnostics)
+  static constexpr unsigned long HV_STEP_STALL_MS = 3000;  // log if a step stalls this long
+  static constexpr int PRECHARGE_VOLTAGE_MATCH_DV = 100;   // DCDC HV vs pack match window (10 V)
+
+  // Isolation measurement request sent in HVK_01 (bits 50-52): 15 seconds of
+  // measurement alternating with 15 seconds idle, only while KL15 is on.
+  static constexpr unsigned long ISO_MEASUREMENT_PERIOD_MS = 15000;
+  bool iso_measurement_active = false;   // true = request measurement, false = no measurement
+  unsigned long iso_measurement_ms = 0;  // start of the current 15 seconds phase
+
+  static constexpr uint8_t DCDC_MODE_STANDBY = 0;
+  static constexpr uint8_t DCDC_MODE_PRECHARGE_ON = 1;  // precharge
+  static constexpr uint8_t DCDC_MODE_CHARGE_12V = 2;    // buck — normal HV supply
+  static constexpr uint16_t DCDC_MIN_SETPOINT_MV = 10600;
+
+  // DCDC converter state, decoded from the received DCDC_01/02/04 messages.
+  uint8_t dcdc_actual_mode = DCDC_MODE_STANDBY;  // DC mode from DCDC_04
+  bool dcdc_precharge_complete = false;          // DC precharge status from DCDC_04
+  int32_t dcdc_hv_voltage_dV = 0;                // DCDC_01 HV voltage measured
+  int16_t dcdc_hv_current_dA = 0;                // DCDC_01 HV current measured
+  uint8_t dcdc_lv_voltage_dV = 0;                // DCDC_01 LV voltage measured
+  int16_t dcdc_lv_current_A = 0;                 // DCDC_01 LV current measured
+  uint16_t dcdc_consumption = 0;                 // DCDC_02 DC power consumption
+  uint8_t dcdc_utilization_pct = 0;              // DCDC_02 DC utilization percentage
+  int8_t dcdc_temperature = 0;                   // DCDC_03 module temperature
 
   uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
   bool nof_cells_determined = false;
@@ -464,7 +592,7 @@ class MebBattery : public CanBattery, public IsoTp {
   uint16_t predicted_power_dyn_standard_watt = 0;
   uint8_t predicted_time_dyn_standard_minutes = 0;
   uint8_t mux = 0;
-  //uint16_t cellvoltages[160] = {0};
+  uint16_t cellvoltages[160] = {0};
   uint16_t duration_discharge_power_watt = 0;
   uint16_t duration_charge_power_watt = 0;
   uint16_t maximum_voltage = 0;
@@ -533,6 +661,14 @@ class MebBattery : public CanBattery, public IsoTp {
                                                      .DLC = 8,
                                                      .ID = ISO_Hybrid_01_Req_FD,
                                                      .data = {0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55}};
+#ifdef DCDC_DIAG_SUPPORT
+  // Same TesterPresent, to the DC/DC physical address, while its crash unlock runs.
+  static constexpr CAN_frame Tester_present_DCDC_frame = {.FD = true,
+                                                          .ext_ID = true,
+                                                          .DLC = 8,
+                                                          .ID = ISO_DCDC_Req_FD,
+                                                          .data = {0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55}};
+#endif
   //Messages needed for contactor closing
   CAN_frame Airbag_01_frame = {.FD = true,  // Airbag
                                .ext_ID = false,
@@ -685,6 +821,11 @@ class MebBattery : public CanBattery, public IsoTp {
                                  .DLC = 8,
                                  .ID = Motor_EV_01,  // content
                                  .data = {0x00, 0x80, 0x12, 0x00, 0x00, 0x00, 0x30, 0x96}};
+  CAN_frame NVEM_10_frame = {.FD = true,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = NVEM_10,  // content
+                             .data = {0x3E, 0x09, 0x00, 0x00, 0x40, 0x00, 0xFD, 0x00}};
   uint32_t can_msg_received = 0;
 };
 
