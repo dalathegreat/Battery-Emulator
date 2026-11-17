@@ -132,7 +132,7 @@ void FroniusGenericStorageInverter::handle_static_data() {
   put_u32(REG_NAMEPLATE + 13, 53248);                                                        // PeakMaxDischargePwr
   mbPV[REG_NAMEPLATE + 15] = 10;                                                             // PeakMaxDischargeT
   // The SOC sent is already scaled to the window the user allows, so all of it is usable
-  mbPV[REG_NAMEPLATE + 16] = 0;                                 // MinSoCUsable
+  mbPV[REG_NAMEPLATE + 16] = 1;                                 // MinSoCUsable, Never below 1%, to avoid overdischarge
   mbPV[REG_NAMEPLATE + 17] = 100;                               // MaxSoCUsable
   mbPV[REG_NAMEPLATE + 18] = 30;                                // TargetSoCServiceMode
   mbPV[REG_NAMEPLATE + 19] = (uint16_t)BATTERY_MINTEMPERATURE;  // TCellMin, where the emulator itself stops
