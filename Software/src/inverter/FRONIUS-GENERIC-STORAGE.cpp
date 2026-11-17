@@ -1,5 +1,6 @@
 #include "FRONIUS-GENERIC-STORAGE.h"
 #include <esp_mac.h>  // esp_read_mac()
+#include <cstdlib>    // std::abs()
 #include "../battery/BATTERIES.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/safety/safety.h"
@@ -303,12 +304,15 @@ void FroniusGenericStorageInverter::update_monitoring() {
   put_u32(REG_MONITORING + 16, static_cast<uint32_t>(power_W));                   // PDC_internal
   mbPV[REG_MONITORING + 18] = reported_temperature_min_dC;                        // TCellMinAct
   mbPV[REG_MONITORING + 19] = reported_temperature_max_dC;                        // TCellMaxAct
+  // Lifetime counters, which the map has unsigned. Some batteries report discharged energy as a
+  // negative number, so the sign is dropped rather than clamped to 0. Widened first, so that
+  // INT32_MIN has an absolute value too.
   put_u64(REG_MONITORING + 20,
-          std::max(datalayer.aggregate.total_charged_battery_Wh, static_cast<int32_t>(0)));  // TotalEnergyCharged
+          std::abs(static_cast<int64_t>(datalayer.aggregate.total_charged_battery_Wh)));  // TotalEnergyCharged
   put_u64(REG_MONITORING + 24,
-          std::max(datalayer.aggregate.total_discharged_battery_Wh, static_cast<int32_t>(0)));  // TotalEnergyDischarged
-  mbPV[REG_MONITORING + 28] = TEMPERATURE_NOT_AVAILABLE;                                        // TAmbient
-  mbPV[REG_MONITORING + 29] = datalayer.aggregate.soh_pptt;                                     // SOH
+          std::abs(static_cast<int64_t>(datalayer.aggregate.total_discharged_battery_Wh)));  // TotalEnergyDischarged
+  mbPV[REG_MONITORING + 28] = TEMPERATURE_NOT_AVAILABLE;                                     // TAmbient
+  mbPV[REG_MONITORING + 29] = datalayer.aggregate.soh_pptt;                                  // SOH
 }
 
 void FroniusGenericStorageInverter::push_fault(uint16_t type, uint8_t battery, int16_t data, uint64_t utc_s) {

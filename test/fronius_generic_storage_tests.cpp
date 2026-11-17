@@ -147,6 +147,21 @@ TEST_F(FroniusGenericStorageTest, NameplateCarriesTheTemperatureRangeAndNoCalibr
   EXPECT_EQ(inverter.u32(300), 4u);  // InverterIsolationCheck
 }
 
+// Unsigned in the map, but some batteries count discharged energy downwards
+TEST_F(FroniusGenericStorageTest, EnergyCountersAreSentWithoutTheirSign) {
+  datalayer.aggregate.total_charged_battery_Wh = 1234567;
+  datalayer.aggregate.total_discharged_battery_Wh = -1111111;
+  inverter.update_values();
+
+  EXPECT_EQ(inverter.u32(420), 0u);  // TotalEnergyCharged, high half
+  EXPECT_EQ(inverter.u32(422), 1234567u);
+  EXPECT_EQ(inverter.u32(424), 0u);  // TotalEnergyDischarged, high half
+  EXPECT_EQ(inverter.u32(426), 1111111u);
+
+  datalayer.aggregate.total_charged_battery_Wh = 0;
+  datalayer.aggregate.total_discharged_battery_Wh = 0;
+}
+
 // The inverter is set up before the battery, so these are still empty when the static data is
 // written, and they move at runtime as packs join or the capacity is learnt
 TEST_F(FroniusGenericStorageTest, NameplateFollowsTheBatteryOnceItHasReported) {
