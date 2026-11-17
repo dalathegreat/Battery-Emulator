@@ -424,7 +424,7 @@ class BydAttoBattery : public CanBattery {
   static const uint8_t BMS_FEEDBACK_HV_ACTIVE = 0x04;
   static const uint8_t BMS_FEEDBACK_DRIVE_FLAG = 0x02;
   static const uint8_t BMS_FEEDBACK_CHARGE_FLAG = 0x01;
-  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x20;  // Set by DM (PHEV) packs only
+  static const uint8_t BMS_FEEDBACK_DM_PACK = 0x30;  // DM (PHEV) packs only: 0x20, or 0x10 near full
   // 0x344 byte 2 low nibble, the BMS charge state: F none, 0 ready, 1 charging, 2 finished, 4 aborted
   static const uint8_t BMS_CHARGE_STATE_CHARGING = 0x01;
   static const uint8_t BMS_CHARGE_STATE_FINISHED = 0x02;
