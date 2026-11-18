@@ -118,11 +118,25 @@ class FroniusGenericStorageInverter : public BydModbusInverter {
   // ...and if the inverter does not read the state at all, they open after this long, as for an
   // inverter that has gone silent
   static constexpr uint32_t STANDBY_UNSEEN_MS = INVERTER_SILENCE_MS;
+  /* The inverter sends its request only until the state answers it, so after a restart of the
+     emulator it may have nothing to ask, with the battery in STANDBY. That is what it wants after
+     parking the battery, but a GEN24 that has lost the battery to a fault may also stay quiet for
+     good, with GEN24-1250 standing. Answered with INACTIVE or ACTIVE, such a GEN24 asked for STANDBY
+     straight back. So with no request for this long while the inverter talks, FAULT is reported
+     instead, once per start, until the inverter has read it and FAULT_PULSE_MS has passed, or for
+     STANDBY_UNSEEN_MS if it never reads it. Then STANDBY again, as a battery whose fault is over.
+     A request ends it at once. The contactors stay open all along. */
+  static constexpr uint32_t UNREQUESTED_FAULT_MS = 60 * 1000;
+  static constexpr uint32_t FAULT_PULSE_MS = 30000;
 
   uint16_t requested_op_mode = REQUEST_NONE;
   uint16_t last_reported_state = STATE_STANDBY;
   uint16_t last_inverter_rebooting = 0;
   bool battery_wanted = false;  // The inverter asks for INACTIVE or ACTIVE, and is still talking
+  uint32_t unrequested_since_ms = 0;
+  uint32_t fault_pulse_since_ms = 0;
+  bool fault_pulse = false;       // FAULT reported for want of a request, see UNREQUESTED_FAULT_MS
+  bool fault_pulse_done = false;  // Once per start of the emulator
   bool contactor_closing_allowed = false;
   bool contactor_lock = false;  // "Lock contactors closed after first close request" has seen that request
   bool standby_handover = false;

@@ -152,6 +152,7 @@ void FroniusGenericStorageInverter::handle_static_data() {
 
   mbPV[REG_CONTROL] = REQUEST_NONE;  // opMode
   mbPV[REG_UPDATE] = 0;              // UPD_TYPE, no firmware update through the inverter
+  unrequested_since_ms = millis();   // See UNREQUESTED_FAULT_MS
 
   update_monitoring();
 }
@@ -232,6 +233,26 @@ void FroniusGenericStorageInverter::update_contactor_request() {
   const bool silent = !inverter_detected || (now - last_request) > INVERTER_SILENCE_MS;
   battery_wanted = !silent && (op_mode == REQUEST_INACTIVE || op_mode == REQUEST_ACTIVE);
 
+  // No request since the emulator started, from an inverter that talks: see UNREQUESTED_FAULT_MS
+  if (op_mode != REQUEST_NONE || silent) {
+    unrequested_since_ms = now;
+    fault_pulse = fault_pulse && op_mode == REQUEST_NONE;
+  } else if (!fault_pulse_done && (now - unrequested_since_ms) >= UNREQUESTED_FAULT_MS) {
+    fault_pulse = true;
+    fault_pulse_done = true;
+    fault_pulse_since_ms = now;
+    LOG_SET_NEXT_SEVERITY(5);  // notice
+    logging.printf("%sNo request from the inverter for %lu s, reporting FAULT for a moment\n", log_prefix,
+                   (unsigned long)(UNREQUESTED_FAULT_MS / 1000));
+  }
+  if (fault_pulse) {
+    const uint32_t shown_ms = now - fault_pulse_since_ms;
+    const bool seen = last_reported_state == STATE_FAULT && (state_reads - state_reads_at_change) >= 2;
+    if ((seen && shown_ms >= FAULT_PULSE_MS) || shown_ms >= STANDBY_UNSEEN_MS) {
+      fault_pulse = false;
+    }
+  }
+
   // The workarounds decide over the contactors only. The state still answers the request
   switch (user_selected_inverter_contactor_mode) {
     case inverter_contactor_mode_enum::AlwaysClosed:
@@ -295,6 +316,9 @@ uint16_t FroniusGenericStorageInverter::reported_state() {
   }
   if (status == UPDATING) {
     return STATE_UPDATING;
+  }
+  if (fault_pulse) {
+    return STATE_FAULT;  // See UNREQUESTED_FAULT_MS
   }
 
   // STANDBY until the battery is both asked for and connected. That covers the precharge after a
